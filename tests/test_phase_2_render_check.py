@@ -19,6 +19,14 @@ from worldsim.phases.phase_2_render_check import (
     verify_seed_renders,
 )
 
+
+@pytest.fixture
+def short_body_poll(monkeypatch: pytest.MonkeyPatch) -> None:
+    from worldsim.phases import phase_2_render_check as rc
+
+    monkeypatch.setattr(rc, "_BODY_POLL_TIMEOUT_MS", 1)
+
+
 # ---------------------------------------------------------------------------
 # Fakes
 # ---------------------------------------------------------------------------
@@ -544,7 +552,7 @@ async def test_body_poll_detects_late_arriving_signature():
 
 
 @pytest.mark.asyncio
-async def test_body_poll_times_out_falls_through_to_signature_absent():
+async def test_body_poll_times_out_falls_through_to_signature_absent(short_body_poll):
     # Body never contains the signature within the poll window. Fall
     # through to the existing signature_absent classification.
     url = "http://gitlab.test/proj/-/issues/5"
@@ -655,9 +663,10 @@ class _WaitForBodyPage:
     """Fake page that records wait_for_timeout intervals and returns
     scripted body snapshots on successive text_content calls."""
 
-    def __init__(self, bodies: list[str]) -> None:
+    def __init__(self, bodies: list[str], advance_time=None) -> None:
         self._bodies = list(bodies)
         self.intervals_ms: list[int] = []
+        self._advance_time = advance_time
 
     async def text_content(self, selector: str) -> str:
         assert selector == "body"
@@ -667,15 +676,28 @@ class _WaitForBodyPage:
 
     async def wait_for_timeout(self, ms: int) -> None:
         self.intervals_ms.append(ms)
+        if self._advance_time is not None:
+            self._advance_time(ms / 1000.0)
 
 
 @pytest.mark.asyncio
-async def test_wait_for_body_text_uses_exponential_backoff_schedule():
+async def test_wait_for_body_text_uses_exponential_backoff_schedule(monkeypatch):
     from worldsim.phases import phase_2_render_check as rc
+
+    now = 0.0
+
+    def monotonic() -> float:
+        return now
+
+    def advance_time(seconds: float) -> None:
+        nonlocal now
+        now += seconds
+
+    monkeypatch.setattr(rc.time, "monotonic", monotonic)
 
     # Supply enough empty bodies that the poll never matches; we are
     # inspecting the backoff schedule, not the match path.
-    page = _WaitForBodyPage(bodies=["" for _ in range(20)])
+    page = _WaitForBodyPage(bodies=["" for _ in range(20)], advance_time=advance_time)
     result = await rc._wait_for_body_text(page, "never-matches", timeout_ms=15000)
     assert result is False
     # Expected schedule: 100, 200, 400, 800, 1600, 2000, 2000, ...
@@ -787,7 +809,7 @@ class _RYWBrowser:
 
 
 @pytest.mark.asyncio
-async def test_ryw_fastpath_matches_note_id_in_discussions_json():
+async def test_ryw_fastpath_matches_note_id_in_discussions_json(short_body_poll):
     """Text-match misses; note_id is in discussions.json; RYW match wins.
     Reclaims the class of render_unverified flakes where GitLab's
     sidekiq + cache tail blows past the 20 s body-poll deadline."""
@@ -825,7 +847,7 @@ async def test_ryw_fastpath_matches_note_id_in_discussions_json():
 
 
 @pytest.mark.asyncio
-async def test_ryw_fastpath_extracts_rendered_body_text():
+async def test_ryw_fastpath_extracts_rendered_body_text(short_body_poll):
     url = "http://gitlab.test/proj/-/issues/5"
     json_url = url + "/discussions.json"
     discussions_body = (
@@ -853,7 +875,7 @@ async def test_ryw_fastpath_extracts_rendered_body_text():
 
 
 @pytest.mark.asyncio
-async def test_ryw_fastpath_rendered_body_text_none_when_note_html_missing():
+async def test_ryw_fastpath_rendered_body_text_none_when_note_html_missing(short_body_poll):
     url = "http://gitlab.test/proj/-/issues/5"
     json_url = url + "/discussions.json"
     discussions_body = '[{"id":"abc","notes":[{"id":42,"body":"Raising priority..."}]}]'
@@ -882,7 +904,7 @@ def test_strip_html_normalizes_entities_and_whitespace():
 
 
 @pytest.mark.asyncio
-async def test_ryw_fastpath_forwards_scoped_http_headers_to_same_origin_json():
+async def test_ryw_fastpath_forwards_scoped_http_headers_to_same_origin_json(short_body_poll):
     url = "http://gitlab.test/proj/-/issues/5"
     json_url = url + "/discussions.json"
     json_responses = {
@@ -914,7 +936,7 @@ async def test_ryw_fastpath_forwards_scoped_http_headers_to_same_origin_json():
 
 
 @pytest.mark.asyncio
-async def test_ryw_fastpath_does_not_fire_without_note_id():
+async def test_ryw_fastpath_does_not_fire_without_note_id(short_body_poll):
     url = "http://gitlab.test/proj/-/issues/5"
     page = _RYWPage(bodies=["shell only"] * 60, final_body="shell only")
     browser = _RYWBrowser(page)
@@ -952,7 +974,7 @@ async def test_ryw_fastpath_does_not_fire_outside_gitlab_issue_mr():
 
 
 @pytest.mark.asyncio
-async def test_ryw_fastpath_falls_through_when_note_id_absent_from_json():
+async def test_ryw_fastpath_falls_through_when_note_id_absent_from_json(short_body_poll):
     """JSON fetched, but the id isn't there (ghost write). Must not
     falsely pass; task remains render_unverified."""
     url = "http://gitlab.test/proj/-/issues/5"
@@ -978,7 +1000,7 @@ async def test_ryw_fastpath_falls_through_when_note_id_absent_from_json():
 
 
 @pytest.mark.asyncio
-async def test_ryw_fastpath_handles_spaced_json_encoding():
+async def test_ryw_fastpath_handles_spaced_json_encoding(short_body_poll):
     """Ruby's ActiveSupport::JSON can emit ``"id": 42`` with a space;
     accept both compact and spaced forms."""
     url = "http://gitlab.test/proj/-/merge_requests/7"
@@ -1003,7 +1025,7 @@ async def test_ryw_fastpath_handles_spaced_json_encoding():
 
 
 @pytest.mark.asyncio
-async def test_ryw_fastpath_handles_quoted_string_id_encoding():
+async def test_ryw_fastpath_handles_quoted_string_id_encoding(short_body_poll):
     """GitLab's view-controller JSON serializes note_id as a quoted string
     (``"id":"42"``) — the discussions.json endpoint that the fastpath
     fetches goes through a different serializer than the REST API. Live
@@ -1030,7 +1052,7 @@ async def test_ryw_fastpath_handles_quoted_string_id_encoding():
 
 
 @pytest.mark.asyncio
-async def test_ryw_fastpath_handles_quoted_string_id_with_space():
+async def test_ryw_fastpath_handles_quoted_string_id_with_space(short_body_poll):
     """Spaced + quoted form: ``"id": "42"``."""
     url = "http://gitlab.test/proj/-/issues/9"
     json_url = url + "/discussions.json"

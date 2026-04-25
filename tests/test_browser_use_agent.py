@@ -454,21 +454,51 @@ async def test_network_trace_stop_returns_evaluator_trace_with_auth_headers_reda
         "_finalize_trace",
         lambda: [
             {
-                "url": "http://reddit.test/f/news",
+                "url": "http://reddit.test/f/news?q=needle&token=secret#frag",
                 "query_params": {"q": ["needle"]},
                 "headers": {"X-Postmill-Auto-Login": "alice:pw"},
-                "response_headers": {},
+                "response_headers": {"Set-Cookie": "sid=secret"},
+                "response_cookies": {"sid": "secret"},
                 "post_data": "payload=needle",
+                "redirect_chain": [
+                    {"url": "http://reddit.test/login?token=secret#frag", "status": 302}
+                ],
             }
         ],
     )
-    monkeypatch.setattr(recorder, "_write_trace", lambda trace: None)
+    recorder._nav_events = [
+        {
+            "url": "http://reddit.test/f/news?token=secret#frag",
+            "navigation_type": "Navigation",
+            "timestamp": 1700000000.0,
+            "kind": "document",
+            "pageref": "page_1",
+        }
+    ]
 
     trace = await recorder.stop()
 
     assert trace[0]["headers"]["X-Postmill-Auto-Login"] == "<redacted>"
     assert trace[0]["query_params"] == {"q": ["needle"]}
     assert trace[0]["post_data"] == "payload=needle"
+    assert trace[0]["response_cookies"] == {"sid": "<redacted>"}
+
+    persisted_trace = json.loads((tmp_path / "network_trace.json").read_text())
+    assert persisted_trace[0]["url"] == (
+        "http://reddit.test/f/news?q=%3Credacted%3E&token=%3Credacted%3E"
+    )
+    assert persisted_trace[0]["query_params"] == {"q": ["<redacted>"]}
+    assert persisted_trace[0]["post_data"] == "<redacted>"
+    assert persisted_trace[0]["response_cookies"] == {"sid": "<redacted>"}
+    assert persisted_trace[0]["redirect_chain"] == [
+        {"url": "http://reddit.test/login?token=%3Credacted%3E", "status": 302}
+    ]
+
+    nav_trace = json.loads((tmp_path / "navigation_trace.json").read_text())
+    assert nav_trace[0]["url"] == "http://reddit.test/f/news?token=%3Credacted%3E"
+
+    har = json.loads((tmp_path / "network.har").read_text())
+    assert har["log"]["pages"][0]["title"] == ("http://reddit.test/f/news?token=%3Credacted%3E")
 
 
 @pytest.mark.asyncio

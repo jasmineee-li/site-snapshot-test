@@ -161,17 +161,20 @@ def test_navigated_within_document_records_spa_hop(tmp_path):
     assert "pageref" not in within[0]
 
 
-def test_write_trace_emits_navigation_trace_json(tmp_path):
+def test_write_trace_emits_redacted_navigation_trace_json(tmp_path):
     rec = _recorder(tmp_path)
     rec._on_frame_navigated(
         {
-            "frame": {"url": "http://site.test/issues/42", "parentId": None},
+            "frame": {
+                "url": "http://site.test/issues/42?token=secret#frag",
+                "parentId": None,
+            },
             "type": "Navigation",
         }
     )
     rec._on_navigated_within_document(
         {
-            "url": "http://site.test/issues/42#note_1",
+            "url": "http://site.test/issues/42?sid=secret#note_1",
             "navigationType": "fragment",
         }
     )
@@ -180,6 +183,11 @@ def test_write_trace_emits_navigation_trace_json(tmp_path):
     assert len(persisted) == 2
     kinds = [entry["kind"] for entry in persisted]
     assert kinds == ["document", "within_document"]
+    assert persisted[0]["url"] == "http://site.test/issues/42?token=%3Credacted%3E"
+    assert persisted[1]["url"] == "http://site.test/issues/42?sid=%3Credacted%3E"
+
+    har = json.loads((tmp_path / "network.har").read_text())
+    assert har["log"]["pages"][0]["title"] == ("http://site.test/issues/42?token=%3Credacted%3E")
 
 
 def test_finalize_trace_assigns_pageref_to_entries(tmp_path):

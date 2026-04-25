@@ -17,6 +17,7 @@ def test_trace_redaction_removes_sensitive_wire_data():
         },
         "post_data": '{"password": "secret"}',
         "response_cookies": {"session": "abc"},
+        "redirect_chain": [{"url": "http://example.test/login?code=secret#frag", "status": 302}],
     }
 
     redacted = _NetworkTraceRecorder._redact_trace_entry(entry)
@@ -31,6 +32,29 @@ def test_trace_redaction_removes_sensitive_wire_data():
     assert redacted["response_headers"]["Set-Cookie"] == "<redacted>"
     assert redacted["response_headers"]["Cache-Control"] == "no-cache"
     assert redacted["post_data"] == "<redacted>"
+    assert redacted["response_cookies"] == {"session": "<redacted>"}
+    assert redacted["redirect_chain"] == [
+        {"url": "http://example.test/login?code=%3Credacted%3E", "status": 302}
+    ]
+
+
+def test_evaluator_trace_preserves_payloads_but_redacts_cookies():
+    entry = {
+        "url": "http://example.test/search?q=needle",
+        "headers": {"Authorization": "Bearer secret"},
+        "query_params": {"q": ["needle"]},
+        "response_headers": {"Set-Cookie": "session=abc"},
+        "post_data": "payload=needle",
+        "response_cookies": {"session": "abc"},
+    }
+
+    redacted = _NetworkTraceRecorder._redact_trace_entry(entry, redact_payloads=False)
+
+    assert redacted["url"] == "http://example.test/search?q=needle"
+    assert redacted["query_params"] == {"q": ["needle"]}
+    assert redacted["post_data"] == "payload=needle"
+    assert redacted["headers"]["Authorization"] == "<redacted>"
+    assert redacted["response_headers"]["Set-Cookie"] == "<redacted>"
     assert redacted["response_cookies"] == {"session": "<redacted>"}
 
 

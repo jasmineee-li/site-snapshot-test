@@ -563,6 +563,8 @@ class _NetworkTraceRecorder:
             nav_events_to_har_pages,
         )
 
+        redacted_nav_events = [self._redact_navigation_event(event) for event in self._nav_events]
+
         try:
             write_json_atomic(
                 self._task_dir / "network_trace.json",
@@ -574,13 +576,13 @@ class _NetworkTraceRecorder:
         try:
             write_json_atomic(
                 self._task_dir / "navigation_trace.json",
-                self._nav_events,
+                redacted_nav_events,
             )
         except Exception as e:
             logger.warning("Failed to write navigation_trace.json: %s", e)
 
         har_entries = flat_events_to_har_entries(trace)
-        har_pages = nav_events_to_har_pages(self._nav_events)
+        har_pages = nav_events_to_har_pages(redacted_nav_events)
         payload = {
             "log": {
                 "version": "1.2",
@@ -612,9 +614,9 @@ class _NetworkTraceRecorder:
         redacted = dict(entry)
         if redact_payloads:
             redacted["url"] = cls._redact_url(redacted.get("url", ""))
-            redacted["query_params"] = cls._redact_query_params(
-                redacted.get("query_params", {})
-            )
+            redacted["query_params"] = cls._redact_query_params(redacted.get("query_params", {}))
+            if redacted.get("redirect_chain"):
+                redacted["redirect_chain"] = cls._redact_redirect_chain(redacted["redirect_chain"])
         redacted["headers"] = cls._redact_headers(
             redacted.get("headers", {}),
             sensitive_header_names=sensitive_header_names,
@@ -625,11 +627,53 @@ class _NetworkTraceRecorder:
         )
         if redact_payloads and redacted.get("post_data") is not None:
             redacted["post_data"] = "<redacted>"
-        if redact_payloads and redacted.get("response_cookies"):
-            redacted["response_cookies"] = {
-                key: "<redacted>" for key in redacted["response_cookies"]
-            }
+        if redacted.get("response_cookies"):
+            redacted["response_cookies"] = cls._redact_cookies(redacted["response_cookies"])
         return redacted
+
+    @classmethod
+    def _redact_navigation_event(cls, event: dict[str, Any]) -> dict[str, Any]:
+        """Redact top-frame navigation URLs before persisting artifacts."""
+        redacted = dict(event)
+        if redacted.get("url") is not None:
+            redacted["url"] = cls._redact_url(str(redacted.get("url") or ""))
+        return redacted
+
+    @classmethod
+    def _redact_redirect_chain(cls, redirect_chain: Any) -> list[Any]:
+        """Redact URL-bearing redirect hops while preserving hop metadata."""
+        if not isinstance(redirect_chain, list):
+            return []
+        redacted_chain: list[Any] = []
+        for hop in redirect_chain:
+            if not isinstance(hop, dict):
+                redacted_chain.append(hop)
+                continue
+            redacted_hop = dict(hop)
+            if redacted_hop.get("url") is not None:
+                redacted_hop["url"] = cls._redact_url(str(redacted_hop.get("url") or ""))
+            redacted_chain.append(redacted_hop)
+        return redacted_chain
+
+    @classmethod
+    def _redact_cookies(cls, cookies: Any) -> Any:
+        """Preserve cookie names while removing all cookie values."""
+        if isinstance(cookies, dict):
+            return {str(key): "<redacted>" for key in cookies}
+        if isinstance(cookies, list):
+            redacted: list[Any] = []
+            for cookie in cookies:
+                if isinstance(cookie, dict):
+                    cookie_copy = dict(cookie)
+                    if "value" in cookie_copy:
+                        cookie_copy["value"] = "<redacted>"
+                    redacted.append(cookie_copy)
+                elif isinstance(cookie, (list, tuple)) and len(cookie) == 2:
+                    redacted.append([cookie[0], "<redacted>"])
+                else:
+                    redacted.append("<redacted>")
+            return redacted
+        return "<redacted>"
 
     @classmethod
     def _redact_headers(
@@ -645,8 +689,10 @@ class _NetworkTraceRecorder:
         }
         for key, value in headers.items():
             lower = str(key).lower()
-            if lower in configured_sensitive or lower in _SENSITIVE_HEADER_NAMES or any(
-                marker in lower for marker in _SENSITIVE_HEADER_SUBSTRINGS
+            if (
+                lower in configured_sensitive
+                or lower in _SENSITIVE_HEADER_NAMES
+                or any(marker in lower for marker in _SENSITIVE_HEADER_SUBSTRINGS)
             ):
                 redacted[str(key)] = "<redacted>"
             else:
@@ -802,9 +848,7 @@ class _ScopedHeaderAuthInjector:
                 continue
             try:
                 session = await asyncio.wait_for(
-                    self._browser_session.get_or_create_cdp_session(
-                        target_id, focus=False
-                    ),
+                    self._browser_session.get_or_create_cdp_session(target_id, focus=False),
                     timeout=2,
                 )
                 await asyncio.wait_for(
@@ -903,9 +947,7 @@ class _ScopedHeaderAuthInjector:
         if _origin_from_url(str(request_url or "")) == self.origin:
             existing = request.get("headers") if isinstance(request, dict) else {}
             existing_headers = (
-                {str(k): str(v) for k, v in existing.items()}
-                if isinstance(existing, dict)
-                else {}
+                {str(k): str(v) for k, v in existing.items()} if isinstance(existing, dict) else {}
             )
             params["headers"] = [
                 {"name": name, "value": value}
@@ -1119,7 +1161,9 @@ def _resolve_auth(
                 )
 
         if path is None:
-            raise declared_error or AuthArtifactMissingError("storage_state path could not be resolved")
+            raise declared_error or AuthArtifactMissingError(
+                "storage_state path could not be resolved"
+            )
 
         if not path.exists():
             generator = sub.get("generator_script")
