@@ -9,11 +9,14 @@ def test_trace_redaction_removes_sensitive_wire_data():
         "headers": {
             "Authorization": "Bearer secret",
             "Content-Type": "application/json",
+            "Referer": "http://example.test/start?session=abc#frag",
+            "X-Callback-URL": "https://example.test/callback?token=abc#frag",
         },
         "query_params": {"token": ["abc"], "user": ["demo"]},
         "response_headers": {
             "Set-Cookie": "session=abc",
             "Cache-Control": "no-cache",
+            "Location": "/dashboard?token=abc#frag",
         },
         "post_data": '{"password": "secret"}',
         "response_cookies": {"session": "abc"},
@@ -29,8 +32,13 @@ def test_trace_redaction_removes_sensitive_wire_data():
     }
     assert redacted["headers"]["Authorization"] == "<redacted>"
     assert redacted["headers"]["Content-Type"] == "application/json"
+    assert redacted["headers"]["Referer"] == "http://example.test/start?session=%3Credacted%3E"
+    assert redacted["headers"]["X-Callback-URL"] == (
+        "https://example.test/callback?token=%3Credacted%3E"
+    )
     assert redacted["response_headers"]["Set-Cookie"] == "<redacted>"
     assert redacted["response_headers"]["Cache-Control"] == "no-cache"
+    assert redacted["response_headers"]["Location"] == "/dashboard?token=%3Credacted%3E"
     assert redacted["post_data"] == "<redacted>"
     assert redacted["response_cookies"] == {"session": "<redacted>"}
     assert redacted["redirect_chain"] == [
@@ -41,9 +49,15 @@ def test_trace_redaction_removes_sensitive_wire_data():
 def test_evaluator_trace_preserves_payloads_but_redacts_cookies():
     entry = {
         "url": "http://example.test/search?q=needle",
-        "headers": {"Authorization": "Bearer secret"},
+        "headers": {
+            "Authorization": "Bearer secret",
+            "Referer": "http://example.test/start?q=needle",
+        },
         "query_params": {"q": ["needle"]},
-        "response_headers": {"Set-Cookie": "session=abc"},
+        "response_headers": {
+            "Set-Cookie": "session=abc",
+            "Location": "http://example.test/search/results?q=needle",
+        },
         "post_data": "payload=needle",
         "response_cookies": {"session": "abc"},
     }
@@ -54,7 +68,9 @@ def test_evaluator_trace_preserves_payloads_but_redacts_cookies():
     assert redacted["query_params"] == {"q": ["needle"]}
     assert redacted["post_data"] == "payload=needle"
     assert redacted["headers"]["Authorization"] == "<redacted>"
+    assert redacted["headers"]["Referer"] == "http://example.test/start?q=needle"
     assert redacted["response_headers"]["Set-Cookie"] == "<redacted>"
+    assert redacted["response_headers"]["Location"] == "http://example.test/search/results?q=needle"
     assert redacted["response_cookies"] == {"session": "<redacted>"}
 
 

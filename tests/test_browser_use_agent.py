@@ -456,8 +456,14 @@ async def test_network_trace_stop_returns_evaluator_trace_with_auth_headers_reda
             {
                 "url": "http://reddit.test/f/news?q=needle&token=secret#frag",
                 "query_params": {"q": ["needle"]},
-                "headers": {"X-Postmill-Auto-Login": "alice:pw"},
-                "response_headers": {"Set-Cookie": "sid=secret"},
+                "headers": {
+                    "X-Postmill-Auto-Login": "alice:pw",
+                    "Referer": "http://reddit.test/ref?token=secret#frag",
+                },
+                "response_headers": {
+                    "Set-Cookie": "sid=secret",
+                    "Location": "http://reddit.test/done?token=secret#frag",
+                },
                 "response_cookies": {"sid": "secret"},
                 "post_data": "payload=needle",
                 "redirect_chain": [
@@ -479,6 +485,8 @@ async def test_network_trace_stop_returns_evaluator_trace_with_auth_headers_reda
     trace = await recorder.stop()
 
     assert trace[0]["headers"]["X-Postmill-Auto-Login"] == "<redacted>"
+    assert trace[0]["headers"]["Referer"] == "http://reddit.test/ref?token=secret#frag"
+    assert trace[0]["response_headers"]["Location"] == ("http://reddit.test/done?token=secret#frag")
     assert trace[0]["query_params"] == {"q": ["needle"]}
     assert trace[0]["post_data"] == "payload=needle"
     assert trace[0]["response_cookies"] == {"sid": "<redacted>"}
@@ -486,6 +494,12 @@ async def test_network_trace_stop_returns_evaluator_trace_with_auth_headers_reda
     persisted_trace = json.loads((tmp_path / "network_trace.json").read_text())
     assert persisted_trace[0]["url"] == (
         "http://reddit.test/f/news?q=%3Credacted%3E&token=%3Credacted%3E"
+    )
+    assert persisted_trace[0]["headers"]["Referer"] == (
+        "http://reddit.test/ref?token=%3Credacted%3E"
+    )
+    assert persisted_trace[0]["response_headers"]["Location"] == (
+        "http://reddit.test/done?token=%3Credacted%3E"
     )
     assert persisted_trace[0]["query_params"] == {"q": ["<redacted>"]}
     assert persisted_trace[0]["post_data"] == "<redacted>"
@@ -499,6 +513,13 @@ async def test_network_trace_stop_returns_evaluator_trace_with_auth_headers_reda
 
     har = json.loads((tmp_path / "network.har").read_text())
     assert har["log"]["pages"][0]["title"] == ("http://reddit.test/f/news?token=%3Credacted%3E")
+    har_entry = har["log"]["entries"][0]
+    har_request_headers = {item["name"]: item["value"] for item in har_entry["request"]["headers"]}
+    har_response_headers = {
+        item["name"]: item["value"] for item in har_entry["response"]["headers"]
+    }
+    assert har_request_headers["Referer"] == "http://reddit.test/ref?token=%3Credacted%3E"
+    assert har_response_headers["Location"] == "http://reddit.test/done?token=%3Credacted%3E"
 
 
 @pytest.mark.asyncio

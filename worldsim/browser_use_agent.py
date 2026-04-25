@@ -57,6 +57,12 @@ _SENSITIVE_HEADER_SUBSTRINGS = (
     "csrf",
     "key",
 )
+_URL_VALUE_HEADER_NAMES = {
+    "referer",
+    "referrer",
+    "location",
+    "content-location",
+}
 _PHASE_0D_SITE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _CDP_VIEWPORT_JS = """
 (() => ({
@@ -620,10 +626,12 @@ class _NetworkTraceRecorder:
         redacted["headers"] = cls._redact_headers(
             redacted.get("headers", {}),
             sensitive_header_names=sensitive_header_names,
+            redact_url_values=redact_payloads,
         )
         redacted["response_headers"] = cls._redact_headers(
             redacted.get("response_headers", {}),
             sensitive_header_names=sensitive_header_names,
+            redact_url_values=redact_payloads,
         )
         if redact_payloads and redacted.get("post_data") is not None:
             redacted["post_data"] = "<redacted>"
@@ -681,6 +689,7 @@ class _NetworkTraceRecorder:
         headers: dict[str, Any],
         *,
         sensitive_header_names: set[str] | None = None,
+        redact_url_values: bool = False,
     ) -> dict[str, Any]:
         """Redact sensitive header values while preserving non-secret metadata."""
         redacted: dict[str, Any] = {}
@@ -695,9 +704,25 @@ class _NetworkTraceRecorder:
                 or any(marker in lower for marker in _SENSITIVE_HEADER_SUBSTRINGS)
             ):
                 redacted[str(key)] = "<redacted>"
+            elif redact_url_values:
+                redacted[str(key)] = cls._redact_header_url_value(lower, value)
             else:
                 redacted[str(key)] = value
         return redacted
+
+    @classmethod
+    def _redact_header_url_value(cls, lower_key: str, value: Any) -> Any:
+        """Redact query/fragment data from URL-bearing header values."""
+        if not isinstance(value, str):
+            return value
+        stripped = value.strip()
+        if not stripped:
+            return value
+        if lower_key in _URL_VALUE_HEADER_NAMES or stripped.lower().startswith(
+            ("http://", "https://")
+        ):
+            return cls._redact_url(stripped)
+        return value
 
     @classmethod
     def _redact_query_params(cls, query_params: dict[str, Any]) -> dict[str, list[str]]:
