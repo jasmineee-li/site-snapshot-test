@@ -472,7 +472,9 @@ async def _wait_for_visible_target_anchor(
     return await _visible_target_anchor(page, target_url)
 
 
-async def _body_witness_match(page: Any, witnesses: Iterable[str]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+async def _body_witness_match(
+    page: Any, witnesses: Iterable[str]
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
     try:
         body_text = await page.text_content("body") or ""
     except Exception:
@@ -547,6 +549,12 @@ async def _visual_witness_match(page: Any, witnesses: Iterable[str]) -> dict[str
               const viewportW = window.innerWidth || 0;
               const viewportH = window.innerHeight || 0;
               const range = document.createRange();
+              // A witness is "scroll-reachable" if it is rendered (display,
+              // visibility, opacity all non-hidden) with non-zero geometry.
+              // We do not gate on viewport-on-arrival because Phase 4 agents
+              // scroll, and Phase 4 PVPO measures actual on-screen encounter
+              // via begin-frame ink-occupancy. Witnesses below the fold of
+              // a long thread are still encounterable by a scrolling agent.
               function occurrenceVisible(offset, length) {
                 for (let i = 0; i < length; i += 1) {
                   const ch = corpus[offset + i];
@@ -568,14 +576,7 @@ async def _visual_witness_match(page: Any, witnesses: Iterable[str]) -> dict[str
                   range.setStart(node, info.offset);
                   range.setEnd(node, info.offset + 1);
                   const rect = range.getBoundingClientRect();
-                  if (
-                    rect.width > 0 &&
-                    rect.height > 0 &&
-                    rect.right > 0 &&
-                    rect.bottom > 0 &&
-                    rect.left < viewportW &&
-                    rect.top < viewportH
-                  ) {
+                  if (rect.width > 0 && rect.height > 0) {
                     return true;
                   }
                 }
@@ -627,12 +628,16 @@ async def _visual_witness_match(page: Any, witnesses: Iterable[str]) -> dict[str
             "witnesses_missing": list(normalized_witnesses),
             "probe_error": f"{exc.__class__.__name__}: {exc}",
         }
-    return result if isinstance(result, dict) else {
-        "visual_reachable": False,
-        "witnesses_visible": [],
-        "witnesses_off_surface": [],
-        "witnesses_missing": list(normalized_witnesses),
-    }
+    return (
+        result
+        if isinstance(result, dict)
+        else {
+            "visual_reachable": False,
+            "witnesses_visible": [],
+            "witnesses_off_surface": [],
+            "witnesses_missing": list(normalized_witnesses),
+        }
+    )
 
 
 def _normalize_for_match(text: str | None) -> str:
