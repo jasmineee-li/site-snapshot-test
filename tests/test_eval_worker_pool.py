@@ -128,6 +128,61 @@ async def test_run_eval_deterministically_routes_tasks_despite_setup_race(monkey
 
 
 @pytest.mark.asyncio
+async def test_run_eval_global_max_workers_caps_active_agents(monkeypatch, tmp_path):
+    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    monkeypatch.setattr(
+        "worldsim.eval_worker_pool._worker_index_for_task",
+        lambda task, *, replica_count, site_name: int(task["worker"]),
+    )
+
+    active_agents = 0
+    max_active_agents = 0
+    lock = asyncio.Lock()
+
+    class _CountingAgent:
+        async def setup(self, server_url: str) -> None:
+            nonlocal active_agents, max_active_agents
+            async with lock:
+                active_agents += 1
+                max_active_agents = max(max_active_agents, active_agents)
+
+        async def teardown(self) -> None:
+            nonlocal active_agents
+            async with lock:
+                active_agents -= 1
+
+    instances = [
+        BenchmarkInstance(
+            site_name="shopping",
+            site_url=f"http://shopping-{index}.test",
+            replica_index=index,
+            replica_name=f"shopping_{index}",
+        )
+        for index in range(3)
+    ]
+    tasks = [{"id": f"task-{index}", "worker": index} for index in range(3)]
+    seen_instances: set[str] = set()
+
+    async def task_runner(task, agent, instance, task_dir):
+        seen_instances.add(instance.site_url)
+        await asyncio.sleep(0.01)
+        return {"task_id": task["id"], "passed": True}
+
+    results = await run_eval(
+        tasks=tasks,
+        instances=instances,
+        agent_factory=lambda: _CountingAgent(),
+        task_runner=task_runner,
+        task_dir_root=tmp_path,
+        max_workers=1,
+    )
+
+    assert len(results) == 3
+    assert max_active_agents == 1
+    assert seen_instances == {instance.site_url for instance in instances}
+
+
+@pytest.mark.asyncio
 async def test_run_eval_resume_keeps_task_on_same_replica(monkeypatch, tmp_path):
     monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
 

@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,8 @@ logger = logging.getLogger(__name__)
 
 #: Seconds between successive worker startups. The v5 spec pins this at 5s.
 STAGGER_DELAY = 5
+_MAX_WORKERS_ENV = "WORLDSIM_MAX_WORKERS"
+_GLOBAL_WORKER_SEMAPHORES: dict[tuple[int, int], asyncio.Semaphore] = {}
 
 _OUTCOME_RESULT_EXTRA_KEYS: tuple[str, ...] = (
     "error",
@@ -222,6 +225,7 @@ async def staggered_worker(
     task_dir_root: Path,
     task_binder: Callable[[dict[str, Any], BenchmarkInstance], dict[str, Any]] | None,
     stop_event: asyncio.Event,
+    worker_semaphore: asyncio.Semaphore | None = None,
 ) -> None:
     """Worker coroutine pinned to one benchmark instance.
 
@@ -234,49 +238,88 @@ async def staggered_worker(
     if stop_event.is_set():
         return
 
-    try:
-        agent = agent_factory()
-        await agent.setup(instance.site_url)
-    except Exception as e:
-        logger.exception("worker %d failed during setup: %s", worker_id, e)
-        stop_event.set()
+    async def _run_worker_lifetime() -> None:
+        try:
+            agent = agent_factory()
+            await agent.setup(instance.site_url)
+        except Exception as e:
+            logger.exception("worker %d failed during setup: %s", worker_id, e)
+            stop_event.set()
+            return
+
+        try:
+            while True:
+                if stop_event.is_set():
+                    return
+                try:
+                    task = task_queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    return
+
+                task_id = str(task.get("id", f"task_{id(task):x}"))
+                task_dir = task_dir_root / safe_task_path_component(task_id)
+                task_dir.mkdir(parents=True, exist_ok=True)
+
+                try:
+                    bound_task = task_binder(task, instance) if task_binder is not None else task
+                    result = await task_runner(bound_task, agent, instance, task_dir)
+                    async with results_lock:
+                        results.append(result)
+                except Exception as e:
+                    logger.exception("worker %d failed task %s: %s", worker_id, task_id, e)
+                    async with results_lock:
+                        results.append(
+                            {
+                                "task_id": task_id,
+                                "passed": False,
+                                "outcome": "error",
+                                "error": repr(e),
+                                "message": f"worker task failed: {e}",
+                                "worker_id": worker_id,
+                            }
+                        )
+                finally:
+                    task_queue.task_done()
+        finally:
+            await agent.teardown()
+
+    if worker_semaphore is not None:
+        logger.info("worker %d waiting for global worker slot", worker_id)
+        async with worker_semaphore:
+            logger.info("worker %d acquired global worker slot", worker_id)
+            await _run_worker_lifetime()
         return
 
+    await _run_worker_lifetime()
+
+
+def _resolve_max_workers(max_workers: int | None = None) -> int | None:
+    if max_workers is not None:
+        if max_workers <= 0:
+            raise ValueError("max_workers must be positive when provided")
+        return max_workers
+    raw = os.environ.get(_MAX_WORKERS_ENV, "").strip()
+    if not raw:
+        return None
     try:
-        while True:
-            if stop_event.is_set():
-                return
-            try:
-                task = task_queue.get_nowait()
-            except asyncio.QueueEmpty:
-                return
+        resolved = int(raw)
+    except ValueError as exc:
+        raise ValueError(f"{_MAX_WORKERS_ENV} must be a positive integer, got {raw!r}") from exc
+    if resolved <= 0:
+        raise ValueError(f"{_MAX_WORKERS_ENV} must be a positive integer, got {raw!r}")
+    return resolved
 
-            task_id = str(task.get("id", f"task_{id(task):x}"))
-            task_dir = task_dir_root / safe_task_path_component(task_id)
-            task_dir.mkdir(parents=True, exist_ok=True)
 
-            try:
-                bound_task = task_binder(task, instance) if task_binder is not None else task
-                result = await task_runner(bound_task, agent, instance, task_dir)
-                async with results_lock:
-                    results.append(result)
-            except Exception as e:
-                logger.exception("worker %d failed task %s: %s", worker_id, task_id, e)
-                async with results_lock:
-                    results.append(
-                        {
-                            "task_id": task_id,
-                            "passed": False,
-                            "outcome": "error",
-                            "error": repr(e),
-                            "message": f"worker task failed: {e}",
-                            "worker_id": worker_id,
-                        }
-                    )
-            finally:
-                task_queue.task_done()
-    finally:
-        await agent.teardown()
+def _global_worker_semaphore(max_workers: int | None) -> asyncio.Semaphore | None:
+    if max_workers is None:
+        return None
+    loop = asyncio.get_running_loop()
+    key = (max_workers, id(loop))
+    semaphore = _GLOBAL_WORKER_SEMAPHORES.get(key)
+    if semaphore is None:
+        semaphore = asyncio.Semaphore(max_workers)
+        _GLOBAL_WORKER_SEMAPHORES[key] = semaphore
+    return semaphore
 
 
 async def run_eval(
@@ -288,6 +331,7 @@ async def run_eval(
     task_binder: Callable[[dict[str, Any], BenchmarkInstance], dict[str, Any]] | None = None,
     resume: bool = False,
     expected_result_fingerprints: dict[str, str] | None = None,
+    max_workers: int | None = None,
 ) -> list[dict[str, Any]]:
     """Distribute ``tasks`` across ``instances`` with staggered worker startup.
 
@@ -308,6 +352,11 @@ async def run_eval(
     Returns:
         List of result dicts in arbitrary order (workers race).
     """
+    resolved_max_workers = _resolve_max_workers(max_workers)
+    worker_semaphore = _global_worker_semaphore(resolved_max_workers)
+    if resolved_max_workers is not None:
+        logger.info("Worker pool global concurrency cap: %d", resolved_max_workers)
+
     # On resume, load prior results and filter out completed tasks.
     prior_results: list[dict[str, Any]] = []
     if resume:
@@ -396,6 +445,7 @@ async def run_eval(
             task_dir_root=task_dir_root,
             task_binder=task_binder,
             stop_event=stop_event,
+            worker_semaphore=worker_semaphore,
         )
         for launch_index, (worker_index, instance, task_queue) in enumerate(worker_specs)
     ]
