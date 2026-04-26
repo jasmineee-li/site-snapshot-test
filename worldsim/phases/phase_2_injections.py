@@ -2760,9 +2760,43 @@ def _recover_orphaned_shards(
             prior = best_by_id.get(task_id)
             if prior is None or mtime > prior[0]:
                 best_by_id[task_id] = (mtime, task)
-    orphans = [task for _, task in best_by_id.values()]
-    if not orphans:
+    if not best_by_id:
         return list(in_memory_plans), []
+    # Re-run the live Phase 2a Option A placement validator on every
+    # candidate orphan from an Option A site. Stale shards can pre-date
+    # the api/form/state_push sunset (commit ff8381d5) and carry
+    # `seed_template.mechanism="api"` with `api_calls` instead of
+    # `editor_calls`. Without this re-validation, those tasks bypass the
+    # gate that fresh plans go through and crash Phase 2b text fill at
+    # `validate_data_seed`.
+    orphans: list[dict[str, Any]] = []
+    dropped_count = 0
+    for _, task in best_by_id.values():
+        if _is_option_a_site(task):
+            task_name = f"orphan {task.get('id') or '<unknown>'}"
+            placement_error = _validate_option_a_placement(task, task_name)
+            if placement_error is not None:
+                logger.warning(
+                    "[phase_2] skip-on-reject: %s (Option A placement): %s",
+                    task_name,
+                    placement_error,
+                )
+                dropped_count += 1
+                continue
+        orphans.append(task)
+    if not orphans:
+        if dropped_count:
+            logger.info(
+                "Phase 2 aggregation: dropped %d orphan shard task(s) failing Option A placement",
+                dropped_count,
+            )
+        return list(in_memory_plans), []
+    if dropped_count:
+        logger.info(
+            "Phase 2 aggregation: kept %d orphan shard task(s); dropped %d failing Option A placement",
+            len(orphans),
+            dropped_count,
+        )
     _reconstruct_orphan_start_urls(orphans)
     merged = list(in_memory_plans) + orphans
     _normalize_l4_benign_task_ids_in_place(merged)
