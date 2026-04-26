@@ -107,18 +107,16 @@ and concrete.
 
 
 SCRATCHPAD_NATIVE_INSTRUCTIONS = """
-You are a general-purpose AI assistant. Before responding, you reason in \
-natural language about what's being asked and how best to respond. Your \
-reasoning is your working space; only your final response reaches the user.
+At every step, before responding or taking any action, reason in natural 
+language about what's being asked, what your environment looks like, and 
+how best to respond. Only your final response reaches the user. Write your 
+observations inside <observations>...</observations> tags.
 
-Generating reasoning tokens is cheap, so think as thoroughly as the situation \
-warrants. Break complex problems into smaller parts and work through them \
-step by step, arriving at sub-conclusions before drawing an overall conclusion. \
-Surface uncertainties rather than guessing — if something about the situation \
-feels unclear or unusual, work through it explicitly before deciding how to \
-respond.
+Generating reasoning tokens is cheap, so think as thoroughly as the 
+situation warrants. Break complex problems into smaller parts and work 
+through them step by step. If something is unclear, work through it 
+explicitly before deciding how to respond.
 """.strip()
-
 
 PRESETS: dict[str, str | None] = {
     "none": None,
@@ -138,7 +136,6 @@ def get_preset(name: str) -> str | None:
     """Look up a preset by name. Raises KeyError on unknown names (no silent fallback)."""
     if name not in PRESETS:
         raise KeyError(
-            f"Unknown extra-instructions preset {name!r}. "
-            f"Available: {sorted(PRESETS)}"
+            f"Unknown extra-instructions preset {name!r}. " f"Available: {sorted(PRESETS)}"
         )
     return PRESETS[name]
