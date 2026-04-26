@@ -42,6 +42,9 @@ def build_openrouter_agent(
         temperature=temperature,
         vision_support=vision_support,
     )
+    # Template's agent_name is hardcoded "GenericAgent-anthropic_claude-3.5-sonnet:beta".
+    # Re-derive from the actual model so result dirs / study names reflect what ran.
+    agent.agent_name = f"GenericAgent-{model_name.replace('/', '_')}"
     if extra_instructions:
         agent.flags.extra_instructions = extra_instructions
     return agent
