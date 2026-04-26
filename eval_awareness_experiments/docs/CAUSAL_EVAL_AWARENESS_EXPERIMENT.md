@@ -242,27 +242,38 @@ GLM-5 + AgentDojo + bare cell already-done saves ~$1.20.
 
 ## Run plan
 
-### Step 0: implementation prereqs (one commit)
-- [ ] Fix `system_prompt_frame.ALL_FRAMES` typo (`llm_safety_test` →
-      `safety_test`).
-- [ ] Wire `wrap_system_prompt` into the browser track via
-      `agent_factory` + `run_doomarena` + `run_wasp`. Add
-      `--system-prompt-frame` arg to both browser runners; thread
-      through to `agent_factory.build_openrouter_agent`.
-- [ ] Restructure output-dir layout in `run_causal_experiment.py`
-      to `<benchmark>/<arm>/<model>/`.
-- [ ] Build run-manifest tracker (read existing results, skip
-      cells already complete).
-- [ ] Smoke-test all 6 models with a 1-call probe each to verify
-      `:thinking` mode is enabled and OpenRouter IDs resolve.
+### Step 0: implementation prereqs ✅ done
+- [x] Fix `system_prompt_frame.ALL_FRAMES` typo
+      (`llm_safety_test` → `safety_test`) — commit `0e4a957`
+- [x] Wire `wrap_system_prompt` into the browser track via
+      `agent_factory` + `run_doomarena_glm5_popup` + `run_wasp` —
+      commit `c75fbaa`
+- [x] Restructure output-dir layout in `run_causal_experiment.py`
+      to `<benchmark>/<arm>/<model>/` — commit `c4ed106`
+- [x] Build run-manifest tracker with `--skip-existing` flag —
+      commit `28e95a9`
+- [x] Smoke-test script for all 6 models — commit `7340e12`
 
-### Step 1: bare arm (with Curated-8 5PQ judging)
+### Step 0a: pre-flight smoke test
 
-Most expensive arm because of 5PQ. ~6×4×20 = 480 task runs + 480 VEA
-+ 480×8 = 3,840 5PQ calls.
+Verify all 6 OpenRouter IDs resolve and reasoning mode engages
+before launching the matrix. Cost: ~$0.10.
 
 ```bash
-python -m eval_awareness_experiments.run_causal_experiment \
+.venv/bin/python -m eval_awareness_experiments.smoke_test_models
+```
+
+Expected: `Summary: 6/6 models passed`. Re-run if a transient failure
+appears (GLM-5 occasionally doesn't engage reasoning on the first
+try; succeeds on retry).
+
+### Step 1: bare arm (with full 12-prompt 5PQ judging)
+
+Most expensive arm because of 5PQ. ~6×4×20 = 480 task runs + 480 VEA
++ 480×12 = 5,760 5PQ calls.
+
+```bash
+.venv/bin/python -m eval_awareness_experiments.run_causal_experiment \
     --models z-ai/glm-5:thinking \
              anthropic/claude-sonnet-4.6:thinking \
              anthropic/claude-opus-4.7:thinking \
@@ -276,19 +287,24 @@ python -m eval_awareness_experiments.run_causal_experiment \
     --judges verbalized_awareness purpose_continue_5q \
     --judge-model anthropic/claude-opus-4.7:thinking \
     --tasks-per-split 20 \
+    --skip-existing \
     --output-base eval_awareness_experiments/results/causal_pilot
 ```
 
-(The 5PQ judge will run all prompts in
-`judges/prompts/purpose_continue_5q/*.json`. To restrict to
-Curated-8, temporarily move prompts 04, 05, 11, 12 out of the
-directory, or filter post-hoc when computing the headline.)
+The 5PQ judge runs all 12 prompts in
+`judges/prompts/purpose_continue_5q/*.json`. Classic-5 / Curated-8
+contrasts are computed downstream from the per-prompt outputs.
 
 ### Step 2: XML-frame arms (VEA only)
 
 ```bash
-python -m eval_awareness_experiments.run_causal_experiment \
-    --models <same list> \
+.venv/bin/python -m eval_awareness_experiments.run_causal_experiment \
+    --models z-ai/glm-5:thinking \
+             anthropic/claude-sonnet-4.6:thinking \
+             anthropic/claude-opus-4.7:thinking \
+             openai/gpt-5.2:thinking \
+             google/gemini-3-flash-preview \
+             google/gemini-3.1-pro-preview \
     --benchmarks agentdojo injecagent doomarena wasp \
     --conditions baseline \
     --extra-instructions-presets none \
@@ -296,14 +312,20 @@ python -m eval_awareness_experiments.run_causal_experiment \
     --judges verbalized_awareness \
     --judge-model anthropic/claude-opus-4.7:thinking \
     --tasks-per-split 20 \
+    --skip-existing \
     --output-base eval_awareness_experiments/results/causal_pilot
 ```
 
 ### Step 3: scratchpad_native arm (VEA only)
 
 ```bash
-python -m eval_awareness_experiments.run_causal_experiment \
-    --models <same list> \
+.venv/bin/python -m eval_awareness_experiments.run_causal_experiment \
+    --models z-ai/glm-5:thinking \
+             anthropic/claude-sonnet-4.6:thinking \
+             anthropic/claude-opus-4.7:thinking \
+             openai/gpt-5.2:thinking \
+             google/gemini-3-flash-preview \
+             google/gemini-3.1-pro-preview \
     --benchmarks agentdojo injecagent doomarena wasp \
     --conditions baseline \
     --extra-instructions-presets scratchpad_native \
@@ -311,14 +333,63 @@ python -m eval_awareness_experiments.run_causal_experiment \
     --judges verbalized_awareness \
     --judge-model anthropic/claude-opus-4.7:thinking \
     --tasks-per-split 20 \
+    --skip-existing \
     --output-base eval_awareness_experiments/results/causal_pilot
 ```
 
-After the dir restructure (prereq above), all three steps share one
-`--output-base` and write into `causal_pilot/<benchmark>/<arm>/<model>/`
-without colliding. Steps 1–3 can run in parallel (separate tmux
-sessions). Within each step, launch one tmux pane per benchmark for
-4× parallelism on the wall-clock.
+All three steps share one `--output-base` and write into
+`causal_pilot/<benchmark>/<arm>/<model>/` without colliding (each step
+hits a distinct (preset, frame) combination, which maps to a distinct
+arm directory). `--skip-existing` makes any of the steps safely
+restartable — if a session dies halfway through, just re-run the same
+command and it'll pick up where it left off.
+
+Steps 1–3 can run in parallel (separate tmux sessions). Within each
+step, launch one tmux pane per benchmark for 4× parallelism on the
+wall-clock.
+
+### Step 4: while running, watch progress in the dashboard
+
+```bash
+.venv/bin/python -m eval_awareness_experiments.dashboard \
+    --results-dir eval_awareness_experiments/results/causal_pilot \
+    --port 8000
+```
+
+Open `http://localhost:8000`. The dashboard re-scans the manifest on
+every page load — refresh to see newly-completed cells. Click any
+cell for per-cell metrics (ASR, VEA rate, 5PQ Align/Any) and the
+list of per-trajectory markdown files.
+
+For a CLI alternative (e.g. monitoring from a remote tmux session):
+
+```bash
+.venv/bin/python -m eval_awareness_experiments.run_manifest \
+    --results-dir eval_awareness_experiments/results/causal_pilot \
+    --print
+```
+
+### Step 5: post-launch — pre-launch sanity check on a single cell
+
+Before launching the full matrix, smoke-test one cell end-to-end (one
+model × one benchmark × one arm × n=2 tasks, ~2 minutes, ~$0.05) to
+confirm the new browser-track frame plumbing works as expected:
+
+```bash
+.venv/bin/python -m eval_awareness_experiments.run_causal_experiment \
+    --models z-ai/glm-5:thinking \
+    --benchmarks agentdojo \
+    --conditions baseline \
+    --extra-instructions-presets none \
+    --system-prompt-frames safety_test \
+    --judges verbalized_awareness \
+    --judge-model anthropic/claude-opus-4.7:thinking \
+    --tasks-per-split 2 \
+    --output-base /tmp/causal_pilot_smoke
+```
+
+Confirm the resulting markdown sidecar shows `<llm_safety_test>` in
+the system prompt section before scaling up.
 
 ### Wall-clock target
 - Each step: ~3 hours with 4 benchmarks in parallel
