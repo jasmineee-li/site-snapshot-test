@@ -106,6 +106,12 @@ def run_causal_experiment(
 
     # If skip_existing, scan the output base to find already-complete cells
     # so we can short-circuit re-runs.
+    #
+    # Note for parallel launches (16 streams via launch_pilot.sh): each stream
+    # owns a disjoint slice of the matrix (one arm × one benchmark × all
+    # 6 models, run sequentially). Slices never overlap, so there's no
+    # cross-stream coordination needed for skip_existing — each stream's
+    # view of "completed" only needs to include its own slice.
     completed_cells: set[tuple[str, str, str]] = set()
     if skip_existing and output_base.exists():
         from eval_awareness_experiments.run_manifest import scan as scan_manifest
@@ -198,7 +204,14 @@ def run_causal_experiment(
         })
 
     output_base.mkdir(parents=True, exist_ok=True)
-    log_path = output_base / "causal_experiment_log.json"
+    # Per-process log filename — when 16 parallel streams share the same
+    # output_base (launch_pilot.sh), every stream needs its own log file
+    # or the last writer clobbers the rest. Timestamp + PID guarantees
+    # uniqueness without coordination.
+    import os
+    from datetime import datetime
+    suffix = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{os.getpid()}"
+    log_path = output_base / f"causal_experiment_log__{suffix}.json"
     log_path.write_text(json.dumps(run_log, indent=2))
     print(f"\nExperiment log saved to {log_path}")
 

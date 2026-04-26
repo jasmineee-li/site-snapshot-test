@@ -39,29 +39,31 @@ clone_or_skip() {
     fi
 }
 
-uv_install_if_missing() {
-    local pkg="$1"
+uv_install() {
+    # Always run the install. uv is fast enough (typically <2s for a
+    # no-op editable install), and an idempotent re-run is safer than
+    # a partial-failure scenario where one submodule installed and others
+    # didn't — the previous "skip if any sub-module imports" check
+    # could miss that case and leave you with an incomplete install.
+    local label="$1"
     shift
-    if .venv/bin/python -c "import ${pkg}" 2>/dev/null; then
-        ok "${pkg}: already installed"
-    else
-        bold "Installing ${pkg} via uv pip"
-        uv pip install "$@"
-        ok "${pkg}: installed"
-    fi
+    bold "Installing ${label} via uv pip (idempotent — uv skips already-installed editable installs)"
+    uv pip install "$@"
+    ok "${label}: installed"
 }
 
 bold "==[1/5]== BrowserGym (browser benchmark scaffold)"
 clone_or_skip "https://github.com/ServiceNow/BrowserGym" "${EXT_DIR}/BrowserGym"
-uv_install_if_missing browsergym \
+uv_install browsergym \
     -e "${EXT_DIR}/BrowserGym/browsergym/core" \
+    -e "${EXT_DIR}/BrowserGym/browsergym/miniwob" \
     -e "${EXT_DIR}/BrowserGym/browsergym/webarena" \
     -e "${EXT_DIR}/BrowserGym/browsergym/experiments" \
     -e "${EXT_DIR}/BrowserGym"
 
 bold "==[2/5]== DoomArena (popup-attack benchmark, also imported by WASP)"
 clone_or_skip "https://github.com/ServiceNow/DoomArena" "${EXT_DIR}/DoomArena"
-uv_install_if_missing doomarena \
+uv_install doomarena \
     -e "${EXT_DIR}/DoomArena/doomarena/core" \
     -e "${EXT_DIR}/DoomArena/doomarena/browsergym"
 
@@ -69,13 +71,10 @@ bold "==[3/5]== AgentDojo + InjecAgent + WASP (via setup_benchmarks.sh)"
 bash "${REPO_ROOT}/eval_awareness_experiments/setup_benchmarks.sh" agentdojo injecagent wasp
 
 bold "==[4/5]== Playwright Chromium (for browser benchmarks)"
-if .venv/bin/python -c "from playwright.sync_api import sync_playwright; sync_playwright().__enter__().chromium.launch().close()" 2>/dev/null; then
-    ok "playwright chromium: already installed"
-else
-    bold "Installing playwright chromium"
-    uv run playwright install chromium
-    ok "playwright chromium: installed"
-fi
+# `playwright install chromium` is itself idempotent — exits fast if already
+# installed. No separate check needed.
+uv run playwright install chromium
+ok "playwright chromium: ready"
 
 bold "==[5/5]== Sanity check — import each package"
 for pkg in agentlab browsergym agentdojo doomarena; do

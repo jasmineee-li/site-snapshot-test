@@ -56,6 +56,11 @@ MODELS=(
 BENCHMARKS=(agentdojo injecagent doomarena wasp)
 
 # Each stream is "<arm_name> <preset> <frame> <judges-space-separated>"
+# IMPORTANT: judges may be multi-token (last `read` variable swallows the
+# rest of the line). `--judges $judges` is unquoted on purpose so it
+# word-splits into multiple args. Don't add quotes around $judges below.
+# (If anyone ever introduces a judge name containing whitespace, this
+# breaks silently — but no judge today does.)
 STREAMS=(
     "bare         none              none                  verbalized_awareness purpose_continue_5q"
     "xml_safety   none              safety_test           verbalized_awareness"
