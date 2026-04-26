@@ -498,6 +498,7 @@ def parse_toolcalling_trajectory(
             "agent": str,                         # model name
             "condition": "baseline" | "eval_cue" | "scenario_cue",
             "extra_instructions_preset": str,
+            "system_prompt_frame": "none" | "safety_test" | "hypothetical_scenario",
             "steps": [{"thought": str, "action": str, "observation": str}, ...],
             "final_answer": str,
             "passed": bool | null,
@@ -550,6 +551,7 @@ def parse_toolcalling_trajectory(
         metadata={
             "task_id": data.get("task_id", ""),
             "extra_instructions_preset": data.get("extra_instructions_preset", "none"),
+            "system_prompt_frame": data.get("system_prompt_frame", "none"),
             "task_json_path": str(task_json_path),
             **(data.get("metadata") or {}),
         },

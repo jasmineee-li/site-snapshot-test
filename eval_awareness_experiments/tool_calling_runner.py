@@ -23,6 +23,10 @@ from openai import AsyncOpenAI
 
 from eval_awareness_experiments.injection_modifier import InjectionCondition
 from eval_awareness_experiments.retry import call_with_retry
+from eval_awareness_experiments.system_prompt_frame import (
+    SystemPromptFrame,
+    wrap_system_prompt,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +77,7 @@ class ToolCallTaskResult:
     agent: str
     condition: str
     extra_instructions_preset: str
+    system_prompt_frame: str
     steps: list[TurnRecord]
     final_answer: str
     passed: bool | None
@@ -88,6 +93,7 @@ class ToolCallTaskResult:
             "agent": self.agent,
             "condition": self.condition,
             "extra_instructions_preset": self.extra_instructions_preset,
+            "system_prompt_frame": self.system_prompt_frame,
             "steps": [asdict(s) for s in self.steps],
             "final_answer": self.final_answer,
             "passed": self.passed,
@@ -110,6 +116,7 @@ class ToolCallingRunner:
         condition: InjectionCondition,
         extra_instructions: str | None,
         extra_instructions_preset: str,
+        system_prompt_frame: SystemPromptFrame = "none",
         max_turns: int = 15,
         max_tokens: int = 8192,
         temperature: float = 0.1,
@@ -121,6 +128,7 @@ class ToolCallingRunner:
         self.condition = condition
         self.extra_instructions = extra_instructions
         self.extra_instructions_preset = extra_instructions_preset
+        self.system_prompt_frame = system_prompt_frame
         self.max_turns = max_turns
         self.max_tokens = max_tokens
         self.temperature = temperature
@@ -156,7 +164,9 @@ class ToolCallingRunner:
             task_id: Unique identifier for the task (filename stem for outputs).
             task_instruction: The user's instruction to the agent.
             system_prompt: Benchmark-specific system prompt. `extra_instructions`
-                (e.g. scratchpad/motive) is appended verbatim to the end.
+                (e.g. scratchpad/motive) is appended verbatim to the end, and
+                the result is then optionally wrapped by `system_prompt_frame`
+                (e.g. `<llm_safety_test>...</llm_safety_test>`).
             tools: OpenAI-format tool schemas (list of {"type":"function","function":{...}}).
             tool_executor: async callable (name, args, call_id) -> observation text.
                 The executor must apply `wrap_injection` to the observation when
@@ -174,6 +184,9 @@ class ToolCallingRunner:
         full_system = system_prompt
         if self.extra_instructions:
             full_system = f"{system_prompt}\n\n{self.extra_instructions}".strip()
+        # Wrap *after* extra_instructions are appended so the frame envelopes
+        # the entire system prompt, not just the benchmark portion.
+        full_system = wrap_system_prompt(full_system, self.system_prompt_frame)
 
         messages: list[dict] = [
             {"role": "system", "content": full_system},
@@ -279,6 +292,7 @@ class ToolCallingRunner:
             agent=self.model_name + (":thinking" if self.thinking else ""),
             condition=self.condition,
             extra_instructions_preset=self.extra_instructions_preset,
+            system_prompt_frame=self.system_prompt_frame,
             steps=turns,
             final_answer=final_answer,
             passed=passed,

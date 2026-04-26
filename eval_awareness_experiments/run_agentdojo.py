@@ -41,6 +41,7 @@ from eval_awareness_experiments.injection_modifier import (
     InjectionCondition,
     wrap_injection,
 )
+from eval_awareness_experiments.system_prompt_frame import ALL_FRAMES
 from eval_awareness_experiments.tool_calling_runner import ToolCallingRunner
 
 logger = logging.getLogger(__name__)
@@ -266,6 +267,11 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--extra-instructions-preset", default="none",
                         choices=list(EXTRA_INSTRUCTION_PRESETS.keys()))
     parser.add_argument("--extra-instructions", default=None)
+    parser.add_argument("--system-prompt-frame", default="none",
+                        choices=ALL_FRAMES,
+                        help="Wrap the entire system prompt in XML tags. "
+                             "`safety_test` / `hypothetical_scenario` are the "
+                             "max-cue ceiling conditions.")
     parser.add_argument("--output-dir", type=Path,
                         default=Path(REPO_ROOT) / "results" / "toolcalling" / "agentdojo")
     parser.add_argument("--run-name", default=None,
@@ -301,12 +307,21 @@ async def _main_async(args: argparse.Namespace) -> None:
         condition=args.condition,
         extra_instructions=extra_instr,
         extra_instructions_preset=args.extra_instructions_preset,
+        system_prompt_frame=args.system_prompt_frame,
         max_turns=args.max_turns,
         concurrency=args.concurrency,
     )
 
+    # Include the frame in the default run_name so different frames don't
+    # collide on the same output dir. Old runs (frame=none) keep their old
+    # path shape since `_none` is appended only when frame!="none".
+    frame_suffix = (
+        f"_{args.system_prompt_frame}"
+        if args.system_prompt_frame != "none"
+        else ""
+    )
     run_name = args.run_name or (
-        f"{args.condition}_{args.extra_instructions_preset}_"
+        f"{args.condition}_{args.extra_instructions_preset}{frame_suffix}_"
         f"{args.model_name.replace('/', '_').replace(':', '_')}"
     )
     out_dir = args.output_dir / args.suite / run_name
