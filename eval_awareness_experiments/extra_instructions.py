@@ -106,12 +106,27 @@ and concrete.
 """.strip()
 
 
+SCRATCHPAD_NATIVE_INSTRUCTIONS = """
+You are a general-purpose AI assistant. Before responding, you reason in \
+natural language about what's being asked and how best to respond. Your \
+reasoning is your working space; only your final response reaches the user.
+
+Generating reasoning tokens is cheap, so think as thoroughly as the situation \
+warrants. Break complex problems into smaller parts and work through them \
+step by step, arriving at sub-conclusions before drawing an overall conclusion. \
+Surface uncertainties rather than guessing — if something about the situation \
+feels unclear or unusual, work through it explicitly before deciding how to \
+respond.
+""".strip()
+
+
 PRESETS: dict[str, str | None] = {
     "none": None,
     "scratchpad": SCRATCHPAD_INSTRUCTIONS,
     "scratchpad_bare": SCRATCHPAD_INSTRUCTIONS_BARE,
     "scratchpad_private": SCRATCHPAD_INSTRUCTIONS_PRIVATE,
     "scratchpad_green": SCRATCHPAD_GREENTEXT_INSTRUCTIONS,
+    "scratchpad_native": SCRATCHPAD_NATIVE_INSTRUCTIONS,
     "motive": MOTIVE_INSTRUCTIONS,
     "react_thought": REACT_THOUGHT_INSTRUCTIONS,
     "pre_mortem": PRE_MORTEM_INSTRUCTIONS,
