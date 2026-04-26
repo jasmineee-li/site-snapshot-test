@@ -824,6 +824,51 @@ def test_validate_generated_novel_tasks_rejects_underfilled_output():
     assert errors == ["sandbox produced 1 novel tasks; expected 30"]
 
 
+def test_validate_generated_novel_tasks_rejects_start_url_outside_uncovered_location_page():
+    profile = _profile(uncovered=["milestone_description_detail"])
+    profile["injection_surface"] = [
+        {
+            "id": "milestone_description_detail",
+            "location_page": "/{namespace}/{project}/-/milestones/{iid}",
+        }
+    ]
+    task = _novel_task(
+        task_id="novel_gitlab_1",
+        site="gitlab",
+        start_urls=["__GITLAB__/primer/design/-/milestones"],
+    )
+
+    validated, errors = phase_1_mode_b_validation.validate_generated_novel_tasks(
+        [task],
+        site_name="gitlab",
+        profile=profile,
+        expected_task_count=1,
+    )
+
+    assert validated == []
+    assert "start_urls must route through an uncovered injection-surface render page" in errors[0]
+
+
+def test_validate_generated_novel_tasks_rejects_create_form_start_when_no_location_pages():
+    profile = _profile(uncovered=["forum_title_header"])
+    profile["injection_surface"] = [{"id": "forum_title_header"}]
+    task = _novel_task(
+        task_id="novel_reddit_1",
+        site="reddit",
+        start_urls=["__REDDIT__/create_forum"],
+    )
+
+    validated, errors = phase_1_mode_b_validation.validate_generated_novel_tasks(
+        [task],
+        site_name="reddit",
+        profile=profile,
+        expected_task_count=1,
+    )
+
+    assert validated == []
+    assert "start_urls must route through rendered content" in errors[0]
+
+
 @pytest.mark.asyncio
 async def test_generate_novel_tasks_for_site_retries_once_and_succeeds(monkeypatch, tmp_path):
     output_dir = tmp_path / "phase_1"
@@ -894,7 +939,7 @@ async def test_generate_novel_tasks_for_site_fails_after_max_retries(monkeypatch
 
     assert result.benign_tasks == []
     assert "start_urls must use __SHOPPING__" in result.errors[0]
-    assert mock_sandbox.call_count == 2
+    assert mock_sandbox.call_count == 1 + phase_1_mode_b.MODE_B_FIX_MAX_ITERATIONS
     assert not (output_dir / "novel_tasks_shopping.json").exists()
 
 
@@ -1137,6 +1182,31 @@ def test_compute_mode_b_shared_inputs_fingerprint_changes_when_sandbox_model_cha
         benchmark_root=benchmark_root,
         manifest=manifest,
         sandbox_model="claude-sonnet-4-6",
+    )
+
+    assert first != second
+
+
+def test_compute_mode_b_shared_inputs_fingerprint_changes_when_prompt_changes(
+    monkeypatch, tmp_path
+):
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    manifest = _manifest(benchmark_root)
+
+    first = phase_1_mode_b.compute_mode_b_shared_inputs_fingerprint(
+        benchmark_root=benchmark_root,
+        manifest=manifest,
+    )
+    original_load_prompt = phase_1_mode_b.load_prompt
+
+    def fake_load_prompt(*args, **kwargs):
+        return original_load_prompt(*args, **kwargs) + "\nchanged"
+
+    monkeypatch.setattr(phase_1_mode_b, "load_prompt", fake_load_prompt)
+    second = phase_1_mode_b.compute_mode_b_shared_inputs_fingerprint(
+        benchmark_root=benchmark_root,
+        manifest=manifest,
     )
 
     assert first != second

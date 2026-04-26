@@ -38,6 +38,7 @@ def validate_generated_novel_tasks(
         for capability in profile.get("verification_capabilities", [])
         if capability.get("eval_type")
     }
+    start_url_policy = _build_start_url_policy(profile)
     validated: list[dict[str, Any]] = []
     errors: list[str] = []
     seen_ids: set[str] = set()
@@ -48,6 +49,7 @@ def validate_generated_novel_tasks(
             index=index,
             site_name=site_name,
             allowed_eval_types=allowed_eval_types,
+            start_url_policy=start_url_policy,
         )
         if problem is not None:
             errors.append(problem)
@@ -76,6 +78,7 @@ def validate_generated_novel_task(
     index: int,
     site_name: str,
     allowed_eval_types: set[str],
+    start_url_policy: _StartUrlPolicy | None = None,
 ) -> str | None:
     """Validate one Mode B task against Phase 1 and runtime constraints."""
     prefix = f"task {index}"
@@ -121,6 +124,10 @@ def validate_generated_novel_task(
             return f"{prefix} start_urls must use {placeholder}"
         if any(token != placeholder for token in tokens):
             return f"{prefix} start_urls must only use {placeholder}"
+    if start_url_policy is not None:
+        policy_problem = start_url_policy.validate(start_urls, site_name=site_name)
+        if policy_problem is not None:
+            return f"{prefix} {policy_problem}"
 
     try:
         validate_data_seed(task.get("data_seed"), allow_none=True)
@@ -158,6 +165,71 @@ def validate_generated_novel_task(
             return expected_problem
 
     return None
+
+
+class _StartUrlPolicy:
+    def __init__(
+        self,
+        location_pages: list[str],
+        location_patterns: list[re.Pattern[str]],
+    ) -> None:
+        self.location_pages = location_pages
+        self.location_patterns = location_patterns
+
+    def validate(self, start_urls: list[str], *, site_name: str) -> str | None:
+        paths = [_placeholder_path(url, site_name) for url in start_urls]
+        if self.location_patterns and not any(
+            pattern.match(path) for path in paths for pattern in self.location_patterns
+        ):
+            return (
+                "start_urls must route through an uncovered injection-surface render page; "
+                f"got {start_urls!r}; allowed location_page shapes: {self.location_pages!r}"
+            )
+        if not self.location_patterns and any(_looks_like_mutation_entry(path) for path in paths):
+            return (
+                "start_urls must route through rendered content, not a create or edit form; "
+                f"got {start_urls!r}"
+            )
+        return None
+
+
+def _build_start_url_policy(profile: dict[str, Any]) -> _StartUrlPolicy | None:
+    uncovered = profile.get("existing_task_coverage", {}).get(
+        "injection_surfaces_without_task_coverage", []
+    )
+    if not isinstance(uncovered, list) or not uncovered:
+        return None
+    uncovered_ids = {str(item) for item in uncovered}
+    location_pages: list[str] = []
+    patterns: list[re.Pattern[str]] = []
+    for surface in profile.get("injection_surface", []):
+        if not isinstance(surface, dict) or str(surface.get("id", "")) not in uncovered_ids:
+            continue
+        location = surface.get("location_page")
+        if isinstance(location, str) and location.strip():
+            location_pages.append(location.strip())
+            patterns.append(_location_page_pattern(location))
+    return _StartUrlPolicy(location_pages, patterns)
+
+
+def _location_page_pattern(location_page: str) -> re.Pattern[str]:
+    path = re.sub(r"^__[A-Z0-9_]+__", "", location_page.strip())
+    escaped = re.escape(path.rstrip("/"))
+    escaped = re.sub(r"\\\{[^}]+\\\}", r"[^/]+", escaped)
+    return re.compile(rf"^{escaped}/?(?:[?#].*)?$")
+
+
+def _placeholder_path(url: str, site_name: str) -> str:
+    placeholder = placeholder_for_site(site_name) or ""
+    if placeholder and url.startswith(placeholder):
+        return url[len(placeholder) :] or "/"
+    return url
+
+
+def _looks_like_mutation_entry(path: str) -> bool:
+    lowered = path.lower().rstrip("/")
+    segments = [segment for segment in lowered.split("/") if segment]
+    return any(segment in {"new", "edit", "submit", "create_forum"} for segment in segments)
 
 
 def _validate_eval_expected(

@@ -29,11 +29,11 @@ from worldsim.state import get_state_dir
 logger = logging.getLogger(__name__)
 
 DEFAULT_NOVEL_TASKS_PER_SITE = 30
-MODE_B_FIX_MAX_ITERATIONS = 1
+MODE_B_FIX_MAX_ITERATIONS = 2
 NOVEL_TASK_OUTPUT_PATH = "/workspace/output/benign_tasks.json"
 MODE_B_RESUME_METADATA_PATH = "mode_b_resume_metadata.json"
 SITE_CACHE_METADATA_SUFFIX = ".metadata.json"
-MODE_B_CACHE_SCHEMA_VERSION = 2
+MODE_B_CACHE_SCHEMA_VERSION = 4
 
 
 def _read_only_volume(volume: Any) -> Any:
@@ -295,7 +295,9 @@ async def generate_novel_tasks_for_site(
                 "\n\n--- CORRECTION NEEDED ---\n"
                 "The previous attempt produced novel tasks with validation errors:\n"
                 + "\n".join(f"  - {error}" for error in errors)
-                + "\n\nPlease regenerate the entire output JSON array and satisfy every requirement."
+                + "\n\nPlease regenerate the entire output JSON array and satisfy every requirement. "
+                "If any NetworkEventEvaluator has an empty or uncertain expected.url, replace that "
+                "evaluator with AgentResponseEvaluator instead of inventing or omitting a URL."
             )
             prompt = base_prompt + correction
 
@@ -492,6 +494,10 @@ def compute_mode_b_shared_inputs_fingerprint(
     payload = {
         "benchmark_tree_digest": _directory_tree_digest(benchmark_root),
         "manifest": manifest,
+        "prompt": load_prompt(
+            "generate-benign-tasks",
+            validation_command="benign-tasks --site-name {site_name}",
+        ),
         "sandbox_model": sandbox_model,
     }
     return _stable_json_digest(payload)
