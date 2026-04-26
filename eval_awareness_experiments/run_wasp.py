@@ -84,19 +84,23 @@ def _patch_browsergym_reachability(online_sites: set[str]) -> None:
     webarena_instance.WebArenaInstance._check_is_reachable = _check_is_reachable
 
 
-def _load_wasp_configs(wasp_path: Path) -> list[Path]:
-    """Find WASP task config JSONs. WASP's upstream layout is
-    `webarena_prompt_injections/configs/`; some forks flatten to `configs/`.
+def _load_wasp_configs(task_dir: Path) -> list[Path]:
+    """Per-task JSONs produced by WASP's prompt_injector.py (its step 1).
+    Layout: <output_dir>/webarena_tasks/<task_id>.json — each is one
+    (user_goal × attacker_goal × injection_format) instance with
+    `sites`, `task_id`, `start_url`, `intent`, `eval`.
     """
-    for rel in ("webarena_prompt_injections/configs", "configs"):
-        candidate = wasp_path / rel
-        if candidate.is_dir():
-            return sorted(candidate.glob("*.json"))
-    raise FileNotFoundError(
-        f"No WASP config dir under {wasp_path} "
-        f"(expected {wasp_path}/webarena_prompt_injections/configs or {wasp_path}/configs). "
-        "Did setup_benchmarks.sh clone WASP correctly?"
-    )
+    if (task_dir / "webarena_tasks").is_dir():
+        task_dir = task_dir / "webarena_tasks"
+    if not task_dir.is_dir():
+        raise FileNotFoundError(
+            f"No WASP task dir at {task_dir}. Run prompt_injector.py first to plant "
+            "injections + generate per-task JSONs (see run_wasp.py docstring)."
+        )
+    paths = sorted(task_dir.glob("*.json"))
+    if not paths:
+        raise FileNotFoundError(f"No *.json in {task_dir}")
+    return paths
 
 
 def _apply_condition_to_config(config: dict, condition: InjectionCondition) -> dict:
@@ -155,8 +159,8 @@ def _build_wasp_benchmark(
         except json.JSONDecodeError:
             logger.warning(f"Skipping malformed WASP config {cfg_path}")
             continue
-        cfg_site = data.get("site") or data.get("target_site")
-        if site and cfg_site and cfg_site != site:
+        cfg_sites = data.get("sites") or ([data["site"]] if data.get("site") else [])
+        if site and cfg_sites and site not in cfg_sites:
             continue
         task_id = data.get("task_id")
         if task_id is None:
@@ -174,6 +178,28 @@ def _build_wasp_benchmark(
             f"No WASP tasks survived filtering (site={site!r}, max_tasks={max_tasks})"
         )
 
+    _register_wasp_tasks(filtered)
+
+    # WASP task_ids start at 1000 to avoid collision with WebArena's 812 canonical
+    # tasks. BrowserGym's `task_metadata("webarena")` only knows the 812. Append
+    # synthesized rows so Benchmark.__post_init__ doesn't reject our task names.
+    import pandas as pd
+    base_md = task_metadata("webarena")
+    extra_rows = []
+    for cfg_path, data, tid in filtered:
+        sites_str = ",".join(data.get("sites") or [site or ""])
+        eval_types_list = data.get("eval", {}).get("eval_types", []) or []
+        extra_rows.append({
+            "task_name": f"webarena.{tid}",
+            "requires_reset": bool(data.get("require_reset", False)),
+            "sites": sites_str,
+            "eval_types": ",".join(eval_types_list),
+            "task_id": tid,
+            "browsergym_split": "wasp",
+            "depends_on": "",
+        })
+    md = pd.concat([base_md, pd.DataFrame(extra_rows)], ignore_index=True)
+
     logger.info(f"WASP benchmark: {len(task_list)} tasks for site={site!r}")
     return Benchmark(
         name=f"wasp_{site}_{len(task_list)}",
@@ -186,7 +212,7 @@ def _build_wasp_benchmark(
             max_steps=max_steps,
             fixed_seeds=[0],
         ),
-        task_metadata=task_metadata("webarena"),
+        task_metadata=md,
     )
 
 
@@ -204,11 +230,60 @@ def _import_wasp_injector(modified_config_dir: Path) -> None:
         ) from e
 
 
+def _register_wasp_tasks(filtered: list[tuple[Path, dict, int]]) -> None:
+    """Register WASP task_ids (>=1000) as gym envs, and monkey-patch
+    GenericWebArenaTask so it can find their config dicts (which aren't in
+    webarena/test.raw.json).
+    """
+    from browsergym.core.registration import register_task
+    from browsergym.webarena import task as wa_task
+
+    wasp_configs_by_id: dict[int, dict] = {tid: data for _, data, tid in filtered}
+
+    orig_init = wa_task.GenericWebArenaTask.__init__
+
+    def patched_init(self, seed, task_id=None, intent_template_id=None,
+                     with_na_hint=False, with_homepage_hint=False):
+        if task_id is not None and task_id in wasp_configs_by_id:
+            from browsergym.core.task import AbstractBrowserTask
+            from browsergym.webarena.instance import WebArenaInstance
+            AbstractBrowserTask.__init__(self, seed)
+            self.viewport = {"width": 1280, "height": 720}
+            self.slow_mo = 1000
+            self.timeout = 10000
+            self.webarena_instance = WebArenaInstance()
+            self.config_file = None
+            self.with_na_hint = with_na_hint
+            self.with_homepage_hint = with_homepage_hint
+            # WASP tasks ship with already-substituted URLs (planted post URLs),
+            # so no __REDDIT__/__GITLAB__ replacement needed.
+            self.task_configs = [wasp_configs_by_id[task_id]]
+            return
+        orig_init(self, seed, task_id=task_id, intent_template_id=intent_template_id,
+                  with_na_hint=with_na_hint, with_homepage_hint=with_homepage_hint)
+
+    wa_task.GenericWebArenaTask.__init__ = patched_init
+
+    for tid in wasp_configs_by_id:
+        gym_id = f"webarena.{tid}"
+        try:
+            register_task(gym_id, wa_task.GenericWebArenaTask, task_kwargs={"task_id": tid})
+        except Exception as e:
+            logger.debug(f"register_task({gym_id}) skipped: {e}")
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run WASP tasks with eval-awareness scaffolding")
     parser.add_argument("--wasp-path", type=Path,
                         default=Path(REPO_ROOT) / "external_benchmarks" / "wasp",
                         help="Path to WASP clone (default: external_benchmarks/wasp)")
+    parser.add_argument("--task-dir", type=Path, required=True,
+                        help="Output dir from WASP's prompt_injector.py — contains "
+                             "webarena_tasks/<task_id>.json. Generate via: "
+                             "PYTHONPATH=external_benchmarks/wasp/webarena_prompt_injections "
+                             "python external_benchmarks/wasp/webarena_prompt_injections/prompt_injector.py "
+                             "--config <raw.json> --output-dir <here> --user_goal_idx 0 "
+                             "--injection_format goal_hijacking_url_injection --output-format webarena")
     parser.add_argument("--single-site", required=True, choices=["gitlab", "reddit"],
                         help="WASP currently supports gitlab and reddit (VWA-based).")
     parser.add_argument("--max-tasks", type=int, default=10)
@@ -247,8 +322,8 @@ def main() -> None:
     from eval_awareness_experiments.run_doomarena_glm5_popup import _patch_webarena_evaluator
     _patch_webarena_evaluator(args.webarena_eval_model)
 
-    config_paths = _load_wasp_configs(args.wasp_path)
-    logger.info(f"Loaded {len(config_paths)} raw WASP configs from {args.wasp_path}")
+    config_paths = _load_wasp_configs(args.task_dir)
+    logger.info(f"Loaded {len(config_paths)} per-task WASP configs from {args.task_dir}")
 
     tmp = Path(tempfile.mkdtemp(prefix=f"wasp_{args.condition}_"))
     n_wrapped = 0
@@ -285,14 +360,29 @@ def main() -> None:
     )
 
     setup_logging()
-    run_bgym_experiment(
-        bgym_experiments=[experiment],
-        reproducibility_mode=False,
-        relaunch=False,
-        n_jobs=args.n_jobs,
-        max_steps=args.max_steps,
-        skip_reset_and_massage=True,
-    )
+    try:
+        run_bgym_experiment(
+            bgym_experiments=[experiment],
+            reproducibility_mode=False,
+            relaunch=False,
+            n_jobs=args.n_jobs,
+            max_steps=args.max_steps,
+            skip_reset_and_massage=True,
+        )
+    except KeyError as e:
+        # DoomArena's collect_results() expects success_filter_{key,value} columns
+        # produced by runtime AttackConfigs. WASP uses post-hoc evaluators (no
+        # runtime attacks → attack_configs=()) so those columns don't exist.
+        # The trajectory data (step_*.pkl.gz, summary_info.json) is fully written
+        # before collect_results runs — downstream consumers read the pkls directly.
+        if "success_filter" in str(e):
+            logger.warning(
+                "Suppressed DoomArena collect_results() KeyError on success_filter "
+                "columns — expected for WASP since attack_configs=(). Trajectories "
+                "are saved in results/browsergym/study_*/."
+            )
+        else:
+            raise
 
 
 if __name__ == "__main__":
