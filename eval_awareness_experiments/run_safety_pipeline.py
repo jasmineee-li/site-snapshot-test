@@ -77,6 +77,70 @@ def _run_subprocess(cmd: list[str], *, cwd: Path, env: dict | None = None) -> bo
     return result.returncode == 0
 
 
+def _write_run_meta(run_dir: Path, args, benchmark: str, split: str) -> None:
+    """Persist the original-run config alongside trajectories.
+
+    Read by judge-only re-runs (`_load_run_meta`) to recover model_name /
+    condition / extra_instructions_preset, which would otherwise default to
+    None / 'none' in the re-judge's pipeline manifest.
+    """
+    meta = {
+        "benchmark": benchmark,
+        "split": split,
+        "model_name": args.model_name,
+        "condition": args.condition,
+        "extra_instructions_preset": args.extra_instructions_preset,
+        "shuffle": args.shuffle,
+        "tasks_per_split": args.tasks_per_split,
+        "max_steps": getattr(args, "max_steps", None),
+        "written_at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        (run_dir / "run_meta.json").write_text(json.dumps(meta, indent=2))
+    except OSError as e:
+        logger.warning(f"  Failed to write run_meta.json to {run_dir}: {e}")
+
+
+_KNOWN_CONDITIONS = ("baseline",) + tuple(c for c in ALL_CONDITIONS if c != "baseline")
+
+
+def _load_run_meta(run_dir: Path) -> dict | None:
+    """Recover original-run config from a trajectory dir.
+
+    Tries `run_dir/run_meta.json` first (newer runs). Falls back to parsing
+    the dir name `{condition}_{preset}_{model_slug}` for tool-calling dirs
+    (older runs that pre-date `run_meta.json`). Returns None if neither
+    works — caller should fall back to CLI args.
+    """
+    meta_path = run_dir / "run_meta.json"
+    if meta_path.exists():
+        try:
+            return json.loads(meta_path.read_text())
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning(f"  Failed to read {meta_path}: {e}")
+
+    name = run_dir.name
+    for cond in _KNOWN_CONDITIONS:
+        cond_prefix = f"{cond}_"
+        if not name.startswith(cond_prefix):
+            continue
+        rest = name[len(cond_prefix):]
+        # Match the longest preset name first so `scratchpad_bare` wins over `scratchpad`.
+        for preset in sorted(EXTRA_INSTRUCTION_PRESETS.keys(), key=len, reverse=True):
+            preset_prefix = f"{preset}_"
+            if rest.startswith(preset_prefix):
+                model_slug = rest[len(preset_prefix):]
+                return {
+                    "condition": cond,
+                    "extra_instructions_preset": preset,
+                    # Reverse of `model_name.replace("/", "_").replace(":", "_")`
+                    # is lossy — return slug as-is, marked.
+                    "model_name": model_slug,
+                    "_recovered_from": "run_dir_name",
+                }
+    return None
+
+
 def _stage1_browser(benchmark: str, split: str, args) -> Path | None:
     """Run DoomArena or WASP for one split. Returns study dir."""
     runner = BENCHMARK_RUNNERS[benchmark]
@@ -99,7 +163,11 @@ def _stage1_browser(benchmark: str, split: str, args) -> Path | None:
         return None
     after = set((REPO_ROOT / "results" / "browsergym").glob("study_*"))
     new = sorted(after - before, key=lambda p: p.stat().st_mtime)
-    return new[-1] if new else None
+    if not new:
+        return None
+    study_dir = new[-1]
+    _write_run_meta(study_dir, args, benchmark, split)
+    return study_dir
 
 
 def _stage1_toolcalling(benchmark: str, split: str, args) -> Path | None:
@@ -140,6 +208,7 @@ def _stage1_toolcalling(benchmark: str, split: str, args) -> Path | None:
     ok = _run_subprocess(cmd, cwd=REPO_ROOT)
     if not ok or not out_dir.exists():
         return None
+    _write_run_meta(out_dir, args, benchmark, split)
     return out_dir
 
 
@@ -267,6 +336,24 @@ async def _judge_split(
     await exp.run(samples, ["trajectory"])
     logger.info(f"  Judge results saved → {output_dir / benchmark / split}")
 
+    # Sidecar: human-readable .md per trajectory, pairing transcript + judge rows.
+    # Only fires for tool-calling benchmarks (agentdojo / injecagent) where each
+    # trajectory is a single JSON file. Browser benchmarks use a different
+    # layout (agentlab pickle dirs) — skip them for now.
+    try:
+        from eval_awareness_experiments.markdown_export import write_markdown_for_split
+        first_task = Path(trajectories[0]["task_dir"]) if trajectories else None
+        if first_task and first_task.is_file() and first_task.suffix == ".json":
+            md_dir = output_dir / benchmark / split / "markdown"
+            write_markdown_for_split(
+                transcript_dir=first_task.parent,
+                judge_jsonl=output_dir / benchmark / split / "trajectory_awareness_results.jsonl",
+                out_dir=md_dir,
+            )
+            logger.info(f"  Markdown sidecars → {md_dir}")
+    except Exception as e:
+        logger.warning(f"  [md] markdown export failed (non-fatal): {e!r}")
+
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Unified safety-benchmark pipeline.")
@@ -387,6 +474,26 @@ def main() -> None:
         else:
             logger.warning(f"No trajectory root known for {args.benchmark}/{split} in judge-only mode.")
 
+    # Recover original-run config per split. For stage=all/run-only we just
+    # wrote run_meta.json so this round-trips to args; for stage=judge-only on
+    # existing dirs this is what avoids the "model=None preset=none" leak.
+    split_to_meta: dict[str, dict] = {}
+    for split in splits:
+        root = split_to_root.get(split)
+        if root is None:
+            continue
+        recovered = _load_run_meta(Path(root))
+        if recovered is not None:
+            split_to_meta[split] = recovered
+        else:
+            split_to_meta[split] = {
+                "model_name": args.model_name,
+                "condition": args.condition,
+                "extra_instructions_preset": args.extra_instructions_preset,
+                "_recovered_from": "cli_args_fallback",
+            }
+        manifest["splits"].setdefault(split, {})["original_run_meta"] = split_to_meta[split]
+
     # Stage 2.
     async def judge_all():
         for split in splits:
@@ -403,6 +510,7 @@ def main() -> None:
             else:  # eia
                 trajectories = _discover_eia(root)
 
+            meta = split_to_meta.get(split, {})
             manifest["splits"].setdefault(split, {})["n_trajectories"] = len(trajectories)
             await _judge_split(
                 benchmark=args.benchmark,
@@ -410,9 +518,11 @@ def main() -> None:
                 trajectories=trajectories,
                 judge_model=args.judge_model,
                 judge_names=args.judges,
-                agent_model=args.model_name or "imported",
-                condition=args.condition,
-                extra_instructions_preset=args.extra_instructions_preset,
+                agent_model=meta.get("model_name") or args.model_name or "imported",
+                condition=meta.get("condition") or args.condition,
+                extra_instructions_preset=(
+                    meta.get("extra_instructions_preset") or args.extra_instructions_preset
+                ),
                 output_dir=args.output_dir,
             )
             manifest["splits"][split]["status"] = "judges_complete"
