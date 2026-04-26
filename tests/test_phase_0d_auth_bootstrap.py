@@ -527,9 +527,7 @@ class TestHappyPath:
         }
         assert (state_dir / "phase_0d" / "gitlab" / "storage_state.json").exists()
 
-    def test_run_uses_first_same_site_instance_for_phase_0d_mint(
-        self, tmp_path, monkeypatch
-    ):
+    def test_run_uses_first_same_site_instance_for_phase_0d_mint(self, tmp_path, monkeypatch):
         state_dir = tmp_path / "logs"
         bench = tmp_path / "benchmark"
         state_dir.mkdir()
@@ -577,10 +575,10 @@ class TestHappyPath:
             encoding="utf-8",
         )
 
-        captured: dict[str, object] = {}
+        captured: list[str] = []
 
         async def fake_form_login(*, spec, site_url, output_path):
-            captured["site_url"] = site_url
+            captured.append(site_url)
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(
                 json.dumps(
@@ -604,11 +602,16 @@ class TestHappyPath:
         rc = asyncio.run(bootstrap.run(_make_args(bench, instances_path)))
 
         assert rc == 0
-        assert captured["site_url"] == "http://172.17.0.1:8023"
+        # The canonical/shared mint targets the first same-site instance. The
+        # per-instance mint loop subsequently mints one artifact per replica
+        # (each probed against its own site_url).
+        assert captured[0] == "http://172.17.0.1:8023"
+        assert sorted(captured[1:]) == [
+            "http://172.17.0.1:8023",
+            "http://172.17.0.1:8033",
+        ]
 
-    def test_run_rejects_mixed_host_storage_state_after_bootstrap(
-        self, tmp_path, monkeypatch
-    ):
+    def test_run_rejects_mixed_host_storage_state_after_bootstrap(self, tmp_path, monkeypatch):
         state_dir = tmp_path / "logs"
         bench = tmp_path / "benchmark"
         state_dir.mkdir()
@@ -1670,3 +1673,201 @@ def test_verify_generate_signature_rejects_positional_only_required_params(tmp_p
         }
         errors = _validate_auth_mechanism(mech)
         assert any("success" in e for e in errors), f"expected success-marker error: {errors}"
+
+
+# ---------------------------------------------------------------------------
+# Per-instance mint (Phase 0d writes one storage_state per replica)
+# ---------------------------------------------------------------------------
+
+
+def _make_multi_instance_config(bench: Path, *, site_urls: list[str], path: Path) -> Path:
+    """Write an instances.json with multiple gitlab replicas sharing one auth recipe."""
+    auth = {
+        "type": "storage_state",
+        "storage_state": {
+            "path": "logs/phase_0d/gitlab/storage_state.json",
+            "form_login": {
+                "login_url": "/users/sign_in",
+                "username_selector": "#user_login",
+                "password_selector": "#user_password",
+                "submit_selector": "input[type=submit]",
+                "success_url_substring": "/-/profile",
+            },
+        },
+        "authentication": {
+            "credentials": {"username": "root", "password": "password"},
+        },
+    }
+    payload = {
+        "benchmark_name": "WebArena Verified",
+        "benchmark_codebase": str(bench),
+        "instances": [
+            {
+                "site_name": "gitlab",
+                "site_url": url,
+                "replica_index": index,
+                "replica_name": f"gitlab_{index}",
+                "agent_auth": auth,
+            }
+            for index, url in enumerate(site_urls)
+        ],
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
+def test_phase_0d_mints_per_instance_when_multiple_instances(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    state_dir, bench, _profiles = _setup_dirs(tmp_path, monkeypatch)
+    site_urls = [
+        "http://172.17.0.1:8023",
+        "http://172.17.0.1:8033",
+        "http://172.17.0.1:8043",
+    ]
+    instances_path = _make_multi_instance_config(
+        bench,
+        site_urls=site_urls,
+        path=tmp_path / "instances.scale.json",
+    )
+
+    captured: list[str] = []
+
+    async def fake_form_login(*, spec, site_url, output_path):
+        captured.append(site_url)
+        host = site_url.split("//", 1)[1].split(":", 1)[0] if "//" in site_url else "172.17.0.1"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
+            json.dumps(
+                {
+                    "cookies": [
+                        {
+                            "name": "_gitlab_session",
+                            "value": f"cookie-for-{site_url}",
+                            "domain": host,
+                            "path": "/",
+                        }
+                    ],
+                    "origins": [{"origin": site_url, "localStorage": []}],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    monkeypatch.setattr(bootstrap, "_bootstrap_via_form_login", fake_form_login)
+
+    rc = asyncio.run(bootstrap.run(_make_args(bench, instances_path)))
+
+    assert rc == 0
+    # Canonical mint targets the first same-site replica; per-instance loop
+    # then mints once per replica using each replica's own site_url.
+    assert captured[0] == site_urls[0]
+    assert sorted(captured[1:]) == sorted(site_urls)
+
+    shared = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    assert shared.exists()
+    instance_dir = state_dir / "phase_0d" / "gitlab" / "instances"
+    assert instance_dir.exists()
+    minted = sorted(p.parent.name for p in instance_dir.glob("*/storage_state.json"))
+    assert len(minted) == 3, minted
+
+    # Each per-instance file carries its replica's URL embedded in the cookie
+    # value (proves the mint ran against the per-replica site_url, not the canonical one).
+    seen_cookie_urls: set[str] = set()
+    for sub in instance_dir.iterdir():
+        payload = json.loads((sub / "storage_state.json").read_text())
+        seen_cookie_urls.add(payload["cookies"][0]["value"])
+    assert seen_cookie_urls == {f"cookie-for-{url}" for url in site_urls}
+
+
+def test_phase_0d_force_remint_refreshes_all_per_instance_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    state_dir, bench, _profiles = _setup_dirs(tmp_path, monkeypatch)
+    site_urls = ["http://172.17.0.1:8023", "http://172.17.0.1:8033"]
+    instances_path = _make_multi_instance_config(
+        bench,
+        site_urls=site_urls,
+        path=tmp_path / "instances.scale.json",
+    )
+
+    call_count = {"value": 0}
+
+    async def fake_form_login(*, spec, site_url, output_path):
+        call_count["value"] += 1
+        host = site_url.split("//", 1)[1].split(":", 1)[0] if "//" in site_url else "172.17.0.1"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
+            json.dumps(
+                {
+                    "cookies": [
+                        {
+                            "name": "_gitlab_session",
+                            "value": f"call_{call_count['value']}",
+                            "domain": host,
+                            "path": "/",
+                        }
+                    ],
+                    "origins": [{"origin": site_url, "localStorage": []}],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    monkeypatch.setattr(bootstrap, "_bootstrap_via_form_login", fake_form_login)
+
+    # First run produces canonical + 2 per-instance mints (3 total form_login calls).
+    rc = asyncio.run(bootstrap.run(_make_args(bench, instances_path)))
+    assert rc == 0
+    assert call_count["value"] == 3
+
+    # Second run with FORCE_REMINT must re-run the canonical mint (idempotency
+    # cache invalidated) plus both per-instance mints.
+    monkeypatch.setenv(bootstrap.FORCE_REMINT_ENV, "true")
+    rc = asyncio.run(bootstrap.run(_make_args(bench, instances_path)))
+    assert rc == 0
+    # Six total = first run (3) + second run (3 fresh).
+    assert call_count["value"] == 6
+
+
+def test_phase_0d_single_instance_skips_per_instance_loop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Single-instance configs continue to write only the shared artifact."""
+    state_dir, bench, _profiles = _setup_dirs(tmp_path, monkeypatch)
+    instances_path = _make_multi_instance_config(
+        bench,
+        site_urls=["http://172.17.0.1:8023"],
+        path=tmp_path / "instances.smoke.json",
+    )
+
+    call_count = {"value": 0}
+
+    async def fake_form_login(*, spec, site_url, output_path):
+        call_count["value"] += 1
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
+            json.dumps(
+                {
+                    "cookies": [
+                        {
+                            "name": "_gitlab_session",
+                            "value": "abc",
+                            "domain": "172.17.0.1",
+                            "path": "/",
+                        }
+                    ],
+                    "origins": [{"origin": "http://172.17.0.1:8023", "localStorage": []}],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    monkeypatch.setattr(bootstrap, "_bootstrap_via_form_login", fake_form_login)
+
+    rc = asyncio.run(bootstrap.run(_make_args(bench, instances_path)))
+
+    assert rc == 0
+    assert call_count["value"] == 1, "single-instance config should mint exactly once"
+    instance_dir = state_dir / "phase_0d" / "gitlab" / "instances"
+    assert not instance_dir.exists()

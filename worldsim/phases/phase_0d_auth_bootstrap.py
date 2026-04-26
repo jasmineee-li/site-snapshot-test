@@ -180,6 +180,7 @@ async def run(args: argparse.Namespace) -> int:
     # orchestrator-local host view.
     site_urls = _load_site_urls(getattr(args, "instances", None))
     instance_agent_auths: dict[str, dict[str, Any]] = {}
+    site_instances: dict[str, list[dict[str, Any]]] = {}
     instances_path = getattr(args, "instances", None)
     if instances_path is not None:
         try:
@@ -187,6 +188,7 @@ async def run(args: argparse.Namespace) -> int:
             for inst in config.instances:
                 if has_configured_agent_auth(inst.agent_auth):
                     instance_agent_auths.setdefault(inst.site_name, inst.agent_auth)
+                site_instances.setdefault(inst.site_name, []).append(inst.model_dump())
         except (OSError, ValueError) as exc:
             logger.warning(
                 "Phase 0d: failed to load instances.json agent_auth from %s: %s",
@@ -379,6 +381,25 @@ async def run(args: argparse.Namespace) -> int:
             dispatch,
         )
 
+        # Per-instance mint: each replica of a site has its own SECRET_KEY_BASE
+        # and per-replica DB, so a cookie minted against one replica is rejected
+        # by all others. When more than one instance is configured for this
+        # site, mint a per-replica artifact under
+        # ``logs/phase_0d/<site>/instances/<instance_id>/storage_state.json``
+        # using each replica's own ``site_url`` for liveness probing.
+        # Single-instance configs skip the loop and continue using the shared
+        # top-level artifact (backward compat).
+        per_site_instances = site_instances.get(spec.site_name, [])
+        if len(per_site_instances) > 1:
+            per_instance_failures = await _mint_per_instance_artifacts(
+                spec=spec,
+                instances=per_site_instances,
+                state_dir=state_dir,
+                benchmark_root=benchmark,
+            )
+            for instance_failure in per_instance_failures:
+                failures.append((spec.site_name, instance_failure))
+
     if failures:
         save_state(
             "phase_0d",
@@ -405,6 +426,84 @@ async def run(args: argparse.Namespace) -> int:
         len(skipped),
     )
     return 0
+
+
+async def _mint_per_instance_artifacts(
+    *,
+    spec: _SiteSpec,
+    instances: list[dict[str, Any]],
+    state_dir: Path,
+    benchmark_root: Path,
+) -> list[str]:
+    """Mint a per-instance storage_state for every replica of ``spec.site_name``.
+
+    Each per-replica artifact lives at
+    ``<state_dir>/phase_0d/<site>/instances/<instance_id>/storage_state.json``.
+    The minting goes through :func:`reacquire_storage_state`, which probes the
+    replica's own ``site_url`` and reuses the cached artifact when its sidecar
+    is fresh. ``WORLDSIM_STORAGE_STATE_FORCE_REMINT`` forces re-mint of every
+    instance regardless of cache state.
+
+    Returns a list of human-readable failure strings (one per failed instance).
+    Per-instance failures do not abort the loop; the caller decides whether
+    they roll up to a Phase 0d failure.
+    """
+    force = _force_remint()
+    failures: list[str] = []
+    for instance in instances:
+        instance_id = phase_0d_instance_id(instance)
+        per_instance_path = phase_0d_instance_artifact_path(
+            spec.site_name, instance, state_dir=state_dir
+        )
+        if (
+            not force
+            and per_instance_path.exists()
+            and _liveness_check_passes(
+                site_name=spec.site_name,
+                artifact_path=per_instance_path,
+                instance=instance,
+            )
+        ):
+            logger.info(
+                "Phase 0d: skipping per-instance mint for site %r instance %s "
+                "(artifact present, liveness ok)",
+                spec.site_name,
+                instance_id,
+            )
+            continue
+        try:
+            refreshed_path = await reacquire_storage_state(
+                site_name=spec.site_name,
+                instance=instance,
+                benchmark_root=benchmark_root,
+            )
+        except AuthBootstrapError as exc:
+            failures.append(f"per-instance {instance_id}: {exc}")
+            logger.error(
+                "Phase 0d: per-instance mint failed for site %r instance %s: %s",
+                spec.site_name,
+                instance_id,
+                exc,
+            )
+            continue
+        except Exception as exc:
+            failures.append(f"per-instance {instance_id}: {exc!r}")
+            logger.exception(
+                "Phase 0d: per-instance mint unexpected failure for site %r instance %s",
+                spec.site_name,
+                instance_id,
+            )
+            continue
+        from worldsim.storage_state_preflight import write_storage_state_meta
+
+        write_storage_state_meta(refreshed_path, mechanism="per_instance_mint")
+        logger.info(
+            "Phase 0d: minted per-instance storage_state for site %r instance %s at %s",
+            spec.site_name,
+            instance_id,
+            refreshed_path,
+        )
+    return failures
 
 
 async def reacquire_storage_state(
@@ -1213,12 +1312,23 @@ def phase_0d_artifact_path(site_name: str, state_dir: Path | None = None) -> Pat
     return base / "phase_0d" / site / "storage_state.json"
 
 
-def _phase_0d_instance_key(instance: dict[str, Any]) -> str:
+def phase_0d_instance_id(instance: dict[str, Any]) -> str:
+    """Return a stable per-instance directory key.
+
+    Folds ``site_url``, ``replica_name``, and ``replica_index`` into a
+    16-hex-char digest so two replicas of the same site that share none of
+    those fields are still distinguishable, and so the same instance produces
+    the same key whether it is consumed as a Pydantic dump or a raw dict.
+    """
     raw = "|".join(
         str(instance.get(key) or "") for key in ("site_url", "replica_name", "replica_index")
     )
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
     return f"instance_{digest}"
+
+
+# Alias kept for legacy callers.
+_phase_0d_instance_key = phase_0d_instance_id
 
 
 def phase_0d_instance_artifact_path(
@@ -1228,7 +1338,17 @@ def phase_0d_instance_artifact_path(
 ) -> Path:
     """Return the runtime-refresh artifact path for one concrete instance."""
     site_root = phase_0d_artifact_path(site_name, state_dir=state_dir).parent
-    return site_root / "instances" / _phase_0d_instance_key(instance) / "storage_state.json"
+    return site_root / "instances" / phase_0d_instance_id(instance) / "storage_state.json"
+
+
+def phase_0d_instance_artifact_path_by_id(
+    site_name: str,
+    instance_id: str,
+    state_dir: Path | None = None,
+) -> Path:
+    """Return the per-instance artifact path keyed by an already-computed instance id."""
+    site_root = phase_0d_artifact_path(site_name, state_dir=state_dir).parent
+    return site_root / "instances" / instance_id / "storage_state.json"
 
 
 def phase_0d_completion_path(site_name: str, state_dir: Path | None = None) -> Path:
@@ -1391,6 +1511,9 @@ __all__ = [
     "AuthBootstrapError",
     "phase_0d_artifact_path",
     "phase_0d_completion_path",
+    "phase_0d_instance_artifact_path",
+    "phase_0d_instance_artifact_path_by_id",
+    "phase_0d_instance_id",
     "reacquire_storage_state",
     "run",
 ]

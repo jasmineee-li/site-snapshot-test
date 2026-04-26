@@ -176,7 +176,15 @@ def resolve_storage_state_path(
     storage_state_override: str | Path | None = None,
     task: Mapping[str, Any] | None = None,
     benchmark_root: Path | None = None,
+    instance_id: str | None = None,
 ) -> Path | None:
+    """Return a usable storage_state path for ``site_name``.
+
+    When ``instance_id`` is supplied, the per-instance artifact at
+    ``<state_dir>/phase_0d/<site>/instances/<instance_id>/storage_state.json``
+    is preferred. If that file is missing the resolver falls back to the
+    declared / shared path with a WARNING (the operator should re-run Phase 0d).
+    """
     if storage_state_override is not None and str(storage_state_override).strip():
         path = Path(storage_state_override)
         if path.exists():
@@ -205,6 +213,7 @@ def resolve_storage_state_path(
                 nested.strip(),
                 benchmark_root=benchmark_root,
                 site_name=site_name,
+                instance_id=instance_id,
             )
             if error is not None:
                 logger.warning("agent auth: %s", error)
@@ -224,12 +233,18 @@ def resolve_storage_state_path(
     if site_error is not None:
         logger.warning("agent auth: %s", site_error)
         return None
-    candidate = (
-        Path(os.environ.get("WORLDSIM_STATE_DIR") or "logs")
-        / "phase_0d"
-        / fallback_site
-        / "storage_state.json"
-    )
+    state_root = Path(os.environ.get("WORLDSIM_STATE_DIR") or "logs") / "phase_0d" / fallback_site
+    if instance_id and _is_safe_instance_id(instance_id):
+        per_instance = state_root / "instances" / instance_id / "storage_state.json"
+        if per_instance.exists():
+            return per_instance
+        logger.warning(
+            "agent auth: per-instance storage_state %s not found; falling back to shared "
+            "%s/storage_state.json (re-run Phase 0d to populate the per-instance artifact)",
+            per_instance,
+            state_root,
+        )
+    candidate = state_root / "storage_state.json"
     return candidate if candidate.exists() else None
 
 
@@ -278,11 +293,20 @@ def _phase_0d_site_root(site_name: str) -> tuple[Path | None, str | None]:
     ).resolve(), None
 
 
+_PHASE_0D_INSTANCE_ID_RE = re.compile(r"^instance_[A-Za-z0-9]{1,64}$")
+
+
+def _is_safe_instance_id(instance_id: str) -> bool:
+    """Reject instance ids that could be used for path traversal."""
+    return bool(_PHASE_0D_INSTANCE_ID_RE.fullmatch(instance_id))
+
+
 def _resolve_declared_storage_state_path(
     raw_path: str,
     *,
     benchmark_root: Path | None,
     site_name: str,
+    instance_id: str | None = None,
 ) -> tuple[Path | None, str | None]:
     """Resolve a declared ``agent_auth.storage_state.path``.
 
@@ -292,12 +316,28 @@ def _resolve_declared_storage_state_path(
     diverge into different files for the same config string. Absolute paths
     keep their dual-root containment (state dir or benchmark root) so legacy
     configs that point inside the benchmark tree still validate.
+
+    When ``instance_id`` is supplied, the resolver first looks up the
+    per-instance artifact under the site's Phase 0d directory; the declared
+    relative/absolute path is consulted only when the per-instance artifact is
+    missing. Absolute declared paths are returned unchanged because operators
+    sometimes pin a specific override that should not be transformed.
     """
     path = Path(raw_path)
     state_root, site_error = _phase_0d_site_root(site_name)
     if site_error is not None:
         return None, site_error
     state_dir_root = Path(os.environ.get("WORLDSIM_STATE_DIR") or "logs").expanduser().resolve()
+    if instance_id and _is_safe_instance_id(instance_id) and state_root is not None:
+        per_instance = state_root / "instances" / instance_id / "storage_state.json"
+        if per_instance.exists():
+            return per_instance, None
+        logger.warning(
+            "agent auth: per-instance storage_state %s not found; falling back to declared "
+            "path %s (re-run Phase 0d to populate the per-instance artifact)",
+            per_instance,
+            raw_path,
+        )
     allowed_absolute_roots = [
         root
         for root in (

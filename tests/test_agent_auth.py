@@ -154,7 +154,9 @@ def test_declared_storage_state_without_artifact_is_unusable(tmp_path, monkeypat
     )
 
     assert not resolved.usable
-    assert resolved.unusable_reason == "storage_state auth declared but no usable artifact was found"
+    assert (
+        resolved.unusable_reason == "storage_state auth declared but no usable artifact was found"
+    )
 
 
 def test_unknown_auth_is_unusable_for_preflight():
@@ -216,9 +218,7 @@ def test_declared_storage_state_requires_containment_root(tmp_path, monkeypatch)
     assert resolved is None
 
 
-def test_declared_storage_state_allows_phase_0d_root_without_benchmark_root(
-    tmp_path, monkeypatch
-):
+def test_declared_storage_state_allows_phase_0d_root_without_benchmark_root(tmp_path, monkeypatch):
     state_dir = tmp_path / "state"
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
     phase_0d = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
@@ -316,3 +316,118 @@ def test_storage_state_fallback_rejects_unsafe_site_name(tmp_path, monkeypatch):
     )
 
     assert resolved is None
+
+
+def test_resolve_storage_state_prefers_per_instance_path(tmp_path, monkeypatch):
+    """When ``instance_id`` is supplied and the per-instance file exists, use it."""
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    shared = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    shared.parent.mkdir(parents=True)
+    _write_storage_state(shared, domain="172.17.0.1")
+    per_instance = (
+        state_dir
+        / "phase_0d"
+        / "gitlab"
+        / "instances"
+        / "instance_deadbeefdeadbeef"
+        / "storage_state.json"
+    )
+    per_instance.parent.mkdir(parents=True)
+    _write_storage_state(per_instance, domain="172.17.0.1")
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {"path": str(shared)}},
+        site_name="gitlab",
+        instance_id="instance_deadbeefdeadbeef",
+    )
+
+    assert resolved == per_instance
+
+
+def test_resolve_storage_state_falls_back_to_shared_when_per_instance_missing(
+    tmp_path, monkeypatch, caplog
+):
+    """Multi-instance configs without per-instance files yet fall back to shared with WARNING."""
+    import logging
+
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    shared = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    shared.parent.mkdir(parents=True)
+    _write_storage_state(shared, domain="172.17.0.1")
+
+    with caplog.at_level(logging.WARNING, logger="worldsim.agent_auth"):
+        resolved = resolve_storage_state_path(
+            {"type": "storage_state", "storage_state": {"path": str(shared)}},
+            site_name="gitlab",
+            instance_id="instance_deadbeefdeadbeef",
+        )
+
+    assert resolved == shared
+    assert any("per-instance storage_state" in record.message for record in caplog.records)
+    assert any("re-run Phase 0d" in record.message for record in caplog.records)
+
+
+def test_resolve_storage_state_single_instance_uses_shared_path(tmp_path, monkeypatch):
+    """No ``instance_id`` -> classic shared-path lookup, unchanged behavior."""
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    shared = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    shared.parent.mkdir(parents=True)
+    _write_storage_state(shared, domain="gitlab.test")
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {"path": str(shared)}},
+        site_name="gitlab",
+    )
+
+    assert resolved == shared
+
+
+def test_resolve_storage_state_unsafe_instance_id_is_ignored(tmp_path, monkeypatch):
+    """Path-traversal attempts in instance_id are rejected; falls back to shared."""
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    shared = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    shared.parent.mkdir(parents=True)
+    _write_storage_state(shared, domain="gitlab.test")
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {"path": str(shared)}},
+        site_name="gitlab",
+        instance_id="../../etc/passwd",
+    )
+
+    assert resolved == shared
+
+
+def test_resolve_storage_state_per_instance_preferred_over_declared_path(tmp_path, monkeypatch):
+    """Per-instance lookup wins over declared path when both exist."""
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    declared = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    declared.parent.mkdir(parents=True)
+    _write_storage_state(declared, domain="gitlab.test")
+    per_instance = (
+        state_dir
+        / "phase_0d"
+        / "gitlab"
+        / "instances"
+        / "instance_abcdef0123456789"
+        / "storage_state.json"
+    )
+    per_instance.parent.mkdir(parents=True)
+    _write_storage_state(per_instance, domain="gitlab.test")
+
+    # Declared path explicitly points at the shared file via a relative path.
+    resolved = resolve_storage_state_path(
+        {
+            "type": "storage_state",
+            "storage_state": {"path": "phase_0d/gitlab/storage_state.json"},
+        },
+        site_name="gitlab",
+        instance_id="instance_abcdef0123456789",
+    )
+
+    assert resolved == per_instance

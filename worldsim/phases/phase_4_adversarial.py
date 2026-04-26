@@ -2539,6 +2539,13 @@ async def run_adversarial_task(
                 site_value = task.get("site")
                 if isinstance(site_value, str) and site_value:
                     run_kwargs["task_site"] = site_value
+                # Per-replica storage_state lookup: each gitlab replica has its
+                # own SECRET_KEY_BASE, so the cookie minted against one replica
+                # is rejected by the others. Pass the bound instance id so the
+                # auth resolver picks the per-replica artifact when present.
+                from worldsim.phases.phase_0d_auth_bootstrap import phase_0d_instance_id
+
+                run_kwargs["instance_id"] = phase_0d_instance_id(instance_dict)
             # Plumb the seeded payload text so the PVPO step callback can
             # locate it by substring match on the delivery page. When no
             # payload_texts are attached to the task (benign runs, seed-

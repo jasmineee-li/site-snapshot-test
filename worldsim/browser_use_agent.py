@@ -113,6 +113,7 @@ class AgentRunner(Protocol):
         payload_text: str | None = None,
         payload_witnesses: list[str] | None = None,
         pvpo_cdp_url: str | None = None,
+        instance_id: str | None = None,
     ) -> AgentResult: ...
 
     async def teardown(self) -> None: ...
@@ -757,13 +758,19 @@ class AuthArtifactMissingError(RuntimeError):
     """Raised when a declared storage_state artifact (or its generator) is missing."""
 
 
-def _phase_0d_fallback_path(task: dict[str, Any] | None) -> Path | None:
+def _phase_0d_fallback_path(
+    task: dict[str, Any] | None,
+    *,
+    instance_id: str | None = None,
+) -> Path | None:
     """Return the Phase 0d-bootstrapped storage_state.json path for ``task``'s site.
 
-    Phase 0d writes artifacts to ``<state_dir>/phase_0d/<site>/storage_state.json``.
-    We consult it as a fallback when the benchmark-declared storage_state path is
-    missing, so operators who bootstrap via ``worldsim phase 0d`` do not need to
-    re-edit AGENT_CONTEXT to point at the generated artifact.
+    Phase 0d writes artifacts to ``<state_dir>/phase_0d/<site>/storage_state.json``
+    plus a per-instance copy under ``instances/<instance_id>/storage_state.json``
+    when multiple replicas of a site are configured. When ``instance_id`` is
+    supplied, the per-instance file is preferred; missing per-instance file falls
+    back to the shared one with a warning so multi-replica deploys that have not
+    yet re-run Phase 0d still execute (with the cookie likely rejected).
 
     Returns ``None`` when the task has no ``site`` field or phase 0d was never
     run. The import is local to avoid a circular module dependency between
@@ -780,11 +787,22 @@ def _phase_0d_fallback_path(task: dict[str, Any] | None) -> Path | None:
         from worldsim.phases.phase_0d_auth_bootstrap import (
             phase_0d_artifact_path,
             phase_0d_completion_path,
+            phase_0d_instance_artifact_path_by_id,
         )
     except ImportError:  # pragma: no cover — only triggers on misinstalled env.
         return None
-    artifact_path = phase_0d_artifact_path(site.strip())
     completion_path = phase_0d_completion_path(site.strip())
+    if instance_id:
+        per_instance = phase_0d_instance_artifact_path_by_id(site.strip(), instance_id)
+        if per_instance.exists():
+            return per_instance
+        logger.warning(
+            "agent auth: per-instance Phase 0d artifact %s missing; falling back to shared "
+            "storage_state for site %r (re-run Phase 0d to populate the per-instance file)",
+            per_instance,
+            site.strip(),
+        )
+    artifact_path = phase_0d_artifact_path(site.strip())
     if not artifact_path.exists() or not completion_path.exists():
         return None
     return artifact_path
@@ -1018,6 +1036,7 @@ def _resolve_storage_state_path(
     benchmark_root: Path | None,
     *,
     site_name: str,
+    instance_id: str | None = None,
 ) -> Path:
     """Resolve a storage-state artifact path and enforce benchmark-root containment."""
     if not site_name:
@@ -1055,6 +1074,7 @@ def _resolve_storage_state_path(
         raw_path,
         benchmark_root=benchmark_root,
         site_name=site_name,
+        instance_id=instance_id,
     )
     if error is not None or path is None:
         raise AuthArtifactMissingError(error or "storage_state path could not be resolved")
@@ -1146,6 +1166,7 @@ def _resolve_auth(
     benchmark_root: Path | None,
     site_url: str | None = None,
     storage_state_runtime_dir: Path | None = None,
+    instance_id: str | None = None,
 ) -> tuple[dict[str, Any], list[Any]]:
     """Translate an ``auth_mechanism`` dict into BrowserSession kwargs + deferred actions.
 
@@ -1202,7 +1223,7 @@ def _resolve_auth(
             raise AuthArtifactMissingError(
                 "auth_mechanism.storage_state.path is empty; validator should have caught this"
             )
-        bootstrap_path = _phase_0d_fallback_path(task)
+        bootstrap_path = _phase_0d_fallback_path(task, instance_id=instance_id)
         site_name = str(task.get("site") or "") if isinstance(task, dict) else ""
         bootstrap_error: AuthArtifactMissingError | None = None
         declared_error: AuthArtifactMissingError | None = None
@@ -1211,6 +1232,7 @@ def _resolve_auth(
                 raw_path.strip(),
                 benchmark_root,
                 site_name=site_name,
+                instance_id=instance_id,
             )
         except AuthArtifactMissingError as exc:
             path = None
@@ -1380,6 +1402,7 @@ class BrowserUseAgent:
         payload_text: str | None = None,
         payload_witnesses: list[str] | None = None,
         pvpo_cdp_url: str | None = None,
+        instance_id: str | None = None,
     ) -> AgentResult:
         from browser_use import Agent, BrowserSession
 
@@ -1413,6 +1436,7 @@ class BrowserUseAgent:
             benchmark_root=benchmark_root,
             site_url=server_url,
             storage_state_runtime_dir=task_dir / "auth",
+            instance_id=instance_id,
         )
         auth_sensitive_header_names = _auth_sensitive_header_names(auth_mechanism)
         if deferred_auth_actions and len(start_urls or []) > 1:

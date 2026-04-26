@@ -103,7 +103,11 @@ def test_resolve_auth_falls_back_when_declared_storage_state_is_wrong_host(
     fallback = tmp_path / "phase_0d" / "gitlab" / "storage_state.json"
     _write_storage_state(declared, domain="old.example")
     _write_storage_state(fallback, domain="gitlab.example")
-    monkeypatch.setattr(browser_use_agent, "_phase_0d_fallback_path", lambda _task: fallback)
+    monkeypatch.setattr(
+        browser_use_agent,
+        "_phase_0d_fallback_path",
+        lambda _task, *, instance_id=None: fallback,
+    )
 
     session_kwargs, deferred = browser_use_agent._resolve_auth(
         {"type": "storage_state", "storage_state": {"path": str(declared)}},
@@ -127,7 +131,11 @@ def test_resolve_auth_prefers_valid_declared_storage_state_over_fallback(
     fallback = tmp_path / "phase_0d" / "gitlab" / "storage_state.json"
     _write_storage_state(declared, domain="gitlab.example")
     _write_storage_state(fallback, domain="old.example")
-    monkeypatch.setattr(browser_use_agent, "_phase_0d_fallback_path", lambda _task: fallback)
+    monkeypatch.setattr(
+        browser_use_agent,
+        "_phase_0d_fallback_path",
+        lambda _task, *, instance_id=None: fallback,
+    )
 
     session_kwargs, deferred = browser_use_agent._resolve_auth(
         {"type": "storage_state", "storage_state": {"path": str(declared)}},
@@ -175,7 +183,11 @@ def test_resolve_auth_validates_phase_0d_fallback_storage_state(
     declared = "missing.json"
     fallback = tmp_path / "phase_0d" / "gitlab" / "storage_state.json"
     _write_storage_state(fallback, domain="old.example")
-    monkeypatch.setattr(browser_use_agent, "_phase_0d_fallback_path", lambda _task: fallback)
+    monkeypatch.setattr(
+        browser_use_agent,
+        "_phase_0d_fallback_path",
+        lambda _task, *, instance_id=None: fallback,
+    )
 
     with pytest.raises(browser_use_agent.AuthArtifactMissingError, match="do not match live host"):
         browser_use_agent._resolve_auth(
@@ -185,6 +197,88 @@ def test_resolve_auth_validates_phase_0d_fallback_storage_state(
             site_url="http://gitlab.example",
         )
     assert "do not match live host" in caplog.text
+
+
+def test_resolve_auth_picks_per_instance_storage_state_when_present(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    """Phase 4 dispatches with ``instance_id`` -> per-replica artifact wins."""
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    site_root = state_dir / "phase_0d" / "gitlab"
+    site_root.mkdir(parents=True)
+    shared = site_root / "storage_state.json"
+    _write_storage_state(shared, domain="172.17.0.1")
+    (site_root / "completion.json").write_text(json.dumps({"site": "gitlab"}))
+    instance_id = "instance_0123456789abcdef"
+    per_instance = site_root / "instances" / instance_id / "storage_state.json"
+    _write_storage_state(per_instance, domain="172.17.0.1")
+
+    session_kwargs, deferred = browser_use_agent._resolve_auth(
+        {"type": "storage_state", "storage_state": {"path": str(shared)}},
+        {"site": "gitlab"},
+        benchmark_root=state_dir,
+        site_url="http://172.17.0.1",
+        instance_id=instance_id,
+    )
+
+    assert Path(session_kwargs["storage_state"]) == per_instance.resolve()
+    assert deferred == []
+
+
+def test_resolve_auth_falls_back_to_shared_when_per_instance_missing(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+):
+    """No per-instance file yet -> fall back to shared with WARNING."""
+    import logging
+
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    site_root = state_dir / "phase_0d" / "gitlab"
+    site_root.mkdir(parents=True)
+    shared = site_root / "storage_state.json"
+    _write_storage_state(shared, domain="172.17.0.1")
+    (site_root / "completion.json").write_text(json.dumps({"site": "gitlab"}))
+
+    with caplog.at_level(logging.WARNING, logger="worldsim.agent_auth"):
+        session_kwargs, _deferred = browser_use_agent._resolve_auth(
+            {"type": "storage_state", "storage_state": {"path": str(shared)}},
+            {"site": "gitlab"},
+            benchmark_root=state_dir,
+            site_url="http://172.17.0.1",
+            instance_id="instance_deadbeefdeadbeef",
+        )
+
+    assert Path(session_kwargs["storage_state"]).read_text() == shared.read_text()
+    assert any("per-instance storage_state" in record.message for record in caplog.records)
+
+
+def test_resolve_auth_no_instance_id_keeps_shared_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    """Single-instance config (no ``instance_id``) keeps using the shared artifact."""
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    site_root = state_dir / "phase_0d" / "gitlab"
+    site_root.mkdir(parents=True)
+    shared = site_root / "storage_state.json"
+    _write_storage_state(shared, domain="172.17.0.1")
+    # Even if a per-instance file happens to exist, no instance_id -> ignored.
+    leaked = site_root / "instances" / "instance_dead0000dead0000" / "storage_state.json"
+    _write_storage_state(leaked, domain="172.17.0.1")
+
+    session_kwargs, _deferred = browser_use_agent._resolve_auth(
+        {"type": "storage_state", "storage_state": {"path": str(shared)}},
+        {"site": "gitlab"},
+        benchmark_root=state_dir,
+        site_url="http://172.17.0.1",
+    )
+
+    assert Path(session_kwargs["storage_state"]).read_text() == shared.read_text()
 
 
 @pytest.mark.asyncio
