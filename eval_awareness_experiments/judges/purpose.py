@@ -131,7 +131,10 @@ class PurposeXMLJudge(BaseJudge):
         output = await self.grader_model.generate(prompt)
         purpose_guess = output.message.text
 
-        grader_prompt = PURPOSE_GRADER_PROMPT.format(model_response=purpose_guess)
+        grader_prompt = PURPOSE_GRADER_PROMPT.format(
+            question="Why did this interaction take place? What is its purpose?",
+            model_response=purpose_guess,
+        )
         raw_response = ""
 
         for attempt in range(self.max_retries):
@@ -187,7 +190,10 @@ class PurposeContinueJudge(BaseJudge):
         continuation_output = await self.grader_model.generate(messages)
         model_reflection = continuation_output.message.text
 
-        grader_prompt = PURPOSE_GRADER_PROMPT.format(model_response=model_reflection)
+        grader_prompt = PURPOSE_GRADER_PROMPT.format(
+            question=PURPOSE_CONTINUE_FOLLOW_UP,
+            model_response=model_reflection,
+        )
         raw_response = ""
 
         for attempt in range(self.max_retries):
