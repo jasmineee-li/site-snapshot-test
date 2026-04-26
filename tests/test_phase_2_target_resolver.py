@@ -1686,3 +1686,226 @@ def test_reconstruction_helper_returns_none_when_anchors_insufficient():
         )
         is None
     )
+
+
+# --- _canonicalize_project_path -----------------------------------------
+#
+# The L3 LLM sometimes emits project_path values like
+# 'localhost:8023/a11yproject/a11yproject.com' because the API probe's
+# `web_url` carries the localhost authority. The GitLab project-by-path
+# endpoint requires a host-stripped path that we then percent-encode.
+# These tests pin the host-stripping behavior so encoding bugs surface
+# at unit-test time, not at probe time.
+
+
+def test_canonicalize_strips_localhost_authority():
+    from worldsim.phases.phase_2_target_resolver import _canonicalize_project_path
+
+    assert (
+        _canonicalize_project_path("localhost:8023/a11yproject/a11yproject.com")
+        == "a11yproject/a11yproject.com"
+    )
+
+
+def test_canonicalize_strips_full_https_url():
+    from worldsim.phases.phase_2_target_resolver import _canonicalize_project_path
+
+    assert _canonicalize_project_path("https://gitlab.local/primer/design") == "primer/design"
+
+
+def test_canonicalize_strips_bare_gitlab_local():
+    from worldsim.phases.phase_2_target_resolver import _canonicalize_project_path
+
+    assert _canonicalize_project_path("gitlab.local/foo/bar") == "foo/bar"
+
+
+def test_canonicalize_preserves_subgroup_paths():
+    from worldsim.phases.phase_2_target_resolver import _canonicalize_project_path
+
+    assert _canonicalize_project_path("namespace/subgroup/project") == "namespace/subgroup/project"
+
+
+def test_canonicalize_idempotent_on_clean_path():
+    from worldsim.phases.phase_2_target_resolver import _canonicalize_project_path
+
+    canonical = "primer/design"
+    assert _canonicalize_project_path(canonical) == canonical
+    assert _canonicalize_project_path(_canonicalize_project_path(canonical)) == canonical
+
+
+def test_canonicalize_handles_empty_input():
+    from worldsim.phases.phase_2_target_resolver import _canonicalize_project_path
+
+    assert _canonicalize_project_path("") == ""
+    assert _canonicalize_project_path("   ") == ""
+
+
+def test_canonicalize_strips_leading_and_trailing_slashes():
+    from worldsim.phases.phase_2_target_resolver import _canonicalize_project_path
+
+    assert _canonicalize_project_path("/primer/design/") == "primer/design"
+
+
+# --- L3 out_of_scope_for_option_a kind -----------------------------------
+#
+# Bucket C of the GitLab attrition (18 unique tasks) was the L3 LLM
+# being forced by `tool_choice: "tool"` to pick a kind even on commit-
+# count / blob-view / fork-action tasks. Adding `out_of_scope_for_option_a`
+# to the kind enum gives the LLM a clean abstain branch. The resolver
+# must treat it as terminal: kind=None, layer=L3, no L4 retry.
+
+
+def test_l3_out_of_scope_kind_is_clean_terminal():
+    task = _gitlab_task(
+        eval_url=None,
+        start_urls=["__GITLAB__"],
+        instruction="How many commits did kilian make to a11yproject on 2023-03-05?",
+    )
+    classifier = _make_classifier(
+        {
+            "kind": "out_of_scope_for_option_a",
+            "probe_query": {
+                "api": "none",
+                "note": "commit-history task; rendered surface is /-/commits",
+            },
+            "confidence": 0.95,
+        }
+    )
+    probe_called = {"n": 0}
+
+    async def _probe_should_not_run(*args, **kwargs):
+        probe_called["n"] += 1
+        return None
+
+    instance = {"site_url": "https://gitlab.local"}
+    result = asyncio.run(
+        resolve_l3(
+            task, PLACEHOLDERS, instance, classifier=classifier, probe_fn=_probe_should_not_run
+        )
+    )
+    assert result["kind"] is None
+    assert result["layer"] == "L3"
+    assert "pending_layer" not in result, "out_of_scope must not retry at L4"
+    assert result.get("l3_out_of_scope") is True
+    assert probe_called["n"] == 0
+    assert "out_of_scope_for_option_a" in result["reason"]
+
+
+# --- L3 probe-kind coherence check --------------------------------------
+#
+# The L3 LLM sometimes emits a (kind, probe_query.api) pair where the
+# probe's result shape can't fill the kind's anchor schema. We catch the
+# mismatch before running the probe so the failure is diagnostic rather
+# than a silent "no anchors" log line.
+
+
+def test_l3_coherence_blocks_dashboard_kind_with_project_probe():
+    # gitlab_dashboard_list anchors only allow {dashboard: ...}; running
+    # list_project_issues_recent would silently produce zero anchors.
+    task = _gitlab_task(eval_url=None, instruction="Show my open MRs")
+    classifier = _make_classifier(
+        {
+            "kind": "gitlab_dashboard_list",
+            "probe_query": {
+                "api": "list_project_issues_recent",
+                "project_path": "primer/design",
+            },
+            "confidence": 0.7,
+        }
+    )
+    probe_called = {"n": 0}
+
+    async def _probe_should_not_run(*args, **kwargs):
+        probe_called["n"] += 1
+        return None
+
+    instance = {"site_url": "https://gitlab.local"}
+    result = asyncio.run(
+        resolve_l3(
+            task, PLACEHOLDERS, instance, classifier=classifier, probe_fn=_probe_should_not_run
+        )
+    )
+    assert result["kind"] is None
+    assert result.get("pending_layer") == "L3"
+    assert "probe-kind mismatch" in result["reason"]
+    assert probe_called["n"] == 0
+
+
+def test_l3_coherence_admits_user_dashboard_probe_for_dashboard_kind():
+    # list_user_todos is the canonical probe for gitlab_dashboard_list.
+    task = _gitlab_task(eval_url=None, instruction="Show my todos")
+    classifier = _make_classifier(
+        {
+            "kind": "gitlab_dashboard_list",
+            "probe_query": {"api": "list_user_todos"},
+            "confidence": 0.9,
+        }
+    )
+
+    async def _probe(probe_query, task, instance, placeholders):
+        return {"dashboard": "todos"}
+
+    instance = {"site_url": "https://gitlab.local"}
+    result = asyncio.run(
+        resolve_l3(task, PLACEHOLDERS, instance, classifier=classifier, probe_fn=_probe)
+    )
+    assert result["layer"] == "L3"
+    assert result["kind"] == "gitlab_dashboard_list"
+    assert result["anchors"]["dashboard"] == "todos"
+
+
+def test_l3_coherence_blocks_none_api_with_concrete_kind():
+    # api='none' is the abstain sentinel; pairing it with a concrete kind
+    # is itself a mismatch the LLM shouldn't emit.
+    task = _gitlab_task(eval_url=None, instruction="Find my issue")
+    classifier = _make_classifier(
+        {
+            "kind": "gitlab_issue",
+            "probe_query": {"api": "none", "note": "no idea"},
+            "confidence": 0.4,
+        }
+    )
+
+    async def _probe_should_not_run(*args, **kwargs):
+        raise AssertionError("probe must not run on api=none coherence mismatch")
+
+    instance = {"site_url": "https://gitlab.local"}
+    result = asyncio.run(
+        resolve_l3(
+            task, PLACEHOLDERS, instance, classifier=classifier, probe_fn=_probe_should_not_run
+        )
+    )
+    assert result["kind"] is None
+    assert "probe-kind mismatch" in result["reason"]
+
+
+# --- L3 classifier failure includes class name --------------------------
+
+
+def test_l3_classifier_failure_records_exception_class_name():
+    """When the classifier returns None, resolve_l3 reads the contextvar
+    and includes the exception class name in the reason for triage."""
+    from worldsim.phases.phase_2_target_resolver import _l3_failure_class_var
+
+    task = _gitlab_task(eval_url=None, start_urls=["__GITLAB__"], instruction="anything")
+
+    async def _classifier_with_failure(task, placeholders):
+        # Simulate what _call_anthropic_classifier does on a non-retryable
+        # exception (e.g., BadRequestError). It stashes the class name on
+        # the contextvar and returns None.
+        _l3_failure_class_var.set("BadRequestError")
+        return None
+
+    instance = {"site_url": "https://gitlab.local"}
+    result = asyncio.run(
+        resolve_l3(
+            task,
+            PLACEHOLDERS,
+            instance,
+            classifier=_classifier_with_failure,
+            probe_fn=_make_probe({}),
+        )
+    )
+    assert "BadRequestError" in result["reason"]
+    assert result.get("l3_failure_class") == "BadRequestError"
+    assert result.get("pending_layer") == "L3"
