@@ -1,0 +1,124 @@
+"""Exposure-contract tests for the six gitlab Mode B kinds.
+
+Each kind must produce ``eligibility.status == "eligible"`` when given
+the resolver-shaped anchors. Mode + editor_method + target_surface_id
+match the editor-method registry entries landed alongside this work.
+"""
+
+from __future__ import annotations
+
+from worldsim.phases.phase_2_exposure_contract import build_exposure_contract
+
+
+def _build(kind: str, anchors: dict, start_url: str) -> dict:
+    return build_exposure_contract(
+        benign_task_id="task-1",
+        site="gitlab",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": kind,
+            "anchors": anchors,
+            "start_url_resolved": start_url,
+        },
+    )
+
+
+def test_gitlab_user_profile_eligible_direct_detail():
+    contract = _build(
+        "gitlab_user_profile",
+        {"username": "byteblaze"},
+        "https://gitlab.local/byteblaze",
+    )
+    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["mode"] == "direct_detail"
+    # Both bio and status methods address gitlab_user_profile; the
+    # registry sort picks the first by method name. Ensure target surface
+    # id is one of the two declared values.
+    assert contract["target_surface_id"] in {
+        "user_profile_bio",
+        "user_status_message_profile",
+    }
+
+
+def test_gitlab_snippet_eligible_direct_detail():
+    contract = _build(
+        "gitlab_snippet",
+        {"snippet_id": "42"},
+        "https://gitlab.local/-/snippets/42",
+    )
+    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["mode"] == "direct_detail"
+    assert contract["editor_method"] == "update_snippet"
+    assert contract["target_surface_id"] == "snippet_content_view"
+
+
+def test_gitlab_snippets_index_eligible_inline_listing():
+    contract = _build(
+        "gitlab_snippets_index",
+        {},
+        "https://gitlab.local/-/snippets",
+    )
+    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["mode"] == "inline_listing"
+    assert contract["editor_method"] == "create_snippet"
+    assert contract["target_surface_id"] == "snippet_title_list"
+
+
+def test_gitlab_project_milestone_eligible_direct_detail():
+    contract = _build(
+        "gitlab_project_milestone",
+        {"project_path": "byteblaze/dotfiles", "milestone_iid": "1"},
+        "https://gitlab.local/byteblaze/dotfiles/-/milestones/1",
+    )
+    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["mode"] == "direct_detail"
+    assert contract["editor_method"] == "update_milestone"
+    assert contract["target_surface_id"] == "milestone_description_detail"
+
+
+def test_gitlab_project_labels_eligible_inline_listing():
+    contract = _build(
+        "gitlab_project_labels",
+        {"project_path": "primer/design"},
+        "https://gitlab.local/primer/design/-/labels",
+    )
+    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["mode"] == "inline_listing"
+    assert contract["editor_method"] == "create_label"
+    assert contract["target_surface_id"] == "label_description_page"
+
+
+def test_gitlab_group_eligible_direct_detail():
+    contract = _build(
+        "gitlab_group",
+        {"group_path": "a11yproject"},
+        "https://gitlab.local/a11yproject",
+    )
+    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["mode"] == "direct_detail"
+    assert contract["editor_method"] == "update_group"
+    assert contract["target_surface_id"] == "group_description_page"
+
+
+def test_unresolved_kind_remains_ineligible():
+    """Sanity guard: unknown kinds still surface as unresolved_target_resource."""
+    contract = build_exposure_contract(
+        benign_task_id="task-x",
+        site="gitlab",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": None,
+            "anchors": {},
+            "start_url_resolved": None,
+        },
+    )
+    assert contract["eligibility"]["status"] == "ineligible"
+    assert contract["eligibility"]["reason"] == "unresolved_target_resource"
+
+
+def test_signature_version_bumped_to_4():
+    """Persisted Phase 2 plans built under version 3 must invalidate."""
+    from worldsim.phases.phase_2_exposure_contract import exposure_contract_signature
+
+    sig = exposure_contract_signature()
+    assert sig["version"] == 4
