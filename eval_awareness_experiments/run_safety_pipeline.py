@@ -40,6 +40,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from eval_awareness_experiments.extra_instructions import PRESETS as EXTRA_INSTRUCTION_PRESETS
 from eval_awareness_experiments.injection_modifier import ALL_CONDITIONS
+from eval_awareness_experiments.system_prompt_frame import ALL_FRAMES
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,7 @@ def _write_run_meta(run_dir: Path, args, benchmark: str, split: str) -> None:
         "model_name": args.model_name,
         "condition": args.condition,
         "extra_instructions_preset": args.extra_instructions_preset,
+        "system_prompt_frame": getattr(args, "system_prompt_frame", "none"),
         "shuffle": args.shuffle,
         "tasks_per_split": args.tasks_per_split,
         "max_steps": getattr(args, "max_steps", None),
@@ -174,7 +176,12 @@ def _stage1_toolcalling(benchmark: str, split: str, args) -> Path | None:
     """Run AgentDojo or InjecAgent for one split. Returns the output dir."""
     runner = BENCHMARK_RUNNERS[benchmark]
     model_slug = args.model_name.replace("/", "_").replace(":", "_")
-    run_name = f"{args.condition}_{args.extra_instructions_preset}_{model_slug}"
+    frame_suffix = (
+        f"_{args.system_prompt_frame}"
+        if args.system_prompt_frame != "none"
+        else ""
+    )
+    run_name = f"{args.condition}_{args.extra_instructions_preset}{frame_suffix}_{model_slug}"
 
     if benchmark == "agentdojo":
         cmd = [
@@ -184,6 +191,7 @@ def _stage1_toolcalling(benchmark: str, split: str, args) -> Path | None:
             "--model-name", args.model_name,
             "--condition", args.condition,
             "--extra-instructions-preset", args.extra_instructions_preset,
+            "--system-prompt-frame", args.system_prompt_frame,
             "--shuffle", str(args.shuffle),
             "--run-name", run_name,
         ]
@@ -198,6 +206,7 @@ def _stage1_toolcalling(benchmark: str, split: str, args) -> Path | None:
             "--model-name", args.model_name,
             "--condition", args.condition,
             "--extra-instructions-preset", args.extra_instructions_preset,
+            "--system-prompt-frame", args.system_prompt_frame,
             "--shuffle", str(args.shuffle),
             "--run-name", run_name,
         ]
@@ -296,6 +305,7 @@ async def _judge_split(
     agent_model: str,
     condition: str,
     extra_instructions_preset: str,
+    system_prompt_frame: str,
     output_dir: Path,
 ) -> None:
     from eval_awareness_experiments.llm import LLM
@@ -321,6 +331,7 @@ async def _judge_split(
                 "task_reward": t.get("task_reward"),
                 "condition": condition,
                 "extra_instructions_preset": extra_instructions_preset,
+                "system_prompt_frame": system_prompt_frame,
             },
         )
         for t in trajectories
@@ -368,6 +379,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--condition", choices=ALL_CONDITIONS, default="baseline")
     parser.add_argument("--extra-instructions-preset", default="none",
                         choices=list(EXTRA_INSTRUCTION_PRESETS.keys()))
+    parser.add_argument("--system-prompt-frame", default="none", choices=ALL_FRAMES,
+                        help="Wrap the entire system prompt in XML tags. "
+                             "Tool-calling benchmarks only (browser track not yet supported).")
     parser.add_argument("--max-steps", type=int, default=15)
     parser.add_argument("--shuffle", type=int, default=42)
     parser.add_argument("--report-port", type=int, default=1234,
@@ -397,8 +411,16 @@ def _validate_args(args: argparse.Namespace) -> None:
         if args.condition != "baseline":
             logger.warning("EIA: forcing condition=baseline (imported trajectories).")
             args.condition = "baseline"
+        if args.system_prompt_frame != "none":
+            logger.warning("EIA: forcing system_prompt_frame=none (imported trajectories).")
+            args.system_prompt_frame = "none"
     if args.stage != "judge-only" and args.benchmark != "eia" and not args.model_name:
         raise SystemExit("--model-name is required unless --stage judge-only or benchmark=eia.")
+    # Browser-track frame support is now wired through agent_factory:
+    # `build_openrouter_agent` wraps `extra_instructions` with the XML frame
+    # (rendered in AgentLab's "## Extra instructions:" section). Less literal
+    # than the tool-calling track's full-system-prompt wrap, but the model
+    # sees the frame tag clearly. See agent_factory._build_framed_extra_instructions.
 
 
 def main() -> None:
@@ -466,7 +488,12 @@ def main() -> None:
             split_to_root[split] = Path(__file__).parent / "data" / "eia"
         elif args.benchmark in TOOLCALLING_BENCHMARKS:
             model_slug = (args.model_name or "").replace("/", "_").replace(":", "_")
-            run_name = f"{args.condition}_{args.extra_instructions_preset}_{model_slug}"
+            frame_suffix = (
+                f"_{args.system_prompt_frame}"
+                if args.system_prompt_frame != "none"
+                else ""
+            )
+            run_name = f"{args.condition}_{args.extra_instructions_preset}{frame_suffix}_{model_slug}"
             if args.benchmark == "agentdojo":
                 split_to_root[split] = REPO_ROOT / "results" / "toolcalling" / "agentdojo" / split / run_name
             else:
@@ -522,6 +549,9 @@ def main() -> None:
                 condition=meta.get("condition") or args.condition,
                 extra_instructions_preset=(
                     meta.get("extra_instructions_preset") or args.extra_instructions_preset
+                ),
+                system_prompt_frame=(
+                    meta.get("system_prompt_frame") or args.system_prompt_frame
                 ),
                 output_dir=args.output_dir,
             )

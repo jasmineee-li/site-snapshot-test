@@ -62,6 +62,7 @@ def _patch_browsergym_reachability(online_sites: set[str]) -> None:
 
 from eval_awareness_experiments.agent_factory import build_openrouter_agent
 from eval_awareness_experiments.extra_instructions import PRESETS as EXTRA_INSTRUCTION_PRESETS
+from eval_awareness_experiments.system_prompt_frame import ALL_FRAMES
 
 
 def _build_popup_attack(report_port: int) -> AttackConfig:
@@ -284,6 +285,10 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--extra-instructions", default=None,
                         help="Override with arbitrary extra instructions string "
                              "(takes precedence over --extra-instructions-preset).")
+    parser.add_argument("--system-prompt-frame", default="none", choices=ALL_FRAMES,
+                        help="Wrap the agent's instructions in <llm_safety_test> or "
+                             "<hypothetical_scenario> tags. Browser track injects the "
+                             "frame into the GenericAgent's extra_instructions section.")
     return parser.parse_args()
 
 
@@ -327,7 +332,11 @@ def main() -> None:
         args.extra_instructions_preset
     )
     experiment = BgymExperiment(
-        agent=build_openrouter_agent(args.model_name, extra_instructions=extra_instr),
+        agent=build_openrouter_agent(
+            args.model_name,
+            extra_instructions=extra_instr,
+            system_prompt_frame=args.system_prompt_frame,
+        ),
         attack_configs=(_build_popup_attack(args.report_port),),
         benchmark=benchmark,
         defenses=[],

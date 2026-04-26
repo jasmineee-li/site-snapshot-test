@@ -49,6 +49,7 @@ from doomarena.browsergym.scripts.run_bgym_experiment import (
 
 from eval_awareness_experiments.agent_factory import build_openrouter_agent
 from eval_awareness_experiments.extra_instructions import PRESETS as EXTRA_INSTRUCTION_PRESETS
+from eval_awareness_experiments.system_prompt_frame import ALL_FRAMES
 from eval_awareness_experiments.injection_modifier import (
     ALL_CONDITIONS,
     InjectionCondition,
@@ -302,6 +303,10 @@ def _parse_args() -> argparse.Namespace:
                         help="Agent-side elicitation preset (same as DoomArena runner).")
     parser.add_argument("--extra-instructions", default=None,
                         help="Arbitrary extra instructions, overrides --extra-instructions-preset.")
+    parser.add_argument("--system-prompt-frame", default="none", choices=ALL_FRAMES,
+                        help="Wrap the agent's instructions in <llm_safety_test> or "
+                             "<hypothetical_scenario> tags. Browser track injects the "
+                             "frame into the GenericAgent's extra_instructions section.")
     parser.add_argument("--online-sites", nargs="+", default=None,
                         help="Override reachability check. Defaults to just --single-site.")
     return parser.parse_args()
@@ -352,7 +357,11 @@ def main() -> None:
         args.extra_instructions_preset
     )
     experiment = BgymExperiment(
-        agent=build_openrouter_agent(args.model_name, extra_instructions=extra_instr),
+        agent=build_openrouter_agent(
+            args.model_name,
+            extra_instructions=extra_instr,
+            system_prompt_frame=args.system_prompt_frame,
+        ),
         # Injection is baked into the task via WASP's page-load hook; no runtime attack config.
         attack_configs=(),
         benchmark=benchmark,
