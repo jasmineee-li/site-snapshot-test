@@ -124,10 +124,18 @@ async def test_live_l4_lists_gitlab_issues_in_populated_project(gitlab_placehold
     # issues at all (fresh reset), the test skips with a meaningful reason.
     import requests
 
-    from worldsim.seeding import _build_request_headers
+    from worldsim.auth_tokens import resolve_bearer_token
 
     base = str(instance.get("site_url") or "").rstrip("/")
-    headers = _build_request_headers(_benign_probe_instance(instance), {}, mechanism="api")
+    probe_instance = _benign_probe_instance(instance)
+    auth = probe_instance.get("api_auth") or probe_instance.get("auth") or {}
+    headers: dict[str, str] = {}
+    if isinstance(auth, dict) and auth.get("type") == "bearer_token":
+        token = resolve_bearer_token(auth, site_url=str(probe_instance.get("site_url", "")))
+        header_name = str(auth.get("header_name") or "Authorization")
+        if header_name.lower() == "authorization" and not token.lower().startswith("bearer "):
+            token = f"Bearer {token}"
+        headers[header_name] = token
     sess = requests.Session()
     r = sess.get(
         f"{base}/api/v4/issues",

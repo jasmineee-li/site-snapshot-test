@@ -223,12 +223,13 @@ def _configure_phase_4(state_dir: Path) -> Path:
                 "id": "adv-1",
                 "benign_task_id": "benign-1",
                 "adversarial_data_seed": {
-                    "mechanism": "api",
-                    "api_calls": [
+                    "mechanism": "editor",
+                    "editor_calls": [
                         {
-                            "method": "POST",
-                            "path": "/api/seed",
-                            "body": {"x": 1},
+                            "benchmark": "webarena_verified",
+                            "site": "shopping",
+                            "method": "create_product_review",
+                            "args": {"entity_pk_value": 1, "detail": "payload"},
                         }
                     ],
                 },
