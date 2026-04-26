@@ -1,6 +1,9 @@
-# Ignore experiment results (can be large)
+# Ignore experiment results (can be large) — keep markdown sidecars,
+# manifests stay out (regeneratable), and runtime logs/pilot logs stay out.
 *.jsonl
 *.csv
 *.png
 *.json
+*.log
+_pilot_logs/
 !.gitkeep
