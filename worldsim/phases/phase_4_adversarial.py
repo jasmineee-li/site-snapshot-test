@@ -1983,8 +1983,10 @@ async def run(args: argparse.Namespace) -> int:
     )
     reset_cache = TaskResetCache()
     save_state("phase_4", status="running", **state_metadata)
-    # Thread the benchmark codebase root through so BrowserUseAgent can resolve
-    # relative auth_mechanism.storage_state.path values.
+    # Thread the benchmark codebase root through so BrowserUseAgent can validate
+    # absolute auth_mechanism.storage_state.path values for containment. Relative
+    # paths anchor to the WorldSim state dir (where Phase 0d writes), not to
+    # benchmark_root.
 
     async def _bound_run_adversarial_task(task, agent, instance, task_dir):
         run_kwargs: dict[str, Any] = {

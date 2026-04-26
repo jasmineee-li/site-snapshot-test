@@ -256,9 +256,7 @@ def _validate_storage_state_override_path(
     if fallback_site:
         allowed_roots.append(
             (
-                Path(os.environ.get("WORLDSIM_STATE_DIR") or "logs")
-                / "phase_0d"
-                / fallback_site
+                Path(os.environ.get("WORLDSIM_STATE_DIR") or "logs") / "phase_0d" / fallback_site
             ).resolve()
         )
     for root in allowed_roots:
@@ -276,9 +274,7 @@ def _phase_0d_site_root(site_name: str) -> tuple[Path | None, str | None]:
     if site_error is not None:
         return None, site_error
     return (
-        Path(os.environ.get("WORLDSIM_STATE_DIR") or "logs")
-        / "phase_0d"
-        / safe_site
+        Path(os.environ.get("WORLDSIM_STATE_DIR") or "logs") / "phase_0d" / safe_site
     ).resolve(), None
 
 
@@ -288,11 +284,29 @@ def _resolve_declared_storage_state_path(
     benchmark_root: Path | None,
     site_name: str,
 ) -> tuple[Path | None, str | None]:
+    """Resolve a declared ``agent_auth.storage_state.path``.
+
+    Relative paths are anchored against the WorldSim state dir (where Phase 0d
+    writes), not ``benchmark_root``. Run-output artifacts must resolve against
+    a single output root so Phase 0d (writer) and Phase 4 (reader) cannot
+    diverge into different files for the same config string. Absolute paths
+    keep their dual-root containment (state dir or benchmark root) so legacy
+    configs that point inside the benchmark tree still validate.
+    """
     path = Path(raw_path)
     state_root, site_error = _phase_0d_site_root(site_name)
     if site_error is not None:
         return None, site_error
-    allowed_absolute_roots = [root for root in (Path(benchmark_root).resolve() if benchmark_root else None, state_root) if root is not None]
+    state_dir_root = Path(os.environ.get("WORLDSIM_STATE_DIR") or "logs").expanduser().resolve()
+    allowed_absolute_roots = [
+        root
+        for root in (
+            Path(benchmark_root).resolve() if benchmark_root else None,
+            state_root,
+            state_dir_root,
+        )
+        if root is not None
+    ]
     if path.is_absolute():
         resolved = path.resolve()
         for root in allowed_absolute_roots:
@@ -303,25 +317,12 @@ def _resolve_declared_storage_state_path(
                 continue
         roots = ", ".join(str(root) for root in allowed_absolute_roots)
         return None, f"declared storage_state path {raw_path} is outside allowed roots: {roots}"
-    if benchmark_root is None:
-        resolved = path.resolve()
-        if state_root is not None:
-            try:
-                resolved.relative_to(state_root)
-                return path, None
-            except ValueError:
-                pass
-        return None, (
-            "relative declared storage_state path requires a benchmark root unless it "
-            "resolves under the Phase 0d site auth root"
-        )
-    root = Path(benchmark_root)
-    candidate = root / path
+    candidate = state_dir_root / path
     try:
-        candidate.resolve().relative_to(root.resolve())
+        candidate.resolve().relative_to(state_dir_root)
     except ValueError:
         return None, (
-            f"declared storage_state path {raw_path} escapes benchmark root {root}"
+            f"declared storage_state path {raw_path} escapes WorldSim state dir {state_dir_root}"
         )
     return candidate, None
 
@@ -349,9 +350,13 @@ def resolve_agent_auth_headers(agent_auth: Mapping[str, Any]) -> dict[str, str]:
         needs_username = "${credentials.username}" in text
         needs_password = "${credentials.password}" in text
         if needs_username and not isinstance(username, str):
-            raise RuntimeError("http_headers references ${credentials.username} without credentials")
+            raise RuntimeError(
+                "http_headers references ${credentials.username} without credentials"
+            )
         if needs_password and not isinstance(password, str):
-            raise RuntimeError("http_headers references ${credentials.password} without credentials")
+            raise RuntimeError(
+                "http_headers references ${credentials.password} without credentials"
+            )
         if needs_username:
             text = text.replace("${credentials.username}", username)
         if needs_password:

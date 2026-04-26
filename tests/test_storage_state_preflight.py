@@ -171,7 +171,9 @@ def test_apply_skip_auth_for_host_bound_storage_states_rewrites_only_mismatched_
 
 def test_inspect_storage_state_preflight_reports_missing_relative_path_without_benchmark_root(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "state"))
     instances = [
         BenchmarkInstance(
             site_name="gitlab",
@@ -188,7 +190,7 @@ def test_inspect_storage_state_preflight_reports_missing_relative_path_without_b
 
     assert report.mismatches == ()
     assert len(report.errors) == 1
-    assert "requires a benchmark root" in report.errors[0].message
+    assert "storage_state artifact missing" in report.errors[0].message
 
 
 def test_inspect_storage_state_preflight_rejects_absolute_path_outside_allowed_roots(
@@ -239,23 +241,24 @@ def test_inspect_storage_state_preflight_reports_invalid_json(tmp_path: Path) ->
     assert "invalid JSON" in report.errors[0].message
 
 
-def test_inspect_storage_state_preflight_follows_symlinked_benchmark_root(
+def test_inspect_storage_state_preflight_follows_symlinked_state_dir(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Mirrors the r5 setup where the repo's `vendors/` is a symlink into
-    # /home/ubuntu/vendors but Phase 0d wrote the artifact through the
-    # logical path. The preflight must resolve that without requiring the
-    # file to be copied into the physical tree.
-    physical_root = tmp_path / "physical" / "webarena-verified"
-    physical_root.mkdir(parents=True)
-    state_dir = physical_root / "auth"
-    state_dir.mkdir()
-    state_path = state_dir / "gitlab-state.json"
+    # Mirrors hosts where the WorldSim state dir is reached through a symlink.
+    # Relative storage_state paths anchor at the WorldSim state dir (where
+    # Phase 0d writes), so the preflight must resolve through the symlink
+    # without requiring the file to be copied into the physical tree.
+    physical_state_dir = tmp_path / "physical" / "logs"
+    physical_state_dir.mkdir(parents=True)
+    auth_dir = physical_state_dir / "auth"
+    auth_dir.mkdir()
+    state_path = auth_dir / "gitlab-state.json"
     _write_storage_state(state_path, domain="3.12.221.9")
 
-    symlink_root = tmp_path / "vendors-symlink"
-    symlink_root.symlink_to(physical_root.parent, target_is_directory=True)
-    benchmark_root_via_symlink = symlink_root / "webarena-verified"
+    symlink_state_dir = tmp_path / "logs-symlink"
+    symlink_state_dir.symlink_to(physical_state_dir, target_is_directory=True)
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(symlink_state_dir))
 
     instances = [
         BenchmarkInstance(
@@ -269,10 +272,7 @@ def test_inspect_storage_state_preflight_follows_symlinked_benchmark_root(
         )
     ]
 
-    report = inspect_storage_state_preflight(
-        instances,
-        benchmark_root=benchmark_root_via_symlink,
-    )
+    report = inspect_storage_state_preflight(instances, benchmark_root=None)
 
     assert report.errors == ()
     assert report.mismatches == ()

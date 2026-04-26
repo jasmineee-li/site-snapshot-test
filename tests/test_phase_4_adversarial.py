@@ -6234,3 +6234,62 @@ async def test_placement_fix_resume_reuses_completed_checkpoint(monkeypatch, tmp
     )
 
     assert result == completed
+
+
+def test_relative_storage_state_path_resolves_under_worldsim_state_dir(tmp_path, monkeypatch):
+    """Phase 0d (writer) and Phase 4 (reader) anchor relative storage_state.path
+    against the WorldSim state dir, never against benchmark_root. The previous
+    contract had Phase 4 anchoring against benchmark_root, which on the live r5
+    host caused Phase 4 to read a stale 5-day-old artifact in the vendors tree
+    while Phase 0d wrote the fresh artifact under <repo>/logs.
+    """
+    from worldsim.agent_auth import _resolve_declared_storage_state_path
+    from worldsim.phases.phase_0d_auth_bootstrap import phase_0d_artifact_path
+
+    state_dir = tmp_path / "logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    benchmark_root = tmp_path / "vendors" / "webarena-verified"
+    benchmark_root.mkdir(parents=True)
+
+    relative_path = "phase_0d/gitlab/storage_state.json"
+    resolved, error = _resolve_declared_storage_state_path(
+        relative_path,
+        benchmark_root=benchmark_root,
+        site_name="gitlab",
+    )
+
+    assert error is None
+    assert resolved is not None
+    expected = state_dir / relative_path
+    assert resolved.resolve() == expected.resolve()
+    assert phase_0d_artifact_path("gitlab").resolve() == resolved.resolve()
+    try:
+        resolved.resolve().relative_to(benchmark_root.resolve())
+        raise AssertionError("relative storage_state must not anchor under benchmark_root")
+    except ValueError:
+        pass
+
+
+def test_absolute_storage_state_path_unaffected_by_state_dir_or_benchmark_root(
+    tmp_path, monkeypatch
+):
+    """Absolute declared storage_state paths inside an allowed root resolve
+    unchanged regardless of WORLDSIM_STATE_DIR or benchmark_root specifics."""
+    from worldsim.agent_auth import _resolve_declared_storage_state_path
+
+    state_dir = tmp_path / "logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    benchmark_root = tmp_path / "vendors" / "webarena-verified"
+    benchmark_root.mkdir(parents=True)
+    absolute = benchmark_root / "auth" / "storage_state.json"
+    absolute.parent.mkdir(parents=True)
+    absolute.write_text("{}", encoding="utf-8")
+
+    resolved, error = _resolve_declared_storage_state_path(
+        str(absolute),
+        benchmark_root=benchmark_root,
+        site_name="gitlab",
+    )
+
+    assert error is None
+    assert resolved == absolute

@@ -87,9 +87,7 @@ def test_verification_target_url_resolves_role_from_created_resources_list():
     target_url = feas._verification_target_url(
         {
             "verification": {
-                "target": {
-                    "url_source": "seed_metadata.created_resources.seed_render_surface.url"
-                }
+                "target": {"url_source": "seed_metadata.created_resources.seed_render_surface.url"}
             }
         },
         {
@@ -135,6 +133,7 @@ def test_task_content_hash_includes_exposure_contract_verification():
     assert feas._task_content_hash(editor_calls, exposure_contract=contract) != (
         feas._task_content_hash(editor_calls, exposure_contract=changed)
     )
+
 
 # ---------------------------------------------------------------------------
 # Fixtures / fakes
@@ -267,9 +266,12 @@ def _bypass_preflight(monkeypatch):
     yield
 
 
-def test_preflight_auth_resolves_storage_state_relative_to_benchmark_root(tmp_path):
+def test_preflight_auth_resolves_storage_state_relative_to_state_dir(tmp_path, monkeypatch):
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
     benchmark_root = tmp_path / "benchmark"
-    storage_path = benchmark_root / "auth" / "storage_state.json"
+    benchmark_root.mkdir()
+    storage_path = state_dir / "auth" / "storage_state.json"
     _write_storage_state(storage_path)
     instance = _gitlab_instance(
         agent_auth={"type": "storage_state", "storage_state": {"path": "auth/storage_state.json"}}
