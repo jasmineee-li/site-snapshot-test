@@ -4,6 +4,7 @@ from worldsim.phases.phase_2_exposure_contract import (
     build_exposure_contract,
     materialize_seed_template_from_contract,
 )
+from worldsim.seeding import self_contained_adversarial_seed_error
 
 
 def test_builds_gitlab_issue_exposure_contract_from_registry():
@@ -124,7 +125,9 @@ def test_l4_listing_preserves_benign_read_url_as_verification_target():
     }
     assert contract["mode"] == "bounded_transitive_existing"
     assert contract["benign_read_url"] == "https://gitlab.local/search?search=theme&scope=issues"
-    assert contract["verification"]["url"] == "https://gitlab.local/search?search=theme&scope=issues"
+    assert (
+        contract["verification"]["url"] == "https://gitlab.local/search?search=theme&scope=issues"
+    )
     assert contract["verification"]["entry"]["url"] == (
         "https://gitlab.local/search?search=theme&scope=issues"
     )
@@ -209,3 +212,155 @@ def test_reddit_forum_contract_is_seedable_but_phase4_inadmissible():
     assert contract["verification"]["target"]["url_source"] == (
         "seed_metadata.created_resource.url"
     )
+
+
+def _eligible_reddit_submission_contract() -> dict:
+    return build_exposure_contract(
+        benign_task_id="reddit-1",
+        site="reddit",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "reddit_submission",
+            "anchors": {"forum_name": "technology", "submission_id": "12345"},
+            "start_url_resolved": "https://reddit.local/f/technology/12345",
+        },
+    )
+
+
+def _eligible_gitlab_user_profile_contract() -> dict:
+    return build_exposure_contract(
+        benign_task_id="gitlab-user-1",
+        site="gitlab",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "gitlab_user_profile",
+            "anchors": {"username": "byteblaze"},
+            "start_url_resolved": "https://gitlab.local/byteblaze",
+        },
+    )
+
+
+def _eligible_gitlab_milestone_contract() -> dict:
+    return build_exposure_contract(
+        benign_task_id="gitlab-milestone-1",
+        site="gitlab",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "gitlab_project_milestone",
+            "anchors": {"project_path": "byteblaze/dotfiles", "milestone_iid": "1"},
+            "start_url_resolved": "https://gitlab.local/byteblaze/dotfiles/-/milestones/1",
+        },
+    )
+
+
+def test_materialize_preserves_benign_editor_calls_for_reddit_submission():
+    benign_seed = {
+        "mechanism": "none",
+        "editor_calls": [
+            {
+                "site": "reddit",
+                "method": "create_submission",
+                "args": {
+                    "forum_name": "technology",
+                    "title": "AI and the Future",
+                    "body": "Some body",
+                },
+            },
+            {
+                "site": "reddit",
+                "method": "create_comment",
+                "args": {
+                    "submission_id": "{benign_submission_id}",
+                    "forum_name": "{benign_forum_name}",
+                    "body": "First comment",
+                },
+            },
+        ],
+    }
+    contract = _eligible_reddit_submission_contract()
+
+    out = materialize_seed_template_from_contract(contract, benign_seed=benign_seed)
+
+    assert out["mechanism"] == "none"
+    assert out["editor_calls"][:2] == benign_seed["editor_calls"]
+    assert len(out["editor_calls"]) == 3
+    assert out["editor_calls"][-1]["method"] == "create_comment"
+    assert out["editor_calls"][-1]["site"] == "reddit"
+    assert self_contained_adversarial_seed_error(benign_seed, out) is None
+
+
+def test_materialize_preserves_benign_api_calls_for_gitlab_user_profile():
+    benign_seed = {
+        "mechanism": "api",
+        "api_calls": [
+            {
+                "method": "PUT",
+                "path": "/api/v4/users/2",
+                "body": {"bio": "Open source developer."},
+            }
+        ],
+    }
+    contract = _eligible_gitlab_user_profile_contract()
+
+    out = materialize_seed_template_from_contract(contract, benign_seed=benign_seed)
+
+    assert out["mechanism"] == "api"
+    assert out["api_calls"][0] == benign_seed["api_calls"][0]
+    assert len(out["api_calls"]) == 2
+    appended = out["api_calls"][1]
+    # The path-resolution helper reuses the benign's PUT path so the
+    # {user_id} placeholder Phase 1 already resolved survives intact.
+    assert appended["path"] == "/api/v4/users/2"
+    assert appended["method"] == "PUT"
+    assert "bio" in appended["body"]
+    assert appended["body"]["bio"] == "{{PAYLOAD_TEXT}}"
+    assert self_contained_adversarial_seed_error(benign_seed, out) is None
+
+
+def test_materialize_preserves_benign_api_calls_for_gitlab_milestone():
+    benign_seed = {
+        "mechanism": "api",
+        "api_calls": [
+            {
+                "method": "POST",
+                "path": "/api/v4/projects/1/milestones",
+                "body": {"title": "WCAG", "description": "Accessibility milestone"},
+            }
+        ],
+    }
+    contract = _eligible_gitlab_milestone_contract()
+
+    out = materialize_seed_template_from_contract(contract, benign_seed=benign_seed)
+
+    assert out["mechanism"] == "api"
+    assert out["api_calls"][:1] == benign_seed["api_calls"]
+    assert len(out["api_calls"]) == 2
+    appended = out["api_calls"][1]
+    # update_milestone is PUT; the benign's POST path can't be reused so
+    # the literal template falls through. Phase 2c feasibility will
+    # surface that path is unresolved if it ever shipped.
+    assert appended["method"] == "PUT"
+    assert "{{PAYLOAD_TEXT}}" in appended["body"].get("description", "")
+    assert self_contained_adversarial_seed_error(benign_seed, out) is None
+
+
+def test_materialize_legacy_no_actions_unchanged():
+    benign_seed = {"mechanism": "none"}
+    contract = _eligible_reddit_submission_contract()
+
+    out = materialize_seed_template_from_contract(contract, benign_seed=benign_seed)
+
+    assert out["mechanism"] == "editor"
+    assert len(out["editor_calls"]) == 1
+    assert out["editor_calls"][0]["method"] == "create_comment"
+    assert self_contained_adversarial_seed_error(benign_seed, out) is None
+
+
+def test_materialize_without_benign_seed_unchanged():
+    contract = _eligible_reddit_submission_contract()
+
+    out = materialize_seed_template_from_contract(contract)
+
+    assert out["mechanism"] == "editor"
+    assert len(out["editor_calls"]) == 1
+    assert out["editor_calls"][0]["method"] == "create_comment"

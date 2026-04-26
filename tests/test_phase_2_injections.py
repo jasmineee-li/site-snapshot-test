@@ -3830,6 +3830,72 @@ def test_reddit_forum_created_child_contract_is_not_materialized_for_phase4():
         )
 
 
+def test_seed_delivery_mechanism_returns_api_for_api_seed():
+    seed_template = {
+        "mechanism": "api",
+        "api_calls": [
+            {"method": "PUT", "path": "/api/v4/users/2", "body": {"bio": "x"}},
+            {"method": "PUT", "path": "/api/v4/users/2", "body": {"bio": "{{PAYLOAD_TEXT}}"}},
+        ],
+    }
+    assert phase_2_injections._seed_delivery_mechanism(seed_template) == "api"
+
+
+def test_seed_delivery_mechanism_rejects_api_seed_without_calls():
+    with pytest.raises(ValueError, match="mechanism=api but no api_calls"):
+        phase_2_injections._seed_delivery_mechanism({"mechanism": "api", "api_calls": []})
+
+
+def test_materialize_strategy_plans_passes_benign_seed_into_template():
+    contract = build_exposure_contract(
+        benign_task_id="gitlab-user-1",
+        site="gitlab",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "gitlab_user_profile",
+            "anchors": {"username": "byteblaze"},
+            "start_url_resolved": "https://gitlab.local/byteblaze",
+        },
+    )
+    plans = [
+        {
+            "id": "adv-gitlab-user-1",
+            "benign_task_id": "gitlab-user-1",
+            "exposure_contract_id": contract["contract_id"],
+            "framing": "authority",
+            "concealment": "plaintext",
+            "attack_objective": "test objective",
+            "adversarial_reward": {"type": "noop"},
+        }
+    ]
+    benign_tasks = [
+        {
+            "id": "gitlab-user-1",
+            "data_seed": {
+                "mechanism": "api",
+                "api_calls": [
+                    {
+                        "method": "PUT",
+                        "path": "/api/v4/users/2",
+                        "body": {"bio": "Open source developer"},
+                    }
+                ],
+            },
+        }
+    ]
+    phase_2_injections._materialize_strategy_plans_from_exposure(
+        plans,
+        exposure_contracts={"gitlab-user-1": contract},
+        benchmark="webarena_verified",
+        benign_tasks=benign_tasks,
+    )
+    seed = plans[0]["seed_template"]
+    assert seed["mechanism"] == "api"
+    assert len(seed["api_calls"]) == 2
+    assert seed["api_calls"][0] == benign_tasks[0]["data_seed"]["api_calls"][0]
+    assert plans[0]["delivery_mechanism"] == "api"
+
+
 def test_validate_generated_adversarial_task_rejects_preseeded_feasibility():
     task = _plan_task()
     task["feasibility"] = {"status": "verified"}
