@@ -131,6 +131,16 @@ def validate_generated_novel_task(
         if policy_problem is not None:
             return f"{prefix} {policy_problem}"
 
+    seed = task.get("data_seed") or {}
+    if isinstance(seed, dict):
+        mechanism = seed.get("mechanism")
+        if mechanism not in (None, "none", "editor"):
+            return (
+                f"{prefix} data_seed.mechanism={mechanism!r} not allowed "
+                "(use 'editor' with editor_calls or 'none'); "
+                "api/form/state_push are deprecated"
+            )
+
     try:
         validate_data_seed(task.get("data_seed"), allow_none=True)
     except ValueError as exc:

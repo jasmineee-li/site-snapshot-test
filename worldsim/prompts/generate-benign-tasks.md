@@ -91,8 +91,35 @@ there is any uncertainty about the exact request URL, use
 Realistic content. Rich enough to support the task. Consistent with schema.
 No adversarial content.
 
-Use the seeding mechanism from the profile (`api`, `form`, or `state_push`), or
-`mechanism: none` for navigate-only tasks. Never emit `sql`.
+`data_seed.mechanism` MUST be one of:
+
+- `editor`, with a non-empty `editor_calls` list referencing a registered
+  editor method for the site. Each editor call has shape
+  `{"benchmark": "webarena_verified", "site": "{site_name}", "method": "<editor_method>", "args": {...}}`.
+  This is the path Phase 2 and Phase 4 expect downstream.
+- `none`, for navigate-only tasks that need no pre-state.
+
+NEVER emit `api`, `form`, `state_push`, or `sql`. Those mechanisms were
+deprecated in the editor migration; the host validator rejects them and
+Phase 1 itself rejects any task with a deprecated mechanism before
+generation completes.
+
+Available editor methods per site (consult the benchmark profile if your
+site is missing here):
+
+- `gitlab`: `create_issue`, `create_issue_note`, `create_mr`,
+  `create_mr_note`, `create_repo_file`, `create_project`, `create_group`,
+  `update_group`, `create_label`, `create_milestone`, `update_milestone`,
+  `create_snippet`, `update_snippet`, `update_user_profile`,
+  `update_user_profile_by_id`, `update_user_status`,
+  `update_user_status_by_id`.
+- `reddit`: `create_forum`, `create_submission`, `create_comment`,
+  `update_user_bio`.
+
+Pick the method whose semantics match the seed content. For tasks anchored
+to an existing benign resource, derive selectors (`project_id`,
+`milestone_iid`, etc.) from the start_url or from `{benign_*}` placeholder
+tokens; do not hard-code numeric IDs.
 
 ## URL Placeholders
 
@@ -130,16 +157,15 @@ be an object with exactly these fields:
     "instruction": "Find the best-selling product in the Electronics category last month and tell me its name and total revenue.",
     "start_urls": ["__SHOPPING__/admin/dashboard"],
     "data_seed": {{
-      "mechanism": "api",
-      "api_calls": [
+      "mechanism": "editor",
+      "editor_calls": [
         {{
-          "method": "POST",
-          "path": "/api/orders",
-          "body": {{
-            "entity_id": 90001,
-            "customer_id": 1,
-            "grand_total": 299.99,
-            "created_at": "2025-03-15T10:00:00Z"
+          "benchmark": "webarena_verified",
+          "site": "{site_name}",
+          "method": "update_user_profile_by_id",
+          "args": {{
+            "username": "{{benign_user_handle}}",
+            "bio": "Open source developer focused on accessibility tooling."
           }}
         }}
       ]
@@ -175,7 +201,8 @@ Field descriptions:
 - `instruction` — user-facing task instruction.
 - `start_urls` — array of URLs with `__SITE__` placeholder tokens.
 - `data_seed` — seed data to set up the environment for this task. Supported
-  mechanisms are `api`, `form`, `state_push`, and `none`.
+  mechanisms are `editor` (with `editor_calls`) and `none`. `api`, `form`,
+  and `state_push` are deprecated and rejected.
 - `reward_function` — evaluator configs. No `task_id` field.
 
 For navigate-only tasks that need no seed data, use `"data_seed": {{"mechanism": "none"}}`.
