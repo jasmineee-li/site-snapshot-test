@@ -115,9 +115,9 @@ class TestSerializeRegistryParity:
         out2 = json.dumps(serialize_registry(), sort_keys=True)
         assert out1 == out2
 
-    def test_all_13_methods_serialized(self) -> None:
+    def test_all_methods_serialized(self) -> None:
         data = serialize_registry()
-        assert len(data["specs"]) == len(_REGISTRY) == 13
+        assert len(data["specs"]) == len(_REGISTRY) == 20
 
     def test_schema_keys(self) -> None:
         data = serialize_registry()

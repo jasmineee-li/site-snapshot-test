@@ -124,6 +124,13 @@ class GitlabEditor(BaseSiteEditor):
             "create_repo_file",
             "update_user_status",
             "update_user_profile",
+            "update_user_profile_by_id",
+            "update_user_status_by_id",
+            "update_snippet",
+            "create_snippet",
+            "update_milestone",
+            "create_label",
+            "update_group",
         }
     )
 
@@ -149,6 +156,13 @@ class GitlabEditor(BaseSiteEditor):
             "create_repo_file": lambda: self._validate_repo_file_args(args),
             "update_user_status": lambda: self._require_args(args, "message"),
             "update_user_profile": lambda: self._validate_user_profile_args(args),
+            "update_user_profile_by_id": lambda: self._require_args(args, "username", "bio"),
+            "update_user_status_by_id": lambda: self._require_args(args, "username", "message"),
+            "update_snippet": lambda: self._require_args(args, "snippet_id", "content"),
+            "create_snippet": lambda: self._require_args(args, "title", "content"),
+            "update_milestone": lambda: self._validate_milestone_args(args),
+            "create_label": lambda: self._validate_label_args(args),
+            "update_group": lambda: self._require_args(args, "group_path", "description"),
         }
         validator = validators.get(method_name)
         if validator is None:
@@ -848,6 +862,459 @@ class GitlabEditor(BaseSiteEditor):
         _verify_profile_state()
         return _surface_result()
 
+    @editor_method(
+        kinds=frozenset({"gitlab_user_profile"}),
+        http=("PUT", "/api/v4/users/{user_id}"),
+        bindings={
+            "username": Token("{benign_user_handle}"),
+            "bio": FreeText(),
+        },
+        surface_id_per_kind={"gitlab_user_profile": "user_profile_bio"},
+        required_editor_args=("username", "bio"),
+    )
+    def update_user_profile_by_id(self, *, username: str, bio: str) -> dict[str, Any]:
+        """Admin-scoped bio update for an arbitrary user.
+
+        Mode B novel tasks target users that may not be the authenticated
+        principal (root vs byteblaze etc.). The Phase 2c admin token has
+        scope to PUT ``/api/v4/users/<id>``; the cleanup closure restores
+        the original bio so seeds don't leak across tasks on the live
+        r5 stack.
+        """
+        username_clean = str(username).strip()
+        if not username_clean:
+            raise EditorError("invalid_args", "username is required")
+        bio_value = str(bio)
+        original = self._lookup_user_by_username(username_clean)
+        user_id = original.get("id")
+        if user_id in (None, ""):
+            raise EditorError(
+                "request_failed", f"gitlab user lookup for {username_clean!r} did not return an id"
+            )
+        original_bio = str(original.get("bio") or "")
+        self._gitlab_request_json(
+            "PUT", f"/api/v4/users/{self._quote(user_id)}", json_body={"bio": bio_value}
+        )
+        self._push_cleanup(
+            lambda user_id=user_id, original_bio=original_bio: self._gitlab_request_json(
+                "PUT", f"/api/v4/users/{self._quote(user_id)}", json_body={"bio": original_bio}
+            )
+        )
+        surface_urls = _gitlab_read_surface(None, [f"/{username_clean}"], self._site_url())
+        return {
+            "read_surface_urls": surface_urls,
+            "read_surface_provenance_source": "editor_constructed",
+        }
+
+    @editor_method(
+        kinds=frozenset({"gitlab_user_profile"}),
+        http=("PUT", "/api/v4/users/{user_id}/status"),
+        bindings={
+            "username": Token("{benign_user_handle}"),
+            "message": FreeText(),
+            "emoji": FreeText(required=False),
+        },
+        surface_id_per_kind={"gitlab_user_profile": "user_status_message_profile"},
+        required_editor_args=("username", "message"),
+    )
+    def update_user_status_by_id(
+        self, *, username: str, message: str, emoji: str | None = None
+    ) -> dict[str, Any]:
+        """Admin-scoped status update for an arbitrary user."""
+        username_clean = str(username).strip()
+        if not username_clean:
+            raise EditorError("invalid_args", "username is required")
+        original = self._lookup_user_by_username(username_clean)
+        user_id = original.get("id")
+        if user_id in (None, ""):
+            raise EditorError(
+                "request_failed", f"gitlab user lookup for {username_clean!r} did not return an id"
+            )
+        original_status = self._gitlab_request_json(
+            "GET",
+            f"/api/v4/users/{self._quote(user_id)}/status",
+            allow_missing=True,
+        )
+        original_message = ""
+        original_emoji = ""
+        if isinstance(original_status, dict):
+            original_message = str(original_status.get("message") or "")
+            original_emoji = str(original_status.get("emoji") or "")
+        body: dict[str, Any] = {"message": str(message)}
+        if emoji is not None:
+            body["emoji"] = str(emoji)
+        self._gitlab_request_json(
+            "PUT", f"/api/v4/users/{self._quote(user_id)}/status", json_body=body
+        )
+        self._push_cleanup(
+            lambda user_id=user_id, msg=original_message, emj=original_emoji: (
+                self._gitlab_request_json(
+                    "PUT",
+                    f"/api/v4/users/{self._quote(user_id)}/status",
+                    json_body={"message": msg, "emoji": emj},
+                )
+            )
+        )
+        surface_urls = _gitlab_read_surface(None, [f"/{username_clean}"], self._site_url())
+        return {
+            "read_surface_urls": surface_urls,
+            "read_surface_provenance_source": "editor_constructed",
+        }
+
+    @editor_method(
+        kinds=frozenset({"gitlab_snippet"}),
+        http=("PUT", "/api/v4/snippets/{snippet_id}"),
+        bindings={
+            "snippet_id": Token("{benign_snippet_id}"),
+            "content": FreeText(),
+            "title": FreeText(required=False),
+            "description": FreeText(required=False),
+        },
+        surface_id_per_kind={"gitlab_snippet": "snippet_content_view"},
+        required_editor_args=("snippet_id", "content"),
+    )
+    def update_snippet(
+        self,
+        *,
+        snippet_id: str,
+        content: str,
+        title: str | None = None,
+        description: str | None = None,
+    ) -> dict[str, Any]:
+        snippet_id_clean = str(snippet_id).strip()
+        if not snippet_id_clean:
+            raise EditorError("invalid_args", "snippet_id is required")
+        existing = self._gitlab_request_json(
+            "GET", f"/api/v4/snippets/{self._quote(snippet_id_clean)}"
+        )
+        if not isinstance(existing, dict):
+            raise EditorError(
+                "request_failed", f"gitlab snippet {snippet_id_clean!r} lookup returned no payload"
+            )
+        original_payload = {
+            "title": str(existing.get("title") or ""),
+            "description": str(existing.get("description") or ""),
+            "content": self._gitlab_snippet_raw_content(snippet_id_clean),
+        }
+        payload: dict[str, Any] = {"content": str(content)}
+        if title is not None:
+            payload["title"] = str(title)
+        if description is not None:
+            payload["description"] = str(description)
+        self._gitlab_request_json(
+            "PUT", f"/api/v4/snippets/{self._quote(snippet_id_clean)}", json_body=payload
+        )
+        self._push_cleanup(
+            lambda snippet_id=snippet_id_clean, original=original_payload: (
+                self._gitlab_request_json(
+                    "PUT",
+                    f"/api/v4/snippets/{self._quote(snippet_id)}",
+                    json_body=dict(original),
+                )
+            )
+        )
+        surface_urls = _gitlab_read_surface(
+            existing, [f"/-/snippets/{snippet_id_clean}"], self._site_url()
+        )
+        return {
+            "read_surface_urls": surface_urls,
+            "read_surface_provenance_source": "editor_constructed",
+        }
+
+    @editor_method(
+        kinds=frozenset({"gitlab_snippets_index"}),
+        http=("POST", "/api/v4/snippets"),
+        bindings={
+            "title": FreeText(),
+            "content": FreeText(),
+            "description": FreeText(required=False),
+            "file_name": FreeText(required=False),
+        },
+        surface_id_per_kind={"gitlab_snippets_index": "snippet_title_list"},
+        required_editor_args=("title", "content"),
+    )
+    def create_snippet(
+        self,
+        *,
+        title: str,
+        content: str,
+        description: str | None = None,
+        file_name: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "title": str(title),
+            "content": str(content),
+            "visibility": "public",
+            "file_name": str(file_name) if file_name else "snippet.txt",
+        }
+        if description is not None:
+            payload["description"] = str(description)
+        created = self._gitlab_request_json("POST", "/api/v4/snippets", json_body=payload)
+        if not isinstance(created, dict) or created.get("id") in (None, ""):
+            raise EditorError(
+                "invalid_snippet_create", "gitlab snippet create returned invalid payload"
+            )
+        snippet_id = created["id"]
+        self._push_cleanup(
+            lambda snippet_id=snippet_id: self._api_request_response(
+                "DELETE", f"/api/v4/snippets/{self._quote(snippet_id)}", allow_missing=True
+            )
+        )
+        surface_urls = _gitlab_read_surface(
+            created,
+            [f"/-/snippets/{snippet_id}", "/-/snippets"],
+            self._site_url(),
+        )
+        return {
+            "snippet_id": snippet_id,
+            "read_surface_urls": surface_urls,
+            "read_surface_provenance_source": "editor_api_response",
+        }
+
+    @editor_method(
+        kinds=frozenset({"gitlab_project_milestone"}),
+        http=("PUT", "/api/v4/projects/{project_id}/milestones/{milestone_iid}"),
+        bindings={
+            "project_path_template": SelectorGroup("project", "{benign_project_path}"),
+            "project_id": SelectorGroup("project", "{benign_project_id}", required=False),
+            "milestone_iid": Token("{benign_milestone_iid}"),
+            "description": FreeText(),
+        },
+        surface_id_per_kind={"gitlab_project_milestone": "milestone_description_detail"},
+        required_editor_args=("milestone_iid", "description"),
+    )
+    def update_milestone(
+        self,
+        *,
+        milestone_iid: str,
+        description: str,
+        project_path_template: str | None = None,
+        project_id: Any | None = None,
+    ) -> dict[str, Any]:
+        project = self._resolve_existing_project(
+            project_id=project_id,
+            project_path=project_path_template,
+        )
+        iid_clean = str(milestone_iid).strip()
+        if not iid_clean:
+            raise EditorError("invalid_args", "milestone_iid is required")
+        milestones = self._gitlab_request_json(
+            "GET",
+            f"/api/v4/projects/{self._quote(project['project_id'])}/milestones",
+            params={"iids[]": iid_clean},
+        )
+        original_description = ""
+        original_title = ""
+        milestone_id: Any = None
+        if isinstance(milestones, list) and milestones:
+            entry = milestones[0]
+            if isinstance(entry, dict):
+                milestone_id = entry.get("id")
+                original_description = str(entry.get("description") or "")
+                original_title = str(entry.get("title") or "")
+        if milestone_id in (None, ""):
+            raise EditorError(
+                "request_failed",
+                f"gitlab milestone iid={iid_clean!r} not found in project "
+                f"{project['project_path']!r}",
+            )
+        self._gitlab_request_json(
+            "PUT",
+            f"/api/v4/projects/{self._quote(project['project_id'])}/milestones/{self._quote(milestone_id)}",
+            json_body={"description": str(description)},
+        )
+        self._push_cleanup(
+            lambda project_id=project["project_id"], milestone_id=milestone_id, original=original_description: (
+                self._gitlab_request_json(
+                    "PUT",
+                    f"/api/v4/projects/{self._quote(project_id)}/milestones/{self._quote(milestone_id)}",
+                    json_body={"description": original},
+                )
+            )
+        )
+        constructed = [
+            f"/{project['project_path']}/-/milestones/{iid_clean}",
+        ]
+        surface_urls = _gitlab_read_surface(None, constructed, self._site_url())
+        return {
+            "milestone_id": milestone_id,
+            "milestone_title": original_title,
+            "project_id": project["project_id"],
+            "project_path": project["project_path"],
+            "read_surface_urls": surface_urls,
+            "read_surface_provenance_source": "editor_constructed",
+        }
+
+    @editor_method(
+        kinds=frozenset({"gitlab_project_labels"}),
+        http=("POST", "/api/v4/projects/{project_id}/labels"),
+        bindings={
+            "project_path_template": SelectorGroup("project", "{benign_project_path}"),
+            "project_id": SelectorGroup("project", "{benign_project_id}", required=False),
+            "name": FreeText(),
+            "description": FreeText(required=False),
+            "color": FreeText(required=False),
+        },
+        surface_id_per_kind={"gitlab_project_labels": "label_description_page"},
+        required_editor_args=("name",),
+    )
+    def create_label(
+        self,
+        *,
+        name: str,
+        description: str | None = None,
+        color: str | None = None,
+        project_path_template: str | None = None,
+        project_id: Any | None = None,
+    ) -> dict[str, Any]:
+        project = self._resolve_existing_project(
+            project_id=project_id,
+            project_path=project_path_template,
+        )
+        payload: dict[str, Any] = {
+            "name": str(name),
+            "color": str(color) if color else "#428BCA",
+        }
+        if description is not None:
+            payload["description"] = str(description)
+        created = self._gitlab_request_json(
+            "POST",
+            f"/api/v4/projects/{self._quote(project['project_id'])}/labels",
+            json_body=payload,
+        )
+        if not isinstance(created, dict) or created.get("id") in (None, ""):
+            raise EditorError(
+                "invalid_label_create", "gitlab label create returned invalid payload"
+            )
+        label_id = created["id"]
+        label_name = str(created.get("name") or name)
+        self._push_cleanup(
+            lambda project_id=project["project_id"], label_id=label_id: self._api_request_response(
+                "DELETE",
+                f"/api/v4/projects/{self._quote(project_id)}/labels/{self._quote(label_id)}",
+                allow_missing=True,
+            )
+        )
+        constructed = [
+            f"/{project['project_path']}/-/labels",
+        ]
+        surface_urls = _gitlab_read_surface(None, constructed, self._site_url())
+        return {
+            "label_id": label_id,
+            "label_name": label_name,
+            "project_id": project["project_id"],
+            "project_path": project["project_path"],
+            "read_surface_urls": surface_urls,
+            "read_surface_provenance_source": "editor_api_response",
+        }
+
+    @editor_method(
+        kinds=frozenset({"gitlab_group"}),
+        http=("PUT", "/api/v4/groups/{group_id}"),
+        bindings={
+            "group_path": Token("{benign_group_path}"),
+            "description": FreeText(),
+        },
+        surface_id_per_kind={"gitlab_group": "group_description_page"},
+        required_editor_args=("group_path", "description"),
+    )
+    def update_group(self, *, group_path: str, description: str) -> dict[str, Any]:
+        group_path_clean = str(group_path).strip().strip("/")
+        if not group_path_clean:
+            raise EditorError("invalid_args", "group_path is required")
+        existing = self._gitlab_request_json(
+            "GET", f"/api/v4/groups/{self._quote(group_path_clean)}"
+        )
+        if not isinstance(existing, dict):
+            raise EditorError(
+                "request_failed", f"gitlab group {group_path_clean!r} lookup returned no payload"
+            )
+        group_id = existing.get("id")
+        original_description = str(existing.get("description") or "")
+        if group_id in (None, ""):
+            raise EditorError(
+                "request_failed", f"gitlab group {group_path_clean!r} lookup did not return an id"
+            )
+        self._gitlab_request_json(
+            "PUT",
+            f"/api/v4/groups/{self._quote(group_id)}",
+            json_body={"description": str(description)},
+        )
+        self._push_cleanup(
+            lambda group_id=group_id, original=original_description: self._gitlab_request_json(
+                "PUT",
+                f"/api/v4/groups/{self._quote(group_id)}",
+                json_body={"description": original},
+            )
+        )
+        constructed = [f"/{group_path_clean}", f"/groups/{group_path_clean}"]
+        surface_urls = _gitlab_read_surface(existing, constructed, self._site_url())
+        return {
+            "group_id": group_id,
+            "group_path": group_path_clean,
+            "read_surface_urls": surface_urls,
+            "read_surface_provenance_source": "editor_constructed",
+        }
+
+    def _lookup_user_by_username(self, username: str) -> dict[str, Any]:
+        """Resolve a GitLab username to its API user record (admin scope).
+
+        Used by ``update_user_profile_by_id`` and ``update_user_status_by_id``
+        so callers can address users by handle (the only piece of info Phase 2
+        anchors carry) without forcing the LLM to discover numeric ids.
+        """
+        results = self._gitlab_request_json("GET", "/api/v4/users", params={"username": username})
+        if isinstance(results, list):
+            for entry in results:
+                if isinstance(entry, dict) and str(entry.get("username") or "") == username:
+                    return entry
+        raise EditorError(
+            "request_failed", f"gitlab user lookup for {username!r} returned no match"
+        )
+
+    def _gitlab_snippet_raw_content(self, snippet_id: str) -> str:
+        """Return the snippet's current raw content, or empty string on miss."""
+        try:
+            response = self._api_request_response(
+                "GET", f"/api/v4/snippets/{self._quote(snippet_id)}/raw", allow_missing=True
+            )
+        except EditorError:
+            return ""
+        if response is None or response.status_code >= 400:
+            return ""
+        return response.text or ""
+
+    def _resolve_existing_project(
+        self,
+        *,
+        project_id: Any | None,
+        project_path: str | None,
+    ) -> dict[str, Any]:
+        """Resolve an existing project by id or full path; never creates.
+
+        Mode B targets existing projects (e.g. ``byteblaze/dotfiles``) so
+        seeds attach to surfaces the agent will navigate to. ``_ensure_project``
+        creates a project when absent — exactly the wrong behavior here.
+        """
+        if project_id not in (None, ""):
+            project = self._gitlab_request_json(
+                "GET", f"/api/v4/projects/{self._quote(project_id)}", allow_missing=True
+            )
+            if isinstance(project, dict):
+                resolved_path = str(project.get("path_with_namespace") or "")
+                return {"project_id": project["id"], "project_path": resolved_path}
+        if project_path:
+            project = self._gitlab_request_json(
+                "GET", f"/api/v4/projects/{self._quote(project_path)}", allow_missing=True
+            )
+            if isinstance(project, dict):
+                resolved_path = str(project.get("path_with_namespace") or project_path)
+                return {"project_id": project["id"], "project_path": resolved_path}
+        raise EditorError(
+            "request_failed",
+            f"gitlab project lookup failed (id={project_id!r}, path={project_path!r})",
+        )
+
     def _ensure_profile_form_session(self) -> None:
         if self._profile_form_session_prepared:
             return
@@ -950,6 +1417,14 @@ class GitlabEditor(BaseSiteEditor):
 
     def _validate_repo_file_args(self, args: dict[str, Any]) -> None:
         self._require_args(args, "branch", "path", "content")
+        self._require_any_selector(args, *self._PROJECT_SELECTORS)
+
+    def _validate_milestone_args(self, args: dict[str, Any]) -> None:
+        self._require_args(args, "milestone_iid", "description")
+        self._require_any_selector(args, *self._PROJECT_SELECTORS)
+
+    def _validate_label_args(self, args: dict[str, Any]) -> None:
+        self._require_args(args, "name")
         self._require_any_selector(args, *self._PROJECT_SELECTORS)
 
     @staticmethod

@@ -121,8 +121,8 @@ def _editor_class(benchmark: str, site: str) -> type:
 
 class TestRegistryCoverage:
     def test_expected_method_count(self) -> None:
-        """9 gitlab + 4 reddit = 13 registered methods."""
-        assert len(_REGISTRY) == 13
+        """16 gitlab + 4 reddit = 20 registered methods."""
+        assert len(_REGISTRY) == 20
 
     def test_all_supported_methods_registered(self) -> None:
         for (benchmark, site), cls in EDITOR_REGISTRY.items():
@@ -142,9 +142,9 @@ class TestRegistryCoverage:
             )
 
     def test_registry_helpers_normalize_benchmark_aliases(self) -> None:
-        assert method_spec("gitlab", "create_issue_note", benchmark="WebArena Verified").benchmark == (
-            "webarena_verified"
-        )
+        assert method_spec(
+            "gitlab", "create_issue_note", benchmark="WebArena Verified"
+        ).benchmark == ("webarena_verified")
         assert kind_contract(
             "gitlab_issue",
             benchmark="WebArena Verified",
@@ -265,10 +265,10 @@ class TestSurfaceIdConsistency:
 
 
 class TestSerializeRegistrySanity:
-    def test_serialize_registry_covers_all_13(self) -> None:
+    def test_serialize_registry_covers_all_methods(self) -> None:
         from worldsim.editors._registry import serialize_registry
 
         serialized = serialize_registry()
-        assert len(serialized["specs"]) == 13
+        assert len(serialized["specs"]) == 20
         sites = {(s["benchmark"], s["site"], s["method"]) for s in serialized["specs"]}
         assert sites == set(_REGISTRY.keys())
