@@ -28,14 +28,34 @@ PREFERRED_TOKEN_ORDER: tuple[str, ...] = (
     "{benign_project_path}",
     "{benign_issue_iid}",
     "{benign_mr_iid}",
+    "{benign_milestone_iid}",
     "{benign_submission_id}",
     "{benign_forum_name}",
+    "{benign_snippet_id}",
+    "{benign_group_path}",
     "{benign_user_handle}",
 )
 
-DIRECT_KINDS = frozenset({"gitlab_issue", "gitlab_mr", "reddit_submission"})
+DIRECT_KINDS = frozenset(
+    {
+        "gitlab_issue",
+        "gitlab_mr",
+        "reddit_submission",
+        "gitlab_user_profile",
+        "gitlab_snippet",
+        "gitlab_project_milestone",
+        "gitlab_group",
+    }
+)
 LISTING_SOURCE_KINDS = frozenset(
-    {"gitlab_search_result", "gitlab_dashboard_list", "reddit_forum", "reddit_dashboard_list"}
+    {
+        "gitlab_search_result",
+        "gitlab_dashboard_list",
+        "reddit_forum",
+        "reddit_dashboard_list",
+        "gitlab_snippets_index",
+        "gitlab_project_labels",
+    }
 )
 TRANSITIVE_EXISTING_SOURCE_KINDS = frozenset(
     {"gitlab_search_result", "gitlab_dashboard_list", "reddit_dashboard_list"}
@@ -46,7 +66,7 @@ CREATE_CHILD_LISTING_KINDS = frozenset({"reddit_forum"})
 def exposure_contract_signature() -> dict[str, Any]:
     """Fingerprint knobs whose change invalidates persisted Phase 2 plans."""
     return {
-        "version": 3,
+        "version": 4,
         "modes": [
             "direct_detail",
             "inline_listing",
@@ -408,6 +428,14 @@ def _edge_role_for_kind(kind: str) -> str:
         return "merge_request_detail"
     if kind == "reddit_submission":
         return "submission_detail"
+    if kind == "gitlab_user_profile":
+        return "user_profile_detail"
+    if kind == "gitlab_snippet":
+        return "snippet_detail"
+    if kind == "gitlab_project_milestone":
+        return "milestone_detail"
+    if kind == "gitlab_group":
+        return "group_detail"
     return "detail"
 
 
@@ -525,9 +553,7 @@ def _editor_args_template(
 
 
 def _payload_arg(spec: EditorMethodSpec) -> str | None:
-    free_text_args = [
-        arg for arg, binding in spec.bindings.items() if binding.kind == "free_text"
-    ]
+    free_text_args = [arg for arg, binding in spec.bindings.items() if binding.kind == "free_text"]
     if not free_text_args:
         return None
     for preferred in PREFERRED_PAYLOAD_ARGS:
@@ -549,7 +575,9 @@ def _select_group_member(
     candidates: list[tuple[int, str, str]] = []
     for arg, binding in members:
         if not binding.tokens:
-            candidates.append((len(PREFERRED_TOKEN_ORDER) + 1, arg, _default_free_text(arg, "group")))
+            candidates.append(
+                (len(PREFERRED_TOKEN_ORDER) + 1, arg, _default_free_text(arg, "group"))
+            )
             continue
         token = _choose_token(binding.tokens & available)
         if token is None:
@@ -584,6 +612,18 @@ def _selector_hint(kind: str, mode: str) -> str | None:
         return ".note, .timeline-entry, .issuable"
     if kind == "reddit_submission":
         return ".comment, .submission"
+    if kind == "gitlab_user_profile":
+        return ".user-profile, .profile-bio, .user-status"
+    if kind == "gitlab_snippet":
+        return ".blob, .snippet, .file-content"
+    if kind == "gitlab_snippets_index":
+        return ".snippets-list, .snippet-row, body"
+    if kind == "gitlab_project_milestone":
+        return ".milestone-detail, .description, .wiki"
+    if kind == "gitlab_project_labels":
+        return ".manage-labels-list, .label-row, body"
+    if kind == "gitlab_group":
+        return ".group-home-panel, .group-description"
     if mode == "inline_listing":
         return ".issuable-list, .submission, body"
     if mode.startswith("bounded_transitive"):
