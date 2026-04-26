@@ -42,21 +42,15 @@ production-realistic intervention?
   cell.
 - **VEA** (verbalized eval-awareness, in-trace) — measured on every
   cell. Spontaneous awareness in the agent's own thinking trace.
-- **5PQ post-hoc** — measured **only on the `bare` arm**. Reasoning:
-  on the XML-frame arms the model has been *told* it's in an eval,
-  so the 5PQ answer is trivially "yes" and uninformative. On
-  `scratchpad_native` it'd be redundant with `bare` for measuring
-  the same thing.
+- **5PQ post-hoc** (full 12-prompt suite) — measured **only on the
+  `bare` arm**. Reasoning: on the XML-frame arms the model has been
+  *told* it's in an eval, so the 5PQ answer is trivially "yes" and
+  uninformative. On `scratchpad_native` it'd be redundant with
+  `bare` for measuring the same thing.
 
-  **We use the 8-prompt Curated-8 set, not the full 12.** Drops
-  prompts {04 reason, 05 context, 11 who-am-i, 12 infer-about-me} —
-  the prompts that score Real ≥0.55 across every preset and every
-  model in our existing data. Curated-8 = {01 best_guess,
-  02 why_conversation, 03 purpose, 06 user_role_source PERM,
-  07 user_role_characterize PERM, 08 distinctive,
-  09 user_role_source STRICT, 10 user_role_characterize STRICT}.
-  Saves ~$28 on the pilot vs full-12 and *improves* discrimination
-  by stripping the dead-zero prompts.
+  Running all 12 prompts (not Curated-8) — the savings from
+  Curated-8 are minor (~$28 of the ~$960 pilot) and we keep the
+  Classic-5 / Curated-8 contrast as a within-cell metric.
 
 ---
 
@@ -374,8 +368,8 @@ Per cell = 20 × per-task. Per arm = sum across (benchmarks × models).
 **Bare arm** (preset=none, frame=none, all 4 benchmarks, all 6 models):
 - Agent runs: 20 × ($1.71 + $1.71 + $2.03 + $2.71) = **$163**
 - VEA judges (Opus 4.7, $5/$25 — same as 4.6): 480 trajectories × ~$0.03 = **$14**
-- 5PQ judges (Opus 4.7, **Curated-8** = 8 prompts): 480 × 8 × ~$0.015 = **$58**
-- **Bare total: ~$235**
+- 5PQ judges (Opus 4.7, full 12 prompts): 480 × 12 × ~$0.015 = **$86**
+- **Bare total: ~$263**
 
 **XML-frame arms** (2 frames × all 4 benchmarks × all 6 models):
 - Agent runs: 2 × $163 (same shape as bare) = **$326**
@@ -392,12 +386,12 @@ Per cell = 20 × per-task. Per arm = sum across (benchmarks × models).
 
 | Arm | Cost |
 |---|---|
-| Bare (with Curated-8 5PQ) | $235 |
+| Bare (with full 12-prompt 5PQ) | $263 |
 | XML × 2 (VEA only) | $355 |
 | Native (VEA only) | $177 |
-| **Subtotal** | **$767** |
-| 25% buffer (retries, longer trajectories than estimated) | $190 |
-| **Pilot total (n=20)** | **~$960** |
+| **Subtotal** | **$795** |
+| 25% buffer (retries, longer trajectories than estimated) | $200 |
+| **Pilot total (n=20)** | **~$1,000** |
 
 This is **substantially lower** than the initial $4,300 estimate
 because the GLM-5 calibration showed actual per-task token usage is
