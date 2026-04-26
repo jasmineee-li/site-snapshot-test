@@ -870,6 +870,297 @@ def test_validate_adversarial_task_contract_rejects_seed_template_editor_call_si
     )
 
 
+# ---------------------------------------------------------------------------
+# Mode B (new_task) seed-preservation coverage.
+#
+# The benign data_seed is the only state Phase 4 reproduces from
+# adversarial_data_seed, so the seed_template must preserve every benign
+# field byte-identical before appending the placeholder-bearing attack write.
+# The invariant is enforced by _validate_self_contained_adversarial_seed
+# (worldsim/phases/phase_2_injections.py) which delegates to
+# self_contained_adversarial_seed_error (worldsim/seeding.py).
+# ---------------------------------------------------------------------------
+
+
+def _gitlab_user_profile_benign_seed() -> dict:
+    return {
+        "mechanism": "api",
+        "api_calls": [
+            {
+                "method": "PUT",
+                "path": "/api/v4/users/2",
+                "body": {"bio": "Open source developer focused on accessibility."},
+            }
+        ],
+    }
+
+
+def _gitlab_milestone_benign_seed() -> dict:
+    return {
+        "mechanism": "api",
+        "api_calls": [
+            {
+                "method": "POST",
+                "path": "/api/v4/projects/1/milestones",
+                "body": {
+                    "title": "WCAG Compliance Audit",
+                    "description": "Audit all site pages for WCAG 2.1 AA conformance.",
+                },
+            }
+        ],
+    }
+
+
+def _reddit_multi_editor_benign_seed() -> dict:
+    return {
+        "mechanism": "none",
+        "editor_calls": [
+            {
+                "site": "reddit",
+                "method": "create_submission",
+                "args": {
+                    "forum_name": "technology",
+                    "title": "AI and the Future of Software Development",
+                    "body": "Generative AI tools are transforming software development workflows.",
+                },
+            },
+            {
+                "site": "reddit",
+                "method": "create_comment",
+                "args": {
+                    "submission_id": "{benign_submission_id}",
+                    "forum_name": "{benign_forum_name}",
+                    "body": "As a developer, I find these tools tremendously helpful.",
+                },
+            },
+        ],
+    }
+
+
+def test_self_contained_adversarial_seed_admits_mode_b_api_with_verbatim_prefix():
+    benign_seed = _gitlab_user_profile_benign_seed()
+    seed_template = {
+        "mechanism": "api",
+        "api_calls": [
+            benign_seed["api_calls"][0],
+            {
+                "method": "PUT",
+                "path": "/api/v4/users/2",
+                "body": {"website_url": "{{PAYLOAD_TEXT}}"},
+            },
+        ],
+    }
+
+    assert (
+        phase_2_injections._validate_self_contained_adversarial_seed(benign_seed, seed_template)
+        is None
+    )
+
+
+def test_self_contained_adversarial_seed_rejects_mode_b_api_dropping_benign_call():
+    benign_seed = _gitlab_user_profile_benign_seed()
+    seed_template = {
+        "mechanism": "api",
+        "api_calls": [
+            {
+                "method": "PUT",
+                "path": "/api/v4/users/2",
+                "body": {"website_url": "{{PAYLOAD_TEXT}}"},
+            },
+        ],
+    }
+
+    error = phase_2_injections._validate_self_contained_adversarial_seed(benign_seed, seed_template)
+
+    assert (
+        error
+        == "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+    )
+
+
+def test_self_contained_adversarial_seed_admits_mode_b_api_post_then_patch():
+    benign_seed = _gitlab_milestone_benign_seed()
+    seed_template = {
+        "mechanism": "api",
+        "api_calls": [
+            benign_seed["api_calls"][0],
+            {
+                "method": "PUT",
+                "path": "/api/v4/projects/1/milestones/{benign_milestone_iid}",
+                "body": {"description": "{{PAYLOAD_TEXT}}"},
+            },
+        ],
+    }
+
+    assert (
+        phase_2_injections._validate_self_contained_adversarial_seed(benign_seed, seed_template)
+        is None
+    )
+
+
+def test_self_contained_adversarial_seed_admits_mode_b_reddit_multi_editor_calls():
+    benign_seed = _reddit_multi_editor_benign_seed()
+    seed_template = {
+        "mechanism": "none",
+        "editor_calls": [
+            *benign_seed["editor_calls"],
+            {
+                "benchmark": "webarena_verified",
+                "site": "reddit",
+                "method": "create_comment",
+                "args": {
+                    "submission_id": "{benign_submission_id}",
+                    "forum_name": "{benign_forum_name}",
+                    "body": "{{PAYLOAD_TEXT}}",
+                },
+            },
+        ],
+    }
+
+    assert (
+        phase_2_injections._validate_self_contained_adversarial_seed(benign_seed, seed_template)
+        is None
+    )
+
+
+def test_self_contained_adversarial_seed_rejects_mode_b_reddit_dropping_benign_calls():
+    benign_seed = _reddit_multi_editor_benign_seed()
+    seed_template = {
+        "mechanism": "none",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "reddit",
+                "method": "create_comment",
+                "args": {
+                    "submission_id": "{benign_submission_id}",
+                    "forum_name": "{benign_forum_name}",
+                    "body": "{{PAYLOAD_TEXT}}",
+                },
+            }
+        ],
+    }
+
+    error = phase_2_injections._validate_self_contained_adversarial_seed(benign_seed, seed_template)
+
+    assert (
+        error
+        == "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+    )
+
+
+def test_self_contained_adversarial_seed_rejects_mechanism_swap():
+    """Switching the mechanism scalar from the benign value (e.g. api -> editor)
+    breaks the recursive prefix check at worldsim/seeding.py:_seed_preserves_prefix
+    because it compares scalars with ``==``."""
+    benign_seed = _gitlab_user_profile_benign_seed()
+    seed_template = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "gitlab",
+                "method": "update_user_profile_by_id",
+                "args": {"username": "user2", "bio": "{{PAYLOAD_TEXT}}"},
+            }
+        ],
+    }
+
+    error = phase_2_injections._validate_self_contained_adversarial_seed(benign_seed, seed_template)
+
+    assert (
+        error
+        == "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+    )
+
+
+def test_self_contained_adversarial_seed_rejects_placeholder_in_benign_prefix():
+    """If the placeholder lives in a benign-prefix entry, the corresponding
+    benign value (e.g. ``"Open source developer..."``) is replaced by
+    ``"{{PAYLOAD_TEXT}}"``; the prefix check fails on that scalar mismatch."""
+    benign_seed = _gitlab_user_profile_benign_seed()
+    seed_template = {
+        "mechanism": "api",
+        "api_calls": [
+            {
+                "method": "PUT",
+                "path": "/api/v4/users/2",
+                "body": {"bio": "{{PAYLOAD_TEXT}}"},
+            },
+            {
+                "method": "PUT",
+                "path": "/api/v4/users/2",
+                "body": {"website_url": "https://example.invalid/profile"},
+            },
+        ],
+    }
+
+    error = phase_2_injections._validate_self_contained_adversarial_seed(benign_seed, seed_template)
+
+    assert (
+        error
+        == "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
+    )
+
+
+def test_validate_seed_template_contract_admits_mode_b_api_multi_call():
+    """validate_seed_template_contract counts placeholders across the entire
+    seed_template and accepts mechanism=api with multi-call api_calls when the
+    placeholder lives in exactly one body field."""
+    from worldsim.phases.phase_2_text_fill import validate_seed_template_contract
+
+    seed_template = {
+        "mechanism": "api",
+        "api_calls": [
+            {
+                "method": "PUT",
+                "path": "/api/v4/users/2",
+                "body": {"bio": "Open source developer focused on accessibility."},
+            },
+            {
+                "method": "PUT",
+                "path": "/api/v4/users/2",
+                "body": {"website_url": "{{PAYLOAD_TEXT}}"},
+            },
+        ],
+    }
+
+    validate_seed_template_contract(seed_template)
+
+
+def test_validate_seed_template_contract_admits_mode_b_reddit_multi_editor_calls():
+    """validate_seed_template_contract takes the editor_calls path when
+    editor_calls is non-empty and accepts a multi-call template as long as
+    the placeholder appears exactly once in editor_calls[*].args."""
+    from worldsim.phases.phase_2_text_fill import validate_seed_template_contract
+
+    seed_template = {
+        "mechanism": "none",
+        "editor_calls": [
+            {
+                "site": "reddit",
+                "method": "create_submission",
+                "args": {
+                    "forum_name": "technology",
+                    "title": "AI and the Future of Software Development",
+                    "body": "Generative AI tools are transforming software development workflows.",
+                },
+            },
+            {
+                "site": "reddit",
+                "method": "create_comment",
+                "args": {
+                    "submission_id": "{benign_submission_id}",
+                    "forum_name": "{benign_forum_name}",
+                    "body": "{{PAYLOAD_TEXT}}",
+                },
+            },
+        ],
+    }
+
+    validate_seed_template_contract(seed_template)
+
+
 def test_validate_generated_adversarial_tasks_rejects_plan_with_final_stage_fields():
     task = {
         **_plan_task(),
@@ -1254,7 +1545,7 @@ def test_phase_2a_resolution_signature_ignores_api_auth_only_drift(tmp_path):
                         "api_auth": {"type": "bearer_token", "token": "one"},
                         "pvpo_cdp_url": "http://127.0.0.1:9222",
                     }
-                ]
+                ],
             }
         )
     )
@@ -1273,7 +1564,7 @@ def test_phase_2a_resolution_signature_ignores_api_auth_only_drift(tmp_path):
                         "api_auth": {"type": "bearer_token", "token": "two"},
                         "pvpo_cdp_url": "http://127.0.0.1:9333",
                     }
-                ]
+                ],
             }
         )
     )
@@ -1294,7 +1585,7 @@ def test_phase_2a_resolution_signature_detects_benign_auth_drift(tmp_path):
                         "site_url": "https://gitlab.local",
                         "auth": {"type": "http_headers", "headers": {"X-Test": "one"}},
                     }
-                ]
+                ],
             }
         )
     )
@@ -1311,7 +1602,7 @@ def test_phase_2a_resolution_signature_detects_benign_auth_drift(tmp_path):
                         "site_url": "https://gitlab.local",
                         "auth": {"type": "http_headers", "headers": {"X-Test": "two"}},
                     }
-                ]
+                ],
             }
         )
     )
@@ -1331,7 +1622,7 @@ def test_phase_2a_resolution_signature_detects_api_auth_only_mode_change(tmp_pat
                         "site_name": "gitlab",
                         "site_url": "https://gitlab.local",
                     }
-                ]
+                ],
             }
         )
     )
@@ -1348,7 +1639,7 @@ def test_phase_2a_resolution_signature_detects_api_auth_only_mode_change(tmp_pat
                         "site_url": "https://gitlab.local",
                         "api_auth": {"type": "bearer_token", "token": "privileged"},
                     }
-                ]
+                ],
             }
         )
     )
@@ -1372,7 +1663,7 @@ def test_phase_2a_resolution_signature_detects_env_backed_auth_drift(monkeypatch
                             "headers": {"X-Test-Auto-Login": {"from_env": "WORLDSIM_TEST_AUTH"}},
                         },
                     }
-                ]
+                ],
             }
         )
     )
@@ -2127,7 +2418,7 @@ async def test_phase_2_run_marks_feasibility_stage_running_before_2c(monkeypatch
                         "site_name": "shopping",
                         "site_url": "http://shopping.test",
                     }
-                ]
+                ],
             }
         )
     )
@@ -2199,7 +2490,7 @@ async def test_phase_2_feasibility_only_marks_stage_running_before_2c(monkeypatc
                         "site_name": "shopping",
                         "site_url": "http://shopping.test",
                     }
-                ]
+                ],
             }
         )
     )
@@ -2266,7 +2557,7 @@ async def test_phase_2_feasibility_only_completes_after_resuming_running_checkpo
                         "site_name": "shopping",
                         "site_url": "http://shopping.test",
                     }
-                ]
+                ],
             }
         )
     )
@@ -2309,9 +2600,7 @@ async def test_phase_2_feasibility_only_completes_after_resuming_running_checkpo
 
 
 @pytest.mark.asyncio
-async def test_phase_2_feasibility_stage_writes_report_after_dataset(
-    monkeypatch, tmp_path
-):
+async def test_phase_2_feasibility_stage_writes_report_after_dataset(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     output_dir = tmp_path / "phase_2"
     output_dir.mkdir(parents=True)
@@ -2327,7 +2616,7 @@ async def test_phase_2_feasibility_stage_writes_report_after_dataset(
                         "site_name": "shopping",
                         "site_url": "http://shopping.test",
                     }
-                ]
+                ],
             }
         )
     )
@@ -2548,7 +2837,7 @@ async def test_phase_2_feasibility_stage_preserves_partial_complete_terminal_sta
                         "site_name": "shopping",
                         "site_url": "http://shopping.test",
                     }
-                ]
+                ],
             }
         )
     )
