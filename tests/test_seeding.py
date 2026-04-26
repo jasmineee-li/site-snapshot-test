@@ -210,87 +210,6 @@ def test_apply_data_seed_rejects_legacy_mechanisms_before_http(monkeypatch):
     assert sentinel == [], "no HTTP request should have been issued for deprecated mechanisms"
 
 
-def test_web_login_rejects_login_form_rerender():
-    session = _FakeSession(
-        [
-            _FakeResponse(status_code=200, text='<input name="csrf_token" value="t">'),
-            _FakeResponse(status_code=200, text='<input type="password" name="_password">'),
-        ]
-    )
-
-    with pytest.raises(RuntimeError, match="login form was re-rendered"):
-        seeding._perform_web_login_if_needed(
-            session,
-            {
-                "site_name": "reddit",
-                "site_url": "http://reddit.test",
-                "auth": {
-                    "type": "web_login",
-                    "login_url": "/login",
-                    "credentials": {"username": "u", "password": "p"},
-                },
-            },
-            "form",
-        )
-
-
-def test_web_login_uses_validation_endpoint_when_present():
-    session = _FakeSession(
-        [
-            _FakeResponse(status_code=200, text='<input name="csrf_token" value="t">'),
-            _FakeResponse(status_code=302, headers={"Location": "/"}),
-            _FakeResponse(status_code=200, text="welcome"),
-        ]
-    )
-
-    seeding._perform_web_login_if_needed(
-        session,
-        {
-            "site_name": "reddit",
-            "site_url": "http://reddit.test",
-            "auth": {
-                "type": "web_login",
-                "login_url": "/login",
-                "validation_endpoint": "/me",
-                "credentials": {"username": "u", "password": "p"},
-            },
-        },
-        "form",
-    )
-
-    assert [call["url"] for call in session.calls] == [
-        "http://reddit.test/login",
-        "http://reddit.test/login",
-        "http://reddit.test/me",
-    ]
-
-
-def test_web_login_validation_endpoint_rejects_redirect_back_to_login():
-    session = _FakeSession(
-        [
-            _FakeResponse(status_code=200, text='<input name="csrf_token" value="t">'),
-            _FakeResponse(status_code=302, headers={"Location": "/"}),
-            _FakeResponse(status_code=302, headers={"Location": "/login"}),
-        ]
-    )
-
-    with pytest.raises(RuntimeError, match="validation endpoint redirected to login"):
-        seeding._perform_web_login_if_needed(
-            session,
-            {
-                "site_name": "reddit",
-                "site_url": "http://reddit.test",
-                "auth": {
-                    "type": "web_login",
-                    "login_url": "/login",
-                    "validation_endpoint": "/me",
-                    "credentials": {"username": "u", "password": "p"},
-                },
-            },
-            "form",
-        )
-
-
 def test_seed_requires_reset_for_editor_only_seed_without_mechanism():
     assert seeding.seed_requires_reset(
         {
@@ -590,185 +509,9 @@ def test_resolve_reddit_forum_raises_clear_error_when_no_table_matches(monkeypat
         )
 
 
-def test_request_with_context_rejects_redirect(monkeypatch):
-    class _RedirectResponse(_FakeResponse):
-        def __init__(self):
-            super().__init__(status_code=302, text="")
-            self.headers = {"Location": "http://evil.test"}
-
-    fake_session = _FakeSession([_RedirectResponse()])
-
-    with pytest.raises(RuntimeError, match="returned redirect") as excinfo:
-        seeding._request_with_context(
-            fake_session,
-            method="POST",
-            url="http://shopping.test/submit",
-            headers={},
-            json_body=None,
-            form_body=None,
-            instance={"site_name": "shopping"},
-            raw_path="/submit",
-        )
-    assert "evil.test" not in str(excinfo.value)
-    assert "location='<present>'" in str(excinfo.value)
-
-
-def test_request_with_context_rejects_same_origin_redirect():
-    class _RedirectResponse(_FakeResponse):
-        def __init__(self):
-            super().__init__(status_code=302, text="")
-            self.headers = {"Location": "/done"}
-
-    fake_session = _FakeSession([_RedirectResponse()])
-
-    with pytest.raises(RuntimeError, match="returned redirect"):
-        seeding._request_with_context(
-            fake_session,
-            method="POST",
-            url="http://shopping.test/submit",
-            headers={},
-            json_body=None,
-            form_body=None,
-            instance={"site_name": "shopping"},
-            raw_path="/submit",
-        )
-
-
-def test_get_csrf_token_uses_no_redirect_fetch(monkeypatch):
-    fake_session = _FakeSession(
-        [
-            _FakeResponse(status_code=302, text=""),
-            _FakeResponse(text='<input name="form_key" value="origin-token">'),
-        ]
-    )
-    seeding._CSRF_TOKEN_CACHE.clear()
-
-    token = seeding._get_csrf_token(
-        fake_session,
-        "http://shopping.test/review",
-        {},
-        {"site_name": "shopping", "site_url": "http://shopping.test"},
-    )
-
-    assert token == ("form_key", "origin-token")
-    assert fake_session.calls[0]["allow_redirects"] is False
-    assert fake_session.calls[1]["allow_redirects"] is False
-
-
-def test_get_csrf_token_cache_is_path_scoped():
-    fake_session = _FakeSession(
-        [
-            _FakeResponse(text='<input name="form_key" value="review-token">'),
-            _FakeResponse(text='<input name="form_key" value="checkout-token">'),
-        ]
-    )
-    seeding._CSRF_TOKEN_CACHE.clear()
-    instance = {"site_name": "shopping", "site_url": "http://shopping.test"}
-
-    review_token = seeding._get_csrf_token(
-        fake_session, "http://shopping.test/review", {}, instance
-    )
-    checkout_token = seeding._get_csrf_token(
-        fake_session,
-        "http://shopping.test/checkout",
-        {},
-        instance,
-    )
-
-    assert review_token == ("form_key", "review-token")
-    assert checkout_token == ("form_key", "checkout-token")
-    assert [call["url"] for call in fake_session.calls] == [
-        "http://shopping.test/review",
-        "http://shopping.test/checkout",
-    ]
-
-
-def test_get_csrf_token_cache_normalizes_numeric_paths():
-    fake_session = _FakeSession(
-        [
-            _FakeResponse(text='<input name="form_key" value="review-token">'),
-        ]
-    )
-    seeding._CSRF_TOKEN_CACHE.clear()
-    instance = {"site_name": "shopping", "site_url": "http://shopping.test"}
-
-    first = seeding._get_csrf_token(fake_session, "http://shopping.test/review/123", {}, instance)
-    second = seeding._get_csrf_token(fake_session, "http://shopping.test/review/456", {}, instance)
-
-    assert first == ("form_key", "review-token")
-    assert second == ("form_key", "review-token")
-    assert [call["url"] for call in fake_session.calls] == ["http://shopping.test/review/123"]
-
-
-def test_get_csrf_token_cache_keeps_distinct_query_variants():
-    fake_session = _FakeSession(
-        [
-            _FakeResponse(text='<input name="form_key" value="review-token">'),
-            _FakeResponse(text='<input name="form_key" value="checkout-token">'),
-        ]
-    )
-    seeding._CSRF_TOKEN_CACHE.clear()
-    instance = {"site_name": "shopping", "site_url": "http://shopping.test"}
-
-    first = seeding._get_csrf_token(
-        fake_session,
-        "http://shopping.test/review?id=123",
-        {},
-        instance,
-    )
-    second = seeding._get_csrf_token(
-        fake_session,
-        "http://shopping.test/review?id=456",
-        {},
-        instance,
-    )
-
-    assert first == ("form_key", "review-token")
-    assert second == ("form_key", "checkout-token")
-    assert [call["url"] for call in fake_session.calls] == [
-        "http://shopping.test/review?id=123",
-        "http://shopping.test/review?id=456",
-    ]
-
-
-def test_prepare_form_body_overwrites_stale_csrf_field():
-    fake_session = _FakeSession(
-        [
-            _FakeResponse(text='<input name="form_key" value="fresh-token">'),
-        ]
-    )
-    seeding._CSRF_TOKEN_CACHE.clear()
-
-    form_body = seeding._prepare_form_body(
-        "POST",
-        "http://shopping.test/review",
-        {},
-        {"form_key": "stale-token", "detail": "payload"},
-        {"site_name": "shopping", "site_url": "http://shopping.test"},
-        fake_session,
-    )
-
-    assert form_body == {"form_key": "fresh-token", "detail": "payload"}
-
-
-def test_get_csrf_token_cache_does_not_cross_sessions():
-    session_a = _FakeSession([_FakeResponse(text='<input name="form_key" value="token-a">')])
-    session_b = _FakeSession([_FakeResponse(text='<input name="form_key" value="token-b">')])
-    seeding._CSRF_TOKEN_CACHE.clear()
-    instance = {"site_name": "shopping", "site_url": "http://shopping.test"}
-
-    token_a = seeding._get_csrf_token(session_a, "http://shopping.test/review", {}, instance)
-    token_b = seeding._get_csrf_token(session_b, "http://shopping.test/review", {}, instance)
-
-    assert token_a == ("form_key", "token-a")
-    assert token_b == ("form_key", "token-b")
-    assert [call["url"] for call in session_a.calls] == ["http://shopping.test/review"]
-    assert [call["url"] for call in session_b.calls] == ["http://shopping.test/review"]
-
-
 def test_build_seed_context_prefers_seed_task_values():
     context = seeding._build_seed_context(
-        {"mechanism": "api", "api_calls": []},
+        {"mechanism": "none"},
         {
             "seed_task": {
                 "id": "adv-123",
@@ -1443,7 +1186,6 @@ def test_task_seed_site_treats_none_delivery_site_as_empty():
     )
 
 
-
 def test_validate_data_seed_accepts_editor_calls():
     seeding.validate_data_seed(
         {
@@ -1642,21 +1384,6 @@ def test_apply_data_seed_rejects_unresolved_placeholders_in_supported_editor_kwa
             },
             {"site_name": "reddit", "site_url": "http://reddit.test"},
         )
-
-
-def test_extract_http_body_flattens_nested_review_wrapper():
-    body = seeding._extract_http_body(
-        {
-            "body": {
-                "review": {
-                    "detail": "payload",
-                    "entity_pk_value": 67,
-                }
-            }
-        }
-    )
-
-    assert body == {"detail": "payload", "entity_pk_value": 67}
 
 
 def test_build_seed_context_surfaces_benign_anchors_from_target_resource():

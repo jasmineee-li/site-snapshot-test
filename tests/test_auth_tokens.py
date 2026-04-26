@@ -918,9 +918,7 @@ def test_benchmark_config_rejects_empty_instances(tmp_path):
 
 
 def test_seeding_resolve_bearer_token_uses_token_generator(monkeypatch):
-    """_resolve_bearer_token dispatches to auth_tokens for token_generator."""
-    from worldsim import seeding
-
+    """auth_tokens.resolve_bearer_token dispatches token_generator auth."""
     responses = [
         _FakeResponse(text=_gitlab_login_page_html()),
         _FakeResponse(status_code=200),
@@ -947,7 +945,9 @@ def test_seeding_resolve_bearer_token_uses_token_generator(monkeypatch):
         MagicMock(return_value=_FakeResponse(status_code=200)),
     )
 
-    token = seeding._resolve_bearer_token(
+    from worldsim.auth_tokens import resolve_bearer_token
+
+    token = resolve_bearer_token(
         {
             "type": "bearer_token",
             "header_name": "PRIVATE-TOKEN",
@@ -961,8 +961,6 @@ def test_seeding_resolve_bearer_token_uses_token_generator(monkeypatch):
 
 
 def test_seeding_resolve_bearer_token_uses_validated_runtime_cache(monkeypatch):
-    from worldsim import seeding
-
     auth_tokens.clear_run_token_cache()
 
     call_count = {"n": 0}
@@ -979,8 +977,8 @@ def test_seeding_resolve_bearer_token_uses_validated_runtime_cache(monkeypatch):
         "credentials": {"username": "root", "password": "pass"},
     }
 
-    token1 = seeding._resolve_bearer_token(auth, site_url="http://gitlab.test")
-    token2 = seeding._resolve_bearer_token(auth, site_url="http://gitlab.test")
+    token1 = auth_tokens.resolve_bearer_token(auth, site_url="http://gitlab.test")
+    token2 = auth_tokens.resolve_bearer_token(auth, site_url="http://gitlab.test")
 
     assert token1 == "glpat-cached"
     assert token2 == "glpat-cached"
@@ -1165,36 +1163,6 @@ def test_gitlab_editor_wraps_invalid_bearer_token_as_auth_missing(monkeypatch):
                     "header_name": "PRIVATE-TOKEN",
                     "token": "invalid-token",
                     "validation_endpoint": "/api/v4/user",
-                },
-            }
-        )
-
-    assert excinfo.value.kind == "auth_missing"
-
-
-def test_reddit_editor_wraps_form_login_runtime_error(monkeypatch):
-    from worldsim.editors.base import EditorError
-    from worldsim.editors.reddit import RedditEditor
-
-    fake_session = MagicMock()
-    fake_session.__enter__.return_value = fake_session
-    fake_session.__exit__.return_value = None
-    monkeypatch.setattr("worldsim.editors.reddit.requests.Session", lambda: fake_session)
-
-    def fail_login(session, instance, mechanism):
-        raise RuntimeError("login failed")
-
-    monkeypatch.setattr("worldsim.seeding._perform_web_login_if_needed", fail_login)
-
-    with pytest.raises(EditorError) as excinfo:
-        RedditEditor.probe_base_state(
-            {
-                "site_name": "reddit",
-                "site_url": "http://reddit.test",
-                "auth": {
-                    "type": "web_login",
-                    "login_url": "/login",
-                    "credentials": {"username": "user", "password": "pw"},
                 },
             }
         )
