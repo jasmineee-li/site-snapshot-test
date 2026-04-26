@@ -88,6 +88,7 @@ def run_causal_experiment(
     judges: list[str] | None,
     output_base: Path,
     dry_run: bool,
+    skip_existing: bool = False,
 ) -> None:
     combos = list(product(benchmarks, conditions, models, presets, frames))
     print(f"Causal experiment: {len(combos)} combinations")
@@ -99,7 +100,21 @@ def run_causal_experiment(
     print(f"  Stage:      {stage}")
     if tasks_per_split:
         print(f"  Tasks/split: {tasks_per_split}")
+    if skip_existing:
+        print(f"  Skip-existing: ON (cells already complete will be skipped)")
     print()
+
+    # If skip_existing, scan the output base to find already-complete cells
+    # so we can short-circuit re-runs.
+    completed_cells: set[tuple[str, str, str]] = set()
+    if skip_existing and output_base.exists():
+        from eval_awareness_experiments.run_manifest import scan as scan_manifest
+        m = scan_manifest(output_base)
+        for c in m["cells"]:
+            if c["status"].startswith("complete"):
+                completed_cells.add((c["benchmark"], c["arm"], c["model_slug"]))
+        if completed_cells:
+            print(f"  Found {len(completed_cells)} already-complete cells; will skip them.\n")
 
     run_log = []
     for i, (benchmark, condition, model, preset, frame) in enumerate(combos, 1):
@@ -118,12 +133,23 @@ def run_causal_experiment(
         # because this experiment always uses condition=baseline; the XML
         # manipulation lives in `frame`, not `condition`.
         arm = _arm_name(preset, frame)
+        model_slug = model.replace("/", "_").replace(":", "_")
         combo_out = (
             output_base
             / benchmark
             / arm
-            / model.replace("/", "_").replace(":", "_")
+            / model_slug
         )
+
+        if skip_existing and (benchmark, arm, model_slug) in completed_cells:
+            print(f"[{i}/{len(combos)}] SKIP {benchmark}/{arm}/{model} (already complete)")
+            run_log.append({
+                "benchmark": benchmark, "arm": arm, "condition": condition,
+                "model": model, "preset": preset, "system_prompt_frame": frame,
+                "stage": stage, "status": "skipped (already complete)",
+                "output_dir": str(combo_out), "cmd": None,
+            })
+            continue
         cmd = [
             sys.executable, "-m", "eval_awareness_experiments.run_safety_pipeline",
             "--benchmark", benchmark,
@@ -205,6 +231,11 @@ def main() -> None:
     parser.add_argument("--output-base", type=Path,
                         default=Path("eval_awareness_experiments/results/new_results"))
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--skip-existing", action="store_true",
+                        help="Before each combo, scan --output-base for cells "
+                             "already marked complete (via run_manifest) and "
+                             "skip them. Lets re-runs of the same matrix pick "
+                             "up where they left off.")
     args = parser.parse_args()
 
     run_causal_experiment(
@@ -219,6 +250,7 @@ def main() -> None:
         judges=args.judges,
         output_base=args.output_base,
         dry_run=args.dry_run,
+        skip_existing=args.skip_existing,
     )
 
 
