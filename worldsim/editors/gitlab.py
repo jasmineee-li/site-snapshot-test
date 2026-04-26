@@ -1325,7 +1325,7 @@ class GitlabEditor(BaseSiteEditor):
                 "gitlab profile form update requires username/password credentials in auth or api_auth",
             )
         try:
-            from worldsim import seeding as seeding_module
+            from worldsim.editors._form_login import extract_csrf_token
 
             login_path = "/users/sign_in"
             login_url = f"{self._site_url()}{login_path}"
@@ -1341,7 +1341,7 @@ class GitlabEditor(BaseSiteEditor):
                 "request_failed",
                 f"gitlab editor form GET /users/sign_in returned HTTP {response.status_code}",
             ) from exc
-        token_name, token_value = seeding_module._extract_csrf_token(response.text)
+        token_name, token_value = extract_csrf_token(response.text)
         login_data = {
             "user[login]": credentials["username"],
             "user[password]": credentials["password"],

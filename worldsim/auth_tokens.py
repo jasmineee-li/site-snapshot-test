@@ -21,9 +21,11 @@ import datetime as dt
 import hashlib
 import json
 import logging
+import os
 import re
 import threading
 import time
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -633,3 +635,122 @@ def _inject_token(instance: Any, field: str, token: str) -> None:
         auth = getattr(instance, field)
         if isinstance(auth, dict):
             auth["token"] = token
+
+
+# ── HTTP request header building ─────────────────────────────────────────
+#
+# These helpers were previously private to worldsim.seeding (where the
+# legacy api/form seed dispatch lived). After the editor migration the
+# editors are the sole callers, so they live here adjacent to bearer-token
+# resolution. See docs/handoffs/researcher-handoff-project-status.md for
+# the editor-only seed mechanism rationale.
+
+_BLOCKED_CALL_HEADER_NAMES = frozenset(
+    {
+        "authorization",
+        "cookie",
+        "origin",
+        "referer",
+        "x-csrf-token",
+        "x-csrftoken",
+        "x-xsrf-token",
+        "x-xsrftoken",
+        "host",
+        "forwarded",
+        "proxy",
+        "proxy-authorization",
+        "proxy-authenticate",
+        "proxy-connection",
+        "transfer-encoding",
+        "x-forwarded-for",
+        "x-forwarded-host",
+        "x-forwarded-proto",
+    }
+)
+
+
+def pick_auth_lane(instance: Mapping[str, Any], mechanism: str) -> dict[str, Any] | None:
+    """Return the auth config for the given seeding mechanism.
+
+    API-mechanism callers prefer ``instance['api_auth']`` (e.g. admin bearer
+    token); form / web-login callers always use ``instance['auth']``.
+    """
+    if mechanism == "api":
+        api_auth = instance.get("api_auth")
+        if isinstance(api_auth, dict):
+            return api_auth
+    auth = instance.get("auth")
+    return auth if isinstance(auth, dict) else None
+
+
+def _resolve_header_value(value: object) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        env_name = value.get("from_env")
+        if isinstance(env_name, str) and env_name:
+            resolved = os.environ.get(env_name)
+            if not resolved:
+                raise RuntimeError(f"required auth header env var {env_name!r} is not set")
+            return resolved
+    raise RuntimeError('auth header values must be strings or {"from_env": "VAR_NAME"}')
+
+
+def _sanitize_call_headers(
+    call_headers: Mapping[str, Any],
+    *,
+    protected_headers: set[str],
+) -> dict[str, str]:
+    sanitized: dict[str, str] = {}
+    for key, value in call_headers.items():
+        key_str = str(key)
+        lowered = key_str.lower()
+        if lowered in _BLOCKED_CALL_HEADER_NAMES or lowered in protected_headers:
+            continue
+        sanitized[key_str] = str(value)
+    return sanitized
+
+
+def build_auth_headers(
+    instance: Mapping[str, Any],
+    call: Mapping[str, Any] | None = None,
+    *,
+    mechanism: str = "form",
+) -> dict[str, str]:
+    """Build the HTTP request headers for an authenticated benchmark call.
+
+    Picks the auth lane for ``mechanism`` (``api_auth`` for ``"api"``,
+    ``auth`` otherwise), materializes either ``http_headers`` declarations
+    or a bearer token, and merges in any safe caller-supplied headers from
+    ``call.get('headers')``. Sensitive header names (auth, cookie, host,
+    forwarded, proxy, csrf) are stripped from the call so a hostile call
+    cannot override the auth lane.
+    """
+    headers: dict[str, str] = {}
+    auth = pick_auth_lane(instance, mechanism)
+    site_url = str(instance.get("site_url", ""))
+    auth_header_names: set[str] = set()
+    if isinstance(auth, dict):
+        auth_type = str(auth.get("type", "")).strip()
+        if auth_type == "http_headers":
+            declared_headers = auth.get("headers")
+            if isinstance(declared_headers, dict):
+                for key, value in declared_headers.items():
+                    resolved = _resolve_header_value(value)
+                    headers[str(key)] = resolved
+                    auth_header_names.add(str(key).lower())
+        elif auth_type == "bearer_token":
+            token = resolve_bearer_token(auth, site_url=site_url)
+            header_name = str(auth.get("header_name") or "Authorization")
+            if header_name.lower() == "authorization" and not token.lower().startswith("bearer "):
+                token = f"Bearer {token}"
+            headers[header_name] = token
+            auth_header_names.add(header_name.lower())
+
+    call_headers = (call or {}).get("headers") if call is not None else None
+    if isinstance(call_headers, dict):
+        sanitized = _sanitize_call_headers(call_headers, protected_headers=auth_header_names)
+        merged = dict(sanitized)
+        merged.update(headers)
+        headers = merged
+    return headers

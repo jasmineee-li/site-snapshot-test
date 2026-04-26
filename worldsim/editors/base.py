@@ -336,10 +336,10 @@ class BaseSiteEditor:
         return site_url
 
     def _build_headers(self, *, mechanism: str) -> dict[str, str]:
-        from worldsim import seeding as seeding_module
+        from worldsim.auth_tokens import build_auth_headers
 
         try:
-            return seeding_module._build_request_headers(self.instance, {}, mechanism=mechanism)
+            return build_auth_headers(self.instance, {}, mechanism=mechanism)
         except RuntimeError as exc:
             raise EditorError(
                 "auth_missing",
@@ -347,10 +347,10 @@ class BaseSiteEditor:
             ) from exc
 
     def _ensure_form_login(self) -> None:
-        from worldsim import seeding as seeding_module
+        from worldsim.editors._form_login import perform_web_login_if_needed
 
         try:
-            seeding_module._perform_web_login_if_needed(self.session, self.instance, "form")
+            perform_web_login_if_needed(self.session, self.instance, "form")
         except RuntimeError as exc:
             raise EditorError(
                 "auth_missing",
@@ -479,12 +479,12 @@ class BaseSiteEditor:
         return response
 
     def _submit_form(self, path: str, body_form: dict[str, Any]) -> requests.Response:
-        from worldsim import seeding as seeding_module
+        from worldsim.editors._form_login import prepare_form_body
 
         self._ensure_form_login()
         url = f"{self._site_url()}{path}"
         headers = self._build_headers(mechanism="form")
-        form_body = seeding_module._prepare_form_body(
+        form_body = prepare_form_body(
             "POST",
             url,
             headers,

@@ -947,7 +947,7 @@ async def _probe_http_json(
 ) -> Any:
     """GET ``path`` against ``instance.site_url`` as the benign user, JSON-decoded.
 
-    Auth is assembled via :func:`worldsim.seeding._build_request_headers`
+    Auth is assembled via :func:`worldsim.auth_tokens.build_auth_headers`
     but forced onto the benign-user auth lane. Phase 2a target resolution
     must not inherit privileged ``api_auth`` if a future host config adds
     it for other phases. This helper is read-only and sync-wrapped in
@@ -956,13 +956,13 @@ async def _probe_http_json(
     # Lazy import: requests + seeding are heavy and L1/L2 tests don't need them.
     import requests
 
-    from worldsim.seeding import _build_request_headers
+    from worldsim.auth_tokens import build_auth_headers
 
     site_url = str(instance.get("site_url") or "").rstrip("/")
     if not site_url:
         raise RuntimeError("instance has no site_url; cannot run L3 probe")
     url = f"{site_url}{path}"
-    headers = _build_request_headers(_benign_probe_instance(instance), {}, mechanism="api")
+    headers = build_auth_headers(_benign_probe_instance(instance), {}, mechanism="api")
 
     def _send() -> Any:
         response = requests.get(url, headers=headers, params=dict(params or {}), timeout=timeout)
@@ -1184,13 +1184,13 @@ async def _fetch_forum_submissions(
 
     import requests
 
-    from worldsim.seeding import _build_request_headers
+    from worldsim.auth_tokens import build_auth_headers
 
     site_url = str(instance.get("site_url") or "").rstrip("/")
     if not site_url:
         return None
     url = f"{site_url}/f/{urlquote(forum_name, safe='')}"
-    headers = _build_request_headers(_benign_probe_instance(instance), {}, mechanism="form")
+    headers = build_auth_headers(_benign_probe_instance(instance), {}, mechanism="form")
 
     def _send() -> str | None:
         try:
@@ -1462,7 +1462,7 @@ async def _gitlab_visible_dashboard_hrefs(
 ) -> set[str] | None:
     import requests
 
-    from worldsim.seeding import _build_request_headers
+    from worldsim.auth_tokens import build_auth_headers
 
     site_url = str(instance.get("site_url") or "").rstrip("/")
     if not site_url or not entry_url:
@@ -1471,7 +1471,7 @@ async def _gitlab_visible_dashboard_hrefs(
     path = parsed_entry.path or "/"
     query = f"?{parsed_entry.query}" if parsed_entry.query else ""
     url = f"{site_url}{path}{query}"
-    headers = _build_request_headers(_benign_probe_instance(instance), {}, mechanism="form")
+    headers = build_auth_headers(_benign_probe_instance(instance), {}, mechanism="form")
 
     def _send() -> str | None:
         response = requests.get(url, headers=headers, timeout=15)
