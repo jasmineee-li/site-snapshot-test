@@ -644,6 +644,8 @@ async def run(args: argparse.Namespace) -> int:
             output_dir / "shards",
             all_plans,
             allowed_sites=active_sites,
+            benign_by_id=benign_by_id,
+            site_profiles=site_profile_payloads,
         )
         if recovered_ids:
             logger.warning(
@@ -2721,6 +2723,8 @@ def _recover_orphaned_shards(
     in_memory_plans: list[dict[str, Any]],
     *,
     allowed_sites: set[str],
+    benign_by_id: dict[str, dict[str, Any]] | None = None,
+    site_profiles: dict[str, dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     """Fold disk-persisted shard tasks that the in-memory aggregation missed.
 
@@ -2762,18 +2766,35 @@ def _recover_orphaned_shards(
                 best_by_id[task_id] = (mtime, task)
     if not best_by_id:
         return list(in_memory_plans), []
-    # Re-run the live Phase 2a Option A placement validator on every
-    # candidate orphan from an Option A site. Stale shards can pre-date
-    # the api/form/state_push sunset (commit ff8381d5) and carry
+    # Re-run the live Phase 2a validator chain on every candidate
+    # orphan from an Option A site. Stale shards can pre-date the
+    # api/form/state_push sunset (commit ff8381d5) and carry
     # `seed_template.mechanism="api"` with `api_calls` instead of
-    # `editor_calls`. Without this re-validation, those tasks bypass the
-    # gate that fresh plans go through and crash Phase 2b text fill at
-    # `validate_data_seed`.
+    # `editor_calls`, or carry contract violations like
+    # `editor_calls[].site` mismatching the task site. Mirror the live
+    # `_validate_generated_adversarial_task` order: contract first, then
+    # placement. Skip contract validation only when the caller did not
+    # supply benign/site-profile context (legacy callers in tests).
     orphans: list[dict[str, Any]] = []
     dropped_count = 0
     for _, task in best_by_id.values():
         if _is_option_a_site(task):
             task_name = f"orphan {task.get('id') or '<unknown>'}"
+            if benign_by_id is not None and site_profiles is not None:
+                benign_parent = benign_by_id.get(str(task.get("benign_task_id", "")))
+                site_profile = site_profiles.get(_effective_task_site(task))
+                if benign_parent is not None and site_profile is not None:
+                    contract_error = _validate_adversarial_task_contract(
+                        task, benign_parent, site_profile
+                    )
+                    if contract_error is not None:
+                        logger.warning(
+                            "[phase_2] skip-on-reject: %s (contract): %s",
+                            task_name,
+                            contract_error,
+                        )
+                        dropped_count += 1
+                        continue
             placement_error = _validate_option_a_placement(task, task_name)
             if placement_error is not None:
                 logger.warning(
@@ -2787,13 +2808,13 @@ def _recover_orphaned_shards(
     if not orphans:
         if dropped_count:
             logger.info(
-                "Phase 2 aggregation: dropped %d orphan shard task(s) failing Option A placement",
+                "Phase 2 aggregation: dropped %d orphan shard task(s) failing live validators",
                 dropped_count,
             )
         return list(in_memory_plans), []
     if dropped_count:
         logger.info(
-            "Phase 2 aggregation: kept %d orphan shard task(s); dropped %d failing Option A placement",
+            "Phase 2 aggregation: kept %d orphan shard task(s); dropped %d failing live validators",
             len(orphans),
             dropped_count,
         )

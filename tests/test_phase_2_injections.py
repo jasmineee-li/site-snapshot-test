@@ -4805,3 +4805,39 @@ class TestRecoverOrphanedShards:
             "skip-on-reject" in record.message and "adv-stale-api" in record.message
             for record in caplog.records
         )
+
+    def test_drops_orphans_failing_contract_with_immutable_field_drift(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ):
+        """Orphans whose immutable fields drift from the benign parent
+        (e.g. ``instruction`` mutated post-validation) pass placement but
+        fail the contract validator. Mirror the live two-validator chain
+        and drop them with a ``(contract)`` qualifier."""
+        shards_dir = tmp_path / "shards"
+        shards_dir.mkdir()
+        bad = {
+            **self._plan("adv-contract-fail"),
+            "benign_task_id": "benign-bad",
+            "instruction": "drifted instruction not present on benign parent",
+        }
+        (shards_dir / "gitlab-shard-0.json").write_text(json.dumps([bad]))
+        benign_by_id = {"benign-bad": {"id": "benign-bad", "site": "gitlab", "sites": ["gitlab"]}}
+
+        with caplog.at_level("WARNING", logger="worldsim.phases.phase_2_injections"):
+            merged, recovered = phase_2_injections._recover_orphaned_shards(
+                shards_dir,
+                [],
+                allowed_sites={"gitlab"},
+                benign_by_id=benign_by_id,
+                site_profiles={"gitlab": {}},
+            )
+
+        assert merged == []
+        assert recovered == []
+        assert any(
+            "skip-on-reject" in record.message
+            and "adv-contract-fail" in record.message
+            and "(contract)" in record.message
+            and "instruction changed from benign task" in record.message
+            for record in caplog.records
+        )
