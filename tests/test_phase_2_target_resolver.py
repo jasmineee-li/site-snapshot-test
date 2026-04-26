@@ -221,8 +221,7 @@ def test_gitlab_dashboard_l1_preserves_reward_query_params():
 
     assert result["kind"] == "gitlab_dashboard_list"
     assert result["start_url_resolved"] == (
-        "https://gitlab.local/dashboard/merge_requests?"
-        "assignee_username=byteblaze&state=opened"
+        "https://gitlab.local/dashboard/merge_requests?assignee_username=byteblaze&state=opened"
     )
 
 
@@ -872,6 +871,80 @@ def test_gitlab_dashboard_l4_uses_assigned_filter_and_visible_links(monkeypatch)
     assert len(records) == 1
     assert records[0]["iid"] == 7
     assert records[0]["_entry_visible_href"] == "/org/repo/-/merge_requests/7"
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        ("opened", "opened"),
+        ("byteblaze", "byteblaze"),
+        ("^(opened|)$", "opened"),
+        ("^(all|)$", "all"),
+        ("^(opened|closed|)$", "opened"),
+        ("^()$", None),
+        ("^(.*)$", None),
+        ("", None),
+        (None, None),
+    ],
+)
+def test_literalize_regex_value(value, expected):
+    assert resolver._literalize_regex_value(value) == expected
+
+
+def test_gitlab_dashboard_l4_drops_regex_encoded_state_and_scope(monkeypatch):
+    """Regression: WebArena eval URLs encode `state=^(opened|)$` and
+    `scope=^(all|)$`. Forwarding them literally to GitLab's REST API
+    triggers HTTP 400 (the L4 probe error reported on every Phase 2 run).
+    """
+
+    calls: list[tuple[str, dict[str, Any]]] = []
+
+    async def fake_probe(instance, endpoint, *, params=None, **_kwargs):
+        calls.append((endpoint, dict(params or {})))
+        return [
+            {
+                "project_id": 5,
+                "iid": 7,
+                "web_url": "https://gitlab.local/org/repo/-/merge_requests/7",
+                "title": "open MR",
+            }
+        ]
+
+    async def fake_hrefs(*_args, **_kwargs):
+        return {"/org/repo/-/merge_requests/7"}
+
+    monkeypatch.setattr(resolver, "_probe_http_json", fake_probe)
+    monkeypatch.setattr(resolver, "_gitlab_visible_dashboard_hrefs", fake_hrefs)
+
+    task = _gitlab_task(
+        eval_url="__GITLAB__/dashboard/merge_requests?state=^(opened|)$&scope=^(all|)$",
+    )
+
+    records = asyncio.run(
+        resolver._list_gitlab_dashboard(
+            {
+                "kind": "gitlab_dashboard_list",
+                "anchors": {"dashboard": "merge_requests"},
+                "start_url_resolved": (
+                    "https://gitlab.local/dashboard/merge_requests?state=^(opened|)$&scope=^(all|)$"
+                ),
+            },
+            task,
+            {"site_url": "https://gitlab.local"},
+            limit=3,
+        )
+    )
+
+    assert calls, "expected probe to be invoked"
+    endpoint, params = calls[0]
+    assert endpoint == "/api/v4/merge_requests"
+    assert params["state"] == "opened"
+    assert params["scope"] == "all"
+    for value in params.values():
+        assert "^" not in str(value) and "(" not in str(value), (
+            f"regex syntax leaked into params: {params!r}"
+        )
+    assert len(records) == 1
 
 
 def test_gitlab_dashboard_l4_fails_closed_without_visible_link_evidence(monkeypatch):

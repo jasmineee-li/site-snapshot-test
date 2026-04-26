@@ -185,6 +185,50 @@ def _strip_regex_anchors(url: str) -> str:
     return stripped
 
 
+_REGEX_META_RE = re.compile(r"[\^\$\(\)\|\\\*\+\?\[\]\{\}]")
+
+
+def _literalize_regex_value(value: str | None) -> str | None:
+    """Convert a WebArena-style regex query value into a single literal.
+
+    WebArena URL-match evaluators encode query values as regex alternations
+    (e.g. ``^(opened|)$`` for "either ``opened`` or absent"). Forwarding
+    those literally to the live API yields HTTP 400 because GitLab/Postmill
+    expect concrete enum values. This helper picks a usable literal:
+
+    * Plain literals (no regex metacharacters) pass through unchanged.
+    * ``^(a|b|...)$`` (with optional whitespace) → first non-empty literal
+      branch (mirrors the URL-match semantics: any branch satisfies the
+      evaluator, so we pick one).
+    * Anything still containing regex syntax → ``None`` (caller drops it).
+
+    Returning ``None`` for residual regex is deliberate: dashboard listing
+    APIs return 400 on unknown enum values, and silently sending a regex
+    string masks the bug.
+    """
+    if value is None:
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    if not _REGEX_META_RE.search(text):
+        return text
+    inner = text
+    if inner.startswith("^"):
+        inner = inner[1:]
+    if inner.endswith("$"):
+        inner = inner[:-1]
+    inner = inner.strip()
+    if inner.startswith("(") and inner.endswith(")"):
+        inner = inner[1:-1]
+    candidates = inner.split("|") if "|" in inner else [inner]
+    for alt in candidates:
+        alt = alt.strip()
+        if alt and not _REGEX_META_RE.search(alt):
+            return alt
+    return None
+
+
 def _strip_json_suffix(url: str) -> str:
     """Drop a trailing `.json` so UI-form URLs match the HTML-page regex."""
     if url.endswith(".json"):
@@ -1308,8 +1352,8 @@ async def _list_gitlab_search(
     limit: int,
 ) -> list[dict[str, Any]]:
     anchors = resource.get("anchors") or {}
-    query = str(anchors.get("query") or "").strip()
-    scope = str(anchors.get("scope") or "issues")
+    query = _literalize_regex_value(str(anchors.get("query") or "")) or ""
+    scope = _literalize_regex_value(str(anchors.get("scope") or "")) or "issues"
     project_id = anchors.get("project_id")
     endpoint = (
         f"/api/v4/projects/{project_id}/issues"
@@ -1364,12 +1408,20 @@ def _dashboard_query(resource: Mapping[str, Any], task: Mapping[str, Any]) -> di
                 "order_by",
             }:
                 query[key] = values
-    return {
-        key: value
-        for key in query
-        for value in [_first_query_value(query, key)]
-        if value is not None
-    }
+    out: dict[str, str] = {}
+    for key in query:
+        raw_value = _first_query_value(query, key)
+        literal = _literalize_regex_value(raw_value)
+        if literal is None:
+            if raw_value is not None:
+                logger.debug(
+                    "dropping regex-encoded dashboard query param %s=%r (no literal branch)",
+                    key,
+                    raw_value,
+                )
+            continue
+        out[key] = literal
+    return out
 
 
 def _gitlab_item_url(item: Mapping[str, Any]) -> str | None:
@@ -1511,7 +1563,9 @@ async def _list_reddit_forum(
     *,
     limit: int,
 ) -> list[dict[str, Any]]:
-    forum_name = str((resource.get("anchors") or {}).get("forum_name") or "")
+    forum_name = _literalize_regex_value(
+        str((resource.get("anchors") or {}).get("forum_name") or "")
+    )
     if not forum_name:
         return []
     submissions = await _fetch_forum_submissions(instance, forum_name, limit=limit)
