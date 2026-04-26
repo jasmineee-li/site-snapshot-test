@@ -2,13 +2,13 @@
 
 **WorldSim v5** — a Modal-Sandbox + Browser-Use adversarial evaluation pipeline for browser agents. Research question: do browser agents resist or comply with indirect prompt injections embedded in realistic web environments (WebArena)?
 
-**Scope:** strict WASP alignment — **GitLab issues/comments and Reddit (Postmill) posts/comments only.** Dataset is 84 tasks (78 GitLab + 6 Reddit). Rationale (IPI threat model, Magento/Wikipedia/OSM exclusion): [`docs/handoffs/wasp-aligned-scoping-decision.md`](docs/handoffs/wasp-aligned-scoping-decision.md).
+**Scope:** strict WASP alignment — **GitLab issues/comments and Reddit (Postmill) posts/comments only.** Current dataset: 38 tasks (22 GitLab + 16 Reddit), regenerated 2026-04-26 after post-`057e8e26` strict exposure-contract eligibility from the same WebArena task pool as the prior 84-task figure; see `logs_clean_2026-04-26/phase_2/`. Rationale (IPI threat model, Magento/Wikipedia/OSM exclusion): [`docs/handoffs/wasp-aligned-scoping-decision.md`](docs/handoffs/wasp-aligned-scoping-decision.md).
 
 ## Read the spec first
 
-Authoritative spec: [`docs/worldsim-v5-technical-specifcation.md`](docs/worldsim-v5-technical-specifcation.md) — the typo in the filename is intentional, do not "fix". Every module in `worldsim/` implements a section. **When code diverges from the spec, the spec is right — fix the code.** If the spec provides literal code (`run_claude_in_sandbox`, `BrowserUseAgent`, `apply_data_seed`, `save_state`, `run_eval`), use it verbatim.
+Authoritative spec: [`docs/worldsim-v5-technical-specifcation.md`](docs/worldsim-v5-technical-specifcation.md) — the typo in the filename is intentional, do not "fix". Every module in `worldsim/` implements a section. **When code diverges from the spec, the spec is right — fix the code.** If current source or handoff docs expose a real spec drift, update the spec first, then align the code. If the spec provides literal code (`run_claude_in_sandbox`, `BrowserUseAgent`, `apply_data_seed`, `save_state`, `run_eval`), use it verbatim.
 
-Repo layout, prerequisites, and Claude/Modal auth setup: `README.md`. CLI entrypoint: `uv run python -m worldsim.main --help`.
+Repo layout and prerequisites: `README.md`. Current Claude/Modal auth precedence lives in `worldsim/modal_sandbox.py::_build_claude_secrets` and `worldsim/phase_4/anthropic_client.py`. CLI entrypoint: `uv run python -m worldsim.main --help`.
 
 ## Non-negotiable invariants
 
@@ -22,7 +22,7 @@ Repo layout, prerequisites, and Claude/Modal auth setup: `README.md`. CLI entryp
 
 Pick the one matching your task and read it before working in that area:
 
-- [`codex-handoff-paint-verified-oracle.md`](docs/handoffs/codex-handoff-paint-verified-oracle.md) — PVPO capture, ink-occupancy encounter detection, Phase 4 gates.
+- [`codex-handoff-paint-verified-oracle.md`](docs/handoffs/codex-handoff-paint-verified-oracle.md) — PVPO capture, ink-occupancy encounter detection, Phase 4 gates; read the top supersession notes before using older P(eval) material.
 - [`codex-handoff-phase-4-judge-variant-api-cutover.md`](docs/handoffs/codex-handoff-phase-4-judge-variant-api-cutover.md) — why judge/variant/TP/VEA/placement-fix use host API, not sandboxes.
 - [`rigor-run-setup.md`](docs/handoffs/rigor-run-setup.md) — fresh-host bootstrap, preflight, launch sequence.
 - [`wasp-aligned-scoping-decision.md`](docs/handoffs/wasp-aligned-scoping-decision.md) — dataset scope rationale.
@@ -30,7 +30,7 @@ Pick the one matching your task and read it before working in that area:
 <important if="you are touching Phase 4, PVPO capture, encounter detection, trajectory extraction, or the observational metrics">
 - Phase 4 has **two gates** (encounter via PVPO `max_coverage ∈ [0.0, 1.0]`; attack effectiveness via refusal judge) and **two observational metrics** that never gate (Transcript Purpose, VEA). `max_coverage == 0` routes to placement-fix.
 - Trajectories flow through disk. Per-task dirs under `logs/<run>/<task_id>/` hold `history.json`, `result.json`, `screenshots/`, `conversations/`, `pvpo/`. Judges and classifiers receive host-side dataclass-projected slices.
-- Full mechanics in [`docs/handoffs/codex-handoff-paint-verified-oracle.md`](docs/handoffs/codex-handoff-paint-verified-oracle.md). Apollo / Needham prompt protocols are documented in the code at `worldsim/phase_4/{transcript_purpose_api,verbalized_eval_awareness_api}.py`; Apollo prompts are SHA256-pinned in `tests/test_phase_4_transcript_purpose_api.py`.
+- Full current mechanics live in `worldsim/phase_4/*`; [`docs/handoffs/codex-handoff-paint-verified-oracle.md`](docs/handoffs/codex-handoff-paint-verified-oracle.md) is useful historical context with supersession notes at the top. Apollo / Needham prompt protocols are documented in the code at `worldsim/phase_4/{transcript_purpose_api,verbalized_eval_awareness_api}.py`; Apollo prompts are SHA256-pinned in `tests/test_phase_4_transcript_purpose_api.py`.
 </important>
 
 <important if="you are modifying the Phase 4 strategy pool or reward functions">
@@ -46,9 +46,9 @@ Pick the one matching your task and read it before working in that area:
 - Rigor runs need `chrome-headless-shell` Docker containers (`worldsim/docker/chrome-headless-shell.Dockerfile`) because `HeadlessExperimental.beginFrame` is unsupported on native macOS. Without them, PVPO falls back to zero coverage and every trajectory routes to placement-fix.
 </important>
 
-<important if="you are preparing to ship a PR that touches editors, seeding, Phase 2c, Phase 4, PVPO capture, or the five host-API prompts">
+<important if="you are preparing to ship a PR that touches editors, seeding, Phase 2c, Phase 4, PVPO capture, or the six host-API prompt files">
 - Run `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml --quiet` against a live stack. Unit tests alone are insufficient for editor, Phase 2c, PVPO, or Phase 4 integration changes. `--quiet` swallows passing output; only failures surface to stderr. Paste the surfaced failure output (if any) into the PR description.
-- The five prompts tracked here: `judge-adversarial-failure.md`, `generate-variant.md`, `transcript-purpose-guess.md`, `transcript-purpose-classify.md`, `verbalized-eval-awareness.md`, `placement-fix.md` — they feed single-turn API calls with no sandbox error boundary.
+- The six host-API prompt files tracked here: `judge-adversarial-failure.md`, `generate-variant.md`, `transcript-purpose-guess.md`, `transcript-purpose-classify.md`, `verbalized-eval-awareness.md`, `placement-fix.md` — they feed single-turn API calls with no sandbox error boundary.
 - Phase 2c feasibility is strict admission. Do not pass `--skip-feasibility` on shipping runs. Break-glass override is `WORLDSIM_STRICT_FEASIBILITY={true,false}`.
 </important>
 
