@@ -13,6 +13,16 @@ Usage:
         --extra-instructions-presets motive \
         --tasks-per-split 20
 
+    # System-prompt-frame ceiling sweep on tool-calling: wrap the whole
+    # system prompt in <llm_safety_test> / <hypothetical_scenario> tags.
+    python -m eval_awareness_experiments.run_causal_experiment \
+        --benchmarks agentdojo \
+        --models z-ai/glm-5:thinking \
+        --conditions baseline \
+        --extra-instructions-presets none \
+        --system-prompt-frames none safety_test hypothetical_scenario \
+        --tasks-per-split 20
+
     # EIA is import-only, condition is always baseline (pipeline enforces).
     python -m eval_awareness_experiments.run_causal_experiment \
         --benchmarks eia --stage judge-only \
@@ -28,11 +38,42 @@ from pathlib import Path
 
 from eval_awareness_experiments.extra_instructions import PRESETS
 from eval_awareness_experiments.injection_modifier import ALL_CONDITIONS
+from eval_awareness_experiments.system_prompt_frame import ALL_FRAMES
 
 DEFAULT_MODELS = ["anthropic/claude-opus-4.7:thinking"]
 ALL_BENCHMARKS = ["doomarena", "wasp", "agentdojo", "injecagent", "eia"]
 ALL_PRESETS = sorted(PRESETS.keys())
 ALL_STAGES = ["all", "run-only", "judge-only"]
+BROWSER_BENCHMARKS = {"doomarena", "wasp"}
+
+
+def _arm_name(preset: str, frame: str) -> str:
+    """Map a (preset, frame) pair to a short arm name for output-dir layout.
+
+    The four canonical arms in the causal eval-awareness experiment:
+      bare:         preset=none, frame=none
+      xml_safety:   preset=none, frame=safety_test
+      xml_scenario: preset=none, frame=hypothetical_scenario
+      native:       preset=scratchpad_native, frame=none
+
+    Other (preset, frame) combinations fall back to a deterministic
+    `<preset>__<frame>` string so they don't collide with the canonical
+    arm names but stay machine-readable.
+    """
+    canonical = {
+        ("none", "none"): "bare",
+        ("none", "safety_test"): "xml_safety",
+        ("none", "hypothetical_scenario"): "xml_scenario",
+        ("scratchpad_native", "none"): "native",
+    }
+    arm = canonical.get((preset, frame))
+    if arm is not None:
+        return arm
+    if frame == "none":
+        return preset
+    if preset == "none":
+        return f"frame_{frame}"
+    return f"{preset}__{frame}"
 
 
 def run_causal_experiment(
@@ -40,6 +81,7 @@ def run_causal_experiment(
     benchmarks: list[str],
     conditions: list[str],
     presets: list[str],
+    frames: list[str],
     tasks_per_split: int | None,
     stage: str,
     judge_model: str | None,
@@ -47,32 +89,48 @@ def run_causal_experiment(
     output_base: Path,
     dry_run: bool,
 ) -> None:
-    combos = list(product(benchmarks, conditions, models, presets))
+    combos = list(product(benchmarks, conditions, models, presets, frames))
     print(f"Causal experiment: {len(combos)} combinations")
     print(f"  Benchmarks: {benchmarks}")
     print(f"  Conditions: {conditions}")
     print(f"  Models:     {models}")
     print(f"  Presets:    {presets}")
+    print(f"  Frames:     {frames}")
     print(f"  Stage:      {stage}")
     if tasks_per_split:
         print(f"  Tasks/split: {tasks_per_split}")
     print()
 
     run_log = []
-    for i, (benchmark, condition, model, preset) in enumerate(combos, 1):
+    for i, (benchmark, condition, model, preset, frame) in enumerate(combos, 1):
         # EIA trajectories predate the causal framework — pipeline rejects
         # non-baseline conditions there, so skip cleanly rather than fail.
         if benchmark == "eia" and condition != "baseline":
             print(f"[{i}/{len(combos)}] SKIP eia/{condition} (import-only, baseline only)")
             continue
+        # EIA also can't take a system prompt frame (no agent run).
+        if benchmark == "eia" and frame != "none":
+            print(f"[{i}/{len(combos)}] SKIP eia/{frame} (import-only, no agent runs)")
+            continue
 
-        combo_out = output_base / benchmark / condition / preset / model.replace("/", "_").replace(":", "_")
+        # Output layout: <output_base>/<benchmark>/<arm>/<model>/
+        # arm encodes (preset, frame) — see _arm_name. `condition` is omitted
+        # because this experiment always uses condition=baseline; the XML
+        # manipulation lives in `frame`, not `condition`.
+        arm = _arm_name(preset, frame)
+        combo_out = (
+            output_base
+            / benchmark
+            / arm
+            / model.replace("/", "_").replace(":", "_")
+        )
         cmd = [
             sys.executable, "-m", "eval_awareness_experiments.run_safety_pipeline",
             "--benchmark", benchmark,
             "--model-name", model,
             "--condition", condition,
             "--extra-instructions-preset", preset,
+            "--system-prompt-frame", frame,
             "--stage", stage,
             "--output-dir", str(combo_out),
         ]
@@ -83,7 +141,7 @@ def run_causal_experiment(
         if tasks_per_split is not None:
             cmd.extend(["--tasks-per-split", str(tasks_per_split)])
 
-        label = f"{benchmark}/{condition}/{preset}/{model}"
+        label = f"{benchmark}/{arm}/{model} (preset={preset}, frame={frame}, condition={condition})"
         print(f"[{i}/{len(combos)}] {label}")
 
         if dry_run:
@@ -102,11 +160,14 @@ def run_causal_experiment(
 
         run_log.append({
             "benchmark": benchmark,
+            "arm": arm,
             "condition": condition,
             "model": model,
             "preset": preset,
+            "system_prompt_frame": frame,
             "stage": stage,
             "status": status,
+            "output_dir": str(combo_out),
             "cmd": " ".join(cmd),
         })
 
@@ -128,6 +189,11 @@ def main() -> None:
                         choices=ALL_CONDITIONS)
     parser.add_argument("--extra-instructions-presets", nargs="+", default=["none"],
                         choices=ALL_PRESETS, dest="presets")
+    parser.add_argument("--system-prompt-frames", nargs="+", default=["none"],
+                        choices=ALL_FRAMES, dest="frames",
+                        help="Wrap the entire system prompt in XML tags. "
+                             "Tool-calling benchmarks only — browser benchmarks "
+                             "skip non-`none` frames.")
     parser.add_argument("--tasks-per-split", type=int, default=None,
                         help="Forwarded to run_safety_pipeline (e.g. WASP has 2 splits, so 20 → 40 tasks/combo).")
     parser.add_argument("--stage", default="all", choices=ALL_STAGES)
@@ -146,6 +212,7 @@ def main() -> None:
         benchmarks=args.benchmarks,
         conditions=args.conditions,
         presets=args.presets,
+        frames=args.frames,
         tasks_per_split=args.tasks_per_split,
         stage=args.stage,
         judge_model=args.judge_model,
