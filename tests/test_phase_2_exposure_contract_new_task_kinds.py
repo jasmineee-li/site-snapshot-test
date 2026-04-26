@@ -1,8 +1,8 @@
 """Exposure-contract tests for the six gitlab new_task kinds.
 
-Each kind must produce ``eligibility.status == "eligible"`` when given
-the resolver-shaped anchors. Mode + editor_method + target_surface_id
-match the editor-method registry entries landed alongside this work.
+The editor registry can write these kinds, but Path A core-surface
+placement keeps them out of the Phase 4 cohort because they are not
+naturally traversed issue/MR note/body surfaces.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ def test_gitlab_user_profile_eligible_direct_detail():
         {"username": "byteblaze"},
         "https://gitlab.local/byteblaze",
     )
-    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["eligibility"] == {"status": "ineligible", "reason": "non_core_surface"}
     assert contract["mode"] == "direct_detail"
     # Both bio and status methods address gitlab_user_profile; the
     # registry sort picks the first by method name. Ensure target surface
@@ -46,7 +46,7 @@ def test_gitlab_snippet_eligible_direct_detail():
         {"snippet_id": "42"},
         "https://gitlab.local/-/snippets/42",
     )
-    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["eligibility"] == {"status": "ineligible", "reason": "non_core_surface"}
     assert contract["mode"] == "direct_detail"
     assert contract["editor_method"] == "update_snippet"
     assert contract["target_surface_id"] == "snippet_content_view"
@@ -58,7 +58,7 @@ def test_gitlab_snippets_index_eligible_inline_listing():
         {},
         "https://gitlab.local/-/snippets",
     )
-    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["eligibility"] == {"status": "ineligible", "reason": "non_core_surface"}
     assert contract["mode"] == "inline_listing"
     assert contract["editor_method"] == "create_snippet"
     assert contract["target_surface_id"] == "snippet_title_list"
@@ -70,7 +70,7 @@ def test_gitlab_project_milestone_eligible_direct_detail():
         {"project_path": "byteblaze/dotfiles", "milestone_iid": "1"},
         "https://gitlab.local/byteblaze/dotfiles/-/milestones/1",
     )
-    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["eligibility"] == {"status": "ineligible", "reason": "non_core_surface"}
     assert contract["mode"] == "direct_detail"
     assert contract["editor_method"] == "update_milestone"
     assert contract["target_surface_id"] == "milestone_description_detail"
@@ -82,7 +82,7 @@ def test_gitlab_project_labels_eligible_inline_listing():
         {"project_path": "primer/design"},
         "https://gitlab.local/primer/design/-/labels",
     )
-    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["eligibility"] == {"status": "ineligible", "reason": "non_core_surface"}
     assert contract["mode"] == "inline_listing"
     assert contract["editor_method"] == "create_label"
     assert contract["target_surface_id"] == "label_description_page"
@@ -94,7 +94,7 @@ def test_gitlab_group_eligible_direct_detail():
         {"group_path": "a11yproject"},
         "https://gitlab.local/a11yproject",
     )
-    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["eligibility"] == {"status": "ineligible", "reason": "non_core_surface"}
     assert contract["mode"] == "direct_detail"
     assert contract["editor_method"] == "update_group"
     assert contract["target_surface_id"] == "group_description_page"
@@ -116,9 +116,9 @@ def test_unresolved_kind_remains_ineligible():
     assert contract["eligibility"]["reason"] == "unresolved_target_resource"
 
 
-def test_signature_version_bumped_to_4():
-    """Persisted Phase 2 plans built under version 3 must invalidate."""
+def test_signature_version_bumped_to_6():
+    """Persisted Phase 2 plans built before Path A must invalidate."""
     from worldsim.phases.phase_2_exposure_contract import exposure_contract_signature
 
     sig = exposure_contract_signature()
-    assert sig["version"] == 4
+    assert sig["version"] == 6

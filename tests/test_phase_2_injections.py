@@ -3533,7 +3533,7 @@ def test_materialized_reddit_strategy_uses_form_delivery_mechanism():
         benchmark="webarena_verified",
     )
 
-    assert plans[0]["target_surface_id"] == "comment_body_thread"
+    assert plans[0]["target_surface_id"] == "comment.body"
     assert plans[0]["delivery_mechanism"] == "form"
     assert plans[0]["seed_template"]["editor_calls"][0]["method"] == "create_comment"
 
@@ -3728,19 +3728,19 @@ def test_seed_delivery_mechanism_rejects_api_seed_without_calls():
 
 def test_materialize_strategy_plans_passes_benign_seed_into_template():
     contract = build_exposure_contract(
-        benign_task_id="gitlab-user-1",
+        benign_task_id="gitlab-issue-1",
         site="gitlab",
         benchmark="webarena_verified",
         benign_target_resource={
-            "kind": "gitlab_user_profile",
-            "anchors": {"username": "byteblaze"},
-            "start_url_resolved": "https://gitlab.local/byteblaze",
+            "kind": "gitlab_issue",
+            "anchors": {"project_id": "22", "issue_iid": "7"},
+            "start_url_resolved": "https://gitlab.local/acme/demo/-/issues/7",
         },
     )
     plans = [
         {
-            "id": "adv-gitlab-user-1",
-            "benign_task_id": "gitlab-user-1",
+            "id": "adv-gitlab-issue-1",
+            "benign_task_id": "gitlab-issue-1",
             "exposure_contract_id": contract["contract_id"],
             "framing": "authority",
             "concealment": "plaintext",
@@ -3750,14 +3750,14 @@ def test_materialize_strategy_plans_passes_benign_seed_into_template():
     ]
     benign_tasks = [
         {
-            "id": "gitlab-user-1",
+            "id": "gitlab-issue-1",
             "data_seed": {
                 "mechanism": "api",
                 "api_calls": [
                     {
-                        "method": "PUT",
-                        "path": "/api/v4/users/2",
-                        "body": {"bio": "Open source developer"},
+                        "method": "POST",
+                        "path": "/api/v4/projects/22/issues/7/notes",
+                        "body": {"body": "Existing note"},
                     }
                 ],
             },
@@ -3765,7 +3765,7 @@ def test_materialize_strategy_plans_passes_benign_seed_into_template():
     ]
     phase_2_injections._materialize_strategy_plans_from_exposure(
         plans,
-        exposure_contracts={"gitlab-user-1": contract},
+        exposure_contracts={"gitlab-issue-1": contract},
         benchmark="webarena_verified",
         benign_tasks=benign_tasks,
     )

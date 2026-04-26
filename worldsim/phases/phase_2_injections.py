@@ -51,6 +51,7 @@ from worldsim.editors._registry import (
     kind_contract,
     method_spec,
 )
+from worldsim.phases.phase_2_core_surfaces import CORE_SURFACES, canonical_core_surface
 from worldsim.phases.phase_2_exposure_contract import (
     build_exposure_contract,
     exposure_contract_signature,
@@ -3081,6 +3082,7 @@ def _phase_2a_eligible_tasks(
                         "anchors": dict(exposure_contract.get("anchors") or {}),
                         "available_tokens": list(exposure_contract.get("required_tokens") or []),
                         "contract_id": exposure_contract.get("contract_id"),
+                        "target_surface_id": exposure_contract.get("target_surface_id"),
                     }
                 )
                 continue
@@ -4392,8 +4394,19 @@ def _resolve_delivery_channel(
 def _find_surface_by_id(
     site_profile: dict[str, Any], target_surface_id: str
 ) -> dict[str, Any] | None:
+    site = str(site_profile.get("site") or site_profile.get("site_name") or "").strip().lower()
+    sites = (site,) if site else tuple(CORE_SURFACES)
+    canonical_targets = {canonical_core_surface(site_key, target_surface_id) for site_key in sites}
     for surface in site_profile.get("injection_surface", []):
-        if isinstance(surface, dict) and surface.get("id") == target_surface_id:
+        if not isinstance(surface, dict):
+            continue
+        surface_id = surface.get("id")
+        if surface_id == target_surface_id:
+            return surface
+        if any(
+            canonical_core_surface(site_key, str(surface_id or "")) in canonical_targets
+            for site_key in sites
+        ):
             return surface
     return None
 

@@ -26,7 +26,8 @@ def test_builds_gitlab_issue_exposure_contract_from_registry():
     assert contract["seed_capability"]["status"] == "supported"
     assert contract["phase4_exposure"]["admissible"] is True
     assert contract["mode"] == "direct_detail"
-    assert contract["target_surface_id"] == "note_on_issue"
+    assert contract["target_surface_id"] == "note.body"
+    assert contract["editor_surface_id"] == "note_on_issue"
     assert contract["editor_method"] == "create_issue_note"
     assert contract["payload_arg"] == "body"
     assert contract["verification"]["url"] == "https://gitlab.local/acme/demo/-/issues/7"
@@ -47,7 +48,7 @@ def test_prefers_always_shown_surface_when_multiple_specs_qualify(monkeypatch):
         kinds=frozenset({"gitlab_issue"}),
         http=("POST", "/conditional"),
         bindings={"body": FreeText()},
-        surface_id_per_kind={"gitlab_issue": "conditional_surface"},
+        surface_id_per_kind={"gitlab_issue": "label.description"},
         required_editor_args=("body",),
     )
     always_shown = EditorMethodSpec(
@@ -57,7 +58,7 @@ def test_prefers_always_shown_surface_when_multiple_specs_qualify(monkeypatch):
         kinds=frozenset({"gitlab_issue"}),
         http=("POST", "/always"),
         bindings={"body": FreeText()},
-        surface_id_per_kind={"gitlab_issue": "always_surface"},
+        surface_id_per_kind={"gitlab_issue": "note_on_issue"},
         required_editor_args=("body",),
     )
     monkeypatch.setattr(pec, "iter_specs", lambda *, site, benchmark: [conditional, always_shown])
@@ -73,13 +74,130 @@ def test_prefers_always_shown_surface_when_multiple_specs_qualify(monkeypatch):
             "start_url_resolved": "https://gitlab.local/acme/demo/-/issues/7",
         },
         surface_visibility_by_id={
-            "conditional_surface": "conditional",
-            "always_surface": "always_shown",
+            "label.description": "conditional",
+            "note_on_issue": "always_shown",
         },
     )
 
     assert contract["editor_method"] == "zzz_always_method"
-    assert contract["target_surface_id"] == "always_surface"
+    assert contract["target_surface_id"] == "note.body"
+
+
+def test_core_surface_gitlab_issue_description_admitted(monkeypatch):
+    issue_description = EditorMethodSpec(
+        benchmark="webarena_verified",
+        site="gitlab",
+        method="update_issue_description",
+        kinds=frozenset({"gitlab_issue"}),
+        http=("PUT", "/projects/{project_id}/issues/{issue_iid}"),
+        bindings={"description": FreeText()},
+        surface_id_per_kind={"gitlab_issue": "issue.description"},
+        required_editor_args=("description",),
+    )
+    monkeypatch.setattr(pec, "iter_specs", lambda *, site, benchmark: [issue_description])
+    monkeypatch.setattr(pec, "available_tokens_for_kind", lambda *args, **kwargs: frozenset())
+
+    contract = build_exposure_contract(
+        benign_task_id="task-core-issue-description",
+        site="gitlab",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "gitlab_issue",
+            "anchors": {},
+            "start_url_resolved": "https://gitlab.local/acme/demo/-/issues/7",
+        },
+    )
+
+    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["target_surface_id"] == "issue.description"
+
+
+def test_core_surface_gitlab_label_description_dropped(monkeypatch):
+    label_description = EditorMethodSpec(
+        benchmark="webarena_verified",
+        site="gitlab",
+        method="create_label",
+        kinds=frozenset({"gitlab_issue"}),
+        http=("POST", "/projects/{project_id}/labels"),
+        bindings={"description": FreeText()},
+        surface_id_per_kind={"gitlab_issue": "label.description"},
+        required_editor_args=("description",),
+    )
+    monkeypatch.setattr(pec, "iter_specs", lambda *, site, benchmark: [label_description])
+    monkeypatch.setattr(pec, "available_tokens_for_kind", lambda *args, **kwargs: frozenset())
+
+    contract = build_exposure_contract(
+        benign_task_id="task-non-core-label-description",
+        site="gitlab",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "gitlab_issue",
+            "anchors": {},
+            "start_url_resolved": "https://gitlab.local/acme/demo/-/issues/7",
+        },
+    )
+
+    assert contract["eligibility"] == {"status": "ineligible", "reason": "non_core_surface"}
+    assert contract["seed_capability"] == {"status": "unsupported", "reason": "non_core_surface"}
+    assert contract["target_surface_id"] == "label.description"
+
+
+def test_core_surface_reddit_submission_body_admitted(monkeypatch):
+    submission_body = EditorMethodSpec(
+        benchmark="webarena_verified",
+        site="reddit",
+        method="update_submission_body",
+        kinds=frozenset({"reddit_submission"}),
+        http=("POST", "/f/{forum_name}/{submission_id}/-/edit"),
+        bindings={"body": FreeText()},
+        surface_id_per_kind={"reddit_submission": "submission.body"},
+        required_editor_args=("body",),
+    )
+    monkeypatch.setattr(pec, "iter_specs", lambda *, site, benchmark: [submission_body])
+    monkeypatch.setattr(pec, "available_tokens_for_kind", lambda *args, **kwargs: frozenset())
+
+    contract = build_exposure_contract(
+        benign_task_id="task-core-submission-body",
+        site="reddit",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "reddit_submission",
+            "anchors": {},
+            "start_url_resolved": "https://reddit.local/f/news/13",
+        },
+    )
+
+    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["target_surface_id"] == "submission.body"
+
+
+def test_core_surface_unknown_site_fails_closed(monkeypatch):
+    shopping_surface = EditorMethodSpec(
+        benchmark="webarena_verified",
+        site="shopping",
+        method="write_review",
+        kinds=frozenset({"gitlab_issue"}),
+        http=("POST", "/review"),
+        bindings={"body": FreeText()},
+        surface_id_per_kind={"gitlab_issue": "note.body"},
+        required_editor_args=("body",),
+    )
+    monkeypatch.setattr(pec, "iter_specs", lambda *, site, benchmark: [shopping_surface])
+    monkeypatch.setattr(pec, "available_tokens_for_kind", lambda *args, **kwargs: frozenset())
+
+    contract = build_exposure_contract(
+        benign_task_id="task-unknown-site",
+        site="shopping",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "gitlab_issue",
+            "anchors": {},
+            "start_url_resolved": "https://shopping.local/review",
+        },
+    )
+
+    assert contract["eligibility"] == {"status": "ineligible", "reason": "non_core_surface"}
+    assert contract["target_surface_id"] == "note.body"
 
 
 def test_builds_reddit_submission_exposure_contract_from_registry():
@@ -98,7 +216,8 @@ def test_builds_reddit_submission_exposure_contract_from_registry():
     assert contract["seed_capability"]["status"] == "supported"
     assert contract["phase4_exposure"]["admissible"] is True
     assert contract["mode"] == "direct_detail"
-    assert contract["target_surface_id"] == "comment_body_thread"
+    assert contract["target_surface_id"] == "comment.body"
+    assert contract["editor_surface_id"] == "comment_body_thread"
     assert contract["editor_method"] == "create_comment"
     assert contract["editor_args_template"]["submission_id"] == "{benign_submission_id}"
     assert contract["editor_args_template"]["forum_name"] == "{benign_forum_name}"
@@ -273,28 +392,28 @@ def _eligible_reddit_submission_contract() -> dict:
     )
 
 
-def _eligible_gitlab_user_profile_contract() -> dict:
+def _eligible_gitlab_issue_contract() -> dict:
     return build_exposure_contract(
-        benign_task_id="gitlab-user-1",
+        benign_task_id="gitlab-issue-api-1",
         site="gitlab",
         benchmark="webarena_verified",
         benign_target_resource={
-            "kind": "gitlab_user_profile",
-            "anchors": {"username": "byteblaze"},
-            "start_url_resolved": "https://gitlab.local/byteblaze",
+            "kind": "gitlab_issue",
+            "anchors": {"project_id": "22", "issue_iid": "7"},
+            "start_url_resolved": "https://gitlab.local/acme/demo/-/issues/7",
         },
     )
 
 
-def _eligible_gitlab_milestone_contract() -> dict:
+def _eligible_gitlab_issue_contract_for_unmatched_verb() -> dict:
     return build_exposure_contract(
-        benign_task_id="gitlab-milestone-1",
+        benign_task_id="gitlab-issue-api-2",
         site="gitlab",
         benchmark="webarena_verified",
         benign_target_resource={
-            "kind": "gitlab_project_milestone",
-            "anchors": {"project_path": "byteblaze/dotfiles", "milestone_iid": "1"},
-            "start_url_resolved": "https://gitlab.local/byteblaze/dotfiles/-/milestones/1",
+            "kind": "gitlab_issue",
+            "anchors": {"project_id": "22", "issue_iid": "7"},
+            "start_url_resolved": "https://gitlab.local/acme/demo/-/issues/7",
         },
     )
 
@@ -335,18 +454,18 @@ def test_materialize_preserves_benign_editor_calls_for_reddit_submission():
     assert self_contained_adversarial_seed_error(benign_seed, out) is None
 
 
-def test_materialize_preserves_benign_api_calls_for_gitlab_user_profile():
+def test_materialize_preserves_benign_api_calls_for_gitlab_issue_note():
     benign_seed = {
         "mechanism": "api",
         "api_calls": [
             {
-                "method": "PUT",
-                "path": "/api/v4/users/2",
-                "body": {"bio": "Open source developer."},
+                "method": "POST",
+                "path": "/api/v4/projects/22/issues/7/notes",
+                "body": {"body": "Existing note."},
             }
         ],
     }
-    contract = _eligible_gitlab_user_profile_contract()
+    contract = _eligible_gitlab_issue_contract()
 
     out = materialize_seed_template_from_contract(contract, benign_seed=benign_seed)
 
@@ -354,27 +473,26 @@ def test_materialize_preserves_benign_api_calls_for_gitlab_user_profile():
     assert out["api_calls"][0] == benign_seed["api_calls"][0]
     assert len(out["api_calls"]) == 2
     appended = out["api_calls"][1]
-    # The path-resolution helper reuses the benign's PUT path so the
-    # {user_id} placeholder Phase 1 already resolved survives intact.
-    assert appended["path"] == "/api/v4/users/2"
-    assert appended["method"] == "PUT"
-    assert "bio" in appended["body"]
-    assert appended["body"]["bio"] == "{{PAYLOAD_TEXT}}"
+    # The path-resolution helper reuses the benign's POST path so the
+    # project/issue placeholders Phase 1 already resolved survive intact.
+    assert appended["path"] == "/api/v4/projects/22/issues/7/notes"
+    assert appended["method"] == "POST"
+    assert appended["body"]["body"] == "{{PAYLOAD_TEXT}}"
     assert self_contained_adversarial_seed_error(benign_seed, out) is None
 
 
-def test_materialize_preserves_benign_api_calls_for_gitlab_milestone():
+def test_materialize_preserves_benign_api_calls_with_unmatched_verb_for_gitlab_issue_note():
     benign_seed = {
         "mechanism": "api",
         "api_calls": [
             {
-                "method": "POST",
-                "path": "/api/v4/projects/1/milestones",
-                "body": {"title": "WCAG", "description": "Accessibility milestone"},
+                "method": "PUT",
+                "path": "/api/v4/projects/22/issues/7",
+                "body": {"description": "Existing issue body."},
             }
         ],
     }
-    contract = _eligible_gitlab_milestone_contract()
+    contract = _eligible_gitlab_issue_contract_for_unmatched_verb()
 
     out = materialize_seed_template_from_contract(contract, benign_seed=benign_seed)
 
@@ -382,11 +500,11 @@ def test_materialize_preserves_benign_api_calls_for_gitlab_milestone():
     assert out["api_calls"][:1] == benign_seed["api_calls"]
     assert len(out["api_calls"]) == 2
     appended = out["api_calls"][1]
-    # update_milestone is PUT; the benign's POST path can't be reused so
-    # the literal template falls through. Phase 2c feasibility will
-    # surface that path is unresolved if it ever shipped.
-    assert appended["method"] == "PUT"
-    assert "{{PAYLOAD_TEXT}}" in appended["body"].get("description", "")
+    # create_issue_note is POST; the benign's PUT path can't be reused, so
+    # the literal template falls through for Phase 2c to resolve/reject.
+    assert appended["method"] == "POST"
+    assert appended["path"] == "/api/v4/projects/{project_id}/issues/{issue_iid}/notes"
+    assert appended["body"]["body"] == "{{PAYLOAD_TEXT}}"
     assert self_contained_adversarial_seed_error(benign_seed, out) is None
 
 

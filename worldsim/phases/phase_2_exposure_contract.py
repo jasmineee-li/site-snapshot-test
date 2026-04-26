@@ -21,6 +21,7 @@ from worldsim.editors._registry import (
     iter_specs,
     method_spec,
 )
+from worldsim.phases.phase_2_core_surfaces import canonical_core_surface, is_core_surface
 from worldsim.phases.phase_2_text_fill import PAYLOAD_PLACEHOLDER
 
 PREFERRED_PAYLOAD_ARGS: tuple[str, ...] = ("body", "description", "message", "text", "content")
@@ -67,7 +68,7 @@ CREATE_CHILD_LISTING_KINDS = frozenset({"reddit_forum"})
 def exposure_contract_signature() -> dict[str, Any]:
     """Fingerprint knobs whose change invalidates persisted Phase 2 plans."""
     return {
-        "version": 5,
+        "version": 6,
         "modes": [
             "direct_detail",
             "inline_listing",
@@ -80,6 +81,7 @@ def exposure_contract_signature() -> dict[str, Any]:
         "payload_arg_preference": list(PREFERRED_PAYLOAD_ARGS),
         "token_preference": list(PREFERRED_TOKEN_ORDER),
         "surface_visibility_preference": ["always_shown", "conditional"],
+        "core_surface_policy": "path_a_canonical_core_ugc",
         "created_child_target_source": "seed_metadata.created_resource.url",
     }
 
@@ -168,7 +170,32 @@ def build_exposure_contract(
         if template is None:
             continue
         payload_arg = template.pop("__payload_arg__")
-        target_surface_id = spec.surface_id_per_kind.get(kind, spec.method)
+        editor_surface_id = spec.surface_id_per_kind.get(kind, spec.method)
+        target_surface_id = canonical_core_surface(site, editor_surface_id)
+        if not is_core_surface(site, target_surface_id):
+            base.update(
+                {
+                    "mode": mode,
+                    "editor_method": spec.method,
+                    "target_surface_id": target_surface_id or editor_surface_id,
+                    "required_tokens": sorted(available),
+                    "seed_capability": {
+                        "status": "unsupported",
+                        "reason": "non_core_surface",
+                    },
+                    "phase4_exposure": _phase4_exposure_capability(
+                        "ineligible",
+                        reason="non_core_surface",
+                    ),
+                    "eligibility": {
+                        "status": "ineligible",
+                        "reason": "non_core_surface",
+                    },
+                }
+            )
+            if target_surface_id != editor_surface_id:
+                base["editor_surface_id"] = editor_surface_id
+            return base
         verification = _verification_contract(resource, mode, base["benign_read_url"], kind)
         seed_capability = _seed_capability(spec, payload_arg, target_surface_id)
         phase4_exposure = _phase4_exposure_capability(
@@ -193,6 +220,8 @@ def build_exposure_contract(
                 ),
             }
         )
+        if target_surface_id != editor_surface_id:
+            base["editor_surface_id"] = editor_surface_id
         return base
 
     base["mode"] = mode
