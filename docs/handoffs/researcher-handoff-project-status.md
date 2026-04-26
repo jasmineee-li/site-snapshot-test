@@ -110,6 +110,10 @@ This was a late and painful realization. SQL writes violate the threat model: a 
 
 This matters for the paper because it means every injection we report in headline ASR could plausibly be planted by a real attacker. Anything that couldn't (tagged `privileged_seed: true`) is reported separately.
 
+### And dropped api/form/state_push seed mechanisms (April 26)
+
+The editor migration (April 17) replaced regex-preflight seed_resolvers with per-site OOP editor classes, but `validate_data_seed` still accepted the v4-era `mechanism: api`, `mechanism: form`, and `mechanism: state_push` shapes. That meant Phase 1 Mode B kept emitting `mechanism: "api"` benigns by default (30/30 in `logs/phase_1/novel_tasks_gitlab.json`), and they crashed through five different editor-only validators downstream — Phase 2 v7 produced 0/60 new_task adversarials for exactly this reason. Sunsetted in commits `ff8381d5` (validator boundary), `c0d24600` (apply_data_seed dispatch + helpers), `59586f9b` (Phase 1 prompt + validator), `224e2359` (parallel-agent cache rewrite), and `a9f7fd78` (test fixture migration). `validate_data_seed` and `apply_data_seed` now accept only `mechanism: editor` or `mechanism: none`; the legacy HTTP/CSRF/login dispatch path was removed; the Phase 1 Mode B prompt forbids the deprecated mechanisms; and ~30 deprecated tests were dropped while the surviving fixtures were migrated to editor_calls.
+
 ### Phase 2 had to be split into planning + payload realization (April 14)
 
 Asking an LLM to generate adversarial injection text in one shot gets refused ~50% of the time through proxy APIs (OpenRouter). We burned ~$190 across two failed attempts before figuring this out. The fix: split into (a) **plan generation**, which is pure schema (target, framing, concealment, required tokens, length budget) with no harm-adjacent text, and never gets refused, and (b) **payload realization**, which renders each plan into its concrete text artifact in the plan's declared voice and gets accepted ~95% of the time because it is framed as composing platform-native content (a review, an issue, a forum post) rather than as writing an injection.

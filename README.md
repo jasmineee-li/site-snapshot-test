@@ -285,7 +285,7 @@ The **authoritative technical spec** lives at [`docs/worldsim-v5-technical-speci
 │   ├── trajectory.py             # load_trajectory_into_sandbox
 │   ├── browser_use_agent.py      # AgentRunner + BrowserUseAgent
 │   ├── eval_worker_pool.py       # run_eval + staggered_worker
-│   ├── seeding.py                # apply_data_seed (api/form/state_push)
+│   ├── seeding.py                # apply_data_seed (editor_calls dispatch)
 │   ├── rewards.py                # run_reward_function dispatcher
 │   ├── prompts/                  # full prompts verbatim from the v5 spec
 │   └── phases/                   # phase_0_recon, phase_1_tasks, ... phase_4_adversarial
