@@ -183,6 +183,26 @@ def _build_instance_site_url_map(instances: list[BenchmarkInstance] | None) -> d
     return result
 
 
+def _build_instance_lookup(
+    instances: list[BenchmarkInstance] | None,
+) -> dict[str, BenchmarkInstance]:
+    """Map normalized site name to a representative ``BenchmarkInstance``.
+
+    Used by host-side enrichment hooks (e.g. gitlab handle enumeration)
+    that need access to the instance's auth config, not just its URL.
+    Picks the first instance per site; replicas share auth.
+    """
+    if not instances:
+        return {}
+    out: dict[str, BenchmarkInstance] = {}
+    for instance in instances:
+        normalized_site = normalize_site_name(instance.site_name)
+        if not normalized_site or normalized_site in out:
+            continue
+        out[normalized_site] = instance
+    return out
+
+
 def _apply_proxy_to_url(site_url: str, port_offset: int, *, scheme: str | None = None) -> str:
     """Rewrite a site URL to use the proxy port (real_port + port_offset)."""
     parts = urlsplit(site_url)
@@ -769,6 +789,7 @@ async def run_phase_0c(
         if eval_type
     }
     instance_urls = _build_instance_site_url_map(instances)
+    instance_lookup = _build_instance_lookup(instances)
 
     # Skip sites that already have all outputs on disk (supports re-runs).
     sites_to_profile = {}
@@ -803,6 +824,7 @@ async def run_phase_0c(
                 sandbox_model=sandbox_model,
                 site_url=instance_urls.get(normalize_site_name(name)),
                 verification_proxy=verification_proxy,
+                instance=instance_lookup.get(normalize_site_name(name)),
             )
             for name, files in sites_to_profile.items()
         ],
@@ -1007,6 +1029,7 @@ async def _profile_one_site_tiered(
     sandbox_model: str,
     site_url: str | None = None,
     verification_proxy: VerificationProxy | None = None,
+    instance: BenchmarkInstance | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Profile one site using two-tier sandbox execution.
 
@@ -1183,6 +1206,17 @@ async def _profile_one_site_tiered(
 
         logger.info("Phase 0c: site %r tier 2 complete, merging profile", site_name)
 
+        # ── Host-side handle enrichment (gitlab only) ───────────────────
+        # Phase 2's URL-shape resolver disambiguates `/<segment>` gitlab
+        # URLs as user_profile vs group via these handle lists. Best
+        # effort: enrichment failure logs and continues; the resolver
+        # gracefully degrades to kind=None for ambiguous segments.
+        agent_context = _enrich_agent_context_with_handles(
+            site_name=site_name,
+            agent_context=agent_context,
+            instance=instance,
+        )
+
         # ── Merge into BENCHMARK_PROFILE ────────────────────────────────
         profile = {
             "site_name": site_name,
@@ -1241,6 +1275,60 @@ async def _profile_one_site_tiered(
 
     finally:
         shutil.rmtree(staging_root, ignore_errors=True)
+
+
+def _enrich_agent_context_with_handles(
+    *,
+    site_name: str,
+    agent_context: dict[str, Any],
+    instance: BenchmarkInstance | None,
+) -> dict[str, Any]:
+    """For gitlab sites, enumerate user/group handles via the live API.
+
+    Returns ``agent_context`` unchanged for non-gitlab sites or when the
+    instance is unavailable / unauthenticated. Enrichment failures are
+    logged at warning level — Phase 0c does not abort on a transient
+    handle-enumeration outage. Phase 2's resolver categorizes downstream
+    drops cleanly when the lists are absent.
+    """
+    if normalize_site_name(site_name) != "gitlab":
+        return agent_context
+    if instance is None:
+        logger.info(
+            "Phase 0c: site %r has no instance config; skipping handle enrichment", site_name
+        )
+        return agent_context
+    auth_config = instance.api_auth or instance.auth
+    if not auth_config:
+        logger.info(
+            "Phase 0c: site %r instance has no api_auth/auth; skipping handle enrichment",
+            site_name,
+        )
+        return agent_context
+
+    from worldsim.phases.phase_0c_handle_enrichment import (
+        HandleEnrichmentError,
+        enrich_gitlab_handles,
+        merge_into_agent_context,
+    )
+
+    try:
+        handles = enrich_gitlab_handles(instance.site_url, auth_config)
+    except HandleEnrichmentError as exc:
+        logger.warning(
+            "Phase 0c: gitlab handle enrichment for site %r failed: %s",
+            site_name,
+            exc,
+        )
+        return agent_context
+
+    logger.info(
+        "Phase 0c: site %r enriched with %d user_handles and %d group_handles",
+        site_name,
+        len(handles.get("user_handles", [])),
+        len(handles.get("group_handles", [])),
+    )
+    return merge_into_agent_context(agent_context, handles)
 
 
 def _validate_manifest_eval_types(
