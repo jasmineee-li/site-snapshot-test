@@ -136,7 +136,6 @@ from worldsim.seeding import (
     apply_data_seed_async,
     collect_seed_runtime_errors,
     preflight_editor_seed_calls,
-    preflight_http_seed_calls,
     self_contained_adversarial_seed_error,
     validate_data_seed,
 )
@@ -4398,13 +4397,6 @@ async def preflight_adversarial_seed(
 ) -> PreflightReport:
     mismatches: list[SeedPreflightMismatch] = []
     try:
-        legacy_errors = await asyncio.to_thread(preflight_http_seed_calls, adv_seed, instance)
-    except Exception as exc:
-        legacy_errors = [str(exc)]
-    mismatches.extend(
-        _preflight_mismatch_from_legacy_error(instance, message) for message in legacy_errors
-    )
-    try:
         editor_errors = await asyncio.to_thread(preflight_editor_seed_calls, adv_seed, instance)
     except Exception as exc:
         editor_errors = [
@@ -4461,27 +4453,6 @@ async def preflight_adversarial_seed(
     return PreflightReport(ok=True, mismatches=())
 
 
-def _preflight_mismatch_from_legacy_error(
-    instance: dict[str, Any],
-    message: str,
-) -> SeedPreflightMismatch:
-    call_index = _preflight_call_index(message)
-    site_name = str(instance.get("site_name", "")).strip() or "unknown"
-    kind = "seed_error"
-    lowered = message.lower()
-    if "unresolved template placeholders" in lowered or "unresolved placeholders" in lowered:
-        kind = "template_render_failed"
-    elif "auth" in lowered and ("missing" in lowered or "requires" in lowered):
-        kind = "auth_missing"
-    return SeedPreflightMismatch(
-        call_index=call_index,
-        site=site_name,
-        resource_type="legacy_http",
-        kind=kind,
-        detail=message,
-    )
-
-
 def _preflight_mismatch_from_editor_error(error: dict[str, Any]) -> SeedPreflightMismatch:
     return SeedPreflightMismatch(
         call_index=int(error.get("call_index", -1)),
@@ -4490,15 +4461,6 @@ def _preflight_mismatch_from_editor_error(error: dict[str, Any]) -> SeedPrefligh
         kind=str(error.get("kind", "editor_error")).strip() or "editor_error",
         detail=str(error.get("detail", "editor preflight failed")),
     )
-
-
-def _preflight_call_index(message: str) -> int:
-    prefix, _, _ = message.partition(":")
-    if prefix.startswith("api_calls[") and prefix.endswith("]"):
-        index_text = prefix[len("api_calls[") : -1]
-        if index_text.isdigit():
-            return int(index_text)
-    return -1
 
 
 def _probe_seed_base_state_for_task_targets(

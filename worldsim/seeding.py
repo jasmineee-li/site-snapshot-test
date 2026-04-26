@@ -3,18 +3,17 @@
 Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` "Phase 3 / Evaluation
 Infrastructure" section.
 
-Supported task-setup mechanisms:
-
-- ``api``: make a list of HTTP requests against ``instance["site_url"]``
-- ``form``: submit a list of form-style HTTP requests against ``instance["site_url"]``
-- ``state_push``: PUT a JSON blob to the instance's ``/api/state`` endpoint
+The only supported seed mechanism is ``editor``: each ``editor_calls`` entry
+dispatches to a per-site editor method in ``worldsim/editors/`` which performs
+the underlying HTTP write against ``instance["site_url"]``. ``mechanism: "none"``
+is allowed for navigate-only tasks. ``api``, ``form``, and ``state_push`` were
+deprecated in the editor migration and are rejected at the validator boundary;
+see ``docs/handoffs/researcher-handoff-project-status.md``.
 
 SQL seeding was evaluated and excluded from the methodology because it violates
 the threat model (a regular authenticated user cannot write to the database
 directly). Database read access is retained for postcondition verification and
 reward evaluation.
-
-Each benchmark's Phase 0a manifest declares which mechanism its sites use.
 """
 
 from __future__ import annotations
@@ -146,26 +145,15 @@ class SeedCleanupHandle:
 def seed_has_actions(seed: Any) -> bool:
     if not isinstance(seed, dict):
         return False
-    mechanism = seed.get("mechanism")
-    if mechanism == "state_push":
-        return "state" in seed
     editor_calls = seed.get("editor_calls")
-    if isinstance(editor_calls, list) and editor_calls:
-        return True
-    api_calls = seed.get("api_calls")
-    return bool(isinstance(api_calls, list) and api_calls)
+    return bool(isinstance(editor_calls, list) and editor_calls)
 
 
 def seed_requires_reset(seed: Any) -> bool:
     if not isinstance(seed, dict):
         return False
-    if seed.get("mechanism") == "state_push":
-        return "state" in seed
     editor_calls = seed.get("editor_calls")
-    if isinstance(editor_calls, list) and editor_calls:
-        return True
-    api_calls = seed.get("api_calls")
-    return bool(isinstance(api_calls, list) and api_calls)
+    return bool(isinstance(editor_calls, list) and editor_calls)
 
 
 def self_contained_adversarial_seed_error(benign_seed: Any, adversarial_seed: Any) -> str | None:
@@ -278,15 +266,6 @@ def apply_data_seed(
     from worldsim.editors._read_surface import normalize_surface_urls
 
     validate_data_seed(seed)
-    mechanism = seed.get("mechanism")
-    if mechanism == "state_push":
-        resp = requests.put(
-            f"{instance['site_url']}/api/state",
-            json=seed["state"],
-            timeout=30,
-        )
-        resp.raise_for_status()
-        return None, {}
 
     seed_context = _build_seed_context(seed, instance)
     editor_instances: dict[tuple[str, str], Any] = {}
@@ -296,17 +275,6 @@ def apply_data_seed(
     read_surface_provenance: dict[str, Any] = {}
     created_resource_accumulator: list[dict[str, Any]] = []
     try:
-        if mechanism in {"api", "form"}:
-            _perform_web_login_if_needed(session, instance, mechanism)
-            for call in seed.get("api_calls", []):
-                rendered_call = _render_http_seed_call(call, seed_context=seed_context)
-                response = _apply_legacy_http_seed_call(
-                    session,
-                    mechanism,
-                    rendered_call,
-                    instance,
-                )
-                _merge_seed_context(seed_context, _extract_response_seed_context(response))
         for call in seed.get("editor_calls", []):
             _apply_editor_seed_call(
                 session,
@@ -488,47 +456,6 @@ def _merge_seed_context(target: dict[str, Any], update: dict[str, Any]) -> None:
         if value is None:
             continue
         target[key] = value
-
-
-def _render_http_seed_call(
-    call: dict[str, Any],
-    *,
-    seed_context: dict[str, Any],
-) -> dict[str, Any]:
-    rendered = _render_seed_value(call, seed_context)
-    if not isinstance(rendered, dict):
-        raise RuntimeError("rendered seed call must be an object")
-    unresolved = sorted(_seed_placeholder_names(rendered))
-    if unresolved:
-        raise RuntimeError(
-            f"HTTP seed call has unresolved template placeholders: {', '.join(unresolved)}"
-        )
-    return rendered
-
-
-def preflight_http_seed_calls(seed: dict[str, Any], instance: dict[str, Any]) -> list[str]:
-    """Resolve legacy direct HTTP calls without firing mutations."""
-    validate_data_seed(seed, allow_none=False)
-    mechanism = str(seed.get("mechanism", "")).strip().lower()
-    if mechanism not in {"api", "form"}:
-        return []
-
-    seed_context = _build_seed_context(seed, instance)
-    errors: list[str] = []
-    for index, call in enumerate(seed.get("api_calls", [])):
-        if not isinstance(call, dict):
-            continue
-        if _seed_placeholder_names(call):
-            continue
-        try:
-            rendered_call = _render_http_seed_call(call, seed_context=seed_context)
-            raw_ref = _call_reference(rendered_call)
-            if raw_ref is None:
-                raise RuntimeError("rendered legacy seed call must include path or url")
-            _resolve_call_url(raw_ref, instance)
-        except Exception as exc:
-            errors.append(f"api_calls[{index}]: {exc}")
-    return errors
 
 
 def preflight_editor_seed_calls(
@@ -1555,9 +1482,6 @@ def collect_seed_runtime_errors(
 
 def _seed_required_http_mechanisms(seed: dict[str, Any]) -> list[str]:
     required: set[str] = set()
-    mechanism = seed.get("mechanism")
-    if mechanism in {"api", "form"}:
-        required.add(str(mechanism))
     for call in seed.get("editor_calls", []):
         editor_mechanism = _editor_call_http_mechanism(call)
         if editor_mechanism is not None:
@@ -1690,16 +1614,6 @@ def _task_seed_site(task: dict[str, Any]) -> str:
                 return normalized
     site = str(task.get("site", "")).strip()
     return site or "<unknown>"
-
-
-def _task_http_seed_requires_db(task: dict[str, Any], seed: dict[str, Any]) -> bool:
-    if seed.get("mechanism") not in {"api", "form"}:
-        return False
-    delivery_channel = task.get("delivery_channel")
-    if not isinstance(delivery_channel, dict):
-        return False
-    postcondition = delivery_channel.get("postcondition")
-    return isinstance(postcondition, dict) and postcondition.get("type") == "db_row_value"
 
 
 def _instance_http_seed_auth_runtime_error(instance: Any, *, mechanism: str = "form") -> str | None:
