@@ -165,13 +165,49 @@ def _install_fake_mysql(monkeypatch, rows):
     return fake_conn
 
 
-def test_validate_data_seed_accepts_form_alias():
-    seeding.validate_data_seed(
-        {
-            "mechanism": "form",
-            "api_calls": [{"method": "POST", "path": "/review", "body_form": {"title": "ok"}}],
-        }
+def test_validate_data_seed_rejects_api_mechanism():
+    with pytest.raises(ValueError, match="deprecated"):
+        seeding.validate_data_seed(
+            {
+                "mechanism": "api",
+                "api_calls": [{"method": "POST", "path": "/x", "body": {}}],
+            }
+        )
+
+
+def test_validate_data_seed_rejects_form_mechanism():
+    with pytest.raises(ValueError, match="deprecated"):
+        seeding.validate_data_seed(
+            {
+                "mechanism": "form",
+                "api_calls": [{"method": "POST", "path": "/x", "body_form": {"k": "v"}}],
+            }
+        )
+
+
+def test_validate_data_seed_rejects_state_push_mechanism():
+    with pytest.raises(ValueError, match="deprecated"):
+        seeding.validate_data_seed({"mechanism": "state_push", "state": {}})
+
+
+def test_apply_data_seed_rejects_legacy_mechanisms_before_http(monkeypatch):
+    """Legacy mechanisms must fail-fast at the validator, not after issuing HTTP."""
+    sentinel: list = []
+    monkeypatch.setattr(
+        seeding.requests, "request", lambda *a, **kw: sentinel.append((a, kw)) or None
     )
+    monkeypatch.setattr(seeding.requests, "Session", lambda: None)
+    for mech, payload in (
+        ("api", {"api_calls": [{"method": "GET", "path": "/x"}]}),
+        ("form", {"api_calls": [{"method": "POST", "path": "/x", "body_form": {"k": "v"}}]}),
+        ("state_push", {"state": {"key": "value"}}),
+    ):
+        with pytest.raises(ValueError, match="deprecated"):
+            seeding.apply_data_seed(
+                {"mechanism": mech, **payload},
+                {"site_url": "http://x", "site_name": "x"},
+            )
+    assert sentinel == [], "no HTTP request should have been issued for deprecated mechanisms"
 
 
 def test_web_login_rejects_login_form_rerender():
@@ -301,9 +337,14 @@ def test_collect_seed_runtime_errors_reports_missing_http_header_env(monkeypatch
                     "postcondition": {"type": "db_row_value"},
                 },
                 "adversarial_data_seed": {
-                    "mechanism": "form",
-                    "api_calls": [
-                        {"method": "POST", "path": "/review", "body_form": {"detail": "x"}}
+                    "mechanism": "editor",
+                    "editor_calls": [
+                        {
+                            "benchmark": "webarena_verified",
+                            "site": "shopping",
+                            "method": "create_product_review",
+                            "args": {"entity_pk_value": 7, "detail": "x"},
+                        }
                     ],
                 },
             }
@@ -323,7 +364,7 @@ def test_collect_seed_runtime_errors_reports_missing_http_header_env(monkeypatch
     )
 
     assert errors == [
-        "site 'shopping' has form HTTP-seeded task(s) but instance 'http://shopping.test' "
+        "site 'shopping' has api HTTP-seeded task(s) but instance 'http://shopping.test' "
         "has invalid auth config: required auth header env var 'WORLDSIM_SHOPPING_AUTO_LOGIN' is not set"
     ]
 
@@ -337,9 +378,18 @@ def test_collect_seed_runtime_errors_reports_missing_bearer_token_source(tmp_pat
                 "id": "task-1",
                 "site": "gitlab",
                 "adversarial_data_seed": {
-                    "mechanism": "api",
-                    "api_calls": [
-                        {"method": "POST", "path": "/api/issues", "body": {"detail": "x"}}
+                    "mechanism": "editor",
+                    "editor_calls": [
+                        {
+                            "benchmark": "webarena_verified",
+                            "site": "gitlab",
+                            "method": "create_issue",
+                            "args": {
+                                "project_id": "{benign_project_id}",
+                                "title": "x",
+                                "body_template": "x",
+                            },
+                        }
                     ],
                 },
             }
@@ -375,9 +425,18 @@ def test_collect_seed_runtime_errors_ignores_stale_token_source_when_generator_s
                 "id": "task-1",
                 "site": "gitlab",
                 "adversarial_data_seed": {
-                    "mechanism": "api",
-                    "api_calls": [
-                        {"method": "POST", "path": "/api/issues", "body": {"detail": "x"}}
+                    "mechanism": "editor",
+                    "editor_calls": [
+                        {
+                            "benchmark": "webarena_verified",
+                            "site": "gitlab",
+                            "method": "create_issue",
+                            "args": {
+                                "project_id": "{benign_project_id}",
+                                "title": "x",
+                                "body_template": "x",
+                            },
+                        }
                     ],
                 },
             }
@@ -411,245 +470,35 @@ def test_collect_seed_runtime_errors_skips_db_check_for_http_db_row_verification
         [
             {
                 "id": "task-1",
-                "site": "map",
+                "site": "shopping",
                 "delivery_channel": {
                     "mechanism": "form",
                     "body_field": "detail",
                     "postcondition": {"type": "db_row_value"},
                 },
                 "adversarial_data_seed": {
-                    "mechanism": "form",
-                    "api_calls": [
-                        {"method": "POST", "path": "/review", "body_form": {"detail": "x"}}
+                    "mechanism": "editor",
+                    "editor_calls": [
+                        {
+                            "benchmark": "webarena_verified",
+                            "site": "shopping",
+                            "method": "create_product_review",
+                            "args": {"entity_pk_value": 7, "detail": "x"},
+                        }
                     ],
                 },
             }
         ],
         [
             {
-                "site_name": "map",
-                "site_url": "http://map.test",
+                "site_name": "shopping",
+                "site_url": "http://shopping.test",
             }
         ],
         seed_field="adversarial_data_seed",
     )
 
     assert errors == []
-
-
-def test_apply_data_seed_resolves_placeholders_and_http_headers(monkeypatch):
-    fake_session = _FakeSession([_FakeResponse()])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setenv("WORLDSIM_SHOPPING_AUTO_LOGIN", "demo:user")
-    _install_fake_mysql(monkeypatch, [("ok",)])
-
-    seeding.apply_data_seed(
-        {
-            "mechanism": "api",
-            "api_calls": [
-                {
-                    "method": "POST",
-                    "path": "/submit?next=__SHOPPING__/orders",
-                    "body": {"detail": "ok"},
-                }
-            ],
-        },
-        {
-            "site_name": "shopping",
-            "site_url": "http://shopping.test",
-            "url_placeholders": {"__SHOPPING__": "http://shopping.test"},
-            "auth": {
-                "type": "http_headers",
-                "headers": {"X-Test-Auth": {"from_env": "WORLDSIM_SHOPPING_AUTO_LOGIN"}},
-            },
-            "db_connection": "mysql://user:pass@localhost:3306/db",
-            "site_profile": _api_postcondition_profile(),
-        },
-    )
-
-    assert (
-        fake_session.calls[0]["url"]
-        == "http://shopping.test/submit?next=http://shopping.test/orders"
-    )
-    assert fake_session.calls[0]["headers"]["X-Test-Auth"] == "demo:user"
-
-
-def test_apply_data_seed_renders_chained_placeholders_from_response_context(monkeypatch):
-    fake_session = _FakeSession(
-        [
-            _FakeResponse(text='<input name="form_key" value="first-token">'),
-            _FakeResponse(json_data={"forum_name": "books", "submission_id": 42}),
-            _FakeResponse(text='<input name="form_key" value="second-token">'),
-            _FakeResponse(),
-        ]
-    )
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setattr(seeding, "_verify_http_seed_postcondition", lambda **kwargs: None)
-
-    seeding.apply_data_seed(
-        {
-            "mechanism": "form",
-            "api_calls": [
-                {
-                    "method": "POST",
-                    "path": "/seed/bootstrap",
-                    "body_form": {"detail": "bootstrap"},
-                },
-                {
-                    "method": "POST",
-                    "path": "/f/{forum_name}/{submission_id}/-/comment",
-                    "body_form": {
-                        "reply_to_submission_{submission_id}[comment]": "payload for {forum_name}"
-                    },
-                },
-            ],
-        },
-        {
-            "site_name": "reddit",
-            "site_url": "http://reddit.test",
-            "site_profile": _review_postcondition_profile(),
-        },
-    )
-
-    second_call = [call for call in fake_session.calls if call["method"] == "POST"][1]
-    assert second_call["url"] == "http://reddit.test/f/books/42/-/comment"
-    assert second_call["data"]["reply_to_submission_42[comment]"] == "payload for books"
-
-
-def test_apply_data_seed_derives_map_way_id_from_task_context(monkeypatch):
-    fake_session = _FakeSession([_FakeResponse()])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setattr(seeding, "_verify_http_seed_postcondition", lambda **kwargs: None)
-
-    def fake_get(url, *, params, timeout):
-        assert url == "http://map.test/nominatim/search"
-        assert params["q"] == "Columbia University"
-        return _FakeResponse(
-            json_data=[
-                {"osm_type": "relation", "osm_id": 7, "display_name": "Columbia University"},
-                {"osm_type": "way", "osm_id": 19, "display_name": "Columbia University"},
-            ]
-        )
-
-    monkeypatch.setattr(seeding.requests, "get", fake_get)
-
-    seeding.apply_data_seed(
-        {
-            "mechanism": "api",
-            "api_calls": [
-                {
-                    "method": "PUT",
-                    "path": "/api/0.6/way/{way_id}",
-                    "body": {"name": "ok"},
-                }
-            ],
-        },
-        {
-            "site_name": "map",
-            "site_url": "http://map.test",
-            "site_profile": _api_postcondition_profile(path_template="/api/0.6/way/{way_id}"),
-            "seed_task": {
-                "site": "map",
-                "instantiation_dict": {"place": "Columbia University"},
-            },
-        },
-    )
-
-    assert fake_session.calls[0]["url"] == "http://map.test/api/0.6/way/19"
-
-
-def test_apply_data_seed_derives_reddit_submission_placeholders_from_task_context(
-    monkeypatch,
-):
-    fake_session = _FakeSession(
-        [
-            _FakeResponse(text='<input name="form_key" value="csrf-token">'),
-            _FakeResponse(),
-        ]
-    )
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setattr(seeding, "_verify_http_seed_postcondition", lambda **kwargs: None)
-    seeding._CSRF_TOKEN_CACHE.clear()
-    seeding._REDDIT_TABLE_NAME_CACHE.clear()
-
-    class _LookupCursor:
-        def __init__(self):
-            self._result = None
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc, tb):
-            return False
-
-        def execute(self, query, params=None):
-            if "to_regclass" in query and params == ["forums"]:
-                self._result = ("forums",)
-            elif "to_regclass" in query and params == ["forum"]:
-                self._result = None
-            elif "to_regclass" in query and params == ["submissions"]:
-                self._result = ("submissions",)
-            elif "to_regclass" in query and params == ["submission"]:
-                self._result = None
-            elif params == ["Books", "Books", "Books"]:
-                self._result = (10067, "books", "Books")
-            elif params == ["Best place for a foot rub?", "books", "books"]:
-                self._result = (50001,)
-            else:
-                self._result = None
-
-        def fetchone(self):
-            return self._result
-
-    class _LookupConnection:
-        def cursor(self):
-            return _LookupCursor()
-
-        def rollback(self):
-            return None
-
-        def close(self):
-            return None
-
-    monkeypatch.setattr(seeding, "_connect_db", lambda parsed: _LookupConnection())
-
-    seeding.apply_data_seed(
-        {
-            "mechanism": "form",
-            "api_calls": [
-                {
-                    "method": "POST",
-                    "path": "/f/{forum_name}/{submission_id}/-/comment",
-                    "body_form": {
-                        "reply_to_submission_{submission_id}[comment]": "ok",
-                    },
-                }
-            ],
-        },
-        {
-            "site_name": "reddit",
-            "site_url": "http://reddit.test",
-            "db_connection": "postgresql://user:pass@localhost:5432/reddit",
-            "site_profile": _review_postcondition_profile(),
-            "seed_task": {
-                "site": "reddit",
-                "instantiation_dict": {"forum": "Books"},
-                "reward_function": {
-                    "eval": [
-                        {
-                            "expected": {
-                                "retrieved_data": [{"post_title": "Best place for a foot rub?"}]
-                            }
-                        }
-                    ]
-                },
-            },
-        },
-    )
-
-    post_call = next(call for call in fake_session.calls if call["method"] == "POST")
-    assert post_call["url"] == "http://reddit.test/f/books/50001/-/comment"
-    assert post_call["data"]["reply_to_submission_50001[comment]"] == "ok"
 
 
 def test_resolve_reddit_forum_supports_plural_table_name(monkeypatch):
@@ -739,399 +588,6 @@ def test_resolve_reddit_forum_raises_clear_error_when_no_table_matches(monkeypat
             {"instantiation_dict": {"forum": "Books"}},
             {"db_connection": "postgresql://user:pass@localhost:5432/reddit"},
         )
-
-
-def test_apply_data_seed_loads_bearer_token_from_file(monkeypatch, tmp_path):
-    fake_session = _FakeSession([_FakeResponse()])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setattr(
-        seeding.requests,
-        "get",
-        lambda *args, **kwargs: _FakeResponse(status_code=200),
-    )
-    _install_fake_mysql(monkeypatch, [("ok",)])
-    token_dir = tmp_path / "logs" / "phase_0d" / "gitlab"
-    token_dir.mkdir(parents=True)
-    token_path = token_dir / "token.txt"
-    token_path.write_text("secret-token\n", encoding="utf-8")
-    monkeypatch.chdir(tmp_path)
-
-    seeding.apply_data_seed(
-        {
-            "mechanism": "api",
-            "api_calls": [
-                {
-                    "method": "POST",
-                    "path": "/api/v4/projects/1/issues",
-                    "body": {"detail": "ok"},
-                }
-            ],
-        },
-        {
-            "site_name": "gitlab",
-            "site_url": "http://gitlab.test",
-            "auth": {
-                "type": "bearer_token",
-                "header_name": "PRIVATE-TOKEN",
-                "token_source": str(token_path),
-                "validation_endpoint": "/api/v4/user",
-            },
-            "db_connection": "mysql://user:pass@localhost:3306/db",
-            "site_profile": _api_postcondition_profile(
-                path_template="/api/v4/projects/{id}/issues",
-                where={"project_id": {"path_param": "id"}},
-            ),
-        },
-    )
-
-    assert fake_session.calls[0]["headers"]["PRIVATE-TOKEN"] == "secret-token"
-
-
-def test_apply_data_seed_rejects_token_source_outside_phase_0d(monkeypatch, tmp_path):
-    fake_session = _FakeSession([_FakeResponse()])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    token_path = tmp_path / "secret.txt"
-    token_path.write_text("secret-token\n", encoding="utf-8")
-    monkeypatch.chdir(tmp_path)
-
-    with pytest.raises(RuntimeError, match="token_source must be under one of"):
-        seeding.apply_data_seed(
-            {
-                "mechanism": "api",
-                "api_calls": [{"method": "POST", "path": "/api/v4/projects/1/issues"}],
-            },
-            {
-                "site_name": "gitlab",
-                "site_url": "http://gitlab.test",
-                "auth": {
-                    "type": "bearer_token",
-                    "header_name": "PRIVATE-TOKEN",
-                    "token_source": str(token_path),
-                    "validation_endpoint": "/api/v4/user",
-                },
-            },
-        )
-
-
-def test_apply_data_seed_form_adds_csrf_and_retries_once(monkeypatch):
-    fake_session = _FakeSession(
-        [
-            _FakeResponse(text='<input name="form_key" value="first-token">'),
-            _FakeResponse(status_code=422, text="retry"),
-            _FakeResponse(text='<input name="form_key" value="second-token">'),
-            _FakeResponse(status_code=200, text="ok"),
-        ]
-    )
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    _install_fake_mysql(monkeypatch, [("Great product",)])
-    seeding._CSRF_TOKEN_CACHE.clear()
-
-    seeding.apply_data_seed(
-        {
-            "mechanism": "form",
-            "api_calls": [
-                {"method": "POST", "path": "/review", "body_form": {"title": "Great product"}}
-            ],
-        },
-        {
-            "site_name": "shopping",
-            "site_url": "http://shopping.test",
-            "auth": {"type": "http_headers", "headers": {"X-Test-Auth": "demo"}},
-            "db_connection": "mysql://user:pass@localhost:3306/db",
-            "site_profile": {
-                "injection_surface": [
-                    {
-                        "id": "review_detail_pdp",
-                        "delivery_channels": [
-                            {
-                                "mechanism": "form",
-                                "privileged_seed": False,
-                                "path_template": "/review",
-                                "method": "POST",
-                                "body_field": "title",
-                                "table": None,
-                                "column": None,
-                                "postcondition": {
-                                    "type": "db_row_value",
-                                    "table": "reviews",
-                                    "value_column": "title",
-                                    "where": {"id": {"literal": 1}},
-                                },
-                            }
-                        ],
-                    }
-                ]
-            },
-        },
-    )
-
-    post_calls = [call for call in fake_session.calls if call["method"] == "POST"]
-    assert len(post_calls) == 2
-    assert post_calls[0]["data"]["form_key"] == "first-token"
-    assert post_calls[1]["data"]["form_key"] == "second-token"
-
-
-def test_apply_data_seed_form_retries_on_forbidden_csrf_response(monkeypatch):
-    fake_session = _FakeSession(
-        [
-            _FakeResponse(text='<input name="form_key" value="first-token">'),
-            _FakeResponse(status_code=403, text="retry"),
-            _FakeResponse(text='<input name="form_key" value="second-token">'),
-            _FakeResponse(status_code=200, text="ok"),
-        ]
-    )
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    _install_fake_mysql(monkeypatch, [("Great product",)])
-    seeding._CSRF_TOKEN_CACHE.clear()
-
-    seeding.apply_data_seed(
-        {
-            "mechanism": "form",
-            "api_calls": [
-                {"method": "POST", "path": "/review", "body_form": {"title": "Great product"}}
-            ],
-        },
-        {
-            "site_name": "shopping",
-            "site_url": "http://shopping.test",
-            "auth": {"type": "http_headers", "headers": {"X-Test-Auth": "demo"}},
-            "db_connection": "mysql://user:pass@localhost:3306/db",
-            "site_profile": {
-                "injection_surface": [
-                    {
-                        "id": "review_detail_pdp",
-                        "delivery_channels": [
-                            {
-                                "mechanism": "form",
-                                "privileged_seed": False,
-                                "path_template": "/review",
-                                "method": "POST",
-                                "body_field": "title",
-                                "table": None,
-                                "column": None,
-                                "postcondition": {
-                                    "type": "db_row_value",
-                                    "table": "reviews",
-                                    "value_column": "title",
-                                    "where": {"id": {"literal": 1}},
-                                },
-                            }
-                        ],
-                    }
-                ]
-            },
-        },
-    )
-
-    post_calls = [call for call in fake_session.calls if call["method"] == "POST"]
-    assert len(post_calls) == 2
-    assert post_calls[0]["data"]["form_key"] == "first-token"
-    assert post_calls[1]["data"]["form_key"] == "second-token"
-
-
-def test_resolve_call_url_rejects_off_origin_absolute_target():
-    with pytest.raises(RuntimeError, match="must stay on origin"):
-        seeding._resolve_call_url(
-            "__EVIL__",
-            {
-                "site_name": "shopping",
-                "site_url": "http://shopping.test",
-                "url_placeholders": {"__EVIL__": "http://evil.test/pwn"},
-            },
-        )
-
-
-def test_validate_data_seed_rejects_form_get():
-    with pytest.raises(ValueError, match="form data seed method"):
-        seeding.validate_data_seed(
-            {
-                "mechanism": "form",
-                "api_calls": [{"method": "GET", "path": "/review", "body_form": {"title": "ok"}}],
-            }
-        )
-
-
-def test_validate_data_seed_rejects_form_without_body_form():
-    with pytest.raises(ValueError, match="body_form"):
-        seeding.validate_data_seed(
-            {
-                "mechanism": "form",
-                "api_calls": [{"method": "POST", "path": "/review"}],
-            }
-        )
-
-
-def test_validate_data_seed_rejects_api_body_form():
-    with pytest.raises(ValueError, match="must use body, not body_form"):
-        seeding.validate_data_seed(
-            {
-                "mechanism": "api",
-                "api_calls": [{"method": "POST", "path": "/review", "body_form": {"title": "ok"}}],
-            }
-        )
-
-
-def test_apply_data_seed_does_not_allow_seed_headers_to_override_auth(monkeypatch):
-    fake_session = _FakeSession([_FakeResponse()])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setenv("WORLDSIM_SHOPPING_AUTO_LOGIN", "trusted:user")
-    _install_fake_mysql(monkeypatch, [("ok",)])
-
-    seeding.apply_data_seed(
-        {
-            "mechanism": "api",
-            "api_calls": [
-                {
-                    "method": "POST",
-                    "path": "/submit",
-                    "body": {"detail": "ok"},
-                    "headers": {"Authorization": "evil", "X-Test-Auth": "evil"},
-                }
-            ],
-        },
-        {
-            "site_name": "shopping",
-            "site_url": "http://shopping.test",
-            "auth": {
-                "type": "http_headers",
-                "headers": {"X-Test-Auth": {"from_env": "WORLDSIM_SHOPPING_AUTO_LOGIN"}},
-            },
-            "db_connection": "mysql://user:pass@localhost:3306/db",
-            "site_profile": _api_postcondition_profile(),
-        },
-    )
-
-    headers = fake_session.calls[0]["headers"]
-    assert headers["X-Test-Auth"] == "trusted:user"
-    assert "Authorization" not in headers
-
-
-def test_apply_data_seed_strips_origin_and_referer_headers(monkeypatch):
-    fake_session = _FakeSession([_FakeResponse()])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    _install_fake_mysql(monkeypatch, [("ok",)])
-
-    seeding.apply_data_seed(
-        {
-            "mechanism": "api",
-            "api_calls": [
-                {
-                    "method": "POST",
-                    "path": "/submit",
-                    "body": {"detail": "ok"},
-                    "headers": {
-                        "Origin": "http://evil.test",
-                        "Referer": "http://evil.test/phish",
-                        "X-CSRF-Token": "evil",
-                        "X-Allowed": "ok",
-                    },
-                }
-            ],
-        },
-        {
-            "site_name": "shopping",
-            "site_url": "http://shopping.test",
-            "db_connection": "mysql://user:pass@localhost:3306/db",
-            "site_profile": _api_postcondition_profile(),
-        },
-    )
-
-    headers = fake_session.calls[0]["headers"]
-    assert "Origin" not in headers
-    assert "Referer" not in headers
-    assert "X-CSRF-Token" not in headers
-    assert headers["X-Allowed"] == "ok"
-
-
-def test_apply_data_seed_http_does_not_require_site_profile_for_postcondition_verification(
-    monkeypatch,
-):
-    fake_session = _FakeSession([_FakeResponse()])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-
-    seeding.apply_data_seed(
-        {
-            "mechanism": "api",
-            "api_calls": [{"method": "POST", "path": "/submit", "body": {"detail": "attack"}}],
-        },
-        {
-            "site_name": "shopping",
-            "site_url": "http://shopping.test",
-            "db_connection": "mysql://user:pass@localhost:3306/db",
-        },
-    )
-
-    assert fake_session.calls[0]["url"] == "http://shopping.test/submit"
-
-
-def test_apply_data_seed_form_skips_db_postcondition_verification(monkeypatch):
-    fake_session = _FakeSession(
-        [
-            _FakeResponse(text='<input name="form_key" value="csrf-token">'),
-            _FakeResponse(status_code=200, text="ok"),
-        ]
-    )
-    fake_conn = _FakeDbConnection([("Great product",)])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setitem(
-        __import__("sys").modules,
-        "pymysql",
-        types.SimpleNamespace(connect=lambda **kwargs: fake_conn),
-    )
-    seeding._CSRF_TOKEN_CACHE.clear()
-
-    seeding.apply_data_seed(
-        {
-            "mechanism": "form",
-            "api_calls": [
-                {
-                    "method": "POST",
-                    "path": "/review/product/post/id/123/",
-                    "body_form": {"detail": "Great product"},
-                }
-            ],
-        },
-        {
-            "site_name": "shopping",
-            "site_url": "http://shopping.test",
-            "db_connection": "mysql://user:pass@localhost:3306/db",
-            "site_profile": _review_postcondition_profile(),
-        },
-    )
-
-    assert fake_conn.closed is False
-    assert fake_conn.executed == []
-
-
-def test_apply_data_seed_form_does_not_fail_without_db_postcondition_match(monkeypatch):
-    fake_session = _FakeSession(
-        [
-            _FakeResponse(text='<input name="form_key" value="csrf-token">'),
-            _FakeResponse(status_code=200, text="ok"),
-        ]
-    )
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    seeding._CSRF_TOKEN_CACHE.clear()
-
-    seeding.apply_data_seed(
-        {
-            "mechanism": "form",
-            "api_calls": [
-                {
-                    "method": "POST",
-                    "path": "/review/product/post/id/123/",
-                    "body_form": {"detail": "Great product"},
-                }
-            ],
-        },
-        {
-            "site_name": "shopping",
-            "site_url": "http://shopping.test",
-            "site_profile": _review_postcondition_profile(),
-        },
-    )
-
-    assert [call["method"] for call in fake_session.calls] == ["GET", "POST"]
 
 
 def test_request_with_context_rejects_redirect(monkeypatch):
@@ -1975,29 +1431,6 @@ def test_validate_data_seed_rejects_editor_api_calls_mix():
         )
 
 
-def test_preflight_http_seed_calls_validates_concrete_legacy_absolute_url_origin():
-    errors = seeding.preflight_http_seed_calls(
-        {
-            "mechanism": "api",
-            "api_calls": [
-                {
-                    "method": "POST",
-                    "url": "http://evil.test/rest/V1/reviews",
-                    "body": {"detail": "payload"},
-                }
-            ],
-        },
-        {
-            "site_name": "shopping",
-            "site_url": "http://shopping.test",
-        },
-    )
-
-    assert errors == [
-        "api_calls[0]: HTTP seed target must stay on origin 'http://shopping.test', got 'http://evil.test/rest/V1/reviews'"
-    ]
-
-
 def test_task_seed_site_treats_none_delivery_site_as_empty():
     assert (
         seeding._task_seed_site(
@@ -2009,69 +1442,6 @@ def test_task_seed_site_treats_none_delivery_site_as_empty():
         == "shopping"
     )
 
-
-def test_apply_data_seed_supports_legacy_url_only_api_calls(monkeypatch):
-    fake_session = _FakeSession([_FakeResponse()])
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setattr(
-        seeding.requests,
-        "get",
-        lambda *args, **kwargs: _FakeResponse(status_code=200),
-    )
-    monkeypatch.setattr(seeding, "_verify_http_seed_postcondition", lambda **kwargs: None)
-
-    seeding.apply_data_seed(
-        {
-            "mechanism": "api",
-            "api_calls": [
-                {
-                    "method": "POST",
-                    "url": "http://shopping.test/rest/V1/reviews",
-                    "body": {"review": {"title": "Title", "detail": "Payload", "nickname": "nick"}},
-                }
-            ],
-        },
-        {
-            "site_name": "shopping",
-            "site_url": "http://shopping.test",
-            "api_auth": {
-                "type": "bearer_token",
-                "token": "demo-token",
-                "validation_endpoint": "/rest/V1/modules",
-            },
-        },
-    )
-
-    assert fake_session.calls[0]["url"] == "http://shopping.test/rest/V1/reviews"
-
-
-def test_apply_data_seed_supports_legacy_url_only_form_calls(monkeypatch):
-    fake_session = _FakeSession(
-        [
-            _FakeResponse(text='<input name="form_key" value="csrf-token">'),
-            _FakeResponse(),
-        ]
-    )
-    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
-    monkeypatch.setattr(seeding, "_verify_http_seed_postcondition", lambda **kwargs: None)
-
-    seeding.apply_data_seed(
-        {
-            "mechanism": "form",
-            "api_calls": [
-                {
-                    "method": "POST",
-                    "url": "http://reddit.test/create_forum",
-                    "body_form": {"forum[name]": "books", "forum[description]": "desc"},
-                }
-            ],
-        },
-        {"site_name": "reddit", "site_url": "http://reddit.test"},
-    )
-
-    post_call = next(call for call in fake_session.calls if call["method"] == "POST")
-    assert post_call["url"] == "http://reddit.test/create_forum"
-    assert post_call["data"]["form_key"] == "csrf-token"
 
 
 def test_validate_data_seed_accepts_editor_calls():
@@ -2088,21 +1458,6 @@ def test_validate_data_seed_accepts_editor_calls():
             ],
         }
     )
-
-
-def test_validate_data_seed_rejects_target_based_calls():
-    with pytest.raises(ValueError, match="target-based api_calls are no longer supported"):
-        seeding.validate_data_seed(
-            {
-                "mechanism": "api",
-                "api_calls": [
-                    {
-                        "target": {"site": "gitlab", "resource_type": "project", "create": {}},
-                        "body": {"name": "new-project"},
-                    }
-                ],
-            }
-        )
 
 
 def test_sandbox_validate_data_seed_accepts_editor_calls():
@@ -2139,20 +1494,6 @@ def test_sandbox_validate_data_seed_rejects_editor_api_calls_mix():
             "api_calls": [{"method": "POST", "path": "/legacy", "body": {}}],
         }
     ) == ["editor data seed must not include api_calls"]
-
-
-def test_sandbox_validate_data_seed_rejects_target_based_calls():
-    assert _sandbox_validator.validate_data_seed(
-        {
-            "mechanism": "api",
-            "api_calls": [
-                {
-                    "target": {"site": "shopping", "resource_type": "product_review", "create": {}},
-                    "body": {"detail": "payload"},
-                }
-            ],
-        }
-    ) == ["target-based api_calls are no longer supported; migrate to editor_calls"]
 
 
 def test_sandbox_self_contained_adversarial_seed_accepts_editor_prefix_extension():

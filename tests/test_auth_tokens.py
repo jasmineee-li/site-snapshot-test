@@ -997,9 +997,18 @@ def test_seeding_runtime_errors_accepts_token_generator():
                 "id": "task-1",
                 "site": "gitlab",
                 "adversarial_data_seed": {
-                    "mechanism": "api",
-                    "api_calls": [
-                        {"method": "POST", "path": "/api/v4/issues", "body": {"detail": "x"}}
+                    "mechanism": "editor",
+                    "editor_calls": [
+                        {
+                            "benchmark": "webarena_verified",
+                            "site": "gitlab",
+                            "method": "create_issue",
+                            "args": {
+                                "project_id": "{benign_project_id}",
+                                "title": "x",
+                                "body_template": "x",
+                            },
+                        }
                     ],
                 },
             }
@@ -1036,7 +1045,9 @@ def test_bootstrap_gitlab_pat_reuses_valid_existing_file(monkeypatch, tmp_path):
     output_path = tmp_path / "personal_access_token.txt"
     output_path.write_text("glpat-valid\n", encoding="utf-8")
 
-    monkeypatch.setattr(bootstrap.GitLabPATGenerator, "validate", lambda self, token, site_url: True)
+    monkeypatch.setattr(
+        bootstrap.GitLabPATGenerator, "validate", lambda self, token, site_url: True
+    )
 
     result = bootstrap.bootstrap_pat(
         site_url="http://gitlab.test",
@@ -1058,7 +1069,9 @@ def test_bootstrap_gitlab_pat_regenerates_invalid_existing_file(monkeypatch, tmp
     output_path = tmp_path / "personal_access_token.txt"
     output_path.write_text("glpat-stale\n", encoding="utf-8")
 
-    monkeypatch.setattr(bootstrap.GitLabPATGenerator, "validate", lambda self, token, site_url: False)
+    monkeypatch.setattr(
+        bootstrap.GitLabPATGenerator, "validate", lambda self, token, site_url: False
+    )
 
     fake_session = MagicMock()
     fake_session.get = MagicMock(
@@ -1092,7 +1105,9 @@ def test_bootstrap_gitlab_pat_revokes_runtime_tokens_and_accepts_token_json_key(
         encoding="utf-8",
     )
 
-    monkeypatch.setattr(bootstrap.GitLabPATGenerator, "validate", lambda self, token, site_url: False)
+    monkeypatch.setattr(
+        bootstrap.GitLabPATGenerator, "validate", lambda self, token, site_url: False
+    )
 
     fake_session = MagicMock()
     fake_session.get = MagicMock(
@@ -1106,7 +1121,9 @@ def test_bootstrap_gitlab_pat_revokes_runtime_tokens_and_accepts_token_json_key(
     fake_session.post = MagicMock(
         side_effect=[
             _FakeResponse(status_code=200),
-            _FakeResponse(json_data={"token": "glpat-alt-json-token"}, content_type="application/json"),
+            _FakeResponse(
+                json_data={"token": "glpat-alt-json-token"}, content_type="application/json"
+            ),
         ]
     )
     monkeypatch.setattr(bootstrap.requests, "Session", lambda: fake_session)

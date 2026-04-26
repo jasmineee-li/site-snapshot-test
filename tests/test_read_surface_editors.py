@@ -373,29 +373,15 @@ def test_apply_data_seed_accumulates_across_multi_editor_calls(monkeypatch):
     _handle.cleanup()
 
 
-def test_apply_data_seed_returns_tuple_even_without_editor_calls():
-    # state_push mechanism has no editors.
-    import requests
-
-    class _FakeResp:
-        def raise_for_status(self):
-            return None
-
-    saved = requests.put
-
-    def fake_put(*args, **kwargs):
-        return _FakeResp()
-
-    requests.put = fake_put  # type: ignore[assignment]
-    try:
-        handle, metadata = seeding.apply_data_seed(
-            {"mechanism": "state_push", "state": {}},
-            {"site_url": "http://site.test"},
-        )
-        assert handle is None
-        assert metadata == {}
-    finally:
-        requests.put = saved  # type: ignore[assignment]
+def test_apply_data_seed_returns_tuple_for_navigate_only_seed():
+    """A mechanism='none' seed has no editor_calls; apply_data_seed still
+    returns the (handle, metadata) tuple shape downstream callers expect."""
+    handle, metadata = seeding.apply_data_seed(
+        {"mechanism": "none"},
+        {"site_url": "http://site.test"},
+    )
+    assert handle is None
+    assert metadata == {}
 
 
 def test_apply_data_seed_surface_keys_do_not_bleed_into_seed_context(monkeypatch):

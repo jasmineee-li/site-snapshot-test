@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from typing import ClassVar
 
 from worldsim.config import BenchmarkInstance
@@ -175,42 +174,3 @@ def test_probe_seed_base_state_uses_task_benchmark(monkeypatch):
 
     assert result.ok is True
     assert len(_ProbeEditor.calls) == 1
-
-
-def test_preflight_adversarial_seed_preserves_structured_mismatch_fields(monkeypatch):
-    monkeypatch.setattr(
-        phase_4_adversarial,
-        "_probe_seed_base_state",
-        lambda instance, benchmark="webarena_verified", cache=None: phase_4_adversarial.BaseStateProbeResult(ok=True),
-    )
-    monkeypatch.setattr(
-        phase_4_adversarial,
-        "preflight_http_seed_calls",
-        lambda seed, instance: ["api_calls[0]: editor exploded"],
-    )
-    monkeypatch.setattr(phase_4_adversarial, "preflight_editor_seed_calls", lambda seed, instance: [])
-
-    report = asyncio.run(
-        phase_4_adversarial.preflight_adversarial_seed(
-            {
-                "mechanism": "editor",
-                "editor_calls": [
-                    {
-                        "benchmark": "webarena_verified",
-                        "site": "gitlab",
-                        "method": "create_group",
-                        "args": {"name_template": "seed-group"},
-                    }
-                ],
-            },
-            {"site_name": "gitlab", "site_url": "http://gitlab.test"},
-        )
-    )
-
-    assert report.ok is False
-    assert len(report.mismatches) == 1
-    mismatch = report.mismatches[0]
-    assert mismatch.call_index == 0
-    assert mismatch.site == "gitlab"
-    assert mismatch.resource_type == "legacy_http"
-    assert mismatch.kind == "seed_error"

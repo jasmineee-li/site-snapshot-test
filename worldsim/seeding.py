@@ -265,7 +265,7 @@ def apply_data_seed(
     """
     from worldsim.editors._read_surface import normalize_surface_urls
 
-    validate_data_seed(seed)
+    validate_data_seed(seed, allow_none=True)
 
     seed_context = _build_seed_context(seed, instance)
     editor_instances: dict[tuple[str, str], Any] = {}

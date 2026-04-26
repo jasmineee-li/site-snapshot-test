@@ -143,10 +143,12 @@ def _generate_new_tasks_resume_metadata(
     sandbox_model: str = "claude-sonnet-4-6",
     novel_tasks_per_site: int = phase_1_generate_new_tasks.DEFAULT_NOVEL_TASKS_PER_SITE,
 ) -> dict:
-    shared_inputs_fingerprint = phase_1_generate_new_tasks.compute_generate_new_tasks_shared_inputs_fingerprint(
-        benchmark_root=benchmark_root,
-        manifest=manifest,
-        sandbox_model=sandbox_model,
+    shared_inputs_fingerprint = (
+        phase_1_generate_new_tasks.compute_generate_new_tasks_shared_inputs_fingerprint(
+            benchmark_root=benchmark_root,
+            manifest=manifest,
+            sandbox_model=sandbox_model,
+        )
     )
     return {
         "fingerprint": phase_1_generate_new_tasks.compute_generate_new_tasks_resume_fingerprint(
@@ -167,10 +169,12 @@ def _site_cache_metadata(
     sandbox_model: str = "claude-sonnet-4-6",
     novel_tasks_per_site: int = phase_1_generate_new_tasks.DEFAULT_NOVEL_TASKS_PER_SITE,
 ) -> dict:
-    shared_inputs_fingerprint = phase_1_generate_new_tasks.compute_generate_new_tasks_shared_inputs_fingerprint(
-        benchmark_root=benchmark_root,
-        manifest=manifest,
-        sandbox_model=sandbox_model,
+    shared_inputs_fingerprint = (
+        phase_1_generate_new_tasks.compute_generate_new_tasks_shared_inputs_fingerprint(
+            benchmark_root=benchmark_root,
+            manifest=manifest,
+            sandbox_model=sandbox_model,
+        )
     )
     return {
         "fingerprint": phase_1_generate_new_tasks.compute_site_cache_fingerprint(
@@ -407,7 +411,9 @@ async def test_phase_1_run_existing_only_preserves_existing_behavior(monkeypatch
     assert state["novel_task_count"] == 0
 
 
-def test_load_generate_new_tasks_eligible_sites_only_returns_profiles_with_uncovered_surfaces(tmp_path):
+def test_load_generate_new_tasks_eligible_sites_only_returns_profiles_with_uncovered_surfaces(
+    tmp_path,
+):
     profiles_dir = tmp_path / "phase_0c"
     profiles_dir.mkdir()
     (profiles_dir / "BENCHMARK_PROFILE_shopping.json").write_text(
@@ -583,15 +589,11 @@ def test_load_cached_novel_tasks_rejects_missing_embedded_agent_context(tmp_path
         ),
         (
             _novel_task(mechanism="api"),
-            None,
+            "data_seed.mechanism='api' not allowed",
         ),
     ],
 )
 def test_validate_generated_novel_task_contract(task, expected):
-    if task["data_seed"]["mechanism"] == "api":
-        task["data_seed"]["api_calls"] = []
-        expected = "invalid data_seed: api data seed must include a non-empty api_calls or editor_calls list"
-
     problem = phase_1_generate_new_tasks_validation.validate_generated_novel_task(
         task,
         index=0,
@@ -722,11 +724,8 @@ def test_validate_generated_novel_task_rejects_malformed_reward_contracts(task, 
     [
         (None, "invalid data_seed: data seed must be an object"),
         ("bad", "invalid data_seed: data seed must be an object"),
-        ({"mechanism": "mystery"}, "invalid data_seed: unknown data seed mechanism"),
-        (
-            {"mechanism": "state_push"},
-            "invalid data_seed: state_push data seed must include a state payload",
-        ),
+        ({"mechanism": "mystery"}, "data_seed.mechanism='mystery' not allowed"),
+        ({"mechanism": "state_push"}, "data_seed.mechanism='state_push' not allowed"),
     ],
 )
 def test_validate_generated_novel_task_rejects_invalid_data_seed_shapes(data_seed, expected):
@@ -1002,7 +1001,10 @@ async def test_generate_new_tasks_for_site_fails_after_max_retries(monkeypatch, 
 
     assert result.benign_tasks == []
     assert "start_urls must use __SHOPPING__" in result.errors[0]
-    assert mock_sandbox.call_count == 1 + phase_1_generate_new_tasks.GENERATE_NEW_TASKS_FIX_MAX_ITERATIONS
+    assert (
+        mock_sandbox.call_count
+        == 1 + phase_1_generate_new_tasks.GENERATE_NEW_TASKS_FIX_MAX_ITERATIONS
+    )
     assert not (output_dir / "novel_tasks_shopping.json").exists()
 
 
@@ -1045,9 +1047,7 @@ async def test_generate_new_tasks_for_site_rejects_invalid_cached_output_and_reg
 
 
 @pytest.mark.asyncio
-async def test_generate_new_tasks_for_site_rejects_underfilled_cached_output(
-    monkeypatch, tmp_path
-):
+async def test_generate_new_tasks_for_site_rejects_underfilled_cached_output(monkeypatch, tmp_path):
     output_dir = tmp_path / "phase_1"
     output_dir.mkdir()
     profile_path = tmp_path / "profile.json"
@@ -1179,9 +1179,11 @@ def test_compute_site_cache_fingerprint_changes_when_agent_context_changes(tmp_p
         profile=_profile(uncovered=["surface-1"]),
     )
 
-    shared_inputs_fingerprint = phase_1_generate_new_tasks.compute_generate_new_tasks_shared_inputs_fingerprint(
-        benchmark_root=benchmark_root,
-        manifest=manifest,
+    shared_inputs_fingerprint = (
+        phase_1_generate_new_tasks.compute_generate_new_tasks_shared_inputs_fingerprint(
+            benchmark_root=benchmark_root,
+            manifest=manifest,
+        )
     )
     agent_context_path = profile_path.parent / "AGENT_CONTEXT_shopping.json"
     agent_context_path.write_text(
@@ -1213,9 +1215,11 @@ def test_compute_site_cache_fingerprint_changes_when_task_count_changes(tmp_path
         profile=_profile(uncovered=["surface-1"]),
     )
 
-    shared_inputs_fingerprint = phase_1_generate_new_tasks.compute_generate_new_tasks_shared_inputs_fingerprint(
-        benchmark_root=benchmark_root,
-        manifest=manifest,
+    shared_inputs_fingerprint = (
+        phase_1_generate_new_tasks.compute_generate_new_tasks_shared_inputs_fingerprint(
+            benchmark_root=benchmark_root,
+            manifest=manifest,
+        )
     )
     first = phase_1_generate_new_tasks.compute_site_cache_fingerprint(
         shared_inputs_fingerprint=shared_inputs_fingerprint,
@@ -1231,7 +1235,9 @@ def test_compute_site_cache_fingerprint_changes_when_task_count_changes(tmp_path
     assert first != second
 
 
-def test_compute_generate_new_tasks_shared_inputs_fingerprint_changes_when_sandbox_model_changes(tmp_path):
+def test_compute_generate_new_tasks_shared_inputs_fingerprint_changes_when_sandbox_model_changes(
+    tmp_path,
+):
     benchmark_root = tmp_path / "benchmark"
     benchmark_root.mkdir()
     manifest = _manifest(benchmark_root)
@@ -1291,7 +1297,9 @@ async def test_generate_new_tasks_for_site_passes_explicit_sandbox_model(monkeyp
             "_summary": None,
         }
 
-    monkeypatch.setattr(phase_1_generate_new_tasks, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    monkeypatch.setattr(
+        phase_1_generate_new_tasks, "run_claude_in_sandbox", fake_run_claude_in_sandbox
+    )
 
     result = await phase_1_generate_new_tasks.generate_new_tasks_for_site(
         site=phase_1_generate_new_tasks.EligibleSiteProfile(
@@ -1330,7 +1338,9 @@ async def test_run_generate_new_tasks_fails_closed_when_any_site_errors(monkeypa
     )
 
     monkeypatch.setattr(
-        phase_1_generate_new_tasks, "load_generate_new_tasks_eligible_sites", lambda **kwargs: [site_a, site_b]
+        phase_1_generate_new_tasks,
+        "load_generate_new_tasks_eligible_sites",
+        lambda **kwargs: [site_a, site_b],
     )
 
     async def fake_generate_new_tasks_for_site(
@@ -1359,7 +1369,9 @@ async def test_run_generate_new_tasks_fails_closed_when_any_site_errors(monkeypa
     monkeypatch.setattr(
         phase_1_generate_new_tasks, "generate_new_tasks_for_site", fake_generate_new_tasks_for_site
     )
-    monkeypatch.setattr(phase_1_generate_new_tasks, "upload_to_volume", AsyncMock(return_value=object()))
+    monkeypatch.setattr(
+        phase_1_generate_new_tasks, "upload_to_volume", AsyncMock(return_value=object())
+    )
 
     with pytest.raises(RuntimeError, match="did not produce valid novel tasks"):
         await phase_1_generate_new_tasks.run_generate_new_tasks(
@@ -1370,7 +1382,9 @@ async def test_run_generate_new_tasks_fails_closed_when_any_site_errors(monkeypa
 
 
 @pytest.mark.asyncio
-async def test_run_generate_new_tasks_returns_empty_when_no_sites_are_eligible(monkeypatch, tmp_path):
+async def test_run_generate_new_tasks_returns_empty_when_no_sites_are_eligible(
+    monkeypatch, tmp_path
+):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     output_dir = tmp_path / "phase_1"
     output_dir.mkdir()
@@ -1378,7 +1392,9 @@ async def test_run_generate_new_tasks_returns_empty_when_no_sites_are_eligible(m
     benchmark_root = tmp_path / "benchmark"
     benchmark_root.mkdir()
 
-    monkeypatch.setattr(phase_1_generate_new_tasks, "load_generate_new_tasks_eligible_sites", lambda **kwargs: [])
+    monkeypatch.setattr(
+        phase_1_generate_new_tasks, "load_generate_new_tasks_eligible_sites", lambda **kwargs: []
+    )
 
     async def fail_if_called(*args, **kwargs):
         raise AssertionError("upload_to_volume should not run when no sites are eligible")
@@ -1395,7 +1411,9 @@ async def test_run_generate_new_tasks_returns_empty_when_no_sites_are_eligible(m
 
 
 @pytest.mark.asyncio
-async def test_run_generate_new_tasks_skips_benchmark_upload_when_all_sites_are_cached(monkeypatch, tmp_path):
+async def test_run_generate_new_tasks_skips_benchmark_upload_when_all_sites_are_cached(
+    monkeypatch, tmp_path
+):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     output_dir = tmp_path / "phase_1"
     output_dir.mkdir()
@@ -1420,7 +1438,9 @@ async def test_run_generate_new_tasks_skips_benchmark_upload_when_all_sites_are_
     )
 
     monkeypatch.setattr(
-        phase_1_generate_new_tasks, "load_generate_new_tasks_eligible_sites", lambda **kwargs: [site_a, site_b]
+        phase_1_generate_new_tasks,
+        "load_generate_new_tasks_eligible_sites",
+        lambda **kwargs: [site_a, site_b],
     )
     (output_dir / "novel_tasks_gitlab.json").write_text(
         json.dumps(
@@ -1642,7 +1662,11 @@ async def test_run_generate_new_tasks_rejects_stale_cached_site_output_after_in_
         profile_path=tmp_path / "shopping.json",
         profile=_profile(uncovered=["surface-1"]),
     )
-    monkeypatch.setattr(phase_1_generate_new_tasks, "load_generate_new_tasks_eligible_sites", lambda **kwargs: [site])
+    monkeypatch.setattr(
+        phase_1_generate_new_tasks,
+        "load_generate_new_tasks_eligible_sites",
+        lambda **kwargs: [site],
+    )
     (output_dir / "novel_tasks_shopping.json").write_text(json.dumps(_novel_task_list()))
     (output_dir / "novel_tasks_shopping.json.metadata.json").write_text(
         json.dumps(
@@ -1653,10 +1677,14 @@ async def test_run_generate_new_tasks_rejects_stale_cached_site_output_after_in_
     (benchmark_root / "seed.txt").write_text("after")
 
     fake_generate = AsyncMock(
-        return_value=phase_1_generate_new_tasks.SiteGenerateNewTasksResult("shopping", _novel_task_list(), [])
+        return_value=phase_1_generate_new_tasks.SiteGenerateNewTasksResult(
+            "shopping", _novel_task_list(), []
+        )
     )
     monkeypatch.setattr(phase_1_generate_new_tasks, "generate_new_tasks_for_site", fake_generate)
-    monkeypatch.setattr(phase_1_generate_new_tasks, "upload_to_volume", AsyncMock(return_value=object()))
+    monkeypatch.setattr(
+        phase_1_generate_new_tasks, "upload_to_volume", AsyncMock(return_value=object())
+    )
 
     tasks = await phase_1_generate_new_tasks.run_generate_new_tasks(
         manifest=manifest,

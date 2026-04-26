@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from worldsim import seeding
 from worldsim.agent_config import (
     RUNTIME_METADATA_KEY,
     bind_task_to_instance,
@@ -281,14 +282,40 @@ def _prepared_adv_task() -> tuple[dict, list[BenchmarkInstance]]:
                 "adversarial_reward": {"type": "noop"},
             },
             "adversarial_data_seed": {
-                "mechanism": "api",
-                "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+                "mechanism": "editor",
+                "editor_calls": [
+                    {
+                        "benchmark": "webarena_verified",
+                        "site": "shopping",
+                        "method": "create_product_review",
+                        "args": {"entity_pk_value": 1, "detail": "payload"},
+                    }
+                ],
             },
         },
         instances,
     )
     assert missing == []
     return task, instances
+
+
+@pytest.fixture(autouse=True)
+def _bypass_editor_preflight(monkeypatch):
+    """Phase 4's preflight_editor_seed_calls instantiates the live editor and
+    runs validate_args; _probe_seed_base_state hits the live host. Both are
+    integration concerns for seeded tests, not the orchestration scenarios
+    this file exercises. Stub them so fixtures don't need a registered editor
+    or a live instance."""
+    monkeypatch.setattr(
+        phase_4_adversarial, "preflight_editor_seed_calls", lambda seed, instance: []
+    )
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "_probe_seed_base_state",
+        lambda instance, benchmark="webarena_verified", cache=None: (
+            phase_4_adversarial.BaseStateProbeResult(ok=True)
+        ),
+    )
 
 
 def test_seed_target_benchmark_requires_metadata():
@@ -708,12 +735,13 @@ async def test_generate_variant_merges_api_tool_use_output(monkeypatch, tmp_path
         captured["strategy"] = strategy_in.get("strategy")
         merged = dict(task_in)
         merged["adversarial_data_seed"] = {
-            "mechanism": "api",
-            "api_calls": [
+            "mechanism": "editor",
+            "editor_calls": [
                 {
-                    "method": "POST",
-                    "path": "/api/seed",
-                    "body": {"x": 2},
+                    "benchmark": "webarena_verified",
+                    "site": "shopping",
+                    "method": "create_product_review",
+                    "args": {"entity_pk_value": 2, "detail": "payload"},
                 }
             ],
         }
@@ -737,7 +765,7 @@ async def test_generate_variant_merges_api_tool_use_output(monkeypatch, tmp_path
         sandbox_model="claude-sonnet-4-6",
     )
 
-    assert variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] == 2
+    assert variant["adversarial_data_seed"]["editor_calls"][0]["args"]["entity_pk_value"] == 2
     assert not phase_4_adversarial._tasks_equivalent(task, variant)
     assert captured["model"] == "claude-sonnet-4-6"
     assert captured["strategy"] == "specificity"
@@ -1126,14 +1154,28 @@ def test_rebase_adversarial_task_rejects_non_self_contained_seed():
     task, _ = _prepared_adv_task()
     validated_benign = json.loads(json.dumps(task))
     validated_benign["data_seed"] = {
-        "mechanism": "api",
-        "api_calls": [{"method": "POST", "path": "/api/base", "body": {"baseline": 1}}],
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "shopping",
+                "method": "create_product_review",
+                "args": {"entity_pk_value": 1, "detail": "baseline"},
+            }
+        ],
     }
 
     malformed_adversarial = json.loads(json.dumps(task))
     malformed_adversarial["adversarial_data_seed"] = {
-        "mechanism": "api",
-        "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"attack": 1}}],
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "shopping",
+                "method": "create_product_review",
+                "args": {"entity_pk_value": 1, "detail": "attack"},
+            }
+        ],
     }
 
     with pytest.raises(ValueError, match="preserve the benign data_seed"):
@@ -2021,7 +2063,17 @@ async def test_run_strategy_variation_rejects_out_of_pool_strategy_names(monkeyp
 async def test_run_strategy_variation_handles_variant_generation_exceptions(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
     variant = json.loads(json.dumps(task))
-    variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 2
+    variant["adversarial_data_seed"] = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "shopping",
+                "method": "create_product_review",
+                "args": {"entity_pk_value": 2, "detail": "payload"},
+            }
+        ],
+    }
     evaluated: list[str] = []
 
     async def fake_run_judge(*args, **kwargs):
@@ -2084,9 +2136,29 @@ async def test_run_strategy_variation_handles_variant_generation_exceptions(monk
 async def test_run_strategy_variation_marks_partial_capacity(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
     specificity_variant = json.loads(json.dumps(task))
-    specificity_variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 2
+    specificity_variant["adversarial_data_seed"] = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "shopping",
+                "method": "create_product_review",
+                "args": {"entity_pk_value": 2, "detail": "payload"},
+            }
+        ],
+    }
     authority_variant = json.loads(json.dumps(task))
-    authority_variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 3
+    authority_variant["adversarial_data_seed"] = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "shopping",
+                "method": "create_product_review",
+                "args": {"entity_pk_value": 3, "detail": "payload"},
+            }
+        ],
+    }
 
     async def fake_run_judge(*args, **kwargs):
         return {
@@ -2173,7 +2245,17 @@ async def test_run_strategy_variation_marks_all_variant_generation_exceptions_fa
 async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
     variant = json.loads(json.dumps(task))
-    variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 2
+    variant["adversarial_data_seed"] = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "shopping",
+                "method": "create_product_review",
+                "args": {"entity_pk_value": 2, "detail": "payload"},
+            }
+        ],
+    }
     initial_result = {"trajectory_dir": str(tmp_path / "traj")}
     checkpoint_fingerprint = phase_4_adversarial._phase_4_postprocess_fingerprint(
         task,
@@ -2283,7 +2365,17 @@ async def test_run_strategy_variation_resume_ignores_saved_variant_result_from_d
 ):
     task, instances = _prepared_adv_task()
     variant = json.loads(json.dumps(task))
-    variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 2
+    variant["adversarial_data_seed"] = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "shopping",
+                "method": "create_product_review",
+                "args": {"entity_pk_value": 2, "detail": "payload"},
+            }
+        ],
+    }
     initial_result = {"trajectory_dir": str(tmp_path / "traj")}
     checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
@@ -2400,7 +2492,17 @@ async def test_run_strategy_variation_resume_reuses_variant_result_fingerprint_w
 ):
     task, instances = _prepared_adv_task()
     variant = json.loads(json.dumps(task))
-    variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 2
+    variant["adversarial_data_seed"] = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "shopping",
+                "method": "create_product_review",
+                "args": {"entity_pk_value": 2, "detail": "payload"},
+            }
+        ],
+    }
     initial_result = {"trajectory_dir": str(tmp_path / "traj")}
     source_fingerprint = phase_4_adversarial._phase_4_variant_fingerprint(
         task,
@@ -2497,7 +2599,17 @@ async def test_run_strategy_variation_resume_reruns_refusal_variant_without_hist
 ):
     task, instances = _prepared_adv_task()
     variant = json.loads(json.dumps(task))
-    variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 2
+    variant["adversarial_data_seed"] = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "shopping",
+                "method": "create_product_review",
+                "args": {"entity_pk_value": 2, "detail": "payload"},
+            }
+        ],
+    }
     initial_result = {"trajectory_dir": str(tmp_path / "traj")}
     checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
@@ -2607,9 +2719,29 @@ async def test_run_strategy_variation_resume_continues_partial_generation_checkp
 ):
     task, instances = _prepared_adv_task()
     specificity_variant = json.loads(json.dumps(task))
-    specificity_variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 2
+    specificity_variant["adversarial_data_seed"] = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "shopping",
+                "method": "create_product_review",
+                "args": {"entity_pk_value": 2, "detail": "payload"},
+            }
+        ],
+    }
     authority_variant = json.loads(json.dumps(task))
-    authority_variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 3
+    authority_variant["adversarial_data_seed"] = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "shopping",
+                "method": "create_product_review",
+                "args": {"entity_pk_value": 3, "detail": "payload"},
+            }
+        ],
+    }
     initial_result = {"trajectory_dir": str(tmp_path / "traj")}
     checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
@@ -2692,7 +2824,17 @@ async def test_run_strategy_variation_resume_reruns_when_generation_records_miss
 ):
     task, instances = _prepared_adv_task()
     variant = json.loads(json.dumps(task))
-    variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 2
+    variant["adversarial_data_seed"] = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "shopping",
+                "method": "create_product_review",
+                "args": {"entity_pk_value": 2, "detail": "payload"},
+            }
+        ],
+    }
     initial_result = {"trajectory_dir": str(tmp_path / "traj")}
     checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
@@ -2789,7 +2931,17 @@ async def test_run_strategy_variation_resume_ignores_stale_checkpoint(monkeypatc
 
     async def fake_generate_variant(*args, **kwargs):
         variant = json.loads(json.dumps(task))
-        variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 2
+        variant["adversarial_data_seed"] = {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "shopping",
+                    "method": "create_product_review",
+                    "args": {"entity_pk_value": 2, "detail": "payload"},
+                }
+            ],
+        }
         return variant
 
     async def fake_evaluate_variant(**kwargs):
@@ -2838,7 +2990,17 @@ async def test_run_strategy_variation_resume_ignores_malformed_checkpoint(monkey
 
     async def fake_generate_variant(*args, **kwargs):
         variant = json.loads(json.dumps(task))
-        variant["adversarial_data_seed"]["api_calls"][0]["body"]["x"] = 2
+        variant["adversarial_data_seed"] = {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "shopping",
+                    "method": "create_product_review",
+                    "args": {"entity_pk_value": 2, "detail": "payload"},
+                }
+            ],
+        }
         return variant
 
     async def fake_evaluate_variant(**kwargs):
@@ -3045,8 +3207,15 @@ async def test_phase_4_run_fails_fast_on_storage_state_preflight_error(monkeypat
                     "data_seed": {"mechanism": "none"},
                     "reward_function": {"adversarial_reward": {"type": "noop"}},
                     "adversarial_data_seed": {
-                        "mechanism": "api",
-                        "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+                        "mechanism": "editor",
+                        "editor_calls": [
+                            {
+                                "benchmark": "webarena_verified",
+                                "site": "shopping",
+                                "method": "create_product_review",
+                                "args": {"entity_pk_value": 1, "detail": "payload"},
+                            }
+                        ],
                     },
                     **_phase4_exposure_fields(),
                 }
@@ -3141,8 +3310,15 @@ async def test_phase_4_run_checks_existing_storage_state_freshness(monkeypatch, 
         "data_seed": {"mechanism": "none"},
         "reward_function": {"adversarial_reward": {"type": "noop"}},
         "adversarial_data_seed": {
-            "mechanism": "api",
-            "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "shopping",
+                    "method": "create_product_review",
+                    "args": {"entity_pk_value": 1, "detail": "payload"},
+                }
+            ],
         },
     }
     adv_task.update(_phase4_exposure_fields())
@@ -3235,8 +3411,15 @@ async def test_phase_4_run_rejects_non_worldsim_v5_benchmark(monkeypatch, tmp_pa
         "data_seed": {"mechanism": "none"},
         "reward_function": {"adversarial_reward": {"type": "noop"}},
         "adversarial_data_seed": {
-            "mechanism": "api",
-            "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "shopping",
+                    "method": "create_product_review",
+                    "args": {"entity_pk_value": 1, "detail": "payload"},
+                }
+            ],
         },
         **_phase4_exposure_fields(),
     }
@@ -3296,8 +3479,15 @@ async def test_phase_4_run_clears_storage_error_after_retry_success(monkeypatch,
         "data_seed": {"mechanism": "none"},
         "reward_function": {"adversarial_reward": {"type": "noop"}},
         "adversarial_data_seed": {
-            "mechanism": "api",
-            "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "shopping",
+                    "method": "create_product_review",
+                    "args": {"entity_pk_value": 1, "detail": "payload"},
+                }
+            ],
         },
     }
     adv_task.update(_phase4_exposure_fields())
@@ -3394,8 +3584,15 @@ async def test_phase_4_run_agent_runtime_error_precedes_host_api_preflight(monke
                     "data_seed": {"mechanism": "none"},
                     "reward_function": {"adversarial_reward": {"type": "noop"}},
                     "adversarial_data_seed": {
-                        "mechanism": "api",
-                        "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+                        "mechanism": "editor",
+                        "editor_calls": [
+                            {
+                                "benchmark": "webarena_verified",
+                                "site": "shopping",
+                                "method": "create_product_review",
+                                "args": {"entity_pk_value": 1, "detail": "payload"},
+                            }
+                        ],
                     },
                     **_phase4_exposure_fields(),
                 }
@@ -3484,8 +3681,15 @@ async def test_phase_4_run_skip_host_bound_storage_state_auth_rewrites_only_mism
                     "data_seed": {"mechanism": "none"},
                     "reward_function": {"adversarial_reward": {"type": "noop"}},
                     "adversarial_data_seed": {
-                        "mechanism": "api",
-                        "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+                        "mechanism": "editor",
+                        "editor_calls": [
+                            {
+                                "benchmark": "webarena_verified",
+                                "site": "shopping",
+                                "method": "create_product_review",
+                                "args": {"entity_pk_value": 1, "detail": "payload"},
+                            }
+                        ],
                     },
                     **_phase4_exposure_fields(),
                 }
@@ -3599,8 +3803,15 @@ async def test_phase_4_run_fails_on_gathered_postprocess_exception(monkeypatch, 
                         "adversarial_reward": {"type": "noop"},
                     },
                     "adversarial_data_seed": {
-                        "mechanism": "api",
-                        "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+                        "mechanism": "editor",
+                        "editor_calls": [
+                            {
+                                "benchmark": "webarena_verified",
+                                "site": "shopping",
+                                "method": "create_product_review",
+                                "args": {"entity_pk_value": 1, "detail": "payload"},
+                            }
+                        ],
                     },
                     **_phase4_exposure_fields(
                         site="shopping",
@@ -4259,8 +4470,15 @@ async def test_phase_4_run_filters_tasks_by_sites_before_rebase(monkeypatch, tmp
                     "data_seed": {"mechanism": "none"},
                     "reward_function": {"adversarial_reward": {"type": "noop"}},
                     "adversarial_data_seed": {
-                        "mechanism": "api",
-                        "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+                        "mechanism": "editor",
+                        "editor_calls": [
+                            {
+                                "benchmark": "webarena_verified",
+                                "site": "shopping",
+                                "method": "create_product_review",
+                                "args": {"entity_pk_value": 1, "detail": "payload"},
+                            }
+                        ],
                     },
                     **_phase4_exposure_fields(benign_task_id="benign-gitlab"),
                 },
@@ -4659,8 +4877,15 @@ async def test_run_adversarial_task_fallback_delivery_site_uses_deterministic_re
                 "adversarial_reward": {"type": "noop"},
             },
             "adversarial_data_seed": {
-                "mechanism": "api",
-                "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+                "mechanism": "editor",
+                "editor_calls": [
+                    {
+                        "benchmark": "webarena_verified",
+                        "site": "shopping",
+                        "method": "create_product_review",
+                        "args": {"entity_pk_value": 1, "detail": "payload"},
+                    }
+                ],
             },
             "delivery_channel": {
                 "mechanism": "form",
@@ -4763,8 +4988,15 @@ async def test_run_adversarial_task_marks_cross_site_delivery_replica_dirty_in_r
                 "adversarial_reward": {"type": "noop"},
             },
             "adversarial_data_seed": {
-                "mechanism": "api",
-                "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+                "mechanism": "editor",
+                "editor_calls": [
+                    {
+                        "benchmark": "webarena_verified",
+                        "site": "shopping",
+                        "method": "create_product_review",
+                        "args": {"entity_pk_value": 1, "detail": "payload"},
+                    }
+                ],
             },
             "delivery_channel": {
                 "mechanism": "form",
@@ -4796,8 +5028,15 @@ async def test_run_adversarial_task_marks_cross_site_delivery_replica_dirty_in_r
                 "adversarial_reward": {"type": "noop"},
             },
             "adversarial_data_seed": {
-                "mechanism": "api",
-                "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+                "mechanism": "editor",
+                "editor_calls": [
+                    {
+                        "benchmark": "webarena_verified",
+                        "site": "shopping",
+                        "method": "create_product_review",
+                        "args": {"entity_pk_value": 1, "detail": "payload"},
+                    }
+                ],
             },
         },
         instances,
@@ -4878,8 +5117,15 @@ async def test_phase_4_run_marks_all_error_results_failed(monkeypatch, tmp_path)
                         "adversarial_reward": {"type": "noop"},
                     },
                     "adversarial_data_seed": {
-                        "mechanism": "api",
-                        "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+                        "mechanism": "editor",
+                        "editor_calls": [
+                            {
+                                "benchmark": "webarena_verified",
+                                "site": "shopping",
+                                "method": "create_product_review",
+                                "args": {"entity_pk_value": 1, "detail": "payload"},
+                            }
+                        ],
                     },
                     **_phase4_exposure_fields(
                         site="shopping",
@@ -4983,6 +5229,13 @@ async def test_phase_4_run_marks_all_error_results_failed(monkeypatch, tmp_path)
 
 @pytest.mark.asyncio
 async def test_run_adversarial_task_returns_seed_preflight_mismatch(monkeypatch, tmp_path):
+    # This test needs real preflight to run so it can fail and produce a
+    # mismatch. Restore the actual implementation (autouse fixture stubs it).
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "preflight_editor_seed_calls",
+        seeding.preflight_editor_seed_calls,
+    )
     instances = [
         BenchmarkInstance(
             site_name="map",
@@ -5047,6 +5300,11 @@ async def test_run_adversarial_task_returns_seed_preflight_mismatch(monkeypatch,
 async def test_run_adversarial_task_does_not_mark_reset_cache_clean_on_preflight_mismatch(
     monkeypatch, tmp_path
 ):
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "preflight_editor_seed_calls",
+        seeding.preflight_editor_seed_calls,
+    )
     instances = [
         BenchmarkInstance(
             site_name="map",
@@ -5120,6 +5378,11 @@ async def test_run_adversarial_task_does_not_mark_reset_cache_clean_on_preflight
 async def test_run_adversarial_task_classifies_invalid_editor_shape_as_preflight_mismatch(
     monkeypatch, tmp_path
 ):
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "preflight_editor_seed_calls",
+        seeding.preflight_editor_seed_calls,
+    )
     instances = [
         BenchmarkInstance(
             site_name="gitlab",
@@ -5235,22 +5498,28 @@ async def test_run_adversarial_task_classifies_invalid_seed_shape_as_preflight_m
 
 @pytest.mark.asyncio
 async def test_preflight_adversarial_seed_converts_runtime_errors_to_mismatches(monkeypatch):
-    monkeypatch.setattr(
-        phase_4_adversarial,
-        "preflight_http_seed_calls",
-        lambda seed, instance: (_ for _ in ()).throw(RuntimeError("resolver exploded")),
-    )
+    def boom(seed, instance):
+        raise RuntimeError("editor exploded")
+
+    monkeypatch.setattr(phase_4_adversarial, "preflight_editor_seed_calls", boom)
 
     report = await phase_4_adversarial.preflight_adversarial_seed(
         {
-            "mechanism": "api",
-            "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "gitlab",
+                    "method": "create_group",
+                    "args": {"name_template": "seed-group"},
+                }
+            ],
         },
         {"site_name": "gitlab", "site_url": "http://gitlab.test"},
     )
 
     assert report.ok is False
-    assert [m.message for m in report.mismatches] == ["resolver exploded"]
+    assert any("editor exploded" in m.detail for m in report.mismatches)
 
 
 @pytest.mark.asyncio
@@ -5357,8 +5626,15 @@ async def test_admission_excludes_invalid_contracts(tmp_path, monkeypatch):
                 "adversarial_reward": {"type": "noop"},
             },
             "adversarial_data_seed": {
-                "mechanism": "api",
-                "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+                "mechanism": "editor",
+                "editor_calls": [
+                    {
+                        "benchmark": "webarena_verified",
+                        "site": "shopping",
+                        "method": "create_product_review",
+                        "args": {"entity_pk_value": 1, "detail": "payload"},
+                    }
+                ],
             },
             **_phase4_exposure_fields(
                 benign_task_id="benign-valid",
@@ -5375,8 +5651,15 @@ async def test_admission_excludes_invalid_contracts(tmp_path, monkeypatch):
                 "adversarial_reward": {"type": "noop"},
             },
             "adversarial_data_seed": {
-                "mechanism": "api",
-                "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+                "mechanism": "editor",
+                "editor_calls": [
+                    {
+                        "benchmark": "webarena_verified",
+                        "site": "shopping",
+                        "method": "create_product_review",
+                        "args": {"entity_pk_value": 1, "detail": "payload"},
+                    }
+                ],
             },
             **_phase4_exposure_fields(
                 benign_task_id="benign-invalid",
@@ -5393,8 +5676,15 @@ async def test_admission_excludes_invalid_contracts(tmp_path, monkeypatch):
                 "adversarial_reward": {"type": "noop"},
             },
             "adversarial_data_seed": {
-                "mechanism": "api",
-                "api_calls": [{"method": "POST", "path": "/api/seed", "body": {"x": 1}}],
+                "mechanism": "editor",
+                "editor_calls": [
+                    {
+                        "benchmark": "webarena_verified",
+                        "site": "shopping",
+                        "method": "create_product_review",
+                        "args": {"entity_pk_value": 1, "detail": "payload"},
+                    }
+                ],
             },
             **_phase4_exposure_fields(
                 benign_task_id="benign-missing",
