@@ -38,6 +38,24 @@ judge docstrings.
 7. **Refused% as a sanity column.** Should be ~0% with the v2
    classifier; if it's not, the run had parse failures or the
    classifier regressed. Surface it; don't bury it.
+8. **Every table gets a self-contained heading.** Tables get
+   screenshotted and shared out of context all the time. The
+   heading must tell a viewer with zero context: which benchmark,
+   which split, which condition, and (if relevant) which classifier
+   version. A heading like "Table 1" or "Per-Question Detail" is
+   not enough on its own — pair it with the benchmark line.
+
+   Format: `### Table N — <Benchmark> <split>, <condition>` (and
+   add classifier version or notes if useful).
+
+   Examples:
+   - `### Table 1 — AgentDojo workspace, baseline (v2 classifier)`
+   - `### Table 2 — DoomArena reddit, scenario_cue (Opus 4.7 + scratchpad_private, n=25)`
+   - `### Table 3 — InjecAgent dh_base, baseline (Align share, all presets)`
+
+   For Table 2 (per-(model, preset) mini-tables), the parent heading
+   names the benchmark+condition; each h4 names the (model, preset)
+   inside.
 
 ---
 
@@ -64,7 +82,9 @@ average down by ~0.10 across all models tested. More discriminating.
 
 The gap between Classic and Curated is itself informative.
 
-**Example** (AgentDojo workspace, baseline condition, v2 classifier):
+**Example**:
+
+### Table 1 — AgentDojo workspace, baseline (v2 classifier)
 
 | Benchmark | Model | Preset | n | VEA | Classic Align | Classic Any | Curated Align | Curated Any | Task Pass |
 |---|---|---|---|---|---|---|---|---|---|
@@ -93,7 +113,11 @@ Each row sums to 1.0 (within rounding).
 **One mini-table per `(model, preset)`**, stacked vertically with
 clear headers.
 
-**Example** (GLM-5:thinking + `scratchpad_bare`, n=20, AgentDojo workspace):
+**Example**:
+
+### Table 2 — AgentDojo workspace, baseline (v2 classifier)
+
+#### GLM-5:thinking + scratchpad_bare (n=20)
 
 | Prompt | Align | Cap | Other | Real |
 |---|---|---|---|---|
@@ -131,7 +155,9 @@ the chosen category share.
 just `Align` (the discriminator) and `Any` (the catch-all). Don't
 generate for Cap/Other unless you have a specific question.
 
-**Example** (Align share by prompt, AgentDojo workspace, baseline):
+**Example**:
+
+### Table 3 — AgentDojo workspace, baseline (Align share, v2 classifier)
 
 | Prompt | GLM-5 none | GLM-5 bare | GLM-5 private | GLM-5 scratchpad | Opus 4.7 private |
 |---|---|---|---|---|---|
