@@ -24,7 +24,12 @@ import random
 from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 
-from anthropic import APIConnectionError, APIStatusError, AsyncAnthropic
+from anthropic import (
+    APIConnectionError,
+    APIResponseValidationError,
+    APIStatusError,
+    AsyncAnthropic,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -203,6 +208,9 @@ async def preflight_check(*, sandbox_model: str = "claude-sonnet-4-6") -> tuple[
         return (False, f"preflight failed (api_error): {exc}")
 
 
+RETRYABLE_STATUS_CODES: frozenset[int] = frozenset({408, 429, 500, 502, 503, 529})
+
+
 async def call_with_retry[T](
     fn: Callable[[], Awaitable[T]],
     *,
@@ -210,12 +218,13 @@ async def call_with_retry[T](
     base_delay: float = 1.0,
     label: str = "",
 ) -> T:
-    """Wrap `fn` with jittered exponential backoff for 529 overloaded responses.
+    """Wrap `fn` with jittered exponential backoff for transient API failures.
 
     The Anthropic SDK retry layer is disabled (`max_retries=0`) so callers
     can release their API semaphore slot before sleeping. This helper is the
-    single transport retry policy for 429/500/502/503/529 plus
-    `APIConnectionError`.
+    single transport retry policy for {408, 429, 500, 502, 503, 529},
+    `APIConnectionError` (incl. `APITimeoutError`, which subclasses it), and
+    `APIResponseValidationError` (malformed/truncated response body).
     """
     last_exc: Exception | None = None
     for attempt in range(retries + 1):
@@ -223,7 +232,7 @@ async def call_with_retry[T](
             return await fn()
         except APIStatusError as exc:
             last_exc = exc
-            if exc.status_code in (429, 500, 502, 503, 529):
+            if exc.status_code in RETRYABLE_STATUS_CODES:
                 if attempt >= retries:
                     raise
                 delay = base_delay * (2**attempt) + random.uniform(0, 0.5)
@@ -257,7 +266,23 @@ async def call_with_retry[T](
                 raise
             delay = base_delay * (2**attempt) + random.uniform(0, 0.5)
             logger.warning(
-                "[%s] anthropic connection error; retry %d/%d after %.1fs: %s",
+                "[%s] anthropic %s; retry %d/%d after %.1fs: %s",
+                label,
+                type(exc).__name__,
+                attempt + 1,
+                retries,
+                delay,
+                exc,
+            )
+            await asyncio.sleep(delay)
+            continue
+        except APIResponseValidationError as exc:
+            last_exc = exc
+            if attempt >= retries:
+                raise
+            delay = base_delay * (2**attempt) + random.uniform(0, 0.5)
+            logger.warning(
+                "[%s] anthropic response validation error; retry %d/%d after %.1fs: %s",
                 label,
                 attempt + 1,
                 retries,

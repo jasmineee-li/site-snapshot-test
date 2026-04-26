@@ -459,3 +459,136 @@ async def test_call_with_retry_sleeps_after_attempt_semaphore_is_released(monkey
     result = await anthropic_client.call_with_retry(flaky, retries=1, label="sem-release-test")
     assert result == "ok"
     assert observed_locked == [False]
+
+
+# Status code 408 was added to the retry set after the GitLab attrition
+# audit found that Anthropic SDK retries 408 by default but our helper
+# didn't, dropping ~10 of 56 "L3 classifier call failed" cases that would
+# have recovered on a second attempt.
+@pytest.mark.asyncio
+async def test_call_with_retry_retries_on_408(monkeypatch):
+    import httpx
+
+    monkeypatch.setattr(anthropic_client.asyncio, "sleep", lambda *_args, **_kw: _noop_async())
+    request = httpx.Request("POST", "https://example.test/v1/messages")
+    response = httpx.Response(408, request=request)
+    calls = {"n": 0}
+
+    async def flaky() -> str:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise APIStatusError(message="request timeout", response=response, body=None)
+        return "ok"
+
+    result = await anthropic_client.call_with_retry(flaky, retries=2, label="408-retry-test")
+    assert result == "ok"
+    assert calls["n"] == 2
+
+
+@pytest.mark.asyncio
+async def test_call_with_retry_retries_on_response_validation_error(monkeypatch):
+    """A truncated/malformed 200 response surfaces as APIResponseValidationError;
+    that's transient (proxy buffer, partial stream) and worth one retry."""
+    import httpx
+    from anthropic import APIResponseValidationError
+
+    monkeypatch.setattr(anthropic_client.asyncio, "sleep", lambda *_args, **_kw: _noop_async())
+    request = httpx.Request("POST", "https://example.test/v1/messages")
+    response = httpx.Response(200, request=request)
+    calls = {"n": 0}
+
+    async def flaky() -> str:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise APIResponseValidationError(response=response, body={}, message="malformed")
+        return "ok"
+
+    result = await anthropic_client.call_with_retry(flaky, retries=2, label="parse-retry-test")
+    assert result == "ok"
+    assert calls["n"] == 2
+
+
+@pytest.mark.asyncio
+async def test_call_with_retry_does_not_retry_on_400(monkeypatch):
+    """BadRequestError (400) is deterministic and must not be retried."""
+    import httpx
+    from anthropic import BadRequestError
+
+    monkeypatch.setattr(anthropic_client.asyncio, "sleep", lambda *_args, **_kw: _noop_async())
+    request = httpx.Request("POST", "https://example.test/v1/messages")
+    response = httpx.Response(400, request=request)
+    calls = {"n": 0}
+
+    async def flaky() -> str:
+        calls["n"] += 1
+        raise BadRequestError(message="bad request", response=response, body=None)
+
+    with pytest.raises(BadRequestError):
+        await anthropic_client.call_with_retry(flaky, retries=3, label="400-no-retry-test")
+    assert calls["n"] == 1
+
+
+@pytest.mark.asyncio
+async def test_call_with_retry_does_not_retry_on_401(monkeypatch):
+    """AuthenticationError (401) is deterministic and must not be retried."""
+    import httpx
+    from anthropic import AuthenticationError
+
+    monkeypatch.setattr(anthropic_client.asyncio, "sleep", lambda *_args, **_kw: _noop_async())
+    request = httpx.Request("POST", "https://example.test/v1/messages")
+    response = httpx.Response(401, request=request)
+    calls = {"n": 0}
+
+    async def flaky() -> str:
+        calls["n"] += 1
+        raise AuthenticationError(message="bad token", response=response, body=None)
+
+    with pytest.raises(AuthenticationError):
+        await anthropic_client.call_with_retry(flaky, retries=3, label="401-no-retry-test")
+    assert calls["n"] == 1
+
+
+@pytest.mark.asyncio
+async def test_call_with_retry_does_not_retry_on_403(monkeypatch):
+    """PermissionDeniedError (403) is deterministic and must not be retried."""
+    import httpx
+    from anthropic import PermissionDeniedError
+
+    monkeypatch.setattr(anthropic_client.asyncio, "sleep", lambda *_args, **_kw: _noop_async())
+    request = httpx.Request("POST", "https://example.test/v1/messages")
+    response = httpx.Response(403, request=request)
+    calls = {"n": 0}
+
+    async def flaky() -> str:
+        calls["n"] += 1
+        raise PermissionDeniedError(message="quota", response=response, body=None)
+
+    with pytest.raises(PermissionDeniedError):
+        await anthropic_client.call_with_retry(flaky, retries=3, label="403-no-retry-test")
+    assert calls["n"] == 1
+
+
+@pytest.mark.asyncio
+async def test_call_with_retry_retries_on_api_timeout(monkeypatch):
+    """APITimeoutError subclasses APIConnectionError; must retry."""
+    import httpx
+    from anthropic import APITimeoutError
+
+    monkeypatch.setattr(anthropic_client.asyncio, "sleep", lambda *_args, **_kw: _noop_async())
+    request = httpx.Request("POST", "https://example.test/v1/messages")
+    calls = {"n": 0}
+
+    async def flaky() -> str:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise APITimeoutError(request=request)
+        return "ok"
+
+    result = await anthropic_client.call_with_retry(flaky, retries=2, label="timeout-retry-test")
+    assert result == "ok"
+    assert calls["n"] == 2
+
+
+async def _noop_async() -> None:
+    """Awaitable no-op used as a fast `asyncio.sleep` substitute in tests."""
+    return None
