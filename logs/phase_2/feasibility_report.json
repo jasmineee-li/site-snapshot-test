@@ -1,28 +1,28 @@
 {
-  "generated_at": "2026-04-24T19:56:50Z",
-  "instances": "instances.scale.json",
+  "generated_at": "2026-04-26T05:24:50Z",
+  "instances": "instances.smoke.json",
   "host_fingerprint": {
-    "host_config": "instances.scale.json",
-    "instances_digest": "7ad7c64af626",
-    "editor_commit": "unknown",
-    "dataset_commit": "unknown"
+    "host_config": "instances.smoke.json",
+    "instances_digest": "d56b8204fb91",
+    "editor_commit": "50d834ba398c",
+    "dataset_commit": "50d834ba398c"
   },
-  "elapsed_seconds": 723.626,
-  "phase_2_status": "complete",
-  "verified_count": 106,
-  "infeasible_count": 18,
+  "elapsed_seconds": 288.746,
+  "phase_2_status": "failed",
+  "verified_count": 92,
+  "infeasible_count": 6,
   "skipped_already_verified_count": 0,
   "cleanup_warnings": [],
   "per_site": {
     "reddit": {
-      "verified": 33,
-      "infeasible": 11,
+      "verified": 13,
+      "infeasible": 5,
       "skipped": 0,
       "unverified": 0
     },
     "gitlab": {
-      "verified": 73,
-      "infeasible": 7,
+      "verified": 79,
+      "infeasible": 1,
       "skipped": 0,
       "unverified": 0
     }

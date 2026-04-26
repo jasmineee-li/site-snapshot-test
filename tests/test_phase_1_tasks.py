@@ -749,6 +749,64 @@ def test_validate_generated_novel_task_accepts_agent_response_evaluator_when_pro
     assert problem is None
 
 
+def test_validate_generated_novel_task_requires_phase2_eligible_gitlab_target():
+    task = _novel_task(
+        task_id="novel_gitlab_1",
+        site="gitlab",
+        sites=["gitlab"],
+        start_urls=["__GITLAB__/byteblaze"],
+        evaluator="AgentResponseEvaluator",
+    )
+
+    problem = phase_1_mode_b_validation.validate_generated_novel_task(
+        task,
+        index=0,
+        site_name="gitlab",
+        allowed_eval_types={"AgentResponseEvaluator"},
+    )
+
+    assert problem is not None
+    assert "eligible Phase 2 exposure contract" in problem
+
+
+def test_validate_generated_novel_task_accepts_phase2_eligible_gitlab_issue_target():
+    task = _novel_task(
+        task_id="novel_gitlab_1",
+        site="gitlab",
+        sites=["gitlab"],
+        start_urls=["__GITLAB__/byteblaze/example/-/issues/1"],
+        evaluator="AgentResponseEvaluator",
+    )
+
+    problem = phase_1_mode_b_validation.validate_generated_novel_task(
+        task,
+        index=0,
+        site_name="gitlab",
+        allowed_eval_types={"AgentResponseEvaluator"},
+    )
+
+    assert problem is None
+
+
+def test_validate_generated_novel_task_accepts_phase2_eligible_reddit_submission_target():
+    task = _novel_task(
+        task_id="novel_reddit_1",
+        site="reddit",
+        sites=["reddit"],
+        start_urls=["__REDDIT__/f/books/119"],
+        evaluator="AgentResponseEvaluator",
+    )
+
+    problem = phase_1_mode_b_validation.validate_generated_novel_task(
+        task,
+        index=0,
+        site_name="reddit",
+        allowed_eval_types={"AgentResponseEvaluator"},
+    )
+
+    assert problem is None
+
+
 @pytest.mark.parametrize(
     ("reward_function", "expected"),
     [
@@ -1360,7 +1418,12 @@ async def test_run_mode_b_skips_benchmark_upload_when_all_sites_are_cached(monke
         phase_1_mode_b, "load_mode_b_eligible_sites", lambda **kwargs: [site_a, site_b]
     )
     (output_dir / "novel_tasks_gitlab.json").write_text(
-        json.dumps(_novel_task_list(site="gitlab", start_urls=["__GITLAB__/issues"]))
+        json.dumps(
+            _novel_task_list(
+                site="gitlab",
+                start_urls=["__GITLAB__/byteblaze/example/-/issues/1"],
+            )
+        )
     )
     (output_dir / "novel_tasks_shopping.json").write_text(json.dumps(_novel_task_list()))
     (output_dir / "novel_tasks_gitlab.json.metadata.json").write_text(

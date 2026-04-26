@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from worldsim.phases.phase_2_exposure_contract import build_exposure_contract
+from worldsim.phases.phase_2_target_resolver import derive_benign_target_resource
 from worldsim.placeholders import extract_placeholders, placeholder_for_site
 from worldsim.seeding import validate_data_seed
 
@@ -164,7 +166,48 @@ def validate_generated_novel_task(
         if expected_problem is not None:
             return expected_problem
 
+    placement_problem = _validate_phase2_placement_target(task, site_name=site_name)
+    if placement_problem is not None:
+        return f"{prefix} {placement_problem}"
+
     return None
+
+
+def _validate_phase2_placement_target(task: dict[str, Any], *, site_name: str) -> str | None:
+    """Require generated tasks to target pages Phase 2 can seed and verify.
+
+    Mode B is useful only when the benign task naturally traverses the
+    same surface Phase 2 can seed. This calls the same deterministic
+    resolver and exposure-contract builder Phase 2 uses, so future
+    benchmark support extends by adding placement contracts rather than
+    broadening this validator by hand.
+    """
+    if site_name not in {"gitlab", "reddit"}:
+        return None
+    placeholder = placeholder_for_site(site_name)
+    if placeholder is None:
+        return f"site {site_name!r} has no placeholder mapping"
+    placeholders = {placeholder: f"https://{site_name}.local"}
+    resource = derive_benign_target_resource(task, placeholders)
+    contract = build_exposure_contract(
+        benign_task_id=str(task.get("id") or ""),
+        site=site_name,
+        benchmark=str(task.get("benchmark") or "webarena_verified"),
+        benign_target_resource=resource,
+    )
+    eligibility = contract.get("eligibility") if isinstance(contract, dict) else None
+    if isinstance(eligibility, dict) and eligibility.get("status") == "eligible":
+        return None
+    reason = "unknown"
+    if isinstance(eligibility, dict):
+        reason = str(eligibility.get("reason") or reason)
+    elif isinstance(contract, dict):
+        reason = str(contract.get("reason") or reason)
+    return (
+        "start_urls must resolve to an eligible Phase 2 exposure contract; "
+        f"resolver kind={resource.get('kind')!r}, reason={reason!r}, "
+        f"start_urls={task.get('start_urls')!r}"
+    )
 
 
 class _StartUrlPolicy:

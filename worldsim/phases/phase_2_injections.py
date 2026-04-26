@@ -3003,6 +3003,7 @@ def _phase_2a_eligible_tasks(
     dropped: list[dict[str, Any]] = []
     for task in site_tasks:
         task_id = str(task.get("id") or "")
+        origin = str(task.get("origin") or "")
         exposure_contract = (
             exposure_contracts.get(task_id) if isinstance(exposure_contracts, Mapping) else None
         )
@@ -3013,6 +3014,7 @@ def _phase_2a_eligible_tasks(
                 dropped.append(
                     {
                         "task_id": task_id,
+                        "origin": origin,
                         "kind": exposure_contract.get("kind"),
                         "reason": (
                             str(eligibility.get("reason"))
@@ -3035,6 +3037,7 @@ def _phase_2a_eligible_tasks(
             dropped.append(
                 {
                     "task_id": task_id,
+                    "origin": origin,
                     "kind": None,
                     "reason": str(record.get("reason") or "unresolved_target_resource"),
                     "anchors": dict(anchors),
@@ -3049,6 +3052,7 @@ def _phase_2a_eligible_tasks(
             dropped.append(
                 {
                     "task_id": task_id,
+                    "origin": origin,
                     "kind": kind,
                     "reason": "no_addressable_method_on_site",
                     "anchors": dict(anchors),
@@ -3072,32 +3076,29 @@ def _phase_2a_eligible_tasks(
         )
         identity_only = available == frozenset({"{benign_user_handle}"})
         if identity_only:
-            # Is there at least one spec for this kind with a free_text
-            # body-accepting binding? If yes, dashboard-list routing via
-            # @mention remains viable.
+            # When the only token reachable from the resolved anchors is the
+            # user handle, the seed needs somewhere to land. Two routes:
+            #   - dashboard-list @mention: a free_text comment/note body that
+            #     references the user handle.
+            #   - direct field overwrite: a free_text binding the seeder can
+            #     populate (e.g. bio, description, content, title).
+            # Either route is viable; the field name is not load-bearing.
             has_body_route = False
             for method in site_methods:
                 try:
                     spec = method_spec(site, method, benchmark=benchmark)
                 except KeyError:
                     continue
-                for arg_name, binding in spec.bindings.items():
-                    if binding.kind == "free_text" and arg_name in {
-                        "body",
-                        "note_body",
-                        "note",
-                        "comment",
-                    }:
-                        has_body_route = True
-                        break
-                if has_body_route:
+                if any(binding.kind == "free_text" for binding in spec.bindings.values()):
+                    has_body_route = True
                     break
             if not has_body_route:
                 dropped.append(
                     {
                         "task_id": task_id,
+                        "origin": origin,
                         "kind": kind,
-                        "reason": "only_user_handle_token_and_no_body_binding",
+                        "reason": "only_user_handle_token_and_no_free_text_binding",
                         "anchors": dict(anchors),
                         "available_tokens": sorted(available),
                     }
@@ -3267,6 +3268,8 @@ def _seed_delivery_mechanism(seed_template: Mapping[str, Any]) -> str:
 def _write_eligibility_drops(site: str, dropped: list[dict[str, Any]]) -> None:
     state_dir = Path(os.environ.get("WORLDSIM_STATE_DIR", "logs"))
     path = state_dir / "phase_2" / "dropped_no_contract.json"
+    new_task_path = state_dir / "phase_2" / "new_task_resolver_dropouts.json"
+    new_task_dropped = [entry for entry in dropped if entry.get("origin") == "new_task"]
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         with _ELIGIBILITY_DROPS_WRITE_LOCK:
@@ -3282,11 +3285,27 @@ def _write_eligibility_drops(site: str, dropped: list[dict[str, Any]]) -> None:
                     )
             existing.setdefault(site, []).extend(dropped)
             write_json_atomic(path, existing)
+
+            if new_task_dropped:
+                new_task_existing: dict[str, list[dict[str, Any]]] = {}
+                if new_task_path.exists():
+                    try:
+                        raw = json.loads(new_task_path.read_text())
+                        if isinstance(raw, dict):
+                            new_task_existing = raw
+                    except json.JSONDecodeError:
+                        logger.warning(
+                            "Phase 2: new_task_resolver_dropouts.json at %s is malformed; overwriting",
+                            new_task_path,
+                        )
+                new_task_existing.setdefault(site, []).extend(new_task_dropped)
+                write_json_atomic(new_task_path, new_task_existing)
         logger.info(
-            "Phase 2: dropped %d task(s) for site %r as no-contract (see %s)",
+            "Phase 2: dropped %d task(s) for site %r as no-contract (see %s); %d were new_task origin",
             len(dropped),
             site,
             path,
+            len(new_task_dropped),
         )
     except Exception:
         logger.exception("failed to write dropped_no_contract.json")

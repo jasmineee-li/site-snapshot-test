@@ -37,6 +37,7 @@ class TestEligibility:
         assert dropped == [
             {
                 "task_id": "t1",
+                "origin": "",
                 "kind": None,
                 "reason": "L3 probe raised: timeout",
                 "anchors": {},
@@ -125,8 +126,16 @@ class TestEligibility:
         _, dropped = _phase_2a_eligible_tasks(tasks, resources, "gitlab")
         assert len(dropped) == 1
         row = dropped[0]
-        expected_keys = {"task_id", "kind", "reason", "anchors", "available_tokens"}
+        expected_keys = {"task_id", "origin", "kind", "reason", "anchors", "available_tokens"}
         assert set(row.keys()) == expected_keys
+
+    def test_drop_log_carries_origin_for_new_task(self) -> None:
+        tasks = [{"id": "novel_gitlab_1", "origin": "new_task"}]
+        resources = {
+            "novel_gitlab_1": {"kind": None, "anchors": {}, "reason": "unresolved_target_resource"}
+        }
+        _, dropped = _phase_2a_eligible_tasks(tasks, resources, "gitlab")
+        assert dropped[0]["origin"] == "new_task"
 
 
 class TestWriteEligibilityDrops:
@@ -178,3 +187,53 @@ class TestWriteEligibilityDrops:
         assert path.exists()
         data = json.loads(path.read_text())
         assert data.get("gitlab") == []
+
+    def test_emits_new_task_resolver_dropouts_when_origin_present(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+        _write_eligibility_drops(
+            "gitlab",
+            [
+                {
+                    "task_id": "novel_gitlab_1",
+                    "origin": "new_task",
+                    "kind": None,
+                    "reason": "unresolved_target_resource",
+                    "anchors": {},
+                    "available_tokens": [],
+                },
+                {
+                    "task_id": "404",
+                    "origin": "existing_task",
+                    "kind": None,
+                    "reason": "unresolved_target_resource",
+                    "anchors": {},
+                    "available_tokens": [],
+                },
+            ],
+        )
+        new_task_path = tmp_path / "phase_2" / "new_task_resolver_dropouts.json"
+        assert new_task_path.exists()
+        data = json.loads(new_task_path.read_text())
+        assert [entry["task_id"] for entry in data["gitlab"]] == ["novel_gitlab_1"]
+
+    def test_skips_new_task_dropouts_file_when_no_new_task_drops(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+        _write_eligibility_drops(
+            "gitlab",
+            [
+                {
+                    "task_id": "404",
+                    "origin": "existing_task",
+                    "kind": None,
+                    "reason": "unresolved_target_resource",
+                    "anchors": {},
+                    "available_tokens": [],
+                }
+            ],
+        )
+        new_task_path = tmp_path / "phase_2" / "new_task_resolver_dropouts.json"
+        assert not new_task_path.exists()
