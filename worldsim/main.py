@@ -88,7 +88,7 @@ def build_parser() -> argparse.ArgumentParser:
     phase_cmd.add_argument(
         "--generate-novel",
         action="store_true",
-        help="For Phase 1, also generate Mode B novel tasks for eligible sites.",
+        help="For Phase 1, also generate novel tasks for eligible sites with uncovered injection surfaces.",
     )
     phase_cmd.add_argument(
         "--novel-tasks-per-site",
@@ -97,7 +97,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=_positive_int,
         default=None,
         metavar="N",
-        help="Phase 1 Mode B: generate N novel tasks per eligible site. Defaults to 30.",
+        help="Phase 1 generate-new-tasks: generate N novel tasks per eligible site. Defaults to 30.",
     )
     phase_cmd.add_argument(
         "--instances",
@@ -314,7 +314,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--generate-novel",
         action="store_true",
         default=argparse.SUPPRESS,
-        help="Override saved Phase 1 state to enable Mode B novel task generation.",
+        help="Override saved Phase 1 state to enable novel-task generation.",
     )
     resume_cmd.add_argument(
         "--novel-tasks-per-site",
@@ -323,7 +323,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=_positive_int,
         default=argparse.SUPPRESS,
         metavar="N",
-        help="Override saved Phase 1 Mode B novel task count per eligible site.",
+        help="Override saved Phase 1 novel-task count per eligible site.",
     )
     resume_cmd.add_argument(
         "--max-tasks-per-site",

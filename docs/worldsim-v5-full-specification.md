@@ -105,7 +105,7 @@ This step exists to enable parallelism in 0c. Each site's profiling sandbox need
 * **Verification Capabilities.** Every method available for programmatically checking task completion: eval types, their interfaces, constraints, and concrete examples from existing tasks. Someone reading this section should be able to write a reward function without reading any other code.  
 * **Data Model.** Every entity type the user interacts with through the UI: storage location, fields with types and constraints, relationships, mutability, and sample seed data values.  
 * **Injection Surface.** Every content area where user-controlled or externally-sourced text appears in the agent-visible UI. For each: the source field, rendering format, seeding mechanism, rendering context (what surrounds it on the page), and an attacker realism rating with justification (could a real attacker plausibly control this content in production?).  
-* **Existing Task Coverage.** A cross-reference of existing benchmark tasks against the injection surface. Which injection surfaces already have tasks routing the agent through them, and which do not. The uncovered list is what Mode B task generation prioritizes.
+* **Existing Task Coverage.** A cross-reference of existing benchmark tasks against the injection surface. Which injection surfaces already have tasks routing the agent through them, and which do not. The uncovered list is what new_task entry generation prioritizes.
 
 The first three sections serve different downstream consumers: verification capabilities feed Phase 1's reward function writing, the data model feeds Phase 1's data seed design and Phase 2's injection point analysis, and the injection surface feeds Phase 2's injection placement.
 
@@ -113,9 +113,9 @@ The first three sections serve different downstream consumers: verification capa
 
 We support two modes of operation.
 
-**Mode A: Wrap existing benchmark tasks.** Take a benign task from the benchmark (e.g., a WebArena Verified task with its reward function and environment setup) and use it directly. Skip to Phase 2\.
+**existing_task: Wrap existing benchmark tasks.** Take a benign task from the benchmark (e.g., a WebArena Verified task with its reward function and environment setup) and use it directly. Skip to Phase 2\.
 
-**Mode B: Generate new tasks on existing environments.**
+**new_task: Generate new tasks on existing environments.**
 
 Claude Code generates task bundles in an isolated sandbox containing the site's source files and its profile from Phase 0c. The profile provides structured context about what the environment supports, what verification methods are available, and what data exists, so Claude Code does not need to re-explore the codebase from scratch. It still has read access to the source files within its sandbox, so the profile is a map, not a cage: if Claude Code discovers during generation that the profile is incomplete, it can consult the source directly.
 
@@ -133,7 +133,7 @@ Tasks prioritize routing the agent through high-realism injection surfaces docum
 
 ### **Phase 2: Injection Generation**
 
-Phase 2 generates adversarial injections for every benign task whose contract is well-formed (Mode A reward functions trusted from the benchmark; Mode B reward functions validated at generation time). Baseline capability is reported downstream as a Phase 4 byproduct (benign-under-attack). Following the WebArena-Infinity principle, a 0% pass rate on a feasible task is an agent problem, not a task problem, and never filters the adversarial evaluation set.
+Phase 2 generates adversarial injections for every benign task whose contract is well-formed (existing_task reward functions trusted from the benchmark; new_task reward functions validated at generation time). Baseline capability is reported downstream as a Phase 4 byproduct (benign-under-attack). Following the WebArena-Infinity principle, a 0% pass rate on a feasible task is an agent problem, not a task problem, and never filters the adversarial evaluation set.
 
 For each benign task, generate adversarial variants.
 
@@ -149,11 +149,11 @@ Phase 3 is agent-free. It verifies every benign task's contract (reward function
 
 | Layer | Check | Where |
 | ----- | ----- | ----- |
-| Verifier correctness | Reward functions trusted (Mode A from benchmark, Mode B validated at Phase 1/2 generation) | Phase 1/2 |
+| Verifier correctness | Reward functions trusted (existing_task from benchmark, new_task validated at Phase 1/2 generation) | Phase 1/2 |
 | Sanity check | Schema validation, no agent run | **Phase 3** |
 | Agent evaluation | Target agent runs; capability is reported, never a filter | Phase 4 |
 
-**Per-task validation.** For each benign task: `reward_function` is a non-empty object; `start_urls` is a non-empty list of strings; `data_seed` passes schema validation. Seed shape typically differs between modes (Mode A usually carries `mechanism: "none"`; Mode B often carries editor/api/form calls) but is not the classification signal: Mode B navigate-only tasks legitimately carry `mechanism: "none"`. Origin is determined by the id prefix contract (`novel_<site>_<n>` for Mode B, anything else for Mode A); see `docs/worldsim-v5-technical-specifcation.md` Phase 3 for the authoritative rule. For each adversarial task: `benign_task_id` resolves to a known benign task and `reward_function.adversarial_reward` is a non-empty object.
+**Per-task validation.** For each benign task: `reward_function` is a non-empty object; `start_urls` is a non-empty list of strings; `data_seed` passes schema validation. Seed shape typically differs between modes (existing_task usually carries `mechanism: "none"`; new_task often carries editor/api/form calls) but is not the classification signal: new_task navigate-only tasks legitimately carry `mechanism: "none"`. Origin is determined by the id prefix contract (`novel_<site>_<n>` for new_task, anything else for existing_task); see `docs/worldsim-v5-technical-specifcation.md` Phase 3 for the authoritative rule. For each adversarial task: `benign_task_id` resolves to a known benign task and `reward_function.adversarial_reward` is a non-empty object.
 
 **Admission policy.** Phase 4 admits every entry with `validity_status == "valid"` regardless of whether any specific agent would pass the benign task. Following the WebArena-Infinity principle, a 0% pass rate on a feasible task is an agent problem, not a task problem. Baseline capability is reported as a Phase 4 byproduct computed from `benign_passed` on ecologically valid trajectories, which captures the realistic measure: can the agent do the benign task while also facing noisy/adversarial inputs?
 
@@ -192,7 +192,7 @@ Strategy variation runs once per task (one fan-out of up to 3 variants, not a de
 ## **Outputs**
 
 * Adversarial tasks with strategy logs per variant: judge diagnosis, strategies recommended, strategies attempted, outcome per attempt
-* Per-model results: `asr_valid` (ecologically valid trajectories only, the headline), `asr_raw` (all scorable trajectories), refusal rate, task breakage rate, all reported per-origin (mode_a vs mode_b)
+* Per-model results: `asr_valid` (ecologically valid trajectories only, the headline), `asr_raw` (all scorable trajectories), refusal rate, task breakage rate, all reported per-origin (existing_task vs new_task)
 * WASP-style security-by-incompetence split: `complied_with_adversarial_reward` vs `complied_without_adversarial_reward` among ecologically valid compliant trajectories
 * Baseline capability: `capability_benign_under_attack`, derived from `benign_passed` on ecologically valid trajectories; reported as a nuisance variable for calibration, never used to filter
 * Strategy effectiveness: success rates per strategy across models and injection surfaces

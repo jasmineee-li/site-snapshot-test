@@ -53,7 +53,7 @@ Pure local Python, no LLM. Input: manifest from 0a. Output: per-site file lists.
 ### Phase 0c — Per-Site Profiling
 N parallel Modal sandboxes via `asyncio.gather`. Input: sandbox maps from 0b. Output: `BENCHMARK_PROFILE_{site}.json` per site. Use `load_prompt("profile-site")`. Validate `source_field` cross-references data model.
 
-### Phase 1 Mode A — Wrap Existing Tasks
+### Phase 1 existing_task — Wrap Existing Tasks
 Read task definitions from the benchmark's `task_definition_paths` (discovered in 0a). Reformat into the benign task bundle schema from the spec. No LLM needed.
 
 ### Phase 2 — Injection Generation
@@ -72,7 +72,7 @@ Initial run + two gates: Gate 1 is paint-verified encounter detection (PVPO ink-
 - **Never `import` from `AgentLab/`.** Zero runtime dependency on the old pipeline.
 - **Comments explain WHY, not WHAT.** No "this function does X" comments.
 - **Don't add features beyond what the spec says.** No extra configurability, no speculative abstractions.
-- **Phase 1 Mode B is a stretch goal.** Skip it. Implement Mode A only.
+- **Phase 1 new_task is a stretch goal.** Skip it. Implement existing_task only.
 - **Commit after each phase passes.** Don't batch multiple phases into one commit.
 - **`save_state()` before each major operation** so `--resume` works.
 

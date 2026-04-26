@@ -8,7 +8,7 @@ import pytest
 from worldsim.phases import phase_3_benign
 
 
-def _mode_a_task(task_id: str = "task-a1", **overrides: object) -> dict:
+def _existing_task(task_id: str = "task-a1", **overrides: object) -> dict:
     task = {
         "id": task_id,
         "site": "shopping",
@@ -22,7 +22,7 @@ def _mode_a_task(task_id: str = "task-a1", **overrides: object) -> dict:
     return task
 
 
-def _mode_b_task(task_id: str = "task-b1", **overrides: object) -> dict:
+def _new_task(task_id: str = "task-b1", **overrides: object) -> dict:
     task = {
         "id": task_id,
         "site": "reddit",
@@ -76,37 +76,37 @@ def state_dir(tmp_path, monkeypatch):
     return tmp_path
 
 
-def test_classify_origin_mode_a():
-    assert phase_3_benign._classify_origin(_mode_a_task()) == "mode_a"
+def test_classify_origin_existing_task():
+    assert phase_3_benign._classify_origin(_existing_task()) == "existing_task"
 
 
-def test_classify_origin_mode_b_editor_calls():
-    assert phase_3_benign._classify_origin(_mode_b_task()) == "mode_b"
+def test_classify_origin_new_task_editor_calls():
+    assert phase_3_benign._classify_origin(_new_task()) == "new_task"
 
 
-def test_classify_origin_mode_b_navigate_only_via_id_prefix():
-    task = _mode_a_task("novel_shopping_1")
-    assert phase_3_benign._classify_origin(task) == "mode_b"
+def test_classify_origin_new_task_navigate_only_via_id_prefix():
+    task = _existing_task("novel_shopping_1")
+    assert phase_3_benign._classify_origin(task) == "new_task"
 
 
 def test_validate_benign_task_passes_on_well_formed_contract():
-    assert phase_3_benign._validate_benign_task(_mode_a_task()) == []
+    assert phase_3_benign._validate_benign_task(_existing_task()) == []
 
 
 def test_validate_benign_task_flags_empty_reward_function():
-    task = _mode_a_task(reward_function={})
+    task = _existing_task(reward_function={})
     errors = phase_3_benign._validate_benign_task(task)
     assert any("reward_function" in err for err in errors)
 
 
 def test_validate_benign_task_flags_missing_start_urls():
-    task = _mode_a_task(start_urls=[])
+    task = _existing_task(start_urls=[])
     errors = phase_3_benign._validate_benign_task(task)
     assert any("start_urls" in err for err in errors)
 
 
 def test_validate_benign_task_flags_malformed_data_seed():
-    task = _mode_b_task(data_seed={"mechanism": "editor"})
+    task = _new_task(data_seed={"mechanism": "editor"})
     errors = phase_3_benign._validate_benign_task(task)
     assert any("data_seed" in err for err in errors)
 
@@ -114,7 +114,7 @@ def test_validate_benign_task_flags_malformed_data_seed():
 def test_adversarial_errors_flags_unknown_benign_task_id():
     errors = phase_3_benign._adversarial_task_errors(
         _adversarial_task("adv-1", "missing"),
-        benign_by_id={"task-a1": _mode_a_task()},
+        benign_by_id={"task-a1": _existing_task()},
     )
     assert any("unknown benign_task_id" in err for err in errors)
 
@@ -124,14 +124,14 @@ def test_adversarial_errors_flags_missing_adversarial_reward():
     adv["reward_function"] = {}
     errors = phase_3_benign._adversarial_task_errors(
         adv,
-        benign_by_id={"task-a1": _mode_a_task()},
+        benign_by_id={"task-a1": _existing_task()},
     )
     assert any("adversarial_reward" in err for err in errors)
 
 
 @pytest.mark.asyncio
 async def test_run_writes_contracts_json_with_origins(state_dir):
-    benign = [_mode_a_task("task-a1"), _mode_b_task("task-b1")]
+    benign = [_existing_task("task-a1"), _new_task("task-b1")]
     adversarial = [_adversarial_task("adv-1", "task-a1")]
     _write_phase_outputs(state_dir, benign_tasks=benign, adversarial_tasks=adversarial)
 
@@ -140,16 +140,16 @@ async def test_run_writes_contracts_json_with_origins(state_dir):
 
     contracts = json.loads((state_dir / "phase_3" / "contracts.json").read_text())
     by_id = {entry["id"]: entry for entry in contracts}
-    assert by_id["task-a1"]["origin"] == "mode_a"
+    assert by_id["task-a1"]["origin"] == "existing_task"
     assert by_id["task-a1"]["validity_status"] == "valid"
-    assert by_id["task-b1"]["origin"] == "mode_b"
+    assert by_id["task-b1"]["origin"] == "new_task"
     assert by_id["task-b1"]["validity_status"] == "valid"
 
 
 @pytest.mark.asyncio
 async def test_run_marks_invalid_contract_and_continues(state_dir):
-    broken = _mode_a_task("task-broken", reward_function={})
-    _write_phase_outputs(state_dir, benign_tasks=[broken, _mode_a_task("task-ok")])
+    broken = _existing_task("task-broken", reward_function={})
+    _write_phase_outputs(state_dir, benign_tasks=[broken, _existing_task("task-ok")])
 
     rc = await phase_3_benign.run(Namespace(sites=None))
     assert rc == 0
@@ -169,7 +169,7 @@ async def test_run_without_phase_1_returns_error(state_dir):
 
 @pytest.mark.asyncio
 async def test_run_honors_sites_filter(state_dir):
-    benign = [_mode_a_task("task-a1"), _mode_b_task("task-b1")]
+    benign = [_existing_task("task-a1"), _new_task("task-b1")]
     _write_phase_outputs(state_dir, benign_tasks=benign)
 
     rc = await phase_3_benign.run(Namespace(sites="shopping"))
@@ -181,7 +181,7 @@ async def test_run_honors_sites_filter(state_dir):
 
 @pytest.mark.asyncio
 async def test_run_saves_running_state_before_contract_build(state_dir, monkeypatch):
-    benign = [_mode_a_task("task-a1"), _mode_b_task("task-b1")]
+    benign = [_existing_task("task-a1"), _new_task("task-b1")]
     _write_phase_outputs(state_dir, benign_tasks=benign)
 
     def blow_up(*args, **kwargs):
@@ -200,7 +200,7 @@ async def test_run_saves_running_state_before_contract_build(state_dir, monkeypa
 
 @pytest.mark.asyncio
 async def test_run_reports_adversarial_reference_errors(state_dir, caplog):
-    benign = [_mode_a_task("task-a1")]
+    benign = [_existing_task("task-a1")]
     adversarial = [_adversarial_task("adv-1", "unknown-id")]
     _write_phase_outputs(state_dir, benign_tasks=benign, adversarial_tasks=adversarial)
 
@@ -212,7 +212,7 @@ async def test_run_reports_adversarial_reference_errors(state_dir, caplog):
 
 @pytest.mark.asyncio
 async def test_run_source_data_drop_overwrites_prior_verified_feasibility(state_dir):
-    benign = [_mode_b_task("task-b1")]
+    benign = [_new_task("task-b1")]
     _write_phase_outputs(state_dir, benign_tasks=benign, adversarial_tasks=[])
     dropped_path = state_dir / "phase_2" / "adversarial_tasks.dropped_source_data.json"
     dropped_path.write_text(
@@ -239,8 +239,8 @@ async def test_run_source_data_drop_overwrites_prior_verified_feasibility(state_
 @pytest.mark.asyncio
 async def test_run_rejects_duplicate_benign_ids(state_dir, caplog):
     benign = [
-        _mode_a_task("shared-id"),
-        _mode_b_task("shared-id"),
+        _existing_task("shared-id"),
+        _new_task("shared-id"),
     ]
     _write_phase_outputs(state_dir, benign_tasks=benign)
 
@@ -252,7 +252,7 @@ async def test_run_rejects_duplicate_benign_ids(state_dir, caplog):
 
 @pytest.mark.asyncio
 async def test_run_sites_filter_also_filters_adversarial_tasks(state_dir, caplog):
-    benign = [_mode_a_task("task-shop", site="shopping", sites=["shopping"])]
+    benign = [_existing_task("task-shop", site="shopping", sites=["shopping"])]
     # Adversarial task on a site that --sites excludes. Its benign_task_id
     # would otherwise look orphaned because the benign pass filtered the
     # referent out.

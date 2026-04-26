@@ -265,7 +265,7 @@ Five phases:
 | # | Phase | What it does |
 |---|-------|--------------|
 | 0 | Reconnaissance | 0a discovers benchmark structure, 0b computes per-site sandbox file maps, 0c profiles each site in parallel |
-| 1 | Task Generation | Mode A wraps existing benchmark tasks; Mode B generates new tasks (stretch goal) |
+| 1 | Task Generation | existing-task wrapping + novel-task generation (stretch goal) |
 | 2 | Injection Generation | Runs 2a plan generation, 2b text fill, then 2c feasibility verification sequentially; emits final adversarial tasks with materialized data seeds and a `feasibility` stanza per task (requires a live dev instance unless `--skip-feasibility` is set) |
 | 3 | Contract Validity Gate | Agent-free schema check over every benign contract (reward function, start URLs, data seed) and every adversarial task's benign reference; writes `phase_3/contracts.json` |
 | 4 | Adversarial Evaluation | Runs the agent against injected seeds; applies ecological-validity gate and attack-effectiveness gate; on refusal, the judge classifies failure mode via direct Anthropic Messages API call (host-side, tool-use forced) and the host looks up variant strategies from a 22-entry pool; variant gen also runs via direct Messages API. Reports baseline capability as a byproduct |

@@ -23,7 +23,7 @@ attacker realism rating with justification.
 
 Cross-reference existing tasks against injection surfaces. Report which
 injection surfaces have tasks routing through them and which do not. The
-uncovered list is what Mode B task generation will prioritize.
+uncovered list is what new-task generation will prioritize.
 
 ## JSON schema
 

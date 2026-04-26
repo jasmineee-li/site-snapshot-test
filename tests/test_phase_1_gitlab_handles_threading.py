@@ -6,7 +6,7 @@ The lists are produced by Phase 0c (see
 :mod:`worldsim.phases.phase_0c_handle_enrichment`) and threaded through
 Phase 1's existing ``_attach_agent_context_to_tasks`` flow. If anyone
 later rewrites that flow to drop unknown agent_context keys, the
-resolver silently degrades for every gitlab Mode B task. This test
+resolver silently degrades for every gitlab new_task entry. This test
 guards against that regression.
 """
 
@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from worldsim.phases import phase_1_mode_b
+from worldsim.phases import phase_1_generate_new_tasks
 
 
 def _profile(uncovered: list[str]) -> dict:
@@ -90,23 +90,23 @@ async def test_phase_1_threads_gitlab_handle_lists_into_each_task(monkeypatch, t
 
     generated_tasks = [_novel_task(f"novel_t_{i}") for i in range(1, 4)]
     monkeypatch.setattr(
-        phase_1_mode_b,
+        phase_1_generate_new_tasks,
         "run_claude_in_sandbox",
         AsyncMock(
             return_value={
-                phase_1_mode_b.NOVEL_TASK_OUTPUT_PATH: json.dumps(generated_tasks),
+                phase_1_generate_new_tasks.NOVEL_TASK_OUTPUT_PATH: json.dumps(generated_tasks),
                 "_summary": None,
             }
         ),
     )
     monkeypatch.setattr(
-        phase_1_mode_b,
+        phase_1_generate_new_tasks,
         "validate_generated_novel_tasks",
         lambda tasks, **kwargs: (tasks, []),
     )
 
-    result = await phase_1_mode_b.generate_novel_tasks_for_site(
-        site=phase_1_mode_b.EligibleSiteProfile(
+    result = await phase_1_generate_new_tasks.generate_new_tasks_for_site(
+        site=phase_1_generate_new_tasks.EligibleSiteProfile(
             site_name="shopping",
             profile_path=profile_path,
             profile=profile,

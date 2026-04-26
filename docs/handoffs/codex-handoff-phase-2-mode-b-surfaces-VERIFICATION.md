@@ -101,7 +101,7 @@ Phase 2c. Paste any surfaced failure output into the PR description.
 
 ## Key invariants preserved
 
-- The placement validator (`worldsim/phases/phase_1_mode_b_validation.py`)
+- The placement validator (`worldsim/phases/phase_1_generate_new_tasks_validation.py`)
   was not relaxed. The new admit rate comes entirely from the resolver
   and exposure-contract extending to admit kinds that were previously
   unresolvable.

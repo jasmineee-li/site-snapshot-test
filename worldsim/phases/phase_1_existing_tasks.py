@@ -1,4 +1,4 @@
-"""Phase 1 Mode A helpers: load benchmark tasks and wrap them for WorldSim."""
+"""Phase 1 existing-task helpers: load benchmark tasks and wrap them for WorldSim."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-def build_mode_a_tasks(
+def build_existing_task_wraps(
     manifest: dict[str, Any],
     benchmark_root: Path,
     profiles_dir: Path | None = None,

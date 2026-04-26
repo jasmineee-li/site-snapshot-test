@@ -1,4 +1,4 @@
-"""Exposure-contract tests for the six gitlab Mode B kinds.
+"""Exposure-contract tests for the six gitlab new_task kinds.
 
 Each kind must produce ``eligibility.status == "eligible"`` when given
 the resolver-shaped anchors. Mode + editor_method + target_surface_id

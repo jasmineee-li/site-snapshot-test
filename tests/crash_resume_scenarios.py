@@ -209,7 +209,7 @@ def _configure_phase_4(state_dir: Path) -> Path:
         [
             {
                 "id": benign_task["id"],
-                "origin": "mode_a",
+                "origin": "existing_task",
                 "validity_status": "valid",
                 "validity_errors": [],
                 "task": benign_task,

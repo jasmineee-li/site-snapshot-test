@@ -140,7 +140,7 @@ They ran against real Modal sandboxes and produced artifacts on disk.
 - **Phase 0a -- Benchmark Discovery (invalidated).** Single Modal sandbox analyzed the full WebArena Verified codebase. Produced `BENCHMARK_MANIFEST.json` (6 sites, 813 tasks). However, this sandbox ran without the `claude_code` preset (`ede6432`), so the output is not trustworthy under the current contract. Must rerun.
 - **Phase 0b -- Sandbox Filesystem Mapping (invalidated).** Pure local Python, no LLM. Output is deterministic given the manifest, but since the manifest must be regenerated, 0b must rerun too.
 - **Legacy Phase 0c -- Per-Site Profiling (invalidated).** The archived run used both the older single-stage flow and the broken sandbox runner. Superseded by tiered Phase 0c and the Claude Code semantics fix.
-- **Phase 1 -- Task Wrapping (Mode A).** Loaded 813 tasks from the WebArena Verified dataset and wrapped them into benign task bundles for downstream phases. Output: `benign_tasks.json`. No LLM required.
+- **Phase 1 -- Existing-Task Wrapping.** Loaded 813 tasks from the WebArena Verified dataset and wrapped them into benign task bundles for downstream phases. Output: `benign_tasks.json`. No LLM required.
 - **Phase 2 -- Injection Generation.** 43 Modal sandbox runs across 6 sites with per-site task sharding. Shopping (182 tasks) and gitlab (160 tasks) were the largest. Produced 671 adversarial tasks total. In-sandbox validation caught schema errors before sandbox exit. Total $82.99 spend across 624 turns.
 - **Phase 3 artifact production.** The archived run produced `validated_tasks.json`, `results.json`, and `diagnoses.json` under `phase_3/`, proving the Phase 3 path executed far enough to materialize downstream artifacts.
 - **Modal sandbox primitive.** `run_claude_in_sandbox` creates a sandbox, stages files via `add_local_file` / `add_local_dir`, runs Claude Code through `claude-agent-sdk` via `_sdk_runner.py`, and returns file outputs plus a `_summary` key with cost, token usage, session ID, and per-model breakdowns.
@@ -156,8 +156,8 @@ Everything below reflects the current working tree.
 - **Artifact-specific Phase 0c validation.** `_sandbox_validator.py` now validates `VERIFICATION_CAPABILITIES.json`, `DATA_MODEL.json`, `AGENT_CONTEXT.json`, and `INJECTION_SURFACE.json` independently. Host-side retries append concrete validation errors back into the retry prompt before re-running a tier.
 - **`agent_context` as a first-class artifact.** Phase 0c now emits `AGENT_CONTEXT_{site}.json` containing response-format requirements, auth details, discovered vendor prompt templates, and benchmark/site context.
 - **Shared benchmark-specific prompt builder.** `worldsim/agent_prompt.py` builds runtime prompts from `agent_context`, appending auth guidance, discovered credentials, response-schema requirements, and per-task format requirements sourced from `instantiation_dict`.
-- **Phase 1 Mode A propagation.** Wrapped benchmark tasks now preserve `instantiation_dict` and embed `agent_context` when Phase 0c output is available.
-- **Phase 1 Mode B propagation and cache hardening.** Novel-task generation now receives `AGENT_CONTEXT.json`, embeds it into generated tasks, and invalidates stale per-site caches when the sibling `AGENT_CONTEXT_{site}.json` changes or when cached tasks are missing the embedded context.
+- **Phase 1 existing_task propagation.** Wrapped benchmark tasks now preserve `instantiation_dict` and embed `agent_context` when Phase 0c output is available.
+- **Phase 1 new_task propagation and cache hardening.** Novel-task generation now receives `AGENT_CONTEXT.json`, embeds it into generated tasks, and invalidates stale per-site caches when the sibling `AGENT_CONTEXT_{site}.json` changes or when cached tasks are missing the embedded context.
 - **Phase 2 immutable contract update.** Adversarial task generation now treats `agent_context` as an immutable field copied from the benign task and passes `AGENT_CONTEXT.json` into the injection-generation sandbox so attacks are crafted against the real benchmark contract.
 - **Phase 3 -- Benign Validation.** Full implementation: reset endpoint call, data seed application, Browser Use agent run, reward function evaluation, failure diagnosis loop (reward bug, data seed issue, impossible task, task too hard, agent limitation). Phase 3 now builds a benchmark-specific `site_prompt` from embedded `agent_context`.
 - **Phase 3 conservative triage before diagnosis.** New `worldsim/phase_3_triage.py` adds a cheap host-side pre-filter before `_diagnose_one_task`. Obvious infra/auth/off-site failures are classified locally; ambiguous failures escalate; only escalated failures pay for the expensive sandbox diagnosis loop. Top-level `phase_3/triage.json` plus additive `triage_*` metadata in failed `result.json` preserve the audit trail.
@@ -429,15 +429,15 @@ Fix-loop rejection cost is tracked in-line with diagnosis cost; retries surface 
 | `worldsim/phases/phase_0d_auth_bootstrap.py` | Phase 0d auth bootstrap. Dispatch: `generator_script` -> native `form_login` (Playwright) -> trust existing `storage_state.path` -> skip. Idempotent via SHA-256 of inputs. |
 | `worldsim/fix_validation.py` | Host-side patch validator for Phase 3's fix-loop. Method + origin + path allowlist harvested at runtime from the site profile. |
 | `worldsim/agent_prompt.py` | Shared builder for benchmark-specific runtime prompts from `agent_context`. |
-| `worldsim/phases/phase_1_mode_a.py` | Wraps benchmark tasks and now preserves `instantiation_dict` + embeds `agent_context`. |
-| `worldsim/phases/phase_1_mode_b.py` | Novel-task generation, per-site caching, and `agent_context` propagation. |
+| `worldsim/phases/phase_1_existing_tasks.py` | Wraps benchmark tasks and now preserves `instantiation_dict` + embeds `agent_context`. |
+| `worldsim/phases/phase_1_generate_new_tasks.py` | Novel-task generation, per-site caching, and `agent_context` propagation. |
 | `worldsim/phases/phase_2_injections.py` | Task sharding, parallel sandbox execution, immutable-field merge, and `agent_context` preservation. |
 | `worldsim/phases/phase_3_benign.py` | Benign validation with diagnosis loop and benchmark-specific runtime prompt injection. |
 | `worldsim/phases/phase_4_adversarial.py` | Full adversarial decision tree with the same benchmark-specific runtime prompt builder. |
 | `worldsim/browser_use_agent.py` | Browser Use lifecycle, HAR capture, screenshot persistence, and `site_prompt` support. |
 | `worldsim/profile_validation.py` | Shared profile loading and host-side validation parity with the in-sandbox validator. |
 | `worldsim/prompts/profile-*.md` | Tiered Phase 0c prompt set. |
-| `worldsim/prompts/generate-benign-tasks.md` | Mode B prompt, now conditioned on `AGENT_CONTEXT.json`. |
+| `worldsim/prompts/generate-benign-tasks.md` | new_task prompt, now conditioned on `AGENT_CONTEXT.json`. |
 | `worldsim/prompts/generate-injections.md` | Phase 2 prompt, now conditioned on `AGENT_CONTEXT.json`. |
 | `tests/test_phase_0_recon.py` | Tests for tiered Phase 0c retries and non-publication of invalid outputs. |
 | `tests/test_phase_1_tasks.py` | Tests for `agent_context` propagation, cache invalidation, and `instantiation_dict` preservation. |
@@ -471,7 +471,7 @@ All 14 prompts in `worldsim/prompts/`:
 | `profile-data-model.md` | Phase 0c Tier 1B |
 | `profile-agent-context.md` | Phase 0c Tier 1C |
 | `profile-injection-surface.md` | Phase 0c Tier 2 |
-| `generate-benign-tasks.md` | Phase 1 Mode B |
+| `generate-benign-tasks.md` | Phase 1 new_task |
 | `generate-injections.md` | Phase 2 |
 | `probe-ecological-validity.md` | Phase 4 Gate 1 (Modal sandbox) |
 | `judge-adversarial-failure.md` | Phase 4 Gate 2 classifier (Messages API, tool-use forced) |

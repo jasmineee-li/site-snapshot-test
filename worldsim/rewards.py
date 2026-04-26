@@ -111,7 +111,7 @@ def run_reward_function(
     if "eval" in reward and isinstance(reward["eval"], list):
         if reward.get("task_id") is not None:
             return _run_webarena_verified_eval(reward, instance, agent_result, network_trace)
-        # Novel tasks (Mode B) omit task_id, use homebrew evaluator directly
+        # new_task novel benigns omit task_id, use homebrew evaluator directly
         return _run_homebrew_eval(reward, instance, agent_result, network_trace)
 
     # Custom checker path (legacy / extension)

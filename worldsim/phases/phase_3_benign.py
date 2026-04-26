@@ -5,7 +5,7 @@ Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` "Phase 3".
 Validates each benign task's contract (reward function, start URLs, data seed)
 and each adversarial task's reference to a benign task. Writes
 ``phase_3/contracts.json`` with one entry per benign task, stamped with origin
-(``mode_a`` for vendored benchmark tasks, ``mode_b`` for Phase 1 generations)
+(``existing_task`` for vendored benchmark tasks, ``new_task`` for Phase 1 generations)
 and a ``validity_status`` Phase 4 uses for admission.
 
 No agent runs happen here. Capability measurement comes from Phase 4's
@@ -48,19 +48,25 @@ def _filter_tasks_by_sites(
 
 
 def _classify_origin(task: dict[str, Any]) -> str:
-    # Mode B ids are enforced as `novel_<site>_<n>` at generation
-    # (phase_1_mode_b_validation). Seed shape is not a reliable signal: a Mode B
-    # navigate-only task legitimately carries `mechanism: "none"`.
+    # Prefer the stamped origin field on the task (Phase 1 sets this at emit).
+    # Fall back to id-prefix and seed-shape inference for legacy snapshots.
+    stamped = task.get("origin")
+    if isinstance(stamped, str) and stamped in ("existing_task", "new_task"):
+        return stamped
+    # new_task ids are enforced as `novel_<site>_<n>` at generation
+    # (phase_1_generate_new_tasks_validation). Seed shape is not a reliable
+    # signal: a new_task navigate-only task legitimately carries
+    # `mechanism: "none"`.
     task_id = str(task.get("id", "")).strip()
     if task_id.startswith("novel_"):
-        return "mode_b"
+        return "new_task"
     seed = task.get("data_seed") or {}
     mechanism = seed.get("mechanism") if isinstance(seed, dict) else None
     editor_calls = seed.get("editor_calls") if isinstance(seed, dict) else None
     has_editor_calls = isinstance(editor_calls, list) and bool(editor_calls)
     if mechanism not in (None, "none") or has_editor_calls:
-        return "mode_b"
-    return "mode_a"
+        return "new_task"
+    return "existing_task"
 
 
 def _validate_benign_task(task: dict[str, Any]) -> list[str]:
@@ -242,7 +248,7 @@ async def run(args: argparse.Namespace) -> int:
         benign_by_id[task_id] = task
     if duplicate_ids:
         logger.error(
-            "Phase 3: benign task ids are not unique across Mode A and Mode B: %s",
+            "Phase 3: benign task ids are not unique across existing_task and new_task: %s",
             ", ".join(sorted(set(duplicate_ids))),
         )
         save_state(
@@ -255,8 +261,8 @@ async def run(args: argparse.Namespace) -> int:
 
     contracts: list[dict[str, Any]] = []
     valid_count = 0
-    mode_a_valid = 0
-    mode_b_valid = 0
+    existing_task_valid = 0
+    new_task_valid = 0
     for task in benign_tasks:
         task_id = str(task.get("id", "")).strip()
         if not task_id:
@@ -267,10 +273,10 @@ async def run(args: argparse.Namespace) -> int:
         validity_status = "valid" if not errors else "invalid"
         if validity_status == "valid":
             valid_count += 1
-            if origin == "mode_a":
-                mode_a_valid += 1
+            if origin == "existing_task":
+                existing_task_valid += 1
             else:
-                mode_b_valid += 1
+                new_task_valid += 1
         contracts.append(
             {
                 "id": task_id,
@@ -309,8 +315,8 @@ async def run(args: argparse.Namespace) -> int:
         "total": len(contracts),
         "valid": valid_count,
         "invalid": len(contracts) - valid_count,
-        "mode_a_valid": mode_a_valid,
-        "mode_b_valid": mode_b_valid,
+        "existing_task_valid": existing_task_valid,
+        "new_task_valid": new_task_valid,
         "adversarial_reference_errors": len(adversarial_errors),
     }
     if sites_filter_raw:
@@ -330,11 +336,11 @@ async def run(args: argparse.Namespace) -> int:
         )
 
     logger.info(
-        "Phase 3 complete — %d/%d contracts valid (%d mode_a, %d mode_b); wrote %s",
+        "Phase 3 complete — %d/%d contracts valid (%d existing_task, %d new_task); wrote %s",
         valid_count,
         len(contracts),
-        mode_a_valid,
-        mode_b_valid,
+        existing_task_valid,
+        new_task_valid,
         output_dir / "contracts.json",
     )
     return 0

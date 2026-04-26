@@ -1,4 +1,4 @@
-"""Phase 1 orchestration: Mode A wrapping plus optional Mode B generation."""
+"""Phase 1 orchestration: existing-task wrapping plus optional new-task generation."""
 
 from __future__ import annotations
 
@@ -10,30 +10,30 @@ from typing import Any
 
 from worldsim.benchmark_capabilities import get_benchmark_capabilities, infer_benchmark_name
 from worldsim.cost_tracker import tracker as cost_tracker
-from worldsim.phases.phase_1_mode_a import build_mode_a_tasks
-from worldsim.phases.phase_1_mode_b import (
+from worldsim.phases.phase_1_existing_tasks import build_existing_task_wraps
+from worldsim.phases.phase_1_generate_new_tasks import (
     DEFAULT_NOVEL_TASKS_PER_SITE,
-    MODE_B_RESUME_METADATA_PATH,
+    GENERATE_NEW_TASKS_RESUME_METADATA_PATH,
     EligibleSiteProfile,
-    compute_mode_b_resume_fingerprint,
-    compute_mode_b_shared_inputs_fingerprint,
+    compute_generate_new_tasks_resume_fingerprint,
+    compute_generate_new_tasks_shared_inputs_fingerprint,
     compute_site_cache_fingerprint,
-    run_mode_b,
+    run_generate_new_tasks,
     validate_existing_novel_tasks,
 )
-from worldsim.phases.phase_1_mode_b import (
+from worldsim.phases.phase_1_generate_new_tasks import (
     load_cached_novel_tasks as _load_cached_novel_tasks,
 )
-from worldsim.phases.phase_1_mode_b import (
+from worldsim.phases.phase_1_generate_new_tasks import (
     load_existing_novel_tasks as _load_existing_novel_tasks,
 )
-from worldsim.phases.phase_1_mode_b import (
-    load_mode_b_eligible_sites as _load_mode_b_eligible_sites,
+from worldsim.phases.phase_1_generate_new_tasks import (
+    load_generate_new_tasks_eligible_sites as _load_generate_new_tasks_eligible_sites,
 )
-from worldsim.phases.phase_1_mode_b_validation import (
+from worldsim.phases.phase_1_generate_new_tasks_validation import (
     merge_benign_tasks as _merge_benign_tasks,
 )
-from worldsim.phases.phase_1_mode_b_validation import (
+from worldsim.phases.phase_1_generate_new_tasks_validation import (
     sort_novel_tasks as _sort_novel_tasks,
 )
 from worldsim.state import get_state_dir, save_state
@@ -45,7 +45,7 @@ async def run(args: argparse.Namespace) -> int:
     """Phase 1 entrypoint.
 
     Reads the benchmark's task definitions, wraps them into benign bundles,
-    and optionally generates Mode B novel tasks for eligible sites.
+    and optionally generates novel tasks for eligible sites.
     """
     state_dir = get_state_dir()
     output_dir = state_dir / "phase_1"
@@ -126,7 +126,7 @@ async def run(args: argparse.Namespace) -> int:
         return 1
 
     output_path = output_dir / "benign_tasks.json"
-    resume_metadata_path = output_dir / MODE_B_RESUME_METADATA_PATH
+    resume_metadata_path = output_dir / GENERATE_NEW_TASKS_RESUME_METADATA_PATH
 
     _save_phase_1_running_state(
         benchmark_root=benchmark_root,
@@ -139,13 +139,13 @@ async def run(args: argparse.Namespace) -> int:
     )
 
     profiles_dir = get_state_dir() / "phase_0c"
-    mode_a_tasks = build_mode_a_tasks(
+    existing_task_wraps = build_existing_task_wraps(
         manifest,
         benchmark_root,
         profiles_dir=profiles_dir,
         benchmark=benchmark_name,
     )
-    if not mode_a_tasks:
+    if not existing_task_wraps:
         logger.error("No tasks found in benchmark — check manifest task_definition_paths")
         _save_phase_1_failure_state(
             reason="no_raw_tasks",
@@ -158,17 +158,17 @@ async def run(args: argparse.Namespace) -> int:
         )
         return 1
 
-    logger.info("Phase 1A: wrapped %d raw tasks from benchmark", len(mode_a_tasks))
+    logger.info("Phase 1A: wrapped %d raw tasks from benchmark", len(existing_task_wraps))
 
     novel_tasks: list[dict[str, Any]] = []
     if generate_novel:
-        novel_tasks = await _maybe_generate_mode_b_tasks(
+        novel_tasks = await _maybe_generate_new_tasks(
             manifest=manifest,
             benchmark_root=benchmark_root,
             output_dir=output_dir,
             output_path=output_path,
             manifest_path=Path(manifest_path),
-            mode_a_task_count=len(mode_a_tasks),
+            existing_task_count=len(existing_task_wraps),
             benchmark_resume_metadata_path=resume_metadata_path,
             resume=bool(getattr(args, "resume", False)),
             sandbox_model=sandbox_model,
@@ -179,10 +179,10 @@ async def run(args: argparse.Namespace) -> int:
             return 1
         novel_tasks = _stamp_benchmark_metadata(novel_tasks, benchmark_name)
 
-    benign_tasks = _merge_benign_tasks(mode_a_tasks, novel_tasks)
+    benign_tasks = _merge_benign_tasks(existing_task_wraps, novel_tasks)
     output_path.write_text(json.dumps(benign_tasks, indent=2))
     if generate_novel:
-        _write_mode_b_resume_metadata(
+        _write_generate_new_tasks_resume_metadata(
             resume_metadata_path,
             benchmark_root=benchmark_root,
             manifest=manifest,
@@ -196,7 +196,7 @@ async def run(args: argparse.Namespace) -> int:
         status="complete",
         tasks_path=str(output_path),
         task_count=len(benign_tasks),
-        mode_a_task_count=len(mode_a_tasks),
+        existing_task_count=len(existing_task_wraps),
         novel_task_count=len(novel_tasks),
         benchmark_path=str(benchmark_root),
         benchmark_name=benchmark_name,
@@ -209,10 +209,10 @@ async def run(args: argparse.Namespace) -> int:
     cost_tracker.log_phase_summary("phase_1")
     cost_tracker.save(state_dir / "cost_report.json")
     logger.info(
-        "Phase 1 complete — %d benign tasks written to %s (%d Mode A + %d novel)",
+        "Phase 1 complete — %d benign tasks written to %s (%d existing-task + %d novel)",
         len(benign_tasks),
         output_path,
-        len(mode_a_tasks),
+        len(existing_task_wraps),
         len(novel_tasks),
     )
     return 0
@@ -313,7 +313,7 @@ def _save_phase_1_failure_state(
     sandbox_model: str,
     sites: str | None = None,
     novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
-    mode_a_task_count: int | None = None,
+    existing_task_count: int | None = None,
     error: str | None = None,
 ) -> None:
     """Persist a failed Phase 1 state."""
@@ -329,28 +329,28 @@ def _save_phase_1_failure_state(
         payload["sites"] = sites
     if benchmark_root is not None:
         payload["benchmark_path"] = str(benchmark_root)
-    if mode_a_task_count is not None:
-        payload["mode_a_task_count"] = mode_a_task_count
+    if existing_task_count is not None:
+        payload["existing_task_count"] = existing_task_count
     if error is not None:
         payload["error"] = error
     save_state("phase_1", **payload)
 
 
-async def _maybe_generate_mode_b_tasks(
+async def _maybe_generate_new_tasks(
     *,
     manifest: dict[str, Any],
     benchmark_root: Path,
     output_dir: Path,
     output_path: Path,
     manifest_path: Path,
-    mode_a_task_count: int,
+    existing_task_count: int,
     benchmark_resume_metadata_path: Path,
     resume: bool,
     sandbox_model: str,
     site_filter: set[str] | None,
     novel_tasks_per_site: int,
 ) -> list[dict[str, Any]] | None:
-    """Return Mode B tasks, reusing merged output when already present."""
+    """Return generate-new-tasks output, reusing merged output when already present."""
     existing_novel_tasks = _reuse_existing_novel_tasks_if_valid(
         manifest=manifest,
         benchmark_root=benchmark_root,
@@ -365,7 +365,7 @@ async def _maybe_generate_mode_b_tasks(
         return existing_novel_tasks
 
     try:
-        return await run_mode_b(
+        return await run_generate_new_tasks(
             manifest=manifest,
             benchmark_root=benchmark_root,
             output_dir=output_dir,
@@ -375,16 +375,16 @@ async def _maybe_generate_mode_b_tasks(
         )
     except Exception as exc:
         _save_phase_1_failure_state(
-            reason="mode_b_generation_failed",
+            reason="new_task_generation_failed",
             error=str(exc),
             benchmark_root=benchmark_root,
             manifest_path=manifest_path,
             generate_novel=True,
             sandbox_model=sandbox_model,
             novel_tasks_per_site=novel_tasks_per_site,
-            mode_a_task_count=mode_a_task_count,
+            existing_task_count=existing_task_count,
         )
-        logger.error("Phase 1B failed: %s", exc)
+        logger.error("Phase 1 (generate-new-tasks) failed: %s", exc)
         return None
 
 
@@ -399,7 +399,7 @@ def _reuse_existing_novel_tasks_if_valid(
     site_filter: set[str] | None,
     novel_tasks_per_site: int,
 ) -> list[dict[str, Any]] | None:
-    """Reuse merged Mode B output only on resume and only after provenance checks."""
+    """Reuse merged generate-new-tasks output only on resume and only after provenance checks."""
     if not resume:
         return None
 
@@ -407,7 +407,7 @@ def _reuse_existing_novel_tasks_if_valid(
     if existing_novel_tasks is None:
         return None
 
-    eligible_sites = _load_mode_b_eligible_sites(
+    eligible_sites = _load_generate_new_tasks_eligible_sites(
         profiles_dir=get_state_dir() / "phase_0c",
         manifest_eval_types=manifest.get("evaluation", {}).get("eval_types", []),
         site_filter=site_filter,
@@ -419,26 +419,26 @@ def _reuse_existing_novel_tasks_if_valid(
     )
     if validation_errors:
         logger.warning(
-            "Phase 1B: ignoring merged novel-task output because cached tasks are invalid: %s",
+            "Phase 1 (generate-new-tasks): ignoring merged novel-task output because cached tasks are invalid: %s",
             "; ".join(validation_errors),
         )
         return None
 
-    shared_inputs_fingerprint = compute_mode_b_shared_inputs_fingerprint(
+    shared_inputs_fingerprint = compute_generate_new_tasks_shared_inputs_fingerprint(
         benchmark_root=benchmark_root,
         manifest=manifest,
         sandbox_model=sandbox_model,
     )
-    current_fingerprint = compute_mode_b_resume_fingerprint(
+    current_fingerprint = compute_generate_new_tasks_resume_fingerprint(
         shared_inputs_fingerprint=shared_inputs_fingerprint,
         eligible_sites=eligible_sites,
         novel_tasks_per_site=novel_tasks_per_site,
     )
 
-    metadata = _load_mode_b_resume_metadata(resume_metadata_path)
+    metadata = _load_generate_new_tasks_resume_metadata(resume_metadata_path)
     if metadata.get("fingerprint") == current_fingerprint:
         logger.info(
-            "Phase 1B: merged output already contains %d valid novel tasks, skipping generation on resume",
+            "Phase 1 (generate-new-tasks): merged output already contains %d valid novel tasks, skipping generation on resume",
             len(existing_novel_tasks),
         )
         return existing_novel_tasks
@@ -451,18 +451,18 @@ def _reuse_existing_novel_tasks_if_valid(
         novel_tasks_per_site=novel_tasks_per_site,
     ):
         logger.info(
-            "Phase 1B: merged output already contains %d valid novel tasks and matches current per-site caches, skipping generation on resume",
+            "Phase 1 (generate-new-tasks): merged output already contains %d valid novel tasks and matches current per-site caches, skipping generation on resume",
             len(existing_novel_tasks),
         )
         return existing_novel_tasks
 
     logger.warning(
-        "Phase 1B: ignoring merged novel-task output because resume provenance does not match current inputs"
+        "Phase 1 (generate-new-tasks): ignoring merged novel-task output because resume provenance does not match current inputs"
     )
     return None
 
 
-def _write_mode_b_resume_metadata(
+def _write_generate_new_tasks_resume_metadata(
     metadata_path: Path,
     *,
     benchmark_root: Path,
@@ -471,14 +471,14 @@ def _write_mode_b_resume_metadata(
     site_filter: set[str] | None,
     novel_tasks_per_site: int,
 ) -> None:
-    eligible_sites = _load_mode_b_eligible_sites(
+    eligible_sites = _load_generate_new_tasks_eligible_sites(
         profiles_dir=get_state_dir() / "phase_0c",
         manifest_eval_types=manifest.get("evaluation", {}).get("eval_types", []),
         site_filter=site_filter,
     )
     payload = {
-        "fingerprint": compute_mode_b_resume_fingerprint(
-            shared_inputs_fingerprint=compute_mode_b_shared_inputs_fingerprint(
+        "fingerprint": compute_generate_new_tasks_resume_fingerprint(
+            shared_inputs_fingerprint=compute_generate_new_tasks_shared_inputs_fingerprint(
                 benchmark_root=benchmark_root,
                 manifest=manifest,
                 sandbox_model=sandbox_model,
@@ -522,12 +522,12 @@ def _merged_output_matches_current_site_caches(
     return _sort_novel_tasks(cached_tasks) == _sort_novel_tasks(existing_novel_tasks)
 
 
-def _load_mode_b_resume_metadata(metadata_path: Path) -> dict[str, Any]:
+def _load_generate_new_tasks_resume_metadata(metadata_path: Path) -> dict[str, Any]:
     if not metadata_path.exists():
         return {}
     try:
         payload = json.loads(metadata_path.read_text())
     except json.JSONDecodeError:
-        logger.warning("Phase 1B: ignoring invalid resume metadata at %s", metadata_path)
+        logger.warning("Phase 1 (generate-new-tasks): ignoring invalid resume metadata at %s", metadata_path)
         return {}
     return payload if isinstance(payload, dict) else {}

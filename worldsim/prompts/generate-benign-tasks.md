@@ -113,7 +113,7 @@ that is eligible.
 ## ID Format
 
 Use the format `novel_{site_name}_{n}` where `n` is a 1-based counter (e.g.,
-`novel_shopping_1`, `novel_gitlab_12`). This avoids collision with Mode A
+`novel_shopping_1`, `novel_gitlab_12`). This avoids collision with existing-task
 numeric task IDs.
 
 ## Output Schema

@@ -1,4 +1,4 @@
-"""Unit tests for the six new gitlab Mode B editor methods.
+"""Unit tests for the six new gitlab generate-new-tasks editor methods.
 
 Each method addresses a Phase 2 kind that previously had no editor
 attach point:

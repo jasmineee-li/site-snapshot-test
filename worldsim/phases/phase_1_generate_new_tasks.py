@@ -1,4 +1,4 @@
-"""Phase 1 Mode B helpers: eligible-site discovery and novel-task generation."""
+"""Phase 1 generate-new-tasks helpers: eligible-site discovery and novel-task generation."""
 
 from __future__ import annotations
 
@@ -17,8 +17,8 @@ from worldsim.modal_sandbox import (
     run_claude_in_sandbox,
     upload_to_volume,
 )
-from worldsim.phases.phase_1_mode_b_validation import (
-    site_is_mode_b_eligible,
+from worldsim.phases.phase_1_generate_new_tasks_validation import (
+    site_is_generate_new_tasks_eligible,
     sort_novel_tasks,
     validate_generated_novel_tasks,
 )
@@ -29,11 +29,11 @@ from worldsim.state import get_state_dir
 logger = logging.getLogger(__name__)
 
 DEFAULT_NOVEL_TASKS_PER_SITE = 30
-MODE_B_FIX_MAX_ITERATIONS = 2
+GENERATE_NEW_TASKS_FIX_MAX_ITERATIONS = 2
 NOVEL_TASK_OUTPUT_PATH = "/workspace/output/benign_tasks.json"
-MODE_B_RESUME_METADATA_PATH = "mode_b_resume_metadata.json"
+GENERATE_NEW_TASKS_RESUME_METADATA_PATH = "generate_new_tasks_resume_metadata.json"
 SITE_CACHE_METADATA_SUFFIX = ".metadata.json"
-MODE_B_CACHE_SCHEMA_VERSION = 4
+GENERATE_NEW_TASKS_CACHE_SCHEMA_VERSION = 4
 
 
 def _read_only_volume(volume: Any) -> Any:
@@ -50,13 +50,13 @@ class EligibleSiteProfile:
 
 
 @dataclass(frozen=True)
-class SiteNovelTaskResult:
+class SiteGenerateNewTasksResult:
     site_name: str
     benign_tasks: list[dict[str, Any]]
     errors: list[str]
 
 
-async def run_mode_b(
+async def run_generate_new_tasks(
     *,
     manifest: dict[str, Any],
     benchmark_root: Path,
@@ -65,7 +65,7 @@ async def run_mode_b(
     site_filter: Iterable[str] | None = None,
     novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
 ) -> list[dict[str, Any]]:
-    """Generate Mode B novel tasks for eligible sites."""
+    """Generate novel tasks for eligible sites."""
     state_dir = get_state_dir()
     profiles_dir = state_dir / "phase_0c"
     if not profiles_dir.exists():
@@ -74,16 +74,16 @@ async def run_mode_b(
         )
 
     manifest_eval_types = manifest.get("evaluation", {}).get("eval_types", [])
-    eligible_sites = load_mode_b_eligible_sites(
+    eligible_sites = load_generate_new_tasks_eligible_sites(
         profiles_dir=profiles_dir,
         manifest_eval_types=manifest_eval_types,
         site_filter=site_filter,
     )
     if not eligible_sites:
-        logger.info("Phase 1B: no eligible sites found, nothing to generate")
+        logger.info("Phase 1 (generate-new-tasks): no eligible sites found, nothing to generate")
         return []
 
-    shared_inputs_fingerprint = compute_mode_b_shared_inputs_fingerprint(
+    shared_inputs_fingerprint = compute_generate_new_tasks_shared_inputs_fingerprint(
         benchmark_root=benchmark_root,
         manifest=manifest,
         sandbox_model=sandbox_model,
@@ -96,7 +96,7 @@ async def run_mode_b(
     )
     if cached_results is not None:
         logger.info(
-            "Phase 1B: reusing cached per-site novel tasks for %d eligible sites",
+            "Phase 1 (generate-new-tasks): reusing cached per-site novel tasks for %d eligible sites",
             len(cached_results),
         )
         all_cached_tasks: list[dict[str, Any]] = []
@@ -107,12 +107,12 @@ async def run_mode_b(
     # Fail fast if sandbox auth or image setup is missing before we pay for volume upload.
     await preflight_sandbox_environment()
 
-    logger.info("Phase 1B: generating novel tasks for %d eligible sites", len(eligible_sites))
+    logger.info("Phase 1 (generate-new-tasks): generating novel tasks for %d eligible sites", len(eligible_sites))
     benchmark_volume = await upload_to_volume(Path(benchmark_root).resolve())
 
     results = await asyncio.gather(
         *[
-            generate_novel_tasks_for_site(
+            generate_new_tasks_for_site(
                 site=site,
                 benchmark_volume=benchmark_volume,
                 output_dir=output_dir,
@@ -139,7 +139,7 @@ async def run_mode_b(
             failures.extend(f"{result.site_name}: {error}" for error in result.errors)
             continue
         logger.info(
-            "Phase 1B: site %r produced %d novel tasks",
+            "Phase 1 (generate-new-tasks): site %r produced %d novel tasks",
             result.site_name,
             len(result.benign_tasks),
         )
@@ -147,14 +147,14 @@ async def run_mode_b(
 
     if failures:
         raise RuntimeError(
-            "Phase 1B failed because one or more sites did not produce valid novel tasks:\n"
+            "Phase 1 (generate-new-tasks) failed because one or more sites did not produce valid novel tasks:\n"
             + "\n".join(f"  - {failure}" for failure in failures)
         )
 
     return sort_novel_tasks(all_novel_tasks)
 
 
-def load_mode_b_eligible_sites(
+def load_generate_new_tasks_eligible_sites(
     *,
     profiles_dir: Path,
     manifest_eval_types: list[str],
@@ -167,14 +167,14 @@ def load_mode_b_eligible_sites(
     for profile_path in sorted(profiles_dir.glob("BENCHMARK_PROFILE_*.json")):
         site_name = profile_path.stem.removeprefix("BENCHMARK_PROFILE_")
         if site_filter_set is not None and site_name not in site_filter_set:
-            logger.info("Phase 1B: skipping site %r due to --sites filter", site_name)
+            logger.info("Phase 1 (generate-new-tasks): skipping site %r due to --sites filter", site_name)
             continue
         profile = load_and_validate_profile(
             site_name,
             profile_path,
             manifest_eval_types=manifest_eval_types,
         )
-        if site_is_mode_b_eligible(profile):
+        if site_is_generate_new_tasks_eligible(profile):
             eligible.append(
                 EligibleSiteProfile(
                     site_name=site_name,
@@ -183,7 +183,7 @@ def load_mode_b_eligible_sites(
                 )
             )
         else:
-            logger.info("Phase 1B: skipping site %r (no uncovered injection surfaces)", site_name)
+            logger.info("Phase 1 (generate-new-tasks): skipping site %r (no uncovered injection surfaces)", site_name)
 
     return eligible
 
@@ -195,7 +195,7 @@ def _normalize_site_filter(site_filter: Iterable[str] | None) -> set[str] | None
     return normalized or None
 
 
-async def generate_novel_tasks_for_site(
+async def generate_new_tasks_for_site(
     *,
     site: EligibleSiteProfile,
     benchmark_volume: Any,
@@ -203,12 +203,12 @@ async def generate_novel_tasks_for_site(
     cache_fingerprint: str,
     sandbox_model: str = "claude-sonnet-4-6",
     novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
-) -> SiteNovelTaskResult:
+) -> SiteGenerateNewTasksResult:
     """Generate and validate novel tasks for one site."""
     intermediate_path = output_dir / f"novel_tasks_{site.site_name}.json"
     agent_context, agent_context_errors = _load_site_agent_context(site)
     if agent_context_errors:
-        return SiteNovelTaskResult(site.site_name, [], agent_context_errors)
+        return SiteGenerateNewTasksResult(site.site_name, [], agent_context_errors)
     cached_result = load_cached_novel_tasks(
         intermediate_path=intermediate_path,
         site_name=site.site_name,
@@ -220,7 +220,7 @@ async def generate_novel_tasks_for_site(
     if cached_result is not None:
         return cached_result
 
-    logger.info("Phase 1B: launching novel-task sandbox for site %r", site.site_name)
+    logger.info("Phase 1 (generate-new-tasks): launching novel-task sandbox for site %r", site.site_name)
     base_prompt = render_generate_benign_tasks_prompt(
         site_name=site.site_name,
         num_tasks=novel_tasks_per_site,
@@ -228,7 +228,7 @@ async def generate_novel_tasks_for_site(
     prompt = base_prompt
     last_errors: list[str] = []
 
-    for attempt in range(1 + MODE_B_FIX_MAX_ITERATIONS):
+    for attempt in range(1 + GENERATE_NEW_TASKS_FIX_MAX_ITERATIONS):
         site_files: dict[str, str] = {
             "/workspace/profile/BENCHMARK_PROFILE.json": str(site.profile_path),
         }
@@ -249,7 +249,7 @@ async def generate_novel_tasks_for_site(
 
         payload = outputs.get(NOVEL_TASK_OUTPUT_PATH)
         if not payload:
-            return SiteNovelTaskResult(
+            return SiteGenerateNewTasksResult(
                 site.site_name,
                 [],
                 ["sandbox did not produce benign_tasks.json"],
@@ -258,7 +258,7 @@ async def generate_novel_tasks_for_site(
         try:
             raw_tasks = json.loads(payload)
         except json.JSONDecodeError as exc:
-            return SiteNovelTaskResult(site.site_name, [], [f"invalid sandbox JSON: {exc}"])
+            return SiteGenerateNewTasksResult(site.site_name, [], [f"invalid sandbox JSON: {exc}"])
 
         generated_tasks = (
             _stamp_new_task_origin(raw_tasks) if isinstance(raw_tasks, list) else raw_tasks
@@ -279,16 +279,16 @@ async def generate_novel_tasks_for_site(
                 fingerprint=cache_fingerprint,
                 site_name=site.site_name,
             )
-            logger.info("Phase 1B: site %r sandbox completed", site.site_name)
-            return SiteNovelTaskResult(site.site_name, sorted_tasks, [])
+            logger.info("Phase 1 (generate-new-tasks): site %r sandbox completed", site.site_name)
+            return SiteGenerateNewTasksResult(site.site_name, sorted_tasks, [])
 
         last_errors = errors
-        if attempt < MODE_B_FIX_MAX_ITERATIONS:
+        if attempt < GENERATE_NEW_TASKS_FIX_MAX_ITERATIONS:
             logger.warning(
-                "Phase 1B: site %r output failed validation, retrying (%d/%d): %s",
+                "Phase 1 (generate-new-tasks): site %r output failed validation, retrying (%d/%d): %s",
                 site.site_name,
                 attempt + 1,
-                MODE_B_FIX_MAX_ITERATIONS,
+                GENERATE_NEW_TASKS_FIX_MAX_ITERATIONS,
                 "; ".join(errors),
             )
             correction = (
@@ -301,8 +301,8 @@ async def generate_novel_tasks_for_site(
             )
             prompt = base_prompt + correction
 
-    logger.info("Phase 1B: site %r sandbox completed", site.site_name)
-    return SiteNovelTaskResult(
+    logger.info("Phase 1 (generate-new-tasks): site %r sandbox completed", site.site_name)
+    return SiteGenerateNewTasksResult(
         site.site_name,
         [],
         last_errors or ["sandbox produced no novel tasks"],
@@ -328,7 +328,7 @@ def load_cached_novel_tasks(
     cache_fingerprint: str,
     expected_agent_context: dict[str, Any] | None = None,
     expected_task_count: int = DEFAULT_NOVEL_TASKS_PER_SITE,
-) -> SiteNovelTaskResult | None:
+) -> SiteGenerateNewTasksResult | None:
     """Return a validated cached per-site result when available."""
     if not intermediate_path.exists():
         return None
@@ -336,7 +336,7 @@ def load_cached_novel_tasks(
     metadata = _load_site_cache_metadata(_site_cache_metadata_path(intermediate_path))
     if metadata.get("fingerprint") != cache_fingerprint:
         logger.warning(
-            "Phase 1B: ignoring cached tasks for site %r because cache metadata does not match current inputs",
+            "Phase 1 (generate-new-tasks): ignoring cached tasks for site %r because cache metadata does not match current inputs",
             site_name,
         )
         return None
@@ -345,7 +345,7 @@ def load_cached_novel_tasks(
         cached_tasks = json.loads(intermediate_path.read_text())
     except json.JSONDecodeError as exc:
         logger.warning(
-            "Phase 1B: ignoring invalid cached tasks for site %r at %s: %s",
+            "Phase 1 (generate-new-tasks): ignoring invalid cached tasks for site %r at %s: %s",
             site_name,
             intermediate_path,
             exc,
@@ -360,7 +360,7 @@ def load_cached_novel_tasks(
     )
     if errors:
         logger.warning(
-            "Phase 1B: ignoring invalid cached tasks for site %r: %s",
+            "Phase 1 (generate-new-tasks): ignoring invalid cached tasks for site %r: %s",
             site_name,
             "; ".join(errors),
         )
@@ -369,17 +369,17 @@ def load_cached_novel_tasks(
         task.get("agent_context") != expected_agent_context for task in validated_cached
     ):
         logger.warning(
-            "Phase 1B: ignoring cached tasks for site %r because embedded agent context is missing or stale",
+            "Phase 1 (generate-new-tasks): ignoring cached tasks for site %r because embedded agent context is missing or stale",
             site_name,
         )
         return None
 
     logger.info(
-        "Phase 1B: reusing %d cached novel tasks for site %r",
+        "Phase 1 (generate-new-tasks): reusing %d cached novel tasks for site %r",
         len(validated_cached),
         site_name,
     )
-    return SiteNovelTaskResult(site_name, validated_cached, [])
+    return SiteGenerateNewTasksResult(site_name, validated_cached, [])
 
 
 def load_existing_novel_tasks(output_path: Path) -> list[dict[str, Any]] | None:
@@ -390,7 +390,7 @@ def load_existing_novel_tasks(output_path: Path) -> list[dict[str, Any]] | None:
     try:
         merged = json.loads(output_path.read_text())
     except json.JSONDecodeError:
-        logger.warning("Phase 1B: ignoring invalid merged output at %s", output_path)
+        logger.warning("Phase 1 (generate-new-tasks): ignoring invalid merged output at %s", output_path)
         return None
 
     if not isinstance(merged, list):
@@ -450,9 +450,9 @@ def _load_all_cached_site_results(
     output_dir: Path,
     shared_inputs_fingerprint: str,
     novel_tasks_per_site: int,
-) -> list[SiteNovelTaskResult] | None:
+) -> list[SiteGenerateNewTasksResult] | None:
     """Return cached per-site results when every eligible site cache validates."""
-    cached_results: list[SiteNovelTaskResult] = []
+    cached_results: list[SiteGenerateNewTasksResult] = []
     for site in eligible_sites:
         agent_context, agent_context_errors = _load_site_agent_context(site)
         if agent_context_errors:
@@ -476,7 +476,7 @@ def _load_all_cached_site_results(
 
 
 def render_generate_benign_tasks_prompt(*, site_name: str, num_tasks: int) -> str:
-    """Render the Mode B prompt without interpreting literal example braces."""
+    """Render the generate-new-tasks prompt without interpreting literal example braces."""
     prompt = load_prompt(
         "generate-benign-tasks",
         validation_command=f"benign-tasks --site-name {site_name}",
@@ -484,13 +484,13 @@ def render_generate_benign_tasks_prompt(*, site_name: str, num_tasks: int) -> st
     return prompt.replace("{site_name}", site_name).replace("{num_tasks}", str(num_tasks))
 
 
-def compute_mode_b_shared_inputs_fingerprint(
+def compute_generate_new_tasks_shared_inputs_fingerprint(
     *,
     benchmark_root: Path,
     manifest: dict[str, Any],
     sandbox_model: str = "claude-sonnet-4-6",
 ) -> str:
-    """Return a content-based digest for shared Mode B generation inputs."""
+    """Return a content-based digest for shared generate-new-tasks generation inputs."""
     payload = {
         "benchmark_tree_digest": _directory_tree_digest(benchmark_root),
         "manifest": manifest,
@@ -516,7 +516,7 @@ def compute_site_cache_fingerprint(
         agent_context_digest = sha256(agent_context_path.read_bytes()).hexdigest()
 
     payload = {
-        "cache_schema_version": MODE_B_CACHE_SCHEMA_VERSION,
+        "cache_schema_version": GENERATE_NEW_TASKS_CACHE_SCHEMA_VERSION,
         "shared_inputs_fingerprint": shared_inputs_fingerprint,
         "site_name": site.site_name,
         "profile": site.profile,
@@ -538,7 +538,9 @@ def _load_site_agent_context(
     except (json.JSONDecodeError, OSError) as exc:
         return None, [f"invalid agent context for site {site.site_name!r}: {exc}"]
     if not isinstance(data, dict):
-        return None, [f"invalid agent context for site {site.site_name!r}: payload must be an object"]
+        return None, [
+            f"invalid agent context for site {site.site_name!r}: payload must be an object"
+        ]
     return data, []
 
 
@@ -564,7 +566,7 @@ def _attach_agent_context_to_tasks(
     return attached
 
 
-def compute_mode_b_resume_fingerprint(
+def compute_generate_new_tasks_resume_fingerprint(
     *,
     shared_inputs_fingerprint: str,
     eligible_sites: list[EligibleSiteProfile],
@@ -610,7 +612,7 @@ def _load_site_cache_metadata(metadata_path: Path) -> dict[str, Any]:
     try:
         payload = json.loads(metadata_path.read_text())
     except json.JSONDecodeError:
-        logger.warning("Phase 1B: ignoring invalid site-cache metadata at %s", metadata_path)
+        logger.warning("Phase 1 (generate-new-tasks): ignoring invalid site-cache metadata at %s", metadata_path)
         return {}
     return payload if isinstance(payload, dict) else {}
 

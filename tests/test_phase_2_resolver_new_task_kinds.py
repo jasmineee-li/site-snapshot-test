@@ -1,4 +1,4 @@
-"""Resolver tests for the six gitlab Mode B kinds.
+"""Resolver tests for the six gitlab new_task kinds.
 
 These extend the inventory beyond the existing 812 benchmark tasks. The
 URL shapes are derived from ``logs/phase_1/novel_tasks_gitlab.json``;

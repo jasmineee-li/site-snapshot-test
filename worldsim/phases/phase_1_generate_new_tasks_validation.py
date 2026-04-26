@@ -1,4 +1,4 @@
-"""Phase 1 Mode B validation helpers."""
+"""Phase 1 generate-new-tasks validation helpers."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ _NOVEL_TASK_REQUIRED_FIELDS = (
     "data_seed",
     "reward_function",
 )
-_ALLOWED_MODE_B_EVALUATORS = {"NetworkEventEvaluator", "AgentResponseEvaluator"}
+_ALLOWED_GENERATE_NEW_TASKS_EVALUATORS = {"NetworkEventEvaluator", "AgentResponseEvaluator"}
 _DEFAULT_EXPECTED_TASK_COUNT = 30
 
 
@@ -31,7 +31,7 @@ def validate_generated_novel_tasks(
     profile: dict[str, Any],
     expected_task_count: int | None = _DEFAULT_EXPECTED_TASK_COUNT,
 ) -> tuple[list[dict[str, Any]], list[str]]:
-    """Validate sandbox-generated Mode B tasks for one site."""
+    """Validate sandbox-generated generate-new-tasks output for one site."""
     if not isinstance(raw_tasks, list):
         return [], ["sandbox output must be a JSON array"]
 
@@ -82,7 +82,7 @@ def validate_generated_novel_task(
     allowed_eval_types: set[str],
     start_url_policy: _StartUrlPolicy | None = None,
 ) -> str | None:
-    """Validate one Mode B task against Phase 1 and runtime constraints."""
+    """Validate one new_task against Phase 1 and runtime constraints."""
     prefix = f"task {index}"
     if not isinstance(task, dict):
         return f"{prefix} is not an object"
@@ -150,7 +150,7 @@ def validate_generated_novel_task(
         if not isinstance(config, dict):
             return f"{prefix} eval[{eval_index}] must be an object"
         evaluator = config.get("evaluator")
-        if evaluator not in _ALLOWED_MODE_B_EVALUATORS:
+        if evaluator not in _ALLOWED_GENERATE_NEW_TASKS_EVALUATORS:
             return f"{prefix} eval[{eval_index}] uses unsupported evaluator {evaluator!r}"
         if evaluator not in allowed_eval_types:
             return (
@@ -176,7 +176,7 @@ def validate_generated_novel_task(
 def _validate_phase2_placement_target(task: dict[str, Any], *, site_name: str) -> str | None:
     """Require generated tasks to target pages Phase 2 can seed and verify.
 
-    Mode B is useful only when the benign task naturally traverses the
+    generate-new-tasks is useful only when the benign task naturally traverses the
     same surface Phase 2 can seed. This calls the same deterministic
     resolver and exposure-contract builder Phase 2 uses, so future
     benchmark support extends by adding placement contracts rather than
@@ -318,14 +318,14 @@ def sort_novel_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def merge_benign_tasks(
-    mode_a_tasks: list[dict[str, Any]],
+    existing_task_wraps: list[dict[str, Any]],
     novel_tasks: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Merge Mode A and Mode B tasks deterministically."""
-    return list(mode_a_tasks) + sort_novel_tasks(novel_tasks)
+    """Merge existing-task wraps and new-task entries deterministically."""
+    return list(existing_task_wraps) + sort_novel_tasks(novel_tasks)
 
 
-def site_is_mode_b_eligible(profile: dict[str, Any]) -> bool:
+def site_is_generate_new_tasks_eligible(profile: dict[str, Any]) -> bool:
     """Return whether a site profile has uncovered injection surfaces."""
     coverage = profile.get("existing_task_coverage", {})
     uncovered = coverage.get("injection_surfaces_without_task_coverage", [])

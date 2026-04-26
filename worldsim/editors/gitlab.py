@@ -875,7 +875,7 @@ class GitlabEditor(BaseSiteEditor):
     def update_user_profile_by_id(self, *, username: str, bio: str) -> dict[str, Any]:
         """Admin-scoped bio update for an arbitrary user.
 
-        Mode B novel tasks target users that may not be the authenticated
+        new_task entries target users that may not be the authenticated
         principal (root vs byteblaze etc.). The Phase 2c admin token has
         scope to PUT ``/api/v4/users/<id>``; the cleanup closure restores
         the original bio so seeds don't leak across tasks on the live
@@ -1292,7 +1292,7 @@ class GitlabEditor(BaseSiteEditor):
     ) -> dict[str, Any]:
         """Resolve an existing project by id or full path; never creates.
 
-        Mode B targets existing projects (e.g. ``byteblaze/dotfiles``) so
+        new_task entries target existing projects (e.g. ``byteblaze/dotfiles``) so
         seeds attach to surfaces the agent will navigate to. ``_ensure_project``
         creates a project when absent — exactly the wrong behavior here.
         """

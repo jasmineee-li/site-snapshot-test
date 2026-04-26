@@ -51,7 +51,7 @@ def _build_task_dir(run_dir: Path, task_id: str, *, benign_passed: bool, adv_pas
     (d / "final_response.json").write_text(json.dumps({"status": "SUCCESS", "final_result": "x"}))
     task = {
         "id": task_id,
-        "origin": "mode_a",
+        "origin": "existing_task",
         "delivery_channel": {"mechanism": "api", "path_template": "/api/v4/ignored"},
         "required_tokens": [
             {"kind": "url", "value": ATTACKER},
@@ -182,7 +182,7 @@ def test_reclassify_cli_resolves_relative_trajectory_dir(tmp_path):
 
     task = {
         "id": task_id,
-        "origin": "mode_a",
+        "origin": "existing_task",
         "delivery_channel": {"mechanism": "api", "path_template": "/api/v4/ignored"},
         "required_tokens": [
             {"kind": "url", "value": ATTACKER},
@@ -280,7 +280,7 @@ def test_reclassify_cli_resolves_trajectory_dir_via_cwd(tmp_path):
 
     task = {
         "id": task_id,
-        "origin": "mode_a",
+        "origin": "existing_task",
         "delivery_channel": {"mechanism": "api", "path_template": "/api/v4/ignored"},
         "required_tokens": [
             {"kind": "url", "value": ATTACKER},
@@ -352,7 +352,7 @@ def test_reclassify_cli_resolves_sibling_via_run_dir(tmp_path):
 
     task = {
         "id": task_id,
-        "origin": "mode_a",
+        "origin": "existing_task",
         "delivery_channel": {"mechanism": "api", "path_template": "/api/v4/ignored"},
         "required_tokens": [
             {"kind": "url", "value": ATTACKER},

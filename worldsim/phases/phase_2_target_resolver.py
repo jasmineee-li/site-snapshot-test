@@ -114,7 +114,7 @@ def _assert_anchor_contract_conformance(
 # Apply placeholder expansion BEFORE running these patterns — they assume
 # `__GITLAB__` / `__REDDIT__` have already been swapped for concrete origins.
 #
-# The Mode B novel-task surfaces (gitlab_user_profile, gitlab_snippet,
+# The new_task novel-task surfaces (gitlab_user_profile, gitlab_snippet,
 # gitlab_snippets_index, gitlab_project_milestone, gitlab_project_labels,
 # gitlab_group) extend the inventory beyond what the existing 812
 # benchmark tasks visit. ``/<segment>`` URLs are ambiguous (user vs group
