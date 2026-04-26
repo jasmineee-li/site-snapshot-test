@@ -145,6 +145,24 @@ class GitlabEditor(BaseSiteEditor):
             editor = cls(instance, session)
             editor._current_user()
 
+    def probe_authenticated(self) -> bool:
+        response = self.session.get(
+            f"{self._site_url()}/api/v4/user",
+            headers=self._build_headers(mechanism="api"),
+            timeout=10,
+            allow_redirects=False,
+        )
+        if response.status_code == 200:
+            return True
+        if response.status_code == 401:
+            return False
+        if 300 <= response.status_code < 400:
+            location = response.headers.get("Location") or ""
+            if "/users/sign_in" in location or "/login" in location:
+                return False
+        response.raise_for_status()
+        return False
+
     def validate_args(self, method_name: str, args: dict[str, Any]) -> None:
         validators = {
             "create_project": lambda: self._require_args(args, "name_template"),

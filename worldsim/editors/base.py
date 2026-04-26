@@ -254,6 +254,17 @@ class BaseSiteEditor:
     def probe_base_state(cls, instance: dict[str, Any]) -> None:
         raise NotImplementedError
 
+    def probe_authenticated(self) -> bool:
+        """Return True iff ``self.session`` is currently authenticated against the live site.
+
+        Implementations must be cheap (one HTTP request), must not mutate
+        editor state, and must return ``False`` rather than raising on auth
+        rejection (401, login redirect, etc.). Network errors (timeout,
+        connection refused) propagate so the caller can decide whether to
+        treat them as transient.
+        """
+        raise NotImplementedError
+
     def validate_args(self, method_name: str, args: dict[str, Any]) -> None:
         raise NotImplementedError
 

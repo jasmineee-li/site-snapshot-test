@@ -499,15 +499,72 @@ def write_storage_state_meta(
     *,
     mechanism: str,
     now_fn: Any | None = None,
+    last_validated_at: datetime | None = None,
+    validator_version: int | None = None,
 ) -> None:
-    """Write a ``.meta.json`` sidecar recording when + how the state was minted."""
+    """Write a ``.meta.json`` sidecar recording when + how the state was minted.
+
+    ``last_validated_at`` and ``validator_version`` are optional Phase 0d
+    liveness-cache fields. When omitted on initial mint they default to the
+    mint timestamp and the current Phase 0d validator version respectively;
+    callers re-validating an existing artifact pass them explicitly.
+    """
     now = now_fn() if now_fn is not None else datetime.now(UTC)
+    if validator_version is None:
+        from worldsim.phases.phase_0d_auth_bootstrap import CURRENT_VALIDATOR_VERSION
+
+        validator_version = CURRENT_VALIDATOR_VERSION
+    if last_validated_at is None:
+        last_validated_at = now
     payload = {
         "minted_at": now.isoformat(),
         "mechanism": mechanism,
+        "last_validated_at": last_validated_at.isoformat(),
+        "validator_version": int(validator_version),
     }
     sidecar = _meta_sidecar_path(artifact_path)
     sidecar.parent.mkdir(parents=True, exist_ok=True)
+    sidecar.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def read_storage_state_meta(artifact_path: Path) -> dict[str, Any] | None:
+    """Return the parsed ``.meta.json`` sidecar payload, or ``None`` when absent/malformed."""
+    sidecar = _meta_sidecar_path(artifact_path)
+    if not sidecar.exists():
+        return None
+    try:
+        payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def update_storage_state_meta_validation(
+    artifact_path: Path,
+    *,
+    last_validated_at: datetime,
+    validator_version: int,
+) -> None:
+    """Stamp a fresh ``last_validated_at`` + ``validator_version`` onto the sidecar.
+
+    Preserves all existing fields (including ``minted_at`` and ``mechanism``)
+    so older readers continue to function. If the sidecar does not exist,
+    this is a no-op: a missing sidecar means the artifact was minted before
+    the liveness cache existed and should be treated as fresh by readers.
+    """
+    sidecar = _meta_sidecar_path(artifact_path)
+    if not sidecar.exists():
+        return
+    try:
+        payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    if not isinstance(payload, dict):
+        return
+    payload["last_validated_at"] = last_validated_at.isoformat()
+    payload["validator_version"] = int(validator_version)
     sidecar.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 

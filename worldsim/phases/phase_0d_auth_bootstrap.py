@@ -71,8 +71,11 @@ import os
 import sys
 import uuid
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+import requests
 
 from worldsim.agent_auth import (
     read_storage_state_payload,
@@ -85,6 +88,22 @@ from worldsim.config import BenchmarkConfig, has_configured_agent_auth
 from worldsim.state import get_state_dir, save_state
 
 logger = logging.getLogger(__name__)
+
+
+# Bumped whenever ``probe_authenticated`` semantics or the meta-sidecar
+# liveness fields change. Older sidecars with a smaller value force re-mint
+# even when the input hash and TTL would otherwise allow reuse.
+CURRENT_VALIDATOR_VERSION = 1
+
+# Skip the live ``probe_authenticated`` call when the sidecar's
+# ``last_validated_at`` is fresher than this. 30 minutes is conservative
+# enough that a server-side session GC inside the window costs at most one
+# re-mint per task batch, while avoiding a probe HTTP call on every load.
+LIVENESS_SOFT_TTL_SECONDS = 30 * 60
+
+# Operator break-glass: when set to ``true``/``1``, every Phase 0d
+# load-or-mint call re-mints regardless of cache state.
+FORCE_REMINT_ENV = "WORLDSIM_STORAGE_STATE_FORCE_REMINT"
 
 
 class AuthBootstrapError(RuntimeError):
@@ -226,7 +245,7 @@ async def run(args: argparse.Namespace) -> int:
             logger.error("Phase 0d failed for site %r: %s", spec.site_name, exc)
             failures.append((spec.site_name, str(exc)))
             continue
-        if _is_idempotent_skip(artifact_path, completion_path, input_hash):
+        if _is_idempotent_skip(artifact_path, completion_path, input_hash) and not _force_remint():
             try:
                 _validate_storage_state_artifact(
                     spec=spec,
@@ -241,12 +260,26 @@ async def run(args: argparse.Namespace) -> int:
                     exc,
                 )
             else:
-                logger.info(
-                    "Phase 0d: skipping site %r (artifact present and input hash matches)",
+                probe_instance = {
+                    "site_name": spec.site_name,
+                    "site_url": site_url,
+                    "agent_auth": instance_agent_auths.get(spec.site_name) or {},
+                }
+                if _liveness_check_passes(
+                    site_name=spec.site_name,
+                    artifact_path=artifact_path,
+                    instance=probe_instance,
+                ):
+                    logger.info(
+                        "Phase 0d: skipping site %r (artifact present, hash matches, liveness ok)",
+                        spec.site_name,
+                    )
+                    skipped.append({"site": spec.site_name, "reason": "up_to_date"})
+                    continue
+                logger.warning(
+                    "[phase_0d] storage_state for site=%s failed liveness probe; re-minting",
                     spec.site_name,
                 )
-                skipped.append({"site": spec.site_name, "reason": "up_to_date"})
-                continue
         try:
             dispatch = _choose_dispatch(spec, benchmark_root=benchmark)
         except AuthBootstrapError as exc:
@@ -335,6 +368,9 @@ async def run(args: argparse.Namespace) -> int:
             },
             failpoint_base="phase_0d.completion",
         )
+        from worldsim.storage_state_preflight import write_storage_state_meta
+
+        write_storage_state_meta(artifact_path, mechanism=dispatch)
         generated.append(spec.site_name)
         logger.info(
             "Phase 0d: generated %s for site %r via %s",
@@ -1179,8 +1215,7 @@ def phase_0d_artifact_path(site_name: str, state_dir: Path | None = None) -> Pat
 
 def _phase_0d_instance_key(instance: dict[str, Any]) -> str:
     raw = "|".join(
-        str(instance.get(key) or "")
-        for key in ("site_url", "replica_name", "replica_index")
+        str(instance.get(key) or "") for key in ("site_url", "replica_name", "replica_index")
     )
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
     return f"instance_{digest}"
@@ -1216,7 +1251,143 @@ def _phase_0d_state_metadata(
     return payload
 
 
+# ---------------------------------------------------------------------------
+# Liveness-validated cache (used by run() and _load_or_mint_storage_state).
+# ---------------------------------------------------------------------------
+
+
+def _force_remint() -> bool:
+    return os.environ.get(FORCE_REMINT_ENV, "").strip().lower() in {"1", "true", "yes"}
+
+
+def _load_session_from_storage_state(artifact_path: Path) -> requests.Session:
+    """Build a ``requests.Session`` whose cookie jar reflects ``storage_state.json``."""
+    session = requests.Session()
+    payload = json.loads(artifact_path.read_text(encoding="utf-8"))
+    cookies = payload.get("cookies") if isinstance(payload, dict) else None
+    if isinstance(cookies, list):
+        for cookie in cookies:
+            if not isinstance(cookie, dict):
+                continue
+            name = cookie.get("name")
+            value = cookie.get("value")
+            if not isinstance(name, str) or not isinstance(value, str):
+                continue
+            domain = cookie.get("domain") if isinstance(cookie.get("domain"), str) else None
+            path = cookie.get("path") if isinstance(cookie.get("path"), str) else "/"
+            session.cookies.set(name, value, domain=domain, path=path)
+    return session
+
+
+def _editor_for_probe(site_name: str, instance: dict[str, Any], session: requests.Session) -> Any:
+    from worldsim.editors import EDITOR_REGISTRY
+
+    editor_cls = EDITOR_REGISTRY.get(("webarena_verified", site_name.strip().lower()))
+    if editor_cls is None:
+        return None
+    return editor_cls(instance, session)
+
+
+def _liveness_check_passes(
+    *,
+    site_name: str,
+    artifact_path: Path,
+    instance: dict[str, Any],
+    now_fn: Any | None = None,
+) -> bool:
+    """Decide whether a cached storage_state may be reused without re-minting.
+
+    Returns True when the validator version matches AND either the sidecar's
+    ``last_validated_at`` is within ``LIVENESS_SOFT_TTL_SECONDS`` or the
+    editor's live ``probe_authenticated`` confirms the session is alive.
+    On a successful probe, stamps a fresh ``last_validated_at`` so the next
+    call inside the TTL window can short-circuit.
+    """
+    from worldsim.storage_state_preflight import (
+        read_storage_state_meta,
+        update_storage_state_meta_validation,
+    )
+
+    meta = read_storage_state_meta(artifact_path)
+    if meta is None:
+        return True
+    if int(meta.get("validator_version") or 0) != CURRENT_VALIDATOR_VERSION:
+        return False
+    now = now_fn() if now_fn is not None else datetime.now(UTC)
+    last_validated_raw = meta.get("last_validated_at")
+    if isinstance(last_validated_raw, str):
+        try:
+            last_validated = datetime.fromisoformat(last_validated_raw)
+        except ValueError:
+            last_validated = None
+        else:
+            if last_validated.tzinfo is None:
+                last_validated = last_validated.replace(tzinfo=UTC)
+            if (now - last_validated).total_seconds() < LIVENESS_SOFT_TTL_SECONDS:
+                return True
+
+    session = _load_session_from_storage_state(artifact_path)
+    editor = _editor_for_probe(site_name, instance, session)
+    if editor is None:
+        return True
+    try:
+        alive = editor.probe_authenticated()
+    except NotImplementedError:
+        return True
+    if alive:
+        update_storage_state_meta_validation(
+            artifact_path,
+            last_validated_at=now,
+            validator_version=CURRENT_VALIDATOR_VERSION,
+        )
+    return alive
+
+
+async def _load_or_mint_storage_state(
+    instance: dict[str, Any],
+    *,
+    force_remint: bool = False,
+    benchmark_root: Path | None = None,
+) -> Path:
+    """Return a usable storage_state path, re-minting when the cache is dead.
+
+    Composition rule: reuse the cached artifact iff the sidecar's
+    ``validator_version`` matches and either (a) ``last_validated_at`` is
+    within ``LIVENESS_SOFT_TTL_SECONDS`` or (b) ``probe_authenticated``
+    confirms the session is alive. Otherwise, re-mint via
+    :func:`reacquire_storage_state`. ``WORLDSIM_STORAGE_STATE_FORCE_REMINT``
+    forces the re-mint branch regardless of cache state.
+    """
+    site_name = str(instance.get("site_name") or "").strip().lower()
+    if not site_name:
+        raise AuthBootstrapError("instance is missing site_name")
+    artifact_path = phase_0d_artifact_path(site_name)
+    if (
+        not force_remint
+        and not _force_remint()
+        and artifact_path.exists()
+        and _liveness_check_passes(
+            site_name=site_name,
+            artifact_path=artifact_path,
+            instance=instance,
+        )
+    ):
+        return artifact_path
+    refreshed = await reacquire_storage_state(
+        site_name=site_name,
+        instance=instance,
+        benchmark_root=benchmark_root,
+    )
+    from worldsim.storage_state_preflight import write_storage_state_meta
+
+    write_storage_state_meta(refreshed, mechanism="load_or_mint_remint")
+    return refreshed
+
+
 __all__ = [
+    "CURRENT_VALIDATOR_VERSION",
+    "FORCE_REMINT_ENV",
+    "LIVENESS_SOFT_TTL_SECONDS",
     "AuthBootstrapError",
     "phase_0d_artifact_path",
     "phase_0d_completion_path",

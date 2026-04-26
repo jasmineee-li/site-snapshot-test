@@ -101,6 +101,12 @@ class RedditEditor(BaseSiteEditor):
             editor = cls(instance, session)
             editor._form_get(f"/user/{cls._quote(username)}/edit_biography")
 
+    def probe_authenticated(self) -> bool:
+        # Postmill auth is applied per-request via X-Postmill-Auto-Login headers
+        # (see worldsim.auth_tokens.build_auth_headers); there is no server-held
+        # session to expire, so the cached storage_state cannot go stale.
+        return True
+
     def validate_args(self, method_name: str, args: dict[str, Any]) -> None:
         validators = {
             "create_forum": lambda: self._require_args(args, "name_template"),
