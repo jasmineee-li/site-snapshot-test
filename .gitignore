@@ -21,3 +21,11 @@ nohup*.out
 .venv
 .cursor
 eval_awareness_experiments/data/real/_auth/
+
+# Cloned external benchmark repos (BrowserGym, DoomArena, AgentDojo source,
+# InjecAgent, WASP). Each has its own remote and gets re-cloned by
+# eval_awareness_experiments/setup_pilot_deps.sh — no need to vendor them.
+external_benchmarks/
+
+# Per-stream stdout/stderr from launch_pilot.sh — runtime artifacts.
+logs/
