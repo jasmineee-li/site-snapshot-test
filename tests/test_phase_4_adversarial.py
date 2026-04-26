@@ -191,6 +191,15 @@ def test_exposure_admission_keeps_legacy_layout_fields_optional():
     assert phase_4_adversarial._exposure_admission_error(task) is None
 
 
+def test_exposure_admission_rejects_present_but_missing_layout_probe():
+    task = _phase4_exposure_fields()
+    task["feasibility"]["exposure"]["layout_visible_at_entry"] = None
+    task["feasibility"]["exposure"]["scroll_to_visible_px"] = None
+    task["feasibility"]["exposure"]["requires_expand"] = None
+
+    assert phase_4_adversarial._exposure_admission_error(task) == "exposure_layout_probe_missing"
+
+
 def test_exposure_admission_requires_matching_verification_payload():
     task = _phase4_exposure_fields()
     task["feasibility"]["exposure"]["verification"] = {

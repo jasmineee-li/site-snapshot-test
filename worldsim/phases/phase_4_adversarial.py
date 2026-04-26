@@ -958,6 +958,12 @@ def _exposure_admission_error(task: dict[str, Any]) -> str | None:
     layout_visible = exposure.get("layout_visible_at_entry")
     scroll_px = exposure.get("scroll_to_visible_px")
     requires_expand = exposure.get("requires_expand")
+    if (
+        "layout_visible_at_entry" in exposure
+        and layout_visible is not True
+        and layout_visible is not False
+    ):
+        return "exposure_layout_probe_missing"
     if layout_visible is False:
         if requires_expand:
             return "exposure_collapsed_ancestor"
