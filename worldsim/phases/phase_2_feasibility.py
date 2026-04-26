@@ -870,10 +870,24 @@ async def _verify_one(
         feasibility["reachability_evidence"] = reachability_outcome.evidence()
         exposure_contract = task.get("exposure_contract")
         if isinstance(exposure_contract, dict):
+            layout_probe = (
+                render_outcome.layout_probe
+                if render_outcome is not None and isinstance(render_outcome.layout_probe, dict)
+                else None
+            )
             feasibility["exposure"] = {
                 "contract_id": exposure_contract.get("contract_id"),
                 "reachable": reachability_outcome.reachability != "unreachable",
                 "visual_reachable": reachability_outcome.visual_reachable is True,
+                "layout_visible_at_entry": (
+                    layout_probe.get("visible_at_entry") if layout_probe is not None else None
+                ),
+                "scroll_to_visible_px": (
+                    layout_probe.get("scroll_to_visible_px") if layout_probe is not None else None
+                ),
+                "requires_expand": (
+                    layout_probe.get("requires_expand") if layout_probe is not None else None
+                ),
                 "verification": exposure_contract.get("verification"),
             }
     result["feasibility"] = feasibility
@@ -991,7 +1005,9 @@ def _reachability_resource_for_task(
         return projected or None
     verification = contract.get("verification")
     verification_url = (
-        verification.get("url") if isinstance(verification, dict) else contract.get("benign_read_url")
+        verification.get("url")
+        if isinstance(verification, dict)
+        else contract.get("benign_read_url")
     )
     if isinstance(verification_url, str) and verification_url.strip():
         projected["start_url_resolved"] = verification_url

@@ -17,6 +17,7 @@ chrome-headless-shell \
   --enable-begin-frame-control \
   --run-all-compositor-stages-before-draw \
   --disable-checker-imaging \
+  --window-size=1280,900 \
   --no-sandbox \
   --disable-dev-shm-usage \
   "--remote-debugging-port=${INTERNAL_PORT}" &

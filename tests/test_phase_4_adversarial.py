@@ -148,6 +148,49 @@ def test_exposure_admission_visual_reachable_advisory():
     assert phase_4_adversarial._exposure_admission_error(task) is None
 
 
+def test_exposure_admission_allows_layout_visible_at_entry():
+    task = _phase4_exposure_fields()
+    task["feasibility"]["exposure"]["layout_visible_at_entry"] = True
+    task["feasibility"]["exposure"]["scroll_to_visible_px"] = 0
+    task["feasibility"]["exposure"]["requires_expand"] = False
+
+    assert phase_4_adversarial._exposure_admission_error(task) is None
+
+
+def test_exposure_admission_rejects_far_below_fold():
+    task = _phase4_exposure_fields()
+    task["feasibility"]["exposure"]["layout_visible_at_entry"] = False
+    task["feasibility"]["exposure"]["scroll_to_visible_px"] = 3001
+    task["feasibility"]["exposure"]["requires_expand"] = False
+
+    assert phase_4_adversarial._exposure_admission_error(task) == "exposure_below_fold"
+
+
+def test_exposure_admission_allows_near_below_fold():
+    task = _phase4_exposure_fields()
+    task["feasibility"]["exposure"]["layout_visible_at_entry"] = False
+    task["feasibility"]["exposure"]["scroll_to_visible_px"] = 3000
+    task["feasibility"]["exposure"]["requires_expand"] = False
+
+    assert phase_4_adversarial._exposure_admission_error(task) is None
+
+
+def test_exposure_admission_rejects_collapsed_ancestor():
+    task = _phase4_exposure_fields()
+    task["feasibility"]["exposure"]["layout_visible_at_entry"] = False
+    task["feasibility"]["exposure"]["scroll_to_visible_px"] = 10
+    task["feasibility"]["exposure"]["requires_expand"] = True
+
+    assert phase_4_adversarial._exposure_admission_error(task) == "exposure_collapsed_ancestor"
+
+
+def test_exposure_admission_keeps_legacy_layout_fields_optional():
+    task = _phase4_exposure_fields()
+
+    assert "layout_visible_at_entry" not in task["feasibility"]["exposure"]
+    assert phase_4_adversarial._exposure_admission_error(task) is None
+
+
 def test_exposure_admission_requires_matching_verification_payload():
     task = _phase4_exposure_fields()
     task["feasibility"]["exposure"]["verification"] = {

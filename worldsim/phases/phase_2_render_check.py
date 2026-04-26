@@ -85,6 +85,7 @@ class RenderOutcome:
     matched_signature: str | None = None
     matched_snippet: str | None = None
     rendered_body_text: str | None = None
+    layout_probe: dict[str, Any] | None = None
 
     @classmethod
     def passed(
@@ -94,6 +95,7 @@ class RenderOutcome:
         signature: str,
         snippet: str,
         rendered_body_text: str | None = None,
+        layout_probe: dict[str, Any] | None = None,
     ) -> RenderOutcome:
         return cls(
             ok=True,
@@ -105,6 +107,7 @@ class RenderOutcome:
             matched_signature=signature,
             matched_snippet=snippet[:240],
             rendered_body_text=rendered_body_text,
+            layout_probe=layout_probe,
         )
 
     @classmethod
@@ -138,6 +141,8 @@ class RenderOutcome:
                 out["matched_snippet"] = self.matched_snippet
             if self.rendered_body_text:
                 out["rendered_body_text"] = self.rendered_body_text[:2000]
+            if self.layout_probe is not None:
+                out["layout_probe"] = dict(self.layout_probe)
         else:
             out["kind"] = self.kind
         return out
@@ -430,6 +435,125 @@ def _strip_markdown_for_text_match(text: str) -> str:
 
 def _normalize(text: str | None) -> str:
     return re.sub(r"\s+", " ", _strip_markdown_for_text_match(text or "")).lower()
+
+
+async def _layout_probe_for_signature(page: Any, normalized_needle: str) -> dict[str, Any] | None:
+    """Return initial-viewport geometry for the first rendered text match."""
+    if not normalized_needle:
+        return None
+    try:
+        result = await page.evaluate(
+            """
+            (needle) => {
+              const root = document.body || document.documentElement;
+              if (!root) return null;
+              const walker = document.createTreeWalker(
+                root,
+                NodeFilter.SHOW_TEXT,
+                {
+                  acceptNode(node) {
+                    const parent = node.parentElement;
+                    if (!parent) return NodeFilter.FILTER_REJECT;
+                    const tag = parent.tagName;
+                    if (tag === "SCRIPT" || tag === "STYLE" || tag === "NOSCRIPT") {
+                      return NodeFilter.FILTER_REJECT;
+                    }
+                    return NodeFilter.FILTER_ACCEPT;
+                  },
+                },
+              );
+              const textNodes = [];
+              const charMap = [];
+              let corpus = "";
+              function appendNormalized(content, nodeIndex) {
+                const lower = String(content || "").toLowerCase();
+                for (let offset = 0; offset < lower.length; offset += 1) {
+                  const ch = lower[offset];
+                  if (/\\s/.test(ch)) {
+                    if (corpus.length === 0 || corpus[corpus.length - 1] === " ") {
+                      continue;
+                    }
+                    corpus += " ";
+                    charMap.push({ nodeIndex, offset });
+                    continue;
+                  }
+                  corpus += ch;
+                  charMap.push({ nodeIndex, offset });
+                }
+              }
+              while (walker.nextNode()) {
+                const node = walker.currentNode;
+                const content = node.textContent || "";
+                if (!content) continue;
+                const nodeIndex = textNodes.length;
+                textNodes.push(node);
+                appendNormalized(content, nodeIndex);
+              }
+              const matchOffset = corpus.indexOf(String(needle || ""));
+              if (matchOffset < 0) return null;
+              let startInfo = null;
+              let endInfo = null;
+              const length = String(needle || "").length;
+              for (let i = 0; i < length; i += 1) {
+                const info = charMap[matchOffset + i];
+                if (!info) continue;
+                if (!startInfo) startInfo = info;
+                endInfo = info;
+              }
+              if (!startInfo || !endInfo) return null;
+              const startNode = textNodes[startInfo.nodeIndex];
+              const endNode = textNodes[endInfo.nodeIndex];
+              if (!startNode || !endNode) return null;
+              const range = document.createRange();
+              range.setStart(startNode, startInfo.offset);
+              range.setEnd(endNode, Math.min((endInfo.offset || 0) + 1, (endNode.textContent || "").length));
+              const rect = range.getBoundingClientRect();
+              const viewportH = window.innerHeight || 0;
+              const viewportW = window.innerWidth || 0;
+              const scrollY = window.scrollY || 0;
+              const doc = document.documentElement || root;
+              const docH = Math.max(doc.scrollHeight || 0, root.scrollHeight || 0);
+              const visibleAtEntry =
+                rect.width > 0 &&
+                rect.height > 0 &&
+                rect.bottom > 0 &&
+                rect.top < viewportH &&
+                rect.right > 0 &&
+                rect.left < viewportW;
+              let requiresExpand = false;
+              for (let n = startNode.parentElement; n; n = n.parentElement) {
+                const style = window.getComputedStyle(n);
+                if (style.display === "none" || style.visibility === "hidden") {
+                  requiresExpand = true;
+                  break;
+                }
+                if (n.tagName === "DETAILS" && !n.open) {
+                  requiresExpand = true;
+                  break;
+                }
+                if (n.classList && n.classList.contains("comment--collapsed")) {
+                  requiresExpand = true;
+                  break;
+                }
+              }
+              return {
+                visible_at_entry: visibleAtEntry,
+                rect_top: rect.top,
+                rect_bottom: rect.bottom,
+                viewport_h: viewportH,
+                viewport_w: viewportW,
+                doc_h: docH,
+                scroll_to_visible_px: visibleAtEntry ? 0 : Math.max(0, rect.top + scrollY - 100),
+                requires_expand: requiresExpand,
+              };
+            }
+            """,
+            normalized_needle,
+        )
+    except Exception:
+        logger.debug("phase 2c render check: layout probe failed", exc_info=True)
+        return None
+    return result if isinstance(result, dict) else None
 
 
 def _extract_note_html(body: str, note_id_str: str) -> str | None:
@@ -871,7 +995,14 @@ async def verify_seed_renders(
                     if pos >= 0 and pos < len(body_text):
                         raw_pos = pos
                     snippet = body_text[max(0, raw_pos - 40) : raw_pos + len(signature) + 40]
-                    return RenderOutcome.passed(url=target, signature=signature, snippet=snippet)
+                    layout_probe = await _layout_probe_for_signature(page, needle)
+                    return RenderOutcome.passed(
+                        url=target,
+                        signature=signature,
+                        snippet=snippet,
+                        rendered_body_text=body_text,
+                        layout_probe=layout_probe,
+                    )
                 # Read-your-write fallback for GitLab note kinds: the text
                 # match missed, but the editor returned the authoritative
                 # note_id from its POST response. Fetch the discussions.json

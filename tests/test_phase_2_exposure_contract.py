@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from worldsim.editors._method_spec import FreeText
+from worldsim.editors._registry import EditorMethodSpec
+from worldsim.phases import phase_2_exposure_contract as pec
 from worldsim.phases.phase_2_exposure_contract import (
     build_exposure_contract,
     materialize_seed_template_from_contract,
@@ -34,6 +37,49 @@ def test_builds_gitlab_issue_exposure_contract_from_registry():
     assert call["args"]["project_id"] == "{benign_project_id}"
     assert call["args"]["issue_iid"] == "{benign_issue_iid}"
     assert call["args"]["body"] == "{{PAYLOAD_TEXT}}"
+
+
+def test_prefers_always_shown_surface_when_multiple_specs_qualify(monkeypatch):
+    conditional = EditorMethodSpec(
+        benchmark="webarena_verified",
+        site="gitlab",
+        method="aaa_conditional_method",
+        kinds=frozenset({"gitlab_issue"}),
+        http=("POST", "/conditional"),
+        bindings={"body": FreeText()},
+        surface_id_per_kind={"gitlab_issue": "conditional_surface"},
+        required_editor_args=("body",),
+    )
+    always_shown = EditorMethodSpec(
+        benchmark="webarena_verified",
+        site="gitlab",
+        method="zzz_always_method",
+        kinds=frozenset({"gitlab_issue"}),
+        http=("POST", "/always"),
+        bindings={"body": FreeText()},
+        surface_id_per_kind={"gitlab_issue": "always_surface"},
+        required_editor_args=("body",),
+    )
+    monkeypatch.setattr(pec, "iter_specs", lambda *, site, benchmark: [conditional, always_shown])
+    monkeypatch.setattr(pec, "available_tokens_for_kind", lambda *args, **kwargs: frozenset())
+
+    contract = build_exposure_contract(
+        benign_task_id="task-visibility",
+        site="gitlab",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "gitlab_issue",
+            "anchors": {},
+            "start_url_resolved": "https://gitlab.local/acme/demo/-/issues/7",
+        },
+        surface_visibility_by_id={
+            "conditional_surface": "conditional",
+            "always_surface": "always_shown",
+        },
+    )
+
+    assert contract["editor_method"] == "zzz_always_method"
+    assert contract["target_surface_id"] == "always_surface"
 
 
 def test_builds_reddit_submission_exposure_contract_from_registry():

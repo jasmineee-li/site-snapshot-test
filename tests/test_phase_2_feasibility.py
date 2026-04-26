@@ -2119,8 +2119,9 @@ def test_case_07b_double_run_converges_without_status_drift(tmp_path, monkeypatc
 
 
 class _FakePlaywrightPage:
-    def __init__(self, body: str = "") -> None:
+    def __init__(self, body: str = "", layout_probe: dict[str, Any] | None = None) -> None:
         self.body = body
+        self.layout_probe = layout_probe
 
     async def goto(self, url, *, timeout, wait_until):
         return None
@@ -2134,6 +2135,9 @@ class _FakePlaywrightPage:
     async def wait_for_timeout(self, ms):
         # Bug J: body-text poll sleeps via this; no-op keeps tests fast.
         return None
+
+    async def evaluate(self, script, arg=None):
+        return self.layout_probe
 
     async def route(self, pattern, handler):
         # Bug K: tests predate the page.route blocker; accept + no-op so
@@ -2277,6 +2281,68 @@ def test_render_check_passing_stamps_render_verified(tmp_path, monkeypatch):
     assert evidence["ok"] is True
     assert "SeedNickAdv003" == evidence["matched_signature"]
     assert fake_browser.closed is True
+
+
+def test_verified_exposure_records_layout_probe_fields(monkeypatch):
+    handle = _FakeHandle()
+
+    async def fake_apply(seed, instance):
+        return handle, {"read_surface_urls": ["https://gitlab.example/project/-/issues/1"]}
+
+    async def fake_render_check(**kwargs):
+        return feas.RenderOutcome.passed(
+            url="https://gitlab.example/project/-/issues/1",
+            signature="SeedNickAdv003",
+            snippet="SeedNickAdv003",
+            layout_probe={
+                "visible_at_entry": False,
+                "scroll_to_visible_px": 1200,
+                "requires_expand": False,
+            },
+        )
+
+    async def fake_reachability_check(**kwargs):
+        return feas.ReachabilityOutcome.direct(
+            url="https://gitlab.example/project/-/issues/1",
+            witnesses_matched=("SeedNickAdv003",),
+            visual_reachable=True,
+        )
+
+    monkeypatch.setattr(feas, "apply_data_seed_async", fake_apply)
+    monkeypatch.setattr(feas, "_run_render_check", fake_render_check)
+    monkeypatch.setattr(feas, "_run_reachability_check", fake_reachability_check)
+
+    contract_id = "gitlab:benign-layout:test"
+    result = asyncio.run(
+        feas._verify_one(
+            {
+                **_task(task_id="layout", method="create_issue_note", detail="SeedNickAdv003"),
+                "benign_target_resource": {
+                    "kind": "gitlab_issue",
+                    "start_url_resolved": "https://gitlab.example/project/-/issues/1",
+                },
+                "exposure_contract": {
+                    "contract_id": contract_id,
+                    "eligibility": {"status": "eligible"},
+                    "verification": {"url": "https://gitlab.example/project/-/issues/1"},
+                },
+            },
+            _gitlab_instance(),
+            retry_count=0,
+            fingerprint_base={"host_config": "test", "editor_commit": "cafebabe"},
+            ttl_hours=None,
+            force_reverify=True,
+            cleanup_warnings=[],
+            browser=object(),
+        )
+    )
+
+    exposure = result["feasibility"]["exposure"]
+    assert exposure["contract_id"] == contract_id
+    assert exposure["reachable"] is True
+    assert exposure["layout_visible_at_entry"] is False
+    assert exposure["scroll_to_visible_px"] == 1200
+    assert exposure["requires_expand"] is False
 
 
 def test_render_check_failing_marks_render_unverified(tmp_path, monkeypatch):

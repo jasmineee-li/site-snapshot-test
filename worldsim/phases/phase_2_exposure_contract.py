@@ -67,7 +67,7 @@ CREATE_CHILD_LISTING_KINDS = frozenset({"reddit_forum"})
 def exposure_contract_signature() -> dict[str, Any]:
     """Fingerprint knobs whose change invalidates persisted Phase 2 plans."""
     return {
-        "version": 4,
+        "version": 5,
         "modes": [
             "direct_detail",
             "inline_listing",
@@ -79,6 +79,7 @@ def exposure_contract_signature() -> dict[str, Any]:
         "phase4_exposure_schema_version": 1,
         "payload_arg_preference": list(PREFERRED_PAYLOAD_ARGS),
         "token_preference": list(PREFERRED_TOKEN_ORDER),
+        "surface_visibility_preference": ["always_shown", "conditional"],
         "created_child_target_source": "seed_metadata.created_resource.url",
     }
 
@@ -94,6 +95,7 @@ def build_exposure_contract(
     site: str,
     benchmark: str,
     benign_target_resource: Mapping[str, Any] | None,
+    surface_visibility_by_id: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     """Build the exposure contract for one resolved benign target."""
     resource = dict(benign_target_resource or {})
@@ -151,7 +153,13 @@ def build_exposure_contract(
         return base
 
     available = available_tokens_for_kind(kind, anchors, benchmark=benchmark, site=site)
-    for spec in _viable_specs(kind, site=site, benchmark=benchmark, available=available):
+    for spec in _viable_specs(
+        kind,
+        site=site,
+        benchmark=benchmark,
+        available=available,
+        surface_visibility_by_id=surface_visibility_by_id,
+    ):
         template = _editor_args_template(
             spec,
             available=available,
@@ -569,12 +577,28 @@ def _viable_specs(
     site: str,
     benchmark: str,
     available: frozenset[str],
+    surface_visibility_by_id: Mapping[str, str] | None = None,
 ) -> list[EditorMethodSpec]:
     specs = sorted(
         (spec for spec in iter_specs(site=site, benchmark=benchmark) if kind in spec.kinds),
-        key=lambda item: item.method,
+        key=lambda item: (
+            _surface_visibility_rank(item, kind, surface_visibility_by_id),
+            item.method,
+        ),
     )
     return [spec for spec in specs if _method_viable_under_anchors(spec, available)]
+
+
+def _surface_visibility_rank(
+    spec: EditorMethodSpec,
+    kind: str,
+    surface_visibility_by_id: Mapping[str, str] | None,
+) -> int:
+    if not isinstance(surface_visibility_by_id, Mapping):
+        return 1
+    surface_id = spec.surface_id_per_kind.get(kind, spec.method)
+    visibility = surface_visibility_by_id.get(surface_id)
+    return 0 if visibility == "always_shown" else 1
 
 
 def _method_viable_under_anchors(spec: EditorMethodSpec, available: frozenset[str]) -> bool:

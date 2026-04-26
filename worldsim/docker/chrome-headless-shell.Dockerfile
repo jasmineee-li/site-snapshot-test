@@ -55,6 +55,7 @@ EXPOSE 9222
 #   --enable-begin-frame-control           required for HeadlessExperimental.beginFrame
 #   --run-all-compositor-stages-before-draw  closes the main Blink→compositor commit race
 #   --disable-checker-imaging              prevents lazy-image-decode checker tiles in screenshots
+#   --window-size=1280,900                 matches the Phase 2c/Phase 4 viewport contract
 #   --no-sandbox                           required inside an unprivileged container
 #   --disable-dev-shm-usage                /dev/shm is often small in containers
 #   --remote-debugging-port=9223           chrome binds CDP on 127.0.0.1:9223 inside the container

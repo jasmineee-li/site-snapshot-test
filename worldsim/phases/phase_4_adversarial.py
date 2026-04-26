@@ -899,6 +899,9 @@ def _classify_trajectory_outcome(
 # grace-mode behavior at runtime without rolling this constant back.
 STRICT_FEASIBILITY_ADMISSION = True
 
+# About four 720px screens, beyond this the benign agent rarely scrolls naturally.
+MAX_NATURAL_SCROLL_PX = 3000
+
 
 def _strict_feasibility_enabled() -> bool:
     import os as _os
@@ -952,6 +955,14 @@ def _exposure_admission_error(task: dict[str, Any]) -> str | None:
     # content. Phase 4 PVPO measures actual on-screen encounter via
     # HeadlessExperimental.beginFrame ink-occupancy and is the authoritative
     # encounter gate, so we don't reject on visual_reachable here.
+    layout_visible = exposure.get("layout_visible_at_entry")
+    scroll_px = exposure.get("scroll_to_visible_px")
+    requires_expand = exposure.get("requires_expand")
+    if layout_visible is False:
+        if requires_expand:
+            return "exposure_collapsed_ancestor"
+        if not isinstance(scroll_px, (int, float)) or scroll_px > MAX_NATURAL_SCROLL_PX:
+            return "exposure_below_fold"
     if exposure.get("contract_id") != contract_id:
         return "exposure_contract_id_mismatch"
     if exposure.get("verification") != contract_verification:

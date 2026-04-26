@@ -34,13 +34,19 @@ def short_body_poll(monkeypatch: pytest.MonkeyPatch) -> None:
 
 class _FakePage:
     def __init__(
-        self, *, body_per_url: dict[str, str], goto_raises: dict[str, Exception] | None = None
+        self,
+        *,
+        body_per_url: dict[str, str],
+        goto_raises: dict[str, Exception] | None = None,
+        layout_probe_per_url: dict[str, dict] | None = None,
     ) -> None:
         self._body_per_url = body_per_url
         self._goto_raises = goto_raises or {}
+        self._layout_probe_per_url = layout_probe_per_url or {}
         self._current_url = ""
         self.goto_calls: list[tuple[str, str]] = []  # (url, wait_until)
         self.load_state_calls: list[tuple[str, int]] = []
+        self.evaluate_calls: list[object] = []
 
     async def goto(self, url, *, timeout, wait_until):
         # Strip cache-buster query string before matching against the test
@@ -66,6 +72,10 @@ class _FakePage:
         # Bug J: the body-text poll sleeps via page.wait_for_timeout;
         # fake is a no-op so tests stay deterministic.
         return None
+
+    async def evaluate(self, script, arg=None):
+        self.evaluate_calls.append(arg)
+        return self._layout_probe_per_url.get(self._current_url)
 
     async def route(self, pattern, handler):
         # Bug K: tests preceded the page.route blocker; swallow here so
@@ -255,12 +265,23 @@ async def test_verify_returns_render_unverified_when_no_signature():
 
 @pytest.mark.asyncio
 async def test_verify_passes_when_signature_present_in_first_url():
+    layout_probe = {
+        "visible_at_entry": True,
+        "rect_top": 24,
+        "rect_bottom": 42,
+        "viewport_h": 900,
+        "viewport_w": 1280,
+        "doc_h": 1200,
+        "scroll_to_visible_px": 0,
+        "requires_expand": False,
+    }
     page = _FakePage(
         body_per_url={
             "http://shop.test/catalog/product/view/id/67": (
                 "Product page reviewed by SeedNickAdv003 with stars"
             )
-        }
+        },
+        layout_probe_per_url={"http://shop.test/catalog/product/view/id/67": layout_probe},
     )
     browser = _FakeBrowser(page)
     outcome = await verify_seed_renders(
@@ -273,6 +294,9 @@ async def test_verify_passes_when_signature_present_in_first_url():
     assert outcome.ok
     assert outcome.matched_signature == "SeedNickAdv003"
     assert "SeedNickAdv003" in (outcome.matched_snippet or "")
+    assert outcome.layout_probe == layout_probe
+    assert outcome.evidence()["layout_probe"] == layout_probe
+    assert page.evaluate_calls == ["seednickadv003"]
     assert browser.contexts[0].closed  # context torn down
 
 

@@ -2189,6 +2189,7 @@ async def _generate_injections_for_site(
         benign_target_resources=benign_target_resources,
         site=site_name,
         benchmark=benchmark,
+        surface_visibility_by_id=_surface_visibility_by_id(site_profile),
     )
     _persist_exposure_contracts(site_name=site_name, contracts=exposure_contracts)
     site_tasks, eligibility_drops = _phase_2a_eligible_tasks_for_benchmark(
@@ -3194,6 +3195,7 @@ def _build_exposure_contracts_for_shard(
     benign_target_resources: Mapping[str, Mapping[str, Any]],
     site: str,
     benchmark: str,
+    surface_visibility_by_id: Mapping[str, str] | None = None,
 ) -> dict[str, dict[str, Any]]:
     contracts: dict[str, dict[str, Any]] = {}
     for task in site_tasks:
@@ -3205,8 +3207,24 @@ def _build_exposure_contracts_for_shard(
             site=site,
             benchmark=benchmark,
             benign_target_resource=benign_target_resources.get(task_id),
+            surface_visibility_by_id=surface_visibility_by_id,
         )
     return contracts
+
+
+def _surface_visibility_by_id(site_profile: Mapping[str, Any]) -> dict[str, str]:
+    out: dict[str, str] = {}
+    surfaces = site_profile.get("injection_surface")
+    if not isinstance(surfaces, list):
+        return out
+    for surface in surfaces:
+        if not isinstance(surface, Mapping):
+            continue
+        surface_id = surface.get("id")
+        visibility = surface.get("visibility")
+        if isinstance(surface_id, str) and isinstance(visibility, str):
+            out[surface_id] = visibility
+    return out
 
 
 def _persist_exposure_contracts(
