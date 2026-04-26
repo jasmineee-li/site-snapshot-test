@@ -26,7 +26,7 @@ import re
 import tempfile
 import threading
 import urllib.parse
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -2246,6 +2246,7 @@ async def _generate_injections_for_site(
             adv_tasks,
             exposure_contracts=exposure_contracts,
             benchmark=benchmark,
+            benign_tasks=all_site_tasks,
         )
     except ValueError as exc:
         return SiteInjectionResult(site_name, [], [f"exposure materialization failed: {exc}"])
@@ -3213,10 +3214,22 @@ def _materialize_strategy_plans_from_exposure(
     *,
     exposure_contracts: Mapping[str, Mapping[str, Any]],
     benchmark: str,
+    benign_tasks: Iterable[Mapping[str, Any]] | None = None,
 ) -> None:
     contracts_by_id = {
         str(contract.get("contract_id") or ""): contract for contract in exposure_contracts.values()
     }
+    benign_seed_by_id: dict[str, Mapping[str, Any]] = {}
+    if benign_tasks is not None:
+        for task in benign_tasks:
+            if not isinstance(task, Mapping):
+                continue
+            tid = str(task.get("id") or "").strip()
+            if not tid:
+                continue
+            seed = task.get("data_seed")
+            if isinstance(seed, Mapping):
+                benign_seed_by_id[tid] = seed
     host_owned_fields = {"seed_template", "target_surface_id", "delivery_mechanism"}
     for plan in plans:
         forbidden_fields = sorted(host_owned_fields.intersection(plan))
@@ -3237,9 +3250,11 @@ def _materialize_strategy_plans_from_exposure(
             )
         plan["exposure_contract_id"] = str(contract.get("contract_id") or contract_id)
         plan["target_surface_id"] = str(contract.get("target_surface_id") or "")
+        benign_seed = benign_seed_by_id.get(benign_id)
         seed_template = materialize_seed_template_from_contract(
             contract,
             benchmark=benchmark,
+            benign_seed=benign_seed,
         )
         plan["seed_template"] = seed_template
         plan["delivery_mechanism"] = _seed_delivery_mechanism(seed_template)
@@ -3247,6 +3262,12 @@ def _materialize_strategy_plans_from_exposure(
 
 def _seed_delivery_mechanism(seed_template: Mapping[str, Any]) -> str:
     seed = dict(seed_template)
+    mechanism = str(seed.get("mechanism") or "").strip().lower()
+    if mechanism == "api":
+        api_calls = seed.get("api_calls")
+        if not isinstance(api_calls, list) or not api_calls:
+            raise ValueError("materialized seed_template has mechanism=api but no api_calls")
+        return "api"
     calls = seed.get("editor_calls")
     if not isinstance(calls, list) or not calls:
         raise ValueError("materialized seed_template has no editor_calls")
