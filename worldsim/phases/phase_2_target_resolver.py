@@ -49,6 +49,12 @@ ResourceKind = Literal[
     "gitlab_mr",
     "gitlab_search_result",
     "gitlab_dashboard_list",
+    "gitlab_user_profile",
+    "gitlab_snippet",
+    "gitlab_snippets_index",
+    "gitlab_project_milestone",
+    "gitlab_project_labels",
+    "gitlab_group",
     "reddit_submission",
     "reddit_forum",
     "reddit_dashboard_list",
@@ -107,26 +113,53 @@ def _assert_anchor_contract_conformance(
 #   * trailing `?query=...` strings
 # Apply placeholder expansion BEFORE running these patterns — they assume
 # `__GITLAB__` / `__REDDIT__` have already been swapped for concrete origins.
+#
+# The Mode B novel-task surfaces (gitlab_user_profile, gitlab_snippet,
+# gitlab_snippets_index, gitlab_project_milestone, gitlab_project_labels,
+# gitlab_group) extend the inventory beyond what the existing 812
+# benchmark tasks visit. ``/<segment>`` URLs are ambiguous (user vs group
+# vs project namespace); ``_disambiguate_root_segment`` resolves them
+# using the Phase 0c handle lists threaded through ``agent_context.gitlab``.
 _ISSUE_RE = re.compile(r"/(?P<project_path>(?:[^/?#]+/)+[^/?#]+)/-/issues/(?P<issue_iid>\d+)")
 _MR_RE = re.compile(r"/(?P<project_path>(?:[^/?#]+/)+[^/?#]+)/-/merge_requests/(?P<mr_iid>\d+)")
+_MILESTONE_RE = re.compile(
+    r"/(?P<project_path>(?:[^/?#]+/)+[^/?#]+)/-/milestones/(?P<milestone_iid>\d+)"
+)
+_LABELS_RE = re.compile(r"/(?P<project_path>(?:[^/?#]+/)+[^/?#]+)/-/labels(?:/?(?:\?|$))")
+_SNIPPET_RE = re.compile(r"/-/snippets/(?P<snippet_id>\d+)")
+_SNIPPETS_INDEX_RE = re.compile(r"/-/snippets(?:/?(?:\?|$))")
 _SEARCH_RE = re.compile(
     r"/search\?(?=[^#]*\bsearch=(?P<q>[^&]+))(?=[^#]*\bscope=(?P<scope>issues|merge_requests))"
 )
 _DASHBOARD_RE = re.compile(r"/dashboard/(?P<dash>todos|merge_requests|issues)\b")
 _PROJECT_ISSUES_API_RE = re.compile(r"/api/v4/projects/(?P<project_id>\d+)/issues\b")
+# Matches a single root segment, e.g. /byteblaze or /a11yproject. The
+# segment is then disambiguated against agent_context.gitlab handle lists
+# to pick gitlab_user_profile vs gitlab_group; otherwise the resolver
+# falls through to kind=None.
+_ROOT_SEGMENT_RE = re.compile(r"^/(?P<segment>[A-Za-z][A-Za-z0-9_.\-]*)(?:/?(?:\?|$))")
 _SUBMISSION_RE = re.compile(r"/f/(?P<forum_name>[^/?#]+)/(?P<submission_id>\d+)(?:/|$|\b)")
 _FORUM_RE = re.compile(r"/f/(?P<forum_name>[^/?#\d][^/?#]*)(?:/?(?:\?|$))")
 _REDDIT_SUBMIT_RE = re.compile(r"/submit/(?P<forum_name>[^/?#]+)")
 _REDDIT_USER_DASH_RE = re.compile(r"/user/(?P<user>[^/?#]+)/(?P<dash>submitted|comments)\b")
 
 # Matching order — most-specific first so /.-/issues/{iid} wins over a
-# bare /.-/issues listing (the latter maps to search_result).
+# bare /.-/issues listing (the latter maps to search_result). The root
+# segment patterns go last because they match anything starting with /<word>.
 _GITLAB_PATTERNS: tuple[tuple[ResourceKind, re.Pattern[str]], ...] = (
     ("gitlab_issue", _ISSUE_RE),
     ("gitlab_mr", _MR_RE),
+    ("gitlab_project_milestone", _MILESTONE_RE),
+    ("gitlab_project_labels", _LABELS_RE),
+    ("gitlab_snippet", _SNIPPET_RE),
+    ("gitlab_snippets_index", _SNIPPETS_INDEX_RE),
     ("gitlab_search_result", _SEARCH_RE),
     ("gitlab_dashboard_list", _DASHBOARD_RE),
     ("gitlab_search_result", _PROJECT_ISSUES_API_RE),
+    # Root-segment patterns disambiguated dynamically by _match_gitlab.
+    # The Pseudo-kind below is overwritten before emission; it's just a
+    # placeholder for the regex tuple.
+    ("gitlab_user_profile", _ROOT_SEGMENT_RE),
 )
 _REDDIT_PATTERNS: tuple[tuple[ResourceKind, re.Pattern[str]], ...] = (
     ("reddit_submission", _SUBMISSION_RE),
@@ -191,7 +224,42 @@ def _path_and_query(url: str) -> str:
 
 
 def _is_listing_kind(kind: str) -> bool:
-    return kind in {"gitlab_search_result", "gitlab_dashboard_list", "reddit_dashboard_list"}
+    return kind in {
+        "gitlab_search_result",
+        "gitlab_dashboard_list",
+        "gitlab_snippets_index",
+        "gitlab_project_labels",
+        "reddit_dashboard_list",
+    }
+
+
+def _disambiguate_root_segment(task: Mapping[str, Any], segment: str) -> str | None:
+    """Resolve a bare ``/<segment>`` URL into a gitlab kind.
+
+    Reads ``agent_context.gitlab.{user_handles,group_handles}`` populated
+    by Phase 0c handle enrichment (see
+    :mod:`worldsim.phases.phase_0c_handle_enrichment`). Returns ``"user"``
+    or ``"group"`` for an unambiguous match; ``None`` when the segment is
+    in both lists, neither list, or when the agent_context block is
+    missing. The resolver does not guess: ambiguous cases fall through to
+    ``kind=None`` with a categorized drop reason.
+    """
+    if not isinstance(segment, str) or not segment:
+        return None
+    gl = (task.get("agent_context") or {}).get("gitlab")
+    if not isinstance(gl, Mapping):
+        return None
+    raw_users = gl.get("user_handles") or []
+    raw_groups = gl.get("group_handles") or []
+    users = {str(u).strip() for u in raw_users if isinstance(u, str)}
+    groups = {str(g).strip() for g in raw_groups if isinstance(g, str)}
+    in_users = segment in users
+    in_groups = segment in groups
+    if in_users and not in_groups:
+        return "user"
+    if in_groups and not in_users:
+        return "group"
+    return None
 
 
 def _listing_start_url(kind: str, resolved_url: str, fallback_url: str | None) -> str | None:
@@ -203,17 +271,33 @@ def _listing_start_url(kind: str, resolved_url: str, fallback_url: str | None) -
     return resolved_url
 
 
-def _match_gitlab(url: str) -> tuple[ResourceKind, dict[str, str]] | None:
+def _match_gitlab(
+    url: str,
+    task: Mapping[str, Any] | None = None,
+) -> tuple[ResourceKind, dict[str, str]] | None:
     path_and_query = _path_and_query(url)
     for kind, pattern in _GITLAB_PATTERNS:
         match = pattern.search(path_and_query)
-        if match:
-            anchors = {k: v for k, v in match.groupdict().items() if v}
-            if kind == "gitlab_dashboard_list":
-                anchors["dashboard"] = anchors.pop("dash", "")
-            if kind == "gitlab_search_result" and "q" in anchors:
-                anchors["query"] = anchors.pop("q")
-            return kind, anchors
+        if not match:
+            continue
+        anchors = {k: v for k, v in match.groupdict().items() if v}
+        if kind == "gitlab_dashboard_list":
+            anchors["dashboard"] = anchors.pop("dash", "")
+        if kind == "gitlab_search_result" and "q" in anchors:
+            anchors["query"] = anchors.pop("q")
+        # The root-segment regex emits "segment"; resolve it to user vs
+        # group via the Phase 0c handle lists. Unresolved → continue
+        # searching (no other gitlab pattern will match a bare /<word>,
+        # so this becomes kind=None).
+        if "segment" in anchors:
+            segment = anchors.pop("segment")
+            resolved = _disambiguate_root_segment(task or {}, segment)
+            if resolved == "user":
+                return "gitlab_user_profile", {"username": segment}
+            if resolved == "group":
+                return "gitlab_group", {"group_path": segment}
+            continue
+        return kind, anchors
     return None
 
 
@@ -316,8 +400,7 @@ def _attach_surfaces_for(
     site: str | None = None,
 ) -> list[dict[str, Any]]:
     return [
-        dict(surface)
-        for surface in _registry_attach_surfaces(kind, benchmark=benchmark, site=site)
+        dict(surface) for surface in _registry_attach_surfaces(kind, benchmark=benchmark, site=site)
     ]
 
 
@@ -374,6 +457,11 @@ def _encounter_requirements(
         handle = _benign_user_handle(task)
         if handle:
             requirements["requires_at_mention"] = handle
+    elif kind in ("gitlab_snippets_index", "gitlab_project_labels"):
+        # Inline-listing surfaces: the seed's visible artifact must appear
+        # on the listing page so the agent encounters it during the
+        # benign read.
+        requirements["must_appear_on_list"] = True
     return requirements
 
 
@@ -461,6 +549,34 @@ def _reconstruct_start_url_from_anchors(
         if dashboard:
             return f"{base}/dashboard/{dashboard}"
         return None
+    if kind == "gitlab_user_profile":
+        username = anchors.get("username")
+        if username:
+            return f"{base}/{username}"
+        return None
+    if kind == "gitlab_group":
+        group_path = anchors.get("group_path")
+        if group_path:
+            return f"{base}/{group_path}"
+        return None
+    if kind == "gitlab_snippet":
+        snippet_id = anchors.get("snippet_id")
+        if snippet_id:
+            return f"{base}/-/snippets/{snippet_id}"
+        return None
+    if kind == "gitlab_snippets_index":
+        return f"{base}/-/snippets"
+    if kind == "gitlab_project_milestone":
+        project_path = anchors.get("project_path")
+        iid = anchors.get("milestone_iid")
+        if project_path and iid:
+            return f"{base}/{_clean_project_path(str(project_path))}/-/milestones/{iid}"
+        return None
+    if kind == "gitlab_project_labels":
+        project_path = anchors.get("project_path")
+        if project_path:
+            return f"{base}/{_clean_project_path(str(project_path))}/-/labels"
+        return None
     if kind == "reddit_submission":
         forum = anchors.get("forum_name")
         submission_id = anchors.get("submission_id")
@@ -524,7 +640,9 @@ def derive_benign_target_resource(
             resolved = _normalise_url(raw, placeholders)
             if not resolved:
                 continue
-            hit = _match_gitlab(resolved) if site_kind == "gitlab" else _match_reddit(resolved)
+            hit = (
+                _match_gitlab(resolved, task) if site_kind == "gitlab" else _match_reddit(resolved)
+            )
             if hit is None:
                 continue
             kind, anchors = hit
@@ -540,9 +658,7 @@ def derive_benign_target_resource(
                 "kind": kind,
                 "anchors": dict(anchors),
                 "start_url_resolved": start_url,
-                "attach_surfaces": _attach_surfaces_for(
-                    kind, benchmark=benchmark, site=site_kind
-                ),
+                "attach_surfaces": _attach_surfaces_for(kind, benchmark=benchmark, site=site_kind),
                 "encounter_requirements": _encounter_requirements(kind, task, anchors),
                 "layer": "L1",
             }
@@ -553,7 +669,7 @@ def derive_benign_target_resource(
     # (AgentResponseEvaluator-only retrieve tasks).
     if "L2" in allow_layers and resolved_start:
         hit = (
-            _match_gitlab(resolved_start)
+            _match_gitlab(resolved_start, task)
             if site_kind == "gitlab"
             else _match_reddit(resolved_start)
         )
@@ -571,9 +687,7 @@ def derive_benign_target_resource(
                 "kind": kind,
                 "anchors": dict(anchors),
                 "start_url_resolved": start_url,
-                "attach_surfaces": _attach_surfaces_for(
-                    kind, benchmark=benchmark, site=site_kind
-                ),
+                "attach_surfaces": _attach_surfaces_for(kind, benchmark=benchmark, site=site_kind),
                 "encounter_requirements": _encounter_requirements(kind, task, anchors),
                 "layer": "L2",
             }
@@ -1446,9 +1560,7 @@ def _project_item_to_record(
     site_kind: Literal["gitlab", "reddit"] = (
         "reddit" if item_kind == "reddit_submission" else "gitlab"
     )
-    record["attach_surfaces"] = _attach_surfaces_for(
-        item_kind, benchmark=benchmark, site=site_kind
-    )
+    record["attach_surfaces"] = _attach_surfaces_for(item_kind, benchmark=benchmark, site=site_kind)
 
     anchors: dict[str, Any] = {}
     if item_kind in {"gitlab_issue", "gitlab_mr"}:
