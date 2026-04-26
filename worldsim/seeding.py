@@ -211,65 +211,13 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
         _validate_editor_calls(editor_calls)
         return
 
-    if mechanism in {"api", "form"}:
-        api_calls = seed.get("api_calls")
-        has_api_calls = isinstance(api_calls, list) and bool(api_calls)
-        if not has_api_calls and not has_editor_calls:
-            raise ValueError(
-                f"{mechanism} data seed must include a non-empty api_calls or editor_calls list"
-            )
-        for call in api_calls or []:
-            if not isinstance(call, dict):
-                raise ValueError("api data seed calls must be objects")
-            if "target" in call:
-                raise ValueError(
-                    "target-based api_calls are no longer supported; migrate to editor_calls"
-                )
-            method = call.get("method")
-            if not isinstance(method, str) or not method.strip():
-                raise ValueError("api data seed calls must include a method")
-            if method.strip().upper() not in _ALLOWED_API_METHODS:
-                raise ValueError(
-                    f"{mechanism} data seed method {method!r} not allowed "
-                    f"(allowed: {sorted(_ALLOWED_API_METHODS)})"
-                )
-            if mechanism == "form" and method.strip().upper() not in _FORM_METHODS:
-                raise ValueError(
-                    f"form data seed method {method!r} not allowed "
-                    f"(allowed: {sorted(_FORM_METHODS)})"
-                )
-            raw_ref = _call_reference(call)
-            if not isinstance(raw_ref, str) or not raw_ref.strip():
-                raise ValueError(
-                    f"{mechanism} data seed calls must include a path starting with '/' or a url"
-                )
-            if not (
-                raw_ref.startswith("/")
-                or raw_ref.startswith("http://")
-                or raw_ref.startswith("https://")
-            ):
-                raise ValueError(
-                    f"{mechanism} data seed calls must include a path starting with '/' or a url"
-                )
-            json_body = call.get("body")
-            body_form = call.get("body_form")
-            if mechanism == "form":
-                if not isinstance(body_form, dict) or not body_form:
-                    raise ValueError(
-                        "form data seed calls must include a non-empty body_form object"
-                    )
-                if json_body is not None:
-                    raise ValueError("form data seed calls must not include JSON body")
-            elif body_form is not None:
-                raise ValueError("api data seed calls must use body, not body_form")
-        if has_editor_calls:
-            _validate_editor_calls(editor_calls)
-        return
-
-    if mechanism == "state_push":
-        if "state" not in seed:
-            raise ValueError("state_push data seed must include a state payload")
-        return
+    if mechanism in {"api", "form", "state_push"}:
+        raise ValueError(
+            f"data_seed.mechanism={mechanism!r} is deprecated; use mechanism='editor' "
+            "with editor_calls referencing site editor methods. The api/form/state_push "
+            "paths were removed in the editor migration; see "
+            "docs/handoffs/researcher-handoff-project-status.md."
+        )
 
     raise ValueError(f"unknown data seed mechanism: {mechanism!r}")
 

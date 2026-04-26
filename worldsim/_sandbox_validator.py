@@ -252,65 +252,13 @@ def validate_data_seed(seed: object, *, allow_none: bool = False) -> list[str]:
             return ["editor data seed must not include api_calls"]
         return _validate_editor_calls(editor_calls)
 
-    if mechanism in {"api", "form"}:
-        api_calls = seed.get("api_calls")
-        has_api_calls = isinstance(api_calls, list) and bool(api_calls)
-        if not has_api_calls and not has_editor_calls:
-            errors.append(
-                f"{mechanism} data seed must include a non-empty api_calls or editor_calls list"
-            )
-            return errors
-        for call in api_calls or []:
-            if not isinstance(call, dict):
-                errors.append(f"{mechanism} data seed calls must be objects")
-                continue
-            if "target" in call:
-                errors.append(
-                    "target-based api_calls are no longer supported; migrate to editor_calls"
-                )
-                continue
-            method = call.get("method")
-            if not isinstance(method, str) or not method.strip():
-                errors.append(f"{mechanism} data seed calls must include a method")
-            elif method.strip().upper() not in _ALLOWED_API_METHODS:
-                errors.append(
-                    f"{mechanism} data seed method {method!r} not allowed "
-                    f"(allowed: {sorted(_ALLOWED_API_METHODS)})"
-                )
-            elif mechanism == "form" and method.strip().upper() not in _FORM_METHODS:
-                errors.append(
-                    f"form data seed method {method!r} not allowed "
-                    f"(allowed: {sorted(_FORM_METHODS)})"
-                )
-            raw_ref = _call_reference(call)
-            if not isinstance(raw_ref, str) or not raw_ref.strip():
-                errors.append(
-                    f"{mechanism} data seed calls must include a path starting with '/' or a url"
-                )
-            elif not (
-                raw_ref.startswith("/")
-                or raw_ref.startswith("http://")
-                or raw_ref.startswith("https://")
-            ):
-                errors.append(
-                    f"{mechanism} data seed calls must include a path starting with '/' or a url"
-                )
-            body = call.get("body")
-            body_form = call.get("body_form")
-            if mechanism == "form":
-                if not isinstance(body_form, dict) or not body_form:
-                    errors.append("form data seed calls must include a non-empty body_form object")
-                if body is not None:
-                    errors.append("form data seed calls must not include JSON body")
-            elif body_form is not None:
-                errors.append("api data seed calls must use body, not body_form")
-        if has_editor_calls:
-            errors.extend(_validate_editor_calls(editor_calls))
-        return errors
-
-    if mechanism == "state_push":
-        if "state" not in seed:
-            errors.append("state_push data seed must include a state payload")
+    if mechanism in {"api", "form", "state_push"}:
+        errors.append(
+            f"data_seed.mechanism={mechanism!r} is deprecated; use mechanism='editor' "
+            "with editor_calls referencing site editor methods. The api/form/state_push "
+            "paths were removed in the editor migration; see "
+            "docs/handoffs/researcher-handoff-project-status.md."
+        )
         return errors
 
     errors.append(f"unknown data seed mechanism: {mechanism!r}")
@@ -2112,9 +2060,7 @@ def _editor_arg_name(call: dict[str, object], canonical_name: str) -> str | None
     if (
         (not _call_has_benchmark_metadata(call) or _editor_delivery_contract_key(call) is not None)
         and editor_key == ("reddit", "create_comment")
-        and _REDDIT_COMMENT_BODY_FIELD_PATTERN.match(
-        canonical_name
-        )
+        and _REDDIT_COMMENT_BODY_FIELD_PATTERN.match(canonical_name)
     ):
         return "body"
     for canonical, arg_name in _editor_arg_alias_pairs(call):
@@ -2126,10 +2072,14 @@ def _editor_arg_name(call: dict[str, object], canonical_name: str) -> str | None
 def _call_delivery_mechanism(seed: dict[str, object], call: dict[str, object]) -> str | None:
     if _editor_delivery_binding(call) is not None:
         editor_key = _editor_delivery_key(call)
-        if editor_key is not None and (editor_key[0] == "reddit" or editor_key in {
-            ("shopping", "update_customer_profile"),
-            ("shopping_admin", "update_admin_profile"),
-        }):
+        if editor_key is not None and (
+            editor_key[0] == "reddit"
+            or editor_key
+            in {
+                ("shopping", "update_customer_profile"),
+                ("shopping_admin", "update_admin_profile"),
+            }
+        ):
             return "form"
         return "api"
     contract_key = _editor_delivery_contract_key(call)
