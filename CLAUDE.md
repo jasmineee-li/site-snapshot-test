@@ -12,6 +12,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   commit. Protected: never push to `main` / `master` without explicit
   confirmation.
 
+## Experiment log
+
+**Project-specific override of the global `experiment_log` rule.** This
+project has external collaborators, so the log lives in-repo (visible in
+PRs / clones) instead of in `~/claude-notes-max/`.
+
+Path: `eval_awareness_experiments/experiment_log.md`. Newest entry at the
+top. Follow the format described in `~/claude-notes-max/CLAUDE.md`
+(`## YYYY-MM-DD — slug`, with Type / Groups / What / Why / Parent / Key
+change / Files / Results / Notes). Add a new entry whenever an experiment
+is launched (plan + empty results is fine) and update it when results land.
+
 ## Project Overview
 
 This is a monorepo for evaluating AI agent behaviors in controlled web environments. It combines multiple components:
