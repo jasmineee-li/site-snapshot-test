@@ -779,14 +779,11 @@ def _ecologically_valid(result: dict[str, Any]) -> bool:
 
 
 def _normalize_task_origin(origin: Any, *, task: dict[str, Any] | None = None) -> str:
-    """Normalize old and new task-origin names for one release."""
+    """Normalize task-origin names. Falls back to id-prefix inference for
+    legacy snapshots whose ``origin`` field was never stamped."""
     raw_origin = str(origin or "").strip()
     if raw_origin in {"existing_task", "new_task"}:
         return raw_origin
-    if raw_origin == "mode_a":
-        return "existing_task"
-    if raw_origin == "mode_b":
-        return "new_task"
 
     task_id = str(task.get("id", "")).strip() if isinstance(task, dict) else ""
     if task_id.startswith("novel_"):
