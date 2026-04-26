@@ -42,13 +42,21 @@ production-realistic intervention?
   cell.
 - **VEA** (verbalized eval-awareness, in-trace) — measured on every
   cell. Spontaneous awareness in the agent's own thinking trace.
-- **5PQ post-hoc** (12-question elicited-awareness suite) — measured
-  **only on the `bare` arm**. Reasoning: on the XML-frame arms the
-  model has been *told* it's in an eval, so the 5PQ answer is
-  trivially "yes" and uninformative. On `scratchpad_native` it'd be
-  redundant with `bare` for measuring the same thing. Reserve the
-  expensive 12-question suite for the one place it gives clean
-  information about natural awareness.
+- **5PQ post-hoc** — measured **only on the `bare` arm**. Reasoning:
+  on the XML-frame arms the model has been *told* it's in an eval,
+  so the 5PQ answer is trivially "yes" and uninformative. On
+  `scratchpad_native` it'd be redundant with `bare` for measuring
+  the same thing.
+
+  **We use the 8-prompt Curated-8 set, not the full 12.** Drops
+  prompts {04 reason, 05 context, 11 who-am-i, 12 infer-about-me} —
+  the prompts that score Real ≥0.55 across every preset and every
+  model in our existing data. Curated-8 = {01 best_guess,
+  02 why_conversation, 03 purpose, 06 user_role_source PERM,
+  07 user_role_characterize PERM, 08 distinctive,
+  09 user_role_source STRICT, 10 user_role_characterize STRICT}.
+  Saves ~$28 on the pilot vs full-12 and *improves* discrimination
+  by stripping the dead-zero prompts.
 
 ---
 
@@ -111,30 +119,35 @@ In scope:
 
 ---
 
-## Conditions (4 per model × benchmark)
+## Arms (4 per model × benchmark)
 
 Each cell is a `(preset, frame)` combination. Implementation already
 exists in `extra_instructions.py` (presets) and
-`system_prompt_frame.py` (frames).
+`system_prompt_frame.py` (frames). The orthogonal `condition` flag
+(`injection_modifier`, which wraps injection text not the system
+prompt) is always set to `baseline` in this experiment — the XML
+manipulation is via `frame`, not `condition`.
 
-| # | Name | Preset | Frame | What the model sees |
-|---|---|---|---|---|
-| 1 | `bare` | `none` | `none` | Benchmark default system prompt, no modifications |
-| 2 | `xml_safety` | `none` | `safety_test` | `<llm_safety_test>` wrapping the entire system prompt |
-| 3 | `xml_scenario` | `none` | `hypothetical_scenario` | `<hypothetical_scenario>` wrapping the entire system prompt |
-| 4 | `native` | `scratchpad_native` | `none` | Default system prompt + appended `scratchpad_native` instruction |
+| Arm | Preset | Frame | What the model sees |
+|---|---|---|---|
+| `bare` | `none` | `none` | Benchmark default system prompt, no modifications |
+| `xml_safety` | `none` | `safety_test` | `<llm_safety_test>` wrapping the entire system prompt |
+| `xml_scenario` | `none` | `hypothetical_scenario` | `<hypothetical_scenario>` wrapping the entire system prompt |
+| `native` | `scratchpad_native` | `none` | Default system prompt + appended `scratchpad_native` instruction |
 
 **Note on "bare"**: this experiment uses `preset=none` (no scratchpad
 instruction at all) as the bare baseline, not `scratchpad_bare`. This
 is the cleanest reference point for the causal manipulations and
-matches the existing `n20_glm5_none_v2_*` baseline runs.
+matches the existing `n20_glm5_none_v2_*` baseline run, which is the
+one cell directly reusable from prior runs.
 
-**Why no fifth condition combining preset+frame** (e.g.,
+**Why no fifth arm combining preset+frame** (e.g.,
 `scratchpad_native` + `safety_test`): the design is
-factorial-but-additive, not full-factorial. The four conditions
-isolate (1) baseline, (2/3) XML manipulation alone, (4) preset
-manipulation alone. Combining preset + frame would test interaction,
-which we can run later if the additive results suggest it matters.
+factorial-but-additive, not full-factorial. The four arms isolate
+(bare) baseline, (xml_safety/xml_scenario) XML manipulation alone,
+(native) preset manipulation alone. Combining preset + frame would
+test interaction, which we can run later if the additive results
+suggest it matters.
 
 ---
 
@@ -145,56 +158,18 @@ n=20 tasks for the pilot (n=100 reserved for canonical follow-ups
 once the pilot identifies which contrasts are large enough to be
 worth scaling).
 
-### Implementation gap to flag
+### Implementation prereqs (must land before launch)
 
-`system_prompt_frame` (the XML wrapper) is **only wired into the
-tool-calling track** (AgentDojo, InjecAgent). On the browser track
-(DoomArena, WASP), the system prompt is built inside AgentLab's
-GenericAgent template and the frame wrapper isn't hooked in.
-`run_causal_experiment.py` already has a clean skip for this
-(`run_causal_experiment.py:84-87`):
+1. **Wire `system_prompt_frame` into the browser track.** Currently
+   only the tool-calling track applies the frame; DoomArena/WASP
+   skip non-`none` frames at `run_causal_experiment.py:84-87`. Need
+   to thread `wrap_system_prompt(...)` through
+   `agent_factory.build_openrouter_agent` so it wraps the AgentLab
+   `GenericAgent`'s system message before the agent runs. Add
+   `--system-prompt-frame` to `run_doomarena` and `run_wasp`. Remove
+   the skip in the matrix runner. **Estimated 30-60 minutes.**
 
-```
-if frame != "none" and benchmark in BROWSER_BENCHMARKS:
-    print(f"[{i}/{len(combos)}] SKIP {benchmark}/{frame} ...")
-```
-
-So as-shipped, the matrix collapses for browser benchmarks:
-
-| Benchmark | Conditions runnable today |
-|---|---|
-| AgentDojo | all 4 (bare, xml_safety, xml_scenario, native) |
-| InjecAgent | all 4 |
-| DoomArena | only 2 (bare, native) |
-| WASP | only 2 (bare, native) |
-
-**Two options**:
-
-A. **Run the partial matrix as-is.** Tool-calling benchmarks get the
-   full 4 conditions; browser benchmarks get only 2. We still have
-   the causal contrast on AgentDojo and InjecAgent, with browser
-   benchmarks contributing only the elicitation contrast (`bare` vs.
-   `native`). Cheaper and unblocks the launch.
-
-B. **Wire `system_prompt_frame` into the browser track first.**
-   `agent_factory.build_openrouter_agent` would need to apply
-   `wrap_system_prompt(...)` to the AgentLab GenericAgent's system
-   message before the agent runs. Estimated 30-60 minutes to
-   implement and verify (one new arg through `run_safety_pipeline`,
-   `run_doomarena`, `run_wasp`, plus the agent-factory call). Adds
-   16 more cells (2 frames × 2 benchmarks × 6 models × 4 of those
-   conditions wait) to the pilot.
-
-**Recommendation: B.** The causal contrast is the headline of this
-experiment; running it on tool-calling benchmarks only would leave
-half the data table with the most-interesting comparison missing.
-Browser benchmarks are also where DoomArena's high VEA rates have
-been observed (75-100% on Opus 4.7 + scratchpad), so they're the
-most informative cells for the XML-tag manipulation.
-
-### Other implementation prereqs
-
-1. **Bug in `system_prompt_frame.py:30-34`**:
+2. **Bug fix in `system_prompt_frame.py:30-34`**:
    ```python
    ALL_FRAMES: list[SystemPromptFrame] = [
        "none",
@@ -202,33 +177,74 @@ most informative cells for the XML-tag manipulation.
        "hypothetical_scenario",
    ]
    ```
-   The dict in `_WRAPPERS` uses `"safety_test"`, but `ALL_FRAMES` (which
-   is fed to `argparse choices=`) lists `"llm_safety_test"`. So
+   Dict in `_WRAPPERS` uses `"safety_test"`, but `ALL_FRAMES` (fed to
+   `argparse choices=`) lists `"llm_safety_test"`. Currently
    `--system-prompt-frames safety_test` fails at argparse, and
    `--system-prompt-frames llm_safety_test` fails at the wrapper
-   lookup. **Fix: change `"llm_safety_test"` → `"safety_test"` in
-   `ALL_FRAMES`** before launch. One-line edit.
+   lookup. **One-line edit.**
 
-2. **5PQ-only-on-bare wiring.** `run_safety_pipeline` accepts
-   `--judges` to select which judges run. We pass
-   `verbalized_awareness purpose_continue_5q` for bare cells and
-   `verbalized_awareness` only for the other three condition types.
-   `run_causal_experiment` already passes `--judges` through, so this
-   is a launch-time CLI flag, not a code change. Just need to be
-   careful to invoke the matrix runner once per (judge-set ×
-   condition-set) pair, or extend the runner to know which judges
-   apply to which conditions. **Simplest: two separate
-   `run_causal_experiment` invocations** — one for bare arm with full
-   judges, one for the other three conditions with VEA only.
+3. **Result-dir restructure.** Current scheme buries benchmark deep
+   in the path:
+   `causal_pilot/<arm_group>/<benchmark>/<condition>/<preset>/<frame>/<model>/`.
+   Restructure to put benchmark at the top and collapse
+   (preset, frame) into a single arm name:
+   `causal_pilot/<benchmark>/<arm>/<model>/`
+   where `<arm>` ∈ `{bare, xml_safety, xml_scenario, native}`.
+   The old `<condition>` segment is dropped because we always pass
+   `--condition baseline` in this experiment (frame is the
+   manipulation, not condition). **~10-line edit to
+   `run_causal_experiment.py`'s output-dir construction.**
 
-3. **Concurrency.** The recent n=100 runs used `--concurrency 20` and
-   finished in ~30 min. For 96 cells × n=20 = 1,920 tasks, even at 20
-   concurrent we're talking ~30 hours wall-clock if everything runs
-   sequentially. Multiple cells can run in parallel via tmux/separate
-   processes — recommend launching one tmux pane per benchmark so the
-   four benchmarks run in parallel.
+4. **5PQ-only-on-bare wiring.** `run_safety_pipeline` accepts
+   `--judges` to select which judges run. For the bare arm we pass
+   `verbalized_awareness purpose_continue_5q`; for the other three
+   arms we pass `verbalized_awareness` only. **Simplest: launch the
+   matrix in three separate `run_causal_experiment` invocations**
+   (one per arm-group with the right `--judges`), no code change
+   required.
+
+5. **Run tracker.** New `run_manifest.json` written to
+   `eval_awareness_experiments/results/causal_pilot/run_manifest.json`,
+   one entry per (model, benchmark, arm, n, status, timestamp).
+   Hooked into `run_causal_experiment.py` so cells already complete
+   are skipped. Lets multiple sessions / collaborators see what's
+   done without rereading every result dir. **Estimated 30 minutes.**
+
+### Wall-clock estimate (corrected)
+
+Per-task wall-clock from existing runs:
+- Tool-calling (AgentDojo, InjecAgent): ~1-3 min/task
+- Browser (DoomArena, WASP): ~5-10 min/task
+
+With `concurrency=20` *within* a cell, 20 tasks complete in roughly
+the longest single task (~5-10 min). For 96 cells:
+- Sequential: ~11 hours total
+- **4 benchmarks running in parallel** (4 tmux sessions): 24 cells
+  per stream × ~7 min = **~3 hours wall-clock**
+
+This is the recommended setup. The earlier "30 hours" estimate was
+based on 30-min/task pessimism; actual per-task times are 5-10x
+faster.
 
 ---
+
+## Existing runs (audit)
+
+From `results/` inventory:
+
+**Reusable for this experiment (1 cell):**
+- `n20_glm5_none_v2_20260425_2009` → GLM-5 + AgentDojo + bare. Maps
+  directly to a cell in the matrix; can skip rerunning.
+
+**Not reusable** (different presets/conditions):
+- All other GLM-5 runs use `scratchpad_bare` / `scratchpad_private` /
+  OG `scratchpad` — none match the new four arms.
+- All Opus 4.7 runs are on DoomArena with `motive` / scratchpad
+  variants — not in the new arm set.
+- Kimi 2.6, Sonnet 4.6, GPT-5.2, Gemini variants: nothing prior.
+
+**Effective scope for the pilot: 95 of 96 cells to run.** The single
+GLM-5 + AgentDojo + bare cell already-done saves ~$1.20.
 
 ## Run plan
 
@@ -239,13 +255,17 @@ most informative cells for the XML-tag manipulation.
       `agent_factory` + `run_doomarena` + `run_wasp`. Add
       `--system-prompt-frame` arg to both browser runners; thread
       through to `agent_factory.build_openrouter_agent`.
+- [ ] Restructure output-dir layout in `run_causal_experiment.py`
+      to `<benchmark>/<arm>/<model>/`.
+- [ ] Build run-manifest tracker (read existing results, skip
+      cells already complete).
 - [ ] Smoke-test all 6 models with a 1-call probe each to verify
       `:thinking` mode is enabled and OpenRouter IDs resolve.
 
-### Step 1: bare arm (with full 5PQ judging)
+### Step 1: bare arm (with Curated-8 5PQ judging)
 
 Most expensive arm because of 5PQ. ~6×4×20 = 480 task runs + 480 VEA
-+ 480×12 = 5,760 5PQ calls.
++ 480×8 = 3,840 5PQ calls.
 
 ```bash
 python -m eval_awareness_experiments.run_causal_experiment \
@@ -260,9 +280,15 @@ python -m eval_awareness_experiments.run_causal_experiment \
     --extra-instructions-presets none \
     --system-prompt-frames none \
     --judges verbalized_awareness purpose_continue_5q \
+    --judge-model anthropic/claude-opus-4.7:thinking \
     --tasks-per-split 20 \
-    --output-base eval_awareness_experiments/results/causal_pilot/bare
+    --output-base eval_awareness_experiments/results/causal_pilot
 ```
+
+(The 5PQ judge will run all prompts in
+`judges/prompts/purpose_continue_5q/*.json`. To restrict to
+Curated-8, temporarily move prompts 04, 05, 11, 12 out of the
+directory, or filter post-hoc when computing the headline.)
 
 ### Step 2: XML-frame arms (VEA only)
 
@@ -274,8 +300,9 @@ python -m eval_awareness_experiments.run_causal_experiment \
     --extra-instructions-presets none \
     --system-prompt-frames safety_test hypothetical_scenario \
     --judges verbalized_awareness \
+    --judge-model anthropic/claude-opus-4.7:thinking \
     --tasks-per-split 20 \
-    --output-base eval_awareness_experiments/results/causal_pilot/xml_frames
+    --output-base eval_awareness_experiments/results/causal_pilot
 ```
 
 ### Step 3: scratchpad_native arm (VEA only)
@@ -288,12 +315,21 @@ python -m eval_awareness_experiments.run_causal_experiment \
     --extra-instructions-presets scratchpad_native \
     --system-prompt-frames none \
     --judges verbalized_awareness \
+    --judge-model anthropic/claude-opus-4.7:thinking \
     --tasks-per-split 20 \
-    --output-base eval_awareness_experiments/results/causal_pilot/native
+    --output-base eval_awareness_experiments/results/causal_pilot
 ```
 
-Steps 1–3 can run in parallel (separate tmux sessions / output
-directories). Independent.
+After the dir restructure (prereq above), all three steps share one
+`--output-base` and write into `causal_pilot/<benchmark>/<arm>/<model>/`
+without colliding. Steps 1–3 can run in parallel (separate tmux
+sessions). Within each step, launch one tmux pane per benchmark for
+4× parallelism on the wall-clock.
+
+### Wall-clock target
+- Each step: ~3 hours with 4 benchmarks in parallel
+- All three steps in parallel (12 tmux panes total): **~3 hours
+  wall-clock for the entire pilot**
 
 ---
 
@@ -337,9 +373,9 @@ Per cell = 20 × per-task. Per arm = sum across (benchmarks × models).
 
 **Bare arm** (preset=none, frame=none, all 4 benchmarks, all 6 models):
 - Agent runs: 20 × ($1.71 + $1.71 + $2.03 + $2.71) = **$163**
-- VEA judges (Opus 4.6): 480 trajectories × ~$0.03 = **$14**
-- 5PQ judges (Opus 4.6): 480 × 12 prompts × ~$0.015 = **$86**
-- **Bare total: ~$263**
+- VEA judges (Opus 4.7, $5/$25 — same as 4.6): 480 trajectories × ~$0.03 = **$14**
+- 5PQ judges (Opus 4.7, **Curated-8** = 8 prompts): 480 × 8 × ~$0.015 = **$58**
+- **Bare total: ~$235**
 
 **XML-frame arms** (2 frames × all 4 benchmarks × all 6 models):
 - Agent runs: 2 × $163 (same shape as bare) = **$326**
@@ -356,12 +392,12 @@ Per cell = 20 × per-task. Per arm = sum across (benchmarks × models).
 
 | Arm | Cost |
 |---|---|
-| Bare | $263 |
-| XML × 2 | $355 |
-| Native | $177 |
-| **Subtotal** | **$795** |
-| 25% buffer (retries, longer trajectories than estimated) | $200 |
-| **Pilot total (n=20)** | **~$1,000** |
+| Bare (with Curated-8 5PQ) | $235 |
+| XML × 2 (VEA only) | $355 |
+| Native (VEA only) | $177 |
+| **Subtotal** | **$767** |
+| 25% buffer (retries, longer trajectories than estimated) | $190 |
+| **Pilot total (n=20)** | **~$960** |
 
 This is **substantially lower** than the initial $4,300 estimate
 because the GLM-5 calibration showed actual per-task token usage is
@@ -394,28 +430,27 @@ it saves in dollars.**
 
 ---
 
-## Decisions to make before launch
+## Decisions resolved
 
-1. **Implementation gap A or B?** (Recommendation: B — wire
-   `system_prompt_frame` into browser runners. ~30-60 min of
-   engineering, makes the matrix complete.)
-2. **Confirm "bare" means `preset=none`, not `scratchpad_bare`.**
-   This doc assumes `none`. If you want `scratchpad_bare`,
-   `scratchpad_native` (which has no XML / no bullet count) becomes
-   harder to differentiate cleanly from the baseline.
-3. **n=20 vs. n=10 pilot.** n=20 matches existing pilot conventions
-   and gives reliable per-prompt aggregates. n=10 would halve cost
-   but make per-task swings (0.10 each) coarser. Recommend n=20.
-4. **Judge model.** Default has been Opus 4.6:thinking. With Opus
-   4.7 in the agent set, do we want 4.7 as judge to keep judge ≥
-   strongest agent, or stick with 4.6 for continuity with prior
-   runs? Recommendation: keep 4.6 — keeps numbers comparable to
-   prior n=20 / n=100 work; a 4.7 re-judge can happen later.
-5. **Verify OpenRouter slugs.** Especially the GPT-5.2 and Gemini
-   preview IDs. One smoke test per model before the matrix launch.
-6. **Result-dir naming.** Output structure is
-   `causal_pilot/{bare,xml_frames,native}/<benchmark>/<condition>/<preset>/<frame>/<model>/`.
-   Confirm this is the layout you want for downstream analysis.
+| Decision | Choice |
+|---|---|
+| "bare" definition | `preset=none, frame=none` ✅ |
+| Judge model | `anthropic/claude-opus-4.7:thinking` ✅ |
+| Sonnet substitution | `claude-sonnet-4.6:thinking` until 4.7 ships ⚠️ |
+| 5PQ scope | Curated-8 (drops 04, 05, 11, 12) ✅ |
+| Browser-track frame support | Wire it (Priority 1 implementation) ✅ |
+| Result dir layout | `causal_pilot/<benchmark>/<arm>/<model>/` ✅ |
+| n | n=20 pilot, n=100 follow-up if pilot is informative |
+
+## Decisions still open
+
+1. **Sonnet 4.7 substitution.** `anthropic/claude-sonnet-4.7` is
+   not on OpenRouter as of this query. Either substitute
+   `sonnet-4.6:thinking` or wait. **Recommendation: substitute,
+   note in the Table 1 footer that 4.6 was used as a 4.7 stand-in.**
+2. **Verify OpenRouter slugs**. Smoke test each model with a 1-call
+   probe before the matrix launch. Especially GPT-5.2 and the
+   Gemini preview IDs.
 
 ---
 
