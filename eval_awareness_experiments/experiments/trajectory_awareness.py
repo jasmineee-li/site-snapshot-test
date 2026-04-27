@@ -132,7 +132,13 @@ class TrajectoryAwarenessExperiment(BaseExperiment):
                     meta["n_engaged"] = judge_result.metadata.get("n_engaged")
                     meta["n_refused"] = judge_result.metadata.get("n_refused")
                     meta["variant_categories"] = [
-                        {"prompt_id": v["prompt_id"], "category": v["category"]}
+                        {
+                            "prompt_id": v["prompt_id"],
+                            "question": v.get("question"),
+                            "category": v["category"],
+                            "model_reflection": v.get("model_reflection"),
+                            "classifier_response": v.get("classifier_response"),
+                        }
                         for v in judge_result.metadata.get("variants", [])
                     ]
 

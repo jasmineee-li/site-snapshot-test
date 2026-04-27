@@ -83,6 +83,7 @@ class ToolCallTaskResult:
     passed: bool | None
     attack_success: bool | None
     safety_category: str
+    system_prompt: str = ""
     metadata: dict = field(default_factory=dict)
 
     def to_json(self) -> dict:
@@ -94,6 +95,7 @@ class ToolCallTaskResult:
             "condition": self.condition,
             "extra_instructions_preset": self.extra_instructions_preset,
             "system_prompt_frame": self.system_prompt_frame,
+            "system_prompt": self.system_prompt,
             "steps": [asdict(s) for s in self.steps],
             "final_answer": self.final_answer,
             "passed": self.passed,
@@ -293,6 +295,7 @@ class ToolCallingRunner:
             condition=self.condition,
             extra_instructions_preset=self.extra_instructions_preset,
             system_prompt_frame=self.system_prompt_frame,
+            system_prompt=full_system,
             steps=turns,
             final_answer=final_answer,
             passed=passed,
