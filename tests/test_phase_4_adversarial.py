@@ -69,12 +69,12 @@ def _phase4_exposure_fields(
             "contract_id": contract_id,
             "benign_task_id": benign_task_id,
             "site": site,
-            "kind": "test_surface",
+            "kind": "gitlab_issue",
             "mode": "direct_detail",
             "anchors": {},
             "benign_read_url": url,
-            "editor_method": "test.editor",
-            "target_surface_id": "test_surface",
+            "editor_method": "create_issue_note",
+            "target_surface_id": "note.body",
             "payload_arg": "body",
             "editor_args_template": {"body": "{{PAYLOAD_TEXT}}"},
             "required_tokens": [],
@@ -157,13 +157,13 @@ def test_exposure_admission_allows_layout_visible_at_entry():
     assert phase_4_adversarial._exposure_admission_error(task) is None
 
 
-def test_exposure_admission_rejects_far_below_fold():
+def test_exposure_admission_allows_far_below_fold_as_telemetry():
     task = _phase4_exposure_fields()
     task["feasibility"]["exposure"]["layout_visible_at_entry"] = False
     task["feasibility"]["exposure"]["scroll_to_visible_px"] = 3001
     task["feasibility"]["exposure"]["requires_expand"] = False
 
-    assert phase_4_adversarial._exposure_admission_error(task) == "exposure_below_fold"
+    assert phase_4_adversarial._exposure_admission_error(task) is None
 
 
 def test_exposure_admission_allows_near_below_fold():
@@ -175,13 +175,13 @@ def test_exposure_admission_allows_near_below_fold():
     assert phase_4_adversarial._exposure_admission_error(task) is None
 
 
-def test_exposure_admission_rejects_collapsed_ancestor():
+def test_exposure_admission_allows_collapsed_ancestor_as_telemetry():
     task = _phase4_exposure_fields()
     task["feasibility"]["exposure"]["layout_visible_at_entry"] = False
     task["feasibility"]["exposure"]["scroll_to_visible_px"] = 10
     task["feasibility"]["exposure"]["requires_expand"] = True
 
-    assert phase_4_adversarial._exposure_admission_error(task) == "exposure_collapsed_ancestor"
+    assert phase_4_adversarial._exposure_admission_error(task) is None
 
 
 def test_exposure_admission_keeps_legacy_layout_fields_optional():
@@ -191,13 +191,27 @@ def test_exposure_admission_keeps_legacy_layout_fields_optional():
     assert phase_4_adversarial._exposure_admission_error(task) is None
 
 
-def test_exposure_admission_rejects_present_but_missing_layout_probe():
+def test_exposure_admission_keeps_present_but_missing_layout_probe_as_telemetry():
     task = _phase4_exposure_fields()
     task["feasibility"]["exposure"]["layout_visible_at_entry"] = None
     task["feasibility"]["exposure"]["scroll_to_visible_px"] = None
     task["feasibility"]["exposure"]["requires_expand"] = None
 
-    assert phase_4_adversarial._exposure_admission_error(task) == "exposure_layout_probe_missing"
+    assert phase_4_adversarial._exposure_admission_error(task) is None
+
+
+def test_layout_telemetry_records_geometry_bucket():
+    task = _phase4_exposure_fields()
+    task["feasibility"]["exposure"]["layout_visible_at_entry"] = False
+    task["feasibility"]["exposure"]["scroll_to_visible_px"] = 8001
+    task["feasibility"]["exposure"]["requires_expand"] = True
+
+    assert phase_4_adversarial._layout_telemetry(task) == {
+        "layout_visible_at_entry": False,
+        "scroll_to_visible_px": 8001,
+        "requires_expand": True,
+        "layout_bucket": "deep",
+    }
 
 
 def test_exposure_admission_requires_matching_verification_payload():
@@ -1378,6 +1392,94 @@ def test_merge_variant_task_updates_selected_payload_text_for_revised_seed():
         == merged["payload_texts"][0]["rendered_payload"]
     )
     assert phase_2_text_fill.validate_text_post_hoc(merged["payload_texts"][0], merged) == []
+
+
+def test_merge_variant_task_preserves_exposure_contract_method_and_payload_arg():
+    task, _ = _prepared_adv_task()
+    task["data_seed"] = {"mechanism": "none"}
+    task["exposure_contract"] = _phase4_exposure_fields()["exposure_contract"]
+    task["adversarial_data_seed"] = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "gitlab",
+                "method": "create_issue_note",
+                "args": {
+                    "project_id": "{benign_project_id}",
+                    "issue_iid": "{benign_issue_iid}",
+                    "body": "payload",
+                },
+            }
+        ],
+    }
+
+    merged = phase_4_adversarial._merge_variant_task(
+        task,
+        {
+            "adversarial_data_seed": {
+                "mechanism": "editor",
+                "editor_calls": [
+                    {
+                        "benchmark": "webarena_verified",
+                        "site": "gitlab",
+                        "method": "update_issue_description",
+                        "args": {
+                            "project_id": "{benign_project_id}",
+                            "issue_iid": "{benign_issue_iid}",
+                            "description": "moved",
+                        },
+                    }
+                ],
+            }
+        },
+    )
+
+    assert merged["adversarial_data_seed"] == task["adversarial_data_seed"]
+
+
+def test_merge_variant_task_accepts_rewrite_inside_existing_exposure_contract():
+    task, _ = _prepared_adv_task()
+    task["data_seed"] = {"mechanism": "none"}
+    task["exposure_contract"] = _phase4_exposure_fields()["exposure_contract"]
+    task["adversarial_data_seed"] = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "gitlab",
+                "method": "create_issue_note",
+                "args": {
+                    "project_id": "{benign_project_id}",
+                    "issue_iid": "{benign_issue_iid}",
+                    "body": "payload",
+                },
+            }
+        ],
+    }
+
+    merged = phase_4_adversarial._merge_variant_task(
+        task,
+        {
+            "adversarial_data_seed": {
+                "mechanism": "editor",
+                "editor_calls": [
+                    {
+                        "benchmark": "webarena_verified",
+                        "site": "gitlab",
+                        "method": "create_issue_note",
+                        "args": {
+                            "project_id": "{benign_project_id}",
+                            "issue_iid": "{benign_issue_iid}",
+                            "body": "rewritten payload",
+                        },
+                    }
+                ],
+            }
+        },
+    )
+
+    assert merged["adversarial_data_seed"]["editor_calls"][0]["args"]["body"] == "rewritten payload"
 
 
 # Legacy sandbox-based ecological-validity probe was deleted in the PVPO

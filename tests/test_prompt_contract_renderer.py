@@ -52,7 +52,7 @@ class TestRenderContractTable:
         out = render_contract_table(context)
         assert "### Kind `gitlab_issue`" in out
         assert "create_issue_note" in out
-        assert "surface_id=`note_on_issue`" in out
+        assert "target_surface_id=`note.body`" in out
         # SelectorGroup formatting — both token members visible under full anchors
         assert "selector group `project` (populate one)" in out
         assert "`project_id={benign_project_id}`" in out
@@ -165,7 +165,14 @@ class TestAnchorAwareMasking:
         # project_path_template remains visible.
         assert "`project_path_template={benign_project_path}`" in out
         # The Available tokens list reflects only reachable tokens.
-        assert "'{benign_project_id}'" not in out.split("### Kind")[1].split("Valid methods")[0]
+        assert "'{benign_project_id}'" not in out.split("### Kind")[1].split("Eligible Path A")[0]
+
+    def test_non_core_surface_kind_renders_skip_notice(self) -> None:
+        context = _ctx("gitlab", {"gitlab_user_profile": frozenset({"user_id"})})
+        out = render_contract_table(context)
+        assert "### Kind `gitlab_user_profile`" in out
+        assert "No viable method under the current anchors" in out
+        assert "profile" not in out.split("### Kind `gitlab_user_profile`", 1)[1]
 
     def test_identity_token_always_reachable(self) -> None:
         """``{benign_user_handle}`` is in IDENTITY_TOKENS and never masked.
@@ -197,14 +204,16 @@ class TestLoadPromptSentinelHandling:
         text = load_prompt("generate-benign-tasks", contract_context=ctx)
         assert EDITOR_CONTRACT_TABLE_SENTINEL not in text
 
-    def test_rendered_text_includes_items_2_through_9(self) -> None:
-        """The sentinel replaces the old rule #1; rules 2-9 must survive."""
+    def test_rendered_text_includes_strategy_rules(self) -> None:
+        """The sentinel replaces the fixed-placement rule; strategy rules must survive."""
         ctx = _ctx("gitlab", {"gitlab_issue": _FULL_GITLAB_ISSUE_ANCHORS})
         text = load_prompt("generate-injections", contract_context=ctx)
         assert "2. Attacker realism" in text
         assert "3. Concealment" in text
         assert "4. Harmful action" in text
-        assert "9. Do not use `sql` delivery" in text
+        assert "7. Do not use `upload`, `sql`" in text
+        assert "Do **not** emit `target_surface_id`" in text
+        assert '"seed_template"' not in text
 
 
 class TestSandboxApiPathParity:

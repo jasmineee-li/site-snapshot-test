@@ -711,9 +711,7 @@ def test_dispatch_resume_ignores_removed_phase_2a_modal_state(monkeypatch, tmp_p
     def fake_dispatch_phase(args):
         captured["phase"] = args.phase
         captured["has_phase_2a_runtime"] = hasattr(args, "phase_2a_runtime")
-        captured["has_phase_2_sandbox_concurrency"] = hasattr(
-            args, "phase_2_sandbox_concurrency"
-        )
+        captured["has_phase_2_sandbox_concurrency"] = hasattr(args, "phase_2_sandbox_concurrency")
         captured["has_phase_2_launch_jitter_ms"] = hasattr(args, "phase_2_launch_jitter_ms")
         return 0
 
@@ -846,6 +844,70 @@ def test_main_phase_rejects_invalid_verification_proxy(monkeypatch, tmp_path, ca
 
     assert rc == 2
     assert "verification_proxy_invalid" in capsys.readouterr().err
+
+
+def test_install_verification_proxy_ignores_loopback_instances(monkeypatch, tmp_path):
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "instances": [
+                    {"site_url": "http://127.0.0.1:9999"},
+                    {"site_url": "http://localhost:8023"},
+                ],
+                "verification_proxy": {"token": "tok", "port_offset": 10000},
+            }
+        )
+    )
+    called = False
+
+    def fake_install_proxy(**kwargs):
+        nonlocal called
+        called = True
+
+    monkeypatch.setattr("worldsim.http_proxy.install_proxy", fake_install_proxy)
+
+    worldsim_main._install_verification_proxy_from_args(
+        Namespace(instances=instances_path, feasibility_instances=None)
+    )
+
+    assert called is False
+
+
+def test_install_verification_proxy_keeps_remote_instances(monkeypatch, tmp_path):
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "instances": [
+                    {"site_url": "http://203.0.113.10:9999"},
+                ],
+                "verification_proxy": {"token": "tok", "port_offset": 10000},
+            }
+        )
+    )
+    captured = {}
+
+    def fake_install_proxy(**kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr("worldsim.http_proxy.install_proxy", fake_install_proxy)
+
+    worldsim_main._install_verification_proxy_from_args(
+        Namespace(instances=instances_path, feasibility_instances=None)
+    )
+
+    assert captured["token"] == "tok"
+    assert captured["site_ports"] == {9999}
+
+
+def test_phase4_run_lock_rejects_concurrent_run(tmp_path):
+    with worldsim_main._phase4_run_lock(tmp_path):
+        try:
+            with worldsim_main._phase4_run_lock(tmp_path):
+                raise AssertionError("nested lock should not be acquired")
+        except worldsim_main.Phase4AlreadyRunning as exc:
+            assert ".phase4_run.lock" in str(exc)
 
 
 # ── Per-task resume (load_completed_results) ────────────────────────────

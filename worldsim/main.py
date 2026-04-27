@@ -16,6 +16,9 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
+import fcntl
+import ipaddress
 import logging
 import os
 import sys
@@ -31,6 +34,51 @@ load_dotenv(override=True)  # override=True: .env values win over empty-string s
 DEFAULT_AGENT_MODEL = "gemini-3-flash-preview"
 DEFAULT_SANDBOX_MODEL = "claude-sonnet-4-6"
 AGENT_PROVIDER_CHOICES = ("google", "openai", "anthropic", "openrouter")
+
+
+class Phase4AlreadyRunning(RuntimeError):
+    """Raised when the per-state-dir Phase 4 run lock is held."""
+
+
+def _is_loopback_hostname(hostname: str | None) -> bool:
+    if hostname is None:
+        return False
+    normalized = hostname.strip().lower()
+    if normalized == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(normalized).is_loopback
+    except ValueError:
+        return False
+
+
+@contextlib.contextmanager
+def _phase4_run_lock(state_dir: Path):
+    """Prevent concurrent Phase 4 runs from resetting the same benchmark stack."""
+    lock_dir = state_dir / "phase_4"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = lock_dir / ".phase4_run.lock"
+    handle = lock_path.open("a+", encoding="utf-8")
+    try:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            handle.seek(0)
+            existing = handle.read().strip()
+            detail = f"; holder: {existing}" if existing else ""
+            raise Phase4AlreadyRunning(
+                f"another Phase 4 run already holds {lock_path}{detail}"
+            ) from exc
+        handle.seek(0)
+        handle.truncate()
+        handle.write(f"pid={os.getpid()} cwd={Path.cwd()} cmd={' '.join(sys.argv)}\n")
+        handle.flush()
+        yield
+    finally:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        finally:
+            handle.close()
 
 
 def _positive_int(value: str) -> int:
@@ -547,6 +595,7 @@ def _install_verification_proxy_from_args(args: argparse.Namespace) -> None:
             f"verification_proxy_invalid: instances list missing or invalid in {path}"
         )
     site_ports: set[int] = set()
+    non_loopback_site_url_seen = False
     for index, instance in enumerate(instances):
         if not isinstance(instance, dict):
             raise RuntimeError(
@@ -563,10 +612,18 @@ def _install_verification_proxy_from_args(args: argparse.Namespace) -> None:
                 f"verification_proxy_invalid: instances[{index}].site_url {site_url!r} must include scheme, host, and explicit port"
             )
         site_ports.add(parsed.port)
+        if not _is_loopback_hostname(parsed.hostname):
+            non_loopback_site_url_seen = True
     if not site_ports:
         raise RuntimeError(
             f"verification_proxy_invalid: no proxy-eligible site_url ports found in {path}"
         )
+    if not non_loopback_site_url_seen:
+        logging.getLogger(__name__).info(
+            "verification_proxy ignored for %s because all site_url hosts are loopback",
+            path,
+        )
+        return
     install_proxy(
         token=token.strip(),
         port_offset=port_offset,
@@ -982,7 +1039,15 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
             return 2
-        rc = asyncio.run(phase_4_adversarial.run(args))
+        try:
+            with _phase4_run_lock(get_state_dir()):
+                rc = asyncio.run(phase_4_adversarial.run(args))
+        except Phase4AlreadyRunning as exc:
+            print(
+                f"Phase 4 refused to start because another run is active: {exc}",
+                file=sys.stderr,
+            )
+            return 2
     else:
         print(f"Unknown phase: {phase}", file=sys.stderr)
         return 1

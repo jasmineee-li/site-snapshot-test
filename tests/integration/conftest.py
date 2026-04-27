@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import urllib.parse
@@ -11,6 +12,18 @@ import pytest
 from worldsim.auth_tokens import clear_run_token_cache
 from worldsim.config import BenchmarkConfig
 from worldsim.http_proxy import install_proxy
+
+
+def _is_loopback_hostname(hostname: str | None) -> bool:
+    if hostname is None:
+        return False
+    normalized = hostname.strip().lower()
+    if normalized == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(normalized).is_loopback
+    except ValueError:
+        return False
 
 
 def _replace_url_host(url: str, host: str) -> str:
@@ -123,6 +136,12 @@ def _install_verification_proxy(request: pytest.FixtureRequest):
         return
     proxy = config.verification_proxy
     if proxy is None or not proxy.token.strip():
+        yield
+        return
+    if all(
+        _is_loopback_hostname(urllib.parse.urlparse(instance.site_url).hostname)
+        for instance in config.instances
+    ):
         yield
         return
     uninstall = install_proxy(

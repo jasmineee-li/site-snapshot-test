@@ -6,11 +6,16 @@ HOST_CONFIG=""
 INSTANCES_FILE="${REPO_ROOT}/instances.smoke.json"
 VERIFY_READ_SURFACE_URLS=""
 QUIET=""
+HOST_VIEW="auto"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --host-config)
             HOST_CONFIG="$2"
+            shift 2
+            ;;
+        --host-view)
+            HOST_VIEW="$2"
             shift 2
             ;;
         --instances)
@@ -50,14 +55,48 @@ fi
 
 LIVE_HOST_IP="${LIVE_HOST_IP:-}"
 if [[ -n "$HOST_CONFIG" ]]; then
+    ADVERTISE_HOST=""
+    ORCHESTRATOR_HOST=""
+    COMPOSE_DIR_REMOTE=""
     while IFS='=' read -r key quoted_value; do
         eval "value=$quoted_value"
         case "$key" in
             HOST_IP)
-                LIVE_HOST_IP="$value"
+                ADVERTISE_HOST="$value"
+                ;;
+            ORCHESTRATOR_HOST)
+                ORCHESTRATOR_HOST="$value"
+                ;;
+            COMPOSE_DIR_REMOTE)
+                COMPOSE_DIR_REMOTE="$value"
                 ;;
         esac
     done < <(cd "$REPO_ROOT" && uv run python scripts/export_host_config_env.py --host-config "$HOST_CONFIG")
+    case "$HOST_VIEW" in
+        auto)
+            # When the integration gate runs on the benchmark host itself, use
+            # the same orchestrator view as Phase 4/storage_state. From a
+            # laptop, use the advertised public host and the nginx proxy.
+            if [[ -n "$COMPOSE_DIR_REMOTE" && "$REPO_ROOT" == "$COMPOSE_DIR_REMOTE"* ]]; then
+                LIVE_HOST_IP="$ORCHESTRATOR_HOST"
+            else
+                LIVE_HOST_IP="$ADVERTISE_HOST"
+            fi
+            ;;
+        advertise|public)
+            LIVE_HOST_IP="$ADVERTISE_HOST"
+            ;;
+        orchestrator|runtime)
+            LIVE_HOST_IP="$ORCHESTRATOR_HOST"
+            ;;
+        instances|none)
+            LIVE_HOST_IP=""
+            ;;
+        *)
+            echo "ERROR: --host-view must be one of auto, advertise, orchestrator, instances" >&2
+            exit 2
+            ;;
+    esac
 fi
 
 eval "$(
