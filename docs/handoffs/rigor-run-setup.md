@@ -32,6 +32,68 @@ zero hand-patching.
        --instances instances.scale.json --resume
    ```
 
+## Remote job wrapper quickstart
+
+Use the remote job scripts for any r5 command that may outlive an interactive
+SSH session. They detach with `/dev/null` stdin, file-backed stdout/stderr, and
+a registry under `<remote-dir>/logs/remote_jobs/<job_id>/`.
+
+1. Sync the checkout without secrets or generated logs:
+   ```
+   scripts/sync_to_r5.sh \
+       --host-config configs/benchmark_hosts/r5.yaml \
+       --remote-dir /home/ubuntu/browser-sim
+   ```
+   `--ssh-key ~/.ssh/webarena-key.pem` is expanded locally before it reaches
+   `rsync`; avoid nested quoted `$HOME` in hand-written `rsync -e` strings.
+
+2. Start a named job. The human name is not the unique id; the script prints a
+   timestamped `job_id` plus exact follow-up commands.
+   ```
+   scripts/remote_job_start.sh \
+       --host-config configs/benchmark_hosts/r5.yaml \
+       --remote-dir /home/ubuntu/browser-sim \
+       --name phase1-route-diversity \
+       --expected-output logs/phase_1/benign_tasks.json \
+       -- \
+       uv run python -m worldsim.main phase 1 --generate-novel
+   ```
+
+3. Inspect, tail, and stop by registry id:
+   ```
+   scripts/remote_job_status.sh --host-config configs/benchmark_hosts/r5.yaml --job-id <job_id>
+   scripts/remote_job_tail.sh --host-config configs/benchmark_hosts/r5.yaml --job-id <job_id> --lines 120
+   scripts/remote_job_tail.sh --host-config configs/benchmark_hosts/r5.yaml --job-id <job_id> --stderr
+   scripts/remote_job_stop.sh --host-config configs/benchmark_hosts/r5.yaml --job-id <job_id>
+   ```
+   `--latest` and `--name <name>` are supported for status/tail/list convenience;
+   stop intentionally requires `--job-id`.
+
+Each job directory contains `metadata.json`, `command.argv.json`, `stdout.log`,
+`stderr.log`, `heartbeat.json`, `pid`, `pgid`, and `exit.json` after completion
+or an operator stop. Status verifies the remote process instead of trusting
+metadata alone and warns when a live process has not written logs recently.
+
+State directory note: `remote_job_start.sh` does **not** set
+`WORLDSIM_STATE_DIR` by default because Phase 1/2/3/4 intentionally read and
+write canonical `logs/phase_*` artifacts. Use `--state-dir auto` only for
+isolated experiments that should write under
+`logs/remote_jobs/<job_id>/state`, or `--state-dir <path>` for an explicit
+remote path.
+
+Failure recovery:
+
+- If the local SSH session dies, use `remote_job_status.sh --latest` or
+  `remote_job_list.sh` to recover the job id; logs remain on the host.
+- If status says `running` but logs are quiet for more than 15 minutes, inspect
+  `stderr.log` and expected outputs before deciding to stop.
+- If stop refuses to signal, the recorded PID was reused or no longer matches
+  the job wrapper. Inspect the registry files manually; do not fall back to
+  `pkill -f`.
+- These scripts only run repo commands on an already-prepared benchmark host.
+  They do not start, stop, or repair benchmark containers, proxies, nginx, or
+  EC2 lifecycle state.
+
 ## What the preflight covers
 
 `tests/preflight/test_phase_4_preflight.py` asserts each of:

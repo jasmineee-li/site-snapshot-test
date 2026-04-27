@@ -10,6 +10,14 @@ Authoritative spec: [`docs/worldsim-v5-technical-specifcation.md`](docs/worldsim
 
 Repo layout and prerequisites: `README.md`. Current Claude/Modal auth precedence lives in `worldsim/modal_sandbox.py::_build_claude_secrets` and `worldsim/phase_4/anthropic_client.py`. CLI entrypoint: `uv run python -m worldsim.main --help`.
 
+## Remote Run Discipline
+
+- Use `scripts/sync_to_r5.sh` plus `scripts/remote_job_start.sh` for long r5 runs; avoid raw long-lived SSH pipes.
+- Start jobs by host config (`configs/benchmark_hosts/r5.yaml`) and job id, not hard-coded IPs or command patterns.
+- Stop jobs only with `scripts/remote_job_stop.sh --job-id ...`; never use broad `pkill -f`.
+- Remote job metadata/logs live under `<remote-dir>/logs/remote_jobs/<job_id>/`.
+- Detailed operator flow: [`docs/handoffs/rigor-run-setup.md`](docs/handoffs/rigor-run-setup.md).
+
 ## Non-negotiable invariants
 
 - The orchestrator does not manage benchmark environment lifecycles. It connects to pre-running instances supplied by the user (`{site_url, reset_endpoint}`); `reset_endpoint` between tasks is the one exception.

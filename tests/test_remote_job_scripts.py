@@ -1,0 +1,228 @@
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+
+def _base_env(repo_root: Path, tmp_path: Path) -> dict[str, str]:
+    env = os.environ.copy()
+    env["PATH"] = os.environ.get("PATH", "")
+    env["HOME"] = str(tmp_path / "home")
+    env["HOME"] and Path(env["HOME"]).mkdir(parents=True, exist_ok=True)
+    return env
+
+
+def _write_executable(path: Path, body: str) -> None:
+    path.write_text(body)
+    path.chmod(0o755)
+
+
+def _host_config(tmp_path: Path) -> Path:
+    path = tmp_path / "host.yaml"
+    path.write_text(
+        "\n".join(
+            [
+                "name: fake",
+                "advertise_host: 203.0.113.10",
+                "ssh_user: ubuntu",
+                f"compose_dir_remote: {tmp_path}",
+                "",
+            ]
+        )
+    )
+    return path
+
+
+def test_sync_dry_run_expands_ssh_key_and_excludes_sensitive_paths(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    args_file = tmp_path / "rsync_args.json"
+    _write_executable(
+        fakebin / "rsync",
+        f"""#!/usr/bin/env python3
+import json, sys
+open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
+""",
+    )
+
+    env = _base_env(repo_root, tmp_path)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+    env["SSH_KEY"] = "$HOME/.ssh/webarena-key.pem"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "sync_to_r5.sh"),
+            "--host-config",
+            str(host_config),
+            "--dry-run",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    args = json.loads(args_file.read_text())
+    joined = "\n".join(args)
+    assert "--dry-run" in args
+    assert ".env" in joined
+    assert ".git/" in joined
+    assert ".codex-worktrees/" in joined
+    assert "logs/" in joined
+    assert "agent-tools/" in joined
+    assert "$HOME" not in joined
+    assert str(Path(env["HOME"]) / ".ssh" / "webarena-key.pem") in joined
+
+
+def test_start_rejects_missing_name_and_missing_command(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    env = _base_env(repo_root, tmp_path)
+
+    missing_name = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--",
+            "echo",
+            "ok",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert missing_name.returncode == 2
+    assert "--name required" in missing_name.stderr
+
+    missing_command = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--name",
+            "demo",
+            "--",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert missing_command.returncode == 2
+    assert "missing command after --" in missing_command.stderr
+
+
+def test_start_writes_remote_metadata_with_fake_ssh(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    remote_dir = tmp_path / "remote" / "browser-sim"
+    remote_dir.mkdir(parents=True)
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    _write_executable(
+        fakebin / "ssh",
+        """#!/usr/bin/env python3
+import subprocess
+import sys
+
+args = sys.argv[1:]
+remote_cmd = args[-1]
+raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).returncode)
+""",
+    )
+
+    env = _base_env(repo_root, tmp_path)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+            "--name",
+            "phase1 route diversity",
+            "--expected-output",
+            "logs/phase_1/benign_tasks.json",
+            "--state-dir",
+            "auto",
+            "--",
+            sys.executable,
+            "-c",
+            "import time; time.sleep(1)",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    job_id_line = next(line for line in completed.stdout.splitlines() if line.startswith("job_id="))
+    job_id = job_id_line.split("=", 1)[1]
+    job_dir = remote_dir / "logs" / "remote_jobs" / job_id
+    metadata = json.loads((job_dir / "metadata.json").read_text())
+    argv = json.loads((job_dir / "command.argv.json").read_text())
+
+    assert metadata["job_id"] == job_id
+    assert metadata["name"] == "phase1 route diversity"
+    assert metadata["state_dir"] == f"logs/remote_jobs/{job_id}/state"
+    assert metadata["expected_outputs"] == ["logs/phase_1/benign_tasks.json"]
+    assert argv[:2] == [sys.executable, "-c"]
+    assert (job_dir / "stdout.log").exists()
+    assert (job_dir / "stderr.log").exists()
+    assert (job_dir / "pid").exists()
+    assert (job_dir / "pgid").exists()
+
+
+def test_stop_requires_job_id_and_rejects_patterns(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    env = _base_env(repo_root, tmp_path)
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_stop.sh"),
+            "--host-config",
+            str(host_config),
+            "uv run python",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "unknown arg" in completed.stderr
+    assert "pkill" not in completed.stderr
+
+    missing = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_stop.sh"),
+            "--host-config",
+            str(host_config),
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert missing.returncode == 2
+    assert "--job-id required" in missing.stderr
