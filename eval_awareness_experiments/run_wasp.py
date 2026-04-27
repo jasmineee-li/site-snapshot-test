@@ -285,8 +285,8 @@ def _parse_args() -> argparse.Namespace:
                              "python external_benchmarks/wasp/webarena_prompt_injections/prompt_injector.py "
                              "--config <raw.json> --output-dir <here> --user_goal_idx 0 "
                              "--injection_format goal_hijacking_url_injection --output-format webarena")
-    parser.add_argument("--single-site", required=True, choices=["gitlab", "reddit"],
-                        help="WASP currently supports gitlab and reddit (VWA-based).")
+    parser.add_argument("--single-site", default=None, choices=["gitlab", "reddit"],
+                        help="Restrict to one site. Omit to include all sites in the task pool.")
     parser.add_argument("--max-tasks", type=int, default=10)
     parser.add_argument("--shuffle", type=int, default=42)
     parser.add_argument("--model-name", required=True,
@@ -314,7 +314,7 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = _parse_args()
-    online = set(args.online_sites or [args.single_site])
+    online = set(args.online_sites or ([args.single_site] if args.single_site else ["gitlab", "reddit"]))
     _patch_browsergym_reachability(online)
 
     from doomarena.browsergym.scripts.run_bgym_experiment import _override_webarena_env_vars
