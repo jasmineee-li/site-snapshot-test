@@ -151,11 +151,15 @@ def _stage1_browser(benchmark: str, split: str, args) -> Path | None:
         "--single-site", split,
         "--max-tasks", str(args.tasks_per_split),
         "--model-name", args.model_name,
-        "--condition", args.condition,
         "--extra-instructions-preset", args.extra_instructions_preset,
         "--max-steps", str(args.max_steps),
         "--shuffle", str(args.shuffle),
     ]
+    # --condition (causal injection wrapping: baseline/eval_cue/scenario_cue) is
+    # only implemented in WASP's runner. DoomArena uses runtime AttackConfigs
+    # instead, so it doesn't accept the flag.
+    if benchmark == "wasp":
+        cmd += ["--condition", args.condition]
     if benchmark == "doomarena" and getattr(args, "report_port", None):
         cmd += ["--report-port", str(args.report_port)]
 
