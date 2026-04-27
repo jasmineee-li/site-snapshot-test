@@ -152,6 +152,7 @@ def _stage1_browser(benchmark: str, split: str, args) -> Path | None:
         "--max-tasks", str(args.tasks_per_split),
         "--model-name", args.model_name,
         "--extra-instructions-preset", args.extra_instructions_preset,
+        "--system-prompt-frame", args.system_prompt_frame,
         "--max-steps", str(args.max_steps),
         "--shuffle", str(args.shuffle),
     ]
