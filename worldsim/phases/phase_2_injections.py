@@ -1005,6 +1005,17 @@ async def _run_feasibility_stage(
         return 1
     state_metadata["benchmark_name"] = benchmark_name
     instances = [_with_benchmark(instance, benchmark_name) for instance in instances]
+    verification_instances = _filter_instances_for_phase_2c(
+        instances,
+        selected_current,
+        sites_filter=sites_filter,
+    )
+    if not verification_instances:
+        logger.error(
+            "Phase 2c: no benchmark instances match selected task sites %s",
+            sorted({_effective_task_site(task) for task in selected_current}),
+        )
+        return 1
 
     logger.info(
         "Phase 2c: verifying %s against %s (concurrency=%d, retry=%d, ttl_hours=%s, force=%s)",
@@ -1038,7 +1049,7 @@ async def _run_feasibility_stage(
             verification_input = temporary_input
         report: FeasibilityReport = await verify_feasibility(
             verification_input,
-            instances=instances,
+            instances=verification_instances,
             instances_label=instances_path.name,
             benchmark_root=benchmark_root,
             concurrency=concurrency,
@@ -1391,6 +1402,35 @@ def _filter_records_for_sites(
     if sites_filter is None:
         return records
     return [record for record in records if _effective_task_site(record) in sites_filter]
+
+
+def _filter_instances_for_phase_2c(
+    instances: list[dict[str, Any]],
+    selected_records: list[dict[str, Any]],
+    *,
+    sites_filter: set[str] | None,
+) -> list[dict[str, Any]]:
+    """Return only benchmark instances needed by the selected Phase 2c tasks.
+
+    ``--sites`` already filters the task JSON handed to ``verify_feasibility``.
+    Keep the instances in lockstep so preflight token acquisition does not try
+    to mint credentials for unrelated local services that are intentionally down
+    on a scoped run.
+    """
+    if sites_filter is None:
+        return instances
+    active_sites = {
+        _effective_task_site(record)
+        for record in selected_records
+        if isinstance(record, dict) and _effective_task_site(record)
+    }
+    if not active_sites:
+        active_sites = set(sites_filter)
+    return [
+        instance
+        for instance in instances
+        if str(instance.get("site_name", "")).strip() in active_sites
+    ]
 
 
 def _terminal_phase_2_status(prior_phase_2_status: str | None) -> str:

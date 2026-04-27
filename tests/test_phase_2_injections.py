@@ -2758,7 +2758,10 @@ async def test_phase_2_feasibility_stage_verifies_only_filtered_sites(monkeypatc
         json.dumps(
             {
                 "benchmark_name": "WebArena Verified",
-                "instances": [{"site_name": "shopping", "site_url": "http://shopping.test"}],
+                "instances": [
+                    {"site_name": "shopping", "site_url": "http://shopping.test"},
+                    {"site_name": "reddit", "site_url": "http://reddit.test"},
+                ],
             }
         )
     )
@@ -2766,6 +2769,7 @@ async def test_phase_2_feasibility_stage_verifies_only_filtered_sites(monkeypatc
     async def fake_verify_feasibility(path, *args, **kwargs):
         tasks = json.loads(Path(path).read_text())
         assert [task["id"] for task in tasks] == ["shopping-task"]
+        assert [instance["site_name"] for instance in kwargs["instances"]] == ["shopping"]
         return phase_2_injections.FeasibilityReport(
             verified=[_with_feasibility_status(tasks[0], "verified")],
             infeasible=[],
