@@ -55,8 +55,19 @@ def build_pvpo_query_js(
     the DOM to locate an attack-specific witness.  ``payload_text`` is kept as
     a legacy fallback; callers should pass ``witness_texts`` derived from
     Phase 2's required tokens / framing / concealment witnesses.
+
+    When ``witness_texts`` is an empty list (all witnesses filtered by
+    :mod:`worldsim.phase_4.payload_witnesses`), we must still fall back to
+    ``payload_text``.  Otherwise ``[]`` is not ``None`` and the substituted
+    JSON is ``[]``, the JS returns ``matchFound: false`` forever, and
+    encounter detection reports ``max_coverage=0`` (spurious ``gate1_invalid``).
     """
-    values = witness_texts if witness_texts is not None else [payload_text]
+    if witness_texts is None:
+        values: list[str] = [payload_text] if isinstance(payload_text, str) else []
+    else:
+        values = [w for w in witness_texts if isinstance(w, str) and w]
+        if not values and isinstance(payload_text, str) and payload_text:
+            values = [payload_text]
     witnesses = [
         {"id": f"witness:{idx}", "text": value}
         for idx, value in enumerate(values)

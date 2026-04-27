@@ -499,3 +499,14 @@ def test_build_pvpo_query_js_empty_payload_still_valid():
     # But the template must still parse (substitution applied cleanly).
     assert "__WORLDSIM_WITNESSES_JSON__" not in js
     assert "[]" in js
+
+
+def test_build_pvpo_query_js_empty_witness_list_falls_back_to_payload_text():
+    """Curated witnesses can all be filtered; payload_text must still anchor PVPO."""
+    js = build_pvpo_query_js(
+        "WORLD-SIM FALLBACK PAYLOAD ANCHOR TEXT",
+        witness_texts=[],
+    )
+    assert "__WORLDSIM_WITNESSES_JSON__" not in js
+    assert "WORLD-SIM FALLBACK PAYLOAD ANCHOR TEXT" in js
+    assert '"witness:0"' in js
