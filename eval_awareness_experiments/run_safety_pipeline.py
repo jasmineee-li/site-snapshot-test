@@ -31,6 +31,7 @@ import logging
 import os
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -170,8 +171,8 @@ def _load_run_meta(run_dir: Path) -> dict | None:
     return None
 
 
-def _stage1_browser(benchmark: str, split: str, args) -> Path | None:
-    """Run DoomArena or WASP for one split. Returns study dir."""
+def _build_browser_cmd(benchmark: str, split: str, args) -> list[str]:
+    """Build the runner command for one browser benchmark + split."""
     runner = BENCHMARK_RUNNERS[benchmark]
     cmd = [
         sys.executable, "-m", runner,
@@ -188,22 +189,43 @@ def _stage1_browser(benchmark: str, split: str, args) -> Path | None:
     # instead, so it doesn't accept the flag.
     if benchmark == "wasp":
         cmd += ["--condition", args.condition]
-        # WASP needs the planted-task pool dir. Default matches
-        # scripts/wasp_n100_run.sh (the per-benchmark launcher).
         wasp_task_dir = getattr(args, "wasp_task_dir", None) or "/tmp/wasp_full"
         cmd += ["--task-dir", wasp_task_dir]
     if benchmark == "doomarena" and getattr(args, "report_port", None):
         cmd += ["--report-port", str(args.report_port)]
+    return cmd
 
+
+def _match_study_dirs_to_splits(new_dirs: list[Path], splits: list[str]) -> dict[str, Path]:
+    """Match each newly-created AgentLab study_dir to its split by inspecting
+    the inner agent-run subdir name (which always contains the split string,
+    e.g., `..._on-webarena-reddit-single-site-...`).
+    """
+    out: dict[str, Path] = {}
+    for study_dir in new_dirs:
+        try:
+            children = list(study_dir.iterdir())
+        except OSError:
+            continue
+        for child in children:
+            if not child.is_dir():
+                continue
+            for split in splits:
+                # Match `-<split>-` or `-<split>$` in the agent run subdir.
+                if f"-{split}-" in child.name or child.name.endswith(f"-{split}"):
+                    if split not in out:
+                        out[split] = study_dir
+                    break
+    return out
+
+
+def _stage1_browser(benchmark: str, split: str, args) -> Path | None:
+    """Run DoomArena or WASP for ONE split (sequential / single-split path).
+    Kept for callers that want per-split control. Most callers should prefer
+    `_stage1_browser_parallel_splits` to run all splits concurrently.
+    """
+    cmd = _build_browser_cmd(benchmark, split, args)
     before = set((REPO_ROOT / "results" / "browsergym").glob("study_*"))
-    # Browser benchmarks (DoomArena/WASP) run Playwright + Chromium per task.
-    # Known issue: env.close() in BrowserGym deadlocks on Playwright cleanup
-    # after the agent loop completes (py-spy showed _sync at
-    # playwright/_impl/_sync_base.py:113). Without a timeout, one hung close
-    # soaks the whole stream's wallclock — observed 6-8h hangs in the causal
-    # pilot. Default 1800s = 30 min per (model × split): generous for n=20
-    # tasks at ~1-2 min/task plus headroom for cleanup. Override via
-    # --browser-stage1-timeout.
     timeout_sec = getattr(args, "browser_stage1_timeout", None) or 1800
     ok = _run_subprocess(cmd, cwd=REPO_ROOT, timeout_sec=timeout_sec)
     if not ok:
@@ -215,6 +237,94 @@ def _stage1_browser(benchmark: str, split: str, args) -> Path | None:
     study_dir = new[-1]
     _write_run_meta(study_dir, args, benchmark, split)
     return study_dir
+
+
+def _stage1_browser_parallel_splits(
+    benchmark: str, splits: list[str], args,
+) -> dict[str, Path]:
+    """Run all browser splits in parallel via Popen, return {split: study_dir}.
+
+    Splits hit different docker services (reddit→forum, gitlab→gitlab,
+    shopping→shopping, etc.) so they don't collide. This 4×'s the per-cell
+    speed for DoomArena (4 splits) compared to sequential. WASP has 2 splits
+    so 2×.
+
+    Quirks handled:
+    - AgentLab study_dir uses second-resolution timestamps. Two concurrent
+      launches in the same wallclock second produce dirs at different paths
+      (AgentLab disambiguates internally), but to avoid edge cases we
+      stagger Popen launches by `_LAUNCH_STAGGER_SEC` seconds.
+    - Match study_dirs to splits by inspecting agent-run subdir names
+      (always contain the `--single-site` string), since the global
+      glob-diff before/after pattern can't tell which dir is for which
+      split when launches are concurrent.
+    - Each subprocess wrapped in `timeout(1)` (the same Playwright-hang
+      workaround as the sequential path).
+    """
+    timeout_sec = getattr(args, "browser_stage1_timeout", None) or 1800
+    before = set((REPO_ROOT / "results" / "browsergym").glob("study_*"))
+
+    procs: list[tuple[str, subprocess.Popen, list[str]]] = []
+    for i, split in enumerate(splits):
+        cmd = _build_browser_cmd(benchmark, split, args)
+        cmd = ["timeout", "--kill-after=10", str(timeout_sec), *cmd]
+        if i > 0:
+            time.sleep(_LAUNCH_STAGGER_SEC)
+        logger.info(f"  [parallel split {split}] $ {' '.join(cmd)}")
+        proc = subprocess.Popen(
+            cmd, cwd=str(REPO_ROOT),
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            env=os.environ.copy(),
+        )
+        procs.append((split, proc, cmd))
+
+    # Wait for all to finish. communicate() handles per-process stdout/stderr
+    # capture and avoids deadlock on full pipe buffers.
+    results: dict[str, bool] = {}
+    for split, proc, cmd in procs:
+        try:
+            stdout, stderr = proc.communicate(timeout=timeout_sec + 30)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            stdout, stderr = proc.communicate()
+        for line in (stdout or "").splitlines()[-30:]:
+            logger.info(f"  [{split} stdout] {line}")
+        for line in (stderr or "").splitlines()[-15:]:
+            logger.warning(f"  [{split} stderr] {line}")
+        ok = proc.returncode == 0
+        if proc.returncode in (124, 137):
+            logger.error(
+                f"  [{split}] subprocess TIMED OUT after {timeout_sec}s "
+                f"(exit={proc.returncode}). Likely Playwright env.close() "
+                f"hang — partial trajectories may be saved."
+            )
+        elif not ok:
+            logger.error(f"  [{split}] subprocess failed: exit={proc.returncode}")
+        results[split] = ok
+
+    # Match new study_dirs to splits.
+    after = set((REPO_ROOT / "results" / "browsergym").glob("study_*"))
+    new_dirs = sorted(after - before, key=lambda p: p.stat().st_mtime)
+    split_to_study = _match_study_dirs_to_splits(new_dirs, splits)
+
+    for split, study_dir in split_to_study.items():
+        _write_run_meta(study_dir, args, benchmark, split)
+
+    # Log any splits that ran but couldn't be matched to a study_dir
+    for split in splits:
+        if results.get(split) and split not in split_to_study:
+            logger.warning(
+                f"  [{split}] succeeded but no matching study_dir found; "
+                f"check {REPO_ROOT}/results/browsergym/ manually."
+            )
+
+    return split_to_study
+
+
+# Stagger Popen launches in parallel-splits mode by this many seconds. Avoids
+# AgentLab's second-resolution `study_<TS>` timestamp colliding when 4
+# subprocesses spawn within the same wallclock second.
+_LAUNCH_STAGGER_SEC = 1.5
 
 
 def _stage1_toolcalling(benchmark: str, split: str, args) -> Path | None:
@@ -451,6 +561,11 @@ def _parse_args() -> argparse.Namespace:
                              "deadlock — without this, a hung close() can soak hours of "
                              "wallclock per stream. Default 1800s (30 min). Tool-calling "
                              "benchmarks ignore this flag.")
+    parser.add_argument("--browser-splits-sequential", action="store_true",
+                        help="Force browser-benchmark splits to run sequentially within a "
+                             "cell (legacy behavior). Default is parallel — splits hit "
+                             "different docker services so they don't contend, giving ~4× "
+                             "speedup on DoomArena (4 splits) and ~2× on WASP (2 splits).")
     parser.add_argument("--model-name", default=None,
                         help="Agent model for stage 1. Required unless --stage judge-only.")
     parser.add_argument("--condition", choices=ALL_CONDITIONS, default="baseline")
@@ -530,28 +645,43 @@ def main() -> None:
 
     # Stage 1.
     if args.stage in ("all", "run-only"):
-        for split in splits:
-            logger.info(f"=== Stage 1: {args.benchmark}/{split} ===")
-            if args.benchmark in BROWSER_BENCHMARKS:
-                study = _stage1_browser(args.benchmark, split, args)
+        # Browser benchmarks: run all splits in PARALLEL via Popen by default
+        # (4 splits per cell for DoomArena, 2 for WASP). Splits hit different
+        # docker services so no contention; ~4× speedup. Sequential mode
+        # available via --browser-splits-sequential for debugging.
+        if (args.benchmark in BROWSER_BENCHMARKS
+                and not getattr(args, "browser_splits_sequential", False)):
+            logger.info(f"=== Stage 1: {args.benchmark}/{splits} (PARALLEL splits) ===")
+            split_to_study = _stage1_browser_parallel_splits(args.benchmark, splits, args)
+            for split in splits:
+                study = split_to_study.get(split)
                 if study:
                     split_to_root[split] = study
                     manifest["splits"].setdefault(split, {})["study_dir"] = str(study)
                 else:
                     manifest["splits"].setdefault(split, {})["status"] = "run_failed"
-            elif args.benchmark in TOOLCALLING_BENCHMARKS:
-                run = _stage1_toolcalling(args.benchmark, split, args)
-                if run:
-                    split_to_root[split] = run
-                    manifest["splits"].setdefault(split, {})["run_dir"] = str(run)
+        else:
+            for split in splits:
+                logger.info(f"=== Stage 1: {args.benchmark}/{split} ===")
+                if args.benchmark in BROWSER_BENCHMARKS:
+                    study = _stage1_browser(args.benchmark, split, args)
+                    if study:
+                        split_to_root[split] = study
+                        manifest["splits"].setdefault(split, {})["study_dir"] = str(study)
+                    else:
+                        manifest["splits"].setdefault(split, {})["status"] = "run_failed"
+                elif args.benchmark in TOOLCALLING_BENCHMARKS:
+                    run = _stage1_toolcalling(args.benchmark, split, args)
+                    if run:
+                        split_to_root[split] = run
+                        manifest["splits"].setdefault(split, {})["run_dir"] = str(run)
+                    else:
+                        manifest["splits"].setdefault(split, {})["status"] = "run_failed"
+                elif args.benchmark in IMPORT_ONLY_BENCHMARKS:
+                    split_to_root[split] = Path(__file__).parent / "data" / "eia"
+                    manifest["splits"].setdefault(split, {})["run_dir"] = str(split_to_root[split])
                 else:
-                    manifest["splits"].setdefault(split, {})["status"] = "run_failed"
-            elif args.benchmark in IMPORT_ONLY_BENCHMARKS:
-                # Stage 1 is a no-op for EIA.
-                split_to_root[split] = Path(__file__).parent / "data" / "eia"
-                manifest["splits"].setdefault(split, {})["run_dir"] = str(split_to_root[split])
-            else:
-                raise ValueError(f"Unknown benchmark {args.benchmark}")
+                    raise ValueError(f"Unknown benchmark {args.benchmark}")
 
     if args.stage == "run-only":
         _write_manifest(manifest, args.output_dir)
