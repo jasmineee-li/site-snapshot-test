@@ -31,7 +31,7 @@ from worldsim.config import BenchmarkConfig, has_configured_agent_auth
 
 load_dotenv(override=True)  # override=True: .env values win over empty-string shell vars.
 
-DEFAULT_AGENT_MODEL = "gemini-3-flash-preview"
+DEFAULT_AGENT_MODEL = "claude-sonnet-4-6"
 DEFAULT_SANDBOX_MODEL = "claude-sonnet-4-6"
 AGENT_PROVIDER_CHOICES = ("google", "openai", "anthropic", "openrouter")
 
@@ -157,8 +157,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--agent-model",
         default=DEFAULT_AGENT_MODEL,
         help=f"LLM model name for Browser Use agent (default: {DEFAULT_AGENT_MODEL}). "
-        "Examples: gpt-5.4, gpt-5.4-mini (with --agent-provider openrouter), "
-        "claude-sonnet-4-6, gemini-3-flash-preview, gemini-3.1-pro-preview.",
+        "Examples: claude-sonnet-4-6, gpt-5.4, gpt-5.4-mini "
+        "(with --agent-provider openrouter), gemini-3-flash-preview, "
+        "gemini-3.1-pro-preview.",
     )
     phase_cmd.add_argument(
         "--sandbox-model",

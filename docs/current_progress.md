@@ -166,7 +166,7 @@ Everything below reflects the current working tree.
 - **Browser Use agent runner.** `BrowserUseAgent` supports `start_urls` and `site_prompt`, preserves task-scoped HAR capture and screenshots, and uses benchmark-specific task text when provided instead of the generic one-line prompt.
 - **Sandbox runner correctness.** The Modal sandbox runner now passes the Claude Code `claude_code` preset through the Agent SDK. This is a correctness fix, not just observability: without it, Modal sandboxes were not actually running Claude Code semantics. The runner also caps runs with `max_budget_usd=250.0` and emits better diagnostics for rate limits, stderr, and result subtype.
 - **Reward evaluation -- dual path.** Primary: WebArena Verified vendor evaluator (`webarena_verified` package) with proper normalization (NFKC, unidecode, type dispatch). Fallback: homebrew evaluator for when vendor package is unavailable. Custom checker registry for `db_query_match` (Phase 4 injection verification).
-- **Configurable agent LLM.** `make_llm` supports google/openai/anthropic providers with auto-detection from model name prefix. Default remains `gemini-3-flash-preview`.
+- **Configurable agent LLM.** `make_llm` supports google/openai/anthropic providers with auto-detection from model name prefix. Default is `claude-sonnet-4-6`.
 - **Multi-site placeholder resolution.** `placeholders.py` handles `__SHOPPING__`, `__SHOPPING_ADMIN__`, `__GITLAB__`, `__REDDIT__`, `__WIKIPEDIA__`, `__MAP__` tokens. Strict mode raises on unresolved placeholders. `merge_placeholder_maps` composes config-level, instance-level, and task-level sources.
 - **Data seeding.** Three mechanisms: sql (MySQL + PostgreSQL), api (HTTP requests), state_push (JSON PUT). SQL statements are validated against a disallowed keyword list. Async wrapper via `asyncio.to_thread`.
 - **Eval worker pool.** `run_eval` + `staggered_worker` with `STAGGER_DELAY=5`. Phase-agnostic via `task_runner` callable. Site-aware routing via `run_tasks_by_site`.
@@ -457,7 +457,7 @@ Current working configuration:
 - **Sandbox Claude Code auth:** archived real runs used `ANTHROPIC_AUTH_TOKEN` + `ANTHROPIC_BASE_URL` (OpenRouter path). OAuth and direct Anthropic API key paths are also supported in current code.
 - **Modal:** profile `theta-software-inc`, environment `test`. Token in `~/.modal.toml`.
 - **Sandbox runner semantics:** current code explicitly passes the Claude Code `claude_code` preset through the Agent SDK so Modal sandboxes behave like Claude Code rather than a generic SDK agent.
-- **Agent LLM (for Phases 3-4):** needs `GOOGLE_API_KEY` for the default `gemini-3-flash-preview`, or `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` if switching providers.
+- **Agent LLM (for Phases 3-4):** needs `ANTHROPIC_API_KEY` for the default `claude-sonnet-4-6`, or `GOOGLE_API_KEY` / `OPENAI_API_KEY` if switching providers.
 
 ## Prompt Inventory
 

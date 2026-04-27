@@ -64,7 +64,7 @@ RUNTIME_METADATA_KEY = "_worldsim_runtime"
 
 # ── Defaults ──────────────────────────────────────────────────────────────
 
-DEFAULT_MODEL = "gemini-3-flash-preview"
+DEFAULT_MODEL = "claude-sonnet-4-6"
 SUPPORTED_PROVIDERS = ("google", "openai", "anthropic", "openrouter")
 
 # Provider auto-detection: prefix -> provider name.

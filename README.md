@@ -194,10 +194,9 @@ uv run python -m worldsim.main phase 0 --benchmark vendors/webarena-verified
 # phase_3/contracts.json for Phase 4 to admit.
 uv run python -m worldsim.main phase 3
 
-# Phase 4 Browser Use agents can use GPT-5.4-mini through OpenRouter
-export OPENROUTER_API_KEY=sk-or-v1-...
-uv run python -m worldsim.main phase 4 --instances instances.json \
-  --agent-provider openrouter --agent-model gpt-5.4-mini
+# Phase 4 Browser Use agents default to Sonnet via Anthropic
+export ANTHROPIC_API_KEY=sk-ant-...
+uv run python -m worldsim.main phase 4 --instances instances.json
 
 # Phase 2 runs exposure-contract materialization, API 2a strategy planning,
 # host-side 2b text fill, then 2c feasibility + read-surface verification.
