@@ -968,6 +968,164 @@ def _l3_probe_coherence_error(kind: str, probe_query: Mapping[str, Any]) -> str 
     return None
 
 
+_L3_LISTING_SOURCE_FOR_API: dict[str, dict[str, str]] = {
+    "list_user_issues": {"gitlab_issue": "gitlab_dashboard_list"},
+    "list_user_merge_requests": {
+        "gitlab_issue": "gitlab_dashboard_list",
+        "gitlab_mr": "gitlab_dashboard_list",
+    },
+    "search_user_issues": {"gitlab_issue": "gitlab_search_result"},
+    "search_user_mrs": {"gitlab_mr": "gitlab_search_result"},
+    "search_project_issues": {"gitlab_issue": "gitlab_search_result"},
+    "search_project_mrs": {"gitlab_mr": "gitlab_search_result"},
+    "list_project_issues_recent": {"gitlab_issue": "gitlab_search_result"},
+    "list_project_mrs_recent": {"gitlab_mr": "gitlab_search_result"},
+    "find_submission_by_title": {"reddit_submission": "reddit_dashboard_list"},
+    "list_forum_submissions_recent": {"reddit_submission": "reddit_forum"},
+}
+
+
+def _l3_listing_source_kind(kind: str, probe_query: Mapping[str, Any]) -> str | None:
+    api = str(probe_query.get("api") or "").strip()
+    return _L3_LISTING_SOURCE_FOR_API.get(api, {}).get(kind)
+
+
+_DETAIL_FORCING_VERBS_RE = re.compile(
+    r"\b(reply|comment|respond|edit|update|change|add|submit)\b", re.IGNORECASE
+)
+_DETAIL_FORCING_POST_ACTION_RE = re.compile(
+    r"\bpost\s+(?:['\"]|(?:a\s+)?(?:comment|reply|note|message)\b)", re.IGNORECASE
+)
+_DETAIL_FORCING_OBJECTS_RE = re.compile(
+    r"\b(issue|merge request|mr|post|submission|comment|reply|body|description)\b",
+    re.IGNORECASE,
+)
+
+
+def _transition_forced_by_l3_task(task: Mapping[str, Any], *, kind: str) -> bool:
+    """Heuristic guard for L3 concrete items selected from listings.
+
+    Search/list probes can identify a child issue/MR/submission, but Phase 4
+    encounter is admissible only when the benign task itself forces the agent
+    to open or mutate that child. Read-only list/status/discovery tasks can be
+    completed from the listing and must remain bounded-transitive diagnostics.
+    """
+
+    instruction = str(task.get("instruction") or "")
+    if not instruction.strip():
+        return False
+    if not _DETAIL_FORCING_VERBS_RE.search(
+        instruction
+    ) and not _DETAIL_FORCING_POST_ACTION_RE.search(instruction):
+        return False
+    if not _DETAIL_FORCING_OBJECTS_RE.search(instruction):
+        return False
+    lowered = instruction.lower()
+    if kind in {"gitlab_issue", "gitlab_mr"}:
+        return any(
+            token in lowered
+            for token in (
+                "comment",
+                "post",
+                "reply",
+                "respond",
+                "issue",
+                "merge request",
+                "mr",
+            )
+        )
+    if kind == "reddit_submission":
+        return any(
+            token in lowered
+            for token in ("reply", "comment", "edit", "update", "post", "submission")
+        )
+    return False
+
+
+def _l3_listing_entry_url(
+    *,
+    site_kind: Literal["gitlab", "reddit"],
+    kind: str,
+    source_listing_kind: str,
+    probe_query: Mapping[str, Any],
+    resolved_start: str | None,
+    placeholders: Mapping[str, str],
+    anchors: Mapping[str, Any],
+) -> str | None:
+    origin = _origin_from_resolved_start_or_placeholders(site_kind, resolved_start, placeholders)
+    if not origin:
+        return resolved_start
+    if site_kind == "gitlab":
+        if source_listing_kind == "gitlab_dashboard_list":
+            if kind == "gitlab_mr":
+                return f"{origin}/dashboard/merge_requests"
+            return f"{origin}/dashboard/issues"
+        project_path = _canonicalize_project_path(
+            str(probe_query.get("project_path") or anchors.get("project_path") or "")
+        )
+        if project_path:
+            scope = "merge_requests" if kind == "gitlab_mr" else "issues"
+            return f"{origin}/{project_path}/-/{scope}"
+        return f"{origin}/search"
+    if site_kind == "reddit":
+        forum_name = str(probe_query.get("forum_name") or anchors.get("forum_name") or "").strip()
+        if forum_name:
+            return f"{origin}/f/{forum_name}"
+    return resolved_start
+
+
+def _origin_from_resolved_start_or_placeholders(
+    site_kind: Literal["gitlab", "reddit"],
+    resolved_start: str | None,
+    placeholders: Mapping[str, str],
+) -> str | None:
+    candidates = [resolved_start, placeholders.get(f"__{site_kind.upper()}__")]
+    for candidate in candidates:
+        if not isinstance(candidate, str) or not candidate.strip():
+            continue
+        try:
+            parsed = urlsplit(candidate)
+        except ValueError:
+            continue
+        if parsed.scheme and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}"
+    return None
+
+
+def _preserve_l3_listing_provenance(
+    record: dict[str, Any],
+    *,
+    task: Mapping[str, Any],
+    site_kind: Literal["gitlab", "reddit"],
+    kind: str,
+    probe_query: Mapping[str, Any],
+    resolved_start: str | None,
+    placeholders: Mapping[str, str],
+    reconstructed_detail_url: str | None,
+) -> None:
+    source_listing_kind = _l3_listing_source_kind(kind, probe_query)
+    if source_listing_kind is None:
+        return
+    anchors = record.get("anchors") if isinstance(record.get("anchors"), Mapping) else {}
+    benign_read_url = _l3_listing_entry_url(
+        site_kind=site_kind,
+        kind=kind,
+        source_listing_kind=source_listing_kind,
+        probe_query=probe_query,
+        resolved_start=resolved_start,
+        placeholders=placeholders,
+        anchors=anchors,
+    )
+    record["source_listing_kind"] = source_listing_kind
+    if benign_read_url:
+        record["benign_read_url"] = benign_read_url
+    detail_url = reconstructed_detail_url or record.get("start_url_resolved")
+    if isinstance(detail_url, str) and detail_url.strip():
+        record["seeded_detail_url"] = detail_url
+    if _transition_forced_by_l3_task(task, kind=kind):
+        record["transition_forced_by_task"] = True
+
+
 _L3_FEW_SHOT_EXAMPLES = (
     "Examples (calibration only — your task may differ):\n"
     '- "How many commits did kilian make to a11yproject/a11yproject.com '
@@ -1482,7 +1640,7 @@ async def resolve_l3(
         return record
 
     reconstructed = _reconstruct_start_url_from_anchors(site_kind, kind, anchors, placeholders)
-    return {
+    record = {
         "kind": kind,
         "anchors": dict(anchors),
         "start_url_resolved": reconstructed or resolved_start,
@@ -1492,6 +1650,17 @@ async def resolve_l3(
         "l3_confidence": parsed.get("confidence"),
         "l3_probe_query": dict(probe_query),
     }
+    _preserve_l3_listing_provenance(
+        record,
+        task=task,
+        site_kind=site_kind,
+        kind=str(kind),
+        probe_query=probe_query,
+        resolved_start=resolved_start,
+        placeholders=placeholders,
+        reconstructed_detail_url=reconstructed,
+    )
+    return record
 
 
 # -----------------------------------------------------------------------

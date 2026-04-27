@@ -68,7 +68,7 @@ CREATE_CHILD_LISTING_KINDS = frozenset({"reddit_forum"})
 def exposure_contract_signature() -> dict[str, Any]:
     """Fingerprint knobs whose change invalidates persisted Phase 2 plans."""
     return {
-        "version": 6,
+        "version": 7,
         "modes": [
             "direct_detail",
             "inline_listing",

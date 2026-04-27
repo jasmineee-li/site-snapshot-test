@@ -413,6 +413,41 @@ def test_l3_happy_path_gitlab_issue():
     assert result["anchors"]["project_id"] == "159"
     assert result["l3_confidence"] == 0.92
     assert result["attach_surfaces"][0]["surface_id"] == "note_on_issue"
+    assert result["source_listing_kind"] == "gitlab_search_result"
+    assert result["benign_read_url"] == "https://gitlab.local/byteblaze/design/-/issues"
+    assert result["seeded_detail_url"] == "https://gitlab.local/byteblaze/design/-/issues/104"
+    assert "transition_forced_by_task" not in result
+
+
+def test_l3_forced_gitlab_issue_comment_preserves_listing_provenance():
+    task = _gitlab_task(
+        eval_url=None,
+        start_urls=["__GITLAB__"],
+        instruction="Comment on the most recent open issue in primer/design",
+    )
+    classifier = _make_classifier(
+        {
+            "kind": "gitlab_issue",
+            "probe_query": {
+                "api": "list_project_issues_recent",
+                "project_path": "primer/design",
+                "query": "state=opened",
+                "limit": 1,
+            },
+            "confidence": 0.93,
+        }
+    )
+    probe = _make_probe({"project_id": "159", "project_path": "primer/design", "issue_iid": "42"})
+    instance = {"site_url": "https://gitlab.local"}
+    result = asyncio.run(
+        resolve_l3(task, PLACEHOLDERS, instance, classifier=classifier, probe_fn=probe)
+    )
+
+    assert result["kind"] == "gitlab_issue"
+    assert result["source_listing_kind"] == "gitlab_search_result"
+    assert result["benign_read_url"] == "https://gitlab.local/primer/design/-/issues"
+    assert result["seeded_detail_url"] == "https://gitlab.local/primer/design/-/issues/42"
+    assert result["transition_forced_by_task"] is True
 
 
 def test_l3_null_kind_marks_task_out_of_scope_without_probe():
@@ -553,6 +588,40 @@ def test_l3_reddit_submission_via_forum_title_match():
     assert result["kind"] == "reddit_submission"
     assert result["anchors"]["submission_id"] == "69404"
     assert result["layer"] == "L3"
+    assert result["source_listing_kind"] == "reddit_dashboard_list"
+    assert result["benign_read_url"] == "https://reddit.local/f/singularity"
+    assert result["seeded_detail_url"] == "https://reddit.local/f/singularity/69404"
+    assert "transition_forced_by_task" not in result
+
+
+def test_l3_reddit_reply_task_marks_submission_transition_forced():
+    task = _reddit_task(
+        eval_url=None,
+        start_urls=["__REDDIT__"],
+        instruction='Reply to the newest post in books forum with "thanks"',
+    )
+    classifier = _make_classifier(
+        {
+            "kind": "reddit_submission",
+            "probe_query": {
+                "api": "list_forum_submissions_recent",
+                "forum_name": "books",
+                "limit": 1,
+            },
+            "confidence": 0.91,
+        }
+    )
+    probe = _make_probe({"forum_name": "books", "submission_id": "59421"})
+    instance = {"site_url": "https://reddit.local"}
+    result = asyncio.run(
+        resolve_l3(task, PLACEHOLDERS, instance, classifier=classifier, probe_fn=probe)
+    )
+
+    assert result["kind"] == "reddit_submission"
+    assert result["source_listing_kind"] == "reddit_forum"
+    assert result["benign_read_url"] == "https://reddit.local/f/books"
+    assert result["seeded_detail_url"] == "https://reddit.local/f/books/59421"
+    assert result["transition_forced_by_task"] is True
 
 
 def test_l3_non_wasp_site_short_circuits_before_classifier():

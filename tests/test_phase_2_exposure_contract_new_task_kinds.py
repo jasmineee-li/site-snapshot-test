@@ -116,9 +116,9 @@ def test_unresolved_kind_remains_ineligible():
     assert contract["eligibility"]["reason"] == "unresolved_target_resource"
 
 
-def test_signature_version_bumped_to_6():
-    """Persisted Phase 2 plans built before Path A must invalidate."""
+def test_signature_version_bumped_to_7():
+    """Persisted Phase 2 plans built before L3 topology provenance must invalidate."""
     from worldsim.phases.phase_2_exposure_contract import exposure_contract_signature
 
     sig = exposure_contract_signature()
-    assert sig["version"] == 6
+    assert sig["version"] == 7
