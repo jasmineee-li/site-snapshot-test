@@ -77,7 +77,38 @@ for stream in "${STREAMS[@]}"; do
         if [ -n "$DRY_RUN" ]; then
             continue
         fi
-        nohup $PYTHON -m eval_awareness_experiments.run_causal_experiment \
+
+        # Per-benchmark docker isolation — DoomArena and WASP share the same
+        # WebArena env-var names (GITLAB, REDDIT, ...) but talk to *different*
+        # container instances. Without these overrides the parallel streams
+        # would collide on the same containers (state pollution + race
+        # conditions). Values are pinned per benchmark below; canonical
+        # source is eval_awareness_experiments/DOCKER_PORTS.md.
+        case "$benchmark" in
+            wasp)
+                env_overrides=(
+                    "GITLAB=http://localhost:9001"
+                    "REDDIT=http://localhost:8080"
+                    "DATASET=webarena_prompt_injections"
+                )
+                ;;
+            doomarena)
+                env_overrides=(
+                    "GITLAB=http://localhost:9002"
+                    "REDDIT=http://localhost:8081"
+                    "SHOPPING=http://localhost:8082"
+                    "SHOPPING_ADMIN=http://localhost:8083"
+                )
+                ;;
+            agentdojo|injecagent)
+                env_overrides=()  # tool-calling, no docker
+                ;;
+            *)
+                env_overrides=()
+                ;;
+        esac
+
+        nohup env "${env_overrides[@]}" $PYTHON -m eval_awareness_experiments.run_causal_experiment \
             --models "${MODELS[@]}" \
             --benchmarks "$benchmark" \
             --conditions baseline \
