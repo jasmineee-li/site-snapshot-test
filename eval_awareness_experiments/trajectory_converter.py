@@ -22,8 +22,9 @@ from typing import Any
 from eval_awareness_experiments.types import (
     Message,
     StandardizedTrajectory,
-    Transcript,
+    ToolCall,
     TrajectoryStep,
+    Transcript,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,9 +32,20 @@ logger = logging.getLogger(__name__)
 MAX_REASONING_CHARS = 80_000
 
 
+def _tool_function_from_action(action: str) -> str:
+    """Best-effort stable function name for standardized action strings."""
+    stripped = (action or "").strip()
+    if not stripped:
+        return "action"
+    head = stripped.split("(", 1)[0].split(None, 1)[0].strip()
+    safe = "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in head)
+    return safe or "action"
+
+
 # ---------------------------------------------------------------------------
 # WebArena-Infinity (HuggingFace format)
 # ---------------------------------------------------------------------------
+
 
 def parse_webarena_infinity_trajectory(
     trajectory_dir: Path,
@@ -53,13 +65,13 @@ def parse_webarena_infinity_trajectory(
     for entry in history.get("history", []):
         thought = entry.get("thought", "")
         actions = entry.get("actions", [])
-        action_str = "; ".join(
-            a.get("type", "unknown") for a in actions
-        ) if actions else ""
-        steps.append(TrajectoryStep(
-            thought=thought,
-            action=action_str,
-        ))
+        action_str = "; ".join(a.get("type", "unknown") for a in actions) if actions else ""
+        steps.append(
+            TrajectoryStep(
+                thought=thought,
+                action=action_str,
+            )
+        )
 
     # Extract agent name from directory name (e.g., "kimi_task_m16" -> "kimi")
     dir_name = trajectory_dir.name
@@ -86,6 +98,7 @@ def parse_webarena_infinity_trajectory(
 # ---------------------------------------------------------------------------
 # AgentLab / BrowserGym (pickle-based step format)
 # ---------------------------------------------------------------------------
+
 
 def _load_step_pickle(step_path: Path) -> dict[str, Any] | None:
     """Load a step_N.pkl.gz file, returning its dict representation."""
@@ -157,9 +170,7 @@ def _extract_agentlab_reasoning(agent_info: Any) -> str:
 
     # Extract scratchpad-like tag content from the raw assistant content
     for tag in ("unfiltered_observations", "scratchpad", "reflection"):
-        for m in _re.finditer(
-            rf"<{tag}>(.*?)</{tag}>", raw_content, _re.DOTALL | _re.IGNORECASE
-        ):
+        for m in _re.finditer(rf"<{tag}>(.*?)</{tag}>", raw_content, _re.DOTALL | _re.IGNORECASE):
             block = m.group(1).strip()
             already = any(block in p for p in parts)
             if block and not already:
@@ -207,11 +218,13 @@ def parse_agentlab_trajectory(
             else:
                 task_instruction = _safe_get(goal, "text", str(goal))
 
-        steps.append(TrajectoryStep(
-            thought=thought,
-            action=action,
-            observation=observation,
-        ))
+        steps.append(
+            TrajectoryStep(
+                thought=thought,
+                action=action,
+                observation=observation,
+            )
+        )
 
     # Try to get task instruction from exp_args if not found in steps
     if not task_instruction:
@@ -253,6 +266,7 @@ def parse_agentlab_trajectory(
 # ---------------------------------------------------------------------------
 # DoomArena (AgentLab redteam variant format)
 # ---------------------------------------------------------------------------
+
 
 def parse_doomarena_trajectory(
     exp_dir: Path,
@@ -297,6 +311,7 @@ def parse_doomarena_trajectory(
 # SafeArena (BrowserGym-based, McGill-NLP; WebArena-derived)
 # ---------------------------------------------------------------------------
 
+
 def parse_safearena_trajectory(
     exp_dir: Path,
 ) -> StandardizedTrajectory | None:
@@ -332,6 +347,7 @@ def parse_safearena_trajectory(
 # ---------------------------------------------------------------------------
 # WASP (BrowserGym-based, VisualWebArena)
 # ---------------------------------------------------------------------------
+
 
 def parse_wasp_trajectory(
     result_dir: Path,
@@ -369,11 +385,13 @@ def parse_wasp_trajectory(
         observation = entry.get("observation", entry.get("state", ""))
         if isinstance(observation, dict):
             observation = observation.get("axtree_txt", str(observation))
-        steps.append(TrajectoryStep(
-            thought=thought,
-            action=action if isinstance(action, str) else json.dumps(action),
-            observation=observation[:5000] if isinstance(observation, str) else "",
-        ))
+        steps.append(
+            TrajectoryStep(
+                thought=thought,
+                action=action if isinstance(action, str) else json.dumps(action),
+                observation=observation[:5000] if isinstance(observation, str) else "",
+            )
+        )
 
     task = data.get("instruction", data.get("task", data.get("goal", "")))
     final = data.get("final_result", data.get("answer", ""))
@@ -402,6 +420,7 @@ def parse_wasp_trajectory(
 # ---------------------------------------------------------------------------
 # OS-harm (better_log.json + task config)
 # ---------------------------------------------------------------------------
+
 
 def parse_osharm_trajectory(
     log_dir: Path,
@@ -444,11 +463,13 @@ def parse_osharm_trajectory(
         observation = entry.get("observation", entry.get("screenshot", ""))
         if isinstance(observation, dict):
             observation = str(observation)
-        steps.append(TrajectoryStep(
-            thought=thought,
-            action=action,
-            observation=observation[:5000] if isinstance(observation, str) else "",
-        ))
+        steps.append(
+            TrajectoryStep(
+                thought=thought,
+                action=action,
+                observation=observation[:5000] if isinstance(observation, str) else "",
+            )
+        )
 
     task_info = task_info or {}
     task = task_info.get("instruction", meta.get("task", meta.get("instruction", "")))
@@ -484,6 +505,7 @@ def parse_osharm_trajectory(
 # ---------------------------------------------------------------------------
 # Tool-calling benchmarks (AgentDojo, InjecAgent)
 # ---------------------------------------------------------------------------
+
 
 def parse_toolcalling_trajectory(
     task_json_path: Path,
@@ -521,8 +543,7 @@ def parse_toolcalling_trajectory(
     benchmark = data.get("benchmark")
     if benchmark not in ("agentdojo", "injecagent"):
         logger.error(
-            f"parse_toolcalling_trajectory: unexpected benchmark {benchmark!r} "
-            f"in {task_json_path}"
+            f"parse_toolcalling_trajectory: unexpected benchmark {benchmark!r} in {task_json_path}"
         )
         return None
 
@@ -562,6 +583,7 @@ def parse_toolcalling_trajectory(
 # EIA (Environmental Injection Attack — SeeAct trajectories, import-only)
 # ---------------------------------------------------------------------------
 
+
 def parse_eia_trajectory(
     trajectory_dir: Path,
 ) -> StandardizedTrajectory | None:
@@ -579,9 +601,7 @@ def parse_eia_trajectory(
     traj_path = trajectory_dir / "trajectory.json"
     task_path = trajectory_dir / "task.json"
     if not traj_path.exists() or not task_path.exists():
-        logger.warning(
-            f"EIA trajectory dir {trajectory_dir} missing trajectory.json or task.json"
-        )
+        logger.warning(f"EIA trajectory dir {trajectory_dir} missing trajectory.json or task.json")
         return None
 
     traj_data = json.loads(traj_path.read_text())
@@ -605,14 +625,18 @@ def parse_eia_trajectory(
             action = f"{action_raw.get('type', 'action')}({target})".strip()
         else:
             action = str(action_raw)
-        observation = entry.get("observation") or entry.get("element_text") or entry.get("page_state") or ""
+        observation = (
+            entry.get("observation") or entry.get("element_text") or entry.get("page_state") or ""
+        )
         if isinstance(observation, dict):
             observation = json.dumps(observation)[:5000]
-        steps.append(TrajectoryStep(
-            thought=thought,
-            action=action,
-            observation=observation[:5000] if isinstance(observation, str) else "",
-        ))
+        steps.append(
+            TrajectoryStep(
+                thought=thought,
+                action=action,
+                observation=observation[:5000] if isinstance(observation, str) else "",
+            )
+        )
 
     attack_meta = task_data.get("attack_metadata") or {}
 
@@ -640,6 +664,7 @@ def parse_eia_trajectory(
 # Conversion utilities
 # ---------------------------------------------------------------------------
 
+
 def trajectory_to_transcript(traj: StandardizedTrajectory) -> Transcript:
     """Convert a StandardizedTrajectory to a Transcript for browser-sim judges.
 
@@ -654,41 +679,62 @@ def trajectory_to_transcript(traj: StandardizedTrajectory) -> Transcript:
 
     for i, step in enumerate(traj.steps):
         if step.thought:
-            messages.append(Message(
-                role="assistant",
-                content=step.thought,
-                label=f"step_{i}_reasoning",
-                is_hidden=True,
-            ))
+            messages.append(
+                Message(
+                    role="assistant",
+                    content=step.thought,
+                    label=f"step_{i}_reasoning",
+                    is_hidden=True,
+                )
+            )
         if step.preamble:
-            messages.append(Message(
-                role="assistant",
-                content=step.preamble,
-                label=f"step_{i}_preamble",
-            ))
+            messages.append(
+                Message(
+                    role="assistant",
+                    content=step.preamble,
+                    label=f"step_{i}_preamble",
+                )
+            )
         if step.action:
-            messages.append(Message(
-                role="assistant",
-                content=step.action,
-                label=f"step_{i}_action",
-            ))
+            function = _tool_function_from_action(step.action)
+            messages.append(
+                Message(
+                    role="assistant",
+                    content=step.action,
+                    label=f"step_{i}_action",
+                    tool_calls=[
+                        ToolCall(
+                            id=str(i),
+                            function=function,
+                            arguments={"action": step.action},
+                        )
+                    ],
+                )
+            )
         if step.observation:
-            messages.append(Message(
-                role="tool",
-                content=step.observation[:3000],
-                label=f"step_{i}_observation",
-            ))
+            messages.append(
+                Message(
+                    role="tool",
+                    content=step.observation[:3000],
+                    label=f"step_{i}_observation",
+                    function=_tool_function_from_action(step.action),
+                )
+            )
 
     if traj.final_answer and (
         not traj.steps
-        or (traj.final_answer != traj.steps[-1].thought
-            and traj.final_answer != traj.steps[-1].action)
+        or (
+            traj.final_answer != traj.steps[-1].thought
+            and traj.final_answer != traj.steps[-1].action
+        )
     ):
-        messages.append(Message(
-            role="assistant",
-            content=traj.final_answer,
-            label="final_answer",
-        ))
+        messages.append(
+            Message(
+                role="assistant",
+                content=traj.final_answer,
+                label="final_answer",
+            )
+        )
 
     return Transcript(
         messages=messages,
