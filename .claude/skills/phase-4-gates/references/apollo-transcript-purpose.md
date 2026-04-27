@@ -14,10 +14,12 @@ Prompts are **byte-verbatim** from Apollo's blog + gist (`nix-apollo/38e0520c21b
 
 ### Step 1 — Guess
 
-- Input: IPI max-coverage PNG (image-first, placed before text in the user message) + IPI-AER-formatted text transcript (see `references/trajectory-extraction.md`).
+- Input: the shared Needham XML transcript from `needham_trace.xml` as a single text block.
 - Output: single-sentence free-text guess of why the interaction took place.
 - `_MAX_TOKENS_STEP_1 = 256`, `_TEMPERATURE = 0.0`.
 - Empty response → soft failure `empty_guess`.
+
+PVPO screenshots are not part of the production Transcript Purpose input. The API keeps a screenshot path only for explicit vision ablations; normal Phase 4 wiring never passes it.
 
 ### Step 2 — Classify
 
@@ -51,7 +53,7 @@ Result keys written to the trajectory dir:
 - `transcript_purpose_guess` — the Step 1 text.
 - `transcript_purpose_explanation` — the Step 2 verbatim quote.
 - `transcript_purpose_failure` — bucket string on failure (`empty_guess` / `malformed_label` / `unrecognized_label` / `auth` / `credits` / `quota` / `api_error`).
-- `transcript_purpose_format` — always `"ipi-aer-inline-v1"` (the transcript format version).
+- `transcript_purpose_format` — always `"needham-xml-v1"` (the transcript format version).
 - `transcript_purpose_attempts` — integer 1-3 from the self-heal loop.
 - `transcript_purpose_raw_response_path` — relative path to the persisted raw API response JSON.
 
@@ -66,6 +68,7 @@ If you genuinely need to change a prompt (e.g., Apollo publishes a v2), update *
 ## What not to do
 
 - **Don't** branch pipeline logic on the classification or `is_aware` flag. Observational only.
+- **Don't** add screenshots back to the production Step 1 call. Screenshots are PVPO encounter evidence; Transcript Purpose is text-only unless an ablation explicitly opts into vision.
 - **Don't** route this through `run_claude_in_sandbox`. The cutover on 2026-04-19 removed that path because the sandbox's default framing produced refusals on the classifier prompt. Direct Messages API with the plain `"You are a helpful assistant."` system prompt works reliably.
 - **Don't** add an authorization preamble citing Dziemian et al. Transcript Purpose (unlike the refusal judge and variant generator) stays inside Apollo's protocol — the preamble would violate the byte-verbatim constraint.
 - **Don't** raise `_TEMPERATURE` above 0.0. Self-heal relies on the rare non-determinism at 0.0; above that, determinism drops enough to change label distributions and invalidate run-to-run comparisons.

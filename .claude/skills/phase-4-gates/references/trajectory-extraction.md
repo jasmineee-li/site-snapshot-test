@@ -8,6 +8,8 @@ Every Phase 4 trajectory lands on disk under `logs/<run>/<task_id>/`:
 logs/<run>/<task_id>/
 ├── history.json                              # Browser-Use step-by-step agent history
 ├── result.json                               # final status, reward, timing
+├── needham_trace.json                        # shared structured Needham trace
+├── needham_trace.xml                         # shared Needham XML for observational metrics
 ├── screenshots/step_{N}.png                  # atomic beginFrame PNGs
 ├── conversations/step_{N}.json               # per-step LLM conversation (Browser-Use)
 └── pvpo/
@@ -18,17 +20,17 @@ logs/<run>/<task_id>/
 Additional per-trajectory artifacts written by the Phase 4 observational-metrics pass:
 
 - `verbalized_eval_awareness_transcript.xml` + `verbalized_eval_awareness_raw_response.json` (see `needham-vea.md`).
-- `transcript_purpose_raw_response.json` (Apollo Research output; see `apollo-transcript-purpose.md`).
+- `transcript_purpose_transcript.txt` + `transcript_purpose_raw_response.json` (Apollo Research output; see `apollo-transcript-purpose.md`).
 
-## The extractor and AER formatter
+## The extractor and Needham trace builder
 
-`worldsim/phase_4/aer_trajectory_extract.py` reads `history.json` and produces a typed `ExtractedTrajectory` dataclass. `worldsim/phase_4/ipi_aer_formatter.py::format_ipi_aer_inline` renders it into the OS-Harm-style AER (action / environment / reasoning) inline text transcript that Transcript Purpose consumes.
+`worldsim/phase_4/aer_trajectory_extract.py` reads `history.json` and produces a typed `ExtractedTrajectory` dataclass. `worldsim/phase_4/needham_trace.py` renders that trajectory into the shared Needham-native artifact consumed by Transcript Purpose and VEA. `ipi_aer_formatter.py` remains as historical OS-Harm AER support, but it is no longer the production Transcript Purpose input.
 
 Key properties:
 
 - **Typed dataclasses, not raw JSON.** The legacy `trajectory_slice.py` byte-budgeted slicer was deleted in the 2026-04-19 cutover. Under Sonnet 4.6's 1M-context variant, field truncation is unnecessary; the extractor returns full fidelity and the API call passes the full transcript.
-- **`extract_task_intent`** pulls the user's original task prompt out of the Browser-Use conversation for use in the AER header.
-- **`as_aer_view`** projects the trajectory into the exact shape the formatter expects.
+- **`extract_task_intent`** pulls the user's original task prompt out of task metadata so both metrics see the same user message.
+- **`needham_trace.build_messages`** projects Browser-Use model output into Needham-shaped system/user/assistant/tool messages. Tool call ids are stable across the whole trace, and missing tool results become empty tool messages.
 
 ## Why no sandbox for Phase 4 judges
 
@@ -59,8 +61,8 @@ The durable rule: **no Phase 4 trajectory step runs in a Modal sandbox.** Adding
 | Anthropic client + auth + retry + exception classification | `anthropic_client.py` |
 | Shared rate-limiting | `concurrency.py` |
 | Trajectory → dataclass projection | `aer_trajectory_extract.py` |
-| Dataclass → AER inline text | `ipi_aer_formatter.py` |
-| Trajectory → Needham-XML chat | `needham_adapter.py` + `needham_xml.py` |
+| Dataclass → historical AER inline text | `ipi_aer_formatter.py` |
+| Trajectory → shared Needham-XML chat | `needham_trace.py` + `needham_xml.py` |
 | Refusal judge | `judge_api.py` |
 | Variant generator | `variant_api.py` |
 | Transcript Purpose | `transcript_purpose_api.py` |

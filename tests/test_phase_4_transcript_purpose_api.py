@@ -2,11 +2,11 @@
 
 Covers: four-label happy-path mapping, casing and code-fence tolerance,
 CoT-bleed last-tag-wins, missing-explanation acceptance, self-heal retry
-on soft failures, no-retry on hard failures, missing-screenshot pre-API
-short-circuit, image-before-text ordering, verbatim system prompt,
-temperature / max-tokens pinning, cost bucket routing, retry re-runs
-Step 1, persistence of raw response + transcript artifacts, and prompt
-SHA256 pin against Apollo's verbatim text.
+on soft failures, no-retry on hard failures, text-only Step 1 by default,
+ablation-only image ordering, verbatim system prompt, temperature /
+max-tokens pinning, cost bucket routing, retry re-runs Step 1, persistence
+of raw response + transcript artifacts, and prompt SHA256 pin against
+Apollo's verbatim text.
 """
 
 from __future__ import annotations
@@ -369,9 +369,25 @@ async def test_hard_failure_api_error_no_retry(patched_anthropic_client, tmp_pat
 
 
 @pytest.mark.asyncio
-async def test_missing_screenshot_fails_pre_api(patched_anthropic_client, tmp_path):
+async def test_missing_screenshot_no_longer_fails_pre_api(patched_anthropic_client, tmp_path):
+    patched_anthropic_client.messages.create = AsyncMock(side_effect=_responses_for_label("Real"))
     missing = tmp_path / "does_not_exist.png"
     result = await run_transcript_purpose_api(_task(), tmp_path, _trajectory(), missing)
+    assert result["transcript_purpose_failure"] is None
+    assert result["transcript_purpose_attempts"] == 1
+    assert patched_anthropic_client.messages.create.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_missing_screenshot_fails_only_for_image_ablation(patched_anthropic_client, tmp_path):
+    missing = tmp_path / "does_not_exist.png"
+    result = await run_transcript_purpose_api(
+        _task(),
+        tmp_path,
+        _trajectory(),
+        missing,
+        include_screenshot=True,
+    )
     assert result["transcript_purpose_failure"] == "missing_screenshot"
     assert result["transcript_purpose_attempts"] == 0
     assert patched_anthropic_client.messages.create.await_count == 0
@@ -383,10 +399,27 @@ async def test_missing_screenshot_fails_pre_api(patched_anthropic_client, tmp_pa
 
 
 @pytest.mark.asyncio
-async def test_image_block_precedes_text_in_step_1(patched_anthropic_client, tmp_path):
-    """Anthropic vision docs: images come before text. Pin the ordering."""
+async def test_step_1_has_only_text_block_by_default(patched_anthropic_client, tmp_path):
     patched_anthropic_client.messages.create = AsyncMock(side_effect=_responses_for_label("Real"))
     await run_transcript_purpose_api(_task(), tmp_path, _trajectory(), _write_screenshot(tmp_path))
+    step_1_call = patched_anthropic_client.messages.create.await_args_list[0]
+    content = step_1_call.kwargs["messages"][0]["content"]
+    assert [block["type"] for block in content] == ["text"]
+    assert '<message role="user">' in content[0]["text"]
+    assert "open the reviews page" in content[0]["text"]
+
+
+@pytest.mark.asyncio
+async def test_image_block_precedes_text_in_ablation_step_1(patched_anthropic_client, tmp_path):
+    """Anthropic vision docs: images come before text. Pin the ablation ordering."""
+    patched_anthropic_client.messages.create = AsyncMock(side_effect=_responses_for_label("Real"))
+    await run_transcript_purpose_api(
+        _task(),
+        tmp_path,
+        _trajectory(),
+        _write_screenshot(tmp_path),
+        include_screenshot=True,
+    )
     step_1_call = patched_anthropic_client.messages.create.await_args_list[0]
     content = step_1_call.kwargs["messages"][0]["content"]
     assert content[0]["type"] == "image"
@@ -453,7 +486,12 @@ async def test_raw_response_persisted_with_attempts_log(patched_anthropic_client
 async def test_transcript_artifact_persisted(patched_anthropic_client, tmp_path):
     patched_anthropic_client.messages.create = AsyncMock(side_effect=_responses_for_label("Real"))
     await run_transcript_purpose_api(_task(), tmp_path, _trajectory(), _write_screenshot(tmp_path))
-    assert (tmp_path / "transcript_purpose_transcript.txt").exists()
+    transcript = tmp_path / "transcript_purpose_transcript.txt"
+    assert transcript.exists()
+    text = transcript.read_text()
+    assert text.startswith('<message role="user">')
+    assert "<tool_calls>" in text
+    assert (tmp_path / "needham_trace.json").exists()
 
 
 # ---------------------------------------------------------------------------

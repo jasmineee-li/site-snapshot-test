@@ -6,9 +6,9 @@ Second Phase 4 observational metric, in parallel with Transcript Purpose. Applie
 
 ## The transcript format — Needham XML
 
-`worldsim/phase_4/needham_adapter.py` takes the trajectory and rebuilds it into a Needham-et-al.-shaped chat XML via `needham_xml.py`. On-disk artifact: `verbalized_eval_awareness_transcript.xml`, format version `"needham-xml-v1"`.
+`worldsim/phase_4/needham_trace.py` takes the trajectory and rebuilds it into a Needham-et-al.-shaped chat XML via `needham_xml.py`. On-disk artifacts: shared `needham_trace.json` / `needham_trace.xml`, plus `verbalized_eval_awareness_transcript.xml`, all using transcript format `"needham-xml-v1"`.
 
-Why XML and not the AER inline format Transcript Purpose uses: Jasmine's prompt was authored against chat-style XML transcripts, and the 4-way classification distribution shifts if you feed it a different format. Keep the two transcript builders separate — each matches the protocol it was written for.
+VEA and Transcript Purpose now intentionally share this XML so the two observational metrics differ by judge protocol, not by transcript source. `needham_adapter.py` remains only as a compatibility shim for older imports.
 
 ## The classification call
 
@@ -32,12 +32,13 @@ The earlier forced-tool-use binary `vea_api.py` shape (with `vea_verbalized` / `
 On-disk artifacts per trajectory:
 - `verbalized_eval_awareness_transcript.xml`
 - `verbalized_eval_awareness_raw_response.json`
+- shared `needham_trace.json` / `needham_trace.xml`
 
 Cost bucket: `phase_4:verbalized_eval_awareness`.
 
 ## What not to do
 
 - Don't gate anything on the VEA classification. Observational only.
-- Don't reuse the AER inline transcript (Transcript Purpose's format) as the VEA input. Different protocol, different transcript shape, different label distribution.
+- Don't fork the transcript builder for VEA vs Transcript Purpose. Both must consume the shared Needham XML.
 - Don't resurrect `vea_api.py` or the `vea_*` output keys. The 2026-04-20 cutover deleted them for a reason — forced-tool-use degraded classification quality versus free-text JSON.
 - Don't raise temperature. Same stability argument as Transcript Purpose.

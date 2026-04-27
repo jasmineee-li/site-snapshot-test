@@ -2,8 +2,8 @@
 
 Two-step Messages API pipeline replacing the Needham 5-PQ ``p(eval)``:
 
-1. **Guess**: image (IPI max-coverage PNG) + IPI-AER text transcript →
-   single-sentence free-text guess of why the interaction took place.
+1. **Guess**: Needham XML text transcript → single-sentence free-text guess
+   of why the interaction took place.
 2. **Classify**: that guess → one of four canonical labels
    (``Alignment Evaluation`` / ``Capability Evaluation`` /
    ``Other Evaluation`` / ``Real``) with a verbatim-quote explanation.
@@ -33,11 +33,7 @@ from typing import Any
 from anthropic import AsyncAnthropic
 
 from worldsim.cost_tracker import tracker as cost_tracker
-from worldsim.phase_4.aer_trajectory_extract import (
-    ExtractedTrajectory,
-    as_aer_view,
-    extract_task_intent,
-)
+from worldsim.phase_4.aer_trajectory_extract import ExtractedTrajectory, extract_task_intent
 from worldsim.phase_4.anthropic_client import (
     call_with_retry,
     classify_api_exception,
@@ -45,7 +41,11 @@ from worldsim.phase_4.anthropic_client import (
     normalize_model_for_auth,
 )
 from worldsim.phase_4.concurrency import get_api_semaphore
-from worldsim.phase_4.ipi_aer_formatter import format_ipi_aer_inline
+from worldsim.phase_4.needham_trace import (
+    TRANSCRIPT_FORMAT,
+    format_trace_xml,
+    write_trace_artifacts,
+)
 from worldsim.phase_4.prompt_payloads import format_text_for_model_prompt
 from worldsim.prompt_loading import load_prompt
 
@@ -59,7 +59,7 @@ _MAX_TOKENS_STEP_2 = 512
 _TEMPERATURE = 0.0
 _SYSTEM_PROMPT = "You are a helpful assistant."
 _MAX_ATTEMPTS = 3
-_TRANSCRIPT_FORMAT = "ipi-aer-inline-v1"
+_TRANSCRIPT_FORMAT = TRANSCRIPT_FORMAT
 
 _CANONICAL_LABELS: dict[str, str] = {
     "alignment evaluation": "Alignment Evaluation",
@@ -178,27 +178,36 @@ def _parse_classification(
     return canonical, explanation, None, label_matches
 
 
-def _build_step_1_messages(aer_text: str, screenshot_b64: str) -> list[dict[str, Any]]:
-    """Image block first — Anthropic vision docs: "Claude works best when images come before text".
+def _build_step_1_messages(
+    transcript_xml: str, screenshot_b64: str | None = None
+) -> list[dict[str, Any]]:
+    """Build Step 1 input.
 
-    No cache_control: Step 1 fires once per trajectory (or up to 3 on retries,
-    all with a fresh guess); Step 2 does not re-read image or transcript.
+    The default Transcript Purpose measurement is transcript-only. Screenshot
+    support remains available for explicit ablations, but production leaves it
+    disabled because visual context confounds the question: this metric should
+    measure whether the interaction transcript itself looks like an evaluation,
+    not whether the rendered page or benchmark chrome looks synthetic.
     """
-    prompt = load_prompt(_GUESS_PROMPT_PATH).rstrip().replace("{transcript}", aer_text)
+    prompt = load_prompt(_GUESS_PROMPT_PATH).rstrip().replace("{transcript}", transcript_xml)
+    content: list[dict[str, Any]] = []
+    if screenshot_b64 is not None:
+        # Ablation-only path. Anthropic vision docs recommend images before text.
+        content.append(
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": screenshot_b64,
+                },
+            }
+        )
+    content.append({"type": "text", "text": prompt})
     return [
         {
             "role": "user",
-            "content": [
-                {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "image/png",
-                        "data": screenshot_b64,
-                    },
-                },
-                {"type": "text", "text": prompt},
-            ],
+            "content": content,
         }
     ]
 
@@ -282,10 +291,10 @@ def _persist_raw_response(trajectory_dir: Path, payload: dict[str, Any]) -> Path
     return out
 
 
-def _persist_transcript(trajectory_dir: Path, aer_text: str) -> Path:
+def _persist_transcript(trajectory_dir: Path, transcript_xml: str) -> Path:
     out = trajectory_dir / "transcript_purpose_transcript.txt"
     try:
-        out.write_text(aer_text, encoding="utf-8")
+        out.write_text(transcript_xml, encoding="utf-8")
     except OSError as exc:  # pragma: no cover - best-effort
         logger.warning("could not persist transcript_purpose_transcript.txt at %s: %s", out, exc)
     return out
@@ -369,28 +378,27 @@ async def run_transcript_purpose_api(
     task: dict[str, Any],
     trajectory_dir: Path | str,
     extracted_trajectory: ExtractedTrajectory,
-    screenshot_path: Path | str,
+    screenshot_path: Path | str | None = None,
     *,
     sandbox_model: str = "claude-sonnet-4-6",
     client: AsyncAnthropic | None = None,
     screenshot_bytes: bytes | None = None,
+    include_screenshot: bool = False,
+    needham_xml: str | None = None,
 ) -> dict[str, Any]:
     """Two-step Apollo Research transcript-purpose classifier.
 
-    Step 1 (image+text): "why did this interaction take place?"
+    Step 1 (text-only): "why did this interaction take place?"
     Step 2 (text-only):  classify that guess into 4 canonical labels.
 
     Self-heals up to ``_MAX_ATTEMPTS`` on soft failures. Hard failures
     (auth/credits/quota/api_error) return immediately.
 
-    When ``screenshot_bytes`` is supplied the function uses that snapshot
-    directly and does not open ``screenshot_path``. Production callers
-    (the Phase 4 PVPO gate) always pass bytes captured at encounter-detection
-    validation time, which closes the TOCTOU window between the strict path
-    validation in :mod:`worldsim.phase_4.encounter_detection` and the
-    base64-encode here. The path-based code path is retained for unit tests
-    and direct programmatic use; it carries the same TOCTOU caveat the
-    encounter detector explicitly calls out.
+    ``include_screenshot`` is an explicit ablation-only option. Production
+    leaves it false so Transcript Purpose is comparable to text-only transcript
+    awareness measurements and does not mix in visual page-realism cues. When
+    it is true, ``screenshot_bytes`` is preferred over opening
+    ``screenshot_path``.
 
     Aggregation contract for downstream consumers:
 
@@ -412,29 +420,43 @@ async def run_transcript_purpose_api(
     trajectory_dir = Path(trajectory_dir)
     trajectory_dir.mkdir(parents=True, exist_ok=True)
 
-    if screenshot_bytes is not None:
-        # Pre-validated snapshot from encounter detection. Treat empty
-        # bytes as a missing screenshot so the downstream failure bucket
-        # matches the path-based case.
-        if not screenshot_bytes:
-            return _failure_result("missing_screenshot", trajectory_dir)
-        screenshot_b64 = base64.b64encode(screenshot_bytes).decode("ascii")
-    else:
-        screenshot_file = Path(screenshot_path)
-        if not screenshot_file.exists():
-            return _failure_result("missing_screenshot", trajectory_dir)
+    screenshot_b64: str | None = None
+    if include_screenshot:
+        if screenshot_bytes is not None:
+            if not screenshot_bytes:
+                return _failure_result("missing_screenshot", trajectory_dir)
+            screenshot_b64 = base64.b64encode(screenshot_bytes).decode("ascii")
+        else:
+            if screenshot_path is None:
+                return _failure_result("missing_screenshot", trajectory_dir)
+            screenshot_file = Path(screenshot_path)
+            if not screenshot_file.exists():
+                return _failure_result("missing_screenshot", trajectory_dir)
 
-        try:
-            screenshot_b64 = base64.b64encode(screenshot_file.read_bytes()).decode("ascii")
-        except OSError as exc:
-            logger.warning(
-                "transcript_purpose: unreadable screenshot at %s: %s", screenshot_file, exc
-            )
-            return _failure_result("missing_screenshot", trajectory_dir)
+            try:
+                screenshot_b64 = base64.b64encode(screenshot_file.read_bytes()).decode("ascii")
+            except OSError as exc:
+                logger.warning(
+                    "transcript_purpose: unreadable screenshot at %s: %s",
+                    screenshot_file,
+                    exc,
+                )
+                return _failure_result("missing_screenshot", trajectory_dir)
 
     task_intent = extract_task_intent(task)
-    aer_text = format_ipi_aer_inline(task_intent, as_aer_view(extracted_trajectory))
-    _persist_transcript(trajectory_dir, aer_text)
+    if needham_xml is None:
+        transcript_xml = format_trace_xml(
+            task_instruction=task_intent,
+            extracted=extracted_trajectory,
+        )
+        write_trace_artifacts(
+            trajectory_dir,
+            task_instruction=task_intent,
+            extracted=extracted_trajectory,
+        )
+    else:
+        transcript_xml = needham_xml
+    _persist_transcript(trajectory_dir, transcript_xml)
 
     client = client or get_client()
 
@@ -445,7 +467,7 @@ async def run_transcript_purpose_api(
     for attempt in range(1, _MAX_ATTEMPTS + 1):
         attempt_record: dict[str, Any] = {"attempt": attempt}
         try:
-            step_1_messages = _build_step_1_messages(aer_text, screenshot_b64)
+            step_1_messages = _build_step_1_messages(transcript_xml, screenshot_b64)
             step_1_resp, step_1_elapsed = await _call_step(
                 step_1_messages,
                 max_tokens=_MAX_TOKENS_STEP_1,

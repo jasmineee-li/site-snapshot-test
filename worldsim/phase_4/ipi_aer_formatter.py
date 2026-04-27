@@ -1,10 +1,8 @@
-"""IPI-AER inline-image transcript formatter for the transcript-purpose classifier.
+"""Historical IPI-AER inline-image transcript formatter.
 
-The transcript-purpose metric (``worldsim.phase_4.transcript_purpose_api``)
-consumes a WorldSim-composite format: the IPI max-coverage screenshot as a
-vision block, plus an OS-Harm ``user_prompt_template_vis``-shape text body.
-This module builds the text body; the vision block is the caller's
-responsibility.
+Transcript Purpose now consumes the shared Needham XML artifact from
+``worldsim.phase_4.needham_trace`` by default. This module remains as a pure
+OS-Harm parity formatter for historical analyses and explicit ablations.
 
 The text shape is byte-equivalent to OS-Harm's ``user_prompt_template_vis``
 with the trailing sentence neutralised (OS-Harm says "the last snapshot";

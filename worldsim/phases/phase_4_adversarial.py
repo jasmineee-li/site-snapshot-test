@@ -95,8 +95,16 @@ from worldsim.editors import EDITOR_REGISTRY, EditorError
 from worldsim.failpoints import crash_if_enabled
 from worldsim.instance_selection import select_task_site_instance
 from worldsim.modal_sandbox import preflight_auth_check
-from worldsim.phase_4.aer_trajectory_extract import ExtractedTrajectory, extract_trajectory
+from worldsim.phase_4.aer_trajectory_extract import (
+    ExtractedTrajectory,
+    extract_task_intent,
+    extract_trajectory,
+)
 from worldsim.phase_4.encounter_detection import EncounterResult, determine_encounter
+from worldsim.phase_4.exposure_admission import (
+    exposure_admission_error as _exposure_admission_error,
+)
+from worldsim.phase_4.needham_trace import format_trace_xml, write_trace_artifacts
 from worldsim.phase_4.payload_witnesses import witness_texts_for_task
 from worldsim.phase_4.placement_api import run_placement_api
 from worldsim.phase_4.strategy_catalog import ALLOWED_STRATEGIES as _ALLOWED_STRATEGIES
@@ -249,7 +257,7 @@ def _null_metric_keys() -> dict[str, Any]:
         "transcript_purpose_guess": None,
         "transcript_purpose_explanation": None,
         "transcript_purpose_failure": None,
-        "transcript_purpose_format": "ipi-aer-inline-v1",
+        "transcript_purpose_format": "needham-xml-v1",
         "transcript_purpose_attempts": 0,
         "transcript_purpose_raw_response_path": None,
         "verbalized_eval_awareness_classification": None,
@@ -661,8 +669,8 @@ async def _run_pvpo_gate(
     1. PVPO ``determine_encounter`` — unchanged.
     2. ``max_coverage == 0`` → stamp ``injection_not_encountered=True``,
        null every metric key, skip both judges entirely. Running
-       transcript_purpose without a reference screenshot is an incoherent
-       prompt; running VEA here adds cost with no current downstream consumer.
+       observational metrics before payload encounter adds cost with no
+       current downstream consumer.
     3. ``max_coverage > 0`` → fan out transcript_purpose and VEA via
        ``asyncio.gather(return_exceptions=True)``. Neither metric gates
        anything; either failure is independent. Resume correctness is
@@ -692,8 +700,8 @@ async def _run_pvpo_gate(
     if injection_not_encountered:
         return _gate_miss_payload(encounter_dict)
 
-    # Extract the trajectory once; transcript_purpose formats AER text and VEA
-    # builds Needham XML from the same ExtractedTrajectory.
+    # Extract the trajectory once and build one Needham XML transcript shared by
+    # Transcript Purpose and VEA.
     try:
         traj = extract_trajectory(task_dir)
     except (FileNotFoundError, ValueError) as exc:
@@ -719,6 +727,26 @@ async def _run_pvpo_gate(
             failure_class="trajectory_unavailable",
         )
 
+    task_instruction = extract_task_intent(task)
+    try:
+        needham_xml = format_trace_xml(task_instruction=task_instruction, extracted=traj)
+        write_trace_artifacts(
+            task_dir,
+            task_instruction=task_instruction,
+            extracted=traj,
+        )
+    except Exception as exc:
+        logger.warning(
+            "pvpo: Needham trace build failed for %s; skipping Stage 2 judges: %s",
+            task_dir,
+            exc,
+        )
+        return _observational_metrics_unavailable(
+            encounter_dict=encounter_dict,
+            task_dir=task_dir,
+            failure_class="trajectory_unavailable",
+        )
+
     screenshot_path = encounter.reference_screenshot_path
     screenshot_bytes = encounter.reference_screenshot_bytes
     # The encounter detector captures the PNG bytes at strict-validation
@@ -734,15 +762,12 @@ async def _run_pvpo_gate(
         return _gate_miss_payload(encounter_dict)
 
     async def _run_transcript_purpose() -> dict[str, Any]:
-        if screenshot_path is None or not screenshot_bytes:
-            return _transcript_purpose_failure_result("missing_screenshot", task_dir)
         return await run_transcript_purpose_api(
             task,
             task_dir,
             traj,
-            screenshot_path,
             sandbox_model=sandbox_model,
-            screenshot_bytes=screenshot_bytes,
+            needham_xml=needham_xml,
         )
 
     async def _run_vea() -> dict[str, Any]:
@@ -751,6 +776,7 @@ async def _run_pvpo_gate(
             task_dir,
             traj,
             sandbox_model=sandbox_model,
+            needham_xml=needham_xml,
         )
 
     tp_task = asyncio.create_task(_run_transcript_purpose())
@@ -901,6 +927,33 @@ def _log_stratified_summary(final_results: list[dict[str, Any]]) -> None:
         logger.warning("stratified_summary logging failed: %s", exc)
 
 
+async def _run_reward_function_safely(
+    reward: dict[str, Any],
+    instance_dict: dict[str, Any],
+    result: Any,
+    *,
+    network_trace: list[dict[str, Any]] | None,
+    task_id: Any,
+    reward_label: str,
+) -> tuple[bool, str]:
+    try:
+        return await asyncio.to_thread(
+            run_reward_function,
+            reward,
+            instance_dict,
+            result,
+            network_trace=network_trace,
+        )
+    except Exception as exc:
+        logger.exception(
+            "Phase 4 reward evaluation failed for task %r (%s): %s",
+            task_id,
+            reward_label,
+            exc,
+        )
+        return False, f"reward evaluation raised {type(exc).__name__}: {exc}"
+
+
 def _classify_trajectory_outcome(
     *,
     task: dict[str, Any],
@@ -962,51 +1015,6 @@ def _strict_feasibility_enabled() -> bool:
     if override is None or not override.strip():
         return STRICT_FEASIBILITY_ADMISSION
     return override.strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _exposure_admission_error(task: dict[str, Any]) -> str | None:
-    """Return a structured skip reason unless Phase 2c proved this contract.
-
-    ``WORLDSIM_STRICT_FEASIBILITY=false`` can relax legacy feasibility
-    status, but exposure proof is now a hard Phase 4 admission invariant:
-    the witnessed evidence must match the current exposure contract exactly.
-    """
-    contract = task.get("exposure_contract")
-    if not isinstance(contract, dict):
-        return "missing_exposure_contract"
-
-    eligibility = contract.get("eligibility")
-    if not isinstance(eligibility, dict) or eligibility.get("status") != "eligible":
-        return "exposure_contract_ineligible"
-
-    phase4_exposure = contract.get("phase4_exposure")
-    if not isinstance(phase4_exposure, dict):
-        return "missing_phase4_exposure_capability"
-    if phase4_exposure.get("admissible") is not True:
-        reason = phase4_exposure.get("reason")
-        if isinstance(reason, str) and reason.strip():
-            return f"phase4_exposure_inadmissible:{reason.strip()}"
-        return "phase4_exposure_inadmissible"
-
-    contract_id = contract.get("contract_id")
-    if not isinstance(contract_id, str) or not contract_id.strip():
-        return "missing_exposure_contract_id"
-
-    contract_verification = contract.get("verification")
-    if not isinstance(contract_verification, dict):
-        return "missing_exposure_contract_verification"
-
-    feasibility = task.get("feasibility")
-    exposure = feasibility.get("exposure") if isinstance(feasibility, dict) else None
-    if not isinstance(exposure, dict):
-        return "missing_exposure_evidence"
-    if exposure.get("reachable") is not True:
-        return "exposure_not_reachable"
-    if exposure.get("contract_id") != contract_id:
-        return "exposure_contract_id_mismatch"
-    if exposure.get("verification") != contract_verification:
-        return "exposure_verification_mismatch"
-    return None
 
 
 def _layout_bucket(scroll_px: Any) -> str:
@@ -2707,12 +2715,13 @@ async def run_adversarial_task(
         benign_reward = reward.get("benign_reward", reward)
         adv_reward = reward.get("adversarial_reward", {})
 
-        benign_passed, benign_message = await asyncio.to_thread(
-            run_reward_function,
+        benign_passed, benign_message = await _run_reward_function_safely(
             benign_reward,
             instance_dict,
             result,
             network_trace=result.network_trace,
+            task_id=task_id,
+            reward_label="benign",
         )
         if _is_non_interpretable_benign_eval(benign_reward, benign_passed, benign_message):
             pvpo = await _run_pvpo_gate(task, task_dir, sandbox_model=sandbox_model)
@@ -2749,12 +2758,13 @@ async def run_adversarial_task(
                 **nonint_final_status_extra,
             }
         adv_passed, _ = (
-            await asyncio.to_thread(
-                run_reward_function,
+            await _run_reward_function_safely(
                 adv_reward,
                 instance_dict,
                 result,
                 network_trace=result.network_trace,
+                task_id=task_id,
+                reward_label="adversarial",
             )
             if adv_reward
             else (False, "")

@@ -8,6 +8,7 @@ from ``encounter.max_coverage > 0`` via the ``_ecologically_valid`` helper.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -27,10 +28,17 @@ def _encounter(
     pvpo_status: str = "ok",
     pvpo_failure: str | None = None,
 ) -> EncounterResult:
+    reference_bytes = None
+    if reference_path is not None:
+        try:
+            reference_bytes = reference_path.read_bytes()
+        except OSError:
+            reference_bytes = None
     return EncounterResult(
         max_coverage=max_coverage,
         reference_step=reference_step,
         reference_screenshot_path=reference_path,
+        reference_screenshot_bytes=reference_bytes,
         per_char_visibility=per_char_visibility or [],
         per_step_coverage=per_step_coverage or [],
         pvpo_status=pvpo_status,
@@ -46,8 +54,28 @@ def _task(site: str = "shopping_admin") -> dict[str, Any]:
     }
 
 
+def _write_history(tmp_path: Path) -> None:
+    (tmp_path / "history.json").write_text(
+        json.dumps(
+            {
+                "history": [
+                    {
+                        "model_output": {
+                            "thinking": "think",
+                            "action": [{"click": {"index": 1}}],
+                        },
+                        "state": {"url": "https://x", "title": "x"},
+                        "result": [],
+                    }
+                ]
+            }
+        )
+    )
+
+
 @pytest.mark.asyncio
 async def test_production_path_returns_encounter_only(monkeypatch, tmp_path):
+    _write_history(tmp_path)
     ref_path = tmp_path / "screenshots" / "step_2.png"
     ref_path.parent.mkdir(parents=True)
     ref_path.write_bytes(b"\x89PNG\r\n\x1a\n")
@@ -60,21 +88,21 @@ async def test_production_path_returns_encounter_only(monkeypatch, tmp_path):
             per_step_coverage=[0.0, 0.4, 0.75, 0.5],
         )
 
-    async def fake_tp(task, trajectory_dir, extracted, screenshot_path, *, sandbox_model):
+    async def fake_tp(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
         return {
             "transcript_purpose_classification": "Real",
             "transcript_purpose_is_aware": False,
             "transcript_purpose_guess": "real user workflow",
             "transcript_purpose_explanation": "grounded guess",
             "transcript_purpose_failure": None,
-            "transcript_purpose_format": "ipi-aer-inline-v1",
+            "transcript_purpose_format": "needham-xml-v1",
             "transcript_purpose_attempts": 1,
             "transcript_purpose_raw_response_path": str(
                 tmp_path / "transcript_purpose_raw_response.json"
             ),
         }
 
-    async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model):
+    async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
         return {
             "verbalized_eval_awareness_classification": "Real",
             "verbalized_eval_awareness_is_aware": False,

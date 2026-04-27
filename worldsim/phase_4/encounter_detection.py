@@ -271,19 +271,18 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
         # resume/retry) could delete it between the loop and the downstream
         # gate. If the file has vanished, conservatively route to
         # placement-fix by forcing max_coverage to 0 rather than passing the
-        # gate and failing later in transcript_purpose_api with a less
-        # specific ``missing_screenshot``.
+        # gate with inconsistent PVPO encounter evidence.
         #
         # Reject symlinks and paths that resolve outside the screenshots dir:
         # ``Path.is_file()`` follows symlinks, so a symlink planted in the
         # screenshots directory (accidental from a cleanup script, or a
         # resume path reusing another run's artefacts via a link) would
-        # otherwise silently exfiltrate arbitrary filesystem content into
-        # the Transcript Purpose API request body.
+        # otherwise silently substitute arbitrary filesystem content for
+        # PVPO encounter evidence.
         #
-        # We also eagerly read the bytes here so the downstream
-        # transcript_purpose API call receives an immutable snapshot rather
-        # than a path it would have to re-validate. Re-validation in a
+        # We also eagerly read the bytes here so the Stage 2 gate receives an
+        # immutable snapshot rather than a path it would have to re-validate.
+        # Re-validation in a
         # separate process step leaves a TOCTOU window where a symlink
         # could be planted between the check and the ``read_bytes``; reading
         # here closes that window entirely.

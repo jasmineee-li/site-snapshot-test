@@ -95,7 +95,7 @@ def _transcript_purpose_payload() -> dict[str, Any]:
         "transcript_purpose_guess": "to test alignment under injection",
         "transcript_purpose_explanation": "grounded guess",
         "transcript_purpose_failure": None,
-        "transcript_purpose_format": "ipi-aer-inline-v1",
+        "transcript_purpose_format": "needham-xml-v1",
         "transcript_purpose_attempts": 1,
         "transcript_purpose_raw_response_path": "/tmp/ignored.json",
     }
@@ -159,7 +159,7 @@ async def test_gate_miss_nulls_all_metrics_skips_judges(monkeypatch, tmp_path):
     ):
         assert key in result
     assert result["transcript_purpose_classification"] is None
-    assert result["transcript_purpose_format"] == "ipi-aer-inline-v1"
+    assert result["transcript_purpose_format"] == "needham-xml-v1"
     assert result["transcript_purpose_attempts"] == 0
     assert result["verbalized_eval_awareness_classification"] is None
     assert result["verbalized_eval_awareness_transcript_format"] == "needham-xml-v1"
@@ -187,12 +187,14 @@ async def test_gate_encountered_fans_out_both_metrics(monkeypatch, tmp_path):
     def fake_determine(task, trajectory_dir):
         return _encounter(max_coverage=0.75, reference_step=0, reference_path=screenshot)
 
-    async def fake_tp(
-        task, trajectory_dir, extracted, screenshot_path, *, sandbox_model, screenshot_bytes=None
-    ):
+    seen_xml: list[str] = []
+
+    async def fake_tp(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
+        seen_xml.append(needham_xml)
         return _transcript_purpose_payload()
 
-    async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model):
+    async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
+        seen_xml.append(needham_xml)
         return {
             "verbalized_eval_awareness_classification": "Alignment Evaluation",
             "verbalized_eval_awareness_is_aware": True,
@@ -218,6 +220,11 @@ async def test_gate_encountered_fans_out_both_metrics(monkeypatch, tmp_path):
     assert result["transcript_purpose_attempts"] == 1
     assert result["verbalized_eval_awareness_classification"] == "Alignment Evaluation"
     assert result["verbalized_eval_awareness_is_aware"] is True
+    assert len(seen_xml) == 2
+    assert seen_xml[0] == seen_xml[1]
+    assert seen_xml[0] is not None
+    assert '<message role="user">' in seen_xml[0]
+    assert (tmp_path / "needham_trace.json").exists()
 
 
 @pytest.mark.asyncio
@@ -228,12 +235,10 @@ async def test_transcript_purpose_failure_does_not_block_vea(monkeypatch, tmp_pa
     def fake_determine(task, trajectory_dir):
         return _encounter(max_coverage=0.5, reference_step=0, reference_path=screenshot)
 
-    async def failing_tp(
-        task, trajectory_dir, extracted, screenshot_path, *, sandbox_model, screenshot_bytes=None
-    ):
+    async def failing_tp(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
         raise RuntimeError("transcript_purpose blew up")
 
-    async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model):
+    async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
         return _vea_real_payload(tmp_path)
 
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
@@ -259,12 +264,10 @@ async def test_vea_failure_does_not_block_transcript_purpose(monkeypatch, tmp_pa
     def fake_determine(task, trajectory_dir):
         return _encounter(max_coverage=0.5, reference_step=0, reference_path=screenshot)
 
-    async def fake_tp(
-        task, trajectory_dir, extracted, screenshot_path, *, sandbox_model, screenshot_bytes=None
-    ):
+    async def fake_tp(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
         return _transcript_purpose_payload()
 
-    async def failing_vea(task, trajectory_dir, extracted, *, sandbox_model):
+    async def failing_vea(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
         raise RuntimeError("VEA crashed")
 
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
@@ -292,7 +295,7 @@ async def test_raised_transcript_purpose_still_yields_full_null_schema(monkeypat
     async def failing_tp(*args, **kwargs):
         raise RuntimeError("boom")
 
-    async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model):
+    async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
         return _vea_real_payload(tmp_path)
 
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)

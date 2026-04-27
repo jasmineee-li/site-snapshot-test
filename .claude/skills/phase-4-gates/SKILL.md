@@ -13,7 +13,7 @@ This reference covers the four moving pieces in Phase 4 that tend to confuse new
 |---|---|---|
 | PVPO encounter detection (Gate 1) | Touching `encounter_detection.py`, `ink_occupancy.py`, `pvpo_capture.py`, `pvpo_query.js`, `pvpo_cdp.py`, `pvpo_browser_config.py`, or `pvpo_frame_pump.py`; debugging `max_coverage == 0` routing | `references/pvpo-encounter-detection.md` |
 | Apollo Transcript Purpose classifier (observational) | Touching `transcript_purpose_api.py`, the two prompt files `transcript-purpose-{guess,classify}.md`, or debugging the self-heal retry loop | `references/apollo-transcript-purpose.md` |
-| Needham VEA classifier (observational) | Touching `verbalized_eval_awareness_api.py`, `needham_adapter.py`, `needham_xml.py`, or the `verbalized-eval-awareness.md` prompt | `references/needham-vea.md` |
+| Needham VEA classifier (observational) | Touching `verbalized_eval_awareness_api.py`, `needham_trace.py`, `needham_adapter.py`, `needham_xml.py`, or the `verbalized-eval-awareness.md` prompt | `references/needham-vea.md` |
 | Trajectory extraction + why no sandbox | Touching `aer_trajectory_extract.py`, `ipi_aer_formatter.py`, `judge_api.py`, `variant_api.py`, `placement_api.py`, or `anthropic_client.py` | `references/trajectory-extraction.md` |
 
 ## The invariants that matter most
@@ -31,9 +31,11 @@ These are the rules that if you violate, something downstream breaks silently. E
 
 **The two Transcript Purpose prompts are byte-verbatim from Apollo Research's blog + gist.** They are SHA256-pinned in `tests/test_phase_4_transcript_purpose_api.py::test_apollo_prompt_sha256_pinned`. If you edit them, that test fails loudly — that's the intent. Rewrite the wrapping code, not the prompts.
 
+**Transcript Purpose and VEA share the same Needham XML.** PVPO screenshots gate encounter only. The production Transcript Purpose path is text-only over `needham_trace.xml`; any screenshot input is an explicit ablation.
+
 ## Authoritative sources
 
-- Spec: `docs/worldsim-v5-technical-specifcation.md` §"Phase 4" and §"Gate 1 Stage 2: Observational IPI-AER p(eval) + VEA".
+- Spec: `docs/worldsim-v5-technical-specifcation.md` §"Phase 4" and §"Gate 1 Stage 2: Observational Transcript Purpose + VEA".
 - Historical handoff (covers PVPO design in full, including what was superseded): `docs/handoffs/codex-handoff-paint-verified-oracle.md`. The top two blockquotes document the 2026-04-19 and 2026-04-20 cutovers — current shipped state is ink-occupancy + content-match anchor.
 - Cutover rationale for host API vs sandbox: `docs/handoffs/codex-handoff-phase-4-judge-variant-api-cutover.md`.
 

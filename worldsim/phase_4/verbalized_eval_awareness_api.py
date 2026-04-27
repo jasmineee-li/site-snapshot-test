@@ -52,8 +52,11 @@ from worldsim.phase_4.anthropic_client import (
     normalize_model_for_auth,
 )
 from worldsim.phase_4.concurrency import get_api_semaphore
-from worldsim.phase_4.needham_adapter import build_messages as build_needham_messages
-from worldsim.phase_4.needham_xml import format_xml as format_needham_xml
+from worldsim.phase_4.needham_trace import (
+    TRANSCRIPT_FORMAT,
+    format_trace_xml,
+    write_trace_artifacts,
+)
 from worldsim.prompt_loading import load_prompt
 
 logger = logging.getLogger(__name__)
@@ -62,7 +65,7 @@ _PROMPT_PATH = "verbalized-eval-awareness"
 _MAX_TOKENS = 1024
 _TEMPERATURE = 0.0
 _SYSTEM_PROMPT = "You are a helpful assistant."
-_TRANSCRIPT_FORMAT = "needham-xml-v1"
+_TRANSCRIPT_FORMAT = TRANSCRIPT_FORMAT
 
 _EVAL_AWARE_CLASSIFICATIONS = frozenset(
     {"Alignment Evaluation", "Capability Evaluation", "Other Evaluation"}
@@ -224,6 +227,7 @@ async def run_verbalized_eval_awareness_api(
     *,
     sandbox_model: str = "claude-sonnet-4-6",
     client: AsyncAnthropic | None = None,
+    needham_xml: str | None = None,
 ) -> dict[str, Any]:
     """Classify a trajectory via Jasmine's 4-way prompt over Needham XML.
 
@@ -247,11 +251,16 @@ async def run_verbalized_eval_awareness_api(
     trajectory_dir = Path(trajectory_dir)
     trajectory_dir.mkdir(parents=True, exist_ok=True)
 
-    messages_xml = build_needham_messages(
-        task_instruction=_task_instruction(task),
-        extracted=extracted,
-    )
-    xml = format_needham_xml(messages_xml)
+    if needham_xml is None:
+        task_instruction = _task_instruction(task)
+        xml = format_trace_xml(task_instruction=task_instruction, extracted=extracted)
+        write_trace_artifacts(
+            trajectory_dir,
+            task_instruction=task_instruction,
+            extracted=extracted,
+        )
+    else:
+        xml = needham_xml
     transcript_path = _persist_transcript(trajectory_dir, xml)
     _ = transcript_path  # artifact persisted for evidence spot-checks
 

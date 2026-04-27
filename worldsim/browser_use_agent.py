@@ -71,7 +71,11 @@ _CDP_VIEWPORT_JS = """
 }))()
 """
 _PVPO_CDP_TIMEOUT_ENV = "WORLDSIM_PVPO_CDP_TIMEOUT_S"
-_PVPO_CDP_TIMEOUT_DEFAULT_S = 5.0
+_PVPO_CDP_TIMEOUT_DEFAULT_S = 10.0
+_PVPO_SCREENSHOT_PATCHED = False
+_TRANSPARENT_PNG_BASE64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+)
 _CLEAR_PAGE_STORAGE_JS = """
 (() => {
   try { window.localStorage.clear(); } catch (_) {}
@@ -1197,6 +1201,108 @@ def _pvpo_cdp_timeout_s() -> float:
     return timeout_s
 
 
+def _install_pvpo_beginframe_screenshot_patch() -> None:
+    """Patch Browser Use screenshots for begin-frame-controlled PVPO sessions.
+
+    Browser Use's DOM watchdog dispatches ``ScreenshotEvent`` even when the
+    agent runs with vision disabled. On ``chrome-headless-shell`` launched with
+    ``--enable-begin-frame-control``, its default ``Page.captureScreenshot``
+    path can hang indefinitely. PVPO sessions must capture via
+    ``HeadlessExperimental.beginFrame({screenshot: ...})`` instead.
+    """
+    global _PVPO_SCREENSHOT_PATCHED
+    if _PVPO_SCREENSHOT_PATCHED:
+        return
+
+    from browser_use.browser.watchdogs.screenshot_watchdog import ScreenshotWatchdog
+
+    original = ScreenshotWatchdog.on_ScreenshotEvent
+
+    async def _worldsim_on_screenshot_event(self: Any, event: Any) -> str:
+        browser_session = getattr(self, "browser_session", None)
+        if not getattr(browser_session, "cdp_url", None):
+            return await original(self, event)
+        if getattr(browser_session, "_worldsim_pvpo_disable_browser_use_screenshots", False):
+            return _pvpo_browser_use_screenshot_fallback(browser_session)
+        return await _capture_pvpo_beginframe_screenshot(self, event)
+
+    _worldsim_on_screenshot_event.__name__ = "on_ScreenshotEvent"
+    ScreenshotWatchdog.on_ScreenshotEvent = _worldsim_on_screenshot_event
+    _PVPO_SCREENSHOT_PATCHED = True
+
+
+async def _capture_pvpo_beginframe_screenshot(watchdog: Any, event: Any) -> str:
+    """Handle Browser Use ``ScreenshotEvent`` using beginFrame screenshots."""
+    from browser_use.browser.views import BrowserError
+
+    browser_session = watchdog.browser_session
+    focused_target = browser_session.get_focused_target()
+    if focused_target and focused_target.target_type in ("page", "tab"):
+        target_id = focused_target.target_id
+    else:
+        page_targets = browser_session.get_page_targets()
+        if not page_targets:
+            raise BrowserError("[PVPO ScreenshotWatchdog] No page targets available")
+        target_id = page_targets[-1].target_id
+
+    cdp_session = await browser_session.get_or_create_cdp_session(target_id, focus=True)
+    try:
+        await browser_session.remove_highlights()
+    except Exception:
+        pass
+
+    screenshot: dict[str, Any] = {"format": "png"}
+    clip = getattr(event, "clip", None)
+    if clip:
+        screenshot["clip"] = {
+            "x": clip["x"],
+            "y": clip["y"],
+            "width": clip["width"],
+            "height": clip["height"],
+            "scale": 1,
+        }
+
+    cdp = None
+
+    async def _send() -> dict[str, Any]:
+        nonlocal cdp
+        if cdp is None:
+            from worldsim.phase_4.pvpo_cdp import normalize_cdp_session
+
+            cdp = normalize_cdp_session(cdp_session)
+        return await cdp.send("HeadlessExperimental.beginFrame", {"screenshot": screenshot})
+
+    async def _capture() -> dict[str, Any]:
+        lock = getattr(browser_session, "_worldsim_pvpo_beginframe_lock", None)
+        if lock is not None:
+            async with lock:
+                return await _send()
+        return await _send()
+
+    try:
+        result = await asyncio.wait_for(_capture(), timeout=_pvpo_cdp_timeout_s())
+    except Exception as exc:
+        if _is_beginframe_pending_error(exc) or isinstance(exc, TimeoutError):
+            return _pvpo_browser_use_screenshot_fallback(browser_session)
+        raise
+    data = result.get("screenshotData") if isinstance(result, dict) else None
+    if isinstance(data, str) and data:
+        browser_session._worldsim_pvpo_last_browser_use_screenshot = data
+        return data
+    raise BrowserError("[PVPO ScreenshotWatchdog] beginFrame screenshot missing data")
+
+
+def _is_beginframe_pending_error(exc: BaseException) -> bool:
+    return "Another frame is pending" in str(exc)
+
+
+def _pvpo_browser_use_screenshot_fallback(browser_session: Any) -> str:
+    cached = getattr(browser_session, "_worldsim_pvpo_last_browser_use_screenshot", None)
+    if isinstance(cached, str) and cached:
+        return cached
+    return _TRANSPARENT_PNG_BASE64
+
+
 async def _await_pvpo_cdp(awaitable: Any, *, timeout_s: float) -> Any:
     return await asyncio.wait_for(awaitable, timeout=timeout_s)
 
@@ -1517,6 +1623,7 @@ class BrowserUseAgent:
         }
         if resolved_pvpo_cdp_url:
             session_kwargs["cdp_url"] = resolved_pvpo_cdp_url
+            _install_pvpo_beginframe_screenshot_patch()
         else:
             session_kwargs["args"] = [
                 "--disable-gpu",
@@ -1525,6 +1632,9 @@ class BrowserUseAgent:
                 "--disable-software-rasterizer",  # reduce CPU when GPU unavailable
             ]
         self._session = BrowserSession(**session_kwargs)
+        if resolved_pvpo_cdp_url:
+            self._session._worldsim_pvpo_beginframe_lock = asyncio.Lock()
+            self._session._worldsim_pvpo_disable_browser_use_screenshots = not bool(self.use_vision)
 
         # Retry browser startup with linear backoff for transient failures
         last_exc: Exception | None = None
@@ -1587,7 +1697,17 @@ class BrowserUseAgent:
             # yielded ``capturing`` Event so the capture remains atomic.
             from worldsim.phase_4.pvpo_frame_pump import frame_pump
 
-            async with frame_pump(self._session) as capturing:
+            # In Phase 4's default non-vision mode, Browser Use does not need
+            # screenshots for the LLM and PVPO's atomic capture should be the
+            # only beginFrame producer. The background pump remains available
+            # for vision/debug sessions where Browser Use needs real frames.
+            frame_pump_interval_s = (
+                0.0 if resolved_pvpo_cdp_url and not bool(self.use_vision) else None
+            )
+            async with frame_pump(self._session, interval_s=frame_pump_interval_s) as capturing:
+                self._session._worldsim_pvpo_beginframe_lock = getattr(
+                    capturing, "beginframe_lock", None
+                )
                 pvpo_hook = _make_pvpo_step_callback(
                     self._session,
                     task_dir,
@@ -1644,6 +1764,7 @@ class BrowserUseAgent:
             _write_agent_artifacts(
                 task_dir=task_dir,
                 history=history,
+                task_instruction=task_text,
                 status=status,
                 extra_errors=extra_errors,
             )
@@ -1993,6 +2114,7 @@ def _write_agent_artifacts(
     *,
     task_dir: Path,
     history: Any,
+    task_instruction: str | None = None,
     status: str,
     extra_errors: list[str],
 ) -> None:
@@ -2012,6 +2134,19 @@ def _write_agent_artifacts(
         _write_history_fallback(history_path, errors, status)
 
     _copy_history_screenshots(task_dir, history)
+    if task_instruction:
+        try:
+            from worldsim.phase_4.aer_trajectory_extract import extract_trajectory
+            from worldsim.phase_4.needham_trace import write_trace_artifacts
+
+            extracted = extract_trajectory(task_dir)
+            write_trace_artifacts(
+                task_dir,
+                task_instruction=task_instruction,
+                extracted=extracted,
+            )
+        except Exception as exc:
+            logger.warning("Failed to write needham_trace artifacts for %s: %s", task_dir, exc)
 
     final_response = {
         "status": status.upper(),

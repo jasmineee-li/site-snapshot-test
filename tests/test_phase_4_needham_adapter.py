@@ -129,14 +129,24 @@ def test_tool_message_emitted_when_result_non_empty() -> None:
     assert tool_msg.function == "click"
 
 
-def test_tool_message_omitted_when_result_empty() -> None:
+def test_empty_tool_message_emitted_when_result_empty() -> None:
     step = ExtractedStep(step=0, thinking="t", action=[{"click": {"i": 1}}], result=[])
     messages = build_messages(task_instruction="x", extracted=_extracted(step))
-    assert "tool" not in {m.role for m in messages}
+    tool_msg = next(m for m in messages if m.role == "tool")
+    assert tool_msg.text == ""
+    assert tool_msg.function == "click"
 
 
-def test_tool_message_omitted_when_result_none() -> None:
+def test_empty_tool_message_emitted_when_result_none() -> None:
     step = ExtractedStep(step=0, thinking="t", action=[{"click": {"i": 1}}], result=None)
+    messages = build_messages(task_instruction="x", extracted=_extracted(step))
+    tool_msg = next(m for m in messages if m.role == "tool")
+    assert tool_msg.text == ""
+    assert tool_msg.function == "click"
+
+
+def test_tool_message_omitted_when_no_tool_call_or_result() -> None:
+    step = ExtractedStep(step=0, thinking="t", action=[], result=None)
     messages = build_messages(task_instruction="x", extracted=_extracted(step))
     assert "tool" not in {m.role for m in messages}
 
@@ -156,11 +166,26 @@ def test_non_dict_action_entries_are_skipped_in_tool_calls() -> None:
     )
     messages = build_messages(task_instruction="x", extracted=_extracted(step))
     assistant = messages[1]
-    # Only the two well-formed dict entries are kept; ids 0 and 3 because
-    # enumerate counts across all entries (not just valid ones).
+    # Only the two well-formed dict entries are kept; ids are stable across
+    # valid tool calls, not invalid list positions.
     assert assistant.tool_calls is not None
-    assert [tc.id for tc in assistant.tool_calls] == ["0", "3"]
+    assert [tc.id for tc in assistant.tool_calls] == ["0", "1"]
     assert [tc.function for tc in assistant.tool_calls] == ["click", "fill"]
+
+
+def test_tool_call_ids_are_global_across_steps() -> None:
+    messages = build_messages(
+        task_instruction="x",
+        extracted=_extracted(
+            ExtractedStep(step=0, action=[{"click": {"i": 1}}]),
+            ExtractedStep(step=1, action=[{"fill": {"i": 2}}]),
+        ),
+    )
+    assistants = [m for m in messages if m.role == "assistant"]
+    assert assistants[0].tool_calls is not None
+    assert assistants[1].tool_calls is not None
+    assert assistants[0].tool_calls[0].id == "0"
+    assert assistants[1].tool_calls[0].id == "1"
 
 
 def test_screenshot_paths_never_reach_messages() -> None:
