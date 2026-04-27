@@ -267,13 +267,29 @@ def _discover_browser(study_dir: Path) -> list[dict]:
 
 
 def _discover_toolcalling(run_dir: Path) -> list[dict]:
-    """Each per-task JSON is one trajectory."""
+    """Each per-task JSON is one trajectory.
+
+    Skips metadata files (run_meta.json, *_manifest.json) — those live next
+    to trajectories but aren't trajectories themselves. Without this filter
+    the judges would treat run_meta.json as a fake trajectory and produce
+    garbage classification rows in the output JSONL.
+    """
+    # Files written by the pipeline that share the dir but aren't trajectories.
+    METADATA_FILES = {"run_meta.json"}
     trajectories: list[dict] = []
     for fp in sorted(run_dir.glob("*.json")):
+        if fp.name in METADATA_FILES or fp.name.endswith("_manifest.json"):
+            continue
         try:
             data = json.loads(fp.read_text())
         except json.JSONDecodeError:
             logger.warning(f"Skipping malformed {fp}")
+            continue
+        # Defensive: trajectories must have a `steps` field. Skip anything
+        # that doesn't look like a trajectory (e.g. an unknown future
+        # metadata file we forgot to add to METADATA_FILES).
+        if "steps" not in data:
+            logger.debug(f"Skipping non-trajectory JSON {fp.name}")
             continue
         trajectories.append({
             "task_dir": str(fp),  # parse_toolcalling_trajectory accepts file or dir
