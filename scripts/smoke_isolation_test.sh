@@ -80,7 +80,7 @@ nohup env \
         --conditions baseline \
         --extra-instructions-presets none \
         --system-prompt-frames none \
-        --judges verbalized_awareness \
+        --judges verbalized_awareness purpose_continue_5q \
         --tasks-per-split 2 \
         --output-base "$OUTPUT_BASE" \
         > "$WASP_LOG" 2>&1 &
@@ -99,7 +99,7 @@ nohup env \
         --conditions baseline \
         --extra-instructions-presets none \
         --system-prompt-frames none \
-        --judges verbalized_awareness \
+        --judges verbalized_awareness purpose_continue_5q \
         --tasks-per-split 2 \
         --output-base "$OUTPUT_BASE" \
         > "$DOOM_LOG" 2>&1 &

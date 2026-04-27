@@ -160,6 +160,10 @@ def _stage1_browser(benchmark: str, split: str, args) -> Path | None:
     # instead, so it doesn't accept the flag.
     if benchmark == "wasp":
         cmd += ["--condition", args.condition]
+        # WASP needs the planted-task pool dir. Default matches
+        # scripts/wasp_n100_run.sh (the per-benchmark launcher).
+        wasp_task_dir = getattr(args, "wasp_task_dir", None) or "/tmp/wasp_full"
+        cmd += ["--task-dir", wasp_task_dir]
     if benchmark == "doomarena" and getattr(args, "report_port", None):
         cmd += ["--report-port", str(args.report_port)]
 
@@ -197,6 +201,7 @@ def _stage1_toolcalling(benchmark: str, split: str, args) -> Path | None:
             "--extra-instructions-preset", args.extra_instructions_preset,
             "--system-prompt-frame", args.system_prompt_frame,
             "--shuffle", str(args.shuffle),
+            "--concurrency", str(args.concurrency),
             "--run-name", run_name,
         ]
         out_dir = REPO_ROOT / "results" / "toolcalling" / "agentdojo" / split / run_name
@@ -212,6 +217,7 @@ def _stage1_toolcalling(benchmark: str, split: str, args) -> Path | None:
             "--extra-instructions-preset", args.extra_instructions_preset,
             "--system-prompt-frame", args.system_prompt_frame,
             "--shuffle", str(args.shuffle),
+            "--concurrency", str(args.concurrency),
             "--run-name", run_name,
         ]
         out_dir = REPO_ROOT / "results" / "toolcalling" / "injecagent" / split / run_name
@@ -378,6 +384,14 @@ def _parse_args() -> argparse.Namespace:
                              f"Defaults: {DEFAULT_SPLITS}")
     parser.add_argument("--stage", choices=["all", "run-only", "judge-only"], default="all")
     parser.add_argument("--tasks-per-split", type=int, default=20)
+    parser.add_argument("--wasp-task-dir", default=None,
+                        help="WASP planted-task pool directory (default: /tmp/wasp_full, "
+                             "matching scripts/wasp_n100_run.sh). Only used when "
+                             "--benchmark wasp.")
+    parser.add_argument("--concurrency", type=int, default=8,
+                        help="Per-task parallelism for the agent stage (tool-calling benchmarks). "
+                             "Forwarded as --concurrency to run_agentdojo / run_injecagent. "
+                             "Bottleneck is target-model TPM via OpenRouter, not local CPU.")
     parser.add_argument("--model-name", default=None,
                         help="Agent model for stage 1. Required unless --stage judge-only.")
     parser.add_argument("--condition", choices=ALL_CONDITIONS, default="baseline")
