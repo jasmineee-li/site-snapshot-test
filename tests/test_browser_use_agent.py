@@ -394,8 +394,35 @@ async def test_pvpo_callback_writes_artifacts_on_browser_use_success_path(
     assert summary["status"] == "ok"
     assert summary["steps_seen"] == 1
     assert summary["steps_captured"] == 1
+    assert summary["witness_selection_mode"] == "payload_text_fallback"
+    assert summary["payload_witness_count"] == 0
+    assert summary["payload_text_present"] is True
+    assert summary["payload_text_length"] == len("payload text")
     assert (tmp_path / "pvpo" / "step_1.json").exists()
     assert (tmp_path / "screenshots" / "step_1.png").read_bytes() == b"png-bytes"
+
+
+@pytest.mark.asyncio
+async def test_pvpo_callback_records_empty_witness_fallback_telemetry(tmp_path):
+    class BrokenSession:
+        async def get_current_page(self):
+            raise RuntimeError("cdp disconnected")
+
+    callback = browser_use_agent._make_pvpo_step_callback(
+        BrokenSession(),
+        tmp_path,
+        "payload text",
+        payload_witnesses=[],
+    )
+
+    await callback(SimpleNamespace(), SimpleNamespace(), 1)
+
+    summary = json.loads((tmp_path / "pvpo" / "capture_summary.json").read_text())
+    assert summary["witness_selection_mode"] == "payload_text_fallback_empty_witnesses"
+    assert summary["payload_witness_count"] == 0
+    assert summary["payload_witness_lengths"] == []
+    assert summary["payload_text_present"] is True
+    assert summary["payload_text_length"] == len("payload text")
 
 
 @pytest.mark.asyncio

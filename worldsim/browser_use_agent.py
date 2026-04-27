@@ -2139,6 +2139,27 @@ def _make_pvpo_step_callback(
     pages_prepared: set[str] = set()
     warned_issue_classes: set[str] = set()
     capture_summary = initial_capture_summary(payload_present=True)
+    non_empty_witnesses = [
+        witness for witness in (payload_witnesses or []) if isinstance(witness, str) and witness
+    ]
+    payload_text_present = isinstance(payload_text, str) and bool(payload_text)
+    if non_empty_witnesses:
+        witness_mode = "curated_witnesses"
+    elif payload_text_present and payload_witnesses is not None:
+        witness_mode = "payload_text_fallback_empty_witnesses"
+    elif payload_text_present:
+        witness_mode = "payload_text_fallback"
+    else:
+        witness_mode = "no_witness"
+    capture_summary.update(
+        {
+            "witness_selection_mode": witness_mode,
+            "payload_witness_count": len(non_empty_witnesses),
+            "payload_witness_lengths": [len(witness) for witness in non_empty_witnesses],
+            "payload_text_present": payload_text_present,
+            "payload_text_length": len(payload_text) if isinstance(payload_text, str) else 0,
+        }
+    )
     save_capture_summary(task_dir, capture_summary)
 
     def _record_issue(
