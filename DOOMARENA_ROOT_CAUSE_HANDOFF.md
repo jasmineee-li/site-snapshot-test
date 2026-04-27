@@ -1,12 +1,8 @@
 # DoomArena Performance Root-Cause Handoff
 
-This handoff is for the `data-import` branch worktree at:
+This handoff is for the `data-import` branch. Run commands from the repository root after checking out that branch.
 
-```text
-/Users/ashtonchew/projects/browser-sim/.codex-worktrees/data-import
-```
-
-The current branch here remains `feat/worldsim-v5`. The comparison below uses our working WorldSim v5 architecture as the reference point.
+The comparison below uses the working WorldSim v5 architecture on `feat/worldsim-v5` as the reference point, but this document is intended to live and merge on `data-import`.
 
 ## Handoff Metadata
 
@@ -14,8 +10,8 @@ This document is written as an operational handoff, not just an analysis note. I
 
 ```text
 Owner: DoomArena/data-import evaluation owner
-Reviewed from: browser-sim feat/worldsim-v5
-Compared worktree: .codex-worktrees/data-import
+Reference architecture reviewed from: browser-sim feat/worldsim-v5
+Target branch reviewed: data-import
 data-import commit reviewed: 85223c68
 Last verified locally: 2026-04-27
 Primary failing benchmark: DoomArena browser track
@@ -63,10 +59,9 @@ Mutable resources include app container, database volume, browser context, popup
 
 Use this to reproduce and inspect the architecture bug without launching the full matrix.
 
-1. In the `data-import` worktree, dry-run the launcher and confirm DoomArena is still hardcoded to the original ports:
+1. From a checkout of `data-import`, dry-run the launcher and confirm DoomArena is still hardcoded to the original ports:
 
 ```bash
-cd /Users/ashtonchew/projects/browser-sim/.codex-worktrees/data-import
 ./eval_awareness_experiments/launch_pilot.sh --dry-run
 ```
 
@@ -124,14 +119,14 @@ Their current DoomArena setup duplicates only part of that lane.
 
 Relevant files:
 
-- `.codex-worktrees/data-import/eval_awareness_experiments/DOOMARENA_PERFORMANCE.md`
-- `.codex-worktrees/data-import/eval_awareness_experiments/launch_pilot.sh`
-- `.codex-worktrees/data-import/eval_awareness_experiments/run_causal_experiment.py`
-- `.codex-worktrees/data-import/eval_awareness_experiments/run_safety_pipeline.py`
-- `.codex-worktrees/data-import/eval_awareness_experiments/run_doomarena_glm5_popup.py`
-- `.codex-worktrees/data-import/eval_awareness_experiments/DOCKER_PORTS.md`
-- `.codex-worktrees/data-import/eval_awareness_experiments/DOCKER_PORTS_MULTI.md`
-- `.codex-worktrees/data-import/scripts/setup_doomarena_per_model_dockers.sh`
+- `eval_awareness_experiments/DOOMARENA_PERFORMANCE.md`
+- `eval_awareness_experiments/launch_pilot.sh`
+- `eval_awareness_experiments/run_causal_experiment.py`
+- `eval_awareness_experiments/run_safety_pipeline.py`
+- `eval_awareness_experiments/run_doomarena_glm5_popup.py`
+- `eval_awareness_experiments/DOCKER_PORTS.md`
+- `eval_awareness_experiments/DOCKER_PORTS_MULTI.md`
+- `scripts/setup_doomarena_per_model_dockers.sh`
 
 Their performance note says three optimizations landed:
 
