@@ -70,6 +70,9 @@ def test_pvpo_query_js_uses_multinode_linearization():
     # Single match against the linearized corpus, not per-node loop.
     assert "findWitnessMatches(normalizedCorpus, witnesses)" in js
     assert "hasVisibleNonSpaceEntry(result.entries)" in js
+    # A hidden URL lure may appear before visible framing prose; the query
+    # must consider later witnesses before settling for an invisible match.
+    assert "if (matches.length > 0) return matches" not in js
     # No remaining substitution token.
     assert "__WORLDSIM_WITNESSES_JSON__" not in js
     # Per-char ancestor uses the source text node's parent so inline-

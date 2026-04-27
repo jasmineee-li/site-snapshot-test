@@ -132,7 +132,7 @@ def test_single_step_full_coverage_with_ink(tmp_path: Path):
         _visible_entry(0, "a", (10, 10, 5, 5)),
         _visible_entry(1, "b", (20, 10, 5, 5)),
     ]
-    _write_step(tmp_path, 0, vec, png)
+    _write_step(tmp_path, 0, vec, png, match_found=True)
 
     result = determine_encounter(_task("ab"), tmp_path)
     assert result.max_coverage == 1.0
@@ -152,11 +152,12 @@ def test_layout_visible_but_no_ink_is_zero_coverage(tmp_path: Path):
         _visible_entry(0, "a", (10, 10, 5, 5)),
         _visible_entry(1, "b", (20, 10, 5, 5)),
     ]
-    _write_step(tmp_path, 0, vec, png)
+    _write_step(tmp_path, 0, vec, png, match_found=True)
 
     result = determine_encounter(_task("ab"), tmp_path)
     assert result.max_coverage == 0.0
     assert result.reference_step is None
+    assert result.pvpo_failure == "payload_witness_not_painted"
 
 
 def test_match_found_false_ignores_stale_visibility_vector(tmp_path: Path):
@@ -201,6 +202,31 @@ def test_off_surface_pvpo_match_does_not_count_as_encounter(tmp_path: Path):
     assert result.reference_step is None
     assert result.pvpo_match_found_steps == 0
     assert result.pvpo_failure == "payload_witness_off_surface"
+
+
+def test_read_surface_url_origin_allows_pvpo_match(tmp_path: Path):
+    png = _make_png_with_ink([(10, 10, 5, 5), (20, 10, 5, 5)])
+    vec = [
+        _visible_entry(0, "a", (10, 10, 5, 5)),
+        _visible_entry(1, "b", (20, 10, 5, 5)),
+    ]
+    _write_step(
+        tmp_path,
+        0,
+        vec,
+        png,
+        match_found=True,
+        page_url="http://reddit.test/f/technology/134852/story-slug/comment/120",
+    )
+    task = _task("ab")
+    task["read_surface_urls"] = ["http://reddit.test/f/technology/134852"]
+
+    result = determine_encounter(task, tmp_path)
+
+    assert result.max_coverage == 1.0
+    assert result.reference_step == 0
+    assert result.pvpo_match_found_steps == 1
+    assert result.pvpo_failure is None
 
 
 def test_multi_step_picks_max_coverage_step(tmp_path: Path):

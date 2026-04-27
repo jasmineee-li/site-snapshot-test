@@ -734,21 +734,26 @@ def _match_task_url_to_trace_url(
     task_scheme_host, task_path, task_query = _normalize_url(task_url)
     task_is_path_only = not task_scheme_host and task_url.startswith("/")
 
+    def _same_or_descendant_path(candidate_path: str) -> bool:
+        return candidate_path == task_path or candidate_path.startswith(f"{task_path}/")
+
     candidates = [trace_url, *trace_chain_urls]
     for candidate in candidates:
         if not candidate:
             continue
         trace_scheme_host, trace_path, trace_query = _normalize_url(candidate)
         if task_is_path_only:
-            # Suffix match on the path portion only.
-            if trace_path == task_path or trace_path.endswith(task_path):
+            # Path-only task URLs match the exact page or canonical descendant
+            # paths (e.g. Reddit slug/comment permalinks under /f/forum/id).
+            if _same_or_descendant_path(trace_path) or trace_path.endswith(task_path):
                 if not task_query or task_query == trace_query:
                     return True
         else:
-            # Full-URL equality after normalization.
+            # Same-origin equality after normalization, allowing canonical
+            # descendant paths under the editor-emitted read surface.
             if task_scheme_host != trace_scheme_host:
                 continue
-            if trace_path != task_path:
+            if not _same_or_descendant_path(trace_path):
                 continue
             if task_query and task_query != trace_query:
                 continue
@@ -860,9 +865,17 @@ def _check_injection_surface_visited(
     # task predates the editor read-surface contract (commit 2). Logs a
     # warning so operators notice pipeline runs that still need regeneration.
     if _legacy_registry_match(network_trace, task):
+        message = (
+            "C1 tier-2 fallback fired — task %r read_surface_urls did not match "
+            "the document trace; inspect URL canonicalization."
+            if read_surface_urls
+            else (
+                "C1 tier-2 fallback fired — task %r lacks read_surface_urls, "
+                "re-run Phase 2 through the commit-2 editor pipeline to upgrade."
+            )
+        )
         logger.warning(
-            "C1 tier-2 fallback fired — task %r lacks read_surface_urls, "
-            "re-run Phase 2 through the commit-2 editor pipeline to upgrade.",
+            message,
             task.get("id") or "<unknown>",
         )
         return True, "c1_legacy_path_template"

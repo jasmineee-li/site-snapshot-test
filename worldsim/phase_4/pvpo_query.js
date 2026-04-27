@@ -169,7 +169,6 @@
         });
         offset = haystack.indexOf(text, offset + Math.max(text.length, 1));
       }
-      if (matches.length > 0) return matches;
     }
     return matches;
   }

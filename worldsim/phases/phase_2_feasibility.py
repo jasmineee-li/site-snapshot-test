@@ -856,6 +856,16 @@ async def _verify_one(
         )
 
     result = dict(task)
+    read_surface_urls = metadata.get("read_surface_urls") if isinstance(metadata, dict) else None
+    if isinstance(read_surface_urls, list):
+        cleaned_urls = [url for url in read_surface_urls if isinstance(url, str) and url.strip()]
+        if cleaned_urls:
+            result["read_surface_urls"] = cleaned_urls
+    read_surface_provenance = (
+        metadata.get("read_surface_provenance") if isinstance(metadata, dict) else None
+    )
+    if isinstance(read_surface_provenance, dict):
+        result["read_surface_provenance"] = read_surface_provenance
     feasibility: dict[str, Any] = {
         "status": "verified",
         "verified_at": _now_iso(),

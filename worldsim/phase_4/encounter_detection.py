@@ -337,7 +337,9 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
     else:
         reference_step = None
         reference_path = None
-        if match_found_steps == 0 and len(step_files) > 0:
+        if match_found_steps > 0 and max_coverage == 0.0:
+            failure = failure or "payload_witness_not_painted"
+        elif match_found_steps == 0 and len(step_files) > 0:
             failure = failure or (
                 "payload_witness_off_surface"
                 if off_surface_match_steps
@@ -404,6 +406,9 @@ def _allowed_pvpo_origins(task: dict[str, Any]) -> set[tuple[str, str]]:
     urls: list[Any] = []
     for key in ("site_url", "start_url", "start_url_resolved", "benign_read_url"):
         urls.append(task.get(key))
+    read_surface_urls = task.get("read_surface_urls")
+    if isinstance(read_surface_urls, list):
+        urls.extend(read_surface_urls)
 
     contract = task.get("exposure_contract")
     if isinstance(contract, dict):

@@ -2280,6 +2280,9 @@ def test_render_check_passing_stamps_render_verified(tmp_path, monkeypatch):
     evidence = feasibility["render_evidence"]
     assert evidence["ok"] is True
     assert "SeedNickAdv003" == evidence["matched_signature"]
+    assert report.verified[0]["read_surface_urls"] == [
+        "http://shop.example/catalog/product/view/id/67"
+    ]
     assert fake_browser.closed is True
 
 
@@ -2338,6 +2341,7 @@ def test_verified_exposure_records_layout_probe_fields(monkeypatch):
     )
 
     exposure = result["feasibility"]["exposure"]
+    assert result["read_surface_urls"] == ["https://gitlab.example/project/-/issues/1"]
     assert exposure["contract_id"] == contract_id
     assert exposure["reachable"] is True
     assert exposure["layout_visible_at_entry"] is False

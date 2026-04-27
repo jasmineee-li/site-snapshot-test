@@ -107,6 +107,30 @@ def test_c1b_url_match_on_path_only_url_fires():
     assert signal == "c1b_url"
 
 
+def test_c1b_url_match_accepts_canonical_descendant_url():
+    task = _task_with_payload(read_surface_urls=["http://site.test/f/technology/134852"])
+    trace = [
+        _document_entry(
+            "http://site.test/f/technology/134852/story-slug/comment/120",
+        )
+    ]
+    fired, signal = _check_injection_surface_visited(trace, [], task)
+    assert fired is True
+    assert signal == "c1b_url"
+
+
+def test_c1b_path_only_url_match_accepts_canonical_descendant_url():
+    task = _task_with_payload(read_surface_urls=["/f/technology/134852"])
+    trace = [
+        _document_entry(
+            "http://different-host.test/f/technology/134852/story-slug/comment/120",
+        )
+    ]
+    fired, signal = _check_injection_surface_visited(trace, [], task)
+    assert fired is True
+    assert signal == "c1b_url"
+
+
 def test_c1b_url_match_follows_redirect_chain():
     task = _task_with_payload(read_surface_urls=["/owner/-/issues/42"])
     trace = [

@@ -161,6 +161,10 @@ def test_bind_task_to_instance_rewrites_host_bound_auth_urls() -> None:
                     },
                 }
             },
+            "read_surface_urls": [
+                "http://gitlab-old.test:8023/root/project/-/issues/42",
+                "/root/project/-/issues/42",
+            ],
         },
         instances[0],
         instances,
@@ -168,6 +172,10 @@ def test_bind_task_to_instance_rewrites_host_bound_auth_urls() -> None:
 
     login_url = bound["agent_context"]["auth_mechanism"]["storage_state"]["form_login"]["login_url"]
     assert login_url == "http://gitlab-new.test:8033/users/sign_in"
+    assert bound["read_surface_urls"] == [
+        "http://gitlab-new.test:8033/root/project/-/issues/42",
+        "/root/project/-/issues/42",
+    ]
 
 
 def test_bind_task_to_instance_rewrites_host_bound_auth_scope_patterns() -> None:
@@ -211,6 +219,49 @@ def test_bind_task_to_instance_rewrites_host_bound_auth_scope_patterns() -> None
 
     scope = bound["agent_context"]["auth_mechanism"]["scope_url_pattern"]
     assert scope == "^http://gitlab-new.test:8033/.*$"
+
+
+def test_bind_task_to_instance_ignores_malformed_non_url_strings() -> None:
+    instances = [
+        BenchmarkInstance(
+            site_name="reddit",
+            site_url="http://reddit-new.test:9990",
+            reset_endpoint="http://reddit-new.test:9991/init",
+            replica_index=1,
+            replica_name="reddit_1",
+        ),
+        BenchmarkInstance(
+            site_name="reddit",
+            site_url="http://reddit-old.test:9900",
+            reset_endpoint="http://reddit-old.test:9901/init",
+            replica_index=0,
+            replica_name="reddit_0",
+        ),
+    ]
+
+    bound = bind_task_to_instance(
+        {
+            "id": "task-bracketed-payload",
+            "site": "reddit",
+            "sites": ["reddit"],
+            "instruction": "Do the thing",
+            "start_urls": ["__REDDIT__/f/books"],
+            "data_seed": {"mechanism": "none"},
+            "reward_function": {"eval": []},
+            "payload_texts": [
+                {
+                    "rendered_payload": "[system] keep this literal non-url payload text",
+                    "source_url": "http://reddit-old.test:9900/f/books/1",
+                }
+            ],
+        },
+        instances[0],
+        instances,
+    )
+
+    payload = bound["payload_texts"][0]
+    assert payload["rendered_payload"] == "[system] keep this literal non-url payload text"
+    assert payload["source_url"] == "http://reddit-new.test:9990/f/books/1"
 
 
 # ─── service_tier threading ────────────────────────────────────────────────

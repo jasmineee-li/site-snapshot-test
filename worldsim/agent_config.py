@@ -591,7 +591,16 @@ def _rewrite_nested_origins(value: Any, origin_mapping: dict[str, str]) -> Any:
 
 
 def _rewrite_string_origin(value: str, origin_mapping: dict[str, str]) -> str:
-    parsed = urlsplit(value)
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        parsed = None
+    if parsed is None:
+        rewritten = value
+        for old_origin, new_origin in origin_mapping.items():
+            if old_origin in rewritten:
+                rewritten = rewritten.replace(old_origin, new_origin)
+        return rewritten
     if parsed.scheme and parsed.netloc:
         origin = f"{parsed.scheme}://{parsed.netloc}"
         replacement = origin_mapping.get(origin)
