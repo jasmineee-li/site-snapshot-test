@@ -1105,6 +1105,7 @@ class _FakePlaywrightHarness:
         storage_state_payload: dict | None = None,
         goto_raises: Exception | None = None,
         wait_raises: Exception | None = None,
+        click_raises_by_selector: dict[str, Exception] | None = None,
     ) -> None:
         self.success_url = success_url
         self.storage_state_payload = storage_state_payload or {
@@ -1113,6 +1114,7 @@ class _FakePlaywrightHarness:
         }
         self.goto_raises = goto_raises
         self.wait_raises = wait_raises
+        self.click_raises_by_selector = click_raises_by_selector or {}
         self.calls: list[tuple] = []
 
     def __call__(self):
@@ -1186,6 +1188,8 @@ class _FakePage:
 
     async def click(self, selector, *, timeout):
         self.harness.calls.append(("click", {"selector": selector, "timeout": timeout}))
+        if selector in self.harness.click_raises_by_selector:
+            raise self.harness.click_raises_by_selector[selector]
 
     async def wait_for_url(self, predicate, *, timeout):
         self.harness.calls.append(("wait_for_url", {"timeout": timeout}))
@@ -1307,6 +1311,34 @@ class TestFormLoginBootstrap:
             "context.close",
             "browser.close",
         ], f"unexpected call trace: {call_names}"
+
+    def test_gitlab_form_login_tolerates_rails_input_submit_selector_drift(
+        self, tmp_path, monkeypatch
+    ):
+        state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)
+        _write_form_login_site(
+            profiles,
+            "gitlab",
+            mech_type="storage_state",
+            nested_recipe=True,
+        )
+        context_path = profiles / "AGENT_CONTEXT_gitlab.json"
+        context = json.loads(context_path.read_text())
+        recipe = context["auth_mechanism"]["storage_state"]["form_login"]
+        recipe["login_url"] = "https://gitlab.test/users/sign_in"
+        recipe["submit_selector"] = "input[type='submit'][name='commit']"
+        context_path.write_text(json.dumps(context), encoding="utf-8")
+
+        harness = _FakePlaywrightHarness()
+        _install_fake_playwright(monkeypatch, harness)
+
+        rc = asyncio.run(bootstrap.run(_make_args(bench)))
+
+        assert rc == 0
+        click_calls = [details["selector"] for name, details in harness.calls if name == "click"]
+        assert click_calls == ["button[type='submit'], input[type='submit']"]
+        artifact = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+        assert json.loads(artifact.read_text())["cookies"][0]["name"] == "session"
 
     def test_form_login_top_level_type_also_bootstraps(self, tmp_path, monkeypatch):
         state_dir, bench, profiles = _setup_dirs(tmp_path, monkeypatch)

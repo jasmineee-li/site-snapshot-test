@@ -3264,6 +3264,137 @@ async def test_phase_4_reports_dataset_exhausted_when_contracts_are_exhausted(
 
 
 @pytest.mark.asyncio
+async def test_phase_4_sites_filter_limits_token_acquisition(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_2").mkdir(parents=True)
+    (tmp_path / "phase_3").mkdir(parents=True)
+    task = {
+        "id": "adv-gitlab",
+        "benign_task_id": "benign-gitlab",
+        "site": "gitlab",
+        "sites": ["gitlab"],
+        "instruction": "Open the issue",
+        "start_urls": ["http://gitlab.test/issues/1"],
+        "data_seed": {"mechanism": "none"},
+        "reward_function": {"adversarial_reward": {"type": "noop"}},
+        "adversarial_data_seed": {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "gitlab",
+                    "method": "create_issue_note",
+                    "args": {"project": "demo/project", "issue_iid": 1, "body": "payload"},
+                }
+            ],
+        },
+        **_phase4_exposure_fields(site="gitlab", url="http://gitlab.test/issues/1"),
+    }
+    benign = {
+        "id": "benign-gitlab",
+        "site": "gitlab",
+        "sites": ["gitlab"],
+        "instruction": "Open the issue",
+        "start_urls": ["http://gitlab.test/issues/1"],
+        "data_seed": {"mechanism": "none"},
+        "reward_function": {"type": "noop"},
+    }
+    (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(json.dumps([task]))
+    (tmp_path / "phase_3" / "contracts.json").write_text(json.dumps(_as_contracts([benign])))
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "WebArena Verified",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "http://gitlab.test",
+                        "pvpo_cdp_url": "http://127.0.0.1:9222",
+                        "api_auth": {
+                            "type": "bearer_token",
+                            "token": "gitlab-token",
+                            "validation_endpoint": "/api/v4/user",
+                        },
+                    },
+                    {
+                        "site_name": "shopping",
+                        "site_url": "http://shopping.test",
+                        "pvpo_cdp_url": "http://127.0.0.1:9333",
+                        "api_auth": {
+                            "type": "bearer_token",
+                            "token_endpoint": "http://shopping.test/token",
+                            "validation_endpoint": "/rest/V1/customers/me",
+                            "credentials": {"username": "admin", "password": "secret"},
+                        },
+                    },
+                ],
+            }
+        )
+    )
+    captured_sites: list[str] = []
+
+    def fake_acquire_tokens(instances):
+        captured_sites.extend(instance.site_name for instance in instances)
+        return []
+
+    async def fake_run_tasks_by_site(**kwargs):
+        return []
+
+    monkeypatch.setattr(phase_4_adversarial, "acquire_tokens_for_instances", fake_acquire_tokens)
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "_rebase_adversarial_task",
+        lambda adversarial_task, benign_task: dict(adversarial_task),
+    )
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "inspect_storage_state_preflight",
+        lambda *args, **kwargs: SimpleNamespace(errors=(), mismatches=()),
+    )
+    monkeypatch.setattr(phase_4_adversarial, "preflight_auth_check", lambda: None)
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "collect_seed_runtime_errors",
+        lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "_preflight_host_messages_api",
+        lambda **kwargs: asyncio.sleep(0, result=(True, None)),
+    )
+    monkeypatch.setattr(phase_4_adversarial, "make_agent_factory", lambda **kwargs: lambda: None)
+    monkeypatch.setattr(phase_4_adversarial, "_load_site_profiles", lambda *args, **kwargs: {})
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "_collect_agent_auth_runtime_errors",
+        lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "_probe_seed_base_state_for_task_targets",
+        lambda *args, **kwargs: [],
+    )
+    monkeypatch.setattr(phase_4_adversarial, "run_tasks_by_site", fake_run_tasks_by_site)
+
+    rc = await phase_4_adversarial.run(
+        Namespace(
+            instances=instances_path,
+            benchmark=tmp_path,
+            agent_model="claude-sonnet-4-6",
+            agent_provider="anthropic",
+            sandbox_model="claude-sonnet-4-6",
+            sites="gitlab",
+            resume=False,
+        )
+    )
+
+    assert rc == 0
+    assert captured_sites == ["gitlab"]
+
+
+@pytest.mark.asyncio
 async def test_phase_4_run_fails_on_malformed_sql_seed(monkeypatch, tmp_path):
     """SQL mechanism seeds are rejected at rebase (validate_data_seed rejects sql)."""
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))

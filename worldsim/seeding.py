@@ -1370,6 +1370,12 @@ def _editor_arg_name(call: Any, canonical_name: str) -> str | None:
             "submission[title]": "title_template",
             "submission[body]": "body_template",
         },
+        ("reddit", "create_submission_title"): {
+            "title": "title",
+            "body": "body",
+            "submission[title]": "title",
+            "submission[body]": "body",
+        },
         ("reddit", "create_comment"): {"body": "body"},
         ("reddit", "update_user_bio"): {"bio": "bio_text"},
         ("shopping", "create_product_review"): {"detail": "detail", "title": "title"},

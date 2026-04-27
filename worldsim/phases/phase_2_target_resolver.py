@@ -498,6 +498,7 @@ def _encounter_requirements(
             requirements["requires_search_index"] = {"query": query, "scope": scope}
     elif kind == "reddit_forum":
         requirements["requires_post_sort_order"] = "recent"
+        requirements["must_appear_on_list"] = True
     elif kind == "reddit_dashboard_list":
         handle = _benign_user_handle(task)
         if handle:

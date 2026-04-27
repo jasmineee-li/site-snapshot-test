@@ -478,7 +478,7 @@ def _derive_read_surface_from_editor(
             patterns.append(_compile(rf"/f/{re.escape(forum)}(?:/|$|\?)"))
         patterns.append(_compile(r"/f/[^/]+(?:/|$|\?)"))
 
-    elif key == ("reddit", "create_submission"):
+    elif key in {("reddit", "create_submission"), ("reddit", "create_submission_title")}:
         forum = args.get("forum_name")
         if isinstance(forum, str) and forum:
             patterns.append(_compile(rf"/f/{re.escape(forum)}/\d+"))

@@ -85,6 +85,11 @@ _LEGACY_ATTACH_SURFACES: dict[str, list[dict[str, object]]] = {
     ],
     "reddit_forum": [
         {
+            "surface_id": "submission.title",
+            "attach_method": "create_submission_title",
+            "required_editor_args": ["forum_name", "title"],
+        },
+        {
             "surface_id": "submission_body_detail",
             "attach_method": "create_submission",
             "required_editor_args": ["forum_name", "title", "body"],
@@ -121,8 +126,8 @@ def _editor_class(benchmark: str, site: str) -> type:
 
 class TestRegistryCoverage:
     def test_expected_method_count(self) -> None:
-        """16 gitlab + 4 reddit = 20 registered methods."""
-        assert len(_REGISTRY) == 20
+        """16 gitlab + 5 reddit = 21 registered methods."""
+        assert len(_REGISTRY) == 21
 
     def test_all_supported_methods_registered(self) -> None:
         for (benchmark, site), cls in EDITOR_REGISTRY.items():
@@ -269,6 +274,6 @@ class TestSerializeRegistrySanity:
         from worldsim.editors._registry import serialize_registry
 
         serialized = serialize_registry()
-        assert len(serialized["specs"]) == 20
+        assert len(serialized["specs"]) == 21
         sites = {(s["benchmark"], s["site"], s["method"]) for s in serialized["specs"]}
         assert sites == set(_REGISTRY.keys())

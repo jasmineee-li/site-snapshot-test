@@ -68,10 +68,11 @@ CREATE_CHILD_LISTING_KINDS = frozenset({"reddit_forum"})
 def exposure_contract_signature() -> dict[str, Any]:
     """Fingerprint knobs whose change invalidates persisted Phase 2 plans."""
     return {
-        "version": 8,
+        "version": 9,
         "modes": [
             "direct_detail",
             "inline_listing",
+            "inline_listing_created_child",
             "bounded_transitive_existing",
             "bounded_transitive_created_child",
             "ineligible",
@@ -403,6 +404,8 @@ def _mode_for_resource(resource: Mapping[str, Any], kind: str) -> tuple[str, str
     if kind in DIRECT_KINDS:
         return "direct_detail", None
     if kind in CREATE_CHILD_LISTING_KINDS:
+        if _created_child_listing_row_forced(resource):
+            return "inline_listing_created_child", None
         return "bounded_transitive_created_child", None
     if kind in LISTING_SOURCE_KINDS:
         return "inline_listing", None
@@ -451,6 +454,18 @@ def _phase4_exposure_capability(
             {
                 "admissible": True,
                 "encounter_surface": "benign_read_surface",
+                "requires_transition": False,
+                "transition_forced_by_task": True,
+                "requires_runtime_hook": False,
+                "requires_visual_evidence": True,
+            }
+        )
+        return base
+    if mode == "inline_listing_created_child":
+        base.update(
+            {
+                "admissible": True,
+                "encounter_surface": "seed_created_child_listing_row",
                 "requires_transition": False,
                 "transition_forced_by_task": True,
                 "requires_runtime_hook": False,
@@ -627,6 +642,17 @@ def _verification_contract(
             "same_origin": True,
             "edge_role": _edge_role_for_kind(kind),
         }
+    elif mode == "inline_listing_created_child":
+        verification["target"] = {
+            "url_source": "seed_metadata.created_resource.parent_url",
+            "role": "seed_render_surface",
+        }
+        verification["transition"] = {
+            "type": "inline_listing_row",
+            "max_depth": 0,
+            "same_origin": True,
+            "edge_role": "created_child_listing_row",
+        }
     elif mode == "bounded_transitive_created_child":
         verification["target"] = {
             "url_source": "seed_metadata.created_resource.url",
@@ -682,6 +708,11 @@ def _transitive_entry_supported(source_kind: str, resource: Mapping[str, Any]) -
     return False
 
 
+def _created_child_listing_row_forced(resource: Mapping[str, Any]) -> bool:
+    requirements = resource.get("encounter_requirements")
+    return isinstance(requirements, Mapping) and requirements.get("must_appear_on_list") is True
+
+
 def _viable_specs(
     kind: str,
     *,
@@ -705,6 +736,10 @@ def _surface_visibility_rank(
     kind: str,
     surface_visibility_by_id: Mapping[str, str] | None,
 ) -> int:
+    if spec.site == "reddit" and kind == "reddit_forum":
+        surface_id = spec.surface_id_per_kind.get(kind, spec.method)
+        if canonical_core_surface("reddit", surface_id) == "submission.title":
+            return -1
     if not isinstance(surface_visibility_by_id, Mapping):
         return 1
     surface_id = spec.surface_id_per_kind.get(kind, spec.method)

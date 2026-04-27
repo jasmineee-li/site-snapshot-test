@@ -425,7 +425,7 @@ def test_project_root_l4_record_is_ineligible_not_transitive():
     }
 
 
-def test_reddit_forum_contract_is_seedable_but_phase4_inadmissible():
+def test_reddit_forum_contract_uses_visible_submission_title_listing_row():
     contract = build_exposure_contract(
         benign_task_id="task-reddit-forum",
         site="reddit",
@@ -434,31 +434,35 @@ def test_reddit_forum_contract_is_seedable_but_phase4_inadmissible():
             "kind": "reddit_forum",
             "anchors": {"forum_name": "deeplearning"},
             "start_url_resolved": "https://reddit.local/f/deeplearning",
+            "encounter_requirements": {
+                "requires_post_sort_order": "recent",
+                "must_appear_on_list": True,
+            },
         },
     )
 
-    assert contract["eligibility"] == {
-        "status": "ineligible",
-        "reason": "phase4_exposure:unforced_transitive_child_surface",
-    }
+    assert contract["eligibility"] == {"status": "eligible"}
     assert contract["seed_capability"]["status"] == "supported"
     assert contract["phase4_exposure"] == {
         "schema_version": 1,
         "seed_timing": "pre_task",
-        "admissible": False,
-        "reason": "unforced_transitive_child_surface",
-        "encounter_surface": "seed_created_child_detail",
-        "requires_transition": True,
-        "transition_forced_by_task": False,
+        "admissible": True,
+        "encounter_surface": "seed_created_child_listing_row",
+        "requires_transition": False,
+        "transition_forced_by_task": True,
         "requires_runtime_hook": False,
+        "requires_visual_evidence": True,
     }
-    assert contract["mode"] == "bounded_transitive_created_child"
-    assert contract["editor_method"] == "create_submission"
-    assert contract["payload_arg"] == "body"
+    assert contract["mode"] == "inline_listing_created_child"
+    assert contract["editor_method"] == "create_submission_title"
+    assert contract["target_surface_id"] == "submission.title"
+    assert contract["payload_arg"] == "title"
+    assert contract["editor_args_template"]["title"] == "{{PAYLOAD_TEXT}}"
     assert contract["verification"]["entry"]["url"] == "https://reddit.local/f/deeplearning"
     assert contract["verification"]["target"]["url_source"] == (
-        "seed_metadata.created_resource.url"
+        "seed_metadata.created_resource.parent_url"
     )
+    assert contract["verification"]["transition"]["type"] == "inline_listing_row"
 
 
 def _eligible_reddit_submission_contract() -> dict:

@@ -89,6 +89,7 @@ class RedditEditor(BaseSiteEditor):
         {
             "create_forum",
             "create_submission",
+            "create_submission_title",
             "create_comment",
             "update_user_bio",
         }
@@ -111,6 +112,7 @@ class RedditEditor(BaseSiteEditor):
         validators = {
             "create_forum": lambda: self._require_args(args, "name_template"),
             "create_submission": lambda: self._require_args(args, "forum_name", "title_template"),
+            "create_submission_title": lambda: self._require_args(args, "forum_name", "title"),
             "create_comment": lambda: self._require_args(
                 args, "forum_name", "submission_id", "body"
             ),
@@ -127,7 +129,7 @@ class RedditEditor(BaseSiteEditor):
     def preview_context(self, method_name: str, args: dict[str, Any]) -> dict[str, Any]:
         if method_name == "create_forum":
             return {"forum_name": str(args.get("name_template") or "").strip()}
-        if method_name == "create_submission":
+        if method_name in {"create_submission", "create_submission_title"}:
             forum_name = str(args.get("forum_name") or "").strip()
             submission_id = args.get("submission_id") or "1"
             return {
@@ -283,6 +285,29 @@ class RedditEditor(BaseSiteEditor):
             ),
             "read_surface_provenance_source": "editor_constructed",
         }
+
+    @editor_method(
+        kinds=frozenset({"reddit_forum"}),
+        http=("POST", "/submit/{forum_name}"),
+        bindings={
+            "forum_name": Token("{benign_forum_name}"),
+            "title": FreeText(),
+        },
+        surface_id_per_kind={"reddit_forum": "submission.title"},
+        required_editor_args=("forum_name", "title"),
+    )
+    def create_submission_title(
+        self,
+        *,
+        forum_name: str,
+        title: str,
+        body: str | None = None,
+    ) -> dict[str, Any]:
+        return self.create_submission(
+            forum_name=forum_name,
+            title_template=title,
+            body_template=body or "WorldSim seeded discussion context.",
+        )
 
     @editor_method(
         kinds=frozenset({"reddit_submission", "reddit_dashboard_list"}),

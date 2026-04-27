@@ -1266,7 +1266,13 @@ async def _bootstrap_via_form_login(
                     await page.goto(login_url, timeout=timeout_ms)
                     await page.fill(recipe["username_selector"], username, timeout=timeout_ms)
                     await page.fill(recipe["password_selector"], password, timeout=timeout_ms)
-                    await page.click(recipe["submit_selector"], timeout=timeout_ms)
+                    await _click_form_login_submit(
+                        page,
+                        spec=spec,
+                        recipe=recipe,
+                        login_url=login_url,
+                        timeout_ms=timeout_ms,
+                    )
                     # Wait for success_url_substring to appear in page.url.
                     await page.wait_for_url(
                         lambda url: success_substring in url,
@@ -1296,6 +1302,58 @@ async def _bootstrap_via_form_login(
             f"form_login bootstrap for site {spec.site_name!r} wrote invalid JSON to "
             f"{output_path}: {exc}"
         ) from exc
+
+
+def _form_login_submit_selectors(
+    *,
+    spec: _SiteSpec,
+    recipe: dict[str, Any],
+    login_url: str,
+) -> list[str]:
+    """Return ordered submit selectors for version-tolerant form login.
+
+    GitLab has shipped both Rails-style submit inputs and Pajamas-style submit
+    buttons on the sign-in page. A stale recipe should not block auth refresh
+    when the rest of the login contract is still valid.
+    """
+    declared = recipe["submit_selector"]
+    selectors: list[str] = []
+    is_gitlab_login = spec.site_name.lower() == "gitlab" or "/users/sign_in" in login_url
+    if is_gitlab_login:
+        selectors.extend(
+            [
+                "button[type='submit'], input[type='submit']",
+                "button.js-sign-in-button",
+                "button[data-testid='sign-in-button']",
+            ]
+        )
+    selectors.append(declared)
+
+    unique: list[str] = []
+    for selector in selectors:
+        if selector not in unique:
+            unique.append(selector)
+    return unique
+
+
+async def _click_form_login_submit(
+    page: Any,
+    *,
+    spec: _SiteSpec,
+    recipe: dict[str, Any],
+    login_url: str,
+    timeout_ms: int,
+) -> None:
+    errors: list[str] = []
+    for selector in _form_login_submit_selectors(spec=spec, recipe=recipe, login_url=login_url):
+        try:
+            await page.click(selector, timeout=timeout_ms)
+            return
+        except Exception as exc:  # pragma: no cover - real Playwright error types vary.
+            errors.append(f"{selector!r}: {exc!r}")
+    raise AuthBootstrapError(
+        f"form_login submit click failed for site {spec.site_name!r}; tried " + "; ".join(errors)
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -1751,15 +1751,18 @@ async def run(args: argparse.Namespace) -> int:
             post_cap_by_origin.get("existing_task", 0),
             post_cap_by_origin.get("new_task", 0),
         )
-    active_sites = {
-        normalize_site_name(str(task.get("site", ""))) for task in tasks if task.get("site")
-    }
+    active_sites = {site for task in tasks for site in _task_reachable_sites(task)}
 
     # Load benchmark config
     if not instances_path or not Path(instances_path).exists():
         logger.error("--instances JSON file required for Phase 4")
         return 1
     config = BenchmarkConfig.model_validate_json(Path(instances_path).read_text())
+    active_instances = [
+        instance
+        for instance in config.instances
+        if not active_sites or normalize_site_name(instance.site_name) in active_sites
+    ]
     if benchmark_root is None:
         benchmark_root = config.benchmark_codebase
     try:
@@ -1794,7 +1797,7 @@ async def run(args: argparse.Namespace) -> int:
         )
         return 1
     pvpo_endpoint_errors = _pvpo_endpoint_preflight_errors(
-        config.instances,
+        active_instances,
         active_sites=active_sites,
     )
     if pvpo_endpoint_errors:
@@ -1814,7 +1817,7 @@ async def run(args: argparse.Namespace) -> int:
 
     healed_any = False
     storage_state_resolution_errors: list[StorageStatePreflightError] = []
-    for instance in config.instances:
+    for instance in active_instances:
         auth = instance.agent_auth if isinstance(instance.agent_auth, dict) else None
         if not isinstance(auth, dict) or auth.get("type") != "storage_state":
             continue
@@ -1855,7 +1858,7 @@ async def run(args: argparse.Namespace) -> int:
             )
 
     preflight = inspect_storage_state_preflight(
-        config.instances,
+        active_instances,
         benchmark_root=benchmark_root,
     )
     preflight_errors = [*storage_state_resolution_errors, *list(preflight.errors)]
@@ -1866,7 +1869,7 @@ async def run(args: argparse.Namespace) -> int:
     # benchmarks require WORLDSIM_AUTO_MINT_STORAGE_STATE=1.
     if preflight_errors:
         errored_sites = {error.site_name for error in preflight_errors}
-        for instance in config.instances:
+        for instance in active_instances:
             if instance.site_name not in errored_sites:
                 continue
             try:
@@ -1900,7 +1903,7 @@ async def run(args: argparse.Namespace) -> int:
                 healed_any = True
     if healed_any:
         preflight = inspect_storage_state_preflight(
-            config.instances,
+            active_instances,
             benchmark_root=benchmark_root,
         )
         preflight_errors = [*storage_state_resolution_errors, *list(preflight.errors)]
@@ -1938,6 +1941,11 @@ async def run(args: argparse.Namespace) -> int:
                 "\n".join(f"  - {line}" for line in mismatch_lines),
             )
             config = apply_skip_auth_for_host_bound_storage_states(config, host_bound_mismatches)
+            active_instances = [
+                instance
+                for instance in config.instances
+                if not active_sites or normalize_site_name(instance.site_name) in active_sites
+            ]
         else:
             logger.error(
                 "Phase 4 storage-state pre-flight failed:\n%s\nRe-run Phase 0d against the "
@@ -1958,7 +1966,7 @@ async def run(args: argparse.Namespace) -> int:
     # docs/handoffs/wasp-aligned-scoping-decision.md). The pipeline no longer
     # targets Magento; both probes are dead infrastructure.
     # Acquire fresh bearer tokens for instances that use runtime generation.
-    token_errors = acquire_tokens_for_instances(config.instances)
+    token_errors = acquire_tokens_for_instances(active_instances)
     if token_errors:
         logger.error(
             "Phase 4 token acquisition failed:\n%s",
@@ -1974,7 +1982,7 @@ async def run(args: argparse.Namespace) -> int:
         return 1
     seed_runtime_errors = collect_seed_runtime_errors(
         tasks,
-        config.instances,
+        active_instances,
         seed_field="adversarial_data_seed",
     )
     if seed_runtime_errors:
@@ -2001,7 +2009,7 @@ async def run(args: argparse.Namespace) -> int:
     profiles_dir = state_dir / "phase_0c"
     site_profiles = _load_site_profiles(tasks, profiles_dir)
     seed_probe_cache: dict[tuple[str, str, str, str], BaseStateProbeResult] = {}
-    agent_auth_errors = _collect_agent_auth_runtime_errors(config.instances, site_profiles)
+    agent_auth_errors = _collect_agent_auth_runtime_errors(active_instances, site_profiles)
     if agent_auth_errors:
         logger.error(
             "Phase 4 agent-auth pre-flight failed:\n%s",
@@ -2031,11 +2039,11 @@ async def run(args: argparse.Namespace) -> int:
     logger.info(
         "Phase 4: evaluating %d adversarial tasks across %d instances",
         len(tasks),
-        len(config.instances),
+        len(active_instances),
     )
     infrastructure_errors = _probe_seed_base_state_for_task_targets(
         tasks,
-        config.instances,
+        active_instances,
         cache=seed_probe_cache,
     )
     if infrastructure_errors:
