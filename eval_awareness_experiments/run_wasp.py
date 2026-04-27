@@ -217,17 +217,27 @@ def _build_wasp_benchmark(
     )
 
 
-def _import_wasp_injector(modified_config_dir: Path) -> None:
+def _import_wasp_injector(modified_config_dir: Path, wasp_path: Path | None = None) -> None:
     """Import WASP's prompt_injector module so its page-load hook registers.
     WASP typically points its injector at the config dir via env var.
+
+    WASP isn't a pip-installable package (no setup.py/pyproject.toml), so we
+    prepend the clone path to sys.path before importing. This matches what
+    `scripts/wasp_n100_run.sh` does via PYTHONPATH externally, but doing it
+    here means *any* caller (matrix runner, smoke, direct, pytest) works
+    without needing per-launcher env-var setup.
     """
     os.environ["WASP_CONFIG_DIR"] = str(modified_config_dir)
+    if wasp_path is not None and str(wasp_path) not in sys.path:
+        sys.path.insert(0, str(wasp_path))
     try:
         import webarena_prompt_injections  # noqa: F401
     except ImportError as e:
         raise RuntimeError(
-            "WASP (webarena_prompt_injections) is not importable. "
-            "Run: bash eval_awareness_experiments/setup_benchmarks.sh wasp"
+            f"WASP (webarena_prompt_injections) is not importable from "
+            f"{wasp_path or '<--wasp-path not set>'}. Verify that path "
+            "contains a webarena_prompt_injections/ dir, or pass --wasp-path "
+            "explicitly. Default is REPO_ROOT/external_benchmarks/wasp."
         ) from e
 
 
@@ -343,7 +353,7 @@ def main() -> None:
         n_wrapped += 1
     logger.info(f"Wrote {n_wrapped} condition-wrapped configs → {tmp}")
 
-    _import_wasp_injector(tmp)
+    _import_wasp_injector(tmp, wasp_path=args.wasp_path)
 
     benchmark = _build_wasp_benchmark(
         config_dir=tmp,
