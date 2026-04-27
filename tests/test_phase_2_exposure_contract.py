@@ -321,6 +321,31 @@ def test_task_forced_transitive_contract_is_phase4_admissible():
     assert contract["phase4_exposure"]["transition_forced_by_task"] is True
 
 
+def test_l3_reddit_forum_existing_submission_is_bounded_transitive():
+    contract = build_exposure_contract(
+        benign_task_id="task-reddit-forum-existing-child",
+        site="reddit",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "reddit_submission",
+            "source_listing_kind": "reddit_forum",
+            "anchors": {"forum_name": "books", "submission_id": "59421"},
+            "benign_read_url": "https://reddit.local/f/books",
+            "start_url_resolved": "https://reddit.local/f/books/59421",
+            "seeded_detail_url": "https://reddit.local/f/books/59421",
+        },
+    )
+
+    assert contract["mode"] == "bounded_transitive_existing"
+    assert contract["eligibility"] == {
+        "status": "ineligible",
+        "reason": "phase4_exposure:unforced_transitive_surface",
+    }
+    assert contract["phase4_exposure"]["admissible"] is False
+    assert contract["verification"]["entry"]["url"] == "https://reddit.local/f/books"
+    assert contract["verification"]["target"]["url"] == "https://reddit.local/f/books/59421"
+
+
 def test_project_root_l4_record_is_ineligible_not_transitive():
     contract = build_exposure_contract(
         benign_task_id="task-project-root_l4_0",

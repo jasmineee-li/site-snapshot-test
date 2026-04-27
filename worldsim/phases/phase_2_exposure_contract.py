@@ -60,7 +60,7 @@ LISTING_SOURCE_KINDS = frozenset(
     }
 )
 TRANSITIVE_EXISTING_SOURCE_KINDS = frozenset(
-    {"gitlab_search_result", "gitlab_dashboard_list", "reddit_dashboard_list"}
+    {"gitlab_search_result", "gitlab_dashboard_list", "reddit_forum", "reddit_dashboard_list"}
 )
 CREATE_CHILD_LISTING_KINDS = frozenset({"reddit_forum"})
 
@@ -597,6 +597,8 @@ def _transitive_entry_supported(source_kind: str, resource: Mapping[str, Any]) -
         return path.startswith("/dashboard/")
     if source_kind == "reddit_dashboard_list":
         return path.startswith("/user/")
+    if source_kind == "reddit_forum":
+        return path.startswith("/f/")
     return False
 
 
