@@ -65,8 +65,27 @@ DEFAULT_SPLITS = {
 }
 
 
-def _run_subprocess(cmd: list[str], *, cwd: Path, env: dict | None = None) -> bool:
+def _run_subprocess(
+    cmd: list[str],
+    *,
+    cwd: Path,
+    env: dict | None = None,
+    timeout_sec: int | None = None,
+) -> bool:
+    """Run a subprocess and return whether it succeeded.
+
+    If `timeout_sec` is set, wraps the command with Linux `timeout(1)` so a
+    hung subprocess (e.g. browser-track Playwright env.close() deadlock — see
+    py-spy stack trace in commit history) gets force-killed instead of
+    soaking up the whole stream's wallclock. We use the `timeout` binary
+    rather than subprocess.run's `timeout=` kwarg because the latter only
+    kills the immediate child — Playwright's headless-Chromium child tree
+    needs the whole process-group cleanup that `timeout(1)` does.
+    """
     env = env or os.environ.copy()
+    if timeout_sec is not None:
+        # --kill-after=10: if SIGTERM doesn't work within 10s, SIGKILL.
+        cmd = ["timeout", "--kill-after=10", str(timeout_sec), *cmd]
     logger.info("  $ %s", " ".join(cmd))
     result = subprocess.run(cmd, cwd=str(cwd), env=env, capture_output=True, text=True)
     for line in (result.stdout or "").splitlines()[-30:]:
@@ -74,7 +93,15 @@ def _run_subprocess(cmd: list[str], *, cwd: Path, env: dict | None = None) -> bo
     for line in (result.stderr or "").splitlines()[-15:]:
         logger.warning(f"  [stderr] {line}")
     if result.returncode != 0:
-        logger.error(f"  subprocess failed: exit={result.returncode}")
+        # `timeout` exits 124 on timeout, 137 if SIGKILL was needed.
+        if result.returncode in (124, 137):
+            logger.error(
+                f"  subprocess TIMED OUT after {timeout_sec}s "
+                f"(exit={result.returncode}). Likely a hang in env teardown "
+                f"(Playwright close()) — partial trajectories may be saved."
+            )
+        else:
+            logger.error(f"  subprocess failed: exit={result.returncode}")
     return result.returncode == 0
 
 
@@ -169,7 +196,16 @@ def _stage1_browser(benchmark: str, split: str, args) -> Path | None:
         cmd += ["--report-port", str(args.report_port)]
 
     before = set((REPO_ROOT / "results" / "browsergym").glob("study_*"))
-    ok = _run_subprocess(cmd, cwd=REPO_ROOT)
+    # Browser benchmarks (DoomArena/WASP) run Playwright + Chromium per task.
+    # Known issue: env.close() in BrowserGym deadlocks on Playwright cleanup
+    # after the agent loop completes (py-spy showed _sync at
+    # playwright/_impl/_sync_base.py:113). Without a timeout, one hung close
+    # soaks the whole stream's wallclock — observed 6-8h hangs in the causal
+    # pilot. Default 1800s = 30 min per (model × split): generous for n=20
+    # tasks at ~1-2 min/task plus headroom for cleanup. Override via
+    # --browser-stage1-timeout.
+    timeout_sec = getattr(args, "browser_stage1_timeout", None) or 1800
+    ok = _run_subprocess(cmd, cwd=REPO_ROOT, timeout_sec=timeout_sec)
     if not ok:
         return None
     after = set((REPO_ROOT / "results" / "browsergym").glob("study_*"))
@@ -409,6 +445,12 @@ def _parse_args() -> argparse.Namespace:
                         help="Per-task parallelism for the agent stage (tool-calling benchmarks). "
                              "Forwarded as --concurrency to run_agentdojo / run_injecagent. "
                              "Bottleneck is target-model TPM via OpenRouter, not local CPU.")
+    parser.add_argument("--browser-stage1-timeout", type=int, default=1800,
+                        help="Per-(model × split) timeout in seconds for browser benchmarks "
+                             "(DoomArena, WASP). Workaround for the Playwright env.close() "
+                             "deadlock — without this, a hung close() can soak hours of "
+                             "wallclock per stream. Default 1800s (30 min). Tool-calling "
+                             "benchmarks ignore this flag.")
     parser.add_argument("--model-name", default=None,
                         help="Agent model for stage 1. Required unless --stage judge-only.")
     parser.add_argument("--condition", choices=ALL_CONDITIONS, default="baseline")
