@@ -215,6 +215,19 @@ def _resolve_storage_state_artifact_for_preflight(
     if raw_path is None:
         return None, None
 
+    try:
+        from worldsim.phases.phase_0d_auth_bootstrap import (
+            phase_0d_instance_artifact_path_by_id,
+            phase_0d_instance_id,
+        )
+    except ImportError:  # pragma: no cover
+        per_instance_path = None
+    else:
+        instance_id = phase_0d_instance_id(instance.model_dump())
+        per_instance_path = phase_0d_instance_artifact_path_by_id(instance.site_name, instance_id)
+        if per_instance_path.exists():
+            return per_instance_path, None
+
     declared_path, resolve_error = _resolve_declared_storage_state_path(
         raw_path,
         benchmark_root=benchmark_root,
@@ -480,6 +493,17 @@ def storage_state_is_fresh(
         payload = json.loads(sidecar.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return False
+    try:
+        from worldsim.phases.phase_0d_auth_bootstrap import CURRENT_VALIDATOR_VERSION
+    except ImportError:  # pragma: no cover
+        CURRENT_VALIDATOR_VERSION = None
+    if CURRENT_VALIDATOR_VERSION is not None:
+        try:
+            validator_version = int(payload.get("validator_version") or 0)
+        except (TypeError, ValueError):
+            return False
+        if validator_version != CURRENT_VALIDATOR_VERSION:
+            return False
     raw = payload.get("minted_at")
     if not isinstance(raw, str):
         return False
@@ -598,6 +622,19 @@ async def ensure_storage_state(
         instance,
         benchmark_root=benchmark_root,
     )
+    try:
+        from worldsim.phases.phase_0d_auth_bootstrap import (
+            phase_0d_instance_artifact_path_by_id,
+            phase_0d_instance_id,
+        )
+    except ImportError:  # pragma: no cover
+        per_instance_path = None
+    else:
+        instance_id = phase_0d_instance_id(instance.model_dump())
+        per_instance_path = phase_0d_instance_artifact_path_by_id(instance.site_name, instance_id)
+        if per_instance_path.exists():
+            artifact_path = per_instance_path
+            error = None
     if error is None and artifact_path is not None:
         try:
             payload = json.loads(artifact_path.read_text(encoding="utf-8"))
@@ -634,11 +671,9 @@ async def ensure_storage_state(
 
     try:
         from worldsim.phases.phase_0d_auth_bootstrap import (
-            _bootstrap_via_form_login,
             _extract_form_login_recipe,
-            _SiteSpec,
-            phase_0d_artifact_path,
             phase_0d_completion_path,
+            reacquire_storage_state,
         )
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
@@ -653,31 +688,11 @@ async def ensure_storage_state(
             "cannot auto-mint storage_state"
         )
 
-    authentication = auth.get("authentication") if isinstance(auth, dict) else None
-    credentials = None
-    if isinstance(authentication, dict):
-        credentials = authentication.get("credentials")
-
-    output_path = phase_0d_artifact_path(instance.site_name)
-    spec = _SiteSpec(
-        site_name=instance.site_name,
-        mech_type="form_login",
-        declared_path="",
-        generator_script=None,
-        form_login=form_login,
-        per_task_refresh=False,
-        credentials=credentials,
-        agent_context_source=(
-            benchmark_root / "phase_0c" / instance.site_name / "AGENT_CONTEXT.json"
-            if benchmark_root is not None
-            else output_path.parent / "runtime_auto_mint_context.json"
-        ),
-    )
     try:
-        await _bootstrap_via_form_login(
-            spec=spec,
-            site_url=instance.site_url,
-            output_path=output_path,
+        output_path = await reacquire_storage_state(
+            site_name=instance.site_name,
+            instance=instance.model_dump(),
+            benchmark_root=benchmark_root,
         )
     except Exception as exc:
         raise RuntimeError(
@@ -693,7 +708,7 @@ async def ensure_storage_state(
             "dispatch": "form_login_auto_heal",
             "generator_script": None,
             "form_login": form_login,
-            "agent_context_source": str(spec.agent_context_source),
+            "agent_context_source": str(output_path.parent / "runtime_reacquire_context.json"),
             "site_url": instance.site_url,
             "auto_minted_at": datetime.now(UTC).isoformat(),
         },

@@ -1409,6 +1409,31 @@ def test_load_reusable_phase_2_plans_rejects_phase_2a_resolution_signature_drift
     assert reusable is None
 
 
+def test_load_reusable_phase_2_plans_rejects_missing_resolution_signature(tmp_path):
+    plans_path = tmp_path / "adversarial_plans.json"
+    plans_path.write_text(json.dumps([_plan_task()], indent=2))
+
+    reusable = phase_2_injections._load_reusable_phase_2_plans(
+        prior_state={
+            "step": "phase_2",
+            "status": "running",
+            "phase_2_stage": "planning",
+        },
+        plans_path=plans_path,
+        sites_filter=None,
+        expected_benign_task_ids={"benign-1"},
+        benign_by_id={"benign-1": _benign_task()},
+        site_profiles={"shopping": _single_surface_profile()},
+        current_sandbox_model="claude-sonnet-4-6",
+        current_phase_2a_resolution_signature={
+            "no_l3_l4": False,
+            "exposure_contract_signature": "sig8",
+        },
+    )
+
+    assert reusable is None
+
+
 def test_phase_2a_resolution_signature_ignores_api_auth_only_drift(tmp_path):
     path = tmp_path / "instances.json"
     path.write_text(
@@ -2158,6 +2183,34 @@ def test_load_reusable_phase_2_tasks_rejects_phase_2a_resolution_signature_drift
     assert reusable is None
 
 
+def test_load_reusable_phase_2_tasks_rejects_missing_resolution_signature(tmp_path):
+    output_path = tmp_path / "adversarial_tasks.json"
+    output_path.write_text(json.dumps([_finalized_plan_task()], indent=2))
+
+    reusable = phase_2_injections._load_reusable_phase_2_tasks(
+        prior_state={
+            "step": "phase_2",
+            "status": "running",
+            "phase_2_stage": "text_fill",
+        },
+        output_path=output_path,
+        sites_filter=None,
+        expected_task_ids={"adv-1"},
+        expected_benign_task_ids={"benign-1"},
+        texts_per_plan=1,
+        benign_by_id={"benign-1": _benign_task()},
+        site_profiles={"shopping": _single_surface_profile()},
+        current_sandbox_model="claude-sonnet-4-6",
+        current_text_model=phase_2_injections.DEFAULT_TEXT_FILL_MODEL,
+        current_phase_2a_resolution_signature={
+            "no_l3_l4": False,
+            "exposure_contract_signature": "sig8",
+        },
+    )
+
+    assert reusable is None
+
+
 def test_validate_reusable_phase_2_task_rejects_legacy_task_with_phase_2b_fields():
     task = {
         "id": "adv-legacy",
@@ -2199,6 +2252,61 @@ def test_validate_reusable_phase_2_task_rejects_legacy_task_with_phase_2b_fields
     )
 
     assert "must not include Phase 2b/final-task fields" in problem
+
+
+def test_validate_reusable_phase_2_task_rejects_legacy_reddit_comment_contract():
+    task = _finalized_plan_task()
+    task.update(
+        {
+            "site": "reddit",
+            "sites": ["reddit"],
+            "target_surface_id": "comment.body",
+            "delivery_mechanism": "form",
+            "benign_target_resource": {
+                "kind": "reddit_submission",
+                "anchors": {"forum_name": "books", "submission_id": "59421"},
+            },
+            "seed_template": {
+                "mechanism": "editor",
+                "editor_calls": [
+                    {
+                        "site": "reddit",
+                        "method": "create_comment",
+                        "args": {
+                            "submission_id": "{benign_submission_id}",
+                            "forum_name": "{benign_forum_name}",
+                            "body": "{{PAYLOAD_TEXT}}",
+                        },
+                    }
+                ],
+            },
+            "exposure_contract": {
+                "phase4_exposure": {
+                    "admissible": True,
+                    "encounter_surface": "benign_read_surface",
+                }
+            },
+        }
+    )
+    task["payload_texts"][0]["rendered_payload"] = "attack"
+    task["adversarial_data_seed"] = phase_2_injections.materialize_adversarial_seed(
+        task["seed_template"], "attack"
+    )
+    reddit_benign = {**_reddit_benign_task(), "id": "benign-1"}
+    task["instruction"] = reddit_benign["instruction"]
+    task["start_urls"] = reddit_benign["start_urls"]
+    task["data_seed"] = reddit_benign["data_seed"]
+    task["reward_function"]["benign_reward"] = reddit_benign["reward_function"]
+
+    problem = phase_2_injections._validate_reusable_phase_2_task(
+        task,
+        task_index=0,
+        texts_per_plan=1,
+        benign_by_id={"benign-1": reddit_benign},
+        site_profiles={"reddit": _reddit_profile()},
+    )
+
+    assert "reddit_create_comment_missing_exact_comment_region_gate" in str(problem)
 
 
 def test_build_cell_targets_balances_across_available_cells():
@@ -3020,7 +3128,15 @@ async def test_phase_2_run_reuses_existing_final_tasks_for_text_fill_resume(monk
     )
     (tmp_path / "phase_2" / "adversarial_plans.json").write_text(json.dumps([plan], indent=2))
     (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(json.dumps([final_task], indent=2))
-    save_state("phase_2", status="running", phase_2_stage="text_fill", sandbox_model="demo")
+    save_state(
+        "phase_2",
+        status="running",
+        phase_2_stage="text_fill",
+        sandbox_model="demo",
+        phase_2a_resolution_signature=phase_2_injections._phase_2a_resolution_signature(
+            Namespace(skip_feasibility=True, sandbox_model="demo")
+        ),
+    )
 
     async def fail_fill(*args, **kwargs):
         raise AssertionError("text fill should not rerun")
@@ -3080,7 +3196,14 @@ async def test_phase_2_run_reuses_legacy_final_tasks_without_phase_2_stage(monke
     (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(
         json.dumps([legacy_task], indent=2)
     )
-    save_state("phase_2", status="running", sandbox_model="demo")
+    save_state(
+        "phase_2",
+        status="running",
+        sandbox_model="demo",
+        phase_2a_resolution_signature=phase_2_injections._phase_2a_resolution_signature(
+            Namespace(skip_feasibility=True, sandbox_model="demo")
+        ),
+    )
 
     rc = await phase_2_injections.run(Namespace(skip_feasibility=True, sandbox_model="demo"))
 
@@ -3204,7 +3327,14 @@ async def test_phase_2_run_reuses_legacy_saved_plans_without_phase_2_stage(monke
         json.dumps(_single_surface_profile())
     )
     (tmp_path / "phase_2" / "adversarial_plans.json").write_text(json.dumps([plan], indent=2))
-    save_state("phase_2", status="running", sandbox_model="demo")
+    save_state(
+        "phase_2",
+        status="running",
+        sandbox_model="demo",
+        phase_2a_resolution_signature=phase_2_injections._phase_2a_resolution_signature(
+            Namespace(skip_feasibility=True, sandbox_model="demo")
+        ),
+    )
 
     async def fake_fill(*args, **kwargs):
         return [finalized], [
@@ -3241,7 +3371,15 @@ async def test_phase_2_run_rejects_stale_same_site_reused_tasks(monkeypatch, tmp
     (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(
         json.dumps([fresh, stale], indent=2)
     )
-    save_state("phase_2", status="running", phase_2_stage="text_fill", sandbox_model="demo")
+    save_state(
+        "phase_2",
+        status="running",
+        phase_2_stage="text_fill",
+        sandbox_model="demo",
+        phase_2a_resolution_signature=phase_2_injections._phase_2a_resolution_signature(
+            Namespace(skip_feasibility=True, sandbox_model="demo")
+        ),
+    )
     calls = {"count": 0}
 
     async def fake_fill(*args, **kwargs):
@@ -3276,7 +3414,19 @@ async def test_phase_2_run_rejects_reuse_when_texts_per_plan_increases(monkeypat
     (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(
         json.dumps([underfilled], indent=2)
     )
-    save_state("phase_2", status="running", phase_2_stage="text_fill", sandbox_model="demo")
+    save_state(
+        "phase_2",
+        status="running",
+        phase_2_stage="text_fill",
+        sandbox_model="demo",
+        phase_2a_resolution_signature=phase_2_injections._phase_2a_resolution_signature(
+            Namespace(
+                phase_2b_texts_per_plan=2,
+                skip_feasibility=True,
+                sandbox_model="demo",
+            )
+        ),
+    )
     calls = {"count": 0}
 
     async def fake_fill(*args, **kwargs):
@@ -3513,6 +3663,7 @@ def test_materialized_reddit_strategy_uses_form_delivery_mechanism():
             "kind": "reddit_submission",
             "anchors": {"forum_name": "books", "submission_id": "12345"},
             "start_url_resolved": "https://reddit.local/f/books/12345",
+            "exact_comment_region_forced_by_task": True,
         },
     )
     plans = [
@@ -3615,6 +3766,7 @@ def test_validated_reddit_comment_plan_resolves_dynamic_form_delivery_channel():
             "kind": "reddit_submission",
             "anchors": {"forum_name": "books", "submission_id": "12345"},
             "start_url_resolved": "https://reddit.local/f/books/12345",
+            "exact_comment_region_forced_by_task": True,
         },
     )
     plans = [

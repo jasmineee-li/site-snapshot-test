@@ -212,9 +212,23 @@ def test_builds_reddit_submission_exposure_contract_from_registry():
         },
     )
 
-    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["eligibility"] == {
+        "status": "ineligible",
+        "reason": "phase4_exposure:unanchored_appended_comment_surface",
+    }
     assert contract["seed_capability"]["status"] == "supported"
-    assert contract["phase4_exposure"]["admissible"] is True
+    assert contract["phase4_exposure"] == {
+        "schema_version": 1,
+        "seed_timing": "pre_task",
+        "admissible": False,
+        "reason": "unanchored_appended_comment_surface",
+        "encounter_surface": "seed_appended_comment_region",
+        "requires_transition": False,
+        "transition_forced_by_task": False,
+        "requires_exact_comment_region": True,
+        "exact_comment_region_forced_by_task": False,
+        "requires_runtime_hook": False,
+    }
     assert contract["mode"] == "direct_detail"
     assert contract["target_surface_id"] == "comment.body"
     assert contract["editor_surface_id"] == "comment_body_thread"
@@ -222,6 +236,49 @@ def test_builds_reddit_submission_exposure_contract_from_registry():
     assert contract["editor_args_template"]["submission_id"] == "{benign_submission_id}"
     assert contract["editor_args_template"]["forum_name"] == "{benign_forum_name}"
     assert contract["editor_args_template"]["body"] == "{{PAYLOAD_TEXT}}"
+
+
+def test_reddit_submission_comment_is_not_admitted_by_generic_transition_flag():
+    contract = build_exposure_contract(
+        benign_task_id="task-reply",
+        site="reddit",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "reddit_submission",
+            "anchors": {"forum_name": "singularity", "submission_id": "69404"},
+            "start_url_resolved": "https://reddit.local/f/singularity/69404",
+            "transition_forced_by_task": True,
+        },
+    )
+
+    assert contract["mode"] == "direct_detail"
+    assert contract["eligibility"] == {
+        "status": "ineligible",
+        "reason": "phase4_exposure:unanchored_appended_comment_surface",
+    }
+    assert contract["phase4_exposure"]["transition_forced_by_task"] is True
+    assert contract["phase4_exposure"]["exact_comment_region_forced_by_task"] is False
+    assert contract["phase4_exposure"]["admissible"] is False
+
+
+def test_reddit_submission_comment_admitted_with_exact_comment_region_evidence():
+    contract = build_exposure_contract(
+        benign_task_id="task-exact-comment-region",
+        site="reddit",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "reddit_submission",
+            "anchors": {"forum_name": "singularity", "submission_id": "69404"},
+            "start_url_resolved": "https://reddit.local/f/singularity/69404",
+            "transition_forced_by_task": True,
+            "exact_comment_region_forced_by_task": True,
+        },
+    )
+
+    assert contract["eligibility"] == {"status": "eligible"}
+    assert contract["phase4_exposure"]["admissible"] is True
+    assert contract["phase4_exposure"]["requires_exact_comment_region"] is True
+    assert contract["phase4_exposure"]["requires_runtime_hook"] is False
 
 
 def test_project_metadata_task_is_ineligible():
@@ -339,7 +396,7 @@ def test_l3_reddit_forum_existing_submission_is_bounded_transitive():
     assert contract["mode"] == "bounded_transitive_existing"
     assert contract["eligibility"] == {
         "status": "ineligible",
-        "reason": "phase4_exposure:unforced_transitive_surface",
+        "reason": "phase4_exposure:unanchored_appended_comment_surface",
     }
     assert contract["phase4_exposure"]["admissible"] is False
     assert contract["verification"]["entry"]["url"] == "https://reddit.local/f/books"
@@ -413,6 +470,7 @@ def _eligible_reddit_submission_contract() -> dict:
             "kind": "reddit_submission",
             "anchors": {"forum_name": "technology", "submission_id": "12345"},
             "start_url_resolved": "https://reddit.local/f/technology/12345",
+            "exact_comment_region_forced_by_task": True,
         },
     )
 

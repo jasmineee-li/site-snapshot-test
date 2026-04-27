@@ -68,7 +68,7 @@ CREATE_CHILD_LISTING_KINDS = frozenset({"reddit_forum"})
 def exposure_contract_signature() -> dict[str, Any]:
     """Fingerprint knobs whose change invalidates persisted Phase 2 plans."""
     return {
-        "version": 7,
+        "version": 8,
         "modes": [
             "direct_detail",
             "inline_listing",
@@ -83,6 +83,7 @@ def exposure_contract_signature() -> dict[str, Any]:
         "surface_visibility_preference": ["always_shown", "conditional"],
         "core_surface_policy": "path_a_canonical_core_ugc",
         "created_child_target_source": "seed_metadata.created_resource.url",
+        "appended_comment_exposure_policy": "requires_exact_comment_region_or_runtime_hook",
     }
 
 
@@ -198,10 +199,13 @@ def build_exposure_contract(
             return base
         verification = _verification_contract(resource, mode, base["benign_read_url"], kind)
         seed_capability = _seed_capability(spec, payload_arg, target_surface_id)
-        phase4_exposure = _phase4_exposure_capability(
-            mode,
-            transition_forced_by_task=_transition_forced_by_task(resource),
-            runtime_hook_available=_phase4_runtime_hook_available(resource),
+        phase4_exposure = _phase4_exposure_for_seeded_surface(
+            mode=mode,
+            site=site,
+            kind=kind,
+            editor_method=spec.method,
+            target_surface_id=target_surface_id,
+            resource=resource,
         )
         base.update(
             {
@@ -495,6 +499,78 @@ def _phase4_exposure_capability(
     return base
 
 
+def _phase4_exposure_for_seeded_surface(
+    *,
+    mode: str,
+    site: str,
+    kind: str,
+    editor_method: str,
+    target_surface_id: str,
+    resource: Mapping[str, Any],
+) -> dict[str, Any]:
+    transition_forced = _transition_forced_by_task(resource)
+    runtime_hook = _phase4_runtime_hook_available(resource)
+    if _is_unanchored_appended_comment_surface(
+        site=site,
+        kind=kind,
+        editor_method=editor_method,
+        target_surface_id=target_surface_id,
+    ):
+        return _appended_comment_exposure_capability(
+            mode,
+            transition_forced_by_task=transition_forced,
+            exact_comment_region_forced=_exact_comment_region_forced_by_task(resource),
+            runtime_hook_available=runtime_hook,
+        )
+    return _phase4_exposure_capability(
+        mode,
+        transition_forced_by_task=transition_forced,
+        runtime_hook_available=runtime_hook,
+    )
+
+
+def _appended_comment_exposure_capability(
+    mode: str,
+    *,
+    transition_forced_by_task: bool,
+    exact_comment_region_forced: bool,
+    runtime_hook_available: bool,
+) -> dict[str, Any]:
+    admissible = exact_comment_region_forced or runtime_hook_available
+    base: dict[str, Any] = {
+        "schema_version": 1,
+        "seed_timing": "pre_task",
+        "admissible": admissible,
+        "encounter_surface": "seed_appended_comment_region",
+        "requires_transition": mode != "direct_detail",
+        "transition_forced_by_task": transition_forced_by_task,
+        "requires_exact_comment_region": True,
+        "exact_comment_region_forced_by_task": exact_comment_region_forced,
+        "requires_runtime_hook": runtime_hook_available and not exact_comment_region_forced,
+    }
+    if not admissible:
+        base["reason"] = "unanchored_appended_comment_surface"
+    return base
+
+
+def _is_unanchored_appended_comment_surface(
+    *,
+    site: str,
+    kind: str,
+    editor_method: str,
+    target_surface_id: str,
+) -> bool:
+    # Reddit comments are appended to an existing submission thread. The
+    # benign task can force the agent to the submission page, or even into a
+    # reply flow, without forcing it through this newly seeded sibling comment.
+    return (
+        site == "reddit"
+        and kind in {"reddit_submission", "reddit_dashboard_list"}
+        and editor_method == "create_comment"
+        and target_surface_id == "comment.body"
+    )
+
+
 def _eligibility_from_capabilities(
     seed_capability: Mapping[str, Any],
     phase4_exposure: Mapping[str, Any],
@@ -515,6 +591,10 @@ def _eligibility_from_capabilities(
 
 def _transition_forced_by_task(resource: Mapping[str, Any]) -> bool:
     return resource.get("transition_forced_by_task") is True
+
+
+def _exact_comment_region_forced_by_task(resource: Mapping[str, Any]) -> bool:
+    return resource.get("exact_comment_region_forced_by_task") is True
 
 
 def _phase4_runtime_hook_available(resource: Mapping[str, Any]) -> bool:

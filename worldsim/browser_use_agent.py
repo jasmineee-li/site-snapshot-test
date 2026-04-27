@@ -1118,6 +1118,60 @@ def _storage_state_context_value(path: Path, *, runtime_dir: Path | None = None)
     return str(target.resolve())
 
 
+def _storage_state_cdp_cookie_params(path: str | Path) -> list[dict[str, Any]]:
+    payload, error = read_storage_state_payload(Path(path))
+    if error is not None:
+        raise AuthArtifactMissingError(error)
+    cookies = payload.get("cookies")
+    if not isinstance(cookies, list):
+        return []
+
+    out: list[dict[str, Any]] = []
+    for cookie in cookies:
+        if not isinstance(cookie, dict):
+            continue
+        name = cookie.get("name")
+        value = cookie.get("value")
+        if not isinstance(name, str) or not isinstance(value, str):
+            continue
+        item: dict[str, Any] = {"name": name, "value": value}
+        for key in ("domain", "path", "sameSite"):
+            raw = cookie.get(key)
+            if isinstance(raw, str) and raw:
+                item[key] = raw
+        for key in ("secure", "httpOnly"):
+            raw = cookie.get(key)
+            if isinstance(raw, bool):
+                item[key] = raw
+        expires = cookie.get("expires")
+        if isinstance(expires, int | float) and expires not in (0, 0.0, -1, -1.0):
+            item["expires"] = expires
+        out.append(item)
+    return out
+
+
+async def _restore_external_cdp_storage_state(session: Any, storage_state_path: str | Path) -> None:
+    """Apply storage_state cookies after a CDP task target exists.
+
+    Browser Use's StorageStateWatchdog restores cookies on BrowserConnectedEvent.
+    In external-CDP PVPO mode that event can fire before an agent-focus target
+    exists, so BrowserSession._cdp_set_cookies returns early. Re-applying after
+    WorldSim creates the task-owned target makes auth deterministic.
+    """
+
+    cookies = _storage_state_cdp_cookie_params(storage_state_path)
+    if not cookies:
+        return
+    cdp_client = getattr(session, "cdp_client", None)
+    storage_sender = getattr(getattr(cdp_client, "send", None), "Storage", None)
+    set_cookies = getattr(storage_sender, "setCookies", None)
+    if not callable(set_cookies):
+        raise AuthArtifactMissingError(
+            "external CDP session does not expose Storage.setCookies for storage_state auth"
+        )
+    await set_cookies(params={"cookies": cookies})
+
+
 def _pvpo_cdp_timeout_s() -> float:
     raw = os.environ.get(_PVPO_CDP_TIMEOUT_ENV, "").strip()
     if not raw:
@@ -1445,13 +1499,17 @@ class BrowserUseAgent:
                 "open multiple start_urls because new-tab first requests may precede "
                 "CDP Fetch attachment"
             )
-        self._preserve_remote_auth_state = "storage_state" in session_auth_kwargs
-
         # PVPO integration: Phase 4 binds each worker to its own chrome-
         # headless-shell endpoint via the instance config. The shared global
         # WORLDSIM_PVPO_CDP_URL path is intentionally removed.
         resolved_pvpo_cdp_url = _resolve_pvpo_cdp_url(pvpo_cdp_url or "")
         self._pvpo_cdp_url = resolved_pvpo_cdp_url
+        self._preserve_remote_auth_state = "storage_state" in session_auth_kwargs
+        external_cdp_storage_state = (
+            session_auth_kwargs.get("storage_state")
+            if resolved_pvpo_cdp_url and isinstance(session_auth_kwargs.get("storage_state"), str)
+            else None
+        )
         session_kwargs: dict[str, Any] = {
             "headless": self.headless,
             "keep_alive": False,
@@ -1499,6 +1557,10 @@ class BrowserUseAgent:
         try:
             if self._pvpo_cdp_url:
                 await self._reset_remote_browser_for_task(self._session)
+                if external_cdp_storage_state:
+                    await _restore_external_cdp_storage_state(
+                        self._session, external_cdp_storage_state
+                    )
 
             # Run any deferred auth actions (e.g. future form_login flow) after
             # session.start() succeeds and after any remote-browser reset has

@@ -767,6 +767,54 @@ async def test_reset_remote_browser_for_task_preserves_storage_state_auth():
 
 
 @pytest.mark.asyncio
+async def test_restore_external_cdp_storage_state_sets_cookies_after_target_exists(tmp_path):
+    state = tmp_path / "storage_state.json"
+    state.write_text(
+        json.dumps(
+            {
+                "cookies": [
+                    {
+                        "name": "_gitlab_session",
+                        "value": "signed",
+                        "domain": "172.17.0.1",
+                        "path": "/",
+                        "expires": -1,
+                        "httpOnly": True,
+                        "secure": False,
+                        "sameSite": "Lax",
+                    }
+                ],
+                "origins": [{"origin": "http://172.17.0.1:8203"}],
+            }
+        )
+    )
+    set_cookies = AsyncMock()
+    session = SimpleNamespace(
+        cdp_client=SimpleNamespace(
+            send=SimpleNamespace(Storage=SimpleNamespace(setCookies=set_cookies))
+        )
+    )
+
+    await browser_use_agent._restore_external_cdp_storage_state(session, state)
+
+    set_cookies.assert_awaited_once()
+    params = set_cookies.await_args.kwargs["params"]
+    assert params == {
+        "cookies": [
+            {
+                "name": "_gitlab_session",
+                "value": "signed",
+                "domain": "172.17.0.1",
+                "path": "/",
+                "httpOnly": True,
+                "secure": False,
+                "sameSite": "Lax",
+            }
+        ]
+    }
+
+
+@pytest.mark.asyncio
 async def test_cleanup_external_cdp_state_clears_storage_state_auth_after_task():
     agent = browser_use_agent.BrowserUseAgent(llm=object())
     agent._pvpo_cdp_url = "http://127.0.0.1:9222"
@@ -871,6 +919,8 @@ async def test_run_storage_state_remote_pvpo_reaches_session_start(monkeypatch, 
         "_reset_remote_browser_for_task",
         AsyncMock(),
     )
+    restore = AsyncMock()
+    monkeypatch.setattr(browser_use_agent, "_restore_external_cdp_storage_state", restore)
     monkeypatch.setattr(
         browser_use_agent._NetworkTraceRecorder,
         "start",
@@ -902,6 +952,9 @@ async def test_run_storage_state_remote_pvpo_reaches_session_start(monkeypatch, 
 
     assert result.status == "success"
     runner._reset_remote_browser_for_task.assert_awaited_once()
+    restore.assert_awaited_once()
+    assert restore.await_args.args[0] is runner._reset_remote_browser_for_task.await_args.args[0]
+    assert restore.await_args.args[1] == "/tmp/state.json"
 
 
 @pytest.mark.asyncio

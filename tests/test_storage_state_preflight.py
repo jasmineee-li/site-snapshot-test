@@ -13,6 +13,7 @@ from worldsim.storage_state_preflight import (
     ensure_storage_state,
     find_host_bound_storage_state_mismatches,
     inspect_storage_state_preflight,
+    storage_state_is_fresh,
     write_storage_state_meta,
 )
 
@@ -395,7 +396,21 @@ def test_ensure_storage_state_raises_when_artifact_is_stale_and_auto_mint_disabl
         )
 
 
-def test_ensure_storage_state_auto_mint_uses_current_sitespec_shape(
+def test_storage_state_is_fresh_rejects_old_validator_version(tmp_path: Path) -> None:
+    from worldsim.phases import phase_0d_auth_bootstrap as bootstrap
+
+    state_path = tmp_path / "gitlab-state.json"
+    _write_storage_state(state_path, domain="3.12.221.9")
+    write_storage_state_meta(
+        state_path,
+        mechanism="test",
+        validator_version=bootstrap.CURRENT_VALIDATOR_VERSION - 1,
+    )
+
+    assert storage_state_is_fresh(state_path) is False
+
+
+def test_ensure_storage_state_auto_mint_reacquires_per_instance_artifact(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     import asyncio
@@ -439,20 +454,24 @@ def test_ensure_storage_state_auto_mint_uses_current_sitespec_shape(
     )
 
     captured: dict[str, object] = {}
+    fresh_path = (
+        state_dir
+        / "phase_0d"
+        / "gitlab"
+        / "instances"
+        / bootstrap.phase_0d_instance_id(instance.model_dump())
+        / "storage_state.json"
+    )
 
-    async def fake_bootstrap_via_form_login(*, spec, site_url, output_path):
-        captured["site_name"] = spec.site_name
-        captured["mech_type"] = spec.mech_type
-        captured["declared_path"] = spec.declared_path
-        captured["per_task_refresh"] = spec.per_task_refresh
-        captured["agent_context_source"] = spec.agent_context_source
-        captured["site_url"] = site_url
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(
-            json.dumps({"cookies": [{"name": "session"}], "origins": []}), encoding="utf-8"
-        )
+    async def fake_reacquire_storage_state(*, site_name, instance, benchmark_root):
+        captured["site_name"] = site_name
+        captured["site_url"] = instance["site_url"]
+        captured["benchmark_root"] = benchmark_root
+        fresh_path.parent.mkdir(parents=True, exist_ok=True)
+        _write_storage_state(fresh_path, domain="3.12.221.9")
+        return fresh_path
 
-    monkeypatch.setattr(bootstrap, "_bootstrap_via_form_login", fake_bootstrap_via_form_login)
+    monkeypatch.setattr(bootstrap, "reacquire_storage_state", fake_reacquire_storage_state)
 
     result = asyncio.run(
         ensure_storage_state(
@@ -462,14 +481,11 @@ def test_ensure_storage_state_auto_mint_uses_current_sitespec_shape(
         )
     )
 
-    assert result == state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    assert result == fresh_path
     assert captured == {
         "site_name": "gitlab",
-        "mech_type": "form_login",
-        "declared_path": "",
-        "per_task_refresh": False,
-        "agent_context_source": benchmark_root / "phase_0c" / "gitlab" / "AGENT_CONTEXT.json",
         "site_url": "http://3.12.221.9:8023",
+        "benchmark_root": benchmark_root,
     }
 
 
@@ -508,12 +524,22 @@ def test_ensure_storage_state_auto_mints_missing_webarena_artifact(
         },
     )
 
-    async def fake_bootstrap_via_form_login(*, spec, site_url, output_path):
-        _ = spec, site_url
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        _write_storage_state(output_path, domain="3.12.221.9")
+    fresh_path = (
+        state_dir
+        / "phase_0d"
+        / "gitlab"
+        / "instances"
+        / bootstrap.phase_0d_instance_id(instance.model_dump())
+        / "storage_state.json"
+    )
 
-    monkeypatch.setattr(bootstrap, "_bootstrap_via_form_login", fake_bootstrap_via_form_login)
+    async def fake_reacquire_storage_state(*, site_name, instance, benchmark_root):
+        _ = site_name, instance, benchmark_root
+        fresh_path.parent.mkdir(parents=True, exist_ok=True)
+        _write_storage_state(fresh_path, domain="3.12.221.9")
+        return fresh_path
+
+    monkeypatch.setattr(bootstrap, "reacquire_storage_state", fake_reacquire_storage_state)
 
     result = asyncio.run(
         ensure_storage_state(
@@ -523,7 +549,7 @@ def test_ensure_storage_state_auto_mints_missing_webarena_artifact(
         )
     )
 
-    assert result == state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    assert result == fresh_path
     report = inspect_storage_state_preflight([instance], benchmark_root=tmp_path / "bench")
     assert report.errors == ()
     assert report.mismatches == ()

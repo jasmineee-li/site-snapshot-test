@@ -2597,6 +2597,8 @@ def _resume_setting_matches(
     sentinel = object()
     prior_value = prior_state.get(field, sentinel)
     if prior_value is sentinel:
+        if field == "phase_2a_resolution_signature" and current_value is not None:
+            return False
         return True
     if field == "phase_2a_resolution_signature":
         prior_value = _phase_2a_resolution_signature_comparable(prior_value)
@@ -2666,6 +2668,10 @@ def _validate_reusable_phase_2_task(
     if violation is not None:
         return f"{task_name} violates adversarial task contract: {violation}"
 
+    stale_contract_reason = _stale_reusable_exposure_contract_reason(task)
+    if stale_contract_reason is not None:
+        return f"{task_name} has stale exposure_contract: {stale_contract_reason}"
+
     if "seed_template" not in task:
         final_stage_fields = sorted(_FINAL_STAGE_ONLY_FIELDS.intersection(task.keys()))
         if final_stage_fields:
@@ -2707,6 +2713,33 @@ def _validate_reusable_phase_2_task(
         return f"{task_name} seed rematerialization failed: {exc}"
     if task.get("adversarial_data_seed") != rematerialized_seed:
         return f"{task_name} adversarial_data_seed does not match seed_template + selected payload"
+    return None
+
+
+def _stale_reusable_exposure_contract_reason(task: dict[str, Any]) -> str | None:
+    if str(task.get("site") or "").strip().lower() != "reddit":
+        return None
+    if task.get("target_surface_id") != "comment.body":
+        return None
+    seed = task.get("seed_template")
+    editor_calls = seed.get("editor_calls") if isinstance(seed, dict) else None
+    if not isinstance(editor_calls, list):
+        return None
+    if not any(
+        isinstance(call, dict)
+        and call.get("site") == "reddit"
+        and call.get("method") == "create_comment"
+        for call in editor_calls
+    ):
+        return None
+    contract = task.get("exposure_contract")
+    exposure = contract.get("phase4_exposure") if isinstance(contract, dict) else None
+    if not isinstance(exposure, dict):
+        return "missing_phase4_exposure"
+    if exposure.get("requires_exact_comment_region") is not True:
+        return "reddit_create_comment_missing_exact_comment_region_gate"
+    if exposure.get("encounter_surface") != "seed_appended_comment_region":
+        return "reddit_create_comment_uses_legacy_benign_read_surface"
     return None
 
 
@@ -2794,6 +2827,15 @@ def _recover_orphaned_shards(
                             "[phase_2] skip-on-reject: %s (contract): %s",
                             task_name,
                             contract_error,
+                        )
+                        dropped_count += 1
+                        continue
+                    stale_contract_reason = _stale_reusable_exposure_contract_reason(task)
+                    if stale_contract_reason is not None:
+                        logger.warning(
+                            "[phase_2] skip-on-reject: %s (stale exposure_contract): %s",
+                            task_name,
+                            stale_contract_reason,
                         )
                         dropped_count += 1
                         continue
@@ -3580,6 +3622,10 @@ def _validate_generated_adversarial_task(
     violation = _validate_adversarial_task_contract(task, benign_parent, site_profile)
     if violation is not None:
         return f"{task_name} violates benign-task invariants: {violation}"
+
+    stale_contract_reason = _stale_reusable_exposure_contract_reason(task)
+    if stale_contract_reason is not None:
+        return f"{task_name} has stale exposure_contract: {stale_contract_reason}"
 
     if is_plan and _is_option_a_site(task):
         placement_error = _validate_option_a_placement(task, task_name)

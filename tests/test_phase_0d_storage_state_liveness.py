@@ -3,16 +3,16 @@
 Covers the composition rule of :func:`_load_or_mint_storage_state`:
 
 - Cache hit within SOFT_TTL skips the live probe and returns the cached state.
-- Cache hit outside SOFT_TTL probes the editor; alive -> reuse + bump
+- Cache hit outside SOFT_TTL probes the storage_state browser session; alive -> reuse + bump
   ``last_validated_at``; dead -> re-mint via ``reacquire_storage_state``.
 - ``WORLDSIM_STORAGE_STATE_FORCE_REMINT`` bypasses the cache entirely.
 - A sidecar with a stale ``validator_version`` forces re-mint.
-- Reddit's ``probe_authenticated`` returns True without any HTTP call (its
+- Reddit's ``probe_authenticated`` remains True without any HTTP call (its
   per-request header auth cannot go stale).
 
-The gitlab probe itself is exercised by a single focused test that mocks
-``session.get`` for ``/api/v4/user`` and asserts the 200 / 302-to-sign_in
-mapping.
+The GitLab storage_state browser probe is exercised by a single focused test
+that mocks ``session.get`` for ``/-/profile`` and asserts the 200 /
+302-to-sign_in mapping.
 """
 
 from __future__ import annotations
@@ -110,7 +110,7 @@ def test_cache_hit_within_ttl_skips_probe(tmp_path: Path, monkeypatch: pytest.Mo
         remint_calls.append(site_name)
         raise AssertionError("re-mint must not run on a fresh cache hit")
 
-    monkeypatch.setattr(GitlabEditor, "probe_authenticated", fail_probe, raising=True)
+    monkeypatch.setattr(bootstrap, "_storage_state_browser_liveness_check", fail_probe)
     monkeypatch.setattr(bootstrap, "reacquire_storage_state", fail_remint)
 
     result = asyncio.run(bootstrap._load_or_mint_storage_state(_INSTANCE))
@@ -135,8 +135,8 @@ def test_cache_hit_outside_ttl_runs_probe_and_returns_when_alive(
     probe_calls: list[str] = []
     remint_calls: list[str] = []
 
-    def alive_probe(self: Any) -> bool:
-        probe_calls.append(self.site_name)
+    def alive_probe(site_name: str, _instance: dict[str, Any], _session: Any) -> bool:
+        probe_calls.append(site_name)
         return True
 
     async def fail_remint(
@@ -145,7 +145,7 @@ def test_cache_hit_outside_ttl_runs_probe_and_returns_when_alive(
         remint_calls.append(site_name)
         raise AssertionError("re-mint must not run when the live probe says alive")
 
-    monkeypatch.setattr(GitlabEditor, "probe_authenticated", alive_probe, raising=True)
+    monkeypatch.setattr(bootstrap, "_storage_state_browser_liveness_check", alive_probe)
     monkeypatch.setattr(bootstrap, "reacquire_storage_state", fail_remint)
 
     result = asyncio.run(bootstrap._load_or_mint_storage_state(_INSTANCE))
@@ -174,8 +174,8 @@ def test_cache_hit_outside_ttl_re_mints_when_probe_fails(
     probe_calls: list[str] = []
     remint_calls: list[str] = []
 
-    def dead_probe(self: Any) -> bool:
-        probe_calls.append(self.site_name)
+    def dead_probe(site_name: str, _instance: dict[str, Any], _session: Any) -> bool:
+        probe_calls.append(site_name)
         return False
 
     async def fake_remint(
@@ -184,7 +184,7 @@ def test_cache_hit_outside_ttl_re_mints_when_probe_fails(
         remint_calls.append(site_name)
         return fresh_path
 
-    monkeypatch.setattr(GitlabEditor, "probe_authenticated", dead_probe, raising=True)
+    monkeypatch.setattr(bootstrap, "_storage_state_browser_liveness_check", dead_probe)
     monkeypatch.setattr(bootstrap, "reacquire_storage_state", fake_remint)
 
     result = asyncio.run(bootstrap._load_or_mint_storage_state(_INSTANCE))
@@ -216,7 +216,7 @@ def test_force_remint_env_var_overrides_cache(
         remint_calls.append(site_name)
         return fresh_path
 
-    monkeypatch.setattr(GitlabEditor, "probe_authenticated", fail_probe, raising=True)
+    monkeypatch.setattr(bootstrap, "_storage_state_browser_liveness_check", fail_probe)
     monkeypatch.setattr(bootstrap, "reacquire_storage_state", fake_remint)
     monkeypatch.setenv(bootstrap.FORCE_REMINT_ENV, "true")
 
@@ -256,7 +256,7 @@ def test_validator_version_mismatch_re_mints(
         remint_calls.append(site_name)
         return fresh_path
 
-    monkeypatch.setattr(GitlabEditor, "probe_authenticated", fail_probe, raising=True)
+    monkeypatch.setattr(bootstrap, "_storage_state_browser_liveness_check", fail_probe)
     monkeypatch.setattr(bootstrap, "reacquire_storage_state", fake_remint)
 
     result = asyncio.run(bootstrap._load_or_mint_storage_state(_INSTANCE))
@@ -280,7 +280,7 @@ def test_reddit_probe_always_true() -> None:
     assert editor.probe_authenticated() is True
 
 
-def test_gitlab_probe_maps_status_codes(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_gitlab_storage_state_browser_probe_maps_status_codes() -> None:
     """200 -> True; 302 to /users/sign_in -> False (no other plumbing tested)."""
     captured_calls: list[tuple[str, dict[str, Any]]] = []
 
@@ -292,8 +292,6 @@ def test_gitlab_probe_maps_status_codes(monkeypatch: pytest.MonkeyPatch) -> None
 
         return _Session()
 
-    monkeypatch.setattr(GitlabEditor, "_build_headers", lambda self, *, mechanism: {})
-
     instance = {"site_name": "gitlab", "site_url": "http://gitlab.test"}
 
     ok = SimpleNamespace(
@@ -301,14 +299,22 @@ def test_gitlab_probe_maps_status_codes(monkeypatch: pytest.MonkeyPatch) -> None
         headers={},
         raise_for_status=lambda: None,
     )
-    editor_alive = GitlabEditor(instance, make_session(ok))  # type: ignore[arg-type]
-    assert editor_alive.probe_authenticated() is True
-    assert captured_calls[-1][0] == "http://gitlab.test/api/v4/user"
+    assert (
+        bootstrap._storage_state_browser_liveness_check(  # type: ignore[arg-type]
+            "gitlab", instance, make_session(ok)
+        )
+        is True
+    )
+    assert captured_calls[-1][0] == "http://gitlab.test/-/profile"
 
     redirect = SimpleNamespace(
         status_code=302,
         headers={"Location": "http://gitlab.test/users/sign_in"},
         raise_for_status=lambda: None,
     )
-    editor_dead = GitlabEditor(instance, make_session(redirect))  # type: ignore[arg-type]
-    assert editor_dead.probe_authenticated() is False
+    assert (
+        bootstrap._storage_state_browser_liveness_check(  # type: ignore[arg-type]
+            "gitlab", instance, make_session(redirect)
+        )
+        is False
+    )

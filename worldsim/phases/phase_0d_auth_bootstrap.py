@@ -93,7 +93,7 @@ logger = logging.getLogger(__name__)
 # Bumped whenever ``probe_authenticated`` semantics or the meta-sidecar
 # liveness fields change. Older sidecars with a smaller value force re-mint
 # even when the input hash and TTL would otherwise allow reuse.
-CURRENT_VALIDATOR_VERSION = 1
+CURRENT_VALIDATOR_VERSION = 2
 
 # Skip the live ``probe_authenticated`` call when the sidecar's
 # ``last_validated_at`` is fresher than this. 30 minutes is conservative
@@ -1447,13 +1447,17 @@ def _liveness_check_passes(
                 return True
 
     session = _load_session_from_storage_state(artifact_path)
-    editor = _editor_for_probe(site_name, instance, session)
-    if editor is None:
-        return True
-    try:
-        alive = editor.probe_authenticated()
-    except NotImplementedError:
-        return True
+    browser_alive = _storage_state_browser_liveness_check(site_name, instance, session)
+    if browser_alive is None:
+        editor = _editor_for_probe(site_name, instance, session)
+        if editor is None:
+            return True
+        try:
+            alive = editor.probe_authenticated()
+        except NotImplementedError:
+            return True
+    else:
+        alive = browser_alive
     if alive:
         update_storage_state_meta_validation(
             artifact_path,
@@ -1461,6 +1465,40 @@ def _liveness_check_passes(
             validator_version=CURRENT_VALIDATOR_VERSION,
         )
     return alive
+
+
+def _storage_state_browser_liveness_check(
+    site_name: str,
+    instance: dict[str, Any],
+    session: requests.Session,
+) -> bool | None:
+    """Return browser-cookie liveness for storage_state-backed sites.
+
+    Editor probes often use API tokens or request headers. That proves the
+    editor can mutate data, not that a Browser Use page loaded with
+    ``storage_state`` is authenticated. GitLab needs a UI probe because its
+    PAT and Rails session cookie fail independently.
+    """
+
+    site = str(site_name or "").strip().lower()
+    site_url = str(instance.get("site_url") or "").rstrip("/")
+    if site != "gitlab" or not site_url:
+        return None
+    response = session.get(
+        f"{site_url}/-/profile",
+        timeout=10,
+        allow_redirects=False,
+    )
+    if response.status_code == 200:
+        return True
+    if response.status_code in {401, 403}:
+        return False
+    if 300 <= response.status_code < 400:
+        location = response.headers.get("Location") or ""
+        if "/users/sign_in" in location or "/login" in location:
+            return False
+    response.raise_for_status()
+    return False
 
 
 async def _load_or_mint_storage_state(
