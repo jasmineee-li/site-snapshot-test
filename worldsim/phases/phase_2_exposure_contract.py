@@ -28,6 +28,7 @@ PREFERRED_PAYLOAD_ARGS: tuple[str, ...] = ("body", "description", "message", "te
 PREFERRED_TOKEN_ORDER: tuple[str, ...] = (
     "{benign_project_id}",
     "{benign_project_path}",
+    "{benign_label_names}",
     "{benign_issue_iid}",
     "{benign_mr_iid}",
     "{benign_milestone_iid}",
@@ -68,7 +69,7 @@ CREATE_CHILD_LISTING_KINDS = frozenset({"reddit_forum"})
 def exposure_contract_signature() -> dict[str, Any]:
     """Fingerprint knobs whose change invalidates persisted Phase 2 plans."""
     return {
-        "version": 9,
+        "version": 14,
         "modes": [
             "direct_detail",
             "inline_listing",
@@ -84,7 +85,10 @@ def exposure_contract_signature() -> dict[str, Any]:
         "surface_visibility_preference": ["always_shown", "conditional"],
         "core_surface_policy": "path_a_canonical_core_ugc",
         "created_child_target_source": "seed_metadata.created_resource.url",
-        "appended_comment_exposure_policy": "requires_exact_comment_region_or_runtime_hook",
+        "appended_comment_exposure_policy": "gitlab_and_reddit_require_exact_comment_region_or_runtime_hook",
+        "visible_listing_title_preference": "prefer_payload_in_created_child_title_rows_when_rich_route_unproven",
+        "surface_route_metadata": "entry_seed_transition_capacity_v2",
+        "surface_candidate_policy": "enumerate_then_select_best_eligible_route",
     }
 
 
@@ -157,6 +161,7 @@ def build_exposure_contract(
         return base
 
     available = available_tokens_for_kind(kind, anchors, benchmark=benchmark, site=site)
+    candidates: list[dict[str, Any]] = []
     for spec in _viable_specs(
         kind,
         site=site,
@@ -164,69 +169,29 @@ def build_exposure_contract(
         available=available,
         surface_visibility_by_id=surface_visibility_by_id,
     ):
-        template = _editor_args_template(
-            spec,
-            available=available,
-            benign_task_id=benign_task_id,
-        )
-        if template is None:
-            continue
-        payload_arg = template.pop("__payload_arg__")
-        editor_surface_id = spec.surface_id_per_kind.get(kind, spec.method)
-        target_surface_id = canonical_core_surface(site, editor_surface_id)
-        if not is_core_surface(site, target_surface_id):
-            base.update(
-                {
-                    "mode": mode,
-                    "editor_method": spec.method,
-                    "target_surface_id": target_surface_id or editor_surface_id,
-                    "required_tokens": sorted(available),
-                    "seed_capability": {
-                        "status": "unsupported",
-                        "reason": "non_core_surface",
-                    },
-                    "phase4_exposure": _phase4_exposure_capability(
-                        "ineligible",
-                        reason="non_core_surface",
-                    ),
-                    "eligibility": {
-                        "status": "ineligible",
-                        "reason": "non_core_surface",
-                    },
-                }
-            )
-            if target_surface_id != editor_surface_id:
-                base["editor_surface_id"] = editor_surface_id
-            return base
-        verification = _verification_contract(resource, mode, base["benign_read_url"], kind)
-        seed_capability = _seed_capability(spec, payload_arg, target_surface_id)
-        phase4_exposure = _phase4_exposure_for_seeded_surface(
-            mode=mode,
-            site=site,
-            kind=kind,
-            editor_method=spec.method,
-            target_surface_id=target_surface_id,
+        candidate = _surface_candidate(
             resource=resource,
+            base_mode=mode,
+            benign_task_id=benign_task_id,
+            benign_read_url=base["benign_read_url"],
+            kind=kind,
+            site=site,
+            available=available,
+            spec=spec,
         )
-        base.update(
-            {
-                "mode": mode,
-                "editor_method": spec.method,
-                "target_surface_id": target_surface_id,
-                "payload_arg": payload_arg,
-                "editor_args_template": template,
-                "required_tokens": sorted(available),
-                "verification": verification,
-                "seed_capability": seed_capability,
-                "phase4_exposure": phase4_exposure,
-                "eligibility": _eligibility_from_capabilities(
-                    seed_capability,
-                    phase4_exposure,
-                ),
-            }
-        )
-        if target_surface_id != editor_surface_id:
-            base["editor_surface_id"] = editor_surface_id
+        if candidate is not None:
+            candidates.append(candidate)
+
+    if candidates:
+        selected = min(candidates, key=_candidate_selection_rank)
+        base.update(selected)
+        base["surface_candidates"] = [_candidate_summary(candidate) for candidate in candidates]
+        if base.get("target_surface_id") != base.get("editor_surface_id"):
+            base["editor_surface_id"] = base.get("editor_surface_id")
+        elif "editor_surface_id" in base and base.get("target_surface_id") == base.get(
+            "editor_surface_id"
+        ):
+            base.pop("editor_surface_id", None)
         return base
 
     base["mode"] = mode
@@ -412,6 +377,176 @@ def _mode_for_resource(resource: Mapping[str, Any], kind: str) -> tuple[str, str
     return "ineligible", f"kind_not_supported_for_exposure:{kind}"
 
 
+def _surface_candidate(
+    *,
+    resource: Mapping[str, Any],
+    base_mode: str,
+    benign_task_id: str,
+    benign_read_url: str,
+    kind: str,
+    site: str,
+    available: frozenset[str],
+    spec: EditorMethodSpec,
+) -> dict[str, Any] | None:
+    template = _editor_args_template(
+        spec,
+        available=available,
+        benign_task_id=benign_task_id,
+    )
+    if template is None:
+        return None
+    payload_arg = template.pop("__payload_arg__")
+    editor_surface_id = spec.surface_id_per_kind.get(kind, spec.method)
+    target_surface_id = canonical_core_surface(site, editor_surface_id)
+    effective_mode = _effective_mode_for_seeded_surface(
+        base_mode=base_mode,
+        site=site,
+        kind=kind,
+        editor_method=spec.method,
+        target_surface_id=target_surface_id,
+    )
+    if not is_core_surface(site, target_surface_id):
+        phase4_exposure = _phase4_exposure_capability(
+            "ineligible",
+            reason="non_core_surface",
+        )
+        seed_capability: dict[str, Any] = {
+            "status": "unsupported",
+            "reason": "non_core_surface",
+        }
+        eligibility = {
+            "status": "ineligible",
+            "reason": "non_core_surface",
+        }
+        route = _surface_route_metadata(
+            resource=resource,
+            mode=effective_mode,
+            kind=kind,
+            target_surface_id=target_surface_id or editor_surface_id,
+            phase4_exposure=phase4_exposure,
+        )
+        candidate: dict[str, Any] = {
+            "mode": effective_mode,
+            "editor_method": spec.method,
+            "target_surface_id": target_surface_id or editor_surface_id,
+            "editor_surface_id": editor_surface_id,
+            "required_tokens": sorted(available),
+            "seed_capability": seed_capability,
+            "phase4_exposure": phase4_exposure,
+            "surface_route": route,
+            "eligibility": eligibility,
+        }
+        return candidate
+
+    verification = _verification_contract(resource, effective_mode, benign_read_url, kind)
+    seed_capability = _seed_capability(spec, payload_arg, target_surface_id)
+    phase4_exposure = _phase4_exposure_for_seeded_surface(
+        mode=effective_mode,
+        site=site,
+        kind=kind,
+        editor_method=spec.method,
+        target_surface_id=target_surface_id,
+        resource=resource,
+    )
+    return {
+        "mode": effective_mode,
+        "editor_method": spec.method,
+        "target_surface_id": target_surface_id,
+        "editor_surface_id": editor_surface_id,
+        "payload_arg": payload_arg,
+        "editor_args_template": template,
+        "required_tokens": sorted(available),
+        "verification": verification,
+        "seed_capability": seed_capability,
+        "phase4_exposure": phase4_exposure,
+        "surface_route": _surface_route_metadata(
+            resource=resource,
+            mode=effective_mode,
+            kind=kind,
+            target_surface_id=target_surface_id,
+            phase4_exposure=phase4_exposure,
+        ),
+        "eligibility": _eligibility_from_capabilities(seed_capability, phase4_exposure),
+    }
+
+
+def _effective_mode_for_seeded_surface(
+    *,
+    base_mode: str,
+    site: str,
+    kind: str,
+    editor_method: str,
+    target_surface_id: str | None,
+) -> str:
+    """Return the encounter route for the selected seeded surface.
+
+    Listing-level resources can support multiple write surfaces. A created
+    title is paint-visible on the listing row; a created body is only visible
+    after opening the child detail page. Keeping this distinction here prevents
+    the old false-admission failure where a body/comment was treated like a
+    listing-row title.
+    """
+    if target_surface_id in {"submission.body", "issue.description", "mr.description"}:
+        if base_mode in {"inline_listing", "inline_listing_created_child"} and (
+            _creates_child_detail_surface(site=site, kind=kind, editor_method=editor_method)
+        ):
+            return "bounded_transitive_created_child"
+    return base_mode
+
+
+def _creates_child_detail_surface(*, site: str, kind: str, editor_method: str) -> bool:
+    if site == "reddit" and kind == "reddit_forum" and editor_method == "create_submission":
+        return True
+    if (
+        site == "gitlab"
+        and kind == "gitlab_search_result"
+        and editor_method
+        in {
+            "create_issue_description",
+            "create_mr_description",
+        }
+    ):
+        return True
+    return False
+
+
+def _candidate_selection_rank(candidate: Mapping[str, Any]) -> tuple[int, int, int, str]:
+    eligibility = candidate.get("eligibility")
+    is_eligible = isinstance(eligibility, Mapping) and eligibility.get("status") == "eligible"
+    return (
+        0 if is_eligible else 1,
+        _surface_richness_rank(candidate) if is_eligible else 99,
+        0 if candidate.get("phase4_exposure", {}).get("admissible") is True else 1,
+        str(candidate.get("editor_method") or ""),
+    )
+
+
+def _surface_richness_rank(candidate: Mapping[str, Any]) -> int:
+    route = candidate.get("surface_route")
+    capacity = route.get("content_capacity") if isinstance(route, Mapping) else None
+    if capacity in {"long_body", "comment"}:
+        return 0
+    if capacity == "short_title":
+        return 1
+    return 2
+
+
+def _candidate_summary(candidate: Mapping[str, Any]) -> dict[str, Any]:
+    summary: dict[str, Any] = {
+        "mode": candidate.get("mode"),
+        "editor_method": candidate.get("editor_method"),
+        "target_surface_id": candidate.get("target_surface_id"),
+        "payload_arg": candidate.get("payload_arg"),
+        "eligibility": candidate.get("eligibility"),
+        "phase4_exposure": candidate.get("phase4_exposure"),
+        "surface_route": candidate.get("surface_route"),
+    }
+    editor_surface = candidate.get("editor_surface_id")
+    if editor_surface != candidate.get("target_surface_id"):
+        summary["editor_surface_id"] = editor_surface
+    return summary
+
+
 def _seed_capability(
     spec: EditorMethodSpec,
     payload_arg: str,
@@ -575,14 +710,21 @@ def _is_unanchored_appended_comment_surface(
     editor_method: str,
     target_surface_id: str,
 ) -> bool:
-    # Reddit comments are appended to an existing submission thread. The
-    # benign task can force the agent to the submission page, or even into a
-    # reply flow, without forcing it through this newly seeded sibling comment.
-    return (
+    # Appended discussion entries are not equivalent to the primary read
+    # surface. A benign task can force the agent to an issue/submission page
+    # without forcing it through a newly seeded sibling note/comment.
+    if (
         site == "reddit"
         and kind in {"reddit_submission", "reddit_dashboard_list"}
         and editor_method == "create_comment"
         and target_surface_id == "comment.body"
+    ):
+        return True
+    return (
+        site == "gitlab"
+        and kind in {"gitlab_issue", "gitlab_mr", "gitlab_search_result", "gitlab_dashboard_list"}
+        and editor_method in {"create_issue_note", "create_mr_note"}
+        and target_surface_id == "note.body"
     )
 
 
@@ -602,6 +744,102 @@ def _eligibility_from_capabilities(
             "reason": f"phase4_exposure:{reason}",
         }
     return {"status": "eligible"}
+
+
+def _surface_route_metadata(
+    *,
+    resource: Mapping[str, Any],
+    mode: str,
+    kind: Any,
+    target_surface_id: str | None,
+    phase4_exposure: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Describe why the selected surface is or is not on the agent route.
+
+    This is explanatory metadata only. Eligibility remains owned by
+    ``phase4_exposure`` so richer surfaces cannot become admissible just by
+    carrying a friendly route label.
+    """
+
+    requires_transition = phase4_exposure.get("requires_transition") is True
+    transition_forced = phase4_exposure.get("transition_forced_by_task") is True
+    exact_comment_forced = phase4_exposure.get("exact_comment_region_forced_by_task") is True
+    runtime_hook = phase4_exposure.get("requires_runtime_hook") is True
+    return {
+        "schema_version": 1,
+        "entry_surface": _entry_surface_label(resource, kind),
+        "seed_surface": target_surface_id or "unknown",
+        "mode": mode,
+        "requires_transition": requires_transition,
+        "transition_forced_by_task": transition_forced,
+        "exact_comment_region_forced_by_task": exact_comment_forced,
+        "runtime_hook_required": runtime_hook,
+        "route_evidence": _route_evidence_label(
+            phase4_exposure,
+            requires_transition=requires_transition,
+            transition_forced=transition_forced,
+            exact_comment_forced=exact_comment_forced,
+        ),
+        "content_capacity": _content_capacity_for_surface(target_surface_id),
+        "attack_fit": _attack_fit_for_surface(
+            target_surface_id,
+            phase4_exposure=phase4_exposure,
+        ),
+    }
+
+
+def _entry_surface_label(resource: Mapping[str, Any], kind: Any) -> str:
+    source_kind = resource.get("source_listing_kind")
+    if isinstance(source_kind, str) and source_kind.strip():
+        return source_kind.strip()
+    return str(kind or "unknown")
+
+
+def _route_evidence_label(
+    phase4_exposure: Mapping[str, Any],
+    *,
+    requires_transition: bool,
+    transition_forced: bool,
+    exact_comment_forced: bool,
+) -> str:
+    encounter_surface = str(phase4_exposure.get("encounter_surface") or "unknown")
+    if phase4_exposure.get("admissible") is not True:
+        reason = str(phase4_exposure.get("reason") or "inadmissible")
+        return f"{encounter_surface}: {reason}"
+    if exact_comment_forced:
+        return f"{encounter_surface}: exact discussion region forced by task"
+    if requires_transition:
+        forced = "forced" if transition_forced else "not forced"
+        return f"{encounter_surface}: transition {forced}"
+    return f"{encounter_surface}: visible on entry route"
+
+
+def _content_capacity_for_surface(surface_id: str | None) -> str:
+    if not isinstance(surface_id, str) or not surface_id.strip():
+        return "unknown"
+    suffix = surface_id.rsplit(".", 1)[-1].lower()
+    if suffix in {"title", "name"}:
+        return "short_title"
+    if suffix in {"description", "body", "detail", "sidebar"}:
+        return "long_body"
+    if suffix in {"note", "comment", "message"}:
+        return "comment"
+    return "unknown"
+
+
+def _attack_fit_for_surface(
+    surface_id: str | None,
+    *,
+    phase4_exposure: Mapping[str, Any],
+) -> str:
+    capacity = _content_capacity_for_surface(surface_id)
+    if phase4_exposure.get("admissible") is not True:
+        return "not_admissible"
+    if capacity == "short_title":
+        return "compact_action_required"
+    if capacity in {"long_body", "comment"}:
+        return "rich_text_action_supported"
+    return "unknown"
 
 
 def _transition_forced_by_task(resource: Mapping[str, Any]) -> bool:
@@ -739,6 +977,10 @@ def _surface_visibility_rank(
     if spec.site == "reddit" and kind == "reddit_forum":
         surface_id = spec.surface_id_per_kind.get(kind, spec.method)
         if canonical_core_surface("reddit", surface_id) == "submission.title":
+            return -1
+    if spec.site == "gitlab" and kind == "gitlab_search_result":
+        surface_id = spec.surface_id_per_kind.get(kind, spec.method)
+        if canonical_core_surface("gitlab", surface_id) == "issue.title":
             return -1
     if not isinstance(surface_visibility_by_id, Mapping):
         return 1

@@ -229,9 +229,11 @@ def editor_surface_path(
             submission = first_value(args, anchors, "submission_id")
             if forum and submission:
                 return f"/f/{quote(forum, safe='')}/{quote(submission, safe='')}"
-        if method == "create_submission":
+        if method in {"create_submission", "create_submission_title"}:
             forum = first_value(args, anchors, "forum_name")
             if forum:
+                if method == "create_submission_title":
+                    return f"/f/{quote(forum, safe='')}"
                 return f"/submit/{quote(forum, safe='')}"
         return None
 
@@ -240,6 +242,13 @@ def editor_surface_path(
         if not project_path:
             return None
         project_path = clean_gitlab_project_path(project_path)
+        if method == "create_issue_title":
+            return f"/{project_path}/-/issues"
+        if method == "create_issue_description":
+            # The exact created issue URL is verified later from
+            # seed_metadata.created_resource.url; preflight can only prove the
+            # project issue list is live before the seed exists.
+            return f"/{project_path}/-/issues"
         if method == "create_issue_note":
             issue_iid = first_value(args, anchors, "issue_iid")
             if issue_iid:

@@ -60,6 +60,17 @@ _SAFE_RESEED_PROJECT_PREFIXES: tuple[str, ...] = (
     "webagent-task-",
     "webagent-verify-",
 )
+_GITLAB_ISSUE_TITLE_MAX_CHARS = 255
+
+
+def _append_issue_title_marker(title: str, marker: str) -> str:
+    """Append the visibility marker while staying within GitLab's title cap."""
+    clean_title = str(title).strip()
+    if not marker:
+        return clean_title[:_GITLAB_ISSUE_TITLE_MAX_CHARS]
+    marker_suffix = f" {marker}"
+    title_budget = max(0, _GITLAB_ISSUE_TITLE_MAX_CHARS - len(marker_suffix))
+    return f"{clean_title[:title_budget].rstrip()}{marker_suffix}".strip()
 
 
 def _extract_gitlab_error_messages(response: requests.Response) -> list[str]:
@@ -118,6 +129,8 @@ class GitlabEditor(BaseSiteEditor):
             "create_project",
             "create_group",
             "create_issue",
+            "create_issue_description",
+            "create_issue_title",
             "create_issue_note",
             "create_mr",
             "create_mr_note",
@@ -168,6 +181,8 @@ class GitlabEditor(BaseSiteEditor):
             "create_project": lambda: self._require_args(args, "name_template"),
             "create_group": lambda: self._require_args(args, "name_template"),
             "create_issue": lambda: self._validate_issue_args(args),
+            "create_issue_description": lambda: self._validate_issue_description_args(args),
+            "create_issue_title": lambda: self._validate_issue_title_args(args),
             "create_issue_note": lambda: self._validate_issue_note_args(args),
             "create_mr": lambda: self._validate_merge_request_args(args),
             "create_mr_note": lambda: self._validate_merge_request_note_args(args),
@@ -214,6 +229,8 @@ class GitlabEditor(BaseSiteEditor):
                 ),
                 "issue_iid": 1,
             }
+        if method_name in {"create_issue_description", "create_issue_title"}:
+            return self.preview_context("create_issue", args)
         if method_name == "create_issue_note":
             return {
                 **self.preview_context(
@@ -448,6 +465,7 @@ class GitlabEditor(BaseSiteEditor):
         *,
         title_template: str,
         body_template: str | None = None,
+        labels: str | None = None,
         project_id: Any | None = None,
         project_name_template: str | None = None,
         project_path_template: str | None = None,
@@ -461,10 +479,13 @@ class GitlabEditor(BaseSiteEditor):
         )
         title = str(title_template).strip()
         description = str(body_template or "").strip()
+        json_body = {"title": title, "description": description}
+        if labels is not None and str(labels).strip():
+            json_body["labels"] = str(labels).strip()
         issue = self._gitlab_request_json(
             "POST",
             f"/api/v4/projects/{project['project_id']}/issues",
-            json_body={"title": title, "description": description},
+            json_body=json_body,
         )
         if not isinstance(issue, dict) or issue.get("iid") in (None, ""):
             raise EditorError(
@@ -480,11 +501,103 @@ class GitlabEditor(BaseSiteEditor):
             "project_id": project["project_id"],
             "project_path": project["project_path"],
             "issue_iid": issue_iid,
+            "created_resource": {
+                "role": "seed_render_surface",
+                "kind": "issue",
+                "id": issue.get("id"),
+                "iid": issue_iid,
+                "url": f"{self._site_url()}/{project['project_path']}/-/issues/{issue_iid}",
+                "parent_url": f"{self._site_url()}/{project['project_path']}/-/issues",
+            },
             "read_surface_urls": self._issue_surface_urls(
                 issue, project["project_path"], issue_iid
             ),
             "read_surface_provenance_source": "editor_api_response",
         }
+
+    @editor_method(
+        kinds=frozenset({"gitlab_search_result"}),
+        http=("POST", "/api/v4/projects/{project_id}/issues"),
+        bindings={
+            "title": FreeText(),
+            "labels": Token("{benign_label_names}", required=False),
+            "project_id": SelectorGroup("project", "{benign_project_id}"),
+            "project_path_template": SelectorGroup(
+                "project", "{benign_project_path}", required=False
+            ),
+            "project_name_template": SelectorGroup("project", required=False),
+            "project_description_template": FreeText(required=False),
+        },
+        surface_id_per_kind={"gitlab_search_result": "issue.title"},
+        required_editor_args=("project_id", "title"),
+    )
+    def create_issue_title(
+        self,
+        *,
+        title: str,
+        body: str | None = None,
+        labels: str | None = None,
+        project_id: Any | None = None,
+        project_name_template: str | None = None,
+        project_path_template: str | None = None,
+        project_description_template: str | None = None,
+    ) -> dict[str, Any]:
+        visible_nonce = f"WorldSimMarker-{time.time_ns():x}"
+        seeded_title = _append_issue_title_marker(title, visible_nonce)
+        result = self.create_issue(
+            title_template=seeded_title,
+            body_template=body or "WorldSim seeded issue context.",
+            labels=labels,
+            project_id=project_id,
+            project_name_template=project_name_template,
+            project_path_template=project_path_template,
+            project_description_template=project_description_template,
+        )
+        project_path = result.get("project_path")
+        if isinstance(project_path, str) and project_path.strip():
+            issue_list_path = f"/{project_path.strip('/')}/-/issues"
+            result["read_surface_urls"] = _gitlab_read_surface(
+                {}, [issue_list_path], self._site_url()
+            )
+        return result
+
+    @editor_method(
+        kinds=frozenset({"gitlab_search_result"}),
+        http=("POST", "/api/v4/projects/{project_id}/issues"),
+        bindings={
+            "body": FreeText(),
+            "title": FreeText(required=False),
+            "labels": Token("{benign_label_names}", required=False),
+            "project_id": SelectorGroup("project", "{benign_project_id}"),
+            "project_path_template": SelectorGroup(
+                "project", "{benign_project_path}", required=False
+            ),
+            "project_name_template": SelectorGroup("project", required=False),
+            "project_description_template": FreeText(required=False),
+        },
+        surface_id_per_kind={"gitlab_search_result": "issue.description"},
+        required_editor_args=("project_id", "body"),
+    )
+    def create_issue_description(
+        self,
+        *,
+        body: str,
+        title: str | None = None,
+        labels: str | None = None,
+        project_id: Any | None = None,
+        project_name_template: str | None = None,
+        project_path_template: str | None = None,
+        project_description_template: str | None = None,
+    ) -> dict[str, Any]:
+        return self.create_issue(
+            title_template=title or "WorldSim seeded issue context",
+            body_template=body,
+            labels=labels,
+            project_id=project_id,
+            project_name_template=project_name_template,
+            project_path_template=project_path_template,
+            project_description_template=project_description_template,
+        )
 
     @editor_method(
         kinds=frozenset({"gitlab_issue", "gitlab_search_result", "gitlab_dashboard_list"}),
@@ -1417,6 +1530,14 @@ class GitlabEditor(BaseSiteEditor):
 
     def _validate_issue_args(self, args: dict[str, Any]) -> None:
         self._require_args(args, "title_template")
+        self._require_any_selector(args, *self._PROJECT_SELECTORS)
+
+    def _validate_issue_title_args(self, args: dict[str, Any]) -> None:
+        self._require_args(args, "title")
+        self._require_any_selector(args, *self._PROJECT_SELECTORS)
+
+    def _validate_issue_description_args(self, args: dict[str, Any]) -> None:
+        self._require_args(args, "body")
         self._require_any_selector(args, *self._PROJECT_SELECTORS)
 
     def _validate_issue_note_args(self, args: dict[str, Any]) -> None:

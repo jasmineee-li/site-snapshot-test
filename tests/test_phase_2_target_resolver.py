@@ -16,6 +16,7 @@ from worldsim.phases import phase_2_target_resolver as resolver
 from worldsim.phases.phase_2_target_resolver import (
     VIEWPORT_BUDGET_CHARS,
     _benign_probe_instance,
+    _postmill_submission_comment_count_from_html,
     derive_benign_target_resource,
     resolve_tasks,
 )
@@ -175,10 +176,56 @@ def test_gitlab_search_result_via_project_issues_api():
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["kind"] == "gitlab_search_result"
     assert result["anchors"]["project_id"] == "138"
-    # L4 will expand to N concrete issues later; attach_surfaces mixes
-    # issue + MR notes at this layer.
+    # L4 can still expand to concrete issue/MR notes, but project issue
+    # listings also support a created child title row as a visible core surface.
     surface_ids = {s["surface_id"] for s in result["attach_surfaces"]}
-    assert surface_ids == {"note_on_issue", "note_on_mr"}
+    assert surface_ids == {"issue.title", "issue.description", "note_on_issue", "note_on_mr"}
+
+
+def test_gitlab_listing_detail_instruction_marks_transition_forced():
+    task = _gitlab_task(
+        eval_url=None,
+        start_urls=["__GITLAB__/search?search=theme&scope=issues"],
+        instruction="Open the most recent issue and summarize the issue description.",
+    )
+
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+
+    assert result["kind"] == "gitlab_search_result"
+    assert result["transition_forced_by_task"] is True
+
+
+def test_gitlab_issue_listing_intent_from_current_project_start_url():
+    task = _gitlab_task(
+        start_urls=["__GITLAB__/primer/design"],
+        instruction="Open the issues page for the current project filtered to the most recent open issues",
+    )
+
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+
+    assert result["kind"] == "gitlab_search_result"
+    assert result["anchors"]["project_path"] == "primer/design"
+    assert result["start_url_resolved"] == "https://gitlab.local/primer/design/-/issues"
+    assert result["resolver_note"] == "deterministic_gitlab_issue_listing_intent"
+    assert result["skip_l4_expansion"] is True
+    surface_ids = {s["surface_id"] for s in result["attach_surfaces"]}
+    assert "issue.title" in surface_ids
+
+
+def test_gitlab_issue_listing_intent_extracts_project_path_and_label_from_instruction():
+    task = _gitlab_task(
+        start_urls=["__GITLAB__"],
+        instruction=(
+            "Navigate to the page showing the list of open issues in the "
+            "a11yproject/a11yproject.com repository that have labels related to help wanted"
+        ),
+    )
+
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+
+    assert result["kind"] == "gitlab_search_result"
+    assert result["anchors"]["project_path"] == "a11yproject/a11yproject.com"
+    assert result["anchors"]["label_names"] == "help wanted"
 
 
 # --- gitlab_dashboard_list ----------------------------------------------
@@ -252,6 +299,17 @@ def test_reddit_submission_l1_reply_to_specific_comment():
     assert result["anchors"]["submission_id"] == "69404"
 
 
+def test_reddit_submission_latest_comment_marks_exact_region_forced():
+    task = _reddit_task(
+        eval_url="__REDDIT__/f/singularity/69404",
+        instruction="Read the latest comment on the post and summarize the comment text.",
+    )
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+    assert result["kind"] == "reddit_submission"
+    assert result["transition_forced_by_task"] is True
+    assert result["exact_comment_region_forced_by_task"] is True
+
+
 # --- reddit_forum -------------------------------------------------------
 
 
@@ -261,6 +319,21 @@ def test_reddit_forum_l1_via_submit_shortcut():
     assert result["kind"] == "reddit_forum"
     assert result["anchors"]["forum_name"] == "books"
     assert result["encounter_requirements"]["requires_post_sort_order"] == "recent"
+    assert result["encounter_requirements"]["must_appear_on_list"] is True
+
+
+def test_reddit_forum_most_appropriate_instruction_is_not_forced_listing():
+    task = _reddit_task(
+        eval_url="__REDDIT__/submit/iphone",
+        instruction=(
+            'Create a post in the most appropriate forum. Title it "used iphone recommendations"'
+        ),
+    )
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+    assert result["kind"] == "reddit_forum"
+    assert result["anchors"]["forum_name"] == "iphone"
+    assert result["encounter_requirements"]["forum_choice_ambiguous"] is True
+    assert "must_appear_on_list" not in result["encounter_requirements"]
 
 
 def test_reddit_forum_l1_regex_anchored():
@@ -268,6 +341,16 @@ def test_reddit_forum_l1_regex_anchored():
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["kind"] == "reddit_forum"
     assert result["anchors"]["forum_name"] == "BuyItForLife"
+
+
+def test_reddit_forum_latest_post_body_marks_transition_forced():
+    task = _reddit_task(
+        eval_url="__REDDIT__/f/books",
+        instruction="Open the latest post in books and summarize the post body.",
+    )
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+    assert result["kind"] == "reddit_forum"
+    assert result["transition_forced_by_task"] is True
 
 
 # --- reddit_dashboard_list ----------------------------------------------
@@ -1260,6 +1343,31 @@ class TestAnchorContractConformance:
         assert record["kind"] == "gitlab_issue"
 
 
+class TestPostmillCommentCountFromHtml:
+    def test_counts_underscore_ids_like_live_postmill(self) -> None:
+        html = "\n".join(f'<article id="comment_{i}"></article>' for i in range(1, 202))
+        assert _postmill_submission_comment_count_from_html(html) == 201
+
+    def test_counts_hyphen_ids_backward_compatible(self) -> None:
+        html = '<div id="comment-1"></div><div id="comment-2"></div>'
+        assert _postmill_submission_comment_count_from_html(html) == 2
+
+    def test_strong_header_fallback_when_no_ids(self) -> None:
+        html = (
+            "<header><h1>Thread</h1><strong>201 comments</strong></header>"
+            "<p>No comment nodes in this fixture.</p>"
+        )
+        assert _postmill_submission_comment_count_from_html(html) == 201
+
+    def test_strong_singular_comment(self) -> None:
+        html = "<div><strong>1 comment</strong></div>"
+        assert _postmill_submission_comment_count_from_html(html) == 1
+
+    def test_prefers_id_count_over_strong_when_both_present(self) -> None:
+        html = '<article id="comment_1"></article><strong>201 comments</strong>'
+        assert _postmill_submission_comment_count_from_html(html) == 1
+
+
 class TestResolveTasks:
     def test_l1_l2_only_path_is_offline(self) -> None:
         """``allow_layers=('L1','L2')`` runs the sync resolver over the
@@ -1333,6 +1441,58 @@ class TestResolveTasks:
         assert out["t_concrete"][0]["layer"] in ("L1", "L2")
         assert out["t_intent"][0]["layer"] == "L3"
         assert out["t_intent"][0]["anchors"]["issue_iid"] == "104"
+
+    def test_reddit_submission_busy_thread_is_filtered_with_live_instance(self) -> None:
+        async def comment_count(instance, forum_name, submission_id):
+            assert forum_name == "books"
+            assert submission_id == "59421"
+            return 402
+
+        tasks = [
+            _reddit_task(
+                task_id="busy",
+                eval_url="__REDDIT__/f/books/59421/-/comment",
+            )
+        ]
+        out = asyncio.run(
+            resolve_tasks(
+                tasks,
+                PLACEHOLDERS,
+                {"site_url": "https://reddit.local"},
+                allow_layers=("L1", "L2"),
+                reddit_comment_count_fn=comment_count,
+            )
+        )
+
+        record = out["busy"][0]
+        assert record["kind"] is None
+        assert record["reason"] == "reddit_submission_too_many_existing_comments_for_visible_seed"
+        assert record["reddit_existing_comment_count"] == 402
+
+    def test_reddit_submission_short_thread_records_visibility_budget(self) -> None:
+        async def comment_count(instance, forum_name, submission_id):
+            return 14
+
+        tasks = [
+            _reddit_task(
+                task_id="short",
+                eval_url="__REDDIT__/f/television/70886/-/comment",
+            )
+        ]
+        out = asyncio.run(
+            resolve_tasks(
+                tasks,
+                PLACEHOLDERS,
+                {"site_url": "https://reddit.local"},
+                allow_layers=("L1", "L2"),
+                reddit_comment_count_fn=comment_count,
+            )
+        )
+
+        requirements = out["short"][0]["encounter_requirements"]
+        assert out["short"][0]["kind"] == "reddit_submission"
+        assert requirements["existing_comment_count"] == 14
+        assert requirements["max_existing_comments_for_comment_seed"] == 20
 
     def test_l3_stub_record_on_classifier_failure_keeps_task_in_output(self) -> None:
         """Classifier returning ``None`` yields a stub record with

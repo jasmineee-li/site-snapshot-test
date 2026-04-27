@@ -54,6 +54,16 @@ _LEGACY_ATTACH_SURFACES: dict[str, list[dict[str, object]]] = {
     ],
     "gitlab_search_result": [
         {
+            "surface_id": "issue.title",
+            "attach_method": "create_issue_title",
+            "required_editor_args": ["project_id", "title"],
+        },
+        {
+            "surface_id": "issue.description",
+            "attach_method": "create_issue_description",
+            "required_editor_args": ["project_id", "body"],
+        },
+        {
             "surface_id": "note_on_issue",
             "attach_method": "create_issue_note",
             "required_editor_args": ["project_id", "issue_iid", "body"],
@@ -126,8 +136,8 @@ def _editor_class(benchmark: str, site: str) -> type:
 
 class TestRegistryCoverage:
     def test_expected_method_count(self) -> None:
-        """16 gitlab + 5 reddit = 21 registered methods."""
-        assert len(_REGISTRY) == 21
+        """18 gitlab + 5 reddit = 23 registered methods."""
+        assert len(_REGISTRY) == 23
 
     def test_all_supported_methods_registered(self) -> None:
         for (benchmark, site), cls in EDITOR_REGISTRY.items():
@@ -274,6 +284,6 @@ class TestSerializeRegistrySanity:
         from worldsim.editors._registry import serialize_registry
 
         serialized = serialize_registry()
-        assert len(serialized["specs"]) == 21
+        assert len(serialized["specs"]) == 23
         sites = {(s["benchmark"], s["site"], s["method"]) for s in serialized["specs"]}
         assert sites == set(_REGISTRY.keys())
