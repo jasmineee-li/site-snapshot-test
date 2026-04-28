@@ -184,6 +184,21 @@ stamps the selected host contract into `/home/ubuntu/.env`, builds the local
 compose stack to the local amd64 tags plus the correct
 `WA_ENV_CTRL_EXTERNAL_SITE_URL` / DB port bindings.
 
+## Verify
+
+Use the repo wrappers for deterministic, context-efficient local validation:
+
+```bash
+# Fast agent baseline: scoped lint plus pytest collection
+bash scripts/verify_fast.sh
+
+# Default local shipping gate: fast baseline plus default pytest
+bash scripts/verify_default.sh
+```
+
+Live and host-backed gates remain explicit because benchmark hosts are external
+runtime dependencies.
+
 ## Run
 
 ```bash

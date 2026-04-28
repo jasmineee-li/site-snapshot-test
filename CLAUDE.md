@@ -18,7 +18,7 @@
 - `agent_docs/remote-runs.md` — r5, proxy, fresh-host, and long-run discipline.
 - Work loop: Research -> Plan -> Implement -> Validate. Keep each context small; use `rg`; delegate focused exploration/verification to sub-agents when the harness supports it.
 - Prefer existing patterns and helpers over new abstractions. Keep edits scoped; do not rewrite generated logs or hand-edit `feasibility.status`.
-- Main commands: `uv sync --extra dev`, `uv run python -m worldsim.main --help`, `uv run pytest <paths> -q`, `uv run ruff check <paths>`, `uv run ruff format <paths>`.
+- Main commands: `uv sync --extra dev`, `bash scripts/verify_fast.sh`, `bash scripts/verify_default.sh`, `uv run python -m worldsim.main --help`, `uv run pytest <paths> -q`, `uv run ruff check <paths>`, `uv run ruff format <paths>`.
 - Use `scripts/lib/run_silent.sh` or repo quiet wrappers; for live gates use `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml --quiet`. Never truncate verbose output yourself.
 - Claude/Modal auth precedence lives in `worldsim/modal_sandbox.py::_build_claude_secrets` and `worldsim/phase_4/anthropic_client.py`; never hard-code one auth mode.
 - On resume or context compaction, preserve completed actions, active assumptions, artifact paths/IDs, tool outcomes, unresolved blockers, and the next concrete goal.

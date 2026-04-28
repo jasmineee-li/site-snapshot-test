@@ -22,6 +22,16 @@ The wrapper uses fail-fast-friendly commands well: prefer `pytest -x` for focuse
 
 ## Fast Local Checks
 
+For a repo-wide fast baseline, prefer the checked-in wrapper:
+
+```bash
+bash scripts/verify_fast.sh
+```
+
+It runs scoped Ruff over `worldsim tests scripts` and pytest collection through
+`scripts/lib/run_silent.sh`. Use it before broader validation and before handing
+off agent-authored changes.
+
 Use the narrowest meaningful check first, then broaden before shipping:
 
 ```bash
@@ -37,6 +47,14 @@ not integration and not feasibility and not preflight and not live_l3 and not cr
 ```
 
 Run excluded markers explicitly only when the task requires them.
+
+For normal local shipping, use the default wrapper:
+
+```bash
+bash scripts/verify_default.sh
+```
+
+It runs the fast baseline and then the default pytest suite.
 
 ## Live Integration Gate
 

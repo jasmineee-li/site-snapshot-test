@@ -68,7 +68,16 @@ packages = ["worldsim"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-exclude = ["AgentLab/"]
+exclude = [
+    "AgentLab/",
+    ".claude/worktrees/",
+    ".codex-worktrees/",
+    "logs/",
+    "logs_run*/",
+    "pipeline_outputs/",
+    "tmp/",
+    "vendors/",
+]
 
 [tool.ruff.lint]
 select = [
