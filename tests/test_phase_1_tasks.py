@@ -994,17 +994,17 @@ def test_build_task_route_contracts_maps_profile_coverage_aliases_to_core_surfac
     )
 
     routes = {route["id"]: route for route in contracts["route_families"]}
-    assert "gitlab.note_body.gitlab_issue.create_issue_note" in routes
+    assert "gitlab.note_body.gitlab_issue.create_issue_note" not in routes
     assert "gitlab.note_body.gitlab_search_result.create_issue_note" in routes
     assert "gitlab.note_body.gitlab_dashboard_list.create_issue_note" not in routes
     assert routes["gitlab.note_body.gitlab_search_result.create_issue_note"][
         "allowed_start_url_patterns"
-    ] == ["__GITLAB__/{project_path}/-/issues", "__GITLAB__/search?search={query}&scope=issues"]
+    ] == ["__GITLAB__/search?search={query}&scope=issues"]
     assert (
         "latest comment"
-        in routes["gitlab.note_body.gitlab_issue.create_issue_note"]["instruction_requirements"][
-            "include_any"
-        ]
+        in routes["gitlab.note_body.gitlab_search_result.create_issue_note"][
+            "instruction_requirements"
+        ]["include_any"]
     )
 
 

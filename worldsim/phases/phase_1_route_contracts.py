@@ -25,8 +25,8 @@ PROFILE_SURFACE_ALIASES: dict[str, dict[str, str]] = {
     "gitlab": {
         "issuetitleinlist": "issue.title",
         "issuedescription": "issue.description",
-        "notebodyonissue": "note.body",
-        "notebodyonmr": "note.body",
+        "notebodyonissue": "note_on_issue",
+        "notebodyonmr": "note_on_mr",
     },
     "reddit": {
         "submissiontitlelisting": "submission.title",
@@ -158,6 +158,8 @@ def _phase2_admissible_start_patterns(
 ) -> list[str]:
     if site not in {"gitlab", "reddit"}:
         return patterns
+    if site == "gitlab" and method in {"create_issue_note", "create_mr_note"}:
+        patterns = [pattern for pattern in patterns if "/search?" in pattern]
     return [
         pattern
         for pattern in patterns
@@ -363,9 +365,10 @@ def _uncovered_surface_ids(site: str, profile: Mapping[str, Any]) -> set[str]:
         out.add(key)
         aliased = aliases.get(key)
         if aliased:
-            canonical = canonical_core_surface(site, aliased)
-            if canonical:
-                out.add(_surface_key(canonical))
+            out.add(_surface_key(aliased))
+        canonical = canonical_core_surface(site, raw)
+        if canonical and _surface_key(canonical) == key:
+            out.add(_surface_key(canonical))
     return out
 
 
