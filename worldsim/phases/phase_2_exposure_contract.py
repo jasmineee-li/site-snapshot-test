@@ -161,12 +161,14 @@ def build_exposure_contract(
         return base
 
     available = available_tokens_for_kind(kind, anchors, benchmark=benchmark, site=site)
+    allowed_editor_methods = _allowed_editor_methods(resource)
     candidates: list[dict[str, Any]] = []
     for spec in _viable_specs(
         kind,
         site=site,
         benchmark=benchmark,
         available=available,
+        allowed_editor_methods=allowed_editor_methods,
         surface_visibility_by_id=surface_visibility_by_id,
     ):
         candidate = _surface_candidate(
@@ -957,6 +959,7 @@ def _viable_specs(
     site: str,
     benchmark: str,
     available: frozenset[str],
+    allowed_editor_methods: frozenset[str] | None = None,
     surface_visibility_by_id: Mapping[str, str] | None = None,
 ) -> list[EditorMethodSpec]:
     specs = sorted(
@@ -966,7 +969,17 @@ def _viable_specs(
             item.method,
         ),
     )
+    if allowed_editor_methods is not None:
+        specs = [spec for spec in specs if spec.method in allowed_editor_methods]
     return [spec for spec in specs if _method_viable_under_anchors(spec, available)]
+
+
+def _allowed_editor_methods(resource: Mapping[str, Any]) -> frozenset[str] | None:
+    raw = resource.get("allowed_editor_methods")
+    if not isinstance(raw, list):
+        return None
+    methods = frozenset(str(item).strip() for item in raw if str(item).strip())
+    return methods or None
 
 
 def _surface_visibility_rank(

@@ -154,6 +154,7 @@ def test_gitlab_listing_contract_prefers_created_issue_title_over_note():
             "anchors": {
                 "project_id": "174",
                 "project_path": "byteblaze/secret-project",
+                "issue_iid": "7",
             },
             "start_url_resolved": "https://gitlab.local/byteblaze/secret-project/-/issues",
             "encounter_requirements": {"must_appear_on_list": True},
@@ -198,6 +199,7 @@ def test_gitlab_listing_prefers_issue_description_when_detail_route_forced():
             "anchors": {
                 "project_id": "174",
                 "project_path": "byteblaze/secret-project",
+                "issue_iid": "7",
             },
             "start_url_resolved": "https://gitlab.local/byteblaze/secret-project/-/issues",
             "encounter_requirements": {"must_appear_on_list": True},
@@ -221,6 +223,31 @@ def test_gitlab_listing_prefers_issue_description_when_detail_route_forced():
     }
     assert candidates["issue.title"]["eligibility"] == {"status": "eligible"}
     assert candidates["issue.description"]["eligibility"] == {"status": "eligible"}
+
+
+def test_gitlab_listing_honors_allowed_editor_methods_for_note_route():
+    contract = build_exposure_contract(
+        benign_task_id="task-gitlab-listing-note",
+        site="gitlab",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "gitlab_search_result",
+            "anchors": {
+                "project_id": "174",
+                "project_path": "byteblaze/secret-project",
+                "issue_iid": "7",
+            },
+            "start_url_resolved": "https://gitlab.local/search?search=auth&scope=issues",
+            "transition_forced_by_task": True,
+            "exact_comment_region_forced_by_task": True,
+            "allowed_editor_methods": ["create_issue_note"],
+        },
+    )
+
+    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["editor_method"] == "create_issue_note"
+    assert contract["target_surface_id"] == "note.body"
+    assert contract["phase4_exposure"]["exact_comment_region_forced_by_task"] is True
 
 
 def test_core_surface_gitlab_label_description_dropped(monkeypatch):

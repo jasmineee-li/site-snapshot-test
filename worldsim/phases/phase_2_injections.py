@@ -2081,11 +2081,25 @@ async def _resolve_benign_target_resources_for_shard(
     resources: dict[str, dict[str, Any]] = {}
     l4_fanout_count = 0
     l4_empty_exclusion_count = 0
+    route_contract_preserved_count = 0
     for task in site_tasks:
         orig_id = str(task.get("id") or "")
         if not orig_id:
             continue
         records = enriched.get(orig_id)
+        if _is_route_contracted_new_task(task):
+            l1_l2 = _l1_l2_resources_dict([task], benchmark=benchmark)
+            resource = l1_l2.get(orig_id)
+            if resource is not None:
+                if records:
+                    resource = _merge_route_contract_l4_anchors(resource, records[0])
+                editor_methods = _route_contract_editor_methods(task)
+                if editor_methods:
+                    resource["allowed_editor_methods"] = editor_methods
+                expanded_tasks.append(task)
+                resources[orig_id] = resource
+                route_contract_preserved_count += 1
+                continue
         if not records:
             # ``resolve_tasks`` omits only the L4-empty case: the benign task
             # resolved to a listing kind, but the live list contained zero
@@ -2117,6 +2131,13 @@ async def _resolve_benign_target_resources_for_shard(
             len(site_tasks),
             len(expanded_tasks),
         )
+    if route_contract_preserved_count:
+        logger.info(
+            "Phase 2a: preserved %d route-contracted new task(s) from L4 fan-out for site %r (shard %r)",
+            route_contract_preserved_count,
+            site_name,
+            label,
+        )
     if l4_empty_exclusion_count:
         logger.info(
             "Phase 2a: excluded %d L4-empty task(s) for site %r (shard %r)",
@@ -2127,6 +2148,50 @@ async def _resolve_benign_target_resources_for_shard(
 
     _persist_target_resolution(site_name=site_name, resources=resources)
     return expanded_tasks, resources
+
+
+def _is_route_contracted_new_task(task: Mapping[str, Any]) -> bool:
+    route_id = task.get("route_id")
+    return (
+        str(task.get("origin") or "") == "new_task"
+        and isinstance(route_id, str)
+        and bool(route_id.strip())
+    )
+
+
+def _route_contract_editor_methods(task: Mapping[str, Any]) -> list[str]:
+    data_seed = task.get("data_seed")
+    if not isinstance(data_seed, Mapping):
+        return []
+    calls = data_seed.get("editor_calls")
+    if not isinstance(calls, list):
+        return []
+    methods: list[str] = []
+    for call in calls:
+        if not isinstance(call, Mapping):
+            continue
+        method = call.get("method")
+        if isinstance(method, str) and method.strip() and method.strip() not in methods:
+            methods.append(method.strip())
+    return methods
+
+
+def _merge_route_contract_l4_anchors(
+    resource: Mapping[str, Any],
+    l4_record: Mapping[str, Any],
+) -> dict[str, Any]:
+    merged = dict(resource)
+    anchors = dict(merged.get("anchors") or {})
+    l4_anchors = l4_record.get("anchors")
+    if isinstance(l4_anchors, Mapping):
+        anchors.update({str(key): value for key, value in l4_anchors.items()})
+    merged["anchors"] = anchors
+    for key in ("benign_read_url", "seeded_detail_url"):
+        value = l4_record.get(key)
+        if isinstance(value, str) and value.strip():
+            merged.setdefault(key, value)
+    merged["l4_anchor_source"] = "route_contract_top_result"
+    return merged
 
 
 def _persist_target_resolution(
@@ -4579,18 +4644,42 @@ def _entry_matches_attack_write(entry: dict[str, Any], attack_write: dict[str, A
         or not isinstance(body_field, str)
     ):
         return False
-    if (
-        attack_write.get("resource")
-        != f"path:{method.strip().upper()} {_normalize_delivery_path(path_template)}"
+    expected_resource = f"path:{method.strip().upper()} {_normalize_delivery_path(path_template)}"
+    attack_resource = attack_write.get("resource")
+    editor_key = attack_write.get("editor_key")
+    if attack_resource != expected_resource and not _editor_write_matches_profile_resource(
+        editor_key if isinstance(editor_key, tuple) else None,
+        attack_resource,
+        expected_resource,
     ):
         return False
     placeholder_fields = attack_write.get("placeholder_fields")
-    editor_key = attack_write.get("editor_key")
+    if editor_key == ("reddit", "create_submission_title") and "{submission_id}" in path_template:
+        return False
     return isinstance(placeholder_fields, set) and _body_field_matches_placeholder(
         body_field,
         placeholder_fields,
         editor_key=editor_key if isinstance(editor_key, tuple) else None,
     )
+
+
+def _editor_write_matches_profile_resource(
+    editor_key: tuple[str, str] | None,
+    attack_resource: Any,
+    expected_resource: str,
+) -> bool:
+    """Bridge editor-method paths to live profile form paths.
+
+    Postmill exposes the create-submission form at ``/submit`` while the editor
+    contract carries the forum selector as ``/submit/{forum_name}``. They are
+    the same write surface; edit-submission paths still require the concrete
+    edit route and are not matched here.
+    """
+    if editor_key in {("reddit", "create_submission"), ("reddit", "create_submission_title")}:
+        return (
+            attack_resource == "path:POST /submit/{id}" and expected_resource == "path:POST /submit"
+        )
+    return False
 
 
 def _body_field_matches_placeholder(
@@ -4603,6 +4692,8 @@ def _body_field_matches_placeholder(
         return True
     if editor_key == ("reddit", "create_submission"):
         return body_field == "submission[body]" and "body" in placeholder_fields
+    if editor_key == ("reddit", "create_submission_title"):
+        return body_field == "submission[title]" and "title" in placeholder_fields
     if editor_key == ("reddit", "create_comment"):
         return bool(
             "body" in placeholder_fields and _REDDIT_COMMENT_BODY_FIELD_PATTERN.match(body_field)

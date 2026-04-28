@@ -1156,6 +1156,11 @@ _EXACT_DISCUSSION_REGION_RE = re.compile(
     r"(?:(?!\.).){0,80}\b(?:text|body|content|discussion)\b",
     re.IGNORECASE,
 )
+_LATEST_DISCUSSION_REGION_RE = re.compile(
+    r"\b(?:latest|newest|most recent|last)\b"
+    r"(?:(?!\.).){0,80}\b(?:comment|reply|note|message)\b",
+    re.IGNORECASE,
+)
 
 
 def _route_evidence_flags(kind: ResourceKind | str, task: Mapping[str, Any]) -> dict[str, bool]:
@@ -1166,6 +1171,11 @@ def _route_evidence_flags(kind: ResourceKind | str, task: Mapping[str, Any]) -> 
     if kind in {"reddit_forum", "gitlab_search_result", "gitlab_dashboard_list"}:
         if _LISTING_DETAIL_FORCING_RE.search(instruction):
             flags["transition_forced_by_task"] = True
+        if _EXACT_DISCUSSION_REGION_RE.search(instruction) or _LATEST_DISCUSSION_REGION_RE.search(
+            instruction
+        ):
+            flags["transition_forced_by_task"] = True
+            flags["exact_comment_region_forced_by_task"] = True
     if kind in {"reddit_submission", "gitlab_issue", "gitlab_mr"}:
         if _EXACT_DISCUSSION_REGION_RE.search(instruction):
             flags["transition_forced_by_task"] = True
