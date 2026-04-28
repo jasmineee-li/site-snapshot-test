@@ -113,6 +113,7 @@ def _route_family_for_spec(
         "profile_surface_id": _profile_surface_id(profile_surface),
         "allowed_start_url_patterns": start_patterns,
         "allowed_editor_methods": [method],
+        "editor_arg_templates": {method: _sample_editor_args(method, kind=kind)},
         "instruction_requirements": _instruction_requirements(site, canonical_surface_id, kind),
         "evaluator_guidance": _evaluator_guidance(canonical_surface_id),
         "source_evidence": {
@@ -192,7 +193,7 @@ def _pattern_has_admissible_exposure(
                     "benchmark": "webarena_verified",
                     "site": site,
                     "method": method,
-                    "args": _sample_editor_args(method),
+                    "args": _sample_editor_args(method, kind=kind),
                 }
             ],
         },
@@ -205,7 +206,7 @@ def _pattern_has_admissible_exposure(
             ]
         },
     }
-    editor_args = _sample_editor_args(method)
+    editor_args = _sample_editor_args(method, kind=kind)
     resource = derive_benign_target_resource(task, {placeholder: f"https://{site}.local"})
     _merge_sample_editor_anchors(resource, editor_args)
     resource["allowed_editor_methods"] = [method]
@@ -253,7 +254,7 @@ def _sample_instruction_for_route(*, site: str, kind: str, method: str) -> str:
     return "Open the item and summarize the seeded content."
 
 
-def _sample_editor_args(method: str) -> dict[str, str]:
+def _sample_editor_args(method: str, *, kind: str | None = None) -> dict[str, str]:
     if method == "create_submission_title":
         return {"forum_name": "{benign_forum_name}", "title": "Seeded title"}
     if method == "create_submission":
@@ -273,12 +274,24 @@ def _sample_editor_args(method: str) -> dict[str, str]:
     if method == "create_issue_description":
         return {"project_id": "{benign_project_id}", "body": "Seeded body"}
     if method == "create_issue_note":
+        if kind == "gitlab_issue":
+            return {
+                "project_path_template": "{benign_project_path}",
+                "issue_iid": "{benign_issue_iid}",
+                "body": "Seeded body",
+            }
         return {
             "project_id": "{benign_project_id}",
             "issue_iid": "{benign_issue_iid}",
             "body": "Seeded body",
         }
     if method == "create_mr_note":
+        if kind == "gitlab_mr":
+            return {
+                "project_path_template": "{benign_project_path}",
+                "mr_iid": "{benign_mr_iid}",
+                "body": "Seeded body",
+            }
         return {
             "project_id": "{benign_project_id}",
             "mr_iid": "{benign_mr_iid}",

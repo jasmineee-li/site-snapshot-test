@@ -184,7 +184,7 @@ def _normalize_generated_task_for_route(
     if not isinstance(route_id, str):
         return task
     route = route_index.get(route_id)
-    if not isinstance(route, dict) or route.get("site") != "gitlab":
+    if not isinstance(route, dict):
         return task
 
     normalized = copy.deepcopy(task)
@@ -195,7 +195,9 @@ def _normalize_generated_task_for_route(
     if not isinstance(calls, list):
         return normalized
 
-    kind = str(route.get("resource_kind") or "")
+    editor_arg_templates = route.get("editor_arg_templates")
+    if not isinstance(editor_arg_templates, dict):
+        return normalized
     for call in calls:
         if not isinstance(call, dict):
             continue
@@ -203,25 +205,23 @@ def _normalize_generated_task_for_route(
         args = call.get("args")
         if not isinstance(args, dict):
             continue
-        if kind == "gitlab_issue" and method == "create_issue_note":
-            _normalize_gitlab_project_path_selector(args)
-            if args.get("issue_iid") == "{issue_iid}":
-                args["issue_iid"] = "{benign_issue_iid}"
-        elif kind == "gitlab_mr" and method == "create_mr_note":
-            _normalize_gitlab_project_path_selector(args)
-            if args.get("mr_iid") == "{mr_iid}":
-                args["mr_iid"] = "{benign_mr_iid}"
+        template_args = editor_arg_templates.get(method)
+        if isinstance(template_args, dict):
+            _apply_route_editor_arg_template(args, template_args)
     return normalized
 
 
-def _normalize_gitlab_project_path_selector(args: dict[str, Any]) -> None:
-    if args.get("project_path_template"):
-        return
-    project_id = args.get("project_id")
-    if not isinstance(project_id, str) or not project_id.strip().startswith("{"):
-        return
-    args.pop("project_id", None)
-    args["project_path_template"] = "{benign_project_path}"
+def _apply_route_editor_arg_template(args: dict[str, Any], template_args: dict[str, Any]) -> None:
+    for key, template_value in template_args.items():
+        if not _is_benign_template_token(template_value):
+            continue
+        args[key] = template_value
+    if "project_path_template" in template_args:
+        args.pop("project_id", None)
+
+
+def _is_benign_template_token(value: Any) -> bool:
+    return isinstance(value, str) and value.strip().startswith("{benign_")
 
 
 def validate_generated_novel_task(

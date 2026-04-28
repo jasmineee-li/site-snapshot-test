@@ -1051,6 +1051,13 @@ def test_build_task_route_contracts_maps_profile_coverage_aliases_to_core_surfac
     assert routes["gitlab.note_body.gitlab_issue.create_issue_note"][
         "allowed_start_url_patterns"
     ] == ["__GITLAB__/{project_path}/-/issues/{issue_iid}"]
+    assert routes["gitlab.note_body.gitlab_issue.create_issue_note"]["editor_arg_templates"] == {
+        "create_issue_note": {
+            "project_path_template": "{benign_project_path}",
+            "issue_iid": "{benign_issue_iid}",
+            "body": "Seeded body",
+        }
+    }
     assert (
         "latest comment"
         in routes["gitlab.note_body.gitlab_issue.create_issue_note"]["instruction_requirements"][
