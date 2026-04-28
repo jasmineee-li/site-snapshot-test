@@ -19,7 +19,7 @@ from pathlib import Path
 
 import requests
 
-from worldsim.auth_tokens import GitLabPATGenerator, _GITLAB_RUNTIME_PAT_NAME
+from worldsim.auth_tokens import _GITLAB_RUNTIME_PAT_NAME, GitLabPATGenerator
 
 _AUTH_TOKEN_RE = re.compile(
     r'name=["\']authenticity_token["\'][^>]*value=["\']([^"\']+)["\']',

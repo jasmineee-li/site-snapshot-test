@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import shlex
-import sys
 
 from worldsim.host_config import load_host_config
 

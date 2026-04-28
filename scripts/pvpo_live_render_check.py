@@ -43,7 +43,7 @@ CDP_URL = "http://127.0.0.1:9222"
 TARGETS = [
     # (site, url, hardcoded_snippet_or_None)
     # hardcoded snippet is a string known to be visible above the fold at
-    # 1280×720 on this r5 build. When None, the auto-picker walks the DOM.
+    # 1280x720 on this r5 build. When None, the auto-picker walks the DOM.
     ("shopping", "http://3.12.221.9:7770/", "Welcome to One Stop Market"),
     ("shopping_admin", "http://3.12.221.9:7780/admin/admin/", "Welcome, please sign in"),
     (

@@ -1815,7 +1815,7 @@ def test_phase_0d_mints_per_instance_when_multiple_instances(
 def test_phase_0d_force_remint_refreshes_all_per_instance_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    state_dir, bench, _profiles = _setup_dirs(tmp_path, monkeypatch)
+    _state_dir, bench, _profiles = _setup_dirs(tmp_path, monkeypatch)
     site_urls = ["http://172.17.0.1:8023", "http://172.17.0.1:8033"]
     instances_path = _make_multi_instance_config(
         bench,

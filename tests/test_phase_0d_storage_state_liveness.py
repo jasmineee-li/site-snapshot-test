@@ -27,7 +27,6 @@ from typing import Any
 import pytest
 import requests
 
-from worldsim.editors.gitlab import GitlabEditor
 from worldsim.editors.reddit import RedditEditor
 from worldsim.phases import phase_0d_auth_bootstrap as bootstrap
 from worldsim.storage_state_preflight import (

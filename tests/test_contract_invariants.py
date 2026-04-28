@@ -117,7 +117,10 @@ class TestSerializeRegistryParity:
 
     def test_all_methods_serialized(self) -> None:
         data = serialize_registry()
-        assert len(data["specs"]) == len(_REGISTRY) == 20
+        serialized_keys = {
+            (spec["benchmark"], spec["site"], spec["method"]) for spec in data["specs"]
+        }
+        assert serialized_keys == set(_REGISTRY)
 
     def test_schema_keys(self) -> None:
         data = serialize_registry()

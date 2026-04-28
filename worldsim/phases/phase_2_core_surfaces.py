@@ -18,8 +18,6 @@ to write to them.
 
 from __future__ import annotations
 
-from typing import FrozenSet
-
 CORE_SURFACES: dict[str, frozenset[str]] = {
     "gitlab": frozenset(
         {

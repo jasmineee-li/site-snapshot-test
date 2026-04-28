@@ -12,7 +12,7 @@ import json
 import os
 import pathlib
 import sys
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 
 from playwright.async_api import async_playwright
 

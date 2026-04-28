@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """Validate Phase 2 Option A placement contract on an adversarial_tasks.json.
 
-Gates (docs/handoffs/phase-2-placement-systemic-gap.md §Validation gate,
+Gates (docs/handoffs/phase-2-placement-systemic-gap.md Validation gate,
 plus Phase 4 exposure parity):
 
-  Gate 1 — no-dangling-mechanism.
+  Gate 1 - no-dangling-mechanism.
     No editor_call creates a dangling parent artifact
     (create_project / create_group / create_forum), and every
     create_issue / create_submission / create_comment / create_issue_note /
     create_mr_note references the benign anchor via a {benign_*} template
     token.
 
-  Gate 2 — DOM reachability.
+  Gate 2 - DOM reachability.
     Every task carries feasibility.reachability in
     {reachable_direct, reachable_transitively}. Zero unreachable. Zero
     unverified.
 
-  Gate 3 — Phase 4 IPI / exposure admission (post–2c).
+  Gate 3 - Phase 4 IPI / exposure admission (post-2c).
     For every task with ``feasibility.status == "verified"``, require the
     same contract + evidence alignment as
     :func:`worldsim.phase_4.exposure_admission.exposure_admission_error`

@@ -111,7 +111,6 @@ def _editor_call_from_target_call(call: dict[str, Any]) -> dict[str, Any]:
     site = str(target.get("site", "")).strip().lower()
     resource_type = str(target.get("resource_type", "")).strip().lower()
     create_spec = target.get("create") if isinstance(target.get("create"), dict) else {}
-    update_spec = target.get("update") if isinstance(target.get("update"), dict) else {}
     body = call.get("body") if isinstance(call.get("body"), dict) else {}
     body_form = call.get("body_form") if isinstance(call.get("body_form"), dict) else {}
 

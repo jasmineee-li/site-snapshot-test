@@ -67,7 +67,6 @@ def _novel_task(task_id: str) -> dict:
                     },
                 }
             ],
-            "task_id": task_id,
         },
     }
 
@@ -88,7 +87,7 @@ async def test_phase_1_threads_gitlab_handle_lists_into_each_task(monkeypatch, t
     }
     (profile_path.parent / "AGENT_CONTEXT_shopping.json").write_text(json.dumps(agent_context))
 
-    generated_tasks = [_novel_task(f"novel_t_{i}") for i in range(1, 4)]
+    generated_tasks = [_novel_task(f"novel_shopping_{i}") for i in range(1, 4)]
     monkeypatch.setattr(
         phase_1_generate_new_tasks,
         "run_claude_in_sandbox",
