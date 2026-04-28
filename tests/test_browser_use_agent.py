@@ -388,7 +388,7 @@ async def test_pvpo_callback_writes_artifacts_on_browser_use_success_path(
         witness_texts=None,
         scroll_to_match=False,
         capturing=None,
-        cdp_timeout_s=5.0,
+        cdp_timeout_s=10.0,
     )
 
     summary = json.loads((tmp_path / "pvpo" / "capture_summary.json").read_text())
@@ -424,6 +424,116 @@ async def test_pvpo_callback_records_empty_witness_fallback_telemetry(tmp_path):
     assert summary["payload_witness_lengths"] == []
     assert summary["payload_text_present"] is True
     assert summary["payload_text_length"] == len("payload text")
+
+
+@pytest.mark.asyncio
+async def test_pvpo_beginframe_screenshot_uses_beginframe_and_lock():
+    calls: list[tuple[str, dict]] = []
+    entered_lock = False
+
+    class FakeLock:
+        async def __aenter__(self):
+            nonlocal entered_lock
+            entered_lock = True
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeCdpSession:
+        async def send(self, method, params):
+            calls.append((method, params))
+            return {"screenshotData": "png-base64"}
+
+    class FakeBrowserSession:
+        cdp_url = "http://127.0.0.1:9230"
+        _worldsim_pvpo_beginframe_lock = FakeLock()
+
+        def get_focused_target(self):
+            return SimpleNamespace(target_type="page", target_id="target-1")
+
+        def get_page_targets(self):
+            return []
+
+        async def get_or_create_cdp_session(self, target_id, focus=False):
+            assert target_id == "target-1"
+            assert focus is True
+            return FakeCdpSession()
+
+        async def remove_highlights(self):
+            return None
+
+    data = await browser_use_agent._capture_pvpo_beginframe_screenshot(
+        SimpleNamespace(browser_session=FakeBrowserSession()),
+        SimpleNamespace(full_page=False, clip=None),
+    )
+
+    assert data == "png-base64"
+    assert entered_lock is True
+    assert calls == [("HeadlessExperimental.beginFrame", {"screenshot": {"format": "png"}})]
+
+
+@pytest.mark.asyncio
+async def test_pvpo_beginframe_screenshot_returns_cached_image_when_frame_pending():
+    class FakeCdpSession:
+        async def send(self, method, params):
+            raise RuntimeError({"code": -32000, "message": "Another frame is pending"})
+
+    class FakeBrowserSession:
+        cdp_url = "http://127.0.0.1:9230"
+        _worldsim_pvpo_last_browser_use_screenshot = "previous-png"
+
+        def get_focused_target(self):
+            return SimpleNamespace(target_type="page", target_id="target-1")
+
+        def get_page_targets(self):
+            return []
+
+        async def get_or_create_cdp_session(self, target_id, focus=False):
+            return FakeCdpSession()
+
+        async def remove_highlights(self):
+            return None
+
+    data = await browser_use_agent._capture_pvpo_beginframe_screenshot(
+        SimpleNamespace(browser_session=FakeBrowserSession()),
+        SimpleNamespace(full_page=False, clip=None),
+    )
+
+    assert data == "previous-png"
+
+
+@pytest.mark.asyncio
+async def test_pvpo_screenshot_patch_returns_placeholder_when_browser_use_screenshots_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from browser_use.browser.watchdogs.screenshot_watchdog import ScreenshotWatchdog
+
+    async def original(self, event):
+        return "original"
+
+    async def unexpected_capture(watchdog, event):
+        raise AssertionError("PVPO Browser Use screenshot should be disabled")
+
+    monkeypatch.setattr(browser_use_agent, "_PVPO_SCREENSHOT_PATCHED", False)
+    monkeypatch.setattr(ScreenshotWatchdog, "on_ScreenshotEvent", original)
+    monkeypatch.setattr(
+        browser_use_agent,
+        "_capture_pvpo_beginframe_screenshot",
+        unexpected_capture,
+    )
+
+    browser_use_agent._install_pvpo_beginframe_screenshot_patch()
+    data = await ScreenshotWatchdog.on_ScreenshotEvent(
+        SimpleNamespace(
+            browser_session=SimpleNamespace(
+                cdp_url="http://127.0.0.1:9230",
+                _worldsim_pvpo_disable_browser_use_screenshots=True,
+            )
+        ),
+        SimpleNamespace(full_page=False, clip=None),
+    )
+
+    assert data == browser_use_agent._TRANSPARENT_PNG_BASE64
 
 
 @pytest.mark.asyncio

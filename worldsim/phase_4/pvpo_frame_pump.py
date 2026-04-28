@@ -32,6 +32,7 @@ from worldsim.phase_4.pvpo_cdp import normalize_cdp_session
 logger = logging.getLogger(__name__)
 
 _DEFAULT_INTERVAL_MS = 50.0
+_DEFAULT_BEGINFRAME_TIMEOUT_S = 1.0
 _SHUTDOWN_GRACE_S = 2.0
 
 
@@ -52,6 +53,29 @@ def _resolve_interval_s(interval_s: float | None) -> float:
         return _DEFAULT_INTERVAL_MS / 1000.0
 
 
+def _beginframe_timeout_s() -> float:
+    raw = os.environ.get("WORLDSIM_PVPO_FRAME_PUMP_TIMEOUT_S", "").strip()
+    if not raw:
+        return _DEFAULT_BEGINFRAME_TIMEOUT_S
+    try:
+        value = float(raw)
+    except ValueError:
+        logger.warning(
+            "WORLDSIM_PVPO_FRAME_PUMP_TIMEOUT_S=%r is not a number; using default %.1fs",
+            raw,
+            _DEFAULT_BEGINFRAME_TIMEOUT_S,
+        )
+        return _DEFAULT_BEGINFRAME_TIMEOUT_S
+    if value <= 0:
+        logger.warning(
+            "WORLDSIM_PVPO_FRAME_PUMP_TIMEOUT_S=%r is not positive; using default %.1fs",
+            raw,
+            _DEFAULT_BEGINFRAME_TIMEOUT_S,
+        )
+        return _DEFAULT_BEGINFRAME_TIMEOUT_S
+    return value
+
+
 async def _pump_once(cdp_session: Any) -> None:
     """Issue one ``HeadlessExperimental.beginFrame`` with defaults.
 
@@ -70,6 +94,7 @@ async def _pump_loop(
     stop: asyncio.Event,
     interval_s: float,
 ) -> None:
+    beginframe_timeout_s = _beginframe_timeout_s()
     while not stop.is_set():
         try:
             if capturing.is_set():
@@ -93,7 +118,12 @@ async def _pump_loop(
             # cheap skip during captures, but the lock is the real mutex.
             try:
                 async with beginframe_lock:
-                    await _pump_once(cdp_session)
+                    await asyncio.wait_for(_pump_once(cdp_session), timeout=beginframe_timeout_s)
+            except TimeoutError:
+                logger.debug(
+                    "pvpo pump: beginFrame timed out after %.2fs",
+                    beginframe_timeout_s,
+                )
             except Exception as exc:
                 logger.debug("pvpo pump: beginFrame failed: %s", exc)
         except asyncio.CancelledError:
@@ -126,11 +156,13 @@ async def frame_pump(
     kill switch without having to edit code.
     """
     capturing = asyncio.Event()
-    beginframe_lock = asyncio.Lock()
+    existing_lock = getattr(session, "_worldsim_pvpo_beginframe_lock", None)
+    beginframe_lock = existing_lock if existing_lock is not None else asyncio.Lock()
     # Attach the lock to the yielded Event so existing callers that just
     # `async with frame_pump(...) as capturing` keep their one-arg binding,
     # and the capture path can reach the lock via ``capturing.beginframe_lock``.
     capturing.beginframe_lock = beginframe_lock  # type: ignore[attr-defined]
+    session._worldsim_pvpo_beginframe_lock = beginframe_lock
     effective_interval = _resolve_interval_s(interval_s)
     if effective_interval <= 0:
         logger.info("pvpo frame pump disabled (interval<=0)")

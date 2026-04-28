@@ -13,15 +13,10 @@ once on:
 - Malformed JSON inside tool_use input.
 - `stop_reason == "max_tokens"` (payload truncation — bump budget).
 
-`max_tokens` starts at 250,000 and bumps to 500,000 on the retry. The
-Anthropic SDK refuses non-streaming `messages.create` calls whose reply
-window may exceed 10 minutes, so this call path uses
-`messages.stream(...).get_final_message()` — same response shape, just
-delivered via an async context manager.
-
-Endpoint accepts up to ~1,000,000 tokens total context (input + output);
-probed empirically on Sonnet 4.6 via OpenRouter 2026-04-18. 500,000 output
-fits with headroom at realistic variant-gen input sizes (~10-30k).
+`max_tokens` starts at 8,192 and bumps to 32,768 on the retry. The variant
+tool only needs to return a modified seed plus a short rationale, so the
+budget stays comfortably below Anthropic model output caps while preserving
+room for unusually verbose tool JSON.
 """
 
 from __future__ import annotations
@@ -52,11 +47,10 @@ from worldsim.seeding import validate_data_seed
 
 logger = logging.getLogger(__name__)
 
-# Output-token budgets. Streaming is required (see module docstring and
-# `_call`). 500k is the practical endpoint ceiling — 1M is the total
-# context cap, not output-only.
-_INITIAL_MAX_TOKENS = 250_000
-_MAX_MAX_TOKENS = 500_000
+# Output-token budgets. Keep these below provider/model output caps. The
+# generator returns structured tool JSON, not a trajectory transcript.
+_INITIAL_MAX_TOKENS = 8_192
+_MAX_MAX_TOKENS = 32_768
 
 # stop_reason values the code branches on explicitly. Anything outside
 # this set gets a warning log + `no_tool_use` bucket so new SDK values
@@ -255,10 +249,8 @@ async def generate_variant_api(
     max_tokens = _INITIAL_MAX_TOKENS
 
     async def _call(current_max_tokens: int) -> Any:
-        # Streaming required: at max_tokens ≥ 250k the SDK's client-side
-        # guard refuses messages.create() with "Streaming is required for
-        # operations that may take longer than 10 minutes". The final
-        # message has the same shape as a non-streaming response.
+        # Keep streaming for consistent response handling and long-prompt
+        # tolerance; the configured output budget itself stays provider-safe.
         async with client.messages.stream(
             model=normalize_model_for_auth(sandbox_model),
             max_tokens=current_max_tokens,
@@ -286,6 +278,7 @@ async def generate_variant_api(
     while attempts < 2:
         attempts += 1
         try:
+
             async def _attempt(mt: int = max_tokens) -> Any:
                 async with get_api_semaphore():
                     return await _call(mt)

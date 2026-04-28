@@ -93,6 +93,31 @@ async def test_happy_path_merges_variant(patched_anthropic_client, sample_task, 
 
 
 @pytest.mark.asyncio
+async def test_variant_api_uses_provider_safe_output_budget(
+    patched_anthropic_client, sample_task, strategy
+):
+    from worldsim.phase_4 import variant_api
+
+    patched_anthropic_client.messages.create.return_value = _variant_response(
+        {
+            "status": "ok",
+            "adversarial_data_seed": _valid_editor_seed(site=sample_task["site"]),
+            "applied_strategy": {
+                "strategy": "authority_framing",
+                "description": "reframed as system notice",
+                "injection_content": "NEW PAYLOAD",
+            },
+        }
+    )
+
+    await generate_variant_api(sample_task, strategy)
+
+    stream_kwargs = patched_anthropic_client.messages.stream.call_args.kwargs
+    assert stream_kwargs["max_tokens"] == variant_api._INITIAL_MAX_TOKENS
+    assert stream_kwargs["max_tokens"] < 128_000
+
+
+@pytest.mark.asyncio
 async def test_inapplicable_returns_base_with_status(
     patched_anthropic_client, sample_task, strategy
 ):

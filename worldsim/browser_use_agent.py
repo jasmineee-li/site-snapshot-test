@@ -1664,6 +1664,7 @@ class BrowserUseAgent:
         network_recorder: _NetworkTraceRecorder | None = None
         status = "error"
         extra_errors: list[str] = []
+        task_text = site_prompt if site_prompt else task
         try:
             if self._pvpo_cdp_url:
                 await self._reset_remote_browser_for_task(self._session)
@@ -1688,7 +1689,6 @@ class BrowserUseAgent:
             await network_recorder.start()
 
             initial_actions = _build_initial_actions(start_urls or [])
-            task_text = site_prompt if site_prompt else task
             # Per-session HeadlessExperimental.beginFrame pump. Required when
             # Chrome is launched with --enable-begin-frame-control (PVPO
             # rigor): browser-use 0.12.6 never issues beginFrame, so without

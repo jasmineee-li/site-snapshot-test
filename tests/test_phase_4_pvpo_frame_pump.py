@@ -99,6 +99,26 @@ async def test_pump_swallows_cdp_errors_at_debug(caplog):
 
 
 @pytest.mark.asyncio
+async def test_pump_times_out_stuck_beginframe_and_releases_lock(monkeypatch, caplog):
+    monkeypatch.setenv("WORLDSIM_PVPO_FRAME_PUMP_TIMEOUT_S", "0.01")
+    session = _FakeSession()
+
+    async def stuck_send(method: str, params: dict | None = None):
+        await asyncio.sleep(10)
+        return {}
+
+    session._cdp.send = AsyncMock(side_effect=stuck_send)
+    with caplog.at_level(logging.DEBUG, logger="worldsim.phase_4.pvpo_frame_pump"):
+        async with frame_pump(session, interval_s=0.005) as capturing:
+            await asyncio.sleep(0.04)
+            capturing.set()
+            await asyncio.sleep(0.02)
+            lock = capturing.beginframe_lock  # type: ignore[attr-defined]
+            assert not lock.locked()
+    assert any("beginFrame timed out" in rec.message for rec in caplog.records)
+
+
+@pytest.mark.asyncio
 async def test_pump_stops_on_context_exit_even_if_block_raises():
     session = _FakeSession()
     AsyncMock(return_value={})
@@ -177,6 +197,17 @@ async def test_pump_yields_beginframe_lock_on_capturing_event():
             "without it atomic_capture_with_visibility cannot serialize beginFrame"
         )
         assert not lock.locked()
+
+
+@pytest.mark.asyncio
+async def test_pump_reuses_existing_session_beginframe_lock():
+    session = _FakeSession()
+    existing_lock = asyncio.Lock()
+    session._worldsim_pvpo_beginframe_lock = existing_lock
+
+    async with frame_pump(session, interval_s=0) as capturing:
+        assert capturing.beginframe_lock is existing_lock  # type: ignore[attr-defined]
+        assert session._worldsim_pvpo_beginframe_lock is existing_lock
 
 
 @pytest.mark.asyncio
