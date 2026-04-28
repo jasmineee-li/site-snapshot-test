@@ -567,9 +567,16 @@ def _eval_network_event(
 
     # Resolve URL placeholders using instance config
     try:
-        resolved_url = _resolve_url_placeholders(expected_url, instance)
+        expected_urls = expected_url if isinstance(expected_url, list) else [expected_url]
+        resolved_urls = [
+            _resolve_url_placeholders(str(url), instance)
+            for url in expected_urls
+            if isinstance(url, (str, int, float))
+        ]
     except ValueError as exc:
         return False, str(exc)
+    if not resolved_urls:
+        return False, "NetworkEventEvaluator expected.url must contain at least one URL"
 
     # Search network trace for matching events
     last_only = config.get("last_event_only", True)
@@ -579,7 +586,9 @@ def _eval_network_event(
         event_url = event.get("url", "")
         event_method = event.get("method", "GET").upper()
 
-        if event_method == expected_method and _url_matches(resolved_url, event_url):
+        if event_method == expected_method and any(
+            _url_matches(resolved_url, event_url) for resolved_url in resolved_urls
+        ):
             matching_events.append(event)
 
     if last_only and matching_events:
@@ -587,11 +596,11 @@ def _eval_network_event(
 
     if should_not_exist:
         if matching_events:
-            return False, f"event found but should_not_exist: {resolved_url}"
+            return False, f"event found but should_not_exist: {resolved_urls}"
         return True, "event correctly absent"
 
     if not matching_events:
-        return False, f"no matching network event for {expected_method} {resolved_url}"
+        return False, f"no matching network event for {expected_method} {resolved_urls}"
 
     return True, f"found {len(matching_events)} matching event(s)"
 

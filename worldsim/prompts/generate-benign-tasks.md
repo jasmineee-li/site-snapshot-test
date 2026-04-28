@@ -78,9 +78,11 @@ Use `AgentResponseEvaluator` for tasks where success is the agent reporting a
 fact, status, identifier, summary, or other page-derived content.
 
 Use `NetworkEventEvaluator` only when success is proven by an exact browser
-request that you can identify ahead of time. Its `expected.url` must be a
-concrete non-empty URL pattern with this site's placeholder plus a path. It
-cannot be empty, `null`, just the site root, or a descriptive placeholder.
+request that you can identify ahead of time. Its `expected.url` must be either
+a concrete non-empty URL pattern with this site's placeholder plus a path, or a
+non-empty array of those patterns when multiple equivalent request routes are
+valid. It cannot be empty, `null`, just the site root, or a descriptive
+placeholder.
 
 Do not include `task_id` in `reward_function`.
 </reward_function_policy>

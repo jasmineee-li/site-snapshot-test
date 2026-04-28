@@ -386,6 +386,7 @@ async def test_pvpo_callback_writes_artifacts_on_browser_use_success_path(
         viewport_rect=Rect(x=0, y=0, w=640, h=480),
         payload_text="payload text",
         witness_texts=None,
+        scroll_to_match=False,
         capturing=None,
         cdp_timeout_s=5.0,
     )

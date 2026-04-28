@@ -46,6 +46,7 @@
 (() => {
   /** @type {Witness[]} */
   const witnesses = __WORLDSIM_WITNESSES_JSON__;
+  const scrollToMatch = __WORLDSIM_SCROLL_TO_MATCH__;
 
   /** @returns {QueryResult} */
   function emptyResult() {
@@ -117,6 +118,17 @@
     if (hasVisibleNonSpaceEntry(result.entries)) {
       selected = result;
       break;
+    }
+  }
+  if (scrollToMatch && !hasVisibleNonSpaceEntry(selected.entries)) {
+    scrollMatchIntoView(matches[0]);
+    selected = buildMatchResult(matches[0]);
+    for (const candidate of matches) {
+      const result = buildMatchResult(candidate);
+      if (hasVisibleNonSpaceEntry(result.entries)) {
+        selected = result;
+        break;
+      }
     }
   }
   return selected;
@@ -262,6 +274,22 @@
    */
   function hasVisibleNonSpaceEntry(entries) {
     return entries.some((entry) => !entry.isSpace && entry.layoutVisible);
+  }
+
+  /**
+   * Bring an offscreen witness into the viewport before the beginFrame
+   * screenshot. This does not satisfy Gate 1 by itself; host-side ink
+   * occupancy still requires non-background pixels inside the returned rects.
+   *
+   * @param {WitnessMatch} match
+   */
+  function scrollMatchIntoView(match) {
+    const sourceInfo = normalizedCharMap[match.offset];
+    if (!sourceInfo) return;
+    const sourceNode = textNodes[sourceInfo.nodeIndex];
+    const element = sourceNode.parentElement;
+    if (!element) return;
+    element.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
   }
 
   /**

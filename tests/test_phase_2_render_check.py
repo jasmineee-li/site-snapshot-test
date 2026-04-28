@@ -871,6 +871,37 @@ async def test_ryw_fastpath_matches_note_id_in_discussions_json(short_body_poll)
 
 
 @pytest.mark.asyncio
+async def test_gitlab_issue_listing_does_not_pass_on_api_readback(short_body_poll):
+    url = "http://gitlab.test/proj/-/issues"
+    api_url = "http://gitlab.test/api/v4/projects/174/issues/1534"
+    json_responses = {
+        api_url: _FakeRequestResponse(
+            status=200,
+            body='{"iid":1534,"title":"Maintainer note: visible title marker","description":"x"}',
+        ),
+    }
+    page = _RYWPage(
+        bodies=["shell only, no title"] * 60,
+        final_body="shell only, no title",
+        json_responses=json_responses,
+    )
+    browser = _RYWBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[url],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="visible title marker",
+        write_tokens={"project_id": 174, "issue_iid": 1534},
+    )
+
+    assert outcome.ok is False
+    assert outcome.kind == "render_unverified"
+    assert page.request.kwarg_calls == []
+
+
+@pytest.mark.asyncio
 async def test_ryw_fastpath_extracts_rendered_body_text(short_body_poll):
     url = "http://gitlab.test/proj/-/issues/5"
     json_url = url + "/discussions.json"

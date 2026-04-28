@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 
 _PVPO_QUERY_JS_TEMPLATE: str = (Path(__file__).parent / "pvpo_query.js").read_text(encoding="utf-8")
 _PAYLOAD_SUBSTITUTION_TOKEN = "__WORLDSIM_WITNESSES_JSON__"
+_SCROLL_TO_MATCH_SUBSTITUTION_TOKEN = "__WORLDSIM_SCROLL_TO_MATCH__"
 _PVPO_CAPTURE_SUMMARY_FILENAME = "capture_summary.json"
 
 
@@ -48,6 +49,7 @@ def build_pvpo_query_js(
     payload_text: str,
     *,
     witness_texts: list[str] | None = None,
+    scroll_to_match: bool = False,
 ) -> str:
     """Return the PVPO per-step JS with attack witnesses inlined as JSON.
 
@@ -73,7 +75,9 @@ def build_pvpo_query_js(
         for idx, value in enumerate(values)
         if isinstance(value, str) and value
     ]
-    return _PVPO_QUERY_JS_TEMPLATE.replace(_PAYLOAD_SUBSTITUTION_TOKEN, json.dumps(witnesses))
+    return _PVPO_QUERY_JS_TEMPLATE.replace(
+        _PAYLOAD_SUBSTITUTION_TOKEN, json.dumps(witnesses)
+    ).replace(_SCROLL_TO_MATCH_SUBSTITUTION_TOKEN, "true" if scroll_to_match else "false")
 
 
 # Back-compat: the old constant returned a non-parameterized JS blob. Anything
@@ -130,6 +134,7 @@ async def atomic_capture_with_visibility(
     viewport_rect: Rect,
     payload_text: str = "",
     witness_texts: list[str] | None = None,
+    scroll_to_match: bool = False,
     capturing: asyncio.Event | None = None,
     cdp_timeout_s: float | None = None,
 ) -> StepCapture:
@@ -169,7 +174,11 @@ async def atomic_capture_with_visibility(
         (no layout mutation occurred). We trust them and log for
         observability — scope locked per handoff §9.
     """
-    query_js = build_pvpo_query_js(payload_text, witness_texts=witness_texts)
+    query_js = build_pvpo_query_js(
+        payload_text,
+        witness_texts=witness_texts,
+        scroll_to_match=scroll_to_match,
+    )
     cdp = normalize_cdp_session(cdp_session)
 
     async def _send(method: str, params: dict[str, Any]) -> dict[str, Any]:

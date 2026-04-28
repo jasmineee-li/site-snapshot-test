@@ -79,6 +79,8 @@ def test_pvpo_query_js_uses_multinode_linearization():
     # wrapped runs (e.g. an `<a>` inside a `<p>`) are individually
     # visibility-checked rather than inheriting the first match's parent.
     assert "sourceNode.parentElement" in js
+    assert "__WORLDSIM_SCROLL_TO_MATCH__" not in js
+    assert "const scrollToMatch = false;" in js
 
 
 def test_rect_as_cdp_clip_shape():
@@ -481,6 +483,7 @@ def test_pvpo_query_js_contract_markers_present():
     # Payload is inlined JSON-encoded, not as a raw string (quoting-safe).
     assert "some payload text" in js
     assert "__WORLDSIM_WITNESSES_JSON__" not in js
+    assert "__WORLDSIM_SCROLL_TO_MATCH__" not in js
 
 
 def test_build_pvpo_query_js_json_encodes_quotes_and_backslashes():
@@ -499,6 +502,16 @@ def test_build_pvpo_query_js_empty_payload_still_valid():
     # But the template must still parse (substitution applied cleanly).
     assert "__WORLDSIM_WITNESSES_JSON__" not in js
     assert "[]" in js
+
+
+def test_build_pvpo_query_js_can_scroll_offscreen_match_before_capture():
+    js = build_pvpo_query_js(
+        "attack witness lower on the page",
+        scroll_to_match=True,
+    )
+    assert "const scrollToMatch = true;" in js
+    assert "scrollMatchIntoView(matches[0]);" in js
+    assert "element.scrollIntoView" in js
 
 
 def test_build_pvpo_query_js_empty_witness_list_falls_back_to_payload_text():

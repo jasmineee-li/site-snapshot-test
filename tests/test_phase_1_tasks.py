@@ -849,6 +849,30 @@ def test_validate_generated_novel_task_rejects_vacuous_expected_payloads(reward_
     assert expected in problem
 
 
+def test_validate_generated_novel_task_accepts_network_expected_url_list():
+    task = _novel_task()
+    task["reward_function"] = {
+        "eval": [
+            {
+                "evaluator": "NetworkEventEvaluator",
+                "expected": {
+                    "url": ["__SHOPPING__/orders", "__SHOPPING__/orders.json"],
+                    "http_method": "GET",
+                },
+            }
+        ]
+    }
+
+    problem = phase_1_generate_new_tasks_validation.validate_generated_novel_task(
+        task,
+        index=0,
+        site_name="shopping",
+        allowed_eval_types={"NetworkEventEvaluator"},
+    )
+
+    assert problem is None
+
+
 def test_validate_generated_novel_tasks_rejects_non_list_and_duplicate_ids():
     validated, errors = phase_1_generate_new_tasks_validation.validate_generated_novel_tasks(
         {"id": "novel_shopping_1"},

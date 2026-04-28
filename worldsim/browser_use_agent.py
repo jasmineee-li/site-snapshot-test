@@ -2411,6 +2411,7 @@ def _make_pvpo_step_callback(
                 viewport_rect=viewport_rect,
                 payload_text=payload_text,
                 witness_texts=payload_witnesses,
+                scroll_to_match=False,
                 capturing=capturing,
                 cdp_timeout_s=timeout_s,
             )
