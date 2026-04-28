@@ -28,9 +28,9 @@ For a repo-wide fast baseline, prefer the checked-in wrapper:
 bash scripts/verify_fast.sh
 ```
 
-It runs scoped Ruff over `worldsim tests scripts` and pytest collection through
-`scripts/lib/run_silent.sh`. Use it before broader validation and before handing
-off agent-authored changes.
+It runs scoped Ruff over `worldsim tests scripts`, pytest collection, and the
+tracked-file readiness audit through `scripts/lib/run_silent.sh`. Use it before
+broader validation and before handing off agent-authored changes.
 
 Use the narrowest meaningful check first, then broaden before shipping:
 
@@ -72,6 +72,7 @@ scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml -
 - Crash/resume behavior: `uv run pytest -m crash_resume tests/test_crash_resume_*.py -q`
 - WebArena evaluator adapter: `uv sync --directory packages/worldsim-webarena-verified`
 - CLI smoke: `uv run python -m worldsim.main --help`
+- Readiness metrics: `uv run python scripts/readiness_audit.py --json`
 
 ## Hooks
 
