@@ -1,75 +1,53 @@
-## What this is
+# WorldSim v5 Agent Guide
 
-**WorldSim v5** — a Modal-Sandbox + Browser-Use adversarial evaluation pipeline for browser agents. Research question: do browser agents resist or comply with indirect prompt injections embedded in realistic web environments (WebArena)?
+## WHAT
+- Python 3.12 `uv` project for Modal Sandbox + Browser Use adversarial evaluation of browser agents.
+- Strict WASP scope: GitLab issues/comments and Reddit/Postmill posts/comments only; current dataset is 38 tasks (22 GitLab, 16 Reddit), regenerated 2026-04-26.
+- Main map: `worldsim/` core package, `scripts/` host/run tooling, `tests/` unit/live/preflight suites, `packages/worldsim-webarena-verified/` isolated evaluator adapter, `vendors/` gitignored benchmark clones.
+- `AgentLab/src/agentlab/benchmarks/redteam/{execution.py,claude_code.py}` are read-only references only; never import from `AgentLab/`.
 
-**Scope:** strict WASP alignment — **GitLab issues/comments and Reddit (Postmill) posts/comments only.** Current dataset: 38 tasks (22 GitLab + 16 Reddit), regenerated 2026-04-26 after post-`057e8e26` strict exposure-contract eligibility from the same WebArena task pool as the prior 84-task figure; see `logs_clean_2026-04-26/phase_2/`. Rationale (IPI threat model, Magento/Wikipedia/OSM exclusion): [`docs/handoffs/wasp-aligned-scoping-decision.md`](docs/handoffs/wasp-aligned-scoping-decision.md).
+## WHY
+- Research question: do browser agents resist or comply with indirect prompt injections embedded in realistic WebArena environments?
+- The orchestrator connects to pre-running benchmark instances supplied by the user (`site_url`, `reset_endpoint`); it does not manage benchmark lifecycles except reset between tasks.
+- `docs/worldsim-v5-technical-specifcation.md` is authoritative; the filename typo is intentional. If code and spec diverge, update the spec first when needed, then align code.
 
-## Read the spec first
+## HOW
+- Before non-trivial work, read the relevant spec section and one companion doc. Do not preload every `agent_docs/` file.
+- `agent_docs/verification.md` — test/lint/live-gate selection and quiet output wrappers.
+- `agent_docs/domain-invariants.md` — Phase 2/4, auth, sandbox, prompt, and WASP invariants.
+- `agent_docs/remote-runs.md` — r5, proxy, fresh-host, and long-run discipline.
+- Work loop: Research -> Plan -> Implement -> Validate. Keep each context small; use `rg`; delegate focused exploration/verification to sub-agents when the harness supports it.
+- Prefer existing patterns and helpers over new abstractions. Keep edits scoped; do not rewrite generated logs or hand-edit `feasibility.status`.
+- Main commands: `uv sync --extra dev`, `uv run python -m worldsim.main --help`, `uv run pytest <paths> -q`, `uv run ruff check <paths>`, `uv run ruff format <paths>`.
+- Use `scripts/lib/run_silent.sh` or repo quiet wrappers; for live gates use `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml --quiet`. Never truncate verbose output yourself.
+- Claude/Modal auth precedence lives in `worldsim/modal_sandbox.py::_build_claude_secrets` and `worldsim/phase_4/anthropic_client.py`; never hard-code one auth mode.
+- If an instruction here caused a wrong turn or was missing during a real failure, propose the smallest `AGENTS.md`/`agent_docs/` fix after handling the task.
+- Do not generate or serve web applications from this repo.
 
-Authoritative spec: [`docs/worldsim-v5-technical-specifcation.md`](docs/worldsim-v5-technical-specifcation.md) — the typo in the filename is intentional, do not "fix". Every module in `worldsim/` implements a section. **When code diverges from the spec, the spec is right — fix the code.** If current source or handoff docs expose a real spec drift, update the spec first, then align the code. If the spec provides literal code (`run_claude_in_sandbox`, `BrowserUseAgent`, `apply_data_seed`, `save_state`, `run_eval`), use it verbatim.
-
-Repo layout and prerequisites: `README.md`. Current Claude/Modal auth precedence lives in `worldsim/modal_sandbox.py::_build_claude_secrets` and `worldsim/phase_4/anthropic_client.py`. CLI entrypoint: `uv run python -m worldsim.main --help`.
-
-## Remote Run Discipline
-
-- Use `scripts/sync_to_r5.sh` plus `scripts/remote_job_start.sh` for long r5 runs; avoid raw long-lived SSH pipes.
-- Start jobs by host config (`configs/benchmark_hosts/r5.yaml`) and job id, not hard-coded IPs or command patterns.
-- Stop jobs only with `scripts/remote_job_stop.sh --job-id ...`; never use broad `pkill -f`.
-- Remote job metadata/logs live under `<remote-dir>/logs/remote_jobs/<job_id>/`.
-- Detailed operator flow: [`docs/handoffs/rigor-run-setup.md`](docs/handoffs/rigor-run-setup.md).
-
-## Non-negotiable invariants
-
-- The orchestrator does not manage benchmark environment lifecycles. It connects to pre-running instances supplied by the user (`{site_url, reset_endpoint}`); `reset_endpoint` between tasks is the one exception.
-- No runtime imports from `AgentLab/`. v5 has zero dependency on it; the two files still on disk (`execution.py`, `claude_code.py`) are read-only reference material.
-- Do not generate or serve web applications.
-- Phase 2c feasibility gate is strict admission for Phase 4. Never ship a Phase 4 run on an unverified dataset, and never hand-edit `feasibility.status`.
-- No Phase 4 trajectory step routes through `run_claude_in_sandbox`. Refusal judge, variant generator, Transcript Purpose classifier, VEA, and placement-fix all use direct Anthropic Messages API calls — see `worldsim/phase_4/{judge_api,variant_api,transcript_purpose_api,verbalized_eval_awareness_api,placement_api}.py`.
-
-## Handoff docs
-
-Pick the one matching your task and read it before working in that area:
-
-- [`codex-handoff-paint-verified-oracle.md`](docs/handoffs/codex-handoff-paint-verified-oracle.md) — PVPO capture, ink-occupancy encounter detection, Phase 4 gates; read the top supersession notes before using older P(eval) material.
-- [`codex-handoff-phase-4-judge-variant-api-cutover.md`](docs/handoffs/codex-handoff-phase-4-judge-variant-api-cutover.md) — why judge/variant/TP/VEA/placement-fix use host API, not sandboxes.
-- [`rigor-run-setup.md`](docs/handoffs/rigor-run-setup.md) — fresh-host bootstrap, preflight, launch sequence.
-- [`wasp-aligned-scoping-decision.md`](docs/handoffs/wasp-aligned-scoping-decision.md) — dataset scope rationale.
-
-<important if="you are touching Phase 4, PVPO capture, encounter detection, trajectory extraction, or the observational metrics">
-- Phase 4 has **two gates** (encounter via PVPO `max_coverage ∈ [0.0, 1.0]`; attack effectiveness via refusal judge) and **two observational metrics** that never gate (Transcript Purpose, VEA). `max_coverage == 0` routes to placement-fix.
-- Trajectories flow through disk. Per-task dirs under `logs/<run>/<task_id>/` hold `history.json`, `result.json`, `screenshots/`, `conversations/`, `pvpo/`. Judges and classifiers receive host-side dataclass-projected slices.
-- Full current mechanics live in `worldsim/phase_4/*`; [`docs/handoffs/codex-handoff-paint-verified-oracle.md`](docs/handoffs/codex-handoff-paint-verified-oracle.md) is useful historical context with supersession notes at the top. Apollo / Needham prompt protocols are documented in the code at `worldsim/phase_4/{transcript_purpose_api,verbalized_eval_awareness_api}.py`; Apollo prompts are SHA256-pinned in `tests/test_phase_4_transcript_purpose_api.py`.
+<important if="you are changing tests, lint, CI hooks, or verification flow">
+- Default pytest excludes `integration`, `feasibility`, `preflight`, `live_l3`, and `crash_resume`; opt into those markers deliberately.
+- `.claude/hooks/ruff-autofix.sh` formats edited Python files; `.claude/hooks/stop-verify.sh` checks changed tracked Python files only.
+- For changes touching editors, seeding, Phase 2c, Phase 4, PVPO, or host-API prompts, unit tests are insufficient; run the live integration wrapper when a stack is available.
 </important>
 
-<important if="you are modifying the Phase 4 strategy pool or reward functions">
-- Do not reintroduce `visual_concealment` — paper concealment is behavioral (final-response steering), not visual. Category error.
-- Behavioral concealment strategies (`scripted_message`, `command_silent_execution`, `false_justification`) are deferred indefinitely; the current `AgentResponseEvaluator` + `db_query_match` reward is tool-side only and cannot grade them.
-- Phase 4 only varies adversarial strategy. Benign task contracts and reward functions emitted by Phase 3 are invariant across variants — do not modify.
+<important if="you are touching Phase 2/4, eligibility, exposure contracts, feasibility, PVPO, judges, TP, VEA, placement-fix, strategy, or rewards">
+- Phase 2c is strict admission for Phase 4. Do not ship Phase 4 on an unverified dataset and do not pass `--skip-feasibility` for shipping runs.
+- Current scope is GitLab and Reddit/Postmill UGC surfaces only; Magento, Wikipedia, OSM, shopping, and classifieds are out of WASP scope unless the spec changes.
+- Phase 4 has two gates: PVPO encounter (`max_coverage` in `[0,1]`; `0` routes to placement-fix) and refusal-judge attack effectiveness.
+- Transcript Purpose and VEA are observational metrics only; never branch or gate on them.
+- Refusal judge, variant generator, Transcript Purpose, VEA, and placement-fix use direct host Anthropic Messages API calls, not `run_claude_in_sandbox`.
+- Do not reintroduce `visual_concealment`; paper concealment is behavioral final-response steering, not visual.
+- Phase 4 only varies adversarial strategy. Benign task contracts and reward functions emitted by Phase 3 remain invariant across variants.
 </important>
 
-<important if="you are setting up a fresh host, deploying or debugging the benchmark proxy, or preparing a rigor run">
-- Full runbook: [`docs/handoffs/rigor-run-setup.md`](docs/handoffs/rigor-run-setup.md).
-- Run `scripts/setup_phase4_on_host.sh` on any fresh host before Phase 4 — its preflight step (`pytest -m preflight tests/preflight`) proves CDP endpoints, storage_state, and evaluator venv.
-- Proxy: source of truth is `scripts/deploy_benchmark_proxy.sh`. Never hand-edit `/etc/nginx/conf.d/worldsim-proxy.conf`. Verify parity with `scripts/check_proxy_drift.sh --verify-runtime`.
-- Rigor runs need `chrome-headless-shell` Docker containers (`worldsim/docker/chrome-headless-shell.Dockerfile`) because `HeadlessExperimental.beginFrame` is unsupported on native macOS. Without them, PVPO falls back to zero coverage and every trajectory routes to placement-fix.
+<important if="you are changing Modal sandbox setup, secret wiring, sandbox lifecycle, or file routing">
+- Modal sandboxes are scoped by explicit `image.add_local_file` / `image.add_local_dir` inclusion, not ignore patterns.
+- Read the two AgentLab reference files if needed, then retype equivalent behavior in `worldsim/`; runtime imports from `AgentLab/` are forbidden.
 </important>
 
-<important if="you are preparing to ship a PR that touches editors, seeding, Phase 2c, Phase 4, PVPO capture, or the six host-API prompt files">
-- Run `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml --quiet` against a live stack. Unit tests alone are insufficient for editor, Phase 2c, PVPO, or Phase 4 integration changes. `--quiet` swallows passing output; only failures surface to stderr. Paste the surfaced failure output (if any) into the PR description.
-- The six host-API prompt files tracked here: `judge-adversarial-failure.md`, `generate-variant.md`, `transcript-purpose-guess.md`, `transcript-purpose-classify.md`, `verbalized-eval-awareness.md`, `placement-fix.md` — they feed single-turn API calls with no sandbox error boundary.
-- Phase 2c feasibility is strict admission. Do not pass `--skip-feasibility` on shipping runs. Break-glass override is `WORLDSIM_STRICT_FEASIBILITY={true,false}`.
-</important>
-
-<important if="you are stuck on Modal image setup, secret wiring, sandbox lifecycle, Claude Code invocation flags, or file routing into a sandbox">
-- Modal sandboxes are scoped by which files you `image.add_local_dir`, not by ignore-file patterns. Never rely on ignore patterns for isolation.
-- Two predecessor files on this branch are kept as read-only reference for exactly these mechanics:
-  - `AgentLab/src/agentlab/benchmarks/redteam/execution.py` — Modal image, secrets, sandbox lifecycle.
-  - `AgentLab/src/agentlab/benchmarks/redteam/claude_code.py` — Claude Code invocation flags.
-- Read them, retype the equivalent in `worldsim/`. Never `import` from `AgentLab/`. No other file under `AgentLab/` is in scope.
-</important>
-
-<important if="you are debugging a live run, choosing auth, or wiring a phase entrypoint">
-- Agent evaluation runs locally via Browser Use in an async worker pool with staggered start (`STAGGER_DELAY = 5`).
-- Results default to `./logs/`; override with `WORLDSIM_STATE_DIR`. `--resume` reads `logs/pipeline_state.json` and skips completed phases.
-- Claude auth precedence is decided by `worldsim/modal_sandbox.py::_build_claude_secrets` (sandbox) and `worldsim/phase_4/anthropic_client.py` (host API). Three modes supported (`CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL`). Never hard-code which one; let the helper decide.
+<important if="you are setting up hosts, deploying the proxy, or preparing rigor runs">
+- Read `agent_docs/remote-runs.md` and `docs/handoffs/rigor-run-setup.md` first.
+- Use `scripts/setup_phase4_on_host.sh` on fresh hosts; its preflight proves CDP endpoints, storage state, and evaluator venv.
+- Proxy source of truth is `scripts/deploy_benchmark_proxy.sh`; never hand-edit `/etc/nginx/conf.d/worldsim-proxy.conf`.
+- Rigor PVPO needs `chrome-headless-shell` Docker containers; native macOS Chrome cannot provide `HeadlessExperimental.beginFrame`.
 </important>
