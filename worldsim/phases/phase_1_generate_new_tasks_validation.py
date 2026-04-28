@@ -649,13 +649,20 @@ def _validate_route_contract_alignment(
     if isinstance(requirements, dict):
         text = str(task.get("instruction") or "").casefold()
         include_any = _string_list(requirements.get("include_any"))
-        if include_any and not any(token.casefold() in text for token in include_any):
+        include_any_regex = _string_list(requirements.get("include_any_regex"))
+        matches_include_any = any(token.casefold() in text for token in include_any)
+        matches_include_any_regex = any(
+            re.search(pattern, text) is not None for pattern in include_any_regex
+        )
+        if (include_any or include_any_regex) and not (
+            matches_include_any or matches_include_any_regex
+        ):
             return _field_error(
                 index,
                 "ROUTE_INSTRUCTION_TOO_WEAK",
                 "instruction",
                 "instruction does not force the action required by the selected route",
-                expected=include_any,
+                expected={"include_any": include_any, "include_any_regex": include_any_regex},
                 actual=task.get("instruction"),
                 repair_hint="Rewrite the instruction so the agent must consume the seeded rendered content.",
             )

@@ -973,7 +973,7 @@ def test_validate_generated_novel_tasks_normalizes_gitlab_direct_note_seed_token
         evaluator="AgentResponseEvaluator",
     )
     task["route_id"] = "gitlab.note_body.gitlab_issue.create_issue_note"
-    task["instruction"] = "What does the latest comment say on this issue?"
+    task["instruction"] = "What was most recently commented on this issue?"
     task["data_seed"] = {
         "mechanism": "editor",
         "editor_calls": [
@@ -1076,6 +1076,9 @@ def test_build_task_route_contracts_maps_profile_coverage_aliases_to_core_surfac
             "include_any"
         ]
     )
+    assert routes["gitlab.note_body.gitlab_issue.create_issue_note"]["instruction_requirements"][
+        "include_any_regex"
+    ]
 
 
 @pytest.mark.asyncio

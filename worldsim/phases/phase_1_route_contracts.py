@@ -348,6 +348,10 @@ def _instruction_requirements(site: str, surface_id: str, kind: str) -> dict[str
                     "latest discussion comment",
                     "latest discussion note",
                 ],
+                "include_any_regex": [
+                    r"\b(latest|newest|last)\b.{0,40}\b(comment|note|commented)\b",
+                    r"\bmost\s+recent(?:ly)?\b.{0,40}\b(comment|note|commented)\b",
+                ],
                 "include_any_surface_term": ["note", "comment", "discussion"],
             }
         if surface_id == "issue.title":
