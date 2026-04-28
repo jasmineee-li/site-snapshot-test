@@ -2,11 +2,20 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if [[ -n "${HOME:-}" ]]; then
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+fi
 HOST_CONFIG=""
 INSTANCES_FILE="${REPO_ROOT}/instances.smoke.json"
 VERIFY_READ_SURFACE_URLS=""
 QUIET=""
 HOST_VIEW="auto"
+LIVE_INSTANCES_FILE=""
+
+if ! command -v uv >/dev/null 2>&1; then
+    echo "ERROR: uv not found on PATH. Install uv or add it to PATH before running integration tests." >&2
+    exit 1
+fi
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -160,6 +169,38 @@ PY
 
 if [[ ! -f "$LIVE_INSTANCES_FILE" ]]; then
     echo "ERROR: LIVE_INSTANCES_FILE does not exist: $LIVE_INSTANCES_FILE" >&2
+    exit 1
+fi
+
+check_playwright_browser_ready() {
+    uv run python - <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    from playwright.sync_api import sync_playwright
+except Exception as exc:
+    print(
+        "ERROR: Playwright is not importable. Run `uv sync --extra dev` before "
+        f"live integration tests. Import error: {exc}",
+        file=sys.stderr,
+    )
+    raise SystemExit(2)
+
+with sync_playwright() as pw:
+    executable = Path(pw.chromium.executable_path)
+    if not executable.is_file():
+        print(
+            "ERROR: Playwright Chromium is not installed for this environment.\n"
+            f"Missing executable: {executable}\n"
+            "Run: uv run python -m playwright install chromium",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+PY
+}
+
+if ! check_playwright_browser_ready; then
     exit 1
 fi
 

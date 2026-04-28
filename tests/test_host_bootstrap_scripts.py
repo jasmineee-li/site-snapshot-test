@@ -129,6 +129,110 @@ exit 0
     assert completed.stderr
 
 
+def test_run_integration_tests_fails_fast_when_playwright_browser_missing(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    instances = tmp_path / "instances.smoke.json"
+    instances.write_text("{}")
+
+    _write_fake_executable(
+        fakebin / "uv",
+        """#!/bin/sh
+if [ "$1" = "run" ] && [ "$2" = "python" ] && [ "$3" = "-" ] && [ -n "${INSTANCES_FILE_VALUE:-}" ]; then
+  echo "export LIVE_INSTANCES_FILE='$INSTANCES_FILE_VALUE'"
+  echo "export LIVE_PHASE2_ARTIFACT='$PWD/logs/phase_2/adversarial_tasks.json'"
+  echo "export LIVE_PHASE2C_ARTIFACT='$PWD/logs/phase_2/feasibility_report.json'"
+  echo "export LIVE_HOST_IP=''"
+  exit 0
+fi
+if [ "$1" = "run" ] && [ "$2" = "python" ] && [ "$3" = "-" ]; then
+  echo "ERROR: Playwright Chromium is not installed for this environment." >&2
+  echo "Run: uv run python -m playwright install chromium" >&2
+  exit 2
+fi
+if [ "$1" = "run" ] && [ "$2" = "pytest" ]; then
+  echo "pytest should not run before Playwright preflight" >&2
+  exit 99
+fi
+exit 0
+""",
+    )
+
+    env = _base_env(repo_root)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "run_integration_tests.sh"),
+            "--instances",
+            str(instances),
+            "--quiet",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 1
+    assert "Playwright Chromium is not installed" in completed.stderr
+    assert "uv run python -m playwright install chromium" in completed.stderr
+    assert "pytest should not run" not in completed.stderr
+
+
+def test_run_integration_tests_bootstraps_home_local_uv_path(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    home = tmp_path / "home"
+    fakebin = home / ".local" / "bin"
+    fakebin.mkdir(parents=True)
+    instances = tmp_path / "instances.smoke.json"
+    instances.write_text("{}")
+
+    _write_fake_executable(
+        fakebin / "uv",
+        """#!/bin/sh
+if [ "$1" = "run" ] && [ "$2" = "python" ] && [ "$3" = "-" ] && [ -n "${INSTANCES_FILE_VALUE:-}" ]; then
+  echo "export LIVE_INSTANCES_FILE='$INSTANCES_FILE_VALUE'"
+  echo "export LIVE_PHASE2_ARTIFACT='$PWD/logs/phase_2/adversarial_tasks.json'"
+  echo "export LIVE_PHASE2C_ARTIFACT='$PWD/logs/phase_2/feasibility_report.json'"
+  echo "export LIVE_HOST_IP=''"
+  exit 0
+fi
+if [ "$1" = "run" ] && [ "$2" = "python" ] && [ "$3" = "-" ]; then
+  exit 0
+fi
+if [ "$1" = "run" ] && [ "$2" = "pytest" ]; then
+  echo "======================== 1 passed in 0.01s ========================"
+  exit 0
+fi
+exit 99
+""",
+    )
+
+    env = _base_env(repo_root)
+    env["HOME"] = str(home)
+    env["PATH"] = "/usr/bin:/bin"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "run_integration_tests.sh"),
+            "--instances",
+            str(instances),
+            "--quiet",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "1 passed" in completed.stdout
+
+
 # test_sync_magento_base_urls_fails_when_repair_not_applied_without_verify_after
 # removed 2026-04-21 with the WASP-aligned scoping decision (see
 # docs/handoffs/wasp-aligned-scoping-decision.md).
