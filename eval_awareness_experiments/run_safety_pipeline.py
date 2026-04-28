@@ -318,15 +318,25 @@ def _resolve_study_dir(
 ) -> Path | None:
     """Return the study_dir produced by a runner.
 
-    For DoomArena with a cell-owned output dir, look there first. Falls back
-    to the global `results/browsergym/` pool to keep the path working for
-    benchmarks that haven't been migrated to cell namespacing.
+    For DoomArena with a cell-owned output dir, the runner is launched
+    with `--results-dir <cell_dir>/<split>` which becomes AgentLab's
+    `exp_root` directly — so the study contents (agent-run subdirs +
+    attack_config.json + CSVs) land in `<cell_dir>/<split>/` itself,
+    NOT under a `study_*` subdir. Treat the split dir AS the study
+    when it has trajectory subdirs in it.
+
+    Falls back to the global `results/browsergym/` pool for benchmarks
+    that haven't been migrated to cell namespacing.
     """
     if cell_dir is not None:
         split_dir = cell_dir / split
         if split_dir.exists():
+            # Did the runner actually write trajectories here?
+            if any(split_dir.rglob("summary_info.json")):
+                return split_dir
+            # Sometimes a wrapper layer creates a `study_*` subdir; tolerate it.
             new = sorted(split_dir.glob("study_*"), key=lambda p: p.stat().st_mtime)
-            if new:
+            if new and any(new[-1].rglob("summary_info.json")):
                 return new[-1]
     after = set((REPO_ROOT / "results" / "browsergym").glob("study_*"))
     new = sorted(after - before, key=lambda p: p.stat().st_mtime)
@@ -451,8 +461,14 @@ def _stage1_browser_parallel_splits(
             split_root = cell_dir / split
             if not split_root.exists():
                 continue
+            # cell_dir/split IS the study dir (--results-dir == AgentLab exp_root).
+            # Treat it as a study iff it actually contains trajectories.
+            if any(split_root.rglob("summary_info.json")):
+                split_to_study[split] = split_root
+                continue
+            # Tolerate older runner layouts that nested study_* inside.
             studies = sorted(split_root.glob("study_*"), key=lambda p: p.stat().st_mtime)
-            if studies:
+            if studies and any(studies[-1].rglob("summary_info.json")):
                 split_to_study[split] = studies[-1]
 
     # Fallback to legacy discovery for any splits that didn't land in the
