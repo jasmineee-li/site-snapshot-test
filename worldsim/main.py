@@ -910,15 +910,7 @@ def _install_verification_proxy_from_args(args: argparse.Namespace) -> None:
         raise RuntimeError(
             f"verification_proxy_invalid: verification_proxy in {path} must be an object"
         )
-    token = proxy_data.get("token")
-    if token is None:
-        raise RuntimeError(
-            f"verification_proxy_invalid: verification_proxy.token missing in {path}"
-        )
-    if not isinstance(token, str):
-        raise RuntimeError(
-            f"verification_proxy_invalid: verification_proxy.token in {path} must be a string"
-        )
+    token = _resolve_verification_proxy_token(proxy_data, config_path=path)
     if not token.strip():
         return
     scheme = proxy_data.get("scheme", "http")
@@ -971,6 +963,41 @@ def _install_verification_proxy_from_args(args: argparse.Namespace) -> None:
         port_offset=port_offset,
         site_ports=site_ports,
     )
+
+
+def _resolve_verification_proxy_token(proxy_data: dict[str, object], *, config_path: Path) -> str:
+    token = proxy_data.get("token", "")
+    if token is not None and not isinstance(token, str):
+        raise RuntimeError(
+            f"verification_proxy_invalid: verification_proxy.token in {config_path} must be a string"
+        )
+    if isinstance(token, str) and token.strip():
+        return token.strip()
+    token_env = proxy_data.get("token_env")
+    if token_env is not None and not isinstance(token_env, str):
+        raise RuntimeError(
+            f"verification_proxy_invalid: verification_proxy.token_env in {config_path} must be a string"
+        )
+    if isinstance(token_env, str) and token_env.strip():
+        import os
+
+        env_value = os.environ.get(token_env.strip(), "").strip()
+        if env_value:
+            return env_value
+    token_file = proxy_data.get("token_file")
+    if token_file is not None and not isinstance(token_file, str):
+        raise RuntimeError(
+            f"verification_proxy_invalid: verification_proxy.token_file in {config_path} must be a string"
+        )
+    if isinstance(token_file, str) and token_file.strip():
+        candidate = Path(token_file)
+        if not candidate.is_absolute():
+            candidate = config_path.parent / candidate
+        try:
+            return candidate.read_text(encoding="utf-8").strip()
+        except OSError:
+            return ""
+    return ""
 
 
 def main(argv: list[str] | None = None) -> int:

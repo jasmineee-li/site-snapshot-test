@@ -1913,12 +1913,13 @@ Configuration lives in `instances.json` under a top-level `verification_proxy` o
 
 ```json
 "verification_proxy": {
-  "token": "...",
+  "token_file": ".proxy_token",
+  "token_env": "WORLDSIM_VERIFICATION_PROXY_TOKEN",
   "port_offset": 10000
 }
 ```
 
-When the token is non-empty, `phase_0_recon._profile_one_site_tiered` rewrites site URLs to proxy ports and includes the token in `INSTANCE_CONNECTIVITY.json` staged into Tier 2 sandboxes. The profiling prompt instructs the LLM to pass the header in all curl requests. When the token is empty or the block is absent, Phase 0c falls back to direct URLs (or code-reading-only if the instance is unreachable).
+`token` remains accepted for generated or ephemeral configs, but checked-in configs should use `token_env` or `token_file` so live bearer tokens stay out of git. When the resolved token is non-empty, `phase_0_recon._profile_one_site_tiered` rewrites site URLs to proxy ports and includes the token in `INSTANCE_CONNECTIVITY.json` staged into Tier 2 sandboxes. The profiling prompt instructs the LLM to pass the header in all curl requests. When the token is empty, unavailable, or the block is absent, Phase 0c falls back to direct URLs (or code-reading-only if the instance is unreachable).
 
 Deployment is handled by `scripts/deploy_benchmark_proxy.sh`, which is benchmark-agnostic: it reads site-to-port mappings from a config file (`scripts/proxy_ports.conf` for WebArena) and generates one nginx `server` block per site. The script is idempotent and safe to re-run.
 

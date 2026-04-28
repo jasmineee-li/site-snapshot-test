@@ -434,6 +434,8 @@ def build_instances_config(
             verification_proxy = {}
         if proxy_token is not None:
             verification_proxy["token"] = proxy_token
+            verification_proxy.pop("token_env", None)
+            verification_proxy.pop("token_file", None)
         verification_proxy["port_offset"] = proxy_port_offset
         if proxy_scheme is not None:
             verification_proxy["scheme"] = proxy_scheme
@@ -451,7 +453,7 @@ def build_instances_config(
     output["instances"] = instances
 
     validated = BenchmarkConfig.model_validate(output)
-    return validated.model_dump(mode="json")
+    return validated.model_dump(mode="json", exclude_none=True)
 
 
 # ---------------------------------------------------------------------------

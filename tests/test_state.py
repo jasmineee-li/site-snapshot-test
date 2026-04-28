@@ -940,6 +940,97 @@ def test_install_verification_proxy_keeps_remote_instances(monkeypatch, tmp_path
     assert captured["site_ports"] == {9999}
 
 
+def test_install_verification_proxy_reads_token_env(monkeypatch, tmp_path):
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "instances": [
+                    {"site_url": "http://203.0.113.10:9999"},
+                ],
+                "verification_proxy": {
+                    "token_env": "WORLDSIM_TEST_PROXY_TOKEN",
+                    "port_offset": 10000,
+                },
+            }
+        )
+    )
+    monkeypatch.setenv("WORLDSIM_TEST_PROXY_TOKEN", "env-token")
+    captured = {}
+
+    def fake_install_proxy(**kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr("worldsim.http_proxy.install_proxy", fake_install_proxy)
+
+    worldsim_main._install_verification_proxy_from_args(
+        Namespace(instances=instances_path, feasibility_instances=None)
+    )
+
+    assert captured["token"] == "env-token"
+
+
+def test_install_verification_proxy_reads_token_file(monkeypatch, tmp_path):
+    token_file = tmp_path / ".proxy_token"
+    token_file.write_text("file-token\n")
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "instances": [
+                    {"site_url": "http://203.0.113.10:9999"},
+                ],
+                "verification_proxy": {
+                    "token_file": ".proxy_token",
+                    "port_offset": 10000,
+                },
+            }
+        )
+    )
+    captured = {}
+
+    def fake_install_proxy(**kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr("worldsim.http_proxy.install_proxy", fake_install_proxy)
+
+    worldsim_main._install_verification_proxy_from_args(
+        Namespace(instances=instances_path, feasibility_instances=None)
+    )
+
+    assert captured["token"] == "file-token"
+
+
+def test_install_verification_proxy_missing_external_token_disables_proxy(monkeypatch, tmp_path):
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "instances": [
+                    {"site_url": "http://203.0.113.10:9999"},
+                ],
+                "verification_proxy": {
+                    "token_file": ".missing_proxy_token",
+                    "port_offset": 10000,
+                },
+            }
+        )
+    )
+    called = False
+
+    def fake_install_proxy(**kwargs):
+        nonlocal called
+        called = True
+
+    monkeypatch.setattr("worldsim.http_proxy.install_proxy", fake_install_proxy)
+
+    worldsim_main._install_verification_proxy_from_args(
+        Namespace(instances=instances_path, feasibility_instances=None)
+    )
+
+    assert called is False
+
+
 def test_phase4_run_lock_rejects_concurrent_run(tmp_path):
     with worldsim_main._phase4_run_lock(tmp_path):
         try:

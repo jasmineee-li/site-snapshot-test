@@ -8,6 +8,7 @@ DBs, and reset endpoints supplied here.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -358,6 +359,14 @@ class VerificationProxy(BaseModel):
         "",
         description="Shared secret for X-Worldsim-Token header. Empty string disables proxy auth.",
     )
+    token_env: str | None = Field(
+        None,
+        description="Optional environment variable that contains the proxy token.",
+    )
+    token_file: Path | None = Field(
+        None,
+        description="Optional file path that contains the proxy token.",
+    )
     scheme: str = Field(
         "http",
         description="Proxy URL scheme used by Phase 0c when rewriting site URLs.",
@@ -375,6 +384,25 @@ class VerificationProxy(BaseModel):
         if normalized not in {"http", "https"}:
             raise ValueError("VerificationProxy.scheme must be 'http' or 'https'")
         return normalized
+
+    @model_validator(mode="after")
+    def _resolve_external_token(self) -> VerificationProxy:
+        if self.token.strip():
+            self.token = self.token.strip()
+            return self
+        if self.token_env:
+            env_value = os.environ.get(self.token_env.strip(), "").strip()
+            if env_value:
+                self.token = env_value
+                return self
+        if self.token_file is not None:
+            try:
+                file_value = self.token_file.read_text(encoding="utf-8").strip()
+            except OSError:
+                file_value = ""
+            if file_value:
+                self.token = file_value
+        return self
 
 
 class BenchmarkConfig(BaseModel):

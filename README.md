@@ -140,7 +140,8 @@ group for `0.0.0.0/0`. These ports are token-protected. Then copy the token into
 
 ```json
 "verification_proxy": {
-  "token": "<token from .proxy_token>",
+  "token_file": ".proxy_token",
+  "token_env": "WORLDSIM_VERIFICATION_PROXY_TOKEN",
   "scheme": "http",
   "port_offset": 10000
 }
@@ -148,9 +149,10 @@ group for `0.0.0.0/0`. These ports are token-protected. Then copy the token into
 
 Phase 0c reads this config, rewrites site URLs to proxy ports, and includes
 `X-Worldsim-Token` in all sandbox curl requests. Without a non-empty token the
-proxy is treated as disabled. This proxy is for Phase 0c live verification only;
-Phases 3-4 continue to use the real `site_url` and `reset_endpoint` values from
-`instances.json`.
+proxy is treated as disabled. Tokens should live in the gitignored `.proxy_token`
+file or `WORLDSIM_VERIFICATION_PROXY_TOKEN`, not in checked-in JSON. This proxy
+is for Phase 0c live verification only; Phases 3-4 continue to use the real
+`site_url` and `reset_endpoint` values from `instances.json`.
 
 ### WebArena setup artifact cold storage (S3)
 
