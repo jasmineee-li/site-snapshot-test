@@ -34,19 +34,7 @@ GENERATED_NAMES = {
     "scripts/proxy_ports.conf",
 }
 
-# Current pinned Phase 1/2 artifacts are tracked legacy state. Keep them visible
-# but non-blocking until the dedicated artifact-hygiene commit classifies or
-# relocates them.
-DEFERRED_TRACKED_GENERATED = {
-    "logs/phase_1/benign_tasks.json",
-    "logs/phase_1/novel_tasks_gitlab.json",
-    "logs/phase_2/adversarial_tasks.dropped_source_data.json",
-    "logs/phase_2/adversarial_tasks.infeasible.json",
-    "logs/phase_2/adversarial_tasks.json",
-    "logs/phase_2/adversarial_tasks.map_quarantine.json",
-    "logs/phase_2/feasibility_report.json",
-    "logs/phase_2/new_task_resolver_dropouts.json",
-}
+DEFERRED_TRACKED_GENERATED: set[str] = set()
 
 TOKEN_FIELD_RE = re.compile(r'"(?:token|api_key|secret)"\s*:\s*"([^"]{24,})"', re.IGNORECASE)
 HIGH_ENTROPY_RE = re.compile(r"\b[A-Za-z0-9_-]{40,}\b")
