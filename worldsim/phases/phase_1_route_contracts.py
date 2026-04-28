@@ -324,6 +324,8 @@ def _instruction_requirements(site: str, surface_id: str, kind: str) -> dict[str
                     "most recent note",
                     "newest comment",
                     "newest note",
+                    "last comment",
+                    "last note",
                 ],
                 "include_any_surface_term": ["note", "comment", "discussion"],
             }

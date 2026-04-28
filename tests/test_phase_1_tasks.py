@@ -1006,6 +1006,12 @@ def test_build_task_route_contracts_maps_profile_coverage_aliases_to_core_surfac
             "include_any"
         ]
     )
+    assert (
+        "last comment"
+        in routes["gitlab.note_body.gitlab_issue.create_issue_note"]["instruction_requirements"][
+            "include_any"
+        ]
+    )
 
 
 @pytest.mark.asyncio
