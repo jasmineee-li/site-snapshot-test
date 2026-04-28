@@ -3839,8 +3839,10 @@ def _normalize_gitlab_project_selector_templates(plan: dict) -> None:
             if not isinstance(args, dict) or args.get("project_path_template"):
                 continue
             project_id_value = str(args.get("project_id") or "")
-            if project_id_value and not _value_starts_with_token(
-                project_id_value, "{benign_project_id}"
+            if (
+                project_id_value
+                and not project_id_value.strip().startswith("{")
+                and not _value_starts_with_token(project_id_value, "{benign_project_id}")
             ):
                 continue
             args.pop("project_id", None)

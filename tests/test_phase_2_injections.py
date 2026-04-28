@@ -4740,7 +4740,7 @@ class TestRecoverOrphanedShards:
                             "site": "gitlab",
                             "method": "create_issue_note",
                             "args": {
-                                "project_id": "{benign_project_id}",
+                                "project_id": "{project_id}",
                                 "issue_iid": "{benign_issue_iid}",
                                 "body": "{{PAYLOAD_TEXT}}",
                             },
@@ -5159,7 +5159,7 @@ def test_option_a_normalizes_gitlab_project_id_to_project_path_template():
                     "site": "gitlab",
                     "method": "create_issue_note",
                     "args": {
-                        "project_id": "{benign_project_id}",
+                        "project_id": "{project_id}",
                         "issue_iid": "{benign_issue_iid}",
                         "body": "{{PAYLOAD_TEXT}}",
                     },
