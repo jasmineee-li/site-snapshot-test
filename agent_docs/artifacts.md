@@ -52,6 +52,35 @@ A generated artifact may become tracked only when all of these are true:
 Task-bank metadata and task-card plans may be tracked when they are curated
 dataset inputs. Raw Phase 1/2/3/4 outputs should stay in `logs/` or an archive.
 
+## Current Removed Artifacts
+
+This branch removes generated artifacts that were tracked at baseline
+`origin/feat/worldsim-v5` (`9b9f9a56`). The same current artifact shape was
+observed on r5 at `/home/ubuntu/browser-sim` on 2026-04-28.
+
+These files are not the documented 113-task rigor floor from
+`docs/handoffs/phase-2c-admission-floor.md`. The checked-in Phase 2 report at
+the baseline says `phase_2_status=failed`, `instances=instances.smoke.json`,
+`verified_count=92`, `infeasible_count=6`, and
+`source_data_dropped_count=0`.
+
+| Path | Classification | Count | SHA1 |
+| --- | --- | ---: | --- |
+| `logs/phase_1/benign_tasks.json` | Phase 1 generated output | 872 | `41599bd04da5ed977f5c7fd7efa6b03e1682f776` |
+| `logs/phase_1/novel_tasks_gitlab.json` | Phase 1 generated cache/output | 30 | `6a3534bc8c068f521bd04f35ab6f71f6aafc6435` |
+| `logs/phase_2/adversarial_tasks.json` | Phase 2c generated output, failed smoke run | 92 | `fe878076b86d546032c32b456dd6166278e26c66` |
+| `logs/phase_2/adversarial_tasks.infeasible.json` | Phase 2c generated output, failed smoke run | 6 | `0ca26e9695859436836e83b2b9498b4b54f4619c` |
+| `logs/phase_2/adversarial_tasks.dropped_source_data.json` | Phase 2c generated output, empty sidecar | 0 | `97d170e1550eee4afc0af065b78cda302a97674c` |
+| `logs/phase_2/adversarial_tasks.map_quarantine.json` | Historical map quarantine reference | 76 | `6e800a9970ff6119528e48fec41ba96d81ccc82b` |
+| `logs/phase_2/feasibility_report.json` | Phase 2c generated report, failed smoke run | 1 report | `fa63c65d6f7205494a4d6fa017e734044fbceeb6` |
+| `logs/phase_2/new_task_resolver_dropouts.json` | Phase 2 generated dropout sidecar | 1 dropout | `dcc7044a4cb7bca15264c968e452d0dcb3fc90b9` |
+
+The map quarantine file is intentionally not discarded as knowledge. It is
+recoverable from git history and should be restored into `logs/` only for
+explicit map redesign or migration work. If map is re-admitted, create a new
+source fixture or archived artifact with a clear owner instead of re-tracking
+runtime output under `logs/`.
+
 ## Recovery
 
 Restore a previously tracked artifact from git history only for a specific
@@ -59,10 +88,12 @@ historical investigation:
 
 ```bash
 mkdir -p logs/phase_1 logs/phase_2
-git show <commit>:logs/phase_2/adversarial_tasks.json \
-  > logs/phase_2/adversarial_tasks.json
+git show 9b9f9a56:logs/phase_2/adversarial_tasks.map_quarantine.json \
+  > logs/phase_2/adversarial_tasks.map_quarantine.json
 ```
 
+Use the same pattern for the other removed files, or replace `9b9f9a56` with a
+specific historical commit when investigating a different artifact snapshot.
 Keep restored files local unless the work explicitly converts them into
 documented fixtures.
 
