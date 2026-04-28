@@ -92,6 +92,9 @@ The placeholder token appears in the route contracts.
 Each `start_urls` value must match one of the `allowed_start_url_patterns` for
 the selected `route_id`, with concrete path values filled in where the pattern
 has braces.
+
+Do not use `{{benign_*}}` template tokens in `start_urls`; those tokens belong
+only in editor args.
 </url_policy>
 
 <id_policy>
