@@ -18,9 +18,15 @@ from worldsim.modal_sandbox import (
     upload_to_volume,
 )
 from worldsim.phases.phase_1_generate_new_tasks_validation import (
+    GeneratedTaskValidationError,
     site_is_generate_new_tasks_eligible,
     sort_novel_tasks,
     validate_generated_novel_tasks,
+    validate_generated_novel_tasks_detailed,
+)
+from worldsim.phases.phase_1_route_contracts import (
+    build_task_route_contracts,
+    route_contracts_digest,
 )
 from worldsim.profile_validation import load_and_validate_profile
 from worldsim.prompt_loading import load_prompt
@@ -33,7 +39,7 @@ GENERATE_NEW_TASKS_FIX_MAX_ITERATIONS = 2
 NOVEL_TASK_OUTPUT_PATH = "/workspace/output/benign_tasks.json"
 GENERATE_NEW_TASKS_RESUME_METADATA_PATH = "generate_new_tasks_resume_metadata.json"
 SITE_CACHE_METADATA_SUFFIX = ".metadata.json"
-GENERATE_NEW_TASKS_CACHE_SCHEMA_VERSION = 4
+GENERATE_NEW_TASKS_CACHE_SCHEMA_VERSION = 5
 
 
 def _read_only_volume(volume: Any) -> Any:
@@ -107,7 +113,10 @@ async def run_generate_new_tasks(
     # Fail fast if sandbox auth or image setup is missing before we pay for volume upload.
     await preflight_sandbox_environment()
 
-    logger.info("Phase 1 (generate-new-tasks): generating novel tasks for %d eligible sites", len(eligible_sites))
+    logger.info(
+        "Phase 1 (generate-new-tasks): generating novel tasks for %d eligible sites",
+        len(eligible_sites),
+    )
     benchmark_volume = await upload_to_volume(Path(benchmark_root).resolve())
 
     results = await asyncio.gather(
@@ -167,7 +176,9 @@ def load_generate_new_tasks_eligible_sites(
     for profile_path in sorted(profiles_dir.glob("BENCHMARK_PROFILE_*.json")):
         site_name = profile_path.stem.removeprefix("BENCHMARK_PROFILE_")
         if site_filter_set is not None and site_name not in site_filter_set:
-            logger.info("Phase 1 (generate-new-tasks): skipping site %r due to --sites filter", site_name)
+            logger.info(
+                "Phase 1 (generate-new-tasks): skipping site %r due to --sites filter", site_name
+            )
             continue
         profile = load_and_validate_profile(
             site_name,
@@ -183,7 +194,10 @@ def load_generate_new_tasks_eligible_sites(
                 )
             )
         else:
-            logger.info("Phase 1 (generate-new-tasks): skipping site %r (no uncovered injection surfaces)", site_name)
+            logger.info(
+                "Phase 1 (generate-new-tasks): skipping site %r (no uncovered injection surfaces)",
+                site_name,
+            )
 
     return eligible
 
@@ -209,6 +223,7 @@ async def generate_new_tasks_for_site(
     agent_context, agent_context_errors = _load_site_agent_context(site)
     if agent_context_errors:
         return SiteGenerateNewTasksResult(site.site_name, [], agent_context_errors)
+    route_contracts = build_task_route_contracts(site_name=site.site_name, profile=site.profile)
     cached_result = load_cached_novel_tasks(
         intermediate_path=intermediate_path,
         site_name=site.site_name,
@@ -216,11 +231,14 @@ async def generate_new_tasks_for_site(
         cache_fingerprint=cache_fingerprint,
         expected_agent_context=agent_context,
         expected_task_count=novel_tasks_per_site,
+        route_contracts=route_contracts,
     )
     if cached_result is not None:
         return cached_result
 
-    logger.info("Phase 1 (generate-new-tasks): launching novel-task sandbox for site %r", site.site_name)
+    logger.info(
+        "Phase 1 (generate-new-tasks): launching novel-task sandbox for site %r", site.site_name
+    )
     base_prompt = render_generate_benign_tasks_prompt(
         site_name=site.site_name,
         num_tasks=novel_tasks_per_site,
@@ -232,6 +250,9 @@ async def generate_new_tasks_for_site(
         site_files: dict[str, str] = {
             "/workspace/profile/BENCHMARK_PROFILE.json": str(site.profile_path),
         }
+        route_contracts_path = output_dir / f"TASK_ROUTE_CONTRACTS_{site.site_name}.json"
+        route_contracts_path.write_text(json.dumps(route_contracts, indent=2))
+        site_files["/workspace/profile/TASK_ROUTE_CONTRACTS.json"] = str(route_contracts_path)
         # Pass agent context to sandbox so generated tasks align with response format
         agent_context_path = site.profile_path.parent / f"AGENT_CONTEXT_{site.site_name}.json"
         if agent_context_path.exists():
@@ -263,13 +284,14 @@ async def generate_new_tasks_for_site(
         generated_tasks = (
             _stamp_new_task_origin(raw_tasks) if isinstance(raw_tasks, list) else raw_tasks
         )
-        validated_tasks, errors = validate_generated_novel_tasks(
+        validated_tasks, detailed_errors = validate_generated_novel_tasks_detailed(
             generated_tasks,
             site_name=site.site_name,
             profile=site.profile,
             expected_task_count=novel_tasks_per_site,
+            route_contracts=route_contracts,
         )
-        if not errors:
+        if not detailed_errors:
             sorted_tasks = sort_novel_tasks(
                 _attach_agent_context_to_tasks(validated_tasks, agent_context)
             )
@@ -282,23 +304,16 @@ async def generate_new_tasks_for_site(
             logger.info("Phase 1 (generate-new-tasks): site %r sandbox completed", site.site_name)
             return SiteGenerateNewTasksResult(site.site_name, sorted_tasks, [])
 
-        last_errors = errors
+        last_errors = [error.render() for error in detailed_errors]
         if attempt < GENERATE_NEW_TASKS_FIX_MAX_ITERATIONS:
             logger.warning(
                 "Phase 1 (generate-new-tasks): site %r output failed validation, retrying (%d/%d): %s",
                 site.site_name,
                 attempt + 1,
                 GENERATE_NEW_TASKS_FIX_MAX_ITERATIONS,
-                "; ".join(errors),
+                "; ".join(last_errors),
             )
-            correction = (
-                "\n\n--- CORRECTION NEEDED ---\n"
-                "The previous attempt produced novel tasks with validation errors:\n"
-                + "\n".join(f"  - {error}" for error in errors)
-                + "\n\nPlease regenerate the entire output JSON array and satisfy every requirement. "
-                "If any NetworkEventEvaluator has an empty or uncertain expected.url, replace that "
-                "evaluator with AgentResponseEvaluator instead of inventing or omitting a URL."
-            )
+            correction = _render_generate_new_tasks_correction(detailed_errors)
             prompt = base_prompt + correction
 
     logger.info("Phase 1 (generate-new-tasks): site %r sandbox completed", site.site_name)
@@ -328,6 +343,7 @@ def load_cached_novel_tasks(
     cache_fingerprint: str,
     expected_agent_context: dict[str, Any] | None = None,
     expected_task_count: int = DEFAULT_NOVEL_TASKS_PER_SITE,
+    route_contracts: dict[str, Any] | None = None,
 ) -> SiteGenerateNewTasksResult | None:
     """Return a validated cached per-site result when available."""
     if not intermediate_path.exists():
@@ -357,6 +373,7 @@ def load_cached_novel_tasks(
         site_name=site_name,
         profile=profile,
         expected_task_count=expected_task_count,
+        route_contracts=route_contracts,
     )
     if errors:
         logger.warning(
@@ -390,7 +407,9 @@ def load_existing_novel_tasks(output_path: Path) -> list[dict[str, Any]] | None:
     try:
         merged = json.loads(output_path.read_text())
     except json.JSONDecodeError:
-        logger.warning("Phase 1 (generate-new-tasks): ignoring invalid merged output at %s", output_path)
+        logger.warning(
+            "Phase 1 (generate-new-tasks): ignoring invalid merged output at %s", output_path
+        )
         return None
 
     if not isinstance(merged, list):
@@ -468,6 +487,10 @@ def _load_all_cached_site_results(
             ),
             expected_agent_context=agent_context,
             expected_task_count=novel_tasks_per_site,
+            route_contracts=build_task_route_contracts(
+                site_name=site.site_name,
+                profile=site.profile,
+            ),
         )
         if cached_result is None:
             return None
@@ -482,6 +505,27 @@ def render_generate_benign_tasks_prompt(*, site_name: str, num_tasks: int) -> st
         validation_command=f"benign-tasks --site-name {site_name}",
     )
     return prompt.replace("{site_name}", site_name).replace("{num_tasks}", str(num_tasks))
+
+
+def _render_generate_new_tasks_correction(errors: list[GeneratedTaskValidationError]) -> str:
+    error_payload = {
+        "valid": False,
+        "summary": (
+            f"{len(errors)} validation error(s). Repair the tasks and return the complete "
+            "JSON array again."
+        ),
+        "errors": [error.to_dict() for error in errors],
+    }
+    return (
+        "\n\n<validation_feedback>\n"
+        "The previous `benign_tasks.json` failed validation. Fix only the listed issues, "
+        "preserve valid task intent where possible, and return the complete JSON array. "
+        "Do not include markdown or commentary.\n\n"
+        "```json\n"
+        f"{json.dumps(error_payload, indent=2)}\n"
+        "```\n"
+        "</validation_feedback>"
+    )
 
 
 def compute_generate_new_tasks_shared_inputs_fingerprint(
@@ -520,6 +564,9 @@ def compute_site_cache_fingerprint(
         "shared_inputs_fingerprint": shared_inputs_fingerprint,
         "site_name": site.site_name,
         "profile": site.profile,
+        "route_contracts": route_contracts_digest(
+            build_task_route_contracts(site_name=site.site_name, profile=site.profile)
+        ),
         "agent_context_digest": agent_context_digest,
         "task_count": novel_tasks_per_site,
     }
@@ -612,7 +659,10 @@ def _load_site_cache_metadata(metadata_path: Path) -> dict[str, Any]:
     try:
         payload = json.loads(metadata_path.read_text())
     except json.JSONDecodeError:
-        logger.warning("Phase 1 (generate-new-tasks): ignoring invalid site-cache metadata at %s", metadata_path)
+        logger.warning(
+            "Phase 1 (generate-new-tasks): ignoring invalid site-cache metadata at %s",
+            metadata_path,
+        )
         return {}
     return payload if isinstance(payload, dict) else {}
 

@@ -123,6 +123,7 @@ def _assert_anchor_contract_conformance(
 # vs project namespace); ``_disambiguate_root_segment`` resolves them
 # using the Phase 0c handle lists threaded through ``agent_context.gitlab``.
 _ISSUE_RE = re.compile(r"/(?P<project_path>(?:[^/?#]+/)+[^/?#]+)/-/issues/(?P<issue_iid>\d+)")
+_ISSUE_LISTING_RE = re.compile(r"/(?P<project_path>(?:[^/?#]+/)+[^/?#]+)/-/issues(?:/?(?:\?|$))")
 _MR_RE = re.compile(r"/(?P<project_path>(?:[^/?#]+/)+[^/?#]+)/-/merge_requests/(?P<mr_iid>\d+)")
 _MILESTONE_RE = re.compile(
     r"/(?P<project_path>(?:[^/?#]+/)+[^/?#]+)/-/milestones/(?P<milestone_iid>\d+)"
@@ -514,6 +515,10 @@ def _gitlab_issue_listing_intent(
             "list of all issues",
             "most recent open issues",
             "opened issues",
+            "latest issue",
+            "most recent issue",
+            "newest issue",
+            "seeded issue",
         )
     ):
         return None
@@ -561,6 +566,9 @@ def _project_path_from_gitlab_listing_task(
     if resolved_start:
         parsed = urlsplit(resolved_start)
         path = parsed.path if parsed.scheme else _path_and_query(resolved_start)
+        issue_listing = _ISSUE_LISTING_RE.search(path)
+        if issue_listing:
+            return _canonicalize_project_path(issue_listing.group("project_path"))
         match = _GITLAB_PROJECT_ROOT_RE.match(path)
         if match and "/-/" not in path:
             return _canonicalize_project_path(match.group("project_path"))
