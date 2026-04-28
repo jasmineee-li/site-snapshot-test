@@ -51,9 +51,19 @@ MODELS=(
     "openai/gpt-5.2:thinking"
     "google/gemini-3-flash-preview"
     "google/gemini-3.1-pro-preview"
+    "google/gemini-2.5-pro:thinking"
+    "moonshotai/kimi-k2.5:thinking"
 )
 
 BENCHMARKS=(agentdojo injecagent doomarena wasp)
+
+# Per-benchmark split overrides. DoomArena gets reddit + gitlab only —
+# shopping/shopping_admin failed in the prior run due to docker contention
+# (see DOOMARENA_ROOT_CAUSE_HANDOFF.md). Empty array means "use the
+# pipeline's default splits".
+declare -A BENCHMARK_SPLITS=(
+    ["doomarena"]="reddit gitlab"
+)
 
 # Each stream is "<arm_name> <preset> <frame> <judges-space-separated>"
 # IMPORTANT: judges may be multi-token (last `read` variable swallows the
@@ -108,6 +118,12 @@ for stream in "${STREAMS[@]}"; do
                 ;;
         esac
 
+        # Optional --splits override (e.g. DoomArena → reddit gitlab only).
+        splits_arg=""
+        if [ -n "${BENCHMARK_SPLITS[$benchmark]:-}" ]; then
+            splits_arg="--splits ${BENCHMARK_SPLITS[$benchmark]}"
+        fi
+
         nohup env "${env_overrides[@]}" $PYTHON -m eval_awareness_experiments.run_causal_experiment \
             --models "${MODELS[@]}" \
             --benchmarks "$benchmark" \
@@ -118,6 +134,7 @@ for stream in "${STREAMS[@]}"; do
             --judge-model "$JUDGE_MODEL" \
             --tasks-per-split "$N_TASKS" \
             --skip-existing \
+            $splits_arg \
             --output-base "$OUTPUT_BASE" \
             > "$log" 2>&1 &
         PIDS+=("$!")

@@ -89,6 +89,8 @@ def run_causal_experiment(
     output_base: Path,
     dry_run: bool,
     skip_existing: bool = False,
+    splits: list[str] | None = None,
+    browser_stage1_timeout: int | None = None,
 ) -> None:
     combos = list(product(benchmarks, conditions, models, presets, frames))
     print(f"Causal experiment: {len(combos)} combinations")
@@ -172,6 +174,10 @@ def run_causal_experiment(
             cmd.extend(["--judges", *judges])
         if tasks_per_split is not None:
             cmd.extend(["--tasks-per-split", str(tasks_per_split)])
+        if splits:
+            cmd.extend(["--splits", *splits])
+        if browser_stage1_timeout is not None:
+            cmd.extend(["--browser-stage1-timeout", str(browser_stage1_timeout)])
 
         label = f"{benchmark}/{arm}/{model} (preset={preset}, frame={frame}, condition={condition})"
         print(f"[{i}/{len(combos)}] {label}")
@@ -249,6 +255,12 @@ def main() -> None:
                              "already marked complete (via run_manifest) and "
                              "skip them. Lets re-runs of the same matrix pick "
                              "up where they left off.")
+    parser.add_argument("--splits", nargs="+", default=None,
+                        help="Forwarded to run_safety_pipeline. For DoomArena, "
+                             "use 'reddit gitlab' to skip the heavy/flaky "
+                             "shopping splits.")
+    parser.add_argument("--browser-stage1-timeout", type=int, default=None,
+                        help="Forwarded to run_safety_pipeline.")
     args = parser.parse_args()
 
     run_causal_experiment(
@@ -264,6 +276,8 @@ def main() -> None:
         output_base=args.output_base,
         dry_run=args.dry_run,
         skip_existing=args.skip_existing,
+        splits=args.splits,
+        browser_stage1_timeout=args.browser_stage1_timeout,
     )
 
 
