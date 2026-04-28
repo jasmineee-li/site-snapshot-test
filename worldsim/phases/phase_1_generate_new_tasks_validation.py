@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -113,8 +114,8 @@ def validate_generated_novel_tasks_detailed(
         for capability in profile.get("verification_capabilities", [])
         if capability.get("eval_type")
     }
-    start_url_policy = _build_start_url_policy(profile)
     route_index = _route_contract_index(route_contracts)
+    start_url_policy = None if route_index is not None else _build_start_url_policy(profile)
     validated: list[dict[str, Any]] = []
     errors: list[GeneratedTaskValidationError] = []
     seen_ids: set[str] = set()
@@ -466,7 +467,11 @@ def validate_generated_novel_task(
                 actual=config.get("expected"),
             )
 
-    placement_problem = _validate_phase2_placement_target(task, site_name=site_name)
+    placement_problem = _validate_phase2_placement_target(
+        task,
+        site_name=site_name,
+        route_index=route_index,
+    )
     if placement_problem is not None:
         if policy_problem is not None:
             return _field_error(
@@ -488,7 +493,12 @@ def validate_generated_novel_task(
     return None
 
 
-def _validate_phase2_placement_target(task: dict[str, Any], *, site_name: str) -> str | None:
+def _validate_phase2_placement_target(
+    task: dict[str, Any],
+    *,
+    site_name: str,
+    route_index: dict[str, dict[str, Any]] | None = None,
+) -> str | None:
     """Require generated tasks to target pages Phase 2 can seed and verify.
 
     generate-new-tasks is useful only when the benign task naturally traverses the
@@ -504,6 +514,7 @@ def _validate_phase2_placement_target(task: dict[str, Any], *, site_name: str) -
         return f"site {site_name!r} has no placeholder mapping"
     placeholders = {placeholder: f"https://{site_name}.local"}
     resource = derive_benign_target_resource(task, placeholders)
+    _merge_route_contract_editor_anchors(resource, task, route_index)
     contract = build_exposure_contract(
         benign_task_id=str(task.get("id") or ""),
         site=site_name,
@@ -523,6 +534,51 @@ def _validate_phase2_placement_target(task: dict[str, Any], *, site_name: str) -
         f"resolver kind={resource.get('kind')!r}, reason={reason!r}, "
         f"start_urls={task.get('start_urls')!r}"
     )
+
+
+def _merge_route_contract_editor_anchors(
+    resource: dict[str, Any],
+    task: dict[str, Any],
+    route_index: dict[str, dict[str, Any]] | None,
+) -> None:
+    if route_index is None:
+        return
+    route_id = task.get("route_id")
+    if not isinstance(route_id, str):
+        return
+    route = route_index.get(route_id)
+    if not isinstance(route, dict):
+        return
+
+    anchors = dict(resource.get("anchors") or {})
+    token_to_anchor = {
+        "{benign_project_id}": "project_id",
+        "{benign_project_path}": "project_path",
+        "{benign_issue_iid}": "issue_iid",
+        "{benign_mr_iid}": "mr_iid",
+        "{benign_forum_name}": "forum_name",
+        "{benign_submission_id}": "submission_id",
+    }
+    editor_arg_templates = route.get("editor_arg_templates")
+    if isinstance(editor_arg_templates, dict):
+        for template_args in editor_arg_templates.values():
+            if not isinstance(template_args, dict):
+                continue
+            for value in template_args.values():
+                if not isinstance(value, str):
+                    continue
+                anchor = token_to_anchor.get(value)
+                if anchor is not None:
+                    anchors.setdefault(anchor, "1")
+    resource["anchors"] = anchors
+
+    allowed = [
+        method
+        for method in route.get("allowed_editor_methods", [])
+        if isinstance(method, str) and method.strip()
+    ]
+    if allowed:
+        resource["allowed_editor_methods"] = allowed
 
 
 def _field_error(
@@ -606,19 +662,39 @@ def _validate_route_contract_alignment(
         if isinstance(pattern, str) and pattern.strip()
     ]
     if patterns and isinstance(start_urls, list):
-        if not any(
-            isinstance(url, str) and _matches_route_url_pattern(url, pattern)
+        invalid_urls = [
+            url
             for url in start_urls
-            for pattern in patterns
-        ):
+            if not (
+                isinstance(url, str)
+                and any(_matches_route_url_pattern(url, pattern) for pattern in patterns)
+            )
+        ]
+        if invalid_urls:
             return _field_error(
                 index,
                 "ROUTE_START_URL_MISMATCH",
                 "start_urls",
                 "start_urls do not match the selected route contract",
                 expected=patterns,
-                actual=start_urls,
+                actual=invalid_urls,
                 repair_hint="Use a start URL shape listed on the selected route contract.",
+            )
+
+    example_start_urls = _route_anchor_example_start_urls(route)
+    if example_start_urls and isinstance(start_urls, list):
+        invalid_inventory_urls = [
+            url for url in start_urls if not (isinstance(url, str) and url in example_start_urls)
+        ]
+        if invalid_inventory_urls:
+            return _field_error(
+                index,
+                "ROUTE_START_URL_NOT_IN_INVENTORY",
+                "start_urls",
+                "start_urls must use an inventory-backed example from the selected route contract",
+                expected=example_start_urls,
+                actual=invalid_inventory_urls,
+                repair_hint="Use one anchor_examples[].start_url from the selected route contract.",
             )
 
     seed = task.get("data_seed")
@@ -634,14 +710,15 @@ def _validate_route_contract_alignment(
             for method in route.get("allowed_editor_methods", [])
             if isinstance(method, str) and method.strip()
         ]
-        if allowed and not any(method in allowed for method in methods):
+        invalid_methods = [method for method in methods if method not in allowed]
+        if allowed and (not methods or invalid_methods):
             return _field_error(
                 index,
                 "ROUTE_EDITOR_METHOD_MISMATCH",
                 "data_seed.editor_calls",
                 "editor seed methods do not match the selected route contract",
                 expected=allowed,
-                actual=methods,
+                actual=invalid_methods or methods,
                 repair_hint="Use an allowed editor method from the selected route contract.",
             )
 
@@ -678,6 +755,21 @@ def _validate_route_contract_alignment(
             )
 
     return None
+
+
+def _route_anchor_example_start_urls(route: Mapping[str, Any]) -> list[str]:
+    if route.get("requires_inventory_backed_start_url") is not True:
+        return []
+    examples = route.get("anchor_examples")
+    if not isinstance(examples, list):
+        return []
+    return [
+        str(example.get("start_url"))
+        for example in examples
+        if isinstance(example, Mapping)
+        and isinstance(example.get("start_url"), str)
+        and example.get("start_url")
+    ]
 
 
 def _string_list(value: Any) -> list[str]:
@@ -811,7 +903,12 @@ def merge_benign_tasks(
 
 
 def site_is_generate_new_tasks_eligible(profile: dict[str, Any]) -> bool:
-    """Return whether a site profile has uncovered injection surfaces."""
+    """Legacy coverage-gap helper retained for older callers.
+
+    Phase 1b runtime eligibility now lives in
+    ``load_generate_new_tasks_eligible_sites`` and is based on carrier route
+    contracts, not this coverage-gap predicate.
+    """
     coverage = profile.get("existing_task_coverage", {})
     uncovered = coverage.get("injection_surfaces_without_task_coverage", [])
     return isinstance(uncovered, list) and bool(uncovered)

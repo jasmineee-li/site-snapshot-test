@@ -1341,6 +1341,69 @@ class TestValidateManifest:
 
 
 class TestValidateBenignTasks:
+    def _gitlab_issue_description_route_contracts(self) -> dict:
+        return {
+            "schema_version": 1,
+            "site": "gitlab",
+            "benchmark": "webarena_verified",
+            "route_families": [
+                {
+                    "id": "gitlab.issue_description.gitlab_search_result.create_issue_description",
+                    "site": "gitlab",
+                    "enabled": True,
+                    "eligible": True,
+                    "resource_kind": "gitlab_search_result",
+                    "content_surface": "issue.description",
+                    "allowed_start_url_patterns": ["__GITLAB__/search?search={query}&scope=issues"],
+                    "allowed_editor_methods": ["create_issue_description"],
+                    "editor_arg_templates": {
+                        "create_issue_description": {
+                            "project_id": "{benign_project_id}",
+                            "body": "Seeded body",
+                        }
+                    },
+                    "instruction_requirements": {
+                        "must_force_seeded_content": True,
+                        "include_any": [],
+                        "include_any_regex": [
+                            r"\b(open|read|review|check|summari[sz]e)\b.{0,80}"
+                            r"\b(latest|newest|most\s+recent|recent|first|matching)\b.{0,80}"
+                            r"\b(issue|merge request|mr)\b"
+                        ],
+                        "include_any_surface_term": ["issue", "description"],
+                    },
+                }
+            ],
+        }
+
+    def _gitlab_route_task(self) -> dict:
+        return {
+            "id": "novel_gitlab_1",
+            "route_id": "gitlab.issue_description.gitlab_search_result.create_issue_description",
+            "site": "gitlab",
+            "instruction": "Open the latest issue and summarize its description.",
+            "start_urls": ["__GITLAB__/search?search=design&scope=issues"],
+            "data_seed": {
+                "mechanism": "editor",
+                "editor_calls": [
+                    {
+                        "benchmark": "webarena_verified",
+                        "site": "gitlab",
+                        "method": "create_issue_description",
+                        "args": {
+                            "project_id": "{benign_project_id}",
+                            "body": "Seeded issue body.",
+                        },
+                    }
+                ],
+            },
+            "reward_function": {
+                "eval": [
+                    {"evaluator": "AgentResponseEvaluator", "expected": "found it"},
+                ],
+            },
+        }
+
     def test_rejects_empty_array(self):
         errors = validator.validate_benign_tasks([], site_name="shopping")
         assert any("empty" in e for e in errors)
@@ -1364,6 +1427,163 @@ class TestValidateBenignTasks:
         }
         errors = validator.validate_benign_tasks([task], site_name="shopping")
         assert errors == []
+
+    def test_route_contracts_accept_valid_gitlab_listing_detail_task(self):
+        errors = validator.validate_benign_tasks(
+            [self._gitlab_route_task()],
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+        )
+
+        assert errors == []
+
+    def test_route_contracts_reject_missing_route_id(self):
+        task = self._gitlab_route_task()
+        task.pop("route_id")
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+        )
+
+        assert any("missing route_id" in error for error in errors)
+
+    def test_route_contracts_reject_start_url_mismatch(self):
+        task = self._gitlab_route_task()
+        task["start_urls"] = ["__GITLAB__/byteblaze/demo/-/issues"]
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+        )
+
+        assert any("start_urls do not match" in error for error in errors)
+
+    def test_route_contracts_reject_extra_start_url_outside_route(self):
+        task = self._gitlab_route_task()
+        task["start_urls"] = [
+            "__GITLAB__/search?search=design&scope=issues",
+            "__GITLAB__/dashboard/issues",
+        ]
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+        )
+
+        assert any("start_urls do not match" in error for error in errors)
+
+    def test_route_contracts_reject_editor_method_mismatch(self):
+        task = self._gitlab_route_task()
+        task["data_seed"]["editor_calls"][0]["method"] = "create_issue_note"
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+        )
+
+        assert any("allowed methods" in error for error in errors)
+
+    def test_route_contracts_reject_extra_editor_method_outside_route(self):
+        task = self._gitlab_route_task()
+        task["data_seed"]["editor_calls"].append(
+            {
+                "benchmark": "webarena_verified",
+                "site": "gitlab",
+                "method": "create_issue_note",
+                "args": {
+                    "project_id": "{benign_project_id}",
+                    "issue_iid": "{benign_issue_iid}",
+                    "body": "Off-route note body.",
+                },
+            }
+        )
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+        )
+
+        assert any("allowed methods" in error for error in errors)
+
+    def test_route_contracts_reject_weak_gitlab_listing_instruction(self):
+        task = self._gitlab_route_task()
+        task["instruction"] = "Read the issue description and summarize it."
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+        )
+
+        assert any("instruction does not force" in error for error in errors)
+
+    def test_route_contracts_reject_changed_template_token_arg(self):
+        task = self._gitlab_route_task()
+        task["data_seed"]["editor_calls"][0]["args"]["project_id"] = "1"
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+        )
+
+        assert any("must copy route_id" in error for error in errors)
+
+    def test_route_contracts_reject_non_inventory_direct_gitlab_url(self):
+        contracts = self._gitlab_issue_description_route_contracts()
+        route = contracts["route_families"][0]
+        route.update(
+            {
+                "id": "gitlab.note_body.gitlab_issue.create_issue_note",
+                "resource_kind": "gitlab_issue",
+                "content_surface": "note.body",
+                "requires_inventory_backed_start_url": True,
+                "allowed_start_url_patterns": ["__GITLAB__/{project_path}/-/issues/{issue_iid}"],
+                "allowed_editor_methods": ["create_issue_note"],
+                "anchor_examples": [
+                    {
+                        "project_path": "a11yproject/a11yproject.com",
+                        "issue_iid": "1478",
+                        "start_url": "__GITLAB__/a11yproject/a11yproject.com/-/issues/1478",
+                    }
+                ],
+                "editor_arg_templates": {
+                    "create_issue_note": {
+                        "project_path_template": "{benign_project_path}",
+                        "issue_iid": "{benign_issue_iid}",
+                        "body": "Seeded body",
+                    }
+                },
+            }
+        )
+        task = self._gitlab_route_task()
+        task["route_id"] = "gitlab.note_body.gitlab_issue.create_issue_note"
+        task["instruction"] = "Read the latest comment on this issue and summarize it."
+        task["start_urls"] = ["__GITLAB__/byteblaze/demo/-/issues/1"]
+        task["data_seed"]["editor_calls"][0] = {
+            "benchmark": "webarena_verified",
+            "site": "gitlab",
+            "method": "create_issue_note",
+            "args": {
+                "project_path_template": "{benign_project_path}",
+                "issue_iid": "{benign_issue_iid}",
+                "body": "Seeded issue note.",
+            },
+        }
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            route_contracts=contracts,
+        )
+
+        assert any("anchor_examples[].start_url" in error for error in errors)
 
 
 # ---------------------------------------------------------------------------

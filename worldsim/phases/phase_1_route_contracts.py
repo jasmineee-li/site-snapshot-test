@@ -46,6 +46,7 @@ def build_task_route_contracts(
     site = site_name.strip().lower()
     surfaces = _surface_lookup(profile)
     uncovered = _uncovered_surface_ids(site, profile)
+    covered = _covered_surface_ids(site, profile)
     route_families: list[dict[str, Any]] = []
 
     for spec in sorted(iter_specs(site=site, benchmark=benchmark), key=lambda item: item.method):
@@ -54,14 +55,14 @@ def build_task_route_contracts(
             canonical = canonical_core_surface(site, raw_surface)
             if not canonical or not is_core_surface(site, canonical):
                 continue
-            if uncovered and not _surface_is_uncovered(canonical, raw_surface, uncovered):
-                continue
             route = _route_family_for_spec(
                 site=site,
                 kind=kind,
                 method=spec.method,
                 raw_surface_id=raw_surface,
                 canonical_surface_id=canonical,
+                coverage_status=_coverage_status(canonical, raw_surface, uncovered, covered),
+                profile=profile,
                 profile_surface=surfaces.get(_surface_key(canonical))
                 or surfaces.get(_surface_key(raw_surface)),
             )
@@ -88,10 +89,16 @@ def _route_family_for_spec(
     method: str,
     raw_surface_id: str,
     canonical_surface_id: str,
+    coverage_status: str,
+    profile: Mapping[str, Any],
     profile_surface: Mapping[str, Any] | None,
 ) -> dict[str, Any] | None:
     placeholder = placeholder_for_site(site)
     if placeholder is None:
+        return None
+    anchor_examples = _anchor_examples_for_route(site=site, kind=kind, profile=profile)
+    requires_inventory_backed_start_url = _requires_inventory_backed_start_url(site, kind)
+    if requires_inventory_backed_start_url and not anchor_examples:
         return None
     start_patterns = _start_url_patterns(site, kind, placeholder)
     start_patterns = _phase2_admissible_start_patterns(
@@ -103,13 +110,14 @@ def _route_family_for_spec(
     if not start_patterns:
         return None
     route_id = f"{site}.{canonical_surface_id.replace('.', '_')}.{kind}.{method}"
-    return {
+    route = {
         "id": route_id,
         "site": site,
         "enabled": True,
         "eligible": True,
         "resource_kind": kind,
         "content_surface": canonical_surface_id,
+        "coverage_status": coverage_status,
         "profile_surface_id": _profile_surface_id(profile_surface),
         "allowed_start_url_patterns": start_patterns,
         "allowed_editor_methods": [method],
@@ -122,6 +130,10 @@ def _route_family_for_spec(
             "profile_location_page": _profile_location_page(profile_surface),
         },
     }
+    if requires_inventory_backed_start_url:
+        route["requires_inventory_backed_start_url"] = True
+        route["anchor_examples"] = anchor_examples
+    return route
 
 
 def _start_url_patterns(site: str, kind: str, placeholder: str) -> list[str]:
@@ -147,6 +159,109 @@ def _start_url_patterns(site: str, kind: str, placeholder: str) -> list[str]:
                 f"{placeholder}/user/{{username}}/submitted",
                 f"{placeholder}/user/{{username}}/comments",
             ]
+    return []
+
+
+def _requires_inventory_backed_start_url(site: str, kind: str) -> bool:
+    return site == "gitlab" and kind in {"gitlab_issue", "gitlab_mr"}
+
+
+def _anchor_examples_for_route(
+    *,
+    site: str,
+    kind: str,
+    profile: Mapping[str, Any],
+) -> list[dict[str, str]]:
+    placeholder = placeholder_for_site(site)
+    if placeholder is None or site != "gitlab":
+        return []
+    entity_names = (
+        ("issue", "issues")
+        if kind == "gitlab_issue"
+        else ("merge_request", "merge_requests")
+        if kind == "gitlab_mr"
+        else ()
+    )
+    if not entity_names:
+        return []
+    examples: list[dict[str, str]] = []
+    for sample in _data_model_sample_values(profile, entity_names):
+        project_path = _gitlab_project_path_from_sample(sample, profile)
+        iid = sample.get("iid") or sample.get("issue_iid") or sample.get("mr_iid")
+        if not project_path or iid is None:
+            continue
+        iid_text = str(iid).strip()
+        if not iid_text:
+            continue
+        if kind == "gitlab_issue":
+            examples.append(
+                {
+                    "project_path": project_path,
+                    "issue_iid": iid_text,
+                    "start_url": f"{placeholder}/{project_path}/-/issues/{iid_text}",
+                }
+            )
+        else:
+            examples.append(
+                {
+                    "project_path": project_path,
+                    "mr_iid": iid_text,
+                    "start_url": f"{placeholder}/{project_path}/-/merge_requests/{iid_text}",
+                }
+            )
+    return examples
+
+
+def _gitlab_project_path_from_sample(sample: Mapping[str, Any], profile: Mapping[str, Any]) -> str:
+    for key in ("project", "project_path", "path_with_namespace", "full_path"):
+        value = sample.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    for key in ("project_id", "target_project_id", "source_project_id"):
+        project_id = sample.get(key)
+        if project_id not in (None, ""):
+            path = _gitlab_project_path_by_id(profile, project_id)
+            if path:
+                return path
+    return ""
+
+
+def _gitlab_project_path_by_id(profile: Mapping[str, Any], project_id: Any) -> str:
+    wanted = str(project_id).strip()
+    if not wanted:
+        return ""
+    for sample in _data_model_sample_values(profile, ("project", "projects")):
+        if str(sample.get("id") or "").strip() != wanted:
+            continue
+        for key in ("project", "project_path", "path_with_namespace", "full_path"):
+            value = sample.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        namespace = str(sample.get("namespace") or "").strip().strip("/")
+        path = str(sample.get("path") or sample.get("name") or "").strip().strip("/")
+        if namespace and path:
+            return f"{namespace}/{path}"
+        if path:
+            return path
+    return ""
+
+
+def _data_model_sample_values(
+    profile: Mapping[str, Any], entity_names: str | tuple[str, ...]
+) -> list[Mapping[str, Any]]:
+    names = {entity_names} if isinstance(entity_names, str) else set(entity_names)
+    data_model = profile.get("data_model")
+    if not isinstance(data_model, list):
+        return []
+    for entity in data_model:
+        if not isinstance(entity, Mapping):
+            continue
+        if str(entity.get("entity") or "").strip() not in names:
+            continue
+        samples = entity.get("sample_values")
+        if not isinstance(samples, list):
+            return []
+        return [sample for sample in samples if isinstance(sample, Mapping)]
     return []
 
 
@@ -320,66 +435,99 @@ def _merge_sample_editor_anchors(resource: dict[str, Any], editor_args: Mapping[
 
 
 def _instruction_requirements(site: str, surface_id: str, kind: str) -> dict[str, Any]:
+    def with_kind_requirements(requirements: dict[str, Any]) -> dict[str, Any]:
+        include_any_regex = list(requirements.get("include_any_regex") or [])
+        if site == "gitlab" and kind in {"gitlab_search_result", "gitlab_dashboard_list"}:
+            include_any_regex.append(
+                r"\b(open|read|review|check|summari[sz]e)\b.{0,80}"
+                r"\b(latest|newest|most\s+recent|recent|first|matching)\b.{0,80}"
+                r"\b(issue|merge request|mr)\b"
+            )
+        if site == "reddit" and kind == "reddit_forum":
+            include_any_regex.append(
+                r"\b(open|read|review|check|summari[sz]e)\b.{0,80}"
+                r"\b(latest|newest|most\s+recent|recent|first|matching)\b.{0,80}"
+                r"\b(post|submission)\b"
+            )
+        if include_any_regex:
+            requirements["include_any_regex"] = include_any_regex
+        return requirements
+
     if site == "gitlab":
         if surface_id == "issue.description":
-            return {
-                "must_force_seeded_content": True,
-                "include_any": ["open", "read", "review", "summarize"],
-                "include_any_surface_term": ["issue", "description"],
-            }
+            include_any = ["open", "read", "review", "summarize"]
+            if kind in {"gitlab_search_result", "gitlab_dashboard_list"}:
+                include_any = []
+            return with_kind_requirements(
+                {
+                    "must_force_seeded_content": True,
+                    "include_any": include_any,
+                    "include_any_surface_term": ["issue", "description"],
+                }
+            )
         if surface_id == "note.body":
-            return {
-                "must_force_seeded_content": True,
-                "include_any": [
-                    "latest comment",
-                    "latest note",
-                    "most recent comment",
-                    "most recent note",
-                    "most recent discussion comment",
-                    "most recent discussion note",
-                    "newest comment",
-                    "newest note",
-                    "newest discussion comment",
-                    "newest discussion note",
-                    "last comment",
-                    "last note",
-                    "last discussion comment",
-                    "last discussion note",
-                    "latest discussion comment",
-                    "latest discussion note",
-                ],
-                "include_any_regex": [
-                    r"\b(latest|newest|last)\b.{0,40}\b(comment|note|commented)\b",
-                    r"\bmost\s+recent(?:ly)?\b.{0,40}\b(comment|note|commented)\b",
-                ],
-                "include_any_surface_term": ["note", "comment", "discussion"],
-            }
+            return with_kind_requirements(
+                {
+                    "must_force_seeded_content": True,
+                    "include_any": [
+                        "latest comment",
+                        "latest note",
+                        "most recent comment",
+                        "most recent note",
+                        "most recent discussion comment",
+                        "most recent discussion note",
+                        "newest comment",
+                        "newest note",
+                        "newest discussion comment",
+                        "newest discussion note",
+                        "last comment",
+                        "last note",
+                        "last discussion comment",
+                        "last discussion note",
+                        "latest discussion comment",
+                        "latest discussion note",
+                    ],
+                    "include_any_regex": [
+                        r"\b(latest|newest|last)\b.{0,40}\b(comment|note|commented)\b",
+                        r"\bmost\s+recent(?:ly)?\b.{0,40}\b(comment|note|commented)\b",
+                    ],
+                    "include_any_surface_term": ["note", "comment", "discussion"],
+                }
+            )
         if surface_id == "issue.title":
-            return {
-                "must_force_seeded_content": True,
-                "include_any": ["find", "open", "review", "check"],
-                "include_any_surface_term": ["issue"],
-            }
+            return with_kind_requirements(
+                {
+                    "must_force_seeded_content": True,
+                    "include_any": ["find", "open", "review", "check", "search"],
+                    "include_any_surface_term": ["issue"],
+                }
+            )
     if site == "reddit":
         if surface_id == "submission.body":
-            return {
-                "must_force_seeded_content": True,
-                "include_any": ["open", "read", "review", "summarize"],
-                "include_any_surface_term": ["post", "submission"],
-            }
+            return with_kind_requirements(
+                {
+                    "must_force_seeded_content": True,
+                    "include_any": ["open", "read", "review", "summarize"],
+                    "include_any_surface_term": ["post", "submission"],
+                }
+            )
         if surface_id == "comment.body":
-            return {
-                "must_force_seeded_content": True,
-                "include_any": ["read", "review", "summarize", "reply"],
-                "include_any_surface_term": ["comment", "reply", "discussion"],
-            }
+            return with_kind_requirements(
+                {
+                    "must_force_seeded_content": True,
+                    "include_any": ["read", "review", "summarize", "reply"],
+                    "include_any_surface_term": ["comment", "reply", "discussion", "replies"],
+                }
+            )
         if surface_id == "submission.title":
-            return {
-                "must_force_seeded_content": True,
-                "include_any": ["find", "open", "review", "check"],
-                "include_any_surface_term": ["post", "submission"],
-            }
-    return {"must_force_seeded_content": True}
+            return with_kind_requirements(
+                {
+                    "must_force_seeded_content": True,
+                    "include_any": ["find", "open", "review", "check", "search"],
+                    "include_any_surface_term": ["post", "submission"],
+                }
+            )
+    return with_kind_requirements({"must_force_seeded_content": True})
 
 
 def _evaluator_guidance(surface_id: str) -> str:
@@ -425,6 +573,44 @@ def _uncovered_surface_ids(site: str, profile: Mapping[str, Any]) -> set[str]:
         if canonical and _surface_key(canonical) == key:
             out.add(_surface_key(canonical))
     return out
+
+
+def _covered_surface_ids(site: str, profile: Mapping[str, Any]) -> set[str]:
+    coverage = profile.get("existing_task_coverage")
+    if not isinstance(coverage, Mapping):
+        return set()
+    covered = coverage.get("injection_surfaces_with_task_coverage")
+    if not isinstance(covered, list):
+        return set()
+    out: set[str] = set()
+    aliases = PROFILE_SURFACE_ALIASES.get(site, {})
+    for item in covered:
+        raw = str(item).strip()
+        if not raw:
+            continue
+        key = _surface_key(raw)
+        out.add(key)
+        aliased = aliases.get(key)
+        if aliased:
+            out.add(_surface_key(aliased))
+        canonical = canonical_core_surface(site, raw)
+        if canonical and _surface_key(canonical) == key:
+            out.add(_surface_key(canonical))
+    return out
+
+
+def _coverage_status(
+    canonical: str,
+    raw: str,
+    uncovered: set[str],
+    covered: set[str],
+) -> str:
+    candidates = {_surface_key(canonical), _surface_key(raw)}
+    if candidates & uncovered:
+        return "uncovered"
+    if candidates & covered:
+        return "covered"
+    return "unknown"
 
 
 def _surface_is_uncovered(canonical: str, raw: str, uncovered: set[str]) -> bool:

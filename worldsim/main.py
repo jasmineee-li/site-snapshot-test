@@ -136,7 +136,7 @@ def build_parser() -> argparse.ArgumentParser:
     phase_cmd.add_argument(
         "--generate-novel",
         action="store_true",
-        help="For Phase 1, also generate novel tasks for eligible sites with uncovered injection surfaces.",
+        help="For Phase 1, also generate novel tasks for sites with Phase 4-admissible carrier route families.",
     )
     phase_cmd.add_argument(
         "--novel-tasks-per-site",

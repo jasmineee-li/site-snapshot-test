@@ -828,7 +828,12 @@ def _validate_agent_context_tier_consistency(
     return errors
 
 
-def validate_benign_tasks(data: object, *, site_name: str) -> list[str]:
+def validate_benign_tasks(
+    data: object,
+    *,
+    site_name: str,
+    route_contracts: object | None = None,
+) -> list[str]:
     """Validate benign_tasks.json structure."""
     errors: list[str] = []
     if not isinstance(data, list):
@@ -842,6 +847,8 @@ def validate_benign_tasks(data: object, *, site_name: str) -> list[str]:
     _REQUIRED_FIELDS = ("id", "site", "instruction", "start_urls", "reward_function")
     _ALLOWED_EVALUATORS = {"NetworkEventEvaluator", "AgentResponseEvaluator"}
     id_pattern = re.compile(rf"^novel_{re.escape(site_name)}_\d+$")
+    route_index, route_index_errors = _route_contract_index(route_contracts, site_name=site_name)
+    errors.extend(route_index_errors)
 
     for i, task in enumerate(data):
         prefix = f"task {i}"
@@ -890,7 +897,208 @@ def validate_benign_tasks(data: object, *, site_name: str) -> list[str]:
             if evaluator not in _ALLOWED_EVALUATORS:
                 errors.append(f"{prefix} eval[{ei}] uses unsupported evaluator {evaluator!r}")
 
+        if route_index:
+            errors.extend(
+                _validate_route_contract_alignment(task, prefix=prefix, route_index=route_index)
+            )
+
     return errors
+
+
+def _route_contract_index(
+    route_contracts: object | None,
+    *,
+    site_name: str,
+) -> tuple[dict[str, dict], list[str]]:
+    if route_contracts is None:
+        return {}, []
+    if not isinstance(route_contracts, dict):
+        return {}, ["TASK_ROUTE_CONTRACTS.json must be a JSON object"]
+    families = route_contracts.get("route_families")
+    if not isinstance(families, list):
+        return {}, ["TASK_ROUTE_CONTRACTS.json route_families must be a list"]
+    index: dict[str, dict] = {}
+    for route in families:
+        if not isinstance(route, dict):
+            continue
+        route_id = route.get("id")
+        if not isinstance(route_id, str) or not route_id.strip():
+            continue
+        route_site = route.get("site")
+        if isinstance(route_site, str) and route_site.strip() and route_site != site_name:
+            continue
+        index[route_id] = route
+    return index, []
+
+
+def _validate_route_contract_alignment(
+    task: dict,
+    *,
+    prefix: str,
+    route_index: dict[str, dict],
+) -> list[str]:
+    errors: list[str] = []
+    route_id = task.get("route_id")
+    if not isinstance(route_id, str) or not route_id.strip():
+        return [f"{prefix} missing route_id from TASK_ROUTE_CONTRACTS.json"]
+    route = route_index.get(route_id)
+    if route is None:
+        return [f"{prefix} route_id {route_id!r} is not present in TASK_ROUTE_CONTRACTS.json"]
+    if route.get("enabled") is False or route.get("eligible") is False:
+        errors.append(f"{prefix} route_id {route_id!r} is not enabled and eligible")
+
+    patterns = _string_list(route.get("allowed_start_url_patterns"))
+    start_urls = task.get("start_urls")
+    if patterns and isinstance(start_urls, list):
+        invalid_urls = [
+            url
+            for url in start_urls
+            if not (
+                isinstance(url, str)
+                and any(_matches_route_url_pattern(url, pattern) for pattern in patterns)
+            )
+        ]
+        if invalid_urls:
+            errors.append(
+                f"{prefix} start_urls do not match selected route_id {route_id!r}: {invalid_urls}"
+            )
+
+    example_start_urls = _route_anchor_example_start_urls(route)
+    if example_start_urls and isinstance(start_urls, list):
+        invalid_inventory_urls = [
+            url for url in start_urls if not (isinstance(url, str) and url in example_start_urls)
+        ]
+        if invalid_inventory_urls:
+            errors.append(
+                f"{prefix} start_urls must use an anchor_examples[].start_url from route_id {route_id!r}: {invalid_inventory_urls}"
+            )
+
+    calls = _editor_calls(task)
+    methods = [str(call.get("method") or "") for call in calls]
+    allowed = _string_list(route.get("allowed_editor_methods"))
+    invalid_methods = [method for method in methods if method not in allowed]
+    if allowed and (not methods or invalid_methods):
+        errors.append(
+            f"{prefix} data_seed.editor_calls must use only route_id {route_id!r} allowed methods: {allowed}; invalid={invalid_methods or methods}"
+        )
+
+    requirements = route.get("instruction_requirements")
+    if isinstance(requirements, dict):
+        errors.extend(_validate_route_instruction(task, prefix=prefix, requirements=requirements))
+
+    editor_arg_templates = route.get("editor_arg_templates")
+    if isinstance(editor_arg_templates, dict) and calls:
+        errors.extend(
+            _validate_route_editor_args(
+                calls,
+                prefix=prefix,
+                route_id=route_id,
+                editor_arg_templates=editor_arg_templates,
+            )
+        )
+    return errors
+
+
+def _route_anchor_example_start_urls(route: dict) -> list[str]:
+    if route.get("requires_inventory_backed_start_url") is not True:
+        return []
+    examples = route.get("anchor_examples")
+    if not isinstance(examples, list):
+        return []
+    return [
+        str(example.get("start_url"))
+        for example in examples
+        if isinstance(example, dict)
+        and isinstance(example.get("start_url"), str)
+        and example.get("start_url")
+    ]
+
+
+def _editor_calls(task: dict) -> list[dict]:
+    seed = task.get("data_seed")
+    if not isinstance(seed, dict) or seed.get("mechanism") != "editor":
+        return []
+    calls = seed.get("editor_calls")
+    if not isinstance(calls, list):
+        return []
+    return [call for call in calls if isinstance(call, dict)]
+
+
+def _validate_route_instruction(
+    task: dict,
+    *,
+    prefix: str,
+    requirements: dict,
+) -> list[str]:
+    text = str(task.get("instruction") or "").casefold()
+    include_any = _string_list(requirements.get("include_any"))
+    include_any_regex = _string_list(requirements.get("include_any_regex"))
+    matches_include_any = any(token.casefold() in text for token in include_any)
+    matches_include_any_regex = any(
+        re.search(pattern, text) is not None for pattern in include_any_regex
+    )
+    errors: list[str] = []
+    if (include_any or include_any_regex) and not (
+        matches_include_any or matches_include_any_regex
+    ):
+        errors.append(
+            f"{prefix} instruction does not force the action required by selected route_id"
+        )
+    surface_terms = _string_list(requirements.get("include_any_surface_term"))
+    if surface_terms and not any(token.casefold() in text for token in surface_terms):
+        errors.append(f"{prefix} instruction does not name the route's required content region")
+    return errors
+
+
+def _validate_route_editor_args(
+    calls: list[dict],
+    *,
+    prefix: str,
+    route_id: str,
+    editor_arg_templates: dict,
+) -> list[str]:
+    errors: list[str] = []
+    for call in calls:
+        method = call.get("method")
+        if not isinstance(method, str):
+            continue
+        template = editor_arg_templates.get(method)
+        if not isinstance(template, dict):
+            continue
+        args = call.get("args")
+        if not isinstance(args, dict):
+            errors.append(f"{prefix} editor call {method!r} args must be an object")
+            continue
+        for key, expected in template.items():
+            if not _is_route_template_token(expected):
+                continue
+            actual = args.get(key)
+            if actual != expected:
+                errors.append(
+                    f"{prefix} editor call {method!r} arg {key!r} must copy route_id {route_id!r} template token {expected!r}"
+                )
+    return errors
+
+
+def _is_route_template_token(value: object) -> bool:
+    return (
+        isinstance(value, str)
+        and re.fullmatch(r"\{benign_[A-Za-z_][A-Za-z0-9_]*\}", value) is not None
+    )
+
+
+def _string_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if isinstance(item, str) and item.strip()]
+
+
+def _matches_route_url_pattern(url: str, pattern: str) -> bool:
+    escaped = re.escape(pattern.rstrip("/"))
+    escaped = escaped.replace(r"\{project_path\}", r".+?")
+    escaped = escaped.replace(r"\{file_path\}", r".+?")
+    escaped = re.sub(r"\\\{[^}]+\\\}", r"[^/?#]+", escaped)
+    return re.match(rf"^{escaped}/?(?:[?#].*)?$", url.rstrip("/")) is not None
 
 
 def _resolve_benign_by_id(
@@ -2884,7 +3092,13 @@ def cmd_benign_tasks(args: argparse.Namespace) -> int:
     data, err = _load_json(path)
     if err:
         return _emit_result(False, [err])
-    errors = validate_benign_tasks(data, site_name=args.site_name)
+    route_contracts: object | None = None
+    route_contracts_path = Path("/workspace/profile/TASK_ROUTE_CONTRACTS.json")
+    if route_contracts_path.exists():
+        route_contracts, err = _load_json(route_contracts_path)
+        if err:
+            return _emit_result(False, [err])
+    errors = validate_benign_tasks(data, site_name=args.site_name, route_contracts=route_contracts)
     return _emit_result(not errors, errors)
 
 

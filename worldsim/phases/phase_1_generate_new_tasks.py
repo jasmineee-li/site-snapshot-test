@@ -19,7 +19,6 @@ from worldsim.modal_sandbox import (
 )
 from worldsim.phases.phase_1_generate_new_tasks_validation import (
     GeneratedTaskValidationError,
-    site_is_generate_new_tasks_eligible,
     sort_novel_tasks,
     validate_generated_novel_tasks,
     validate_generated_novel_tasks_detailed,
@@ -40,7 +39,7 @@ GENERATE_NEW_TASKS_FIX_MAX_ITERATIONS = 2
 NOVEL_TASK_OUTPUT_PATH = "/workspace/output/benign_tasks.json"
 GENERATE_NEW_TASKS_RESUME_METADATA_PATH = "generate_new_tasks_resume_metadata.json"
 SITE_CACHE_METADATA_SUFFIX = ".metadata.json"
-GENERATE_NEW_TASKS_CACHE_SCHEMA_VERSION = 5
+GENERATE_NEW_TASKS_CACHE_SCHEMA_VERSION = 6
 
 
 def _read_only_volume(volume: Any) -> Any:
@@ -170,7 +169,7 @@ def load_generate_new_tasks_eligible_sites(
     manifest_eval_types: list[str],
     site_filter: Iterable[str] | None = None,
 ) -> list[EligibleSiteProfile]:
-    """Return validated site profiles that still have uncovered surfaces."""
+    """Return profiles with Phase 4-admissible carrier route families."""
     eligible: list[EligibleSiteProfile] = []
     site_filter_set = _normalize_site_filter(site_filter)
 
@@ -186,7 +185,8 @@ def load_generate_new_tasks_eligible_sites(
             profile_path,
             manifest_eval_types=manifest_eval_types,
         )
-        if site_is_generate_new_tasks_eligible(profile):
+        route_contracts = build_task_route_contracts(site_name=site_name, profile=profile)
+        if route_contracts.get("route_families"):
             eligible.append(
                 EligibleSiteProfile(
                     site_name=site_name,
@@ -196,7 +196,7 @@ def load_generate_new_tasks_eligible_sites(
             )
         else:
             logger.info(
-                "Phase 1 (generate-new-tasks): skipping site %r (no uncovered injection surfaces)",
+                "Phase 1 (generate-new-tasks): skipping site %r (no Phase 4-admissible carrier route families)",
                 site_name,
             )
 
@@ -464,6 +464,10 @@ def validate_existing_novel_tasks(
             site_name=site_name,
             profile=site.profile,
             expected_task_count=expected_task_count,
+            route_contracts=build_task_route_contracts(
+                site_name=site.site_name,
+                profile=site.profile,
+            ),
         )
         errors.extend(site_errors)
 
