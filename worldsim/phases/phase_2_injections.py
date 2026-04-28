@@ -3812,7 +3812,9 @@ def _normalize_gitlab_project_selector_templates(plan: dict) -> None:
         benchmark=benchmark,
         site="gitlab",
     )
-    if "{benign_project_path}" not in available or "{benign_project_id}" in available:
+    has_project_id_token = "{benign_project_id}" in available
+    has_project_path_token = "{benign_project_path}" in available
+    if not has_project_id_token and not has_project_path_token:
         return
     for seed_key in ("seed_template", "adversarial_data_seed"):
         seed = plan.get(seed_key)
@@ -3836,17 +3838,14 @@ def _normalize_gitlab_project_selector_templates(plan: dict) -> None:
             }:
                 continue
             args = call.get("args")
-            if not isinstance(args, dict) or args.get("project_path_template"):
+            if not isinstance(args, dict):
                 continue
             project_id_value = str(args.get("project_id") or "")
-            if (
-                project_id_value
-                and not project_id_value.strip().startswith("{")
-                and not _value_starts_with_token(project_id_value, "{benign_project_id}")
-            ):
-                continue
-            args.pop("project_id", None)
-            args["project_path_template"] = "{benign_project_path}"
+            if has_project_id_token and project_id_value.strip().startswith("{"):
+                args["project_id"] = "{benign_project_id}"
+            elif has_project_path_token and not args.get("project_path_template"):
+                args.pop("project_id", None)
+                args["project_path_template"] = "{benign_project_path}"
             if method in {"create_issue_note"} and args.get("issue_iid") == "{issue_iid}":
                 args["issue_iid"] = "{benign_issue_iid}"
             if method in {"create_mr_note"} and args.get("mr_iid") == "{mr_iid}":

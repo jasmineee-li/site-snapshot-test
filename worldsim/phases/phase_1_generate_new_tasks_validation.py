@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import re
 from dataclasses import dataclass
 from typing import Any
@@ -118,7 +119,8 @@ def validate_generated_novel_tasks_detailed(
     errors: list[GeneratedTaskValidationError] = []
     seen_ids: set[str] = set()
 
-    for index, task in enumerate(raw_tasks):
+    for index, raw_task in enumerate(raw_tasks):
+        task = _normalize_generated_task_for_route(raw_task, route_index)
         problem = validate_generated_novel_task(
             task,
             index=index,
@@ -169,6 +171,57 @@ def validate_generated_novel_tasks_detailed(
         )
 
     return validated, errors
+
+
+def _normalize_generated_task_for_route(
+    task: Any,
+    route_index: dict[str, dict[str, Any]] | None,
+) -> Any:
+    """Canonicalize route-bound editor args before persisting Phase 1 output."""
+    if not isinstance(task, dict) or route_index is None:
+        return task
+    route_id = task.get("route_id")
+    if not isinstance(route_id, str):
+        return task
+    route = route_index.get(route_id)
+    if not isinstance(route, dict) or route.get("site") != "gitlab":
+        return task
+
+    normalized = copy.deepcopy(task)
+    seed = normalized.get("data_seed")
+    if not isinstance(seed, dict) or seed.get("mechanism") != "editor":
+        return normalized
+    calls = seed.get("editor_calls")
+    if not isinstance(calls, list):
+        return normalized
+
+    kind = str(route.get("resource_kind") or "")
+    for call in calls:
+        if not isinstance(call, dict):
+            continue
+        method = str(call.get("method") or "")
+        args = call.get("args")
+        if not isinstance(args, dict):
+            continue
+        if kind == "gitlab_issue" and method == "create_issue_note":
+            _normalize_gitlab_project_path_selector(args)
+            if args.get("issue_iid") == "{issue_iid}":
+                args["issue_iid"] = "{benign_issue_iid}"
+        elif kind == "gitlab_mr" and method == "create_mr_note":
+            _normalize_gitlab_project_path_selector(args)
+            if args.get("mr_iid") == "{mr_iid}":
+                args["mr_iid"] = "{benign_mr_iid}"
+    return normalized
+
+
+def _normalize_gitlab_project_path_selector(args: dict[str, Any]) -> None:
+    if args.get("project_path_template"):
+        return
+    project_id = args.get("project_id")
+    if not isinstance(project_id, str) or not project_id.strip().startswith("{"):
+        return
+    args.pop("project_id", None)
+    args["project_path_template"] = "{benign_project_path}"
 
 
 def validate_generated_novel_task(

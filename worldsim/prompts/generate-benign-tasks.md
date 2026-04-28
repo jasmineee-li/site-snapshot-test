@@ -139,6 +139,11 @@ these fields:
 ```
 
 For navigate-only tasks that need no seed data, use `"data_seed": {{"mechanism": "none"}}`.
+
+For GitLab direct issue-note routes, use route-stable selector tokens in
+`data_seed.editor_calls[].args`: `project_path_template:
+"{benign_project_path}"` and `issue_iid: "{benign_issue_iid}"`. Do not use
+`project_id`, `{project_id}`, or `{issue_iid}` for those routes.
 </output_contract>
 
 <self_check>
