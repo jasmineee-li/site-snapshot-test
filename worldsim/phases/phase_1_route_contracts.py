@@ -158,8 +158,10 @@ def _phase2_admissible_start_patterns(
 ) -> list[str]:
     if site not in {"gitlab", "reddit"}:
         return patterns
-    if site == "gitlab" and method in {"create_issue_note", "create_mr_note"}:
-        patterns = [pattern for pattern in patterns if "/search?" in pattern]
+    if site == "gitlab" and method == "create_issue_note":
+        patterns = [pattern for pattern in patterns if "/-/issues/{issue_iid}" in pattern]
+    if site == "gitlab" and method == "create_mr_note":
+        patterns = [pattern for pattern in patterns if "/-/merge_requests/{mr_iid}" in pattern]
     return [
         pattern
         for pattern in patterns
