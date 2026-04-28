@@ -2,7 +2,7 @@
 
 ## WHAT
 - Python 3.12 `uv` project for Modal Sandbox + Browser Use adversarial evaluation of browser agents.
-- Strict WASP scope: GitLab issues/comments and Reddit/Postmill posts/comments only; current dataset is 38 tasks (22 GitLab, 16 Reddit), regenerated 2026-04-26.
+- Strict WASP scope: GitLab issues/comments and Reddit/Postmill posts/comments only.
 - Main map: `worldsim/` core package, `scripts/` host/run tooling, `tests/` unit/live/preflight suites, `packages/worldsim-webarena-verified/` isolated evaluator adapter, `vendors/` gitignored benchmark clones.
 - `AgentLab/src/agentlab/benchmarks/redteam/{execution.py,claude_code.py}` are read-only references only; never import from `AgentLab/`.
 
@@ -21,6 +21,8 @@
 - Main commands: `uv sync --extra dev`, `uv run python -m worldsim.main --help`, `uv run pytest <paths> -q`, `uv run ruff check <paths>`, `uv run ruff format <paths>`.
 - Use `scripts/lib/run_silent.sh` or repo quiet wrappers; for live gates use `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml --quiet`. Never truncate verbose output yourself.
 - Claude/Modal auth precedence lives in `worldsim/modal_sandbox.py::_build_claude_secrets` and `worldsim/phase_4/anthropic_client.py`; never hard-code one auth mode.
+- On resume or context compaction, preserve completed actions, active assumptions, artifact paths/IDs, tool outcomes, unresolved blockers, and the next concrete goal.
+- Keep final responses concise by default; use detailed sections only for reviews, handoffs, or when the user asks for depth.
 - If an instruction here caused a wrong turn or was missing during a real failure, propose the smallest `AGENTS.md`/`agent_docs/` fix after handling the task.
 - Do not generate or serve web applications from this repo.
 

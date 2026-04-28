@@ -15,6 +15,8 @@ WorldSim v5 is strict WASP-aligned IPI evaluation. Current admitted surfaces are
 - GitLab issues/comments
 - Reddit/Postmill posts/comments
 
+Current dataset: 38 tasks (22 GitLab and 16 Reddit), regenerated 2026-04-26 after post-`057e8e26` strict exposure-contract eligibility. Treat this as run/context status, not a root-agent instruction.
+
 Magento, Wikipedia, OpenStreetMap, shopping, and classifieds are excluded from the current WASP scope. Treat code paths for them as historical or support plumbing unless the spec and task explicitly bring them back.
 
 ## Phase 2 and Admission
@@ -49,6 +51,8 @@ The six host-API prompt files are:
 - `worldsim/prompts/placement-fix.md`
 
 They feed single-turn API calls with no sandbox error boundary. Be conservative and test exact parsing contracts.
+
+When adding OpenAI-backed prompt/API flows, prefer Structured Outputs or deterministic parsers over prose-only schema instructions. Keep schemas in code/tests rather than duplicated across long prompt text.
 
 ## Phase 4 Strategy and Rewards
 
