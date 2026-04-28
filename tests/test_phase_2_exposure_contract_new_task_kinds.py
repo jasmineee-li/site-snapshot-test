@@ -116,9 +116,9 @@ def test_unresolved_kind_remains_ineligible():
     assert contract["eligibility"]["reason"] == "unresolved_target_resource"
 
 
-def test_signature_version_bumped_to_9():
-    """Persisted Phase 2 plans built before Reddit title-listing placement must invalidate."""
+def test_signature_version_bumped_to_14():
+    """Persisted Phase 2 plans built before visible listing-title placement must invalidate."""
     from worldsim.phases.phase_2_exposure_contract import exposure_contract_signature
 
     sig = exposure_contract_signature()
-    assert sig["version"] == 9
+    assert sig["version"] == 14

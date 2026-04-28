@@ -942,14 +942,17 @@ async def _run_reachability_check(
     benign_target_resource = _reachability_resource_for_task(task, metadata=metadata)
     site_url = str(instance.get("site_url") or "").strip()
     url_token = _required_url_token(task)
+    payload_source = (
+        _selected_rendered_payload(task)
+        or _first_rendered_payload(seed)
+        or (render_outcome.rendered_body_text if render_outcome is not None else None)
+    )
     if url_token is not None:
         signature = url_token
-        prose_source = render_outcome.rendered_body_text or _first_rendered_payload(seed)
-        second_witness = derive_second_witness(prose_source, signature)
+        second_witness = derive_second_witness(payload_source, signature)
     else:
         signature = render_signature(seed, metadata)
-        rendered_payload = render_outcome.rendered_body_text or _first_rendered_payload(seed)
-        second_witness = derive_second_witness(rendered_payload, signature)
+        second_witness = derive_second_witness(payload_source, signature)
     browser_context_kwargs, auth_error = _resolve_benign_browser_context_auth(instance)
     if auth_error is not None:
         return ReachabilityOutcome.unreachable(
@@ -1121,6 +1124,30 @@ def _first_rendered_payload(seed: dict[str, Any]) -> str | None:
                 if best is None or len(value) > len(best):
                     best = value
     return best
+
+
+def _selected_rendered_payload(task: dict[str, Any]) -> str | None:
+    """Return the selected Phase 2b rendered payload when present."""
+    payloads = task.get("payload_texts")
+    if not isinstance(payloads, list) or not payloads:
+        return None
+    raw_index = task.get("selected_payload_index", 0)
+    try:
+        selected_index = int(raw_index)
+    except (TypeError, ValueError):
+        selected_index = 0
+    candidates: list[Any] = []
+    if 0 <= selected_index < len(payloads):
+        candidates.append(payloads[selected_index])
+    candidates.extend(payloads)
+    for payload in candidates:
+        if not isinstance(payload, dict):
+            continue
+        for key in ("rendered_payload", "raw_text"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return None
 
 
 def _preflight_request_context_options(
@@ -1599,7 +1626,14 @@ async def _run_render_check(
     # metadata shape.
     write_tokens: dict[str, Any] = {}
     if isinstance(metadata, dict):
-        for key in ("note_id", "comment_id", "submission_id", "review_id"):
+        for key in (
+            "note_id",
+            "issue_iid",
+            "project_id",
+            "comment_id",
+            "submission_id",
+            "review_id",
+        ):
             value = metadata.get(key)
             if value not in (None, ""):
                 write_tokens[key] = value

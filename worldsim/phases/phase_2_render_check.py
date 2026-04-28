@@ -46,6 +46,7 @@ _SHOPPING_REVIEW_SELECTOR = ".review-items, .no-reviews, #customer-reviews"
 # page despite the POST /api/v4/.../notes call having succeeded.
 _GITLAB_DISCUSSIONS_FRAGMENT = "/discussions.json"
 _GITLAB_NOTE_SELECTOR = ".notes .note, .discussion-notes .note, ul.notes-list .note"
+_GITLAB_ISSUABLE_LIST_SELECTOR = ".issuable-list, .issues-list, .merge-requests-list"
 
 # Postmill/Reddit pages are server-rendered, but ``wait_until="commit"``
 # returns before Chromium has parsed enough of the document to include
@@ -163,6 +164,14 @@ _GITLAB_REWRITTEN_TEXT_TOKEN_RE = re.compile(
     r"(?<![\w/])@[a-z0-9_.-]+"
 )
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _is_gitlab_issuable_surface(url: str) -> bool:
+    return "/-/issues" in url or "/-/merge_requests" in url
+
+
+def _is_gitlab_issuable_detail_surface(url: str) -> bool:
+    return "/-/issues/" in url or "/-/merge_requests/" in url
 
 
 def _trim_signature_candidate(text: str) -> str:
@@ -438,7 +447,7 @@ def _normalize(text: str | None) -> str:
 
 
 async def _layout_probe_for_signature(page: Any, normalized_needle: str) -> dict[str, Any] | None:
-    """Return initial-viewport geometry for the first rendered text match."""
+    """Return initial-viewport geometry for the best rendered text match."""
     if not normalized_needle:
         return None
     try:
@@ -489,63 +498,90 @@ async def _layout_probe_for_signature(page: Any, normalized_needle: str) -> dict
                 textNodes.push(node);
                 appendNormalized(content, nodeIndex);
               }
-              const matchOffset = corpus.indexOf(String(needle || ""));
-              if (matchOffset < 0) return null;
-              let startInfo = null;
-              let endInfo = null;
               const length = String(needle || "").length;
-              for (let i = 0; i < length; i += 1) {
-                const info = charMap[matchOffset + i];
-                if (!info) continue;
-                if (!startInfo) startInfo = info;
-                endInfo = info;
-              }
-              if (!startInfo || !endInfo) return null;
-              const startNode = textNodes[startInfo.nodeIndex];
-              const endNode = textNodes[endInfo.nodeIndex];
-              if (!startNode || !endNode) return null;
-              const range = document.createRange();
-              range.setStart(startNode, startInfo.offset);
-              range.setEnd(endNode, Math.min((endInfo.offset || 0) + 1, (endNode.textContent || "").length));
-              const rect = range.getBoundingClientRect();
               const viewportH = window.innerHeight || 0;
               const viewportW = window.innerWidth || 0;
               const scrollY = window.scrollY || 0;
               const doc = document.documentElement || root;
               const docH = Math.max(doc.scrollHeight || 0, root.scrollHeight || 0);
-              const visibleAtEntry =
-                rect.width > 0 &&
-                rect.height > 0 &&
-                rect.bottom > 0 &&
-                rect.top < viewportH &&
-                rect.right > 0 &&
-                rect.left < viewportW;
-              let requiresExpand = false;
-              for (let n = startNode.parentElement; n; n = n.parentElement) {
-                const style = window.getComputedStyle(n);
-                if (style.display === "none" || style.visibility === "hidden") {
-                  requiresExpand = true;
-                  break;
+
+              function probeOccurrence(matchOffset, occurrenceIndex) {
+                let startInfo = null;
+                let endInfo = null;
+                for (let i = 0; i < length; i += 1) {
+                  const info = charMap[matchOffset + i];
+                  if (!info) continue;
+                  if (!startInfo) startInfo = info;
+                  endInfo = info;
                 }
-                if (n.tagName === "DETAILS" && !n.open) {
-                  requiresExpand = true;
-                  break;
+                if (!startInfo || !endInfo) return null;
+                const startNode = textNodes[startInfo.nodeIndex];
+                const endNode = textNodes[endInfo.nodeIndex];
+                if (!startNode || !endNode) return null;
+                const range = document.createRange();
+                range.setStart(startNode, startInfo.offset);
+                range.setEnd(endNode, Math.min((endInfo.offset || 0) + 1, (endNode.textContent || "").length));
+                const rect = range.getBoundingClientRect();
+                const visibleAtEntry =
+                  rect.width > 0 &&
+                  rect.height > 0 &&
+                  rect.bottom > 0 &&
+                  rect.top < viewportH &&
+                  rect.right > 0 &&
+                  rect.left < viewportW;
+                let requiresExpand = false;
+                for (let n = startNode.parentElement; n; n = n.parentElement) {
+                  const style = window.getComputedStyle(n);
+                  if (style.display === "none" || style.visibility === "hidden") {
+                    requiresExpand = true;
+                    break;
+                  }
+                  if (n.tagName === "DETAILS" && !n.open) {
+                    requiresExpand = true;
+                    break;
+                  }
+                  if (n.classList && n.classList.contains("comment--collapsed")) {
+                    requiresExpand = true;
+                    break;
+                  }
                 }
-                if (n.classList && n.classList.contains("comment--collapsed")) {
-                  requiresExpand = true;
-                  break;
-                }
+                return {
+                  visible_at_entry: visibleAtEntry,
+                  rect_top: rect.top,
+                  rect_bottom: rect.bottom,
+                  viewport_h: viewportH,
+                  viewport_w: viewportW,
+                  doc_h: docH,
+                  scroll_to_visible_px: visibleAtEntry ? 0 : Math.max(0, rect.top + scrollY - 100),
+                  requires_expand: requiresExpand,
+                  occurrence_index: occurrenceIndex,
+                };
               }
-              return {
-                visible_at_entry: visibleAtEntry,
-                rect_top: rect.top,
-                rect_bottom: rect.bottom,
-                viewport_h: viewportH,
-                viewport_w: viewportW,
-                doc_h: docH,
-                scroll_to_visible_px: visibleAtEntry ? 0 : Math.max(0, rect.top + scrollY - 100),
-                requires_expand: requiresExpand,
-              };
+
+              let matchOffset = corpus.indexOf(String(needle || ""));
+              if (matchOffset < 0) return null;
+              let fallback = null;
+              let occurrenceIndex = 0;
+              while (matchOffset >= 0) {
+                const candidate = probeOccurrence(matchOffset, occurrenceIndex);
+                if (candidate) {
+                  if (candidate.visible_at_entry) return candidate;
+                  if (!fallback) fallback = candidate;
+                  else if (fallback.requires_expand && !candidate.requires_expand) fallback = candidate;
+                  else if (
+                    fallback.requires_expand === candidate.requires_expand &&
+                    candidate.scroll_to_visible_px < fallback.scroll_to_visible_px
+                  ) {
+                    fallback = candidate;
+                  }
+                }
+                occurrenceIndex += 1;
+                matchOffset = corpus.indexOf(
+                  String(needle || ""),
+                  matchOffset + Math.max(length, 1),
+                );
+              }
+              return fallback;
             }
             """,
             normalized_needle,
@@ -960,32 +996,19 @@ async def verify_seed_renders(
                         )
                     except Exception:
                         pass
-                if site_name == "gitlab" and (
-                    "/-/issues/" in target or "/-/merge_requests/" in target
-                ):
+                if site_name == "gitlab" and _is_gitlab_issuable_surface(target):
+                    if _is_gitlab_issuable_detail_surface(target):
+                        selector = _GITLAB_NOTE_SELECTOR
+                    else:
+                        selector = _GITLAB_ISSUABLE_LIST_SELECTOR
                     try:
-                        await page.wait_for_selector(
-                            _GITLAB_NOTE_SELECTOR, timeout=selector_timeout_ms
-                        )
+                        await page.wait_for_selector(selector, timeout=selector_timeout_ms)
                     except Exception:
                         pass
-                    # Bug J: the note selector fires on batch-1 render,
-                    # but the seeded note often lives in batch 2/3 of
-                    # the lazy discussions.json stream. Poll the body
-                    # text for the signature so we do not race the
-                    # second batch and record a false signature_absent.
-                    # Composes with Bug G — _normalize already strips
-                    # markdown delimiters on both sides.
-                    #
-                    # Use _BODY_POLL_TIMEOUT_MS (20 s) instead of the 10 s
-                    # selector_timeout_ms: the selector wait above only
-                    # needs to see *some* note render, but the poll has
-                    # to cover GitLab's long write-to-visible tail
-                    # (sidekiq indexer + cache invalidation) under Phase
-                    # 2c's 16-way renderer contention. The 10 s bound
-                    # cost 2-4 tasks/run to the p99 tail even after
-                    # Bug J landed; 20 s plus the backoff schedule
-                    # closes that gap.
+                    # GitLab issue/MR detail threads and listing rows are both
+                    # populated after the initial response. Poll body text so
+                    # Phase 2c does not sample the SPA shell before the seeded
+                    # title/note has been inserted into the DOM.
                     await _wait_for_body_text(page, signature, _BODY_POLL_TIMEOUT_MS)
                 body_text = await page.text_content("body") or ""
                 normalized = _normalize(body_text)

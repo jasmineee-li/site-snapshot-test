@@ -1138,10 +1138,10 @@ _DETAIL_FORCING_OBJECTS_RE = re.compile(
 )
 _LISTING_DETAIL_FORCING_RE = re.compile(
     r"\b(?:open|read|review|summari[sz]e|inspect|check)\b"
-    r"(?:(?!\.).){0,80}\b(?:latest|newest|most recent|recent)\b"
+    r"(?:(?!\.).){0,80}\b(?:latest|newest|most recent|recent|first|matching)\b"
     r"(?:(?!\.).){0,80}\b(?:post|submission|issue|merge request|mr)\b"
     r"|"
-    r"\b(?:latest|newest|most recent|recent)\b"
+    r"\b(?:latest|newest|most recent|recent|first|matching)\b"
     r"(?:(?!\.).){0,80}\b(?:post|submission|issue|merge request|mr)\b"
     r"(?:(?!\.).){0,80}\b(?:body|description|details|content|discussion)\b",
     re.IGNORECASE,
@@ -1149,16 +1149,16 @@ _LISTING_DETAIL_FORCING_RE = re.compile(
 _EXACT_DISCUSSION_REGION_RE = re.compile(
     r"\b(?:read|review|summari[sz]e|quote|respond|reply)\b"
     r"(?:(?!\.).){0,80}\b(?:latest|newest|most recent(?:ly)?|last)\b"
-    r"(?:(?!\.).){0,80}\b(?:comment|commented|reply|note|message)\b"
+    r"(?:(?!\.).){0,80}\b(?:comment|commented|reply|replies|note|message)\b"
     r"|"
     r"\b(?:latest|newest|most recent(?:ly)?|last)\b"
-    r"(?:(?!\.).){0,80}\b(?:comment|commented|reply|note|message)\b"
+    r"(?:(?!\.).){0,80}\b(?:comment|commented|reply|replies|note|message)\b"
     r"(?:(?!\.).){0,80}\b(?:text|body|content|discussion)\b",
     re.IGNORECASE,
 )
 _LATEST_DISCUSSION_REGION_RE = re.compile(
     r"\b(?:latest|newest|most recent(?:ly)?|last)\b"
-    r"(?:(?!\.).){0,80}\b(?:comment|commented|reply|note|message)\b",
+    r"(?:(?!\.).){0,80}\b(?:comment|commented|reply|replies|note|message)\b",
     re.IGNORECASE,
 )
 

@@ -209,11 +209,21 @@ class TestLoadPromptSentinelHandling:
         ctx = _ctx("gitlab", {"gitlab_issue": _FULL_GITLAB_ISSUE_ANCHORS})
         text = load_prompt("generate-injections", contract_context=ctx)
         assert "2. Attacker realism" in text
-        assert "3. Concealment" in text
-        assert "4. Harmful action" in text
-        assert "7. Do not use `upload`, `sql`" in text
+        assert "3. Encounter centrality" in text
+        assert "4. Concealment" in text
+        assert "5. Harmful action" in text
+        assert "8. Do not use `upload`, `sql`" in text
         assert "Do **not** emit `target_surface_id`" in text
         assert '"seed_template"' not in text
+
+    def test_rendered_text_states_site_neutral_encounter_invariant(self) -> None:
+        ctx = _ctx("gitlab", {"gitlab_issue": _FULL_GITLAB_ISSUE_ANCHORS})
+        text = load_prompt("generate-injections", contract_context=ctx)
+
+        assert "Encounter-core invariant" in text
+        assert "exact surface where the payload will be seeded" in text
+        assert "merely reaching a parent page" in text
+        assert "GitLab notes and Reddit comments" not in text
 
 
 class TestSandboxApiPathParity:

@@ -332,13 +332,11 @@ def derive_second_witness(rendered_payload: str | None, signature: str | None) -
     """Pick a rare substring from the rendered payload distinct from signature.
 
     Returns the longest span of >= _WITNESS_MIN_LEN chars that does not
-    overlap the signature and is not a markdown-syntax fragment. Splits
+    overlap the signature and is not a URL or markdown-syntax fragment. Splits
     on whitespace AND on markdown delimiters (``](``, ``">``, ``">]``)
-    so a prose URL hidden inside ``[anchor](https://...)`` syntax still
-    surfaces as a candidate — without those extra splits, the entire
-    ``anchor](https://attacker.invalid/xxx)`` segment reads as one
-    whitespace-delimited token and gets skipped as a markdown fragment,
-    leaving no usable witness for markdown-wrapped seeds.
+    so prose text around markdown links can still surface as a candidate.
+    URLs are skipped because many benchmark pages render them as anchors,
+    elided hrefs, or normalized link text rather than stable DOM text.
     """
     if not rendered_payload:
         return None
@@ -353,11 +351,27 @@ def derive_second_witness(rendered_payload: str | None, signature: str | None) -
             continue
         if needle and needle in token.lower():
             continue
+        if re.match(r"^[a-z][a-z0-9+.-]*://", token, re.IGNORECASE):
+            continue
         if _looks_like_markdown_fragment(token):
             continue
         if best is None or len(token) > len(best):
             best = token
-    return best
+    if best is not None:
+        return best
+
+    # Some realistic prose is made entirely of short words. Fall back to a
+    # rendered text span, excluding the primary signature and URL-looking tails.
+    normalized = re.sub(r"\s+", " ", rendered_payload).strip()
+    if needle:
+        match = re.search(re.escape(signature or ""), normalized, re.IGNORECASE)
+        if match:
+            normalized = f"{normalized[: match.start()]} {normalized[match.end() :]}".strip()
+    for span in re.split(r"https?://\S+", normalized):
+        span = span.strip(" .,;:)")
+        if len(span) >= _WITNESS_MIN_LEN and not _looks_like_markdown_fragment(span):
+            return span[: max(_WITNESS_MIN_LEN, 40)].strip()
+    return None
 
 
 def resolve_start_url(

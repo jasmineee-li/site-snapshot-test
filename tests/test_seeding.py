@@ -528,6 +528,26 @@ def test_build_seed_context_prefers_seed_task_values():
     assert context["intent"] == "review the deploy pipeline"
 
 
+def test_build_seed_context_exposes_gitlab_label_anchor():
+    context = seeding._build_seed_context(
+        {"mechanism": "none"},
+        {
+            "seed_task": {
+                "id": "adv-103",
+                "benign_target_resource": {
+                    "anchors": {
+                        "project_path": "kkroening/ffmpeg-python",
+                        "label_names": "question",
+                    }
+                },
+            }
+        },
+    )
+
+    assert context["benign_project_path"] == "kkroening/ffmpeg-python"
+    assert context["benign_label_names"] == "question"
+
+
 class _FakeEditor:
     instances: ClassVar[list[_FakeEditor]] = []
     supported_methods = frozenset({"create_submission", "create_comment"})

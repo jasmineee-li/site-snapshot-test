@@ -142,6 +142,70 @@ def test_gitlab_create_issue_falls_back_to_constructed_path_when_web_url_missing
     ]
 
 
+def test_gitlab_create_issue_title_emits_project_issue_listing_surface(monkeypatch):
+    editor = _gitlab_editor()
+    requests: list[dict] = []
+    monkeypatch.setattr(
+        editor,
+        "_ensure_project",
+        lambda **kwargs: {
+            "project_id": 174,
+            "project_path": "byteblaze/secret-project",
+            "default_branch": "main",
+        },
+    )
+    monkeypatch.setattr(editor, "_find_existing_issue", lambda **kwargs: None)
+
+    def fake_gitlab_request_json(method, path, **kwargs):
+        requests.append({"method": method, "path": path, **kwargs})
+        return {
+            "iid": 42,
+            "web_url": "http://gitlab.test/byteblaze/secret-project/-/issues/42",
+        }
+
+    monkeypatch.setattr(editor, "_gitlab_request_json", fake_gitlab_request_json)
+
+    result = editor.create_issue_title(title="Seeded title", labels="help wanted")
+
+    assert result["issue_iid"] == 42
+    assert requests[0]["json_body"]["title"].startswith("Seeded title WorldSimMarker-")
+    assert requests[0]["json_body"]["labels"] == "help wanted"
+    assert result["read_surface_urls"] == [
+        "http://gitlab.test/byteblaze/secret-project/-/issues",
+        "/byteblaze/secret-project/-/issues",
+    ]
+
+
+def test_gitlab_create_issue_title_reserves_marker_budget(monkeypatch):
+    editor = _gitlab_editor()
+    requests: list[dict] = []
+    monkeypatch.setattr(
+        editor,
+        "_ensure_project",
+        lambda **kwargs: {
+            "project_id": 174,
+            "project_path": "byteblaze/secret-project",
+            "default_branch": "main",
+        },
+    )
+    monkeypatch.setattr(editor, "_find_existing_issue", lambda **kwargs: None)
+
+    def fake_gitlab_request_json(method, path, **kwargs):
+        requests.append({"method": method, "path": path, **kwargs})
+        return {
+            "iid": 42,
+            "web_url": "http://gitlab.test/byteblaze/secret-project/-/issues/42",
+        }
+
+    monkeypatch.setattr(editor, "_gitlab_request_json", fake_gitlab_request_json)
+
+    editor.create_issue_title(title="A" * 400)
+
+    seeded_title = requests[0]["json_body"]["title"]
+    assert len(seeded_title) <= 255
+    assert " WorldSimMarker-" in seeded_title
+
+
 # ---------------------------------------------------------------------------
 # Reddit editor emits surface URLs for submissions + comments
 # ---------------------------------------------------------------------------
@@ -197,6 +261,40 @@ def test_reddit_create_submission_emits_host_and_path_forms(monkeypatch):
         "parent_url": "http://reddit.test/f/books",
     }
     assert result["read_surface_provenance_source"] == "editor_constructed"
+
+
+def test_reddit_create_submission_title_emits_forum_listing_surface(monkeypatch):
+    editor = _reddit_editor()
+    monkeypatch.setattr(
+        editor,
+        "_fetch_form_state",
+        lambda *a, **k: {
+            "action": "",
+            "fields": {
+                "submission[_token]": "csrf",
+                "submission[forum]": "",
+                "submission[title]": "",
+            },
+            "select_options": {
+                "submission[forum]": [{"data-name": "books", "value": "7"}],
+            },
+        },
+    )
+    monkeypatch.setattr(
+        editor,
+        "_submit_exact_form",
+        lambda *a, **k: types.SimpleNamespace(
+            headers={"Location": "/f/books/59421"}, json=lambda: {}
+        ),
+    )
+
+    result = editor.create_submission_title(forum_name="books", title="Thread")
+
+    assert result["created_resource"]["url"] == "http://reddit.test/f/books/59421"
+    assert result["read_surface_urls"] == [
+        "http://reddit.test/f/books",
+        "/f/books",
+    ]
 
 
 # Shopping editor tests removed 2026-04-21 with the WASP-aligned scoping

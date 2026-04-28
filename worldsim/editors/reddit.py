@@ -303,11 +303,15 @@ class RedditEditor(BaseSiteEditor):
         title: str,
         body: str | None = None,
     ) -> dict[str, Any]:
-        return self.create_submission(
+        result = self.create_submission(
             forum_name=forum_name,
             title_template=title,
             body_template=body or "WorldSim seeded discussion context.",
         )
+        # Title-only placement is intended to be encountered on the forum/listing
+        # row, not by requiring a transition into the newly created submission.
+        result["read_surface_urls"] = _reddit_surface_urls(self._site_url(), [f"/f/{forum_name}"])
+        return result
 
     @editor_method(
         kinds=frozenset({"reddit_submission", "reddit_dashboard_list"}),

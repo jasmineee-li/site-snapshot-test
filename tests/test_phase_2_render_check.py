@@ -576,6 +576,29 @@ async def test_body_poll_detects_late_arriving_signature():
 
 
 @pytest.mark.asyncio
+async def test_body_poll_detects_late_gitlab_issue_listing_title():
+    url = "http://gitlab.test/proj/-/issues"
+    body_populated = "issue listing row with LISTSIG123 in the title"
+    page = _PollingFakePage(
+        bodies=["shell only", body_populated, body_populated],
+        final_body=body_populated,
+    )
+    browser = _PollingFakeBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[url],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="LISTSIG123",
+    )
+
+    assert outcome.ok is True
+    assert page.goto_calls == [(url, "commit")]
+    assert page.text_content_calls > 1
+
+
+@pytest.mark.asyncio
 async def test_body_poll_times_out_falls_through_to_signature_absent(short_body_poll):
     # Body never contains the signature within the poll window. Fall
     # through to the existing signature_absent classification.
@@ -806,8 +829,17 @@ class _FakeRequestResponse:
         self.status = status
         self._body = body
 
+    @property
+    def ok(self):
+        return 200 <= self.status < 300
+
     async def text(self):
         return self._body
+
+    async def json(self):
+        import json
+
+        return json.loads(self._body)
 
 
 class _RYWPage(_PollingFakePage):

@@ -265,7 +265,14 @@ def apply_data_seed(
         # seed_context into metadata so downstream verifiers (render-check
         # read-your-write fastpath) can match server-reported IDs instead
         # of racing the DOM hydration cascade.
-        for token_key in ("note_id", "comment_id", "submission_id", "review_id"):
+        for token_key in (
+            "note_id",
+            "issue_iid",
+            "project_id",
+            "comment_id",
+            "submission_id",
+            "review_id",
+        ):
             token_value = seed_context.get(token_key)
             if token_value not in (None, ""):
                 metadata[token_key] = token_value
@@ -329,6 +336,8 @@ def _build_seed_context(seed: dict[str, Any], instance: dict[str, Any]) -> dict[
                 context["benign_project_id"] = str(anchors["project_id"])
             if anchors.get("project_path"):
                 context["benign_project_path"] = str(anchors["project_path"])
+            if anchors.get("label_names"):
+                context["benign_label_names"] = str(anchors["label_names"])
             if anchors.get("issue_iid") is not None:
                 context["benign_issue_iid"] = str(anchors["issue_iid"])
             if anchors.get("mr_iid") is not None:
