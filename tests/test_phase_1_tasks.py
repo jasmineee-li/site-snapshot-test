@@ -480,6 +480,8 @@ def test_load_generate_new_tasks_eligible_sites_honors_site_filter(tmp_path):
     for site_name in ("gitlab", "reddit", "shopping"):
         profile = _profile(uncovered=["surface-1"])
         profile["site_name"] = site_name
+        if site_name == "gitlab":
+            _add_gitlab_issue_sample(profile)
         (profiles_dir / f"BENCHMARK_PROFILE_{site_name}.json").write_text(json.dumps(profile))
 
     eligible = phase_1_generate_new_tasks.load_generate_new_tasks_eligible_sites(
@@ -982,6 +984,7 @@ def test_validate_generated_novel_tasks_rejects_start_url_outside_uncovered_loca
 
 def test_validate_generated_novel_tasks_allows_phase2_eligible_listing_detail_route():
     profile = _profile(uncovered=["issue_description"])
+    _add_gitlab_issue_sample(profile)
     profile["injection_surface"] = [
         {
             "id": "issue_description",
@@ -991,7 +994,7 @@ def test_validate_generated_novel_tasks_allows_phase2_eligible_listing_detail_ro
     task = _novel_task(
         task_id="novel_gitlab_1",
         site="gitlab",
-        start_urls=["__GITLAB__/search?search=design&scope=issues"],
+        start_urls=["__GITLAB__/a11yproject/a11yproject.com/-/issues"],
         evaluator="AgentResponseEvaluator",
     )
     task["route_id"] = "gitlab.issue_description.gitlab_search_result.create_issue_description"
@@ -1003,7 +1006,10 @@ def test_validate_generated_novel_tasks_allows_phase2_eligible_listing_detail_ro
                 "benchmark": "webarena_verified",
                 "site": "gitlab",
                 "method": "create_issue_description",
-                "args": {"project_id": "{benign_project_id}", "body": "Seeded issue body."},
+                "args": {
+                    "project_path_template": "{benign_project_path}",
+                    "body": "Seeded issue body.",
+                },
             }
         ],
     }
@@ -1026,6 +1032,7 @@ def test_validate_generated_novel_tasks_allows_phase2_eligible_listing_detail_ro
 
 def test_validate_generated_novel_tasks_rejects_unforced_listing_detail_route():
     profile = _profile(uncovered=["issue_description"])
+    _add_gitlab_issue_sample(profile)
     profile["injection_surface"] = [
         {
             "id": "issue_description",
@@ -1035,7 +1042,7 @@ def test_validate_generated_novel_tasks_rejects_unforced_listing_detail_route():
     task = _novel_task(
         task_id="novel_gitlab_1",
         site="gitlab",
-        start_urls=["__GITLAB__/search?search=design&scope=issues"],
+        start_urls=["__GITLAB__/a11yproject/a11yproject.com/-/issues"],
         evaluator="AgentResponseEvaluator",
     )
     task["route_id"] = "gitlab.issue_description.gitlab_search_result.create_issue_description"
@@ -1047,7 +1054,10 @@ def test_validate_generated_novel_tasks_rejects_unforced_listing_detail_route():
                 "benchmark": "webarena_verified",
                 "site": "gitlab",
                 "method": "create_issue_description",
-                "args": {"project_id": "{benign_project_id}", "body": "Seeded issue body."},
+                "args": {
+                    "project_path_template": "{benign_project_path}",
+                    "body": "Seeded issue body.",
+                },
             }
         ],
     }
@@ -1175,6 +1185,7 @@ def test_validate_generated_novel_tasks_rejects_non_inventory_gitlab_direct_url(
 
 def test_validate_generated_novel_tasks_rejects_extra_start_url_outside_route():
     profile = _profile(uncovered=["issue_description"])
+    _add_gitlab_issue_sample(profile)
     profile["injection_surface"] = [
         {
             "id": "issue_description",
@@ -1185,7 +1196,7 @@ def test_validate_generated_novel_tasks_rejects_extra_start_url_outside_route():
         task_id="novel_gitlab_1",
         site="gitlab",
         start_urls=[
-            "__GITLAB__/search?search=design&scope=issues",
+            "__GITLAB__/a11yproject/a11yproject.com/-/issues",
             "__GITLAB__/dashboard/issues",
         ],
         evaluator="AgentResponseEvaluator",
@@ -1199,7 +1210,10 @@ def test_validate_generated_novel_tasks_rejects_extra_start_url_outside_route():
                 "benchmark": "webarena_verified",
                 "site": "gitlab",
                 "method": "create_issue_description",
-                "args": {"project_id": "{benign_project_id}", "body": "Seeded issue body."},
+                "args": {
+                    "project_path_template": "{benign_project_path}",
+                    "body": "Seeded issue body.",
+                },
             }
         ],
     }
@@ -1224,6 +1238,7 @@ def test_validate_generated_novel_tasks_rejects_extra_start_url_outside_route():
 
 def test_validate_generated_novel_tasks_rejects_extra_editor_method_outside_route():
     profile = _profile(uncovered=["issue_description"])
+    _add_gitlab_issue_sample(profile)
     profile["injection_surface"] = [
         {
             "id": "issue_description",
@@ -1233,7 +1248,7 @@ def test_validate_generated_novel_tasks_rejects_extra_editor_method_outside_rout
     task = _novel_task(
         task_id="novel_gitlab_1",
         site="gitlab",
-        start_urls=["__GITLAB__/search?search=design&scope=issues"],
+        start_urls=["__GITLAB__/a11yproject/a11yproject.com/-/issues"],
         evaluator="AgentResponseEvaluator",
     )
     task["route_id"] = "gitlab.issue_description.gitlab_search_result.create_issue_description"
@@ -1245,14 +1260,17 @@ def test_validate_generated_novel_tasks_rejects_extra_editor_method_outside_rout
                 "benchmark": "webarena_verified",
                 "site": "gitlab",
                 "method": "create_issue_description",
-                "args": {"project_id": "{benign_project_id}", "body": "Seeded issue body."},
+                "args": {
+                    "project_path_template": "{benign_project_path}",
+                    "body": "Seeded issue body.",
+                },
             },
             {
                 "benchmark": "webarena_verified",
                 "site": "gitlab",
                 "method": "create_issue_note",
                 "args": {
-                    "project_id": "{benign_project_id}",
+                    "project_path_template": "{benign_project_path}",
                     "issue_iid": "{benign_issue_iid}",
                     "body": "Off-route note body.",
                 },
@@ -1280,6 +1298,7 @@ def test_validate_generated_novel_tasks_rejects_extra_editor_method_outside_rout
 
 def test_build_task_route_contracts_derives_gitlab_issue_description_route():
     profile = _profile(uncovered=["issue_description"])
+    _add_gitlab_issue_sample(profile)
     profile["injection_surface"] = [
         {
             "id": "issue_description",
@@ -1295,11 +1314,66 @@ def test_build_task_route_contracts_derives_gitlab_issue_description_route():
     routes = {route["id"]: route for route in contracts["route_families"]}
     route = routes["gitlab.issue_description.gitlab_search_result.create_issue_description"]
     assert route["allowed_editor_methods"] == ["create_issue_description"]
-    assert route["allowed_start_url_patterns"] == ["__GITLAB__/search?search={query}&scope=issues"]
+    assert route["allowed_start_url_patterns"] == ["__GITLAB__/{project_path}/-/issues"]
+    assert route["editor_arg_templates"] == {
+        "create_issue_description": {
+            "project_path_template": "{benign_project_path}",
+            "body": "Seeded body",
+        }
+    }
+    assert route["requires_inventory_backed_start_url"] is True
+    assert route["anchor_examples"] == [
+        {
+            "route_variant": "project_issue_list",
+            "project_path": "a11yproject/a11yproject.com",
+            "scope": "issues",
+            "start_url": "__GITLAB__/a11yproject/a11yproject.com/-/issues",
+        }
+    ]
     assert route["coverage_status"] == "uncovered"
     assert route["instruction_requirements"]["must_force_seeded_content"] is True
     assert route["instruction_requirements"]["include_any"] == []
     assert route["instruction_requirements"]["include_any_regex"]
+
+
+def test_build_task_route_contracts_inventory_backs_gitlab_project_issue_lists():
+    profile = _profile(uncovered=["issue_description"])
+    profile["data_model"] = [
+        {
+            "entity": "issues",
+            "sample_values": [
+                {
+                    "project": "a11yproject/a11yproject.com",
+                    "iid": 1478,
+                    "title": "accessibility issue",
+                }
+            ],
+        }
+    ]
+    profile["injection_surface"] = [
+        {
+            "id": "issue_description",
+            "location_page": "/{namespace}/{project}/-/issues/{iid}",
+        }
+    ]
+
+    contracts = phase_1_route_contracts.build_task_route_contracts(
+        site_name="gitlab",
+        profile=profile,
+    )
+
+    routes = {route["id"]: route for route in contracts["route_families"]}
+    route = routes["gitlab.issue_description.gitlab_search_result.create_issue_description"]
+    assert route["requires_inventory_backed_start_url"] is True
+    assert route["anchor_examples"] == [
+        {
+            "route_variant": "project_issue_list",
+            "project_path": "a11yproject/a11yproject.com",
+            "scope": "issues",
+            "start_url": "__GITLAB__/a11yproject/a11yproject.com/-/issues",
+        }
+    ]
+    assert not any("search?search=" in url for url in route["allowed_start_url_patterns"])
 
 
 def test_build_task_route_contracts_uses_singular_gitlab_issue_samples():
@@ -1550,6 +1624,7 @@ async def test_generate_new_tasks_for_site_skips_active_site_with_no_route_famil
 
 def test_validate_generated_novel_tasks_rejects_missing_route_id_when_contracts_supplied():
     profile = _profile(uncovered=["issue_description"])
+    _add_gitlab_issue_sample(profile)
     profile["injection_surface"] = [
         {
             "id": "issue_description",

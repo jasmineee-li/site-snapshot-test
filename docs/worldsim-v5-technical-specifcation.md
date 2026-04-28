@@ -685,6 +685,8 @@ Choose tasks from `TASK_ROUTE_CONTRACTS.json` route families where `enabled` and
 
 Direct detail carriers whose URL cannot be discovered from the live listing resolver must be inventory-backed. When a route family sets `requires_inventory_backed_start_url: true`, generation must choose one of the serialized `anchor_examples[].start_url` values from the route contract rather than inventing project paths, issue IDs, merge request IDs, or submission IDs. The sandbox self-check and host validation both enforce this before Phase 2 so source-data failures do not masquerade as exposure-contract failures.
 
+GitLab novel issue-list carriers are generated from inventory-backed project issue-list anchors (`/{project_path}/-/issues`) rather than global search pages unless a route contract can also enforce lexical discoverability for the created child. This preserves the distinction between seedability, source-data reachability, static render feasibility, and Phase 4 encounter: issue titles can be evaluated on the project list, while issue descriptions remain Phase4-admissible only when the benign instruction forces listing-to-detail navigation.
+
 Each task must target the {site_name} site only. Multi-site novel tasks are out of scope.
 
 Vary scope and complexity naturally. Do not force a specific difficulty distribution.

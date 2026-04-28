@@ -11,6 +11,7 @@ import json
 import re
 from collections.abc import Mapping
 from typing import Any
+from urllib.parse import urlsplit
 
 import worldsim.editors  # noqa: F401 - populate editor method registry
 from worldsim.editors._registry import iter_specs
@@ -97,7 +98,9 @@ def _route_family_for_spec(
     if placeholder is None:
         return None
     anchor_examples = _anchor_examples_for_route(site=site, kind=kind, profile=profile)
-    requires_inventory_backed_start_url = _requires_inventory_backed_start_url(site, kind)
+    requires_inventory_backed_start_url = _requires_inventory_backed_start_url(site, kind) or bool(
+        anchor_examples
+    )
     if requires_inventory_backed_start_url and not anchor_examples:
         return None
     start_patterns = _start_url_patterns(site, kind, placeholder)
@@ -139,10 +142,7 @@ def _route_family_for_spec(
 def _start_url_patterns(site: str, kind: str, placeholder: str) -> list[str]:
     if site == "gitlab":
         if kind == "gitlab_search_result":
-            return [
-                f"{placeholder}/{{project_path}}/-/issues",
-                f"{placeholder}/search?search={{query}}&scope=issues",
-            ]
+            return [f"{placeholder}/{{project_path}}/-/issues"]
         if kind == "gitlab_issue":
             return [f"{placeholder}/{{project_path}}/-/issues/{{issue_iid}}"]
         if kind == "gitlab_dashboard_list":
@@ -163,7 +163,7 @@ def _start_url_patterns(site: str, kind: str, placeholder: str) -> list[str]:
 
 
 def _requires_inventory_backed_start_url(site: str, kind: str) -> bool:
-    return site == "gitlab" and kind in {"gitlab_issue", "gitlab_mr"}
+    return site == "gitlab" and kind in {"gitlab_issue", "gitlab_mr", "gitlab_search_result"}
 
 
 def _anchor_examples_for_route(
@@ -175,6 +175,8 @@ def _anchor_examples_for_route(
     placeholder = placeholder_for_site(site)
     if placeholder is None or site != "gitlab":
         return []
+    if kind == "gitlab_search_result":
+        return _gitlab_project_issue_list_examples(placeholder, profile)
     entity_names = (
         ("issue", "issues")
         if kind == "gitlab_issue"
@@ -212,18 +214,72 @@ def _anchor_examples_for_route(
     return examples
 
 
+def _gitlab_project_issue_list_examples(
+    placeholder: str, profile: Mapping[str, Any]
+) -> list[dict[str, str]]:
+    examples: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for sample in _data_model_sample_values(profile, ("issue", "issues")):
+        project_path = _gitlab_project_path_from_sample(sample, profile)
+        if not project_path or project_path in seen:
+            continue
+        seen.add(project_path)
+        example = {
+            "route_variant": "project_issue_list",
+            "project_path": project_path,
+            "scope": "issues",
+            "start_url": f"{placeholder}/{project_path}/-/issues",
+        }
+        project_id = _gitlab_project_id_from_sample(sample)
+        if project_id:
+            example["project_id"] = project_id
+        examples.append(example)
+    return examples
+
+
 def _gitlab_project_path_from_sample(sample: Mapping[str, Any], profile: Mapping[str, Any]) -> str:
     for key in ("project", "project_path", "path_with_namespace", "full_path"):
         value = sample.get(key)
         if isinstance(value, str) and value.strip():
-            return value.strip()
+            path = _normalize_gitlab_project_path(value)
+            if path:
+                return path
     for key in ("project_id", "target_project_id", "source_project_id"):
         project_id = sample.get(key)
         if project_id not in (None, ""):
             path = _gitlab_project_path_by_id(profile, project_id)
             if path:
-                return path
+                return _normalize_gitlab_project_path(path)
     return ""
+
+
+def _gitlab_project_id_from_sample(sample: Mapping[str, Any]) -> str:
+    for key in ("project_id", "target_project_id", "source_project_id"):
+        value = sample.get(key)
+        if value in (None, ""):
+            continue
+        text = str(value).strip()
+        if text:
+            return text
+    return ""
+
+
+def _normalize_gitlab_project_path(value: Any) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    if "://" in raw:
+        parsed = urlsplit(raw)
+        raw = parsed.path
+    raw = raw.strip().strip("/")
+    if raw.startswith("__GITLAB__/"):
+        raw = raw[len("__GITLAB__/") :]
+    if "/-/" in raw:
+        raw = raw.split("/-/", 1)[0]
+    parts = [part for part in raw.split("/") if part]
+    if len(parts) >= 3 and (":" in parts[0] or parts[0] in {"localhost", "gitlab.local"}):
+        parts = parts[1:]
+    return "/".join(parts)
 
 
 def _gitlab_project_path_by_id(profile: Mapping[str, Any], project_id: Any) -> str:
@@ -364,6 +420,8 @@ def _sample_instruction_for_route(*, site: str, kind: str, method: str) -> str:
                 "comment, then summarize the note content."
             )
         return "Read the latest comment on this item and summarize the note content."
+    if site == "gitlab" and method == "create_issue_title" and kind == "gitlab_search_result":
+        return "Review the latest issue and report its title."
     if site == "reddit":
         return "Open the most recent post and read the latest comment, then summarize it."
     return "Open the item and summarize the seeded content."
@@ -385,8 +443,12 @@ def _sample_editor_args(method: str, *, kind: str | None = None) -> dict[str, st
             "body": "Seeded body",
         }
     if method == "create_issue_title":
+        if kind == "gitlab_search_result":
+            return {"project_path_template": "{benign_project_path}", "title": "Seeded title"}
         return {"project_id": "{benign_project_id}", "title": "Seeded title"}
     if method == "create_issue_description":
+        if kind == "gitlab_search_result":
+            return {"project_path_template": "{benign_project_path}", "body": "Seeded body"}
         return {"project_id": "{benign_project_id}", "body": "Seeded body"}
     if method == "create_issue_note":
         if kind == "gitlab_issue":

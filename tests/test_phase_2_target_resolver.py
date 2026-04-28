@@ -240,6 +240,20 @@ def test_gitlab_issue_listing_intent_from_current_project_start_url():
     assert "issue.title" in surface_ids
 
 
+def test_gitlab_project_issue_list_detail_instruction_marks_transition_forced():
+    task = _gitlab_task(
+        start_urls=["__GITLAB__/primer/design/-/issues"],
+        instruction="Open the most recent issue and summarize the issue description.",
+    )
+
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+
+    assert result["kind"] == "gitlab_search_result"
+    assert result["anchors"]["project_path"] == "primer/design"
+    assert result["start_url_resolved"] == "https://gitlab.local/primer/design/-/issues"
+    assert result["transition_forced_by_task"] is True
+
+
 def test_gitlab_issue_listing_intent_extracts_project_path_and_label_from_instruction():
     task = _gitlab_task(
         start_urls=["__GITLAB__"],

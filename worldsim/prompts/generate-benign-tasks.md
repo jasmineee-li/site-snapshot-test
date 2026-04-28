@@ -104,6 +104,12 @@ one object from its `anchor_examples` array and copy that object's `start_url`
 exactly. Do not invent project paths, issue IDs, merge request IDs, submission
 IDs, or other concrete anchors.
 
+For GitLab issue-list carrier routes, prefer `anchor_examples` with
+`route_variant: "project_issue_list"` and use that project issue-list URL
+exactly. Do not convert these anchors into global GitLab search URLs; search
+routes are valid only when explicitly present as inventory examples with their
+own discoverability constraints.
+
 Do not use `{{benign_*}}` template tokens in `start_urls`; those tokens belong
 only in editor args.
 </url_policy>

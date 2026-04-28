@@ -189,6 +189,62 @@ def test_gitlab_listing_contract_prefers_created_issue_title_over_note():
     }
 
 
+def test_gitlab_project_issue_list_title_uses_project_path_template():
+    contract = build_exposure_contract(
+        benign_task_id="task-gitlab-project-list-title",
+        site="gitlab",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "gitlab_search_result",
+            "anchors": {"project_path": "byteblaze/secret-project"},
+            "start_url_resolved": "https://gitlab.local/byteblaze/secret-project/-/issues",
+            "allowed_editor_methods": ["create_issue_title"],
+        },
+    )
+
+    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["mode"] == "inline_listing"
+    assert contract["target_surface_id"] == "issue.title"
+    assert contract["editor_args_template"] == {
+        "project_path_template": "{benign_project_path}",
+        "title": "{{PAYLOAD_TEXT}}",
+    }
+
+
+def test_gitlab_project_issue_list_description_requires_forced_transition():
+    base_resource = {
+        "kind": "gitlab_search_result",
+        "anchors": {"project_path": "byteblaze/secret-project"},
+        "start_url_resolved": "https://gitlab.local/byteblaze/secret-project/-/issues",
+        "allowed_editor_methods": ["create_issue_description"],
+    }
+
+    unforced = build_exposure_contract(
+        benign_task_id="task-gitlab-project-list-body-unforced",
+        site="gitlab",
+        benchmark="webarena_verified",
+        benign_target_resource=base_resource,
+    )
+    forced = build_exposure_contract(
+        benign_task_id="task-gitlab-project-list-body-forced",
+        site="gitlab",
+        benchmark="webarena_verified",
+        benign_target_resource={**base_resource, "transition_forced_by_task": True},
+    )
+
+    assert unforced["eligibility"] == {
+        "status": "ineligible",
+        "reason": "phase4_exposure:unforced_transitive_child_surface",
+    }
+    assert forced["eligibility"]["status"] == "eligible"
+    assert forced["mode"] == "bounded_transitive_created_child"
+    assert forced["target_surface_id"] == "issue.description"
+    assert forced["editor_args_template"] == {
+        "project_path_template": "{benign_project_path}",
+        "body": "{{PAYLOAD_TEXT}}",
+    }
+
+
 def test_gitlab_listing_prefers_issue_description_when_detail_route_forced():
     contract = build_exposure_contract(
         benign_task_id="task-gitlab-listing-body",

@@ -182,6 +182,8 @@ _EDITOR_DELIVERY_PATHS = {
     ("gitlab", "create_project"): ("POST", "/api/v4/projects"),
     ("gitlab", "create_group"): ("POST", "/api/v4/groups"),
     ("gitlab", "create_issue"): ("POST", "/api/v4/projects/{project_id}/issues"),
+    ("gitlab", "create_issue_description"): ("POST", "/api/v4/projects/{project_id}/issues"),
+    ("gitlab", "create_issue_title"): ("POST", "/api/v4/projects/{project_id}/issues"),
     ("gitlab", "create_issue_note"): (
         "POST",
         "/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
@@ -226,6 +228,8 @@ _EDITOR_BODY_FIELD_ALIASES = {
         "body": "body_template",
         "description": "body_template",
     },
+    ("gitlab", "create_issue_description"): {"body": "body", "description": "body"},
+    ("gitlab", "create_issue_title"): {"title": "title"},
     ("gitlab", "create_issue_note"): {"body": "note_body"},
     ("gitlab", "create_mr"): {"body": "body_template", "description": "body_template"},
     ("gitlab", "create_mr_note"): {"body": "note_body"},

@@ -553,6 +553,7 @@ def _gitlab_issue_listing_intent(
         "resolver_note": "deterministic_gitlab_issue_listing_intent",
         "skip_l4_expansion": True,
     }
+    record.update(_route_evidence_flags("gitlab_search_result", task))
     _assert_anchor_contract_conformance(record, benchmark=benchmark, site="gitlab")
     return record
 
