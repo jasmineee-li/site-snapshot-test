@@ -209,6 +209,20 @@ def test_gitlab_listing_latest_comment_instruction_marks_exact_comment_region_fo
     assert result["exact_comment_region_forced_by_task"] is True
 
 
+def test_gitlab_issue_latest_comment_instruction_marks_exact_comment_region_forced():
+    task = _gitlab_task(
+        eval_url=None,
+        start_urls=["__GITLAB__/byteblaze/scripts/-/issues/6"],
+        instruction="What was the last comment added to the discussion on issue #6?",
+    )
+
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+
+    assert result["kind"] == "gitlab_issue"
+    assert result["transition_forced_by_task"] is True
+    assert result["exact_comment_region_forced_by_task"] is True
+
+
 def test_gitlab_issue_listing_intent_from_current_project_start_url():
     task = _gitlab_task(
         start_urls=["__GITLAB__/primer/design"],

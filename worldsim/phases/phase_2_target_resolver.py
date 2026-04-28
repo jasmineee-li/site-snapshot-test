@@ -1177,7 +1177,9 @@ def _route_evidence_flags(kind: ResourceKind | str, task: Mapping[str, Any]) -> 
             flags["transition_forced_by_task"] = True
             flags["exact_comment_region_forced_by_task"] = True
     if kind in {"reddit_submission", "gitlab_issue", "gitlab_mr"}:
-        if _EXACT_DISCUSSION_REGION_RE.search(instruction):
+        if _EXACT_DISCUSSION_REGION_RE.search(instruction) or _LATEST_DISCUSSION_REGION_RE.search(
+            instruction
+        ):
             flags["transition_forced_by_task"] = True
             flags["exact_comment_region_forced_by_task"] = True
     return flags
