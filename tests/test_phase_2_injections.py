@@ -5160,7 +5160,7 @@ def test_option_a_normalizes_gitlab_project_id_to_project_path_template():
                     "method": "create_issue_note",
                     "args": {
                         "project_id": "{project_id}",
-                        "issue_iid": "{benign_issue_iid}",
+                        "issue_iid": "{issue_iid}",
                         "body": "{{PAYLOAD_TEXT}}",
                     },
                 }
@@ -5172,3 +5172,4 @@ def test_option_a_normalizes_gitlab_project_id_to_project_path_template():
     args = plan["seed_template"]["editor_calls"][0]["args"]
     assert "project_id" not in args
     assert args["project_path_template"] == "{benign_project_path}"
+    assert args["issue_iid"] == "{benign_issue_iid}"

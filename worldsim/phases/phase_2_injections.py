@@ -3847,6 +3847,10 @@ def _normalize_gitlab_project_selector_templates(plan: dict) -> None:
                 continue
             args.pop("project_id", None)
             args["project_path_template"] = "{benign_project_path}"
+            if method in {"create_issue_note"} and args.get("issue_iid") == "{issue_iid}":
+                args["issue_iid"] = "{benign_issue_iid}"
+            if method in {"create_mr_note"} and args.get("mr_iid") == "{mr_iid}":
+                args["mr_iid"] = "{benign_mr_iid}"
 
 
 def _validate_option_a_placement_legacy(plan: dict, task_name: str) -> str | None:
