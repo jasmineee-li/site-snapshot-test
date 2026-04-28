@@ -17,6 +17,7 @@ from worldsim.agent_config import (
 from worldsim.browser_use_agent import AgentResult
 from worldsim.config import BenchmarkInstance
 from worldsim.instance_selection import select_task_site_instance
+from worldsim.phase_4.exposure_admission import exposure_admission_error
 from worldsim.phases import phase_2_text_fill, phase_4_adversarial
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.task_paths import safe_task_path_component
@@ -110,16 +111,14 @@ def test_exposure_admission_requires_matching_evidence_contract_id():
     task = _phase4_exposure_fields()
     task["feasibility"]["exposure"]["contract_id"] = "gitlab:other:test"
 
-    assert phase_4_adversarial._exposure_admission_error(task) == "exposure_contract_id_mismatch"
+    assert exposure_admission_error(task) == "exposure_contract_id_mismatch"
 
 
 def test_exposure_admission_requires_phase4_capability():
     task = _phase4_exposure_fields()
     del task["exposure_contract"]["phase4_exposure"]
 
-    assert (
-        phase_4_adversarial._exposure_admission_error(task) == "missing_phase4_exposure_capability"
-    )
+    assert exposure_admission_error(task) == "missing_phase4_exposure_capability"
 
 
 def test_exposure_admission_rejects_phase4_inadmissible_topology():
@@ -136,7 +135,7 @@ def test_exposure_admission_rejects_phase4_inadmissible_topology():
     }
 
     assert (
-        phase_4_adversarial._exposure_admission_error(task)
+        exposure_admission_error(task)
         == "phase4_exposure_inadmissible:unforced_transitive_child_surface"
     )
 
@@ -145,7 +144,7 @@ def test_exposure_admission_visual_reachable_advisory():
     task = _phase4_exposure_fields()
     task["feasibility"]["exposure"]["visual_reachable"] = False
 
-    assert phase_4_adversarial._exposure_admission_error(task) is None
+    assert exposure_admission_error(task) is None
 
 
 def test_exposure_admission_allows_layout_visible_at_entry():
@@ -154,7 +153,7 @@ def test_exposure_admission_allows_layout_visible_at_entry():
     task["feasibility"]["exposure"]["scroll_to_visible_px"] = 0
     task["feasibility"]["exposure"]["requires_expand"] = False
 
-    assert phase_4_adversarial._exposure_admission_error(task) is None
+    assert exposure_admission_error(task) is None
 
 
 def test_exposure_admission_allows_far_below_fold_as_telemetry():
@@ -163,7 +162,7 @@ def test_exposure_admission_allows_far_below_fold_as_telemetry():
     task["feasibility"]["exposure"]["scroll_to_visible_px"] = 3001
     task["feasibility"]["exposure"]["requires_expand"] = False
 
-    assert phase_4_adversarial._exposure_admission_error(task) is None
+    assert exposure_admission_error(task) is None
 
 
 def test_exposure_admission_allows_near_below_fold():
@@ -172,7 +171,7 @@ def test_exposure_admission_allows_near_below_fold():
     task["feasibility"]["exposure"]["scroll_to_visible_px"] = 3000
     task["feasibility"]["exposure"]["requires_expand"] = False
 
-    assert phase_4_adversarial._exposure_admission_error(task) is None
+    assert exposure_admission_error(task) is None
 
 
 def test_exposure_admission_allows_collapsed_ancestor_as_telemetry():
@@ -181,14 +180,14 @@ def test_exposure_admission_allows_collapsed_ancestor_as_telemetry():
     task["feasibility"]["exposure"]["scroll_to_visible_px"] = 10
     task["feasibility"]["exposure"]["requires_expand"] = True
 
-    assert phase_4_adversarial._exposure_admission_error(task) is None
+    assert exposure_admission_error(task) is None
 
 
 def test_exposure_admission_keeps_legacy_layout_fields_optional():
     task = _phase4_exposure_fields()
 
     assert "layout_visible_at_entry" not in task["feasibility"]["exposure"]
-    assert phase_4_adversarial._exposure_admission_error(task) is None
+    assert exposure_admission_error(task) is None
 
 
 def test_exposure_admission_keeps_present_but_missing_layout_probe_as_telemetry():
@@ -197,7 +196,7 @@ def test_exposure_admission_keeps_present_but_missing_layout_probe_as_telemetry(
     task["feasibility"]["exposure"]["scroll_to_visible_px"] = None
     task["feasibility"]["exposure"]["requires_expand"] = None
 
-    assert phase_4_adversarial._exposure_admission_error(task) is None
+    assert exposure_admission_error(task) is None
 
 
 def test_layout_telemetry_records_geometry_bucket():
@@ -222,7 +221,7 @@ def test_exposure_admission_requires_matching_verification_payload():
         "witness_policy": "dom_text",
     }
 
-    assert phase_4_adversarial._exposure_admission_error(task) == "exposure_verification_mismatch"
+    assert exposure_admission_error(task) == "exposure_verification_mismatch"
 
 
 def test_agent_auth_runtime_gate_rejects_explicit_none_for_authed_surfaces():

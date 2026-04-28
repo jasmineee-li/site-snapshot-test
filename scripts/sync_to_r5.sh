@@ -43,6 +43,7 @@ REMOTE_DIR="${REMOTE_DIR:-$(rj_default_remote_dir)}"
 excludes=(
     ".env"
     ".env.*"
+    ".git"
     ".git/"
     ".venv/"
     ".m5_instance_id"
@@ -69,6 +70,10 @@ excludes=(
     "id_rsa*"
     "id_ed25519*"
 )
+
+if [[ -f "$REPO_ROOT/.git" ]]; then
+    printf 'Source checkout uses a linked-worktree .git file; excluding Git metadata from rsync.\n' >&2
+fi
 
 rsync_args=(-az --delete)
 if [[ "$DRY_RUN" -eq 1 ]]; then

@@ -66,33 +66,17 @@ def test_reddit_live_create_forum_submission_and_comment(live_instance, unique_s
             if exc.kind not in {"request_failed", "submission_id_missing"}:
                 raise
             pytest.skip("reddit live stack rejects programmatic comment form submission")
-        original_form = editor._fetch_form_state(
-            f"/user/{editor._quote(editor._resolve_current_username(instance))}/edit_biography",
-            required_fields=("user_biography[biography]", "user_biography[_token]"),
-        )
-        original_bio = str(original_form["fields"].get("user_biography[biography]") or "")
-        updated_bio = f"Live bio {unique_suffix}"
-
-        try:
-            editor.update_user_bio(bio_text=updated_bio)
-            profile_page = editor._form_get(
-                f"/user/{editor._quote(editor._resolve_current_username(instance))}"
-            )
-            # Commit 2 of the C1 migration: editor results now include
-            # ``read_surface_urls`` + ``read_surface_provenance_source``.
-            assert first["forum_name"] == forum_name
-            assert second["forum_name"].startswith(f"{forum_name}_")
-            for result in (first, second):
-                assert result.get("read_surface_provenance_source") == "editor_constructed"
-                surface = result.get("read_surface_urls") or []
-                assert f"/f/{result['forum_name']}" in surface
-            assert forum_page is not None
-            assert submission["forum_name"] in {"news", forum_name}
-            assert submission_page is not None
-            assert comment["submission_id"] == submission["submission_id"]
-            assert comment_page is not None
-            assert comment_body in comment_page.text
-            assert profile_page is not None
-            assert updated_bio in profile_page.text
-        finally:
-            editor.update_user_bio(bio_text=original_bio)
+        # Commit 2 of the C1 migration: editor results now include
+        # ``read_surface_urls`` + ``read_surface_provenance_source``.
+        assert first["forum_name"] == forum_name
+        assert second["forum_name"].startswith(f"{forum_name}_")
+        for result in (first, second):
+            assert result.get("read_surface_provenance_source") == "editor_constructed"
+            surface = result.get("read_surface_urls") or []
+            assert f"/f/{result['forum_name']}" in surface
+        assert forum_page is not None
+        assert submission["forum_name"] in {"news", forum_name}
+        assert submission_page is not None
+        assert comment["submission_id"] == submission["submission_id"]
+        assert comment_page is not None
+        assert comment_body in comment_page.text

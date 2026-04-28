@@ -73,12 +73,63 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
     joined = "\n".join(args)
     assert "--dry-run" in args
     assert ".env" in joined
+    assert ".git" in joined
     assert ".git/" in joined
     assert ".codex-worktrees/" in joined
     assert "logs/" in joined
     assert "agent-tools/" in joined
     assert "$HOME" not in joined
     assert str(Path(env["HOME"]) / ".ssh" / "webarena-key.pem") in joined
+
+
+def test_sync_dry_run_excludes_linked_worktree_git_file(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    worktree_root = tmp_path / "linked-worktree"
+    worktree_root.mkdir()
+    (worktree_root / ".git").write_text("gitdir: /local/only/path/.git/worktrees/demo\n")
+    scripts_dir = worktree_root / "scripts"
+    scripts_dir.mkdir()
+    (scripts_dir / "sync_to_r5.sh").write_text(
+        (repo_root / "scripts" / "sync_to_r5.sh").read_text()
+    )
+    (scripts_dir / "lib").mkdir()
+    (scripts_dir / "lib" / "remote_jobs.sh").write_text(
+        (repo_root / "scripts" / "lib" / "remote_jobs.sh").read_text()
+    )
+    host_config = _host_config(tmp_path)
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    args_file = tmp_path / "rsync_args.json"
+    _write_executable(
+        fakebin / "rsync",
+        f"""#!/usr/bin/env python3
+import json, sys
+open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
+""",
+    )
+
+    env = _base_env(repo_root, tmp_path)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(worktree_root / "scripts" / "sync_to_r5.sh"),
+            "--host-config",
+            str(host_config),
+            "--dry-run",
+        ],
+        cwd=worktree_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    args = json.loads(args_file.read_text())
+    git_exclude_index = args.index(".git")
+    assert args[git_exclude_index - 1] == "--exclude"
+    assert "linked-worktree .git file" in completed.stderr
 
 
 def test_start_rejects_missing_name_and_missing_command(tmp_path: Path) -> None:

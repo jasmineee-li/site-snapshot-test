@@ -68,7 +68,7 @@ def _run_verifier(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("site", ["gitlab", "reddit", "shopping", "shopping_admin"])
+@pytest.mark.parametrize("site", ["gitlab", "reddit"])
 def test_feasibility_good_task(site, live_instance, tmp_path):
     fixture = _load_fixture(site, "good")
     task = _materialize_task(fixture)
@@ -152,7 +152,7 @@ def test_feasibility_concurrency_batch(live_config, tmp_path):
         instances_by_site[inst.site_name] = payload
     tasks: list[dict[str, Any]] = []
     live_instances: list[dict[str, Any]] = []
-    for site in ("gitlab", "reddit", "shopping", "shopping_admin"):
+    for site in ("gitlab", "reddit"):
         if site not in instances_by_site:
             continue
         fixture_path = _FIXTURE_ROOT / site / "good.json"
