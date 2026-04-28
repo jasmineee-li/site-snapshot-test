@@ -979,6 +979,63 @@ def test_build_task_route_contracts_derives_gitlab_issue_description_route():
     assert route["instruction_requirements"]["must_force_seeded_content"] is True
 
 
+def test_build_task_route_contracts_maps_profile_coverage_aliases_to_core_surfaces():
+    profile = _profile(uncovered=["note_body_on_issue"])
+    profile["injection_surface"] = [
+        {
+            "id": "note_body_on_issue",
+            "location_page": "/{namespace}/{project}/-/issues/{iid}",
+        }
+    ]
+
+    contracts = phase_1_route_contracts.build_task_route_contracts(
+        site_name="gitlab",
+        profile=profile,
+    )
+
+    routes = {route["id"]: route for route in contracts["route_families"]}
+    assert "gitlab.note_body.gitlab_issue.create_issue_note" in routes
+    assert "gitlab.note_body.gitlab_search_result.create_issue_note" in routes
+
+
+@pytest.mark.asyncio
+async def test_generate_new_tasks_for_site_skips_active_site_with_no_route_families(
+    monkeypatch,
+    tmp_path,
+):
+    output_dir = tmp_path / "phase_1"
+    output_dir.mkdir()
+    profile_path = tmp_path / "profile.json"
+    profile = _profile(uncovered=["forum_sidebar_forum_page"])
+    profile["injection_surface"] = [
+        {
+            "id": "forum_sidebar_forum_page",
+            "location_page": "/f/{forum}",
+        }
+    ]
+    profile_path.write_text(json.dumps(profile))
+
+    mock_sandbox = AsyncMock(return_value={})
+    monkeypatch.setattr(phase_1_generate_new_tasks, "run_claude_in_sandbox", mock_sandbox)
+
+    result = await phase_1_generate_new_tasks.generate_new_tasks_for_site(
+        site=phase_1_generate_new_tasks.EligibleSiteProfile(
+            site_name="reddit",
+            profile_path=profile_path,
+            profile=profile,
+        ),
+        benchmark_volume=object(),
+        output_dir=output_dir,
+        cache_fingerprint="test-cache-fingerprint",
+    )
+
+    assert result.errors == []
+    assert result.benign_tasks == []
+    assert mock_sandbox.call_count == 0
+    contracts = json.loads((output_dir / "TASK_ROUTE_CONTRACTS_reddit.json").read_text())
+    assert contracts["route_families"] == []
+
+
 def test_validate_generated_novel_tasks_rejects_missing_route_id_when_contracts_supplied():
     profile = _profile(uncovered=["issue_description"])
     profile["injection_surface"] = [

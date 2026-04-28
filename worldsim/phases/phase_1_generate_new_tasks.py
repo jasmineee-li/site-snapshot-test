@@ -225,6 +225,14 @@ async def generate_new_tasks_for_site(
     if agent_context_errors:
         return SiteGenerateNewTasksResult(site.site_name, [], agent_context_errors)
     route_contracts = build_task_route_contracts(site_name=site.site_name, profile=site.profile)
+    route_contracts_path = output_dir / f"TASK_ROUTE_CONTRACTS_{site.site_name}.json"
+    route_contracts_path.write_text(json.dumps(route_contracts, indent=2))
+    if site.site_name in {"gitlab", "reddit"} and not route_contracts.get("route_families"):
+        logger.info(
+            "Phase 1 (generate-new-tasks): skipping site %r because no eligible route families remain after core-surface filtering",
+            site.site_name,
+        )
+        return SiteGenerateNewTasksResult(site.site_name, [], [])
     cached_result = load_cached_novel_tasks(
         intermediate_path=intermediate_path,
         site_name=site.site_name,
@@ -251,8 +259,6 @@ async def generate_new_tasks_for_site(
         site_files: dict[str, str] = {
             "/workspace/profile/BENCHMARK_PROFILE.json": str(site.profile_path),
         }
-        route_contracts_path = output_dir / f"TASK_ROUTE_CONTRACTS_{site.site_name}.json"
-        route_contracts_path.write_text(json.dumps(route_contracts, indent=2))
         site_files["/workspace/profile/TASK_ROUTE_CONTRACTS.json"] = str(route_contracts_path)
         # Pass agent context to sandbox so generated tasks align with response format
         agent_context_path = site.profile_path.parent / f"AGENT_CONTEXT_{site.site_name}.json"

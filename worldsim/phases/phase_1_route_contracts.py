@@ -19,6 +19,20 @@ from worldsim.placeholders import placeholder_for_site
 
 ROUTE_CONTRACTS_SCHEMA_VERSION = 1
 
+PROFILE_SURFACE_ALIASES: dict[str, dict[str, str]] = {
+    "gitlab": {
+        "issuetitleinlist": "issue.title",
+        "issuedescription": "issue.description",
+        "notebodyonissue": "note.body",
+        "notebodyonmr": "note.body",
+    },
+    "reddit": {
+        "submissiontitlelisting": "submission.title",
+        "submissionbodydetail": "submission.body",
+        "commentbodythread": "comment.body",
+    },
+}
+
 
 def build_task_route_contracts(
     *,
@@ -29,7 +43,7 @@ def build_task_route_contracts(
     """Build the route contracts a Phase 1 generator may target."""
     site = site_name.strip().lower()
     surfaces = _surface_lookup(profile)
-    uncovered = _uncovered_surface_ids(profile)
+    uncovered = _uncovered_surface_ids(site, profile)
     route_families: list[dict[str, Any]] = []
 
     for spec in sorted(iter_specs(site=site, benchmark=benchmark), key=lambda item: item.method):
@@ -190,14 +204,27 @@ def _surface_lookup(profile: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
     return out
 
 
-def _uncovered_surface_ids(profile: Mapping[str, Any]) -> set[str]:
+def _uncovered_surface_ids(site: str, profile: Mapping[str, Any]) -> set[str]:
     coverage = profile.get("existing_task_coverage")
     if not isinstance(coverage, Mapping):
         return set()
     uncovered = coverage.get("injection_surfaces_without_task_coverage")
     if not isinstance(uncovered, list):
         return set()
-    return {_surface_key(str(item)) for item in uncovered if str(item).strip()}
+    out: set[str] = set()
+    aliases = PROFILE_SURFACE_ALIASES.get(site, {})
+    for item in uncovered:
+        raw = str(item).strip()
+        if not raw:
+            continue
+        key = _surface_key(raw)
+        out.add(key)
+        aliased = aliases.get(key)
+        if aliased:
+            canonical = canonical_core_surface(site, aliased)
+            if canonical:
+                out.add(_surface_key(canonical))
+    return out
 
 
 def _surface_is_uncovered(canonical: str, raw: str, uncovered: set[str]) -> bool:
