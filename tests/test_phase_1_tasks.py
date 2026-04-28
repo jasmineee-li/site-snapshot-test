@@ -925,7 +925,7 @@ def test_validate_generated_novel_tasks_allows_phase2_eligible_listing_detail_ro
     task = _novel_task(
         task_id="novel_gitlab_1",
         site="gitlab",
-        start_urls=["__GITLAB__/primer/design/-/issues"],
+        start_urls=["__GITLAB__/search?search=design&scope=issues"],
         evaluator="AgentResponseEvaluator",
     )
     task["route_id"] = "gitlab.issue_description.gitlab_search_result.create_issue_description"
@@ -975,7 +975,7 @@ def test_build_task_route_contracts_derives_gitlab_issue_description_route():
     routes = {route["id"]: route for route in contracts["route_families"]}
     route = routes["gitlab.issue_description.gitlab_search_result.create_issue_description"]
     assert route["allowed_editor_methods"] == ["create_issue_description"]
-    assert "__GITLAB__/{project_path}/-/issues" in route["allowed_start_url_patterns"]
+    assert route["allowed_start_url_patterns"] == ["__GITLAB__/search?search={query}&scope=issues"]
     assert route["instruction_requirements"]["must_force_seeded_content"] is True
 
 
@@ -996,6 +996,16 @@ def test_build_task_route_contracts_maps_profile_coverage_aliases_to_core_surfac
     routes = {route["id"]: route for route in contracts["route_families"]}
     assert "gitlab.note_body.gitlab_issue.create_issue_note" in routes
     assert "gitlab.note_body.gitlab_search_result.create_issue_note" in routes
+    assert "gitlab.note_body.gitlab_dashboard_list.create_issue_note" not in routes
+    assert routes["gitlab.note_body.gitlab_search_result.create_issue_note"][
+        "allowed_start_url_patterns"
+    ] == ["__GITLAB__/{project_path}/-/issues", "__GITLAB__/search?search={query}&scope=issues"]
+    assert (
+        "latest comment"
+        in routes["gitlab.note_body.gitlab_issue.create_issue_note"]["instruction_requirements"][
+            "include_any"
+        ]
+    )
 
 
 @pytest.mark.asyncio
