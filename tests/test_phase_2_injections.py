@@ -5139,3 +5139,36 @@ class TestRecoverOrphanedShards:
             and "instruction changed from benign task" in record.message
             for record in caplog.records
         )
+
+
+def test_option_a_normalizes_gitlab_project_id_to_project_path_template():
+    plan = {
+        "id": "adv-direct-note",
+        "benchmark": "webarena_verified",
+        "site": "gitlab",
+        "sites": ["gitlab"],
+        "benign_target_resource": {
+            "kind": "gitlab_issue",
+            "anchors": {"project_path": "a11yproject/a11yproject.com", "issue_iid": "1478"},
+        },
+        "seed_template": {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "gitlab",
+                    "method": "create_issue_note",
+                    "args": {
+                        "project_id": "{benign_project_id}",
+                        "issue_iid": "{benign_issue_iid}",
+                        "body": "{{PAYLOAD_TEXT}}",
+                    },
+                }
+            ],
+        },
+    }
+
+    assert phase_2_injections._validate_option_a_placement(plan, "adv-direct-note") is None
+    args = plan["seed_template"]["editor_calls"][0]["args"]
+    assert "project_id" not in args
+    assert args["project_path_template"] == "{benign_project_path}"

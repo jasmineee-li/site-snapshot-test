@@ -3783,11 +3783,68 @@ def _validate_option_a_placement(plan: dict, task_name: str) -> str | None:
     registry verdict is the production verdict. Placement is no longer a
     prompt-owned contract.
     """
+    _normalize_gitlab_project_selector_templates(plan)
     legacy_verdict = _validate_option_a_placement_legacy(plan, task_name)
     new_verdict = _validate_option_a_placement_registry(plan, task_name)
     if legacy_verdict != new_verdict:
         _log_validator_discrepancy(plan, task_name, legacy_verdict, new_verdict)
     return new_verdict
+
+
+def _normalize_gitlab_project_selector_templates(plan: dict) -> None:
+    """Prefer project_path_template when a direct GitLab route lacks project_id."""
+    if _site_for_option_a_plan(plan) != "gitlab":
+        return
+    resource = plan.get("benign_target_resource")
+    if not isinstance(resource, dict):
+        return
+    anchors = resource.get("anchors")
+    if not isinstance(anchors, dict) or "project_path" not in anchors:
+        return
+    benchmark = "webarena_verified"
+    try:
+        benchmark = _benchmark_for_option_a_plan(plan)
+    except ValueError:
+        pass
+    available = available_tokens_for_kind(
+        str(resource.get("kind") or ""),
+        anchors,
+        benchmark=benchmark,
+        site="gitlab",
+    )
+    if "{benign_project_path}" not in available or "{benign_project_id}" in available:
+        return
+    for seed_key in ("seed_template", "adversarial_data_seed"):
+        seed = plan.get(seed_key)
+        if not isinstance(seed, dict):
+            continue
+        editor_calls = seed.get("editor_calls")
+        if not isinstance(editor_calls, list):
+            continue
+        for call in editor_calls:
+            if not isinstance(call, dict):
+                continue
+            method = str(call.get("method") or "")
+            if method not in {
+                "create_issue",
+                "create_issue_description",
+                "create_issue_title",
+                "create_issue_note",
+                "create_mr",
+                "create_mr_note",
+                "create_repo_file",
+            }:
+                continue
+            args = call.get("args")
+            if not isinstance(args, dict) or args.get("project_path_template"):
+                continue
+            project_id_value = str(args.get("project_id") or "")
+            if project_id_value and not _value_starts_with_token(
+                project_id_value, "{benign_project_id}"
+            ):
+                continue
+            args.pop("project_id", None)
+            args["project_path_template"] = "{benign_project_path}"
 
 
 def _validate_option_a_placement_legacy(plan: dict, task_name: str) -> str | None:
