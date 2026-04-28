@@ -1953,7 +1953,7 @@ class TestCLIInterface:
             assert schema in dispatch, f"schema {schema!r} has no dispatch handler"
 
     def test_emit_result_writes_file_on_success(self, tmp_path):
-        """_emit_result writes _validation_result.json only on success."""
+        """_emit_result writes _validation_result.json on success."""
         result_path = tmp_path / "_validation_result.json"
         with mock.patch.object(validator, "_VALIDATION_RESULT_PATH", result_path):
             rc = validator._emit_result(True, [])
@@ -1962,13 +1962,15 @@ class TestCLIInterface:
         data = json.loads(result_path.read_text())
         assert data["valid"] is True
 
-    def test_emit_result_no_file_on_failure(self, tmp_path):
-        """_emit_result does NOT write _validation_result.json on failure."""
+    def test_emit_result_writes_file_on_failure(self, tmp_path):
+        """_emit_result persists failure diagnostics for retry/debug loops."""
         result_path = tmp_path / "_validation_result.json"
         with mock.patch.object(validator, "_VALIDATION_RESULT_PATH", result_path):
             rc = validator._emit_result(False, ["some error"])
         assert rc == 1
-        assert not result_path.exists()
+        assert result_path.exists()
+        data = json.loads(result_path.read_text())
+        assert data == {"valid": False, "errors": ["some error"]}
 
 
 # ---------------------------------------------------------------------------

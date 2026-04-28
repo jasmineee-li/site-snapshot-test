@@ -46,6 +46,7 @@ from worldsim.modal_sandbox import (
 )
 from worldsim.placeholders import normalize_site_name
 from worldsim.profile_validation import validate_profile
+from worldsim.prompt_corrections import render_validation_feedback
 from worldsim.prompt_loading import load_prompt
 from worldsim.state import get_state_dir, save_state
 
@@ -526,13 +527,19 @@ async def run_phase_0a(
             "Phase 0a manifest has %d path errors — re-running with corrections",
             len(missing_paths),
         )
-        correction = (
-            "\n\n--- CORRECTION NEEDED ---\n"
-            "The previous attempt produced a manifest with invalid paths. "
-            "The following paths do NOT exist in the benchmark filesystem:\n"
-            + "\n".join(f"  - {e}" for e in missing_paths)
-            + "\n\nPlease re-explore and produce corrected output files. "
-            "Only include paths you have verified exist."
+        correction = render_validation_feedback(
+            artifact_name="BENCHMARK_MANIFEST.json",
+            errors=[
+                {
+                    "code": "MISSING_PATH",
+                    "path": "$",
+                    "message": error,
+                    "repair_hint": "Only include paths verified to exist under /workspace/benchmark.",
+                }
+                for error in missing_paths
+            ],
+            summary="The manifest referenced paths that do not exist in the benchmark filesystem.",
+            instruction="Re-explore and produce corrected output files. Only include paths you have verified exist.",
         )
         outputs = await run_claude_in_sandbox(
             site_files={},
@@ -926,16 +933,22 @@ def _render_correction_block(
     extra_guidance: str | None = None,
 ) -> str:
     """Return a reusable prompt suffix for retrying a failed tier output."""
-    guidance = (
-        "\n\nAdditional guidance:\n" + extra_guidance.strip()
-        if extra_guidance and extra_guidance.strip()
-        else ""
-    )
-    return (
-        "\n\n--- CORRECTION NEEDED ---\n"
-        f"The previous attempt for site {site_name} produced an invalid {artifact_name}.\n"
-        "Rewrite the output file completely so it satisfies the schema and all cross-reference checks.\n"
-        "Validation errors:\n" + "\n".join(f"  - {error}" for error in errors) + guidance
+    return render_validation_feedback(
+        artifact_name=artifact_name,
+        errors=[
+            {
+                "code": "VALIDATION_ERROR",
+                "path": "$",
+                "message": error,
+            }
+            for error in errors
+        ],
+        summary=f"{artifact_name} for site {site_name} failed validation.",
+        instruction=(
+            "Rewrite the output file completely so it satisfies the schema and all "
+            "cross-reference checks. Do not include markdown or commentary."
+        ),
+        extra_guidance=extra_guidance,
     )
 
 

@@ -327,7 +327,8 @@ async def test_correction_loop_fixes_invalid_tier_output(monkeypatch, tmp_path):
 
     assert "shopping" in result
     assert de_attempts == 2
-    assert "CORRECTION NEEDED" in de_prompts[1]
+    assert "<validation_feedback>" in de_prompts[1]
+    assert '"artifact": "INJECTION_SURFACE.json"' in de_prompts[1]
     assert "entity.field format" in de_prompts[1]
     assert (tmp_path / "out" / "BENCHMARK_PROFILE_shopping.json").exists()
     assert (tmp_path / "out" / "AGENT_CONTEXT_shopping.json").exists()

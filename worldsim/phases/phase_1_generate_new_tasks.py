@@ -29,6 +29,7 @@ from worldsim.phases.phase_1_route_contracts import (
     route_contracts_digest,
 )
 from worldsim.profile_validation import load_and_validate_profile
+from worldsim.prompt_corrections import render_validation_feedback
 from worldsim.prompt_loading import load_prompt
 from worldsim.state import get_state_dir
 
@@ -508,23 +509,17 @@ def render_generate_benign_tasks_prompt(*, site_name: str, num_tasks: int) -> st
 
 
 def _render_generate_new_tasks_correction(errors: list[GeneratedTaskValidationError]) -> str:
-    error_payload = {
-        "valid": False,
-        "summary": (
+    return render_validation_feedback(
+        artifact_name="benign_tasks.json",
+        errors=[error.to_dict() for error in errors],
+        summary=(
             f"{len(errors)} validation error(s). Repair the tasks and return the complete "
             "JSON array again."
         ),
-        "errors": [error.to_dict() for error in errors],
-    }
-    return (
-        "\n\n<validation_feedback>\n"
-        "The previous `benign_tasks.json` failed validation. Fix only the listed issues, "
-        "preserve valid task intent where possible, and return the complete JSON array. "
-        "Do not include markdown or commentary.\n\n"
-        "```json\n"
-        f"{json.dumps(error_payload, indent=2)}\n"
-        "```\n"
-        "</validation_feedback>"
+        instruction=(
+            "Fix only the listed issues, preserve valid task intent where possible, and "
+            "return the complete JSON array. Do not include markdown or commentary."
+        ),
     )
 
 

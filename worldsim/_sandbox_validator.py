@@ -2785,6 +2785,7 @@ def validate_agent_context(data: object, *, site_name: str) -> list[str]:
 _OUTPUT_DIR = Path("/workspace/output")
 _INPUTS_DIR = Path("/workspace/inputs")
 _VALIDATION_RESULT_PATH = _OUTPUT_DIR / "_validation_result.json"
+_DEFAULT_VALIDATION_RESULT_PATH = Path("/workspace/output/_validation_result.json")
 
 
 def _load_json(path: Path) -> tuple[object, str | None]:
@@ -2803,9 +2804,13 @@ def _emit_result(valid: bool, errors: list[str]) -> int:
     result = {"valid": valid, "errors": errors}
     print(json.dumps(result))
 
-    if valid:
-        _VALIDATION_RESULT_PATH.parent.mkdir(parents=True, exist_ok=True)
-        _VALIDATION_RESULT_PATH.write_text(json.dumps(result, indent=2), encoding="utf-8")
+    result_path = (
+        _OUTPUT_DIR / "_validation_result.json"
+        if _VALIDATION_RESULT_PATH == _DEFAULT_VALIDATION_RESULT_PATH
+        else _VALIDATION_RESULT_PATH
+    )
+    result_path.parent.mkdir(parents=True, exist_ok=True)
+    result_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
 
     return 0 if valid else 1
 
