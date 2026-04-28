@@ -489,6 +489,43 @@ class TestAdversarialSurfaceCrossCheck:
             is None
         )
 
+    def test_find_surface_by_id_accepts_profile_surface_aliases(self):
+        gitlab_profile = {
+            "site_name": "gitlab",
+            "injection_surface": [
+                {"id": "issue_title_in_list"},
+                {"id": "issue_description_detail"},
+                {"id": "note_body_on_issue"},
+            ],
+        }
+        reddit_profile = {
+            "site_name": "reddit",
+            "injection_surface": [
+                {"id": "submission_title_listing"},
+                {"id": "submission_body_detail"},
+                {"id": "comment_body_detail"},
+            ],
+        }
+
+        assert validator._find_surface_by_id(gitlab_profile, "issue.title") == {
+            "id": "issue_title_in_list"
+        }
+        assert validator._find_surface_by_id(gitlab_profile, "issue.description") == {
+            "id": "issue_description_detail"
+        }
+        assert validator._find_surface_by_id(gitlab_profile, "note.body") == {
+            "id": "note_body_on_issue"
+        }
+        assert validator._find_surface_by_id(reddit_profile, "submission.title") == {
+            "id": "submission_title_listing"
+        }
+        assert validator._find_surface_by_id(reddit_profile, "submission.body") == {
+            "id": "submission_body_detail"
+        }
+        assert validator._find_surface_by_id(reddit_profile, "comment.body") == {
+            "id": "comment_body_detail"
+        }
+
     def test_validate_adversarial_task_rejects_unknown_target_surface_id(self, tmp_path):
         task = self._task()
         task["target_surface_id"] = "missing_surface"

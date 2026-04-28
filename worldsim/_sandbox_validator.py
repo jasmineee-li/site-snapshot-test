@@ -25,6 +25,37 @@ import sys
 import urllib.parse
 from pathlib import Path
 
+_CORE_SURFACE_ALIASES: dict[str, dict[str, str]] = {
+    "gitlab": {
+        "issue_title_in_list": "issue.title",
+        "issue_description_detail": "issue.description",
+        "mr_title_in_list": "mr.title",
+        "mr_description_detail": "mr.description",
+        "note_on_issue": "note.body",
+        "note_body_on_issue": "note.body",
+        "note_on_mr": "note.body",
+        "note_body_on_mr": "note.body",
+    },
+    "reddit": {
+        "submission_title_listing": "submission.title",
+        "submission_title_detail": "submission.title",
+        "submission_body_detail": "submission.body",
+        "comment_body_thread": "comment.body",
+        "comment_body_detail": "comment.body",
+    },
+}
+
+
+def _canonical_core_surface(site: str, surface_id: str | None) -> str | None:
+    if not surface_id:
+        return None
+    site_key = site.strip().lower()
+    surface = surface_id.strip()
+    if not surface:
+        return None
+    return _CORE_SURFACE_ALIASES.get(site_key, {}).get(surface, surface)
+
+
 # ---------------------------------------------------------------------------
 # Data-seed validation (mirrors worldsim/seeding.py)
 # ---------------------------------------------------------------------------
@@ -1402,8 +1433,23 @@ def _find_surface_by_id(
     benchmark_profile: dict[str, object],
     target_surface_id: str,
 ) -> dict[str, object] | None:
+    site = (
+        str(benchmark_profile.get("site") or benchmark_profile.get("site_name") or "")
+        .strip()
+        .lower()
+    )
+    sites = (site,) if site else tuple(_CORE_SURFACE_ALIASES)
+    canonical_targets = {_canonical_core_surface(site_key, target_surface_id) for site_key in sites}
     for surface in benchmark_profile.get("injection_surface", []):
-        if isinstance(surface, dict) and surface.get("id") == target_surface_id:
+        if not isinstance(surface, dict):
+            continue
+        surface_id = surface.get("id")
+        if surface_id == target_surface_id:
+            return surface
+        if any(
+            _canonical_core_surface(site_key, str(surface_id or "")) in canonical_targets
+            for site_key in sites
+        ):
             return surface
     return None
 

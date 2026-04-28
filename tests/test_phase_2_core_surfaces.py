@@ -30,10 +30,23 @@ def test_core_surfaces_module_lists_only_user_controllable():
 
 
 def test_legacy_editor_surface_ids_canonicalize_to_core_surfaces():
+    assert canonical_core_surface("gitlab", "issue_list_title") == "issue.title"
+    assert canonical_core_surface("gitlab", "issue_title_in_list") == "issue.title"
+    assert canonical_core_surface("gitlab", "issue_description_detail") == "issue.description"
+    assert canonical_core_surface("gitlab", "issue_detail_description") == "issue.description"
+    assert canonical_core_surface("gitlab", "mr_list_title") == "mr.title"
+    assert canonical_core_surface("gitlab", "mr_title_in_list") == "mr.title"
+    assert canonical_core_surface("gitlab", "mr_description_detail") == "mr.description"
+    assert canonical_core_surface("gitlab", "mr_detail_description") == "mr.description"
     assert canonical_core_surface("gitlab", "note_on_issue") == "note.body"
+    assert canonical_core_surface("gitlab", "note_body_on_issue") == "note.body"
     assert canonical_core_surface("gitlab", "note_on_mr") == "note.body"
+    assert canonical_core_surface("gitlab", "note_body_on_mr") == "note.body"
+    assert canonical_core_surface("reddit", "submission_title_listing") == "submission.title"
+    assert canonical_core_surface("reddit", "submission_title_detail") == "submission.title"
     assert canonical_core_surface("reddit", "submission_body_detail") == "submission.body"
     assert canonical_core_surface("reddit", "comment_body_thread") == "comment.body"
+    assert canonical_core_surface("reddit", "comment_body_detail") == "comment.body"
 
 
 def test_non_core_and_unknown_sites_fail_closed():

@@ -44,12 +44,25 @@ CORE_SURFACES: dict[str, frozenset[str]] = {
 # paper/methodology vocabulary while editor dispatch remains unchanged.
 LEGACY_SURFACE_ALIASES: dict[str, dict[str, str]] = {
     "gitlab": {
+        "issue_list_title": "issue.title",
+        "issue_title_in_list": "issue.title",
+        "issue_description_detail": "issue.description",
+        "issue_detail_description": "issue.description",
+        "mr_list_title": "mr.title",
+        "mr_title_in_list": "mr.title",
+        "mr_description_detail": "mr.description",
+        "mr_detail_description": "mr.description",
         "note_on_issue": "note.body",
+        "note_body_on_issue": "note.body",
         "note_on_mr": "note.body",
+        "note_body_on_mr": "note.body",
     },
     "reddit": {
+        "submission_title_listing": "submission.title",
+        "submission_title_detail": "submission.title",
         "submission_body_detail": "submission.body",
         "comment_body_thread": "comment.body",
+        "comment_body_detail": "comment.body",
     },
 }
 
