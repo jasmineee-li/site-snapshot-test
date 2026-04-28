@@ -493,6 +493,17 @@ def _effective_mode_for_seeded_surface(
             _creates_child_detail_surface(site=site, kind=kind, editor_method=editor_method)
         ):
             return "bounded_transitive_created_child"
+    if target_surface_id == "note.body" and base_mode == "inline_listing":
+        if (
+            site == "gitlab"
+            and kind == "gitlab_search_result"
+            and editor_method
+            in {
+                "create_issue_note",
+                "create_mr_note",
+            }
+        ):
+            return "bounded_transitive_existing"
     return base_mode
 
 

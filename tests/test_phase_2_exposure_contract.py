@@ -245,8 +245,13 @@ def test_gitlab_listing_honors_allowed_editor_methods_for_note_route():
     )
 
     assert contract["eligibility"]["status"] == "eligible"
+    assert contract["mode"] == "bounded_transitive_existing"
     assert contract["editor_method"] == "create_issue_note"
     assert contract["target_surface_id"] == "note.body"
+    assert contract["verification"]["target"] == {
+        "url": "https://gitlab.local/search?search=auth&scope=issues",
+        "role": "seed_render_surface",
+    }
     assert contract["phase4_exposure"]["exact_comment_region_forced_by_task"] is True
 
 
