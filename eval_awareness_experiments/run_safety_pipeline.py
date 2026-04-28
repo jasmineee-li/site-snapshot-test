@@ -65,6 +65,34 @@ DEFAULT_SPLITS = {
     "eia": ["baseline"],
 }
 
+# Stable per-split offsets so each parallel split inside one cell gets a
+# unique --report-port. The cell's port-base is unique-per-process (PID-derived
+# unless --report-port-base is set explicitly), and these offsets fan out
+# across the cell's 4 site splits. Old default `1234` was shared across every
+# concurrent split + every concurrent cell — see DOOMARENA_ROOT_CAUSE_HANDOFF.md
+# (root cause 3).
+_DOOMARENA_SPLIT_PORT_OFFSETS = {
+    "reddit": 0,
+    "shopping": 1,
+    "shopping_admin": 2,
+    "gitlab": 3,
+}
+
+
+def _resolve_report_port_base(args: argparse.Namespace) -> int:
+    """Pick a unique-per-process port base for a DoomArena cell.
+
+    If --report-port-base is set explicitly, use it. Otherwise derive from
+    PID, which makes every `run_safety_pipeline` invocation get its own
+    base without coordination. The 16-stream launcher invokes us 16×6=96
+    times across the matrix; PIDs collide only after wraparound (~4M apart)
+    so this is reliable for one run.
+    """
+    if getattr(args, "report_port_base", None):
+        return int(args.report_port_base)
+    # Map PID into [12000, 62000) for stable, well-known-port-avoiding range.
+    return 12000 + (os.getpid() % 50000)
+
 
 def _run_subprocess(
     cmd: list[str],
@@ -171,8 +199,23 @@ def _load_run_meta(run_dir: Path) -> dict | None:
     return None
 
 
-def _build_browser_cmd(benchmark: str, split: str, args) -> list[str]:
-    """Build the runner command for one browser benchmark + split."""
+def _build_browser_cmd(
+    benchmark: str,
+    split: str,
+    args,
+    *,
+    report_port: int | None = None,
+    cell_results_dir: Path | None = None,
+) -> list[str]:
+    """Build the runner command for one browser benchmark + split.
+
+    `report_port` overrides the default and is the per-split unique value
+    derived in `_stage1_browser_parallel_splits`. `cell_results_dir` (when
+    set) tells the runner to write its AgentLab study output under a
+    cell-owned namespace instead of the global `results/browsergym/` pool —
+    avoids the cross-cell study_dir race documented in
+    DOOMARENA_ROOT_CAUSE_HANDOFF.md (root cause 4).
+    """
     runner = BENCHMARK_RUNNERS[benchmark]
     cmd = [
         sys.executable, "-m", runner,
@@ -191,8 +234,16 @@ def _build_browser_cmd(benchmark: str, split: str, args) -> list[str]:
         cmd += ["--condition", args.condition]
         wasp_task_dir = getattr(args, "wasp_task_dir", None) or "/tmp/wasp_full"
         cmd += ["--task-dir", wasp_task_dir]
-    if benchmark == "doomarena" and getattr(args, "report_port", None):
-        cmd += ["--report-port", str(args.report_port)]
+    if benchmark == "doomarena":
+        port = report_port if report_port is not None else getattr(args, "report_port", None)
+        if port is not None:
+            cmd += ["--report-port", str(port)]
+        # Pin reachability check to the actual site we're exercising — the old
+        # default `--online-sites reddit` left non-reddit splits silently
+        # mis-checking. See root cause 9 in the handoff.
+        cmd += ["--online-sites", split]
+        if cell_results_dir is not None:
+            cmd += ["--results-dir", str(cell_results_dir / split)]
     return cmd
 
 
@@ -219,24 +270,94 @@ def _match_study_dirs_to_splits(new_dirs: list[Path], splits: list[str]) -> dict
     return out
 
 
+def _cell_results_dir(args: argparse.Namespace, benchmark: str) -> Path | None:
+    """Where this cell's browser-runner subprocesses should write their
+    AgentLab study_*. Cell-namespaced under `args.output_dir` so two
+    concurrent cells can never alias each other's trajectories. Returns
+    None for benchmarks that don't yet support the override (only DoomArena
+    does today)."""
+    if benchmark != "doomarena":
+        return None
+    return Path(args.output_dir) / "_browser_runs"
+
+
 def _stage1_browser(benchmark: str, split: str, args) -> Path | None:
     """Run DoomArena or WASP for ONE split (sequential / single-split path).
     Kept for callers that want per-split control. Most callers should prefer
     `_stage1_browser_parallel_splits` to run all splits concurrently.
     """
-    cmd = _build_browser_cmd(benchmark, split, args)
+    report_port = None
+    cell_dir = _cell_results_dir(args, benchmark)
+    if benchmark == "doomarena":
+        base = _resolve_report_port_base(args)
+        offset = _DOOMARENA_SPLIT_PORT_OFFSETS.get(split, 0)
+        report_port = base + offset
+        _log_cell_env(args, benchmark, split, report_port, cell_dir)
+    cmd = _build_browser_cmd(
+        benchmark, split, args,
+        report_port=report_port,
+        cell_results_dir=cell_dir,
+    )
     before = set((REPO_ROOT / "results" / "browsergym").glob("study_*"))
     timeout_sec = getattr(args, "browser_stage1_timeout", None) or 1800
     ok = _run_subprocess(cmd, cwd=REPO_ROOT, timeout_sec=timeout_sec)
     if not ok:
         return None
-    after = set((REPO_ROOT / "results" / "browsergym").glob("study_*"))
-    new = sorted(after - before, key=lambda p: p.stat().st_mtime)
-    if not new:
+    study_dir = _resolve_study_dir(benchmark, split, cell_dir, before)
+    if study_dir is None:
         return None
-    study_dir = new[-1]
     _write_run_meta(study_dir, args, benchmark, split)
     return study_dir
+
+
+def _resolve_study_dir(
+    benchmark: str,
+    split: str,
+    cell_dir: Path | None,
+    before: set[Path],
+) -> Path | None:
+    """Return the study_dir produced by a runner.
+
+    For DoomArena with a cell-owned output dir, look there first. Falls back
+    to the global `results/browsergym/` pool to keep the path working for
+    benchmarks that haven't been migrated to cell namespacing.
+    """
+    if cell_dir is not None:
+        split_dir = cell_dir / split
+        if split_dir.exists():
+            new = sorted(split_dir.glob("study_*"), key=lambda p: p.stat().st_mtime)
+            if new:
+                return new[-1]
+    after = set((REPO_ROOT / "results" / "browsergym").glob("study_*"))
+    new = sorted(after - before, key=lambda p: p.stat().st_mtime)
+    return new[-1] if new else None
+
+
+def _log_cell_env(
+    args: argparse.Namespace,
+    benchmark: str,
+    split: str,
+    report_port: int,
+    cell_dir: Path | None,
+) -> None:
+    """Single-line per-split breadcrumb. Lets us grep logs for the exact
+    (arm, model, split, site_url, report_port) tuple — root cause 9."""
+    arm_key = (
+        f"preset={args.extra_instructions_preset}/"
+        f"frame={args.system_prompt_frame}"
+    )
+    site_env_var = {
+        "reddit": "REDDIT",
+        "shopping": "SHOPPING",
+        "shopping_admin": "SHOPPING_ADMIN",
+        "gitlab": "GITLAB",
+    }.get(split, "")
+    site_url = os.environ.get(site_env_var, "<unset>") if site_env_var else "<unset>"
+    logger.info(
+        f"  [cell] benchmark={benchmark} arm={arm_key} model={args.model_name} "
+        f"split={split} {site_env_var}={site_url} report_port={report_port} "
+        f"results_dir={cell_dir}"
+    )
 
 
 def _stage1_browser_parallel_splits(
@@ -263,10 +384,27 @@ def _stage1_browser_parallel_splits(
     """
     timeout_sec = getattr(args, "browser_stage1_timeout", None) or 1800
     before = set((REPO_ROOT / "results" / "browsergym").glob("study_*"))
+    cell_dir = _cell_results_dir(args, benchmark)
+    if cell_dir is not None:
+        cell_dir.mkdir(parents=True, exist_ok=True)
+
+    # Per-split unique report port, derived from a per-process base.
+    if benchmark == "doomarena":
+        port_base = _resolve_report_port_base(args)
+    else:
+        port_base = None
 
     procs: list[tuple[str, subprocess.Popen, list[str]]] = []
     for i, split in enumerate(splits):
-        cmd = _build_browser_cmd(benchmark, split, args)
+        report_port = None
+        if port_base is not None:
+            report_port = port_base + _DOOMARENA_SPLIT_PORT_OFFSETS.get(split, i)
+            _log_cell_env(args, benchmark, split, report_port, cell_dir)
+        cmd = _build_browser_cmd(
+            benchmark, split, args,
+            report_port=report_port,
+            cell_results_dir=cell_dir,
+        )
         cmd = ["timeout", "--kill-after=10", str(timeout_sec), *cmd]
         if i > 0:
             time.sleep(_LAUNCH_STAGGER_SEC)
@@ -302,10 +440,29 @@ def _stage1_browser_parallel_splits(
             logger.error(f"  [{split}] subprocess failed: exit={proc.returncode}")
         results[split] = ok
 
-    # Match new study_dirs to splits.
-    after = set((REPO_ROOT / "results" / "browsergym").glob("study_*"))
-    new_dirs = sorted(after - before, key=lambda p: p.stat().st_mtime)
-    split_to_study = _match_study_dirs_to_splits(new_dirs, splits)
+    # Match new study_dirs to splits. Two paths:
+    # 1. cell-namespaced: each split's runner wrote to <cell_dir>/<split>/study_*,
+    #    so we just glob there. No race with sibling streams.
+    # 2. legacy global: scan results/browsergym/ for newly-created study_*
+    #    and match by split substring (race-prone — see root cause 4).
+    split_to_study: dict[str, Path] = {}
+    if cell_dir is not None:
+        for split in splits:
+            split_root = cell_dir / split
+            if not split_root.exists():
+                continue
+            studies = sorted(split_root.glob("study_*"), key=lambda p: p.stat().st_mtime)
+            if studies:
+                split_to_study[split] = studies[-1]
+
+    # Fallback to legacy discovery for any splits that didn't land in the
+    # cell-owned namespace (e.g. older runners that ignore --results-dir).
+    missing = [s for s in splits if s not in split_to_study]
+    if missing:
+        after = set((REPO_ROOT / "results" / "browsergym").glob("study_*"))
+        new_dirs = sorted(after - before, key=lambda p: p.stat().st_mtime)
+        legacy = _match_study_dirs_to_splits(new_dirs, missing)
+        split_to_study.update(legacy)
 
     for split, study_dir in split_to_study.items():
         _write_run_meta(study_dir, args, benchmark, split)
@@ -315,7 +472,7 @@ def _stage1_browser_parallel_splits(
         if results.get(split) and split not in split_to_study:
             logger.warning(
                 f"  [{split}] succeeded but no matching study_dir found; "
-                f"check {REPO_ROOT}/results/browsergym/ manually."
+                f"checked {cell_dir}/{split}/ and {REPO_ROOT}/results/browsergym/."
             )
 
     return split_to_study
@@ -577,7 +734,14 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--max-steps", type=int, default=15)
     parser.add_argument("--shuffle", type=int, default=42)
     parser.add_argument("--report-port", type=int, default=1234,
-                        help="Only used by DoomArena runner.")
+                        help="Only used by DoomArena runner. Legacy single-port "
+                             "default; ignored when --report-port-base is given "
+                             "or PID-derived auto-base is computed.")
+    parser.add_argument("--report-port-base", type=int, default=None,
+                        help="DoomArena: base port for the cell. Each split "
+                             "gets base+offset (reddit=0, shopping=1, "
+                             "shopping_admin=2, gitlab=3). Default: PID-derived "
+                             "(unique per process).")
     parser.add_argument("--judge-model", default="anthropic/claude-opus-4.6:thinking")
     parser.add_argument("--judges", nargs="+",
                         default=["test_awareness_steering", "verbalized_awareness"])

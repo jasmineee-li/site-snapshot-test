@@ -22,6 +22,7 @@ import argparse
 import importlib.resources
 import json
 import logging
+from pathlib import Path
 
 os.environ.setdefault("DOOMARENA_WEBARENA_BASE_URL", "http://localhost")
 
@@ -274,6 +275,12 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--max-steps", type=int, default=10)
     parser.add_argument("--report-port", type=int, default=1234)
     parser.add_argument("--n-jobs", type=int, default=1)
+    parser.add_argument("--results-dir", default=None,
+                        help="Cell-owned directory to write the AgentLab study "
+                             "under (path becomes the study's exp_root). When "
+                             "omitted, AgentLab defaults to results/browsergym/. "
+                             "Setting this avoids the cross-cell study_dir race "
+                             "when multiple parallel cells run concurrently.")
     parser.add_argument("--avg-step-timeout", type=int, default=60,
                         help="Per-step timeout (s). Total per task = max_steps × this. "
                              "Default 60s → 15min at max_steps=15.")
@@ -343,8 +350,31 @@ def main() -> None:
     )
 
     setup_logging()
+
+    # Single-line breadcrumb so launcher logs surface the exact lane the
+    # subprocess will run on. Prints before AgentLab's chatter so it's easy
+    # to grep. See DOOMARENA_ROOT_CAUSE_HANDOFF.md root causes 3 + 9.
+    site_env = {
+        "REDDIT": os.environ.get("REDDIT", ""),
+        "SHOPPING": os.environ.get("SHOPPING", ""),
+        "SHOPPING_ADMIN": os.environ.get("SHOPPING_ADMIN", ""),
+        "GITLAB": os.environ.get("GITLAB", ""),
+    }
+    site_str = " ".join(f"{k}={v or '<unset>'}" for k, v in site_env.items())
+    print(
+        f"[doomarena.cell] split={args.single_site or args.benchmark} "
+        f"model={args.model_name} preset={args.extra_instructions_preset} "
+        f"frame={args.system_prompt_frame} report_port={args.report_port} "
+        f"results_dir={args.results_dir or '<default>'} {site_str}",
+        flush=True,
+    )
+
+    exp_root = Path(args.results_dir) if args.results_dir else None
+    if exp_root is not None:
+        exp_root.mkdir(parents=True, exist_ok=True)
     run_bgym_experiment(
         bgym_experiments=[experiment],
+        exp_root=exp_root,
         reproducibility_mode=False,
         relaunch=False,
         n_jobs=args.n_jobs,

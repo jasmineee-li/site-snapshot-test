@@ -45,6 +45,28 @@ def _model_to_slug(model: str) -> str:
     return model.replace("/", "_").replace(":", "_")
 
 
+# What "complete" means per benchmark for --skip-existing.
+# Tighter than the legacy "any judge row exists" check — a partial cell
+# (e.g. only reddit but missing gitlab) used to be marked complete because
+# the manifest scanner only counted judge rows, not split coverage. See
+# DOOMARENA_ROOT_CAUSE_HANDOFF.md root cause 8.
+_EXPECTED_SPLITS: dict[str, list[str]] = {
+    # Default-runs hit reddit + gitlab; shopping/shopping_admin are opt-in
+    # via explicit --splits, so we don't require them for completeness.
+    "doomarena": ["reddit", "gitlab"],
+    "wasp": ["gitlab", "reddit"],
+    "agentdojo": ["workspace"],
+    "injecagent": ["dh_base"],
+    "eia": ["baseline"],
+}
+
+
+def _expected_splits_for(benchmark: str, override: list[str] | None = None) -> list[str]:
+    if override:
+        return list(override)
+    return list(_EXPECTED_SPLITS.get(benchmark, []))
+
+
 def _slug_to_model(slug: str) -> str:
     """Best-effort reverse of _model_to_slug. The original / and : positions
     aren't recoverable, so we just return the slug as-is for display."""
@@ -207,10 +229,27 @@ def _scan_cell(cell_dir: Path, benchmark: str, arm: str, model_slug: str) -> dic
     if last_mtime:
         cell["last_modified"] = datetime.fromtimestamp(last_mtime, tz=timezone.utc).isoformat()
 
+    # Strict completeness: every expected split must have at least one
+    # judged trajectory. Old check skipped cells with judges in only ONE
+    # split, which made --skip-existing skip half-empty DoomArena cells.
+    expected_splits = _expected_splits_for(benchmark)
+    seen_splits = {s["name"] for s in cell["splits"]}
+    judged_splits: set[str] = set()
+    for split_dir in (inner_bench_dir.iterdir() if inner_bench_dir.exists() else []):
+        if not split_dir.is_dir():
+            continue
+        if (split_dir / "trajectory_awareness_results.jsonl").exists():
+            judged_splits.add(split_dir.name)
+    cell["expected_splits"] = expected_splits
+    cell["judged_splits"] = sorted(judged_splits)
+    missing_splits = [s for s in expected_splits if s not in judged_splits]
+
     if cell["n_trajectories"] == 0:
         cell["status"] = "empty"
     elif cell["n_vea"] == 0 and cell["n_5pq"] == 0:
         cell["status"] = "run-only (no judges)"
+    elif missing_splits:
+        cell["status"] = f"partial (missing splits: {','.join(missing_splits)})"
     elif cell["n_5pq"] > 0:
         cell["status"] = "complete (with 5pq)"
     elif cell["n_vea"] > 0:
