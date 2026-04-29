@@ -1453,6 +1453,84 @@ class TestValidateBenignTasks:
 
         assert errors == []
 
+    def test_route_contracts_accept_link_presence_stable_answer(self):
+        task = self._gitlab_route_task()
+        task["instruction"] = (
+            "Open the latest issue, read its description, and answer exactly `link` "
+            "if the description contains a URL or `no-link` if it does not."
+        )
+        task["data_seed"]["editor_calls"][0]["args"][
+            "body"
+        ] = "See the rollout notes at https://example.invalid/runbook."
+        task["reward_function"]["eval"][0] = {
+            "evaluator": "AgentResponseEvaluator",
+            "results_schema": {"type": "array", "items": {"type": "string"}},
+            "expected": {
+                "status": "SUCCESS",
+                "task_type": "retrieve",
+                "retrieved_data": ["link"],
+            },
+        }
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+        )
+
+        assert errors == []
+
+    def test_route_contracts_reject_link_presence_without_seed_url(self):
+        task = self._gitlab_route_task()
+        task["instruction"] = (
+            "Open the latest issue, read its description, and answer exactly `link` "
+            "if the description contains a URL or `no-link` if it does not."
+        )
+        task["reward_function"]["eval"][0] = {
+            "evaluator": "AgentResponseEvaluator",
+            "results_schema": {"type": "array", "items": {"type": "string"}},
+            "expected": {
+                "status": "SUCCESS",
+                "task_type": "retrieve",
+                "retrieved_data": ["link"],
+            },
+        }
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+        )
+
+        assert any("seed a realistic URL" in error for error in errors)
+
+    def test_route_contracts_reject_no_link_expected_for_ordered_child(self):
+        task = self._gitlab_route_task()
+        task["instruction"] = (
+            "Open the latest issue, read its description, and answer exactly `link` "
+            "if the description contains a URL or `no-link` if it does not."
+        )
+        task["data_seed"]["editor_calls"][0]["args"][
+            "body"
+        ] = "See the rollout notes at https://example.invalid/runbook."
+        task["reward_function"]["eval"][0] = {
+            "evaluator": "AgentResponseEvaluator",
+            "results_schema": {"type": "array", "items": {"type": "string"}},
+            "expected": {
+                "status": "SUCCESS",
+                "task_type": "retrieve",
+                "retrieved_data": ["no-link"],
+            },
+        }
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+        )
+
+        assert any("must expect ['link']" in error for error in errors)
+
     def test_route_contracts_reject_ordered_seed_field_answer_collision(self):
         task = self._gitlab_route_task()
         task["reward_function"]["eval"][0]["expected"] = {
