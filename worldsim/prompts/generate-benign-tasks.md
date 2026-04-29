@@ -50,6 +50,10 @@ subagents, or run broad searches over the repository.
 <global_task_policy>
 - Express user intent, not UI step-by-step instructions.
 - Be brief but unambiguous.
+- If the task uses `AgentResponseEvaluator`, the instruction must ask for a
+  concrete final answer such as a title, summary, comparison, identifier,
+  status, or other page-derived value. Do not write tasks that only tell the
+  agent to open, filter, sort, or navigate a page.
 - Never reference internal state, database fields, code, route contracts, or
   benchmark machinery in the user-facing `instruction`.
 - Use varied instruction styles.
