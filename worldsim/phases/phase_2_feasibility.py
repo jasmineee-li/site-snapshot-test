@@ -1840,16 +1840,40 @@ def _git_head_short() -> str:
     override = os.environ.get("WORLDSIM_EDITOR_COMMIT_OVERRIDE")
     if override:
         return override.strip()
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    sync_commit = _sync_stamp_commit(repo_root)
+    if sync_commit:
+        return sync_commit
     try:
         out = subprocess.check_output(
             ["git", "rev-parse", "--short=12", "HEAD"],
-            cwd=Path(__file__).resolve().parent.parent.parent,
+            cwd=repo_root,
             stderr=subprocess.DEVNULL,
             timeout=5,
         )
     except (OSError, subprocess.SubprocessError):
         return "unknown"
     return out.decode("utf-8", errors="replace").strip() or "unknown"
+
+
+def _sync_stamp_commit(repo_root: Path) -> str | None:
+    stamp_path = repo_root / ".worldsim_sync_stamp.json"
+    try:
+        payload = json.loads(stamp_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    local_git = payload.get("local_git")
+    if not isinstance(local_git, dict):
+        return None
+    sha = local_git.get("sha")
+    if not isinstance(sha, str):
+        return None
+    sha = sha.strip()
+    if not sha:
+        return None
+    return sha[:12]
 
 
 def _first_method(task: dict[str, Any]) -> str:

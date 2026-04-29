@@ -359,6 +359,32 @@ def _host_fingerprint_for_test(
     }
 
 
+def test_sync_stamp_commit_uses_deployed_local_sha(tmp_path):
+    (tmp_path / ".worldsim_sync_stamp.json").write_text(
+        json.dumps(
+            {
+                "local_git": {
+                    "sha": "87de6788d9a44a8aba2c5269e39d12cfda685865",
+                    "branch": "feat/worldsim-v5",
+                },
+                "remote_git": {
+                    "sha": "07919d7ea67a0000000000000000000000000000",
+                    "branch": "HEAD",
+                },
+            }
+        )
+    )
+
+    assert feas._sync_stamp_commit(tmp_path) == "87de6788d9a4"
+
+
+def test_sync_stamp_commit_ignores_missing_or_invalid_stamp(tmp_path):
+    assert feas._sync_stamp_commit(tmp_path) is None
+
+    (tmp_path / ".worldsim_sync_stamp.json").write_text("{not json")
+    assert feas._sync_stamp_commit(tmp_path) is None
+
+
 def test_resolve_benign_storage_state_path_prefers_nested_agent_auth(tmp_path):
     state_path = tmp_path / "gitlab-state.json"
     state_path.write_text(json.dumps({"cookies": []}))
