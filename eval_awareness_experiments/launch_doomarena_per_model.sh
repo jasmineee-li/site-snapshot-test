@@ -111,6 +111,7 @@ contains_word() {
 }
 
 PIDS=()
+PID_LABELS=()
 N_STREAMS=0
 N_SELECTED_ARMS=0
 for entry in "${MODEL_STACKS[@]}"; do
@@ -129,13 +130,11 @@ for entry in "${MODEL_STACKS[@]}"; do
         continue
     fi
 
-    # One stream per MODEL. Inside, run all 4 arms sequentially via
-    # run_causal_experiment iterating presets×frames. The product of
-    # presets×frames yields 16 combos but only 4 canonical arms — the
-    # 12 non-canonical pairs get fallback names. To keep the matrix
-    # exactly the 4 canonical arms, we launch 4 separate sub-streams
-    # (one per arm) and queue them sequentially via &&.
+    # One stream per MODEL. Inside, run the selected arms sequentially. The
+    # parent waits for all per-model streams below; otherwise the launcher can
+    # exit while orphaned browser subprocesses are still running.
     (
+        stream_status=0
         for arm_spec in "${ARMS[@]}"; do
             read -r ARM PRESET FRAME judges <<< "$arm_spec"
             if ! contains_word "$ARM" "$ARM_FILTER"; then
@@ -145,6 +144,7 @@ for entry in "${MODEL_STACKS[@]}"; do
                 judges="$JUDGES"
             fi
             echo "[$STACK] === arm=$ARM preset=$PRESET frame=$FRAME ===" >&2
+            set +e
             env \
                 GITLAB="http://localhost:$GITLAB_PORT" \
                 REDDIT="http://localhost:$REDDIT_PORT" \
@@ -161,11 +161,18 @@ for entry in "${MODEL_STACKS[@]}"; do
                 --tasks-per-split "$N_TASKS" \
                 --browser-stage1-timeout "$BROWSER_STAGE1_TIMEOUT" \
                 --splits $SPLITS \
-                --output-base "$OUTPUT_BASE" \
-                || echo "[$STACK] arm=$ARM FAILED with $?" >&2
+                --output-base "$OUTPUT_BASE"
+            status=$?
+            set -e
+            if [ "$status" -ne 0 ]; then
+                echo "[$STACK] arm=$ARM FAILED with $status" >&2
+                stream_status="$status"
+            fi
         done
+        exit "$stream_status"
     ) > "$log" 2>&1 &
     PIDS+=("$!")
+    PID_LABELS+=("$STACK")
     sleep 0.5
 done
 
@@ -190,4 +197,24 @@ echo "  tail -f $LOG_DIR/*.log"
 echo "  $PYTHON -m eval_awareness_experiments.run_manifest --results-dir $OUTPUT_BASE --print"
 echo
 echo "Kill:"
-echo "  pkill -f 'run_causal_experiment.*causal_pilot'"
+echo "  pkill -f 'run_causal_experiment.*$OUTPUT_BASE'"
+
+overall_status=0
+for i in "${!PIDS[@]}"; do
+    pid="${PIDS[$i]}"
+    label="${PID_LABELS[$i]}"
+    if wait "$pid"; then
+        echo "[$label] stream completed"
+    else
+        status=$?
+        echo "[$label] stream FAILED with $status" >&2
+        overall_status="$status"
+    fi
+done
+
+if [ "$overall_status" -eq 0 ]; then
+    echo "All per-model streams completed."
+else
+    echo "One or more per-model streams failed." >&2
+fi
+exit "$overall_status"
