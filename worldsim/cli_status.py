@@ -112,6 +112,67 @@ def _fmt_rate(rate: Any) -> str:
     return f"{rate:.2f}" if isinstance(rate, int | float) else "n/a"
 
 
+def _format_variant_audit(summary: dict[str, Any]) -> list[str]:
+    audit = summary.get("variant_regeneration_audit")
+    if not isinstance(audit, dict) or not audit.get("tasks_entered"):
+        return []
+
+    lines = [
+        (
+            "Phase 4 variation: "
+            f"entered={audit.get('tasks_entered', 0)} "
+            f"planned={audit.get('planned_attempts', 0)} "
+            f"generated={audit.get('generated_attempts', 0)} "
+            f"rejected_pre_eval={audit.get('rejected_before_eval', 0)} "
+            f"evaluated={audit.get('evaluated_attempts', 0)} "
+            f"pvpo_valid={audit.get('gate1_valid_evaluations', 0)} "
+            f"complied={audit.get('compliant_evaluations', 0)}"
+        ),
+        (
+            "Variation method: resisted, ecologically valid initial attacks are judged "
+            "for refusal trigger; fixed strategies may rewrite only the selected payload; "
+            "contract-safe variants re-enter PVPO."
+        ),
+    ]
+
+    triggers = audit.get("judge_trigger_counts") or {}
+    if triggers:
+        lines.append(f"Variation triggers: {_fmt_count_map(triggers)}")
+
+    generation = audit.get("generation_status_counts") or {}
+    if generation:
+        lines.append(f"Variation generation: {_fmt_count_map(generation)}")
+
+    rows = audit.get("trigger_strategy_rows") or []
+    if rows:
+        lines.append("Variation strategy flow:")
+        for row in rows[:5]:
+            if not isinstance(row, dict):
+                continue
+            lines.append(
+                "  "
+                f"{row.get('refusal_trigger', 'unknown')} -> "
+                f"{row.get('strategy', 'unknown')}: "
+                f"planned={row.get('planned', 0)} "
+                f"generated={row.get('generated', 0)} "
+                f"rejected={row.get('rejected', 0)} "
+                f"evaluated={row.get('evaluated', 0)} "
+                f"pvpo_valid={row.get('gate1_valid', 0)} "
+                f"complied={row.get('complied', 0)}"
+            )
+
+    errors = summary.get("variant_error_buckets") or []
+    if errors:
+        first = errors[0]
+        if isinstance(first, dict):
+            lines.append(
+                "Top variant rejection: "
+                f"{first.get('count', 0)} {first.get('class', 'unknown')}: "
+                f"{first.get('reason', '')}"
+            )
+    return lines
+
+
 def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) -> str:
     lines = [f"WorldSim status: {payload['run_root']}"]
     state = payload.get("pipeline_state")
@@ -165,6 +226,7 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
             f"{summary.get('asr_valid_denominator', 0)} = "
             f"{_fmt_rate(summary.get('asr_valid'))}"
         )
+        lines.extend(_format_variant_audit(summary))
         inspection = summary.get("inspection_index")
         if isinstance(inspection, list) and inspection and inspect_limit:
             lines.append("Inspect next:")
@@ -227,6 +289,21 @@ def format_inspection_payload(payload: dict[str, Any]) -> str:
         ),
         f"Why: {task.get('why', '')}",
     ]
+    lines.append(
+        "PVPO: "
+        f"max_coverage={task.get('max_coverage', 'unknown')} "
+        f"initial_max_coverage={task.get('initial_max_coverage', 'unknown')} "
+        f"reference_step={task.get('reference_step', 'unknown')} "
+        f"status={task.get('pvpo_status', 'unknown')}"
+    )
+    lines.append(
+        "Judge: "
+        f"trigger={task.get('judge_trigger', 'unknown')} "
+        f"confidence={task.get('judge_confidence', 'unknown')}"
+    )
+    successful_strategy = task.get("successful_strategy")
+    if isinstance(successful_strategy, str) and successful_strategy:
+        lines.append(f"Successful strategy: {successful_strategy}")
     for key in ("initial_trace", "current_trace", "successful_variant_trace", "primary_inspection_trace"):
         value = task.get(key)
         if isinstance(value, str) and value:

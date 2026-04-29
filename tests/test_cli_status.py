@@ -109,6 +109,12 @@ def test_worldsim_status_prints_operator_card(tmp_path: Path, capsys) -> None:
     assert "Artifact provenance: source=s3://bucket/run" in out
     assert "Phase 4 results: total=1 final_status=success_on_variant=1 sites=gitlab=1" in out
     assert "Phase 4 ASR: 1 / 1 = 1.00" in out
+    assert (
+        "Phase 4 variation: entered=1 planned=1 generated=1 rejected_pre_eval=0 "
+        "evaluated=1 pvpo_valid=1 complied=1"
+    ) in out
+    assert "Variation triggers: distracted=1" in out
+    assert "distracted -> specificity: planned=1 generated=1" in out
     assert "[variant_success_exemplar] adv_variant gitlab issue.title success_on_variant" in out
     assert "adv_variant_variant_0" in out
 
@@ -136,6 +142,9 @@ def test_worldsim_inspect_prints_task_artifacts(tmp_path: Path, capsys) -> None:
     assert "WorldSim task inspection: adv_variant" in out
     assert "Status: success_on_variant (resistant_aware)" in out
     assert "Surface: gitlab issue.title create_issue_title route=project_issue_list" in out
+    assert "PVPO: max_coverage=0.75 initial_max_coverage=1.0 reference_step=3" in out
+    assert "Judge: trigger=distracted confidence=high" in out
+    assert "Successful strategy: specificity" in out
     assert "primary_inspection_trace:" in out
     assert "reference_screenshot:" in out
 
