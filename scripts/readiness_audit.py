@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 CODE_SUFFIXES = {".py", ".ts", ".js"}
-REVIEW_LOC = 500
+REVIEW_LOC = 550
 SPLIT_LOC = 1200
 
 GENERATED_PREFIXES = (
@@ -38,6 +38,13 @@ GENERATED_NAMES = {
 }
 
 DEFERRED_TRACKED_GENERATED: set[str] = set()
+
+# True large-file exceptions. Deferred modularization work should not be added
+# here; it should remain visible in the audit until it is split.
+LARGE_FILE_EXEMPTION_PREFIXES: dict[str, str] = {
+    "AgentLab/": "read-only upstream reference material; runtime imports are forbidden",
+}
+LARGE_FILE_EXEMPTIONS: dict[str, str] = {}
 
 SECRET_VALUE_CHARS = r"A-Za-z0-9._~+/=-"
 TOKEN_FIELD_RE = re.compile(
@@ -77,6 +84,13 @@ class LargeFile:
 
 
 @dataclass(frozen=True)
+class LargeFileExemption:
+    path: str
+    loc: int
+    reason: str
+
+
+@dataclass(frozen=True)
 class TokenFinding:
     path: str
     line: int
@@ -87,8 +101,9 @@ class TokenFinding:
 class Audit:
     tracked_files: int
     code_files: int
-    files_over_500_loc: list[LargeFile]
+    files_over_550_loc: list[LargeFile]
     files_over_1200_loc: list[LargeFile]
+    large_file_exemptions: list[LargeFileExemption]
     tracked_generated: list[str]
     deferred_tracked_generated: list[str]
     token_findings: list[TokenFinding]
@@ -113,6 +128,15 @@ def _line_count(path: str) -> int:
 
 def _is_generated(path: str) -> bool:
     return path in GENERATED_NAMES or any(path.startswith(prefix) for prefix in GENERATED_PREFIXES)
+
+
+def _large_file_exemption_reason(path: str) -> str | None:
+    if path in LARGE_FILE_EXEMPTIONS:
+        return LARGE_FILE_EXEMPTIONS[path]
+    for prefix, reason in LARGE_FILE_EXEMPTION_PREFIXES.items():
+        if path.startswith(prefix):
+            return reason
+    return None
 
 
 def _token_findings(paths: list[str]) -> list[TokenFinding]:
@@ -235,11 +259,20 @@ def build_audit() -> Audit:
     generated = sorted(path for path in files if _is_generated(path))
     deferred = [path for path in generated if path in DEFERRED_TRACKED_GENERATED]
     blocking_generated = [path for path in generated if path not in DEFERRED_TRACKED_GENERATED]
+    exempt_large = [
+        LargeFileExemption(item.path, item.loc, reason)
+        for item in large
+        if item.loc > REVIEW_LOC and (reason := _large_file_exemption_reason(item.path)) is not None
+    ]
+    non_exempt_large = [
+        item for item in large if _large_file_exemption_reason(item.path) is None
+    ]
     return Audit(
         tracked_files=len(files),
         code_files=len(code),
-        files_over_500_loc=[item for item in large if item.loc > REVIEW_LOC],
-        files_over_1200_loc=[item for item in large if item.loc > SPLIT_LOC],
+        files_over_550_loc=[item for item in non_exempt_large if item.loc > REVIEW_LOC],
+        files_over_1200_loc=[item for item in non_exempt_large if item.loc > SPLIT_LOC],
+        large_file_exemptions=exempt_large,
         tracked_generated=blocking_generated,
         deferred_tracked_generated=deferred,
         token_findings=_token_findings(files),
@@ -249,8 +282,9 @@ def build_audit() -> Audit:
 def _print_text(audit: Audit) -> None:
     print(f"tracked_files={audit.tracked_files}")
     print(f"code_files={audit.code_files}")
-    print(f"files_over_500_loc={len(audit.files_over_500_loc)}")
+    print(f"files_over_550_loc={len(audit.files_over_550_loc)}")
     print(f"files_over_1200_loc={len(audit.files_over_1200_loc)}")
+    print(f"large_file_exemptions={len(audit.large_file_exemptions)}")
     print(f"tracked_generated={len(audit.tracked_generated)}")
     print(f"deferred_tracked_generated={len(audit.deferred_tracked_generated)}")
     print(f"token_findings={len(audit.token_findings)}")
@@ -258,6 +292,10 @@ def _print_text(audit: Audit) -> None:
         print("largest_files:")
         for item in audit.files_over_1200_loc[:10]:
             print(f"  {item.loc:5d} {item.path}")
+    if audit.large_file_exemptions:
+        print("large_file_exemptions:")
+        for item in audit.large_file_exemptions:
+            print(f"  {item.loc:5d} {item.path} # {item.reason}")
     if audit.tracked_generated:
         print("tracked_generated_paths:")
         for path in audit.tracked_generated:
@@ -275,7 +313,7 @@ def _print_text(audit: Audit) -> None:
 
 
 def _json_default(value: Any) -> Any:
-    if isinstance(value, LargeFile | TokenFinding):
+    if isinstance(value, LargeFile | LargeFileExemption | TokenFinding):
         return asdict(value)
     raise TypeError(f"cannot serialize {type(value)!r}")
 

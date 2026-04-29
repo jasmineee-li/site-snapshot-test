@@ -9,25 +9,25 @@ answer "what behavior owns this?" before it answers "what kind of code is this?"
 
 Current and target ownership should stay explicit:
 
-- Phase 2 behavior includes injection generation, target resolution, exposure
-  contracts, text fill, and Phase 2c admission. A package split may move this
-  toward `worldsim.phase_2`, but route/exposure/admission semantics still belong
-  to the Phase 2 domain.
-- Phase 4 behavior includes adversarial execution, PVPO placement, postprocess
-  judges, strategy variation, resume, and results. A package split may move this
-  toward `worldsim.phase_4`, but Phase 4 must not own benign task eligibility.
+- `worldsim.phase_2`: injection generation, target resolution, exposure
+  contracts, text fill, and Phase 2c admission. Route/exposure/admission
+  semantics still belong to the Phase 2 domain.
+- `worldsim.phase_4`: adversarial execution, PVPO placement, postprocess judges,
+  strategy variation, resume, and results. Phase 4 must not own benign task
+  eligibility.
 - Phase 0c profile rigor is split by behavior: `phase_0_recon.py` remains the
   compatibility runner, `phase_0_evidence_index.py` owns neutral source indexes,
   `phase_0c_artifacts.py` owns provenance/reuse/trace artifacts, and
   `phase_0c_audit.py` owns deterministic host audits. Do not move these
   concerns into Modal sandbox setup; `modal_sandbox.py` stays an
   infrastructure-only runner.
-- Seed/editor-call contracts are a shared domain used by Phase 2, Phase 4,
-  seeding, and sandbox validation. If extracted, the shared package must preserve
+- `worldsim.seed_contracts`: shared seed/editor-call contract behavior used by
+  Phase 2, Phase 4, seeding, and sandbox validation. This package must preserve
   sandbox packaging constraints and parity tests.
-- Browser Use runtime concerns belong together when that runner is split.
-- Sandbox/profile/task validation has a stricter Modal runtime contract than
-  ordinary host modules and should not be mechanically extracted.
+- `worldsim.browser_use`: Browser Use runtime concerns when that runner is split.
+- `worldsim.sandbox_validator`: sandbox/profile/task validation when that module
+  is split. This domain has a stricter Modal runtime contract than ordinary host
+  modules and should not be mechanically extracted.
 
 Avoid `utils.py`, `helpers.py`, and global shared `types.py`. If a helper is
 shared, name the domain it belongs to. Keep types next to the behavior that owns

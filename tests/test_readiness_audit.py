@@ -150,3 +150,41 @@ def test_generated_artifact_detection_covers_r5_copy_outputs(monkeypatch) -> Non
     audit = readiness_audit.build_audit()
 
     assert audit.tracked_generated == sorted(paths)
+
+
+def test_large_file_audit_uses_550_line_threshold(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    small = tmp_path / "small.py"
+    review = tmp_path / "review.py"
+    urgent = tmp_path / "urgent.py"
+    small.write_text("\n".join("x = 1" for _ in range(550)))
+    review.write_text("\n".join("x = 1" for _ in range(551)))
+    urgent.write_text("\n".join("x = 1" for _ in range(1201)))
+    monkeypatch.setattr(
+        readiness_audit,
+        "_git_ls_files",
+        lambda: ["small.py", "review.py", "urgent.py"],
+    )
+
+    audit = readiness_audit.build_audit()
+
+    assert [item.path for item in audit.files_over_550_loc] == ["urgent.py", "review.py"]
+    assert [item.path for item in audit.files_over_1200_loc] == ["urgent.py"]
+
+
+def test_large_file_audit_records_true_exemptions(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "AgentLab" / "src" / "reference.py"
+    path.parent.mkdir(parents=True)
+    path.write_text("\n".join("x = 1" for _ in range(1201)))
+    monkeypatch.setattr(
+        readiness_audit,
+        "_git_ls_files",
+        lambda: ["AgentLab/src/reference.py"],
+    )
+
+    audit = readiness_audit.build_audit()
+
+    assert audit.files_over_550_loc == []
+    assert audit.files_over_1200_loc == []
+    assert audit.large_file_exemptions[0].path == "AgentLab/src/reference.py"
