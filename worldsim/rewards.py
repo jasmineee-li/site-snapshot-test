@@ -23,6 +23,7 @@ import re
 import subprocess
 from collections import Counter
 from typing import Any
+from urllib.parse import urlparse
 
 from worldsim._paths import find_repo_root
 from worldsim.agent_response_transform import transform_agent_response
@@ -416,7 +417,7 @@ def _run_homebrew_eval(
     return all_passed, combined
 
 
-def _build_agent_response(eval_configs: list[dict], agent_result: Any | None) -> dict[str, Any]:
+def _build_agent_response(eval_configs: list[dict], agent_result: Any | None) -> Any:
     """Build a WebArena Verified-compatible agent response dict.
 
     When the task has an ``AgentResponseEvaluator``, first try the 4-strategy
@@ -449,22 +450,21 @@ def _build_agent_response(eval_configs: list[dict], agent_result: Any | None) ->
     is_done = agent_result is not None and getattr(agent_result, "is_done", False)
 
     # Prefer a transform-extracted dict for WebArena-Verified
-    # AgentResponseEvaluator tasks. Fall back to the prose-wrapping behavior
-    # when no strategy matches (transform returns None).
+    # AgentResponseEvaluator tasks. If no strategy matches, preserve the raw
+    # response instead of upgrading prose into structured retrieved_data; this
+    # matches the upstream benchmark's fail-closed scoring semantics.
     if has_agent_response_evaluator and isinstance(final_result, str) and final_result.strip():
         transformed = transform_agent_response(final_result)
         if transformed is not None:
             return transformed
 
-    # Parse the agent's final answer into retrieved_data format
-    retrieved_data = None
-    if task_type == "retrieve" and final_result:
-        retrieved_data = _parse_retrieved_data(final_result)
+    if final_result is not None:
+        return final_result
 
     return {
         "task_type": task_type,
         "status": "SUCCESS" if is_done else "FAILURE",
-        "retrieved_data": retrieved_data,
+        "retrieved_data": None,
     }
 
 
@@ -492,8 +492,11 @@ def _parse_retrieved_data(final_result: str | None) -> list | None:
     return [final_result.strip()]
 
 
-def _eval_agent_response(config: dict, agent_response: dict) -> tuple[bool, str]:
+def _eval_agent_response(config: dict, agent_response: Any) -> tuple[bool, str]:
     """Evaluate an AgentResponseEvaluator config against agent response."""
+    if not isinstance(agent_response, dict):
+        return False, "agent response was not a structured object"
+
     expected = config.get("expected", {})
 
     # Check task type
@@ -538,8 +541,9 @@ def _compare_data(expected: list, actual: list, ordered: bool = False) -> bool:
     if ordered:
         return expected_norm == actual_norm
 
-    # Unordered: every expected item (including duplicates) must appear in actual
-    return Counter(expected_norm) <= Counter(actual_norm)
+    # Unordered: upstream matching is exact multiset equality; extra actual
+    # values are failures, not harmless detail.
+    return Counter(expected_norm) == Counter(actual_norm)
 
 
 def _eval_network_event(
@@ -562,6 +566,13 @@ def _eval_network_event(
         return False, "no network trace captured (required for NetworkEventEvaluator)"
 
     expected = config.get("expected", {})
+    unsupported = set(expected) - {"url", "reference_url", "http_method"}
+    if unsupported:
+        return (
+            False,
+            "NetworkEventEvaluator fallback does not support expected fields: "
+            + ", ".join(sorted(str(key) for key in unsupported)),
+        )
     expected_url = expected.get("url", "")
     expected_method = expected.get("http_method", "GET").upper()
 
@@ -622,28 +633,38 @@ def _resolve_url_placeholders(url: str, instance: dict) -> str:
 
 
 def _url_matches(expected: str, actual: str) -> bool:
-    """Check if expected URL matches actual URL (substring / path match)."""
-    # Strip trailing slashes for comparison
+    """Check if expected URL matches actual URL without substring over-credit."""
+    if not expected or not actual:
+        return False
+
     expected = expected.rstrip("/")
     actual = actual.rstrip("/")
 
-    # Exact match
+    if _looks_like_regex_url(expected):
+        try:
+            return re.search(expected, actual) is not None
+        except re.error:
+            return False
+
     if expected == actual:
         return True
 
-    # "GOLD in PRED" — expected appears as substring of actual
-    if expected in actual:
-        return True
-
-    # Path-only comparison (ignore host differences)
-    from urllib.parse import urlparse
-
     exp_parsed = urlparse(expected)
     act_parsed = urlparse(actual)
-    if exp_parsed.path and exp_parsed.path.rstrip("/") in act_parsed.path:
+    if exp_parsed.path and not exp_parsed.netloc:
+        expected_path = exp_parsed.path.rstrip("/") or "/"
+        actual_path = act_parsed.path.rstrip("/") or "/"
+        if expected_path != actual_path:
+            return False
+        if exp_parsed.query:
+            return exp_parsed.query == act_parsed.query
         return True
 
     return False
+
+
+def _looks_like_regex_url(expected: str) -> bool:
+    return expected.startswith("^") or expected.endswith("$") or ".*" in expected
 
 
 # ---------------------------------------------------------------------------

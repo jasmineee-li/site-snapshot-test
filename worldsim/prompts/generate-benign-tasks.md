@@ -156,9 +156,11 @@ these fields:
       "eval": [
         {{
           "evaluator": "AgentResponseEvaluator",
+          "results_schema": {{"type": "array", "items": {{"type": "string"}}}},
           "expected": {{
             "task_type": "retrieve",
-            "status": "SUCCESS"
+            "status": "SUCCESS",
+            "retrieved_data": ["<exact expected value>"]
           }}
         }}
       ]

@@ -340,6 +340,9 @@ def _match_gitlab(
         if kind == "gitlab_search_result" and "q" in anchors:
             anchors["query"] = anchors.pop("q")
         if kind == "gitlab_search_result":
+            project_path = anchors.get("project_path")
+            if isinstance(project_path, str) and project_path.startswith("groups/"):
+                continue
             for key, value in _gitlab_listing_query_anchors(url, path_and_query).items():
                 anchors.setdefault(key, value)
         # The root-segment regex emits "segment"; resolve it to user vs

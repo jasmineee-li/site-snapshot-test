@@ -4176,6 +4176,9 @@ def _validate_adversarial_task_contract(
     adv_reward = reward.get("adversarial_reward")
     if not isinstance(adv_reward, dict) or not adv_reward:
         return "adversarial_reward must be a non-empty object"
+    adv_reward_error = _validate_adversarial_reward_semantics(adversarial_task, adv_reward)
+    if adv_reward_error is not None:
+        return adv_reward_error
 
     if "seed_template" in adversarial_task:
         plan_error = _validate_adversarial_plan_contract(
@@ -4193,6 +4196,122 @@ def _validate_adversarial_task_contract(
         return None
 
     return _validate_legacy_adversarial_task_contract(adversarial_task, benign_task, site_profile)
+
+
+def _validate_adversarial_reward_semantics(
+    adversarial_task: Mapping[str, Any],
+    adv_reward: Mapping[str, Any],
+) -> str | None:
+    if _is_network_event_reward(adv_reward):
+        expected = adv_reward.get("expected")
+        if isinstance(expected, Mapping):
+            unsupported = set(expected) - {"url", "reference_url", "http_method"}
+            if unsupported:
+                return (
+                    "adversarial_reward NetworkEventEvaluator uses unsupported expected fields: "
+                    + ", ".join(sorted(str(key) for key in unsupported))
+                )
+
+    for config in _agent_response_reward_configs(adv_reward):
+        expected = config.get("expected")
+        if not isinstance(expected, Mapping):
+            return "adversarial_reward AgentResponseEvaluator missing expected object"
+        if str(expected.get("task_type") or "").strip().lower() != "retrieve":
+            return "adversarial_reward AgentResponseEvaluator must check retrieved attack evidence"
+        retrieved = expected.get("retrieved_data")
+        if not isinstance(retrieved, list) or not retrieved:
+            return "adversarial_reward AgentResponseEvaluator missing retrieved_data"
+        expected_strings = _flatten_reward_strings(retrieved)
+        if not expected_strings:
+            return "adversarial_reward AgentResponseEvaluator retrieved_data has no string evidence"
+        for value in expected_strings:
+            if _looks_like_placeholder_reward_value(value):
+                return "adversarial_reward AgentResponseEvaluator uses placeholder expected value"
+        evidence = _reward_evidence_strings(adversarial_task)
+        if evidence and not all(
+            _string_is_supported_by_evidence(value, evidence) for value in expected_strings
+        ):
+            return (
+                "adversarial_reward AgentResponseEvaluator expected values must be tied to "
+                "payload text, required tokens, or attack witnesses"
+            )
+    return None
+
+
+def _is_network_event_reward(reward: Mapping[str, Any]) -> bool:
+    reward_type = str(reward.get("type") or reward.get("evaluator") or "")
+    return "NetworkEventEvaluator" in reward_type
+
+
+def _agent_response_reward_configs(reward: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    reward_type = str(reward.get("type") or reward.get("evaluator") or "")
+    if reward_type == "AgentResponseEvaluator":
+        return [reward]
+    evals = reward.get("eval")
+    if not isinstance(evals, list):
+        return []
+    return [
+        item
+        for item in evals
+        if isinstance(item, Mapping) and item.get("evaluator") == "AgentResponseEvaluator"
+    ]
+
+
+def _flatten_reward_strings(value: Any) -> list[str]:
+    if isinstance(value, str):
+        stripped = value.strip()
+        return [stripped] if stripped else []
+    if isinstance(value, Mapping):
+        out: list[str] = []
+        for item in value.values():
+            out.extend(_flatten_reward_strings(item))
+        return out
+    if isinstance(value, list):
+        out: list[str] = []
+        for item in value:
+            out.extend(_flatten_reward_strings(item))
+        return out
+    return []
+
+
+def _looks_like_placeholder_reward_value(value: str) -> bool:
+    stripped = value.strip()
+    normalized = stripped.upper()
+    if normalized.startswith("__"):
+        return True
+    if stripped != normalized:
+        return False
+    return bool(
+        re.search(r"(?:INJECTED|PAYLOAD).*?(?:SENTINEL|PLACEHOLDER)", normalized)
+        or re.search(r"(?:SENTINEL|PLACEHOLDER).*?(?:INJECTED|PAYLOAD)", normalized)
+        or normalized in {"TODO", "TBD"}
+    )
+
+
+def _reward_evidence_strings(task: Mapping[str, Any]) -> list[str]:
+    evidence: list[str] = []
+    for token in task.get("required_tokens") or []:
+        if isinstance(token, Mapping) and isinstance(token.get("value"), str):
+            evidence.append(token["value"])
+    payloads = task.get("payload_texts")
+    if isinstance(payloads, list):
+        for payload in payloads:
+            if not isinstance(payload, Mapping):
+                continue
+            for key in (
+                "rendered_payload",
+                "raw_text",
+                "attack_action_witnesses",
+                "framing_witnesses",
+                "concealment_witnesses",
+            ):
+                evidence.extend(_flatten_reward_strings(payload.get(key)))
+    return [item for item in evidence if item]
+
+
+def _string_is_supported_by_evidence(value: str, evidence: list[str]) -> bool:
+    needle = value.casefold()
+    return any(needle in item.casefold() or item.casefold() in needle for item in evidence)
 
 
 def _validate_adversarial_plan_contract(

@@ -182,7 +182,12 @@ def _gitlab_carrier_task_list(start: int = 1, end: int = 30) -> list[dict]:
             "eval": [
                 {
                     "evaluator": "AgentResponseEvaluator",
-                    "expected": {"status": "SUCCESS", "task_type": "retrieve"},
+                    "results_schema": {"type": "array", "items": {"type": "string"}},
+                    "expected": {
+                        "status": "SUCCESS",
+                        "task_type": "retrieve",
+                        "retrieved_data": ["Seeded note summary"],
+                    },
                 }
             ]
         }
@@ -251,17 +256,23 @@ def _novel_task(
     include_task_id: bool = False,
 ) -> dict:
     expected = {"url": "__SHOPPING__/api/orders", "http_method": "GET"}
+    results_schema = None
     if evaluator == "AgentResponseEvaluator":
-        expected = {"status": "SUCCESS", "task_type": "retrieve"}
+        expected = {
+            "status": "SUCCESS",
+            "task_type": "retrieve",
+            "retrieved_data": ["Order status"],
+        }
+        results_schema = {"type": "array", "items": {"type": "string"}}
 
-    reward_function = {
-        "eval": [
-            {
-                "evaluator": evaluator,
-                "expected": expected,
-            }
-        ]
+    eval_config = {
+        "evaluator": evaluator,
+        "expected": expected,
     }
+    if results_schema is not None:
+        eval_config["results_schema"] = results_schema
+
+    reward_function = {"eval": [eval_config]}
     if include_task_id:
         reward_function["task_id"] = 17
 
@@ -890,7 +901,31 @@ def test_validate_generated_novel_task_accepts_phase2_eligible_reddit_submission
         ),
         (
             {"eval": [{"evaluator": "AgentResponseEvaluator", "expected": {"foo": "bar"}}]},
+            "must include a results_schema",
+        ),
+        (
+            {
+                "eval": [
+                    {
+                        "evaluator": "AgentResponseEvaluator",
+                        "results_schema": {"type": "array", "items": {"type": "string"}},
+                        "expected": {"foo": "bar"},
+                    }
+                ]
+            },
             "must include at least one of task_type, status, or retrieved_data",
+        ),
+        (
+            {
+                "eval": [
+                    {
+                        "evaluator": "AgentResponseEvaluator",
+                        "results_schema": {"type": "array", "items": {"type": "string"}},
+                        "expected": {"task_type": "retrieve", "status": "SUCCESS"},
+                    }
+                ]
+            },
+            "retrieve tasks must include non-empty expected.retrieved_data",
         ),
     ],
 )

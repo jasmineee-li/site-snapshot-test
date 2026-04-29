@@ -876,11 +876,26 @@ def _validate_eval_expected(
         return None
 
     if evaluator == "AgentResponseEvaluator":
+        results_schema = config.get("results_schema")
+        if not isinstance(results_schema, dict) or not results_schema.get("type"):
+            return (
+                f"{prefix} eval[{eval_index}] AgentResponseEvaluator must include "
+                "a results_schema with a type"
+            )
         if not any(key in expected for key in ("task_type", "status", "retrieved_data")):
             return (
                 f"{prefix} eval[{eval_index}] AgentResponseEvaluator.expected must include "
                 "at least one of task_type, status, or retrieved_data"
             )
+        task_type = str(expected.get("task_type") or "").strip().lower()
+        status = str(expected.get("status") or "").strip().upper()
+        if task_type == "retrieve" and status != "NOT_FOUND_ERROR":
+            retrieved = expected.get("retrieved_data")
+            if not isinstance(retrieved, list) or not retrieved:
+                return (
+                    f"{prefix} eval[{eval_index}] AgentResponseEvaluator retrieve "
+                    "tasks must include non-empty expected.retrieved_data"
+                )
         return None
 
     return None
