@@ -502,6 +502,22 @@ async def test_invalid_applied_strategy_schema_buckets_as_schema_violation(
 
 
 @pytest.mark.asyncio
+async def test_string_applied_strategy_schema_fails_without_crashing(
+    patched_anthropic_client, sample_task, strategy
+):
+    patched_anthropic_client.messages.create.return_value = _variant_response(
+        {
+            "status": "ok",
+            "adversarial_data_seed": _valid_editor_seed(detail="p", site=sample_task["site"]),
+            "applied_strategy": "authority_framing",
+        }
+    )
+    result = await generate_variant_api(sample_task, strategy)
+    assert result["variant_status"]["status"] == "failed"
+    assert result["variant_status"]["failure_class"] == "schema_violation"
+
+
+@pytest.mark.asyncio
 async def test_variant_prompt_strips_auth_bearing_task_fields(
     patched_anthropic_client, sample_task, strategy
 ):

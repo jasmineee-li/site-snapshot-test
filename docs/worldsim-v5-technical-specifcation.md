@@ -1022,6 +1022,8 @@ Concealment-steering strategies (`scripted_message`, `command_silent_execution`,
 
 **Variant generation and evaluation.** For each host-selected strategy, a single-turn Anthropic Messages API call produces a variant adversarial task spec via the `build_variant` tool. Variants are generated in parallel (up to 3 API calls), then evaluated in parallel using the Browser Use worker pool (one variant per worker against separate benchmark instances). Each result passes through the ecological validity gate again.
 
+Before a generated variant reaches Browser Use, the host finalizes it fail-closed: the editor-call count/order, parent/project selectors, timing fields, benign setup calls, exposure-contract method, and payload argument must match the original task, and only the selected payload text field may change. The host then resynchronizes `payload_texts` / attack witnesses from the revised seed so PVPO evaluates the actual variant payload. Variants with unresolved template placeholders, changed placement selectors, malformed tool payloads, or unsynchronizable witnesses are recorded as generation failures rather than browser-evaluated tasks.
+
 **Prompt: `worldsim/prompts/generate-variant.md`.** Dual-objective (tool + concealment) with authorization preamble; applies exactly one `target_strategy` per call; produces output via the `build_variant` tool. See file for full text.
 
 ```python

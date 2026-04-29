@@ -142,6 +142,7 @@ from worldsim.resume_metadata import (
 )
 from worldsim.rewards import run_reward_function
 from worldsim.seeding import (
+    _assert_benign_tokens_bound,
     apply_data_seed_async,
     collect_seed_runtime_errors,
     preflight_editor_seed_calls,
@@ -505,6 +506,7 @@ def _updated_payload_text_entry(
     task: dict[str, Any],
     original_payload: Any,
     rendered_payload: str,
+    applied_strategy: Any = None,
 ) -> dict[str, Any] | None:
     concealment = str(task.get("concealment", ""))
     visible_text, _concealed_text = _payload_text_views(rendered_payload, concealment)
@@ -522,6 +524,18 @@ def _updated_payload_text_entry(
         if fallback is not None:
             framing_witnesses = [fallback]
     entry["framing_witnesses"] = framing_witnesses
+
+    action_witnesses = [
+        witness
+        for witness in entry.get("attack_action_witnesses", [])
+        if isinstance(witness, str) and witness and witness in rendered_payload
+    ]
+    if not action_witnesses and isinstance(applied_strategy, dict):
+        injection_content = applied_strategy.get("injection_content")
+        if isinstance(injection_content, str) and injection_content in rendered_payload:
+            action_witnesses = [injection_content]
+    if action_witnesses:
+        entry["attack_action_witnesses"] = action_witnesses
 
     if concealment == "plaintext":
         entry["concealment_witnesses"] = [
@@ -556,36 +570,240 @@ def _synchronize_variant_payload_texts(
     original_task: dict[str, Any],
     merged_task: dict[str, Any],
     candidate_seed: dict[str, Any],
-) -> None:
+    applied_strategy: Any = None,
+) -> str | None:
     payload_texts = original_task.get("payload_texts")
     if not isinstance(payload_texts, list) or not payload_texts:
-        return
+        return None
     selected_index = original_task.get("selected_payload_index", 0)
     if not isinstance(selected_index, int) or not (0 <= selected_index < len(payload_texts)):
-        logger.warning(
-            "Variant task %s has invalid selected_payload_index=%r; keeping original payload_texts",
-            original_task.get("id", "unknown"),
-            selected_index,
+        return (
+            "variant task "
+            f"{original_task.get('id', 'unknown')} has invalid selected_payload_index="
+            f"{selected_index!r}"
         )
-        return
     rendered_payload = _extract_variant_rendered_payload(original_task, candidate_seed)
     if not isinstance(rendered_payload, str) or not rendered_payload:
-        logger.warning(
-            "Variant task %s revised adversarial_data_seed does not expose a recoverable payload body; "
-            "keeping original payload_texts",
-            original_task.get("id", "unknown"),
+        return (
+            "variant task "
+            f"{original_task.get('id', 'unknown')} revised adversarial_data_seed does not expose "
+            "a recoverable payload body"
         )
-        return
     synced_entry = _updated_payload_text_entry(
         merged_task,
         payload_texts[selected_index],
         rendered_payload,
+        applied_strategy=applied_strategy,
     )
     if synced_entry is None:
-        return
+        return (
+            "variant task "
+            f"{original_task.get('id', 'unknown')} revised payload_texts failed post-hoc validation"
+        )
     merged_payloads = json.loads(json.dumps(payload_texts))
     merged_payloads[selected_index] = synced_entry
     merged_task["payload_texts"] = merged_payloads
+    return None
+
+
+def _variant_seed_payload_call_indexes(
+    original_task: dict[str, Any],
+    base_calls: list[Any],
+    *,
+    expected_method: str,
+    payload_arg: str,
+) -> set[int]:
+    selected_payload = _selected_rendered_payload(original_task)
+    indexes: set[int] = set()
+    if isinstance(selected_payload, str) and selected_payload:
+        for index, call in enumerate(base_calls):
+            if not isinstance(call, dict) or call.get("method") != expected_method:
+                continue
+            args = call.get("args")
+            if isinstance(args, dict) and args.get(payload_arg) == selected_payload:
+                indexes.add(index)
+    if indexes:
+        return indexes
+    return {
+        index
+        for index, call in enumerate(base_calls)
+        if isinstance(call, dict)
+        and call.get("method") == expected_method
+        and isinstance(call.get("args"), dict)
+        and payload_arg in call["args"]
+    }
+
+
+def _without_payload_arg(call: dict[str, Any], payload_arg: str) -> dict[str, Any]:
+    clone = json.loads(json.dumps(call))
+    args = clone.get("args")
+    if isinstance(args, dict):
+        args.pop(payload_arg, None)
+    return clone
+
+
+def _variant_only_changes_payload_field_error(
+    original_task: dict[str, Any],
+    candidate_seed: dict[str, Any],
+) -> str | None:
+    contract = original_task.get("exposure_contract")
+    if not isinstance(contract, dict):
+        return None
+    expected_method = str(contract.get("editor_method") or "").strip()
+    payload_arg = str(contract.get("payload_arg") or "").strip()
+    if not expected_method or not payload_arg:
+        return None
+
+    base_seed = original_task.get("adversarial_data_seed")
+    base_calls = base_seed.get("editor_calls") if isinstance(base_seed, dict) else None
+    candidate_calls = candidate_seed.get("editor_calls")
+    if not isinstance(base_calls, list) or not isinstance(candidate_calls, list):
+        return None
+    if len(base_calls) != len(candidate_calls):
+        return "variant adversarial_data_seed must preserve editor call count and order"
+
+    payload_indexes = _variant_seed_payload_call_indexes(
+        original_task,
+        base_calls,
+        expected_method=expected_method,
+        payload_arg=payload_arg,
+    )
+    if not payload_indexes:
+        return (
+            "base adversarial_data_seed does not expose the selected payload field "
+            f"method={expected_method!r} payload_arg={payload_arg!r}"
+        )
+
+    changed_payload_indexes: set[int] = set()
+    for index, (base_call, candidate_call) in enumerate(
+        zip(base_calls, candidate_calls, strict=True)
+    ):
+        if not isinstance(base_call, dict) or not isinstance(candidate_call, dict):
+            if base_call != candidate_call:
+                return "variant adversarial_data_seed must preserve non-object editor calls"
+            continue
+        if index in payload_indexes:
+            if _without_payload_arg(base_call, payload_arg) != _without_payload_arg(
+                candidate_call, payload_arg
+            ):
+                return (
+                    "variant adversarial_data_seed may change only the selected payload "
+                    f"field {payload_arg!r} on editor call {index}"
+                )
+            base_args = base_call.get("args")
+            candidate_args = candidate_call.get("args")
+            if isinstance(base_args, dict) and isinstance(candidate_args, dict):
+                if base_args.get(payload_arg) != candidate_args.get(payload_arg):
+                    changed_payload_indexes.add(index)
+            continue
+        if base_call != candidate_call:
+            return (
+                "variant adversarial_data_seed may not change benign setup or non-payload "
+                f"editor call {index}"
+            )
+    if not changed_payload_indexes:
+        return "variant adversarial_data_seed did not change the selected payload field"
+    return None
+
+
+def _variant_seed_execution_contract_error(
+    original_task: dict[str, Any],
+    candidate_seed: dict[str, Any],
+) -> str | None:
+    try:
+        validate_data_seed(candidate_seed, allow_none=False)
+    except ValueError as exc:
+        return f"invalid adversarial_data_seed: {exc}"
+    try:
+        _assert_benign_tokens_bound(candidate_seed, original_task)
+    except Exception as exc:
+        return str(exc)
+
+    seed_error = self_contained_adversarial_seed_error(
+        original_task.get("data_seed"),
+        candidate_seed,
+    )
+    if seed_error is not None:
+        return seed_error
+    contract_error = _seed_preserves_exposure_contract_error(original_task, candidate_seed)
+    if contract_error is not None:
+        return contract_error
+    payload_field_error = _variant_only_changes_payload_field_error(
+        original_task,
+        candidate_seed,
+    )
+    if payload_field_error is not None:
+        return payload_field_error
+
+    delivery_channel = original_task.get("delivery_channel")
+    if isinstance(delivery_channel, dict) and isinstance(delivery_channel.get("path_template"), str):
+        from worldsim.phases import phase_2_injections as phase_2_contracts
+
+        try:
+            finalized_error = phase_2_contracts._validate_finalized_http_seed_contract(
+                candidate_seed,
+                delivery_channel,
+                sites=original_task.get("sites"),
+            )
+        except Exception as exc:
+            return str(exc)
+        if finalized_error is not None:
+            return finalized_error
+    return None
+
+
+def _finalize_generated_variant_task(
+    original_task: dict[str, Any],
+    candidate: Any,
+) -> tuple[dict[str, Any] | None, str | None]:
+    if not isinstance(candidate, dict):
+        return None, "variant payload was not an object"
+    candidate_seed = candidate.get("adversarial_data_seed")
+    if not isinstance(candidate_seed, dict):
+        return None, "variant payload omitted adversarial_data_seed"
+
+    seed_error = _variant_seed_execution_contract_error(original_task, candidate_seed)
+    if seed_error is not None:
+        return None, seed_error
+
+    merged = json.loads(json.dumps(original_task))
+    merged["adversarial_data_seed"] = json.loads(json.dumps(candidate_seed))
+
+    immutable_fields = (
+        "id",
+        "benign_task_id",
+        "site",
+        "sites",
+        "instruction",
+        "start_urls",
+        "data_seed",
+        "agent_context",
+        "reward_function",
+        "intent_template_id",
+        "revision",
+    )
+    for field in immutable_fields:
+        if field in candidate and candidate[field] != original_task.get(field):
+            logger.warning(
+                "Variant attempted to mutate immutable field %r; keeping original value", field
+            )
+
+    sync_error = _synchronize_variant_payload_texts(
+        original_task,
+        merged,
+        candidate_seed,
+        applied_strategy=candidate.get("applied_strategy"),
+    )
+    if sync_error is not None:
+        return None, sync_error
+    for field in ("applied_strategy", "placement_fix", "ecological_validity_fix"):
+        if field in candidate:
+            merged[field] = candidate[field]
+    return merged, None
+
+
+def _legacy_merge_variant_warning(error: str) -> None:
+    logger.warning("Variant produced invalid adversarial_data_seed: %s", error)
 
 
 def _adversarial_seed_equivalent(left: dict[str, Any], right: dict[str, Any]) -> bool:
@@ -4034,10 +4252,27 @@ async def run_strategy_variation(
                     reason=str(variant_status.get("reason", "")),
                 )
             if isinstance(variant, dict) and _variant_changes_seed(task, variant):
+                finalized_variant, finalize_error = _finalize_generated_variant_task(
+                    task,
+                    variant,
+                )
+                if finalize_error is not None:
+                    logger.info(
+                        "Variant %s for task %s failed execution-contract validation: %s",
+                        strategy_name,
+                        task_id,
+                        finalize_error,
+                    )
+                    return _variant_generation_record_for_result(
+                        index=index,
+                        strategy=strategy,
+                        status="failed",
+                        reason=finalize_error,
+                    )
                 return _variant_generation_record_for_result(
                     index=index,
                     strategy=strategy,
-                    variant=variant,
+                    variant=finalized_variant,
                 )
             return _variant_generation_record_for_result(
                 index=index,
@@ -4151,55 +4386,11 @@ def _merge_variant_task(
     candidate: Any,
 ) -> dict[str, Any]:
     """Preserve immutable benign fields while accepting seed-only variant diffs."""
-    if not isinstance(candidate, dict):
-        logger.warning("Variant payload was not an object; keeping original task")
-        return original_task
-
-    merged = json.loads(json.dumps(original_task))
-    candidate_seed = candidate.get("adversarial_data_seed")
-    if not isinstance(candidate_seed, dict):
-        logger.warning("Variant payload omitted adversarial_data_seed; keeping original task")
-        return merged
-
-    try:
-        validate_data_seed(candidate_seed, allow_none=False)
-    except ValueError as exc:
-        logger.warning("Variant produced invalid adversarial_data_seed: %s", exc)
-        return merged
-    seed_error = self_contained_adversarial_seed_error(merged.get("data_seed"), candidate_seed)
-    if seed_error is not None:
-        logger.warning("Variant produced invalid adversarial_data_seed: %s", seed_error)
-        return merged
-    contract_error = _seed_preserves_exposure_contract_error(merged, candidate_seed)
-    if contract_error is not None:
-        logger.warning("Variant produced invalid adversarial_data_seed: %s", contract_error)
-        return merged
-
-    immutable_fields = (
-        "id",
-        "benign_task_id",
-        "site",
-        "sites",
-        "instruction",
-        "start_urls",
-        "data_seed",
-        "agent_context",
-        "reward_function",
-        "intent_template_id",
-        "revision",
-    )
-    for field in immutable_fields:
-        if field in candidate and candidate[field] != original_task.get(field):
-            logger.warning(
-                "Variant attempted to mutate immutable field %r; keeping original value", field
-            )
-
-    merged["adversarial_data_seed"] = candidate_seed
-    _synchronize_variant_payload_texts(original_task, merged, candidate_seed)
-    for field in ("applied_strategy", "placement_fix", "ecological_validity_fix"):
-        if field in candidate:
-            merged[field] = candidate[field]
-    return merged
+    merged, error = _finalize_generated_variant_task(original_task, candidate)
+    if error is not None:
+        _legacy_merge_variant_warning(error)
+        return json.loads(json.dumps(original_task))
+    return merged if merged is not None else json.loads(json.dumps(original_task))
 
 
 def _rebase_adversarial_task(

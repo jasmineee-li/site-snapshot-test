@@ -341,8 +341,16 @@ async def generate_variant_api(
             failure_class = None
             break
 
-        applied = payload.get("applied_strategy") or {}
-        applied_name = applied.get("strategy")
+        payload_failure = _validate_variant_payload(payload)
+        if payload_failure is not None:
+            failure_class = payload_failure
+            _append_err(f"{payload_failure}: tool payload failed schema validation")
+            if attempts < 2:
+                continue
+            break
+
+        applied = payload.get("applied_strategy")
+        applied_name = applied.get("strategy") if isinstance(applied, dict) else None
         if applied_name != strategy_name:
             # Model ignored the strategy. Try once more.
             failure_class = "strategy_mismatch"
