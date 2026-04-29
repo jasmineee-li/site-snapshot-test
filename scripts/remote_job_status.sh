@@ -148,8 +148,25 @@ def print_git(label: str, payload) -> str | None:
 
 local_sha = print_git("local_git", metadata.get("local_git"))
 remote_sha = print_git("remote_git", metadata.get("remote_git"))
-if local_sha and remote_sha and local_sha != remote_sha:
+sync_stamp = metadata.get("remote_sync_stamp")
+sync_sha = None
+if isinstance(sync_stamp, dict):
+    stamp_git = sync_stamp.get("local_git") if isinstance(sync_stamp.get("local_git"), dict) else {}
+    sync_sha = stamp_git.get("sha")
+    short_sync_sha = str(sync_sha)[:12] if sync_sha else "unknown"
+    stamp_branch = stamp_git.get("branch") or "unknown"
+    stamp_dirty = "dirty" if stamp_git.get("dirty") else "clean"
+    print(
+        "remote_sync_stamp: "
+        f"{short_sync_sha} branch={stamp_branch} worktree={stamp_dirty} "
+        f"synced_at={sync_stamp.get('synced_at') or 'unknown'}"
+    )
+if local_sha and sync_sha and local_sha != str(sync_sha):
+    print("warning: local_git and remote_sync_stamp differ; rerun sync_to_r5.sh before trusting this job")
+elif local_sha and remote_sha and local_sha != remote_sha and not sync_sha:
     print("warning: local_git and remote_git differ; verify the intended code was synced before trusting this job")
+elif remote_sha and sync_sha and remote_sha != str(sync_sha):
+    print("note: remote_git differs from remote_sync_stamp because sync_to_r5.sh excludes .git; use remote_sync_stamp for deployed code provenance")
 
 if status == "running" and latest_log_mtime:
     quiet_for = int(time.time() - latest_log_mtime)

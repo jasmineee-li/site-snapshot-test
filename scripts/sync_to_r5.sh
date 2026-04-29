@@ -91,3 +91,58 @@ printf 'Using SSH key: %s\n' "$RJ_SSH_KEY" >&2
     -e "$(printf '%q ' "${ssh_cmd[@]}")" \
     "$REPO_ROOT/" \
     "$RJ_SSH_TARGET:$REMOTE_DIR/"
+
+if [[ "$DRY_RUN" -eq 0 ]]; then
+    SYNC_STAMP_B64="$(python3 - "$REPO_ROOT" "$HOST_CONFIG" <<'PY'
+import base64
+import json
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+repo = Path(sys.argv[1])
+host_config = sys.argv[2]
+
+def git_value(args):
+    try:
+        return subprocess.check_output(
+            ["git", *args],
+            cwd=repo,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except Exception:
+        return None
+
+payload = {
+    "synced_at": datetime.now(timezone.utc).isoformat(),
+    "host_config": host_config,
+    "source": str(repo),
+    "git_metadata_excluded": True,
+    "local_git": {
+        "sha": git_value(["rev-parse", "HEAD"]),
+        "branch": git_value(["rev-parse", "--abbrev-ref", "HEAD"]),
+        "dirty": bool(git_value(["status", "--porcelain"])),
+    },
+}
+print(base64.b64encode(json.dumps(payload).encode()).decode())
+PY
+)"
+    rj_ssh_bash "$REMOTE_DIR" "$SYNC_STAMP_B64" <<'REMOTE'
+set -euo pipefail
+remote_dir="$1"
+sync_stamp_b64="$2"
+python3 - "$remote_dir" "$sync_stamp_b64" <<'PY'
+import base64
+import json
+import sys
+from pathlib import Path
+
+remote_dir = Path(sys.argv[1])
+payload = json.loads(base64.b64decode(sys.argv[2]).decode())
+path = remote_dir / ".worldsim_sync_stamp.json"
+path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+PY
+REMOTE
+fi

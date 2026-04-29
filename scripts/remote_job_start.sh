@@ -161,6 +161,12 @@ def git_value(args):
     except Exception:
         return None
 
+def read_json(path):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
 state_dir = None
 if state_dir_mode == "set":
     if state_dir_value == "auto":
@@ -188,6 +194,7 @@ metadata = {
         "branch": git_value(["rev-parse", "--abbrev-ref", "HEAD"]),
         "dirty": bool(git_value(["status", "--porcelain"])),
     },
+    "remote_sync_stamp": read_json(remote_dir / ".worldsim_sync_stamp.json"),
 }
 (job_dir / "metadata.json").write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 (job_dir / "stdout.log").touch()
