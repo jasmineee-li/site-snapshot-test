@@ -26,17 +26,19 @@ Some legacy generated artifacts may still be tracked while readiness debt is
 being unwound. Treat those as deferred historical fixtures, not permission to
 commit new runtime output under `logs/`.
 
-## Where To Look
+## Where To Look For Current Artifacts
 
-Do not assume git has the newest task artifacts. Phase commands write mutable
-state under `logs/`, and r5 is often the freshest working copy during live
-benchmark work.
+Do not assume git has the newest task artifacts. Phase 1, Phase 2, Phase 3, and
+Phase 4 commands write mutable state under `logs/`, and r5 is often the freshest
+working copy during live benchmark work.
 
 Before changing, deleting, or relying on task artifacts, check the active host
-or run archive first. Use repository remote-run wrappers for active jobs. If an
-artifact is promoted into a paper, rigor run, or long-lived fixture, record the
-producing code SHA, host or archive path, counts, hashes, and restore command in
-git. Otherwise keep it out of tracked source.
+or archive first. Use repository remote-run wrappers for active jobs.
+
+Treat r5 as live operational state, not automatically canonical source. If a
+remote artifact is promoted into a paper, rigor run, or long-lived fixture,
+record the producing code SHA, host or archive path, counts, hashes, and restore
+command in git. Otherwise keep it out of tracked source.
 
 ## Promotion Criteria
 
@@ -56,7 +58,12 @@ dataset inputs. Raw Phase 1/2/3/4 outputs should stay in `logs/` or an archive.
 
 This branch removes generated artifacts that were tracked at baseline
 `origin/feat/worldsim-v5` (`9b9f9a56`). The same current artifact shape was
-observed on r5 at `/home/ubuntu/browser-sim` on 2026-04-28.
+observed on r5 at `/home/ubuntu/browser-sim` on 2026-04-28. The r5 checkout was
+at detached `HEAD=07919d7e` with local source edits, and its main Phase 1/2 JSON
+artifacts had filesystem mtimes around `2026-04-28T01:18:52Z`. r5 also had
+newer Phase 2 exposure sidecars under `logs/phase_2/` and later remote-job logs,
+so agents should check r5 before assuming the git baseline has the latest run
+state.
 
 These files are not the documented 113-task rigor floor from
 `docs/handoffs/phase-2c-admission-floor.md`. The checked-in Phase 2 report at

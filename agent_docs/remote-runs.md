@@ -152,6 +152,10 @@ Remote metadata and logs live under:
 <remote-dir>/logs/remote_jobs/<job_id>/
 ```
 
+Live hosts often contain the freshest Phase task artifacts under `logs/`.
+Before relying on checked-in task JSON, audit the host or run archive and follow
+`agent_docs/artifacts.md` for manifest, hash, and fixture-promotion rules.
+
 ## Fresh Host Gate
 
 Run this on any fresh host before Phase 4:
