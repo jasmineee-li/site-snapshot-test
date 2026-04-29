@@ -33,6 +33,16 @@ def _write_status_fixture(run_dir: Path) -> None:
         },
     )
     _write_json(
+        run_dir / "artifact_manifest.json",
+        {
+            "schema_version": 1,
+            "kind": "phase4_artifact_manifest",
+            "generated_at": "2026-04-29T20:29:00+00:00",
+            "artifacts_source": "s3://bucket/run",
+            "artifacts": [{"path": "phase_0c"}, {"path": "phase_2"}, {"path": "phase_3"}],
+        },
+    )
+    _write_json(
         run_dir / "phase_2" / "adversarial_tasks.json",
         [
             {
@@ -96,6 +106,7 @@ def test_worldsim_status_prints_operator_card(tmp_path: Path, capsys) -> None:
     assert f"WorldSim status: {tmp_path}" in out
     assert "Pipeline: step=phase_4 status=complete" in out
     assert "Phase 4 progress: status=complete stage=complete initial=1/1 postprocessed=1/1" in out
+    assert "Artifact provenance: source=s3://bucket/run" in out
     assert "Phase 4 results: total=1 final_status=success_on_variant=1 sites=gitlab=1" in out
     assert "Phase 4 ASR: 1 / 1 = 1.00" in out
     assert "[variant_success_exemplar] adv_variant gitlab issue.title success_on_variant" in out
@@ -112,6 +123,7 @@ def test_worldsim_status_json_includes_summary(tmp_path: Path, capsys) -> None:
     assert payload["phase4_summary"]["total"] == 1
     assert payload["phase4_summary"]["site_counts"] == {"gitlab": 1}
     assert payload["phase4_summary"]["inspection_index"][0]["task_id"] == "adv_variant"
+    assert payload["artifact_manifest"]["artifacts_source"] == "s3://bucket/run"
 
 
 def test_worldsim_inspect_prints_task_artifacts(tmp_path: Path, capsys) -> None:

@@ -486,6 +486,14 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
             ]
         )
     )
+    (remote_dir / "logs" / "artifact_manifest.json").write_text(
+        json.dumps(
+            {
+                "artifacts_source": "s3://bucket/source-run",
+                "artifacts": [{"path": "phase_0c"}, {"path": "phase_2"}, {"path": "phase_3"}],
+            }
+        )
+    )
 
     env = _base_env(repo_root, tmp_path)
     env["PATH"] = f"{fakebin}:{env['PATH']}"
@@ -512,6 +520,9 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
     assert "final_status=resistant=1,success_on_variant=1" in completed.stdout
     assert "sites=gitlab=1,reddit=1" in completed.stdout
     assert f"phase4_trace_root: {phase4_dir / '20260429'}" in completed.stdout
+    assert (
+        "artifact_manifest: logs/artifact_manifest.json source=s3://bucket/source-run artifacts=3"
+    ) in completed.stdout
     assert (
         f"phase4_summary_command: cd {remote_dir} && uv run python "
         "scripts/summarize_phase_4_results.py logs/phase_4/results.json --inspect-limit 8"

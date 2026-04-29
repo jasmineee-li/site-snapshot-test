@@ -314,6 +314,21 @@ for candidate in phase4_results_candidates():
     )
     if summary.get("trace_root"):
         print(f"phase4_trace_root: {summary['trace_root']}")
+    manifest_path = candidate.parent.parent / "artifact_manifest.json"
+    if manifest_path.exists():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except Exception:
+            manifest = {}
+        if isinstance(manifest, dict):
+            artifacts = manifest.get("artifacts")
+            artifact_count = len(artifacts) if isinstance(artifacts, list) else 0
+            print(
+                "artifact_manifest: "
+                f"{rel(manifest_path)} "
+                f"source={manifest.get('artifacts_source') or 'unknown'} "
+                f"artifacts={artifact_count}"
+            )
     print(
         "phase4_summary_command: "
         f"cd {remote_dir} && uv run python scripts/summarize_phase_4_results.py "

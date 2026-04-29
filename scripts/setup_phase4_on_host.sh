@@ -288,6 +288,16 @@ else
             ;;
     esac
 fi
+MANIFEST_ARGS=(
+    --state-dir "$STATE_DIR"
+    --instances "$REPO_ROOT/$INSTANCES"
+    --output "$STATE_DIR/artifact_manifest.json"
+)
+if [[ -n "$ARTIFACTS_SOURCE" ]]; then
+    MANIFEST_ARGS+=(--artifacts-source "$ARTIFACTS_SOURCE")
+fi
+uv run python scripts/write_phase4_artifact_manifest.py "${MANIFEST_ARGS[@]}" >/dev/null
+substep "wrote artifact manifest to $STATE_DIR/artifact_manifest.json"
 
 # ---------------------------------------------------------------------------
 # Step 5 — Mint Phase 0d storage_state for gitlab (issue #7)

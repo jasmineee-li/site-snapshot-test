@@ -67,6 +67,7 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
     progress_path = run_root / "phase_4" / "progress.json"
     results_path = resolve_phase4_results_path(run_root)
     cost_path = run_root / "cost_report.json"
+    manifest_path = run_root / "artifact_manifest.json"
 
     payload: dict[str, Any] = {
         "run_root": str(run_root),
@@ -74,6 +75,7 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
         "phase4_progress_path": str(progress_path) if progress_path.exists() else None,
         "phase4_results_path": str(results_path) if results_path is not None else None,
         "cost_report_path": str(cost_path) if cost_path.exists() else None,
+        "artifact_manifest_path": str(manifest_path) if manifest_path.exists() else None,
     }
     if state_path.exists():
         state = load_json(state_path)
@@ -93,6 +95,10 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
         cost = load_json(cost_path)
         if isinstance(cost, dict):
             payload["cost_report"] = cost
+    if manifest_path.exists():
+        manifest = load_json(manifest_path)
+        if isinstance(manifest, dict):
+            payload["artifact_manifest"] = manifest
     return payload
 
 
@@ -132,6 +138,17 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
             f"{progress.get('total_tasks', 0)} "
             f"postprocessed={progress.get('postprocessed_tasks', 0)}/"
             f"{progress.get('total_tasks', 0)}"
+        )
+
+    manifest = payload.get("artifact_manifest")
+    if isinstance(manifest, dict):
+        artifacts = manifest.get("artifacts")
+        artifact_count = len(artifacts) if isinstance(artifacts, list) else 0
+        lines.append(
+            "Artifact provenance: "
+            f"source={manifest.get('artifacts_source', 'unknown')} "
+            f"generated_at={manifest.get('generated_at', 'unknown')} "
+            f"artifacts={artifact_count}"
         )
 
     summary = payload.get("phase4_summary")
