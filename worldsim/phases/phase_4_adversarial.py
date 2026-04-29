@@ -4160,6 +4160,7 @@ async def generate_variant(
     profile_path: Path,
     *,
     sandbox_model: str = "claude-sonnet-4-6",
+    retry_feedback: str | None = None,
 ) -> dict[str, Any]:
     """Generate a variant adversarial task following a specific strategy.
 
@@ -4173,7 +4174,12 @@ async def generate_variant(
     """
     from worldsim.phase_4.variant_api import generate_variant_api
 
-    return await generate_variant_api(task, strategy, sandbox_model=sandbox_model)
+    return await generate_variant_api(
+        task,
+        strategy,
+        sandbox_model=sandbox_model,
+        retry_feedback=retry_feedback,
+    )
 
 
 def _strategy_variation_checkpoint_path(task_dir_root: Path, task_id: str) -> Path:
@@ -4632,11 +4638,74 @@ async def run_strategy_variation(
                         task_id,
                         finalize_error,
                     )
+                    try:
+                        retry_variant = await generate_variant(
+                            task,
+                            strategy,
+                            profile_path,
+                            sandbox_model=sandbox_model,
+                            retry_feedback=finalize_error,
+                        )
+                    except Exception as exc:
+                        logger.error(
+                            "Variant host-feedback retry failed for task %s strategy %s: %s",
+                            task_id,
+                            strategy_name,
+                            exc,
+                        )
+                        return _variant_generation_record_for_result(
+                            index=index,
+                            strategy=strategy,
+                            error=repr(exc),
+                        )
+                    retry_status = (
+                        retry_variant.get("variant_status")
+                        if isinstance(retry_variant, dict)
+                        else None
+                    )
+                    if isinstance(retry_status, dict) and retry_status.get("status") in {
+                        "inapplicable",
+                        "skipped",
+                        "failed",
+                    }:
+                        return _variant_generation_record_for_result(
+                            index=index,
+                            strategy=strategy,
+                            status=str(retry_status.get("status")),
+                            reason=(
+                                f"{finalize_error}; retry: "
+                                f"{retry_status.get('reason', '')}"
+                            ),
+                        )
+                    if isinstance(retry_variant, dict) and _variant_changes_seed(
+                        task, retry_variant
+                    ):
+                        finalized_retry, retry_finalize_error = (
+                            _finalize_generated_variant_task(task, retry_variant)
+                        )
+                        if retry_finalize_error is None:
+                            return _variant_generation_record_for_result(
+                                index=index,
+                                strategy=strategy,
+                                variant=finalized_retry,
+                            )
+                        return _variant_generation_record_for_result(
+                            index=index,
+                            strategy=strategy,
+                            status="failed",
+                            reason=(
+                                f"{finalize_error}; retry rejected: "
+                                f"{retry_finalize_error}"
+                            ),
+                        )
                     return _variant_generation_record_for_result(
                         index=index,
                         strategy=strategy,
                         status="failed",
-                        reason=finalize_error,
+                        reason=(
+                            f"{finalize_error}; retry rejected: unchanged_seed: "
+                            "variant did not change adversarial_data_seed"
+                        ),
                     )
                 return _variant_generation_record_for_result(
                     index=index,

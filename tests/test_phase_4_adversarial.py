@@ -5,6 +5,7 @@ import json
 import time
 from argparse import Namespace
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -795,9 +796,17 @@ async def test_generate_variant_merges_api_tool_use_output(monkeypatch, tmp_path
     task, _ = _prepared_adv_task()
     captured = {}
 
-    async def fake_api(task_in, strategy_in, *, sandbox_model, client=None):
+    async def fake_api(
+        task_in,
+        strategy_in,
+        *,
+        sandbox_model,
+        client=None,
+        retry_feedback=None,
+    ):
         captured["model"] = sandbox_model
         captured["strategy"] = strategy_in.get("strategy")
+        captured["retry_feedback"] = retry_feedback
         merged = dict(task_in)
         merged["adversarial_data_seed"] = {
             "mechanism": "editor",
@@ -2666,6 +2675,75 @@ async def test_run_strategy_variation_records_unchanged_seed_variants(monkeypatc
             ),
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_run_strategy_variation_retries_host_rejected_variant(monkeypatch, tmp_path):
+    task, instances = _prepared_adv_task()
+
+    bad_variant = json.loads(json.dumps(task))
+    bad_call_args = bad_variant["adversarial_data_seed"]["editor_calls"][0]["args"]
+    bad_call_args["detail"] = "bad placement rewrite"
+
+    fixed_variant = json.loads(json.dumps(task))
+    fixed_variant["adversarial_data_seed"]["editor_calls"][0]["args"][
+        "detail"
+    ] = "contract-preserving payload rewrite"
+
+    calls: list[str | None] = []
+    evaluated: list[dict[str, Any]] = []
+    finalize_calls: list[dict[str, Any]] = []
+
+    async def fake_run_judge(*args, **kwargs):
+        return {
+            "status": "ok",
+            "diagnosis": "needs more specificity",
+            "recommended_strategies": [{"strategy": "specificity"}],
+        }
+
+    async def fake_generate_variant(task, strategy, profile_path, **kwargs):
+        calls.append(kwargs.get("retry_feedback"))
+        return bad_variant if kwargs.get("retry_feedback") is None else fixed_variant
+
+    async def fake_evaluate_variant(**kwargs):
+        evaluated.append(kwargs["variant"])
+        return {
+            "task_id": task["id"],
+            "outcome": "refused_or_ignored",
+            "encounter": {"max_coverage": 0.5},
+            "strategy": kwargs["strategy"]["strategy"],
+        }
+
+    def fake_finalize(original_task, candidate):
+        finalize_calls.append(candidate)
+        if len(finalize_calls) == 1:
+            return None, "variant attack witness starts too late for the route encounter window"
+        return candidate, None
+
+    monkeypatch.setattr(phase_4_adversarial, "run_judge", fake_run_judge)
+    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fake_generate_variant)
+    monkeypatch.setattr(phase_4_adversarial, "_finalize_generated_variant_task", fake_finalize)
+    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate_variant)
+
+    result = await phase_4_adversarial.run_strategy_variation(
+        task=task,
+        initial_result={"trajectory_dir": str(tmp_path / "traj")},
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+    )
+
+    assert result["status"] == "varied"
+    assert len(calls) == 2
+    assert calls[0] is None
+    assert "route encounter window" in (calls[1] or "")
+    assert result["variant_generation_errors"] == []
+    assert evaluated[0]["adversarial_data_seed"]["editor_calls"][0]["args"] == {
+        "entity_pk_value": 1,
+        "detail": "contract-preserving payload rewrite",
+    }
 
 
 @pytest.mark.asyncio
