@@ -142,10 +142,27 @@ def _route_family_for_spec(
             "profile_location_page": _profile_location_page(profile_surface),
         },
     }
+    route_variant = _route_variant_from_anchor_examples(anchor_examples)
+    if route_variant is not None:
+        route["route_variant"] = route_variant
     if requires_inventory_backed_start_url:
         route["requires_inventory_backed_start_url"] = True
         route["anchor_examples"] = anchor_examples
     return route
+
+
+def _route_variant_from_anchor_examples(
+    anchor_examples: list[Mapping[str, Any]],
+) -> str | None:
+    variants = {
+        str(example.get("route_variant") or "").strip()
+        for example in anchor_examples
+        if isinstance(example, Mapping)
+    }
+    variants.discard("")
+    if len(variants) == 1:
+        return next(iter(variants))
+    return None
 
 
 def _start_url_patterns(site: str, kind: str, placeholder: str) -> list[str]:
@@ -272,9 +289,7 @@ def _reddit_submission_examples(
 def _reddit_forum_examples(placeholder: str, profile: Mapping[str, Any]) -> list[dict[str, str]]:
     examples: list[dict[str, str]] = []
     seen: set[str] = set()
-    available_forums = _available_entity_records(
-        profile, ("forums", "subreddits", "communities")
-    )
+    available_forums = _available_entity_records(profile, ("forums", "subreddits", "communities"))
     if available_forums:
         candidates = list(available_forums)
     else:
@@ -306,7 +321,9 @@ def _reddit_forum_examples(placeholder: str, profile: Mapping[str, Any]) -> list
             "forum_name": forum_text,
             "start_url": f"{placeholder}/f/{forum_text}",
         }
-        forum_id = sample.get("forum_id") if sample.get("forum_id") not in (None, "") else sample.get("id")
+        forum_id = (
+            sample.get("forum_id") if sample.get("forum_id") not in (None, "") else sample.get("id")
+        )
         if forum_id not in (None, ""):
             example["forum_id"] = str(forum_id).strip()
         examples.append(example)
@@ -779,7 +796,12 @@ def _answer_stability_guidance(
 ) -> dict[str, Any]:
     fields_by_method = {
         "create_issue_title": ["title", "title_template"],
-        "create_issue_description": ["body", "body_template", "description", "description_template"],
+        "create_issue_description": [
+            "body",
+            "body_template",
+            "description",
+            "description_template",
+        ],
         "create_submission_title": ["title", "title_template"],
         "create_submission": ["body", "body_template", "description", "description_template"],
     }
@@ -793,7 +815,8 @@ def _answer_stability_guidance(
             "reddit_forum",
             "reddit_dashboard_list",
         }
-        or surface_id not in {"issue.title", "issue.description", "submission.title", "submission.body"}
+        or surface_id
+        not in {"issue.title", "issue.description", "submission.title", "submission.body"}
         or not fields
     ):
         return {}

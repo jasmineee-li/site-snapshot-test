@@ -2122,6 +2122,7 @@ def test_build_task_route_contracts_derives_gitlab_issue_description_route():
 
     routes = {route["id"]: route for route in contracts["route_families"]}
     route = routes["gitlab.issue_description.gitlab_search_result.create_issue_description"]
+    assert route["route_variant"] == "project_issue_list"
     assert route["allowed_editor_methods"] == ["create_issue_description"]
     assert route["allowed_start_url_patterns"] == ["__GITLAB__/{project_path}/-/issues"]
     assert route["editor_arg_templates"] == {
@@ -2178,6 +2179,7 @@ def test_build_task_route_contracts_inventory_backs_gitlab_project_issue_lists()
 
     routes = {route["id"]: route for route in contracts["route_families"]}
     route = routes["gitlab.issue_description.gitlab_search_result.create_issue_description"]
+    assert route["route_variant"] == "project_issue_list"
     assert route["requires_inventory_backed_start_url"] is True
     assert route["anchor_examples"] == [
         {

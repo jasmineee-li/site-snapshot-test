@@ -40,7 +40,7 @@ def test_summarize_results_attributes_success_on_variant_reward():
                         "adversarial_passed": True,
                         "encounter": {"max_coverage": 0.75},
                     }
-                ]
+                ],
             },
         },
         {
@@ -74,6 +74,9 @@ def test_summarize_results_attributes_success_on_variant_reward():
             "site": "gitlab",
             "origin": "new_task",
             "exposure_contract": {
+                "site": "gitlab",
+                "kind": "gitlab_search_result",
+                "anchors": {"project_path": "primer/design"},
                 "target_surface_id": "issue.title",
                 "editor_method": "create_issue_title",
             },
@@ -117,6 +120,7 @@ def test_summarize_results_attributes_success_on_variant_reward():
             "site": "gitlab",
             "surface": "issue.title",
             "editor_method": "create_issue_title",
+            "route_variant": "project_issue_list",
             "strategy": "specificity",
         }
     ]
@@ -143,7 +147,7 @@ def test_summarize_phase4_cli_resolves_state_dir_and_prints_metrics(tmp_path, ca
                             "outcome": "complied",
                             "encounter": {"max_coverage": 1.0},
                         }
-                    ]
+                    ],
                 },
             }
         ],
@@ -158,6 +162,7 @@ def test_summarize_phase4_cli_resolves_state_dir_and_prints_metrics(tmp_path, ca
                 "exposure_contract": {
                     "target_surface_id": "submission.body",
                     "editor_method": "create_submission",
+                    "surface_route": {"route_variant": "forum_listing"},
                 },
             }
         ],
@@ -171,4 +176,7 @@ def test_summarize_phase4_cli_resolves_state_dir_and_prints_metrics(tmp_path, ca
     assert "Final compliant with adversarial reward: 1 / 1" in out
     assert "Judge trigger counts: {'suspicion': 1}" in out
     assert "1 specificity complied gate1_valid" in out
-    assert "adv_variant reddit submission.body create_submission strategy=specificity" in out
+    assert (
+        "adv_variant reddit submission.body create_submission route=forum_listing "
+        "strategy=specificity"
+    ) in out

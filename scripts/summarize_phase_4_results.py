@@ -121,17 +121,14 @@ def format_text_summary(summary: dict[str, Any], *, results_path: Path) -> str:
             lines.append(
                 "  "
                 f"{row['count']} {row['site']} {row['surface']} {row['editor_method']} "
-                f"{row['final_status']} {row['outcome_fine']}"
+                f"route={row['route_variant']} {row['final_status']} {row['outcome_fine']}"
             )
 
     strategy_rows = summary.get("variant_strategy_outcomes") or []
     if strategy_rows:
         lines.append("Variant strategy outcomes:")
         for row in strategy_rows:
-            lines.append(
-                "  "
-                f"{row['count']} {row['strategy']} {row['outcome']} {row['gate1']}"
-            )
+            lines.append(f"  {row['count']} {row['strategy']} {row['outcome']} {row['gate1']}")
 
     successes = summary.get("variant_successes") or []
     if successes:
@@ -140,7 +137,8 @@ def format_text_summary(summary: dict[str, Any], *, results_path: Path) -> str:
             lines.append(
                 "  "
                 f"{row['task_id']} {row['site']} {row['surface']} "
-                f"{row['editor_method']} strategy={row['strategy']}"
+                f"{row['editor_method']} route={row['route_variant']} "
+                f"strategy={row['strategy']}"
             )
 
     errors = summary.get("variant_error_buckets") or []

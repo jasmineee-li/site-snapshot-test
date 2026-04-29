@@ -131,6 +131,9 @@ def build_exposure_contract(
         ),
         "eligibility": {"status": "ineligible", "reason": "unresolved_target_resource"},
     }
+    route_variant = _route_variant_label(resource)
+    if route_variant is not None:
+        base["route_variant"] = route_variant
 
     if not isinstance(kind, str) or not kind:
         return base
@@ -820,7 +823,7 @@ def _surface_route_metadata(
     transition_forced = phase4_exposure.get("transition_forced_by_task") is True
     exact_comment_forced = phase4_exposure.get("exact_comment_region_forced_by_task") is True
     runtime_hook = phase4_exposure.get("requires_runtime_hook") is True
-    return {
+    route: dict[str, Any] = {
         "schema_version": 1,
         "entry_surface": _entry_surface_label(resource, kind),
         "seed_surface": target_surface_id or "unknown",
@@ -841,6 +844,17 @@ def _surface_route_metadata(
             phase4_exposure=phase4_exposure,
         ),
     }
+    route_variant = _route_variant_label(resource)
+    if route_variant is not None:
+        route["route_variant"] = route_variant
+    return route
+
+
+def _route_variant_label(resource: Mapping[str, Any]) -> str | None:
+    raw = resource.get("route_variant")
+    if isinstance(raw, str) and raw.strip():
+        return raw.strip()
+    return None
 
 
 def _entry_surface_label(resource: Mapping[str, Any], kind: Any) -> str:

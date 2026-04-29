@@ -309,6 +309,7 @@ def test_gitlab_project_issue_list_detail_instruction_marks_transition_forced():
     assert result["kind"] == "gitlab_search_result"
     assert result["anchors"]["project_path"] == "primer/design"
     assert result["start_url_resolved"] == "https://gitlab.local/primer/design/-/issues"
+    assert result["route_variant"] == "project_issue_list"
     assert result["transition_forced_by_task"] is True
 
 
@@ -326,6 +327,7 @@ def test_gitlab_issue_listing_intent_extracts_project_path_and_label_from_instru
     assert result["kind"] == "gitlab_search_result"
     assert result["anchors"]["project_path"] == "a11yproject/a11yproject.com"
     assert result["anchors"]["label_names"] == "help wanted"
+    assert result["route_variant"] == "project_issue_list"
 
 
 # --- gitlab_dashboard_list ----------------------------------------------

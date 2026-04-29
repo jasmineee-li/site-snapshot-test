@@ -617,6 +617,7 @@ def _gitlab_issue_listing_intent(
         "layer": "L2",
         "resolver_note": "deterministic_gitlab_issue_listing_intent",
         "skip_l4_expansion": True,
+        "route_variant": "project_issue_list",
     }
     record.update(_route_evidence_flags("gitlab_search_result", task))
     _assert_anchor_contract_conformance(record, benchmark=benchmark, site="gitlab")
@@ -2111,6 +2112,7 @@ def _preserve_project_listing_route(record: dict[str, Any]) -> None:
     anchors = record.get("anchors")
     if isinstance(anchors, Mapping) and anchors.get("project_path"):
         record["skip_l4_expansion"] = True
+        record["route_variant"] = "project_issue_list"
 
 
 # -----------------------------------------------------------------------

@@ -201,12 +201,15 @@ def test_gitlab_project_issue_list_title_uses_project_path_template():
             "start_url_resolved": "https://gitlab.local/byteblaze/secret-project/-/issues",
             "allowed_editor_methods": ["create_issue_title"],
             "title_surface_forced_by_task": True,
+            "route_variant": "project_issue_list",
         },
     )
 
     assert contract["eligibility"]["status"] == "eligible"
+    assert contract["route_variant"] == "project_issue_list"
     assert contract["mode"] == "inline_listing"
     assert contract["target_surface_id"] == "issue.title"
+    assert contract["surface_route"]["route_variant"] == "project_issue_list"
     assert contract["editor_args_template"] == {
         "project_path_template": "{benign_project_path}",
         "title": "{{PAYLOAD_TEXT}}",
@@ -239,6 +242,7 @@ def test_gitlab_project_issue_list_description_requires_forced_transition():
         "anchors": {"project_path": "byteblaze/secret-project"},
         "start_url_resolved": "https://gitlab.local/byteblaze/secret-project/-/issues",
         "allowed_editor_methods": ["create_issue_description"],
+        "route_variant": "project_issue_list",
     }
 
     unforced = build_exposure_contract(
@@ -259,8 +263,10 @@ def test_gitlab_project_issue_list_description_requires_forced_transition():
         "reason": "phase4_exposure:unforced_transitive_child_surface",
     }
     assert forced["eligibility"]["status"] == "eligible"
+    assert forced["route_variant"] == "project_issue_list"
     assert forced["mode"] == "bounded_transitive_created_child"
     assert forced["target_surface_id"] == "issue.description"
+    assert forced["surface_route"]["route_variant"] == "project_issue_list"
     assert forced["editor_args_template"] == {
         "project_path_template": "{benign_project_path}",
         "body": "{{PAYLOAD_TEXT}}",
