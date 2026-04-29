@@ -278,9 +278,21 @@ def validate_data_seed(seed: object, *, allow_none: bool = False) -> list[str]:
     mechanism = seed.get("mechanism")
     editor_calls = seed.get("editor_calls")
     has_editor_calls = isinstance(editor_calls, list) and bool(editor_calls)
-    if mechanism in (None, "none"):
+    if mechanism is None:
         if has_editor_calls:
             errors.extend(_validate_editor_calls(editor_calls))
+            return errors
+        if allow_none:
+            return errors
+        errors.append("data seed must declare a non-empty mechanism")
+        return errors
+
+    if mechanism == "none":
+        if has_editor_calls:
+            errors.append(
+                "data_seed.mechanism='none' must not include editor_calls; "
+                "use mechanism='editor'"
+            )
             return errors
         if allow_none:
             return errors

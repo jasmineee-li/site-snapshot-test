@@ -119,10 +119,20 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
     mechanism = seed.get("mechanism")
     editor_calls = seed.get("editor_calls")
     has_editor_calls = isinstance(editor_calls, list) and bool(editor_calls)
-    if mechanism in (None, "none"):
+    if mechanism is None:
         if has_editor_calls:
             _validate_editor_calls(editor_calls)
             return
+        if allow_none:
+            return
+        raise ValueError("data seed must declare a non-empty mechanism")
+
+    if mechanism == "none":
+        if has_editor_calls:
+            raise ValueError(
+                "data_seed.mechanism='none' must not include editor_calls; "
+                "use mechanism='editor'"
+            )
         if allow_none:
             return
         raise ValueError("data seed must declare a non-empty mechanism")

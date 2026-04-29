@@ -1699,6 +1699,21 @@ class TestEmptyAdversarialDataSeed:
         errors = validator.validate_data_seed(seed, allow_none=False)
         assert any("non-empty mechanism" in e for e in errors)
 
+    def test_none_mechanism_rejects_editor_calls(self):
+        seed = {
+            "mechanism": "none",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "gitlab",
+                    "method": "create_issue_title",
+                    "args": {"project_id": "1", "title": "Seeded title"},
+                }
+            ],
+        }
+        errors = validator.validate_data_seed(seed, allow_none=True)
+        assert any("must not include editor_calls" in e for e in errors)
+
 
 # ---------------------------------------------------------------------------
 # Edge case: adversarial_reward with type but missing query/expected
@@ -2522,6 +2537,26 @@ class TestDataSeedValidationParity:
 
         with pytest.raises(ValueError, match="unknown"):
             orch_validate(seed)
+
+    def test_both_reject_none_mechanism_with_editor_calls(self):
+        seed = {
+            "mechanism": "none",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "gitlab",
+                    "method": "create_issue_title",
+                    "args": {"project_id": "1", "title": "Seeded title"},
+                }
+            ],
+        }
+        sandbox_errors = validator.validate_data_seed(seed, allow_none=True)
+        assert any("must not include editor_calls" in e for e in sandbox_errors)
+
+        from worldsim.seeding import validate_data_seed as orch_validate
+
+        with pytest.raises(ValueError, match="must not include editor_calls"):
+            orch_validate(seed, allow_none=True)
 
     def test_both_reject_unsupported_editor_method_for_known_site(self):
         seed = {

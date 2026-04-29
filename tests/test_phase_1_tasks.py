@@ -825,6 +825,35 @@ def test_validate_generated_novel_task_rejects_invalid_data_seed_shapes(data_see
     assert expected in problem
 
 
+def test_validate_generated_novel_task_rejects_none_mechanism_with_editor_calls():
+    task = _novel_task()
+    task["data_seed"] = {
+        "mechanism": "none",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "shopping",
+                "method": "create_product_review",
+                "args": {
+                    "product_id": "1",
+                    "nickname": "SeededUser",
+                    "detail": "Seeded review body.",
+                },
+            }
+        ],
+    }
+
+    problem = phase_1_generate_new_tasks_validation.validate_generated_novel_task(
+        task,
+        index=0,
+        site_name="shopping",
+        allowed_eval_types={"NetworkEventEvaluator"},
+    )
+
+    assert problem is not None
+    assert "mechanism='none' must not include editor_calls" in problem
+
+
 def test_validate_generated_novel_task_accepts_agent_response_evaluator_when_profile_allows_it():
     problem = phase_1_generate_new_tasks_validation.validate_generated_novel_task(
         _novel_task(evaluator="AgentResponseEvaluator"),

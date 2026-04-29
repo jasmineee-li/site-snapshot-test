@@ -71,6 +71,9 @@ subagents, or run broad searches over the repository.
   `{{"benchmark": "webarena_verified", "site": "{site_name}", "method": "<editor_method>", "args": {{...}}}}`.
 - `none`, for navigate-only tasks that need no pre-state.
 
+Never combine `"mechanism": "none"` with `editor_calls`. Any task that writes
+seed data must use `"mechanism": "editor"`.
+
 Use only editor methods allowed by the selected `route_id`. Do not emit `api`,
 `form`, `state_push`, or `sql`.
 
