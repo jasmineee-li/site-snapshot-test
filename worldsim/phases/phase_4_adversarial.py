@@ -2653,6 +2653,8 @@ async def run_adversarial_task(
             run_kwargs: dict[str, Any] = {"start_urls": start_urls}
             if instance_dict.get("pvpo_cdp_url"):
                 run_kwargs["pvpo_cdp_url"] = instance_dict["pvpo_cdp_url"]
+            if instance_dict.get("url_origin_rewrites"):
+                run_kwargs["url_origin_rewrites"] = instance_dict["url_origin_rewrites"]
             if site_prompt is not None:
                 run_kwargs["site_prompt"] = site_prompt
             # Auth from instances.json — single source of truth. No fallback to

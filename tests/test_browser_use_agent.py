@@ -320,6 +320,56 @@ async def test_scoped_header_shutdown_suppresses_poll_task_errors():
     assert injector._poll_task is None
 
 
+def test_rewrite_url_origin_preserves_path_query_and_fragment():
+    rewritten = browser_use_agent._rewrite_url_origin(
+        "http://localhost:8023/group/project/-/issues/5?sort=created_date#note_1",
+        {"http://localhost:8023": "http://172.17.0.1:8073"},
+    )
+
+    assert (
+        rewritten
+        == "http://172.17.0.1:8073/group/project/-/issues/5?sort=created_date#note_1"
+    )
+
+
+@pytest.mark.asyncio
+async def test_request_mutator_rewrites_alias_before_applying_bound_origin_headers():
+    continue_request = AsyncMock()
+    browser_session = SimpleNamespace(
+        cdp_client=SimpleNamespace(
+            send=SimpleNamespace(Fetch=SimpleNamespace(continueRequest=continue_request))
+        )
+    )
+    injector = browser_use_agent._ScopedHeaderAuthInjector(
+        origin="http://172.17.0.1:8073",
+        headers={"X-GitLab-Auto-Login": "alice:pw"},
+        url_origin_rewrites={"http://localhost:8023": "http://172.17.0.1:8073"},
+    )
+    injector._browser_session = browser_session
+
+    await injector._continue_request(
+        {
+            "requestId": "nav-1",
+            "request": {
+                "url": "http://localhost:8023/byteblaze/dotfiles/-/issues/5?state=opened",
+                "headers": {"Accept": "text/html"},
+            },
+        },
+        "session-1",
+    )
+
+    continue_request.assert_awaited_once()
+    params = continue_request.await_args.args[0]
+    assert params["url"] == (
+        "http://172.17.0.1:8073/byteblaze/dotfiles/-/issues/5?state=opened"
+    )
+    assert params["headers"] == [
+        {"name": "Accept", "value": "text/html"},
+        {"name": "X-GitLab-Auto-Login", "value": "alice:pw"},
+    ]
+    assert continue_request.await_args.kwargs == {"session_id": "session-1"}
+
+
 @pytest.mark.asyncio
 async def test_pvpo_callback_warns_once_and_persists_capture_summary(tmp_path, caplog):
     class BrokenSession:

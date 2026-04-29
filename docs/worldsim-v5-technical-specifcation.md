@@ -406,6 +406,8 @@ async def run_eval(tasks, instances, agent_factory, ...):
 
 Each worker launches a local headless Chromium via Browser Use and connects to its assigned benchmark instance. The benchmark environments are external services managed by the user, not by the orchestrator.
 
+Scaled WebArena services may render absolute links using the canonical origin from the benchmark config (or loopback aliases such as `localhost:<port>`) even when the orchestrator has seeded a different replica. During Phase 4 Browser Use execution, WorldSim installs a same-logical-site CDP request rewrite map from known origins in `instances.json` and `url_placeholders` back to the worker's bound replica origin. This keeps listing-to-detail navigation on the seeded instance without changing task text, seed content, reward functions, exposure eligibility, or PVPO encounter thresholds. Unknown origins and cross-site links are not rewritten.
+
 ### Trajectory Artifacts and Diagnosis Sandboxes
 
 Each task evaluation produces:

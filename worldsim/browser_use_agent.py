@@ -118,6 +118,7 @@ class AgentRunner(Protocol):
         payload_witnesses: list[str] | None = None,
         pvpo_cdp_url: str | None = None,
         instance_id: str | None = None,
+        url_origin_rewrites: dict[str, str] | None = None,
     ) -> AgentResult: ...
 
     async def teardown(self) -> None: ...
@@ -847,17 +848,40 @@ def _origins_from_network_trace(trace: list[dict[str, Any]]) -> set[str]:
 
 
 class _ScopedHeaderAuthInjector:
-    """CDP Fetch-based same-origin header injector for BrowserUse runtime auth."""
+    """CDP Fetch-based same-origin request mutator for BrowserUse runtime auth.
 
-    def __init__(self, *, origin: str, headers: dict[str, str]) -> None:
-        self.origin = origin
-        self.headers = dict(headers)
+    It injects auth headers for configured origins and rewrites known
+    benchmark-origin aliases back to the replica selected for the current
+    task. Keeping both in one Fetch handler avoids double-continuing the same
+    request when a task needs both behaviours.
+    """
+
+    def __init__(
+        self,
+        *,
+        origin: str = "",
+        headers: dict[str, str] | None = None,
+        url_origin_rewrites: dict[str, str] | None = None,
+    ) -> None:
+        self.headers_by_origin: dict[str, dict[str, str]] = (
+            {origin: dict(headers or {})} if origin and headers else {}
+        )
+        self.url_origin_rewrites = _normalize_origin_rewrites(url_origin_rewrites)
         self._browser_session: Any = None
-        self._enabled_targets: set[str] = set()
+        self._enabled_target_patterns: dict[str, tuple[str, ...]] = {}
         self._enabled_sessions: dict[str, Any] = {}
         self._poll_task: asyncio.Task | None = None
         self._continue_tasks: set[asyncio.Task] = set()
         self._running = False
+
+    def add_headers(self, origin: str, headers: dict[str, str]) -> None:
+        if not origin or not headers:
+            return
+        existing = self.headers_by_origin.setdefault(origin, {})
+        existing.update({str(key): str(value) for key, value in headers.items()})
+
+    def add_url_origin_rewrites(self, rewrites: dict[str, str] | None) -> None:
+        self.url_origin_rewrites.update(_normalize_origin_rewrites(rewrites))
 
     async def start(self, browser_session: Any) -> None:
         self._browser_session = browser_session
@@ -894,7 +918,13 @@ class _ScopedHeaderAuthInjector:
         errors: list[Exception] = []
         for target in session_manager.get_all_page_targets():
             target_id = getattr(target, "target_id", None)
-            if not target_id or target_id in self._enabled_targets:
+            if not target_id:
+                continue
+            origins = sorted(set(self.headers_by_origin) | set(self.url_origin_rewrites))
+            if not origins:
+                continue
+            patterns = tuple(f"{origin}/*" for origin in origins)
+            if self._enabled_target_patterns.get(target_id) == patterns:
                 continue
             try:
                 session = await asyncio.wait_for(
@@ -906,9 +936,10 @@ class _ScopedHeaderAuthInjector:
                         {
                             "patterns": [
                                 {
-                                    "urlPattern": f"{self.origin}/*",
+                                    "urlPattern": pattern,
                                     "requestStage": "Request",
                                 }
+                                for pattern in patterns
                             ]
                         },
                         session_id=session.session_id,
@@ -923,7 +954,7 @@ class _ScopedHeaderAuthInjector:
                 )
                 errors.append(exc)
                 continue
-            self._enabled_targets.add(target_id)
+            self._enabled_target_patterns[target_id] = patterns
             self._enabled_sessions[target_id] = session
         if require_enabled and not self._enabled_sessions:
             message = "scoped http_headers auth could not attach to any page target"
@@ -970,7 +1001,7 @@ class _ScopedHeaderAuthInjector:
                 except Exception:
                     logger.debug("scoped http_headers Fetch.disable failed", exc_info=True)
         self._enabled_sessions.clear()
-        self._enabled_targets.clear()
+        self._enabled_target_patterns.clear()
 
     def _on_request_paused(
         self,
@@ -994,14 +1025,19 @@ class _ScopedHeaderAuthInjector:
         request = event.get("request")
         request_url = request.get("url") if isinstance(request, dict) else ""
         params: dict[str, Any] = {"requestId": request_id}
-        if _origin_from_url(str(request_url or "")) == self.origin:
+        rewritten_url = _rewrite_url_origin(str(request_url or ""), self.url_origin_rewrites)
+        if rewritten_url and rewritten_url != request_url:
+            params["url"] = rewritten_url
+        effective_url = rewritten_url or str(request_url or "")
+        headers_for_origin = self.headers_by_origin.get(_origin_from_url(effective_url))
+        if headers_for_origin:
             existing = request.get("headers") if isinstance(request, dict) else {}
             existing_headers = (
                 {str(k): str(v) for k, v in existing.items()} if isinstance(existing, dict) else {}
             )
             params["headers"] = [
                 {"name": name, "value": value}
-                for name, value in {**existing_headers, **self.headers}.items()
+                for name, value in {**existing_headers, **headers_for_origin}.items()
             ]
         try:
             await self._browser_session.cdp_client.send.Fetch.continueRequest(
@@ -1014,11 +1050,74 @@ class _ScopedHeaderAuthInjector:
 
 def _scoped_header_auth_action(origin: str, headers: dict[str, str]):
     async def _action(browser_session: Any) -> None:
-        injector = _ScopedHeaderAuthInjector(origin=origin, headers=headers)
-        await injector.start(browser_session)
+        injector = await _ensure_scoped_request_mutator(
+            browser_session,
+            origin=origin,
+            headers=headers,
+        )
         browser_session._worldsim_scoped_header_auth = injector
 
     return _action
+
+
+async def _ensure_scoped_request_mutator(
+    browser_session: Any,
+    *,
+    origin: str = "",
+    headers: dict[str, str] | None = None,
+    url_origin_rewrites: dict[str, str] | None = None,
+) -> _ScopedHeaderAuthInjector:
+    injector = getattr(browser_session, "_worldsim_scoped_header_auth", None)
+    if not isinstance(injector, _ScopedHeaderAuthInjector):
+        injector = _ScopedHeaderAuthInjector(
+            origin=origin,
+            headers=headers,
+            url_origin_rewrites=url_origin_rewrites,
+        )
+        await injector.start(browser_session)
+        browser_session._worldsim_scoped_header_auth = injector
+        return injector
+
+    if origin and headers:
+        injector.add_headers(origin, headers)
+    injector.add_url_origin_rewrites(url_origin_rewrites)
+    await injector._enable_current_page_sessions()
+    return injector
+
+
+def _normalize_origin_rewrites(rewrites: dict[str, str] | None) -> dict[str, str]:
+    normalized: dict[str, str] = {}
+    if not isinstance(rewrites, dict):
+        return normalized
+    for raw_origin, raw_target in rewrites.items():
+        origin = _origin_from_url(str(raw_origin or ""))
+        target = _origin_from_url(str(raw_target or ""))
+        if origin and target and origin != target:
+            normalized[origin] = target
+    return normalized
+
+
+def _rewrite_url_origin(url: str, origin_rewrites: dict[str, str]) -> str:
+    try:
+        parsed = urlsplit(str(url or ""))
+    except ValueError:
+        return str(url or "")
+    if not parsed.scheme or not parsed.netloc:
+        return str(url or "")
+    origin = f"{parsed.scheme}://{parsed.netloc}"
+    replacement = origin_rewrites.get(origin)
+    if not replacement:
+        return str(url or "")
+    replacement_parts = urlsplit(replacement)
+    return urlunsplit(
+        (
+            replacement_parts.scheme,
+            replacement_parts.netloc,
+            parsed.path,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
 
 
 def _auth_sensitive_header_names(auth_mechanism: dict[str, Any] | None) -> set[str]:
@@ -1563,6 +1662,7 @@ class BrowserUseAgent:
         payload_witnesses: list[str] | None = None,
         pvpo_cdp_url: str | None = None,
         instance_id: str | None = None,
+        url_origin_rewrites: dict[str, str] | None = None,
     ) -> AgentResult:
         from browser_use import Agent, BrowserSession
 
@@ -1679,6 +1779,11 @@ class BrowserUseAgent:
             # (storage_state / http_basic / http_headers / none).
             for action in deferred_auth_actions:
                 await action(self._session)
+            if url_origin_rewrites:
+                await _ensure_scoped_request_mutator(
+                    self._session,
+                    url_origin_rewrites=url_origin_rewrites,
+                )
 
             network_recorder = _NetworkTraceRecorder(
                 self._session,

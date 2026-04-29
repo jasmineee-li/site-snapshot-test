@@ -55,6 +55,7 @@ from worldsim.placeholders import (
     merge_placeholder_maps,
     normalize_site_name,
     normalize_task_sites,
+    placeholder_for_site,
     placeholders_for_site_urls,
 )
 
@@ -551,6 +552,11 @@ def bind_task_to_instance(
         **runtime,
         "reset_endpoints": reset_endpoints,
         "url_placeholders": placeholders,
+        "url_origin_rewrites": _url_origin_rewrites_for_bound_sites(
+            bound_instances=bound_instances,
+            instances=instances,
+            base_url_placeholders=runtime.get("base_url_placeholders"),
+        ),
         "bound_instance": instance.model_dump(),
         "bound_instances": bound_instances,
     }
@@ -629,6 +635,56 @@ def _origin_for_url(url: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
+def _url_origin_rewrites_for_bound_sites(
+    *,
+    bound_instances: dict[str, dict[str, Any]],
+    instances: list[BenchmarkInstance],
+    base_url_placeholders: dict[str, str] | None,
+) -> dict[str, str]:
+    """Return same-site browser-origin aliases that should stay on the bound replica.
+
+    GitLab and some WebArena services emit absolute links using their
+    configured canonical origin. In scaled runs that canonical origin can be
+    the first replica or a loopback alias such as ``localhost:8023`` even when
+    the task was seeded on another replica. These rewrites are limited to
+    known benchmark origins for the same logical site.
+    """
+    rewrites: dict[str, str] = {}
+    for site_name, bound_payload in bound_instances.items():
+        bound_origin = _origin_for_url(str(bound_payload.get("site_url") or ""))
+        if not bound_origin:
+            continue
+        aliases: set[str] = set()
+        site_token = placeholder_for_site(site_name)
+        if site_token and isinstance(base_url_placeholders, dict):
+            aliases.update(_origin_aliases_for_url(base_url_placeholders.get(site_token, "")))
+        for candidate in instances_for_site(instances, site_name):
+            aliases.update(_origin_aliases_for_url(candidate.site_url))
+            if site_token:
+                aliases.update(
+                    _origin_aliases_for_url(candidate.url_placeholders.get(site_token, ""))
+                )
+        if site_token:
+            placeholders = bound_payload.get("url_placeholders")
+            if isinstance(placeholders, dict):
+                aliases.update(_origin_aliases_for_url(placeholders.get(site_token, "")))
+        for alias in aliases:
+            if alias and alias != bound_origin:
+                rewrites[alias] = bound_origin
+    return rewrites
+
+
+def _origin_aliases_for_url(url: str) -> set[str]:
+    parsed = urlsplit(str(url or ""))
+    if not parsed.scheme or not parsed.netloc:
+        return set()
+    aliases = {f"{parsed.scheme}://{parsed.netloc}"}
+    if parsed.port is not None:
+        aliases.add(f"{parsed.scheme}://localhost:{parsed.port}")
+        aliases.add(f"{parsed.scheme}://127.0.0.1:{parsed.port}")
+    return aliases
+
+
 def execution_instance_dict(
     instance: BenchmarkInstance,
     task: dict[str, Any],
@@ -643,6 +699,13 @@ def execution_instance_dict(
         instance_dict.get("url_placeholders"),
         runtime.get("url_placeholders"),
     )
+    origin_rewrites = runtime.get("url_origin_rewrites")
+    if isinstance(origin_rewrites, dict):
+        instance_dict["url_origin_rewrites"] = {
+            str(key): str(value)
+            for key, value in origin_rewrites.items()
+            if isinstance(key, str) and isinstance(value, str) and key and value
+        }
     instance_dict["site_name"] = normalize_site_name(
         instance_dict.get("site_name", instance.site_name)
     )
@@ -667,6 +730,13 @@ def execution_site_instance_dict(
                 instance_dict.get("url_placeholders"),
                 runtime.get("url_placeholders"),
             )
+            origin_rewrites = runtime.get("url_origin_rewrites")
+            if isinstance(origin_rewrites, dict):
+                instance_dict["url_origin_rewrites"] = {
+                    str(key): str(value)
+                    for key, value in origin_rewrites.items()
+                    if isinstance(key, str) and isinstance(value, str) and key and value
+                }
             instance_dict["site_name"] = normalize_site_name(
                 instance_dict.get("site_name", normalized_site)
             )

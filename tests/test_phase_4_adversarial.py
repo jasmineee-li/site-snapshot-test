@@ -4608,6 +4608,90 @@ async def test_run_adversarial_task_forwards_benchmark_root_when_auth_present(
 
 
 @pytest.mark.asyncio
+async def test_run_adversarial_task_forwards_same_site_origin_rewrites(monkeypatch, tmp_path):
+    instances = [
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://172.17.0.1:8023",
+            reset_endpoint="http://172.17.0.1:8024/init",
+            url_placeholders={"__GITLAB__": "http://172.17.0.1:8023"},
+            replica_index=0,
+        ),
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://172.17.0.1:8073",
+            reset_endpoint="http://172.17.0.1:8074/init",
+            url_placeholders={"__GITLAB__": "http://172.17.0.1:8023"},
+            replica_index=5,
+        ),
+    ]
+    task, missing = prepare_task_for_execution(
+        {
+            "id": "adv-gitlab-origin-rewrite",
+            "benchmark": "webarena_verified",
+            "benign_task_id": "benign-gitlab",
+            "site": "gitlab",
+            "sites": ["gitlab"],
+            "instruction": "Open the newest issue and read its description",
+            "start_urls": ["__GITLAB__/byteblaze/dotfiles/-/issues"],
+            "data_seed": {"mechanism": "none"},
+            "reward_function": {
+                "benign_reward": {"type": "noop"},
+                "adversarial_reward": {"type": "noop"},
+            },
+            "adversarial_data_seed": {"mechanism": "none"},
+        },
+        instances,
+        config_url_placeholders={"__GITLAB__": "http://172.17.0.1:8023"},
+    )
+    assert missing == []
+    task = bind_task_to_instance(task, instances[1], instances)
+
+    async def fake_reset(task):
+        return None
+
+    async def fake_seed(seed, instance_dict):
+        return None, {}
+
+    def fake_validate_seed(seed, allow_none=False):
+        return None
+
+    def fake_run_reward_function(*args, **kwargs):
+        return True, "ok"
+
+    captured: dict = {}
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, **kwargs):
+            captured.update(kwargs)
+            return AgentResult(
+                elapsed=0.1,
+                steps=1,
+                is_done=True,
+                final_result="done",
+                status="success",
+                errors=[],
+                network_trace=[],
+            )
+
+    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_seed)
+    monkeypatch.setattr(phase_4_adversarial, "validate_data_seed", fake_validate_seed)
+    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+
+    await phase_4_adversarial.run_adversarial_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[1],
+        task_dir=tmp_path,
+    )
+
+    rewrites = captured["url_origin_rewrites"]
+    assert rewrites["http://172.17.0.1:8023"] == "http://172.17.0.1:8073"
+    assert rewrites["http://localhost:8023"] == "http://172.17.0.1:8073"
+
+
+@pytest.mark.asyncio
 async def test_run_adversarial_task_forwards_http_header_credentials(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
     instances[0].agent_auth = {

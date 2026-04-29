@@ -178,6 +178,53 @@ def test_bind_task_to_instance_rewrites_host_bound_auth_urls() -> None:
     ]
 
 
+def test_bind_task_to_instance_builds_same_site_browser_origin_rewrites() -> None:
+    instances = [
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://172.17.0.1:8023",
+            reset_endpoint="http://172.17.0.1:8024/init",
+            url_placeholders={"__GITLAB__": "http://172.17.0.1:8023"},
+            replica_index=0,
+            replica_name="gitlab_0",
+        ),
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://172.17.0.1:8073",
+            reset_endpoint="http://172.17.0.1:8074/init",
+            url_placeholders={"__GITLAB__": "http://172.17.0.1:8023"},
+            replica_index=5,
+            replica_name="gitlab_5",
+        ),
+    ]
+
+    prepared, missing = prepare_task_for_execution(
+        {
+            "id": "task-gitlab-link-alias",
+            "site": "gitlab",
+            "sites": ["gitlab"],
+            "instruction": "Open __GITLAB__/byteblaze/dotfiles/-/issues",
+            "start_urls": ["__GITLAB__/byteblaze/dotfiles/-/issues"],
+            "data_seed": {"mechanism": "none"},
+            "reward_function": {"eval": []},
+        },
+        instances,
+        config_url_placeholders={"__GITLAB__": "http://172.17.0.1:8023"},
+    )
+    assert missing == []
+
+    bound = bind_task_to_instance(prepared, instances[1], instances)
+    instance_dict = execution_instance_dict(instances[1], bound)
+
+    assert instance_dict["url_origin_rewrites"]["http://172.17.0.1:8023"] == (
+        "http://172.17.0.1:8073"
+    )
+    assert instance_dict["url_origin_rewrites"]["http://localhost:8023"] == (
+        "http://172.17.0.1:8073"
+    )
+    assert "http://172.17.0.1:8073" not in instance_dict["url_origin_rewrites"]
+
+
 def test_bind_task_to_instance_rewrites_host_bound_auth_scope_patterns() -> None:
     instances = [
         BenchmarkInstance(
