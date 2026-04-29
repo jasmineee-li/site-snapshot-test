@@ -1151,6 +1151,7 @@ def _phase_4_state_metadata(
     agent_provider: str | None,
     agent_service_tier: str | None,
     max_tasks_per_site: int | None,
+    task_origin: str | None,
     sites: str | None,
     benchmark_root: Path | None,
     allow_unknown_auth: bool,
@@ -1164,6 +1165,7 @@ def _phase_4_state_metadata(
         "agent_provider": agent_provider,
         "agent_service_tier": agent_service_tier,
         "max_tasks_per_site": max_tasks_per_site,
+        "task_origin": task_origin,
         "allow_unknown_auth": allow_unknown_auth,
         "skip_host_bound_storage_state_auth": skip_host_bound_storage_state_auth,
     }
@@ -1527,6 +1529,13 @@ async def run(args: argparse.Namespace) -> int:
         getattr(args, "skip_host_bound_storage_state_auth", False)
     )
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
+    task_origin_filter = getattr(args, "task_origin", None) or "all"
+    if task_origin_filter not in {"all", "existing_task", "new_task"}:
+        logger.error(
+            "Phase 4: --task-origin must be one of all, existing_task, new_task; got %r",
+            task_origin_filter,
+        )
+        return 1
     sites_filter_raw = getattr(args, "sites", None)
     instances_path = getattr(args, "instances", None)
 
@@ -1540,6 +1549,7 @@ async def run(args: argparse.Namespace) -> int:
         agent_provider=agent_provider,
         agent_service_tier=agent_service_tier,
         max_tasks_per_site=max_tasks_per_site,
+        task_origin=task_origin_filter,
         sites=sites_filter_raw,
         benchmark_root=benchmark_root,
         allow_unknown_auth=allow_unknown_auth,
@@ -1718,6 +1728,20 @@ async def run(args: argparse.Namespace) -> int:
             **state_metadata,
         )
         return 1
+
+    if task_origin_filter != "all":
+        pre_origin_filter = len(tasks)
+        tasks = [
+            task
+            for task in tasks
+            if _normalize_task_origin(task.get("origin"), task=task) == task_origin_filter
+        ]
+        logger.info(
+            "Phase 4: --task-origin=%s kept %d/%d admitted task(s)",
+            task_origin_filter,
+            len(tasks),
+            pre_origin_filter,
+        )
 
     if not tasks:
         if exhausted_contract_ids:

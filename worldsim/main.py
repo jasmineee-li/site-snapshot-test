@@ -197,6 +197,13 @@ def build_parser() -> argparse.ArgumentParser:
         "resume to process all remaining tasks.",
     )
     phase_cmd.add_argument(
+        "--task-origin",
+        choices=("all", "existing_task", "new_task"),
+        default=None,
+        help="Phase 4: optionally restrict admitted tasks by Phase 1 origin before "
+        "per-site capping. Use new_task for novel-carrier smoke runs; default is all.",
+    )
+    phase_cmd.add_argument(
         "--sites",
         type=str,
         default=None,
@@ -380,6 +387,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=argparse.SUPPRESS,
         metavar="N",
         help="Override per-site task cap for the resumed phase. Omit to run all remaining tasks.",
+    )
+    resume_cmd.add_argument(
+        "--task-origin",
+        choices=("all", "existing_task", "new_task"),
+        default=argparse.SUPPRESS,
+        help="Resume: override Phase 4 task-origin filtering.",
     )
     resume_cmd.add_argument(
         "--sites",
@@ -777,6 +790,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     generate_novel = getattr(args, "generate_novel", None)
     novel_tasks_per_site = getattr(args, "novel_tasks_per_site", None)
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
+    task_origin = getattr(args, "task_origin", None)
     sites = getattr(args, "sites", None)
     phase_2b_texts_per_plan = getattr(args, "phase_2b_texts_per_plan", None)
     phase_2_text_fill_concurrency = getattr(args, "phase_2_text_fill_concurrency", None)
@@ -810,6 +824,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         generate_novel = state.get("generate_novel", False)
     if novel_tasks_per_site is None:
         novel_tasks_per_site = state.get("novel_tasks_per_site")
+    if task_origin is None:
+        task_origin = state.get("task_origin")
     if sites is None:
         sites = state.get("sites")
     if phase_2b_texts_per_plan is None:
@@ -863,6 +879,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         generate_novel=generate_novel,
         novel_tasks_per_site=novel_tasks_per_site,
         max_tasks_per_site=max_tasks_per_site,
+        task_origin=task_origin,
         sites=sites,
         phase_2b_texts_per_plan=phase_2b_texts_per_plan,
         phase_2_text_fill_concurrency=phase_2_text_fill_concurrency,

@@ -285,6 +285,7 @@ On crash, `--resume` reads this file and applies two-branch logic:
 
 - `--sites <site[,site...]>`: restrict to the listed sites. Other sites' existing entries in `adversarial_tasks.json` are preserved on merge, so partial reruns do not wipe earlier results.
 - `--max-tasks-per-site <N>`: deterministic seeded sampler caps each site to N tasks (Phase 2, Phase 4). Phase 3 is agent-free and validates every contract; no cap applies.
+- `--task-origin all|existing_task|new_task`: Phase 4-only filter applied after strict admission and before per-site capping. Use `new_task` for novel-carrier smoke runs; use `all` for production ASR estimates.
 
 **Phase 4 safety gates**:
 
