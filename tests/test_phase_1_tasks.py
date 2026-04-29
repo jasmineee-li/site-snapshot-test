@@ -44,6 +44,20 @@ def _manifest(benchmark_root) -> dict:
     }
 
 
+def test_resolve_benchmark_root_requires_cli_or_manifest_root(tmp_path):
+    args = Namespace(benchmark=None)
+    manifest = {"benchmark_name": "WebArena Verified", "evaluation": {}}
+
+    assert phase_1_tasks._resolve_benchmark_root(args, manifest) is None
+
+
+def test_resolve_benchmark_root_uses_manifest_root(tmp_path):
+    args = Namespace(benchmark=None)
+    manifest = _manifest(tmp_path)
+
+    assert phase_1_tasks._resolve_benchmark_root(args, manifest) == tmp_path
+
+
 def _raw_task(
     task_id: str = "1",
     site: str = "shopping",

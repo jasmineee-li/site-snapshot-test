@@ -246,11 +246,13 @@ def _resolve_benchmark_root(
     manifest: dict[str, Any],
 ) -> Path | None:
     """Resolve the benchmark root from CLI args or the Phase 0a manifest."""
-    benchmark_root = (
-        Path(args.benchmark)
-        if getattr(args, "benchmark", None)
-        else Path(manifest.get("benchmark_codebase", ""))
-    )
+    if getattr(args, "benchmark", None):
+        benchmark_root = Path(args.benchmark)
+    else:
+        manifest_root = str(manifest.get("benchmark_codebase") or "").strip()
+        if not manifest_root:
+            return None
+        benchmark_root = Path(manifest_root)
     if not benchmark_root.is_dir():
         return None
     return benchmark_root
