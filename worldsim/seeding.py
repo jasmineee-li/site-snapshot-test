@@ -916,7 +916,7 @@ def _dedupe_created_resources(resources: list[dict[str, Any]]) -> list[dict[str,
 
 
 def _primary_created_resource(resources: list[dict[str, Any]]) -> dict[str, Any]:
-    for resource in resources:
+    for resource in reversed(resources):
         if resource.get("role") == "seed_render_surface":
             return dict(resource)
     return dict(resources[-1])

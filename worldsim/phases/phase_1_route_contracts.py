@@ -179,7 +179,7 @@ def _start_url_patterns(site: str, kind: str, placeholder: str) -> list[str]:
 def _requires_inventory_backed_start_url(site: str, kind: str) -> bool:
     if site == "gitlab":
         return kind in {"gitlab_issue", "gitlab_mr", "gitlab_search_result"}
-    return site == "reddit" and kind == "reddit_submission"
+    return site == "reddit" and kind in {"reddit_forum", "reddit_submission"}
 
 
 def _anchor_examples_for_route(
@@ -191,6 +191,8 @@ def _anchor_examples_for_route(
     placeholder = placeholder_for_site(site)
     if placeholder is None:
         return []
+    if site == "reddit" and kind == "reddit_forum":
+        return _reddit_forum_examples(placeholder, profile)
     if site == "reddit" and kind == "reddit_submission":
         return _reddit_submission_examples(placeholder, profile)
     if site != "gitlab":
@@ -267,6 +269,31 @@ def _reddit_submission_examples(
     return examples
 
 
+def _reddit_forum_examples(placeholder: str, profile: Mapping[str, Any]) -> list[dict[str, str]]:
+    examples: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for sample in _data_model_sample_values(profile, ("submission", "submissions", "post", "posts")):
+        forum_name = (
+            sample.get("forum_name")
+            or sample.get("forum")
+            or sample.get("subreddit")
+            or sample.get("community")
+        )
+        if forum_name is None:
+            continue
+        forum_text = str(forum_name).strip().strip("/")
+        if not forum_text or forum_text in seen:
+            continue
+        seen.add(forum_text)
+        examples.append(
+            {
+                "forum_name": forum_text,
+                "start_url": f"{placeholder}/f/{forum_text}",
+            }
+        )
+    return examples
+
+
 def _gitlab_project_issue_list_examples(
     placeholder: str, profile: Mapping[str, Any]
 ) -> list[dict[str, str]]:
@@ -281,7 +308,7 @@ def _gitlab_project_issue_list_examples(
             "route_variant": "project_issue_list",
             "project_path": project_path,
             "scope": "issues",
-            "start_url": f"{placeholder}/{project_path}/-/issues",
+            "start_url": f"{placeholder}/{project_path}/-/issues?sort=created_date&state=opened",
         }
         project_id = _gitlab_project_id_from_sample(sample)
         if project_id:

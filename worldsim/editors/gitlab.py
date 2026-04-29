@@ -555,7 +555,7 @@ class GitlabEditor(BaseSiteEditor):
         )
         project_path = result.get("project_path")
         if isinstance(project_path, str) and project_path.strip():
-            issue_list_path = f"/{project_path.strip('/')}/-/issues"
+            issue_list_path = f"/{project_path.strip('/')}/-/issues?sort=created_date&state=opened"
             result["read_surface_urls"] = _gitlab_read_surface(
                 {}, [issue_list_path], self._site_url()
             )

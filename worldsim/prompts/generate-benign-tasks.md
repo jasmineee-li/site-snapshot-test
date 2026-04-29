@@ -119,6 +119,10 @@ as "open the issues page filtered to most recent issues" for title carriers.
 For direct Reddit submission routes, copy one `anchor_examples[].start_url`
 exactly. Do not invent `/f/{forum}/{submission_id}` URLs.
 
+For Reddit forum carrier routes, copy one `anchor_examples[].start_url`
+exactly. Do not invent forum names; use only forums present in the route
+contract examples.
+
 Do not use `{{benign_*}}` template tokens in `start_urls`; those tokens belong
 only in editor args.
 </url_policy>

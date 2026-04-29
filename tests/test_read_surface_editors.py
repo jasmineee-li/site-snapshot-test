@@ -171,8 +171,8 @@ def test_gitlab_create_issue_title_emits_project_issue_listing_surface(monkeypat
     assert requests[0]["json_body"]["title"].startswith("Seeded title WorldSimMarker-")
     assert requests[0]["json_body"]["labels"] == "help wanted"
     assert result["read_surface_urls"] == [
-        "http://gitlab.test/byteblaze/secret-project/-/issues",
-        "/byteblaze/secret-project/-/issues",
+        "http://gitlab.test/byteblaze/secret-project/-/issues?sort=created_date&state=opened",
+        "/byteblaze/secret-project/-/issues?sort=created_date&state=opened",
     ]
 
 

@@ -899,6 +899,23 @@ def _reddit_editor_call_submission() -> dict[str, object]:
     }
 
 
+def test_primary_created_resource_prefers_latest_render_surface():
+    resources = [
+        {
+            "role": "seed_render_surface",
+            "kind": "submission",
+            "url": "http://reddit.test/f/books/10",
+        },
+        {
+            "role": "seed_render_surface",
+            "kind": "submission",
+            "url": "http://reddit.test/f/books/11",
+        },
+    ]
+
+    assert seeding._primary_created_resource(resources) == resources[1]
+
+
 def test_apply_data_seed_returns_editor_only_read_surface_urls(monkeypatch):
     """Editor-emitted URLs surface in metadata when no explicit override is set."""
     _ReadSurfaceEditor.instances.clear()
