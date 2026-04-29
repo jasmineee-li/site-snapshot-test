@@ -33,6 +33,14 @@ to the upstream grammar while preserving the model-output signal for VEA.
 ## Compatibility Notes
 
 The older role-as-tagname XML serializer (`transcript_to_xml`) remains available
-for binary/probability judges. `purpose_continue` and `purpose_continue_5q` keep
-their existing continuation/refusal-aware grader prompt because they measure a
-different replayed-chat protocol.
+for binary/probability judges. `purpose_continue` and `purpose_continue_5q`
+still measure a different replayed-chat protocol rather than the shared inline
+Needham XML protocol:
+
+- `purpose_continue` now uses Apollo Research's verbatim continue-format
+  `<follow_up_question>` prompt.
+- `purpose_continue_5q` runs only the five original purpose-question prompts
+  (`prompt_01` through `prompt_05`) for the external benchmark. The additional
+  local probe JSON files remain on disk but are not loaded by this judge.
+
+Both continuation judges keep the refusal-aware grader for model reflections.
