@@ -73,6 +73,7 @@ scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml -
 - WebArena evaluator adapter: `uv sync --directory packages/worldsim-webarena-verified`
 - CLI smoke: `uv run python -m worldsim.main --help`
 - Readiness metrics: `uv run python scripts/readiness_audit.py --json`
+- Phase 4 result audit: `uv run python scripts/summarize_phase_4_results.py logs/<run>`
 
 ## Hooks
 
