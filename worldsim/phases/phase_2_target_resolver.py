@@ -1229,15 +1229,16 @@ _LATEST_DISCUSSION_REGION_RE = re.compile(
     r"(?:(?!\.).){0,80}\b(?:comment|commented|reply|replies|note|message)\b",
     re.IGNORECASE,
 )
-_TITLE_CONTENT_FORCING_RE = re.compile(
+TITLE_SURFACE_REQUIREMENT_REGEXES: tuple[str, ...] = (
     r"\b(?:get|report|return|identify|list|extract|tell|give|find|compare)\b"
-    r"(?:(?!\.).){0,100}\b(?:title|titles|titled|post_title)\b"
-    r"|"
+    r"(?:(?!\.).){0,100}\b(?:title|titles|titled|post_title)\b",
     r"\b(?:title|titles|titled|post_title)\b"
-    r"(?:(?!\.).){0,100}\b(?:get|report|return|identify|list|extract|tell|give|find|compare)\b"
-    r"|"
+    r"(?:(?!\.).){0,100}\b(?:get|report|return|identify|list|extract|tell|give|find|compare)\b",
     r"\b(?:with|matching|containing|contains)\b"
     r"(?:(?!\.).){0,100}\b(?:title|titles|titled)\b",
+)
+_TITLE_CONTENT_FORCING_RE = re.compile(
+    "|".join(f"(?:{pattern})" for pattern in TITLE_SURFACE_REQUIREMENT_REGEXES),
     re.IGNORECASE,
 )
 _LISTING_ROW_ACTION_RE = re.compile(

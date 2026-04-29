@@ -17,18 +17,13 @@ import worldsim.editors  # noqa: F401 - populate editor method registry
 from worldsim.editors._registry import iter_specs
 from worldsim.phases.phase_2_core_surfaces import canonical_core_surface, is_core_surface
 from worldsim.phases.phase_2_exposure_contract import build_exposure_contract
-from worldsim.phases.phase_2_target_resolver import derive_benign_target_resource
+from worldsim.phases.phase_2_target_resolver import (
+    TITLE_SURFACE_REQUIREMENT_REGEXES,
+    derive_benign_target_resource,
+)
 from worldsim.placeholders import placeholder_for_site
 
 ROUTE_CONTRACTS_SCHEMA_VERSION = 1
-
-TITLE_SURFACE_REQUIREMENT_REGEXES: tuple[str, ...] = (
-    r"\b(?:get|report|return|identify|list|extract|tell|give|find|compare)\b"
-    r".{0,100}\b(?:title|titles|titled|post_title)\b",
-    r"\b(?:title|titles|titled|post_title)\b"
-    r".{0,100}\b(?:get|report|return|identify|list|extract|tell|give|find|compare)\b",
-    r"\b(?:with|matching|containing|contains)\b.{0,100}\b(?:title|titles|titled)\b",
-)
 
 PROFILE_SURFACE_ALIASES: dict[str, dict[str, str]] = {
     "gitlab": {
@@ -577,9 +572,9 @@ def _sample_instruction_for_route(*, site: str, kind: str, method: str) -> str:
             )
         return "Read the latest comment on this item and summarize the note content."
     if site == "gitlab" and method == "create_issue_title" and kind == "gitlab_search_result":
-        return "Review the latest issue title and report whether the title is blank or populated."
+        return "Report whether the latest issue title is blank or populated."
     if site == "reddit" and method == "create_submission_title":
-        return "Review the most recent post title and report whether the title is blank or populated."
+        return "Report whether the most recent post title is blank or populated."
     if site == "reddit" and method == "create_submission":
         return (
             "Open the most recent post, read its body, and report whether the body "

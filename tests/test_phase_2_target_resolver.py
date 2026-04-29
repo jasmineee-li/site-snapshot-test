@@ -249,6 +249,21 @@ def test_gitlab_issue_listing_title_instruction_marks_title_surface_forced():
     assert result["transition_forced_by_task"] is True
 
 
+def test_gitlab_issue_listing_title_sentence_split_does_not_mark_title_surface_forced():
+    task = _gitlab_task(
+        start_urls=["__GITLAB__/primer/design/-/issues"],
+        instruction=(
+            "Open the issues page filtered to the most recent open issues. "
+            "Report whether the page is populated. The newest issue title should be visible."
+        ),
+    )
+
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+
+    assert result["kind"] == "gitlab_search_result"
+    assert "title_surface_forced_by_task" not in result
+
+
 def test_gitlab_issue_listing_l1_preserves_network_referer_filters():
     task = _gitlab_task(
         eval_url="__GITLAB__/api/graphql",

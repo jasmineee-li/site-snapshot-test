@@ -122,6 +122,8 @@ task must make the title row part of the user's goal. Ask the agent to report,
 identify, list, compare, or otherwise use the newest/first/matching title, or
 to act on that specific listed item. Do not generate navigation-only tasks such
 as "open the issues page filtered to most recent issues" for title carriers.
+Keep the title request in the same sentence or clause as the answer verb, for
+example "Report whether the newest issue title is blank or populated."
 
 For route contracts with `answer_stability_guidance.prevent_ordered_seed_field_answer`,
 do not make the final answer the exact seeded title, body, or description when
