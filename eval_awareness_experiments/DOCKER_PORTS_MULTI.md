@@ -19,11 +19,29 @@ Setup script: `scripts/setup_doomarena_per_model_dockers.sh up`
 | 5 | Gem-Flash | gitlab_flash :9042 | forum_flash :8121 | shopping_flash :8122 | shopping_admin_flash :8123 |
 | 6 | Gem-Pro | gitlab_pro :9052 | forum_pro :8131 | shopping_pro :8132 | shopping_admin_pro :8133 |
 
-## WASP layout (unchanged)
+## Layout (WASP)
 
-WASP keeps using the original `gitlab` :9001 + `forum` :8080 stack.
-WASP's per-model parallelism would need a similar duplication if we
-extend this to WASP — not done yet.
+Setup script: `scripts/setup_wasp_per_model_dockers.sh up`
+(stop with `... stop`, full remove with `... rm`).
+
+WASP's original `gitlab` :9001 + `forum` :8080 stack is still available
+for single-stream runs. Per-model WASP runs use separate WASP-only
+containers and must be planted separately:
+
+```bash
+./scripts/setup_wasp_per_model_dockers.sh up
+./scripts/setup_wasp_per_model_dockers.sh health
+./scripts/wasp_plant_per_model_dockers.sh
+```
+
+| stack | model | gitlab | forum (reddit) | task dir |
+|---|---|---|---|---|
+| glm | GLM-5 | gitlab_wasp_glm :9201 | forum_wasp_glm :8201 | /tmp/wasp_full_glm |
+| sonnet | Sonnet-4.6 | gitlab_wasp_sonnet :9211 | forum_wasp_sonnet :8211 | /tmp/wasp_full_sonnet |
+| opus | Opus-4.7 | gitlab_wasp_opus :9221 | forum_wasp_opus :8221 | /tmp/wasp_full_opus |
+| gpt | GPT-5.2 | gitlab_wasp_gpt :9231 | forum_wasp_gpt :8231 | /tmp/wasp_full_gpt |
+| gemini25 | Gemini-2.5-Pro | gitlab_wasp_gemini25 :9241 | forum_wasp_gemini25 :8241 | /tmp/wasp_full_gemini25 |
+| kimi25 | Kimi-K2.5 | gitlab_wasp_kimi25 :9251 | forum_wasp_kimi25 :8251 | /tmp/wasp_full_kimi25 |
 
 ## Env var routing
 
@@ -68,6 +86,40 @@ export SHOPPING="http://localhost:8132"
 export SHOPPING_ADMIN="http://localhost:8133"
 ```
 
+WASP per-model env vars:
+
+```bash
+# GLM-5
+export GITLAB="http://localhost:9201"
+export REDDIT="http://localhost:8201"
+export WASP_TASK_DIR="/tmp/wasp_full_glm"
+
+# Sonnet-4.6
+export GITLAB="http://localhost:9211"
+export REDDIT="http://localhost:8211"
+export WASP_TASK_DIR="/tmp/wasp_full_sonnet"
+
+# Opus-4.7
+export GITLAB="http://localhost:9221"
+export REDDIT="http://localhost:8221"
+export WASP_TASK_DIR="/tmp/wasp_full_opus"
+
+# GPT-5.2
+export GITLAB="http://localhost:9231"
+export REDDIT="http://localhost:8231"
+export WASP_TASK_DIR="/tmp/wasp_full_gpt"
+
+# Gemini-2.5-Pro
+export GITLAB="http://localhost:9241"
+export REDDIT="http://localhost:8241"
+export WASP_TASK_DIR="/tmp/wasp_full_gemini25"
+
+# Kimi-K2.5
+export GITLAB="http://localhost:9251"
+export REDDIT="http://localhost:8251"
+export WASP_TASK_DIR="/tmp/wasp_full_kimi25"
+```
+
 ## How the new launcher uses these
 
 `scripts/launch_pilot_doomarena_model_parallel.sh` (or equivalent):
@@ -101,16 +153,21 @@ containers per site instead of 1.
 ```bash
 # stop only (preserves writable layer if you want to re-use later)
 ./scripts/setup_doomarena_per_model_dockers.sh stop
+./scripts/setup_wasp_per_model_dockers.sh stop
 
 # stop + remove (frees writable layer + ~10 GB if heavily used)
 ./scripts/setup_doomarena_per_model_dockers.sh rm
+./scripts/setup_wasp_per_model_dockers.sh rm
 ```
 
 ## Known issues
 
-- WASP isn't yet duplicated per-model. WASP's `_register_wasp_tasks`
-  also has Ray-subprocess-incompatibility issues separate from the
-  docker-isolation issue (see WASP entry in `experiment_log.md`).
+- WASP per-model stacks must be planted before use. The generated task
+  JSONs contain stack-specific URLs, so `/tmp/wasp_full_gpt` should be
+  used only with `gitlab_wasp_gpt`/`forum_wasp_gpt`, etc.
+- WASP's `_register_wasp_tasks` also has Ray-subprocess-incompatibility
+  issues separate from docker isolation (see WASP entry in
+  `experiment_log.md`).
 - `shopping_final_0712:latest` (64 GB image) is the heaviest — not
   every WebArena workload uses shopping, so if disk gets tight you
   could skip duplicating it (point all 6 stacks at the same shared

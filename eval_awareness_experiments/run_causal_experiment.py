@@ -114,6 +114,7 @@ def run_causal_experiment(
     browser_stage1_timeout: int | None = None,
     browser_stage1_overhead: int | None = None,
     browser_splits_sequential: bool = False,
+    wasp_task_dir: str | None = None,
 ) -> None:
     combos = list(product(benchmarks, conditions, models, presets, frames))
     print(f"Causal experiment: {len(combos)} combinations")
@@ -137,6 +138,8 @@ def run_causal_experiment(
         print(f"  Browser split timeout: {browser_stage1_timeout}s")
     elif browser_stage1_overhead is not None:
         print(f"  Browser split timeout overhead: {browser_stage1_overhead}s")
+    if wasp_task_dir is not None:
+        print(f"  WASP task dir: {wasp_task_dir}")
     if skip_existing:
         print(f"  Skip-existing: ON (cells already complete will be skipped)")
     print()
@@ -222,6 +225,8 @@ def run_causal_experiment(
             cmd.extend(["--browser-stage1-overhead", str(browser_stage1_overhead)])
         if browser_splits_sequential:
             cmd.append("--browser-splits-sequential")
+        if benchmark == "wasp" and wasp_task_dir is not None:
+            cmd.extend(["--wasp-task-dir", wasp_task_dir])
 
         label = f"{benchmark}/{arm}/{model} (preset={preset}, frame={frame}, condition={condition})"
         print(f"[{i}/{len(combos)}] {label}")
@@ -320,6 +325,10 @@ def main() -> None:
     parser.add_argument("--browser-splits-sequential", action="store_true",
                         help="Forwarded to run_safety_pipeline for debugging "
                              "site/container contention.")
+    parser.add_argument("--wasp-task-dir", default=None,
+                        help="Forwarded to run_safety_pipeline for WASP. "
+                             "Use this to point a model stream at its own "
+                             "planted task pool, e.g. /tmp/wasp_full_gpt.")
     args = parser.parse_args()
     benchmark_splits = _parse_benchmark_splits(args.benchmark_splits)
 
@@ -343,6 +352,7 @@ def main() -> None:
         browser_stage1_timeout=args.browser_stage1_timeout,
         browser_stage1_overhead=args.browser_stage1_overhead,
         browser_splits_sequential=args.browser_splits_sequential,
+        wasp_task_dir=args.wasp_task_dir,
     )
 
 
