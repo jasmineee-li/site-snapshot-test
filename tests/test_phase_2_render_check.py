@@ -934,6 +934,137 @@ async def test_gitlab_issue_listing_does_not_pass_on_api_readback(short_body_pol
 
 
 @pytest.mark.asyncio
+async def test_issue_description_ryw_matches_created_issue_description(short_body_poll):
+    url = "http://gitlab.test/proj/-/issues/1534"
+    web_json_url = "http://gitlab.test/proj/-/issues/1534.json"
+    body = (
+        '{"iid":1534,"title":"WorldSim seeded issue context",'
+        '"description":"Raising priority on issue before the planning meeting."}'
+    )
+    page = _RYWPage(
+        bodies=["shell only, no issue description"] * 60,
+        final_body="shell only, no issue description",
+        json_responses={web_json_url: _FakeRequestResponse(status=200, body=body)},
+    )
+    browser = _RYWBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[url],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="Raising priority on issue",
+        write_tokens={"project_id": 174, "issue_iid": 1534},
+    )
+
+    assert outcome.ok is True
+    assert outcome.matched_url == web_json_url
+    assert outcome.matched_signature == "issue_iid=1534"
+    assert outcome.rendered_body_text == "Raising priority on issue before the planning meeting."
+    assert page.request.calls == [(web_json_url, pytest.approx(10000, abs=1))]
+    assert page.request.kwarg_calls[0]["max_redirects"] == 0
+
+
+@pytest.mark.asyncio
+async def test_issue_description_ryw_falls_back_to_rest_api(short_body_poll):
+    url = "http://gitlab.test/proj/-/issues/1534"
+    web_json_url = "http://gitlab.test/proj/-/issues/1534.json"
+    api_url = "http://gitlab.test/api/v4/projects/174/issues/1534"
+    page = _RYWPage(
+        bodies=["shell only"] * 60,
+        final_body="shell only",
+        json_responses={
+            web_json_url: _FakeRequestResponse(status=404, body="not found"),
+            api_url: _FakeRequestResponse(
+                status=200,
+                body='{"iid":1534,"description":"Raising priority on issue"}',
+            ),
+        },
+    )
+    browser = _RYWBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[url],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="Raising priority on issue",
+        write_tokens={"project_id": 174, "issue_iid": 1534},
+    )
+
+    assert outcome.ok is True
+    assert outcome.matched_url == api_url
+    assert page.request.calls == [
+        (web_json_url, pytest.approx(10000, abs=1)),
+        (api_url, pytest.approx(10000, abs=1)),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_issue_description_ryw_requires_signature_in_description(short_body_poll):
+    url = "http://gitlab.test/proj/-/issues/1534"
+    web_json_url = "http://gitlab.test/proj/-/issues/1534.json"
+    api_url = "http://gitlab.test/api/v4/projects/174/issues/1534"
+    page = _RYWPage(
+        bodies=["shell only"] * 60,
+        final_body="shell only",
+        json_responses={
+            web_json_url: _FakeRequestResponse(
+                status=200,
+                body='{"iid":1534,"title":"Raising priority on issue","description":"benign"}',
+            )
+        },
+    )
+    browser = _RYWBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[url],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="Raising priority on issue",
+        write_tokens={"project_id": 174, "issue_iid": 1534},
+    )
+
+    assert outcome.ok is False
+    assert outcome.kind == "render_unverified"
+    assert page.request.calls == [
+        (web_json_url, pytest.approx(10000, abs=1)),
+        (api_url, pytest.approx(10000, abs=1)),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_issue_description_ryw_forwards_scoped_headers(short_body_poll):
+    url = "http://gitlab.test/proj/-/issues/1534"
+    web_json_url = "http://gitlab.test/proj/-/issues/1534.json"
+    page = _RYWPage(
+        bodies=["shell only"] * 60,
+        final_body="shell only",
+        json_responses={
+            web_json_url: _FakeRequestResponse(
+                status=200,
+                body='{"iid":1534,"description":"Raising priority on issue"}',
+            )
+        },
+    )
+    browser = _RYWBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[url],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="Raising priority on issue",
+        write_tokens={"project_id": 174, "issue_iid": 1534},
+        browser_context_kwargs={"extra_http_headers": {"X-User": "alice"}},
+    )
+
+    assert outcome.ok is True
+    assert page.request.header_calls == [(web_json_url, {"X-User": "alice"})]
+
+
+@pytest.mark.asyncio
 async def test_ryw_fastpath_extracts_rendered_body_text(short_body_poll):
     url = "http://gitlab.test/proj/-/issues/5"
     json_url = url + "/discussions.json"
