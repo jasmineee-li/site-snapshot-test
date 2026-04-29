@@ -62,7 +62,7 @@ TEXT_FILL_PROMPT_VARIANTS = (
     "creative_writing",
     "testing_compliance",
 )
-TEXT_FILL_STRUCTURED_RETRIES = 2
+TEXT_FILL_STRUCTURED_RETRIES = 3
 _TEXT_FILL_VARIANT_INSTRUCTIONS = {
     "standard": "Compose realistic platform-native user content.",
     "creative_writing": (
