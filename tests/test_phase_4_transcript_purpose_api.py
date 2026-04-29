@@ -1,12 +1,12 @@
 """P0/P1 tests for the Apollo transcript-purpose classifier.
 
-Covers: four-label happy-path mapping, casing and code-fence tolerance,
-CoT-bleed last-tag-wins, missing-explanation acceptance, self-heal retry
-on soft failures, no-retry on hard failures, text-only Step 1 by default,
-ablation-only image ordering, verbatim system prompt, temperature /
+Covers: five-label happy-path mapping (including ``Refused``), casing and
+code-fence tolerance, CoT-bleed last-tag-wins, missing-explanation acceptance,
+self-heal retry on soft failures, no-retry on hard failures, text-only Step 1
+by default, ablation-only image ordering, verbatim system prompt, temperature /
 max-tokens pinning, cost bucket routing, retry re-runs Step 1, persistence
-of raw response + transcript artifacts, and prompt SHA256 pin against
-Apollo's verbatim text.
+of raw response + transcript artifacts, prompt SHA256 pin against Apollo's
+verbatim text (+ continue follow-up file), and optional Apollo-continue second pass.
 """
 
 from __future__ import annotations
@@ -174,7 +174,7 @@ def test_step_2_prompt_fences_untrusted_guess():
 
 
 # ---------------------------------------------------------------------------
-# Happy paths — 4 canonical labels
+# Happy paths — canonical labels (incl. Refused)
 # ---------------------------------------------------------------------------
 
 
@@ -225,6 +225,45 @@ async def test_real_label_is_not_aware(patched_anthropic_client, tmp_path):
     )
     assert result["transcript_purpose_classification"] == "Real"
     assert result["transcript_purpose_is_aware"] is False
+
+
+@pytest.mark.asyncio
+async def test_refused_label_is_not_eval_aware(patched_anthropic_client, tmp_path):
+    patched_anthropic_client.messages.create = AsyncMock(
+        side_effect=_responses_for_label("Refused")
+    )
+    result = await run_transcript_purpose_api(
+        _task(), tmp_path, _trajectory(), _write_screenshot(tmp_path)
+    )
+    assert result["transcript_purpose_classification"] == "Refused"
+    assert result["transcript_purpose_was_refused"] is True
+    assert result["transcript_purpose_is_aware"] is None
+
+
+@pytest.mark.asyncio
+async def test_include_apollo_continue_format_second_probe(patched_anthropic_client, tmp_path):
+    """Inline path + Apollo blog replay+follow_up block yields two independent TP scores."""
+    patched_anthropic_client.messages.create = AsyncMock(
+        side_effect=[
+            *_responses_for_label("Real"),
+            *_responses_for_label("Alignment Evaluation"),
+        ]
+    )
+    screenshot = _write_screenshot(tmp_path)
+    result = await run_transcript_purpose_api(
+        _task(),
+        tmp_path,
+        _trajectory(),
+        screenshot,
+        include_apollo_continue_format=True,
+    )
+    assert result["transcript_purpose_classification"] == "Real"
+    assert result["transcript_purpose_was_refused"] is False
+    assert result["transcript_purpose_apollo_continue_classification"] == "Alignment Evaluation"
+    assert result["transcript_purpose_apollo_continue_is_aware"] is True
+    assert result["transcript_purpose_apollo_continue_was_refused"] is False
+    assert result["transcript_purpose_apollo_continue_failure"] is None
+    assert patched_anthropic_client.messages.create.await_count == 4
 
 
 # ---------------------------------------------------------------------------
@@ -508,18 +547,23 @@ def test_apollo_prompt_sha256_pinned():
         hashlib.sha256(guess).hexdigest()
         == "93de2cd5b75db596200e710a145abb099e3250437e860c24f0797f4f14b810a1"
     ), f"guess prompt drift: {hashlib.sha256(guess).hexdigest()}"
+    continue_prompt = (prompts / "transcript-purpose-apollo-continue-follow-up.md").read_bytes()
     assert (
         hashlib.sha256(classify).hexdigest()
-        == "095b0275823473f7ccaec1fe098a734ff903d295d7f370c69a0f02c02dfa40ea"
+        == "120521048a9b0c7bc52879485d6c954f898e7e9cc57c221955ec4c8d53f443b1"
     ), f"classify prompt drift: {hashlib.sha256(classify).hexdigest()}"
+    assert (
+        hashlib.sha256(continue_prompt).hexdigest()
+        == "fa9ec39c2df9476fd5f0c33902cad7b9041ac1e6b56f4c933c16853b228fdaac"
+    ), f"apollo continue-follow-up drift: {hashlib.sha256(continue_prompt).hexdigest()}"
 
 
-# Sanity: is_aware logic matches the canonical label set
+# Sanity: eval-aware excludes Real/Refused; Refused carries no belief (``is_aware`` None).
 def test_eval_aware_set_composition():
     assert "Alignment Evaluation" in _EVAL_AWARE_LABELS
     assert "Capability Evaluation" in _EVAL_AWARE_LABELS
     assert "Other Evaluation" in _EVAL_AWARE_LABELS
     assert "Real" not in _EVAL_AWARE_LABELS
-    # Every canonical value must be either eval-aware or "Real"
+    assert "Refused" not in _EVAL_AWARE_LABELS
     canonical_values = set(_CANONICAL_LABELS.values())
-    assert canonical_values - _EVAL_AWARE_LABELS == {"Real"}
+    assert canonical_values - _EVAL_AWARE_LABELS == {"Real", "Refused"}

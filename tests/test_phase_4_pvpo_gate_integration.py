@@ -92,12 +92,21 @@ def _transcript_purpose_payload() -> dict[str, Any]:
     return {
         "transcript_purpose_classification": "Alignment Evaluation",
         "transcript_purpose_is_aware": True,
+        "transcript_purpose_was_refused": False,
         "transcript_purpose_guess": "to test alignment under injection",
         "transcript_purpose_explanation": "grounded guess",
         "transcript_purpose_failure": None,
         "transcript_purpose_format": "needham-xml-v1",
         "transcript_purpose_attempts": 1,
         "transcript_purpose_raw_response_path": "/tmp/ignored.json",
+        "transcript_purpose_apollo_continue_classification": None,
+        "transcript_purpose_apollo_continue_is_aware": None,
+        "transcript_purpose_apollo_continue_was_refused": None,
+        "transcript_purpose_apollo_continue_guess": None,
+        "transcript_purpose_apollo_continue_explanation": None,
+        "transcript_purpose_apollo_continue_failure": None,
+        "transcript_purpose_apollo_continue_attempts": None,
+        "transcript_purpose_apollo_continue_raw_response_path": None,
     }
 
 
@@ -144,12 +153,21 @@ async def test_gate_miss_nulls_all_metrics_skips_judges(monkeypatch, tmp_path):
     for key in (
         "transcript_purpose_classification",
         "transcript_purpose_is_aware",
+        "transcript_purpose_was_refused",
         "transcript_purpose_guess",
         "transcript_purpose_explanation",
         "transcript_purpose_failure",
         "transcript_purpose_format",
         "transcript_purpose_attempts",
         "transcript_purpose_raw_response_path",
+        "transcript_purpose_apollo_continue_classification",
+        "transcript_purpose_apollo_continue_is_aware",
+        "transcript_purpose_apollo_continue_was_refused",
+        "transcript_purpose_apollo_continue_guess",
+        "transcript_purpose_apollo_continue_explanation",
+        "transcript_purpose_apollo_continue_failure",
+        "transcript_purpose_apollo_continue_attempts",
+        "transcript_purpose_apollo_continue_raw_response_path",
         "verbalized_eval_awareness_classification",
         "verbalized_eval_awareness_is_aware",
         "verbalized_eval_awareness_evidence",
@@ -189,7 +207,15 @@ async def test_gate_encountered_fans_out_both_metrics(monkeypatch, tmp_path):
 
     seen_xml: list[str] = []
 
-    async def fake_tp(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
+    async def fake_tp(
+        task,
+        trajectory_dir,
+        extracted,
+        *,
+        sandbox_model,
+        needham_xml=None,
+        include_apollo_continue_format=True,
+    ):
         seen_xml.append(needham_xml)
         return _transcript_purpose_payload()
 
@@ -235,7 +261,15 @@ async def test_transcript_purpose_failure_does_not_block_vea(monkeypatch, tmp_pa
     def fake_determine(task, trajectory_dir):
         return _encounter(max_coverage=0.5, reference_step=0, reference_path=screenshot)
 
-    async def failing_tp(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
+    async def failing_tp(
+        task,
+        trajectory_dir,
+        extracted,
+        *,
+        sandbox_model,
+        needham_xml=None,
+        include_apollo_continue_format=True,
+    ):
         raise RuntimeError("transcript_purpose blew up")
 
     async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
@@ -264,7 +298,15 @@ async def test_vea_failure_does_not_block_transcript_purpose(monkeypatch, tmp_pa
     def fake_determine(task, trajectory_dir):
         return _encounter(max_coverage=0.5, reference_step=0, reference_path=screenshot)
 
-    async def fake_tp(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
+    async def fake_tp(
+        task,
+        trajectory_dir,
+        extracted,
+        *,
+        sandbox_model,
+        needham_xml=None,
+        include_apollo_continue_format=True,
+    ):
         return _transcript_purpose_payload()
 
     async def failing_vea(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
@@ -309,12 +351,21 @@ async def test_raised_transcript_purpose_still_yields_full_null_schema(monkeypat
     for key in (
         "transcript_purpose_classification",
         "transcript_purpose_is_aware",
+        "transcript_purpose_was_refused",
         "transcript_purpose_guess",
         "transcript_purpose_explanation",
         "transcript_purpose_failure",
         "transcript_purpose_format",
         "transcript_purpose_attempts",
         "transcript_purpose_raw_response_path",
+        "transcript_purpose_apollo_continue_classification",
+        "transcript_purpose_apollo_continue_is_aware",
+        "transcript_purpose_apollo_continue_was_refused",
+        "transcript_purpose_apollo_continue_guess",
+        "transcript_purpose_apollo_continue_explanation",
+        "transcript_purpose_apollo_continue_failure",
+        "transcript_purpose_apollo_continue_attempts",
+        "transcript_purpose_apollo_continue_raw_response_path",
     ):
         assert key in result, f"missing key after raise: {key}"
     assert result["transcript_purpose_failure"] == "api_error"

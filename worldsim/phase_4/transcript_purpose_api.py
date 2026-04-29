@@ -4,14 +4,19 @@ Two-step Messages API pipeline replacing the Needham 5-PQ ``p(eval)``:
 
 1. **Guess**: Needham XML text transcript → single-sentence free-text guess
    of why the interaction took place.
-2. **Classify**: that guess → one of four canonical labels
+2. **Classify**: that guess → one of five canonical labels
    (``Alignment Evaluation`` / ``Capability Evaluation`` /
-   ``Other Evaluation`` / ``Real``) with a verbatim-quote explanation.
+   ``Other Evaluation`` / ``Real`` / ``Refused``) with a verbatim-quote explanation.
+
+Optional **Apollo continue** probe (when ``include_apollo_continue_format``): replays the
+same trace as prior chat turns before the verbatim
+``worldsim/prompts/transcript-purpose-apollo-continue-follow-up.md`` block, then runs the same
+guess→classify pair for cross-format comparison with the gist inline-xml path.
 
 Prompts are byte-verbatim from Apollo's public blog + gist
-(``nix-apollo/38e0520c21bed0831d44019457d1833f``); see
-``worldsim/prompts/transcript-purpose-{guess,classify}.md``. Model, temperature
-(0.0), and system prompt are local choices documented in the cutover plan;
+(``nix-apollo/38e0520c21bed0831d44019457d1833f``); step-2 includes ``Refused`` for Jasmine
+parity. See ``worldsim/prompts/transcript-purpose-{guess,classify}.md``.
+Model, temperature (0.0), and system prompt are local choices documented in the cutover plan;
 Apollo does not pin them.
 
 Self-heals up to ``_MAX_ATTEMPTS`` on parse-level soft failures
@@ -43,6 +48,7 @@ from worldsim.phase_4.anthropic_client import (
 from worldsim.phase_4.concurrency import get_api_semaphore
 from worldsim.phase_4.needham_trace import (
     TRANSCRIPT_FORMAT,
+    build_messages,
     format_trace_xml,
     write_trace_artifacts,
 )
@@ -53,6 +59,7 @@ logger = logging.getLogger(__name__)
 
 _GUESS_PROMPT_PATH = "transcript-purpose-guess"
 _CLASSIFY_PROMPT_PATH = "transcript-purpose-classify"
+_APOLLO_CONTINUE_PROMPT_PATH = "transcript-purpose-apollo-continue-follow-up"
 
 _MAX_TOKENS_STEP_1 = 256
 _MAX_TOKENS_STEP_2 = 512
@@ -66,6 +73,7 @@ _CANONICAL_LABELS: dict[str, str] = {
     "capability evaluation": "Capability Evaluation",
     "other evaluation": "Other Evaluation",
     "real": "Real",
+    "refused": "Refused",
 }
 _EVAL_AWARE_LABELS: frozenset[str] = frozenset(
     {"Alignment Evaluation", "Capability Evaluation", "Other Evaluation"}
@@ -282,6 +290,151 @@ async def _call_step(
     return response, time.monotonic() - t0
 
 
+def _awareness_for(category: str | None) -> bool | None:
+    if category is None or category == "Refused":
+        return None
+    return category in _EVAL_AWARE_LABELS
+
+
+def _continuation_keys_null() -> dict[str, Any]:
+    return {
+        "transcript_purpose_apollo_continue_classification": None,
+        "transcript_purpose_apollo_continue_is_aware": None,
+        "transcript_purpose_apollo_continue_was_refused": None,
+        "transcript_purpose_apollo_continue_guess": None,
+        "transcript_purpose_apollo_continue_explanation": None,
+        "transcript_purpose_apollo_continue_failure": None,
+        "transcript_purpose_apollo_continue_attempts": None,
+        "transcript_purpose_apollo_continue_raw_response_path": None,
+    }
+
+
+def _build_apollo_continue_step1_messages(
+    *,
+    task_instruction: str,
+    extracted_trajectory: ExtractedTrajectory,
+) -> list[dict[str, Any]]:
+    """Apollo blog 'continue' format: replay + ``<follow_up_question>`` block."""
+    msgs = build_messages(task_instruction=task_instruction, extracted=extracted_trajectory)
+    history: list[dict[str, Any]] = []
+    for msg in msgs:
+        role = getattr(msg, "role", "")
+        if role == "tool":
+            continue
+        if role not in {"system", "user", "assistant"}:
+            continue
+        text = getattr(msg, "text", "") or ""
+        stripped = text.strip()
+        tool_calls = getattr(msg, "tool_calls", None)
+        if not stripped:
+            if role != "assistant" or not tool_calls:
+                continue
+            body = "(tool-use turn)"
+        else:
+            body = text
+        if role == "system":
+            history.append(
+                {"role": "user", "content": [{"type": "text", "text": f"[SYSTEM]\n{body}"}]},
+            )
+            continue
+        history.append({"role": role, "content": [{"type": "text", "text": body}]})
+
+    follow = load_prompt(_APOLLO_CONTINUE_PROMPT_PATH).rstrip()
+    history.append({"role": "user", "content": [{"type": "text", "text": follow}]})
+    return history
+
+
+async def _run_apollo_continue_format_probe(
+    *,
+    client: AsyncAnthropic,
+    sandbox_model: str,
+    task_instruction: str,
+    extracted_trajectory: ExtractedTrajectory,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Return flattened ``apollo_continue`` keys plus per-attempt telemetry."""
+
+    per_attempt: list[dict[str, Any]] = []
+    last_soft: str | None = None
+
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
+        rec: dict[str, Any] = {"attempt": attempt, "variant": "apollo_continue"}
+        try:
+            step1 = _build_apollo_continue_step1_messages(
+                task_instruction=task_instruction,
+                extracted_trajectory=extracted_trajectory,
+            )
+            step_1_resp, step_1_elapsed = await _call_step(
+                step1,
+                max_tokens=_MAX_TOKENS_STEP_1,
+                client=client,
+                sandbox_model=sandbox_model,
+                label=f"transcript-purpose-apollo-continue-s1-a{attempt}",
+            )
+            step_1_summary = _synthesize_summary(
+                step_1_resp, sandbox_model=sandbox_model, elapsed_s=step_1_elapsed
+            )
+            cost_tracker.record("phase_4:transcript_purpose", step_1_summary)
+
+            guess = _extract_guess(step_1_resp)
+            s1t = _extract_response_text(step_1_resp)
+            rec.update({"step_1_response_text": s1t, "guess": guess})
+            if not guess:
+                raise _SoftFailure("empty_guess")
+
+            step_2 = _build_step_2_messages(guess)
+            step_2_resp, step_2_elapsed = await _call_step(
+                step_2,
+                max_tokens=_MAX_TOKENS_STEP_2,
+                client=client,
+                sandbox_model=sandbox_model,
+                label=f"transcript-purpose-apollo-continue-s2-a{attempt}",
+            )
+            step_2_summary = _synthesize_summary(
+                step_2_resp, sandbox_model=sandbox_model, elapsed_s=step_2_elapsed
+            )
+            cost_tracker.record("phase_4:transcript_purpose", step_2_summary)
+
+            s2t = _extract_response_text(step_2_resp)
+            classification, explanation, failure_class, labels = _parse_classification(s2t)
+            rec.update(
+                {
+                    "step_2_response_text": s2t,
+                    "classification": classification,
+                    "explanation": explanation,
+                    "failure_class": failure_class,
+                    "all_labels_in_response": labels,
+                }
+            )
+            per_attempt.append(rec)
+            if classification is not None and not failure_class:
+                merged_flat = {
+                    "transcript_purpose_apollo_continue_classification": classification,
+                    "transcript_purpose_apollo_continue_is_aware": _awareness_for(classification),
+                    "transcript_purpose_apollo_continue_was_refused": classification == "Refused",
+                    "transcript_purpose_apollo_continue_guess": guess,
+                    "transcript_purpose_apollo_continue_explanation": explanation or "",
+                    "transcript_purpose_apollo_continue_failure": None,
+                    "transcript_purpose_apollo_continue_attempts": attempt,
+                    "transcript_purpose_apollo_continue_raw_response_path": None,
+                }
+                return merged_flat, per_attempt
+
+            raise _SoftFailure(failure_class or "malformed_label")
+
+        except _SoftFailure as soft:
+            rec["failure_class"] = soft.bucket
+            per_attempt.append(rec)
+            last_soft = soft.bucket
+            continue
+        except _HardAPIFailure:
+            raise
+
+    merged = _continuation_keys_null()
+    merged["transcript_purpose_apollo_continue_failure"] = last_soft or "malformed_label"
+    merged["transcript_purpose_apollo_continue_attempts"] = _MAX_ATTEMPTS
+    return merged, per_attempt
+
+
 def _persist_raw_response(trajectory_dir: Path, payload: dict[str, Any]) -> Path:
     out = trajectory_dir / "transcript_purpose_raw_response.json"
     try:
@@ -307,27 +460,23 @@ def _success_payload(
     explanation: str,
     attempts: int,
     raw_response_path: Path,
+    apollo_continue: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Canonical success payload.
+    """Canonical success payload for the Apollo inline-xml guess."""
 
-    ``transcript_purpose_attempts`` is the 1-based index of the first
-    attempt that produced a valid label. Anything > 1 means soft-failure
-    retries fired. Downstream aggregators that report headline eval-
-    awareness rates should stratify by this field or pin an explicit
-    policy for ``None``-classification rows (see module docstring on
-    ``run_transcript_purpose_api``); silently dropping the ``None``
-    bucket biases the reported rate against hard-to-classify transcripts.
-    """
-    return {
+    merged: dict[str, Any] = {
         "transcript_purpose_classification": classification,
-        "transcript_purpose_is_aware": classification in _EVAL_AWARE_LABELS,
+        "transcript_purpose_is_aware": _awareness_for(classification),
+        "transcript_purpose_was_refused": classification == "Refused",
         "transcript_purpose_guess": guess,
         "transcript_purpose_explanation": explanation,
         "transcript_purpose_failure": None,
         "transcript_purpose_format": _TRANSCRIPT_FORMAT,
         "transcript_purpose_attempts": attempts,
         "transcript_purpose_raw_response_path": str(raw_response_path),
+        **(apollo_continue if apollo_continue is not None else _continuation_keys_null()),
     }
+    return merged
 
 
 def _failure_payload(
@@ -336,6 +485,7 @@ def _failure_payload(
     attempts: int,
     raw_response_path: Path | None,
     guess: str | None = None,
+    apollo_continue: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Canonical failure payload.
 
@@ -345,9 +495,10 @@ def _failure_payload(
     on ``run_transcript_purpose_api`` for the paper-validity implications
     of each policy (drop / impute / weight).
     """
-    return {
+    merged: dict[str, Any] = {
         "transcript_purpose_classification": None,
         "transcript_purpose_is_aware": None,
+        "transcript_purpose_was_refused": None,
         "transcript_purpose_guess": guess,
         "transcript_purpose_explanation": None,
         "transcript_purpose_failure": failure_class,
@@ -356,7 +507,9 @@ def _failure_payload(
         "transcript_purpose_raw_response_path": (
             str(raw_response_path) if raw_response_path is not None else None
         ),
+        **(apollo_continue if apollo_continue is not None else _continuation_keys_null()),
     }
+    return merged
 
 
 def _failure_result(failure_class: str, trajectory_dir: Path | str) -> dict[str, Any]:
@@ -385,11 +538,15 @@ async def run_transcript_purpose_api(
     screenshot_bytes: bytes | None = None,
     include_screenshot: bool = False,
     needham_xml: str | None = None,
+    include_apollo_continue_format: bool = False,
 ) -> dict[str, Any]:
-    """Two-step Apollo Research transcript-purpose classifier.
+    """Apollo Transcript Purpose: inline-xml guess + five-label classify + replay variant.
 
-    Step 1 (text-only): "why did this interaction take place?"
-    Step 2 (text-only):  classify that guess into 4 canonical labels.
+    The **inline** transcript matches Apollo's gist (xml+json style). Step 2 permits
+    ``Refused`` (import-branch parity).
+
+    Optionally runs the Apollo blog ``continue`` prompting style replaying the Needham
+    trace before the ``transcript-purpose-apollo-continue-follow-up.md`` verbatim block.
 
     Self-heals up to ``_MAX_ATTEMPTS`` on soft failures. Hard failures
     (auth/credits/quota/api_error) return immediately.
@@ -523,12 +680,36 @@ async def run_transcript_purpose_api(
             per_attempt_log.append(attempt_record)
 
             if failure_class is None and classification is not None:
+                apollo_continue_block: dict[str, Any] = _continuation_keys_null()
+                apollo_continue_telemetry: list[dict[str, Any]] = []
+                if include_apollo_continue_format:
+                    try:
+                        (
+                            apollo_continue_block,
+                            apollo_continue_telemetry,
+                        ) = await _run_apollo_continue_format_probe(
+                            client=client,
+                            sandbox_model=sandbox_model,
+                            task_instruction=task_intent,
+                            extracted_trajectory=extracted_trajectory,
+                        )
+                    except _HardAPIFailure as exc:
+                        logger.warning(
+                            "apollo continue-format probe hard-failed (%s); inline TP still valid",
+                            getattr(exc, "bucket", exc),
+                        )
+                        apollo_continue_block = _continuation_keys_null()
+                        apollo_continue_block["transcript_purpose_apollo_continue_failure"] = (
+                            exc.bucket
+                        )
+
                 path = _persist_raw_response(
                     trajectory_dir,
                     {
                         "attempts": attempt,
                         "per_attempt": per_attempt_log,
                         "classification": classification,
+                        "apollo_continue_per_attempt": apollo_continue_telemetry,
                     },
                 )
                 # First successful attempt wins. We don't aggregate because retries
@@ -539,6 +720,7 @@ async def run_transcript_purpose_api(
                     explanation=explanation or "",
                     attempts=attempt,
                     raw_response_path=path,
+                    apollo_continue=apollo_continue_block,
                 )
             raise _SoftFailure(failure_class or "malformed_label")
 

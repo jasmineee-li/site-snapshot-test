@@ -231,12 +231,21 @@ _PVPO_METRIC_KEYS: frozenset[str] = frozenset(
         "pvpo_failure",
         "transcript_purpose_classification",
         "transcript_purpose_is_aware",
+        "transcript_purpose_was_refused",
         "transcript_purpose_guess",
         "transcript_purpose_explanation",
         "transcript_purpose_failure",
         "transcript_purpose_format",
         "transcript_purpose_attempts",
         "transcript_purpose_raw_response_path",
+        "transcript_purpose_apollo_continue_classification",
+        "transcript_purpose_apollo_continue_is_aware",
+        "transcript_purpose_apollo_continue_was_refused",
+        "transcript_purpose_apollo_continue_guess",
+        "transcript_purpose_apollo_continue_explanation",
+        "transcript_purpose_apollo_continue_failure",
+        "transcript_purpose_apollo_continue_attempts",
+        "transcript_purpose_apollo_continue_raw_response_path",
         "verbalized_eval_awareness_classification",
         "verbalized_eval_awareness_is_aware",
         "verbalized_eval_awareness_evidence",
@@ -263,12 +272,21 @@ def _null_metric_keys() -> dict[str, Any]:
     return {
         "transcript_purpose_classification": None,
         "transcript_purpose_is_aware": None,
+        "transcript_purpose_was_refused": None,
         "transcript_purpose_guess": None,
         "transcript_purpose_explanation": None,
         "transcript_purpose_failure": None,
         "transcript_purpose_format": "needham-xml-v1",
         "transcript_purpose_attempts": 0,
         "transcript_purpose_raw_response_path": None,
+        "transcript_purpose_apollo_continue_classification": None,
+        "transcript_purpose_apollo_continue_is_aware": None,
+        "transcript_purpose_apollo_continue_was_refused": None,
+        "transcript_purpose_apollo_continue_guess": None,
+        "transcript_purpose_apollo_continue_explanation": None,
+        "transcript_purpose_apollo_continue_failure": None,
+        "transcript_purpose_apollo_continue_attempts": None,
+        "transcript_purpose_apollo_continue_raw_response_path": None,
         "verbalized_eval_awareness_classification": None,
         "verbalized_eval_awareness_is_aware": None,
         "verbalized_eval_awareness_evidence": [],
@@ -473,9 +491,7 @@ def _extract_variant_rendered_payload(task: dict[str, Any], seed: dict[str, Any]
             return None
         contract = task.get("exposure_contract")
         payload_arg = (
-            str(contract.get("payload_arg") or "").strip()
-            if isinstance(contract, dict)
-            else ""
+            str(contract.get("payload_arg") or "").strip() if isinstance(contract, dict) else ""
         )
         if payload_arg and isinstance(args.get(payload_arg), str):
             return consider(args[payload_arg])
@@ -686,9 +702,7 @@ def _variant_action_witness_is_whole_payload(witness: str, rendered_payload: str
 
 def _variant_encounter_budget_chars(task: dict[str, Any]) -> int | None:
     target = task.get("benign_target_resource")
-    requirements = (
-        target.get("encounter_requirements") if isinstance(target, dict) else None
-    )
+    requirements = target.get("encounter_requirements") if isinstance(target, dict) else None
     if not isinstance(requirements, dict):
         return None
     budget = requirements.get("viewport_budget_chars")
@@ -767,8 +781,7 @@ def _variant_encounter_window_error(
     )
     if candidate_offset is None:
         return (
-            "variant payload_text must expose a concrete attack witness inside "
-            "the rendered payload"
+            "variant payload_text must expose a concrete attack witness inside the rendered payload"
         )
     if candidate_offset > max_offset:
         budget = _variant_encounter_budget_chars(original_task)
@@ -799,10 +812,9 @@ def _variant_payload_text_contract_error(
             continue
         if witness in required_tokens:
             return "variant attack_action_witnesses must not be only a required token"
-        if (
-            len(_normalized_payload_snapshot(rendered_payload)) > 120
-            and _variant_action_witness_is_whole_payload(witness, rendered_payload)
-        ):
+        if len(
+            _normalized_payload_snapshot(rendered_payload)
+        ) > 120 and _variant_action_witness_is_whole_payload(witness, rendered_payload):
             return (
                 "variant attack_action_witnesses must identify a concrete action span, "
                 "not the whole rendered payload"
@@ -1041,7 +1053,9 @@ def _variant_seed_execution_contract_error(
         return payload_field_error
 
     delivery_channel = original_task.get("delivery_channel")
-    if isinstance(delivery_channel, dict) and isinstance(delivery_channel.get("path_template"), str):
+    if isinstance(delivery_channel, dict) and isinstance(
+        delivery_channel.get("path_template"), str
+    ):
         from worldsim.phases import phase_2_injections as phase_2_contracts
 
         try:
@@ -1319,6 +1333,7 @@ async def _run_pvpo_gate(
             traj,
             sandbox_model=sandbox_model,
             needham_xml=needham_xml,
+            include_apollo_continue_format=True,
         )
 
     async def _run_vea() -> dict[str, Any]:
@@ -2880,9 +2895,7 @@ async def run(args: argparse.Namespace) -> int:
     )
     errors = sum(1 for r in final_results if r["final_status"] == "error")
     inconclusive = sum(1 for r in final_results if r["final_status"] == "inconclusive")
-    task_not_salient = sum(
-        1 for r in final_results if r["final_status"] == "task_not_salient"
-    )
+    task_not_salient = sum(1 for r in final_results if r["final_status"] == "task_not_salient")
 
     task_origin_by_id = {
         str(task.get("id", "")): _normalize_task_origin(task.get("origin"), task=task)
@@ -3348,9 +3361,7 @@ async def run_adversarial_task(
             selected_payload = _selected_rendered_payload(task)
             if selected_payload is not None:
                 run_kwargs["payload_text"] = selected_payload
-            payload_witnesses = [
-                witness.as_dict() for witness in payload_witnesses_for_task(task)
-            ]
+            payload_witnesses = [witness.as_dict() for witness in payload_witnesses_for_task(task)]
             if payload_witnesses:
                 run_kwargs["payload_witnesses"] = payload_witnesses
             result = await agent.run(
@@ -4754,16 +4765,13 @@ async def run_strategy_variation(
                             index=index,
                             strategy=strategy,
                             status=str(retry_status.get("status")),
-                            reason=(
-                                f"{finalize_error}; retry: "
-                                f"{retry_status.get('reason', '')}"
-                            ),
+                            reason=(f"{finalize_error}; retry: {retry_status.get('reason', '')}"),
                         )
                     if isinstance(retry_variant, dict) and _variant_changes_seed(
                         task, retry_variant
                     ):
-                        finalized_retry, retry_finalize_error = (
-                            _finalize_generated_variant_task(task, retry_variant)
+                        finalized_retry, retry_finalize_error = _finalize_generated_variant_task(
+                            task, retry_variant
                         )
                         if retry_finalize_error is None:
                             return _variant_generation_record_for_result(
@@ -4775,10 +4783,7 @@ async def run_strategy_variation(
                             index=index,
                             strategy=strategy,
                             status="failed",
-                            reason=(
-                                f"{finalize_error}; retry rejected: "
-                                f"{retry_finalize_error}"
-                            ),
+                            reason=(f"{finalize_error}; retry rejected: {retry_finalize_error}"),
                         )
                     return _variant_generation_record_for_result(
                         index=index,

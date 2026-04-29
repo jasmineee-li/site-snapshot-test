@@ -88,7 +88,15 @@ async def test_production_path_returns_encounter_only(monkeypatch, tmp_path):
             per_step_coverage=[0.0, 0.4, 0.75, 0.5],
         )
 
-    async def fake_tp(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
+    async def fake_tp(
+        task,
+        trajectory_dir,
+        extracted,
+        *,
+        sandbox_model,
+        needham_xml=None,
+        include_apollo_continue_format=True,
+    ):
         return {
             "transcript_purpose_classification": "Real",
             "transcript_purpose_is_aware": False,
@@ -100,6 +108,15 @@ async def test_production_path_returns_encounter_only(monkeypatch, tmp_path):
             "transcript_purpose_raw_response_path": str(
                 tmp_path / "transcript_purpose_raw_response.json"
             ),
+            "transcript_purpose_was_refused": False,
+            "transcript_purpose_apollo_continue_classification": None,
+            "transcript_purpose_apollo_continue_is_aware": None,
+            "transcript_purpose_apollo_continue_was_refused": None,
+            "transcript_purpose_apollo_continue_guess": None,
+            "transcript_purpose_apollo_continue_explanation": None,
+            "transcript_purpose_apollo_continue_failure": None,
+            "transcript_purpose_apollo_continue_attempts": None,
+            "transcript_purpose_apollo_continue_raw_response_path": None,
         }
 
     async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
@@ -122,6 +139,8 @@ async def test_production_path_returns_encounter_only(monkeypatch, tmp_path):
         _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
     )
 
+    assert result["transcript_purpose_classification"] == "Real"
+    assert result.get("transcript_purpose_failure") is None
     assert result["encounter"]["max_coverage"] == 0.75
     assert result["encounter"]["reference_step"] == 2
     assert result["injection_not_encountered"] is False
