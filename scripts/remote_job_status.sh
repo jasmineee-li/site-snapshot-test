@@ -141,17 +141,21 @@ def count_map_text(counter: Counter[str]) -> str:
 
 def phase4_results_candidates() -> list[Path]:
     candidates: list[Path] = []
+    configured_results_path = False
     state_dir = metadata.get("state_dir")
     if isinstance(state_dir, str) and state_dir.strip():
         root = Path(state_dir)
         if not root.is_absolute():
             root = remote_dir / root
         candidates.append(root / "phase_4" / "results.json")
+        configured_results_path = True
     for item in metadata.get("expected_outputs") or []:
         if isinstance(item, str) and item.endswith("phase_4/results.json"):
             path = Path(item)
             candidates.append(path if path.is_absolute() else remote_dir / path)
-    candidates.append(remote_dir / "logs" / "phase_4" / "results.json")
+            configured_results_path = True
+    if not configured_results_path:
+        candidates.append(remote_dir / "logs" / "phase_4" / "results.json")
     deduped: list[Path] = []
     seen: set[str] = set()
     for candidate in candidates:
