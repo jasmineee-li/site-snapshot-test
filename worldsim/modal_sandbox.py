@@ -99,7 +99,7 @@ base_image = (
     )
     # claude-agent-sdk bundles the Claude Code CLI + Node.js runtime,
     # so no separate nodejs/npm/npm-install needed.
-    .pip_install("requests", "browser-use>=0.12.6", "claude-agent-sdk")
+    .pip_install("requests", "browser-use>=0.12.6", "claude-agent-sdk>=0.1.71,<0.2")
     .run_commands(
         "mkdir -p /workspace /root/.claude",
         # Pre-accept trust dialog so Claude Code runs non-interactively.

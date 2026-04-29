@@ -543,19 +543,20 @@ wheels = [
 
 [[package]]
 name = "claude-agent-sdk"
-version = "0.1.59"
+version = "0.1.71"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "mcp" },
+    { name = "sniffio" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a5/55/438f5ba33f90cc9cbf3b40f74fbedf6792332e8fe34838f4189e418a4090/claude_agent_sdk-0.1.59.tar.gz", hash = "sha256:061af12a783a3456abfd0def3602a01249b2eee1be783fb3e242392c0ebbd2e2", size = 122887, upload-time = "2026-04-13T22:07:09.576Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/04/4c/e877f084c3c5bedc695d4045451af303b869b1c3dc302ea854e092fd882f/claude_agent_sdk-0.1.71.tar.gz", hash = "sha256:89ac5e4dd0fecf3e62dcbea69dca096921136fe7549daf52c546eacce9b70131", size = 241282, upload-time = "2026-04-29T03:40:28.399Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/01/6d/1fdfbcce76d7b81e89b29ad11864a48779a880f828c2541df620686693dd/claude_agent_sdk-0.1.59-py3-none-macosx_11_0_arm64.whl", hash = "sha256:b8734b5d630b75ad63b29a802fff40ba087adf463c1004dae65f7a5a912ab13a", size = 59629367, upload-time = "2026-04-13T22:07:14.602Z" },
-    { url = "https://files.pythonhosted.org/packages/b4/c6/aa9c5b310851b74db82e0da73a836335af4ef6767982d93ac04df52ef0cb/claude_agent_sdk-0.1.59-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:b333c0685db3f6e035acd2c6efa6ae4c4d8b077fef99de829ddb2a37ca1d9183", size = 61444059, upload-time = "2026-04-13T22:07:20.677Z" },
-    { url = "https://files.pythonhosted.org/packages/a7/47/4ba5eb8846fcb9ba544d777ff752ff20c10a508931199f9def3e724dcc8b/claude_agent_sdk-0.1.59-py3-none-manylinux_2_17_aarch64.whl", hash = "sha256:8ebe1f7e6dc18c5fae6483977ff16fcabe91cbb955f9c423c05a11f013db3957", size = 72938796, upload-time = "2026-04-13T22:07:27.147Z" },
-    { url = "https://files.pythonhosted.org/packages/f0/df/366d8ffb3399426769a08b68bdb4bf4ccb0c8e742418a27c3d369cfab07a/claude_agent_sdk-0.1.59-py3-none-manylinux_2_17_x86_64.whl", hash = "sha256:cac6c42f3c554981597a3d023bc87fe5b4bc14da987d9ef30cc2596005c3bc12", size = 73057901, upload-time = "2026-04-13T22:07:35.372Z" },
-    { url = "https://files.pythonhosted.org/packages/27/5a/f7506588831eb664c45241745d2cd21bd095b0f432ef2fa1062b824c538a/claude_agent_sdk-0.1.59-py3-none-win_amd64.whl", hash = "sha256:92d8da9ea5f0b4a7492d074d612d54b5e6ce6800312992aa48b2bcaa6bf7bf5e", size = 75161150, upload-time = "2026-04-13T22:07:43.695Z" },
+    { url = "https://files.pythonhosted.org/packages/5e/b1/9ccbf6ee447b8ce02acca5c65617ba36828129309f69b8c782120bc25591/claude_agent_sdk-0.1.71-py3-none-macosx_11_0_arm64.whl", hash = "sha256:f9996b9c03d9b75bfa5eea5d57acc3d4c736421f21d2c75d169f1e3a5b6f0f43", size = 63577286, upload-time = "2026-04-29T03:40:32.168Z" },
+    { url = "https://files.pythonhosted.org/packages/bc/bf/39b5f3d13f12f0ed193f4a8ed02678d59097ce939b9da30cd67a15b3cb25/claude_agent_sdk-0.1.71-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:d6d5ed0441f3780d3f692d9bf86c99045af0dc925321d5549ab107c33d0f9695", size = 65435355, upload-time = "2026-04-29T03:40:35.902Z" },
+    { url = "https://files.pythonhosted.org/packages/f2/74/fc8dff93e0e79295acd89f588b94c9ba5f61ae60f59ecaec0d58474afabe/claude_agent_sdk-0.1.71-py3-none-manylinux_2_17_aarch64.whl", hash = "sha256:fbb8ce166b9cc861ffb706f437c40b940cbeca37ed6c8846c90dd9af885d12c5", size = 76748516, upload-time = "2026-04-29T03:40:39.491Z" },
+    { url = "https://files.pythonhosted.org/packages/05/0c/ea00389db12f0d2feb429190b54bf102213bb5e848c95a71ffad7a0284f6/claude_agent_sdk-0.1.71-py3-none-manylinux_2_17_x86_64.whl", hash = "sha256:97f6c2cc36a216d4bac5f6cd418042585627d6b73c342d8041cf63dcfb97f4de", size = 76939021, upload-time = "2026-04-29T03:40:43.062Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/0a/8de473d525e5a0058e75c16bb1315a44ea7502b0825ab63f13bdf0324256/claude_agent_sdk-0.1.71-py3-none-win_amd64.whl", hash = "sha256:76288c59a5d25aab5df4e6cf71cd4550c0bb43a2542046da14e9670b07546095", size = 78318549, upload-time = "2026-04-29T03:40:46.475Z" },
 ]
 
 [[package]]
@@ -1713,7 +1714,7 @@ wheels = [
 
 [[package]]
 name = "modal"
-version = "1.4.1"
+version = "1.4.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -1731,9 +1732,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "watchfiles" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/72/b2/cdc155ef06863e3ca325fb0d6ea8feb0acd9213ff7a8a32ff1adcc37e077/modal-1.4.1.tar.gz", hash = "sha256:aadbf31e82b9ace8c77de2ee4d2c431f76ee6af54a908640fae0bdee557fd9c5", size = 685664, upload-time = "2026-03-31T01:44:32.073Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/53/67/c84029cf5a0eaa366400d2cae3901c757a313349e7e1ccf4fc4644bf3cf8/modal-1.4.2.tar.gz", hash = "sha256:ab4e76a2c28fc0e0aebb616f11a2658051518d38cd241825af27fb34e2688b46", size = 699847, upload-time = "2026-04-16T20:28:00.589Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/62/9d/cba0aed472b303481dc931b8dea693db8ecc1fb720308a69d4c679a69a71/modal-1.4.1-py3-none-any.whl", hash = "sha256:3befc9c4ac1b18ac4bf5bcb92aa6b7a5fa966c799d1dbf0cfc78ea075b2ab030", size = 787809, upload-time = "2026-03-31T01:44:29.691Z" },
+    { url = "https://files.pythonhosted.org/packages/bb/65/fa87a72b7bf150dbf9949e503b8a45e278789201ac3691b8af1cd861a7d6/modal-1.4.2-py3-none-any.whl", hash = "sha256:6993874476dfd51057e36c778dbd7aae58811802515532447336eced00c81e28", size = 802775, upload-time = "2026-04-16T20:27:58.065Z" },
 ]
 
 [[package]]
@@ -6103,9 +6104,9 @@ upstream-refs = [
 requires-dist = [
     { name = "anthropic", specifier = ">=0.40" },
     { name = "browser-use", specifier = ">=0.12.6" },
-    { name = "claude-agent-sdk", specifier = ">=0.1.59,<0.2" },
+    { name = "claude-agent-sdk", specifier = ">=0.1.71,<0.2" },
     { name = "instructor", specifier = ">=1.15.1" },
-    { name = "modal", specifier = ">=1.0" },
+    { name = "modal", specifier = ">=1.4.2" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "pillow", specifier = ">=10.0" },
     { name = "playwright", specifier = ">=1.49" },
