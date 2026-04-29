@@ -900,7 +900,7 @@ Adversarial tasks that fail either check are logged as reference errors; they do
 ]
 ```
 
-Phase 4 admits every entry with `validity_status == "valid"`. There is no benign-must-succeed filter; baseline capability is reported downstream from Phase 4's `benign_passed` field on ecologically valid trajectories.
+Phase 4 admits every entry with `validity_status == "valid"`. If Phase 4 selects adversarial tasks whose `benign_task_id` values are absent from `phase_3/contracts.json`, it must fail closed with `reason: "orphaned_adversarial_tasks"`, site counts, and sample missing IDs rather than silently treating the dataset as empty. This almost always means Phase 3 is stale or was generated with a different site filter than the current Phase 2 task set; operators should rerun Phase 3 against the matching Phase 1/2 state. There is no benign-must-succeed filter; baseline capability is reported downstream from Phase 4's `benign_passed` field on ecologically valid trajectories.
 
 ---
 

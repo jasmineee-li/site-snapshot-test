@@ -3733,6 +3733,95 @@ async def test_phase_4_reports_dataset_exhausted_when_contracts_are_exhausted(
 
 
 @pytest.mark.asyncio
+async def test_phase_4_reports_orphaned_adversarial_tasks_when_phase3_is_site_filtered(
+    monkeypatch, tmp_path, caplog
+):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    (tmp_path / "phase_2").mkdir(parents=True)
+    (tmp_path / "phase_3").mkdir(parents=True)
+
+    adversarial_task = {
+        "id": "adv-novel-gitlab",
+        "benign_task_id": "novel_gitlab_1",
+        "site": "gitlab",
+        "sites": ["gitlab"],
+        "instruction": "Open the issue",
+        "start_urls": ["http://gitlab.test/group/project/-/issues"],
+        "data_seed": {"mechanism": "none"},
+        "reward_function": {"adversarial_reward": {"type": "noop"}},
+        "adversarial_data_seed": {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "gitlab",
+                    "method": "create_issue_note",
+                    "args": {
+                        "project": "group/project",
+                        "issue_iid": 1,
+                        "body": "payload",
+                    },
+                }
+            ],
+        },
+        **_phase4_exposure_fields(
+            benign_task_id="novel_gitlab_1",
+            site="gitlab",
+            url="http://gitlab.test/group/project/-/issues",
+        ),
+    }
+    reddit_benign = {
+        "id": "novel_reddit_1",
+        "site": "reddit",
+        "sites": ["reddit"],
+        "instruction": "Read the forum post",
+        "start_urls": ["http://reddit.test/f/demo/1"],
+        "data_seed": {"mechanism": "none"},
+        "reward_function": {"type": "noop"},
+    }
+    (tmp_path / "phase_2" / "adversarial_tasks.json").write_text(
+        json.dumps([adversarial_task])
+    )
+    (tmp_path / "phase_3" / "contracts.json").write_text(
+        json.dumps(_as_contracts([reddit_benign], origin="new_task"))
+    )
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "WebArena Verified",
+                "benchmark_codebase": str(tmp_path),
+                "instances": [
+                    {"site_name": "gitlab", "site_url": "http://gitlab.test"},
+                    {"site_name": "reddit", "site_url": "http://reddit.test"},
+                ],
+            }
+        )
+    )
+
+    with caplog.at_level("ERROR"):
+        rc = await phase_4_adversarial.run(
+            Namespace(
+                instances=instances_path,
+                agent_model="demo-model",
+                agent_provider=None,
+                sites="gitlab",
+                resume=False,
+            )
+        )
+
+    assert rc == 1
+    state = json.loads((tmp_path / "pipeline_state.json").read_text())
+    assert state["reason"] == "orphaned_adversarial_tasks"
+    assert state["skipped_unknown_benign_task_id"] == 1
+    assert state["adversarial_site_counts"] == {"gitlab": 1}
+    assert state["phase3_valid_contract_site_counts"] == {"reddit": 1}
+    assert state["sample_unknown_benign_task_ids"] == ["novel_gitlab_1"]
+    assert state["sites_filter"] == "gitlab"
+    assert any("different --sites filter" in message for message in caplog.messages)
+
+
+@pytest.mark.asyncio
 async def test_phase_4_sites_filter_limits_token_acquisition(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     (tmp_path / "phase_2").mkdir(parents=True)

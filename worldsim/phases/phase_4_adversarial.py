@@ -1668,6 +1668,61 @@ def _task_reachable_sites(task: dict[str, Any]) -> list[str]:
     return sites
 
 
+def _primary_task_site(task: Any) -> str:
+    if not isinstance(task, dict):
+        return "unknown"
+    sites = normalize_task_sites(task)
+    if sites:
+        return sites[0]
+    site = normalize_site_name(task.get("site"))
+    return site or "unknown"
+
+
+def _adversarial_site_counts(tasks: list[Any]) -> dict[str, int]:
+    return dict(Counter(_primary_task_site(task) for task in tasks))
+
+
+def _contract_site_counts(entries: list[Any], *, valid_only: bool = False) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            counts["unknown"] += 1
+            continue
+        if valid_only and entry.get("validity_status") != "valid":
+            continue
+        counts[_primary_task_site(entry.get("task"))] += 1
+    return dict(counts)
+
+
+def _sample_unknown_benign_task_ids(
+    adversarial_tasks: list[Any],
+    contract_entries: list[Any],
+    *,
+    limit: int = 10,
+) -> list[str]:
+    known_contract_ids = {
+        str(entry.get("id", "")).strip()
+        for entry in contract_entries
+        if isinstance(entry, dict) and str(entry.get("id", "")).strip()
+    }
+    sample: list[str] = []
+    seen: set[str] = set()
+    for task in adversarial_tasks:
+        if not isinstance(task, dict):
+            continue
+        benign_task_id = str(task.get("benign_task_id", "")).strip()
+        if (
+            benign_task_id
+            and benign_task_id not in known_contract_ids
+            and benign_task_id not in seen
+        ):
+            sample.append(benign_task_id)
+            seen.add(benign_task_id)
+            if len(sample) >= limit:
+                break
+    return sample
+
+
 def _task_reachable_instances(
     task: dict[str, Any],
     instances: list[BenchmarkInstance],
@@ -2130,6 +2185,44 @@ async def run(args: argparse.Namespace) -> int:
                 skipped_infeasible=skipped_infeasible,
                 skipped_unverified=skipped_unverified,
                 skipped_missing_exposure=skipped_missing_exposure,
+                **state_metadata,
+            )
+            return 1
+        if skipped_orphan:
+            adversarial_site_counts = _adversarial_site_counts(adversarial_tasks)
+            valid_contract_site_counts = _contract_site_counts(
+                contract_entries,
+                valid_only=True,
+            )
+            missing_benign_task_ids = _sample_unknown_benign_task_ids(
+                adversarial_tasks,
+                contract_entries,
+            )
+            logger.error(
+                "No adversarial tasks to evaluate because %d task(s) reference "
+                "benign_task_id values missing from Phase 3 contracts. This usually "
+                "means phase_3/contracts.json is stale or was generated with a "
+                "different --sites filter. Adversarial sites=%s; valid contract "
+                "sites=%s; sample missing benign_task_id=%s. Rerun phase 3 with "
+                "the matching Phase 1/2 state and site filter.",
+                skipped_orphan,
+                adversarial_site_counts,
+                valid_contract_site_counts,
+                missing_benign_task_ids,
+            )
+            save_state(
+                "phase_4",
+                status="failed",
+                reason="orphaned_adversarial_tasks",
+                skipped_unknown_benign_task_id=skipped_orphan,
+                skipped_invalid_benign_contract=skipped_invalid,
+                skipped_infeasible=skipped_infeasible,
+                skipped_unverified=skipped_unverified,
+                skipped_missing_exposure=skipped_missing_exposure,
+                adversarial_site_counts=adversarial_site_counts,
+                phase3_valid_contract_site_counts=valid_contract_site_counts,
+                sample_unknown_benign_task_ids=missing_benign_task_ids,
+                sites_filter=sites_filter_raw,
                 **state_metadata,
             )
             return 1
