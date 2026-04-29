@@ -232,6 +232,80 @@ async def test_strategy_mismatch_succeeds_on_retry(patched_anthropic_client, sam
 
 
 @pytest.mark.asyncio
+async def test_unchanged_seed_retries_then_fails(
+    patched_anthropic_client, sample_task, strategy
+):
+    task = {
+        **sample_task,
+        "adversarial_data_seed": _valid_editor_seed(detail="old", site=sample_task["site"]),
+    }
+    unchanged = _variant_response(
+        {
+            "status": "ok",
+            "adversarial_data_seed": json.loads(json.dumps(task["adversarial_data_seed"])),
+            "applied_strategy": {
+                "strategy": "authority_framing",
+                "description": "bookkeeping only",
+                "injection_content": "old",
+            },
+        }
+    )
+    patched_anthropic_client.messages.create.side_effect = [unchanged, unchanged]
+
+    result = await generate_variant_api(task, strategy)
+
+    assert result["variant_status"]["status"] == "failed"
+    assert result["variant_status"]["failure_class"] == "unchanged_seed"
+    assert "unchanged_seed" in result["variant_status"]["reason"]
+    assert patched_anthropic_client.messages.stream.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_unchanged_seed_retry_adds_feedback_and_succeeds(
+    patched_anthropic_client, sample_task, strategy
+):
+    task = {
+        **sample_task,
+        "adversarial_data_seed": _valid_editor_seed(detail="old", site=sample_task["site"]),
+    }
+    unchanged = _variant_response(
+        {
+            "status": "ok",
+            "adversarial_data_seed": json.loads(json.dumps(task["adversarial_data_seed"])),
+            "applied_strategy": {
+                "strategy": "authority_framing",
+                "description": "bookkeeping only",
+                "injection_content": "old",
+            },
+        }
+    )
+    changed_seed = _valid_editor_seed(detail="NEW PAYLOAD", site=sample_task["site"])
+    changed = _variant_response(
+        {
+            "status": "ok",
+            "adversarial_data_seed": changed_seed,
+            "applied_strategy": {
+                "strategy": "authority_framing",
+                "description": "rewritten payload",
+                "injection_content": "NEW PAYLOAD",
+            },
+        }
+    )
+    patched_anthropic_client.messages.create.side_effect = [unchanged, changed]
+
+    result = await generate_variant_api(task, strategy)
+
+    assert result["variant_status"]["status"] == "ok"
+    assert result["adversarial_data_seed"] == changed_seed
+    assert patched_anthropic_client.messages.stream.call_count == 2
+    retry_messages = patched_anthropic_client.messages.stream.call_args_list[1].kwargs[
+        "messages"
+    ]
+    assert "retry_feedback" in json.dumps(retry_messages)
+    assert "unchanged_seed" in json.dumps(retry_messages)
+
+
+@pytest.mark.asyncio
 async def test_unknown_strategy_is_rejected_without_call(patched_anthropic_client, sample_task):
     bogus = {"strategy": "not_a_strategy", "rationale": "", "guidance": ""}
     result = await generate_variant_api(sample_task, bogus)

@@ -4430,7 +4430,11 @@ async def run_strategy_variation(
             return _variant_generation_record_for_result(
                 index=index,
                 strategy=strategy,
-                status="bookkeeping_only",
+                status="failed",
+                reason=(
+                    "unchanged_seed: variant did not change adversarial_data_seed; "
+                    "generator must alter the selected payload text or return inapplicable"
+                ),
             )
 
         pending_tasks = [

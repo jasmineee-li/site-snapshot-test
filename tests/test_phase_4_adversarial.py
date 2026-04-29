@@ -2573,7 +2573,7 @@ async def test_evaluate_variant_runs_in_parallel_on_distinct_instance_footprints
 
 
 @pytest.mark.asyncio
-async def test_run_strategy_variation_ignores_bookkeeping_only_variants(monkeypatch, tmp_path):
+async def test_run_strategy_variation_records_unchanged_seed_variants(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
 
     async def fake_run_judge(*args, **kwargs):
@@ -2605,6 +2605,16 @@ async def test_run_strategy_variation_ignores_bookkeeping_only_variants(monkeypa
 
     assert result["status"] == "variant_generation_failed"
     assert result["variant_results"] == []
+    assert result["variant_generation_errors"] == [
+        {
+            "strategy": "specificity",
+            "status": "failed",
+            "reason": (
+                "unchanged_seed: variant did not change adversarial_data_seed; "
+                "generator must alter the selected payload text or return inapplicable"
+            ),
+        }
+    ]
 
 
 @pytest.mark.asyncio
