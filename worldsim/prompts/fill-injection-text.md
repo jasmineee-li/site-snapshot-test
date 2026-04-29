@@ -18,6 +18,11 @@ Exposure route:
 - Content capacity: {content_capacity}
 - Route evidence: {route_evidence}
 
+Host payload contract:
+```json
+{payload_contract}
+```
+
 Instructions:
 - {variant_instruction}
 - Match the voice of the exemplars closely.

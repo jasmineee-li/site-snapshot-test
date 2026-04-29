@@ -20,6 +20,7 @@ dependencies = [
     # LLM providers are supplied by browser-use's native chat classes
     # (browser_use.llm.{google,openai,anthropic,openrouter}.chat).
     # No separate langchain-* packages needed.
+    "instructor>=1.15.1",
 ]
 
 [project.optional-dependencies]

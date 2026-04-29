@@ -19,13 +19,20 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
+import instructor
 import requests
+from instructor.core.exceptions import InstructorRetryException
 
 from worldsim.phase_4.anthropic_client import call_with_retry, get_client, normalize_model_for_auth
 from worldsim.phase_4.concurrency import get_api_semaphore
 from worldsim.phases.phase_2_core_surfaces import CORE_SURFACES, canonical_core_surface
 from worldsim.prompt_loading import load_prompt
 from worldsim.seeding import validate_data_seed
+from worldsim.text_payload_contract import (
+    TextPayloadResponse,
+    build_text_payload_contract,
+    text_payload_validation_context,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +62,7 @@ TEXT_FILL_PROMPT_VARIANTS = (
     "creative_writing",
     "testing_compliance",
 )
+TEXT_FILL_STRUCTURED_RETRIES = 2
 _TEXT_FILL_VARIANT_INSTRUCTIONS = {
     "standard": "Compose realistic platform-native user content.",
     "creative_writing": (
@@ -389,14 +397,19 @@ async def _generate_single_payload(
 
     for prompt_variant, prompt in prompts:
         try:
-            raw, auth_path = await _call_text_fill_api(prompt, model)
+            raw_or_parsed, auth_path = await _call_text_fill_api(prompt, model, task=task)
         except Exception as exc:  # pragma: no cover - network path exercised via mocks
             errors.append({"variant": prompt_variant, "auth_path": "shared_api", "error": str(exc)})
             continue
-        if is_refusal(raw):
-            errors.append({"variant": prompt_variant, "auth_path": auth_path, "error": "refused"})
-            continue
-        parsed, parse_error = _parse_text_fill_response(raw)
+        if isinstance(raw_or_parsed, dict):
+            parsed = raw_or_parsed
+            parse_error = None
+        else:
+            raw = str(raw_or_parsed)
+            if is_refusal(raw):
+                errors.append({"variant": prompt_variant, "auth_path": auth_path, "error": "refused"})
+                continue
+            parsed, parse_error = _parse_text_fill_response(raw)
         if parse_error is None:
             validation_errors = validate_text_post_hoc(parsed, task)
             if not validation_errors:
@@ -448,6 +461,10 @@ def render_fill_prompt(
     length_budget = task.get("length_budget") or {"min": 80, "max": 1500}
     benign_intent, benign_target_excerpt = _benign_fill_context(task)
     route_context = _surface_route_context(task)
+    payload_contract = build_text_payload_contract(
+        task,
+        include_protected_substrings=False,
+    )
     return prompt.format(
         site=task.get("site", ""),
         site_kind=site_kind,
@@ -469,6 +486,7 @@ def render_fill_prompt(
         seed_surface=route_context["seed_surface"],
         content_capacity=route_context["content_capacity"],
         route_evidence=route_context["route_evidence"],
+        payload_contract=json.dumps(payload_contract or {}, sort_keys=True, indent=2),
     )
 
 
@@ -731,9 +749,44 @@ def _parse_text_fill_response(raw_text: str) -> tuple[dict[str, Any], str | None
     return (parsed, None)
 
 
-async def _call_text_fill_api(prompt: str, model: str) -> tuple[str, str]:
-    """Call the shared Anthropic-compatible client used by Phase 4 APIs."""
+async def _call_text_fill_api(
+    prompt: str,
+    model: str,
+    *,
+    task: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any] | str, str]:
+    """Call the shared Anthropic-compatible client used by Phase 4 APIs.
+
+    Fresh Phase 2 text fill uses Instructor with a Pydantic response model so
+    provider output shape and WorldSim post-hoc constraints are part of the
+    generation retry loop. The raw JSON fallback remains for old tests and
+    diagnostic callers that intentionally pass no task context.
+    """
     client = get_client()
+    if task is not None:
+        instructor_client = instructor.from_anthropic(client, mode=instructor.Mode.ANTHROPIC_TOOLS)
+
+        def _validate_payload(payload: dict[str, Any]) -> list[str]:
+            return validate_text_post_hoc(payload, task)
+
+        try:
+
+            async def _call_structured() -> Any:
+                async with get_api_semaphore():
+                    return await instructor_client.messages.create(
+                        model=normalize_model_for_auth(model),
+                        max_tokens=1200,
+                        temperature=0.7,
+                        messages=[{"role": "user", "content": prompt}],
+                        response_model=TextPayloadResponse,
+                        context=text_payload_validation_context(_validate_payload),
+                        max_retries=TEXT_FILL_STRUCTURED_RETRIES,
+                    )
+
+            payload = await _call_structured()
+        except InstructorRetryException as exc:
+            raise RuntimeError(_format_instructor_retry_exception(exc)) from exc
+        return (payload.model_dump(), "instructor_anthropic")
 
     async def _call() -> Any:
         async with get_api_semaphore():
@@ -752,6 +805,19 @@ async def _call_text_fill_api(prompt: str, model: str) -> tuple[str, str]:
         elif isinstance(item, dict) and item.get("type") == "text":
             parts.append(str(item.get("text") or ""))
     return ("".join(parts), "shared_api")
+
+
+def _format_instructor_retry_exception(exc: InstructorRetryException) -> str:
+    attempts = getattr(exc, "failed_attempts", None)
+    details: list[str] = []
+    if isinstance(attempts, list):
+        for attempt in attempts[-3:]:
+            error = getattr(attempt, "exception", None)
+            if error is not None:
+                details.append(str(error))
+    if details:
+        return "structured_text_fill_failed: " + " | ".join(details)
+    return f"structured_text_fill_failed: {exc}"
 
 
 def _openrouter_available() -> bool:
