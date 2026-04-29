@@ -532,7 +532,11 @@ def _updated_payload_text_entry(
     ]
     if not action_witnesses and isinstance(applied_strategy, dict):
         injection_content = applied_strategy.get("injection_content")
-        if isinstance(injection_content, str) and injection_content in rendered_payload:
+        if (
+            isinstance(injection_content, str)
+            and injection_content in rendered_payload
+            and not _variant_action_witness_is_whole_payload(injection_content, rendered_payload)
+        ):
             action_witnesses = [injection_content]
     if action_witnesses:
         entry["attack_action_witnesses"] = action_witnesses
@@ -566,11 +570,78 @@ def _updated_payload_text_entry(
     return entry
 
 
+def _normalized_payload_snapshot(value: str) -> str:
+    return " ".join(value.split()).strip()
+
+
+def _variant_required_token_values(task: dict[str, Any]) -> set[str]:
+    values: set[str] = set()
+    for token in task.get("required_tokens") or []:
+        value = token.get("value") if isinstance(token, dict) else token
+        if isinstance(value, str) and value:
+            values.add(value)
+    return values
+
+
+def _variant_action_witness_is_whole_payload(witness: str, rendered_payload: str) -> bool:
+    return _normalized_payload_snapshot(witness) == _normalized_payload_snapshot(rendered_payload)
+
+
+def _variant_payload_text_contract_error(
+    task: dict[str, Any],
+    payload_text: dict[str, Any],
+    *,
+    rendered_payload: str,
+) -> str | None:
+    if payload_text.get("rendered_payload") != rendered_payload:
+        return "variant payload_text.rendered_payload must equal the revised seed payload"
+
+    errors = validate_text_post_hoc(payload_text, task)
+    if errors:
+        return "variant payload_text failed post-hoc validation: " + "; ".join(errors)
+
+    required_tokens = _variant_required_token_values(task)
+    for witness in payload_text.get("attack_action_witnesses") or []:
+        if not isinstance(witness, str):
+            continue
+        if witness in required_tokens:
+            return "variant attack_action_witnesses must not be only a required token"
+        if (
+            len(_normalized_payload_snapshot(rendered_payload)) > 120
+            and _variant_action_witness_is_whole_payload(witness, rendered_payload)
+        ):
+            return (
+                "variant attack_action_witnesses must identify a concrete action span, "
+                "not the whole rendered payload"
+            )
+    return None
+
+
+def _candidate_payload_text_entry(
+    task: dict[str, Any],
+    candidate_payload_text: Any,
+    *,
+    rendered_payload: str,
+) -> tuple[dict[str, Any] | None, str | None]:
+    if not isinstance(candidate_payload_text, dict):
+        return None, "variant payload_text must be an object"
+    entry = json.loads(json.dumps(candidate_payload_text))
+    error = _variant_payload_text_contract_error(
+        task,
+        entry,
+        rendered_payload=rendered_payload,
+    )
+    if error is not None:
+        return None, error
+    return entry, None
+
+
 def _synchronize_variant_payload_texts(
     original_task: dict[str, Any],
     merged_task: dict[str, Any],
     candidate_seed: dict[str, Any],
     applied_strategy: Any = None,
+    candidate_payload_text: Any = None,
 ) -> str | None:
     payload_texts = original_task.get("payload_texts")
     if not isinstance(payload_texts, list) or not payload_texts:
@@ -589,17 +660,29 @@ def _synchronize_variant_payload_texts(
             f"{original_task.get('id', 'unknown')} revised adversarial_data_seed does not expose "
             "a recoverable payload body"
         )
-    synced_entry = _updated_payload_text_entry(
-        merged_task,
-        payload_texts[selected_index],
-        rendered_payload,
-        applied_strategy=applied_strategy,
-    )
-    if synced_entry is None:
-        return (
-            "variant task "
-            f"{original_task.get('id', 'unknown')} revised payload_texts failed post-hoc validation"
+    if candidate_payload_text is not None:
+        synced_entry, candidate_error = _candidate_payload_text_entry(
+            merged_task,
+            candidate_payload_text,
+            rendered_payload=rendered_payload,
         )
+        if candidate_error is not None:
+            return (
+                "variant task "
+                f"{original_task.get('id', 'unknown')} {candidate_error}"
+            )
+    else:
+        synced_entry = _updated_payload_text_entry(
+            merged_task,
+            payload_texts[selected_index],
+            rendered_payload,
+            applied_strategy=applied_strategy,
+        )
+        if synced_entry is None:
+            return (
+                "variant task "
+                f"{original_task.get('id', 'unknown')} revised payload_texts failed post-hoc validation"
+            )
     merged_payloads = json.loads(json.dumps(payload_texts))
     merged_payloads[selected_index] = synced_entry
     merged_task["payload_texts"] = merged_payloads
@@ -793,6 +876,7 @@ def _finalize_generated_variant_task(
         merged,
         candidate_seed,
         applied_strategy=candidate.get("applied_strategy"),
+        candidate_payload_text=candidate.get("payload_text"),
     )
     if sync_error is not None:
         return None, sync_error

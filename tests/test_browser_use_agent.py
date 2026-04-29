@@ -1343,3 +1343,39 @@ async def test_run_cleans_up_session_when_remote_reset_fails(
 
     session = observed["session"]
     session.kill.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_teardown_skips_duplicate_kill_after_browser_use_disconnect(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    agent = browser_use_agent.BrowserUseAgent(llm=object())
+    session = SimpleNamespace(
+        _cdp_client_root=None,
+        session_manager=None,
+        kill=AsyncMock(),
+    )
+    agent._session = session
+    agent._pvpo_cdp_url = "http://127.0.0.1:9222"
+    cleanup = AsyncMock()
+    recycle = AsyncMock()
+    monkeypatch.setattr(agent, "_cleanup_external_cdp_state", cleanup)
+    monkeypatch.setattr(agent, "_recycle_external_pvpo_browser", recycle)
+
+    await agent.teardown()
+
+    cleanup.assert_not_awaited()
+    recycle.assert_awaited_once_with(session)
+    session.kill.assert_not_awaited()
+    assert agent._session is None
+
+
+@pytest.mark.asyncio
+async def test_force_stop_browser_event_bus_uses_bounded_shutdown():
+    event_bus = SimpleNamespace(stop=AsyncMock())
+
+    await browser_use_agent.BrowserUseAgent._force_stop_browser_event_bus(
+        SimpleNamespace(event_bus=event_bus)
+    )
+
+    event_bus.stop.assert_called_once_with(timeout=0)

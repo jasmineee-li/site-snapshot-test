@@ -1874,32 +1874,7 @@ class BrowserUseAgent:
                 extra_errors=extra_errors,
             )
             if self._session is not None:
-                # Clean up temp profile dir before killing to avoid /tmp accumulation
-                self._cleanup_temp_profile(self._session)
-                await self._stop_scoped_header_auth()
-                try:
-                    await self._cleanup_external_cdp_state(self._session)
-                except Exception as e:
-                    logger.warning("Remote PVPO browser cleanup failed: %s", e)
-                try:
-                    await self._recycle_external_pvpo_browser(self._session)
-                except Exception as e:
-                    logger.warning("Remote PVPO browser recycle failed: %s", e)
-                finally:
-                    _write_browser_runtime_artifact(task_dir, self._browser_runtime)
-                try:
-                    await asyncio.wait_for(self._session.kill(), timeout=5)
-                except TimeoutError:
-                    logger.warning("BrowserSession kill timed out for %s", task_dir)
-                except Exception as e:
-                    logger.warning("BrowserSession kill failed: %s", e)
-                self._session = None
-                self._pvpo_cdp_url = ""
-                self._task_origins = set()
-                self._owned_target_ids = set()
-                self._primary_target_id = None
-                self._browser_runtime = {}
-                self._preserve_remote_auth_state = False
+                await self._shutdown_browser_session(task_dir=task_dir)
             else:
                 _write_browser_runtime_artifact(task_dir, self._browser_runtime)
 
@@ -1916,26 +1891,67 @@ class BrowserUseAgent:
 
     async def teardown(self) -> None:
         if self._session is not None:
-            # Clean up temp profile dir before killing to avoid /tmp accumulation
-            self._cleanup_temp_profile(self._session)
+            await self._shutdown_browser_session(task_dir=None)
+
+    async def _shutdown_browser_session(self, *, task_dir: Path | None) -> None:
+        """Bounded, idempotent Browser Use session shutdown.
+
+        Browser Use closes its own session in ``Agent.run()`` when
+        ``keep_alive=False``. Phase 4 then still needs to clean/recycle the
+        external PVPO browser boundary, but a second CDP cleanup/kill against an
+        already-reset BrowserSession can leave the event bus alive. Treat that
+        state as already disconnected and skip the duplicate kill.
+        """
+        session = self._session
+        if session is None:
+            if task_dir is not None:
+                _write_browser_runtime_artifact(task_dir, self._browser_runtime)
+            return
+
+        try:
+            self._cleanup_temp_profile(session)
             try:
                 await self._stop_scoped_header_auth()
             except Exception as e:
                 logger.warning("scoped http_headers auth shutdown failed: %s", e)
+
+            disconnected = self._browser_session_disconnected(session)
+            if disconnected:
+                self._browser_runtime["browser_session_disconnect_observed"] = True
+
+            if self._pvpo_cdp_url and disconnected:
+                self._browser_runtime["cleanup_skipped_reason"] = (
+                    "browser_use_session_already_disconnected"
+                )
+            else:
+                try:
+                    await self._cleanup_external_cdp_state(session)
+                except Exception as e:
+                    logger.warning("Remote PVPO browser cleanup failed: %s", e)
+
             try:
-                await self._cleanup_external_cdp_state(self._session)
-            except Exception as e:
-                logger.warning("Remote PVPO browser cleanup failed: %s", e)
-            try:
-                await self._recycle_external_pvpo_browser(self._session)
+                await self._recycle_external_pvpo_browser(session)
             except Exception as e:
                 logger.warning("Remote PVPO browser recycle failed: %s", e)
-            try:
-                await asyncio.wait_for(self._session.kill(), timeout=5)
-            except TimeoutError:
-                logger.warning("BrowserSession kill timed out")
-            except Exception as e:
-                logger.warning("BrowserSession kill failed: %s", e)
+
+            if disconnected:
+                self._browser_runtime["browser_session_kill_skipped_reason"] = (
+                    "browser_use_session_already_disconnected"
+                )
+            else:
+                try:
+                    await asyncio.wait_for(session.kill(), timeout=5)
+                except TimeoutError:
+                    logger.warning(
+                        "BrowserSession kill timed out%s",
+                        f" for {task_dir}" if task_dir is not None else "",
+                    )
+                    await self._force_stop_browser_event_bus(session)
+                except Exception as e:
+                    logger.warning("BrowserSession kill failed: %s", e)
+        finally:
+            if task_dir is not None:
+                _write_browser_runtime_artifact(task_dir, self._browser_runtime)
             self._session = None
             self._pvpo_cdp_url = ""
             self._task_origins = set()
@@ -1943,6 +1959,41 @@ class BrowserUseAgent:
             self._primary_target_id = None
             self._browser_runtime = {}
             self._preserve_remote_auth_state = False
+
+    @staticmethod
+    def _browser_session_disconnected(session: Any) -> bool:
+        cdp_root = getattr(session, "_cdp_client_root", ...)
+        if cdp_root is None:
+            return True
+        session_manager = getattr(session, "session_manager", ...)
+        cdp_client = getattr(session, "cdp_client", ...)
+        return session_manager is None and cdp_client is None
+
+    @staticmethod
+    async def _force_stop_browser_event_bus(session: Any) -> None:
+        for attr_name in ("event_bus", "_event_bus", "browser_event_bus"):
+            event_bus = getattr(session, attr_name, None)
+            if event_bus is None:
+                continue
+            for method_name in ("stop", "shutdown", "close"):
+                method = getattr(event_bus, method_name, None)
+                if not callable(method):
+                    continue
+                try:
+                    try:
+                        result = method(timeout=0)
+                    except TypeError:
+                        result = method()
+                    if hasattr(result, "__await__"):
+                        await asyncio.wait_for(result, timeout=1)
+                except Exception as exc:
+                    logger.debug(
+                        "BrowserSession event bus %s.%s force-stop failed: %s",
+                        attr_name,
+                        method_name,
+                        exc,
+                    )
+                return
 
     async def _stop_scoped_header_auth(self) -> None:
         if self._session is None:
