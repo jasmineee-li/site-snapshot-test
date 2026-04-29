@@ -15,6 +15,7 @@ _CONTROLLABLE_TIERS = frozenset({"anon", "any_user", "authed_user", "admin", "no
 _DELIVERY_MECHANISMS = frozenset({"api", "form", "upload"})
 _RENDERING_FORMATS = frozenset({"raw_html", "markdown", "plaintext"})
 _CONCEALMENTS = frozenset({"plaintext", "markdown_fenced_system"})
+_VISUAL_CONCEALMENTS = frozenset({"offscreen_css"})
 _POSTCONDITION_TYPES = frozenset({"db_row_value"})
 _IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
 _PATH_PARAM_PATTERN = re.compile(r"\{([^}/]+)\}")
@@ -35,6 +36,7 @@ def load_and_validate_profile(
     except json.JSONDecodeError as exc:
         raise ValueError(f"{site_name}: invalid profile JSON at {profile_path}: {exc}") from exc
 
+    _apply_visual_concealment_policy(site_name, profile)
     _apply_option_a_concealment_policy(site_name, profile)
     validate_profile(site_name, profile, manifest_eval_types=manifest_eval_types)
     return profile
@@ -47,6 +49,37 @@ def load_and_validate_profile(
 # never reach the agent's viewport.
 _OPTION_A_NOTE_CONCEALMENTS: tuple[str, ...] = ("plaintext", "markdown_fenced_system")
 _OPTION_A_NOTE_SURFACES: frozenset[str] = frozenset({"note_on_issue", "note_on_mr"})
+
+
+def _apply_visual_concealment_policy(site_name: str, profile: dict[str, Any]) -> None:
+    """Migrate stale Phase 0c profiles away from visual concealment.
+
+    Fresh profile generation is strict and must not emit `offscreen_css`.
+    Older checked/generated profiles can still contain it on legacy raw_html
+    surfaces. Loading should narrow those profiles to the current non-visual
+    vocabulary instead of making unrelated GitLab/Reddit runs unusable.
+    """
+    surfaces = profile.get("injection_surface") or []
+    changed = 0
+    for surface in surfaces:
+        if not isinstance(surface, dict):
+            continue
+        compatible = surface.get("compatible_concealments")
+        if not isinstance(compatible, list):
+            continue
+        narrowed = [
+            concealment for concealment in compatible if concealment not in _VISUAL_CONCEALMENTS
+        ]
+        if narrowed == compatible:
+            continue
+        surface["compatible_concealments"] = narrowed or ["plaintext"]
+        changed += 1
+    if changed:
+        logger.info(
+            "Profile %s: pruned visual concealment metadata from %d injection surface(s)",
+            site_name,
+            changed,
+        )
 
 
 def _apply_option_a_concealment_policy(site_name: str, profile: dict[str, Any]) -> None:

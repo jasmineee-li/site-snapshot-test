@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from worldsim.profile_validation import load_and_validate_profile, validate_profile
@@ -20,6 +22,50 @@ def test_load_and_validate_profile_rejects_invalid_json(tmp_path):
 
     with pytest.raises(ValueError, match="invalid profile JSON"):
         load_and_validate_profile("shopping", profile_path)
+
+
+def test_load_and_validate_profile_prunes_stale_visual_concealment(tmp_path):
+    profile_path = tmp_path / "BENCHMARK_PROFILE_gitlab.json"
+    profile_path.write_text(
+        json.dumps(
+            {
+                "site_name": "gitlab",
+                "data_model": [{"entity": "User", "fields": [{"name": "website_url"}]}],
+                "injection_surface": [
+                    {
+                        "id": "user_website_url_on_profile",
+                        "source_field": "User.website_url",
+                        "rendering_format": "raw_html",
+                        "controllable_by_tier": "authed_user",
+                        "controllability_justification": "Users can edit their profile URL.",
+                        "delivery_channels": [
+                            {
+                                "mechanism": "api",
+                                "privileged_seed": False,
+                                "path_template": "/api/v4/user",
+                                "method": "PUT",
+                                "body_field": "website_url",
+                                "table": None,
+                                "column": None,
+                                "postcondition": _db_row_value(
+                                    table="users",
+                                    value_column="website_url",
+                                    where={"id": {"literal": 1}},
+                                ),
+                            }
+                        ],
+                        "compatible_concealments": ["offscreen_css"],
+                    }
+                ],
+                "agent_context": {"auth_mechanism": {"type": "storage_state"}},
+                "verification_capabilities": [],
+            }
+        )
+    )
+
+    profile = load_and_validate_profile("gitlab", profile_path)
+
+    assert profile["injection_surface"][0]["compatible_concealments"] == ["plaintext"]
 
 
 def test_validate_profile_rejects_eval_types_absent_from_manifest():
