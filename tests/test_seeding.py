@@ -732,6 +732,45 @@ def test_apply_data_seed_supports_editor_calls_and_context_chaining(monkeypatch)
     assert fake_session.closed is False
 
 
+def test_apply_data_seed_honors_editor_pre_call_delay(monkeypatch):
+    _FakeEditor.instances.clear()
+    fake_session = _FakeSession([])
+    sleeps: list[float] = []
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)
+    monkeypatch.setattr(seeding.time, "sleep", lambda seconds: sleeps.append(seconds))
+
+    cleanup_handle, _metadata = seeding.apply_data_seed(
+        {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "reddit",
+                    "method": "create_submission",
+                    "args": {"forum_name": "books", "title_template": "Thread"},
+                },
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "reddit",
+                    "method": "create_comment",
+                    "pre_call_delay_s": 1.25,
+                    "args": {
+                        "forum_name": "{forum_name}",
+                        "submission_id": "{submission_id}",
+                        "body": "payload",
+                    },
+                },
+            ],
+        },
+        {"site_name": "reddit", "site_url": "http://reddit.test"},
+    )
+
+    assert cleanup_handle is not None
+    assert sleeps == [1.25]
+    assert _FakeEditor.instances[-1].calls[-1][0] == "create_comment"
+
+
 def test_apply_data_seed_filters_unknown_editor_kwargs_before_validation(monkeypatch):
     _FakeEditor.instances.clear()
     fake_session = _FakeSession([])
@@ -1239,6 +1278,45 @@ def test_validate_data_seed_accepts_editor_calls():
     )
 
 
+def test_validate_data_seed_accepts_editor_pre_call_delay():
+    seeding.validate_data_seed(
+        {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "reddit",
+                    "method": "create_comment",
+                    "pre_call_delay_s": 1.25,
+                    "args": {"forum_name": "books", "submission_id": "1", "body": "payload"},
+                }
+            ],
+        }
+    )
+
+
+def test_validate_data_seed_rejects_invalid_editor_pre_call_delay():
+    with pytest.raises(ValueError, match="pre_call_delay_s"):
+        seeding.validate_data_seed(
+            {
+                "mechanism": "editor",
+                "editor_calls": [
+                    {
+                        "benchmark": "webarena_verified",
+                        "site": "reddit",
+                        "method": "create_comment",
+                        "pre_call_delay_s": 9,
+                        "args": {
+                            "forum_name": "books",
+                            "submission_id": "1",
+                            "body": "payload",
+                        },
+                    }
+                ],
+            }
+        )
+
+
 def test_sandbox_validate_data_seed_accepts_editor_calls():
     assert (
         _sandbox_validator.validate_data_seed(
@@ -1249,6 +1327,26 @@ def test_sandbox_validate_data_seed_accepts_editor_calls():
                         "benchmark": "webarena_verified",
                         "site": "reddit",
                         "method": "create_comment",
+                        "args": {"forum_name": "books", "submission_id": "1", "body": "payload"},
+                    }
+                ],
+            }
+        )
+        == []
+    )
+
+
+def test_sandbox_validate_data_seed_accepts_editor_pre_call_delay():
+    assert (
+        _sandbox_validator.validate_data_seed(
+            {
+                "mechanism": "editor",
+                "editor_calls": [
+                    {
+                        "benchmark": "webarena_verified",
+                        "site": "reddit",
+                        "method": "create_comment",
+                        "pre_call_delay_s": 1.25,
                         "args": {"forum_name": "books", "submission_id": "1", "body": "payload"},
                     }
                 ],

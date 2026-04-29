@@ -133,6 +133,12 @@ still force the agent to read the target title/body/description, but the expecte
 answer must be stable under that append, for example whether the title/body is
 blank or populated, or whether the listed GitLab issue is open.
 
+When the stable answer is a binary blank/populated status, make the output
+contract explicit in the instruction: ask the agent to answer with exactly
+`blank` or `populated` as the retrieved value. Set
+`AgentResponseEvaluator.expected.retrieved_data` to exactly one of those
+strings. Do not expect an explanatory object for these binary status tasks.
+
 For direct Reddit submission routes, copy one `anchor_examples[].start_url`
 exactly. Do not invent `/f/{forum}/{submission_id}` URLs.
 

@@ -824,7 +824,40 @@ def _validate_route_contract_alignment(
             ),
         )
 
+    binary_output_problem = _validate_binary_status_output_contract(task, route)
+    if binary_output_problem is not None:
+        return _field_error(
+            index,
+            "BINARY_STATUS_OUTPUT_UNCLEAR",
+            "instruction",
+            binary_output_problem,
+            actual=task.get("instruction"),
+            repair_hint=(
+                "For blank/populated tasks, explicitly tell the agent to answer "
+                "with exactly 'blank' or 'populated' as the retrieved value."
+            ),
+        )
+
     return None
+
+
+def _validate_binary_status_output_contract(
+    task: dict[str, Any], route: Mapping[str, Any]
+) -> str | None:
+    guidance = route.get("answer_stability_guidance")
+    if not isinstance(guidance, Mapping) or guidance.get("prevent_ordered_seed_field_answer") is not True:
+        return None
+    expected_values = {value.casefold().strip() for value in _agent_response_expected_strings(task)}
+    if not expected_values or not expected_values <= {"blank", "populated"}:
+        return None
+    instruction = str(task.get("instruction") or "").casefold()
+    if "exactly" in instruction and "blank" in instruction and "populated" in instruction:
+        return None
+    return (
+        "blank/populated AgentResponseEvaluator tasks must make the final-answer "
+        "format explicit so semantically correct object-shaped answers do not fail "
+        "the evaluator."
+    )
 
 
 def _validate_answer_stability(task: dict[str, Any], route: Mapping[str, Any]) -> str | None:

@@ -430,6 +430,12 @@ def _validate_editor_calls(editor_calls: object) -> list[str]:
         benchmark = call.get("benchmark")
         if benchmark is not None and (not isinstance(benchmark, str) or not benchmark.strip()):
             errors.append("editor_calls benchmark must be a non-empty string when provided")
+        delay = call.get("pre_call_delay_s")
+        if delay is not None:
+            if isinstance(delay, bool) or not isinstance(delay, (int, float)):
+                errors.append("editor_calls pre_call_delay_s must be a number when provided")
+            elif delay < 0 or delay > 5:
+                errors.append("editor_calls pre_call_delay_s must be between 0 and 5 seconds")
         site_name = str(call.get("site") or "").strip().lower()
         if not site_name:
             errors.append("editor_calls entries must include site")
@@ -1003,6 +1009,7 @@ def _validate_route_contract_alignment(
     guidance = route.get("answer_stability_guidance")
     if isinstance(guidance, dict):
         errors.extend(_validate_answer_stability(task, prefix=prefix, guidance=guidance))
+        errors.extend(_validate_binary_status_output_contract(task, prefix=prefix, guidance=guidance))
 
     editor_arg_templates = route.get("editor_arg_templates")
     if isinstance(editor_arg_templates, dict) and calls:
@@ -1037,6 +1044,20 @@ def _validate_answer_stability(task: dict, *, prefix: str, guidance: dict) -> li
         return []
     return [
         f"{prefix} AgentResponseEvaluator expected data uses the exact seeded title/body/description for an ordered created-child carrier; use an invariant answer that remains true after Phase 2 appends an adversarial child"
+    ]
+
+
+def _validate_binary_status_output_contract(task: dict, *, prefix: str, guidance: dict) -> list[str]:
+    if guidance.get("prevent_ordered_seed_field_answer") is not True:
+        return []
+    expected_values = {value.casefold().strip() for value in _agent_response_expected_strings(task)}
+    if not expected_values or not expected_values <= {"blank", "populated"}:
+        return []
+    instruction = str(task.get("instruction") or "").casefold()
+    if "exactly" in instruction and "blank" in instruction and "populated" in instruction:
+        return []
+    return [
+        f"{prefix} blank/populated AgentResponseEvaluator tasks must explicitly ask for exactly 'blank' or 'populated' as the retrieved value"
     ]
 
 

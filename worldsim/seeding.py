@@ -23,6 +23,7 @@ import inspect
 import logging
 import os
 import re
+import time
 import urllib.parse
 from pathlib import Path
 from typing import Any
@@ -168,6 +169,7 @@ def _validate_editor_calls(editor_calls: Any) -> None:
         site = call.get("site")
         method = call.get("method")
         args = call.get("args")
+        _validate_pre_call_delay(call.get("pre_call_delay_s"))
         if not isinstance(site, str) or not site.strip():
             raise ValueError("editor_calls entries must include site")
         if not isinstance(method, str) or not method.strip():
@@ -184,6 +186,15 @@ def _validate_editor_calls(editor_calls: Any) -> None:
                 f"editor_calls method {method_name!r} is not supported for {(benchmark_key, site.strip().lower())!r}"
             )
         _validate_untrusted_selector_args(site.strip().lower(), args)
+
+
+def _validate_pre_call_delay(value: Any) -> None:
+    if value is None:
+        return
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("editor_calls pre_call_delay_s must be a number when provided")
+    if value < 0 or value > 5:
+        raise ValueError("editor_calls pre_call_delay_s must be between 0 and 5 seconds")
 
 
 def apply_data_seed(
@@ -743,6 +754,10 @@ def _apply_editor_seed_call(
     # legacy Option A validator (which only checks the innermost anchor)
     # but would render an empty string at substitution time.
     _assert_benign_tokens_bound(call, instance.get("seed_task"))
+    delay_s = _editor_call_pre_delay_s(call)
+    if delay_s > 0:
+        logger.info("Waiting %.2fs before applying ordered editor seed call", delay_s)
+        time.sleep(delay_s)
 
     rendered = _render_editor_seed_call(call, seed_context)
     editor = _get_editor_for_seed_call(
@@ -843,6 +858,14 @@ def _apply_editor_seed_call(
                 _merge_seed_context(seed_context, sanitized)
         else:
             _merge_seed_context(seed_context, result)
+
+
+def _editor_call_pre_delay_s(call: dict[str, Any]) -> float:
+    value = call.get("pre_call_delay_s")
+    _validate_pre_call_delay(value)
+    if value is None:
+        return 0.0
+    return float(value)
 
 
 def _filter_editor_method_args(

@@ -901,6 +901,44 @@ def test_materialize_preserves_benign_api_calls_with_unmatched_verb_for_gitlab_i
     assert self_contained_adversarial_seed_error(benign_seed, out) is None
 
 
+def test_materialize_adds_order_guard_for_gitlab_project_issue_description():
+    benign_seed = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "gitlab",
+                "method": "create_issue_description",
+                "args": {
+                    "project_path_template": "{benign_project_path}",
+                    "body": "Existing seeded issue body.",
+                },
+            }
+        ],
+    }
+    contract = build_exposure_contract(
+        benign_task_id="task-gitlab-project-list-body-forced",
+        site="gitlab",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "gitlab_search_result",
+            "anchors": {"project_path": "byteblaze/secret-project"},
+            "start_url_resolved": "https://gitlab.local/byteblaze/secret-project/-/issues?sort=created_date&state=opened",
+            "allowed_editor_methods": ["create_issue_description"],
+            "transition_forced_by_task": True,
+        },
+    )
+
+    out = materialize_seed_template_from_contract(contract, benign_seed=benign_seed)
+
+    assert out["editor_calls"][:1] == benign_seed["editor_calls"]
+    appended = out["editor_calls"][1]
+    assert appended["method"] == "create_issue_description"
+    assert appended["args"]["body"] == "{{PAYLOAD_TEXT}}"
+    assert appended["pre_call_delay_s"] == pec.ORDERED_CREATED_CHILD_PRE_CALL_DELAY_S
+    assert self_contained_adversarial_seed_error(benign_seed, out) is None
+
+
 def test_materialize_legacy_no_actions_unchanged():
     benign_seed = {"mechanism": "none"}
     contract = _eligible_reddit_submission_contract()

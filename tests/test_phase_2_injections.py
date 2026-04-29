@@ -1001,7 +1001,7 @@ def _gitlab_milestone_benign_seed() -> dict:
 
 def _reddit_multi_editor_benign_seed() -> dict:
     return {
-        "mechanism": "none",
+        "mechanism": "editor",
         "editor_calls": [
             {
                 "site": "reddit",
@@ -1048,7 +1048,7 @@ def test_self_contained_adversarial_seed_admits_mode_b_api_post_then_patch():
 def test_self_contained_adversarial_seed_admits_mode_b_reddit_multi_editor_calls():
     benign_seed = _reddit_multi_editor_benign_seed()
     seed_template = {
-        "mechanism": "none",
+        "mechanism": "editor",
         "editor_calls": [
             *benign_seed["editor_calls"],
             {
@@ -1073,7 +1073,7 @@ def test_self_contained_adversarial_seed_admits_mode_b_reddit_multi_editor_calls
 def test_self_contained_adversarial_seed_rejects_mode_b_reddit_dropping_benign_calls():
     benign_seed = _reddit_multi_editor_benign_seed()
     seed_template = {
-        "mechanism": "none",
+        "mechanism": "editor",
         "editor_calls": [
             {
                 "benchmark": "webarena_verified",
@@ -1103,7 +1103,7 @@ def test_validate_seed_template_contract_admits_mode_b_reddit_multi_editor_calls
     from worldsim.phases.phase_2_text_fill import validate_seed_template_contract
 
     seed_template = {
-        "mechanism": "none",
+        "mechanism": "editor",
         "editor_calls": [
             {
                 "site": "reddit",
