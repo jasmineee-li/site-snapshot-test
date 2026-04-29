@@ -51,7 +51,7 @@ import json
 import sys
 import time
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import requests
 
@@ -210,9 +210,34 @@ def delivery_url_from_seed_metadata(metadata: dict | None, instance_site_url: st
             continue
         url = raw_url.strip()
         if url.startswith(("http://", "https://")):
-            return url
+            if _same_origin(url, instance_site_url):
+                return url
+            continue
+        if url.startswith("//"):
+            continue
         return urljoin(instance_site_url + "/", url.lstrip("/"))
     return None
+
+
+def _same_origin(candidate_url: str, instance_site_url: str) -> bool:
+    candidate_origin = _origin_tuple(candidate_url)
+    instance_origin = _origin_tuple(instance_site_url)
+    return candidate_origin is not None and candidate_origin == instance_origin
+
+
+def _origin_tuple(raw_url: str) -> tuple[str, str, int | None] | None:
+    try:
+        parts = urlsplit(raw_url)
+        port = parts.port
+    except ValueError:
+        return None
+    scheme = parts.scheme.strip().lower()
+    host = (parts.hostname or "").strip().lower()
+    if scheme not in {"http", "https"} or not host:
+        return None
+    if port is None:
+        port = 443 if scheme == "https" else 80
+    return scheme, host, port
 
 
 def validation_failures(results: dict[str, dict], expected_sites: list[str]) -> list[str]:

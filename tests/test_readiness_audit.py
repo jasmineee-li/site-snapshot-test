@@ -9,7 +9,14 @@ def test_token_audit_ignores_secret_related_identifiers(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     path = tmp_path / "script.py"
     path.write_text(
-        "def _dump_verification_proxy_without_resolved_secret():\n    return 'not a secret value'\n"
+        "\n".join(
+            [
+                "def _dump_verification_proxy_without_resolved_secret():",
+                "    token = _resolve_verification_proxy_token(proxy_data)",
+                "    _PAYLOAD_SUBSTITUTION_TOKEN = '__WORLDSIM_WITNESSES_JSON__'",
+                "    return 'not a secret value'",
+            ]
+        )
     )
 
     assert readiness_audit._token_findings([str(path)]) == []
@@ -37,6 +44,33 @@ def test_token_audit_flags_access_token_with_underscore(tmp_path, monkeypatch):
 
     assert len(findings) == 1
     assert findings[0].kind == "token_field"
+
+
+def test_token_audit_flags_letter_only_client_secret(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "oauth.json"
+    key = "client_" + "secret"
+    value = "abcdefghijklmnopqrstuvwxyzABCDEF"
+    path.write_text(f'{{"{key}": "{value}"}}\n')
+
+    findings = readiness_audit._token_findings([str(path)])
+
+    assert len(findings) == 1
+    assert findings[0].kind == "token_field"
+
+
+def test_token_audit_scans_fixture_paths_for_real_tokens(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    fixture_path = tmp_path / "tests" / "fixtures" / "leaked.json"
+    fixture_path.parent.mkdir(parents=True)
+    bearer = "Bearer " + "abcdefghijklmnopqrstuvwxyzABCDEF"
+    fixture_path.write_text(f'{{"authorization": "{bearer}"}}\n')
+
+    findings = readiness_audit._token_findings([str(fixture_path)])
+
+    assert len(findings) == 1
+    assert findings[0].path == str(fixture_path)
+    assert findings[0].kind == "secret_value"
 
 
 def test_token_audit_ignores_env_var_placeholders(tmp_path, monkeypatch):
@@ -73,6 +107,16 @@ def test_token_audit_ignores_non_secret_token_references(tmp_path, monkeypatch):
     assert readiness_audit._token_findings([str(path)]) == []
 
 
+def test_token_audit_ignores_url_query_csrf_tokens(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "history.json"
+    path.write_text(
+        '{"action": "http://postmill.test/log_out?token=abcdef1234567890abcdef1234567890"}\n'
+    )
+
+    assert readiness_audit._token_findings([str(path)]) == []
+
+
 def test_token_audit_flags_documented_raw_token_value(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     path = tmp_path / "handoff.md"
@@ -89,3 +133,20 @@ def test_verify_fast_fails_on_token_findings() -> None:
     script = (repo_root / "scripts" / "verify_fast.sh").read_text()
 
     assert "--fail-on tracked-generated --fail-on tokens" in script
+
+
+def test_generated_artifact_detection_covers_r5_copy_outputs(monkeypatch) -> None:
+    paths = [
+        "instances.scale.json",
+        "instances.scale.json.fragment",
+        "instances.smoke.json",
+        "instances.smoke.json.fragment",
+        "scripts/docker-compose.scale.yml",
+        "scripts/docker-compose.smoke.yml",
+        "scripts/proxy_ports.conf",
+    ]
+    monkeypatch.setattr(readiness_audit, "_git_ls_files", lambda: paths)
+
+    audit = readiness_audit.build_audit()
+
+    assert audit.tracked_generated == sorted(paths)

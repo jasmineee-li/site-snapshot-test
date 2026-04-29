@@ -501,12 +501,11 @@ def _dump_verification_proxy_without_resolved_secret(
     else:
         serialized = {}
 
-    source_token = serialized.get("token")
     has_external_token_source = any(
         isinstance(serialized.get(key), str) and serialized[key].strip()
         for key in ("token_env", "token_file")
     )
-    if has_external_token_source and not (isinstance(source_token, str) and source_token.strip()):
+    if has_external_token_source:
         serialized.pop("token", None)
 
     serialized = _normalize_proxy_token_file_reference(

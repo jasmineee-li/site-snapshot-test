@@ -73,6 +73,29 @@ def test_pvpo_live_validation_delivery_url_uses_seed_metadata_read_surface() -> 
     assert url == "http://postmill.test/f/books/42"
 
 
+def test_pvpo_live_validation_ignores_off_origin_seed_metadata_url() -> None:
+    url = pvpo_live_validation.delivery_url_from_seed_metadata(
+        {
+            "read_surface_urls": [
+                "http://attacker.invalid/f/books/42",
+                "http://postmill.test:9999/f/books/42",
+            ]
+        },
+        "http://postmill.test:9999",
+    )
+
+    assert url == "http://postmill.test:9999/f/books/42"
+
+
+def test_pvpo_live_validation_rejects_only_off_origin_seed_metadata_urls() -> None:
+    url = pvpo_live_validation.delivery_url_from_seed_metadata(
+        {"read_surface_urls": ["http://attacker.invalid/f/books/42", "//attacker.invalid/x"]},
+        "http://postmill.test:9999",
+    )
+
+    assert url is None
+
+
 def test_pvpo_live_validation_delivery_url_maps_current_reddit_methods() -> None:
     task = {
         "seed_template": {

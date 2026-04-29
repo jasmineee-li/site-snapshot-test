@@ -178,6 +178,7 @@ def test_generate_compose_scale_keeps_external_proxy_token_references(
         "benchmark_name": "WebArena Verified",
         "benchmark_codebase": "vendors/webarena-verified",
         "verification_proxy": {
+            "token": "resolved-live-token",
             "token_env": "WORLDSIM_TEST_PROXY_TOKEN",
             "token_file": ".proxy_token",
             "port_offset": 10000,
@@ -239,6 +240,7 @@ def test_generate_compose_scale_keeps_external_proxy_token_references(
         "port_offset": 10000,
     }
     assert "live-token-that-must-not-be-serialized" not in (tmp_path / "instances.json").read_text()
+    assert "resolved-live-token" not in (tmp_path / "instances.json").read_text()
 
 
 def test_generate_compose_scale_rewrites_relative_proxy_token_file_for_generated_out_dir(

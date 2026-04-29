@@ -28,14 +28,16 @@ GENERATED_PREFIXES = (
 GENERATED_NAMES = {
     "instances.scale.json",
     "instances.scale.json.fragment",
+    "instances.smoke.json",
+    "instances.smoke.json.fragment",
     "compose.scale.yml",
     "compose.smoke.yml",
     "scripts/docker-compose.scale.yml",
+    "scripts/docker-compose.smoke.yml",
     "scripts/proxy_ports.conf",
 }
 
 DEFERRED_TRACKED_GENERATED: set[str] = set()
-TOKEN_SCAN_EXCLUDED_PREFIXES = ("tests/fixtures/",)
 
 SECRET_VALUE_CHARS = r"A-Za-z0-9._~+/=-"
 TOKEN_FIELD_RE = re.compile(
@@ -43,7 +45,7 @@ TOKEN_FIELD_RE = re.compile(
     re.IGNORECASE,
 )
 SECRET_ASSIGNMENT_RE = re.compile(
-    rf"(?i)\b(?P<key>[\w.-]*(?:token|secret|api[_-]?key|authorization|password)[\w.-]*)"
+    rf"(?i)(?<![?&])\b(?P<key>[\w.-]*(?:token|secret|api[_-]?key|authorization|password)[\w.-]*)"
     rf"\s*[:=]\s*['\"]?(?P<value>[{SECRET_VALUE_CHARS}]{{24,}})"
 )
 BEARER_VALUE_RE = re.compile(rf"(?i)\bBearer\s+([{SECRET_VALUE_CHARS}]{{24,}})")
@@ -116,8 +118,6 @@ def _is_generated(path: str) -> bool:
 def _token_findings(paths: list[str]) -> list[TokenFinding]:
     findings: list[TokenFinding] = []
     for path in paths:
-        if any(path.startswith(prefix) for prefix in TOKEN_SCAN_EXCLUDED_PREFIXES):
-            continue
         if not path.endswith((".json", ".yaml", ".yml", ".toml", ".md", ".py", ".sh")):
             continue
         try:
@@ -160,6 +160,8 @@ def _looks_like_secret_value(value: str) -> bool:
         return False
     if stripped.startswith("<") and stripped.endswith(">"):
         return False
+    if re.match(r"(?i)^(?:gh[pousr]|github_pat|sk|xox[baprs])[_-]", stripped):
+        return True
     if re.fullmatch(r"[A-Z][A-Z0-9_]*", stripped):
         return False
     if "/" in stripped and (
@@ -167,9 +169,13 @@ def _looks_like_secret_value(value: str) -> bool:
         or stripped.endswith((".json", ".md", ".py", ".txt", ".yaml", ".yml"))
     ):
         return False
+    if re.fullmatch(r"_+[A-Za-z0-9_]+", stripped):
+        return False
+    if "_" in stripped and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", stripped):
+        return False
     if re.fullmatch(r"_?[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+", stripped):
         return False
-    return any(char.isalpha() for char in stripped) and any(char.isdigit() for char in stripped)
+    return any(char.isalnum() for char in stripped)
 
 
 def _looks_like_secret_key(key: str) -> bool:
