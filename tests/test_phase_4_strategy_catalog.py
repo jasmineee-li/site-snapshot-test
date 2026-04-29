@@ -3,7 +3,6 @@ from __future__ import annotations
 from worldsim.phase_4.strategy_catalog import (
     ALLOWED_STRATEGIES,
     REFUSAL_TRIGGERS,
-    SURFACE_CHANGE_SENTINEL,
     TRIGGER_TO_STRATEGIES,
     strategies_for_trigger,
 )
@@ -35,10 +34,14 @@ def test_every_trigger_has_mapping():
         assert trigger in TRIGGER_TO_STRATEGIES, f"missing lookup for {trigger}"
 
 
-def test_distracted_returns_sentinel_and_is_not_actionable():
+def test_distracted_maps_to_salience_strategies_after_pvpo_encounter():
     strategies, actionable = strategies_for_trigger("distracted")
-    assert actionable is False
-    assert strategies == (SURFACE_CHANGE_SENTINEL,)
+    assert actionable is True
+    assert strategies == (
+        "necessary_for_benign_goal",
+        "specificity",
+        "semantic_coherence",
+    )
 
 
 def test_actionable_triggers_map_to_real_strategies():
@@ -48,6 +51,7 @@ def test_actionable_triggers_map_to_real_strategies():
         "formatting",
         "externally_sourced",
         "safety_policy",
+        "distracted",
         "unknown",
     ):
         strategies, actionable = strategies_for_trigger(trigger)

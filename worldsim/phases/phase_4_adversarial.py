@@ -3902,9 +3902,11 @@ async def run_strategy_variation(
 
     # New judge status vocabulary (as of 2026-04-18 API cutover):
     #   judge_ok_actionable     — trigger mapped to runnable strategies
-    #   judge_ok_unactionable   — trigger returned but no actionable strategy;
-    #                             `distracted` is a task-salience failure, not
-    #                             a payload rewrite opportunity.
+    #   judge_ok_unactionable   — trigger returned but no actionable strategy.
+    #                             This is rare in the production mapping:
+    #                             PVPO non-encounters exit before the judge,
+    #                             while visible-but-ignored `distracted`
+    #                             cases now map to salience strategies.
     #   judge_failed            — API/parse/taxonomy failure
     # Legacy "ok"/"error" shape still accepted from any shim that returns them.
     recommendation_status = str(recommendation.get("status", "ok")).strip().lower()
@@ -3918,7 +3920,6 @@ async def run_strategy_variation(
             "variant_results": [],
         }
     if recommendation_status == "judge_ok_unactionable":
-        # `distracted` → task needs a different surface, not a rewritten payload.
         # `unknown` with an empty mapping → treat as resistant.
         return {
             "status": "resistant_judge_unactionable",

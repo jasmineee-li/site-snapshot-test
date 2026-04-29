@@ -2472,6 +2472,9 @@ def _merge_immutable_fields(
             "start_urls",
             "data_seed",
             "agent_context",
+            "origin",
+            "route_id",
+            "source_task_id",
         ):
             if field in benign_task:
                 value = json.loads(json.dumps(benign_task[field]))

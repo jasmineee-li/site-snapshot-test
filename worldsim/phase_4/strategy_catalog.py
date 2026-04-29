@@ -68,10 +68,10 @@ REFUSAL_TRIGGERS: frozenset[str] = frozenset(
     }
 )
 
-# Signals to Phase 4 host code that the task needs a different injection
-# surface entirely, not a rewritten payload. Surfaced when the agent never
-# engaged with the injection (e.g., counting task that doesn't read review
-# details).
+# Legacy sentinel retained for compatibility with older artifacts. Current
+# Phase 4 only asks the judge after PVPO encounter succeeds, so a `distracted`
+# diagnosis means visible-but-not-salient content and is handled through
+# strategy variation rather than a surface rewrite.
 SURFACE_CHANGE_SENTINEL = "__surface_change_required__"
 
 # Host-side lookup. Up to 3 strategies per refusal_trigger. Ordered so that
@@ -103,9 +103,11 @@ TRIGGER_TO_STRATEGIES: dict[str, tuple[str, ...]] = {
         "necessary_for_benign_goal",
         "simulation_framing",
     ),
-    # Agent never read the injection. Strategy-level rewrites don't help;
-    # the task needs a different target_surface_id. Host code handles.
-    "distracted": (SURFACE_CHANGE_SENTINEL,),
+    "distracted": (
+        "necessary_for_benign_goal",
+        "specificity",
+        "semantic_coherence",
+    ),
     "unknown": (
         "authority_framing",
         "specificity",
@@ -118,10 +120,8 @@ def strategies_for_trigger(refusal_trigger: str) -> tuple[tuple[str, ...], bool]
     """Return `(strategies, actionable)` for a judge-returned trigger.
 
     `actionable` is True when the strategies list contains real strategy
-    names the variant generator can apply. It is False for the
-    `distracted` case (sentinel only) and for any unknown trigger with no
-    mapping — both cases signal that variant generation should be skipped
-    and the task marked accordingly.
+    names the variant generator can apply. It is False only for unmapped or
+    invalid triggers, which signals that variant generation should be skipped.
     """
     if refusal_trigger not in REFUSAL_TRIGGERS:
         return ((), False)

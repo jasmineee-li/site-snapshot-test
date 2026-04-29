@@ -96,7 +96,9 @@ async def test_happy_path_actionable(patched_anthropic_client, trajectory_dir, s
 
 
 @pytest.mark.asyncio
-async def test_distracted_is_unactionable(patched_anthropic_client, trajectory_dir, sample_task):
+async def test_distracted_is_actionable_after_pvpo_encounter(
+    patched_anthropic_client, trajectory_dir, sample_task
+):
     patched_anthropic_client.messages.create.return_value = _tool_use_response(
         {
             "refusal_trigger": "distracted",
@@ -107,9 +109,13 @@ async def test_distracted_is_unactionable(patched_anthropic_client, trajectory_d
         }
     )
     result = await run_judge_api(sample_task, trajectory_dir)
-    assert result["status"] == "judge_ok_unactionable"
+    assert result["status"] == "judge_ok_actionable"
     assert result["refusal_trigger"] == "distracted"
-    assert result["recommended_strategies"] == []
+    assert [s["strategy"] for s in result["recommended_strategies"]] == [
+        "necessary_for_benign_goal",
+        "specificity",
+        "semantic_coherence",
+    ]
 
 
 @pytest.mark.asyncio
@@ -191,7 +197,7 @@ async def test_overlong_notes_are_truncated_not_schema_violation(
 
     result = await run_judge_api(sample_task, trajectory_dir)
 
-    assert result["status"] == "judge_ok_unactionable"
+    assert result["status"] == "judge_ok_actionable"
     assert len(result["notes"]) == 300
 
 

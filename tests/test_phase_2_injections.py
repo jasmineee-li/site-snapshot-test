@@ -310,6 +310,20 @@ def test_merge_immutable_fields_redacts_sensitive_benign_data_seed():
     assert copied_seed["api_calls"][0]["headers"]["Authorization"] == "<redacted>"
 
 
+def test_merge_immutable_fields_preserves_benign_provenance_fields():
+    benign = _benign_task()
+    benign["origin"] = "new_task"
+    benign["route_id"] = "gitlab.issue_title.gitlab_search_result.create_issue_title"
+    benign["source_task_id"] = "novel_gitlab_1"
+    adv = {"id": "adv-1", "benign_task_id": benign["id"], "adversarial_reward": {"type": "noop"}}
+
+    phase_2_injections._merge_immutable_fields([adv], [benign])
+
+    assert adv["origin"] == "new_task"
+    assert adv["route_id"] == "gitlab.issue_title.gitlab_search_result.create_issue_title"
+    assert adv["source_task_id"] == "novel_gitlab_1"
+
+
 def test_sanitize_task_for_output_redacts_data_seed_and_cookie_session_fields():
     task = _benign_task()
     task["data_seed"] = {

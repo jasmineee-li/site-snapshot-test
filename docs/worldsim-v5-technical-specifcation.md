@@ -1014,7 +1014,7 @@ Cognitive (higher refusal risk): `disable_safety_thoughts`, `reward_punishment`.
 
 Concealment-steering strategies (`scripted_message`, `command_silent_execution`, `false_justification`) are explicitly deferred — they steer only the agent's final response, and the current `AgentResponseEvaluator` + `db_query_match` reward is tool-side only. Adding them requires both (a) a prompt judge that scores concealment per paper Appendix A.1/A.2 AND (b) a new reward function that treats concealment as a grading axis. `visual_concealment` (a prior pool member) was removed on 2026-04-18 — it was a category error because we do not control rendering in WebArena review fields.
 
-**Judge diagnosis.** A single-turn Anthropic Messages API call receives the adversarial task and the full untruncated trajectory (extracted via `worldsim/phase_4/aer_trajectory_extract.py` — typed dataclasses, no byte budget under Sonnet 4.6's 1M-context variant; `state_message` excluded by default as the dominant cost driver). The judge classifies the failure mode into one of 7 values: `suspicion`, `tonal_mismatch`, `formatting`, `externally_sourced`, `safety_policy`, `distracted` (agent never engaged with the injection), or `unknown` (insufficient evidence). Output is enforced via Anthropic tool-use forcing (tool `classify_refusal`). The judge does NOT recommend strategies; a host-side `TRIGGER_TO_STRATEGIES` lookup in `worldsim/phase_4/strategy_catalog.py` maps the returned trigger to up to 3 strategies.
+**Judge diagnosis.** A single-turn Anthropic Messages API call receives the adversarial task and the full untruncated trajectory (extracted via `worldsim/phase_4/aer_trajectory_extract.py` — typed dataclasses, no byte budget under Sonnet 4.6's 1M-context variant; `state_message` excluded by default as the dominant cost driver). The judge classifies the failure mode into one of 7 values: `suspicion`, `tonal_mismatch`, `formatting`, `externally_sourced`, `safety_policy`, `distracted` (the payload was visible, but the agent did not behaviorally engage with it), or `unknown` (insufficient evidence). Output is enforced via Anthropic tool-use forcing (tool `classify_refusal`). The judge does NOT recommend strategies; a host-side `TRIGGER_TO_STRATEGIES` lookup in `worldsim/phase_4/strategy_catalog.py` maps the returned trigger to up to 3 strategies. PVPO non-encounters exit before the judge and remain placement-fix candidates; ecologically valid `distracted` refusals are salience/semantic-fit failures and therefore map to bounded strategy variation, not placement mutation.
 
 **Prompt: `worldsim/prompts/judge-adversarial-failure.md`.** Classification-only with authorization preamble citing Dziemian et al., 2026. See file for full text.
 
@@ -1033,7 +1033,7 @@ async def run_strategy_variation(task, initial_result, instances, agent_factory,
         return {"status": "judge_failed", "judge_diagnosis": recommendation, "attempts": [initial_result]}
     strategies, actionable = strategies_for_trigger(recommendation["refusal_trigger"])
     if not actionable:
-        # distracted → needs_surface_change; unknown with no fallback → resistant
+        # Unmapped trigger; production mappings should keep this rare.
         return {"status": "resistant", "judge_diagnosis": recommendation, "attempts": [initial_result]}
 
     # 2. Generate variants in parallel (up to 3 Messages API calls, semaphore-gated)

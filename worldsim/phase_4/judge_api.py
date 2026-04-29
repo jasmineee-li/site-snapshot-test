@@ -239,8 +239,10 @@ async def run_judge_api(
     - status="judge_ok_actionable": `refusal_trigger` maps to runnable
       strategies. Variant generation should proceed.
     - status="judge_ok_unactionable": classification succeeded but there
-      is no actionable strategy (e.g., `distracted` signals surface
-      change, or `unknown` returned a fallback we don't trust).
+      is no actionable strategy for the returned trigger. In normal
+      production mappings this should be rare: PVPO non-encounters are routed
+      before the judge, and visible-but-ignored `distracted` cases map to
+      salience strategies.
     - status="judge_failed": API/parse/taxonomy failure.
       `failure_class` identifies the specific failure mode.
     """
