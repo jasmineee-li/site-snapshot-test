@@ -133,6 +133,32 @@ _PROBE_LAUNCH_ARGS: tuple[str, ...] = (
 )
 
 
+async def _ensure_playwright_chromium_ready(async_playwright_factory: Any) -> None:
+    """Fail once, before worker fan-out, when the browser bundle is missing."""
+
+    pw_handle: Any = None
+    try:
+        pw_handle = await async_playwright_factory().start()
+        chromium = getattr(pw_handle, "chromium", None)
+        executable_raw = str(getattr(chromium, "executable_path", "") or "")
+        executable = Path(executable_raw) if executable_raw else None
+        if executable is None or not executable.is_file():
+            missing = executable_raw or "<unknown>"
+            raise RuntimeError(
+                "phase 2c render verification requires the Playwright Chromium "
+                "browser bundle. Missing executable: "
+                f"{missing}. Run: uv run python -m playwright install chromium. "
+                "On fresh Linux hosts, also run: sudo $(command -v uv) run "
+                "python -m playwright install-deps chromium."
+            )
+    finally:
+        if pw_handle is not None:
+            try:
+                await pw_handle.stop()
+            except Exception:
+                logger.debug("phase 2c: failed to stop playwright readiness handle", exc_info=True)
+
+
 def _per_replica_cap(site_name: str) -> int:
     return _PER_REPLICA_CAP_DEFAULT.get(site_name.strip().lower(), _PER_REPLICA_CAP_FALLBACK)
 
@@ -437,6 +463,7 @@ async def verify_feasibility(
                 f"Underlying import error: {exc!r}"
             ) from exc
         async_playwright_factory = async_playwright
+        await _ensure_playwright_chromium_ready(async_playwright_factory)
 
     async def worker(task: dict[str, Any], index: int) -> dict[str, Any]:
         # Resolve site + replica *before* acquiring any semaphore so the

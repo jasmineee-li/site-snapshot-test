@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
 from datetime import UTC
 from pathlib import Path
 from typing import Any
@@ -2420,8 +2421,9 @@ class _FakePlaywrightBrowser:
 
 
 class _FakeChromium:
-    def __init__(self, browser: _FakePlaywrightBrowser) -> None:
+    def __init__(self, browser: _FakePlaywrightBrowser, executable_path: str | None = None) -> None:
         self._browser = browser
+        self.executable_path = executable_path or sys.executable
         self.last_launch_kwargs: dict[str, Any] = {}
 
     async def launch(self, *, headless, args=None):
@@ -2430,8 +2432,8 @@ class _FakeChromium:
 
 
 class _FakePlaywright:
-    def __init__(self, browser: _FakePlaywrightBrowser) -> None:
-        self.chromium = _FakeChromium(browser)
+    def __init__(self, browser: _FakePlaywrightBrowser, executable_path: str | None = None) -> None:
+        self.chromium = _FakeChromium(browser, executable_path=executable_path)
         self.stopped = False
 
     async def stop(self):
@@ -2439,14 +2441,15 @@ class _FakePlaywright:
 
 
 class _FakePlaywrightFactory:
-    def __init__(self, browser: _FakePlaywrightBrowser) -> None:
+    def __init__(self, browser: _FakePlaywrightBrowser, executable_path: str | None = None) -> None:
         self._browser = browser
+        self._executable_path = executable_path
 
     def __call__(self):
         return self
 
     async def start(self):
-        return _FakePlaywright(self._browser)
+        return _FakePlaywright(self._browser, executable_path=self._executable_path)
 
 
 def _shopping_review_task(
@@ -2479,7 +2482,9 @@ def _patch_apply_with_metadata(monkeypatch, urls: list[str]) -> None:
     monkeypatch.setattr(feas, "apply_data_seed_async", fake)
 
 
-def _install_fake_playwright(monkeypatch, browser: _FakePlaywrightBrowser) -> None:
+def _install_fake_playwright(
+    monkeypatch, browser: _FakePlaywrightBrowser, *, executable_path: str | None = None
+) -> None:
     """Inject a fake ``playwright.async_api`` module into ``sys.modules`` so
     the lazy ``from playwright.async_api import async_playwright`` inside
     ``verify_feasibility`` resolves to our shim. Works whether or not the
@@ -2487,12 +2492,38 @@ def _install_fake_playwright(monkeypatch, browser: _FakePlaywrightBrowser) -> No
     import sys
     import types
 
-    factory = _FakePlaywrightFactory(browser)
+    factory = _FakePlaywrightFactory(browser, executable_path=executable_path)
     fake_module = types.ModuleType("playwright.async_api")
     fake_module.async_playwright = factory
     fake_pkg = types.ModuleType("playwright")
     monkeypatch.setitem(sys.modules, "playwright", fake_pkg)
     monkeypatch.setitem(sys.modules, "playwright.async_api", fake_module)
+
+
+def test_playwright_browser_missing_fails_fast_before_workers(tmp_path, monkeypatch):
+    monkeypatch.delenv("WORLDSIM_PHASE_2C_SKIP_RENDER_CHECK", raising=False)
+    fake_browser = _FakePlaywrightBrowser(_FakePlaywrightPage(body="unused"))
+    _install_fake_playwright(
+        monkeypatch,
+        fake_browser,
+        executable_path=str(tmp_path / "missing-chromium"),
+    )
+
+    async def should_not_seed(seed, instance):
+        raise AssertionError("missing browser bundle should fail before worker fan-out")
+
+    monkeypatch.setattr(feas, "apply_data_seed_async", should_not_seed)
+    tasks_path = _write_tasks(tmp_path, [_shopping_review_task()])
+
+    with pytest.raises(RuntimeError, match="playwright install chromium"):
+        asyncio.run(
+            feas.verify_feasibility(
+                tasks_path,
+                instances=[_shopping_instance(site_url="http://shop.example/")],
+                concurrency=1,
+                retry_count=0,
+            )
+        )
 
 
 def test_render_check_passing_stamps_render_verified(tmp_path, monkeypatch):
