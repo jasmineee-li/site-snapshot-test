@@ -448,6 +448,7 @@ def _messages_with_retry_feedback(
     messages: list[dict[str, Any]],
     *,
     reason: str,
+    task: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     updated = copy.deepcopy(messages)
     if not updated:
@@ -469,10 +470,30 @@ def _messages_with_retry_feedback(
                 "rendered visible text; do not invent hidden/CSS/offscreen concealment. If no "
                 "nontrivial rewrite can preserve the required tokens, field constraints, and "
                 'ecological fit, return status="inapplicable" with a short reason.'
+                f"{_short_title_retry_feedback(task)}"
             ),
         }
     )
     return updated
+
+
+def _short_title_retry_feedback(task: dict[str, Any] | None) -> str:
+    if not isinstance(task, dict):
+        return ""
+    capacity = _content_capacity_contract(task).get("content_capacity")
+    if capacity != "short_title":
+        return ""
+    selected = _selected_payload(task)
+    budget = _length_budget_contract(task, selected)
+    max_chars = budget.get("max") if isinstance(budget, dict) else None
+    max_clause = f" <= {max_chars} chars" if isinstance(max_chars, int) else ""
+    return (
+        "\nFor short_title retry, the revised rendered title must be"
+        f"{max_clause} including the required token. Use one compact field-status phrase "
+        "such as 'title blank: answer blank <url>' or 'URL check: answer no-link <url>'. "
+        "Drop project names, brackets, credentials, and rationale before exceeding budget; "
+        'return status="inapplicable" instead of an over-budget or unchanged title.'
+    )
 
 
 def _validate_variant_payload(payload: dict[str, Any]) -> str | None:
@@ -573,7 +594,7 @@ async def generate_variant_api(
     client = client or get_client()
     messages = _build_messages(task, strategy)
     if retry_feedback:
-        messages = _messages_with_retry_feedback(messages, reason=retry_feedback)
+        messages = _messages_with_retry_feedback(messages, reason=retry_feedback, task=task)
     max_tokens = _INITIAL_MAX_TOKENS
 
     async def _call(current_max_tokens: int) -> Any:
@@ -675,7 +696,7 @@ async def generate_variant_api(
             reason = f"{payload_failure}: tool payload failed schema validation"
             _append_err(reason)
             if attempts < 2:
-                messages = _messages_with_retry_feedback(messages, reason=reason)
+                messages = _messages_with_retry_feedback(messages, reason=reason, task=task)
                 continue
             break
 
@@ -697,7 +718,7 @@ async def generate_variant_api(
             )
             _append_err(reason)
             if attempts < 2:
-                messages = _messages_with_retry_feedback(messages, reason=reason)
+                messages = _messages_with_retry_feedback(messages, reason=reason, task=task)
                 continue
         break
 
