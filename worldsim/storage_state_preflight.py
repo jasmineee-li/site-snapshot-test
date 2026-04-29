@@ -11,7 +11,11 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from worldsim.agent_auth import _resolve_declared_storage_state_path
+from worldsim.agent_auth import (
+    _declared_path_references_phase_0d,
+    _phase_0d_site_roots,
+    _resolve_declared_storage_state_path,
+)
 from worldsim.atomic_io import write_json_atomic
 from worldsim.benchmark_capabilities import normalize_benchmark_name
 from worldsim.config import BenchmarkConfig, BenchmarkInstance
@@ -215,18 +219,32 @@ def _resolve_storage_state_artifact_for_preflight(
     if raw_path is None:
         return None, None
 
-    try:
-        from worldsim.phases.phase_0d_auth_bootstrap import (
-            phase_0d_instance_artifact_path_by_id,
-            phase_0d_instance_id,
+    references_phase_0d = _declared_path_references_phase_0d(
+        raw_path,
+        site_name=instance.site_name,
+    )
+    phase_0d_roots, phase_0d_roots_error = _phase_0d_site_roots(
+        instance.site_name,
+        include_canonical=references_phase_0d,
+    )
+    if phase_0d_roots_error is not None:
+        return None, StorageStatePreflightError(
+            site_name=instance.site_name,
+            declared_path=raw_path,
+            message=phase_0d_roots_error,
         )
+
+    try:
+        from worldsim.phases.phase_0d_auth_bootstrap import phase_0d_instance_id
     except ImportError:  # pragma: no cover
-        per_instance_path = None
+        instance_id = None
     else:
         instance_id = phase_0d_instance_id(instance.model_dump())
-        per_instance_path = phase_0d_instance_artifact_path_by_id(instance.site_name, instance_id)
-        if per_instance_path.exists():
-            return per_instance_path, None
+        if references_phase_0d:
+            for root in phase_0d_roots:
+                per_instance_path = root / "instances" / instance_id / "storage_state.json"
+                if per_instance_path.exists():
+                    return per_instance_path, None
 
     declared_path, resolve_error = _resolve_declared_storage_state_path(
         raw_path,
@@ -243,25 +261,21 @@ def _resolve_storage_state_artifact_for_preflight(
     if declared_path.exists():
         return declared_path, None
 
-    try:
-        from worldsim.phases.phase_0d_auth_bootstrap import (
-            phase_0d_artifact_path,
-            phase_0d_completion_path,
-        )
-    except ImportError:  # pragma: no cover
-        bootstrap_path = None
-        completion_path = None
-    else:
-        bootstrap_path = phase_0d_artifact_path(instance.site_name)
-        completion_path = phase_0d_completion_path(instance.site_name)
+    if instance_id is not None:
+        # If runtime auto-heal minted a per-instance artifact after a declared
+        # non-Phase-0d path went missing, consume the active state-dir artifact.
+        # Canonical logs fallback remains limited to declared Phase 0d paths.
+        for root in phase_0d_roots:
+            per_instance_path = root / "instances" / instance_id / "storage_state.json"
+            if per_instance_path.exists():
+                return per_instance_path, None
 
-    if (
-        bootstrap_path is not None
-        and completion_path is not None
-        and bootstrap_path.exists()
-        and completion_path.exists()
-    ):
-        return bootstrap_path, None
+    if references_phase_0d:
+        for root in phase_0d_roots:
+            bootstrap_path = root / "storage_state.json"
+            completion_path = root / "completion.json"
+            if bootstrap_path.exists() and completion_path.exists():
+                return bootstrap_path, None
 
     return None, StorageStatePreflightError(
         site_name=instance.site_name,
@@ -622,19 +636,6 @@ async def ensure_storage_state(
         instance,
         benchmark_root=benchmark_root,
     )
-    try:
-        from worldsim.phases.phase_0d_auth_bootstrap import (
-            phase_0d_instance_artifact_path_by_id,
-            phase_0d_instance_id,
-        )
-    except ImportError:  # pragma: no cover
-        per_instance_path = None
-    else:
-        instance_id = phase_0d_instance_id(instance.model_dump())
-        per_instance_path = phase_0d_instance_artifact_path_by_id(instance.site_name, instance_id)
-        if per_instance_path.exists():
-            artifact_path = per_instance_path
-            error = None
     if error is None and artifact_path is not None:
         try:
             payload = json.loads(artifact_path.read_text(encoding="utf-8"))

@@ -205,10 +205,15 @@ def resolve_storage_state_path(
             path,
         )
 
+    include_canonical_phase_0d = False
     storage_state = agent_auth.get("storage_state")
     if isinstance(storage_state, Mapping):
         nested = storage_state.get("path")
         if isinstance(nested, str) and nested.strip():
+            include_canonical_phase_0d = _declared_path_references_phase_0d(
+                nested.strip(),
+                site_name=site_name,
+            )
             path, error = _resolve_declared_storage_state_path(
                 nested.strip(),
                 benchmark_root=benchmark_root,
@@ -233,19 +238,31 @@ def resolve_storage_state_path(
     if site_error is not None:
         logger.warning("agent auth: %s", site_error)
         return None
-    state_root = Path(os.environ.get("WORLDSIM_STATE_DIR") or "logs") / "phase_0d" / fallback_site
+    roots, root_error = _phase_0d_site_roots(
+        fallback_site,
+        include_canonical=include_canonical_phase_0d,
+    )
+    if root_error is not None:
+        logger.warning("agent auth: %s", root_error)
+        return None
     if instance_id and _is_safe_instance_id(instance_id):
-        per_instance = state_root / "instances" / instance_id / "storage_state.json"
-        if per_instance.exists():
-            return per_instance
+        for state_root in roots:
+            per_instance = state_root / "instances" / instance_id / "storage_state.json"
+            if per_instance.exists():
+                return per_instance
+        first_root = roots[0]
+        per_instance = first_root / "instances" / instance_id / "storage_state.json"
         logger.warning(
-            "agent auth: per-instance storage_state %s not found; falling back to shared "
-            "%s/storage_state.json (re-run Phase 0d to populate the per-instance artifact)",
+            "agent auth: per-instance storage_state %s not found under %s; falling back to "
+            "shared storage_state.json (re-run Phase 0d to populate the per-instance artifact)",
             per_instance,
-            state_root,
+            ", ".join(str(root) for root in roots),
         )
-    candidate = state_root / "storage_state.json"
-    return candidate if candidate.exists() else None
+    for state_root in roots:
+        candidate = state_root / "storage_state.json"
+        if candidate.exists():
+            return candidate
+    return None
 
 
 def _validate_storage_state_override_path(
@@ -269,11 +286,10 @@ def _validate_storage_state_override_path(
     resolved = path.resolve()
     allowed_roots = [Path(benchmark_root).resolve()]
     if fallback_site:
-        allowed_roots.append(
-            (
-                Path(os.environ.get("WORLDSIM_STATE_DIR") or "logs") / "phase_0d" / fallback_site
-            ).resolve()
-        )
+        roots, root_error = _phase_0d_site_roots(fallback_site)
+        if root_error is not None:
+            return root_error
+        allowed_roots.extend(roots)
     for root in allowed_roots:
         try:
             resolved.relative_to(root)
@@ -285,12 +301,51 @@ def _validate_storage_state_override_path(
 
 
 def _phase_0d_site_root(site_name: str) -> tuple[Path | None, str | None]:
+    roots, error = _phase_0d_site_roots(site_name)
+    if error is not None:
+        return None, error
+    return roots[0], None
+
+
+def _phase_0d_site_roots(
+    site_name: str,
+    *,
+    include_canonical: bool = False,
+) -> tuple[list[Path], str | None]:
     safe_site, site_error = safe_phase_0d_site_name(site_name)
     if site_error is not None:
-        return None, site_error
+        return [], site_error
+    state_dir_root = Path(os.environ.get("WORLDSIM_STATE_DIR") or "logs").expanduser().resolve()
+    roots = [(state_dir_root / "phase_0d" / safe_site).resolve()]
+    canonical_root = (Path("logs").expanduser().resolve() / "phase_0d" / safe_site).resolve()
+    if include_canonical and canonical_root not in roots:
+        roots.append(canonical_root)
+    return roots, None
+
+
+def _declared_path_references_phase_0d(raw_path: str, *, site_name: str) -> bool:
+    safe_site, site_error = safe_phase_0d_site_name(site_name)
+    if site_error is not None or safe_site is None:
+        return False
+    path = Path(raw_path)
+    if path.is_absolute():
+        canonical_root = (Path("logs").expanduser().resolve() / "phase_0d" / safe_site).resolve()
+        try:
+            path.expanduser().resolve().relative_to(canonical_root)
+            return True
+        except (OSError, ValueError):
+            return False
+    parts = path.parts
     return (
-        Path(os.environ.get("WORLDSIM_STATE_DIR") or "logs") / "phase_0d" / safe_site
-    ).resolve(), None
+        len(parts) >= 3
+        and parts[0] == "logs"
+        and parts[1] == "phase_0d"
+        and parts[2] == safe_site
+    ) or (
+        len(parts) >= 2
+        and parts[0] == "phase_0d"
+        and parts[1] == safe_site
+    )
 
 
 _PHASE_0D_INSTANCE_ID_RE = re.compile(r"^instance_[A-Za-z0-9]{1,64}$")
@@ -324,14 +379,19 @@ def _resolve_declared_storage_state_path(
     sometimes pin a specific override that should not be transformed.
     """
     path = Path(raw_path)
-    state_root, site_error = _phase_0d_site_root(site_name)
-    if site_error is not None:
-        return None, site_error
+    phase_0d_roots, roots_error = _phase_0d_site_roots(
+        site_name,
+        include_canonical=_declared_path_references_phase_0d(raw_path, site_name=site_name),
+    )
+    if roots_error is not None:
+        return None, roots_error
     state_dir_root = Path(os.environ.get("WORLDSIM_STATE_DIR") or "logs").expanduser().resolve()
-    if instance_id and _is_safe_instance_id(instance_id) and state_root is not None:
-        per_instance = state_root / "instances" / instance_id / "storage_state.json"
-        if per_instance.exists():
-            return per_instance, None
+    if instance_id and _is_safe_instance_id(instance_id):
+        for root in phase_0d_roots:
+            per_instance = root / "instances" / instance_id / "storage_state.json"
+            if per_instance.exists():
+                return per_instance, None
+        per_instance = phase_0d_roots[0] / "instances" / instance_id / "storage_state.json"
         logger.warning(
             "agent auth: per-instance storage_state %s not found; falling back to declared "
             "path %s (re-run Phase 0d to populate the per-instance artifact)",
@@ -342,8 +402,8 @@ def _resolve_declared_storage_state_path(
         root
         for root in (
             Path(benchmark_root).resolve() if benchmark_root else None,
-            state_root,
             state_dir_root,
+            *phase_0d_roots,
         )
         if root is not None
     ]

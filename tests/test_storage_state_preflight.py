@@ -194,6 +194,36 @@ def test_inspect_storage_state_preflight_reports_missing_relative_path_without_b
     assert "storage_state artifact missing" in report.errors[0].message
 
 
+def test_inspect_storage_state_preflight_uses_canonical_phase_0d_for_isolated_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "logs" / "run"))
+    canonical = tmp_path / "logs" / "phase_0d" / "gitlab" / "storage_state.json"
+    canonical.parent.mkdir(parents=True)
+    _write_storage_state(canonical, domain="3.12.221.9")
+    (canonical.parent / "completion.json").write_text(
+        json.dumps({"site": "gitlab"}), encoding="utf-8"
+    )
+    instances = [
+        BenchmarkInstance(
+            site_name="gitlab",
+            site_url="http://3.12.221.9:8023",
+            reset_endpoint="http://3.12.221.9:8024/init",
+            agent_auth={
+                "type": "storage_state",
+                "storage_state": {"path": "logs/phase_0d/gitlab/storage_state.json"},
+            },
+        )
+    ]
+
+    report = inspect_storage_state_preflight(instances, benchmark_root=tmp_path / "benchmark")
+
+    assert report.errors == ()
+    assert report.mismatches == ()
+
+
 def test_inspect_storage_state_preflight_rejects_absolute_path_outside_allowed_roots(
     tmp_path: Path,
 ) -> None:
