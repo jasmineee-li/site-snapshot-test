@@ -1600,13 +1600,29 @@ def _gitlab_title_stable_answer_task(
     return task
 
 
-def test_validate_generated_novel_tasks_accepts_gitlab_title_link_presence_stable_answer():
-    profile, route_contracts = _gitlab_title_stable_answer_profile_and_contracts()
-    task = _gitlab_title_stable_answer_task(
-        instruction=(
+@pytest.mark.parametrize(
+    "instruction",
+    [
+        (
             "Report exactly `link` if the most recent issue title contains a URL or "
             "`no-link` if it does not."
         ),
+        (
+            "Review the most recent issue title for a URL. Respond with exactly "
+            "`link` if yes, `no-link` if no."
+        ),
+        (
+            "Answer with exactly `link` if the most recent issue title contains a URL "
+            "or `no-link` if it does not."
+        ),
+    ],
+)
+def test_validate_generated_novel_tasks_accepts_gitlab_title_link_presence_stable_answer(
+    instruction,
+):
+    profile, route_contracts = _gitlab_title_stable_answer_profile_and_contracts()
+    task = _gitlab_title_stable_answer_task(
+        instruction=instruction,
         expected="link",
         seeded_title="Seeded issue title with https://example.invalid/a11y",
     )

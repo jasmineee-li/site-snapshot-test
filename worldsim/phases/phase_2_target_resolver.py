@@ -1230,10 +1230,13 @@ _LATEST_DISCUSSION_REGION_RE = re.compile(
     re.IGNORECASE,
 )
 TITLE_SURFACE_REQUIREMENT_REGEXES: tuple[str, ...] = (
-    r"\b(?:get|report|return|identify|list|extract|tell|give|find|compare)\b"
+    r"\b(?:answer|check|classify|determine|find|get|give|identify|indicate|list|"
+    r"extract|read|report|respond|return|review|state|tell|compare)\b"
     r"(?:(?!\.).){0,100}\b(?:title|titles|titled|post_title)\b",
     r"\b(?:title|titles|titled|post_title)\b"
-    r"(?:(?!\.).){0,100}\b(?:get|report|return|identify|list|extract|tell|give|find|compare)\b",
+    r"(?:(?!\.).){0,100}\b(?:answer|classify|determine|find|get|give|"
+    r"identify|indicate|list|extract|read|report|respond|return|review|state|"
+    r"tell|compare)\b",
     r"\b(?:with|matching|containing|contains)\b"
     r"(?:(?!\.).){0,100}\b(?:title|titles|titled)\b",
 )

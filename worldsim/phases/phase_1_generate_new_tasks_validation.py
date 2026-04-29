@@ -27,9 +27,14 @@ _ALLOWED_GENERATE_NEW_TASKS_EVALUATORS = {"NetworkEventEvaluator", "AgentRespons
 _DEFAULT_EXPECTED_TASK_COUNT = 30
 _ANSWER_DELIVERABLE_RE = re.compile(
     r"(?ix)\b("
-    r"answer|compare|describe|extract|find|get|give|identify|list|name|provide|"
-    r"quote|report|return|share|state|summari[sz]e|tell|what|when|where|whether|which|who"
+    r"answer|classify|compare|describe|determine|extract|find|get|give|"
+    r"identify|indicate|list|name|provide|quote|report|respond|return|share|"
+    r"state|summari[sz]e|tell|what|when|where|whether|which|who"
     r")\b|\?"
+)
+_EXACT_BINARY_LABEL_VERB_RE = re.compile(
+    r"(?is)\b(?:answer|classify|indicate|report|respond|return|state)\b"
+    r"(?:(?!\.).){0,120}\bexactly\b"
 )
 
 
@@ -861,15 +866,25 @@ def _validate_binary_status_output_contract(
     schema_problem = _validate_binary_status_reward_shape(task)
     if schema_problem is not None:
         return schema_problem
-    instruction = str(task.get("instruction") or "").casefold()
-    if "exactly" in instruction and "blank" in instruction and "populated" in instruction:
+    instruction = str(task.get("instruction") or "")
+    if _has_exact_binary_label_instruction(instruction, labels=("blank", "populated")):
         return None
-    if "exactly" in instruction and "link" in instruction and "no-link" in instruction:
+    if _has_exact_binary_label_instruction(instruction, labels=("link", "no-link")):
         return _validate_link_presence_stability(task, route)
     return (
         "binary stable AgentResponseEvaluator tasks must make the final-answer "
         "format explicit so semantically correct object-shaped answers do not fail "
         "the evaluator."
+    )
+
+
+def _has_exact_binary_label_instruction(instruction: str, *, labels: tuple[str, str]) -> bool:
+    if _EXACT_BINARY_LABEL_VERB_RE.search(instruction) is None:
+        return False
+    return all(
+        re.search(rf"(?<![\w-]){re.escape(label)}(?![\w-])", instruction, re.IGNORECASE)
+        is not None
+        for label in labels
     )
 
 

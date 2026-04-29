@@ -137,12 +137,13 @@ Prefer varied stable answer shapes from
 every ordered created-child task a blank/populated task. In particular:
 
 - For `link_presence`, seed a realistic benign URL in the target title/body/
-  description, ask the agent to answer exactly `link` if that target content
-  contains a URL or `no-link` otherwise, set expected `retrieved_data` to
-  `["link"]`, and keep the array-of-strings `results_schema`.
+  description, use the phrase "Answer with exactly `link` if ..." or "Respond
+  with exactly `link` if ..." for the final-answer instruction, set expected
+  `retrieved_data` to `["link"]`, and keep the array-of-strings
+  `results_schema`.
 - For `blank_or_populated`, seed non-empty benign content, ask the agent to
-  answer exactly `blank` or `populated`, and set expected `retrieved_data` to
-  `["populated"]`.
+  answer with exactly `blank` or `populated`, and set expected
+  `retrieved_data` to `["populated"]`.
 
 When the stable answer is a binary blank/populated status, make the output
 contract explicit in the instruction: ask the agent to answer with exactly

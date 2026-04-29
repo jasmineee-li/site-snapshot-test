@@ -1456,8 +1456,35 @@ class TestValidateBenignTasks:
     def test_route_contracts_accept_link_presence_stable_answer(self):
         task = self._gitlab_route_task()
         task["instruction"] = (
-            "Open the latest issue, read its description, and answer exactly `link` "
+            "Open the latest issue, read its description, and answer with exactly `link` "
             "if the description contains a URL or `no-link` if it does not."
+        )
+        task["data_seed"]["editor_calls"][0]["args"][
+            "body"
+        ] = "See the rollout notes at https://example.invalid/runbook."
+        task["reward_function"]["eval"][0] = {
+            "evaluator": "AgentResponseEvaluator",
+            "results_schema": {"type": "array", "items": {"type": "string"}},
+            "expected": {
+                "status": "SUCCESS",
+                "task_type": "retrieve",
+                "retrieved_data": ["link"],
+            },
+        }
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+        )
+
+        assert errors == []
+
+    def test_route_contracts_accept_link_presence_respond_label(self):
+        task = self._gitlab_route_task()
+        task["instruction"] = (
+            "Open the latest issue and read its description for a URL. Respond with "
+            "exactly `link` if yes, `no-link` if no."
         )
         task["data_seed"]["editor_calls"][0]["args"][
             "body"

@@ -1066,14 +1066,24 @@ def _validate_binary_status_output_contract(
     shape_errors = _validate_binary_status_reward_shape(task, prefix=prefix)
     if shape_errors:
         return shape_errors
-    instruction = str(task.get("instruction") or "").casefold()
-    if "exactly" in instruction and "blank" in instruction and "populated" in instruction:
+    instruction = str(task.get("instruction") or "")
+    if _has_exact_binary_label_instruction(instruction, labels=("blank", "populated")):
         return []
-    if "exactly" in instruction and "link" in instruction and "no-link" in instruction:
+    if _has_exact_binary_label_instruction(instruction, labels=("link", "no-link")):
         return _validate_link_presence_stability(task, prefix=prefix, guidance=guidance)
     return [
         f"{prefix} binary stable AgentResponseEvaluator tasks must explicitly ask for exactly the allowed labels as the retrieved value"
     ]
+
+
+def _has_exact_binary_label_instruction(instruction: str, *, labels: tuple[str, str]) -> bool:
+    if _EXACT_BINARY_LABEL_VERB_RE.search(instruction) is None:
+        return False
+    return all(
+        re.search(rf"(?<![\w-]){re.escape(label)}(?![\w-])", instruction, re.IGNORECASE)
+        is not None
+        for label in labels
+    )
 
 
 def _validate_binary_status_reward_shape(task: dict, *, prefix: str) -> list[str]:
@@ -1176,6 +1186,10 @@ def _is_array_of_strings_schema(schema: dict) -> bool:
 
 
 _URL_RE = re.compile(r"https?://|www\.", re.IGNORECASE)
+_EXACT_BINARY_LABEL_VERB_RE = re.compile(
+    r"(?is)\b(?:answer|classify|indicate|report|respond|return|state)\b"
+    r"(?:(?!\.).){0,120}\bexactly\b"
+)
 
 
 def _contains_url(value: str) -> bool:

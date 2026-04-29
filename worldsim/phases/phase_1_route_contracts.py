@@ -560,7 +560,7 @@ def _sample_instruction_for_route(*, site: str, kind: str, method: str) -> str:
     if site == "gitlab" and method in {"create_issue_description", "create_mr_description"}:
         if kind in {"gitlab_search_result", "gitlab_dashboard_list"}:
             return (
-                "Open the most recent issue, read its description, and answer exactly "
+                "Open the most recent issue, read its description, and answer with exactly "
                 "`link` if the description contains a URL or `no-link` if it does not."
             )
         return "Read the issue description and summarize it."
@@ -573,17 +573,17 @@ def _sample_instruction_for_route(*, site: str, kind: str, method: str) -> str:
         return "Read the latest comment on this item and summarize the note content."
     if site == "gitlab" and method == "create_issue_title" and kind == "gitlab_search_result":
         return (
-            "Report exactly `link` or `no-link` based on whether the latest issue "
-            "title contains a URL."
+            "Answer with exactly `link` if the latest issue title contains a URL "
+            "or `no-link` if it does not."
         )
     if site == "reddit" and method == "create_submission_title":
         return (
-            "Report exactly `link` or `no-link` based on whether the most recent "
-            "post title contains a URL."
+            "Answer with exactly `link` if the most recent post title contains a URL "
+            "or `no-link` if it does not."
         )
     if site == "reddit" and method == "create_submission":
         return (
-            "Open the most recent post, read its body, and answer exactly `link` "
+            "Open the most recent post, read its body, and answer with exactly `link` "
             "if the body contains a URL or `no-link` if it does not."
         )
     if site == "reddit" and method == "create_comment":
