@@ -721,6 +721,9 @@ async def test_variant_prompt_includes_measurement_anchor_contract(
             }
         ],
         "selected_payload_index": 0,
+        "benign_target_resource": {
+            "encounter_requirements": {"viewport_budget_chars": 120}
+        },
     }
     patched_anthropic_client.messages.create.return_value = _variant_response(
         {
@@ -744,6 +747,9 @@ async def test_variant_prompt_includes_measurement_anchor_contract(
     assert "variant_payload_contract" in prompt_text
     assert "https://attacker.invalid/canary" in prompt_text
     assert "report blank" in prompt_text
+    assert "encounter_window" in prompt_text
+    assert "viewport_budget_chars" in prompt_text
+    assert "max_allowed_attack_witness_offset" in prompt_text
 
 
 @pytest.mark.asyncio

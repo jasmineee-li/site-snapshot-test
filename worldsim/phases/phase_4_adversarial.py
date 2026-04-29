@@ -347,6 +347,17 @@ def _selected_rendered_payload(task: dict[str, Any]) -> str | None:
     return rendered if isinstance(rendered, str) and rendered else None
 
 
+def _selected_payload_text_entry(task: dict[str, Any]) -> dict[str, Any] | None:
+    payload_texts = task.get("payload_texts")
+    if not isinstance(payload_texts, list) or not payload_texts:
+        return None
+    selected_index = task.get("selected_payload_index", 0)
+    if not isinstance(selected_index, int) or not (0 <= selected_index < len(payload_texts)):
+        return None
+    selected = payload_texts[selected_index]
+    return selected if isinstance(selected, dict) else None
+
+
 _PAYLOAD_BODY_FIELD_HINTS: tuple[str, ...] = (
     "detail",
     "body",
@@ -641,6 +652,102 @@ def _variant_action_witness_is_whole_payload(witness: str, rendered_payload: str
     return _normalized_payload_snapshot(witness) == _normalized_payload_snapshot(rendered_payload)
 
 
+def _variant_encounter_budget_chars(task: dict[str, Any]) -> int | None:
+    target = task.get("benign_target_resource")
+    requirements = (
+        target.get("encounter_requirements") if isinstance(target, dict) else None
+    )
+    if not isinstance(requirements, dict):
+        return None
+    budget = requirements.get("viewport_budget_chars")
+    if isinstance(budget, int) and budget > 0:
+        return budget
+    return None
+
+
+def _variant_concrete_attack_witness_offsets(
+    task: dict[str, Any],
+    payload_text: dict[str, Any],
+    rendered_payload: str,
+) -> list[int]:
+    offsets: list[int] = []
+    witnesses = payload_text.get("attack_action_witnesses")
+    if isinstance(witnesses, list):
+        for witness in witnesses:
+            if not isinstance(witness, str) or not witness:
+                continue
+            if _variant_action_witness_is_whole_payload(witness, rendered_payload):
+                continue
+            offset = rendered_payload.find(witness)
+            if offset >= 0:
+                offsets.append(offset)
+    if offsets:
+        return offsets
+    for token in _variant_required_token_values(task):
+        offset = rendered_payload.find(token)
+        if offset >= 0:
+            offsets.append(offset)
+    return offsets
+
+
+def _variant_earliest_concrete_attack_witness_offset(
+    task: dict[str, Any],
+    payload_text: Any,
+    rendered_payload: str,
+) -> int | None:
+    if not isinstance(payload_text, dict):
+        return None
+    offsets = _variant_concrete_attack_witness_offsets(task, payload_text, rendered_payload)
+    return min(offsets) if offsets else None
+
+
+def _variant_max_attack_witness_offset(original_task: dict[str, Any]) -> int | None:
+    budget = _variant_encounter_budget_chars(original_task)
+    if budget is None:
+        return None
+    original_payload = _selected_payload_text_entry(original_task)
+    original_rendered = _selected_rendered_payload(original_task)
+    if not isinstance(original_rendered, str) or not original_rendered:
+        return budget
+    original_offset = _variant_earliest_concrete_attack_witness_offset(
+        original_task,
+        original_payload,
+        original_rendered,
+    )
+    if original_offset is None:
+        return budget
+    return max(budget, original_offset)
+
+
+def _variant_encounter_window_error(
+    original_task: dict[str, Any],
+    payload_text: dict[str, Any],
+    *,
+    rendered_payload: str,
+) -> str | None:
+    max_offset = _variant_max_attack_witness_offset(original_task)
+    if max_offset is None:
+        return None
+    candidate_offset = _variant_earliest_concrete_attack_witness_offset(
+        original_task,
+        payload_text,
+        rendered_payload,
+    )
+    if candidate_offset is None:
+        return (
+            "variant payload_text must expose a concrete attack witness inside "
+            "the rendered payload"
+        )
+    if candidate_offset > max_offset:
+        budget = _variant_encounter_budget_chars(original_task)
+        return (
+            "variant attack witness starts too late for the route encounter window "
+            f"(offset={candidate_offset}, max_allowed={max_offset}, "
+            f"viewport_budget_chars={budget})"
+        )
+    return None
+
+
 def _variant_payload_text_contract_error(
     task: dict[str, Any],
     payload_text: dict[str, Any],
@@ -722,6 +829,13 @@ def _synchronize_variant_payload_texts(
             rendered_payload=rendered_payload,
         )
         if synced_entry is not None:
+            encounter_error = _variant_encounter_window_error(
+                original_task,
+                synced_entry,
+                rendered_payload=rendered_payload,
+            )
+            if encounter_error is not None:
+                return encounter_error
             merged_payloads = json.loads(json.dumps(payload_texts))
             merged_payloads[selected_index] = synced_entry
             merged_task["payload_texts"] = merged_payloads
@@ -752,6 +866,13 @@ def _synchronize_variant_payload_texts(
                 "variant task "
                 f"{original_task.get('id', 'unknown')} revised payload_texts failed post-hoc validation"
             )
+    encounter_error = _variant_encounter_window_error(
+        original_task,
+        synced_entry,
+        rendered_payload=rendered_payload,
+    )
+    if encounter_error is not None:
+        return encounter_error
     merged_payloads = json.loads(json.dumps(payload_texts))
     merged_payloads[selected_index] = synced_entry
     merged_task["payload_texts"] = merged_payloads
