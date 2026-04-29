@@ -241,7 +241,11 @@ def _reddit_submission_examples(
 ) -> list[dict[str, str]]:
     examples: list[dict[str, str]] = []
     seen: set[tuple[str, str]] = set()
-    for sample in _data_model_sample_values(profile, ("submission", "submissions", "post", "posts")):
+    samples = [
+        *_available_entity_records(profile, ("submissions", "posts")),
+        *_data_model_sample_values(profile, ("submission", "submissions", "post", "posts")),
+    ]
+    for sample in samples:
         forum_name = (
             sample.get("forum_name")
             or sample.get("forum")
@@ -272,26 +276,77 @@ def _reddit_submission_examples(
 def _reddit_forum_examples(placeholder: str, profile: Mapping[str, Any]) -> list[dict[str, str]]:
     examples: list[dict[str, str]] = []
     seen: set[str] = set()
-    for sample in _data_model_sample_values(profile, ("submission", "submissions", "post", "posts")):
+    candidates: list[tuple[str, Mapping[str, Any]]] = [
+        ("available_entities", sample)
+        for sample in _available_entity_records(profile, ("forums", "subreddits", "communities"))
+    ]
+    candidates.extend(
+        ("submission_sample", sample)
+        for sample in _data_model_sample_values(profile, ("submission", "submissions", "post", "posts"))
+    )
+    # Forum sample values are often human-readable titles rather than route
+    # slugs. Use them only as a last-resort fallback, and reject whitespace
+    # below so names such as "personal finances" do not become 404 anchors.
+    candidates.extend(
+        ("forum_sample", sample) for sample in _data_model_sample_values(profile, ("forum", "forums"))
+    )
+    for source, sample in candidates:
         forum_name = (
             sample.get("forum_name")
             or sample.get("forum")
             or sample.get("subreddit")
             or sample.get("community")
+            or sample.get("slug")
+            or sample.get("name")
         )
         if forum_name is None:
             continue
-        forum_text = str(forum_name).strip().strip("/")
+        forum_text = _normalize_reddit_forum_name(forum_name)
+        if source == "forum_sample" and re.search(r"\s", forum_text):
+            continue
         if not forum_text or forum_text in seen:
             continue
         seen.add(forum_text)
-        examples.append(
-            {
-                "forum_name": forum_text,
-                "start_url": f"{placeholder}/f/{forum_text}",
-            }
-        )
+        example = {
+            "forum_name": forum_text,
+            "start_url": f"{placeholder}/f/{forum_text}",
+        }
+        forum_id = sample.get("id") or sample.get("forum_id")
+        if forum_id not in (None, ""):
+            example["forum_id"] = str(forum_id).strip()
+        examples.append(example)
     return examples
+
+
+def _available_entity_records(
+    profile: Mapping[str, Any], keys: tuple[str, ...]
+) -> list[Mapping[str, Any]]:
+    available = profile.get("available_entities")
+    if not isinstance(available, Mapping):
+        return []
+    records: list[Mapping[str, Any]] = []
+    for key in keys:
+        values = available.get(key)
+        if isinstance(values, list):
+            records.extend(item for item in values if isinstance(item, Mapping))
+    return records
+
+
+def _normalize_reddit_forum_name(value: Any) -> str:
+    raw = str(value or "").strip().strip("/")
+    if not raw:
+        return ""
+    if "://" in raw:
+        parsed = urlsplit(raw)
+        raw = parsed.path
+    raw = raw.strip().strip("/")
+    if raw.startswith("__REDDIT__/"):
+        raw = raw[len("__REDDIT__/") :]
+    if raw.startswith("f/"):
+        raw = raw[len("f/") :]
+    if "/" in raw:
+        raw = raw.split("/", 1)[0]
+    return raw.strip().strip("/")
 
 
 def _gitlab_project_issue_list_examples(

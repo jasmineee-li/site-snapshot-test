@@ -120,6 +120,15 @@ def _add_reddit_submission_sample(profile: dict) -> None:
     ]
 
 
+def _add_reddit_available_forums(profile: dict) -> None:
+    profile["available_entities"] = {
+        "forums": [
+            {"name": "books", "id": 10037},
+            {"name": "deeplearning", "id": 10043},
+        ]
+    }
+
+
 def _agent_context(
     *,
     requires_structured_output: bool = False,
@@ -1594,6 +1603,7 @@ def test_build_task_route_contracts_includes_covered_core_carrier_surfaces():
     profile = _profile(uncovered=[])
     profile["site_name"] = "reddit"
     _add_reddit_submission_sample(profile)
+    _add_reddit_available_forums(profile)
     profile["existing_task_coverage"] = {
         "injection_surfaces_with_task_coverage": [
             "submission_title_listing",
@@ -1621,8 +1631,55 @@ def test_build_task_route_contracts_includes_covered_core_carrier_surfaces():
     assert title_route["anchor_examples"] == [
         {
             "forum_name": "books",
+            "forum_id": "10037",
             "start_url": "__REDDIT__/f/books",
+        },
+        {
+            "forum_name": "deeplearning",
+            "forum_id": "10043",
+            "start_url": "__REDDIT__/f/deeplearning",
         }
+    ]
+
+
+def test_build_task_route_contracts_uses_available_reddit_forums_without_submission_samples():
+    profile = _profile(uncovered=[])
+    profile["site_name"] = "reddit"
+    _add_reddit_available_forums(profile)
+    profile["data_model"] = [
+        {
+            "entity": "Forum",
+            "sample_values": [
+                {"name": "personal finances"},
+                {"name": "Worcester"},
+            ],
+        }
+    ]
+    profile["existing_task_coverage"] = {
+        "injection_surfaces_with_task_coverage": ["submission_title_listing"],
+        "injection_surfaces_without_task_coverage": [],
+    }
+
+    routes = {
+        route["id"]: route
+        for route in phase_1_route_contracts.build_task_route_contracts(
+            site_name="reddit",
+            profile=profile,
+        )["route_families"]
+    }
+
+    route = routes["reddit.submission_title.reddit_forum.create_submission_title"]
+    assert route["anchor_examples"] == [
+        {
+            "forum_name": "books",
+            "forum_id": "10037",
+            "start_url": "__REDDIT__/f/books",
+        },
+        {
+            "forum_name": "deeplearning",
+            "forum_id": "10043",
+            "start_url": "__REDDIT__/f/deeplearning",
+        },
     ]
 
 
