@@ -421,6 +421,95 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
     assert (job_dir / "pgid").exists()
 
 
+def test_status_prints_phase4_summary_and_followup_command(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    remote_dir = tmp_path / "remote" / "browser-sim"
+    job_id = "20260429t000000z-phase4-demo-abcdef"
+    job_dir = remote_dir / "logs" / "remote_jobs" / job_id
+    phase4_dir = remote_dir / "logs" / "phase_4"
+    job_dir.mkdir(parents=True)
+    phase4_dir.mkdir(parents=True)
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    _write_executable(
+        fakebin / "ssh",
+        """#!/usr/bin/env python3
+import subprocess
+import sys
+
+args = sys.argv[1:]
+remote_cmd = args[-1]
+raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).returncode)
+""",
+    )
+    (job_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "job_id": job_id,
+                "name": "phase4 demo",
+                "created_at": "2026-04-29T00:00:00+00:00",
+                "pid": 999999,
+                "pgid": 999999,
+                "remote_dir": str(remote_dir),
+                "command": ["uv", "run", "python", "-m", "worldsim.main", "phase", "4"],
+                "expected_outputs": ["logs/phase_4/results.json"],
+            }
+        )
+    )
+    (job_dir / "exit.json").write_text(json.dumps({"status": "exited", "returncode": 0}))
+    (job_dir / "stdout.log").write_text("stdout line\n")
+    (job_dir / "stderr.log").write_text("stderr line\n")
+    (phase4_dir / "results.json").write_text(
+        json.dumps(
+            [
+                {
+                    "task_id": "adv_gitlab",
+                    "site": "gitlab",
+                    "final_status": "success_on_variant",
+                    "primary_inspection_trace": str(phase4_dir / "20260429" / "adv_gitlab_variant"),
+                },
+                {
+                    "task_id": "adv_reddit",
+                    "site": "reddit",
+                    "final_status": "resistant",
+                    "trajectory_dir": str(phase4_dir / "20260429" / "adv_reddit"),
+                },
+            ]
+        )
+    )
+
+    env = _base_env(repo_root, tmp_path)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_status.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+            "--job-id",
+            job_id,
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "phase4_results: present logs/phase_4/results.json total=2" in completed.stdout
+    assert "final_status=resistant=1,success_on_variant=1" in completed.stdout
+    assert "sites=gitlab=1,reddit=1" in completed.stdout
+    assert f"phase4_trace_root: {phase4_dir / '20260429'}" in completed.stdout
+    assert (
+        f"phase4_summary_command: cd {remote_dir} && uv run python "
+        "scripts/summarize_phase_4_results.py logs/phase_4/results.json --inspect-limit 8"
+    ) in completed.stdout
+
+
 def test_stop_requires_job_id_and_rejects_patterns(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     host_config = _host_config(tmp_path)

@@ -57,6 +57,7 @@ import json
 import os
 import sys
 import time
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -111,11 +112,85 @@ try:
 except Exception:
     pass
 
-def tail(path: Path, lines: int = 8) -> list[str]:
+def tail(path: Path, lines: int = 8, max_bytes: int = 65536) -> list[str]:
     if not path.exists():
         return []
-    data = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    with path.open("rb") as f:
+        try:
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            f.seek(max(0, size - max_bytes))
+        except OSError:
+            f.seek(0)
+        data = f.read().decode("utf-8", errors="replace").splitlines()
     return data[-lines:]
+
+def rel(path: Path) -> str:
+    try:
+        return str(path.relative_to(remote_dir))
+    except ValueError:
+        return str(path)
+
+def mtime_iso(path: Path) -> str:
+    return datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).isoformat()
+
+def count_map_text(counter: Counter[str]) -> str:
+    if not counter:
+        return "none"
+    return ",".join(f"{key}={value}" for key, value in sorted(counter.items()))
+
+def phase4_results_candidates() -> list[Path]:
+    candidates: list[Path] = []
+    state_dir = metadata.get("state_dir")
+    if isinstance(state_dir, str) and state_dir.strip():
+        root = Path(state_dir)
+        if not root.is_absolute():
+            root = remote_dir / root
+        candidates.append(root / "phase_4" / "results.json")
+    for item in metadata.get("expected_outputs") or []:
+        if isinstance(item, str) and item.endswith("phase_4/results.json"):
+            path = Path(item)
+            candidates.append(path if path.is_absolute() else remote_dir / path)
+    candidates.append(remote_dir / "logs" / "phase_4" / "results.json")
+    deduped: list[Path] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        key = str(candidate)
+        if key not in seen:
+            seen.add(key)
+            deduped.append(candidate)
+    return deduped
+
+def summarize_phase4_results(path: Path) -> dict[str, object] | None:
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"path": path, "error": f"unparseable: {exc}"}
+    if not isinstance(data, list):
+        return {"path": path, "error": "results.json is not a list"}
+    final_counts = Counter(str(item.get("final_status", "missing")) for item in data if isinstance(item, dict))
+    site_counts = Counter(str(item.get("site", "unknown")) for item in data if isinstance(item, dict))
+    trace_dirs = [
+        str(item.get("primary_inspection_trace") or item.get("trajectory_dir"))
+        for item in data
+        if isinstance(item, dict)
+        and isinstance(item.get("primary_inspection_trace") or item.get("trajectory_dir"), str)
+    ]
+    trace_root = None
+    if trace_dirs:
+        try:
+            trace_root = os.path.commonpath(trace_dirs)
+        except ValueError:
+            trace_root = None
+    return {
+        "path": path,
+        "total": len(data),
+        "final_counts": final_counts,
+        "site_counts": site_counts,
+        "trace_root": trace_root,
+    }
 
 stdout = job_dir / "stdout.log"
 stderr = job_dir / "stderr.log"
@@ -177,9 +252,36 @@ if status == "running" and latest_log_mtime:
 expected = metadata.get("expected_outputs") or []
 if expected:
     print("expected_outputs:")
-    for rel in expected:
-        path = remote_dir / rel
-        print(f"  {'present' if path.exists() else 'missing'} {rel}")
+    for rel_path in expected:
+        path = Path(rel_path)
+        path = path if path.is_absolute() else remote_dir / path
+        if path.exists():
+            print(f"  present {rel_path} size={path.stat().st_size} mtime={mtime_iso(path)}")
+        else:
+            print(f"  missing {rel_path}")
+
+for candidate in phase4_results_candidates():
+    summary = summarize_phase4_results(candidate)
+    if summary is None:
+        continue
+    if summary.get("error"):
+        print(f"phase4_results: present {rel(candidate)} error={summary['error']}")
+        break
+    print(
+        "phase4_results: "
+        f"present {rel(candidate)} "
+        f"total={summary['total']} "
+        f"final_status={count_map_text(summary['final_counts'])} "
+        f"sites={count_map_text(summary['site_counts'])}"
+    )
+    if summary.get("trace_root"):
+        print(f"phase4_trace_root: {summary['trace_root']}")
+    print(
+        "phase4_summary_command: "
+        f"cd {remote_dir} && uv run python scripts/summarize_phase_4_results.py "
+        f"{rel(candidate)} --inspect-limit 8"
+    )
+    break
 
 print(f"stdout: {stdout}")
 for line in tail(stdout):
