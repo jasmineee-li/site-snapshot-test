@@ -136,6 +136,21 @@ print(f"remote_dir: {metadata.get('remote_dir')}")
 print(f"metadata: {metadata_path}")
 print("command: " + " ".join(metadata.get("command", [])[:12]) + (" ..." if len(metadata.get("command", [])) > 12 else ""))
 
+def print_git(label: str, payload) -> str | None:
+    if not isinstance(payload, dict):
+        return None
+    sha = payload.get("sha")
+    branch = payload.get("branch") or "unknown"
+    dirty = "dirty" if payload.get("dirty") else "clean"
+    short_sha = str(sha)[:12] if sha else "unknown"
+    print(f"{label}: {short_sha} branch={branch} worktree={dirty}")
+    return str(sha) if sha else None
+
+local_sha = print_git("local_git", metadata.get("local_git"))
+remote_sha = print_git("remote_git", metadata.get("remote_git"))
+if local_sha and remote_sha and local_sha != remote_sha:
+    print("warning: local_git and remote_git differ; verify the intended code was synced before trusting this job")
+
 if status == "running" and latest_log_mtime:
     quiet_for = int(time.time() - latest_log_mtime)
     print(f"log_progress: latest write {quiet_for}s ago")
