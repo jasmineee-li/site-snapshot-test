@@ -7,6 +7,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from instructor.core.exceptions import FailedAttempt, InstructorRetryException
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -132,6 +133,94 @@ def _install_stream_mock(mock_client: MagicMock) -> None:
     mock_client.messages.stream = MagicMock(side_effect=stream_factory)
 
 
+def _max_attempts_from_retry_policy(policy: Any) -> int:
+    stop = getattr(policy, "stop", None)
+    return int(getattr(stop, "max_attempt_number", 1) or 1)
+
+
+def _tool_input_from_response(response: Any, tool_name: str) -> dict[str, Any]:
+    for block in getattr(response, "content", []) or []:
+        if getattr(block, "type", None) == "tool_use" and getattr(block, "name", None) == tool_name:
+            return dict(getattr(block, "input", None) or {})
+    raise ValueError(f"Required tool call {tool_name!r} not found in response")
+
+
+class _FakeInstructorMessages:
+    def __init__(self, mock_client: MagicMock) -> None:
+        self._mock_client = mock_client
+
+    async def create_with_completion(self, **kwargs: Any) -> tuple[Any, Any]:
+        response_model = kwargs.pop("response_model")
+        context = kwargs.pop("context", None)
+        retry_policy = kwargs.pop("max_retries", None)
+        hooks = kwargs.pop("hooks", None)
+        max_attempts = _max_attempts_from_retry_policy(retry_policy)
+        provider_kwargs = dict(kwargs)
+        provider_kwargs.setdefault("tools", [{"name": response_model.__name__}])
+        provider_kwargs.setdefault(
+            "tool_choice",
+            {"type": "tool", "name": response_model.__name__},
+        )
+        failed_attempts: list[FailedAttempt] = []
+        last_response: Any = None
+
+        for attempt_number in range(1, max_attempts + 1):
+            if hooks is not None:
+                hooks.emit_completion_arguments(**provider_kwargs)
+            try:
+                response = await self._mock_client.messages.create(**provider_kwargs)
+            except Exception as exc:
+                if hooks is not None:
+                    hooks.emit_completion_error(exc)
+                raise
+            last_response = response
+            if hooks is not None:
+                hooks.emit_completion_response(response)
+            try:
+                payload = _tool_input_from_response(response, response_model.__name__)
+                parsed = response_model.model_validate(payload, context=context)
+                return parsed, response
+            except Exception as exc:
+                failed_attempts.append(
+                    FailedAttempt(
+                        attempt_number=attempt_number,
+                        exception=exc,
+                        completion=response,
+                    )
+                )
+                if hooks is not None:
+                    hooks.emit_parse_error(exc)
+                if attempt_number >= max_attempts:
+                    if hooks is not None:
+                        hooks.emit_completion_last_attempt(exc)
+                    raise InstructorRetryException(
+                        str(exc),
+                        last_completion=last_response,
+                        messages=provider_kwargs.get("messages"),
+                        n_attempts=attempt_number,
+                        total_usage=0,
+                        create_kwargs=provider_kwargs,
+                        failed_attempts=failed_attempts,
+                    ) from exc
+                provider_kwargs["messages"] = [
+                    *provider_kwargs.get("messages", []),
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Validation Error found:\n{exc}\n"
+                            "Recall the function correctly, fix the errors"
+                        ),
+                    },
+                ]
+
+        raise AssertionError("unreachable instructor fake retry exit")
+
+
+class _FakeInstructorClient:
+    def __init__(self, mock_client: MagicMock) -> None:
+        self.messages = _FakeInstructorMessages(mock_client)
+
+
 @pytest.fixture
 def patched_anthropic_client(monkeypatch):
     """Patch `get_client` across every phase_4 module that imports it.
@@ -158,6 +247,7 @@ def patched_anthropic_client(monkeypatch):
     mock_client.messages = MagicMock()
     mock_client.messages.create = AsyncMock()
     _install_stream_mock(mock_client)
+    mock_client._worldsim_instructor_client = _FakeInstructorClient(mock_client)
 
     def _get_client_stub() -> Any:
         return mock_client

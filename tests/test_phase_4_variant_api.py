@@ -158,9 +158,11 @@ async def test_variant_api_uses_provider_safe_output_budget(
 
     await generate_variant_api(sample_task, strategy)
 
-    stream_kwargs = patched_anthropic_client.messages.stream.call_args.kwargs
-    assert stream_kwargs["max_tokens"] == variant_api._INITIAL_MAX_TOKENS
-    assert stream_kwargs["max_tokens"] < 128_000
+    create_kwargs = patched_anthropic_client.messages.create.call_args.kwargs
+    assert create_kwargs["max_tokens"] == variant_api._INITIAL_MAX_TOKENS
+    assert create_kwargs["max_tokens"] < 128_000
+    assert create_kwargs["tool_choice"] == {"type": "tool", "name": "build_variant"}
+    assert create_kwargs["tools"][0]["name"] == "build_variant"
 
 
 @pytest.mark.asyncio
@@ -195,10 +197,9 @@ async def test_strategy_mismatch_retries_then_fails(
     result = await generate_variant_api(sample_task, strategy)
     assert result["variant_status"]["status"] == "failed"
     assert "mismatch" in result["variant_status"]["reason"]
-    # Two calls: initial + one retry. Post-streaming refactor the production
-    # call is `.stream(...)` not `.create(...)`; the conftest stream mock
-    # drains .create's side_effect list on each .stream() invocation.
-    assert patched_anthropic_client.messages.stream.call_count == 2
+    # Two calls: initial + one retry. Instructor now calls `messages.create(...)`;
+    # the fake Instructor client consumes create.side_effect on each semantic retry.
+    assert patched_anthropic_client.messages.create.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -255,7 +256,7 @@ async def test_unchanged_seed_retries_then_fails(patched_anthropic_client, sampl
     assert result["variant_status"]["status"] == "failed"
     assert result["variant_status"]["failure_class"] == "unchanged_seed"
     assert "unchanged_seed" in result["variant_status"]["reason"]
-    assert patched_anthropic_client.messages.stream.call_count == 2
+    assert patched_anthropic_client.messages.create.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -295,9 +296,9 @@ async def test_unchanged_seed_retry_adds_feedback_and_succeeds(
 
     assert result["variant_status"]["status"] == "ok"
     assert result["adversarial_data_seed"] == changed_seed
-    assert patched_anthropic_client.messages.stream.call_count == 2
-    retry_messages = patched_anthropic_client.messages.stream.call_args_list[1].kwargs["messages"]
-    assert "retry_feedback" in json.dumps(retry_messages)
+    assert patched_anthropic_client.messages.create.call_count == 2
+    retry_messages = patched_anthropic_client.messages.create.call_args_list[1].kwargs["messages"]
+    assert "Validation Error found" in json.dumps(retry_messages)
     assert "unchanged_seed" in json.dumps(retry_messages)
 
 
@@ -380,7 +381,7 @@ async def test_short_title_retry_feedback_includes_compact_budget_hint(
     result = await generate_variant_api(task, strategy)
 
     assert result["variant_status"]["status"] == "ok"
-    retry_messages = patched_anthropic_client.messages.stream.call_args_list[1].kwargs["messages"]
+    retry_messages = patched_anthropic_client.messages.create.call_args_list[1].kwargs["messages"]
     prompt_text = json.dumps(retry_messages)
     assert "For short_title retry" in prompt_text
     assert "<= 100 chars" in prompt_text
@@ -419,10 +420,10 @@ async def test_schema_failure_retry_adds_feedback_and_succeeds(
 
     assert result["variant_status"]["status"] == "ok"
     assert result["adversarial_data_seed"] == changed_seed
-    assert patched_anthropic_client.messages.stream.call_count == 2
-    retry_messages = patched_anthropic_client.messages.stream.call_args_list[1].kwargs["messages"]
-    assert "retry_feedback" in json.dumps(retry_messages)
-    assert "schema_violation" in json.dumps(retry_messages)
+    assert patched_anthropic_client.messages.create.call_count == 2
+    retry_messages = patched_anthropic_client.messages.create.call_args_list[1].kwargs["messages"]
+    assert "Validation Error found" in json.dumps(retry_messages)
+    assert "applied_strategy" in json.dumps(retry_messages)
 
 
 @pytest.mark.asyncio
@@ -542,7 +543,7 @@ async def test_truncate_then_mismatch_reports_both_errors(
             },
         }
     )
-    patched_anthropic_client.messages.create.side_effect = [truncated, mismatch]
+    patched_anthropic_client.messages.create.side_effect = [truncated, mismatch, mismatch]
     result = await generate_variant_api(sample_task, strategy)
     reason = result["variant_status"]["reason"]
     assert result["variant_status"]["status"] == "failed"
@@ -660,7 +661,7 @@ async def test_truncate_then_mismatch_final_failure_class_is_mismatch(
             },
         }
     )
-    patched_anthropic_client.messages.create.side_effect = [truncated, mismatch]
+    patched_anthropic_client.messages.create.side_effect = [truncated, mismatch, mismatch]
     result = await generate_variant_api(sample_task, strategy)
     assert result["variant_status"]["status"] == "failed"
     assert result["variant_status"]["failure_class"] == "strategy_mismatch"
@@ -807,7 +808,7 @@ async def test_variant_prompt_strips_auth_bearing_task_fields(
 
     await generate_variant_api(task, strategy)
 
-    _, kwargs = patched_anthropic_client.messages.stream.call_args
+    _, kwargs = patched_anthropic_client.messages.create.call_args
     prompt_text = json.dumps(kwargs["messages"])
     assert "top-secret" not in prompt_text
     assert "secret.test" not in prompt_text
@@ -860,7 +861,7 @@ async def test_variant_prompt_includes_measurement_anchor_contract(
 
     await generate_variant_api(task, strategy)
 
-    _, kwargs = patched_anthropic_client.messages.stream.call_args
+    _, kwargs = patched_anthropic_client.messages.create.call_args
     prompt_text = json.dumps(kwargs["messages"])
     assert "variant_payload_contract" in prompt_text
     assert "https://attacker.invalid/canary" in prompt_text
@@ -926,7 +927,7 @@ async def test_variant_prompt_includes_short_title_budget_contract(
 
     await generate_variant_api(task, strategy)
 
-    _, kwargs = patched_anthropic_client.messages.stream.call_args
+    _, kwargs = patched_anthropic_client.messages.create.call_args
     task_text = kwargs["messages"][0]["content"][1]["text"]
     prompt_text = json.dumps(kwargs["messages"])
     assert "content_capacity" in prompt_text
@@ -967,7 +968,7 @@ async def test_variant_prompt_rejects_hidden_visual_concealment_language(
 
     await generate_variant_api(sample_task, strategy)
 
-    _, kwargs = patched_anthropic_client.messages.stream.call_args
+    _, kwargs = patched_anthropic_client.messages.create.call_args
     prompt_text = json.dumps(kwargs["messages"])
     assert "Do not introduce CSS" in prompt_text
     assert "offscreen text" in prompt_text
@@ -1022,4 +1023,4 @@ async def test_max_tokens_retries_then_still_truncated_fails(
     assert result["variant_status"]["status"] == "failed"
     assert "response_truncated" in result["variant_status"]["reason"]
     # Two attempts, both at ceiling-or-below; no silent fall-through.
-    assert patched_anthropic_client.messages.stream.call_count == 2
+    assert patched_anthropic_client.messages.create.call_count == 2

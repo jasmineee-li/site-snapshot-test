@@ -6,12 +6,11 @@ Given an adversarial task and a pre-selected strategy (from the host-side
 `instruction`, `reward_function`, `delivery_channel`, `required_tokens` —
 are invariant.
 
-Structured output uses forced tool-use (tool name `build_variant`). Retry
-once on:
-- `applied_strategy.strategy != target_strategy.strategy` (model ignored
-  the strategy selection).
-- Malformed JSON inside tool_use input.
-- `stop_reason == "max_tokens"` (payload truncation — bump budget).
+Structured output uses Instructor/Pydantic over forced Anthropic tool-use
+(tool name `build_variant`). Instructor handles semantic parse reasks for
+schema/strategy/unchanged-seed failures while WorldSim keeps transport retry,
+cost accounting, and final admission checks explicit. Payload truncation still
+gets one outer retry with a larger output budget.
 
 `max_tokens` starts at 8,192 and bumps to 32,768 on the retry. The variant
 tool only needs to return a modified seed plus a short rationale, so the
@@ -25,11 +24,21 @@ import copy
 import json
 import logging
 import time
-from typing import Any
+from typing import Any, Literal
 
+import instructor
 from anthropic import AsyncAnthropic
+from instructor.core.exceptions import IncompleteOutputException, InstructorRetryException
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, model_validator
 
 from worldsim.cost_tracker import tracker as cost_tracker
+from worldsim.host_api_observability import (
+    InstructorCallTrace,
+    build_instructor_hooks,
+    instructor_retry_exception_diagnostics,
+    instructor_semantic_retrying,
+    synthesize_cost_summary,
+)
 from worldsim.phase_4.anthropic_client import (
     call_with_retry,
     classify_api_exception,
@@ -45,6 +54,7 @@ from worldsim.phase_4.strategy_catalog import ALLOWED_STRATEGIES
 from worldsim.prompt_loading import load_prompt
 from worldsim.seeding import validate_data_seed
 from worldsim.text_payload_contract import (
+    TextPayloadResponse,
     build_text_payload_contract,
     payload_content_capacity_contract,
     payload_length_budget_contract,
@@ -57,75 +67,96 @@ logger = logging.getLogger(__name__)
 # generator returns structured tool JSON, not a trajectory transcript.
 _INITIAL_MAX_TOKENS = 8_192
 _MAX_MAX_TOKENS = 32_768
+_VARIANT_STRUCTURED_RETRIES = 2
 
 # stop_reason values the code branches on explicitly. Anything outside
 # this set gets a warning log + `no_tool_use` bucket so new SDK values
 # (e.g. `pause_turn`, `refusal`) surface loudly instead of silently.
 _KNOWN_STOP_REASONS: frozenset[str] = frozenset({"tool_use", "end_turn", "max_tokens"})
 
-_VARIANT_TOOL: dict[str, Any] = {
-    "name": "build_variant",
-    "description": (
-        "Return the variant task JSON. Modify only adversarial_data_seed. "
-        "Preserve instruction, reward_function, delivery_channel, "
-        "required_tokens byte-identical."
-    ),
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "status": {"type": "string", "enum": ["ok", "inapplicable"]},
-            "adversarial_data_seed": {
-                "type": "object",
-                "description": "Modified data seed with the new payload. Required when status=ok.",
-            },
-            "applied_strategy": {
-                "type": "object",
-                "properties": {
-                    "strategy": {
-                        "type": "string",
-                        "enum": sorted(ALLOWED_STRATEGIES),
-                    },
-                    "description": {"type": "string", "maxLength": 400},
-                    "injection_content": {"type": "string"},
-                },
-                "required": ["strategy", "description", "injection_content"],
-                "additionalProperties": False,
-            },
-            "payload_text": {
-                "type": "object",
-                "description": (
-                    "Measurement metadata for the revised selected payload. "
-                    "rendered_payload must equal the payload text written by adversarial_data_seed."
-                ),
-                "properties": {
-                    "rendered_payload": {"type": "string"},
-                    "raw_text": {"type": "string"},
-                    "framing_witnesses": {"type": "array", "items": {"type": "string"}},
-                    "attack_action_witnesses": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                    },
-                    "concealment_witnesses": {"type": "array", "items": {"type": "string"}},
-                },
-                "required": [
-                    "rendered_payload",
-                    "raw_text",
-                    "framing_witnesses",
-                    "attack_action_witnesses",
-                    "concealment_witnesses",
-                ],
-                "additionalProperties": False,
-            },
-            "reason": {
-                "type": "string",
-                "maxLength": 300,
-                "description": "Required when status=inapplicable; explains why the strategy cannot be faithfully applied.",
-            },
-        },
-        "required": ["status"],
-        "additionalProperties": False,
-    },
-}
+StrategyName = Literal[*tuple(sorted(ALLOWED_STRATEGIES))]
+
+
+class AppliedStrategyPayload(BaseModel):
+    """Strategy metadata for the revised payload."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    strategy: StrategyName
+    description: str = Field(min_length=1, max_length=400)
+    injection_content: str
+
+
+# Instructor's Anthropic adapter uses `response_model.__name__` as the forced
+# tool name, so keep this lowercase class name aligned with the existing tool
+# contract.
+class build_variant(BaseModel):
+    """Return the variant task JSON.
+
+    Modify only adversarial_data_seed. Preserve instruction, reward_function,
+    delivery_channel, and required_tokens byte-identical.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["ok", "inapplicable"]
+    adversarial_data_seed: dict[str, Any] | None = Field(
+        default=None,
+        description="Modified data seed with the new payload. Required when status=ok.",
+    )
+    applied_strategy: AppliedStrategyPayload | None = None
+    payload_text: TextPayloadResponse | None = Field(
+        default=None,
+        description=(
+            "Measurement metadata for the revised selected payload. rendered_payload must equal "
+            "the payload text written by adversarial_data_seed."
+        ),
+    )
+    reason: str | None = Field(
+        default=None,
+        max_length=300,
+        description=(
+            "Required when status=inapplicable; explains why the strategy cannot be faithfully "
+            "applied."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def validate_variant_contract(self, info: ValidationInfo) -> build_variant:
+        context = info.context if isinstance(info.context, dict) else {}
+        task = context.get("task") if isinstance(context.get("task"), dict) else None
+        target_strategy = context.get("target_strategy")
+
+        if self.status == "inapplicable":
+            if not isinstance(self.reason, str) or not self.reason.strip():
+                raise ValueError("schema_violation: inapplicable variants require reason")
+            return self
+
+        if not isinstance(self.adversarial_data_seed, dict) or not self.adversarial_data_seed:
+            raise ValueError("schema_violation: ok variants require adversarial_data_seed")
+        try:
+            validate_data_seed(self.adversarial_data_seed, allow_none=False)
+        except ValueError as exc:
+            raise ValueError(f"schema_violation: invalid adversarial_data_seed: {exc}") from exc
+
+        if self.applied_strategy is None:
+            raise ValueError("schema_violation: ok variants require applied_strategy")
+        if isinstance(target_strategy, str) and self.applied_strategy.strategy != target_strategy:
+            raise ValueError(
+                "strategy_mismatch: "
+                f"requested={target_strategy!r}, applied={self.applied_strategy.strategy!r}"
+            )
+        if self.payload_text is None:
+            raise ValueError("schema_violation: ok variants require payload_text")
+        if task is not None and _seed_equivalent(
+            self.adversarial_data_seed, task.get("adversarial_data_seed")
+        ):
+            raise ValueError(
+                "unchanged_seed: status=ok must change the selected payload text "
+                "or return status=inapplicable"
+                f"{_short_title_retry_feedback(task)}"
+            )
+        return self
 
 
 def _variant_payload_contract(task: dict[str, Any]) -> dict[str, Any] | None:
@@ -137,28 +168,11 @@ def _model_metadata(task: dict[str, Any]) -> dict[str, str]:
     return {"user_id": "worldsim-v5-adversarial-variant-gen"}
 
 
-def _synthesize_summary(response: Any, *, sandbox_model: str, elapsed_s: float) -> str:
-    usage = getattr(response, "usage", None)
-    in_tok = getattr(usage, "input_tokens", 0) or 0
-    out_tok = getattr(usage, "output_tokens", 0) or 0
-    cost = (in_tok / 1_000_000) * 3.0 + (out_tok / 1_000_000) * 15.0
-    return json.dumps(
-        {
-            "total_cost_usd": cost,
-            "num_turns": 1,
-            "duration_ms": int(elapsed_s * 1000),
-            "session_id": getattr(response, "id", None),
-            "model_usage": {
-                sandbox_model: {
-                    "input_tokens": in_tok,
-                    "output_tokens": out_tok,
-                    "cache_creation_input_tokens": getattr(usage, "cache_creation_input_tokens", 0)
-                    or 0,
-                    "cache_read_input_tokens": getattr(usage, "cache_read_input_tokens", 0) or 0,
-                }
-            },
-        }
-    )
+def _instructor_client_for(client: AsyncAnthropic) -> Any:
+    injected = getattr(client, "_worldsim_instructor_client", None)
+    if injected is not None:
+        return injected
+    return instructor.from_anthropic(client, mode=instructor.Mode.ANTHROPIC_TOOLS)
 
 
 def _build_messages(task: dict[str, Any], strategy: dict[str, Any]) -> list[dict[str, Any]]:
@@ -188,16 +202,6 @@ def _build_messages(task: dict[str, Any], strategy: dict[str, Any]) -> list[dict
             ],
         }
     ]
-
-
-def _extract_tool_use(response: Any) -> dict[str, Any] | None:
-    for block in getattr(response, "content", []) or []:
-        if (
-            getattr(block, "type", None) == "tool_use"
-            and getattr(block, "name", None) == "build_variant"
-        ):
-            return dict(block.input or {})
-    return None
 
 
 def _merge_variant(base_task: dict[str, Any], tool_payload: dict[str, Any]) -> dict[str, Any]:
@@ -340,6 +344,66 @@ def _validate_variant_payload(payload: dict[str, Any]) -> str | None:
     return None
 
 
+def _variant_failure_class_from_message(message: str) -> str:
+    lowered = message.casefold()
+    for marker in (
+        "strategy_mismatch",
+        "unchanged_seed",
+        "response_truncated",
+        "unexpected_tool_status",
+        "no_tool_use",
+    ):
+        if marker in lowered:
+            return marker
+    if "tool" in lowered and "not found" in lowered:
+        return "no_tool_use"
+    if "validation" in lowered or "schema" in lowered:
+        return "schema_violation"
+    return "schema_violation"
+
+
+def _format_instructor_retry_exception(exc: InstructorRetryException) -> str:
+    diagnostics = instructor_retry_exception_diagnostics(exc)
+    last = diagnostics.get("last_completion")
+    stop_reason = last.get("stop_reason") if isinstance(last, dict) else None
+    failed = diagnostics.get("failed_attempts")
+    messages: list[str] = []
+    if isinstance(failed, list):
+        for attempt in failed:
+            if not isinstance(attempt, dict):
+                continue
+            exception = attempt.get("exception")
+            if isinstance(exception, dict) and isinstance(exception.get("message"), str):
+                messages.append(exception["message"])
+    summary = "; then ".join(message for message in messages if message)
+    if not summary:
+        summary = str(exc).splitlines()[0] if str(exc).strip() else type(exc).__name__
+    if len(summary) > 500:
+        summary = summary[:500]
+    if stop_reason:
+        return f"{summary} (last_stop_reason={stop_reason})"
+    return summary
+
+
+def _failed_variant(
+    task: dict[str, Any],
+    *,
+    failure_class: str,
+    reason: str,
+    diagnostics: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    skipped = copy.deepcopy(task)
+    status: dict[str, Any] = {
+        "status": "failed",
+        "failure_class": failure_class,
+        "reason": reason,
+    }
+    if diagnostics:
+        status["api_diagnostics"] = diagnostics
+    skipped["variant_status"] = status
+    return skipped
+
+
 async def generate_variant_api(
     task: dict[str, Any],
     strategy: dict[str, Any],
@@ -348,7 +412,7 @@ async def generate_variant_api(
     client: AsyncAnthropic | None = None,
     retry_feedback: str | None = None,
 ) -> dict[str, Any]:
-    """Produce one variant task per strategy. One API call, one retry on mismatch.
+    """Produce one variant task per strategy.
 
     Returns the merged variant task dict. On `inapplicable` or failure,
     returns the base task dict unchanged with a diagnostic `variant_status`
@@ -375,29 +439,26 @@ async def generate_variant_api(
     if retry_feedback:
         messages = _messages_with_retry_feedback(messages, reason=retry_feedback, task=task)
     max_tokens = _INITIAL_MAX_TOKENS
-
-    async def _call(current_max_tokens: int) -> Any:
-        # Keep streaming for consistent response handling and long-prompt
-        # tolerance; the configured output budget itself stays provider-safe.
-        async with client.messages.stream(
-            model=normalize_model_for_auth(sandbox_model),
-            max_tokens=current_max_tokens,
-            messages=messages,
-            tools=[_VARIANT_TOOL],
-            tool_choice={"type": "tool", "name": "build_variant"},
-            metadata=_model_metadata(task),
-        ) as stream:
-            return await stream.get_final_message()
-
+    normalized_model = normalize_model_for_auth(sandbox_model)
+    instructor_client = _instructor_client_for(client)
+    trace = InstructorCallTrace(
+        phase="phase_4",
+        label="variant-generation",
+        task_id=str(task_id),
+        site=task.get("site") if isinstance(task.get("site"), str) else None,
+        response_model_name=build_variant.__name__,
+    )
+    hooks = build_instructor_hooks(trace)
+    response_model_context = {
+        "task": task,
+        "target_strategy": strategy_name,
+    }
+    t0 = time.monotonic()
+    payload: dict[str, Any] | None = None
+    raw_response: Any = None
     attempts = 0
     last_error: str | None = None
-    # Track the latest failure bucket separately from the chained reason
-    # string. Downstream code should switch on failure_class; the reason
-    # is human-facing debug context (may chain across retries).
     failure_class: str | None = None
-    t0 = time.monotonic()
-    response: Any = None
-    payload: dict[str, Any] | None = None
 
     def _append_err(new: str) -> None:
         nonlocal last_error
@@ -407,14 +468,70 @@ async def generate_variant_api(
         attempts += 1
         try:
 
-            async def _attempt(mt: int = max_tokens) -> Any:
+            async def _attempt(mt: int = max_tokens) -> tuple[build_variant, Any]:
                 async with get_api_semaphore():
-                    return await _call(mt)
+                    parsed, completion = await instructor_client.messages.create_with_completion(
+                        model=normalized_model,
+                        max_tokens=mt,
+                        messages=messages,
+                        response_model=build_variant,
+                        context=response_model_context,
+                        max_retries=instructor_semantic_retrying(
+                            _VARIANT_STRUCTURED_RETRIES
+                        ),
+                        hooks=hooks,
+                        metadata=_model_metadata(task),
+                    )
+                    # Instructor raises this for real Anthropic Message
+                    # objects. Unit fakes are SimpleNamespace, so keep the
+                    # stop-reason branch explicit to preserve the old retry
+                    # semantics in tests and future SDK envelopes.
+                    if getattr(completion, "stop_reason", None) == "max_tokens":
+                        raise IncompleteOutputException(last_completion=completion)
+                    return parsed, completion
 
-            response = await call_with_retry(
+            parsed_payload, raw_response = await call_with_retry(
                 _attempt,
                 retries=3,
                 label=f"variant-{strategy_name}-{task_id}",
+            )
+            payload = parsed_payload.model_dump(exclude_none=True)
+            break
+        except IncompleteOutputException as exc:
+            diagnostics = trace.to_diagnostics()
+            diagnostics["selected_max_tokens"] = max_tokens
+            diagnostics["incomplete_output"] = {
+                "last_completion": getattr(exc, "last_completion", None) is not None,
+            }
+            if max_tokens < _MAX_MAX_TOKENS:
+                max_tokens = _MAX_MAX_TOKENS
+                failure_class = "response_truncated"
+                _append_err("response_truncated")
+                continue
+            failure_class = "response_truncated"
+            _append_err(f"response_truncated (at ceiling {_MAX_MAX_TOKENS})")
+            break
+        except InstructorRetryException as exc:
+            diagnostics = trace.to_diagnostics()
+            diagnostics["selected_max_tokens"] = max_tokens
+            diagnostics["instructor_retry_exception"] = instructor_retry_exception_diagnostics(
+                exc
+            )
+            reason = _format_instructor_retry_exception(exc)
+            failure_class = _variant_failure_class_from_message(reason)
+            _append_err(reason)
+            logger.warning(
+                "variant gen structured output failed for task %s strategy %s (%s): %s",
+                task_id,
+                strategy_name,
+                failure_class,
+                reason,
+            )
+            return _failed_variant(
+                task,
+                failure_class=failure_class,
+                reason=last_error or reason,
+                diagnostics=diagnostics,
             )
         except Exception as exc:
             failure_class = classify_api_exception(exc)
@@ -428,108 +545,46 @@ async def generate_variant_api(
             )
             break
 
-        stop_reason = getattr(response, "stop_reason", None)
+    elapsed = time.monotonic() - t0
+
+    if raw_response is not None:
+        stop_reason = getattr(raw_response, "stop_reason", None)
         if stop_reason not in _KNOWN_STOP_REASONS:
-            # Unknown stop_reason (pause_turn, refusal, future SDK value).
-            # Falls through to tool_use extraction below — if a tool_use
-            # block is still present, we use it; if not, no_tool_use
-            # preserves the stop_reason in its reason string.
             logger.warning(
-                "variant gen got unknown stop_reason=%r for task %s strategy %s; "
-                "falling back to tool_use extraction",
+                "variant gen got unknown stop_reason=%r for task %s strategy %s after "
+                "Instructor parse",
                 stop_reason,
                 task_id,
                 strategy_name,
             )
-
-        if stop_reason == "max_tokens":
-            if max_tokens < _MAX_MAX_TOKENS:
-                max_tokens = _MAX_MAX_TOKENS
-                failure_class = "response_truncated"
-                _append_err("response_truncated")
-                continue
-            # Already at ceiling; don't silently fall through to parse a
-            # truncated tool_use block.
-            failure_class = "response_truncated"
-            _append_err(f"response_truncated (at ceiling {_MAX_MAX_TOKENS})")
-            break
-
-        payload = _extract_tool_use(response)
-        if payload is None:
-            failure_class = "no_tool_use"
-            _append_err(f"no_tool_use (stop_reason={stop_reason})")
-            break
-
-        status = payload.get("status")
-        if status == "inapplicable":
-            # Successful parse; strategy doesn't fit this task.
-            # Not a failure — clear failure_class so the inapplicable
-            # return path below doesn't inherit a stale bucket from a
-            # prior max_tokens retry.
-            failure_class = None
-            break
-
-        payload_failure = _validate_variant_payload(payload)
-        if payload_failure is not None:
-            failure_class = payload_failure
-            reason = f"{payload_failure}: tool payload failed schema validation"
-            _append_err(reason)
-            if attempts < 2:
-                messages = _messages_with_retry_feedback(messages, reason=reason, task=task)
-                continue
-            break
-
-        applied = payload.get("applied_strategy")
-        applied_name = applied.get("strategy") if isinstance(applied, dict) else None
-        if applied_name != strategy_name:
-            # Model ignored the strategy. Try once more.
-            failure_class = "strategy_mismatch"
-            _append_err(f"strategy_mismatch: requested={strategy_name!r}, applied={applied_name!r}")
-            if attempts < 2:
-                continue
-        if _seed_equivalent(
-            payload.get("adversarial_data_seed"), task.get("adversarial_data_seed")
-        ):
-            failure_class = "unchanged_seed"
-            reason = (
-                "unchanged_seed: status=ok must change the selected payload text or return "
-                "status=inapplicable"
-            )
-            _append_err(reason)
-            if attempts < 2:
-                messages = _messages_with_retry_feedback(messages, reason=reason, task=task)
-                continue
-        break
-
-    elapsed = time.monotonic() - t0
-
-    if response is not None:
         cost_tracker.record(
             "phase_4",
-            _synthesize_summary(response, sandbox_model=sandbox_model, elapsed_s=elapsed),
+            synthesize_cost_summary(raw_response, model=normalized_model, elapsed_s=elapsed),
             task_id=task_id,
             site=task.get("site"),
         )
 
     if payload is None:
-        skipped = copy.deepcopy(task)
-        skipped["variant_status"] = {
-            "status": "failed",
-            "failure_class": failure_class or "no_tool_use",
-            "reason": last_error or "no_tool_use",
-        }
-        return skipped
+        diagnostics = trace.to_diagnostics()
+        diagnostics["selected_max_tokens"] = max_tokens
+        return _failed_variant(
+            task,
+            failure_class=failure_class or "no_tool_use",
+            reason=last_error or "no_tool_use",
+            diagnostics=diagnostics,
+        )
 
     status = payload.get("status")
     payload_failure = _validate_variant_payload(payload)
     if payload_failure is not None:
-        skipped = copy.deepcopy(task)
-        skipped["variant_status"] = {
-            "status": "failed",
-            "failure_class": payload_failure,
-            "reason": "tool payload failed schema validation",
-        }
-        return skipped
+        diagnostics = trace.to_diagnostics()
+        diagnostics["selected_max_tokens"] = max_tokens
+        return _failed_variant(
+            task,
+            failure_class=payload_failure,
+            reason="tool payload failed schema validation",
+            diagnostics=diagnostics,
+        )
     if status == "inapplicable":
         skipped = copy.deepcopy(task)
         skipped["variant_status"] = {
