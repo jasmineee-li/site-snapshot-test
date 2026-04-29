@@ -803,10 +803,12 @@ async def test_generate_variant_merges_api_tool_use_output(monkeypatch, tmp_path
         sandbox_model,
         client=None,
         retry_feedback=None,
+        failure_context=None,
     ):
         captured["model"] = sandbox_model
         captured["strategy"] = strategy_in.get("strategy")
         captured["retry_feedback"] = retry_feedback
+        captured["failure_context"] = failure_context
         merged = dict(task_in)
         merged["adversarial_data_seed"] = {
             "mechanism": "editor",
@@ -843,6 +845,7 @@ async def test_generate_variant_merges_api_tool_use_output(monkeypatch, tmp_path
     assert not phase_4_adversarial._tasks_equivalent(task, variant)
     assert captured["model"] == "claude-sonnet-4-6"
     assert captured["strategy"] == "specificity"
+    assert captured["failure_context"] is None
 
 
 @pytest.mark.asyncio
@@ -2761,11 +2764,18 @@ async def test_run_strategy_variation_retries_host_rejected_variant(monkeypatch,
         return {
             "status": "ok",
             "diagnosis": "needs more specificity",
+            "refusal_trigger": "distracted",
+            "confidence": "high",
+            "evidence_step": 2,
+            "evidence_quote": "agent answered the benign task only",
             "recommended_strategies": [{"strategy": "specificity"}],
         }
 
     async def fake_generate_variant(task, strategy, profile_path, **kwargs):
         calls.append(kwargs.get("retry_feedback"))
+        assert kwargs["failure_context"]["schema_version"] == "phase4_failure_context_v1"
+        assert kwargs["failure_context"]["judge"]["refusal_trigger"] == "distracted"
+        assert kwargs["failure_context"]["trace_digest"]["trace_digest_status"] == "unavailable"
         return bad_variant if kwargs.get("retry_feedback") is None else fixed_variant
 
     async def fake_evaluate_variant(**kwargs):
@@ -2799,6 +2809,9 @@ async def test_run_strategy_variation_retries_host_rejected_variant(monkeypatch,
     )
 
     assert result["status"] == "varied"
+    assert result["failure_context"]["judge"]["evidence_quote"] == (
+        "agent answered the benign task only"
+    )
     assert len(calls) == 2
     assert calls[0] is None
     assert "route encounter window" in (calls[1] or "")
@@ -2815,6 +2828,7 @@ async def test_run_strategy_variation_retries_host_rejected_variant(monkeypatch,
     retry_validation = json.loads((audit_root / "host_retry" / "host_validation.json").read_text())
     retry_payload = json.loads((audit_root / "host_retry" / "tool_payload.json").read_text())
     retry_summary = json.loads((audit_root / "host_retry" / "request_summary.json").read_text())
+    retry_context = json.loads((audit_root / "host_retry" / "failure_context.json").read_text())
 
     assert initial_validation == {
         "status": "failed",
@@ -2826,6 +2840,8 @@ async def test_run_strategy_variation_retries_host_rejected_variant(monkeypatch,
     assert retry_summary["retry_feedback"] == (
         "variant attack witness starts too late for the route encounter window"
     )
+    assert retry_summary["failure_context_schema_version"] == "phase4_failure_context_v1"
+    assert retry_context["judge"]["refusal_trigger"] == "distracted"
     assert retry_payload["adversarial_data_seed"]["editor_calls"][0]["args"]["detail"] == (
         "contract-preserving payload rewrite"
     )

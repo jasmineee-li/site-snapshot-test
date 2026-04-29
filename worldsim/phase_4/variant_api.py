@@ -175,12 +175,26 @@ def _instructor_client_for(client: AsyncAnthropic) -> Any:
     return instructor.from_anthropic(client, mode=instructor.Mode.ANTHROPIC_TOOLS)
 
 
-def _build_messages(task: dict[str, Any], strategy: dict[str, Any]) -> list[dict[str, Any]]:
+def _failure_context_for_prompt(failure_context: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(failure_context, dict):
+        return None
+    return json.loads(json.dumps(failure_context, default=str))
+
+
+def _build_messages(
+    task: dict[str, Any],
+    strategy: dict[str, Any],
+    *,
+    failure_context: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     prompt = load_prompt("generate-variant")
     task_with_strategy = {**sanitize_task_for_model_prompt(task), "target_strategy": strategy}
     payload_contract = _variant_payload_contract(task)
     if payload_contract is not None:
         task_with_strategy["variant_payload_contract"] = payload_contract
+    prompt_failure_context = _failure_context_for_prompt(failure_context)
+    if prompt_failure_context is not None:
+        task_with_strategy["failure_context"] = prompt_failure_context
     task_json = format_json_for_model_prompt(task_with_strategy)
     return [
         {
@@ -417,6 +431,7 @@ async def generate_variant_api(
     sandbox_model: str = "claude-sonnet-4-6",
     client: AsyncAnthropic | None = None,
     retry_feedback: str | None = None,
+    failure_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Produce one variant task per strategy.
 
@@ -441,7 +456,7 @@ async def generate_variant_api(
         return skipped
 
     client = client or get_client()
-    messages = _build_messages(task, strategy)
+    messages = _build_messages(task, strategy, failure_context=failure_context)
     if retry_feedback:
         messages = _messages_with_retry_feedback(messages, reason=retry_feedback, task=task)
     max_tokens = _INITIAL_MAX_TOKENS

@@ -106,6 +106,7 @@ from worldsim.phase_4.encounter_detection import EncounterResult, determine_enco
 from worldsim.phase_4.exposure_admission import (
     exposure_admission_error as _exposure_admission_error,
 )
+from worldsim.phase_4.failure_context import build_variant_failure_context
 from worldsim.phase_4.needham_trace import format_trace_xml, write_trace_artifacts
 from worldsim.phase_4.payload_witnesses import payload_witnesses_for_task
 from worldsim.phase_4.placement_api import run_placement_api
@@ -4377,6 +4378,7 @@ async def generate_variant(
     *,
     sandbox_model: str = "claude-sonnet-4-6",
     retry_feedback: str | None = None,
+    failure_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Generate a variant adversarial task following a specific strategy.
 
@@ -4395,6 +4397,7 @@ async def generate_variant(
         strategy,
         sandbox_model=sandbox_model,
         retry_feedback=retry_feedback,
+        failure_context=failure_context,
     )
 
 
@@ -4607,11 +4610,17 @@ def _variant_tool_payload_view(candidate: Any) -> dict[str, Any] | None:
     return out
 
 
-def _variant_prompt_input_view(task: dict[str, Any], strategy: dict[str, Any]) -> dict[str, Any]:
+def _variant_prompt_input_view(
+    task: dict[str, Any],
+    strategy: dict[str, Any],
+    failure_context: dict[str, Any] | None,
+) -> dict[str, Any]:
     prompt_task = {**sanitize_task_for_model_prompt(task), "target_strategy": strategy}
     payload_contract = build_text_payload_contract(task)
     if payload_contract is not None:
         prompt_task["variant_payload_contract"] = payload_contract
+    if isinstance(failure_context, dict):
+        prompt_task["failure_context"] = _jsonable_payload(failure_context)
     return {
         "prompt": "generate-variant",
         "task_json": _jsonable_payload(prompt_task),
@@ -4668,6 +4677,7 @@ def _write_variant_generation_audit(
     host_finalization_status: str = "not_run",
     host_finalization_reason: str | None = None,
     retry_feedback: str | None = None,
+    failure_context: dict[str, Any] | None = None,
 ) -> Path | None:
     task_id = str(task.get("id", "unknown"))
     attempt_dir = _variant_generation_attempt_dir(
@@ -4698,6 +4708,18 @@ def _write_variant_generation_audit(
         variant_status = variant.get("variant_status") if isinstance(variant, dict) else None
         if isinstance(variant_status, dict):
             request_summary["variant_status"] = _jsonable_payload(variant_status)
+        if isinstance(failure_context, dict):
+            request_summary["failure_context_schema_version"] = failure_context.get(
+                "schema_version"
+            )
+            request_summary["failure_context_digest_bytes"] = failure_context.get(
+                "digest_bytes"
+            )
+            trace_digest = failure_context.get("trace_digest")
+            if isinstance(trace_digest, dict):
+                request_summary["failure_context_trace_digest_status"] = trace_digest.get(
+                    "trace_digest_status"
+                )
         write_json_atomic(
             attempt_dir / "request_summary.json",
             request_summary,
@@ -4705,9 +4727,15 @@ def _write_variant_generation_audit(
         )
         write_json_atomic(
             attempt_dir / "prompt_input_redacted.json",
-            _variant_prompt_input_view(task, strategy),
+            _variant_prompt_input_view(task, strategy, failure_context),
             failpoint_base="phase_4.variant_generation_audit.prompt_input",
         )
+        if isinstance(failure_context, dict):
+            write_json_atomic(
+                attempt_dir / "failure_context.json",
+                _jsonable_payload(failure_context),
+                failpoint_base="phase_4.variant_generation_audit.failure_context",
+            )
         tool_payload = _variant_tool_payload_view(variant)
         if tool_payload is not None:
             write_json_atomic(
@@ -4965,6 +4993,20 @@ async def run_strategy_variation(
             "variant_results": [],
         }
 
+    failure_context = checkpoint.get("failure_context") if checkpoint else None
+    if not isinstance(failure_context, dict):
+        failure_context = build_variant_failure_context(task, initial_result, recommendation)
+        checkpoint = checkpoint or {
+            _CHECKPOINT_FINGERPRINT_KEY: source_fingerprint,
+            "judge_diagnosis": recommendation,
+        }
+        checkpoint["failure_context"] = failure_context
+        _write_json_atomic(
+            checkpoint_path,
+            checkpoint,
+            failpoint_base="phase_4.strategy_variation.checkpoint",
+        )
+
     if not primary_instances:
         logger.warning(
             "No instances available for variant evaluation of task %s", task.get("id", "?")
@@ -4972,6 +5014,7 @@ async def run_strategy_variation(
         return {
             "status": "no_instances",
             "judge_diagnosis": recommendation,
+            "failure_context": failure_context,
             "attempts": [initial_result],
             "variant_results": [],
         }
@@ -5023,6 +5066,7 @@ async def run_strategy_variation(
                     strategy,
                     profile_path,
                     sandbox_model=sandbox_model,
+                    failure_context=failure_context,
                 )
             except Exception as exc:
                 logger.error(
@@ -5039,6 +5083,7 @@ async def run_strategy_variation(
                     attempt_label="initial",
                     status="error",
                     reason=repr(exc),
+                    failure_context=failure_context,
                 )
                 return _variant_generation_record_for_result(
                     index=index,
@@ -5067,6 +5112,7 @@ async def run_strategy_variation(
                     status=str(variant_status.get("status")),
                     reason=str(variant_status.get("reason", "")),
                     variant=variant,
+                    failure_context=failure_context,
                 )
                 return _variant_generation_record_for_result(
                     index=index,
@@ -5097,6 +5143,7 @@ async def run_strategy_variation(
                         variant=variant,
                         host_finalization_status="failed",
                         host_finalization_reason=finalize_error,
+                        failure_context=failure_context,
                     )
                     try:
                         retry_variant = await generate_variant(
@@ -5105,6 +5152,7 @@ async def run_strategy_variation(
                             profile_path,
                             sandbox_model=sandbox_model,
                             retry_feedback=finalize_error,
+                            failure_context=failure_context,
                         )
                     except Exception as exc:
                         logger.error(
@@ -5122,6 +5170,7 @@ async def run_strategy_variation(
                             status="error",
                             reason=repr(exc),
                             retry_feedback=finalize_error,
+                            failure_context=failure_context,
                         )
                         return _variant_generation_record_for_result(
                             index=index,
@@ -5150,6 +5199,7 @@ async def run_strategy_variation(
                             variant=retry_variant,
                             host_finalization_status="not_run",
                             retry_feedback=finalize_error,
+                            failure_context=failure_context,
                         )
                         return _variant_generation_record_for_result(
                             index=index,
@@ -5174,6 +5224,7 @@ async def run_strategy_variation(
                                 variant=retry_variant,
                                 host_finalization_status="passed",
                                 retry_feedback=finalize_error,
+                                failure_context=failure_context,
                             )
                             return _variant_generation_record_for_result(
                                 index=index,
@@ -5195,6 +5246,7 @@ async def run_strategy_variation(
                             host_finalization_status="failed",
                             host_finalization_reason=retry_finalize_error,
                             retry_feedback=finalize_error,
+                            failure_context=failure_context,
                         )
                         return _variant_generation_record_for_result(
                             index=index,
@@ -5217,6 +5269,7 @@ async def run_strategy_variation(
                         variant=retry_variant,
                         host_finalization_status="not_run",
                         retry_feedback=finalize_error,
+                        failure_context=failure_context,
                     )
                     return _variant_generation_record_for_result(
                         index=index,
@@ -5233,6 +5286,7 @@ async def run_strategy_variation(
                     status="generated",
                     variant=variant,
                     host_finalization_status="passed",
+                    failure_context=failure_context,
                 )
                 return _variant_generation_record_for_result(
                     index=index,
@@ -5252,6 +5306,7 @@ async def run_strategy_variation(
                 status="failed",
                 reason=unchanged_reason,
                 variant=variant,
+                failure_context=failure_context,
             )
             return _variant_generation_record_for_result(
                 index=index,
@@ -5308,6 +5363,7 @@ async def run_strategy_variation(
         return {
             "status": "variant_generation_failed",
             "judge_diagnosis": recommendation,
+            "failure_context": failure_context,
             "attempts": [initial_result],
             "variant_results": [],
             "variant_generation_errors": variant_generation_errors,
@@ -5366,6 +5422,7 @@ async def run_strategy_variation(
     result = {
         "status": "partial_capacity" if partial_capacity else "varied",
         "judge_diagnosis": recommendation,
+        "failure_context": failure_context,
         "attempts": [initial_result],
         "variant_results": variant_results,
         "variant_generation_errors": variant_generation_errors,
