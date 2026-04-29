@@ -1001,6 +1001,42 @@ async def test_issue_description_ryw_falls_back_to_rest_api(short_body_poll):
 
 
 @pytest.mark.asyncio
+async def test_issue_description_ryw_uses_returned_issue_iid_for_ui_json(short_body_poll):
+    stale_url = "http://gitlab.test/proj/-/issues/5"
+    stale_json_url = "http://gitlab.test/proj/-/issues/5.json"
+    created_json_url = "http://gitlab.test/proj/-/issues/6.json"
+    page = _RYWPage(
+        bodies=["shell only"] * 60,
+        final_body="shell only",
+        json_responses={
+            stale_json_url: _FakeRequestResponse(
+                status=200,
+                body='{"iid":5,"description":"Raising priority on issue"}',
+            ),
+            created_json_url: _FakeRequestResponse(
+                status=200,
+                body='{"iid":6,"description":"Raising priority on issue"}',
+            ),
+        },
+    )
+    browser = _RYWBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=[stale_url],
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        signature="Raising priority on issue",
+        write_tokens={"project_id": 174, "issue_iid": 6},
+    )
+
+    assert outcome.ok is True
+    assert outcome.matched_url == created_json_url
+    called_urls = [url for url, _timeout in page.request.calls]
+    assert stale_json_url not in called_urls
+
+
+@pytest.mark.asyncio
 async def test_issue_description_ryw_requires_signature_in_description(short_body_poll):
     url = "http://gitlab.test/proj/-/issues/1534"
     web_json_url = "http://gitlab.test/proj/-/issues/1534.json"

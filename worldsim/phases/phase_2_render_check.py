@@ -775,16 +775,19 @@ def _gitlab_issue_description_ryw_urls(target_url: str, write_tokens: dict[str, 
     origin = _gitlab_origin_from_target(target_url)
     if origin is None:
         return []
+    issue_iid = write_tokens.get("issue_iid")
     urls: list[str] = []
     try:
         path = urlsplit(target_url).path
     except ValueError:
         path = ""
-    match = re.match(r"(?P<issue_path>.*?/-/issues/\d+)(?:\.json|/discussions\.json)?/?$", path)
-    if match:
-        urls.append(f"{origin}{match.group('issue_path')}.json")
+    match = re.match(
+        r"(?P<issue_base>.*?/-/issues/)(?P<path_iid>\d+)(?:\.json|/discussions\.json)?/?$",
+        path,
+    )
+    if match and issue_iid not in (None, ""):
+        urls.append(f"{origin}{match.group('issue_base')}{urlquote(str(issue_iid), safe='')}.json")
     project_id = write_tokens.get("project_id")
-    issue_iid = write_tokens.get("issue_iid")
     if project_id not in (None, "") and issue_iid not in (None, ""):
         urls.append(
             f"{origin}/api/v4/projects/{urlquote(str(project_id), safe='')}"
