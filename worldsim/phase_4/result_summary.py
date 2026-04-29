@@ -135,6 +135,17 @@ def task_route_variant(task: dict[str, Any] | None) -> str:
     return "unknown"
 
 
+def _variant_error_bucket_key(item: Any) -> tuple[str, str] | None:
+    if isinstance(item, dict):
+        return (
+            str(item.get("failure_class") or item.get("class") or item.get("status") or "unknown"),
+            str(item.get("reason") or item.get("error") or "")[:160],
+        )
+    if item is None:
+        return None
+    return ("raw", str(item)[:160])
+
+
 def summarize_results(
     results: list[dict[str, Any]],
     *,
@@ -202,6 +213,12 @@ def summarize_results(
                             "gate1_valid" if ecologically_valid(variant) else "gate1_invalid",
                         )
                     ] += 1
+            variant_generation_errors = variation.get("variant_generation_errors")
+            if isinstance(variant_generation_errors, list):
+                for item in variant_generation_errors:
+                    error_key = _variant_error_bucket_key(item)
+                    if error_key is not None:
+                        variant_error_buckets[error_key] += 1
         for variant in successful_strategy_variants(result):
             variant_successes.append(
                 {
@@ -222,19 +239,9 @@ def summarize_results(
             if not isinstance(errors, list):
                 continue
             for item in errors:
-                if isinstance(item, dict):
-                    error_key = (
-                        str(
-                            item.get("failure_class")
-                            or item.get("class")
-                            or item.get("status")
-                            or "unknown"
-                        ),
-                        str(item.get("reason") or "")[:160],
-                    )
-                else:
-                    error_key = ("raw", str(item)[:160])
-                variant_error_buckets[error_key] += 1
+                error_key = _variant_error_bucket_key(item)
+                if error_key is not None:
+                    variant_error_buckets[error_key] += 1
 
     return {
         "total": len(results),

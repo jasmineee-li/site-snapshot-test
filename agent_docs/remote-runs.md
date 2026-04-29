@@ -28,6 +28,21 @@ remote job starts. Override with
 `WORLDSIM_ALLOW_REMOTE_INSTANCE_TOPOLOGY_MISMATCH=1` only when intentionally
 testing an external-browser topology.
 
+## Resume and Compaction Checks
+
+After context compaction or a long pause, treat any live artifact path as
+topology-bound until checked. Before reusing a Phase 2/2c or Phase 4 state
+directory on r5:
+
+- Confirm the command uses `instances.scale.json` for on-host browser phases.
+- Confirm the artifact's saved benchmark metadata was produced for the same
+  instance pool. If Phase 2c refuses a metadata mismatch, rerun a small matching
+  Phase 1 -> 2 job instead of forcing the old artifact through a different
+  instance file.
+- Treat `host_unreachable`, public-IP navigation from the host, and GitLab
+  storage-state host mismatches as topology symptoms first, not as carrier,
+  prompt, or strategy verdicts.
+
 Remote metadata and logs live under:
 
 ```text

@@ -33,6 +33,13 @@ def test_summarize_results_attributes_success_on_variant_reward():
             "signals": {"C1": True, "C2": True},
             "strategy_variation": {
                 "judge_diagnosis": {"refusal_trigger": "distracted"},
+                "variant_generation_errors": [
+                    {
+                        "strategy": "necessary_for_benign_goal",
+                        "status": "failed",
+                        "reason": "attack witness starts too late",
+                    }
+                ],
                 "variant_results": [
                     {
                         "strategy": "specificity",
@@ -122,6 +129,13 @@ def test_summarize_results_attributes_success_on_variant_reward():
             "editor_method": "create_issue_title",
             "route_variant": "project_issue_list",
             "strategy": "specificity",
+        }
+    ]
+    assert summary["variant_error_buckets"] == [
+        {
+            "count": 1,
+            "class": "failed",
+            "reason": "attack witness starts too late",
         }
     ]
 
