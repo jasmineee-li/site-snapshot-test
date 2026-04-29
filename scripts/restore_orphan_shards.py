@@ -44,7 +44,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from worldsim.phases.phase_2_injections import (
+from worldsim.phase_2.runner import (
     _normalize_l4_benign_task_ids_in_place,
 )
 

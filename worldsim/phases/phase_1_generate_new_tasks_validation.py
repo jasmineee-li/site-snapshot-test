@@ -19,6 +19,7 @@ from worldsim.adversarial_actions.capability_contracts import (
 from worldsim.adversarial_actions.scenario_templates import (
     scenario_template_from_mapping,
 )
+from worldsim.phase_2.target_resolution.runner import derive_benign_target_resource
 from worldsim.phases.phase_1_task_cards import (
     card_action_kinds,
     card_benign_reward_shape,
@@ -30,7 +31,6 @@ from worldsim.phases.phase_1_task_cards import (
     task_card_index,
 )
 from worldsim.phases.phase_2_exposure_contract import build_exposure_contract
-from worldsim.phases.phase_2_target_resolver import derive_benign_target_resource
 from worldsim.placeholders import extract_placeholders, placeholder_for_site
 from worldsim.seeding import validate_data_seed
 
