@@ -2448,7 +2448,7 @@ def _copy_history_screenshots(task_dir: Path, history: Any) -> None:
         if path_str and Path(path_str).exists():
             screenshots_dir.mkdir(parents=True, exist_ok=True)
             destination = screenshots_dir / f"step_{step_idx}.png"
-            if destination.exists():
+            if destination.exists() and destination.stat().st_size > 0:
                 # Phase 4 PVPO already wrote the deterministic frame for this
                 # step. Keep that artifact; Browser Use screenshots are only a
                 # fallback for phases that do not populate screenshots eagerly.

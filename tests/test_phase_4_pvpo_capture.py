@@ -359,6 +359,68 @@ async def test_atomic_capture_has_damage_false_does_not_retry(caplog):
 
 
 @pytest.mark.asyncio
+async def test_atomic_capture_retries_empty_beginframe_screenshot():
+    png = _png_bytes()
+    cdp = AsyncMock()
+    begin_frame_count = {"n": 0}
+
+    async def _send(method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        if method == "Emulation.setVirtualTimePolicy":
+            return {}
+        if method == "Runtime.evaluate":
+            return {
+                "result": {
+                    "type": "object",
+                    "value": {"entries": [], "backgroundColor": {"r": 255, "g": 255, "b": 255}},
+                }
+            }
+        if method == "HeadlessExperimental.beginFrame":
+            begin_frame_count["n"] += 1
+            if begin_frame_count["n"] == 1:
+                return {"hasDamage": True}
+            return {
+                "hasDamage": True,
+                "screenshotData": base64.b64encode(png).decode("ascii"),
+            }
+        raise AssertionError(f"unexpected CDP method {method}")
+
+    cdp.send = AsyncMock(side_effect=_send)
+
+    capture = await atomic_capture_with_visibility(cdp, viewport_rect=Rect(0, 0, 200, 100))
+
+    assert begin_frame_count["n"] == 2
+    assert capture.screenshot_png == png
+    assert capture.issue_class is None
+
+
+@pytest.mark.asyncio
+async def test_atomic_capture_marks_persistent_empty_beginframe_screenshot():
+    cdp = AsyncMock()
+
+    async def _send(method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        if method == "Emulation.setVirtualTimePolicy":
+            return {}
+        if method == "Runtime.evaluate":
+            return {
+                "result": {
+                    "type": "object",
+                    "value": {"entries": [], "backgroundColor": {"r": 255, "g": 255, "b": 255}},
+                }
+            }
+        if method == "HeadlessExperimental.beginFrame":
+            return {"hasDamage": True}
+        raise AssertionError(f"unexpected CDP method {method}")
+
+    cdp.send = AsyncMock(side_effect=_send)
+
+    capture = await atomic_capture_with_visibility(cdp, viewport_rect=Rect(0, 0, 200, 100))
+
+    assert capture.screenshot_png == b""
+    assert capture.issue_class == "begin_frame_empty_screenshot"
+    assert "empty screenshotData" in (capture.issue_message or "")
+
+
+@pytest.mark.asyncio
 async def test_atomic_capture_accepts_browser_use_cdp_session_surface():
     png = _png_bytes()
 
@@ -455,6 +517,7 @@ def test_save_step_artifacts_writes_both_files_with_bg(tmp_path: Path):
     assert pvpo_json["match_offset"] == 4
     assert pvpo_json["matched_witness_id"] == "witness:0"
     assert pvpo_json["matched_witness_text"] == "payload"
+    assert pvpo_json["screenshot_bytes"] == len(capture.screenshot_png)
     assert pvpo_json["page_url"] == "http://gitlab.test/issues/1"
     assert pvpo_json["clip"] == {"x": 0, "y": 0, "w": 200, "h": 100}
     assert pvpo_json["background_color"] == [128, 129, 130]

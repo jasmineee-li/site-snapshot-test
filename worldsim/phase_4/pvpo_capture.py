@@ -43,6 +43,7 @@ _PVPO_QUERY_JS_TEMPLATE: str = (Path(__file__).parent / "pvpo_query.js").read_te
 _PAYLOAD_SUBSTITUTION_TOKEN = "__WORLDSIM_WITNESSES_JSON__"
 _SCROLL_TO_MATCH_SUBSTITUTION_TOKEN = "__WORLDSIM_SCROLL_TO_MATCH__"
 _PVPO_CAPTURE_SUMMARY_FILENAME = "capture_summary.json"
+_BEGINFRAME_EMPTY_SCREENSHOT_RETRIES = 1
 
 
 def build_pvpo_query_js(
@@ -226,11 +227,30 @@ async def atomic_capture_with_visibility(
                 "clip": viewport_rect.as_cdp_clip(),
             },
         }
+
+        async def _capture_frame() -> tuple[dict[str, Any], bytes]:
+            frame = await _send("HeadlessExperimental.beginFrame", begin_frame_params)
+            png_b64 = frame.get("screenshotData") or ""
+            return frame, base64.b64decode(png_b64) if png_b64 else b""
+
+        frame: dict[str, Any] = {}
+        screenshot_png = b""
+        attempts = _BEGINFRAME_EMPTY_SCREENSHOT_RETRIES + 1
         if beginframe_lock is not None:
             async with beginframe_lock:
-                frame = await _send("HeadlessExperimental.beginFrame", begin_frame_params)
+                for attempt in range(attempts):
+                    frame, screenshot_png = await _capture_frame()
+                    if screenshot_png:
+                        break
+                    if attempt < attempts - 1:
+                        await asyncio.sleep(0)
         else:
-            frame = await _send("HeadlessExperimental.beginFrame", begin_frame_params)
+            for attempt in range(attempts):
+                frame, screenshot_png = await _capture_frame()
+                if screenshot_png:
+                    break
+                if attempt < attempts - 1:
+                    await asyncio.sleep(0)
 
         has_damage = bool(frame.get("hasDamage", True))
         if not has_damage:
@@ -238,8 +258,12 @@ async def atomic_capture_with_visibility(
                 "pvpo beginFrame hasDamage=False; trusting prior frame pixels "
                 "(read-only visibility query should not dirty the compositor)"
             )
-        png_b64 = frame.get("screenshotData") or ""
-        screenshot_png = base64.b64decode(png_b64) if png_b64 else b""
+        if not screenshot_png:
+            issue_class = "begin_frame_empty_screenshot"
+            issue_message = (
+                "HeadlessExperimental.beginFrame returned empty screenshotData "
+                f"after {attempts} attempt(s)"
+            )
     finally:
         try:
             await _send("Emulation.setVirtualTimePolicy", {"policy": "advance"})
@@ -446,6 +470,7 @@ def save_step_artifacts(
                 "match_offset": capture.match_offset,
                 "matched_witness_id": capture.matched_witness_id,
                 "matched_witness_text": capture.matched_witness_text,
+                "screenshot_bytes": len(capture.screenshot_png),
                 "clip": {
                     "x": capture.clip.x,
                     "y": capture.clip.y,
