@@ -34,7 +34,8 @@ Prerequisites (operator-enforced):
   - .env sourced (Anthropic + WORLDSIM_* credentials).
 
 Usage:
-  (set -a; source ./.env; set +a; uv run python scripts/pvpo_live_validation.py)
+  (set -a; source ./.env; set +a; uv run python scripts/pvpo_live_validation.py \
+    --tasks /path/to/adversarial_tasks.json)
 
 The script resets each site via its ``reset_endpoint`` BEFORE seeding so
 no stale state from prior runs pollutes the test. It does NOT reset after
@@ -44,6 +45,7 @@ between tasks as part of normal operation).
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import sys
@@ -68,6 +70,7 @@ from worldsim.phases.phase_2_text_fill import materialize_adversarial_seed
 from worldsim.seeding import apply_data_seed_async
 
 CDP_URL = "http://127.0.0.1:9222"
+WASP_SITES = frozenset({"gitlab", "reddit"})
 
 
 def first_task_for_site(tasks: list[dict], site: str) -> dict | None:
@@ -75,6 +78,56 @@ def first_task_for_site(tasks: list[dict], site: str) -> dict | None:
         if t.get("site") == site and t.get("seed_template") and t.get("payload_texts"):
             return t
     return None
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--tasks",
+        required=True,
+        type=Path,
+        help=(
+            "Path to the Phase 2 adversarial_tasks.json artifact to validate. "
+            "This is explicit because logs/phase_2 artifacts are runtime output "
+            "and are no longer tracked in fresh worktrees."
+        ),
+    )
+    parser.add_argument(
+        "--instances",
+        type=Path,
+        default=ROOT / "instances.smoke.json",
+        help="Instances config for the live stack, defaults to instances.smoke.json.",
+    )
+    return parser
+
+
+def load_json_array(path: Path, *, label: str) -> list[dict]:
+    try:
+        payload = json.loads(path.read_text())
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(
+            f"{label} not found: {path}. Pass an explicit artifact path."
+        ) from exc
+    if not isinstance(payload, list):
+        raise ValueError(f"{label} must contain a JSON array: {path}")
+    return [item for item in payload if isinstance(item, dict)]
+
+
+def sites_to_validate(tasks: list[dict], config: BenchmarkConfig) -> list[str]:
+    configured_sites = {instance.site_name for instance in config.instances}
+    sites: set[str] = set()
+    for task in tasks:
+        site = str(task.get("site") or "").strip()
+        delivery_channel = task.get("delivery_channel")
+        delivery_site = (
+            str(delivery_channel.get("delivery_site") or "").strip()
+            if isinstance(delivery_channel, dict)
+            else ""
+        )
+        for candidate in (site, delivery_site):
+            if candidate in WASP_SITES and candidate in configured_sites:
+                sites.add(candidate)
+    return sorted(sites)
 
 
 def reset_instance(reset_endpoint: str, label: str) -> None:
@@ -200,14 +253,22 @@ async def run_pvpo_on_page(url: str, payload: str, site: str, out_dir: Path) -> 
     }
 
 
-async def main() -> int:
-    tasks = json.loads((ROOT / "logs/phase_2/adversarial_tasks.json").read_text())
-    config = BenchmarkConfig.model_validate_json((ROOT / "instances.smoke.json").read_text())
-    sites_to_test = ["shopping", "shopping_admin", "reddit", "gitlab"]
+async def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    try:
+        tasks = load_json_array(args.tasks, label="Phase 2 tasks artifact")
+        config = BenchmarkConfig.model_validate_json(args.instances.read_text())
+    except Exception as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+    sites_to_test = sites_to_validate(tasks, config)
+    if not sites_to_test:
+        print(
+            "ERROR: no GitLab or Reddit tasks in the artifact match configured instances",
+            file=sys.stderr,
+        )
+        return 2
 
-    # All current adversarial_tasks.json tasks site onto `shopping_admin` but
-    # deliver via the `shopping` editor (create_product_review). So we cover
-    # the "payload renders on shopping PDP" case. Track per-site results.
     results: dict[str, dict] = {}
 
     for site in sites_to_test:

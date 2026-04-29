@@ -453,7 +453,62 @@ def build_instances_config(
     output["instances"] = instances
 
     validated = BenchmarkConfig.model_validate(output)
-    return validated.model_dump(mode="json", exclude_none=True)
+    dumped = validated.model_dump(mode="json", exclude_none=True)
+    if emit_verification_proxy:
+        verification_proxy = _dump_verification_proxy_without_resolved_secret(
+            output.get("verification_proxy"),
+            validated_proxy=dumped.get("verification_proxy"),
+            proxy_token_supplied=proxy_token is not None,
+            proxy_port_offset=proxy_port_offset,
+            proxy_scheme=proxy_scheme,
+        )
+        if verification_proxy:
+            dumped["verification_proxy"] = verification_proxy
+        else:
+            dumped.pop("verification_proxy", None)
+    return dumped
+
+
+def _dump_verification_proxy_without_resolved_secret(
+    source_proxy: Any,
+    *,
+    validated_proxy: Any,
+    proxy_token_supplied: bool,
+    proxy_port_offset: int,
+    proxy_scheme: str | None,
+) -> dict[str, Any]:
+    """Return a serializable proxy block without materializing external tokens.
+
+    ``BenchmarkConfig`` resolves ``token_env`` / ``token_file`` into ``token`` for
+    runtime callers. Generated configs are source artifacts, so they must retain
+    external references unless the operator explicitly passed ``--proxy-token``.
+    """
+    if proxy_token_supplied:
+        return dict(validated_proxy) if isinstance(validated_proxy, dict) else {}
+
+    if isinstance(source_proxy, dict):
+        serialized = {
+            key: value
+            for key, value in source_proxy.items()
+            if value is not None and not (key == "token" and not str(value).strip())
+        }
+    else:
+        serialized = {}
+
+    source_token = serialized.get("token")
+    has_external_token_source = any(
+        isinstance(serialized.get(key), str) and serialized[key].strip()
+        for key in ("token_env", "token_file")
+    )
+    if has_external_token_source and not (isinstance(source_token, str) and source_token.strip()):
+        serialized.pop("token", None)
+
+    serialized["port_offset"] = proxy_port_offset
+    if proxy_scheme is not None:
+        serialized["scheme"] = proxy_scheme
+    else:
+        serialized.setdefault("scheme", "http")
+    return serialized
 
 
 # ---------------------------------------------------------------------------

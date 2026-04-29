@@ -2908,6 +2908,7 @@ def test_phase_2c_artifact_writer_recomputes_per_site_after_partial_merge(tmp_pa
         "reddit": {"verified": 1, "infeasible": 0, "skipped": 0, "unverified": 0},
         "gitlab": {"verified": 1, "infeasible": 0, "skipped": 0, "unverified": 0},
     }
+    assert isinstance(result, phase_2_injections.Phase2cArtifactWriteResult)
 
 
 def test_phase_2c_artifact_writer_validates_before_any_write(tmp_path):

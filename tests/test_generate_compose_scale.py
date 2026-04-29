@@ -170,6 +170,77 @@ def test_generate_compose_scale_preserves_runtime_contract(tmp_path: Path) -> No
     assert "shopping_1:7780:17780" in proxy_ports
 
 
+def test_generate_compose_scale_keeps_external_proxy_token_references(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    base_config = {
+        "benchmark_name": "WebArena Verified",
+        "benchmark_codebase": "vendors/webarena-verified",
+        "verification_proxy": {
+            "token_env": "WORLDSIM_TEST_PROXY_TOKEN",
+            "token_file": ".proxy_token",
+            "port_offset": 10000,
+        },
+        "instances": [
+            {
+                "site_name": "gitlab",
+                "site_url": "http://old-host:8023",
+                "reset_endpoint": "http://old-host:8024/init",
+                "agent_auth": {"type": "none"},
+            }
+        ],
+    }
+    scale_config = {
+        "network": {"name": "worldsim-bench", "subnet": "172.20.0.0/20"},
+        "proxy_port_offset": 10000,
+        "smoke_test_replicas": {"gitlab": 1},
+        "sites": {
+            "gitlab": {
+                "image": "example/gitlab@sha256:" + "a" * 64,
+                "replicas": 1,
+                "real_port_base": 8023,
+                "container_web_port": 8023,
+                "port_step": 10,
+            },
+        },
+    }
+    base_path = tmp_path / "instances.base.json"
+    config_path = tmp_path / "scale.yml"
+    base_path.write_text(json.dumps(base_config, indent=2) + "\n")
+    config_path.write_text(json.dumps(scale_config))
+    host_config_path = _write_host_config(tmp_path)
+    monkeypatch.setenv("WORLDSIM_TEST_PROXY_TOKEN", "live-token-that-must-not-be-serialized")
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script_path = repo_root / "scripts" / "generate_compose_scale.py"
+    subprocess.run(
+        [
+            sys.executable,
+            str(script_path),
+            "--config",
+            str(config_path),
+            "--base-config",
+            str(base_path),
+            "--host-config",
+            str(host_config_path),
+            "--out-dir",
+            str(tmp_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+
+    verification_proxy = json.loads((tmp_path / "instances.json").read_text())["verification_proxy"]
+    assert verification_proxy == {
+        "token_env": "WORLDSIM_TEST_PROXY_TOKEN",
+        "token_file": ".proxy_token",
+        "scheme": "http",
+        "port_offset": 10000,
+    }
+    assert "live-token-that-must-not-be-serialized" not in (tmp_path / "instances.json").read_text()
+
+
 def test_generate_compose_scale_adds_gitlab_validation_endpoint(tmp_path: Path) -> None:
     base_config = {
         "benchmark_name": "WebArena Verified",
