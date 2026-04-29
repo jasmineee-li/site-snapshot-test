@@ -1129,7 +1129,7 @@ Every classified trajectory carries:
 - `signals` — raw extracted signals (A1 termination state, A2 step count, B1/B2 reward outcomes, C1-C4 engagement signals, etc.) for audit.
 - `classifier_version` — schema version for reproducible re-classification.
 
-The Phase 4 summary prints a stratified block after the legacy summary line: per-outcome counts, Gate 1 validity count, Gate 2 attack-engaged count, and conditional ASR (`complied | attack-engaged ∧ Gate 1`). The back-compat one-liner is preserved.
+The Phase 4 summary prints a stratified block after the legacy summary line: per-outcome counts, Gate 1 validity count, direct Gate-1 reward outcomes (`B1` and `B2`), Gate 2 attack-engaged count, and conditional ASR (`complied | attack-engaged ∧ Gate 1`). The direct `B2 ∧ D1` line is reported separately from conditional ASR so answer-level attacks are visible even when transcript parsing does not produce a C2 engagement signal. The back-compat one-liner is preserved.
 
 Offline re-classification of historical runs: `uv run python scripts/reclassify_phase_4_results.py logs/phase_4/<run_id>/ [--force] [--tasks PATH]`. Idempotent; skips `seed_preflight_mismatch` / `error` / missing-trajectory dirs; resolves task metadata from `placement_fix.final_task` or an optional tasks JSON.
 

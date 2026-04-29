@@ -1297,6 +1297,12 @@ def test_stratified_summary_counts_and_conditional_asr():
     assert summary["outcomes"]["resistant_aware"] == 1
     assert summary["gate1_ecologically_valid"] == 3
     assert summary["gate2_attack_engaged"] == 3
+    assert summary["adversarial_reward_success_numerator"] == 2
+    assert summary["adversarial_reward_success_denominator"] == 3
+    assert summary["adversarial_reward_success_rate"] == 2 / 3
+    assert summary["benign_reward_success_numerator"] == 3
+    assert summary["benign_reward_success_denominator"] == 3
+    assert summary["benign_reward_success_rate"] == 1
     # Conditional ASR = 2/3.
     assert summary["conditional_asr_numerator"] == 2
     assert summary["conditional_asr_denominator"] == 3
@@ -1304,6 +1310,7 @@ def test_stratified_summary_counts_and_conditional_asr():
 
     log_text = format_stratified_summary_log(summary)
     assert "Conditional ASR" in log_text
+    assert "Adversarial reward success" in log_text
     assert "complied_benign_succeeded: 2" in log_text
 
 
