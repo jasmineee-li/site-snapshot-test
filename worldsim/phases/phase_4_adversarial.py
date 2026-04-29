@@ -714,18 +714,27 @@ def _synchronize_variant_payload_texts(
             f"{original_task.get('id', 'unknown')} revised adversarial_data_seed does not expose "
             "a recoverable payload body"
         )
+    candidate_error = None
     if candidate_payload_text is not None:
         synced_entry, candidate_error = _candidate_payload_text_entry(
             merged_task,
             candidate_payload_text,
             rendered_payload=rendered_payload,
         )
-        if candidate_error is not None:
-            return (
-                "variant task "
-                f"{original_task.get('id', 'unknown')} {candidate_error}"
-            )
-    else:
+        if synced_entry is not None:
+            merged_payloads = json.loads(json.dumps(payload_texts))
+            merged_payloads[selected_index] = synced_entry
+            merged_task["payload_texts"] = merged_payloads
+            return None
+
+        logger.warning(
+            "Variant payload_text metadata for %s failed validation; attempting host "
+            "resynchronization from seed payload: %s",
+            original_task.get("id", "unknown"),
+            candidate_error,
+        )
+
+    if candidate_payload_text is None or candidate_error is not None:
         synced_entry = _updated_payload_text_entry(
             merged_task,
             payload_texts[selected_index],
@@ -733,6 +742,12 @@ def _synchronize_variant_payload_texts(
             applied_strategy=applied_strategy,
         )
         if synced_entry is None:
+            if candidate_error is not None:
+                return (
+                    "variant task "
+                    f"{original_task.get('id', 'unknown')} {candidate_error}; "
+                    "host resynchronization from revised seed payload also failed"
+                )
             return (
                 "variant task "
                 f"{original_task.get('id', 'unknown')} revised payload_texts failed post-hoc validation"

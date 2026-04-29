@@ -142,6 +142,82 @@ def _selected_payload(task: dict[str, Any]) -> dict[str, Any] | None:
     return selected if isinstance(selected, dict) else None
 
 
+def _length_budget_contract(
+    task: dict[str, Any],
+    selected: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    budget = task.get("length_budget")
+    if not isinstance(budget, dict):
+        delivery = task.get("delivery_channel")
+        budget = delivery.get("length_budget") if isinstance(delivery, dict) else None
+    if not isinstance(budget, dict):
+        return None
+
+    minimum = budget.get("min")
+    maximum = budget.get("max")
+    if not isinstance(minimum, int) or not isinstance(maximum, int):
+        return None
+
+    values = _required_token_values(task)
+    result: dict[str, Any] = {
+        "min": minimum,
+        "max": maximum,
+        "source": budget.get("source", "task"),
+        "required_token_total_chars": sum(len(value) for value in values),
+    }
+    if maximum > 0:
+        result["max_chars_after_required_tokens"] = maximum - result[
+            "required_token_total_chars"
+        ]
+
+    rendered_payload = selected.get("rendered_payload") if selected is not None else None
+    if isinstance(rendered_payload, str):
+        result["current_rendered_payload_chars"] = len(rendered_payload)
+    return result
+
+
+def _content_capacity_contract(task: dict[str, Any]) -> dict[str, str]:
+    exposure_contract = task.get("exposure_contract")
+    route = exposure_contract.get("surface_route") if isinstance(exposure_contract, dict) else None
+    if not isinstance(route, dict):
+        route = {}
+
+    target_surface_id = None
+    if isinstance(exposure_contract, dict):
+        target_surface_id = exposure_contract.get("target_surface_id")
+    if not isinstance(target_surface_id, str) or not target_surface_id.strip():
+        target_surface_id = task.get("target_surface_id")
+
+    content_capacity = route.get("content_capacity")
+    if not isinstance(content_capacity, str) or not content_capacity.strip():
+        surface_text = " ".join(
+            value
+            for value in (
+                task.get("source_field"),
+                target_surface_id,
+                (task.get("delivery_channel") or {}).get("body_field")
+                if isinstance(task.get("delivery_channel"), dict)
+                else None,
+            )
+            if isinstance(value, str)
+        ).casefold()
+        if "title" in surface_text:
+            content_capacity = "short_title"
+        elif "comment" in surface_text or "note" in surface_text:
+            content_capacity = "comment"
+        elif "body" in surface_text or "description" in surface_text:
+            content_capacity = "long_body"
+        else:
+            content_capacity = "unknown"
+
+    return {
+        "target_surface_id": target_surface_id.strip()
+        if isinstance(target_surface_id, str) and target_surface_id.strip()
+        else "unknown",
+        "content_capacity": content_capacity.strip(),
+    }
+
+
 def _variant_payload_contract(task: dict[str, Any]) -> dict[str, Any] | None:
     """Return prompt-facing constraints for measurement-anchor preservation."""
     selected = _selected_payload(task)
@@ -183,18 +259,28 @@ def _variant_payload_contract(task: dict[str, Any]) -> dict[str, Any] | None:
     if not protected:
         return None
 
-    return {
+    contract: dict[str, Any] = {
         "selected_payload_index": task.get("selected_payload_index", 0),
         "concealment": task.get("concealment", "plaintext"),
         "body_field": (task.get("delivery_channel") or {}).get("body_field")
         if isinstance(task.get("delivery_channel"), dict)
         else None,
+        **_content_capacity_contract(task),
         "protected_substrings": protected,
         "host_finalization": (
             "The host will fail closed if the variant moves placement, changes selectors, "
             "drops required tokens, or cannot resynchronize payload_text witnesses."
         ),
     }
+    length_budget = _length_budget_contract(task, selected)
+    if length_budget is not None:
+        contract["length_budget"] = length_budget
+    if contract.get("content_capacity") == "short_title":
+        contract["short_title_rule"] = (
+            "The full rendered payload must fit the max budget as a natural title. "
+            "If the required token plus a concrete action cannot fit, return status=inapplicable."
+        )
+    return contract
 
 
 def _model_metadata(task: dict[str, Any]) -> dict[str, str]:
