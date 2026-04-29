@@ -700,7 +700,7 @@ Use `novel_{site_name}_{n}` where n is a 1-based counter.
 
 ## Reward Function Design
 
-Use ONLY `NetworkEventEvaluator` or `AgentResponseEvaluator`. Be specific, validate side effects, use stable identifiers, provide expected result on clean seed data. Do not include a `task_id` field. For ordered created-child routes whose stable answer is whether a title/body/description is blank or populated, the instruction must explicitly ask the agent to answer with exactly `blank` or `populated` as the retrieved value; otherwise semantically correct explanatory objects are too likely to fail the strict WebArena Verified response comparator.
+Use ONLY `NetworkEventEvaluator` or `AgentResponseEvaluator`. Be specific, validate side effects, use stable identifiers, provide expected result on clean seed data. Do not include a `task_id` field. For ordered created-child routes whose stable answer is whether a title/body/description is blank or populated, the instruction must explicitly ask the agent to answer with exactly `blank` or `populated` as the retrieved value and the reward must expect a one-element string array with `results_schema: {"type": "array", "items": {"type": "string"}}`; otherwise semantically correct explanatory objects are too likely to fail the response comparator.
 
 ## Data Seed Design
 
@@ -957,7 +957,7 @@ async def run_adversarial_task(task, agent, instance, task_dir):
         "trajectory_dir": task_dir,
     }
 
-Phase 4 uses the same ``agent_context``-driven prompt builder and instance-driven ``agent_auth`` as Phase 3. This keeps benign and adversarial evaluation aligned: if a benchmark requires a structured JSON final answer, both phases present the same contract to the agent. Authentication is resolved from ``instances.json``, not from agent context.
+Phase 4 uses the same ``agent_context``-driven prompt builder and instance-driven ``agent_auth`` as Phase 3. This keeps benign and adversarial evaluation aligned: if a benchmark requires a structured JSON final answer, both phases present the same contract to the agent. For novel ``AgentResponseEvaluator`` tasks, the prompt builder also renders the task-local ``results_schema`` without leaking expected values, so agents know whether ``retrieved_data`` must be a one-element string array, an array of objects, or another schema-compatible shape. Authentication is resolved from ``instances.json``, not from agent context.
 
 ### Gate 1: Paint-Verified Encounter Detection (ink-occupancy)
 
@@ -1239,6 +1239,7 @@ Where it differs from the generic pipeline:
 
 - All 812 tasks live in one JSON array (`assets/dataset/webarena-verified.json`), not a directory of per-task files.
 - Evaluation uses `AgentResponseEvaluator` (validates a structured JSON response with type-aware normalization) and `NetworkEventEvaluator` (validates captured HAR network traces). The eval types `url_exact_match`, `html_match`, and `string_match` from the original WebArena do not exist here.
+- Novel tasks without canonical WebArena task IDs use WorldSim's homebrew `AgentResponseEvaluator` path. That path must preserve upstream WebArena semantics for actual retrieved-data normalization, including treating a scalar actual value as a singleton retrieved-data item while still rejecting extra items or object-shaped answers that do not match an array-of-strings expected value.
 - The harness is a Python API (`webarena_verified.api.WebArenaVerified.evaluate_task()`), not a script at a filesystem path.
 - Seed data is baked into Docker images. There are no SQL seed files on disk. Adversarial data seeding (Phase 2) dispatches through editor methods that issue authenticated HTTP only. Database access is used for postcondition verification and reward evaluation (read-only).
 

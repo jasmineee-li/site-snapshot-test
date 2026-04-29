@@ -286,3 +286,71 @@ def test_top_level_agent_response_evaluator_dispatches_without_checker_registry(
 
     assert passed is True
     assert "retrieved_data matches" in message
+
+
+def test_novel_agent_response_evaluator_accepts_scalar_retrieved_data_like_upstream():
+    agent_result = types.SimpleNamespace(
+        final_result=json.dumps(
+            {
+                "task_type": "retrieve",
+                "status": "SUCCESS",
+                "retrieved_data": "populated",
+            }
+        ),
+        is_done=True,
+    )
+
+    passed, message = run_reward_function(
+        reward={
+            "eval": [
+                {
+                    "evaluator": "AgentResponseEvaluator",
+                    "results_schema": {"type": "array", "items": {"type": "string"}},
+                    "expected": {
+                        "task_type": "retrieve",
+                        "status": "SUCCESS",
+                        "retrieved_data": ["populated"],
+                    },
+                }
+            ]
+        },
+        instance={},
+        agent_result=agent_result,
+    )
+
+    assert passed is True
+    assert "retrieved_data matches" in message
+
+
+def test_novel_agent_response_evaluator_rejects_object_for_string_array_answer():
+    agent_result = types.SimpleNamespace(
+        final_result=json.dumps(
+            {
+                "task_type": "retrieve",
+                "status": "SUCCESS",
+                "retrieved_data": {"body": "populated"},
+            }
+        ),
+        is_done=True,
+    )
+
+    passed, message = run_reward_function(
+        reward={
+            "eval": [
+                {
+                    "evaluator": "AgentResponseEvaluator",
+                    "results_schema": {"type": "array", "items": {"type": "string"}},
+                    "expected": {
+                        "task_type": "retrieve",
+                        "status": "SUCCESS",
+                        "retrieved_data": ["populated"],
+                    },
+                }
+            ]
+        },
+        instance={},
+        agent_result=agent_result,
+    )
+
+    assert passed is False
+    assert "retrieved_data mismatch" in message

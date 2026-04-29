@@ -437,7 +437,7 @@ def _build_agent_response(eval_configs: list[dict], agent_result: Any | None) ->
     task_type = "retrieve"
     has_agent_response_evaluator = False
     for config in eval_configs:
-        if config.get("evaluator") == "AgentResponseEvaluator":
+        if _is_agent_response_evaluator_config(config):
             has_agent_response_evaluator = True
             expected = config.get("expected", {})
             task_type = expected.get("task_type", "retrieve")
@@ -457,6 +457,15 @@ def _build_agent_response(eval_configs: list[dict], agent_result: Any | None) ->
         transformed = transform_agent_response(final_result)
         if transformed is not None:
             return transformed
+        parsed = _parse_json_final_result(final_result)
+        if parsed is not None:
+            if isinstance(parsed, dict):
+                return parsed
+            return {
+                "task_type": task_type,
+                "status": "SUCCESS" if is_done else "FAILURE",
+                "retrieved_data": parsed,
+            }
 
     if final_result is not None:
         return final_result
@@ -466,6 +475,20 @@ def _build_agent_response(eval_configs: list[dict], agent_result: Any | None) ->
         "status": "SUCCESS" if is_done else "FAILURE",
         "retrieved_data": None,
     }
+
+
+def _is_agent_response_evaluator_config(config: dict[str, Any]) -> bool:
+    return (
+        config.get("evaluator") == "AgentResponseEvaluator"
+        or config.get("type") == "AgentResponseEvaluator"
+    )
+
+
+def _parse_json_final_result(final_result: str) -> Any | None:
+    try:
+        return json.loads(final_result)
+    except (json.JSONDecodeError, TypeError):
+        return None
 
 
 def _parse_retrieved_data(final_result: str | None) -> list | None:
@@ -529,14 +552,14 @@ def _eval_agent_response(config: dict, agent_response: Any) -> tuple[bool, str]:
     return False, f"retrieved_data mismatch: expected {expected_data!r}, got {actual_data!r}"
 
 
-def _compare_data(expected: list, actual: list, ordered: bool = False) -> bool:
-    """Compare expected vs actual retrieved_data with normalization."""
+def _compare_data(expected: Any, actual: Any, ordered: bool = False) -> bool:
+    """Compare expected vs actual retrieved_data with WebArena-like coercion."""
 
     def normalize(v: Any) -> str:
         return str(v).strip().lower()
 
-    expected_norm = [normalize(e) for e in expected]
-    actual_norm = [normalize(a) for a in actual]
+    expected_norm = [normalize(e) for e in _as_retrieved_sequence(expected)]
+    actual_norm = [normalize(a) for a in _as_retrieved_sequence(actual)]
 
     if ordered:
         return expected_norm == actual_norm
@@ -544,6 +567,22 @@ def _compare_data(expected: list, actual: list, ordered: bool = False) -> bool:
     # Unordered: upstream matching is exact multiset equality; extra actual
     # values are failures, not harmless detail.
     return Counter(expected_norm) == Counter(actual_norm)
+
+
+def _as_retrieved_sequence(value: Any) -> list[Any]:
+    """Mirror WebArena Verified actual-response singleton coercion.
+
+    The upstream ``AgentResponseEvaluator`` wraps non-list actual
+    ``retrieved_data`` values in a one-item tuple before applying array
+    normalization. Novel WorldSim tasks use this homebrew path because they do
+    not have canonical WebArena task IDs, so we preserve that compatibility
+    here instead of treating a scalar string as an iterable of characters.
+    """
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    return [value]
 
 
 def _eval_network_event(

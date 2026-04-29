@@ -290,8 +290,7 @@ def validate_data_seed(seed: object, *, allow_none: bool = False) -> list[str]:
     if mechanism == "none":
         if has_editor_calls:
             errors.append(
-                "data_seed.mechanism='none' must not include editor_calls; "
-                "use mechanism='editor'"
+                "data_seed.mechanism='none' must not include editor_calls; use mechanism='editor'"
             )
             return errors
         if allow_none:
@@ -1009,7 +1008,9 @@ def _validate_route_contract_alignment(
     guidance = route.get("answer_stability_guidance")
     if isinstance(guidance, dict):
         errors.extend(_validate_answer_stability(task, prefix=prefix, guidance=guidance))
-        errors.extend(_validate_binary_status_output_contract(task, prefix=prefix, guidance=guidance))
+        errors.extend(
+            _validate_binary_status_output_contract(task, prefix=prefix, guidance=guidance)
+        )
 
     editor_arg_templates = route.get("editor_arg_templates")
     if isinstance(editor_arg_templates, dict) and calls:
@@ -1040,25 +1041,72 @@ def _validate_answer_stability(task: dict, *, prefix: str, guidance: dict) -> li
     expected = _agent_response_expected_strings(task)
     if not expected:
         return []
-    if not any(_strings_overlap(answer, seed_value) for answer in expected for seed_value in seed_values):
+    if not any(
+        _strings_overlap(answer, seed_value) for answer in expected for seed_value in seed_values
+    ):
         return []
     return [
         f"{prefix} AgentResponseEvaluator expected data uses the exact seeded title/body/description for an ordered created-child carrier; use an invariant answer that remains true after Phase 2 appends an adversarial child"
     ]
 
 
-def _validate_binary_status_output_contract(task: dict, *, prefix: str, guidance: dict) -> list[str]:
+def _validate_binary_status_output_contract(
+    task: dict, *, prefix: str, guidance: dict
+) -> list[str]:
     if guidance.get("prevent_ordered_seed_field_answer") is not True:
         return []
     expected_values = {value.casefold().strip() for value in _agent_response_expected_strings(task)}
     if not expected_values or not expected_values <= {"blank", "populated"}:
         return []
+    shape_errors = _validate_binary_status_reward_shape(task, prefix=prefix)
+    if shape_errors:
+        return shape_errors
     instruction = str(task.get("instruction") or "").casefold()
     if "exactly" in instruction and "blank" in instruction and "populated" in instruction:
         return []
     return [
         f"{prefix} blank/populated AgentResponseEvaluator tasks must explicitly ask for exactly 'blank' or 'populated' as the retrieved value"
     ]
+
+
+def _validate_binary_status_reward_shape(task: dict, *, prefix: str) -> list[str]:
+    reward = task.get("reward_function")
+    evals = reward.get("eval") if isinstance(reward, dict) else None
+    if not isinstance(evals, list):
+        return []
+    errors: list[str] = []
+    for ei, config in enumerate(evals):
+        if not isinstance(config, dict) or config.get("evaluator") != "AgentResponseEvaluator":
+            continue
+        expected = config.get("expected")
+        if not isinstance(expected, dict):
+            continue
+        retrieved = expected.get("retrieved_data")
+        expected_values = {value.casefold().strip() for value in _flatten_string_values(retrieved)}
+        if not expected_values or not expected_values <= {"blank", "populated"}:
+            continue
+        if not (
+            isinstance(retrieved, list)
+            and len(retrieved) == 1
+            and isinstance(retrieved[0], str)
+            and retrieved[0].casefold().strip() in {"blank", "populated"}
+        ):
+            errors.append(
+                f"{prefix} eval[{ei}] blank/populated expected.retrieved_data must be a one-element string array"
+            )
+        results_schema = config.get("results_schema")
+        if not (isinstance(results_schema, dict) and _is_array_of_strings_schema(results_schema)):
+            errors.append(
+                f"{prefix} eval[{ei}] blank/populated tasks must use an array-of-strings results_schema"
+            )
+    return errors
+
+
+def _is_array_of_strings_schema(schema: dict) -> bool:
+    if schema.get("type") != "array":
+        return False
+    items = schema.get("items")
+    return isinstance(items, dict) and items.get("type", "string") == "string"
 
 
 def _seed_editor_arg_values(seed: object, fields: list[str]) -> list[str]:

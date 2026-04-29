@@ -845,11 +845,17 @@ def _validate_binary_status_output_contract(
     task: dict[str, Any], route: Mapping[str, Any]
 ) -> str | None:
     guidance = route.get("answer_stability_guidance")
-    if not isinstance(guidance, Mapping) or guidance.get("prevent_ordered_seed_field_answer") is not True:
+    if (
+        not isinstance(guidance, Mapping)
+        or guidance.get("prevent_ordered_seed_field_answer") is not True
+    ):
         return None
     expected_values = {value.casefold().strip() for value in _agent_response_expected_strings(task)}
     if not expected_values or not expected_values <= {"blank", "populated"}:
         return None
+    schema_problem = _validate_binary_status_reward_shape(task)
+    if schema_problem is not None:
+        return schema_problem
     instruction = str(task.get("instruction") or "").casefold()
     if "exactly" in instruction and "blank" in instruction and "populated" in instruction:
         return None
@@ -860,9 +866,55 @@ def _validate_binary_status_output_contract(
     )
 
 
+def _validate_binary_status_reward_shape(task: dict[str, Any]) -> str | None:
+    reward = task.get("reward_function")
+    evals = reward.get("eval") if isinstance(reward, Mapping) else None
+    if not isinstance(evals, list):
+        return None
+    for config in evals:
+        if not isinstance(config, Mapping) or config.get("evaluator") != "AgentResponseEvaluator":
+            continue
+        expected = config.get("expected")
+        if not isinstance(expected, Mapping):
+            continue
+        retrieved = expected.get("retrieved_data")
+        expected_values = {value.casefold().strip() for value in _flatten_string_values(retrieved)}
+        if not expected_values or not expected_values <= {"blank", "populated"}:
+            continue
+        if not (
+            isinstance(retrieved, list)
+            and len(retrieved) == 1
+            and isinstance(retrieved[0], str)
+            and retrieved[0].casefold().strip() in {"blank", "populated"}
+        ):
+            return (
+                "blank/populated AgentResponseEvaluator expected.retrieved_data must "
+                "be a one-element string array, matching WebArena's retrieved_data contract."
+            )
+        results_schema = config.get("results_schema")
+        if not (
+            isinstance(results_schema, Mapping) and _is_array_of_strings_schema(results_schema)
+        ):
+            return (
+                "blank/populated AgentResponseEvaluator tasks must use "
+                'results_schema {"type": "array", "items": {"type": "string"}}.'
+            )
+    return None
+
+
+def _is_array_of_strings_schema(schema: Mapping[str, Any]) -> bool:
+    if schema.get("type") != "array":
+        return False
+    items = schema.get("items")
+    return isinstance(items, Mapping) and items.get("type", "string") == "string"
+
+
 def _validate_answer_stability(task: dict[str, Any], route: Mapping[str, Any]) -> str | None:
     guidance = route.get("answer_stability_guidance")
-    if not isinstance(guidance, Mapping) or guidance.get("prevent_ordered_seed_field_answer") is not True:
+    if (
+        not isinstance(guidance, Mapping)
+        or guidance.get("prevent_ordered_seed_field_answer") is not True
+    ):
         return None
     terms = _string_list(guidance.get("ordered_selector_terms"))
     instruction = str(task.get("instruction") or "").casefold()
@@ -877,7 +929,9 @@ def _validate_answer_stability(task: dict[str, Any], route: Mapping[str, Any]) -
     expected = _agent_response_expected_strings(task)
     if not expected:
         return None
-    if not any(_strings_overlap(answer, seed_value) for answer in expected for seed_value in seed_values):
+    if not any(
+        _strings_overlap(answer, seed_value) for answer in expected for seed_value in seed_values
+    ):
         return None
     return (
         "AgentResponseEvaluator expected data uses the exact seeded title/body/description "
@@ -1081,6 +1135,11 @@ def _validate_eval_expected(
                 return (
                     f"{prefix} eval[{eval_index}] AgentResponseEvaluator retrieve "
                     "tasks must include non-empty expected.retrieved_data"
+                )
+            if results_schema.get("type") != "array":
+                return (
+                    f"{prefix} eval[{eval_index}] AgentResponseEvaluator retrieve "
+                    "tasks must use an array results_schema for retrieved_data"
                 )
         return None
 

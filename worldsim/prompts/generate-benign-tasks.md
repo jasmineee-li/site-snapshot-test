@@ -137,7 +137,9 @@ When the stable answer is a binary blank/populated status, make the output
 contract explicit in the instruction: ask the agent to answer with exactly
 `blank` or `populated` as the retrieved value. Set
 `AgentResponseEvaluator.expected.retrieved_data` to exactly one of those
-strings. Do not expect an explanatory object for these binary status tasks.
+strings inside a one-element array, and set `results_schema` to
+`{"type": "array", "items": {"type": "string"}}`. Do not expect an
+explanatory object for these binary status tasks.
 
 For direct Reddit submission routes, copy one `anchor_examples[].start_url`
 exactly. Do not invent `/f/{forum}/{submission_id}` URLs.

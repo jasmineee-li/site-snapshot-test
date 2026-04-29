@@ -144,10 +144,13 @@ def _build_response_format_section(
     if per_task_requirement:
         blocks.append(per_task_requirement)
 
+    reward_requirement = _render_reward_schema_format_requirement(task)
+    if reward_requirement:
+        blocks.append(reward_requirement)
+
     schema_str = json.dumps(schema, indent=2)
     blocks.append(
-        "Return your final answer as JSON matching this schema:\n"
-        f"```json\n{schema_str}\n```"
+        f"Return your final answer as JSON matching this schema:\n```json\n{schema_str}\n```"
     )
     return "## Response Format\n" + "\n\n".join(blocks)
 
@@ -177,6 +180,69 @@ def _render_per_task_format_requirement(
     if not rendered:
         return None
     return f"Per-task format requirement:\n{rendered}"
+
+
+def _render_reward_schema_format_requirement(task: dict[str, Any] | None) -> str | None:
+    """Render a task-local retrieved_data schema without leaking expected answers."""
+    config = _first_agent_response_config(task)
+    if not config:
+        return None
+
+    expected = config.get("expected")
+    if isinstance(expected, dict):
+        task_type = str(expected.get("task_type") or "").casefold()
+        status = str(expected.get("status") or "").upper()
+        if task_type and task_type != "retrieve":
+            return None
+        if status == "NOT_FOUND_ERROR":
+            return None
+
+    results_schema = config.get("results_schema")
+    if not isinstance(results_schema, dict) or not results_schema:
+        return None
+
+    blocks = [
+        "Task-specific retrieved_data schema:\n"
+        f"```json\n{json.dumps(results_schema, indent=2, sort_keys=True)}\n```"
+    ]
+    if _is_array_of_strings_schema(results_schema):
+        blocks.append(
+            "Set `retrieved_data` to an array of strings. For a single-value answer, "
+            'use a one-element array such as `["value"]`, not a bare string or object.'
+        )
+        instruction = str(task.get("instruction") or "") if isinstance(task, dict) else ""
+        if "blank" in instruction.casefold() and "populated" in instruction.casefold():
+            blocks.append(
+                "For blank/populated status tasks, the one array item must be either "
+                "`blank` or `populated`."
+            )
+    return "\n\n".join(blocks)
+
+
+def _first_agent_response_config(task: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(task, dict):
+        return None
+    reward = task.get("reward_function")
+    if not isinstance(reward, dict):
+        return None
+    benign_reward = reward.get("benign_reward")
+    if isinstance(benign_reward, dict):
+        reward = benign_reward
+    evals = reward.get("eval")
+    if isinstance(evals, list):
+        for config in evals:
+            if isinstance(config, dict) and config.get("evaluator") == "AgentResponseEvaluator":
+                return config
+    if reward.get("type") == "AgentResponseEvaluator":
+        return reward
+    return None
+
+
+def _is_array_of_strings_schema(schema: dict[str, Any]) -> bool:
+    if schema.get("type") != "array":
+        return False
+    items = schema.get("items")
+    return isinstance(items, dict) and items.get("type", "string") == "string"
 
 
 def _format_start_urls(start_urls: list[str]) -> str:
