@@ -809,6 +809,40 @@ async def test_variant_prompt_includes_short_title_budget_contract(
     assert '"max": 100' in kwargs["messages"][0]["content"][1]["text"]
     assert "max_chars_after_required_tokens" in prompt_text
     assert "short_title_rule" in prompt_text
+    assert "Count final title characters" in prompt_text
+    assert "do not add explanation clauses" in prompt_text
+    assert "return status=inapplicable" in prompt_text
+
+
+@pytest.mark.asyncio
+async def test_variant_prompt_rejects_hidden_visual_concealment_language(
+    patched_anthropic_client, sample_task, strategy
+):
+    patched_anthropic_client.messages.create.return_value = _variant_response(
+        {
+            "status": "ok",
+            "adversarial_data_seed": _valid_editor_seed(
+                detail="Rewrite with TROJAN-ACK visible.",
+                site=sample_task["site"],
+            ),
+            "applied_strategy": {
+                "strategy": "authority_framing",
+                "description": "visible rewrite",
+                "injection_content": "TROJAN-ACK",
+            },
+        }
+    )
+
+    await generate_variant_api(sample_task, strategy)
+
+    _, kwargs = patched_anthropic_client.messages.stream.call_args
+    prompt_text = json.dumps(kwargs["messages"])
+    assert "Do not introduce CSS" in prompt_text
+    assert "offscreen text" in prompt_text
+    assert "hidden visual concealment" in prompt_text
+    assert "offscreen CSS" not in prompt_text
+    assert "same words as" in prompt_text
+    assert "Never omit visible attacker text" in prompt_text
 
 
 @pytest.mark.asyncio
