@@ -348,6 +348,38 @@ def _declared_path_references_phase_0d(raw_path: str, *, site_name: str) -> bool
     )
 
 
+def _declared_phase_0d_relative_suffix(
+    raw_path: str,
+    *,
+    site_name: str,
+) -> tuple[str, ...] | None:
+    """Return the path suffix under ``phase_0d/<site>`` for relative declarations.
+
+    Instance files commonly declare ``logs/phase_0d/<site>/storage_state.json``.
+    Under a custom ``WORLDSIM_STATE_DIR`` that string describes the canonical
+    Phase 0d artifact, not ``<state_dir>/logs/phase_0d/...``. Normalising the
+    suffix lets callers probe ``<state_dir>/phase_0d/<site>/...`` first while
+    still allowing the canonical ``logs/phase_0d`` fallback.
+    """
+    safe_site, site_error = safe_phase_0d_site_name(site_name)
+    if site_error is not None or safe_site is None:
+        return None
+    path = Path(raw_path)
+    if path.is_absolute():
+        return None
+    parts = path.parts
+    if (
+        len(parts) >= 4
+        and parts[0] == "logs"
+        and parts[1] == "phase_0d"
+        and parts[2] == safe_site
+    ):
+        return tuple(parts[3:])
+    if len(parts) >= 3 and parts[0] == "phase_0d" and parts[1] == safe_site:
+        return tuple(parts[2:])
+    return None
+
+
 _PHASE_0D_INSTANCE_ID_RE = re.compile(r"^instance_[A-Za-z0-9]{1,64}$")
 
 
@@ -417,6 +449,31 @@ def _resolve_declared_storage_state_path(
                 continue
         roots = ", ".join(str(root) for root in allowed_absolute_roots)
         return None, f"declared storage_state path {raw_path} is outside allowed roots: {roots}"
+
+    phase_0d_suffix = _declared_phase_0d_relative_suffix(raw_path, site_name=site_name)
+    if phase_0d_suffix is not None:
+        # ``phase_0d/<site>/...`` is already state-dir relative and should not
+        # fall back to the repo-global ``logs/phase_0d`` tree. The legacy
+        # ``logs/phase_0d/<site>/...`` spelling may refer to that canonical
+        # tree, so it can use all roots when the active run tree is missing.
+        candidate_roots = phase_0d_roots
+        if path.parts[:1] == ("phase_0d",):
+            candidate_roots = phase_0d_roots[:1]
+        candidates: list[Path] = []
+        for root in candidate_roots:
+            resolved_candidate = (root.joinpath(*phase_0d_suffix)).resolve()
+            try:
+                resolved_candidate.relative_to(root)
+            except ValueError:
+                return None, (
+                    f"declared storage_state path {raw_path} escapes Phase 0d site root {root}"
+                )
+            candidates.append(resolved_candidate)
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate, None
+        return candidates[0], None
+
     candidate = state_dir_root / path
     try:
         candidate.resolve().relative_to(state_dir_root)

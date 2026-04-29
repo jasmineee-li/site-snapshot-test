@@ -257,6 +257,28 @@ def test_declared_logs_phase_0d_path_falls_back_to_canonical_logs_for_isolated_s
     assert resolved == canonical
 
 
+def test_declared_logs_phase_0d_path_prefers_active_state_dir(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    isolated_state = tmp_path / "logs" / "run"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(isolated_state))
+    canonical = tmp_path / "logs" / "phase_0d" / "gitlab" / "storage_state.json"
+    canonical.parent.mkdir(parents=True)
+    _write_storage_state(canonical, domain="canonical.test")
+    isolated = isolated_state / "phase_0d" / "gitlab" / "storage_state.json"
+    isolated.parent.mkdir(parents=True)
+    _write_storage_state(isolated, domain="isolated.test")
+
+    resolved = resolve_storage_state_path(
+        {
+            "type": "storage_state",
+            "storage_state": {"path": "logs/phase_0d/gitlab/storage_state.json"},
+        },
+        site_name="gitlab",
+    )
+
+    assert resolved == isolated
+
+
 def test_phase_0d_fallback_prefers_isolated_state_over_canonical_logs(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     isolated_state = tmp_path / "logs" / "run"
