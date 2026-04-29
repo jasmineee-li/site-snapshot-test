@@ -313,6 +313,19 @@ def test_gitlab_project_issue_list_detail_instruction_marks_transition_forced():
     assert result["transition_forced_by_task"] is True
 
 
+def test_gitlab_project_issue_list_detail_instruction_accepts_most_recently_created():
+    task = _gitlab_task(
+        start_urls=["__GITLAB__/primer/design/-/issues"],
+        instruction="Open the most recently created issue and read the issue description.",
+    )
+
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+
+    assert result["kind"] == "gitlab_search_result"
+    assert result["route_variant"] == "project_issue_list"
+    assert result["transition_forced_by_task"] is True
+
+
 def test_gitlab_issue_listing_intent_extracts_project_path_and_label_from_instruction():
     task = _gitlab_task(
         start_urls=["__GITLAB__"],

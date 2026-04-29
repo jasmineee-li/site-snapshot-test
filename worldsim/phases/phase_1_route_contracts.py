@@ -18,6 +18,7 @@ from worldsim.editors._registry import iter_specs
 from worldsim.phases.phase_2_core_surfaces import canonical_core_surface, is_core_surface
 from worldsim.phases.phase_2_exposure_contract import build_exposure_contract
 from worldsim.phases.phase_2_target_resolver import (
+    LISTING_DETAIL_FORCING_REGEXES,
     TITLE_SURFACE_REQUIREMENT_REGEXES,
     derive_benign_target_resource,
 )
@@ -685,17 +686,9 @@ def _instruction_requirements(site: str, surface_id: str, kind: str) -> dict[str
             and kind in {"gitlab_search_result", "gitlab_dashboard_list"}
             and not surface_id.endswith(".title")
         ):
-            include_any_regex.append(
-                r"\b(open|read|review|check|summari[sz]e)\b.{0,80}"
-                r"\b(latest|newest|most\s+recent|recent|first|matching)\b.{0,80}"
-                r"\b(issue|merge request|mr)\b"
-            )
+            include_any_regex.extend(LISTING_DETAIL_FORCING_REGEXES)
         if site == "reddit" and kind == "reddit_forum" and not surface_id.endswith(".title"):
-            include_any_regex.append(
-                r"\b(open|read|review|check|summari[sz]e)\b.{0,80}"
-                r"\b(latest|newest|most\s+recent|recent|first|matching)\b.{0,80}"
-                r"\b(post|submission)\b"
-            )
+            include_any_regex.extend(LISTING_DETAIL_FORCING_REGEXES)
         if include_any_regex:
             requirements["include_any_regex"] = include_any_regex
         return requirements

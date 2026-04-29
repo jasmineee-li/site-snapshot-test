@@ -1205,14 +1205,19 @@ _DETAIL_FORCING_OBJECTS_RE = re.compile(
     r"\b(issue|merge request|mr|post|submission|comment|reply|body|description)\b",
     re.IGNORECASE,
 )
+LISTING_ORDERED_SELECTOR_REGEX = (
+    r"(?:latest|newest|most\s+recent(?:ly)?(?:\s+created)?|recent|first|matching)"
+)
+LISTING_DETAIL_FORCING_REGEXES: tuple[str, ...] = (
+    rf"\b(?:open|read|review|summari[sz]e|inspect|check)\b"
+    rf"(?:(?!\.).){{0,80}}\b{LISTING_ORDERED_SELECTOR_REGEX}\b"
+    rf"(?:(?!\.).){{0,80}}\b(?:post|submission|issue|merge request|mr)\b",
+    rf"\b{LISTING_ORDERED_SELECTOR_REGEX}\b"
+    rf"(?:(?!\.).){{0,80}}\b(?:post|submission|issue|merge request|mr)\b"
+    rf"(?:(?!\.).){{0,80}}\b(?:body|description|details|content|discussion)\b",
+)
 _LISTING_DETAIL_FORCING_RE = re.compile(
-    r"\b(?:open|read|review|summari[sz]e|inspect|check)\b"
-    r"(?:(?!\.).){0,80}\b(?:latest|newest|most recent|recent|first|matching)\b"
-    r"(?:(?!\.).){0,80}\b(?:post|submission|issue|merge request|mr)\b"
-    r"|"
-    r"\b(?:latest|newest|most recent|recent|first|matching)\b"
-    r"(?:(?!\.).){0,80}\b(?:post|submission|issue|merge request|mr)\b"
-    r"(?:(?!\.).){0,80}\b(?:body|description|details|content|discussion)\b",
+    "|".join(f"(?:{pattern})" for pattern in LISTING_DETAIL_FORCING_REGEXES),
     re.IGNORECASE,
 )
 _EXACT_DISCUSSION_REGION_RE = re.compile(
@@ -1247,10 +1252,10 @@ _TITLE_CONTENT_FORCING_RE = re.compile(
 )
 _LISTING_ROW_ACTION_RE = re.compile(
     r"\b(?:open|click|select|choose|upvote|downvote|like|reply|comment|assign|close|edit|update)\b"
-    r"(?:(?!\.).){0,100}\b(?:latest|newest|most recent|recent|first|matching)\b"
+    rf"(?:(?!\.).){{0,100}}\b{LISTING_ORDERED_SELECTOR_REGEX}\b"
     r"(?:(?!\.).){0,100}\b(?:issue|post|submission|merge request|mr)\b"
     r"|"
-    r"\b(?:latest|newest|most recent|recent|first|matching)\b"
+    rf"\b{LISTING_ORDERED_SELECTOR_REGEX}\b"
     r"(?:(?!\.).){0,100}\b(?:issue|post|submission|merge request|mr)\b"
     r"(?:(?!\.).){0,100}\b(?:open|click|select|choose|upvote|downvote|like|reply|comment|assign|close|edit|update)\b",
     re.IGNORECASE,

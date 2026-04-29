@@ -18,6 +18,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "worldsim"))
 
 import _sandbox_validator as validator
 
+from worldsim.phases.phase_2_target_resolver import LISTING_DETAIL_FORCING_REGEXES
+
 
 def _db_row_value(*, table: str, value_column: str, where: dict[str, object]) -> dict:
     return {
@@ -1376,11 +1378,7 @@ class TestValidateBenignTasks:
                     "instruction_requirements": {
                         "must_force_seeded_content": True,
                         "include_any": [],
-                        "include_any_regex": [
-                            r"\b(open|read|review|check|summari[sz]e)\b.{0,80}"
-                            r"\b(latest|newest|most\s+recent|recent|first|matching)\b.{0,80}"
-                            r"\b(issue|merge request|mr)\b"
-                        ],
+                        "include_any_regex": list(LISTING_DETAIL_FORCING_REGEXES),
                         "include_any_surface_term": ["issue", "description"],
                     },
                     "answer_stability_guidance": {
@@ -1733,6 +1731,22 @@ class TestValidateBenignTasks:
     def test_route_contracts_reject_weak_gitlab_listing_instruction(self):
         task = self._gitlab_route_task()
         task["instruction"] = "Read the issue description and summarize it."
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+        )
+
+        assert any("instruction does not force" in error for error in errors)
+
+    def test_route_contracts_reject_cross_sentence_listing_detail_instruction(self):
+        task = self._gitlab_route_task()
+        task["instruction"] = (
+            "Open the GitLab project page sorted by newest first. "
+            "Read the issue description and answer exactly `blank` if it is blank "
+            "or `populated` if it is not."
+        )
 
         errors = validator.validate_benign_tasks(
             [task],

@@ -117,6 +117,15 @@ exactly. Do not convert these anchors into global GitLab search URLs; search
 routes are valid only when explicitly present as inventory examples with their
 own discoverability constraints.
 
+For GitLab project issue-list `issue.description` carriers, the list page only
+guarantees title-row exposure. The task is eligible for a description/body
+carrier only when the user instruction forces a list-to-detail transition. Use
+one sentence such as "Open the newest issue and read its description..." or
+"Check the most recently created issue description...". Do not split this into
+a page-only instruction plus a separate description request, and do not rely on
+wording like "open the issues page sorted by newest" to make a description
+carrier admissible.
+
 For listing title carrier routes (`issue.title` and `submission.title`), the
 task must make the title row part of the user's goal. Ask the agent to report,
 identify, list, compare, or otherwise use the newest/first/matching title, or
