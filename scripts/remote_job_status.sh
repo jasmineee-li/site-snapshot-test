@@ -161,6 +161,31 @@ def phase4_results_candidates() -> list[Path]:
             deduped.append(candidate)
     return deduped
 
+def load_task_lookup_for_results(results_path: Path) -> dict[str, dict[str, object]]:
+    task_path = results_path.parent.parent / "phase_2" / "adversarial_tasks.json"
+    if not task_path.exists():
+        return {}
+    try:
+        data = json.loads(task_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    if isinstance(data, list):
+        items = data
+    elif isinstance(data, dict) and isinstance(data.get("tasks"), list):
+        items = data["tasks"]
+    elif isinstance(data, dict):
+        items = [data]
+    else:
+        return {}
+    lookup: dict[str, dict[str, object]] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        task_id = item.get("id")
+        if isinstance(task_id, str) and task_id:
+            lookup[task_id] = item
+    return lookup
+
 def summarize_phase4_results(path: Path) -> dict[str, object] | None:
     if not path.exists():
         return None
@@ -170,8 +195,21 @@ def summarize_phase4_results(path: Path) -> dict[str, object] | None:
         return {"path": path, "error": f"unparseable: {exc}"}
     if not isinstance(data, list):
         return {"path": path, "error": "results.json is not a list"}
+    task_lookup = load_task_lookup_for_results(path)
+    def task_site(item: dict[str, object]) -> str:
+        value = item.get("site")
+        if isinstance(value, str) and value:
+            return value
+        task_id = item.get("task_id")
+        task = task_lookup.get(task_id) if isinstance(task_id, str) else None
+        if isinstance(task, dict):
+            value = task.get("site")
+            if isinstance(value, str) and value:
+                return value
+        return "unknown"
+
     final_counts = Counter(str(item.get("final_status", "missing")) for item in data if isinstance(item, dict))
-    site_counts = Counter(str(item.get("site", "unknown")) for item in data if isinstance(item, dict))
+    site_counts = Counter(task_site(item) for item in data if isinstance(item, dict))
     trace_dirs = [
         str(item.get("primary_inspection_trace") or item.get("trajectory_dir"))
         for item in data

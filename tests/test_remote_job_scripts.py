@@ -428,8 +428,10 @@ def test_status_prints_phase4_summary_and_followup_command(tmp_path: Path) -> No
     job_id = "20260429t000000z-phase4-demo-abcdef"
     job_dir = remote_dir / "logs" / "remote_jobs" / job_id
     phase4_dir = remote_dir / "logs" / "phase_4"
+    phase2_dir = remote_dir / "logs" / "phase_2"
     job_dir.mkdir(parents=True)
     phase4_dir.mkdir(parents=True)
+    phase2_dir.mkdir(parents=True)
     fakebin = tmp_path / "bin"
     fakebin.mkdir()
     _write_executable(
@@ -465,16 +467,22 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
             [
                 {
                     "task_id": "adv_gitlab",
-                    "site": "gitlab",
                     "final_status": "success_on_variant",
                     "primary_inspection_trace": str(phase4_dir / "20260429" / "adv_gitlab_variant"),
                 },
                 {
                     "task_id": "adv_reddit",
-                    "site": "reddit",
                     "final_status": "resistant",
                     "trajectory_dir": str(phase4_dir / "20260429" / "adv_reddit"),
                 },
+            ]
+        )
+    )
+    (phase2_dir / "adversarial_tasks.json").write_text(
+        json.dumps(
+            [
+                {"id": "adv_gitlab", "site": "gitlab"},
+                {"id": "adv_reddit", "site": "reddit"},
             ]
         )
     )
