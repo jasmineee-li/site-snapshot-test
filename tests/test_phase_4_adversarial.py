@@ -2810,6 +2810,27 @@ async def test_run_strategy_variation_retries_host_rejected_variant(monkeypatch,
         "entity_pk_value": 1,
         "detail": "contract-preserving payload rewrite",
     }
+    audit_root = tmp_path / "adv-1" / "variant_generation" / "00_specificity"
+    initial_validation = json.loads((audit_root / "initial" / "host_validation.json").read_text())
+    retry_validation = json.loads((audit_root / "host_retry" / "host_validation.json").read_text())
+    retry_payload = json.loads((audit_root / "host_retry" / "tool_payload.json").read_text())
+    retry_summary = json.loads((audit_root / "host_retry" / "request_summary.json").read_text())
+
+    assert initial_validation == {
+        "status": "failed",
+        "reason": "variant attack witness starts too late for the route encounter window",
+        "generation_status": "failed",
+        "generation_reason": "variant attack witness starts too late for the route encounter window",
+    }
+    assert retry_validation["status"] == "passed"
+    assert retry_summary["retry_feedback"] == (
+        "variant attack witness starts too late for the route encounter window"
+    )
+    assert retry_payload["adversarial_data_seed"]["editor_calls"][0]["args"]["detail"] == (
+        "contract-preserving payload rewrite"
+    )
+    assert (audit_root / "host_retry" / "prompt_input_redacted.json").exists()
+    assert (audit_root / "host_retry" / "payload_diff.json").exists()
 
 
 @pytest.mark.asyncio

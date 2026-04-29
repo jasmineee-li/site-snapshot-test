@@ -109,6 +109,7 @@ from worldsim.phase_4.exposure_admission import (
 from worldsim.phase_4.needham_trace import format_trace_xml, write_trace_artifacts
 from worldsim.phase_4.payload_witnesses import payload_witnesses_for_task
 from worldsim.phase_4.placement_api import run_placement_api
+from worldsim.phase_4.prompt_payloads import sanitize_task_for_model_prompt
 from worldsim.phase_4.strategy_catalog import ALLOWED_STRATEGIES as _ALLOWED_STRATEGIES
 from worldsim.phase_4.transcript_purpose_api import (
     _failure_result as _transcript_purpose_failure_result,
@@ -169,6 +170,7 @@ from worldsim.task_reset_cache import (
     callable_accepts_keyword,
     result_likely_mutated_state,
 )
+from worldsim.text_payload_contract import build_text_payload_contract
 from worldsim.trajectory import save_result
 
 logger = logging.getLogger(__name__)
@@ -4567,6 +4569,181 @@ def _variant_generation_record_for_result(
     return record
 
 
+def _jsonable_payload(value: Any) -> Any:
+    return json.loads(json.dumps(value, default=str))
+
+
+def _variant_generation_attempt_dir(
+    task_dir_root: Path,
+    task_id: str,
+    index: int,
+    strategy: dict[str, Any],
+    attempt_label: str,
+) -> Path:
+    strategy_name = (
+        strategy.get("strategy") if isinstance(strategy.get("strategy"), str) else "unknown"
+    )
+    return (
+        task_dir_root
+        / safe_task_path_component(task_id)
+        / "variant_generation"
+        / safe_task_path_component(f"{index:02d}_{strategy_name}")
+        / safe_task_path_component(attempt_label)
+    )
+
+
+def _variant_tool_payload_view(candidate: Any) -> dict[str, Any] | None:
+    if not isinstance(candidate, dict):
+        return None
+    out: dict[str, Any] = {}
+    for key in (
+        "adversarial_data_seed",
+        "applied_strategy",
+        "payload_text",
+        "variant_status",
+    ):
+        if key in candidate:
+            out[key] = _jsonable_payload(candidate[key])
+    return out
+
+
+def _variant_prompt_input_view(task: dict[str, Any], strategy: dict[str, Any]) -> dict[str, Any]:
+    prompt_task = {**sanitize_task_for_model_prompt(task), "target_strategy": strategy}
+    payload_contract = build_text_payload_contract(task)
+    if payload_contract is not None:
+        prompt_task["variant_payload_contract"] = payload_contract
+    return {
+        "prompt": "generate-variant",
+        "task_json": _jsonable_payload(prompt_task),
+    }
+
+
+def _variant_payload_diff_view(
+    original_task: dict[str, Any],
+    candidate: Any,
+) -> dict[str, Any] | None:
+    if not isinstance(candidate, dict):
+        return None
+    candidate_seed = candidate.get("adversarial_data_seed")
+    if not isinstance(candidate_seed, dict):
+        return None
+    original = _selected_rendered_payload(original_task)
+    revised = _extract_variant_rendered_payload(original_task, candidate_seed)
+    payload_text = candidate.get("payload_text")
+    witness_offset = (
+        _variant_earliest_concrete_attack_witness_offset(
+            original_task,
+            payload_text,
+            revised,
+        )
+        if isinstance(revised, str)
+        else None
+    )
+    return {
+        "original_rendered_payload": original,
+        "revised_rendered_payload": revised,
+        "original_chars": len(original) if isinstance(original, str) else None,
+        "revised_chars": len(revised) if isinstance(revised, str) else None,
+        "changed_seed": _variant_changes_seed(original_task, candidate),
+        "meaningful_token_change": (
+            _variant_rewrite_changes_meaningful_tokens(original, revised)
+            if isinstance(original, str) and isinstance(revised, str)
+            else None
+        ),
+        "attack_witness_offset": witness_offset,
+        "max_attack_witness_offset": _variant_max_attack_witness_offset(original_task),
+    }
+
+
+def _write_variant_generation_audit(
+    *,
+    task_dir_root: Path,
+    task: dict[str, Any],
+    index: int,
+    strategy: dict[str, Any],
+    attempt_label: str,
+    status: str,
+    reason: str | None = None,
+    variant: Any = None,
+    host_finalization_status: str = "not_run",
+    host_finalization_reason: str | None = None,
+    retry_feedback: str | None = None,
+) -> Path | None:
+    task_id = str(task.get("id", "unknown"))
+    attempt_dir = _variant_generation_attempt_dir(
+        task_dir_root,
+        task_id,
+        index,
+        strategy,
+        attempt_label,
+    )
+    try:
+        attempt_dir.mkdir(parents=True, exist_ok=True)
+        strategy_name = (
+            strategy.get("strategy")
+            if isinstance(strategy.get("strategy"), str)
+            else f"strategy_{index}"
+        )
+        request_summary = {
+            "task_id": task_id,
+            "site": task.get("site"),
+            "strategy_index": index,
+            "strategy": strategy_name,
+            "attempt": attempt_label,
+            "status": status,
+            "reason": reason,
+            "retry_feedback": retry_feedback,
+            "artifact_dir": str(attempt_dir),
+        }
+        variant_status = variant.get("variant_status") if isinstance(variant, dict) else None
+        if isinstance(variant_status, dict):
+            request_summary["variant_status"] = _jsonable_payload(variant_status)
+        write_json_atomic(
+            attempt_dir / "request_summary.json",
+            request_summary,
+            failpoint_base="phase_4.variant_generation_audit.request_summary",
+        )
+        write_json_atomic(
+            attempt_dir / "prompt_input_redacted.json",
+            _variant_prompt_input_view(task, strategy),
+            failpoint_base="phase_4.variant_generation_audit.prompt_input",
+        )
+        tool_payload = _variant_tool_payload_view(variant)
+        if tool_payload is not None:
+            write_json_atomic(
+                attempt_dir / "tool_payload.json",
+                tool_payload,
+                failpoint_base="phase_4.variant_generation_audit.tool_payload",
+            )
+        write_json_atomic(
+            attempt_dir / "host_validation.json",
+            {
+                "status": host_finalization_status,
+                "reason": host_finalization_reason,
+                "generation_status": status,
+                "generation_reason": reason,
+            },
+            failpoint_base="phase_4.variant_generation_audit.host_validation",
+        )
+        payload_diff = _variant_payload_diff_view(task, variant)
+        if payload_diff is not None:
+            write_json_atomic(
+                attempt_dir / "payload_diff.json",
+                payload_diff,
+                failpoint_base="phase_4.variant_generation_audit.payload_diff",
+            )
+        return attempt_dir
+    except Exception as exc:
+        logger.warning(
+            "Could not persist variant generation audit for task %s strategy %s attempt %s: %s",
+            task_id,
+            strategy.get("strategy", f"strategy_{index}"),
+            attempt_label,
+            exc,
+        )
+        return None
+
+
 def _compact_variant_generation_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     compact: list[dict[str, Any]] = []
     for raw_record in records:
@@ -4854,6 +5031,15 @@ async def run_strategy_variation(
                     strategy_name,
                     exc,
                 )
+                _write_variant_generation_audit(
+                    task_dir_root=task_dir_root,
+                    task=task,
+                    index=index,
+                    strategy=strategy,
+                    attempt_label="initial",
+                    status="error",
+                    reason=repr(exc),
+                )
                 return _variant_generation_record_for_result(
                     index=index,
                     strategy=strategy,
@@ -4871,6 +5057,16 @@ async def run_strategy_variation(
                     task_id,
                     variant_status.get("status"),
                     variant_status.get("reason", ""),
+                )
+                _write_variant_generation_audit(
+                    task_dir_root=task_dir_root,
+                    task=task,
+                    index=index,
+                    strategy=strategy,
+                    attempt_label="initial",
+                    status=str(variant_status.get("status")),
+                    reason=str(variant_status.get("reason", "")),
+                    variant=variant,
                 )
                 return _variant_generation_record_for_result(
                     index=index,
@@ -4890,6 +5086,18 @@ async def run_strategy_variation(
                         task_id,
                         finalize_error,
                     )
+                    _write_variant_generation_audit(
+                        task_dir_root=task_dir_root,
+                        task=task,
+                        index=index,
+                        strategy=strategy,
+                        attempt_label="initial",
+                        status="failed",
+                        reason=finalize_error,
+                        variant=variant,
+                        host_finalization_status="failed",
+                        host_finalization_reason=finalize_error,
+                    )
                     try:
                         retry_variant = await generate_variant(
                             task,
@@ -4904,6 +5112,16 @@ async def run_strategy_variation(
                             task_id,
                             strategy_name,
                             exc,
+                        )
+                        _write_variant_generation_audit(
+                            task_dir_root=task_dir_root,
+                            task=task,
+                            index=index,
+                            strategy=strategy,
+                            attempt_label="host_retry",
+                            status="error",
+                            reason=repr(exc),
+                            retry_feedback=finalize_error,
                         )
                         return _variant_generation_record_for_result(
                             index=index,
@@ -4920,11 +5138,24 @@ async def run_strategy_variation(
                         "skipped",
                         "failed",
                     }:
+                        retry_reason = f"{finalize_error}; retry: {retry_status.get('reason', '')}"
+                        _write_variant_generation_audit(
+                            task_dir_root=task_dir_root,
+                            task=task,
+                            index=index,
+                            strategy=strategy,
+                            attempt_label="host_retry",
+                            status=str(retry_status.get("status")),
+                            reason=retry_reason,
+                            variant=retry_variant,
+                            host_finalization_status="not_run",
+                            retry_feedback=finalize_error,
+                        )
                         return _variant_generation_record_for_result(
                             index=index,
                             strategy=strategy,
                             status=str(retry_status.get("status")),
-                            reason=(f"{finalize_error}; retry: {retry_status.get('reason', '')}"),
+                            reason=retry_reason,
                         )
                     if isinstance(retry_variant, dict) and _variant_changes_seed(
                         task, retry_variant
@@ -4933,39 +5164,100 @@ async def run_strategy_variation(
                             task, retry_variant
                         )
                         if retry_finalize_error is None:
+                            _write_variant_generation_audit(
+                                task_dir_root=task_dir_root,
+                                task=task,
+                                index=index,
+                                strategy=strategy,
+                                attempt_label="host_retry",
+                                status="generated",
+                                variant=retry_variant,
+                                host_finalization_status="passed",
+                                retry_feedback=finalize_error,
+                            )
                             return _variant_generation_record_for_result(
                                 index=index,
                                 strategy=strategy,
                                 variant=finalized_retry,
                             )
+                        retry_rejection = (
+                            f"{finalize_error}; retry rejected: {retry_finalize_error}"
+                        )
+                        _write_variant_generation_audit(
+                            task_dir_root=task_dir_root,
+                            task=task,
+                            index=index,
+                            strategy=strategy,
+                            attempt_label="host_retry",
+                            status="failed",
+                            reason=retry_rejection,
+                            variant=retry_variant,
+                            host_finalization_status="failed",
+                            host_finalization_reason=retry_finalize_error,
+                            retry_feedback=finalize_error,
+                        )
                         return _variant_generation_record_for_result(
                             index=index,
                             strategy=strategy,
                             status="failed",
-                            reason=(f"{finalize_error}; retry rejected: {retry_finalize_error}"),
+                            reason=retry_rejection,
                         )
+                    unchanged_retry_reason = (
+                        f"{finalize_error}; retry rejected: unchanged_seed: "
+                        "variant did not change adversarial_data_seed"
+                    )
+                    _write_variant_generation_audit(
+                        task_dir_root=task_dir_root,
+                        task=task,
+                        index=index,
+                        strategy=strategy,
+                        attempt_label="host_retry",
+                        status="failed",
+                        reason=unchanged_retry_reason,
+                        variant=retry_variant,
+                        host_finalization_status="not_run",
+                        retry_feedback=finalize_error,
+                    )
                     return _variant_generation_record_for_result(
                         index=index,
                         strategy=strategy,
                         status="failed",
-                        reason=(
-                            f"{finalize_error}; retry rejected: unchanged_seed: "
-                            "variant did not change adversarial_data_seed"
-                        ),
+                        reason=unchanged_retry_reason,
                     )
+                _write_variant_generation_audit(
+                    task_dir_root=task_dir_root,
+                    task=task,
+                    index=index,
+                    strategy=strategy,
+                    attempt_label="initial",
+                    status="generated",
+                    variant=variant,
+                    host_finalization_status="passed",
+                )
                 return _variant_generation_record_for_result(
                     index=index,
                     strategy=strategy,
                     variant=finalized_variant,
                 )
+            unchanged_reason = (
+                "unchanged_seed: variant did not change adversarial_data_seed; "
+                "generator must alter the selected payload text or return inapplicable"
+            )
+            _write_variant_generation_audit(
+                task_dir_root=task_dir_root,
+                task=task,
+                index=index,
+                strategy=strategy,
+                attempt_label="initial",
+                status="failed",
+                reason=unchanged_reason,
+                variant=variant,
+            )
             return _variant_generation_record_for_result(
                 index=index,
                 strategy=strategy,
                 status="failed",
-                reason=(
-                    "unchanged_seed: variant did not change adversarial_data_seed; "
-                    "generator must alter the selected payload text or return inapplicable"
-                ),
+                reason=unchanged_reason,
             )
 
         pending_tasks = [

@@ -128,6 +128,9 @@ async def test_happy_path_merges_variant(patched_anthropic_client, sample_task, 
     )
     result = await generate_variant_api(sample_task, strategy)
     assert result["variant_status"]["status"] == "ok"
+    assert result["variant_status"]["target_strategy"] == "authority_framing"
+    assert result["variant_status"]["api_diagnostics"]["response_model"] == "build_variant"
+    assert result["variant_status"]["api_diagnostics"]["attempts"] == 1
     assert result["adversarial_data_seed"] == new_seed
     assert result["applied_strategy"]["strategy"] == "authority_framing"
     # Invariants preserved.

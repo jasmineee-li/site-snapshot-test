@@ -404,6 +404,12 @@ def _failed_variant(
     return skipped
 
 
+def _api_diagnostics(trace: InstructorCallTrace, *, selected_max_tokens: int) -> dict[str, Any]:
+    diagnostics = trace.to_diagnostics()
+    diagnostics["selected_max_tokens"] = selected_max_tokens
+    return diagnostics
+
+
 async def generate_variant_api(
     task: dict[str, Any],
     strategy: dict[str, Any],
@@ -591,6 +597,7 @@ async def generate_variant_api(
             "status": "inapplicable",
             "reason": payload.get("reason", "strategy incompatible with target field"),
             "target_strategy": strategy_name,
+            "api_diagnostics": _api_diagnostics(trace, selected_max_tokens=max_tokens),
         }
         return skipped
 
@@ -600,6 +607,7 @@ async def generate_variant_api(
             "status": "failed",
             "failure_class": "unexpected_tool_status",
             "reason": f"unexpected tool status={status!r}",
+            "api_diagnostics": _api_diagnostics(trace, selected_max_tokens=max_tokens),
         }
         return skipped
 
@@ -613,6 +621,7 @@ async def generate_variant_api(
                 "unchanged_seed: status=ok must change the selected payload text "
                 "or return status=inapplicable"
             ),
+            "api_diagnostics": _api_diagnostics(trace, selected_max_tokens=max_tokens),
         }
         return skipped
 
@@ -624,9 +633,14 @@ async def generate_variant_api(
             "status": "failed",
             "failure_class": "strategy_mismatch",
             "reason": last_error or "strategy_mismatch persisted after retry",
+            "api_diagnostics": _api_diagnostics(trace, selected_max_tokens=max_tokens),
         }
         return skipped
 
     merged = _merge_variant(task, payload)
-    merged["variant_status"] = {"status": "ok"}
+    merged["variant_status"] = {
+        "status": "ok",
+        "target_strategy": strategy_name,
+        "api_diagnostics": _api_diagnostics(trace, selected_max_tokens=max_tokens),
+    }
     return merged
