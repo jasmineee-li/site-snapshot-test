@@ -17,6 +17,10 @@ dependencies = [
     "pillow>=10.0",
     "numpy>=1.26",
     "pyyaml>=6.0",
+    # Phase 2c render verification and Phase 0d form-login auth bootstrap
+    # import Playwright directly. Keep it explicit because browser-use no
+    # longer guarantees Playwright as a transitive dependency.
+    "playwright>=1.49",
     # LLM providers are supplied by browser-use's native chat classes
     # (browser_use.llm.{google,openai,anthropic,openrouter}.chat).
     # No separate langchain-* packages needed.
