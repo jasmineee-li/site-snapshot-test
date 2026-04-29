@@ -116,7 +116,13 @@ async def _generate_injections_for_site(
     sanitized_agent_context = (
         _sanitize_agent_context_for_output(agent_context) if agent_context is not None else None
     )
-    adv_tasks = await generate_phase_2a_plans_api(
+    runner_module = sys.modules.get("worldsim.phase_2.runner")
+    phase_2a_plans_api = getattr(
+        runner_module,
+        "generate_phase_2a_plans_api",
+        generate_phase_2a_plans_api,
+    )
+    adv_tasks = await phase_2a_plans_api(
         benign_tasks=sanitized_site_tasks,
         benign_target_resources=benign_target_resources,
         exposure_contracts=exposure_contracts,
@@ -425,4 +431,3 @@ def _enrich_adversarial_plans(
         updated["length_budget"] = derive_length_budget(updated, site_profile, registry)
         enriched.append(updated)
     return enriched
-

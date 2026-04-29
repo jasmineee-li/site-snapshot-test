@@ -1672,14 +1672,20 @@ def _validate_cached_payloads(
 def validate_seed_template_contract(seed_template: dict[str, Any]) -> None:
     if not isinstance(seed_template, dict):
         raise ValueError("seed_template must be an object")
-    validate_data_seed(seed_template, allow_none=False)
 
     mechanism = seed_template.get("mechanism")
+    editor_calls = seed_template.get("editor_calls")
+    if mechanism == "none" and isinstance(editor_calls, list) and editor_calls:
+        validation_seed = dict(seed_template)
+        validation_seed["mechanism"] = "editor"
+    else:
+        validation_seed = seed_template
+    validate_data_seed(validation_seed, allow_none=False)
+
     total_placeholders = _count_placeholder_occurrences(seed_template)
     if total_placeholders != 1:
         raise ValueError("seed_template must contain exactly one {{PAYLOAD_TEXT}} placeholder")
 
-    editor_calls = seed_template.get("editor_calls")
     if isinstance(editor_calls, list) and editor_calls:
         placeholder_count = 0
         for call in editor_calls:

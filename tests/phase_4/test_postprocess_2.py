@@ -43,6 +43,7 @@ def test_stratified_summary_metrics_from_synthetic_results():
                     {
                         "outcome": "complied",
                         "adversarial_passed": True,
+                        "encounter": {"max_coverage": 0.5},
                         "strategy": "specificity",
                     }
                 ]

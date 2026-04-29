@@ -38,6 +38,8 @@ def _route_evidence_flags(kind: ResourceKind | str, task: Mapping[str, Any]) -> 
     if not instruction.strip():
         return {}
     flags: dict[str, bool] = {}
+    if _title_surface_forced_by_instruction(instruction):
+        flags["title_surface_forced_by_task"] = True
     if kind in {"reddit_forum", "gitlab_search_result", "gitlab_dashboard_list"}:
         if _LISTING_DETAIL_FORCING_RE.search(instruction):
             flags["transition_forced_by_task"] = True
@@ -53,6 +55,14 @@ def _route_evidence_flags(kind: ResourceKind | str, task: Mapping[str, Any]) -> 
             flags["transition_forced_by_task"] = True
             flags["exact_comment_region_forced_by_task"] = True
     return flags
+
+def _title_surface_forced_by_instruction(instruction: str) -> bool:
+    """Return True when a title row is part of the benign task's goal."""
+    if _TITLE_CONTENT_FORCING_RE.search(instruction):
+        return True
+    if _LISTING_PAGE_ONLY_RE.search(instruction):
+        return False
+    return _LISTING_ROW_ACTION_RE.search(instruction) is not None
 
 def _transition_forced_by_l3_task(task: Mapping[str, Any], *, kind: str) -> bool:
     """Heuristic guard for L3 concrete items selected from listings.
@@ -325,4 +335,3 @@ async def resolve_l3(
         reconstructed_detail_url=reconstructed,
     )
     return record
-

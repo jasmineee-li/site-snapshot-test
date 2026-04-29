@@ -1021,7 +1021,10 @@ def _transition_forced_by_task(resource: Mapping[str, Any]) -> bool:
 
 
 def _title_surface_forced_by_task(resource: Mapping[str, Any]) -> bool:
-    return resource.get("title_surface_forced_by_task") is True
+    return (
+        resource.get("title_surface_forced_by_task") is True
+        or _created_child_listing_row_forced(resource)
+    )
 
 
 def _exact_comment_region_forced_by_task(resource: Mapping[str, Any]) -> bool:

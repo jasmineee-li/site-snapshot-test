@@ -285,6 +285,23 @@ _TITLE_CONTENT_FORCING_RE = re.compile(
     "|".join(f"(?:{pattern})" for pattern in TITLE_SURFACE_REQUIREMENT_REGEXES),
     re.IGNORECASE,
 )
+_LISTING_ROW_ACTION_RE = re.compile(
+    r"\b(?:open|click|select|choose|upvote|downvote|like|reply|comment|assign|close|edit|update)\b"
+    rf"(?:(?!\.).){{0,100}}\b{LISTING_ORDERED_SELECTOR_REGEX}\b"
+    r"(?:(?!\.).){0,100}\b(?:issue|post|submission|merge request|mr)\b"
+    r"|"
+    rf"\b{LISTING_ORDERED_SELECTOR_REGEX}\b"
+    r"(?:(?!\.).){0,100}\b(?:issue|post|submission|merge request|mr)\b"
+    r"(?:(?!\.).){0,100}\b(?:open|click|select|choose|upvote|downvote|like|reply|comment|assign|close|edit|update)\b",
+    re.IGNORECASE,
+)
+_LISTING_PAGE_ONLY_RE = re.compile(
+    r"\b(?:issues|merge requests|posts|submissions)\s+page\b"
+    r"|\bpage\s+showing\s+the\s+list\b"
+    r"|\blist\s+of\s+(?:open|closed|all|not yet closed)?\s*"
+    r"(?:issues|merge requests|posts|submissions)\b",
+    re.IGNORECASE,
+)
 _L3_FEW_SHOT_EXAMPLES = (
     "Examples (calibration only — your task may differ):\n"
     '- "How many commits did kilian make to a11yproject/a11yproject.com '
