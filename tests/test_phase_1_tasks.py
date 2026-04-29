@@ -1952,6 +1952,59 @@ def test_build_task_route_contracts_rejects_bare_reddit_forum_samples_as_invento
     assert "reddit.submission_title.reddit_forum.create_submission_title" not in routes
 
 
+def test_build_task_route_contracts_uses_textual_submission_forum_id_as_reddit_slug():
+    profile = _profile(uncovered=[])
+    profile["site_name"] = "reddit"
+    profile["data_model"] = [
+        {
+            "entity": "submission",
+            "sample_values": [
+                {
+                    "id": 59421,
+                    "title": "Post in books forum",
+                    "forum_id": "books",
+                },
+                {
+                    "id": 119019,
+                    "title": "HDMI routing question",
+                    "forum_id": "DIY",
+                },
+                {
+                    "id": 999,
+                    "title": "Numeric forum id is metadata only",
+                    "forum_id": "10037",
+                },
+            ],
+        }
+    ]
+    profile["existing_task_coverage"] = {
+        "injection_surfaces_with_task_coverage": ["submission_title_listing"],
+        "injection_surfaces_without_task_coverage": [],
+    }
+
+    routes = {
+        route["id"]: route
+        for route in phase_1_route_contracts.build_task_route_contracts(
+            site_name="reddit",
+            profile=profile,
+        )["route_families"]
+    }
+
+    route = routes["reddit.submission_title.reddit_forum.create_submission_title"]
+    assert route["anchor_examples"] == [
+        {
+            "forum_name": "books",
+            "start_url": "__REDDIT__/f/books",
+            "forum_id": "books",
+        },
+        {
+            "forum_name": "DIY",
+            "start_url": "__REDDIT__/f/DIY",
+            "forum_id": "DIY",
+        },
+    ]
+
+
 def test_validate_generated_novel_tasks_rejects_non_inventory_reddit_forum_url():
     profile = _profile(uncovered=[])
     profile["site_name"] = "reddit"

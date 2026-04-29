@@ -251,6 +251,7 @@ def _reddit_submission_examples(
             or sample.get("forum")
             or sample.get("subreddit")
             or sample.get("community")
+            or _reddit_forum_id_slug(sample.get("forum_id"))
         )
         submission_id = sample.get("submission_id") or sample.get("id") or sample.get("post_id")
         if forum_name is None or submission_id is None:
@@ -294,6 +295,7 @@ def _reddit_forum_examples(placeholder: str, profile: Mapping[str, Any]) -> list
             or sample.get("forum")
             or sample.get("subreddit")
             or sample.get("community")
+            or _reddit_forum_id_slug(sample.get("forum_id"))
             or sample.get("slug")
             or sample.get("name")
         )
@@ -309,7 +311,7 @@ def _reddit_forum_examples(placeholder: str, profile: Mapping[str, Any]) -> list
             "forum_name": forum_text,
             "start_url": f"{placeholder}/f/{forum_text}",
         }
-        forum_id = sample.get("id") or sample.get("forum_id")
+        forum_id = sample.get("forum_id") if sample.get("forum_id") not in (None, "") else sample.get("id")
         if forum_id not in (None, ""):
             example["forum_id"] = str(forum_id).strip()
         examples.append(example)
@@ -345,6 +347,19 @@ def _normalize_reddit_forum_name(value: Any) -> str:
     if "/" in raw:
         raw = raw.split("/", 1)[0]
     return raw.strip().strip("/")
+
+
+def _reddit_forum_id_slug(value: Any) -> str | None:
+    """Treat textual submission.forum_id values as routed forum slugs.
+
+    Some profiles serialize Postmill's forum foreign key as the route slug
+    (`"books"`, `"DIY"`) rather than a numeric database id. Numeric ids are
+    not routable as `/f/{forum}` and must remain metadata only.
+    """
+    raw = str(value or "").strip().strip("/")
+    if not raw or raw.isdigit():
+        return None
+    return raw
 
 
 def _gitlab_project_issue_list_examples(
