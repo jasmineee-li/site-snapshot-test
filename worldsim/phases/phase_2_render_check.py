@@ -18,6 +18,7 @@ it sparingly; production runs should leave it unset.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
@@ -844,6 +845,29 @@ def _gitlab_issue_description_ryw_urls(target_url: str, write_tokens: dict[str, 
     return list(dict.fromkeys(urls))
 
 
+def _append_gitlab_issue_description_ryw_diagnostic(
+    diagnostics: dict[str, Any] | None,
+    entry: dict[str, Any],
+) -> None:
+    if diagnostics is None:
+        return
+    attempts = diagnostics.setdefault("gitlab_issue_description_ryw_attempts", [])
+    if not isinstance(attempts, list):
+        attempts = []
+        diagnostics["gitlab_issue_description_ryw_attempts"] = attempts
+    if len(attempts) >= 8:
+        return
+    attempts.append(entry)
+
+
+def _gitlab_issue_description_snapshot(description: str) -> dict[str, Any]:
+    return {
+        "description_len": len(description),
+        "description_sha256": hashlib.sha256(description.encode("utf-8")).hexdigest()[:16],
+        "description_prefix": description[:240],
+    }
+
+
 _WRITE_TOKEN_KEYS: tuple[str, ...] = (
     "note_id",
     "issue_iid",
@@ -1000,12 +1024,24 @@ async def _gitlab_issue_description_ryw_fastpath(
                 exc.__class__.__name__,
                 exc,
             )
+            _append_gitlab_issue_description_ryw_diagnostic(
+                diagnostics,
+                {
+                    "url": read_url,
+                    "result": "request_error",
+                    "error": f"{exc.__class__.__name__}: {exc}",
+                },
+            )
             continue
         try:
             status = response.status
         except Exception:
             status = None
         if status is None or status < 200 or status >= 300:
+            _append_gitlab_issue_description_ryw_diagnostic(
+                diagnostics,
+                {"url": read_url, "status": status, "result": "http_status"},
+            )
             continue
         try:
             payload = await response.json()
@@ -1013,15 +1049,37 @@ async def _gitlab_issue_description_ryw_fastpath(
             try:
                 payload = json.loads(await response.text())
             except Exception:
+                _append_gitlab_issue_description_ryw_diagnostic(
+                    diagnostics,
+                    {"url": read_url, "status": status, "result": "invalid_json"},
+                )
                 continue
         if not isinstance(payload, dict):
+            _append_gitlab_issue_description_ryw_diagnostic(
+                diagnostics,
+                {"url": read_url, "status": status, "result": "non_object_json"},
+            )
             continue
         description = payload.get("description")
         if not isinstance(description, str):
+            _append_gitlab_issue_description_ryw_diagnostic(
+                diagnostics,
+                {"url": read_url, "status": status, "result": "missing_description"},
+            )
             continue
         normalized_description = _normalize(description)
         normalized_signature = _normalize(signature)
         if normalized_signature not in normalized_description:
+            _append_gitlab_issue_description_ryw_diagnostic(
+                diagnostics,
+                {
+                    "url": read_url,
+                    "status": status,
+                    "result": "description_signature_absent",
+                    "signature": signature[:120],
+                    **_gitlab_issue_description_snapshot(description),
+                },
+            )
             logger.info(
                 "phase 2c render issue RYW fetched %s status=%s description_len=%d match=False",
                 read_url,
@@ -1040,6 +1098,15 @@ async def _gitlab_issue_description_ryw_fastpath(
             read_url,
             status,
             len(description),
+        )
+        _append_gitlab_issue_description_ryw_diagnostic(
+            diagnostics,
+            {
+                "url": read_url,
+                "status": status,
+                "result": "description_signature_present",
+                **_gitlab_issue_description_snapshot(description),
+            },
         )
         return RenderOutcome.passed(
             url=read_url,

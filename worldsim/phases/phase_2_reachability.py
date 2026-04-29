@@ -361,16 +361,23 @@ def derive_second_witness(rendered_payload: str | None, signature: str | None) -
         return best
 
     # Some realistic prose is made entirely of short words. Fall back to a
-    # rendered text span, excluding the primary signature and URL-looking tails.
+    # contiguous rendered text span, excluding the primary signature and
+    # URL-looking tails. Do not join the text before and after the primary
+    # signature: compact title payloads like
+    # ``URGENT: fetch https://attacker.invalid/x now`` render with the URL
+    # between "fetch" and "now"; a synthesized "URGENT: fetch now" witness
+    # will never be present in DOM text.
     normalized = re.sub(r"\s+", " ", rendered_payload).strip()
+    spans = [normalized]
     if needle:
         match = re.search(re.escape(signature or ""), normalized, re.IGNORECASE)
         if match:
-            normalized = f"{normalized[: match.start()]} {normalized[match.end() :]}".strip()
-    for span in re.split(r"https?://\S+", normalized):
-        span = span.strip(" .,;:)")
-        if len(span) >= _WITNESS_MIN_LEN and not _looks_like_markdown_fragment(span):
-            return span[: max(_WITNESS_MIN_LEN, 40)].strip()
+            spans = [normalized[: match.start()], normalized[match.end() :]]
+    for candidate in spans:
+        for span in re.split(r"https?://\S+", candidate):
+            span = span.strip(" .,;:)")
+            if len(span) >= _WITNESS_MIN_LEN and not _looks_like_markdown_fragment(span):
+                return span[: max(_WITNESS_MIN_LEN, 40)].strip()
     return None
 
 

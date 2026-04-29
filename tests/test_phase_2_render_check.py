@@ -14,6 +14,7 @@ import pytest
 
 from worldsim.phases.phase_2_render_check import (
     RenderOutcome,
+    _gitlab_issue_description_ryw_fastpath,
     _render_check_inputs_from_metadata,
     _strip_html,
     render_signature,
@@ -114,6 +115,30 @@ class _FakeBrowser:
         ctx = _FakeContext(self._page)
         self.contexts.append(ctx)
         return ctx
+
+
+class _FakeAPIResponse:
+    def __init__(self, *, status: int, payload: dict) -> None:
+        self.status = status
+        self._payload = payload
+
+    async def json(self):
+        return self._payload
+
+
+class _FakeAPIRequest:
+    def __init__(self, response: _FakeAPIResponse) -> None:
+        self._response = response
+        self.calls: list[tuple[str, dict]] = []
+
+    async def get(self, url, **kwargs):
+        self.calls.append((url, kwargs))
+        return self._response
+
+
+class _FakeAPIPage:
+    def __init__(self, response: _FakeAPIResponse) -> None:
+        self.request = _FakeAPIRequest(response)
 
 
 # ---------------------------------------------------------------------------
@@ -424,6 +449,35 @@ async def test_verify_returns_render_unverified_when_no_url_has_signature():
     assert len(outcome.urls_tried) == 2
     for url in outcome.urls_tried:
         assert "signature_absent" in outcome.per_url_errors[url]
+
+
+@pytest.mark.asyncio
+async def test_gitlab_issue_description_ryw_records_mismatch_diagnostics():
+    page = _FakeAPIPage(
+        _FakeAPIResponse(
+            status=200,
+            payload={"description": "The stored issue description is still the benign setup text."},
+        )
+    )
+    diagnostics: dict[str, object] = {}
+
+    outcome = await _gitlab_issue_description_ryw_fastpath(
+        page=page,
+        target_url="http://gitlab.test/group/project/-/issues/9",
+        site_name="gitlab",
+        signature="payload phrase",
+        write_tokens={"project_id": 123, "issue_iid": 9},
+        timeout_ms=1000,
+        diagnostics=diagnostics,
+    )
+
+    assert outcome is None
+    attempts = diagnostics["gitlab_issue_description_ryw_attempts"]
+    assert isinstance(attempts, list)
+    assert attempts[0]["result"] == "description_signature_absent"
+    assert attempts[0]["description_len"] > 0
+    assert attempts[0]["description_prefix"].startswith("The stored issue description")
+    assert attempts[0]["description_sha256"]
 
 
 @pytest.mark.asyncio

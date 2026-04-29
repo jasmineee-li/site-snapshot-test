@@ -951,7 +951,18 @@ async def _run_reachability_check(
     )
     if url_token is not None:
         signature = url_token
-        second_witness = derive_second_witness(payload_source, signature)
+        stable_signature = render_signature(seed, metadata)
+        normalized_url = url_token.casefold()
+        normalized_stable = stable_signature.casefold() if stable_signature else ""
+        if (
+            stable_signature
+            and normalized_stable != normalized_url
+            and normalized_stable not in normalized_url
+            and normalized_url not in normalized_stable
+        ):
+            second_witness = stable_signature
+        else:
+            second_witness = derive_second_witness(payload_source, signature)
     else:
         signature = render_signature(seed, metadata)
         second_witness = derive_second_witness(payload_source, signature)
