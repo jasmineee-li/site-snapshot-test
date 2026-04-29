@@ -62,3 +62,103 @@ def test_pvpo_live_validation_load_json_array_filters_non_objects(tmp_path) -> N
     assert pvpo_live_validation.load_json_array(path, label="Phase 2 tasks artifact") == [
         {"id": "task"}
     ]
+
+
+def test_pvpo_live_validation_delivery_url_uses_seed_metadata_read_surface() -> None:
+    url = pvpo_live_validation.delivery_url_from_seed_metadata(
+        {"read_surface_urls": ["/f/books/42", "http://old.example/f/books/42"]},
+        "http://postmill.test",
+    )
+
+    assert url == "http://postmill.test/f/books/42"
+
+
+def test_pvpo_live_validation_delivery_url_maps_current_reddit_methods() -> None:
+    task = {
+        "seed_template": {
+            "editor_calls": [
+                {
+                    "method": "create_submission",
+                    "args": {"forum_name": "books", "submission_id": "42"},
+                }
+            ]
+        }
+    }
+    comment_task = {
+        "seed_template": {
+            "editor_calls": [
+                {
+                    "method": "create_comment",
+                    "args": {"forum_name": "books", "submission_id": "42"},
+                }
+            ]
+        }
+    }
+
+    assert (
+        pvpo_live_validation.delivery_url_for(task, "http://postmill.test")
+        == "http://postmill.test/f/books/42"
+    )
+    assert (
+        pvpo_live_validation.delivery_url_for(comment_task, "http://postmill.test")
+        == "http://postmill.test/f/books/42"
+    )
+
+
+def test_pvpo_live_validation_delivery_url_maps_current_gitlab_methods() -> None:
+    issue_note = {
+        "seed_template": {
+            "editor_calls": [
+                {
+                    "method": "create_issue_note",
+                    "args": {
+                        "project_path_template": "byteblaze/project",
+                        "issue_iid": "7",
+                    },
+                }
+            ]
+        }
+    }
+    mr_note = {
+        "seed_template": {
+            "editor_calls": [
+                {
+                    "method": "create_mr_note",
+                    "args": {"project_path": "byteblaze/project", "mr_iid": "3"},
+                }
+            ]
+        }
+    }
+
+    assert (
+        pvpo_live_validation.delivery_url_for(issue_note, "http://gitlab.test")
+        == "http://gitlab.test/byteblaze/project/-/issues/7"
+    )
+    assert (
+        pvpo_live_validation.delivery_url_for(mr_note, "http://gitlab.test")
+        == "http://gitlab.test/byteblaze/project/-/merge_requests/3"
+    )
+
+
+def test_pvpo_live_validation_failures_fail_closed() -> None:
+    results = {
+        "gitlab": {"status": "ok", "html_has_attr": True, "max_coverage": 0.25},
+        "reddit": {"status": "ok", "html_has_attr": False, "max_coverage": 0.25},
+        "skipped": {"status": "skipped", "reason": "playwright not installed"},
+        "zero": {"status": "ok", "html_has_attr": True, "max_coverage": 0},
+        "missing_coverage": {"status": "ok", "html_has_attr": True},
+    }
+
+    assert pvpo_live_validation.validation_failures(results, ["gitlab"]) == []
+    failures = pvpo_live_validation.validation_failures(
+        results,
+        ["reddit", "skipped", "zero", "missing_coverage", "missing"],
+    )
+
+    assert failures == [
+        "reddit: rendered payload text was not found in DOM text",
+        "skipped: status=skipped",
+        "zero: max_coverage=0",
+        "missing_coverage: max_coverage=None",
+        "missing: missing result",
+    ]

@@ -31,6 +31,7 @@ uv run python "$REPO_ROOT/scripts/generate_compose_scale.py" \
   --base-config "$REPO_ROOT/instances.json" \
   --host-config "$HOST_CONFIG" \
   --out-dir "$OUT_DIR" \
+  --final-config-dir "$REPO_ROOT" \
   "${ARGS[@]}"
 
 SMOKE_OUT_DIR="$OUT_DIR/smoke"
@@ -41,6 +42,7 @@ uv run python "$REPO_ROOT/scripts/generate_compose_scale.py" \
   --host-config "$HOST_CONFIG" \
   --mode smoke \
   --out-dir "$SMOKE_OUT_DIR" \
+  --final-config-dir "$REPO_ROOT" \
   "${ARGS[@]}"
 
 cp "$OUT_DIR/compose.scale.yml" "$REPO_ROOT/scripts/docker-compose.scale.yml"

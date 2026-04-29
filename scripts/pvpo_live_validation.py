@@ -139,10 +139,9 @@ def reset_instance(reset_endpoint: str, label: str) -> None:
 def delivery_url_for(task: dict, instance_site_url: str) -> str | None:
     """Derive the agent-visible delivery URL.
 
-    For ``create_product_review`` on shopping with ``entity_pk_value=1``:
-    ``<site_url>/catalog/product/view/id/1``.
-    For other editor methods, extend this as needed — most tasks in the
-    current corpus are product reviews so we focus there.
+    Prefer ``delivery_url_from_seed_metadata`` after seed execution. This
+    fallback exists for old artifacts or editor methods that do not emit
+    read-surface metadata yet.
     """
     seed_template = task.get("seed_template") or {}
     calls = seed_template.get("editor_calls") or []
@@ -155,19 +154,88 @@ def delivery_url_for(task: dict, instance_site_url: str) -> str | None:
         pk = args.get("entity_pk_value")
         if pk is not None:
             return urljoin(instance_site_url + "/", f"catalog/product/view/id/{pk}")
-    if method == "create_subreddit_post":
-        forum = args.get("subreddit") or args.get("forum")
+    if method in {"create_subreddit_post", "create_submission", "create_submission_title"}:
+        forum = args.get("forum_name") or args.get("subreddit") or args.get("forum")
+        if forum:
+            submission_id = args.get("submission_id")
+            if submission_id not in (None, ""):
+                return urljoin(instance_site_url + "/", f"f/{forum}/{submission_id}")
+            return urljoin(instance_site_url + "/", f"f/{forum}")
+    if method == "create_comment":
+        forum = args.get("forum_name") or args.get("subreddit") or args.get("forum")
+        submission_id = args.get("submission_id")
+        if forum and submission_id not in (None, ""):
+            return urljoin(instance_site_url + "/", f"f/{forum}/{submission_id}")
         if forum:
             return urljoin(instance_site_url + "/", f"f/{forum}")
     if method == "create_forum":
         name = args.get("name_template") or args.get("name")
         if name:
             return urljoin(instance_site_url + "/", f"f/{name}")
-    if method == "create_issue_comment" or method == "create_issue":
-        project = args.get("project_path") or args.get("project")
+    if method in {
+        "create_issue_comment",
+        "create_issue",
+        "create_issue_description",
+        "create_issue_title",
+        "create_issue_note",
+    }:
+        project = (
+            args.get("project_path_template") or args.get("project_path") or args.get("project")
+        )
         if project:
+            issue_iid = args.get("issue_iid")
+            if issue_iid not in (None, ""):
+                return urljoin(instance_site_url + "/", f"{project}/-/issues/{issue_iid}")
             return urljoin(instance_site_url + "/", f"{project}/-/issues")
+    if method in {"create_mr", "create_mr_note"}:
+        project = (
+            args.get("project_path_template") or args.get("project_path") or args.get("project")
+        )
+        if project:
+            mr_iid = args.get("mr_iid")
+            if mr_iid not in (None, ""):
+                return urljoin(instance_site_url + "/", f"{project}/-/merge_requests/{mr_iid}")
+            return urljoin(instance_site_url + "/", f"{project}/-/merge_requests")
     return None
+
+
+def delivery_url_from_seed_metadata(metadata: dict | None, instance_site_url: str) -> str | None:
+    if not isinstance(metadata, dict):
+        return None
+    urls = metadata.get("read_surface_urls")
+    if not isinstance(urls, list):
+        return None
+    for raw_url in urls:
+        if not isinstance(raw_url, str) or not raw_url.strip():
+            continue
+        url = raw_url.strip()
+        if url.startswith(("http://", "https://")):
+            return url
+        return urljoin(instance_site_url + "/", url.lstrip("/"))
+    return None
+
+
+def validation_failures(results: dict[str, dict], expected_sites: list[str]) -> list[str]:
+    failures: list[str] = []
+    for site in expected_sites:
+        result = results.get(site)
+        if not isinstance(result, dict):
+            failures.append(f"{site}: missing result")
+            continue
+        status = result.get("status")
+        if status != "ok":
+            failures.append(f"{site}: status={status or 'missing'}")
+            continue
+        if not result.get("html_has_attr"):
+            failures.append(f"{site}: rendered payload text was not found in DOM text")
+            continue
+        try:
+            max_coverage = float(result.get("max_coverage"))
+        except (TypeError, ValueError):
+            max_coverage = 0.0
+        if max_coverage <= 0:
+            failures.append(f"{site}: max_coverage={result.get('max_coverage')!r}")
+    return failures
 
 
 async def run_pvpo_on_page(url: str, payload: str, site: str, out_dir: Path) -> dict:
@@ -311,8 +379,9 @@ async def main(argv: list[str] | None = None) -> int:
 
         instance_dict = instance.model_dump()
         cleanup = None
+        seed_metadata: dict = {}
         try:
-            cleanup, _extra = await apply_data_seed_async(seed, instance_dict)
+            cleanup, seed_metadata = await apply_data_seed_async(seed, instance_dict)
         except Exception as exc:
             results[site] = {
                 "status": "seed_failed",
@@ -324,7 +393,9 @@ async def main(argv: list[str] | None = None) -> int:
         time.sleep(2)
 
         try:
-            url = delivery_url_for(task, instance.site_url)
+            url = delivery_url_from_seed_metadata(
+                seed_metadata, instance.site_url
+            ) or delivery_url_for(task, instance.site_url)
             if url is None:
                 results[site] = {
                     "status": "no_delivery_url",
@@ -346,11 +417,13 @@ async def main(argv: list[str] | None = None) -> int:
 
     print("\n\n=== SUMMARY ===")
     print(json.dumps(results, indent=2))
-    # Exit non-zero if any site we actually exercised produced zero coverage.
-    any_real_failure = any(
-        r.get("status") == "ok" and not r.get("html_has_attr") for r in results.values()
-    )
-    return 1 if any_real_failure else 0
+    failures = validation_failures(results, sites_to_test)
+    if failures:
+        print("\nPVPO validation failures:", file=sys.stderr)
+        for failure in failures:
+            print(f"  - {failure}", file=sys.stderr)
+        return 1
+    return 0
 
 
 def _sample_body_from_seed(seed: dict) -> str:

@@ -2840,6 +2840,15 @@ def test_phase_2_injections_facade_exports_split_artifact_helpers():
     assert callable(phase_2_injections._merged_dropped_source_data)
     assert callable(phase_2_injections._phase_2c_report_summary_with_artifacts)
     assert callable(phase_2_injections._validate_phase_2c_artifact_payloads)
+    assert callable(phase_2_injections._count_feasibility_status)
+    assert callable(phase_2_injections._count_idempotency_skipped)
+    assert callable(phase_2_injections._source_data_dropped_by_kind)
+    assert callable(phase_2_injections._phase_2c_per_site_counts)
+    assert callable(phase_2_injections._validate_phase_2c_instance_record)
+    assert callable(phase_2_injections._normalize_instance_record)
+    assert callable(phase_2_injections._benchmark_values_from_seed)
+    assert callable(phase_2_injections._sanitize_agent_context_node)
+    assert callable(phase_2_injections._collect_agent_context_secrets)
 
 
 def test_report_summary_can_count_merged_dropped_source_data():
@@ -2953,6 +2962,84 @@ def test_phase_2c_artifact_writer_validates_before_any_write(tmp_path):
     assert json.loads(infeasible_path.read_text()) == [{"id": "old-infeasible"}]
     assert json.loads(dropped_source_path.read_text()) == [{"id": "old-drop"}]
     assert json.loads(report_path.read_text()) == {"old": True}
+
+
+def test_phase_2c_artifact_writer_observes_facade_helper_monkeypatch(
+    monkeypatch,
+    tmp_path,
+):
+    output_path = tmp_path / "adversarial_tasks.json"
+    infeasible_path = tmp_path / "adversarial_tasks.infeasible.json"
+    dropped_source_path = tmp_path / "adversarial_tasks.dropped_source_data.json"
+    report_path = tmp_path / "feasibility_report.json"
+    output_path.write_text(json.dumps([]))
+    infeasible_path.write_text(json.dumps([]))
+    dropped_source_path.write_text(json.dumps([]))
+    report_path.write_text(json.dumps({"old": True}))
+
+    def fail_validation(**_kwargs):
+        raise RuntimeError("facade validation was used")
+
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_validate_phase_2c_artifact_payloads",
+        fail_validation,
+    )
+
+    with pytest.raises(RuntimeError, match="facade validation was used"):
+        phase_2_injections._write_phase_2c_artifacts(
+            output_path=output_path,
+            infeasible_path=infeasible_path,
+            dropped_source_path=dropped_source_path,
+            report_path=report_path,
+            verified=[
+                {
+                    "id": "adv-1",
+                    "site": "gitlab",
+                    "feasibility": {"status": "verified"},
+                }
+            ],
+            infeasible=[],
+            dropped_source_data=[],
+            report_summary={
+                "verified_count": 1,
+                "infeasible_count": 0,
+                "source_data_dropped_count": 0,
+                "source_data_dropped_by_kind": {},
+            },
+            sites_filter=None,
+        )
+
+    assert json.loads(output_path.read_text()) == []
+
+
+def test_dropped_source_sidecar_observes_facade_merge_monkeypatch(monkeypatch, tmp_path):
+    path = tmp_path / "adversarial_tasks.dropped_source_data.json"
+
+    def merged_sidecar(_path, _dropped_source_data, *, sites_filter):
+        assert sites_filter == {"gitlab"}
+        return [
+            {
+                "id": "patched",
+                "site": "gitlab",
+                "source_data_issue": {"kind": "not_found"},
+            }
+        ]
+
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_merged_dropped_source_data",
+        merged_sidecar,
+    )
+
+    merged = phase_2_injections._write_dropped_source_data_sidecar(
+        path,
+        [],
+        sites_filter={"gitlab"},
+    )
+
+    assert [record["id"] for record in merged] == ["patched"]
+    assert json.loads(path.read_text()) == merged
 
 
 def test_load_reusable_phase_2_plans_rejects_sandbox_model_drift(tmp_path):

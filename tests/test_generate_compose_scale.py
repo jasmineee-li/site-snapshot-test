@@ -241,6 +241,166 @@ def test_generate_compose_scale_keeps_external_proxy_token_references(
     assert "live-token-that-must-not-be-serialized" not in (tmp_path / "instances.json").read_text()
 
 
+def test_generate_compose_scale_rewrites_relative_proxy_token_file_for_generated_out_dir(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    base_dir = tmp_path / "base"
+    out_dir = tmp_path / "generated"
+    base_dir.mkdir()
+    out_dir.mkdir()
+    token_file = base_dir / ".proxy_token"
+    token_file.write_text("live-token-that-must-not-be-serialized\n")
+    base_config = {
+        "benchmark_name": "WebArena Verified",
+        "benchmark_codebase": "vendors/webarena-verified",
+        "verification_proxy": {
+            "token_env": "WORLDSIM_TEST_PROXY_TOKEN",
+            "token_file": ".proxy_token",
+            "port_offset": 10000,
+        },
+        "instances": [
+            {
+                "site_name": "gitlab",
+                "site_url": "http://old-host:8023",
+                "reset_endpoint": "http://old-host:8024/init",
+                "agent_auth": {"type": "none"},
+            }
+        ],
+    }
+    scale_config = {
+        "network": {"name": "worldsim-bench", "subnet": "172.20.0.0/20"},
+        "proxy_port_offset": 10000,
+        "smoke_test_replicas": {"gitlab": 1},
+        "sites": {
+            "gitlab": {
+                "image": "example/gitlab@sha256:" + "a" * 64,
+                "replicas": 1,
+                "real_port_base": 8023,
+                "container_web_port": 8023,
+                "port_step": 10,
+            },
+        },
+    }
+    base_path = base_dir / "instances.base.json"
+    config_path = base_dir / "scale.yml"
+    base_path.write_text(json.dumps(base_config, indent=2) + "\n")
+    config_path.write_text(json.dumps(scale_config))
+    host_config_path = _write_host_config(base_dir)
+    monkeypatch.setenv("WORLDSIM_TEST_PROXY_TOKEN", "env-token-that-must-not-be-serialized")
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script_path = repo_root / "scripts" / "generate_compose_scale.py"
+    subprocess.run(
+        [
+            sys.executable,
+            str(script_path),
+            "--config",
+            str(config_path),
+            "--base-config",
+            str(base_path),
+            "--host-config",
+            str(host_config_path),
+            "--out-dir",
+            str(out_dir),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+
+    generated_text = (out_dir / "instances.json").read_text()
+    verification_proxy = json.loads(generated_text)["verification_proxy"]
+    assert verification_proxy == {
+        "token_env": "WORLDSIM_TEST_PROXY_TOKEN",
+        "token_file": str(token_file.resolve()),
+        "scheme": "http",
+        "port_offset": 10000,
+    }
+    assert "env-token-that-must-not-be-serialized" not in generated_text
+    assert "live-token-that-must-not-be-serialized" not in generated_text
+
+
+def test_generate_compose_scale_final_config_dir_preserves_relative_proxy_token_file(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    repo_like_dir = tmp_path / "repo"
+    out_dir = tmp_path / "generated"
+    repo_like_dir.mkdir()
+    out_dir.mkdir()
+    (repo_like_dir / ".proxy_token").write_text("live-token-that-must-not-be-serialized\n")
+    base_config = {
+        "benchmark_name": "WebArena Verified",
+        "benchmark_codebase": "vendors/webarena-verified",
+        "verification_proxy": {
+            "token_env": "WORLDSIM_TEST_PROXY_TOKEN",
+            "token_file": ".proxy_token",
+            "port_offset": 10000,
+        },
+        "instances": [
+            {
+                "site_name": "gitlab",
+                "site_url": "http://old-host:8023",
+                "reset_endpoint": "http://old-host:8024/init",
+                "agent_auth": {"type": "none"},
+            }
+        ],
+    }
+    scale_config = {
+        "network": {"name": "worldsim-bench", "subnet": "172.20.0.0/20"},
+        "proxy_port_offset": 10000,
+        "smoke_test_replicas": {"gitlab": 1},
+        "sites": {
+            "gitlab": {
+                "image": "example/gitlab@sha256:" + "b" * 64,
+                "replicas": 1,
+                "real_port_base": 8023,
+                "container_web_port": 8023,
+                "port_step": 10,
+            },
+        },
+    }
+    base_path = repo_like_dir / "instances.base.json"
+    config_path = repo_like_dir / "scale.yml"
+    base_path.write_text(json.dumps(base_config, indent=2) + "\n")
+    config_path.write_text(json.dumps(scale_config))
+    host_config_path = _write_host_config(repo_like_dir)
+    monkeypatch.setenv("WORLDSIM_TEST_PROXY_TOKEN", "env-token-that-must-not-be-serialized")
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script_path = repo_root / "scripts" / "generate_compose_scale.py"
+    subprocess.run(
+        [
+            sys.executable,
+            str(script_path),
+            "--config",
+            str(config_path),
+            "--base-config",
+            str(base_path),
+            "--host-config",
+            str(host_config_path),
+            "--out-dir",
+            str(out_dir),
+            "--final-config-dir",
+            str(repo_like_dir),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+
+    verification_proxy = json.loads((out_dir / "instances.json").read_text())["verification_proxy"]
+    assert verification_proxy == {
+        "token_env": "WORLDSIM_TEST_PROXY_TOKEN",
+        "token_file": ".proxy_token",
+        "scheme": "http",
+        "port_offset": 10000,
+    }
+    assert (
+        '--final-config-dir "$REPO_ROOT"'
+        in (repo_root / "scripts" / "generate_scale_r5.sh").read_text()
+    )
+
+
 def test_generate_compose_scale_adds_gitlab_validation_endpoint(tmp_path: Path) -> None:
     base_config = {
         "benchmark_name": "WebArena Verified",

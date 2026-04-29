@@ -3,7 +3,11 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.config import BenchmarkConfig, load_benchmark_config
+from worldsim.config import (
+    BenchmarkConfig,
+    dump_verification_proxy_config,
+    load_benchmark_config,
+)
 
 
 def _config_payload(tmp_path: Path, **extra):
@@ -125,3 +129,30 @@ def test_verification_proxy_model_dump_json_serializes_token_file(tmp_path):
 
     assert config.verification_proxy is not None
     json.dumps(config.verification_proxy.model_dump(mode="json", exclude_none=True))
+
+
+def test_dump_verification_proxy_config_omits_resolved_external_token(monkeypatch, tmp_path):
+    token_file = tmp_path / ".proxy_token"
+    token_file.write_text("file-token\n")
+    monkeypatch.setenv("WORLDSIM_TEST_PROXY_TOKEN", "env-token")
+    config = BenchmarkConfig.model_validate(
+        _config_payload(
+            tmp_path,
+            benchmark_name="WebArena Verified",
+            verification_proxy={
+                "token_env": "WORLDSIM_TEST_PROXY_TOKEN",
+                "token_file": str(token_file),
+                "port_offset": 10000,
+            },
+        )
+    )
+
+    assert config.verification_proxy is not None
+    dumped = dump_verification_proxy_config(config.verification_proxy)
+
+    assert dumped == {
+        "token_env": "WORLDSIM_TEST_PROXY_TOKEN",
+        "token_file": str(token_file),
+        "scheme": "http",
+        "port_offset": 10000,
+    }

@@ -35,15 +35,16 @@ GENERATED_NAMES = {
 }
 
 DEFERRED_TRACKED_GENERATED: set[str] = set()
+TOKEN_SCAN_EXCLUDED_PREFIXES = ("tests/fixtures/",)
 
 SECRET_VALUE_CHARS = r"A-Za-z0-9._~+/=-"
 TOKEN_FIELD_RE = re.compile(
-    rf'"(?:token|api_key|secret)"\s*:\s*"([{SECRET_VALUE_CHARS}]{{24,}})"',
+    rf'"(?P<key>[^"]*(?:token|api[_-]?key|secret|password|authorization)[^"]*)"\s*:\s*"(?P<value>[{SECRET_VALUE_CHARS}]{{24,}})"',
     re.IGNORECASE,
 )
 SECRET_ASSIGNMENT_RE = re.compile(
-    rf"(?i)(?:token|secret|api[_-]?key|authorization|password)"
-    rf"[\w.-]*\s*[:=]\s*['\"]?([{SECRET_VALUE_CHARS}]{{24,}})"
+    rf"(?i)\b(?P<key>[\w.-]*(?:token|secret|api[_-]?key|authorization|password)[\w.-]*)"
+    rf"\s*[:=]\s*['\"]?(?P<value>[{SECRET_VALUE_CHARS}]{{24,}})"
 )
 BEARER_VALUE_RE = re.compile(rf"(?i)\bBearer\s+([{SECRET_VALUE_CHARS}]{{24,}})")
 QUOTED_HIGH_ENTROPY_RE = re.compile(rf"[`'\"]([{SECRET_VALUE_CHARS}]{{40,}})[`'\"]")
@@ -115,6 +116,8 @@ def _is_generated(path: str) -> bool:
 def _token_findings(paths: list[str]) -> list[TokenFinding]:
     findings: list[TokenFinding] = []
     for path in paths:
+        if any(path.startswith(prefix) for prefix in TOKEN_SCAN_EXCLUDED_PREFIXES):
+            continue
         if not path.endswith((".json", ".yaml", ".yml", ".toml", ".md", ".py", ".sh")):
             continue
         try:
@@ -123,13 +126,19 @@ def _token_findings(paths: list[str]) -> list[TokenFinding]:
             continue
         for index, line in enumerate(lines, start=1):
             token_match = TOKEN_FIELD_RE.search(line)
-            if token_match and _looks_like_secret_value(token_match.group(1)):
+            if (
+                token_match
+                and _looks_like_secret_key(token_match.group("key"))
+                and _looks_like_secret_value(token_match.group("value"))
+            ):
                 findings.append(TokenFinding(path, index, "token_field"))
                 continue
             bearer_match = BEARER_VALUE_RE.search(line)
             assignment_match = SECRET_ASSIGNMENT_RE.search(line)
             if (bearer_match and _looks_like_secret_value(bearer_match.group(1))) or (
-                assignment_match and _looks_like_secret_value(assignment_match.group(1))
+                assignment_match
+                and _looks_like_secret_key(assignment_match.group("key"))
+                and _looks_like_secret_value(assignment_match.group("value"))
             ):
                 findings.append(TokenFinding(path, index, "secret_value"))
                 continue
@@ -142,11 +151,71 @@ def _token_findings(paths: list[str]) -> list[TokenFinding]:
 
 
 def _looks_like_secret_value(value: str) -> bool:
-    if value in FIXTURE_CREDENTIAL_VALUES:
+    stripped = value.strip()
+    if stripped in FIXTURE_CREDENTIAL_VALUES:
         return False
-    if "_" in value:
+    if stripped.startswith("${") and stripped.endswith("}"):
         return False
-    return any(char.isalpha() for char in value) and any(char.isdigit() for char in value)
+    if stripped.startswith("$") and re.fullmatch(r"\$[A-Z][A-Z0-9_]*", stripped):
+        return False
+    if stripped.startswith("<") and stripped.endswith(">"):
+        return False
+    if re.fullmatch(r"[A-Z][A-Z0-9_]*", stripped):
+        return False
+    if "/" in stripped and (
+        stripped.startswith(("/", "docs/", "logs/", "tests/", "worldsim/"))
+        or stripped.endswith((".json", ".md", ".py", ".txt", ".yaml", ".yml"))
+    ):
+        return False
+    if re.fullmatch(r"_?[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+", stripped):
+        return False
+    return any(char.isalpha() for char in stripped) and any(char.isdigit() for char in stripped)
+
+
+def _looks_like_secret_key(key: str) -> bool:
+    normalized = re.sub(r"[-.]", "_", key.strip().lower())
+    if normalized.endswith(
+        (
+            "_endpoint",
+            "_endpoints",
+            "_env",
+            "_file",
+            "_files",
+            "_generator",
+            "_path",
+            "_paths",
+            "_source",
+            "_sources",
+            "_url",
+            "_urls",
+        )
+    ):
+        return False
+    if normalized in {
+        "required_token",
+        "required_tokens",
+        "token_endpoint",
+        "token_source",
+        "token_generator",
+        "token_env",
+        "token_file",
+        "validation_endpoint",
+    }:
+        return False
+    if normalized in {
+        "access_token",
+        "api_key",
+        "authorization",
+        "bearer_token",
+        "client_secret",
+        "id_token",
+        "password",
+        "refresh_token",
+        "secret",
+        "token",
+    }:
+        return True
+    return normalized.endswith(("_api_key", "_password", "_secret", "_token"))
 
 
 def build_audit() -> Audit:

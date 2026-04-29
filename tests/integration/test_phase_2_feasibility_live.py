@@ -14,6 +14,7 @@ from typing import Any
 import pytest
 
 from worldsim.auth_tokens import acquire_tokens_for_instances
+from worldsim.config import dump_verification_proxy_config
 from worldsim.editors.gitlab import GitlabEditor
 from worldsim.failpoints import FAILPOINT_EXIT_CODE
 from worldsim.phases import phase_2_feasibility as feas
@@ -326,9 +327,8 @@ def test_feasibility_crash_resume(failpoint, live_instance, live_config, tmp_pat
         "instances": [instance_copy],
     }
     if live_config.verification_proxy is not None:
-        wrapper["verification_proxy"] = live_config.verification_proxy.model_dump(
-            mode="json",
-            exclude_none=True,
+        wrapper["verification_proxy"] = dump_verification_proxy_config(
+            live_config.verification_proxy
         )
     instances_file.write_text(json.dumps(wrapper))
 

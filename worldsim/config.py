@@ -37,6 +37,18 @@ def load_benchmark_config(path: str | Path) -> BenchmarkConfig:
     return BenchmarkConfig.model_validate(payload)
 
 
+def dump_verification_proxy_config(proxy: VerificationProxy) -> dict[str, Any]:
+    """Serialize a proxy block without persisting externally-resolved tokens."""
+    payload = proxy.model_dump(mode="json", exclude_none=True)
+    has_external_source = any(
+        isinstance(payload.get(key), str) and str(payload[key]).strip()
+        for key in ("token_env", "token_file")
+    )
+    if has_external_source:
+        payload.pop("token", None)
+    return payload
+
+
 def _resolve_config_relative_proxy_paths(payload: Any, *, config_path: Path) -> Any:
     if not isinstance(payload, dict):
         return payload
