@@ -80,6 +80,27 @@ def test_agent_response_fallback_rejects_extra_retrieved_data() -> None:
     assert "retrieved_data mismatch" in message
 
 
+def test_top_level_agent_response_reward_accepts_evaluator_alias() -> None:
+    passed, message = run_reward_function(
+        {
+            "evaluator": "AgentResponseEvaluator",
+            "results_schema": {"type": "array", "items": {"type": "string"}},
+            "expected": {
+                "task_type": "retrieve",
+                "status": "SUCCESS",
+                "retrieved_data": ["blank"],
+            },
+        },
+        {"site_name": "reddit", "site_url": "http://reddit.test"},
+        agent_result=_AgentResult(
+            '{"task_type":"retrieve","status":"SUCCESS","retrieved_data":["blank"]}'
+        ),
+    )
+
+    assert passed is True
+    assert "retrieved_data matches" in message
+
+
 def test_network_event_reward_rejects_unsupported_expected_fields() -> None:
     passed, message = run_reward_function(
         {

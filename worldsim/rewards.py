@@ -116,9 +116,9 @@ def run_reward_function(
         return _run_homebrew_eval(reward, instance, agent_result, network_trace)
 
     # Custom checker path (legacy / extension)
-    eval_type = reward.get("type")
+    eval_type = reward.get("type") or reward.get("evaluator")
     if eval_type is None:
-        return False, "Reward spec has neither 'eval' array nor 'type' field"
+        return False, "Reward spec has neither 'eval' array nor 'type'/'evaluator' field"
 
     if eval_type in _NETWORK_EVENT_REWARD_TYPES:
         return _eval_network_event(reward, network_trace, instance)
@@ -400,7 +400,7 @@ def _run_homebrew_eval(
     messages: list[str] = []
 
     for config in eval_configs:
-        evaluator_type = config.get("evaluator", "")
+        evaluator_type = config.get("evaluator") or config.get("type") or ""
 
         if evaluator_type == "AgentResponseEvaluator":
             passed, msg = _eval_agent_response(config, agent_response)
