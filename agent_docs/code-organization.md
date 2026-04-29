@@ -78,21 +78,35 @@ touches research-critical paths because they separate behavior migration from
 import-path cutover. They should have tests that prove legacy imports delegate,
 and a follow-up PR should remove them when the migration window closes.
 
-## Follow-Up Debt
+## Current Follow-Up Debt
 
-Do not treat all readiness debt as equally urgent or equally safe to fold into
-one PR. Good sequencing reduces review risk:
+The Phase 2 and Phase 4 modularization PR intentionally leaves a small amount of
+transition debt so the main behavior split remains reviewable. Do not treat all
+readiness debt as equally urgent or equally safe to fold into the same PR. Good
+sequencing reduces review risk:
 
 - First split behavior into domain-owned modules while preserving external
   import compatibility.
-- Then remove compatibility wrappers after downstream imports are moved and one
-  validation cycle has had a chance to reveal hidden consumers.
-- Unwind linked-context or monkeypatch-preservation mechanisms only after the
-  canonical modules are stable.
-- Split sandbox validation as a separate design task because it runs inside
-  Modal with stdlib-only and no-project-import constraints.
-- Keep other large files visible as debt instead of allowlisting them without a
-  reason.
+- Then remove compatibility wrappers in a follow-up after downstream imports are
+  moved and one validation cycle has had a chance to reveal hidden consumers.
+  This is a narrow follow-up: update remaining internal and downstream imports
+  to canonical `worldsim.phase_2.*`, `worldsim.phase_4.*`, and
+  `worldsim.seed_contracts.*` paths, then delete the thin `worldsim.phases.*`
+  wrappers.
+- Unwind linked-context modules after wrapper removal. The `_context.py`
+  `install_context` / `link_modules` pattern is a transition mechanism that
+  preserves old monolith global lookup and monkeypatch behavior during the
+  split. Replace it with explicit imports domain by domain, starting with target
+  resolution because it is smaller and has focused tests.
+- Split sandbox validation as a separate design task.
+  `worldsim/_sandbox_validator.py` is urgent by size, but it runs inside Modal
+  with stdlib-only and no-`worldsim` import constraints. Sharing seed-contract
+  behavior there needs either a generated standalone validator or a deliberately
+  shipped sandbox validation package, plus parity tests against
+  `worldsim.seed_contracts`.
+- Keep other large files visible as debt instead of allowlisting them. Examples
+  include the Browser Use runner, seeding, GitLab editor, Phase 2 feasibility,
+  Phase 2 exposure contracts, the main CLI, and outcome taxonomy.
 
-Only fold a follow-up into an active PR when it reduces review risk for that PR.
-If it expands the behavioral surface under review, keep it separate.
+Only fold one of these follow-ups into an active PR when it reduces review risk
+for that PR. If it expands the behavioral surface under review, keep it separate.
