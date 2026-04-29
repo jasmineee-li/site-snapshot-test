@@ -1748,6 +1748,59 @@ def _phase_4_state_metadata(
     return metadata
 
 
+def _phase_4_progress_path(state_dir: Path) -> Path:
+    return state_dir / "phase_4" / "progress.json"
+
+
+def _completed_task_ids_from_task_dir_root(task_dir_root: Path) -> set[str]:
+    if not task_dir_root.exists():
+        return set()
+    completed: set[str] = set()
+    for result_path in task_dir_root.glob("*/result.json"):
+        try:
+            payload = json.loads(result_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(payload, dict):
+            continue
+        task_id = payload.get("task_id")
+        if isinstance(task_id, str) and task_id.strip():
+            completed.add(task_id.strip())
+    return completed
+
+
+def _write_phase_4_progress(
+    state_dir: Path,
+    *,
+    status: str,
+    stage: str,
+    task_dir_root: Path,
+    total_tasks: int,
+    completed_initial_tasks: int = 0,
+    postprocessed_tasks: int = 0,
+    results_path: Path | None = None,
+    final_status_counts: dict[str, int] | None = None,
+) -> None:
+    payload: dict[str, Any] = {
+        "schema_version": 1,
+        "phase": "phase_4",
+        "status": status,
+        "stage": stage,
+        "updated_at": datetime.now().isoformat(),
+        "task_dir_root": str(task_dir_root),
+        "total_tasks": total_tasks,
+        "completed_initial_tasks": completed_initial_tasks,
+        "postprocessed_tasks": postprocessed_tasks,
+    }
+    if results_path is not None:
+        payload["results_path"] = str(results_path)
+    if final_status_counts is not None:
+        payload["final_status_counts"] = dict(sorted(final_status_counts.items()))
+    path = _phase_4_progress_path(state_dir)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(path, payload, failpoint_base="phase_4.progress")
+
+
 def _filter_tasks_by_sites(
     tasks: list[dict[str, Any]],
     sites_filter_raw: str | None,
@@ -2770,6 +2823,32 @@ async def run(args: argparse.Namespace) -> int:
     )
     reset_cache = TaskResetCache()
     save_state("phase_4", status="running", **state_metadata)
+    completed_initial_task_ids = _completed_task_ids_from_task_dir_root(task_dir_root)
+    progress_lock = asyncio.Lock()
+    _write_phase_4_progress(
+        state_dir,
+        status="running",
+        stage="initial_evaluation",
+        task_dir_root=task_dir_root,
+        total_tasks=len(tasks),
+        completed_initial_tasks=len(completed_initial_task_ids),
+    )
+
+    async def _record_initial_result(result: dict[str, Any]) -> None:
+        task_id = result.get("task_id")
+        if not isinstance(task_id, str) or not task_id.strip():
+            return
+        async with progress_lock:
+            completed_initial_task_ids.add(task_id.strip())
+            _write_phase_4_progress(
+                state_dir,
+                status="running",
+                stage="initial_evaluation",
+                task_dir_root=task_dir_root,
+                total_tasks=len(tasks),
+                completed_initial_tasks=len(completed_initial_task_ids),
+            )
+
     # Thread the benchmark codebase root through so BrowserUseAgent can validate
     # absolute auth_mechanism.storage_state.path values for containment. Relative
     # paths anchor to the WorldSim state dir (where Phase 0d writes), not to
@@ -2830,9 +2909,18 @@ async def run(args: argparse.Namespace) -> int:
             ),
             site_profile=site_profiles.get(str(task.get("site", ""))),
         ),
+        result_callback=_record_initial_result,
     )
 
     task_by_id = {str(task.get("id", "unknown")): task for task in tasks}
+    _write_phase_4_progress(
+        state_dir,
+        status="running",
+        stage="postprocessing",
+        task_dir_root=task_dir_root,
+        total_tasks=len(tasks),
+        completed_initial_tasks=len(results),
+    )
 
     raw_postprocessed = await asyncio.gather(
         *[
@@ -2865,7 +2953,26 @@ async def run(args: argparse.Namespace) -> int:
             continue
         final_results.append(processed)
 
+    _write_phase_4_progress(
+        state_dir,
+        status="running",
+        stage="postprocessing",
+        task_dir_root=task_dir_root,
+        total_tasks=len(tasks),
+        completed_initial_tasks=len(results),
+        postprocessed_tasks=len(final_results),
+    )
+
     if postprocess_failures:
+        _write_phase_4_progress(
+            state_dir,
+            status="failed",
+            stage="postprocess_exception",
+            task_dir_root=task_dir_root,
+            total_tasks=len(tasks),
+            completed_initial_tasks=len(results),
+            postprocessed_tasks=len(final_results),
+        )
         save_state(
             "phase_4",
             status="failed",
@@ -2979,6 +3086,19 @@ async def run(args: argparse.Namespace) -> int:
     if terminal_reason is not None:
         save_payload["reason"] = terminal_reason
     save_state("phase_4", status=terminal_status, **save_payload)
+    _write_phase_4_progress(
+        state_dir,
+        status=terminal_status,
+        stage=terminal_status,
+        task_dir_root=task_dir_root,
+        total_tasks=len(tasks),
+        completed_initial_tasks=len(results),
+        postprocessed_tasks=len(final_results),
+        results_path=output_dir / "results.json",
+        final_status_counts=dict(
+            Counter(str(r.get("final_status", "missing")) for r in final_results)
+        ),
+    )
     cost_tracker.log_phase_summary("phase_4")
     cost_tracker.save(state_dir / "cost_report.json")
 

@@ -349,6 +349,7 @@ async def run_tasks_by_site(
     config_url_placeholders: dict[str, str] | None = None,
     resume: bool = False,
     resume_fingerprint_builder: Callable[[dict[str, Any]], str] | None = None,
+    result_callback: Callable[[dict[str, Any]], Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Run tasks only against instances for the same site.
 
@@ -402,6 +403,7 @@ async def run_tasks_by_site(
                     if resume_fingerprint_builder is not None
                     else None
                 ),
+                result_callback=result_callback,
             )
         )
 

@@ -70,6 +70,18 @@ TaskRunner = Callable[
     [dict[str, Any], AgentRunner, BenchmarkInstance, Path],
     Awaitable[dict[str, Any]],
 ]
+ResultCallback = Callable[[dict[str, Any]], Awaitable[None] | None]
+
+
+async def _call_result_callback(
+    callback: ResultCallback | None,
+    result: dict[str, Any],
+) -> None:
+    if callback is None:
+        return
+    maybe_awaitable = callback(result)
+    if maybe_awaitable is not None:
+        await maybe_awaitable
 
 
 def _normalize_completed_result(data: dict[str, Any], *, trajectory_dir: Path) -> dict[str, Any]:
@@ -226,6 +238,7 @@ async def staggered_worker(
     task_binder: Callable[[dict[str, Any], BenchmarkInstance], dict[str, Any]] | None,
     stop_event: asyncio.Event,
     worker_semaphore: asyncio.Semaphore | None = None,
+    result_callback: ResultCallback | None = None,
 ) -> None:
     """Worker coroutine pinned to one benchmark instance.
 
@@ -265,19 +278,20 @@ async def staggered_worker(
                     result = await task_runner(bound_task, agent, instance, task_dir)
                     async with results_lock:
                         results.append(result)
+                    await _call_result_callback(result_callback, result)
                 except Exception as e:
                     logger.exception("worker %d failed task %s: %s", worker_id, task_id, e)
+                    result = {
+                        "task_id": task_id,
+                        "passed": False,
+                        "outcome": "error",
+                        "error": repr(e),
+                        "message": f"worker task failed: {e}",
+                        "worker_id": worker_id,
+                    }
                     async with results_lock:
-                        results.append(
-                            {
-                                "task_id": task_id,
-                                "passed": False,
-                                "outcome": "error",
-                                "error": repr(e),
-                                "message": f"worker task failed: {e}",
-                                "worker_id": worker_id,
-                            }
-                        )
+                        results.append(result)
+                    await _call_result_callback(result_callback, result)
                 finally:
                     task_queue.task_done()
         finally:
@@ -332,6 +346,7 @@ async def run_eval(
     resume: bool = False,
     expected_result_fingerprints: dict[str, str] | None = None,
     max_workers: int | None = None,
+    result_callback: ResultCallback | None = None,
 ) -> list[dict[str, Any]]:
     """Distribute ``tasks`` across ``instances`` with staggered worker startup.
 
@@ -446,6 +461,7 @@ async def run_eval(
             task_binder=task_binder,
             stop_event=stop_event,
             worker_semaphore=worker_semaphore,
+            result_callback=result_callback,
         )
         for launch_index, (worker_index, instance, task_queue) in enumerate(worker_specs)
     ]

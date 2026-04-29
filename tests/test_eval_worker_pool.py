@@ -63,6 +63,30 @@ async def test_run_eval_sanitizes_task_directory_names(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_run_eval_calls_result_callback_for_completed_tasks(monkeypatch, tmp_path):
+    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
+    callback_results: list[str] = []
+
+    async def task_runner(task, agent, instance, task_dir):
+        return {"task_id": task["id"], "passed": True}
+
+    async def result_callback(result: dict[str, object]) -> None:
+        callback_results.append(str(result["task_id"]))
+
+    results = await run_eval(
+        tasks=[{"id": "task-a"}, {"id": "task-b"}],
+        instances=[BenchmarkInstance(site_name="shopping", site_url="http://shopping.test")],
+        agent_factory=lambda: _NoopAgent(),
+        task_runner=task_runner,
+        task_dir_root=tmp_path,
+        result_callback=result_callback,
+    )
+
+    assert {result["task_id"] for result in results} == {"task-a", "task-b"}
+    assert sorted(callback_results) == ["task-a", "task-b"]
+
+
+@pytest.mark.asyncio
 async def test_run_eval_deterministically_routes_tasks_despite_setup_race(monkeypatch, tmp_path):
     monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 0)
 

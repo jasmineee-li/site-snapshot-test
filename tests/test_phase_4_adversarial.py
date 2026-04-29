@@ -4104,7 +4104,18 @@ async def test_phase_4_sites_filter_limits_token_acquisition(monkeypatch, tmp_pa
         return []
 
     async def fake_run_tasks_by_site(**kwargs):
-        return []
+        result = {
+            "task_id": "adv-gitlab",
+            "outcome": "complied",
+            "encounter": {"max_coverage": 1.0},
+            "benign_passed": True,
+            "adversarial_passed": True,
+            "trajectory_dir": str(tmp_path / "phase_4" / "task-root" / "adv-gitlab"),
+        }
+        callback = kwargs.get("result_callback")
+        if callback is not None:
+            await callback(result)
+        return [result]
 
     monkeypatch.setattr(phase_4_adversarial, "acquire_tokens_for_instances", fake_acquire_tokens)
     monkeypatch.setattr(
@@ -4156,6 +4167,13 @@ async def test_phase_4_sites_filter_limits_token_acquisition(monkeypatch, tmp_pa
 
     assert rc == 0
     assert captured_sites == ["gitlab"]
+    progress = json.loads((tmp_path / "phase_4" / "progress.json").read_text())
+    assert progress["status"] == "complete"
+    assert progress["stage"] == "complete"
+    assert progress["total_tasks"] == 1
+    assert progress["completed_initial_tasks"] == 1
+    assert progress["postprocessed_tasks"] == 1
+    assert progress["final_status_counts"] == {"complied": 1}
 
 
 @pytest.mark.asyncio
