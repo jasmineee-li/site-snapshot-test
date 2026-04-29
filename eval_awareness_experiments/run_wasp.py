@@ -306,6 +306,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--max-steps", type=int, default=15)
     parser.add_argument("--n-jobs", type=int, default=1)
     parser.add_argument("--avg-step-timeout", type=int, default=60)
+    parser.add_argument("--results-dir", default=None,
+                        help="Cell-owned directory to write the AgentLab study "
+                             "under (path becomes the study's exp_root).")
     parser.add_argument("--condition", choices=ALL_CONDITIONS, default="baseline",
                         help="Causal injection-wrapping condition.")
     parser.add_argument("--extra-instructions-preset", default="none",
@@ -331,7 +334,7 @@ def main() -> None:
     base_url = os.environ.get("DOOMARENA_WEBARENA_BASE_URL", "http://localhost")
     _override_webarena_env_vars(base_url)
     for var in ("REDDIT", "SHOPPING", "SHOPPING_ADMIN", "GITLAB", "WIKIPEDIA", "MAP", "HOMEPAGE"):
-        os.environ.setdefault(var, os.environ.get(f"WA_{var}", ""))
+        os.environ[var] = os.environ.get(f"WA_{var}", "")
 
     # Reuse DoomArena's evaluator patch verbatim by importing it.
     from eval_awareness_experiments.run_doomarena_glm5_popup import _patch_webarena_evaluator
@@ -379,13 +382,18 @@ def main() -> None:
     )
 
     setup_logging()
+    exp_root = Path(args.results_dir) if args.results_dir else None
+    if exp_root is not None:
+        exp_root.mkdir(parents=True, exist_ok=True)
     try:
         run_bgym_experiment(
             bgym_experiments=[experiment],
+            exp_root=exp_root,
             reproducibility_mode=False,
             relaunch=False,
             n_jobs=args.n_jobs,
             max_steps=args.max_steps,
+            avg_step_timeout=args.avg_step_timeout,
             skip_reset_and_massage=True,
         )
     except KeyError as e:

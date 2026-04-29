@@ -95,6 +95,23 @@ def _resolve_report_port_base(args: argparse.Namespace) -> int:
     return 12000 + (os.getpid() % 50000)
 
 
+def _browser_stage1_timeout(args: argparse.Namespace) -> int:
+    """Compute the per-split browser subprocess timeout.
+
+    AgentLab still enforces the tighter per-task episode timeout
+    (`max_steps * avg_step_timeout`). This is the coarse process-level
+    guard for setup, teardown, and browser child-process hangs.
+    """
+    if getattr(args, "browser_stage1_timeout", None) is not None:
+        return int(args.browser_stage1_timeout)
+    return (
+        int(args.tasks_per_split)
+        * int(args.max_steps)
+        * int(args.avg_step_timeout)
+        + int(args.browser_stage1_overhead)
+    )
+
+
 def _run_subprocess(
     cmd: list[str],
     *,
@@ -165,6 +182,7 @@ def _write_run_meta(run_dir: Path, args, benchmark: str, split: str) -> None:
         "shuffle": args.shuffle,
         "tasks_per_split": args.tasks_per_split,
         "max_steps": getattr(args, "max_steps", None),
+        "avg_step_timeout": getattr(args, "avg_step_timeout", None),
         "written_at": datetime.now(timezone.utc).isoformat(),
     }
     try:
@@ -239,6 +257,7 @@ def _build_browser_cmd(
         "--extra-instructions-preset", args.extra_instructions_preset,
         "--system-prompt-frame", args.system_prompt_frame,
         "--max-steps", str(args.max_steps),
+        "--avg-step-timeout", str(args.avg_step_timeout),
         "--shuffle", str(args.shuffle),
     ]
     # --condition (causal injection wrapping: baseline/eval_cue/scenario_cue) is
@@ -256,8 +275,8 @@ def _build_browser_cmd(
         # default `--online-sites reddit` left non-reddit splits silently
         # mis-checking. See root cause 9 in the handoff.
         cmd += ["--online-sites", split]
-        if cell_results_dir is not None:
-            cmd += ["--results-dir", str(cell_results_dir / split)]
+    if cell_results_dir is not None:
+        cmd += ["--results-dir", str(cell_results_dir / split)]
     return cmd
 
 
@@ -288,9 +307,8 @@ def _cell_results_dir(args: argparse.Namespace, benchmark: str) -> Path | None:
     """Where this cell's browser-runner subprocesses should write their
     AgentLab study_*. Cell-namespaced under `args.output_dir` so two
     concurrent cells can never alias each other's trajectories. Returns
-    None for benchmarks that don't yet support the override (only DoomArena
-    does today)."""
-    if benchmark != "doomarena":
+    None for benchmarks that don't yet support the override."""
+    if benchmark not in {"doomarena", "wasp"}:
         return None
     return Path(args.output_dir) / "_browser_runs"
 
@@ -313,7 +331,7 @@ def _stage1_browser(benchmark: str, split: str, args) -> Path | None:
         cell_results_dir=cell_dir,
     )
     before = set((REPO_ROOT / "results" / "browsergym").glob("study_*"))
-    timeout_sec = getattr(args, "browser_stage1_timeout", None) or 1800
+    timeout_sec = _browser_stage1_timeout(args)
     ok = _run_subprocess(cmd, cwd=REPO_ROOT, timeout_sec=timeout_sec)
     if not ok:
         return None
@@ -406,7 +424,7 @@ def _stage1_browser_parallel_splits(
     - Each subprocess wrapped in `timeout(1)` (the same Playwright-hang
       workaround as the sequential path).
     """
-    timeout_sec = getattr(args, "browser_stage1_timeout", None) or 1800
+    timeout_sec = _browser_stage1_timeout(args)
     before = set((REPO_ROOT / "results" / "browsergym").glob("study_*"))
     cell_dir = _cell_results_dir(args, benchmark)
     if cell_dir is not None:
@@ -760,12 +778,17 @@ def _parse_args() -> argparse.Namespace:
                         help="Per-task parallelism for the agent stage (tool-calling benchmarks). "
                              "Forwarded as --concurrency to run_agentdojo / run_injecagent. "
                              "Bottleneck is target-model TPM via OpenRouter, not local CPU.")
-    parser.add_argument("--browser-stage1-timeout", type=int, default=1800,
+    parser.add_argument("--avg-step-timeout", type=int, default=60,
+                        help="Forwarded to browser runners. AgentLab's per-task "
+                             "episode timeout is max_steps × avg_step_timeout.")
+    parser.add_argument("--browser-stage1-timeout", type=int, default=None,
                         help="Per-(model × split) timeout in seconds for browser benchmarks "
-                             "(DoomArena, WASP). Workaround for the Playwright env.close() "
-                             "deadlock — without this, a hung close() can soak hours of "
-                             "wallclock per stream. Default 1800s (30 min). Tool-calling "
-                             "benchmarks ignore this flag.")
+                             "(DoomArena, WASP). When omitted, defaults to "
+                             "tasks_per_split × max_steps × avg_step_timeout + "
+                             "browser_stage1_overhead. Tool-calling benchmarks ignore this flag.")
+    parser.add_argument("--browser-stage1-overhead", type=int, default=1800,
+                        help="Extra seconds added to the computed browser split timeout "
+                             "when --browser-stage1-timeout is omitted. Default 1800s.")
     parser.add_argument("--browser-splits-sequential", action="store_true",
                         help="Force browser-benchmark splits to run sequentially within a "
                              "cell (legacy behavior). Default is parallel — splits hit "

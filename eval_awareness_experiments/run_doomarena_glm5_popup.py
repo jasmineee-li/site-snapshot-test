@@ -384,6 +384,7 @@ def main() -> None:
         relaunch=False,
         n_jobs=args.n_jobs,
         max_steps=args.max_steps,
+        avg_step_timeout=args.avg_step_timeout,
         skip_reset_and_massage=True,
     )
 

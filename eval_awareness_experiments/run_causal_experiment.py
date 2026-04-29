@@ -76,6 +76,24 @@ def _arm_name(preset: str, frame: str) -> str:
     return f"{preset}__{frame}"
 
 
+def _parse_benchmark_splits(values: list[str] | None) -> dict[str, list[str]]:
+    out: dict[str, list[str]] = {}
+    for value in values or []:
+        if "=" not in value:
+            raise ValueError(
+                f"Invalid --benchmark-splits value {value!r}; expected benchmark=split,split"
+            )
+        benchmark, raw_splits = value.split("=", 1)
+        benchmark = benchmark.strip()
+        if benchmark not in ALL_BENCHMARKS:
+            raise ValueError(f"Unknown benchmark in --benchmark-splits: {benchmark!r}")
+        splits = [s.strip() for s in raw_splits.split(",") if s.strip()]
+        if not splits:
+            raise ValueError(f"No splits provided for benchmark {benchmark!r}")
+        out[benchmark] = splits
+    return out
+
+
 def run_causal_experiment(
     models: list[str],
     benchmarks: list[str],
@@ -90,7 +108,11 @@ def run_causal_experiment(
     dry_run: bool,
     skip_existing: bool = False,
     splits: list[str] | None = None,
+    benchmark_splits: dict[str, list[str]] | None = None,
+    max_steps: int | None = None,
+    avg_step_timeout: int | None = None,
     browser_stage1_timeout: int | None = None,
+    browser_stage1_overhead: int | None = None,
     browser_splits_sequential: bool = False,
 ) -> None:
     combos = list(product(benchmarks, conditions, models, presets, frames))
@@ -103,6 +125,18 @@ def run_causal_experiment(
     print(f"  Stage:      {stage}")
     if tasks_per_split:
         print(f"  Tasks/split: {tasks_per_split}")
+    if splits:
+        print(f"  Splits:      {splits}")
+    if benchmark_splits:
+        print(f"  Benchmark splits: {benchmark_splits}")
+    if max_steps is not None:
+        print(f"  Max steps:   {max_steps}")
+    if avg_step_timeout is not None:
+        print(f"  Avg step timeout: {avg_step_timeout}s")
+    if browser_stage1_timeout is not None:
+        print(f"  Browser split timeout: {browser_stage1_timeout}s")
+    elif browser_stage1_overhead is not None:
+        print(f"  Browser split timeout overhead: {browser_stage1_overhead}s")
     if skip_existing:
         print(f"  Skip-existing: ON (cells already complete will be skipped)")
     print()
@@ -175,10 +209,17 @@ def run_causal_experiment(
             cmd.extend(["--judges", *judges])
         if tasks_per_split is not None:
             cmd.extend(["--tasks-per-split", str(tasks_per_split)])
-        if splits:
-            cmd.extend(["--splits", *splits])
+        effective_splits = (benchmark_splits or {}).get(benchmark, splits)
+        if effective_splits:
+            cmd.extend(["--splits", *effective_splits])
+        if max_steps is not None:
+            cmd.extend(["--max-steps", str(max_steps)])
+        if avg_step_timeout is not None:
+            cmd.extend(["--avg-step-timeout", str(avg_step_timeout)])
         if browser_stage1_timeout is not None:
             cmd.extend(["--browser-stage1-timeout", str(browser_stage1_timeout)])
+        if browser_stage1_overhead is not None:
+            cmd.extend(["--browser-stage1-overhead", str(browser_stage1_overhead)])
         if browser_splits_sequential:
             cmd.append("--browser-splits-sequential")
 
@@ -262,12 +303,25 @@ def main() -> None:
                         help="Forwarded to run_safety_pipeline. For DoomArena, "
                              "use 'reddit gitlab' to skip the heavy/flaky "
                              "shopping splits.")
+    parser.add_argument("--benchmark-splits", nargs="+", default=None,
+                        help="Benchmark-specific split overrides, comma-separated. "
+                             "Example: doomarena=reddit,shopping,shopping_admin,gitlab "
+                             "wasp=reddit,gitlab. Overrides --splits for matching benchmarks.")
+    parser.add_argument("--max-steps", type=int, default=None,
+                        help="Forwarded to run_safety_pipeline/browser runners.")
+    parser.add_argument("--avg-step-timeout", type=int, default=None,
+                        help="Forwarded to run_safety_pipeline/browser runners. "
+                             "Per-task timeout is max_steps × avg_step_timeout.")
     parser.add_argument("--browser-stage1-timeout", type=int, default=None,
                         help="Forwarded to run_safety_pipeline.")
+    parser.add_argument("--browser-stage1-overhead", type=int, default=None,
+                        help="Forwarded to run_safety_pipeline. Used only when "
+                             "--browser-stage1-timeout is omitted.")
     parser.add_argument("--browser-splits-sequential", action="store_true",
                         help="Forwarded to run_safety_pipeline for debugging "
                              "site/container contention.")
     args = parser.parse_args()
+    benchmark_splits = _parse_benchmark_splits(args.benchmark_splits)
 
     run_causal_experiment(
         models=args.models,
@@ -283,7 +337,11 @@ def main() -> None:
         dry_run=args.dry_run,
         skip_existing=args.skip_existing,
         splits=args.splits,
+        benchmark_splits=benchmark_splits,
+        max_steps=args.max_steps,
+        avg_step_timeout=args.avg_step_timeout,
         browser_stage1_timeout=args.browser_stage1_timeout,
+        browser_stage1_overhead=args.browser_stage1_overhead,
         browser_splits_sequential=args.browser_splits_sequential,
     )
 

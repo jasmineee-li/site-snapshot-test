@@ -5,19 +5,22 @@
 # 4 arms SEQUENTIALLY on its own dedicated docker stack. So at any moment:
 #   - 8 concurrent streams (one per model)
 #   - Each stream on ONE arm at a time
-#   - Each stack handles 1 active session per site (reddit + gitlab) at a time
+#   - Each stack handles 1 active session per configured site split at a time
 #
 # That's the strict-isolation invariant the user asked for: no docker
 # container ever has two concurrent agent sessions. Compare to the old
 # `launch_pilot.sh` which had 4 arm-streams sharing one stack at the
 # default ports — see DOOMARENA_ROOT_CAUSE_HANDOFF.md.
 #
-# Splits scoped to reddit + gitlab (shopping + shopping_admin had
-# capacity issues in the prior pilot). Per-model docker stacks must be up:
+# Default splits are scoped to reddit + gitlab. For an all-site run, set:
+#   SPLITS="reddit shopping shopping_admin gitlab"
+#
+# Per-model docker stacks must be up:
 #   ./scripts/setup_doomarena_per_model_dockers.sh up
 #
 # Usage:
 #   ./eval_awareness_experiments/launch_doomarena_per_model.sh
+#   N_TASKS=50 SPLITS="reddit shopping shopping_admin gitlab" ./eval_awareness_experiments/launch_doomarena_per_model.sh
 #   ./eval_awareness_experiments/launch_doomarena_per_model.sh --dry-run
 
 set -e
@@ -25,12 +28,19 @@ set -e
 cd "$(dirname "$0")/.."
 
 PYTHON=.venv/bin/python
-OUTPUT_BASE=eval_awareness_experiments/results/causal_pilot
-LOG_DIR=logs/causal_pilot_doom_per_model
-JUDGE_MODEL="anthropic/claude-opus-4.7:thinking"
-N_TASKS=20
-SPLITS="reddit gitlab"
-BROWSER_STAGE1_TIMEOUT="${BROWSER_STAGE1_TIMEOUT:-1800}"
+OUTPUT_BASE="${OUTPUT_BASE:-eval_awareness_experiments/results/causal_pilot}"
+LOG_DIR="${LOG_DIR:-logs/causal_pilot_doom_per_model}"
+JUDGE_MODEL="${JUDGE_MODEL:-anthropic/claude-opus-4.7:thinking}"
+N_TASKS="${N_TASKS:-20}"
+SPLITS="${SPLITS:-reddit gitlab}"
+
+# Split subprocess timeout is a last-resort guard for process-level hangs.
+# AgentLab still has the tighter per-task episode timeout. Default this to
+# 15 min per requested task plus 30 min setup/teardown slack, so larger
+# per-site runs do not get killed after the old fixed 30 min cap.
+BROWSER_TASK_TIMEOUT="${BROWSER_TASK_TIMEOUT:-900}"
+BROWSER_STAGE1_OVERHEAD="${BROWSER_STAGE1_OVERHEAD:-1800}"
+BROWSER_STAGE1_TIMEOUT="${BROWSER_STAGE1_TIMEOUT:-$((N_TASKS * BROWSER_TASK_TIMEOUT + BROWSER_STAGE1_OVERHEAD))}"
 
 DRY_RUN=""
 if [ "$1" = "--dry-run" ]; then
@@ -40,6 +50,14 @@ if [ "$1" = "--dry-run" ]; then
 fi
 
 mkdir -p "$LOG_DIR"
+
+echo "Config:"
+echo "  output_base=$OUTPUT_BASE"
+echo "  log_dir=$LOG_DIR"
+echo "  n_tasks_per_split=$N_TASKS"
+echo "  splits=$SPLITS"
+echo "  browser_stage1_timeout=${BROWSER_STAGE1_TIMEOUT}s"
+echo
 
 # (model_id | stack_slug | gitlab_port | reddit_port)
 # Stack slugs match scripts/setup_doomarena_per_model_dockers.sh.
