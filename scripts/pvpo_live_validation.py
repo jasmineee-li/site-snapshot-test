@@ -58,7 +58,7 @@ import requests
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from worldsim.config import BenchmarkConfig
+from worldsim.config import BenchmarkConfig, load_benchmark_config
 from worldsim.phase_4.encounter_detection import determine_encounter
 from worldsim.phase_4.pvpo_browser_config import inject_animation_killer
 from worldsim.phase_4.pvpo_capture import (
@@ -257,7 +257,7 @@ async def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         tasks = load_json_array(args.tasks, label="Phase 2 tasks artifact")
-        config = BenchmarkConfig.model_validate_json(args.instances.read_text())
+        config = load_benchmark_config(args.instances)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2

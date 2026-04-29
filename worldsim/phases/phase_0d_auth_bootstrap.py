@@ -84,7 +84,7 @@ from worldsim.agent_auth import (
     storage_state_recorded_hosts,
 )
 from worldsim.atomic_io import write_json_atomic
-from worldsim.config import BenchmarkConfig, has_configured_agent_auth
+from worldsim.config import has_configured_agent_auth, load_benchmark_config
 from worldsim.state import get_state_dir, save_state
 
 logger = logging.getLogger(__name__)
@@ -184,7 +184,7 @@ async def run(args: argparse.Namespace) -> int:
     instances_path = getattr(args, "instances", None)
     if instances_path is not None:
         try:
-            config = BenchmarkConfig.model_validate_json(Path(instances_path).read_text())
+            config = load_benchmark_config(instances_path)
             for inst in config.instances:
                 if has_configured_agent_auth(inst.agent_auth):
                     instance_agent_auths.setdefault(inst.site_name, inst.agent_auth)
@@ -621,7 +621,7 @@ def _load_site_urls(instances_path: str | Path | None) -> dict[str, str]:
         )
         return {}
     try:
-        config = BenchmarkConfig.model_validate_json(path.read_text())
+        config = load_benchmark_config(path)
     except Exception as exc:
         logger.warning("Phase 0d: failed to parse instances file %s: %s", path, exc)
         return {}

@@ -8,6 +8,7 @@ DBs, and reset endpoints supplied here.
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,33 @@ from worldsim.pvpo_endpoint import validate_pvpo_cdp_url
 
 _SEEDING_AUTH_TYPES = frozenset({"none", "http_headers", "bearer_token", "web_login"})
 _AGENT_AUTH_TYPES = frozenset({"none", "unknown", "storage_state", "http_basic", "http_headers"})
+
+
+def load_benchmark_config(path: str | Path) -> BenchmarkConfig:
+    """Load a BenchmarkConfig, resolving relative proxy token files from the config dir."""
+    config_path = Path(path)
+    payload = json.loads(config_path.read_text())
+    payload = _resolve_config_relative_proxy_paths(payload, config_path=config_path)
+    return BenchmarkConfig.model_validate(payload)
+
+
+def _resolve_config_relative_proxy_paths(payload: Any, *, config_path: Path) -> Any:
+    if not isinstance(payload, dict):
+        return payload
+    proxy = payload.get("verification_proxy")
+    if not isinstance(proxy, dict):
+        return payload
+    token_file = proxy.get("token_file")
+    if not isinstance(token_file, str) or not token_file.strip():
+        return payload
+    candidate = Path(token_file)
+    if candidate.is_absolute():
+        return payload
+    normalized = dict(payload)
+    normalized_proxy = dict(proxy)
+    normalized_proxy["token_file"] = str(config_path.parent / candidate)
+    normalized["verification_proxy"] = normalized_proxy
+    return normalized
 
 
 def _require_string_map(value: Any, *, field_name: str) -> dict[str, str]:

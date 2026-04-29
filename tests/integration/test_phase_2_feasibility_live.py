@@ -326,7 +326,10 @@ def test_feasibility_crash_resume(failpoint, live_instance, live_config, tmp_pat
         "instances": [instance_copy],
     }
     if live_config.verification_proxy is not None:
-        wrapper["verification_proxy"] = live_config.verification_proxy.model_dump()
+        wrapper["verification_proxy"] = live_config.verification_proxy.model_dump(
+            mode="json",
+            exclude_none=True,
+        )
     instances_file.write_text(json.dumps(wrapper))
 
     crashed = _run_phase_2c_in_subprocess(

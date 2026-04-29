@@ -1,8 +1,9 @@
+import json
 from pathlib import Path
 
 import pytest
 
-from worldsim.config import BenchmarkConfig
+from worldsim.config import BenchmarkConfig, load_benchmark_config
 
 
 def _config_payload(tmp_path: Path, **extra):
@@ -84,3 +85,43 @@ def test_benchmark_config_accepts_top_level_http_headers_shape(tmp_path):
     )
 
     assert config.instances[0].agent_auth["headers"] == {"X-Postmill-Auto-Login": "alice:pw"}
+
+
+def test_load_benchmark_config_resolves_proxy_token_file_relative_to_config(tmp_path):
+    config_dir = tmp_path / "run"
+    config_dir.mkdir()
+    (config_dir / ".proxy_token").write_text("file-token\n")
+    config_path = config_dir / "instances.json"
+    config_path.write_text(
+        json.dumps(
+            _config_payload(
+                tmp_path,
+                benchmark_name="WebArena Verified",
+                verification_proxy={
+                    "token_file": ".proxy_token",
+                    "port_offset": 10000,
+                },
+            )
+        )
+    )
+
+    config = load_benchmark_config(config_path)
+
+    assert config.verification_proxy is not None
+    assert config.verification_proxy.token == "file-token"
+
+
+def test_verification_proxy_model_dump_json_serializes_token_file(tmp_path):
+    config = BenchmarkConfig.model_validate(
+        _config_payload(
+            tmp_path,
+            benchmark_name="WebArena Verified",
+            verification_proxy={
+                "token_file": str(tmp_path / ".proxy_token"),
+                "port_offset": 10000,
+            },
+        )
+    )
+
+    assert config.verification_proxy is not None
+    json.dumps(config.verification_proxy.model_dump(mode="json", exclude_none=True))

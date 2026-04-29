@@ -619,7 +619,7 @@ step_print_summary() {
     echo "    Proxy metadata file: $PROXY_METADATA_FILE"
     echo "    Proxy port map file: $PROXY_PORT_MAP_FILE"
     echo "    Token fingerprint (sha256): ${token_fingerprint:0:16}..."
-    echo "    Raw token is not echoed; read it from the token file when updating instances.json."
+    echo "    Raw token is not echoed; reference the token file or env var from instances.json."
     if [[ "$current_proxy_scheme" == "http" ]]; then
         echo "    WARNING: proxy TLS is disabled, so the token travels over plaintext HTTP."
         echo "    Prefer --tls-cert/--tls-key before exposing proxy ports publicly."
@@ -640,7 +640,8 @@ step_print_summary() {
     echo "    Add this to your instances.json:"
     echo ""
     echo '    "verification_proxy": {'
-    printf '      "token": "<contents of %s>",\n' "$TOKEN_FILE"
+    printf '      "token_file": "%s",\n' "$TOKEN_FILE"
+    echo '      "token_env": "WORLDSIM_VERIFICATION_PROXY_TOKEN",'
     printf '      "scheme": "%s",\n' "$current_proxy_scheme"
     if [[ "$current_proxy_scheme" == "https" ]]; then
         printf '      "verify_host": "%s",\n' "$TLS_VERIFY_HOST"

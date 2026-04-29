@@ -28,7 +28,7 @@ from typing import Any
 from dotenv import load_dotenv
 
 from worldsim.adversarial_actions import ACTION_POLICIES
-from worldsim.config import BenchmarkConfig, has_configured_agent_auth
+from worldsim.config import has_configured_agent_auth, load_benchmark_config
 from worldsim.phases.phase_1_task_cards import task_capability_profile_choices
 from worldsim.phases.phase_4_adversarial import phase_4_variant_budget_choices
 
@@ -1582,7 +1582,7 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
         instances_path = getattr(args, "instances", None)
         if instances_path is not None and Path(instances_path).exists():
             try:
-                config = BenchmarkConfig.model_validate_json(Path(instances_path).read_text())
+                config = load_benchmark_config(instances_path)
                 instances_for_gate = [instance.model_dump() for instance in config.instances]
             except ValueError as exc:
                 print(f"Failed to parse instances config {instances_path}: {exc}", file=sys.stderr)

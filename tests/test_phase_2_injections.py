@@ -2832,6 +2832,16 @@ def test_write_dropped_source_data_sidecar_dedupes_by_site_and_id(tmp_path):
     assert json.loads(path.read_text()) == [duplicate]
 
 
+def test_phase_2_injections_facade_exports_split_artifact_helpers():
+    assert (
+        phase_2_injections._feasibility_status({"feasibility": {"status": "verified"}})
+        == "verified"
+    )
+    assert callable(phase_2_injections._merged_dropped_source_data)
+    assert callable(phase_2_injections._phase_2c_report_summary_with_artifacts)
+    assert callable(phase_2_injections._validate_phase_2c_artifact_payloads)
+
+
 def test_report_summary_can_count_merged_dropped_source_data():
     report = phase_2_injections.FeasibilityReport(
         verified=[],

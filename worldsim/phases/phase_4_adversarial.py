@@ -105,7 +105,12 @@ from worldsim.atomic_io import write_json_atomic
 from worldsim.auth_tokens import acquire_tokens_for_instances
 from worldsim.benchmark_capabilities import get_benchmark_capabilities, infer_benchmark_name
 from worldsim.browser_use_agent import AgentResult, AgentRunner
-from worldsim.config import BenchmarkConfig, BenchmarkInstance, has_effective_agent_auth
+from worldsim.config import (
+    BenchmarkConfig,
+    BenchmarkInstance,
+    has_effective_agent_auth,
+    load_benchmark_config,
+)
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.editors import EDITOR_REGISTRY, EditorError
 from worldsim.failpoints import crash_if_enabled
@@ -3387,7 +3392,7 @@ async def run(args: argparse.Namespace) -> int:
     if not instances_path or not Path(instances_path).exists():
         logger.error("--instances JSON file required for Phase 4")
         return 1
-    config = BenchmarkConfig.model_validate_json(Path(instances_path).read_text())
+    config = load_benchmark_config(instances_path)
     active_instances = [
         instance
         for instance in config.instances

@@ -36,10 +36,25 @@ GENERATED_NAMES = {
 
 DEFERRED_TRACKED_GENERATED: set[str] = set()
 
-TOKEN_FIELD_RE = re.compile(r'"(?:token|api_key|secret)"\s*:\s*"([^"]{24,})"', re.IGNORECASE)
-HIGH_ENTROPY_RE = re.compile(r"\b[A-Za-z0-9_-]{40,}\b")
+SECRET_VALUE_CHARS = r"A-Za-z0-9._~+/=-"
+TOKEN_FIELD_RE = re.compile(
+    rf'"(?:token|api_key|secret)"\s*:\s*"([{SECRET_VALUE_CHARS}]{{24,}})"',
+    re.IGNORECASE,
+)
+SECRET_ASSIGNMENT_RE = re.compile(
+    rf"(?i)(?:token|secret|api[_-]?key|authorization|password)"
+    rf"[\w.-]*\s*[:=]\s*['\"]?([{SECRET_VALUE_CHARS}]{{24,}})"
+)
+BEARER_VALUE_RE = re.compile(rf"(?i)\bBearer\s+([{SECRET_VALUE_CHARS}]{{24,}})")
+QUOTED_HIGH_ENTROPY_RE = re.compile(rf"[`'\"]([{SECRET_VALUE_CHARS}]{{40,}})[`'\"]")
 SECRET_CONTEXT_RE = re.compile(
     r"token|secret|api[_-]?key|authorization|bearer|password", re.IGNORECASE
+)
+STRICT_SECRET_CONTEXT_RE = re.compile(
+    r"(?:current|proxy|bearer|api[_-]?key|secret).{0,80}token|"
+    r"token.{0,80}(?:current|proxy|bearer|api[_-]?key|secret)|"
+    r"authorization|bearer",
+    re.IGNORECASE,
 )
 FIXTURE_CREDENTIAL_VALUES = {
     "admin123",
@@ -108,15 +123,30 @@ def _token_findings(paths: list[str]) -> list[TokenFinding]:
             continue
         for index, line in enumerate(lines, start=1):
             token_match = TOKEN_FIELD_RE.search(line)
-            if token_match and token_match.group(1) not in FIXTURE_CREDENTIAL_VALUES:
+            if token_match and _looks_like_secret_value(token_match.group(1)):
                 findings.append(TokenFinding(path, index, "token_field"))
                 continue
-            if not SECRET_CONTEXT_RE.search(line):
+            bearer_match = BEARER_VALUE_RE.search(line)
+            assignment_match = SECRET_ASSIGNMENT_RE.search(line)
+            if (bearer_match and _looks_like_secret_value(bearer_match.group(1))) or (
+                assignment_match and _looks_like_secret_value(assignment_match.group(1))
+            ):
+                findings.append(TokenFinding(path, index, "secret_value"))
                 continue
-            entropy_match = HIGH_ENTROPY_RE.search(line)
-            if entropy_match and entropy_match.group(0) not in FIXTURE_CREDENTIAL_VALUES:
+            if not STRICT_SECRET_CONTEXT_RE.search(line):
+                continue
+            quoted_match = QUOTED_HIGH_ENTROPY_RE.search(line)
+            if quoted_match and _looks_like_secret_value(quoted_match.group(1)):
                 findings.append(TokenFinding(path, index, "high_entropy"))
     return findings
+
+
+def _looks_like_secret_value(value: str) -> bool:
+    if value in FIXTURE_CREDENTIAL_VALUES:
+        return False
+    if "_" in value:
+        return False
+    return any(char.isalpha() for char in value) and any(char.isdigit() for char in value)
 
 
 def build_audit() -> Audit:
