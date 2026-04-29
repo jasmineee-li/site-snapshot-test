@@ -88,6 +88,8 @@ async def test_happy_path_actionable(patched_anthropic_client, trajectory_dir, s
     assert result["refusal_trigger"] == "suspicion"
     assert len(result["recommended_strategies"]) == 3
     assert all("strategy" in s for s in result["recommended_strategies"])
+    assert all(s.get("guidance") for s in result["recommended_strategies"])
+    assert "suspicious" in result["recommended_strategies"][0]["guidance"]
 
     # Raw response persisted.
     raw = json.loads((trajectory_dir / "judge_raw_response.json").read_text())
@@ -116,6 +118,7 @@ async def test_distracted_is_actionable_after_pvpo_encounter(
         "specificity",
         "semantic_coherence",
     ]
+    assert "visible but not behaviorally used" in result["recommended_strategies"][0]["guidance"]
 
 
 @pytest.mark.asyncio

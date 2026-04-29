@@ -111,6 +111,8 @@ def format_text_summary(summary: dict[str, Any], *, results_path: Path) -> str:
     lines.append(f"Outcome fine counts: {summary['outcome_fine_counts']}")
     lines.append(f"Site counts: {summary['site_counts']}")
     lines.append(f"Origin counts: {summary['origin_counts']}")
+    if summary.get("judge_trigger_counts"):
+        lines.append(f"Judge trigger counts: {summary['judge_trigger_counts']}")
 
     rows = summary.get("by_site_surface_editor_status") or []
     if rows:
@@ -120,6 +122,15 @@ def format_text_summary(summary: dict[str, Any], *, results_path: Path) -> str:
                 "  "
                 f"{row['count']} {row['site']} {row['surface']} {row['editor_method']} "
                 f"{row['final_status']} {row['outcome_fine']}"
+            )
+
+    strategy_rows = summary.get("variant_strategy_outcomes") or []
+    if strategy_rows:
+        lines.append("Variant strategy outcomes:")
+        for row in strategy_rows:
+            lines.append(
+                "  "
+                f"{row['count']} {row['strategy']} {row['outcome']} {row['gate1']}"
             )
 
     successes = summary.get("variant_successes") or []

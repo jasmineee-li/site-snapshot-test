@@ -29,6 +29,7 @@ Phase 2c feasibility is strict admission for Phase 4:
 - Break-glass override is `WORLDSIM_STRICT_FEASIBILITY={true,false}` and should be called out explicitly.
 
 Phase 4 varies adversarial strategy only. Benign task contracts and reward functions emitted by Phase 3 are invariant across variants.
+Strategy variants must change payload semantics, not only punctuation, brackets, or wrappers; no-op and punctuation-only rewrites are generation failures.
 
 ## Phase 4 Gates and Metrics
 

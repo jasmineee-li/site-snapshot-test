@@ -40,7 +40,11 @@ from worldsim.phase_4.prompt_payloads import (
     format_json_for_model_prompt,
     sanitize_task_for_model_prompt,
 )
-from worldsim.phase_4.strategy_catalog import REFUSAL_TRIGGERS, strategies_for_trigger
+from worldsim.phase_4.strategy_catalog import (
+    REFUSAL_TRIGGERS,
+    recommendation_for_strategy,
+    strategies_for_trigger,
+)
 from worldsim.prompt_loading import load_prompt
 
 logger = logging.getLogger(__name__)
@@ -398,12 +402,7 @@ async def run_judge_api(
         "status": "judge_ok_actionable" if actionable else "judge_ok_unactionable",
         "refusal_trigger": trigger,
         "recommended_strategies": [
-            {
-                "strategy": s,
-                "rationale": f"Selected by host-side TRIGGER_TO_STRATEGIES for refusal_trigger={trigger!r}.",
-                "guidance": "",  # variant-gen prompt reads from its own template; host can optionally enrich.
-            }
-            for s in strategies
+            recommendation_for_strategy(s, trigger) for s in strategies
         ]
         if actionable
         else [],

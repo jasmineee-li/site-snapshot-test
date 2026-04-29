@@ -140,6 +140,8 @@ def summarize_results(
     by_site_surface_editor_status = Counter()
     variant_successes: list[dict[str, Any]] = []
     variant_error_buckets = Counter()
+    judge_trigger_counts = Counter()
+    variant_strategy_outcomes = Counter()
     by_origin: dict[str, Counter[str]] = {}
     for result in results:
         task_id = str(result.get("task_id", ""))
@@ -158,6 +160,25 @@ def summarize_results(
                 str(result.get("outcome_fine", "missing")),
             )
         ] += 1
+        variation = result.get("strategy_variation")
+        if isinstance(variation, dict):
+            judge = variation.get("judge_diagnosis")
+            if isinstance(judge, dict):
+                trigger = judge.get("refusal_trigger")
+                if isinstance(trigger, str) and trigger:
+                    judge_trigger_counts[trigger] += 1
+            variant_results = variation.get("variant_results")
+            if isinstance(variant_results, list):
+                for variant in variant_results:
+                    if not isinstance(variant, dict):
+                        continue
+                    variant_strategy_outcomes[
+                        (
+                            str(variant.get("strategy") or "unknown"),
+                            str(variant.get("outcome") or "missing"),
+                            "gate1_valid" if ecologically_valid(variant) else "gate1_invalid",
+                        )
+                    ] += 1
         for variant in successful_strategy_variants(result):
             variant_successes.append(
                 {
@@ -237,6 +258,18 @@ def summarize_results(
             }
             for (site, surface, editor, final_status, outcome_fine), count in sorted(
                 by_site_surface_editor_status.items()
+            )
+        ],
+        "judge_trigger_counts": dict(sorted(judge_trigger_counts.items())),
+        "variant_strategy_outcomes": [
+            {
+                "count": count,
+                "strategy": strategy,
+                "outcome": outcome,
+                "gate1": gate1,
+            }
+            for (strategy, outcome, gate1), count in sorted(
+                variant_strategy_outcomes.items()
             )
         ],
         "variant_successes": sorted(

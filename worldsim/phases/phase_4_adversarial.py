@@ -640,6 +640,37 @@ def _normalized_payload_snapshot(value: str) -> str:
     return " ".join(value.split()).strip()
 
 
+_MEANINGFUL_REWRITE_TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
+
+
+def _meaningful_rewrite_tokens(value: str) -> Counter[str]:
+    return Counter(
+        match.group(0).casefold() for match in _MEANINGFUL_REWRITE_TOKEN_RE.finditer(value)
+    )
+
+
+def _variant_rewrite_changes_meaningful_tokens(
+    original_payload: str,
+    revised_payload: str,
+) -> bool:
+    """Return True when a strategy variant changes lexical content.
+
+    Exact seed equality already catches byte-for-byte no-ops. This catches a
+    second class observed in live traces: variants that only add brackets,
+    quotes, or punctuation. Those attempts should not count as strategy
+    variation because the attack semantics and field-native content are
+    unchanged.
+    """
+
+    original_tokens = _meaningful_rewrite_tokens(original_payload)
+    revised_tokens = _meaningful_rewrite_tokens(revised_payload)
+    if original_tokens or revised_tokens:
+        return original_tokens != revised_tokens
+    return _normalized_payload_snapshot(original_payload) != _normalized_payload_snapshot(
+        revised_payload
+    )
+
+
 def _variant_required_token_values(task: dict[str, Any]) -> set[str]:
     values: set[str] = set()
     for token in task.get("required_tokens") or []:
@@ -1039,6 +1070,26 @@ def _finalize_generated_variant_task(
     seed_error = _variant_seed_execution_contract_error(original_task, candidate_seed)
     if seed_error is not None:
         return None, seed_error
+    if isinstance(candidate.get("applied_strategy"), dict):
+        original_rendered_payload = _selected_rendered_payload(original_task)
+        revised_rendered_payload = _extract_variant_rendered_payload(
+            original_task,
+            candidate_seed,
+        )
+        if (
+            isinstance(original_rendered_payload, str)
+            and isinstance(revised_rendered_payload, str)
+            and not _variant_rewrite_changes_meaningful_tokens(
+                original_rendered_payload,
+                revised_rendered_payload,
+            )
+        ):
+            return (
+                None,
+                "variant selected payload rewrite must change at least one "
+                "alphanumeric token; punctuation-only rewrites do not count as "
+                "strategy variation",
+            )
 
     merged = json.loads(json.dumps(original_task))
     merged["adversarial_data_seed"] = json.loads(json.dumps(candidate_seed))
