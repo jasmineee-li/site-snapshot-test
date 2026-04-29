@@ -790,7 +790,9 @@ async def test_run_phase_0c_reprofiles_when_proxy_metadata_changes(monkeypatch, 
         benchmark_root=benchmark_root,
         output_dir=output_dir,
         instances=[BenchmarkInstance(site_name="shopping", site_url="http://shopping.test")],
-        verification_proxy=VerificationProxy(token="fresh-token", port_offset=10000, scheme="https"),
+        verification_proxy=VerificationProxy(
+            token="fresh-token", port_offset=10000, scheme="https"
+        ),
     )
 
     assert site_name in result
