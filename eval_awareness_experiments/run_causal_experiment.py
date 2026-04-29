@@ -91,6 +91,7 @@ def run_causal_experiment(
     skip_existing: bool = False,
     splits: list[str] | None = None,
     browser_stage1_timeout: int | None = None,
+    browser_splits_sequential: bool = False,
 ) -> None:
     combos = list(product(benchmarks, conditions, models, presets, frames))
     print(f"Causal experiment: {len(combos)} combinations")
@@ -178,6 +179,8 @@ def run_causal_experiment(
             cmd.extend(["--splits", *splits])
         if browser_stage1_timeout is not None:
             cmd.extend(["--browser-stage1-timeout", str(browser_stage1_timeout)])
+        if browser_splits_sequential:
+            cmd.append("--browser-splits-sequential")
 
         label = f"{benchmark}/{arm}/{model} (preset={preset}, frame={frame}, condition={condition})"
         print(f"[{i}/{len(combos)}] {label}")
@@ -261,6 +264,9 @@ def main() -> None:
                              "shopping splits.")
     parser.add_argument("--browser-stage1-timeout", type=int, default=None,
                         help="Forwarded to run_safety_pipeline.")
+    parser.add_argument("--browser-splits-sequential", action="store_true",
+                        help="Forwarded to run_safety_pipeline for debugging "
+                             "site/container contention.")
     args = parser.parse_args()
 
     run_causal_experiment(
@@ -278,6 +284,7 @@ def main() -> None:
         skip_existing=args.skip_existing,
         splits=args.splits,
         browser_stage1_timeout=args.browser_stage1_timeout,
+        browser_splits_sequential=args.browser_splits_sequential,
     )
 
 

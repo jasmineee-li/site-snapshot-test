@@ -30,6 +30,7 @@ LOG_DIR=logs/causal_pilot_doom_per_model
 JUDGE_MODEL="anthropic/claude-opus-4.7:thinking"
 N_TASKS=20
 SPLITS="reddit gitlab"
+BROWSER_STAGE1_TIMEOUT="${BROWSER_STAGE1_TIMEOUT:-1800}"
 
 DRY_RUN=""
 if [ "$1" = "--dry-run" ]; then
@@ -101,6 +102,7 @@ for entry in "${MODEL_STACKS[@]}"; do
                 --judges $judges \
                 --judge-model "$JUDGE_MODEL" \
                 --tasks-per-split "$N_TASKS" \
+                --browser-stage1-timeout "$BROWSER_STAGE1_TIMEOUT" \
                 --splits $SPLITS \
                 --output-base "$OUTPUT_BASE" \
                 || echo "[$STACK] arm=$ARM FAILED with $?" >&2

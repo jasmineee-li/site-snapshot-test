@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Spin up 5 additional DoomArena docker stacks (one per non-GLM model) so
-# all 6 models can run in parallel within each arm. Each stack has its
+# Spin up additional DoomArena docker stacks (one per non-GLM model) so
+# all models can run in parallel within each arm. Each stack has its
 # own gitlab, forum, shopping, shopping_admin containers on a unique port
 # offset.
 #
 # Stack 1 (existing, for GLM-5): gitlab_doom:9002, forum_doom:8081,
 #                                shopping:8082, shopping_admin:8083
-# Stacks 2-6: created here, port offsets +10/+20/+30/+40/+50
+# Additional stacks: created here, port offsets +10/+20/+30/...
 #
 # Disk: fresh containers share image layers, so only the writable layer
 # costs disk (~0 GB initial, ~500MB-2GB per container over a multi-hour
@@ -45,6 +45,27 @@ container_name() {
     echo "${svc}_${slug}"
 }
 
+configure_magento_base_url() {
+    local container=$1 port=$2
+    local base_url="http://localhost:${port}"
+
+    echo "  configuring $container Magento base URL -> $base_url"
+    for attempt in $(seq 1 12); do
+        if docker exec "$container" /var/www/magento2/bin/magento \
+                setup:store-config:set --base-url="$base_url" >/dev/null \
+            && docker exec "$container" /var/www/magento2/bin/magento \
+                setup:store-config:set --base-url-secure="$base_url" >/dev/null \
+            && docker exec "$container" /var/www/magento2/bin/magento \
+                cache:flush >/dev/null; then
+            return 0
+        fi
+        echo "    $container Magento CLI not ready yet ($attempt/12); retrying..."
+        sleep 10
+    done
+    echo "  [WARN] failed to configure $container Magento base URL"
+    return 0
+}
+
 up_stack() {
     local slug=$1 gl_port=$2 fo_port=$3 sh_port=$4 sa_port=$5
     echo "[$slug] starting stack on ports gl=:$gl_port forum=:$fo_port shop=:$sh_port admin=:$sa_port"
@@ -80,6 +101,7 @@ up_stack() {
             shopping_final_0712:latest >/dev/null
         echo "  $sh_name created"
     fi
+    configure_magento_base_url "$sh_name" "$sh_port"
 
     # shopping_admin
     local sa_name=$(container_name shopping_admin "$slug")
@@ -90,6 +112,7 @@ up_stack() {
             shopping_admin_final_0719:latest >/dev/null
         echo "  $sa_name created"
     fi
+    configure_magento_base_url "$sa_name" "$sa_port"
 }
 
 stop_stack() {
@@ -115,7 +138,7 @@ rm_stack() {
 
 case "$ACTION" in
     up|"")
-        echo "=== bringing up 5 additional DoomArena docker stacks ==="
+        echo "=== bringing up additional DoomArena docker stacks ==="
         for stack in "${STACKS[@]}"; do
             up_stack $stack
         done

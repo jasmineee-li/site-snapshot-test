@@ -32,6 +32,7 @@ import os
 import subprocess
 import sys
 import time
+from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -126,12 +127,25 @@ def _run_subprocess(
         if result.returncode in (124, 137):
             logger.error(
                 f"  subprocess TIMED OUT after {timeout_sec}s "
-                f"(exit={result.returncode}). Likely a hang in env teardown "
-                f"(Playwright close()) — partial trajectories may be saved."
+                f"(exit={result.returncode}). The subprocess may be stuck in "
+                f"backend setup, task reset/login, agent execution, or browser "
+                f"teardown — check the subprocess logs for the last completed phase."
             )
         else:
             logger.error(f"  subprocess failed: exit={result.returncode}")
     return result.returncode == 0
+
+
+def _tail_lines(path: Path, n: int) -> list[str]:
+    """Return the last n lines from a text log without loading huge files."""
+    if n <= 0 or not path.exists():
+        return []
+    try:
+        with path.open("r", encoding="utf-8", errors="replace") as f:
+            return list(deque(f, maxlen=n))
+    except OSError as e:
+        logger.warning(f"  failed to read log tail from {path}: {e!r}")
+        return []
 
 
 def _write_run_meta(run_dir: Path, args, benchmark: str, split: str) -> None:
@@ -404,7 +418,7 @@ def _stage1_browser_parallel_splits(
     else:
         port_base = None
 
-    procs: list[tuple[str, subprocess.Popen, list[str]]] = []
+    procs: list[tuple[str, subprocess.Popen, list[str], Path, Path, object, object]] = []
     for i, split in enumerate(splits):
         report_port = None
         if port_base is not None:
@@ -419,32 +433,50 @@ def _stage1_browser_parallel_splits(
         if i > 0:
             time.sleep(_LAUNCH_STAGGER_SEC)
         logger.info(f"  [parallel split {split}] $ {' '.join(cmd)}")
+        if cell_dir is not None:
+            log_dir = cell_dir / split
+        else:
+            log_dir = REPO_ROOT / "results" / "browsergym" / "_split_logs" / (
+                datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            )
+        log_dir.mkdir(parents=True, exist_ok=True)
+        stdout_path = log_dir / "subprocess.stdout.log"
+        stderr_path = log_dir / "subprocess.stderr.log"
+        stdout_file = stdout_path.open("w", encoding="utf-8")
+        stderr_file = stderr_path.open("w", encoding="utf-8")
         proc = subprocess.Popen(
             cmd, cwd=str(REPO_ROOT),
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            stdout=stdout_file, stderr=stderr_file, text=True,
             env=os.environ.copy(),
         )
-        procs.append((split, proc, cmd))
+        procs.append((split, proc, cmd, stdout_path, stderr_path, stdout_file, stderr_file))
 
-    # Wait for all to finish. communicate() handles per-process stdout/stderr
-    # capture and avoids deadlock on full pipe buffers.
+    # Wait for all to finish. Child stdout/stderr go to files instead of pipes:
+    # this avoids pipe-buffer backpressure when one split logs heavily while
+    # another split is still running.
     results: dict[str, bool] = {}
-    for split, proc, cmd in procs:
+    for split, proc, cmd, stdout_path, stderr_path, stdout_file, stderr_file in procs:
         try:
-            stdout, stderr = proc.communicate(timeout=timeout_sec + 30)
+            proc.wait(timeout=timeout_sec + 30)
         except subprocess.TimeoutExpired:
             proc.kill()
-            stdout, stderr = proc.communicate()
-        for line in (stdout or "").splitlines()[-30:]:
-            logger.info(f"  [{split} stdout] {line}")
-        for line in (stderr or "").splitlines()[-15:]:
-            logger.warning(f"  [{split} stderr] {line}")
+            proc.wait()
+        finally:
+            stdout_file.close()
+            stderr_file.close()
+        logger.info(f"  [{split}] stdout log → {stdout_path}")
+        logger.info(f"  [{split}] stderr log → {stderr_path}")
+        for line in _tail_lines(stdout_path, 30):
+            logger.info(f"  [{split} stdout] {line.rstrip()}")
+        for line in _tail_lines(stderr_path, 15):
+            logger.warning(f"  [{split} stderr] {line.rstrip()}")
         ok = proc.returncode == 0
         if proc.returncode in (124, 137):
             logger.error(
                 f"  [{split}] subprocess TIMED OUT after {timeout_sec}s "
-                f"(exit={proc.returncode}). Likely Playwright env.close() "
-                f"hang — partial trajectories may be saved."
+                f"(exit={proc.returncode}). The split may be stuck in backend "
+                f"setup, task reset/login, agent execution, or browser teardown; "
+                f"see {stdout_path} and {stderr_path}."
             )
         elif not ok:
             logger.error(f"  [{split}] subprocess failed: exit={proc.returncode}")
