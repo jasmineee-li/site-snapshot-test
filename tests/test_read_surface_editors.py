@@ -468,6 +468,21 @@ def test_apply_data_seed_accumulates_across_multi_editor_calls(monkeypatch):
         "reddit.create_submission",
         "reddit.create_comment",
     ]
+    call_results = metadata["editor_call_results"]
+    assert call_results[0]["call_index"] == 0
+    assert call_results[0]["editor_method"] == "reddit.create_submission"
+    assert call_results[0]["read_surface_urls"] == [
+        "http://fake.test/f/books/9999",
+        "/f/books/9999",
+    ]
+    assert call_results[0]["write_tokens"] == {"submission_id": "9999"}
+    assert call_results[0]["created_resource"]["url"] == "http://fake.test/f/books/9999"
+    assert call_results[1]["call_index"] == 1
+    assert call_results[1]["editor_method"] == "reddit.create_comment"
+    assert call_results[1]["write_tokens"] == {
+        "comment_id": "c1",
+        "submission_id": "9999",
+    }
     _handle.cleanup()
 
 

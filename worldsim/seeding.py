@@ -210,17 +210,20 @@ def apply_data_seed(
     read_surface_accumulator: list[str] = []
     read_surface_provenance: dict[str, Any] = {}
     created_resource_accumulator: list[dict[str, Any]] = []
+    editor_call_result_accumulator: list[dict[str, Any]] = []
     try:
-        for call in seed.get("editor_calls", []):
+        for call_index, call in enumerate(seed.get("editor_calls", [])):
             _apply_editor_seed_call(
                 session,
                 call,
                 instance,
+                call_index=call_index,
                 seed_context=seed_context,
                 editor_instances=editor_instances,
                 read_surface_accumulator=read_surface_accumulator,
                 read_surface_provenance=read_surface_provenance,
                 created_resource_accumulator=created_resource_accumulator,
+                editor_call_result_accumulator=editor_call_result_accumulator,
             )
         metadata: dict[str, Any] = {}
         # Handoff §5.5: task-author explicit override unions with editor
@@ -261,6 +264,8 @@ def apply_data_seed(
         if created_resources:
             metadata["created_resources"] = created_resources
             metadata["created_resource"] = _primary_created_resource(created_resources)
+        if editor_call_result_accumulator:
+            metadata["editor_call_results"] = editor_call_result_accumulator
         # Hoist authoritative write-identifier tokens from the merged
         # seed_context into metadata so downstream verifiers (render-check
         # read-your-write fastpath) can match server-reported IDs instead
@@ -713,11 +718,13 @@ def _apply_editor_seed_call(
     call: dict[str, Any],
     instance: dict[str, Any],
     *,
+    call_index: int | None = None,
     seed_context: dict[str, Any],
     editor_instances: dict[tuple[str, str], Any],
     read_surface_accumulator: list[str] | None = None,
     read_surface_provenance: dict[str, Any] | None = None,
     created_resource_accumulator: list[dict[str, Any]] | None = None,
+    editor_call_result_accumulator: list[dict[str, Any]] | None = None,
 ) -> None:
     from datetime import UTC, datetime
 
@@ -759,6 +766,15 @@ def _apply_editor_seed_call(
     editor.validate_args(method_name, args)
     result = editor_method(**args)
     if isinstance(result, dict):
+        if editor_call_result_accumulator is not None and call_index is not None:
+            editor_call_result_accumulator.append(
+                _editor_call_result_record(
+                    result,
+                    call_index=call_index,
+                    editor_site_name=editor_site_name,
+                    method_name=method_name,
+                )
+            )
         if created_resource_accumulator is not None:
             created_resource_accumulator.extend(
                 _created_resources_from_editor_result(
@@ -897,6 +913,59 @@ def _created_resources_from_editor_result(
         resource["editor_method"] = editor_method
         resources.append(resource)
     return resources
+
+
+def _editor_call_result_record(
+    result: dict[str, Any],
+    *,
+    call_index: int,
+    editor_site_name: str,
+    method_name: str,
+) -> dict[str, Any]:
+    """Return per-call write/read metadata for call-aware verification.
+
+    The aggregate ``read_surface_urls`` / ``issue_iid`` metadata intentionally
+    preserves older callers' simple shape. Phase 2c also needs to prove that a
+    rendered signature came from the same editor call that produced the read
+    surface being checked, especially for self-contained seeds that preserve a
+    benign setup call before appending the adversarial write.
+    """
+    record: dict[str, Any] = {
+        "call_index": call_index,
+        "site": editor_site_name,
+        "method": method_name,
+        "editor_method": f"{editor_site_name}.{method_name}",
+    }
+    surface_urls = result.get("read_surface_urls")
+    if isinstance(surface_urls, list):
+        urls = [url.strip() for url in surface_urls if isinstance(url, str) and url.strip()]
+        if urls:
+            record["read_surface_urls"] = urls
+    provenance_source = result.get("read_surface_provenance_source")
+    if isinstance(provenance_source, str) and provenance_source.strip():
+        record["read_surface_provenance_source"] = provenance_source.strip()
+    created_resources = _created_resources_from_editor_result(
+        result,
+        editor_method=f"{editor_site_name}.{method_name}",
+    )
+    if created_resources:
+        record["created_resources"] = created_resources
+        record["created_resource"] = _primary_created_resource(created_resources)
+    write_tokens: dict[str, Any] = {}
+    for token_key in (
+        "note_id",
+        "issue_iid",
+        "project_id",
+        "comment_id",
+        "submission_id",
+        "review_id",
+    ):
+        token_value = result.get(token_key)
+        if token_value not in (None, ""):
+            write_tokens[token_key] = token_value
+    if write_tokens:
+        record["write_tokens"] = write_tokens
+    return record
 
 
 def _dedupe_created_resources(resources: list[dict[str, Any]]) -> list[dict[str, Any]]:

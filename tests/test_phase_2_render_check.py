@@ -14,8 +14,10 @@ import pytest
 
 from worldsim.phases.phase_2_render_check import (
     RenderOutcome,
+    _render_check_inputs_from_metadata,
     _strip_html,
     render_signature,
+    render_signature_selection,
     verify_seed_renders,
 )
 
@@ -185,6 +187,80 @@ def test_render_signature_prefers_last_signature_bearing_call():
         ]
     }
     assert render_signature(seed) == "later call visible payload text"
+
+
+def test_render_signature_selection_records_payload_call_index():
+    seed = {
+        "editor_calls": [
+            {
+                "site": "gitlab",
+                "method": "create_issue_description",
+                "args": {"body": "benign setup description"},
+            },
+            {
+                "site": "gitlab",
+                "method": "create_issue_description",
+                "args": {"body": "later call visible payload text"},
+            },
+        ]
+    }
+
+    selection = render_signature_selection(seed)
+
+    assert selection is not None
+    assert selection.signature == "later call visible payload text"
+    assert selection.call_index == 1
+    assert selection.editor_method == "gitlab.create_issue_description"
+    assert selection.source_field == "body"
+
+
+def test_render_check_inputs_bind_to_payload_editor_call_metadata():
+    seed = {
+        "editor_calls": [
+            {
+                "site": "gitlab",
+                "method": "create_issue_description",
+                "args": {"body": "benign setup description"},
+            },
+            {
+                "site": "gitlab",
+                "method": "create_issue_description",
+                "args": {"body": "later call visible payload text"},
+            },
+        ]
+    }
+    metadata = {
+        "read_surface_urls": [
+            "https://gitlab.example/project/-/issues/5",
+            "https://gitlab.example/project/-/issues/6",
+        ],
+        "project_id": 174,
+        "issue_iid": 6,
+        "editor_call_results": [
+            {
+                "call_index": 0,
+                "read_surface_urls": ["https://gitlab.example/project/-/issues/5"],
+                "write_tokens": {"project_id": 174, "issue_iid": 5},
+            },
+            {
+                "call_index": 1,
+                "read_surface_urls": ["https://gitlab.example/project/-/issues/6"],
+                "write_tokens": {"project_id": 174, "issue_iid": 6},
+            },
+        ],
+    }
+    selection = render_signature_selection(seed, metadata)
+
+    urls, write_tokens, diagnostics = _render_check_inputs_from_metadata(
+        metadata=metadata,
+        selection=selection,
+    )
+
+    assert urls == ["https://gitlab.example/project/-/issues/6"]
+    assert write_tokens == {"project_id": 174, "issue_iid": 6}
+    assert diagnostics["payload_call_index"] == 1
+    assert diagnostics["read_surface_source"] == "payload_editor_call"
+    assert diagnostics["write_tokens_source"] == "payload_editor_call"
 
 
 def test_render_signature_prefers_provenance_contributing_method():

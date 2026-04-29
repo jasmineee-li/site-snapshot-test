@@ -60,7 +60,9 @@ from worldsim.phases.phase_2_reachability import (
 )
 from worldsim.phases.phase_2_render_check import (
     RenderOutcome,
+    _render_check_inputs_from_metadata,
     render_signature,
+    render_signature_selection,
     verify_seed_renders,
 )
 from worldsim.seeding import SeedCleanupHandle, UnboundTokenError, apply_data_seed_async
@@ -1610,33 +1612,19 @@ async def _run_render_check(
     metadata: dict[str, Any],
     instance: dict[str, Any],
 ) -> RenderOutcome:
-    urls = metadata.get("read_surface_urls") if isinstance(metadata, dict) else None
-    if not isinstance(urls, list):
+    selection = render_signature_selection(seed, metadata)
+    if isinstance(metadata, dict):
+        urls, write_tokens, render_diagnostics = _render_check_inputs_from_metadata(
+            metadata=metadata,
+            selection=selection,
+        )
+    else:
         urls = []
+        write_tokens = {}
+        render_diagnostics = {}
     site_name = str(instance.get("site_name", "")).strip().lower()
     site_url = str(instance.get("site_url", "")).rstrip("/")
-    signature = render_signature(seed, metadata)
-    # Authoritative write tokens returned by the editor's POST response.
-    # The render-check uses these as a read-your-write fallback when its
-    # DOM text match races the platform's write-to-visible pipeline
-    # (sidekiq indexer, page-cache invalidation, Vue hydration). The
-    # same tokens live on ``metadata`` because they are already part of
-    # the editor's return contract; we just hoist the observably-useful
-    # subset so verify_seed_renders does not have to know the whole
-    # metadata shape.
-    write_tokens: dict[str, Any] = {}
-    if isinstance(metadata, dict):
-        for key in (
-            "note_id",
-            "issue_iid",
-            "project_id",
-            "comment_id",
-            "submission_id",
-            "review_id",
-        ):
-            value = metadata.get(key)
-            if value not in (None, ""):
-                write_tokens[key] = value
+    signature = selection.signature if selection is not None else render_signature(seed, metadata)
 
     browser_context_kwargs, auth_error = _resolve_benign_browser_context_auth(instance)
     if auth_error is not None:
@@ -1657,6 +1645,7 @@ async def _run_render_check(
                 signature=signature,
                 browser_context_kwargs=browser_context_kwargs,
                 write_tokens=write_tokens or None,
+                diagnostics=render_diagnostics or None,
             )
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("phase 2c render check crashed")

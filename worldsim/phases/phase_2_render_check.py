@@ -89,6 +89,7 @@ class RenderOutcome:
     matched_snippet: str | None = None
     rendered_body_text: str | None = None
     layout_probe: dict[str, Any] | None = None
+    diagnostics: dict[str, Any] | None = None
 
     @classmethod
     def passed(
@@ -99,6 +100,7 @@ class RenderOutcome:
         snippet: str,
         rendered_body_text: str | None = None,
         layout_probe: dict[str, Any] | None = None,
+        diagnostics: dict[str, Any] | None = None,
     ) -> RenderOutcome:
         return cls(
             ok=True,
@@ -111,6 +113,7 @@ class RenderOutcome:
             matched_snippet=snippet[:240],
             rendered_body_text=rendered_body_text,
             layout_probe=layout_probe,
+            diagnostics=diagnostics,
         )
 
     @classmethod
@@ -121,6 +124,7 @@ class RenderOutcome:
         detail: str,
         urls_tried: list[str],
         per_url_errors: dict[str, str],
+        diagnostics: dict[str, Any] | None = None,
     ) -> RenderOutcome:
         return cls(
             ok=False,
@@ -128,6 +132,7 @@ class RenderOutcome:
             detail=detail,
             urls_tried=urls_tried,
             per_url_errors=per_url_errors,
+            diagnostics=diagnostics,
         )
 
     def evidence(self) -> dict[str, Any]:
@@ -148,7 +153,17 @@ class RenderOutcome:
                 out["layout_probe"] = dict(self.layout_probe)
         else:
             out["kind"] = self.kind
+        if self.diagnostics is not None:
+            out["diagnostics"] = dict(self.diagnostics)
         return out
+
+
+@dataclass(frozen=True)
+class RenderSignatureSelection:
+    signature: str
+    call_index: int | None = None
+    editor_method: str | None = None
+    source_field: str | None = None
 
 
 _GITLAB_REWRITTEN_TEXT_TOKEN_RE = re.compile(
@@ -214,8 +229,11 @@ def _stable_render_signature_text(text: str, *, limit: int = 40) -> str | None:
     return line[:limit].rstrip() or text[:limit].rstrip()
 
 
-def render_signature(seed: dict[str, Any], metadata: dict[str, Any] | None = None) -> str | None:
-    """Extract a unique substring expected to appear in the rendered DOM.
+def render_signature_selection(
+    seed: dict[str, Any],
+    metadata: dict[str, Any] | None = None,
+) -> RenderSignatureSelection | None:
+    """Select a unique rendered substring and the editor call that owns it.
 
     Prefers the seed nickname (ASCII, unique by construction in the
     adversarial dataset, and renders in a stable DOM location across
@@ -230,7 +248,7 @@ def render_signature(seed: dict[str, Any], metadata: dict[str, Any] | None = Non
     ``bio_text``), so feasibility verification works on any plan that
     targets a method whose body lives on a templated arg.
 
-    Returns None when the editor call carries no signature-bearing
+    Returns None when no editor call carries a signature-bearing
     field at all — caller treats that as render_unverified with a
     clear "no signature available" message.
     """
@@ -241,10 +259,11 @@ def render_signature(seed: dict[str, Any], metadata: dict[str, Any] | None = Non
         return None
     call_records = [
         (
+            index,
             f"{call.get('site')}.{call.get('method')}",
             call.get("args"),
         )
-        for call in editor_calls
+        for index, call in enumerate(editor_calls)
         if isinstance(call, dict) and isinstance(call.get("args"), dict)
     ]
     if not call_records:
@@ -261,26 +280,42 @@ def render_signature(seed: dict[str, Any], metadata: dict[str, Any] | None = Non
                 for method in methods
                 if isinstance(method, str) and method.strip()
             )
-    arg_sets = [
-        args
-        for method, args in call_records
+    candidate_records = [
+        (index, method, args)
+        for index, method, args in call_records
         if method in preferred_methods and isinstance(args, dict)
     ]
-    if not arg_sets:
-        arg_sets = [args for _, args in call_records if isinstance(args, dict)]
+    if not candidate_records:
+        candidate_records = [
+            (index, method, args)
+            for index, method, args in call_records
+            if isinstance(args, dict)
+        ]
     # In multi-call seeds the last editor call is typically the one that
     # produces the user-visible note/comment while earlier calls create
     # parent resources or helper setup rows. Prefer later calls so a setup
     # title/description cannot overshadow the actually rendered payload.
-    arg_sets = list(reversed(arg_sets))
+    candidate_records = list(reversed(candidate_records))
 
-    def _first_nonempty(fields: tuple[str, ...]) -> str | None:
-        for args in arg_sets:
+    def _first_nonempty(fields: tuple[str, ...]) -> RenderSignatureSelection | None:
+        for index, method, args in candidate_records:
             for base in fields:
                 for variant in (base, f"{base}_template", f"{base}_text"):
                     raw = args.get(variant)
                     if isinstance(raw, str) and raw.strip():
-                        return raw.strip()
+                        value = raw.strip()
+                        signature = (
+                            value
+                            if base == "nickname"
+                            else _stable_render_signature_text(value)
+                        )
+                        if signature:
+                            return RenderSignatureSelection(
+                                signature=signature,
+                                call_index=index,
+                                editor_method=method,
+                                source_field=variant,
+                            )
         return None
 
     nickname = _first_nonempty(("nickname",))
@@ -288,16 +323,10 @@ def render_signature(seed: dict[str, Any], metadata: dict[str, Any] | None = Non
         return nickname
     body = _first_nonempty(("detail", "body", "description", "note", "bio", "content"))
     if body is not None:
-        # Take only first-line prose and avoid GitLab tokens whose
-        # rendered text can differ from their source markdown/plaintext
-        # form (autolinked project URLs, issue refs, mentions). A fixed
-        # 40-char prefix can otherwise straddle a URL boundary and
-        # produce a signature that is present in discussions.json but
-        # impossible to find in rendered DOM text_content.
-        return _stable_render_signature_text(body)
+        return body
     title = _first_nonempty(("title", "name"))
     if title is not None:
-        return _stable_render_signature_text(title)
+        return title
     # Fallback: the LLM sometimes invents arg keys (e.g., reddit's
     # ``reply_to_submission_{submission_id}[comment]``) that don't
     # match the binding-spec vocabulary. Pick the longest string
@@ -308,7 +337,9 @@ def render_signature(seed: dict[str, Any], metadata: dict[str, Any] | None = Non
     # reference itself.
     longest: str | None = None
     longest_len = 0
-    for args in arg_sets:
+    longest_index: int | None = None
+    longest_method: str | None = None
+    for index, method, args in candidate_records:
         for value in args.values():
             if not isinstance(value, str):
                 continue
@@ -318,9 +349,24 @@ def render_signature(seed: dict[str, Any], metadata: dict[str, Any] | None = Non
             if len(stripped) > longest_len:
                 longest = stripped
                 longest_len = len(stripped)
+                longest_index = index
+                longest_method = method
     if longest is not None and longest_len >= 8:
-        return _stable_render_signature_text(longest)
+        signature = _stable_render_signature_text(longest)
+        if signature:
+            return RenderSignatureSelection(
+                signature=signature,
+                call_index=longest_index,
+                editor_method=longest_method,
+                source_field="<longest_string_arg>",
+            )
     return None
+
+
+def render_signature(seed: dict[str, Any], metadata: dict[str, Any] | None = None) -> str | None:
+    """Extract a unique substring expected to appear in the rendered DOM."""
+    selection = render_signature_selection(seed, metadata)
+    return selection.signature if selection is not None else None
 
 
 # Sentinel byte for round-tripping escaped delimiters during markdown
@@ -638,6 +684,7 @@ async def _gitlab_note_ryw_fastpath(
     timeout_ms: int,
     scoped_extra_http_headers: dict[str, str] | None = None,
     header_scope_url: str | None = None,
+    diagnostics: dict[str, Any] | None = None,
 ) -> RenderOutcome | None:
     """Read-your-write fallback for GitLab issue / MR notes.
 
@@ -743,6 +790,7 @@ async def _gitlab_note_ryw_fastpath(
             signature=f"note_id={note_id_str}",
             snippet=snippet,
             rendered_body_text=rendered_text,
+            diagnostics=diagnostics,
         )
     return None
 
@@ -796,6 +844,100 @@ def _gitlab_issue_description_ryw_urls(target_url: str, write_tokens: dict[str, 
     return list(dict.fromkeys(urls))
 
 
+_WRITE_TOKEN_KEYS: tuple[str, ...] = (
+    "note_id",
+    "issue_iid",
+    "project_id",
+    "comment_id",
+    "submission_id",
+    "review_id",
+)
+
+
+def _write_tokens_from_mapping(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    write_tokens: dict[str, Any] = {}
+    for key in _WRITE_TOKEN_KEYS:
+        token_value = value.get(key)
+        if token_value not in (None, ""):
+            write_tokens[key] = token_value
+    return write_tokens
+
+
+def _editor_call_record_for_selection(
+    metadata: dict[str, Any],
+    selection: RenderSignatureSelection | None,
+) -> dict[str, Any] | None:
+    if selection is None or selection.call_index is None:
+        return None
+    records = metadata.get("editor_call_results")
+    if not isinstance(records, list):
+        return None
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        if record.get("call_index") == selection.call_index:
+            return record
+    return None
+
+
+def _render_check_inputs_from_metadata(
+    *,
+    metadata: dict[str, Any],
+    selection: RenderSignatureSelection | None,
+) -> tuple[list[str], dict[str, Any], dict[str, Any]]:
+    """Bind render verification to the payload-bearing editor call.
+
+    Multi-call adversarial seeds are required for Phase 4 because the
+    adversarial seed must include benign setup plus the appended attacker
+    write. The aggregate metadata remains useful for reporting, but render
+    admission should first use the read surfaces and write identifiers from
+    the same call that supplied the signature. If per-call metadata is absent
+    (older tests/artifacts), fall back to the aggregate contract.
+    """
+    aggregate_urls = metadata.get("read_surface_urls")
+    urls = (
+        [url for url in aggregate_urls if isinstance(url, str) and url.strip()]
+        if isinstance(aggregate_urls, list)
+        else []
+    )
+    write_tokens = _write_tokens_from_mapping(metadata)
+    diagnostics: dict[str, Any] = {}
+    if selection is not None:
+        diagnostics.update(
+            {
+                "payload_call_index": selection.call_index,
+                "payload_editor_method": selection.editor_method,
+                "payload_source_field": selection.source_field,
+            }
+        )
+
+    call_record = _editor_call_record_for_selection(metadata, selection)
+    if call_record is None:
+        return urls, write_tokens, diagnostics
+
+    call_urls = call_record.get("read_surface_urls")
+    if isinstance(call_urls, list):
+        selected_urls = [url for url in call_urls if isinstance(url, str) and url.strip()]
+        if selected_urls:
+            urls = selected_urls
+            diagnostics["read_surface_source"] = "payload_editor_call"
+    call_write_tokens = call_record.get("write_tokens")
+    if isinstance(call_write_tokens, dict):
+        selected_write_tokens = _write_tokens_from_mapping(call_write_tokens)
+        if selected_write_tokens:
+            write_tokens = selected_write_tokens
+            diagnostics["write_tokens_source"] = "payload_editor_call"
+            diagnostics["write_token_keys"] = sorted(selected_write_tokens)
+    if "read_surface_source" not in diagnostics:
+        diagnostics["read_surface_source"] = "aggregate_seed_metadata"
+    if "write_tokens_source" not in diagnostics and write_tokens:
+        diagnostics["write_tokens_source"] = "aggregate_seed_metadata"
+        diagnostics["write_token_keys"] = sorted(write_tokens)
+    return urls, write_tokens, diagnostics
+
+
 async def _gitlab_issue_description_ryw_fastpath(
     *,
     page: Any,
@@ -806,6 +948,7 @@ async def _gitlab_issue_description_ryw_fastpath(
     timeout_ms: int,
     scoped_extra_http_headers: dict[str, str] | None = None,
     header_scope_url: str | None = None,
+    diagnostics: dict[str, Any] | None = None,
 ) -> RenderOutcome | None:
     """Read-your-write fallback for GitLab created issue descriptions.
 
@@ -903,6 +1046,7 @@ async def _gitlab_issue_description_ryw_fastpath(
             signature=f"issue_iid={issue_iid}",
             snippet=snippet,
             rendered_body_text=description,
+            diagnostics=diagnostics,
         )
     return None
 
@@ -1017,7 +1161,11 @@ def _with_cache_buster(url: str) -> str:
 
 
 def _classify_failure(
-    *, urls_tried: list[str], per_url_errors: dict[str, str], signature: str
+    *,
+    urls_tried: list[str],
+    per_url_errors: dict[str, str],
+    signature: str,
+    diagnostics: dict[str, Any] | None = None,
 ) -> RenderOutcome:
     """Decide between host_unreachable and render_unverified.
 
@@ -1037,6 +1185,7 @@ def _classify_failure(
             ),
             urls_tried=urls_tried,
             per_url_errors=per_url_errors,
+            diagnostics=diagnostics,
         )
     return RenderOutcome.failed(
         kind="render_unverified",
@@ -1049,6 +1198,7 @@ def _classify_failure(
         ),
         urls_tried=urls_tried,
         per_url_errors=per_url_errors,
+        diagnostics=diagnostics,
     )
 
 
@@ -1064,6 +1214,7 @@ async def verify_seed_renders(
     storage_state_path: str | None = None,
     browser_context_kwargs: dict[str, Any] | None = None,
     write_tokens: dict[str, Any] | None = None,
+    diagnostics: dict[str, Any] | None = None,
 ) -> RenderOutcome:
     """Open a fresh context, try each URL until the signature appears.
 
@@ -1082,6 +1233,7 @@ async def verify_seed_renders(
             detail="editor emitted no read_surface_urls — cannot verify rendering",
             urls_tried=[],
             per_url_errors={},
+            diagnostics=diagnostics,
         )
     if not signature:
         return RenderOutcome.failed(
@@ -1092,6 +1244,7 @@ async def verify_seed_renders(
             ),
             urls_tried=[],
             per_url_errors={},
+            diagnostics=diagnostics,
         )
 
     needle = _normalize(signature)
@@ -1113,6 +1266,7 @@ async def verify_seed_renders(
                     detail=f"storage_state {storage_state_path} is unusable: {error}",
                     urls_tried=[],
                     per_url_errors={},
+                    diagnostics=diagnostics,
                 )
         else:
             return RenderOutcome.failed(
@@ -1120,6 +1274,7 @@ async def verify_seed_renders(
                 detail=f"storage_state {storage_state_path} not found",
                 urls_tried=[],
                 per_url_errors={},
+                diagnostics=diagnostics,
             )
     context = await browser.new_context(**context_kwargs)
     try:
@@ -1193,6 +1348,7 @@ async def verify_seed_renders(
                         snippet=snippet,
                         rendered_body_text=body_text,
                         layout_probe=layout_probe,
+                        diagnostics=diagnostics,
                     )
                 # Read-your-write fallback for GitLab note kinds: the text
                 # match missed, but the editor returned the authoritative
@@ -1213,6 +1369,7 @@ async def verify_seed_renders(
                     timeout_ms=selector_timeout_ms,
                     scoped_extra_http_headers=scoped_extra_http_headers,
                     header_scope_url=site_url,
+                    diagnostics=diagnostics,
                 )
                 if ryw_hit is not None:
                     return ryw_hit
@@ -1225,6 +1382,7 @@ async def verify_seed_renders(
                     timeout_ms=selector_timeout_ms,
                     scoped_extra_http_headers=scoped_extra_http_headers,
                     header_scope_url=site_url,
+                    diagnostics=diagnostics,
                 )
                 if issue_ryw_hit is not None:
                     return issue_ryw_hit
@@ -1233,7 +1391,12 @@ async def verify_seed_renders(
                 msg = f"{exc.__class__.__name__}: {exc}"
                 errors[target] = msg
                 logger.debug("phase 2c render check error on %s: %s", target, msg)
-        return _classify_failure(urls_tried=seen, per_url_errors=errors, signature=signature)
+        return _classify_failure(
+            urls_tried=seen,
+            per_url_errors=errors,
+            signature=signature,
+            diagnostics=diagnostics,
+        )
     finally:
         try:
             await context.close()
