@@ -1525,13 +1525,13 @@ def _unknown_auth_sites(
 def _dispatch_phase(args: argparse.Namespace) -> int:
     """Dispatch to the requested phase module."""
     from worldsim.cost_tracker import tracker as cost_tracker
+    from worldsim.phase_2 import runner as phase_2_injections
+    from worldsim.phase_4 import runner as phase_4_adversarial
     from worldsim.phases import (
         phase_0_recon,
         phase_0d_auth_bootstrap,
         phase_1_tasks,
-        phase_2_injections,
         phase_3_benign,
-        phase_4_adversarial,
     )
     from worldsim.state import get_state_dir
 
