@@ -48,13 +48,16 @@ container_name() {
 configure_magento_base_url() {
     local container=$1 port=$2
     local base_url="http://localhost:${port}"
+    local base_url_slash="${base_url}/"
 
     echo "  configuring $container Magento base URL -> $base_url"
     for attempt in $(seq 1 12); do
         if docker exec "$container" /var/www/magento2/bin/magento \
-                setup:store-config:set --base-url="$base_url" >/dev/null \
+                setup:store-config:set --base-url="$base_url_slash" >/dev/null \
             && docker exec "$container" /var/www/magento2/bin/magento \
-                setup:store-config:set --base-url-secure="$base_url" >/dev/null \
+                config:set web/unsecure/base_url "$base_url_slash" >/dev/null \
+            && docker exec "$container" /var/www/magento2/bin/magento \
+                config:set web/secure/base_url "$base_url_slash" >/dev/null \
             && docker exec "$container" /var/www/magento2/bin/magento \
                 cache:flush >/dev/null; then
             return 0
@@ -176,7 +179,7 @@ case "$ACTION" in
         done
         echo
         if [ "$all_ok" -eq 1 ]; then
-            echo "All 5 stacks healthy ✓"
+            echo "All stacks healthy"
         else
             echo "Some stacks didn't respond — gitlab usually needs 2-4 min more to boot."
             echo "Re-run health check: docker ps | grep -E 'gitlab|forum|shopping'"
