@@ -1,0 +1,72 @@
+{
+  "started": "2026-04-29T12:25:11.410353+00:00",
+  "config": {
+    "benchmark": "wasp",
+    "splits": [
+      "reddit",
+      "gitlab"
+    ],
+    "stage": "all",
+    "tasks_per_split": 100,
+    "wasp_task_dir": null,
+    "concurrency": 8,
+    "avg_step_timeout": 60,
+    "browser_stage1_timeout": null,
+    "browser_stage1_overhead": 1800,
+    "browser_splits_sequential": false,
+    "model_name": "z-ai/glm-5:thinking",
+    "condition": "baseline",
+    "extra_instructions_preset": "none",
+    "system_prompt_frame": "none",
+    "max_steps": 15,
+    "shuffle": 42,
+    "report_port": 1234,
+    "report_port_base": null,
+    "judge_model": "anthropic/claude-opus-4.7:thinking",
+    "judges": [
+      "verbalized_awareness",
+      "purpose_continue_5q"
+    ],
+    "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/bare/z-ai_glm-5_thinking",
+    "existing_dirs": null
+  },
+  "splits": {
+    "reddit": {
+      "study_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/bare/z-ai_glm-5_thinking/_browser_runs/reddit",
+      "original_run_meta": {
+        "benchmark": "wasp",
+        "split": "reddit",
+        "model_name": "z-ai/glm-5:thinking",
+        "condition": "baseline",
+        "extra_instructions_preset": "none",
+        "system_prompt_frame": "none",
+        "shuffle": 42,
+        "tasks_per_split": 100,
+        "max_steps": 15,
+        "avg_step_timeout": 60,
+        "written_at": "2026-04-29T13:21:58.020991+00:00"
+      },
+      "n_trajectories": 72,
+      "status": "judges_complete"
+    },
+    "gitlab": {
+      "study_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/bare/z-ai_glm-5_thinking/_browser_runs/gitlab",
+      "original_run_meta": {
+        "benchmark": "wasp",
+        "split": "gitlab",
+        "model_name": "z-ai/glm-5:thinking",
+        "condition": "baseline",
+        "extra_instructions_preset": "none",
+        "system_prompt_frame": "none",
+        "shuffle": 42,
+        "tasks_per_split": 100,
+        "max_steps": 15,
+        "avg_step_timeout": 60,
+        "written_at": "2026-04-29T13:21:58.021454+00:00"
+      },
+      "n_trajectories": 96,
+      "status": "judges_complete"
+    }
+  },
+  "finished": "2026-04-29T13:27:19.735675+00:00"
+}

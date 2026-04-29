@@ -1,0 +1,2 @@
+# Keep this generated eval result snapshot out of normal Git object storage.
+eval_awareness_experiments/results/n200_2026-04-29/wasp/**/trajectory_awareness_results.jsonl filter=lfs diff=lfs merge=lfs -text
