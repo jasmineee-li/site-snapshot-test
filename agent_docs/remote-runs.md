@@ -22,6 +22,11 @@ does not reliably hairpin browser traffic from the instance back to its own
 public IP, which causes false `host_unreachable` render failures and host-bound
 storage-state mismatches. `instances.scale.json` is generated from the host
 config and uses `orchestrator_host` such as `172.17.0.1`.
+`scripts/remote_job_start.sh` enforces this for known on-host browser phases
+and blocks Phase 2/2c defaults or explicit smoke-instance inputs before the
+remote job starts. Override with
+`WORLDSIM_ALLOW_REMOTE_INSTANCE_TOPOLOGY_MISMATCH=1` only when intentionally
+testing an external-browser topology.
 
 Remote metadata and logs live under:
 

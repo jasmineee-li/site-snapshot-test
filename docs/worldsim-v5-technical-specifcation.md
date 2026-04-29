@@ -72,6 +72,13 @@ Three instances-config variants are checked in at the repo root and selected via
 
 All three follow the schema shown above; they differ only in the number and addressing of instances.
 
+On remote-direct rigor hosts, runtime browser traffic must use the host's
+`orchestrator_host` view. In that topology, `instances.smoke.json` may still be
+valid for CI or external smoke checks but is not a valid input for on-host Phase
+2c or Phase 4 browser execution if it points at the public `advertise_host`.
+Remote job wrappers must fail closed on that mismatch before launching the
+browser phase.
+
 The `benchmark_codebase` path is used only for Phase 0 exploration (read-only). The `site_url` is used in Phase 4 for agent evaluation. The `reset_endpoint` is called between tasks to restore environment state; for WebArena Verified this points at the env-ctrl sidecar (e.g., `http://host:7771/init`), not the main site URL. The `db_connection` is optional, used only for postcondition verification and reward evaluation (read-only database access). SQL seeding was evaluated and excluded from the methodology because it violates the threat model: a regular authenticated user cannot write to the database directly. All adversarial content enters through editor methods that map to authenticated HTTP a regular user can issue.
 
 ### Why Modal Sandboxes

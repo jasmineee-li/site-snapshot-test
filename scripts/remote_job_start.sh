@@ -64,6 +64,7 @@ done
 [[ -n "$NAME" ]] || { usage >&2; rj_die "--name required"; }
 (($# > 0)) || { usage >&2; rj_die "missing command after --"; }
 
+rj_guard_runtime_instance_topology "$HOST_CONFIG" "$@"
 rj_prepare_connection "$HOST_CONFIG" "$SSH_KEY_ARG"
 REMOTE_DIR="${REMOTE_DIR:-$(rj_default_remote_dir)}"
 

@@ -94,6 +94,132 @@ PY
     eval "$exports"
 }
 
+rj_guard_runtime_instance_topology() {
+    local host_config="$1"
+    shift
+
+    if [[ "${WORLDSIM_ALLOW_REMOTE_INSTANCE_TOPOLOGY_MISMATCH:-}" == "1" ]]; then
+        return 0
+    fi
+
+    python3 - "$host_config" "$@" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+host_config = Path(sys.argv[1])
+argv = sys.argv[2:]
+
+values: dict[str, str] = {}
+for raw in host_config.read_text(encoding="utf-8").splitlines():
+    line = raw.split("#", 1)[0].rstrip()
+    if not line or line.startswith(" ") or ":" not in line:
+        continue
+    key, value = line.split(":", 1)
+    values[key.strip()] = value.strip().strip("'\"")
+
+advertise_host = values.get("advertise_host", "").strip()
+orchestrator_host = (values.get("orchestrator_host") or advertise_host).strip()
+access_mode = values.get("access_mode", "").strip()
+
+if (
+    not advertise_host
+    or not orchestrator_host
+    or advertise_host == orchestrator_host
+    or access_mode != "remote_direct_restricted"
+):
+    raise SystemExit(0)
+
+command_text = " ".join(" ".join(argv).split())
+if "worldsim.main" not in command_text:
+    raise SystemExit(0)
+
+
+def _runs_phase(phase: str) -> bool:
+    return bool(re.search(rf"\bworldsim\.main\s+phase\s+{re.escape(phase)}(?:\s|$)", command_text))
+
+
+def _option_value(option: str) -> str | None:
+    name = re.escape(option)
+    patterns = (
+        rf"{name}=([^\s;&]+)",
+        rf"{name}\s+([^\s;&]+)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, command_text)
+        if match:
+            return match.group(1).strip("'\"")
+    return None
+
+
+def _is_smoke(value: str | None) -> bool:
+    if value is None:
+        return False
+    return Path(value).name == "instances.smoke.json"
+
+
+issues: list[str] = []
+phase2_live = _runs_phase("2") and "--skip-feasibility" not in command_text
+phase2c_live = _runs_phase("2c")
+phase4_live = _runs_phase("4")
+resume_phase2c = (
+    bool(re.search(r"\bworldsim\.main\s+resume(?:\s|$)", command_text))
+    and "--feasibility-only" in command_text
+    and "--skip-feasibility" not in command_text
+)
+
+if phase2_live or phase2c_live or resume_phase2c:
+    feasibility_instances = _option_value("--feasibility-instances")
+    if feasibility_instances is None:
+        issues.append(
+            "Phase 2/2c on this host must pass "
+            "--feasibility-instances instances.scale.json explicitly; "
+            "the CLI default is instances.smoke.json."
+        )
+    elif _is_smoke(feasibility_instances):
+        issues.append(
+            "Phase 2/2c uses --feasibility-instances instances.smoke.json, "
+            "which points browser probes at the public advertised host."
+        )
+
+if phase4_live:
+    instances = _option_value("--instances")
+    if _is_smoke(instances):
+        issues.append(
+            "Phase 4 uses --instances instances.smoke.json, which points "
+            "Browser Use/PVPO traffic at the public advertised host."
+        )
+
+resume_instances = _option_value("--instances")
+if resume_instances is not None and _is_smoke(resume_instances):
+    issues.append(
+        "Resume uses --instances instances.smoke.json on a host whose runtime "
+        "traffic must use orchestrator_host."
+    )
+
+if not issues:
+    raise SystemExit(0)
+
+message = "\n".join(
+    [
+        "remote job instance-topology guard blocked this command.",
+        f"host_config={host_config}",
+        f"advertise_host={advertise_host}",
+        f"orchestrator_host={orchestrator_host}",
+        "On-host browser phases must use the orchestrator host view. Public-IP "
+        "instance files can produce false Phase 2c host_unreachable failures, "
+        "host-bound storage_state mismatches, and misleading 0-admission artifacts.",
+        *[f"- {issue}" for issue in issues],
+        "Use instances.scale.json generated from the host config, or set "
+        "WORLDSIM_ALLOW_REMOTE_INSTANCE_TOPOLOGY_MISMATCH=1 only for a deliberate "
+        "external-browser topology experiment.",
+    ]
+)
+print(message, file=sys.stderr)
+raise SystemExit(2)
+PY
+}
+
 rj_prepare_connection() {
     local host_config="$1"
     local ssh_key_raw="${2:-}"
