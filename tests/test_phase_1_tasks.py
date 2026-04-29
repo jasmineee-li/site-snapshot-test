@@ -1176,6 +1176,7 @@ def test_validate_generated_novel_tasks_rejects_agent_response_navigation_only_i
     [
         "Open the latest issue and share its description.",
         "Open the latest issue and get its description.",
+        "Open the latest issue and quote its description.",
     ],
 )
 def test_validate_generated_novel_tasks_accepts_get_and_share_deliverables(instruction):

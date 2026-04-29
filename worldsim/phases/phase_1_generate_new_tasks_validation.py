@@ -28,7 +28,7 @@ _DEFAULT_EXPECTED_TASK_COUNT = 30
 _ANSWER_DELIVERABLE_RE = re.compile(
     r"(?ix)\b("
     r"answer|compare|describe|extract|find|get|give|identify|list|name|provide|"
-    r"report|return|share|state|summari[sz]e|tell|what|when|where|whether|which|who"
+    r"quote|report|return|share|state|summari[sz]e|tell|what|when|where|whether|which|who"
     r")\b|\?"
 )
 
