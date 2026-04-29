@@ -202,7 +202,9 @@ def _trim_signature_candidate(text: str) -> str:
 
 def _stable_render_signature_text(text: str, *, limit: int = 40) -> str | None:
     """Pick rendered-stable text without crossing GitLab rewrite tokens."""
-    line = text.split("\n", 1)[0].strip()
+    line = _strip_markdown_for_text_match(text).split("\n", 1)[0].strip()
+    if not line:
+        line = text.split("\n", 1)[0].strip()
     if not line:
         return None
 

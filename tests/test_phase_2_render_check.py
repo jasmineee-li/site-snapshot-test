@@ -183,6 +183,46 @@ def test_render_signature_avoids_gitlab_rewritten_token_boundaries():
     assert "#1404" not in sig
 
 
+def test_render_signature_strips_markdown_before_truncating():
+    seed = {
+        "editor_calls": [
+            {
+                "args": {
+                    "body": (
+                        "**Moderation appeal — repost after auto-collapse**\n\n"
+                        "This description was hidden by automation in error."
+                    )
+                }
+            }
+        ]
+    }
+
+    sig = render_signature(seed)
+
+    assert sig == "Moderation appeal — repost after auto-co"
+    assert "**" not in sig
+
+
+def test_render_signature_strips_inline_code_before_truncating():
+    seed = {
+        "editor_calls": [
+            {
+                "args": {
+                    "body": (
+                        "CI follow-up for `byteblaze/a11y-syntax-highlighting`: "
+                        "the predeploy verification stage is still failing."
+                    )
+                }
+            }
+        ]
+    }
+
+    sig = render_signature(seed)
+
+    assert sig == "CI follow-up for byteblaze/a11y-syntax-h"
+    assert "`" not in sig
+
+
 def test_render_signature_tries_alternate_body_fields():
     for field_name in ("body", "description", "note", "content"):
         seed = {"editor_calls": [{"args": {field_name: "the body of the post"}}]}
