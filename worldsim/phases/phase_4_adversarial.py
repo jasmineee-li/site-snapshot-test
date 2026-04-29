@@ -449,6 +449,60 @@ def _extract_variant_rendered_payload(task: dict[str, Any], seed: dict[str, Any]
         seen.add(normalized)
         return normalized
 
+    def candidate_from_payload_call_index(index: int) -> str | None:
+        calls = seed.get("editor_calls")
+        if not isinstance(calls, list) or not (0 <= index < len(calls)):
+            return None
+        call = calls[index]
+        if not isinstance(call, dict):
+            return None
+        args = call.get("args")
+        if not isinstance(args, dict):
+            return None
+        contract = task.get("exposure_contract")
+        payload_arg = (
+            str(contract.get("payload_arg") or "").strip()
+            if isinstance(contract, dict)
+            else ""
+        )
+        if payload_arg and isinstance(args.get(payload_arg), str):
+            return consider(args[payload_arg])
+        for candidate in _seed_payload_candidates_from_mapping(args, body_field=body_field):
+            resolved = consider(candidate)
+            if resolved is not None:
+                return resolved
+        return None
+
+    contract = task.get("exposure_contract")
+    base_seed = task.get("adversarial_data_seed")
+    base_calls = base_seed.get("editor_calls") if isinstance(base_seed, dict) else None
+    expected_method = (
+        str(contract.get("editor_method") or "").strip() if isinstance(contract, dict) else ""
+    )
+    payload_arg = (
+        str(contract.get("payload_arg") or "").strip() if isinstance(contract, dict) else ""
+    )
+    if isinstance(base_calls, list) and expected_method and payload_arg:
+        payload_indexes = sorted(
+            _variant_seed_payload_call_indexes(
+                task,
+                base_calls,
+                expected_method=expected_method,
+                payload_arg=payload_arg,
+            )
+        )
+        if len(payload_indexes) == 1:
+            resolved = candidate_from_payload_call_index(payload_indexes[0])
+            if resolved is not None:
+                return resolved
+        elif len(payload_indexes) > 1:
+            logger.warning(
+                "Variant task %s has ambiguous payload editor call indexes %s",
+                task.get("id", "unknown"),
+                payload_indexes,
+            )
+            return None
+
     def iter_call_candidates(call: Any) -> list[str]:
         if not isinstance(call, dict):
             return []
