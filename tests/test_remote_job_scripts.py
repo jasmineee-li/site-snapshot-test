@@ -97,6 +97,8 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
     assert ".env" in joined
     assert ".git" in joined
     assert ".git/" in joined
+    assert ".venv/" in joined
+    assert ".venv.*" in joined
     assert ".codex-worktrees/" in joined
     assert "logs/" in joined
     assert "agent-tools/" in joined

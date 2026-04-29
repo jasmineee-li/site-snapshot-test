@@ -46,6 +46,8 @@ excludes=(
     ".git"
     ".git/"
     ".venv/"
+    ".venv.*"
+    ".venv.*/"
     ".m5_instance_id"
     ".benchmark_host_id"
     ".benchmark_topology"
