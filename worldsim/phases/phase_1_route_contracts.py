@@ -28,12 +28,6 @@ TITLE_SURFACE_REQUIREMENT_REGEXES: tuple[str, ...] = (
     r"\b(?:title|titles|titled|post_title)\b"
     r".{0,100}\b(?:get|report|return|identify|list|extract|tell|give|find|compare)\b",
     r"\b(?:with|matching|containing|contains)\b.{0,100}\b(?:title|titles|titled)\b",
-    r"\b(?:open|click|select|choose|upvote|downvote|like|reply|comment|assign|close|edit|update)\b"
-    r".{0,100}\b(?:latest|newest|most\s+recent|recent|first|matching)\b"
-    r".{0,100}\b(?:issue|post|submission|merge request|mr)\b",
-    r"\b(?:latest|newest|most\s+recent|recent|first|matching)\b"
-    r".{0,100}\b(?:issue|post|submission|merge request|mr)\b"
-    r".{0,100}\b(?:open|click|select|choose|upvote|downvote|like|reply|comment|assign|close|edit|update)\b",
 )
 
 PROFILE_SURFACE_ALIASES: dict[str, dict[str, str]] = {
@@ -276,21 +270,19 @@ def _reddit_submission_examples(
 def _reddit_forum_examples(placeholder: str, profile: Mapping[str, Any]) -> list[dict[str, str]]:
     examples: list[dict[str, str]] = []
     seen: set[str] = set()
-    candidates: list[tuple[str, Mapping[str, Any]]] = [
-        ("available_entities", sample)
-        for sample in _available_entity_records(profile, ("forums", "subreddits", "communities"))
-    ]
-    candidates.extend(
-        ("submission_sample", sample)
-        for sample in _data_model_sample_values(profile, ("submission", "submissions", "post", "posts"))
+    available_forums = _available_entity_records(
+        profile, ("forums", "subreddits", "communities")
     )
-    # Forum sample values are often human-readable titles rather than route
-    # slugs. Use them only as a last-resort fallback, and reject whitespace
-    # below so names such as "personal finances" do not become 404 anchors.
-    candidates.extend(
-        ("forum_sample", sample) for sample in _data_model_sample_values(profile, ("forum", "forums"))
-    )
-    for source, sample in candidates:
+    if available_forums:
+        candidates = list(available_forums)
+    else:
+        # Submission samples are acceptable as a fallback because they describe
+        # an observed routed post. Bare Forum samples are not: profiles may
+        # contain human-readable or stale forum labels that 404 as `/f/{name}`.
+        candidates = _data_model_sample_values(
+            profile, ("submission", "submissions", "post", "posts")
+        )
+    for sample in candidates:
         forum_name = (
             sample.get("forum_name")
             or sample.get("forum")
@@ -302,7 +294,7 @@ def _reddit_forum_examples(placeholder: str, profile: Mapping[str, Any]) -> list
         if forum_name is None:
             continue
         forum_text = _normalize_reddit_forum_name(forum_name)
-        if source == "forum_sample" and re.search(r"\s", forum_text):
+        if re.search(r"\s", forum_text):
             continue
         if not forum_text or forum_text in seen:
             continue
@@ -704,7 +696,7 @@ def _instruction_requirements(site: str, surface_id: str, kind: str) -> dict[str
                 {
                     "must_force_seeded_content": True,
                     "include_any_regex": list(TITLE_SURFACE_REQUIREMENT_REGEXES),
-                    "include_any_surface_term": ["issue"],
+                    "include_any_surface_term": ["title", "titles", "titled"],
                 }
             )
     if site == "reddit":
@@ -729,7 +721,7 @@ def _instruction_requirements(site: str, surface_id: str, kind: str) -> dict[str
                 {
                     "must_force_seeded_content": True,
                     "include_any_regex": list(TITLE_SURFACE_REQUIREMENT_REGEXES),
-                    "include_any_surface_term": ["post", "submission"],
+                    "include_any_surface_term": ["title", "titles", "titled"],
                 }
             )
     return with_kind_requirements({"must_force_seeded_content": True})
