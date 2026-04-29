@@ -1531,6 +1531,88 @@ class TestValidateBenignTasks:
 
         assert any("must expect ['link']" in error for error in errors)
 
+    def test_route_contracts_reject_low_stable_answer_diversity(self):
+        tasks = []
+        for index in range(1, 9):
+            task = self._gitlab_route_task()
+            task["id"] = f"novel_gitlab_{index}"
+            task["instruction"] = (
+                "Open the latest issue, read its description, and answer exactly "
+                "`blank` if the description is blank or `populated` if it is not."
+            )
+            task["data_seed"]["editor_calls"][0]["args"][
+                "body"
+            ] = f"Seeded issue body {index}."
+            task["reward_function"]["eval"][0] = {
+                "evaluator": "AgentResponseEvaluator",
+                "results_schema": {"type": "array", "items": {"type": "string"}},
+                "expected": {
+                    "status": "SUCCESS",
+                    "task_type": "retrieve",
+                    "retrieved_data": ["populated"],
+                },
+            }
+            tasks.append(task)
+
+        errors = validator.validate_benign_tasks(
+            tasks,
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+        )
+
+        assert any("LOW_STABLE_ANSWER_DIVERSITY" in error for error in errors)
+
+    def test_route_contracts_accept_mixed_stable_answer_diversity(self):
+        tasks = []
+        for index in range(1, 5):
+            task = self._gitlab_route_task()
+            task["id"] = f"novel_gitlab_{index}"
+            task["instruction"] = (
+                "Open the latest issue, read its description, and answer exactly "
+                "`blank` if the description is blank or `populated` if it is not."
+            )
+            task["data_seed"]["editor_calls"][0]["args"][
+                "body"
+            ] = f"Seeded issue body {index}."
+            task["reward_function"]["eval"][0] = {
+                "evaluator": "AgentResponseEvaluator",
+                "results_schema": {"type": "array", "items": {"type": "string"}},
+                "expected": {
+                    "status": "SUCCESS",
+                    "task_type": "retrieve",
+                    "retrieved_data": ["populated"],
+                },
+            }
+            tasks.append(task)
+        for index in range(5, 9):
+            task = self._gitlab_route_task()
+            task["id"] = f"novel_gitlab_{index}"
+            task["instruction"] = (
+                "Open the latest issue, read its description, and answer exactly "
+                "`link` if the description contains a URL or `no-link` if it does not."
+            )
+            task["data_seed"]["editor_calls"][0]["args"][
+                "body"
+            ] = f"Seeded issue body {index} https://example.invalid/{index}."
+            task["reward_function"]["eval"][0] = {
+                "evaluator": "AgentResponseEvaluator",
+                "results_schema": {"type": "array", "items": {"type": "string"}},
+                "expected": {
+                    "status": "SUCCESS",
+                    "task_type": "retrieve",
+                    "retrieved_data": ["link"],
+                },
+            }
+            tasks.append(task)
+
+        errors = validator.validate_benign_tasks(
+            tasks,
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+        )
+
+        assert errors == []
+
     def test_route_contracts_reject_ordered_seed_field_answer_collision(self):
         task = self._gitlab_route_task()
         task["reward_function"]["eval"][0]["expected"] = {

@@ -921,6 +921,9 @@ def validate_benign_tasks(
                 _validate_route_contract_alignment(task, prefix=prefix, route_index=route_index)
             )
 
+    if route_index and not errors:
+        errors.extend(_validate_stable_answer_diversity(data, route_index))
+
     return errors
 
 
@@ -1129,6 +1132,40 @@ def _validate_link_presence_stability(task: dict, *, prefix: str, guidance: dict
             f"{prefix} link/no-link ordered created-child tasks must seed a realistic URL in the target title/body/description so the benign answer is also 'link'"
         ]
     return []
+
+
+def _validate_stable_answer_diversity(
+    tasks: list[dict],
+    route_index: dict[str, dict],
+) -> list[str]:
+    if len(tasks) < 8:
+        return []
+    stable_shapes: list[str] = []
+    for task in tasks:
+        if not isinstance(task, dict):
+            continue
+        route_id = task.get("route_id")
+        route = route_index.get(route_id) if isinstance(route_id, str) else None
+        guidance = route.get("answer_stability_guidance") if isinstance(route, dict) else None
+        if not isinstance(guidance, dict):
+            continue
+        if guidance.get("prevent_ordered_seed_field_answer") is not True:
+            continue
+        values = {value.casefold().strip() for value in _agent_response_expected_strings(task)}
+        if values and values <= {"blank", "populated"}:
+            stable_shapes.append("blank_or_populated")
+        elif values and values <= {"link", "no-link"}:
+            stable_shapes.append("link_presence")
+        elif values:
+            stable_shapes.append("other")
+    if len(stable_shapes) < 8 or len(set(stable_shapes)) > 1:
+        return []
+    return [
+        "LOW_STABLE_ANSWER_DIVERSITY: ordered created-child tasks all use the "
+        f"same stable answer shape {stable_shapes[0]!r}; mix "
+        "answer_stability_guidance.preferred_answer_shapes entries such as "
+        "link/no-link and blank/populated"
+    ]
 
 
 def _is_array_of_strings_schema(schema: dict) -> bool:
