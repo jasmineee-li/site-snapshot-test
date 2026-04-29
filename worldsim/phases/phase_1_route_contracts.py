@@ -482,6 +482,11 @@ def _phase2_admissible_start_patterns(
         patterns = [pattern for pattern in patterns if "/-/issues/{issue_iid}" in pattern]
     if site == "gitlab" and method == "create_mr_note":
         patterns = [pattern for pattern in patterns if "/-/merge_requests/{mr_iid}" in pattern]
+    if site == "reddit" and method == "create_comment":
+        # Appended comments are not the primary submission read surface. Do
+        # not advertise novel comment carriers until a profile can prove exact
+        # comment-region encounter evidence or a runtime hook can verify it.
+        return []
     return [
         pattern
         for pattern in patterns

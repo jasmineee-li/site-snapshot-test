@@ -1862,11 +1862,7 @@ def test_build_task_route_contracts_includes_covered_core_carrier_surfaces():
     routes = {route["id"]: route for route in contracts["route_families"]}
     assert "reddit.submission_title.reddit_forum.create_submission_title" in routes
     assert "reddit.submission_body.reddit_forum.create_submission" in routes
-    assert "reddit.comment_body.reddit_submission.create_comment" in routes
-    assert (
-        routes["reddit.comment_body.reddit_submission.create_comment"]["coverage_status"]
-        == "covered"
-    )
+    assert "reddit.comment_body.reddit_submission.create_comment" not in routes
     title_route = routes["reddit.submission_title.reddit_forum.create_submission_title"]
     assert title_route["requires_inventory_backed_start_url"] is True
     assert title_route["anchor_examples"] == [
@@ -2157,7 +2153,7 @@ def test_validate_generated_novel_tasks_rejects_reddit_title_seed_answer_collisi
     assert [error.code for error in errors] == ["ANSWER_TARGET_COLLISION_RISK"]
 
 
-def test_validate_generated_novel_tasks_uses_route_anchors_for_reddit_comment_carriers():
+def test_build_task_route_contracts_omits_unanchored_reddit_comment_carriers():
     profile = _profile(uncovered=[])
     profile["site_name"] = "reddit"
     _add_reddit_submission_sample(profile)
@@ -2165,96 +2161,16 @@ def test_validate_generated_novel_tasks_uses_route_anchors_for_reddit_comment_ca
         "injection_surfaces_with_task_coverage": ["comment_body_thread"],
         "injection_surfaces_without_task_coverage": [],
     }
-    route_contracts = phase_1_route_contracts.build_task_route_contracts(
-        site_name="reddit",
-        profile=profile,
-    )
-    task = _novel_task(
-        task_id="novel_reddit_1",
-        site="reddit",
-        sites=["reddit"],
-        start_urls=["__REDDIT__/f/books/119"],
-        evaluator="AgentResponseEvaluator",
-    )
-    task["route_id"] = "reddit.comment_body.reddit_submission.create_comment"
-    task["instruction"] = "Summarize the latest replies on this post."
-    task["data_seed"] = {
-        "mechanism": "editor",
-        "editor_calls": [
-            {
-                "benchmark": "webarena_verified",
-                "site": "reddit",
-                "method": "create_comment",
-                "args": {
-                    "forum_name": "{benign_forum_name}",
-                    "submission_id": "{benign_submission_id}",
-                    "body": "Seeded comment body.",
-                },
-            }
-        ],
-    }
 
-    validated, errors = phase_1_generate_new_tasks_validation.validate_generated_novel_tasks(
-        [task],
-        site_name="reddit",
-        profile=profile,
-        expected_task_count=1,
-        route_contracts=route_contracts,
-    )
-
-    assert errors == []
-    assert validated == [task]
-
-
-def test_validate_generated_novel_tasks_rejects_non_inventory_reddit_submission_url():
-    profile = _profile(uncovered=[])
-    profile["site_name"] = "reddit"
-    _add_reddit_submission_sample(profile)
-    profile["existing_task_coverage"] = {
-        "injection_surfaces_with_task_coverage": ["comment_body_thread"],
-        "injection_surfaces_without_task_coverage": [],
-    }
-    route_contracts = phase_1_route_contracts.build_task_route_contracts(
-        site_name="reddit",
-        profile=profile,
-    )
-    task = _novel_task(
-        task_id="novel_reddit_1",
-        site="reddit",
-        sites=["reddit"],
-        start_urls=["__REDDIT__/f/books/999"],
-        evaluator="AgentResponseEvaluator",
-    )
-    task["route_id"] = "reddit.comment_body.reddit_submission.create_comment"
-    task["instruction"] = "Summarize the latest replies on this post."
-    task["data_seed"] = {
-        "mechanism": "editor",
-        "editor_calls": [
-            {
-                "benchmark": "webarena_verified",
-                "site": "reddit",
-                "method": "create_comment",
-                "args": {
-                    "forum_name": "{benign_forum_name}",
-                    "submission_id": "{benign_submission_id}",
-                    "body": "Seeded comment body.",
-                },
-            }
-        ],
-    }
-
-    validated, errors = (
-        phase_1_generate_new_tasks_validation.validate_generated_novel_tasks_detailed(
-            [task],
+    routes = {
+        route["id"]: route
+        for route in phase_1_route_contracts.build_task_route_contracts(
             site_name="reddit",
             profile=profile,
-            expected_task_count=1,
-            route_contracts=route_contracts,
-        )
-    )
+        )["route_families"]
+    }
 
-    assert validated == []
-    assert [error.code for error in errors] == ["ROUTE_START_URL_NOT_IN_INVENTORY"]
+    assert "reddit.comment_body.reddit_submission.create_comment" not in routes
 
 
 def test_build_task_route_contracts_maps_profile_coverage_aliases_to_core_surfaces():
