@@ -113,6 +113,7 @@ def run_causal_experiment(
     avg_step_timeout: int | None = None,
     browser_stage1_timeout: int | None = None,
     browser_stage1_overhead: int | None = None,
+    browser_stage1_idle_timeout: int | None = None,
     browser_splits_sequential: bool = False,
     wasp_task_dir: str | None = None,
 ) -> None:
@@ -138,6 +139,8 @@ def run_causal_experiment(
         print(f"  Browser split timeout: {browser_stage1_timeout}s")
     elif browser_stage1_overhead is not None:
         print(f"  Browser split timeout overhead: {browser_stage1_overhead}s")
+    if browser_stage1_idle_timeout is not None:
+        print(f"  Browser split idle timeout: {browser_stage1_idle_timeout}s")
     if wasp_task_dir is not None:
         print(f"  WASP task dir: {wasp_task_dir}")
     if skip_existing:
@@ -223,6 +226,11 @@ def run_causal_experiment(
             cmd.extend(["--browser-stage1-timeout", str(browser_stage1_timeout)])
         if browser_stage1_overhead is not None:
             cmd.extend(["--browser-stage1-overhead", str(browser_stage1_overhead)])
+        if browser_stage1_idle_timeout is not None:
+            cmd.extend([
+                "--browser-stage1-idle-timeout",
+                str(browser_stage1_idle_timeout),
+            ])
         if browser_splits_sequential:
             cmd.append("--browser-splits-sequential")
         if benchmark == "wasp" and wasp_task_dir is not None:
@@ -322,6 +330,9 @@ def main() -> None:
     parser.add_argument("--browser-stage1-overhead", type=int, default=None,
                         help="Forwarded to run_safety_pipeline. Used only when "
                              "--browser-stage1-timeout is omitted.")
+    parser.add_argument("--browser-stage1-idle-timeout", type=int, default=None,
+                        help="Forwarded to run_safety_pipeline. Browser split "
+                             "idle watchdog in seconds; use 0 to disable.")
     parser.add_argument("--browser-splits-sequential", action="store_true",
                         help="Forwarded to run_safety_pipeline for debugging "
                              "site/container contention.")
@@ -351,6 +362,7 @@ def main() -> None:
         avg_step_timeout=args.avg_step_timeout,
         browser_stage1_timeout=args.browser_stage1_timeout,
         browser_stage1_overhead=args.browser_stage1_overhead,
+        browser_stage1_idle_timeout=args.browser_stage1_idle_timeout,
         browser_splits_sequential=args.browser_splits_sequential,
         wasp_task_dir=args.wasp_task_dir,
     )

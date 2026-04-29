@@ -48,6 +48,7 @@ JUDGES="${JUDGES:-}"
 BROWSER_TASK_TIMEOUT="${BROWSER_TASK_TIMEOUT:-900}"
 BROWSER_STAGE1_OVERHEAD="${BROWSER_STAGE1_OVERHEAD:-1800}"
 BROWSER_STAGE1_TIMEOUT="${BROWSER_STAGE1_TIMEOUT:-$((N_TASKS * BROWSER_TASK_TIMEOUT + BROWSER_STAGE1_OVERHEAD))}"
+BROWSER_STAGE1_IDLE_TIMEOUT="${BROWSER_STAGE1_IDLE_TIMEOUT:-3600}"
 
 DRY_RUN=""
 if [ "$1" = "--dry-run" ]; then
@@ -71,6 +72,7 @@ else
     echo "  judges=<per-arm defaults>"
 fi
 echo "  browser_stage1_timeout=${BROWSER_STAGE1_TIMEOUT}s"
+echo "  browser_stage1_idle_timeout=${BROWSER_STAGE1_IDLE_TIMEOUT}s"
 echo
 
 # (model_id | stack_slug | gitlab_port | reddit_port)
@@ -160,6 +162,7 @@ for entry in "${MODEL_STACKS[@]}"; do
                 --judge-model "$JUDGE_MODEL" \
                 --tasks-per-split "$N_TASKS" \
                 --browser-stage1-timeout "$BROWSER_STAGE1_TIMEOUT" \
+                --browser-stage1-idle-timeout "$BROWSER_STAGE1_IDLE_TIMEOUT" \
                 --splits $SPLITS \
                 --output-base "$OUTPUT_BASE"
             status=$?

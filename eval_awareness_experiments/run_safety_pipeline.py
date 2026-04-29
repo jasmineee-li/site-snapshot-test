@@ -29,6 +29,7 @@ import asyncio
 import json
 import logging
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -112,6 +113,19 @@ def _browser_stage1_timeout(args: argparse.Namespace) -> int:
     )
 
 
+def _browser_stage1_idle_timeout(args: argparse.Namespace) -> int:
+    """Maximum quiet period for a browser split before killing its process tree.
+
+    AgentLab still enforces the tighter per-task timeout. If a split has not
+    written logs, step files, summaries, or aggregate results for an hour, it
+    is almost certainly stuck in Playwright/Chrome teardown or task cleanup.
+    """
+    value = getattr(args, "browser_stage1_idle_timeout", None)
+    if value is None:
+        return 3600
+    return int(value)
+
+
 def _run_subprocess(
     cmd: list[str],
     *,
@@ -165,6 +179,84 @@ def _tail_lines(path: Path, n: int) -> list[str]:
         return []
 
 
+def _latest_browser_activity_time(
+    split_root: Path,
+    stdout_path: Path,
+    stderr_path: Path,
+) -> float:
+    """Return latest mtime for files that prove a browser split is moving."""
+    paths = [
+        stdout_path,
+        stderr_path,
+        split_root / "full_results.csv",
+        split_root / "short_results.csv",
+        split_root / "attack_results_v2.csv",
+        split_root / "attack_df_deduplicated.csv",
+        split_root / "attack_df_legacy.csv",
+    ]
+    for pattern in (
+        "summary_info.json",
+        "attack_summary_info.json",
+        "*.log",
+        "step_*.pkl.gz",
+    ):
+        paths.extend(split_root.rglob(pattern))
+
+    latest = 0.0
+    for path in paths:
+        try:
+            latest = max(latest, path.stat().st_mtime)
+        except OSError:
+            pass
+    return latest
+
+
+def _terminate_process_group(
+    proc: subprocess.Popen,
+    *,
+    split: str,
+    reason: str,
+    grace_sec: int = 10,
+) -> bool:
+    """Terminate a split process group, including Playwright/Chrome children."""
+    if proc.poll() is not None:
+        return True
+    try:
+        pgid = os.getpgid(proc.pid)
+    except ProcessLookupError:
+        return True
+
+    logger.error(f"  [{split}] terminating process group {pgid}: {reason}")
+    try:
+        os.killpg(pgid, signal.SIGTERM)
+    except ProcessLookupError:
+        return True
+    except OSError as e:
+        logger.error(f"  [{split}] failed to SIGTERM process group {pgid}: {e!r}")
+        return False
+
+    try:
+        proc.wait(timeout=grace_sec)
+        return True
+    except subprocess.TimeoutExpired:
+        logger.error(
+            f"  [{split}] process group {pgid} ignored SIGTERM; sending SIGKILL"
+        )
+
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    except OSError as e:
+        logger.error(f"  [{split}] failed to SIGKILL process group {pgid}: {e!r}")
+    try:
+        proc.wait(timeout=grace_sec)
+        return True
+    except subprocess.TimeoutExpired:
+        logger.error(f"  [{split}] process group {pgid} still did not exit")
+        return False
+
+
 def _write_run_meta(run_dir: Path, args, benchmark: str, split: str) -> None:
     """Persist the original-run config alongside trajectories.
 
@@ -183,6 +275,11 @@ def _write_run_meta(run_dir: Path, args, benchmark: str, split: str) -> None:
         "tasks_per_split": args.tasks_per_split,
         "max_steps": getattr(args, "max_steps", None),
         "avg_step_timeout": getattr(args, "avg_step_timeout", None),
+        "browser_stage1_timeout": getattr(args, "browser_stage1_timeout", None),
+        "browser_stage1_overhead": getattr(args, "browser_stage1_overhead", None),
+        "browser_stage1_idle_timeout": getattr(
+            args, "browser_stage1_idle_timeout", None
+        ),
         "written_at": datetime.now(timezone.utc).isoformat(),
     }
     try:
@@ -421,10 +518,11 @@ def _stage1_browser_parallel_splits(
       (always contain the `--single-site` string), since the global
       glob-diff before/after pattern can't tell which dir is for which
       split when launches are concurrent.
-    - Each subprocess wrapped in `timeout(1)` (the same Playwright-hang
-      workaround as the sequential path).
+    - Each subprocess wrapped in `timeout(1)` and launched in its own process
+      group so idle watchdog kills clean up Playwright/Chrome descendants.
     """
     timeout_sec = _browser_stage1_timeout(args)
+    idle_timeout_sec = _browser_stage1_idle_timeout(args)
     before = set((REPO_ROOT / "results" / "browsergym").glob("study_*"))
     cell_dir = _cell_results_dir(args, benchmark)
     if cell_dir is not None:
@@ -436,7 +534,7 @@ def _stage1_browser_parallel_splits(
     else:
         port_base = None
 
-    procs: list[tuple[str, subprocess.Popen, list[str], Path, Path, object, object]] = []
+    procs: list[dict] = []
     for i, split in enumerate(splits):
         report_port = None
         if port_base is not None:
@@ -466,22 +564,40 @@ def _stage1_browser_parallel_splits(
             cmd, cwd=str(REPO_ROOT),
             stdout=stdout_file, stderr=stderr_file, text=True,
             env=os.environ.copy(),
+            start_new_session=True,
         )
-        procs.append((split, proc, cmd, stdout_path, stderr_path, stdout_file, stderr_file))
+        now = time.time()
+        procs.append({
+            "split": split,
+            "proc": proc,
+            "cmd": cmd,
+            "stdout_path": stdout_path,
+            "stderr_path": stderr_path,
+            "stdout_file": stdout_file,
+            "stderr_file": stderr_file,
+            "split_root": log_dir,
+            "started_at": now,
+            "last_activity": now,
+            "kill_reason": None,
+            "closed": False,
+        })
 
     # Wait for all to finish. Child stdout/stderr go to files instead of pipes:
     # this avoids pipe-buffer backpressure when one split logs heavily while
-    # another split is still running.
+    # another split is still running. Poll all splits together so a hung first
+    # split cannot prevent us from noticing later splits have completed.
     results: dict[str, bool] = {}
-    for split, proc, cmd, stdout_path, stderr_path, stdout_file, stderr_file in procs:
-        try:
-            proc.wait(timeout=timeout_sec + 30)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait()
-        finally:
-            stdout_file.close()
-            stderr_file.close()
+    pending = {item["split"]: item for item in procs}
+
+    def _finalize_split(item: dict) -> None:
+        split = item["split"]
+        proc = item["proc"]
+        stdout_path = item["stdout_path"]
+        stderr_path = item["stderr_path"]
+        if not item["closed"]:
+            item["stdout_file"].close()
+            item["stderr_file"].close()
+            item["closed"] = True
         logger.info(f"  [{split}] stdout log → {stdout_path}")
         logger.info(f"  [{split}] stderr log → {stderr_path}")
         for line in _tail_lines(stdout_path, 30):
@@ -489,7 +605,12 @@ def _stage1_browser_parallel_splits(
         for line in _tail_lines(stderr_path, 15):
             logger.warning(f"  [{split} stderr] {line.rstrip()}")
         ok = proc.returncode == 0
-        if proc.returncode in (124, 137):
+        if item["kill_reason"]:
+            logger.error(
+                f"  [{split}] subprocess killed: {item['kill_reason']} "
+                f"(exit={proc.returncode})"
+            )
+        elif proc.returncode in (124, 137):
             logger.error(
                 f"  [{split}] subprocess TIMED OUT after {timeout_sec}s "
                 f"(exit={proc.returncode}). The split may be stuck in backend "
@@ -499,6 +620,57 @@ def _stage1_browser_parallel_splits(
         elif not ok:
             logger.error(f"  [{split}] subprocess failed: exit={proc.returncode}")
         results[split] = ok
+
+    while pending:
+        now = time.time()
+        for split, item in list(pending.items()):
+            proc = item["proc"]
+            activity = _latest_browser_activity_time(
+                item["split_root"],
+                item["stdout_path"],
+                item["stderr_path"],
+            )
+            if activity > item["last_activity"]:
+                item["last_activity"] = activity
+
+            if proc.poll() is not None:
+                _finalize_split(item)
+                del pending[split]
+                continue
+
+            elapsed = now - item["started_at"]
+            idle_for = now - item["last_activity"]
+            if elapsed > timeout_sec + 30:
+                item["kill_reason"] = (
+                    f"hard timeout after {timeout_sec}s process budget"
+                )
+                terminated = _terminate_process_group(
+                    proc,
+                    split=split,
+                    reason=item["kill_reason"],
+                )
+                if not terminated:
+                    continue
+                _finalize_split(item)
+                del pending[split]
+                continue
+            if idle_timeout_sec > 0 and idle_for > idle_timeout_sec:
+                item["kill_reason"] = (
+                    f"idle timeout after {idle_timeout_sec}s without browser "
+                    f"logs/results activity"
+                )
+                terminated = _terminate_process_group(
+                    proc,
+                    split=split,
+                    reason=item["kill_reason"],
+                )
+                if not terminated:
+                    continue
+                _finalize_split(item)
+                del pending[split]
+
+        if pending:
+            time.sleep(15)
 
     # Match new study_dirs to splits. Two paths:
     # 1. cell-namespaced: each split's runner wrote to <cell_dir>/<split>/study_*,
@@ -789,6 +961,10 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--browser-stage1-overhead", type=int, default=1800,
                         help="Extra seconds added to the computed browser split timeout "
                              "when --browser-stage1-timeout is omitted. Default 1800s.")
+    parser.add_argument("--browser-stage1-idle-timeout", type=int, default=3600,
+                        help="Kill a browser split if no subprocess log, step, "
+                             "summary, or aggregate result file changes for this "
+                             "many seconds. Use 0 to disable. Default 3600s.")
     parser.add_argument("--browser-splits-sequential", action="store_true",
                         help="Force browser-benchmark splits to run sequentially within a "
                              "cell (legacy behavior). Default is parallel — splits hit "

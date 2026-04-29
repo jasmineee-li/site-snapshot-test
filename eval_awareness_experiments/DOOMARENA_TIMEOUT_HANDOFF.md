@@ -1,5 +1,44 @@
 # DoomArena timeout handoff — 2026-04-29
 
+## 2026-04-29 status update
+
+The original fixed 30-minute browser split timeout has been replaced for the
+N200 launcher with a size-aware timeout:
+
+```
+BROWSER_STAGE1_TIMEOUT = N_TASKS * BROWSER_TASK_TIMEOUT + BROWSER_STAGE1_OVERHEAD
+```
+
+For `N_TASKS=50`, the default is `50 * 900s + 1800s = 46800s`. This prevents
+legitimate long per-site runs from being killed solely because the split has
+more tasks.
+
+The remaining failure mode was not the coarse split timeout. Some AgentLab /
+Playwright child processes can keep running for hours after a per-task
+`TimeoutError`, while no new summaries, step files, logs, or aggregate CSVs
+are produced. Because `run_safety_pipeline` waits for all four site split
+subprocesses before judging and advancing to the next arm, one stale split can
+stall an entire model stream.
+
+Current mitigation in `run_safety_pipeline.py`:
+
+- browser split stdout/stderr go to per-split log files instead of parent pipes;
+- split subprocesses are launched in their own process groups;
+- all split subprocesses are polled concurrently, so a stuck first split does
+  not hide completed sibling splits;
+- a browser-stage idle watchdog kills a split process group after
+  `--browser-stage1-idle-timeout` seconds with no log/result/summary/step-file
+  activity;
+- the idle timeout is exposed through `run_causal_experiment.py` and
+  `launch_doomarena_per_model.sh`, defaulting to 3600 seconds and disableable
+  with `0`.
+
+Operational note for the 2026-04-29 N200 run: any `run_safety_pipeline`
+process that was already inside browser stage 1 before this patch was loaded is
+not protected by the in-process watchdog. Those already-running splits need
+manual monitoring or an external one-off watchdog. Fresh arms started after the
+patch load the new default.
+
 ## TL;DR
 
 When we run the DoomArena causal pilot on **gitlab**, 6 of 8 model cells
