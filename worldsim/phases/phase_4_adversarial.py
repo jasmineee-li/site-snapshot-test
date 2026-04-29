@@ -106,7 +106,7 @@ from worldsim.phase_4.exposure_admission import (
     exposure_admission_error as _exposure_admission_error,
 )
 from worldsim.phase_4.needham_trace import format_trace_xml, write_trace_artifacts
-from worldsim.phase_4.payload_witnesses import witness_texts_for_task
+from worldsim.phase_4.payload_witnesses import payload_witnesses_for_task
 from worldsim.phase_4.placement_api import run_placement_api
 from worldsim.phase_4.strategy_catalog import ALLOWED_STRATEGIES as _ALLOWED_STRATEGIES
 from worldsim.phase_4.transcript_purpose_api import (
@@ -3266,7 +3266,9 @@ async def run_adversarial_task(
             selected_payload = _selected_rendered_payload(task)
             if selected_payload is not None:
                 run_kwargs["payload_text"] = selected_payload
-            payload_witnesses = witness_texts_for_task(task)
+            payload_witnesses = [
+                witness.as_dict() for witness in payload_witnesses_for_task(task)
+            ]
             if payload_witnesses:
                 run_kwargs["payload_witnesses"] = payload_witnesses
             result = await agent.run(

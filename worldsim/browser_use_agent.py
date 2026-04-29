@@ -115,7 +115,7 @@ class AgentRunner(Protocol):
         benchmark_root: Path | None = None,
         task_site: str | None = None,
         payload_text: str | None = None,
-        payload_witnesses: list[str] | None = None,
+        payload_witnesses: list[str | dict[str, Any]] | None = None,
         pvpo_cdp_url: str | None = None,
         instance_id: str | None = None,
         url_origin_rewrites: dict[str, str] | None = None,
@@ -1659,7 +1659,7 @@ class BrowserUseAgent:
         benchmark_root: Path | None = None,
         task_site: str | None = None,
         payload_text: str | None = None,
-        payload_witnesses: list[str] | None = None,
+        payload_witnesses: list[str | dict[str, Any]] | None = None,
         pvpo_cdp_url: str | None = None,
         instance_id: str | None = None,
         url_origin_rewrites: dict[str, str] | None = None,
@@ -2363,12 +2363,40 @@ def _extract_history_state(history: Any) -> tuple[int, bool, str | None, list[st
     return steps, is_done, final_result, errors
 
 
+def _normalize_payload_witness_specs(
+    payload_witnesses: list[str | dict[str, Any]] | None,
+) -> list[dict[str, str]]:
+    specs: list[dict[str, str]] = []
+    for index, witness in enumerate(payload_witnesses or []):
+        if isinstance(witness, str):
+            if witness:
+                specs.append({"id": f"witness:{index}", "text": witness})
+            continue
+        if not isinstance(witness, dict):
+            continue
+        text = witness.get("text")
+        if not isinstance(text, str) or not text:
+            continue
+        witness_id = witness.get("id")
+        kind = witness.get("kind")
+        spec = {
+            "id": witness_id
+            if isinstance(witness_id, str) and witness_id
+            else f"witness:{index}",
+            "text": text,
+        }
+        if isinstance(kind, str) and kind:
+            spec["kind"] = kind
+        specs.append(spec)
+    return specs
+
+
 def _make_pvpo_step_callback(
     session: Any,
     task_dir: Path,
     payload_text: str | None,
     *,
-    payload_witnesses: list[str] | None = None,
+    payload_witnesses: list[str | dict[str, Any]] | None = None,
     owned_target_ids: set[str] | None = None,
     capturing: asyncio.Event | None = None,
 ):
@@ -2430,9 +2458,7 @@ def _make_pvpo_step_callback(
     pages_prepared: set[str] = set()
     warned_issue_classes: set[str] = set()
     capture_summary = initial_capture_summary(payload_present=True)
-    non_empty_witnesses = [
-        witness for witness in (payload_witnesses or []) if isinstance(witness, str) and witness
-    ]
+    non_empty_witnesses = _normalize_payload_witness_specs(payload_witnesses)
     payload_text_present = isinstance(payload_text, str) and bool(payload_text)
     if non_empty_witnesses:
         witness_mode = "curated_witnesses"
@@ -2446,7 +2472,13 @@ def _make_pvpo_step_callback(
         {
             "witness_selection_mode": witness_mode,
             "payload_witness_count": len(non_empty_witnesses),
-            "payload_witness_lengths": [len(witness) for witness in non_empty_witnesses],
+            "payload_witness_lengths": [
+                len(witness["text"]) for witness in non_empty_witnesses
+            ],
+            "payload_witness_ids": [witness.get("id") for witness in non_empty_witnesses],
+            "payload_witness_kinds": [
+                witness.get("kind") for witness in non_empty_witnesses
+            ],
             "payload_text_present": payload_text_present,
             "payload_text_length": len(payload_text) if isinstance(payload_text, str) else 0,
         }
@@ -2566,7 +2598,7 @@ def _make_pvpo_step_callback(
                 cdp_session,
                 viewport_rect=viewport_rect,
                 payload_text=payload_text,
-                witness_texts=payload_witnesses,
+                witness_texts=non_empty_witnesses if payload_witnesses is not None else None,
                 scroll_to_match=False,
                 capturing=capturing,
                 cdp_timeout_s=timeout_s,

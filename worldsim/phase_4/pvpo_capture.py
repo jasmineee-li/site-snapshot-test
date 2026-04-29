@@ -46,10 +46,56 @@ _PVPO_CAPTURE_SUMMARY_FILENAME = "capture_summary.json"
 _BEGINFRAME_EMPTY_SCREENSHOT_RETRIES = 1
 
 
+def _normalize_witness_specs(
+    payload_text: str,
+    witness_texts: list[str | dict[str, Any]] | None,
+) -> list[dict[str, str]]:
+    if witness_texts is None:
+        values: list[str | dict[str, Any]] = (
+            [payload_text] if isinstance(payload_text, str) else []
+        )
+    else:
+        values = [w for w in witness_texts if _witness_text_from_value(w)]
+        if not values and isinstance(payload_text, str) and payload_text:
+            values = [payload_text]
+
+    witnesses: list[dict[str, str]] = []
+    for idx, value in enumerate(values):
+        text = _witness_text_from_value(value)
+        if not text:
+            continue
+        if isinstance(value, dict):
+            witness_id = value.get("id")
+            kind = value.get("kind")
+        else:
+            witness_id = None
+            kind = None
+        spec = {
+            "id": witness_id
+            if isinstance(witness_id, str) and witness_id
+            else f"witness:{idx}",
+            "text": text,
+        }
+        if isinstance(kind, str) and kind:
+            spec["kind"] = kind
+        witnesses.append(spec)
+    return witnesses
+
+
+def _witness_text_from_value(value: str | dict[str, Any]) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        text = value.get("text")
+        if isinstance(text, str):
+            return text
+    return ""
+
+
 def build_pvpo_query_js(
     payload_text: str,
     *,
-    witness_texts: list[str] | None = None,
+    witness_texts: list[str | dict[str, Any]] | None = None,
     scroll_to_match: bool = False,
 ) -> str:
     """Return the PVPO per-step JS with attack witnesses inlined as JSON.
@@ -65,17 +111,7 @@ def build_pvpo_query_js(
     JSON is ``[]``, the JS returns ``matchFound: false`` forever, and
     encounter detection reports ``max_coverage=0`` (spurious ``gate1_invalid``).
     """
-    if witness_texts is None:
-        values: list[str] = [payload_text] if isinstance(payload_text, str) else []
-    else:
-        values = [w for w in witness_texts if isinstance(w, str) and w]
-        if not values and isinstance(payload_text, str) and payload_text:
-            values = [payload_text]
-    witnesses = [
-        {"id": f"witness:{idx}", "text": value}
-        for idx, value in enumerate(values)
-        if isinstance(value, str) and value
-    ]
+    witnesses = _normalize_witness_specs(payload_text, witness_texts)
     return _PVPO_QUERY_JS_TEMPLATE.replace(
         _PAYLOAD_SUBSTITUTION_TOKEN, json.dumps(witnesses)
     ).replace(_SCROLL_TO_MATCH_SUBSTITUTION_TOKEN, "true" if scroll_to_match else "false")
@@ -134,7 +170,7 @@ async def atomic_capture_with_visibility(
     *,
     viewport_rect: Rect,
     payload_text: str = "",
-    witness_texts: list[str] | None = None,
+    witness_texts: list[str | dict[str, Any]] | None = None,
     scroll_to_match: bool = False,
     capturing: asyncio.Event | None = None,
     cdp_timeout_s: float | None = None,

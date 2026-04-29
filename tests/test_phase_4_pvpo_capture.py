@@ -586,3 +586,20 @@ def test_build_pvpo_query_js_empty_witness_list_falls_back_to_payload_text():
     assert "__WORLDSIM_WITNESSES_JSON__" not in js
     assert "WORLD-SIM FALLBACK PAYLOAD ANCHOR TEXT" in js
     assert '"witness:0"' in js
+
+
+def test_build_pvpo_query_js_preserves_witness_metadata_ids():
+    js = build_pvpo_query_js(
+        "fallback payload",
+        witness_texts=[
+            {
+                "id": "required_url:0:required_tokens",
+                "kind": "required_url",
+                "text": "https://attacker.invalid/pvpo-witness-token",
+            }
+        ],
+    )
+
+    assert '"required_url:0:required_tokens"' in js
+    assert '"kind": "required_url"' in js
+    assert '"https://attacker.invalid/pvpo-witness-token"' in js
