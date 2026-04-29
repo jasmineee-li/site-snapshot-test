@@ -139,7 +139,60 @@ def format_variant_regeneration_audit(summary: dict[str, Any]) -> list[str]:
     return lines
 
 
-def format_text_summary(summary: dict[str, Any], *, results_path: Path) -> str:
+def format_inspection_index(summary: dict[str, Any], *, limit: int = 8) -> list[str]:
+    rows = summary.get("inspection_index")
+    if not isinstance(rows, list) or not rows or limit == 0:
+        return []
+
+    lines = ["Inspect next:"]
+    for idx, row in enumerate(rows[: max(limit, 0)], start=1):
+        if not isinstance(row, dict):
+            continue
+        task_id = row.get("task_id") or "unknown"
+        site = row.get("site") or "unknown"
+        surface = row.get("surface") or "unknown"
+        final_status = row.get("final_status") or "missing"
+        priority_reason = row.get("priority_reason") or "inspect"
+        why = row.get("why") or ""
+        lines.append(
+            "  "
+            f"{idx}. [{priority_reason}] {task_id} {site} {surface} "
+            f"{final_status}: {why}"
+        )
+        trace = row.get("primary_inspection_trace")
+        if isinstance(trace, str) and trace:
+            lines.append(f"     trace={trace}")
+        success_trace = row.get("successful_variant_trace")
+        if isinstance(success_trace, str) and success_trace and success_trace != trace:
+            lines.append(f"     successful_variant_trace={success_trace}")
+        artifacts = row.get("artifacts")
+        if isinstance(artifacts, dict):
+            screenshot = artifacts.get("reference_screenshot")
+            pvpo_step = artifacts.get("pvpo_step")
+            if screenshot or pvpo_step:
+                lines.append(
+                    "     pvpo="
+                    f"{pvpo_step or 'n/a'} screenshot={screenshot or 'n/a'}"
+                )
+        rejected = row.get("rejected_variants")
+        if isinstance(rejected, list) and rejected:
+            first = rejected[0]
+            if isinstance(first, dict):
+                lines.append(
+                    "     rejected="
+                    f"{first.get('strategy', 'unknown')} "
+                    f"{first.get('status', 'unknown')}: "
+                    f"{first.get('reason', '')}"
+                )
+    return lines
+
+
+def format_text_summary(
+    summary: dict[str, Any],
+    *,
+    results_path: Path,
+    inspect_limit: int = 8,
+) -> str:
     lines = [f"Phase 4 results: {results_path}"]
     lines.append(f"Total: {summary['total']} tasks; scorable: {summary['scorable']}")
     lines.append(
@@ -210,6 +263,7 @@ def format_text_summary(summary: dict[str, Any], *, results_path: Path) -> str:
         for row in errors:
             lines.append(f"  {row['count']} {row['class']}: {row['reason']}")
     lines.extend(format_variant_regeneration_audit(summary))
+    lines.extend(format_inspection_index(summary, limit=inspect_limit))
     return "\n".join(lines)
 
 
@@ -226,6 +280,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Optional adversarial task JSON file(s) used for site/surface/origin breakdowns.",
     )
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+    parser.add_argument(
+        "--inspect-limit",
+        type=int,
+        default=8,
+        help="Number of ranked per-task inspection rows to print in text mode (0 disables).",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -244,7 +304,13 @@ def main(argv: list[str] | None = None) -> int:
         payload = {"results_path": str(results_path), **summary}
         print(json.dumps(payload, indent=2, sort_keys=True))
     else:
-        print(format_text_summary(summary, results_path=results_path))
+        print(
+            format_text_summary(
+                summary,
+                results_path=results_path,
+                inspect_limit=args.inspect_limit,
+            )
+        )
     return 0
 
 

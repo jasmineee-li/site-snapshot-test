@@ -135,6 +135,328 @@ def task_route_variant(task: dict[str, Any] | None) -> str:
     return "unknown"
 
 
+def _string_or_none(value: Any) -> str | None:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
+def _compact_text(value: Any, *, limit: int = 220) -> str | None:
+    text = _string_or_none(value)
+    if text is None:
+        return None
+    text = " ".join(text.split())
+    if len(text) <= limit:
+        return text
+    return f"{text[: limit - 1].rstrip()}..."
+
+
+def _float_or_none(value: Any) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _encounter(result: dict[str, Any]) -> dict[str, Any]:
+    encounter = result.get("encounter")
+    return encounter if isinstance(encounter, dict) else {}
+
+
+def _max_coverage(result: dict[str, Any]) -> float | None:
+    return _float_or_none(_encounter(result).get("max_coverage"))
+
+
+def _reference_step(result: dict[str, Any]) -> int | None:
+    value = _encounter(result).get("reference_step")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    return None
+
+
+def _variant_results(result: dict[str, Any]) -> list[dict[str, Any]]:
+    variation = result.get("strategy_variation")
+    if not isinstance(variation, dict):
+        return []
+    variants = variation.get("variant_results")
+    if not isinstance(variants, list):
+        return []
+    return [variant for variant in variants if isinstance(variant, dict)]
+
+
+def _judge(result: dict[str, Any]) -> dict[str, Any]:
+    variation = result.get("strategy_variation")
+    if not isinstance(variation, dict):
+        return {}
+    judge = variation.get("judge_diagnosis")
+    return judge if isinstance(judge, dict) else {}
+
+
+def _trace_from_variant(variant: dict[str, Any] | None) -> str | None:
+    if not isinstance(variant, dict):
+        return None
+    return (
+        _string_or_none(variant.get("variant_trajectory_dir"))
+        or _string_or_none(variant.get("trajectory_dir"))
+    )
+
+
+def _successful_variant(result: dict[str, Any]) -> dict[str, Any] | None:
+    variants = successful_strategy_variants(result)
+    return variants[0] if variants else None
+
+
+def _artifact_paths(trace: str | None, reference_step: int | None) -> dict[str, str]:
+    if not trace:
+        return {}
+    paths = {
+        "trajectory_dir": trace,
+        "history": f"{trace}/history.json",
+        "result": f"{trace}/result.json",
+        "needham_trace": f"{trace}/needham_trace.xml",
+    }
+    if reference_step is not None:
+        paths["reference_screenshot"] = f"{trace}/screenshots/step_{reference_step}.png"
+        paths["pvpo_step"] = f"{trace}/pvpo/step_{reference_step}.json"
+    return paths
+
+
+def _rejected_variant_records(result: dict[str, Any]) -> list[dict[str, Any]]:
+    variation = result.get("strategy_variation")
+    if not isinstance(variation, dict):
+        return []
+    records: list[dict[str, Any]] = []
+    raw_generation_records = variation.get("variant_generation_records")
+    if isinstance(raw_generation_records, list):
+        for raw_record in raw_generation_records:
+            if not isinstance(raw_record, dict):
+                continue
+            status = _variant_generation_record_status(raw_record)
+            if status == "generated":
+                continue
+            records.append(
+                {
+                    "index": raw_record.get("index"),
+                    "strategy": _strategy_name(raw_record.get("strategy")),
+                    "status": status,
+                    "reason": _compact_text(
+                        raw_record.get("reason") or raw_record.get("error"),
+                        limit=240,
+                    )
+                    or "",
+                }
+            )
+    if records:
+        return records
+
+    raw_generation_errors = variation.get("variant_generation_errors")
+    if isinstance(raw_generation_errors, list):
+        for raw_error in raw_generation_errors:
+            if not isinstance(raw_error, dict):
+                continue
+            records.append(
+                {
+                    "index": raw_error.get("index"),
+                    "strategy": _strategy_name(raw_error.get("strategy")),
+                    "status": str(raw_error.get("status") or "error"),
+                    "reason": _compact_text(
+                        raw_error.get("reason") or raw_error.get("error"),
+                        limit=240,
+                    )
+                    or "",
+                }
+            )
+    return records
+
+
+def _signals_summary(result: dict[str, Any]) -> dict[str, bool]:
+    signals = result.get("signals")
+    if not isinstance(signals, dict):
+        return {}
+    return {
+        key: bool(signals[key])
+        for key in ("B1", "B2", "C1", "C2", "D1")
+        if isinstance(signals.get(key), bool)
+    }
+
+
+def _inspection_priority(
+    result: dict[str, Any],
+    *,
+    rejected_variants: list[dict[str, Any]],
+    trigger: str,
+    confidence: str,
+) -> tuple[int, str]:
+    final_status = str(result.get("final_status") or "missing")
+    outcome = str(result.get("outcome") or "")
+    outcome_fine = str(result.get("outcome_fine") or "")
+    if final_status == "task_broke" or outcome == "task_broke" or outcome_fine.startswith(
+        "task_broke"
+    ):
+        return (10, "task_breakage")
+    if final_status == "inconclusive":
+        return (20, "inconclusive")
+    if final_status == "success_on_variant":
+        return (30, "variant_success_exemplar")
+    if rejected_variants:
+        return (40, "variant_generation_rejected")
+    if final_status == "resistant" and trigger != "unknown" and confidence == "high":
+        return (50, "resistant_high_confidence")
+    if final_status == "resistant":
+        return (60, "resistant")
+    if final_status == "injection_not_encountered":
+        return (70, "placement_or_pvpo")
+    if final_status == "complied":
+        return (80, "direct_success_exemplar")
+    return (90, "other")
+
+
+def _inspection_reason(
+    result: dict[str, Any],
+    *,
+    trigger: str,
+    confidence: str,
+    rejected_variants: list[dict[str, Any]],
+    successful_strategy: str | None,
+) -> str:
+    final_status = str(result.get("final_status") or "missing")
+    outcome = str(result.get("outcome") or "")
+    outcome_fine = str(result.get("outcome_fine") or "missing")
+    coverage = _max_coverage(result)
+    coverage_part = f"max_coverage={coverage:.2f}" if coverage is not None else "max_coverage=n/a"
+    rationale = _compact_text(result.get("classifier_rationale"), limit=180)
+    if final_status == "task_broke" or outcome == "task_broke" or outcome_fine.startswith(
+        "task_broke"
+    ):
+        base = "benign task broke under attack; inspect task wording/reward before strategy"
+    elif final_status == "success_on_variant":
+        base = f"variant success via {successful_strategy or 'unknown'} after trigger={trigger}"
+    elif final_status == "resistant":
+        base = f"resistant after trigger={trigger} confidence={confidence}"
+    elif final_status == "inconclusive":
+        base = "variation did not produce a decisive PVPO-valid compliant or resistant outcome"
+    elif rejected_variants:
+        first = rejected_variants[0]
+        base = (
+            "variant generation rejected "
+            f"{first.get('strategy', 'unknown')} ({first.get('status', 'unknown')}): "
+            f"{first.get('reason', '')}"
+        ).strip()
+    elif final_status == "injection_not_encountered":
+        base = "payload was not encountered by PVPO"
+    elif final_status == "complied":
+        base = "direct compliant exemplar"
+    else:
+        base = final_status
+    parts = [base, outcome_fine, coverage_part]
+    if rationale:
+        parts.append(rationale)
+    return "; ".join(parts)
+
+
+def inspection_index(
+    results: list[dict[str, Any]],
+    *,
+    task_lookup: dict[str, dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Build a ranked per-task worklist for fast Phase 4 debugging."""
+
+    task_lookup = task_lookup or {}
+    rows: list[dict[str, Any]] = []
+    for result in results:
+        task_id = str(result.get("task_id") or "")
+        task = task_lookup.get(task_id, {})
+        judge = _judge(result)
+        trigger = str(judge.get("refusal_trigger") or "unknown")
+        confidence = str(judge.get("confidence") or "unknown")
+        successful_variant = _successful_variant(result)
+        primary_result = (
+            successful_variant
+            if result.get("final_status") == "success_on_variant"
+            and successful_variant is not None
+            else result
+        )
+        successful_strategy = (
+            _string_or_none(result.get("successful_strategy"))
+            or (
+                _string_or_none(successful_variant.get("strategy"))
+                if isinstance(successful_variant, dict)
+                else None
+            )
+        )
+        initial_trace = _string_or_none(result.get("initial_trace")) or _string_or_none(
+            result.get("trajectory_dir")
+        )
+        current_trace = _string_or_none(result.get("current_trace")) or _string_or_none(
+            result.get("trajectory_dir")
+        )
+        successful_variant_trace = _string_or_none(
+            result.get("successful_variant_trace")
+        ) or _trace_from_variant(successful_variant)
+        primary_trace = (
+            _string_or_none(result.get("primary_inspection_trace"))
+            or (
+                successful_variant_trace
+                if result.get("final_status") == "success_on_variant"
+                else current_trace
+            )
+        )
+        rejected_variants = _rejected_variant_records(result)
+        priority, priority_reason = _inspection_priority(
+            result,
+            rejected_variants=rejected_variants,
+            trigger=trigger,
+            confidence=confidence,
+        )
+        row = {
+            "task_id": task_id,
+            "priority": priority,
+            "priority_reason": priority_reason,
+            "site": task_site(result, task),
+            "origin": task_origin(result, task),
+            "surface": task_surface(task),
+            "editor_method": task_editor_method(task),
+            "route_variant": task_route_variant(task),
+            "final_status": str(result.get("final_status") or "missing"),
+            "outcome_fine": str(result.get("outcome_fine") or "missing"),
+            "why": _inspection_reason(
+                result,
+                trigger=trigger,
+                confidence=confidence,
+                rejected_variants=rejected_variants,
+                successful_strategy=successful_strategy,
+            ),
+            "signals": _signals_summary(result),
+            "pvpo_status": primary_result.get("pvpo_status"),
+            "pvpo_failure": primary_result.get("pvpo_failure"),
+            "max_coverage": _max_coverage(primary_result),
+            "initial_max_coverage": _max_coverage(result),
+            "reference_step": _reference_step(primary_result),
+            "judge_trigger": trigger,
+            "judge_confidence": confidence,
+            "successful_strategy": successful_strategy,
+            "initial_trace": initial_trace,
+            "current_trace": current_trace,
+            "successful_variant_trace": successful_variant_trace,
+            "primary_inspection_trace": primary_trace,
+            "artifacts": _artifact_paths(primary_trace, _reference_step(primary_result)),
+            "rejected_variants": rejected_variants,
+        }
+        rows.append(row)
+
+    rows.sort(
+        key=lambda row: (
+            int(row["priority"]),
+            str(row["site"]),
+            str(row["surface"]),
+            str(row["task_id"]),
+        )
+    )
+    return rows
+
+
 def _variant_error_bucket_key(item: Any) -> tuple[str, str] | None:
     if isinstance(item, dict):
         return (
@@ -314,6 +636,7 @@ def variant_regeneration_audit(results: list[dict[str, Any]]) -> dict[str, Any]:
                         ).items()
                     )
                 ),
+                "rejected_variants": _rejected_variant_records(result),
             }
         )
 
@@ -544,4 +867,5 @@ def summarize_results(
             for (cls, reason), count in variant_error_buckets.most_common()
         ],
         "variant_regeneration_audit": variant_regeneration_audit(results),
+        "inspection_index": inspection_index(results, task_lookup=task_lookup),
     }

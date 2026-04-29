@@ -29,7 +29,13 @@ zero hand-patching.
 3. **Launch**:
    ```
    uv run python -m worldsim.main phase 4 \
-       --instances instances.scale.json --resume
+       --instances instances.scale.json
+   ```
+   To continue an interrupted pipeline from saved state, use the dedicated
+   resume subcommand instead of adding `--resume` to a phase command:
+   ```
+   uv run python -m worldsim.main resume \
+       --instances instances.scale.json
    ```
 
 ## Remote job wrapper quickstart

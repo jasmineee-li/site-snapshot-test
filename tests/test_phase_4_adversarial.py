@@ -3182,6 +3182,8 @@ async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeyp
             "encounter": {"max_coverage": 0.5},
             "trajectory_dir": str(variant_dir),
             "strategy": "specificity",
+            "variant_index": 0,
+            "variant_trajectory_dir": str(variant_dir),
         }
     ]
 

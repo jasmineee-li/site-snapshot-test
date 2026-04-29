@@ -3804,6 +3804,7 @@ async def _process_adversarial_result(
             successful_strategy=(
                 successful_variant.get("strategy") if successful_variant is not None else None
             ),
+            successful_variant=successful_variant,
         ),
         **annotations,
         "strategy_variation": variation,
@@ -5246,6 +5247,8 @@ async def _evaluate_variant(
             return {
                 **prior_result,
                 "strategy": strategy.get("strategy"),
+                "variant_index": index,
+                "variant_trajectory_dir": str(variant_dir),
             }
 
     agent = agent_factory()
@@ -5271,6 +5274,8 @@ async def _evaluate_variant(
         return {
             **result,
             "strategy": strategy.get("strategy", f"strategy_{index}"),
+            "variant_index": index,
+            "variant_trajectory_dir": str(variant_dir),
         }
     except Exception as e:
         logger.exception("Variant %d evaluation failed: %s", index, e)
@@ -5279,6 +5284,9 @@ async def _evaluate_variant(
             "outcome": "error",
             "error": repr(e),
             "strategy": strategy.get("strategy", f"strategy_{index}"),
+            "variant_index": index,
+            "variant_trajectory_dir": str(variant_dir),
+            "trajectory_dir": str(variant_dir),
         }
     finally:
         await agent.teardown()
@@ -5293,8 +5301,24 @@ def _build_phase_4_result(
     judge_diagnosis: str | None = None,
     strategies_attempted: list[dict[str, Any]] | None = None,
     successful_strategy: str | None = None,
+    successful_variant: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Normalize Phase 4 output into the spec's top-level result shape."""
+    initial_trace = initial_result.get("trajectory_dir")
+    current_trace = current_result.get("trajectory_dir")
+    successful_variant_trace = None
+    successful_variant_index = None
+    if isinstance(successful_variant, dict):
+        successful_variant_trace = (
+            successful_variant.get("variant_trajectory_dir")
+            or successful_variant.get("trajectory_dir")
+        )
+        successful_variant_index = successful_variant.get("variant_index")
+    primary_inspection_trace = (
+        successful_variant_trace
+        if final_status == "success_on_variant" and successful_variant_trace
+        else current_trace
+    )
     return {
         **current_result,
         "task_id": str(task_id),
@@ -5304,6 +5328,11 @@ def _build_phase_4_result(
         "strategies_attempted": strategies_attempted or [],
         "final_status": final_status,
         "successful_strategy": successful_strategy,
+        "initial_trace": initial_trace,
+        "current_trace": current_trace,
+        "successful_variant_trace": successful_variant_trace,
+        "successful_variant_index": successful_variant_index,
+        "primary_inspection_trace": primary_inspection_trace,
     }
 
 
