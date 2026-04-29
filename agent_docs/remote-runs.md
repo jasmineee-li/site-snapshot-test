@@ -14,6 +14,15 @@ Read `docs/handoffs/rigor-run-setup.md` for the full runbook. The short version:
 
 Avoid raw long-lived SSH pipes for runs. Never use broad `pkill -f` to stop jobs.
 
+For r5 jobs that run browsers on the host, including Phase 2c render checks and
+Phase 4 agent/PVPO runs, use the generated `instances.scale.json`. Do not use
+`instances.smoke.json` on-host unless you have regenerated it for the host's
+`orchestrator_host`. The smoke file may point at the public advertised IP; AWS
+does not reliably hairpin browser traffic from the instance back to its own
+public IP, which causes false `host_unreachable` render failures and host-bound
+storage-state mismatches. `instances.scale.json` is generated from the host
+config and uses `orchestrator_host` such as `172.17.0.1`.
+
 Remote metadata and logs live under:
 
 ```text
