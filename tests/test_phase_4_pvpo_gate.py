@@ -185,25 +185,14 @@ async def test_gate_falls_back_when_determine_encounter_raises(monkeypatch, tmp_
 
 
 def test_placement_fix_trigger_fires_on_injection_not_encountered():
-    """The widened trigger in _run_placement_fix_loop accepts both
-    outcome==task_broke AND final_status==injection_not_encountered.
-
-    After the BUG-1 fix, the entry predicate is expressed as two positive
-    triggers (``triggered_by_task_broke`` and ``triggered_by_not_encountered``)
-    joined by ``or``, and ``return None`` fires when neither is set. The
-    trigger-aware success predicate is then checked after each rerun.
-    """
+    """Placement-fix is reserved for PVPO non-encounter, not all task breaks."""
     import inspect
 
     src = inspect.getsource(phase_4_adversarial._run_placement_fix_loop)
-    assert 'initial_result.get("outcome") == "task_broke"' in src
-    assert 'initial_result.get("final_status") == "injection_not_encountered"' in src, (
-        "placement-fix trigger must branch on injection_not_encountered too"
-    )
+    assert "_should_run_placement_fix(initial_result)" in src
+    assert 'initial_result.get("outcome") == "task_broke"' not in src
     guard = src.split("-> dict[str, Any] | None:")[1].split("return None")[0]
-    # Both sub-triggers must reach the guard; they should be OR'd so either
-    # failure mode triggers the loop.
-    assert " or " in guard
+    assert "triggered_by_not_encountered" in guard
 
     sig = inspect.signature(phase_4_adversarial._run_placement_fix_loop)
     assert "initial_result" in sig.parameters

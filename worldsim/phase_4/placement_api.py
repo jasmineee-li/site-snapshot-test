@@ -4,7 +4,9 @@ Replaces the prior Claude Code / Modal sandbox placement-fix that lived
 inside ``_revise_adversarial_task``. The model now sees the broken
 trajectory + the current task and proposes a revised
 ``adversarial_data_seed`` (and an annotation summarizing what changed)
-via a single forced-tool-use call.
+via a single forced-tool-use call. The caller invokes this only for PVPO
+non-encounter; task-broke-after-encounter is preserved as an uninterpretable
+task/evaluator failure rather than repaired in Phase 4.
 
 Why API not sandbox: same rationale as the judge / variant cutover
 (``codex-handoff-phase-4-judge-variant-api-cutover.md``). The "rewrite

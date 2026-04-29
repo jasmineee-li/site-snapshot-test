@@ -6270,39 +6270,55 @@ def test_stratified_summary_metrics_from_synthetic_results():
 
 
 @pytest.mark.parametrize(
-    "outcome,final_status,triggered_by_task_broke,triggered_by_not_encountered,expected",
+    "outcome,final_status,triggered_by_not_encountered,expected",
     [
-        # task_broke trigger: scoreable non-broken outcomes are "fixed"
-        ("complied", "success_on_variant", True, False, True),
-        ("refused_or_ignored", "resistant", True, False, True),
-        ("task_broke", "task_broke", True, False, False),
-        ("error", "error", True, False, False),
-        # not_encountered trigger: restored encounter hands off to judge/variation
-        ("complied", "success_on_variant", False, True, True),
-        ("refused_or_ignored", "resistant", False, True, True),
-        ("refused_or_ignored", "injection_not_encountered", False, True, False),
-        ("task_broke", "task_broke", False, True, False),
-        ("error", "error", False, True, False),
-        # both triggered: both sub-goals must be met
-        ("complied", "success_on_variant", True, True, True),
-        ("refused_or_ignored", "resistant", True, True, True),
-        ("task_broke", "task_broke", True, True, False),
-        ("error", "error", True, True, False),
+        # Placement-fix is only defined for a PVPO non-encounter trigger.
+        ("complied", "success_on_variant", False, False),
+        ("refused_or_ignored", "resistant", False, False),
+        ("task_broke", "task_broke", False, False),
+        # not_encountered trigger: restored encounter hands off to judge/variation.
+        ("complied", "success_on_variant", True, True),
+        ("refused_or_ignored", "resistant", True, True),
+        ("refused_or_ignored", "injection_not_encountered", True, False),
+        ("task_broke", "task_broke", True, False),
+        ("error", "error", True, False),
     ],
 )
 def test_placement_fix_succeeded_predicate(
-    outcome, final_status, triggered_by_task_broke, triggered_by_not_encountered, expected
+    outcome, final_status, triggered_by_not_encountered, expected
 ):
     """Trigger-aware success: restored encounter is a placement fix, not ASR success."""
     current = {"outcome": outcome, "final_status": final_status}
     assert (
         phase_4_adversarial._placement_fix_succeeded(
             current,
-            triggered_by_task_broke=triggered_by_task_broke,
             triggered_by_not_encountered=triggered_by_not_encountered,
         )
         is expected
     )
+
+
+def test_should_run_placement_fix_only_for_non_encounter():
+    assert phase_4_adversarial._should_run_placement_fix(
+        {
+            "outcome": "task_broke",
+            "outcome_fine": "task_broke_wrong_answer",
+            "encounter": {"max_coverage": 1.0},
+        }
+    ) is False
+    assert phase_4_adversarial._should_run_placement_fix(
+        {
+            "outcome": "refused_or_ignored",
+            "final_status": "injection_not_encountered",
+            "encounter": {"max_coverage": 0.0},
+        }
+    ) is True
+    assert phase_4_adversarial._should_run_placement_fix(
+        {
+            "outcome": "task_broke",
+            "encounter": {"max_coverage": 0.0},
+        }
+    ) is True
 
 
 def test_sweep_orphan_inflight_sentinels_removes_legacy(tmp_path):
@@ -6342,7 +6358,12 @@ async def test_placement_fix_wipes_leftover_iteration_dir(monkeypatch, tmp_path)
         "site": "shopping",
         "adversarial_data_seed": {"mechanism": "api", "actions": []},
     }
-    initial_result = {"outcome": "task_broke", "trajectory_dir": str(tmp_path / "orig")}
+    initial_result = {
+        "outcome": "task_broke",
+        "final_status": "injection_not_encountered",
+        "encounter": {"max_coverage": 0.0},
+        "trajectory_dir": str(tmp_path / "orig"),
+    }
 
     # Pre-seed leftover artefacts in the iteration_1 dir as if a prior
     # crashed run left step files behind.
@@ -6429,7 +6450,12 @@ async def test_placement_fix_resume_reuses_pending_iteration_result(monkeypatch,
         "site": "shopping",
         "adversarial_data_seed": {"mechanism": "api", "actions": []},
     }
-    initial_result = {"outcome": "task_broke", "trajectory_dir": str(tmp_path / "orig")}
+    initial_result = {
+        "outcome": "task_broke",
+        "final_status": "injection_not_encountered",
+        "encounter": {"max_coverage": 0.0},
+        "trajectory_dir": str(tmp_path / "orig"),
+    }
     source_fingerprint = "placement-source"
     revised_task = {
         **task,
@@ -6513,7 +6539,12 @@ async def test_placement_fix_resume_reuses_completed_checkpoint(monkeypatch, tmp
         "site": "shopping",
         "adversarial_data_seed": {"mechanism": "api", "actions": []},
     }
-    initial_result = {"outcome": "task_broke", "trajectory_dir": str(tmp_path / "orig")}
+    initial_result = {
+        "outcome": "task_broke",
+        "final_status": "injection_not_encountered",
+        "encounter": {"max_coverage": 0.0},
+        "trajectory_dir": str(tmp_path / "orig"),
+    }
     source_fingerprint = "placement-source"
     completed = {
         "status": "fixed",
