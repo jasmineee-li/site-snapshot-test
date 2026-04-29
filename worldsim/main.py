@@ -531,6 +531,39 @@ def build_parser() -> argparse.ArgumentParser:
         help="Extra args forwarded to pytest (e.g. -k, -x, -v).",
     )
 
+    status_cmd = subparsers.add_parser(
+        "status",
+        help="Show a read-only operator summary for a WorldSim run.",
+    )
+    status_cmd.add_argument(
+        "path",
+        type=Path,
+        nargs="?",
+        default=None,
+        help="Run state dir, phase_4/results.json, or pipeline_state.json. Defaults to WORLDSIM_STATE_DIR/logs.",
+    )
+    status_cmd.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+    status_cmd.add_argument(
+        "--inspect-limit",
+        type=_non_negative_int,
+        default=5,
+        help="Number of ranked per-task inspection rows to print in text mode.",
+    )
+
+    inspect_cmd = subparsers.add_parser(
+        "inspect",
+        help="Inspect one Phase 4 task with trace and artifact pointers.",
+    )
+    inspect_cmd.add_argument("task_id", help="Phase 4 task id to inspect.")
+    inspect_cmd.add_argument(
+        "path",
+        type=Path,
+        nargs="?",
+        default=None,
+        help="Run state dir, phase_4/results.json, or pipeline_state.json. Defaults to WORLDSIM_STATE_DIR/logs.",
+    )
+    inspect_cmd.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+
     return parser
 
 
@@ -672,6 +705,49 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "preflight":
         return _dispatch_preflight(args)
 
+    if args.command == "status":
+        return _dispatch_status(args)
+
+    if args.command == "inspect":
+        return _dispatch_inspect(args)
+
+    return 0
+
+
+def _dispatch_status(args: argparse.Namespace) -> int:
+    from worldsim.cli_status import build_status_payload, format_status_payload
+
+    try:
+        payload = build_status_payload(getattr(args, "path", None))
+    except Exception as exc:
+        print(f"status failed: {exc}", file=sys.stderr)
+        return 2
+    if getattr(args, "json", False):
+        import json
+
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(format_status_payload(payload, inspect_limit=getattr(args, "inspect_limit", 5)))
+    return 0
+
+
+def _dispatch_inspect(args: argparse.Namespace) -> int:
+    from worldsim.cli_status import build_inspection_payload, format_inspection_payload
+
+    try:
+        payload = build_inspection_payload(args.task_id, getattr(args, "path", None))
+    except KeyError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    except Exception as exc:
+        print(f"inspect failed: {exc}", file=sys.stderr)
+        return 2
+    if getattr(args, "json", False):
+        import json
+
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(format_inspection_payload(payload))
     return 0
 
 
