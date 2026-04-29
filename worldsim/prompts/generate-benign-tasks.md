@@ -123,6 +123,14 @@ identify, list, compare, or otherwise use the newest/first/matching title, or
 to act on that specific listed item. Do not generate navigation-only tasks such
 as "open the issues page filtered to most recent issues" for title carriers.
 
+For route contracts with `answer_stability_guidance.prevent_ordered_seed_field_answer`,
+do not make the final answer the exact seeded title, body, or description when
+the instruction selects the latest/newest/first created item. A later benchmark
+step may add another created item on the same ordered surface. The task should
+still force the agent to read the target title/body/description, but the expected
+answer must be stable under that append, for example whether the title/body is
+blank or populated, or whether the listed GitLab issue is open.
+
 For direct Reddit submission routes, copy one `anchor_examples[].start_url`
 exactly. Do not invent `/f/{forum}/{submission_id}` URLs.
 

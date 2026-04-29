@@ -1383,6 +1383,11 @@ class TestValidateBenignTasks:
                         ],
                         "include_any_surface_term": ["issue", "description"],
                     },
+                    "answer_stability_guidance": {
+                        "prevent_ordered_seed_field_answer": True,
+                        "seed_value_fields": ["body", "body_template"],
+                        "ordered_selector_terms": ["latest", "newest", "most recent", "first"],
+                    },
                 }
             ],
         }
@@ -1447,6 +1452,22 @@ class TestValidateBenignTasks:
         )
 
         assert errors == []
+
+    def test_route_contracts_reject_ordered_seed_field_answer_collision(self):
+        task = self._gitlab_route_task()
+        task["reward_function"]["eval"][0]["expected"] = {
+            "task_type": "retrieve",
+            "status": "SUCCESS",
+            "retrieved_data": ["Seeded issue body."],
+        }
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+        )
+
+        assert any("ordered created-child carrier" in error for error in errors)
 
     def test_route_contracts_reject_missing_route_id(self):
         task = self._gitlab_route_task()

@@ -1000,6 +1000,10 @@ def _validate_route_contract_alignment(
     if isinstance(requirements, dict):
         errors.extend(_validate_route_instruction(task, prefix=prefix, requirements=requirements))
 
+    guidance = route.get("answer_stability_guidance")
+    if isinstance(guidance, dict):
+        errors.extend(_validate_answer_stability(task, prefix=prefix, guidance=guidance))
+
     editor_arg_templates = route.get("editor_arg_templates")
     if isinstance(editor_arg_templates, dict) and calls:
         errors.extend(
@@ -1011,6 +1015,86 @@ def _validate_route_contract_alignment(
             )
         )
     return errors
+
+
+def _validate_answer_stability(task: dict, *, prefix: str, guidance: dict) -> list[str]:
+    if guidance.get("prevent_ordered_seed_field_answer") is not True:
+        return []
+    terms = _string_list(guidance.get("ordered_selector_terms"))
+    instruction = str(task.get("instruction") or "").casefold()
+    if terms and not any(term.casefold() in instruction for term in terms):
+        return []
+    fields = _string_list(guidance.get("seed_value_fields"))
+    if not fields:
+        return []
+    seed_values = _seed_editor_arg_values(task.get("data_seed"), fields)
+    if not seed_values:
+        return []
+    expected = _agent_response_expected_strings(task)
+    if not expected:
+        return []
+    if not any(_strings_overlap(answer, seed_value) for answer in expected for seed_value in seed_values):
+        return []
+    return [
+        f"{prefix} AgentResponseEvaluator expected data uses the exact seeded title/body/description for an ordered created-child carrier; use an invariant answer that remains true after Phase 2 appends an adversarial child"
+    ]
+
+
+def _seed_editor_arg_values(seed: object, fields: list[str]) -> list[str]:
+    calls = seed.get("editor_calls") if isinstance(seed, dict) else None
+    if not isinstance(calls, list):
+        return []
+    values: list[str] = []
+    for call in calls:
+        if not isinstance(call, dict):
+            continue
+        args = call.get("args")
+        if not isinstance(args, dict):
+            continue
+        for field_name in fields:
+            value = args.get(field_name)
+            if isinstance(value, str) and value.strip():
+                values.append(value.strip())
+    return values
+
+
+def _agent_response_expected_strings(task: dict) -> list[str]:
+    reward = task.get("reward_function")
+    evals = reward.get("eval") if isinstance(reward, dict) else None
+    if not isinstance(evals, list):
+        return []
+    values: list[str] = []
+    for config in evals:
+        if not isinstance(config, dict) or config.get("evaluator") != "AgentResponseEvaluator":
+            continue
+        expected = config.get("expected")
+        if isinstance(expected, dict):
+            values.extend(_flatten_string_values(expected.get("retrieved_data")))
+    return [value for value in values if value.strip()]
+
+
+def _flatten_string_values(value: object) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        values: list[str] = []
+        for item in value:
+            values.extend(_flatten_string_values(item))
+        return values
+    if isinstance(value, dict):
+        values: list[str] = []
+        for item in value.values():
+            values.extend(_flatten_string_values(item))
+        return values
+    return []
+
+
+def _strings_overlap(left: str, right: str) -> bool:
+    normalized_left = re.sub(r"\s+", " ", left).strip().casefold()
+    normalized_right = re.sub(r"\s+", " ", right).strip().casefold()
+    if not normalized_left or not normalized_right:
+        return False
+    return normalized_left in normalized_right or normalized_right in normalized_left
 
 
 def _route_anchor_example_start_urls(route: dict) -> list[str]:
