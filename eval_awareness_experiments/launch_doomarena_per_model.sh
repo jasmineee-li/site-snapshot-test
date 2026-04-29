@@ -92,7 +92,7 @@ for entry in "${MODEL_STACKS[@]}"; do
                 GITLAB="http://localhost:$GITLAB_PORT" \
                 REDDIT="http://localhost:$REDDIT_PORT" \
                 SHOPPING="http://localhost:$SHOPPING_PORT" \
-                SHOPPING_ADMIN="http://localhost:$ADMIN_PORT" \
+                SHOPPING_ADMIN="http://localhost:$ADMIN_PORT/admin" \
                 $PYTHON -m eval_awareness_experiments.run_causal_experiment \
                 --models "$MODEL" \
                 --benchmarks doomarena \

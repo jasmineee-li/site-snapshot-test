@@ -240,6 +240,19 @@ The result-collection bug has been patched; the remaining admin risk is
 whether the per-model Magento containers are configured with the right
 host-port base URLs.
 
+Follow-up root cause found on 2026-04-29: the DoomArena runner set
+`WA_SHOPPING_ADMIN=http://localhost:8083/admin`, but left the already
+exported bare `SHOPPING_ADMIN=http://localhost:8083` intact via
+`os.environ.setdefault(...)`. `webarena.browser_env.env_config` caches
+the bare variables at import time, so it could permanently record the
+non-admin root URL before `WebArenaInstance` copied the `WA_` values
+back to bare names. That made `ui_login("shopping_admin")` navigate to
+`http://localhost:8083` instead of `http://localhost:8083/admin`, where
+there is no `Username` label. The fix is to make the DoomArena env
+override set both bare and `WA_` variables deterministically, prefer
+explicit parent-provided per-model ports over default ports, and
+normalize `SHOPPING_ADMIN` to include `/admin`.
+
 The archived results dir confirms: every other split has trajectories
 or at minimum a `trajectory_awareness_results.jsonl` from the judge,
 but every `shopping_admin/` dir is **empty** —

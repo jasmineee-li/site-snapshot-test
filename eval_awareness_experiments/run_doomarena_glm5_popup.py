@@ -309,14 +309,19 @@ def main() -> None:
     from doomarena.browsergym.scripts.run_bgym_experiment import _override_webarena_env_vars
     base_url = os.environ.get("DOOMARENA_WEBARENA_BASE_URL", "http://localhost")
     _override_webarena_env_vars(base_url)
-    # Also set bare names that webarena.browser_env.env_config reads directly
-    os.environ.setdefault("REDDIT", os.environ.get("WA_REDDIT", ""))
-    os.environ.setdefault("SHOPPING", os.environ.get("WA_SHOPPING", ""))
-    os.environ.setdefault("SHOPPING_ADMIN", os.environ.get("WA_SHOPPING_ADMIN", ""))
-    os.environ.setdefault("GITLAB", os.environ.get("WA_GITLAB", ""))
-    os.environ.setdefault("WIKIPEDIA", os.environ.get("WA_WIKIPEDIA", ""))
-    os.environ.setdefault("MAP", os.environ.get("WA_MAP", ""))
-    os.environ.setdefault("HOMEPAGE", os.environ.get("WA_HOMEPAGE", ""))
+    # Also set bare names that webarena.browser_env.env_config reads directly.
+    # Do not use setdefault here: env_config caches values at import time, so a
+    # stale bare SHOPPING_ADMIN without "/admin" breaks the Magento admin login.
+    for key in (
+        "REDDIT",
+        "SHOPPING",
+        "SHOPPING_ADMIN",
+        "GITLAB",
+        "WIKIPEDIA",
+        "MAP",
+        "HOMEPAGE",
+    ):
+        os.environ[key] = os.environ.get(f"WA_{key}", "")
 
     _patch_webarena_evaluator(args.webarena_eval_model)
 
