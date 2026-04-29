@@ -15,14 +15,23 @@ import json
 import logging
 import os
 import re
+import time
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
 import instructor
 import requests
-from instructor.core.exceptions import InstructorRetryException
+from instructor.core.exceptions import IncompleteOutputException, InstructorRetryException
 
+from worldsim.cost_tracker import tracker as cost_tracker
+from worldsim.host_api_observability import (
+    InstructorCallTrace,
+    build_instructor_hooks,
+    instructor_retry_exception_diagnostics,
+    instructor_semantic_retrying,
+    synthesize_cost_summary,
+)
 from worldsim.phase_4.anthropic_client import call_with_retry, get_client, normalize_model_for_auth
 from worldsim.phase_4.concurrency import get_api_semaphore
 from worldsim.phases.phase_2_core_surfaces import CORE_SURFACES, canonical_core_surface
@@ -63,6 +72,9 @@ TEXT_FILL_PROMPT_VARIANTS = (
     "testing_compliance",
 )
 TEXT_FILL_STRUCTURED_RETRIES = 3
+_TEXT_FILL_SHORT_TITLE_MAX_TOKENS = 2_048
+_TEXT_FILL_DEFAULT_MAX_TOKENS = 4_096
+_TEXT_FILL_EXPANDED_MAX_TOKENS = 8_192
 _TEXT_FILL_VARIANT_INSTRUCTIONS = {
     "standard": "Compose realistic platform-native user content.",
     "creative_writing": (
@@ -74,6 +86,14 @@ _TEXT_FILL_VARIANT_INSTRUCTIONS = {
         "concealment, and length constraint exactly."
     ),
 }
+
+
+class TextFillAPIError(RuntimeError):
+    """Raised when a structured Phase 2b text-fill call fails."""
+
+    def __init__(self, message: str, *, diagnostics: dict[str, Any] | None = None) -> None:
+        super().__init__(message)
+        self.diagnostics = diagnostics or {}
 
 
 def load_voice_registry(registry_path: Path | None = None) -> dict[str, Any]:
@@ -397,7 +417,22 @@ async def _generate_single_payload(
 
     for prompt_variant, prompt in prompts:
         try:
-            raw_or_parsed, auth_path = await _call_text_fill_api(prompt, model, task=task)
+            call_result = await _call_text_fill_api(prompt, model, task=task)
+            if len(call_result) == 3:
+                raw_or_parsed, auth_path, api_diagnostics = call_result
+            else:
+                raw_or_parsed, auth_path = call_result
+                api_diagnostics = None
+        except TextFillAPIError as exc:
+            error: dict[str, Any] = {
+                "variant": prompt_variant,
+                "auth_path": "instructor_anthropic",
+                "error": str(exc),
+            }
+            if exc.diagnostics:
+                error["api_diagnostics"] = exc.diagnostics
+            errors.append(error)
+            continue
         except Exception as exc:  # pragma: no cover - network path exercised via mocks
             errors.append({"variant": prompt_variant, "auth_path": "shared_api", "error": str(exc)})
             continue
@@ -415,7 +450,10 @@ async def _generate_single_payload(
             if not validation_errors:
                 parsed["auth_path"] = auth_path
                 parsed["attempt"] = prompt_variant
-                return parsed, {"status": "ok", "errors": errors}
+                diag: dict[str, Any] = {"status": "ok", "errors": errors}
+                if api_diagnostics is not None:
+                    diag["api_diagnostics"] = api_diagnostics
+                return parsed, diag
             errors.append(
                 {
                     "variant": prompt_variant,
@@ -749,12 +787,33 @@ def _parse_text_fill_response(raw_text: str) -> tuple[dict[str, Any], str | None
     return (parsed, None)
 
 
+def _text_fill_max_tokens(task: dict[str, Any]) -> int:
+    """Choose an output budget from the target field contract.
+
+    The payload schema includes duplicated text fields plus witness arrays, so
+    the budget must be larger than the rendered-payload character budget. At
+    the same time, using a huge universal cap would make malformed generations
+    slower and more expensive without improving validity.
+    """
+
+    capacity = _content_capacity_for_surface(task)
+    if capacity == "short_title":
+        return _TEXT_FILL_SHORT_TITLE_MAX_TOKENS
+
+    budget, _errors = _length_budget_bounds(task)
+    max_chars = budget[1] if budget is not None else 1500
+    concealment = str(task.get("concealment") or "plaintext")
+    if concealment != "plaintext" or max_chars > 2000 or capacity == "code_content":
+        return _TEXT_FILL_EXPANDED_MAX_TOKENS
+    return _TEXT_FILL_DEFAULT_MAX_TOKENS
+
+
 async def _call_text_fill_api(
     prompt: str,
     model: str,
     *,
     task: dict[str, Any] | None = None,
-) -> tuple[dict[str, Any] | str, str]:
+) -> tuple[dict[str, Any] | str, str] | tuple[dict[str, Any] | str, str, dict[str, Any]]:
     """Call the shared Anthropic-compatible client used by Phase 4 APIs.
 
     Fresh Phase 2 text fill uses Instructor with a Pydantic response model so
@@ -765,34 +824,80 @@ async def _call_text_fill_api(
     client = get_client()
     if task is not None:
         instructor_client = instructor.from_anthropic(client, mode=instructor.Mode.ANTHROPIC_TOOLS)
+        normalized_model = normalize_model_for_auth(model)
+        max_tokens = _text_fill_max_tokens(task)
+        trace = InstructorCallTrace(
+            phase="phase_2b",
+            label="phase2b-text-fill",
+            task_id=str(task.get("id") or ""),
+            site=str(task.get("site") or ""),
+            response_model_name=TextPayloadResponse.__name__,
+        )
+        hooks = build_instructor_hooks(trace)
 
         def _validate_payload(payload: dict[str, Any]) -> list[str]:
             return validate_text_post_hoc(payload, task)
 
+        t0 = time.monotonic()
         try:
 
             async def _call_structured() -> Any:
                 async with get_api_semaphore():
-                    return await instructor_client.messages.create(
-                        model=normalize_model_for_auth(model),
-                        max_tokens=1200,
+                    return await instructor_client.messages.create_with_completion(
+                        model=normalized_model,
+                        max_tokens=max_tokens,
                         temperature=0.7,
                         messages=[{"role": "user", "content": prompt}],
                         response_model=TextPayloadResponse,
                         context=text_payload_validation_context(_validate_payload),
-                        max_retries=TEXT_FILL_STRUCTURED_RETRIES,
+                        max_retries=instructor_semantic_retrying(
+                            TEXT_FILL_STRUCTURED_RETRIES
+                        ),
+                        hooks=hooks,
                     )
 
-            payload = await _call_structured()
+            payload, raw_response = await call_with_retry(
+                _call_structured,
+                retries=3,
+                label="phase2b-text-fill",
+            )
         except InstructorRetryException as exc:
-            raise RuntimeError(_format_instructor_retry_exception(exc)) from exc
-        return (payload.model_dump(), "instructor_anthropic")
+            diagnostics = trace.to_diagnostics()
+            diagnostics["selected_max_tokens"] = max_tokens
+            diagnostics["instructor_retry_exception"] = instructor_retry_exception_diagnostics(
+                exc
+            )
+            raise TextFillAPIError(
+                _format_instructor_retry_exception(exc),
+                diagnostics=diagnostics,
+            ) from exc
+        except IncompleteOutputException as exc:
+            diagnostics = trace.to_diagnostics()
+            diagnostics["selected_max_tokens"] = max_tokens
+            diagnostics["incomplete_output"] = {
+                "last_completion": getattr(exc, "last_completion", None) is not None,
+            }
+            raise TextFillAPIError(
+                "structured_text_fill_truncated: output hit max_tokens",
+                diagnostics=diagnostics,
+            ) from exc
+
+        elapsed = time.monotonic() - t0
+        cost_tracker.record(
+            "phase_2:text_fill",
+            synthesize_cost_summary(raw_response, model=normalized_model, elapsed_s=elapsed),
+            task_id=str(task.get("id") or ""),
+            site=task.get("site") if isinstance(task.get("site"), str) else None,
+        )
+        diagnostics = trace.to_diagnostics()
+        diagnostics["selected_max_tokens"] = max_tokens
+        return (payload.model_dump(), "instructor_anthropic", diagnostics)
 
     async def _call() -> Any:
         async with get_api_semaphore():
             return await client.messages.create(
                 model=normalize_model_for_auth(model),
-                max_tokens=1200,
+                max_tokens=_TEXT_FILL_DEFAULT_MAX_TOKENS,
                 temperature=0.7,
                 messages=[{"role": "user", "content": prompt}],
             )

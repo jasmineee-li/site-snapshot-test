@@ -72,6 +72,8 @@ Supported modes are `CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`, and `ANTHROP
 
 No Phase 4 trajectory step routes through `run_claude_in_sandbox`. Refusal judge, variant generator, Transcript Purpose, VEA, and placement-fix all use direct host Anthropic Messages API calls.
 
+Instructor/Pydantic structured calls are allowed for bounded host-side helper steps such as Phase 2b text fill, but they must preserve WorldSim observability: transport retries stay in `worldsim/phase_4/anthropic_client.py::call_with_retry`, semantic retries are limited to parse/validation failures, and diagnostics must record compact request/response metadata without full prompts or secrets.
+
 Modal sandbox scope is based on explicit inclusion with `image.add_local_file` / `image.add_local_dir`. Ignore-file patterns are not an isolation boundary.
 
 `AgentLab/src/agentlab/benchmarks/redteam/execution.py` and `AgentLab/src/agentlab/benchmarks/redteam/claude_code.py` are read-only reference material. Runtime imports from `AgentLab/` are forbidden.

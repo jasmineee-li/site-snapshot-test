@@ -3,6 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+from tenacity import AsyncRetrying
 
 from worldsim.phases import phase_2_text_fill
 from worldsim.text_payload_contract import (
@@ -264,6 +265,27 @@ def test_text_payload_response_context_runs_worldsim_validator():
         )
 
 
+def test_text_fill_max_tokens_respects_field_capacity():
+    short = _task()
+    short["source_field"] = "issues.title"
+    assert (
+        phase_2_text_fill._text_fill_max_tokens(short)
+        == phase_2_text_fill._TEXT_FILL_SHORT_TITLE_MAX_TOKENS
+    )
+
+    body = _task()
+    assert (
+        phase_2_text_fill._text_fill_max_tokens(body)
+        == phase_2_text_fill._TEXT_FILL_DEFAULT_MAX_TOKENS
+    )
+
+    concealed = _task(concealment="markdown_fenced_system")
+    assert (
+        phase_2_text_fill._text_fill_max_tokens(concealed)
+        == phase_2_text_fill._TEXT_FILL_EXPANDED_MAX_TOKENS
+    )
+
+
 @pytest.mark.asyncio
 async def test_call_text_fill_api_uses_instructor_response_model(monkeypatch):
     task = _task()
@@ -279,12 +301,37 @@ async def test_call_text_fill_api_uses_instructor_response_model(monkeypatch):
     captured: dict = {}
 
     class FakeMessages:
-        async def create(self, **kwargs):
+        async def create_with_completion(self, **kwargs):
             captured.update(kwargs)
-            return kwargs["response_model"].model_validate(
+            hooks = kwargs.get("hooks")
+            if hooks is not None:
+                hooks.emit_completion_arguments(**kwargs)
+            response = SimpleNamespace(
+                id="msg_text_fill",
+                model=kwargs["model"],
+                stop_reason="tool_use",
+                content=[
+                    SimpleNamespace(
+                        type="tool_use",
+                        name="TextPayloadResponse",
+                        input=payload,
+                    )
+                ],
+                usage=SimpleNamespace(
+                    input_tokens=101,
+                    output_tokens=37,
+                    cache_creation_input_tokens=0,
+                    cache_read_input_tokens=0,
+                ),
+            )
+            if hooks is not None:
+                hooks.emit_completion_response(response)
+            parsed = kwargs["response_model"].model_validate(
                 payload,
                 context=kwargs["context"],
             )
+            parsed._raw_response = response
+            return parsed, response
 
     monkeypatch.setattr(phase_2_text_fill, "get_client", lambda: object())
     monkeypatch.setattr(
@@ -293,7 +340,7 @@ async def test_call_text_fill_api_uses_instructor_response_model(monkeypatch):
         lambda _client, mode: SimpleNamespace(messages=FakeMessages()),
     )
 
-    parsed, auth_path = await phase_2_text_fill._call_text_fill_api(
+    parsed, auth_path, diagnostics = await phase_2_text_fill._call_text_fill_api(
         "compose JSON",
         "anthropic/claude-sonnet-4-6",
         task=task,
@@ -302,8 +349,11 @@ async def test_call_text_fill_api_uses_instructor_response_model(monkeypatch):
     assert auth_path == "instructor_anthropic"
     assert parsed == payload
     assert captured["response_model"] is TextPayloadResponse
-    assert captured["max_retries"] == phase_2_text_fill.TEXT_FILL_STRUCTURED_RETRIES
+    assert isinstance(captured["max_retries"], AsyncRetrying)
     assert TEXT_PAYLOAD_VALIDATOR_CONTEXT_KEY in captured["context"]
+    assert diagnostics["attempts"] == 1
+    assert diagnostics["selected_max_tokens"] == phase_2_text_fill._TEXT_FILL_DEFAULT_MAX_TOKENS
+    assert diagnostics["completion_responses"][0]["id"] == "msg_text_fill"
 
 
 @pytest.mark.asyncio
