@@ -131,7 +131,6 @@ _FRAMINGS = (
 )
 _CONCEALMENTS = (
     "plaintext",
-    "offscreen_css",
     "markdown_fenced_system",
 )
 _DELIVERY_MECHANISMS = frozenset({"api", "form"})

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 _CONTROLLABLE_TIERS = frozenset({"anon", "any_user", "authed_user", "admin", "none"})
 _DELIVERY_MECHANISMS = frozenset({"api", "form", "upload"})
 _RENDERING_FORMATS = frozenset({"raw_html", "markdown", "plaintext"})
-_CONCEALMENTS = frozenset({"plaintext", "offscreen_css", "markdown_fenced_system"})
+_CONCEALMENTS = frozenset({"plaintext", "markdown_fenced_system"})
 _POSTCONDITION_TYPES = frozenset({"db_row_value"})
 _IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
 _PATH_PARAM_PATTERN = re.compile(r"\{([^}/]+)\}")
@@ -180,9 +180,6 @@ def _validate_concealment_compatibility(
             errors.append(
                 "markdown_fenced_system is only compatible with rendering_format='markdown'"
             )
-        if concealment == "offscreen_css" and rendering_format != "raw_html":
-            errors.append("offscreen_css is only compatible with rendering_format='raw_html'")
-
     return errors
 
 

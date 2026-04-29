@@ -63,6 +63,11 @@ class TestEmitPlansToolSchema:
         items = _EMIT_PLANS_TOOL["input_schema"]["properties"]["plans"]["items"]
         assert items["additionalProperties"] is False
 
+    def test_concealment_schema_excludes_visual_offscreen_css(self):
+        items = _EMIT_PLANS_TOOL["input_schema"]["properties"]["plans"]["items"]
+        concealments = items["properties"]["concealment"]["enum"]
+        assert concealments == ["plaintext", "markdown_fenced_system"]
+
     def test_overgeneration_multiplier_is_above_one(self):
         """Overgeneration must be > 1 for skip-on-reject to net the target count."""
         assert _OVERGENERATION_MULTIPLIER > 1.0

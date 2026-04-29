@@ -77,6 +77,7 @@ logger = logging.getLogger(__name__)
 # seed-template plans, but shards can still overgenerate heavily. 48k leaves
 # ample headroom for larger shards and verbose reward objects.
 _MAX_OUTPUT_TOKENS = 48_000
+_PLAN_CONCEALMENTS = ("plaintext", "markdown_fenced_system")
 
 # Multiplier on the requested plan count, to compensate for skip-on-reject.
 # Starts at 2.5x because dropping the in-sandbox iteration loop loses some
@@ -113,7 +114,7 @@ _EMIT_STRATEGIES_TOOL: dict[str, Any] = {
                         "benign_task_id": {"type": "string"},
                         "exposure_contract_id": {"type": "string"},
                         "framing": {"type": "string"},
-                        "concealment": {"type": "string"},
+                        "concealment": {"type": "string", "enum": list(_PLAN_CONCEALMENTS)},
                         "attack_objective": {"type": "string"},
                         "adversarial_reward": {"type": "object"},
                     },

@@ -392,7 +392,7 @@ class TestAdversarialSurfaceCrossCheck:
                 {
                     "id": "product_description_pdp",
                     "controllable_by_tier": "admin",
-                    "compatible_concealments": ["plaintext", "offscreen_css"],
+                    "compatible_concealments": ["plaintext"],
                     "delivery_channels": [
                         {
                             "mechanism": "api",
@@ -960,7 +960,7 @@ class TestValidateInjectionSurface:
             },
         }
 
-    def test_rejects_invalid_delivery_channel_and_concealment(self):
+    def test_rejects_invalid_delivery_channel_and_visual_concealment(self):
         payload = self._valid_payload()
         payload["injection_surface"][0]["delivery_channels"][1]["mechanism"] = "bogus"
         payload["injection_surface"][0]["compatible_concealments"] = ["offscreen_css"]
@@ -972,7 +972,9 @@ class TestValidateInjectionSurface:
         )
 
         assert any("delivery_channels[1] mechanism must be one of" in e for e in errors)
-        assert any("offscreen_css is only compatible" in e for e in errors)
+        assert any(
+            "compatible_concealments contains invalid value 'offscreen_css'" in e for e in errors
+        )
 
     def test_rejects_authed_user_surface_with_no_auth_agent_context(self):
         payload = self._valid_payload()

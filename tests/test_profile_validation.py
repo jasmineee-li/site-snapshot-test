@@ -99,13 +99,50 @@ def test_validate_profile_rejects_invalid_injection_surface_labels():
                         ),
                     },
                 ],
-                "compatible_concealments": ["offscreen_css"],
+                "compatible_concealments": ["plaintext", "markdown_fenced_system"],
             }
         ],
         "verification_capabilities": [],
     }
 
     with pytest.raises(ValueError, match="delivery_channels\\[1\\] mechanism must be one of"):
+        validate_profile("shopping", profile)
+
+
+def test_validate_profile_rejects_offscreen_visual_concealment():
+    profile = {
+        "site_name": "shopping",
+        "data_model": [{"entity": "Review", "fields": [{"name": "body"}]}],
+        "injection_surface": [
+            {
+                "id": "surface-1",
+                "source_field": "Review.body",
+                "rendering_format": "raw_html",
+                "controllable_by_tier": "any_user",
+                "controllability_justification": "Users can post reviews.",
+                "delivery_channels": [
+                    {
+                        "mechanism": "api",
+                        "privileged_seed": False,
+                        "path_template": "/api/reviews",
+                        "method": "POST",
+                        "body_field": "body",
+                        "table": None,
+                        "column": None,
+                        "postcondition": _db_row_value(
+                            table="reviews",
+                            value_column="body",
+                            where={"id": {"literal": 1}},
+                        ),
+                    }
+                ],
+                "compatible_concealments": ["offscreen_css"],
+            }
+        ],
+        "verification_capabilities": [],
+    }
+
+    with pytest.raises(ValueError, match="invalid value 'offscreen_css'"):
         validate_profile("shopping", profile)
 
 
