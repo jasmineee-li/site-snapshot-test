@@ -29,7 +29,7 @@ from typing import Any, Literal
 import instructor
 from anthropic import AsyncAnthropic
 from instructor.core.exceptions import IncompleteOutputException, InstructorRetryException
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.host_api_observability import (
@@ -120,6 +120,17 @@ class build_variant(BaseModel):
             "applied."
         ),
     )
+
+    @field_validator("applied_strategy", mode="before")
+    @classmethod
+    def parse_stringified_applied_strategy(cls, value: Any) -> Any:
+        if not isinstance(value, str):
+            return value
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return value
+        return parsed if isinstance(parsed, dict) else value
 
     @model_validator(mode="after")
     def validate_variant_contract(self, info: ValidationInfo) -> build_variant:

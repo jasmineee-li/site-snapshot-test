@@ -238,6 +238,39 @@ async def test_strategy_mismatch_retries_then_fails(
 
 
 @pytest.mark.asyncio
+async def test_stringified_applied_strategy_metadata_is_repaired(
+    patched_anthropic_client, sample_task, strategy
+):
+    applied_strategy = {
+        "strategy": "authority_framing",
+        "description": "reframed as system notice",
+        "injection_content": "NEW PAYLOAD",
+    }
+    patched_anthropic_client.messages.create.return_value = _variant_response_raw(
+        {
+            "status": "ok",
+            "adversarial_data_seed": _valid_editor_seed(
+                detail="NEW PAYLOAD",
+                site=sample_task["site"],
+            ),
+            "applied_strategy": json.dumps(applied_strategy),
+            "payload_text": {
+                "rendered_payload": "NEW PAYLOAD",
+                "raw_text": "NEW PAYLOAD",
+                "framing_witnesses": ["NEW"],
+                "attack_action_witnesses": ["PAYLOAD"],
+                "concealment_witnesses": [],
+            },
+        }
+    )
+
+    result = await generate_variant_api(sample_task, strategy)
+
+    assert result["variant_status"]["status"] == "ok"
+    assert result["applied_strategy"] == applied_strategy
+
+
+@pytest.mark.asyncio
 async def test_strategy_mismatch_succeeds_on_retry(patched_anthropic_client, sample_task, strategy):
     wrong = _variant_response(
         {
