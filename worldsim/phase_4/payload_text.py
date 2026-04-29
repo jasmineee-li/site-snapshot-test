@@ -7,6 +7,7 @@ from worldsim.phase_4._context import install_context
 
 install_context(globals())
 
+
 def _selected_rendered_payload(task: dict[str, Any]) -> str | None:
     """Return the rendered payload chosen by ``selected_payload_index``."""
     payload_texts = task.get("payload_texts")
@@ -26,6 +27,7 @@ def _selected_rendered_payload(task: dict[str, Any]) -> str | None:
         return None
     rendered = payload.get("rendered_payload")
     return rendered if isinstance(rendered, str) and rendered else None
+
 
 class _PayloadViewHTMLParser(HTMLParser):
     def __init__(self) -> None:
@@ -59,6 +61,7 @@ class _PayloadViewHTMLParser(HTMLParser):
         else:
             self.visible_chunks.append(data)
 
+
 def _payload_text_views(rendered_payload: str, concealment: str) -> tuple[str, str]:
     if concealment == "markdown_fenced_system":
         concealed_blocks = [
@@ -71,6 +74,7 @@ def _payload_text_views(rendered_payload: str, concealment: str) -> tuple[str, s
         parser.feed(rendered_payload)
         return ("".join(parser.visible_chunks), "".join(parser.hidden_chunks))
     return (rendered_payload, rendered_payload)
+
 
 def _seed_payload_candidates_from_mapping(
     mapping: dict[str, Any],
@@ -91,6 +95,7 @@ def _seed_payload_candidates_from_mapping(
         if isinstance(value, str) and value.strip():
             candidates.append(value)
     return candidates
+
 
 def _extract_variant_rendered_payload(task: dict[str, Any], seed: dict[str, Any]) -> str | None:
     delivery_channel = task.get("delivery_channel")
@@ -136,6 +141,7 @@ def _extract_variant_rendered_payload(task: dict[str, Any], seed: dict[str, Any]
                     return resolved
     return None
 
+
 def _default_framing_witness(raw_text: str, rendered_payload: str) -> str | None:
     visible = " ".join(raw_text.split()).strip()
     if visible:
@@ -149,6 +155,7 @@ def _default_framing_witness(raw_text: str, rendered_payload: str) -> str | None
             return prefix
     return None
 
+
 def _default_concealment_witness(rendered_payload: str, concealment: str) -> str | None:
     if concealment == "markdown_fenced_system" and "```system" in rendered_payload:
         return "```system"
@@ -158,6 +165,7 @@ def _default_concealment_witness(rendered_payload: str, concealment: str) -> str
         if "left:-" in rendered_payload:
             return "left:-"
     return None
+
 
 def _updated_payload_text_entry(
     task: dict[str, Any],
@@ -209,6 +217,7 @@ def _updated_payload_text_entry(
         return None
     return entry
 
+
 def _synchronize_variant_payload_texts(
     original_task: dict[str, Any],
     merged_task: dict[str, Any],
@@ -244,11 +253,13 @@ def _synchronize_variant_payload_texts(
     merged_payloads[selected_index] = synced_entry
     merged_task["payload_texts"] = merged_payloads
 
+
 def _adversarial_seed_equivalent(left: dict[str, Any], right: dict[str, Any]) -> bool:
     """Return True when two tasks have the same adversarial seed payload."""
     return json.dumps(left.get("adversarial_data_seed"), sort_keys=True) == json.dumps(
         right.get("adversarial_data_seed"), sort_keys=True
     )
+
 
 def _seed_preserves_exposure_contract_error(
     task: dict[str, Any],
@@ -296,4 +307,3 @@ def _seed_preserves_exposure_contract_error(
         "candidate seed does not preserve exposure contract "
         f"method={expected_method!r} payload_arg={payload_arg!r}"
     )
-

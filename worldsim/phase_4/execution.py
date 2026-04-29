@@ -7,6 +7,7 @@ from worldsim.phase_4._context import install_context
 
 install_context(globals())
 
+
 async def _run_reward_function_safely(
     reward: dict[str, Any],
     instance_dict: dict[str, Any],
@@ -32,6 +33,7 @@ async def _run_reward_function_safely(
             exc,
         )
         return False, f"reward evaluation raised {type(exc).__name__}: {exc}"
+
 
 async def run_adversarial_task(
     task: dict[str, Any],
@@ -460,4 +462,3 @@ async def run_adversarial_task(
                 logger.exception("seed cleanup failed for task %s", task_id)
                 if reset_cache is not None:
                     reset_cache.mark_dirty(task, extra_bindings=reset_cache_bindings)
-

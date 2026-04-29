@@ -7,9 +7,11 @@ from worldsim.phase_2._context import install_context
 
 install_context(globals())
 
+
 def _shard_tasks(tasks: list[dict], shard_size: int) -> list[list[dict]]:
     """Split a task list into chunks of at most *shard_size*."""
     return [tasks[i : i + shard_size] for i in range(0, len(tasks), shard_size)]
+
 
 async def _run_shard_with_limit(
     limiter: asyncio.Semaphore,
@@ -18,6 +20,7 @@ async def _run_shard_with_limit(
     """Apply bounded concurrency around one Phase 2a API shard."""
     async with limiter:
         return await _generate_injections_for_site(**kwargs)
+
 
 def _merge_shard_results(
     shard_results: list[SiteInjectionResult | BaseException],
@@ -50,6 +53,7 @@ def _merge_shard_results(
     if unknown_errors:
         merged.append(SiteInjectionResult("_unknown_", [], unknown_errors))
     return merged
+
 
 def _recover_orphaned_shards(
     shards_dir: Path,
@@ -165,4 +169,3 @@ def _recover_orphaned_shards(
     _normalize_l4_benign_task_ids_in_place(merged)
     recovered_ids = sorted(str(task.get("id") or "") for task in orphans)
     return merged, recovered_ids
-

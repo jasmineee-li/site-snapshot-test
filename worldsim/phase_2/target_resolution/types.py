@@ -10,4 +10,3 @@ class ResolverContractDriftError(RuntimeError):
     have drifted apart. Fix: either add the missing kind to an existing
     ``@editor_method`` decorator, or stop emitting the kind here.
     """
-

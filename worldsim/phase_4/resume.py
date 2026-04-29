@@ -7,6 +7,7 @@ from worldsim.phase_4._context import install_context
 
 install_context(globals())
 
+
 def _sweep_orphan_inflight_sentinels(task_dir_root: Path) -> int:
     """Delete legacy ``.aer_inflight`` sentinel files left on disk by old runs.
 
@@ -36,15 +37,18 @@ def _sweep_orphan_inflight_sentinels(task_dir_root: Path) -> int:
         )
     return len(orphans)
 
+
 def _resume_fingerprint_task(task: dict[str, Any]) -> dict[str, Any]:
     """Strip execution-local worker binding from initial-result fingerprinting."""
     normalized = json.loads(json.dumps(task))
     normalized.pop(RUNTIME_METADATA_KEY, None)
     return normalized
 
+
 def _resume_fingerprint_result(result: dict[str, Any]) -> dict[str, Any]:
     """Project a result dict to the fields that round-trip through ``result.json``."""
     return {k: result[k] for k in _FINGERPRINT_RESULT_KEYS if k in result}
+
 
 def _phase_4_state_metadata(
     *,
@@ -77,6 +81,7 @@ def _phase_4_state_metadata(
         metadata["benchmark_path"] = str(benchmark_root)
     return metadata
 
+
 def _write_json_atomic(
     path: Path,
     payload: dict[str, Any],
@@ -85,8 +90,10 @@ def _write_json_atomic(
 ) -> None:
     write_json_atomic(path, payload, failpoint_base=failpoint_base)
 
+
 def _fingerprint_payload(*parts: Any) -> str:
     return fingerprint_payload(*parts)
+
 
 def _phase_4_eval_context(
     *,
@@ -108,6 +115,7 @@ def _phase_4_eval_context(
         "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
     }
 
+
 def _task_reachable_sites(task: dict[str, Any]) -> list[str]:
     sites = normalize_task_sites(task)
     for candidate in (
@@ -118,6 +126,7 @@ def _task_reachable_sites(task: dict[str, Any]) -> list[str]:
         if normalized and normalized not in sites:
             sites.append(normalized)
     return sites
+
 
 def _task_reachable_instances(
     task: dict[str, Any],
@@ -132,6 +141,7 @@ def _task_reachable_instances(
         if normalize_site_name(instance.site_name) in reachable_sites
     ]
 
+
 def _task_reachable_placeholders(
     task: dict[str, Any],
     config_url_placeholders: dict[str, str] | None,
@@ -144,6 +154,7 @@ def _task_reachable_placeholders(
         if (placeholder := placeholder_for_site(site))
     }
     return {token: value for token, value in config_url_placeholders.items() if token in allowed}
+
 
 def _phase_4_eval_context_for_task(
     task: dict[str, Any],
@@ -164,6 +175,7 @@ def _phase_4_eval_context_for_task(
         benchmark_root=benchmark_root,
     )
 
+
 def _phase_4_result_fingerprint(
     task: dict[str, Any],
     *,
@@ -172,10 +184,12 @@ def _phase_4_result_fingerprint(
 ) -> str:
     return _fingerprint_payload(_resume_fingerprint_task(task), eval_context, site_profile)
 
+
 def _seed_target_site(task: dict[str, Any]) -> str:
     delivery_channel = task.get("delivery_channel")
     delivery_site = _delivery_site_name(delivery_channel)
     return delivery_site or str(task.get("site", "")).strip()
+
 
 def _seed_target_benchmark(task: dict[str, Any], *metadata_sources: Mapping[str, Any]) -> str:
     values: list[Any] = [
@@ -213,6 +227,7 @@ def _seed_target_benchmark(task: dict[str, Any], *metadata_sources: Mapping[str,
         raise ValueError("adversarial seed is missing benchmark metadata")
     return benchmark
 
+
 def _seed_target_sites(tasks: list[dict[str, Any]]) -> list[str]:
     sites: set[str] = set()
     for task in tasks:
@@ -226,6 +241,7 @@ def _seed_target_sites(tasks: list[dict[str, Any]]) -> list[str]:
             sites.add(site_name)
     return sorted(sites)
 
+
 def _seed_uses_editor_calls(seed: Any) -> bool:
     if not isinstance(seed, dict):
         return False
@@ -234,11 +250,14 @@ def _seed_uses_editor_calls(seed: Any) -> bool:
         return False
     return any(isinstance(call, dict) for call in editor_calls)
 
+
 def _seed_has_actions(seed: Any) -> bool:
     return _seed_contract_has_actions(seed)
 
+
 def _seed_requires_reset(seed: Any) -> bool:
     return _seed_contract_requires_reset(seed)
+
 
 def _phase_4_postprocess_fingerprint(
     task: dict[str, Any],
@@ -265,6 +284,7 @@ def _phase_4_postprocess_fingerprint(
             "site_profile": site_profile,
         },
     )
+
 
 def _phase_4_variant_fingerprint(
     task: dict[str, Any],
@@ -294,6 +314,7 @@ def _phase_4_variant_fingerprint(
         },
     )
 
+
 def _placement_iteration_result_fingerprint(
     task: dict[str, Any],
     *,
@@ -310,15 +331,19 @@ def _placement_iteration_result_fingerprint(
         },
     )
 
+
 def _strategy_variation_checkpoint_path(task_dir_root: Path, task_id: str) -> Path:
     return task_dir_root / safe_task_path_component(task_id) / "strategy_variation_checkpoint.json"
+
 
 def _placement_fix_checkpoint_path(task_dir_root: Path, task_id: str) -> Path:
     return task_dir_root / safe_task_path_component(task_id) / _PLACEMENT_FIX_CHECKPOINT
 
+
 def _variant_result_metadata_path(task_dir_root: Path, task_id: str, index: int) -> Path:
     variant_dir = task_dir_root / safe_task_path_component(f"{task_id}_variant_{index}")
     return variant_dir / _VARIANT_RESULT_METADATA
+
 
 def _load_json_dict(path: Path) -> dict[str, Any] | None:
     try:
@@ -326,6 +351,7 @@ def _load_json_dict(path: Path) -> dict[str, Any] | None:
     except (json.JSONDecodeError, OSError):
         return None
     return payload if isinstance(payload, dict) else None
+
 
 def _has_phase_4_resume_artifacts(payload: dict[str, Any], *, trajectory_dir: Path) -> bool:
     outcome = payload.get("outcome")
@@ -339,6 +365,7 @@ def _has_phase_4_resume_artifacts(payload: dict[str, Any], *, trajectory_dir: Pa
     except (json.JSONDecodeError, OSError):
         return False
     return isinstance(history_payload, (dict, list))
+
 
 def _normalize_saved_adversarial_result(
     payload: dict[str, Any],
@@ -385,6 +412,7 @@ def _normalize_saved_adversarial_result(
             normalized["adversarial_passed"] = outcome == "complied"
     return normalized
 
+
 def _load_saved_variant_result(
     task_dir_root: Path,
     task_id: str,
@@ -409,6 +437,7 @@ def _load_saved_variant_result(
         return None
     return _normalize_saved_adversarial_result(payload, trajectory_dir=variant_dir)
 
+
 def _variant_changes_seed(original_task: dict[str, Any], variant_task: dict[str, Any]) -> bool:
     return json.dumps(
         original_task.get("adversarial_data_seed"),
@@ -417,6 +446,7 @@ def _variant_changes_seed(original_task: dict[str, Any], variant_task: dict[str,
         variant_task.get("adversarial_data_seed"),
         sort_keys=True,
     )
+
 
 def _write_placement_fix_checkpoint(
     checkpoint_path: Path,
@@ -433,6 +463,7 @@ def _write_placement_fix_checkpoint(
         failpoint_base="phase_4.placement_fix.checkpoint",
     )
 
+
 def _load_saved_placement_iteration_result(
     task_dir: Path,
     *,
@@ -446,6 +477,7 @@ def _load_saved_placement_iteration_result(
     if not _has_phase_4_resume_artifacts(payload, trajectory_dir=task_dir):
         return None
     return _normalize_saved_adversarial_result(payload, trajectory_dir=task_dir)
+
 
 def _variant_generation_record_for_result(
     *,
@@ -469,6 +501,7 @@ def _variant_generation_record_for_result(
     if reason is not None:
         record["reason"] = reason
     return record
+
 
 def _rebuild_variant_generation_progress(
     task: dict[str, Any],
@@ -541,7 +574,7 @@ def _rebuild_variant_generation_progress(
     normalized_records.sort(key=lambda record: int(record["index"]))
     return variant_candidates, variant_generation_errors, normalized_records, completed_indexes
 
+
 def _tasks_equivalent(left: dict[str, Any], right: dict[str, Any]) -> bool:
     """Return True when two task payloads are materially identical."""
     return json.dumps(left, sort_keys=True) == json.dumps(right, sort_keys=True)
-

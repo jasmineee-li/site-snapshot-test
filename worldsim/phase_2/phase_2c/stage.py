@@ -7,6 +7,7 @@ from worldsim.phase_2._context import install_context
 
 install_context(globals())
 
+
 def _phase_2c_artifact_facade_bindings() -> dict[str, Any]:
     return {
         "write_json_atomic": write_json_atomic,
@@ -15,6 +16,7 @@ def _phase_2c_artifact_facade_bindings() -> dict[str, Any]:
         "_phase_2c_report_summary_with_artifacts": _phase_2c_report_summary_with_artifacts,
         "_validate_phase_2c_artifact_payloads": _validate_phase_2c_artifact_payloads,
     }
+
 
 def _call_phase_2c_artifact_helper(helper_name: str, *args: Any, **kwargs: Any):
     bindings = _phase_2c_artifact_facade_bindings()
@@ -27,11 +29,14 @@ def _call_phase_2c_artifact_helper(helper_name: str, *args: Any, **kwargs: Any):
         for name, value in previous.items():
             setattr(_phase_2c_artifacts, name, value)
 
+
 def _write_phase_2c_artifacts(*args: Any, **kwargs: Any):
     return _call_phase_2c_artifact_helper("_write_phase_2c_artifacts", *args, **kwargs)
 
+
 def _write_dropped_source_data_sidecar(*args: Any, **kwargs: Any):
     return _call_phase_2c_artifact_helper("_write_dropped_source_data_sidecar", *args, **kwargs)
+
 
 async def _run_feasibility_stage(
     *,
@@ -343,4 +348,3 @@ async def _run_feasibility_stage(
     )
     state_metadata.update(feasibility_metadata)
     return 0
-

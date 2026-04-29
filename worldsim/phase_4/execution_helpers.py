@@ -7,6 +7,7 @@ from worldsim.phase_4._context import install_context
 
 install_context(globals())
 
+
 async def _reset_task_environment(task: dict[str, Any]) -> None:
     """Reset every benchmark instance the task may interact with."""
     endpoints = task_reset_endpoints(task)
@@ -14,6 +15,7 @@ async def _reset_task_environment(task: dict[str, Any]) -> None:
         return
     await asyncio.gather(*[asyncio.to_thread(_post_reset, ep) for ep in endpoints])
     await asyncio.sleep(2)
+
 
 def _post_reset(endpoint: str) -> None:
     """Call a benchmark reset endpoint with retries for transient failures.
@@ -72,6 +74,7 @@ def _post_reset(endpoint: str) -> None:
         f"Reset endpoint {endpoint} failed after {_RESET_MAX_RETRIES} attempts"
     ) from last_exc
 
+
 def _effective_adversarial_seed(adversarial_task: dict[str, Any]) -> Any:
     seed_template = adversarial_task.get("seed_template")
     payload_texts = adversarial_task.get("payload_texts")
@@ -100,6 +103,7 @@ def _effective_adversarial_seed(adversarial_task: dict[str, Any]) -> Any:
         return materialize_adversarial_seed(seed_template, str(selected["rendered_payload"]))
     return adversarial_task.get("adversarial_data_seed")
 
+
 def _agent_context_with_instance_auth(
     agent_context: Any,
     instance_agent_auth: dict[str, Any] | None,
@@ -125,6 +129,7 @@ def _agent_context_with_instance_auth(
         }
     return merged or None
 
+
 def _is_non_interpretable_benign_eval(
     benign_reward: dict[str, Any],
     benign_passed: bool,
@@ -146,6 +151,7 @@ def _is_non_interpretable_benign_eval(
         )
     )
 
+
 def _has_scoreable_agent_output(result: Any) -> bool:
     """Return True when a non-success run still produced usable evaluation artifacts."""
     return bool(
@@ -153,6 +159,7 @@ def _has_scoreable_agent_output(result: Any) -> bool:
         or getattr(result, "final_result", None)
         or getattr(result, "network_trace", None)
     )
+
 
 def _delivery_site_name(delivery_channel: Any) -> str:
     if not isinstance(delivery_channel, dict):
@@ -164,4 +171,3 @@ def _delivery_site_name(delivery_channel: Any) -> str:
             return ""
         return normalized
     return ""
-

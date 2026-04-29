@@ -7,6 +7,7 @@ from worldsim.phase_2._context import install_context
 
 install_context(globals())
 
+
 def _phase_2a_eligible_tasks(
     site_tasks: list[dict],
     benign_target_resources: dict[str, Any],
@@ -148,6 +149,7 @@ def _phase_2a_eligible_tasks(
 
     return eligible, dropped
 
+
 def _phase_2a_eligible_tasks_for_benchmark(
     site_tasks: list[dict],
     benign_target_resources: dict[str, Any],
@@ -168,6 +170,7 @@ def _phase_2a_eligible_tasks_for_benchmark(
         if "unexpected keyword argument" not in str(exc):
             raise
         return _phase_2a_eligible_tasks(site_tasks, benign_target_resources, site)
+
 
 def _build_exposure_contracts_for_shard(
     *,
@@ -191,6 +194,7 @@ def _build_exposure_contracts_for_shard(
         )
     return contracts
 
+
 def _surface_visibility_by_id(site_profile: Mapping[str, Any]) -> dict[str, str]:
     out: dict[str, str] = {}
     surfaces = site_profile.get("injection_surface")
@@ -204,6 +208,7 @@ def _surface_visibility_by_id(site_profile: Mapping[str, Any]) -> dict[str, str]
         if isinstance(surface_id, str) and isinstance(visibility, str):
             out[surface_id] = visibility
     return out
+
 
 def _persist_exposure_contracts(
     *,
@@ -259,6 +264,7 @@ def _persist_exposure_contracts(
             exc,
         )
 
+
 def _seed_delivery_mechanism(seed_template: Mapping[str, Any]) -> str:
     seed = dict(seed_template)
     mechanism = str(seed.get("mechanism") or "").strip().lower()
@@ -283,6 +289,7 @@ def _seed_delivery_mechanism(seed_template: Mapping[str, Any]) -> str:
             f"got {sorted(mechanisms)}"
         )
     return next(iter(mechanisms))
+
 
 def _write_eligibility_drops(site: str, dropped: list[dict[str, Any]]) -> None:
     state_dir = Path(os.environ.get("WORLDSIM_STATE_DIR", "logs"))
@@ -329,6 +336,7 @@ def _write_eligibility_drops(site: str, dropped: list[dict[str, Any]]) -> None:
     except Exception:
         logger.exception("failed to write dropped_no_contract.json")
 
+
 def _kinds_in_shard(benign_target_resources: dict[str, Any]) -> frozenset[str]:
     """Collect the set of non-None ``benign_target_resource.kind`` values
     present across a shard's benign tasks. Feeds :class:`ContractRenderContext`
@@ -340,6 +348,7 @@ def _kinds_in_shard(benign_target_resources: dict[str, Any]) -> frozenset[str]:
             if isinstance(kind, str) and kind:
                 kinds.add(kind)
     return frozenset(kinds)
+
 
 def _build_cell_targets(
     site_profile: dict[str, Any],
@@ -370,6 +379,7 @@ def _build_cell_targets(
         targets[_cell_key(framing, concealment)] += 1
     return targets
 
+
 def _available_cells(site_profile: dict[str, Any]) -> list[tuple[str, str]]:
     concealments: set[str] = set()
     for surface in site_profile.get("injection_surface", []):
@@ -393,8 +403,10 @@ def _available_cells(site_profile: dict[str, Any]) -> list[tuple[str, str]]:
         if concealment in concealments
     ]
 
+
 def _cell_key(framing: str, concealment: str) -> str:
     return f"{framing}::{concealment}"
+
 
 def _select_balanced_subset(
     validated_tasks: list[dict],
@@ -427,4 +439,3 @@ def _select_balanced_subset(
     if dropped:
         logger.info("Phase 2: balanced subset dropped %d overfull or duplicate tasks", dropped)
     return selected
-

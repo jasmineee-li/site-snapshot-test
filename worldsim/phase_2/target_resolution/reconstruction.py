@@ -7,6 +7,7 @@ from worldsim.phase_2.target_resolution._context import install_context
 
 install_context(globals())
 
+
 def _anchors_from_gitlab_item(item: Mapping[str, Any], *, kind_hint: str) -> dict[str, Any]:
     """Project anchors out of a GitLab API item (issue or MR)."""
     anchors: dict[str, Any] = {}
@@ -27,12 +28,14 @@ def _anchors_from_gitlab_item(item: Mapping[str, Any], *, kind_hint: str) -> dic
             anchors["project_path"] = match.group("project_path")
     return anchors
 
+
 def _anchors_from_reddit_submission(entry: Mapping[str, Any], forum_name: str) -> dict[str, Any]:
     submission_id = entry.get("id") or entry.get("submission_id")
     anchors: dict[str, Any] = {"forum_name": forum_name}
     if submission_id is not None:
         anchors["submission_id"] = str(submission_id)
     return anchors
+
 
 def _project_item_to_record(
     base: Mapping[str, Any],
@@ -53,9 +56,7 @@ def _project_item_to_record(
         record["source_listing_kind"] = source_listing_kind
     if isinstance(source_listing_url, str) and source_listing_url.strip():
         record["benign_read_url"] = source_listing_url
-    site_kind: Literal[gitlab, reddit] = (
-        "reddit" if item_kind == "reddit_submission" else "gitlab"
-    )
+    site_kind: Literal[gitlab, reddit] = "reddit" if item_kind == "reddit_submission" else "gitlab"
     record["attach_surfaces"] = _attach_surfaces_for(item_kind, benchmark=benchmark, site=site_kind)
 
     anchors: dict[str, Any] = {}
@@ -110,4 +111,3 @@ def _project_item_to_record(
             record["start_url_resolved"] = reconstructed
             record["seeded_detail_url"] = reconstructed
     return record
-

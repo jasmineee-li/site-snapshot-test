@@ -7,6 +7,7 @@ from worldsim.phase_2.target_resolution._context import install_context
 
 install_context(globals())
 
+
 async def _call_anthropic_classifier(
     task: Mapping[str, Any],
     placeholders: Mapping[str, str],
@@ -61,6 +62,7 @@ async def _call_anthropic_classifier(
                 return raw
     return None
 
+
 async def _probe_http_json(
     instance: Mapping[str, Any],
     path: str,
@@ -99,6 +101,7 @@ async def _probe_http_json(
 
     return await asyncio.to_thread(_send)
 
+
 def _benign_probe_instance(instance: Mapping[str, Any]) -> dict[str, Any]:
     """Return an instance view pinned to benign-user auth.
 
@@ -115,6 +118,7 @@ def _benign_probe_instance(instance: Mapping[str, Any]) -> dict[str, Any]:
         raise RuntimeError("instance has api_auth but no benign auth for L3/L4 probe")
     probe_instance.pop("api_auth", None)
     return probe_instance
+
 
 async def _default_probe(
     probe_query: Mapping[str, Any],
@@ -268,6 +272,7 @@ async def _default_probe(
     logger.warning("L3 probe_query.api %r not implemented; excluding task", api)
     return None
 
+
 async def _resolve_project_id(instance: Mapping[str, Any], project_path: str) -> int | None:
     canonical = _canonicalize_project_path(project_path)
     if not canonical:
@@ -278,6 +283,7 @@ async def _resolve_project_id(instance: Mapping[str, Any], project_path: str) ->
         if isinstance(pid, int):
             return pid
     return None
+
 
 async def _fetch_forum_submissions(
     instance: Mapping[str, Any], forum_name: str, *, limit: int = 3
@@ -326,11 +332,13 @@ async def _fetch_forum_submissions(
             break
     return results or None
 
+
 def _reddit_max_existing_comments_default() -> int:
     raw = os.environ.get("WORLDSIM_REDDIT_MAX_EXISTING_COMMENTS", "").strip()
     if raw.isdigit() and int(raw) >= 0:
         return int(raw)
     return DEFAULT_REDDIT_MAX_EXISTING_COMMENTS
+
 
 def _postmill_submission_comment_count_from_html(html_text: str) -> int:
     """Derive an existing top-level comment count from Postmill submission HTML.
@@ -345,6 +353,7 @@ def _postmill_submission_comment_count_from_html(html_text: str) -> int:
     if m:
         return int(m.group(1))
     return 0
+
 
 async def _reddit_submission_existing_comment_count(
     instance: Mapping[str, Any], forum_name: str, submission_id: str
@@ -381,6 +390,7 @@ async def _reddit_submission_existing_comment_count(
         return None
     return _postmill_submission_comment_count_from_html(html_text)
 
+
 async def _reddit_submission_within_comment_budget(
     instance: Mapping[str, Any],
     forum_name: str,
@@ -391,6 +401,7 @@ async def _reddit_submission_within_comment_budget(
     count_fn = comment_count_fn or _reddit_submission_existing_comment_count
     count = await count_fn(instance, forum_name, submission_id)
     return count is not None and count <= _reddit_max_existing_comments_default()
+
 
 async def _admission_filter_resolved_record(
     record: dict[str, Any],
@@ -428,4 +439,3 @@ async def _admission_filter_resolved_record(
     filtered["reddit_existing_comment_count"] = comment_count
     filtered["reddit_existing_comment_limit"] = limit
     return filtered
-

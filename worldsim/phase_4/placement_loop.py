@@ -7,6 +7,7 @@ from worldsim.phase_4._context import install_context
 
 install_context(globals())
 
+
 async def _run_pvpo_gate(
     task: dict[str, Any],
     task_dir: Path,
@@ -184,6 +185,7 @@ async def _run_pvpo_gate(
         **vea_result,
     }
 
+
 def _placement_fix_succeeded(
     current_result: dict[str, Any],
     *,
@@ -216,6 +218,7 @@ def _placement_fix_succeeded(
     if triggered_by_not_encountered and final_status == "injection_not_encountered":
         return False
     return True
+
 
 async def _run_placement_fix_loop(
     task: dict[str, Any],
@@ -464,4 +467,3 @@ async def _run_placement_fix_loop(
         completed_result=completed,
     )
     return completed
-

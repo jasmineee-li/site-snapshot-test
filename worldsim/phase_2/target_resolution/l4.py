@@ -7,11 +7,13 @@ from worldsim.phase_2.target_resolution._context import install_context
 
 install_context(globals())
 
+
 def _l4_top_n_default() -> int:
     raw = os.environ.get("WORLDSIM_L4_TOP_N", "").strip()
     if raw.isdigit() and int(raw) > 0:
         return int(raw)
     return DEFAULT_L4_TOP_N
+
 
 async def resolve_l4(
     resource: Mapping[str, Any],
@@ -62,4 +64,3 @@ async def resolve_l4(
         if record is not None:
             records.append(record)
     return records
-

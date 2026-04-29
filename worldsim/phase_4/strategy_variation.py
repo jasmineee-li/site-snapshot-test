@@ -7,6 +7,7 @@ from worldsim.phase_4._context import install_context
 
 install_context(globals())
 
+
 def _normalize_recommended_strategies(
     recommendation: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], list[str]]:
@@ -50,6 +51,7 @@ def _normalize_recommended_strategies(
         validated.append({**strategy, "strategy": normalized})
     return validated, errors
 
+
 async def generate_variant(
     task: dict[str, Any],
     strategy: dict[str, Any],
@@ -70,6 +72,7 @@ async def generate_variant(
     from worldsim.phase_4.variant_api import generate_variant_api
 
     return await generate_variant_api(task, strategy, sandbox_model=sandbox_model)
+
 
 async def run_strategy_variation(
     task: dict[str, Any],
@@ -381,4 +384,3 @@ async def run_strategy_variation(
         failpoint_base="phase_4.strategy_variation.checkpoint",
     )
     return result
-

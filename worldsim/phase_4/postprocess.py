@@ -7,6 +7,7 @@ from worldsim.phase_4._context import install_context
 
 install_context(globals())
 
+
 async def _postprocess_one_task(
     result: dict[str, Any],
     task_by_id: dict[str, dict[str, Any]],
@@ -98,6 +99,7 @@ async def _postprocess_one_task(
     )
 
     return processed
+
 
 async def _process_adversarial_result(
     task: dict[str, Any],
@@ -292,6 +294,7 @@ async def _process_adversarial_result(
         "strategy_variation": variation,
     }
 
+
 async def run_judge(
     task: dict[str, Any],
     trajectory_dir: str | Path,
@@ -318,6 +321,7 @@ async def run_judge(
 
     return await run_judge_api(task, trajectory_dir, sandbox_model=sandbox_model)
 
+
 def _build_phase_4_result(
     *,
     task_id: Any,
@@ -339,4 +343,3 @@ def _build_phase_4_result(
         "final_status": final_status,
         "successful_strategy": successful_strategy,
     }
-

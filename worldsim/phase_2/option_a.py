@@ -7,11 +7,13 @@ from worldsim.phase_2._context import install_context
 
 install_context(globals())
 
+
 def _rigorous_option_a_enabled() -> bool:
     env = os.environ.get("WORLDSIM_RIGOROUS_OPTION_A")
     if env is not None:
         return env.strip().lower() in {"true", "1", "yes", "on"}
     return RIGOROUS_OPTION_A_DEFAULT
+
 
 def _is_option_a_site(task: dict) -> bool:
     """Return True when the task's site falls under the WASP scope.
@@ -30,6 +32,7 @@ def _is_option_a_site(task: dict) -> bool:
                     return True
     return False
 
+
 def _validate_option_a_placement(plan: dict, task_name: str) -> str | None:
     """Validate Option A placement using the editor-method registry.
 
@@ -43,6 +46,7 @@ def _validate_option_a_placement(plan: dict, task_name: str) -> str | None:
     if legacy_verdict != new_verdict:
         _log_validator_discrepancy(plan, task_name, legacy_verdict, new_verdict)
     return new_verdict
+
 
 def _normalize_gitlab_project_selector_templates(plan: dict) -> None:
     """Prefer project_path_template when a direct GitLab route lacks project_id."""
@@ -104,6 +108,7 @@ def _normalize_gitlab_project_selector_templates(plan: dict) -> None:
             if method in {"create_mr_note"} and args.get("mr_iid") == "{mr_iid}":
                 args["mr_iid"] = "{benign_mr_iid}"
 
+
 def _validate_option_a_placement_legacy(plan: dict, task_name: str) -> str | None:
     """Legacy Option A validator. Kept during dual-run window; deleted in
     commit 9's post-soak cleanup.
@@ -153,6 +158,7 @@ def _validate_option_a_placement_legacy(plan: dict, task_name: str) -> str | Non
                     "existing resource"
                 )
     return None
+
 
 def _validate_option_a_placement_registry(plan: dict, task_name: str) -> str | None:
     """Contract-driven Option A validator. Reads the editor-method registry.
@@ -230,6 +236,7 @@ def _validate_option_a_placement_registry(plan: dict, task_name: str) -> str | N
 
     return None
 
+
 def _site_for_option_a_plan(plan: dict) -> str:
     for key in ("sites", "site"):
         raw = plan.get(key)
@@ -245,12 +252,14 @@ def _site_for_option_a_plan(plan: dict) -> str:
                         return s
     return ""
 
+
 def _benchmark_for_option_a_plan(plan: dict) -> str:
     try:
         benchmark = infer_benchmark_name(_benchmark_values_from_record(plan))
     except ValueError as exc:
         raise ValueError(str(exc)) from exc
     return benchmark or "webarena_verified"
+
 
 def _check_spec_bindings(
     idx: int,
@@ -299,6 +308,7 @@ def _check_spec_bindings(
 
     return None
 
+
 def _selector_group_satisfied(
     members: list[tuple[str, BindingSpec]],
     args: dict,
@@ -316,6 +326,7 @@ def _selector_group_satisfied(
         if any(_value_starts_with_token(value, tok) for tok in usable):
             return True
     return False
+
 
 def _value_starts_with_token(value: str, token: str) -> bool:
     """Check that ``value`` begins with the closed, well-formed form of
@@ -336,6 +347,7 @@ def _value_starts_with_token(value: str, token: str) -> bool:
     if match is None:
         return False
     return match.group(0) == expected
+
 
 def _log_validator_discrepancy(
     plan: dict,
@@ -371,4 +383,3 @@ def _log_validator_discrepancy(
             f.write(json.dumps(record) + "\n")
     except Exception:
         logger.exception("failed to write option_a validator discrepancy NDJSON")
-

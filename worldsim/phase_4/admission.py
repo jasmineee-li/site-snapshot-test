@@ -7,6 +7,7 @@ from worldsim.phase_4._context import install_context
 
 install_context(globals())
 
+
 def _filter_tasks_by_sites(
     tasks: list[dict[str, Any]],
     sites_filter_raw: str | None,
@@ -27,6 +28,7 @@ def _filter_tasks_by_sites(
     logger.info("%s: --sites filter active, running only %s", phase_label, sorted(sites_filter))
     return filtered
 
+
 def _load_site_profiles(
     tasks: list[dict[str, Any]], profiles_dir: Path
 ) -> dict[str, dict[str, Any]]:
@@ -35,6 +37,7 @@ def _load_site_profiles(
         profile_path = profiles_dir / f"BENCHMARK_PROFILE_{site}.json"
         profiles[site] = load_and_validate_profile(site, profile_path)
     return profiles
+
 
 def _collect_agent_auth_runtime_errors(
     instances: list[BenchmarkInstance],
@@ -75,7 +78,6 @@ def _collect_agent_auth_runtime_errors(
                     "agent_auth scoping"
                 )
     return errors
-
 
 
 def _load_admitted_phase_4_tasks(
@@ -312,6 +314,7 @@ def _load_admitted_phase_4_tasks(
     active_sites = {site for task in tasks for site in _task_reachable_sites(task)}
     return {"return_code": None, "tasks": tasks, "active_sites": active_sites}
 
+
 def _strict_feasibility_enabled() -> bool:
     import os as _os
 
@@ -319,4 +322,3 @@ def _strict_feasibility_enabled() -> bool:
     if override is None or not override.strip():
         return STRICT_FEASIBILITY_ADMISSION
     return override.strip().lower() in {"1", "true", "yes", "on"}
-

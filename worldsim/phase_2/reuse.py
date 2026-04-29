@@ -7,6 +7,7 @@ from worldsim.phase_2._context import install_context
 
 install_context(globals())
 
+
 def _load_reusable_phase_2_plans(
     *,
     prior_state: dict[str, Any],
@@ -78,6 +79,7 @@ def _load_reusable_phase_2_plans(
             logger.warning("Phase 2: ignoring saved adversarial plan reuse because %s", problem)
             return None
     return filtered_plans
+
 
 def _load_reusable_phase_2_tasks(
     *,
@@ -168,6 +170,7 @@ def _load_reusable_phase_2_tasks(
             return None
     return tasks
 
+
 def _resume_setting_matches(
     prior_state: dict[str, Any],
     *,
@@ -185,12 +188,14 @@ def _resume_setting_matches(
         current_value = _phase_2a_resolution_signature_comparable(current_value)
     return prior_value == current_value
 
+
 def _phase_2a_resolution_signature_comparable(value: Any) -> Any:
     if not isinstance(value, dict):
         return value
     comparable = dict(value)
     comparable.pop("instances_path", None)
     return comparable
+
 
 def _identifiers_match_exactly(
     items: list[dict[str, Any]],
@@ -201,6 +206,7 @@ def _identifiers_match_exactly(
     identifiers = [str(item.get(field, "")) for item in items if isinstance(item, dict)]
     return len(identifiers) == len(expected_ids) and set(identifiers) == expected_ids
 
+
 def _identifiers_cover_expected_set(
     items: list[dict[str, Any]],
     *,
@@ -210,6 +216,7 @@ def _identifiers_cover_expected_set(
     identifiers = [str(item.get(field, "")) for item in items if isinstance(item, dict)]
     return bool(identifiers) and set(identifiers) == expected_ids
 
+
 def _identifiers_are_unique(
     items: list[dict[str, Any]],
     *,
@@ -217,6 +224,7 @@ def _identifiers_are_unique(
 ) -> bool:
     identifiers = [str(item.get(field, "")) for item in items if isinstance(item, dict)]
     return len(identifiers) == len(set(identifiers))
+
 
 def _validate_reusable_phase_2_task(
     task: object,
@@ -290,6 +298,7 @@ def _validate_reusable_phase_2_task(
         return f"{task_name} adversarial_data_seed does not match seed_template + selected payload"
     return None
 
+
 def _stale_reusable_exposure_contract_reason(task: dict[str, Any]) -> str | None:
     if str(task.get("site") or "").strip().lower() != "reddit":
         return None
@@ -316,6 +325,7 @@ def _stale_reusable_exposure_contract_reason(task: dict[str, Any]) -> str | None
         return "reddit_create_comment_uses_legacy_benign_read_surface"
     return None
 
+
 def _load_text_fill_diagnostics(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
@@ -324,4 +334,3 @@ def _load_text_fill_diagnostics(path: Path) -> list[dict[str, Any]]:
     except Exception:
         return []
     return loaded if isinstance(loaded, list) else []
-
