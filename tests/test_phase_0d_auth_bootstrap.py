@@ -1175,8 +1175,10 @@ class _FakePage:
         self.harness = harness
         self.url = ""
 
-    async def goto(self, url, *, timeout):
-        self.harness.calls.append(("goto", {"url": url, "timeout": timeout}))
+    async def goto(self, url, *, timeout, wait_until=None):
+        self.harness.calls.append(
+            ("goto", {"url": url, "timeout": timeout, "wait_until": wait_until})
+        )
         if self.harness.goto_raises is not None:
             raise self.harness.goto_raises
         self.url = url
@@ -1311,6 +1313,14 @@ class TestFormLoginBootstrap:
             "context.close",
             "browser.close",
         ], f"unexpected call trace: {call_names}"
+        goto_calls = [details for name, details in harness.calls if name == "goto"]
+        assert goto_calls == [
+            {
+                "url": "https://app.test/login",
+                "timeout": 30_000,
+                "wait_until": "domcontentloaded",
+            }
+        ]
 
     def test_gitlab_form_login_tolerates_rails_input_submit_selector_drift(
         self, tmp_path, monkeypatch

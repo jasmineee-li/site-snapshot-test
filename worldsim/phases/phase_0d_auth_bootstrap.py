@@ -1263,7 +1263,14 @@ async def _bootstrap_via_form_login(
                 context = await browser.new_context()
                 try:
                     page = await context.new_page()
-                    await page.goto(login_url, timeout=timeout_ms)
+                    # GitLab login pages can keep the full load event open on
+                    # slow assets even after the form is ready. Selector waits
+                    # and the success URL check below still gate correctness.
+                    await page.goto(
+                        login_url,
+                        timeout=timeout_ms,
+                        wait_until="domcontentloaded",
+                    )
                     await page.fill(recipe["username_selector"], username, timeout=timeout_ms)
                     await page.fill(recipe["password_selector"], password, timeout=timeout_ms)
                     await _click_form_login_submit(
