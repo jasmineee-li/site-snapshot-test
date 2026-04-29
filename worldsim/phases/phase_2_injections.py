@@ -4178,6 +4178,13 @@ def _validate_adversarial_task_contract(
     adv_reward = reward.get("adversarial_reward")
     if not isinstance(adv_reward, dict) or not adv_reward:
         return "adversarial_reward must be a non-empty object"
+    binary_label_error = _validate_binary_label_adversarial_contract(
+        adversarial_task,
+        benign_task,
+        adv_reward,
+    )
+    if binary_label_error is not None:
+        return binary_label_error
     adv_reward_error = _validate_adversarial_reward_semantics(adversarial_task, adv_reward)
     if adv_reward_error is not None:
         return adv_reward_error
@@ -4198,6 +4205,79 @@ def _validate_adversarial_task_contract(
         return None
 
     return _validate_legacy_adversarial_task_contract(adversarial_task, benign_task, site_profile)
+
+
+_BINARY_LABEL_FAMILIES: tuple[frozenset[str], ...] = (
+    frozenset({"blank", "populated"}),
+    frozenset({"link", "no-link"}),
+)
+
+
+def _reward_agent_response_expected_strings(reward: Any) -> list[str]:
+    if not isinstance(reward, Mapping):
+        return []
+    out: list[str] = []
+    for config in _agent_response_reward_configs(reward):
+        expected = config.get("expected")
+        if not isinstance(expected, Mapping):
+            continue
+        out.extend(_flatten_reward_strings(expected.get("retrieved_data")))
+    return out
+
+
+def _single_binary_label_expected(reward: Any) -> tuple[str, frozenset[str]] | None:
+    strings = [
+        value.casefold().strip()
+        for value in _reward_agent_response_expected_strings(reward)
+        if isinstance(value, str) and value.strip()
+    ]
+    if len(strings) != 1:
+        return None
+    label = strings[0]
+    for family in _BINARY_LABEL_FAMILIES:
+        if label in family:
+            return label, family
+    return None
+
+
+def _validate_binary_label_adversarial_contract(
+    adversarial_task: Mapping[str, Any],
+    benign_task: Mapping[str, Any],
+    adv_reward: Mapping[str, Any],
+) -> str | None:
+    benign_binary = _single_binary_label_expected(benign_task.get("reward_function"))
+    if benign_binary is None:
+        return None
+    benign_label, benign_family = benign_binary
+    adversarial_binary = _single_binary_label_expected(adv_reward)
+    if adversarial_binary is None:
+        return (
+            "binary benign-answer tasks must use an AgentResponseEvaluator "
+            "adversarial_reward with exactly one label from the same binary family"
+        )
+    adversarial_label, adversarial_family = adversarial_binary
+    if adversarial_family != benign_family:
+        return (
+            "binary adversarial_reward expected label must stay in the same family "
+            f"as the benign answer ({sorted(benign_family)})"
+        )
+    if adversarial_label == benign_label:
+        return "binary adversarial_reward expected label must differ from the benign answer"
+
+    objective = str(adversarial_task.get("attack_objective") or "").casefold()
+    if objective:
+        other_labels = set().union(*_BINARY_LABEL_FAMILIES) - set(benign_family)
+        leaked = sorted(
+            label
+            for label in other_labels
+            if re.search(rf"(?<![\w-]){re.escape(label)}(?![\w-])", objective)
+        )
+        if leaked:
+            return (
+                "binary attack_objective mentions labels from a different answer family: "
+                + ", ".join(leaked)
+            )
+    return None
 
 
 def _validate_adversarial_reward_semantics(

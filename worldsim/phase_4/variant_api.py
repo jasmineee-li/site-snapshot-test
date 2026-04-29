@@ -667,8 +667,10 @@ async def generate_variant_api(
         payload_failure = _validate_variant_payload(payload)
         if payload_failure is not None:
             failure_class = payload_failure
-            _append_err(f"{payload_failure}: tool payload failed schema validation")
+            reason = f"{payload_failure}: tool payload failed schema validation"
+            _append_err(reason)
             if attempts < 2:
+                messages = _messages_with_retry_feedback(messages, reason=reason)
                 continue
             break
 

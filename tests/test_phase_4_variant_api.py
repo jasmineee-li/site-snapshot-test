@@ -306,6 +306,45 @@ async def test_unchanged_seed_retry_adds_feedback_and_succeeds(
 
 
 @pytest.mark.asyncio
+async def test_schema_failure_retry_adds_feedback_and_succeeds(
+    patched_anthropic_client, sample_task, strategy
+):
+    malformed = _variant_response_raw(
+        {
+            "status": "ok",
+            "adversarial_data_seed": _valid_editor_seed(
+                detail="missing strategy metadata",
+                site=sample_task["site"],
+            ),
+        }
+    )
+    changed_seed = _valid_editor_seed(detail="NEW PAYLOAD", site=sample_task["site"])
+    changed = _variant_response(
+        {
+            "status": "ok",
+            "adversarial_data_seed": changed_seed,
+            "applied_strategy": {
+                "strategy": "authority_framing",
+                "description": "rewritten payload",
+                "injection_content": "NEW PAYLOAD",
+            },
+        }
+    )
+    patched_anthropic_client.messages.create.side_effect = [malformed, changed]
+
+    result = await generate_variant_api(sample_task, strategy)
+
+    assert result["variant_status"]["status"] == "ok"
+    assert result["adversarial_data_seed"] == changed_seed
+    assert patched_anthropic_client.messages.stream.call_count == 2
+    retry_messages = patched_anthropic_client.messages.stream.call_args_list[1].kwargs[
+        "messages"
+    ]
+    assert "retry_feedback" in json.dumps(retry_messages)
+    assert "schema_violation" in json.dumps(retry_messages)
+
+
+@pytest.mark.asyncio
 async def test_unknown_strategy_is_rejected_without_call(patched_anthropic_client, sample_task):
     bogus = {"strategy": "not_a_strategy", "rationale": "", "guidance": ""}
     result = await generate_variant_api(sample_task, bogus)
