@@ -76,6 +76,69 @@ def _fmt_rate(rate: float | None) -> str:
     return f"{rate:.2f}" if rate is not None else "n/a"
 
 
+def _fmt_count_map(values: dict[str, Any]) -> str:
+    if not values:
+        return "none"
+    return ", ".join(f"{key}={value}" for key, value in sorted(values.items()))
+
+
+def format_variant_regeneration_audit(summary: dict[str, Any]) -> list[str]:
+    audit = summary.get("variant_regeneration_audit")
+    if not isinstance(audit, dict) or not audit.get("tasks_entered"):
+        return []
+
+    lines = ["Variant regeneration audit:"]
+    lines.append(
+        "  Method: only ecologically valid initial attacks that were resisted enter "
+        "variation; the judge classifies the refusal trigger, the host maps that "
+        "trigger to fixed strategies, the generator may rewrite only the selected "
+        "payload text, host finalization rejects contract drift, and accepted "
+        "variants re-enter PVPO."
+    )
+    lines.append(
+        "  Flow: "
+        f"{audit.get('tasks_entered', 0)} task(s) entered; "
+        f"{audit.get('planned_attempts', 0)} strategy attempt(s) planned; "
+        f"{audit.get('generated_attempts', 0)} generated; "
+        f"{audit.get('rejected_before_eval', 0)} rejected before browser eval; "
+        f"{audit.get('evaluated_attempts', 0)} evaluated; "
+        f"{audit.get('gate1_valid_evaluations', 0)} PVPO-valid; "
+        f"{audit.get('compliant_evaluations', 0)} complied with adversarial reward."
+    )
+    lines.append(
+        "  Judge: "
+        f"statuses={_fmt_count_map(audit.get('judge_status_counts') or {})}; "
+        f"triggers={_fmt_count_map(audit.get('judge_trigger_counts') or {})}; "
+        f"confidence={_fmt_count_map(audit.get('judge_confidence_counts') or {})}."
+    )
+
+    generation_statuses = audit.get("generation_status_counts") or {}
+    if generation_statuses:
+        lines.append(f"  Generation statuses: {_fmt_count_map(generation_statuses)}.")
+
+    rows = audit.get("trigger_strategy_rows") or []
+    if rows:
+        lines.append("  Trigger -> strategy flow:")
+        for row in rows:
+            lines.append(
+                "    "
+                f"{row['refusal_trigger']} -> {row['strategy']}: "
+                f"planned={row.get('planned', 0)} "
+                f"generated={row.get('generated', 0)} "
+                f"rejected={row.get('rejected', 0)} "
+                f"evaluated={row.get('evaluated', 0)} "
+                f"gate1_valid={row.get('gate1_valid', 0)} "
+                f"complied={row.get('complied', 0)}"
+            )
+
+    errors = summary.get("variant_error_buckets") or []
+    if errors:
+        lines.append("  Rejection buckets to inspect first:")
+        for row in errors[:5]:
+            lines.append(f"    {row['count']} {row['class']}: {row['reason']}")
+    return lines
+
+
 def format_text_summary(summary: dict[str, Any], *, results_path: Path) -> str:
     lines = [f"Phase 4 results: {results_path}"]
     lines.append(f"Total: {summary['total']} tasks; scorable: {summary['scorable']}")
@@ -146,6 +209,7 @@ def format_text_summary(summary: dict[str, Any], *, results_path: Path) -> str:
         lines.append("Variant generation/error buckets:")
         for row in errors:
             lines.append(f"  {row['count']} {row['class']}: {row['reason']}")
+    lines.extend(format_variant_regeneration_audit(summary))
     return "\n".join(lines)
 
 

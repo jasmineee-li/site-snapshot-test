@@ -2727,6 +2727,17 @@ async def test_run_strategy_variation_records_unchanged_seed_variants(monkeypatc
             ),
         }
     ]
+    assert result["variant_generation_records"] == [
+        {
+            "index": 0,
+            "strategy": "specificity",
+            "status": "failed",
+            "reason": (
+                "unchanged_seed: variant did not change adversarial_data_seed; "
+                "generator must alter the selected payload text or return inapplicable"
+            ),
+        }
+    ]
 
 
 @pytest.mark.asyncio
@@ -2792,6 +2803,9 @@ async def test_run_strategy_variation_retries_host_rejected_variant(monkeypatch,
     assert calls[0] is None
     assert "route encounter window" in (calls[1] or "")
     assert result["variant_generation_errors"] == []
+    assert result["variant_generation_records"] == [
+        {"index": 0, "strategy": "specificity", "status": "generated"}
+    ]
     assert evaluated[0]["adversarial_data_seed"]["editor_calls"][0]["args"] == {
         "entity_pk_value": 1,
         "detail": "contract-preserving payload rewrite",
@@ -2933,6 +2947,15 @@ async def test_run_strategy_variation_handles_variant_generation_exceptions(monk
             "strategy": "authority_framing",
             "error": "RuntimeError('sandbox crashed')",
         }
+    ]
+    assert result["variant_generation_records"] == [
+        {"index": 0, "strategy": "specificity", "status": "generated"},
+        {
+            "index": 1,
+            "strategy": "authority_framing",
+            "status": "error",
+            "error": "RuntimeError('sandbox crashed')",
+        },
     ]
 
 

@@ -4446,6 +4446,37 @@ def _variant_generation_record_for_result(
     return record
 
 
+def _compact_variant_generation_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    compact: list[dict[str, Any]] = []
+    for raw_record in records:
+        if not isinstance(raw_record, dict):
+            continue
+        strategy = raw_record.get("strategy")
+        strategy_name = (
+            strategy.get("strategy")
+            if isinstance(strategy, dict) and isinstance(strategy.get("strategy"), str)
+            else "unknown"
+        )
+        record: dict[str, Any] = {
+            "index": raw_record.get("index"),
+            "strategy": strategy_name,
+        }
+        if isinstance(raw_record.get("variant"), dict):
+            record["status"] = "generated"
+        elif isinstance(raw_record.get("status"), str):
+            record["status"] = raw_record["status"]
+        elif isinstance(raw_record.get("error"), str):
+            record["status"] = "error"
+            record["error"] = str(raw_record["error"])[:500]
+        else:
+            record["status"] = "unknown"
+        if isinstance(raw_record.get("reason"), str):
+            record["reason"] = str(raw_record["reason"])[:500]
+        compact.append(record)
+    compact.sort(key=lambda item: int(item["index"]) if isinstance(item.get("index"), int) else 0)
+    return compact
+
+
 def _rebuild_variant_generation_progress(
     task: dict[str, Any],
     checkpoint: dict[str, Any] | None,
@@ -4636,12 +4667,6 @@ async def run_strategy_variation(
             "variant_results": [],
         }
 
-    logger.info(
-        "Strategy variation for task %s: %d strategies recommended",
-        task.get("id", "?"),
-        len(strategies),
-    )
-
     if not primary_instances:
         logger.warning(
             "No instances available for variant evaluation of task %s", task.get("id", "?")
@@ -4655,6 +4680,19 @@ async def run_strategy_variation(
 
     # 2. Generate variants in parallel (up to 3 Modal Sandboxes)
     selected_strategies = strategies[:3]
+    logger.info(
+        "Strategy variation for task %s: trigger=%s judge_status=%s evidence_step=%s "
+        "confidence=%s selected_strategies=%s",
+        task_id,
+        recommendation.get("refusal_trigger", "unknown"),
+        recommendation_status,
+        recommendation.get("evidence_step", "unknown"),
+        recommendation.get("confidence", "unknown"),
+        [
+            strategy.get("strategy", f"strategy_{index}")
+            for index, strategy in enumerate(selected_strategies)
+        ],
+    )
     (
         variant_candidates,
         variant_generation_errors,
@@ -4836,6 +4874,15 @@ async def run_strategy_variation(
                 checkpoint,
                 failpoint_base="phase_4.strategy_variation.checkpoint",
             )
+            logger.info(
+                "Variant generation progress for task %s: generated=%d rejected=%d "
+                "completed=%d/%d",
+                task_id,
+                len(variant_candidates),
+                len(variant_generation_errors),
+                len(completed_indexes),
+                len(selected_strategies),
+            )
 
     real_variants = [
         (item.get("variant"), item.get("strategy"))
@@ -4851,6 +4898,7 @@ async def run_strategy_variation(
             "attempts": [initial_result],
             "variant_results": [],
             "variant_generation_errors": variant_generation_errors,
+            "variant_generation_records": _compact_variant_generation_records(generation_records),
         }
 
     # 3. Evaluate variants in parallel, one per separate benchmark instance.
@@ -4884,12 +4932,31 @@ async def run_strategy_variation(
             for i, (variant, strategy) in enumerate(limited_variants)
         ]
     )
+    variant_outcomes = Counter(
+        (
+            str(result.get("strategy", "unknown")),
+            str(result.get("outcome", "missing")),
+            "gate1_valid" if _ecologically_valid(result) else "gate1_invalid",
+        )
+        for result in variant_results
+        if isinstance(result, dict)
+    )
+    logger.info(
+        "Variant evaluation complete for task %s: evaluated=%d generated=%d rejected=%d "
+        "outcomes=%s",
+        task_id,
+        len(variant_results),
+        len(real_variants),
+        len(variant_generation_errors),
+        dict(sorted(variant_outcomes.items())),
+    )
     result = {
         "status": "partial_capacity" if partial_capacity else "varied",
         "judge_diagnosis": recommendation,
         "attempts": [initial_result],
         "variant_results": variant_results,
         "variant_generation_errors": variant_generation_errors,
+        "variant_generation_records": _compact_variant_generation_records(generation_records),
     }
     if partial_capacity:
         result["skipped_strategies"] = [

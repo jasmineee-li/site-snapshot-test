@@ -146,6 +146,216 @@ def _variant_error_bucket_key(item: Any) -> tuple[str, str] | None:
     return ("raw", str(item)[:160])
 
 
+def _strategy_name(strategy: Any) -> str:
+    if isinstance(strategy, dict):
+        value = strategy.get("strategy")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    if isinstance(strategy, str) and strategy.strip():
+        return strategy.strip()
+    return "unknown"
+
+
+def _recommended_strategy_names(judge: dict[str, Any]) -> list[str]:
+    strategies = judge.get("recommended_strategies")
+    if not isinstance(strategies, list):
+        return []
+    names: list[str] = []
+    for strategy in strategies[:3]:
+        name = _strategy_name(strategy)
+        if name != "unknown":
+            names.append(name)
+    return names
+
+
+def _variant_generation_record_status(record: dict[str, Any]) -> str:
+    status = record.get("status")
+    if isinstance(status, str) and status.strip():
+        return status.strip()
+    if isinstance(record.get("variant"), dict):
+        return "generated"
+    if isinstance(record.get("error"), str):
+        return "error"
+    return "unknown"
+
+
+def variant_regeneration_audit(results: list[dict[str, Any]]) -> dict[str, Any]:
+    """Summarize the judge -> strategy -> generation -> PVPO variant flow."""
+
+    tasks_entered = 0
+    planned_attempts = 0
+    generated_attempts = 0
+    evaluated_attempts = 0
+    gate1_valid_evaluations = 0
+    compliant_evaluations = 0
+    rejected_before_eval = 0
+    judge_status_counts = Counter()
+    judge_trigger_counts = Counter()
+    judge_confidence_counts = Counter()
+    generation_status_counts = Counter()
+    trigger_strategy_rows = Counter()
+    task_records: list[dict[str, Any]] = []
+
+    for result in results:
+        variation = result.get("strategy_variation")
+        if not isinstance(variation, dict):
+            continue
+        tasks_entered += 1
+        judge = variation.get("judge_diagnosis")
+        judge = judge if isinstance(judge, dict) else {}
+        judge_status = str(judge.get("status") or "unknown")
+        trigger = str(judge.get("refusal_trigger") or "unknown")
+        confidence = str(judge.get("confidence") or "unknown")
+        judge_status_counts[judge_status] += 1
+        judge_trigger_counts[trigger] += 1
+        judge_confidence_counts[confidence] += 1
+
+        recommended = _recommended_strategy_names(judge)
+        raw_variant_results = variation.get("variant_results")
+        variant_results = [
+            variant
+            for variant in raw_variant_results
+            if isinstance(variant, dict)
+        ] if isinstance(raw_variant_results, list) else []
+        raw_generation_errors = variation.get("variant_generation_errors")
+        generation_errors = raw_generation_errors if isinstance(raw_generation_errors, list) else []
+        raw_generation_records = variation.get("variant_generation_records")
+        generation_records = [
+            record
+            for record in raw_generation_records
+            if isinstance(record, dict)
+        ] if isinstance(raw_generation_records, list) else []
+
+        if not recommended:
+            for variant in variant_results:
+                name = _strategy_name(variant.get("strategy"))
+                if name != "unknown":
+                    recommended.append(name)
+            for error in generation_errors:
+                if isinstance(error, dict):
+                    name = _strategy_name(error.get("strategy"))
+                    if name != "unknown":
+                        recommended.append(name)
+        # Preserve order while de-duplicating fallback names.
+        recommended = list(dict.fromkeys(recommended))
+
+        planned_attempts += len(recommended)
+        for strategy in recommended:
+            trigger_strategy_rows[(trigger, strategy, "planned")] += 1
+
+        generated_for_task = 0
+        rejected_for_task = 0
+        if generation_records:
+            for record in generation_records:
+                name = _strategy_name(record.get("strategy"))
+                status = _variant_generation_record_status(record)
+                generation_status_counts[status] += 1
+                if status == "generated":
+                    generated_attempts += 1
+                    generated_for_task += 1
+                    trigger_strategy_rows[(trigger, name, "generated")] += 1
+                elif status in {"failed", "inapplicable", "skipped", "error"}:
+                    rejected_before_eval += 1
+                    rejected_for_task += 1
+                    trigger_strategy_rows[(trigger, name, "rejected")] += 1
+                else:
+                    trigger_strategy_rows[(trigger, name, "unknown_generation_status")] += 1
+        else:
+            generated_attempts += len(variant_results)
+            generated_for_task += len(variant_results)
+            generation_status_counts["generated"] += len(variant_results)
+            rejected_before_eval += len(generation_errors)
+            rejected_for_task += len(generation_errors)
+            if generation_errors:
+                generation_status_counts["rejected"] += len(generation_errors)
+            for variant in variant_results:
+                trigger_strategy_rows[
+                    (trigger, _strategy_name(variant.get("strategy")), "generated")
+                ] += 1
+            for error in generation_errors:
+                if isinstance(error, dict):
+                    trigger_strategy_rows[
+                        (trigger, _strategy_name(error.get("strategy")), "rejected")
+                    ] += 1
+
+        evaluated_attempts += len(variant_results)
+        for variant in variant_results:
+            name = _strategy_name(variant.get("strategy"))
+            trigger_strategy_rows[(trigger, name, "evaluated")] += 1
+            if ecologically_valid(variant):
+                gate1_valid_evaluations += 1
+                trigger_strategy_rows[(trigger, name, "gate1_valid")] += 1
+            else:
+                trigger_strategy_rows[(trigger, name, "gate1_invalid")] += 1
+            if (
+                ecologically_valid(variant)
+                and variant.get("outcome") == "complied"
+                and variant_adversarial_reward_passed(variant)
+            ):
+                compliant_evaluations += 1
+                trigger_strategy_rows[(trigger, name, "complied")] += 1
+
+        task_records.append(
+            {
+                "task_id": str(result.get("task_id") or ""),
+                "final_status": str(result.get("final_status") or "missing"),
+                "judge_status": judge_status,
+                "refusal_trigger": trigger,
+                "confidence": confidence,
+                "planned_strategies": recommended,
+                "generated": generated_for_task,
+                "rejected_before_eval": rejected_for_task,
+                "evaluated": len(variant_results),
+                "variant_outcomes": dict(
+                    sorted(
+                        Counter(
+                            str(variant.get("outcome") or "missing")
+                            for variant in variant_results
+                        ).items()
+                    )
+                ),
+            }
+        )
+
+    row_map: dict[tuple[str, str], dict[str, Any]] = {}
+    for (trigger, strategy, metric), count in trigger_strategy_rows.items():
+        key = (trigger, strategy)
+        row = row_map.setdefault(
+            key,
+            {
+                "refusal_trigger": trigger,
+                "strategy": strategy,
+                "planned": 0,
+                "generated": 0,
+                "rejected": 0,
+                "evaluated": 0,
+                "gate1_valid": 0,
+                "gate1_invalid": 0,
+                "complied": 0,
+            },
+        )
+        row[metric] = count
+
+    return {
+        "tasks_entered": tasks_entered,
+        "planned_attempts": planned_attempts,
+        "generated_attempts": generated_attempts,
+        "rejected_before_eval": rejected_before_eval,
+        "evaluated_attempts": evaluated_attempts,
+        "gate1_valid_evaluations": gate1_valid_evaluations,
+        "compliant_evaluations": compliant_evaluations,
+        "judge_status_counts": dict(sorted(judge_status_counts.items())),
+        "judge_trigger_counts": dict(sorted(judge_trigger_counts.items())),
+        "judge_confidence_counts": dict(sorted(judge_confidence_counts.items())),
+        "generation_status_counts": dict(sorted(generation_status_counts.items())),
+        "trigger_strategy_rows": sorted(
+            row_map.values(),
+            key=lambda row: (str(row["refusal_trigger"]), str(row["strategy"])),
+        ),
+        "task_records": sorted(task_records, key=lambda row: str(row["task_id"])),
+    }
+
+
 def summarize_results(
     results: list[dict[str, Any]],
     *,
@@ -333,4 +543,5 @@ def summarize_results(
             {"count": count, "class": cls, "reason": reason}
             for (cls, reason), count in variant_error_buckets.most_common()
         ],
+        "variant_regeneration_audit": variant_regeneration_audit(results),
     }
