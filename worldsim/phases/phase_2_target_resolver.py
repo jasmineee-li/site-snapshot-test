@@ -157,6 +157,7 @@ _REDDIT_USER_DASH_RE = re.compile(r"/user/(?P<user>[^/?#]+)/(?P<dash>submitted|c
 # segment patterns go last because they match anything starting with /<word>.
 _GITLAB_PATTERNS: tuple[tuple[ResourceKind, re.Pattern[str]], ...] = (
     ("gitlab_issue", _ISSUE_RE),
+    ("gitlab_search_result", _ISSUE_LISTING_RE),
     ("gitlab_mr", _MR_RE),
     ("gitlab_project_milestone", _MILESTONE_RE),
     ("gitlab_project_labels", _LABELS_RE),
@@ -338,6 +339,9 @@ def _match_gitlab(
             anchors["dashboard"] = anchors.pop("dash", "")
         if kind == "gitlab_search_result" and "q" in anchors:
             anchors["query"] = anchors.pop("q")
+        if kind == "gitlab_search_result":
+            for key, value in _gitlab_listing_query_anchors(url, path_and_query).items():
+                anchors.setdefault(key, value)
         # The root-segment regex emits "segment"; resolve it to user vs
         # group via the Phase 0c handle lists. Unresolved → continue
         # searching (no other gitlab pattern will match a bare /<word>,
@@ -352,6 +356,48 @@ def _match_gitlab(
             continue
         return kind, anchors
     return None
+
+
+def _gitlab_listing_query_anchors(url: str, path_and_query: str) -> dict[str, str]:
+    """Preserve native GitLab issue-list filters as resolver anchors.
+
+    WebArena-Verified often checks filtered GitLab issue-list navigation via a
+    NetworkEventEvaluator ``headers.referer`` rather than the request URL
+    itself. If the resolver keeps only ``/-/issues``, Phase 2 can seed a child
+    that is visible on the broad project issue list but not on the filtered page
+    the native task actually requires.
+    """
+    raw = url if "://" in url else f"https://placeholder.local{path_and_query}"
+    try:
+        query = parse_qs(urlsplit(raw).query, keep_blank_values=True)
+    except ValueError:
+        return {}
+
+    anchors: dict[str, str] = {}
+    scalar_keys = {
+        "search": "query",
+        "scope": "scope",
+        "state": "state",
+        "sort": "sort",
+        "order_by": "order_by",
+    }
+    for query_key, anchor_key in scalar_keys.items():
+        value = _first_query_value(query, query_key)
+        if value:
+            anchors[anchor_key] = value
+
+    label_values = _query_values(query, "label_name[]")
+    if label_values:
+        anchors["label_names"] = ",".join(label_values)
+    not_label_values = _query_values(query, "not[label_name][]")
+    if not_label_values:
+        anchors["not_label_names"] = ",".join(not_label_values)
+    return anchors
+
+
+def _query_values(query: Mapping[str, list[str]], key: str) -> list[str]:
+    values = query.get(key) or []
+    return [str(value).strip() for value in values if str(value).strip()]
 
 
 def _match_reddit(url: str) -> tuple[ResourceKind, dict[str, str]] | None:
@@ -382,6 +428,17 @@ def _iter_eval_urls(task: Mapping[str, Any]) -> list[str]:
         evaluator = str(ev.get("evaluator") or "")
         priority = 0 if "NetworkEvent" in evaluator else 1
         expected = ev.get("expected") or {}
+        referer_candidates: list[str] = []
+        headers = expected.get("headers")
+        if isinstance(headers, Mapping):
+            for key, value in headers.items():
+                if isinstance(key, str) and key.casefold() == "referer":
+                    if isinstance(value, str):
+                        referer_candidates.append(value)
+                    elif isinstance(value, list):
+                        referer_candidates.extend(item for item in value if isinstance(item, str))
+        for candidate in referer_candidates:
+            ranked.append((priority, candidate))
         raw = expected.get("url") or expected.get("reference_url")
         if raw is None:
             continue
@@ -392,7 +449,12 @@ def _iter_eval_urls(task: Mapping[str, Any]) -> list[str]:
         else:
             continue
         for candidate in candidates:
-            ranked.append((priority, _url_with_expected_query_params(candidate, expected)))
+            ranked.append(
+                (
+                    priority + (1 if referer_candidates else 0),
+                    _url_with_expected_query_params(candidate, expected),
+                )
+            )
     ranked.sort(key=lambda pair: pair[0])
     return [url for _, url in ranked]
 
@@ -868,6 +930,7 @@ def derive_benign_target_resource(
                 "layer": "L1",
             }
             record.update(_route_evidence_flags(kind, task))
+            _preserve_project_listing_route(record)
             _assert_anchor_contract_conformance(record, benchmark=benchmark, site=site_kind)
             return record
 
@@ -898,6 +961,7 @@ def derive_benign_target_resource(
                 "layer": "L2",
             }
             record.update(_route_evidence_flags(kind, task))
+            _preserve_project_listing_route(record)
             _assert_anchor_contract_conformance(record, benchmark=benchmark, site=site_kind)
             return record
 
@@ -1162,6 +1226,34 @@ _LATEST_DISCUSSION_REGION_RE = re.compile(
     r"(?:(?!\.).){0,80}\b(?:comment|commented|reply|replies|note|message)\b",
     re.IGNORECASE,
 )
+_TITLE_CONTENT_FORCING_RE = re.compile(
+    r"\b(?:get|report|return|identify|list|extract|tell|give|find|compare)\b"
+    r"(?:(?!\.).){0,100}\b(?:title|titles|titled|post_title)\b"
+    r"|"
+    r"\b(?:title|titles|titled|post_title)\b"
+    r"(?:(?!\.).){0,100}\b(?:get|report|return|identify|list|extract|tell|give|find|compare)\b"
+    r"|"
+    r"\b(?:with|matching|containing|contains)\b"
+    r"(?:(?!\.).){0,100}\b(?:title|titles|titled)\b",
+    re.IGNORECASE,
+)
+_LISTING_ROW_ACTION_RE = re.compile(
+    r"\b(?:open|click|select|choose|upvote|downvote|like|reply|comment|assign|close|edit|update)\b"
+    r"(?:(?!\.).){0,100}\b(?:latest|newest|most recent|recent|first|matching)\b"
+    r"(?:(?!\.).){0,100}\b(?:issue|post|submission|merge request|mr)\b"
+    r"|"
+    r"\b(?:latest|newest|most recent|recent|first|matching)\b"
+    r"(?:(?!\.).){0,100}\b(?:issue|post|submission|merge request|mr)\b"
+    r"(?:(?!\.).){0,100}\b(?:open|click|select|choose|upvote|downvote|like|reply|comment|assign|close|edit|update)\b",
+    re.IGNORECASE,
+)
+_LISTING_PAGE_ONLY_RE = re.compile(
+    r"\b(?:issues|merge requests|posts|submissions)\s+page\b"
+    r"|\bpage\s+showing\s+the\s+list\b"
+    r"|\blist\s+of\s+(?:open|closed|all|not yet closed)?\s*"
+    r"(?:issues|merge requests|posts|submissions)\b",
+    re.IGNORECASE,
+)
 
 
 def _route_evidence_flags(kind: ResourceKind | str, task: Mapping[str, Any]) -> dict[str, bool]:
@@ -1169,6 +1261,8 @@ def _route_evidence_flags(kind: ResourceKind | str, task: Mapping[str, Any]) -> 
     if not instruction.strip():
         return {}
     flags: dict[str, bool] = {}
+    if _title_surface_forced_by_instruction(instruction):
+        flags["title_surface_forced_by_task"] = True
     if kind in {"reddit_forum", "gitlab_search_result", "gitlab_dashboard_list"}:
         if _LISTING_DETAIL_FORCING_RE.search(instruction):
             flags["transition_forced_by_task"] = True
@@ -1184,6 +1278,21 @@ def _route_evidence_flags(kind: ResourceKind | str, task: Mapping[str, Any]) -> 
             flags["transition_forced_by_task"] = True
             flags["exact_comment_region_forced_by_task"] = True
     return flags
+
+
+def _title_surface_forced_by_instruction(instruction: str) -> bool:
+    """Return True when a title row is part of the benign task's goal.
+
+    A pure navigation/filter task can paint titles without requiring the agent
+    to consume them. Title carriers are task-salient when the task asks for
+    title content, uses title text as a selector, or requires an action on a
+    specific listed child row.
+    """
+    if _TITLE_CONTENT_FORCING_RE.search(instruction):
+        return True
+    if _LISTING_PAGE_ONLY_RE.search(instruction):
+        return False
+    return _LISTING_ROW_ACTION_RE.search(instruction) is not None
 
 
 def _transition_forced_by_l3_task(task: Mapping[str, Any], *, kind: str) -> bool:
@@ -1968,6 +2077,7 @@ async def resolve_l3(
         "l3_probe_query": dict(probe_query),
     }
     record.update(_route_evidence_flags(kind, task))
+    _preserve_project_listing_route(record)
     _preserve_l3_listing_provenance(
         record,
         task=task,
@@ -1979,6 +2089,21 @@ async def resolve_l3(
         reconstructed_detail_url=reconstructed,
     )
     return record
+
+
+def _preserve_project_listing_route(record: dict[str, Any]) -> None:
+    """Keep project issue-list resources as listing carriers.
+
+    L4 expansion is useful for ambiguous global search/dashboard probes, but a
+    project issue-list route can seed a created child directly under the project.
+    Expanding it into existing issue detail records loses that created-child
+    listing topology.
+    """
+    if record.get("kind") != "gitlab_search_result":
+        return
+    anchors = record.get("anchors")
+    if isinstance(anchors, Mapping) and anchors.get("project_path"):
+        record["skip_l4_expansion"] = True
 
 
 # -----------------------------------------------------------------------

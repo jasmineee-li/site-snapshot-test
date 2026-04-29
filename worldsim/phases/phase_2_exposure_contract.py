@@ -69,7 +69,7 @@ CREATE_CHILD_LISTING_KINDS = frozenset({"reddit_forum"})
 def exposure_contract_signature() -> dict[str, Any]:
     """Fingerprint knobs whose change invalidates persisted Phase 2 plans."""
     return {
-        "version": 14,
+        "version": 15,
         "modes": [
             "direct_detail",
             "inline_listing",
@@ -89,6 +89,7 @@ def exposure_contract_signature() -> dict[str, Any]:
         "visible_listing_title_preference": "prefer_payload_in_created_child_title_rows_when_rich_route_unproven",
         "surface_route_metadata": "entry_seed_transition_capacity_v2",
         "surface_candidate_policy": "enumerate_then_select_best_eligible_route",
+        "title_surface_policy": "requires_task_salient_title_content_or_row_action",
     }
 
 
@@ -673,6 +674,11 @@ def _phase4_exposure_for_seeded_surface(
 ) -> dict[str, Any]:
     transition_forced = _transition_forced_by_task(resource)
     runtime_hook = _phase4_runtime_hook_available(resource)
+    if _is_title_surface(target_surface_id) and not _title_surface_forced_by_task(resource):
+        return _phase4_exposure_capability(
+            "ineligible",
+            reason="task_does_not_force_title_surface",
+        )
     if _is_unanchored_appended_comment_surface(
         site=site,
         kind=kind,
@@ -690,6 +696,10 @@ def _phase4_exposure_for_seeded_surface(
         transition_forced_by_task=transition_forced,
         runtime_hook_available=runtime_hook,
     )
+
+
+def _is_title_surface(target_surface_id: str | None) -> bool:
+    return target_surface_id in {"issue.title", "mr.title", "submission.title"}
 
 
 def _appended_comment_exposure_capability(
@@ -857,6 +867,10 @@ def _attack_fit_for_surface(
 
 def _transition_forced_by_task(resource: Mapping[str, Any]) -> bool:
     return resource.get("transition_forced_by_task") is True
+
+
+def _title_surface_forced_by_task(resource: Mapping[str, Any]) -> bool:
+    return resource.get("title_surface_forced_by_task") is True
 
 
 def _exact_comment_region_forced_by_task(resource: Mapping[str, Any]) -> bool:

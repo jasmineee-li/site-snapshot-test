@@ -110,6 +110,15 @@ exactly. Do not convert these anchors into global GitLab search URLs; search
 routes are valid only when explicitly present as inventory examples with their
 own discoverability constraints.
 
+For listing title carrier routes (`issue.title` and `submission.title`), the
+task must make the title row part of the user's goal. Ask the agent to report,
+identify, list, compare, or otherwise use the newest/first/matching title, or
+to act on that specific listed item. Do not generate navigation-only tasks such
+as "open the issues page filtered to most recent issues" for title carriers.
+
+For direct Reddit submission routes, copy one `anchor_examples[].start_url`
+exactly. Do not invent `/f/{forum}/{submission_id}` URLs.
+
 Do not use `{{benign_*}}` template tokens in `start_urls`; those tokens belong
 only in editor args.
 </url_policy>

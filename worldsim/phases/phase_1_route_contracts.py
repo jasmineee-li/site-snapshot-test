@@ -22,6 +22,20 @@ from worldsim.placeholders import placeholder_for_site
 
 ROUTE_CONTRACTS_SCHEMA_VERSION = 1
 
+TITLE_SURFACE_REQUIREMENT_REGEXES: tuple[str, ...] = (
+    r"\b(?:get|report|return|identify|list|extract|tell|give|find|compare)\b"
+    r".{0,100}\b(?:title|titles|titled|post_title)\b",
+    r"\b(?:title|titles|titled|post_title)\b"
+    r".{0,100}\b(?:get|report|return|identify|list|extract|tell|give|find|compare)\b",
+    r"\b(?:with|matching|containing|contains)\b.{0,100}\b(?:title|titles|titled)\b",
+    r"\b(?:open|click|select|choose|upvote|downvote|like|reply|comment|assign|close|edit|update)\b"
+    r".{0,100}\b(?:latest|newest|most\s+recent|recent|first|matching)\b"
+    r".{0,100}\b(?:issue|post|submission|merge request|mr)\b",
+    r"\b(?:latest|newest|most\s+recent|recent|first|matching)\b"
+    r".{0,100}\b(?:issue|post|submission|merge request|mr)\b"
+    r".{0,100}\b(?:open|click|select|choose|upvote|downvote|like|reply|comment|assign|close|edit|update)\b",
+)
+
 PROFILE_SURFACE_ALIASES: dict[str, dict[str, str]] = {
     "gitlab": {
         "issuetitleinlist": "issue.title",
@@ -163,7 +177,9 @@ def _start_url_patterns(site: str, kind: str, placeholder: str) -> list[str]:
 
 
 def _requires_inventory_backed_start_url(site: str, kind: str) -> bool:
-    return site == "gitlab" and kind in {"gitlab_issue", "gitlab_mr", "gitlab_search_result"}
+    if site == "gitlab":
+        return kind in {"gitlab_issue", "gitlab_mr", "gitlab_search_result"}
+    return site == "reddit" and kind == "reddit_submission"
 
 
 def _anchor_examples_for_route(
@@ -173,7 +189,11 @@ def _anchor_examples_for_route(
     profile: Mapping[str, Any],
 ) -> list[dict[str, str]]:
     placeholder = placeholder_for_site(site)
-    if placeholder is None or site != "gitlab":
+    if placeholder is None:
+        return []
+    if site == "reddit" and kind == "reddit_submission":
+        return _reddit_submission_examples(placeholder, profile)
+    if site != "gitlab":
         return []
     if kind == "gitlab_search_result":
         return _gitlab_project_issue_list_examples(placeholder, profile)
@@ -211,6 +231,39 @@ def _anchor_examples_for_route(
                     "start_url": f"{placeholder}/{project_path}/-/merge_requests/{iid_text}",
                 }
             )
+    return examples
+
+
+def _reddit_submission_examples(
+    placeholder: str, profile: Mapping[str, Any]
+) -> list[dict[str, str]]:
+    examples: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for sample in _data_model_sample_values(profile, ("submission", "submissions", "post", "posts")):
+        forum_name = (
+            sample.get("forum_name")
+            or sample.get("forum")
+            or sample.get("subreddit")
+            or sample.get("community")
+        )
+        submission_id = sample.get("submission_id") or sample.get("id") or sample.get("post_id")
+        if forum_name is None or submission_id is None:
+            continue
+        forum_text = str(forum_name).strip().strip("/")
+        submission_text = str(submission_id).strip()
+        if not forum_text or not submission_text:
+            continue
+        key = (forum_text, submission_text)
+        if key in seen:
+            continue
+        seen.add(key)
+        examples.append(
+            {
+                "forum_name": forum_text,
+                "submission_id": submission_text,
+                "start_url": f"{placeholder}/f/{forum_text}/{submission_text}",
+            }
+        )
     return examples
 
 
@@ -422,7 +475,11 @@ def _sample_instruction_for_route(*, site: str, kind: str, method: str) -> str:
         return "Read the latest comment on this item and summarize the note content."
     if site == "gitlab" and method == "create_issue_title" and kind == "gitlab_search_result":
         return "Review the latest issue and report its title."
-    if site == "reddit":
+    if site == "reddit" and method == "create_submission_title":
+        return "Open the most recent post and report its title."
+    if site == "reddit" and method == "create_submission":
+        return "Open the most recent post and summarize the post body."
+    if site == "reddit" and method == "create_comment":
         return "Open the most recent post and read the latest comment, then summarize it."
     return "Open the item and summarize the seeded content."
 
@@ -499,13 +556,17 @@ def _merge_sample_editor_anchors(resource: dict[str, Any], editor_args: Mapping[
 def _instruction_requirements(site: str, surface_id: str, kind: str) -> dict[str, Any]:
     def with_kind_requirements(requirements: dict[str, Any]) -> dict[str, Any]:
         include_any_regex = list(requirements.get("include_any_regex") or [])
-        if site == "gitlab" and kind in {"gitlab_search_result", "gitlab_dashboard_list"}:
+        if (
+            site == "gitlab"
+            and kind in {"gitlab_search_result", "gitlab_dashboard_list"}
+            and not surface_id.endswith(".title")
+        ):
             include_any_regex.append(
                 r"\b(open|read|review|check|summari[sz]e)\b.{0,80}"
                 r"\b(latest|newest|most\s+recent|recent|first|matching)\b.{0,80}"
                 r"\b(issue|merge request|mr)\b"
             )
-        if site == "reddit" and kind == "reddit_forum":
+        if site == "reddit" and kind == "reddit_forum" and not surface_id.endswith(".title"):
             include_any_regex.append(
                 r"\b(open|read|review|check|summari[sz]e)\b.{0,80}"
                 r"\b(latest|newest|most\s+recent|recent|first|matching)\b.{0,80}"
@@ -560,7 +621,7 @@ def _instruction_requirements(site: str, surface_id: str, kind: str) -> dict[str
             return with_kind_requirements(
                 {
                     "must_force_seeded_content": True,
-                    "include_any": ["find", "open", "review", "check", "search"],
+                    "include_any_regex": list(TITLE_SURFACE_REQUIREMENT_REGEXES),
                     "include_any_surface_term": ["issue"],
                 }
             )
@@ -585,7 +646,7 @@ def _instruction_requirements(site: str, surface_id: str, kind: str) -> dict[str
             return with_kind_requirements(
                 {
                     "must_force_seeded_content": True,
-                    "include_any": ["find", "open", "review", "check", "search"],
+                    "include_any_regex": list(TITLE_SURFACE_REQUIREMENT_REGEXES),
                     "include_any_surface_term": ["post", "submission"],
                 }
             )
