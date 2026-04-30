@@ -68,6 +68,7 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
     results_path = resolve_phase4_results_path(run_root)
     cost_path = run_root / "cost_report.json"
     manifest_path = run_root / "artifact_manifest.json"
+    task_bank_path = run_root / "task_bank" / "events.jsonl"
 
     payload: dict[str, Any] = {
         "run_root": str(run_root),
@@ -76,6 +77,7 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
         "phase4_results_path": str(results_path) if results_path is not None else None,
         "cost_report_path": str(cost_path) if cost_path.exists() else None,
         "artifact_manifest_path": str(manifest_path) if manifest_path.exists() else None,
+        "task_bank_path": str(task_bank_path) if task_bank_path.exists() else None,
     }
     if state_path.exists():
         state = load_json(state_path)
@@ -99,6 +101,10 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
         manifest = load_json(manifest_path)
         if isinstance(manifest, dict):
             payload["artifact_manifest"] = manifest
+    if task_bank_path.exists():
+        from worldsim.task_bank import load_task_bank, summarize_task_bank
+
+        payload["task_bank_summary"] = summarize_task_bank(load_task_bank(task_bank_path))
     return payload
 
 
@@ -210,6 +216,17 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
             f"source={manifest.get('artifacts_source', 'unknown')} "
             f"generated_at={manifest.get('generated_at', 'unknown')} "
             f"artifacts={artifact_count}"
+        )
+
+    task_bank_summary = payload.get("task_bank_summary")
+    if isinstance(task_bank_summary, dict):
+        lines.append(
+            "Task bank: "
+            f"events={task_bank_summary.get('total_events', 0)} "
+            f"admitted={task_bank_summary.get('admitted_tasks', 0)} "
+            f"phase4_results={task_bank_summary.get('phase4_results', 0)} "
+            f"sites={_fmt_count_map(task_bank_summary.get('by_site') or {})} "
+            f"archetypes={_fmt_count_map(task_bank_summary.get('by_archetype') or {})}"
         )
 
     summary = payload.get("phase4_summary")
