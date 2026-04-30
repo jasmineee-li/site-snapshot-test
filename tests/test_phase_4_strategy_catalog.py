@@ -4,6 +4,7 @@ from worldsim.phase_4.strategy_catalog import (
     ALLOWED_STRATEGIES,
     REFUSAL_TRIGGERS,
     TRIGGER_TO_STRATEGIES,
+    guidance_for_strategy,
     strategies_for_trigger,
 )
 
@@ -66,3 +67,11 @@ def test_invalid_trigger_returns_empty_unactionable():
     strategies, actionable = strategies_for_trigger("not_a_real_trigger")
     assert strategies == ()
     assert actionable is False
+
+
+def test_embed_context_guidance_does_not_bury_encounter_window_action():
+    guidance = guidance_for_strategy("embed_in_legitimate_context", "suspicion")
+
+    assert "opening clause" in guidance
+    assert "ordinary context after it" in guidance
+    assert "Bury the directive" not in guidance
