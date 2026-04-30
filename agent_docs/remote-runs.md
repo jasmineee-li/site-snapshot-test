@@ -14,6 +14,17 @@ Read `docs/handoffs/rigor-run-setup.md` for the full runbook. The short version:
 
 Avoid raw long-lived SSH pipes for runs. Never use broad `pkill -f` to stop jobs.
 
+`remote_job_start.sh` normalizes common project toolchain commands such as
+`uv`, `uvx`, `pnpm`, `bun`, `npm`, `npx`, `node`, `modal`, and `claude` through
+`bash -lc` before the detached runner starts them. This makes detached jobs use
+the same login-shell PATH as an operator session and prevents false "stale"
+jobs from tools installed by shell startup files. Metadata records both
+`original_command` and normalized `command`, plus `command_execution.reason`.
+Use an explicit `bash -lc '...'` command for multi-step runs. Set
+`WORLDSIM_REMOTE_JOB_EXEC_MODE=direct` only when intentionally testing exact
+argv/PATH behavior; launch failures are written as `exit.status=launch_failed`
+and surfaced by `remote_job_status.sh`.
+
 For r5 jobs that run browsers on the host, including Phase 2c render checks and
 Phase 4 agent/PVPO runs, use the generated `instances.scale.json`. Do not use
 `instances.smoke.json` on-host unless you have regenerated it for the host's

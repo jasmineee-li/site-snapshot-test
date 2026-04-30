@@ -64,6 +64,7 @@ done
 [[ -n "$NAME" ]] || { usage >&2; rj_die "--name required"; }
 (($# > 0)) || { usage >&2; rj_die "missing command after --"; }
 
+ORIGINAL_COMMAND_B64="$(rj_json_b64 "$@")"
 rj_guard_runtime_instance_topology "$HOST_CONFIG" "$@"
 rj_prepare_connection "$HOST_CONFIG" "$SSH_KEY_ARG"
 REMOTE_DIR="${REMOTE_DIR:-$(rj_default_remote_dir)}"
@@ -81,7 +82,86 @@ print(f"{stamp}-{name}-{secrets.token_hex(3)}")
 PY
 )"
 
-COMMAND_B64="$(rj_json_b64 "$@")"
+COMMAND_ENVELOPE_B64="$(python3 - "$@" <<'PY'
+import base64
+import json
+import os
+import shlex
+import sys
+from pathlib import Path
+
+original = list(sys.argv[1:])
+mode = os.environ.get("WORLDSIM_REMOTE_JOB_EXEC_MODE", "auto").strip().lower() or "auto"
+if mode not in {"auto", "direct", "login-shell"}:
+    raise SystemExit(
+        "WORLDSIM_REMOTE_JOB_EXEC_MODE must be one of auto, direct, or login-shell"
+    )
+
+SHELLS = {"bash", "sh", "zsh"}
+ENV_MANAGED_COMMANDS = {
+    "bun",
+    "claude",
+    "modal",
+    "node",
+    "npm",
+    "npx",
+    "pnpm",
+    "poetry",
+    "uv",
+    "uvx",
+}
+
+
+def basename(value: str) -> str:
+    return Path(value).name
+
+
+def already_shell(argv: list[str]) -> bool:
+    return len(argv) >= 3 and basename(argv[0]) in SHELLS and argv[1] in {"-c", "-lc"}
+
+
+def managed_command_name(argv: list[str]) -> str:
+    if not argv:
+        return ""
+    if basename(argv[0]) == "env":
+        for item in argv[1:]:
+            if "=" not in item:
+                return basename(item)
+        return "env"
+    return basename(argv[0])
+
+
+def should_login_shell_wrap(argv: list[str]) -> bool:
+    if not argv or already_shell(argv):
+        return False
+    if os.path.isabs(argv[0]) or "/" in argv[0]:
+        return False
+    return managed_command_name(argv) in ENV_MANAGED_COMMANDS
+
+
+normalized = original
+reason = "direct"
+if mode == "login-shell" and not already_shell(original):
+    normalized = ["bash", "-lc", shlex.join(original)]
+    reason = "forced_login_shell"
+elif mode == "auto" and should_login_shell_wrap(original):
+    normalized = ["bash", "-lc", shlex.join(original)]
+    reason = f"auto_login_shell_for_{managed_command_name(original)}"
+elif already_shell(original):
+    reason = "already_shell"
+
+payload = {
+    "command": normalized,
+    "execution": {
+        "mode": mode,
+        "normalized": normalized != original,
+        "reason": reason,
+        "original_command": original,
+    },
+}
+print(base64.b64encode(json.dumps(payload).encode()).decode())
+PY
+)"
 if ((${#EXPECTED_OUTPUTS[@]})); then
     EXPECTED_B64="$(rj_json_b64 "${EXPECTED_OUTPUTS[@]}")"
 else
@@ -115,7 +195,7 @@ print(base64.b64encode(json.dumps(payload).encode()).decode())
 PY
 )"
 
-rj_ssh_bash "$REMOTE_DIR" "$JOB_ID" "$NAME" "$HOST_CONFIG" "$STATE_DIR_MODE" "$STATE_DIR_VALUE" "$EXPECTED_B64" "$LOCAL_META_B64" "$COMMAND_B64" <<'REMOTE'
+rj_ssh_bash "$REMOTE_DIR" "$JOB_ID" "$NAME" "$HOST_CONFIG" "$STATE_DIR_MODE" "$STATE_DIR_VALUE" "$EXPECTED_B64" "$LOCAL_META_B64" "$COMMAND_ENVELOPE_B64" "$ORIGINAL_COMMAND_B64" <<'REMOTE'
 set -euo pipefail
 
 remote_dir="$1"
@@ -126,12 +206,13 @@ state_dir_mode="$5"
 state_dir_value="$6"
 expected_b64="$7"
 local_meta_b64="$8"
-command_b64="$9"
+command_envelope_b64="$9"
+original_command_b64="${10}"
 
 job_dir="$remote_dir/logs/remote_jobs/$job_id"
 mkdir -p "$job_dir"
 
-python3 - "$job_dir" "$remote_dir" "$job_id" "$name" "$host_config" "$state_dir_mode" "$state_dir_value" "$expected_b64" "$local_meta_b64" "$command_b64" <<'PY'
+python3 - "$job_dir" "$remote_dir" "$job_id" "$name" "$host_config" "$state_dir_mode" "$state_dir_value" "$expected_b64" "$local_meta_b64" "$command_envelope_b64" "$original_command_b64" <<'PY'
 import base64
 import hashlib
 import json
@@ -150,7 +231,28 @@ state_dir_mode = sys.argv[6]
 state_dir_value = sys.argv[7]
 expected_outputs = json.loads(base64.b64decode(sys.argv[8]).decode())
 local_meta = json.loads(base64.b64decode(sys.argv[9]).decode())
-argv = json.loads(base64.b64decode(sys.argv[10]).decode())
+command_envelope = json.loads(base64.b64decode(sys.argv[10]).decode())
+original_argv = json.loads(base64.b64decode(sys.argv[11]).decode())
+if isinstance(command_envelope, list):
+    argv = command_envelope
+    command_execution = {
+        "mode": "legacy",
+        "normalized": False,
+        "reason": "legacy_command_envelope",
+        "original_command": original_argv,
+    }
+else:
+    argv = command_envelope.get("command")
+    command_execution = command_envelope.get("execution")
+if not isinstance(argv, list) or not all(isinstance(item, str) for item in argv):
+    raise SystemExit("remote job command envelope must contain a string argv list")
+if not isinstance(command_execution, dict):
+    command_execution = {
+        "mode": "unknown",
+        "normalized": argv != original_argv,
+        "reason": "missing_execution_metadata",
+        "original_command": original_argv,
+    }
 
 argv_json = json.dumps(argv, indent=2)
 fingerprint = hashlib.sha256(argv_json.encode()).hexdigest()[:16]
@@ -183,6 +285,8 @@ metadata = {
     "remote_dir": str(remote_dir),
     "command_fingerprint": fingerprint,
     "command": argv,
+    "original_command": original_argv,
+    "command_execution": command_execution,
     "log_paths": {
         "stdout": str(job_dir / "stdout.log"),
         "stderr": str(job_dir / "stderr.log"),

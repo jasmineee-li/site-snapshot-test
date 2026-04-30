@@ -99,7 +99,8 @@ if exit_path.exists():
 if alive and start_matches:
     status = "running"
 elif exit_data:
-    status = "exited"
+    exit_status = exit_data.get("status")
+    status = exit_status if isinstance(exit_status, str) and exit_status else "exited"
 else:
     status = "stale"
 
