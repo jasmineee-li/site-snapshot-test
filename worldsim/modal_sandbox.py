@@ -33,6 +33,7 @@ NAMED_SECRET_ENV_VAR = "WORLDSIM_CLAUDE_MODAL_SECRET"
 SANDBOX_WATCHDOG_SILENCE_SECONDS = 20 * 60
 SANDBOX_WATCHDOG_POLL_SECONDS = 15
 SANDBOX_RATE_LIMIT_GRACE_SECONDS = 90
+SANDBOX_LIVENESS_LOG_SECONDS = 2 * 60
 
 _RUNNER_PATH = str(Path(__file__).with_name("_sandbox_runner.py"))
 _VALIDATOR_PATH = str(Path(__file__).with_name("_sandbox_validator.py"))
@@ -226,6 +227,7 @@ class SandboxWatchdogState:
 
     last_event_at: float
     last_non_rate_limit_progress_at: float
+    last_liveness_log_at: float
     blocked_until: float | None = None
     consecutive_rejected_rate_limits: int = 0
 
@@ -296,6 +298,36 @@ def _watchdog_timeout_reason(
     if quiet_for > silence_seconds:
         return f"no sandbox events for {quiet_for:.0f}s"
     return None
+
+
+def _watchdog_liveness_message(
+    state: SandboxWatchdogState,
+    *,
+    now_monotonic: float,
+    now_wall: float,
+    tool_calls: int,
+    liveness_log_seconds: int = SANDBOX_LIVENESS_LOG_SECONDS,
+) -> str | None:
+    """Return a periodic liveness message while a sandbox is quiet but not stalled."""
+    if now_monotonic - state.last_liveness_log_at < liveness_log_seconds:
+        return None
+
+    state.last_liveness_log_at = now_monotonic
+    quiet_for = now_monotonic - state.last_event_at
+    non_rate_limit_quiet_for = now_monotonic - state.last_non_rate_limit_progress_at
+    parts = [
+        f"waiting for sandbox event (quiet={quiet_for:.0f}s",
+        f"non_rate_limit_quiet={non_rate_limit_quiet_for:.0f}s",
+        f"tool_calls={tool_calls}",
+    ]
+    if state.consecutive_rejected_rate_limits > 0 and state.blocked_until is not None:
+        remaining = max(0.0, state.blocked_until - now_wall)
+        parts.append(
+            f"rate_limit_backoff_remaining={remaining:.0f}s "
+            f"rejected_events={state.consecutive_rejected_rate_limits}"
+        )
+    parts.append(")")
+    return ", ".join(parts)
 
 
 async def _get_app() -> modal.App:
@@ -442,6 +474,7 @@ async def run_claude_in_sandbox(
         watchdog_state = SandboxWatchdogState(
             last_event_at=sandbox_start,
             last_non_rate_limit_progress_at=sandbox_start,
+            last_liveness_log_at=sandbox_start,
         )
         stderr_lines: list[str] = []
         watchdog_done = asyncio.Event()
@@ -480,6 +513,7 @@ async def run_claude_in_sandbox(
                         now_monotonic=now_monotonic,
                         now_wall=time.time(),
                     )
+                    watchdog_state.last_liveness_log_at = now_monotonic
                     etype = event.get("type")
                     if etype == "tool_call":
                         turn_count += 1
@@ -551,6 +585,14 @@ async def run_claude_in_sandbox(
                     now_wall=time.time(),
                 )
                 if reason is None:
+                    message = _watchdog_liveness_message(
+                        watchdog_state,
+                        now_monotonic=time.monotonic(),
+                        now_wall=time.time(),
+                        tool_calls=turn_count,
+                    )
+                    if message is not None:
+                        logger.info("  %s[sandbox] liveness: %s", tag, message)
                     continue
                 watchdog_reason = reason
                 logger.error("  %s[sandbox] watchdog timeout: %s", tag, reason)
