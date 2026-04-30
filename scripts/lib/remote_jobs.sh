@@ -207,7 +207,8 @@ if phase4_live:
             "Browser Use/PVPO traffic at the public advertised host."
         )
 
-resume_instances = _option_value("--instances")
+resume_live = bool(re.search(r"\bworldsim\.main\s+resume(?:\s|$)", command_text))
+resume_instances = _option_value("--instances") if resume_live else None
 if resume_instances is not None and _is_smoke(resume_instances):
     issues.append(
         "Resume uses --instances instances.smoke.json on a host whose runtime "
