@@ -237,7 +237,21 @@ if state_dir:
 
 stdout = open(job_dir / "stdout.log", "ab", buffering=0)
 stderr = open(job_dir / "stderr.log", "ab", buffering=0)
-proc = subprocess.Popen(argv, cwd=remote_dir, stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr, env=env)
+try:
+    proc = subprocess.Popen(
+        argv,
+        cwd=remote_dir,
+        stdin=subprocess.DEVNULL,
+        stdout=stdout,
+        stderr=stderr,
+        env=env,
+    )
+except Exception as exc:
+    message = f"remote job child launch failed: {{type(exc).__name__}}: {{exc}}\\n"
+    stderr.write(message.encode("utf-8", errors="replace"))
+    write_json(job_dir / "exit.json", {{"status": "launch_failed", "updated_at": now(), "pid": os.getpid(), "returncode": 127, "error": message.strip(), "fingerprint": fingerprint}})
+    write_json(job_dir / "heartbeat.json", {{"status": "launch_failed", "updated_at": now(), "pid": os.getpid(), "returncode": 127, "error": message.strip(), "fingerprint": fingerprint}})
+    sys.exit(127)
 write_json(job_dir / "heartbeat.json", {{"status": "running", "updated_at": now(), "pid": os.getpid(), "child_pid": proc.pid, "fingerprint": fingerprint}})
 
 stop = False
