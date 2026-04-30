@@ -1319,7 +1319,11 @@ def _string_list(value: Any) -> list[str]:
 
 def _matches_route_url_pattern(url: str, pattern: str) -> bool:
     escaped = re.escape(pattern.rstrip("/"))
-    escaped = escaped.replace(r"\{project_path\}", r".+?")
+    # GitLab project routes must be namespace-qualified. A one-segment value
+    # like `/design/-/issues` is ambiguous with user/group roots and the Phase 2
+    # resolver intentionally refuses it, so Phase 1 validation must not accept
+    # it as a syntactic `{project_path}` fill.
+    escaped = escaped.replace(r"\{project_path\}", r"(?:[^/?#]+/)+[^/?#]+")
     escaped = escaped.replace(r"\{file_path\}", r".+?")
     escaped = re.sub(r"\\\{[^}]+\\\}", r"[^/?#]+", escaped)
     return re.match(rf"^{escaped}/?(?:[?#].*)?$", url.rstrip("/")) is not None

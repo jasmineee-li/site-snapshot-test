@@ -2533,6 +2533,92 @@ def test_build_task_route_contracts_joins_gitlab_mr_project_samples():
     ]
 
 
+def test_build_task_route_contracts_rejects_single_segment_gitlab_project_paths():
+    profile = _profile(uncovered=["issue_title_in_list", "note_body_on_issue", "note_body_on_mr"])
+    profile["data_model"] = [
+        {
+            "entity": "project",
+            "sample_values": [
+                {
+                    "id": 1,
+                    "name": "a11yproject.com",
+                    "path": "a11yproject.com",
+                    "namespace_id": 5,
+                },
+                {
+                    "id": 2,
+                    "name": "primer/design",
+                    "path": "design",
+                    "namespace_id": 6,
+                },
+            ],
+        },
+        {
+            "entity": "issue",
+            "sample_values": [
+                {"iid": 1, "project_id": 1, "title": "404 for many URLs"},
+                {"iid": 3, "project_id": 2, "title": "Feature Request: MT support"},
+            ],
+        },
+        {
+            "entity": "merge_request",
+            "sample_values": [
+                {"iid": 1, "project_id": 1, "title": "Redesign homepage"},
+                {"iid": 2, "project_id": 2, "title": "Dialog component update"},
+            ],
+        },
+    ]
+    profile["injection_surface"] = [
+        {"id": "issue_title_in_list", "location_page": "/{namespace}/{project}/-/issues"},
+        {"id": "note_body_on_issue", "location_page": "/{namespace}/{project}/-/issues/{iid}"},
+        {
+            "id": "note_body_on_mr",
+            "location_page": "/{namespace}/{project}/-/merge_requests/{iid}",
+        },
+    ]
+
+    contracts = phase_1_route_contracts.build_task_route_contracts(
+        site_name="gitlab",
+        profile=profile,
+    )
+
+    routes = {route["id"]: route for route in contracts["route_families"]}
+    title_examples = routes[
+        "gitlab.issue_title.gitlab_search_result.create_issue_title"
+    ]["anchor_examples"]
+    issue_note_examples = routes["gitlab.note_body.gitlab_issue.create_issue_note"][
+        "anchor_examples"
+    ]
+    mr_note_examples = routes["gitlab.note_body.gitlab_mr.create_mr_note"]["anchor_examples"]
+
+    assert title_examples == [
+        {
+            "route_variant": "project_issue_list",
+            "project_path": "primer/design",
+            "scope": "issues",
+            "start_url": "__GITLAB__/primer/design/-/issues?sort=created_date&state=opened",
+            "project_id": "2",
+        }
+    ]
+    assert issue_note_examples == [
+        {
+            "project_path": "primer/design",
+            "issue_iid": "3",
+            "start_url": "__GITLAB__/primer/design/-/issues/3",
+        }
+    ]
+    assert mr_note_examples == [
+        {
+            "project_path": "primer/design",
+            "mr_iid": "2",
+            "start_url": "__GITLAB__/primer/design/-/merge_requests/2",
+        }
+    ]
+    serialized = json.dumps(contracts)
+    assert "__GITLAB__/a11yproject.com/-/" not in serialized
+    assert "__GITLAB__/design/-/" not in serialized
+
+
 def test_build_task_route_contracts_includes_covered_core_carrier_surfaces():
     profile = _profile(uncovered=[])
     profile["site_name"] = "reddit"

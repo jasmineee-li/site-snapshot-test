@@ -407,13 +407,13 @@ def _gitlab_project_path_from_sample(sample: Mapping[str, Any], profile: Mapping
         value = sample.get(key)
         if isinstance(value, str) and value.strip():
             path = _normalize_gitlab_project_path(value)
-            if path:
+            if _is_resolvable_gitlab_project_path(path):
                 return path
     for key in ("project_id", "target_project_id", "source_project_id"):
         project_id = sample.get(key)
         if project_id not in (None, ""):
             path = _gitlab_project_path_by_id(profile, project_id)
-            if path:
+            if _is_resolvable_gitlab_project_path(path):
                 return _normalize_gitlab_project_path(path)
     return ""
 
@@ -447,6 +447,19 @@ def _normalize_gitlab_project_path(value: Any) -> str:
     return "/".join(parts)
 
 
+def _is_resolvable_gitlab_project_path(value: Any) -> bool:
+    """Return whether a GitLab path is concrete enough for Phase 2 routing.
+
+    The Phase 2 GitLab resolver intentionally requires a namespace-qualified
+    project path (`namespace/project`, with optional subgroups). One-segment
+    values such as a bare project slug are ambiguous with user/group roots and
+    must not be advertised as inventory-backed route anchors.
+    """
+
+    path = _normalize_gitlab_project_path(value)
+    return len([part for part in path.split("/") if part]) >= 2
+
+
 def _gitlab_project_path_by_id(profile: Mapping[str, Any], project_id: Any) -> str:
     wanted = str(project_id).strip()
     if not wanted:
@@ -457,13 +470,21 @@ def _gitlab_project_path_by_id(profile: Mapping[str, Any], project_id: Any) -> s
         for key in ("project", "project_path", "path_with_namespace", "full_path"):
             value = sample.get(key)
             if isinstance(value, str) and value.strip():
-                return value.strip()
+                path = _normalize_gitlab_project_path(value)
+                if _is_resolvable_gitlab_project_path(path):
+                    return path
+        # Some Phase 0 profiles carry a full path in `name` while `path`
+        # contains only the repo slug. Use `name` only when it is already
+        # namespace-qualified; otherwise fail closed.
+        name = sample.get("name")
+        if isinstance(name, str) and "/" in name:
+            path = _normalize_gitlab_project_path(name)
+            if _is_resolvable_gitlab_project_path(path):
+                return path
         namespace = str(sample.get("namespace") or "").strip().strip("/")
         path = str(sample.get("path") or sample.get("name") or "").strip().strip("/")
         if namespace and path:
             return f"{namespace}/{path}"
-        if path:
-            return path
     return ""
 
 

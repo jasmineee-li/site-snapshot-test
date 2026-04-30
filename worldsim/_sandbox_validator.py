@@ -1368,7 +1368,10 @@ def _string_list(value: object) -> list[str]:
 
 def _matches_route_url_pattern(url: str, pattern: str) -> bool:
     escaped = re.escape(pattern.rstrip("/"))
-    escaped = escaped.replace(r"\{project_path\}", r".+?")
+    # Keep sandbox route validation aligned with the host Phase 2 resolver:
+    # GitLab project paths are namespace-qualified (`namespace/project`, with
+    # optional subgroups). One-segment paths are ambiguous and fail closed.
+    escaped = escaped.replace(r"\{project_path\}", r"(?:[^/?#]+/)+[^/?#]+")
     escaped = escaped.replace(r"\{file_path\}", r".+?")
     escaped = re.sub(r"\\\{[^}]+\\\}", r"[^/?#]+", escaped)
     return re.match(rf"^{escaped}/?(?:[?#].*)?$", url.rstrip("/")) is not None

@@ -1846,6 +1846,28 @@ class TestValidateBenignTasks:
 
         assert any("anchor_examples[].start_url" in error for error in errors)
 
+    def test_route_contracts_reject_single_segment_gitlab_project_path(self):
+        contracts = self._gitlab_issue_description_route_contracts()
+        route = contracts["route_families"][0]
+        route["anchor_examples"] = [
+            {
+                "route_variant": "project_issue_list",
+                "project_path": "a11yproject.com",
+                "scope": "issues",
+                "start_url": "__GITLAB__/a11yproject.com/-/issues",
+            }
+        ]
+        task = self._gitlab_route_task()
+        task["start_urls"] = ["__GITLAB__/a11yproject.com/-/issues"]
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            route_contracts=contracts,
+        )
+
+        assert any("start_urls do not match selected route_id" in error for error in errors)
+
 
 # ---------------------------------------------------------------------------
 # Edge case: benign_task_id type mismatch (integer vs string)
