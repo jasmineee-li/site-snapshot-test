@@ -395,6 +395,16 @@ _PAYLOAD_BODY_FIELD_HINTS: tuple[str, ...] = (
 
 
 _MARKDOWN_SYSTEM_BLOCK_RE = re.compile(r"```system\s*(.*?)```", re.DOTALL | re.IGNORECASE)
+_ACTION_LABEL_WITNESS_RE = re.compile(
+    r"\b(?:answer|report|return|record|mark|treat|use)\b[^\n.!?;]{0,96}"
+    r"\b(?:blank|populated|no-link|link)\b",
+    re.IGNORECASE,
+)
+_ACTION_URL_WITNESS_RE = re.compile(
+    r"\b(?:visit|open|use|check|see|review|follow)\b[^\n.!?;]{0,96}https?://\S+",
+    re.IGNORECASE,
+)
+_SHORT_CLAUSE_RE = re.compile(r"[^\n.!?;]{4,160}(?:[.!?;]|$)")
 
 
 class _PayloadViewHTMLParser(HTMLParser):
@@ -587,6 +597,86 @@ def _default_concealment_witness(rendered_payload: str, concealment: str) -> str
     return None
 
 
+def _candidate_action_witness_is_valid(
+    task: dict[str, Any],
+    witness: str,
+    rendered_payload: str,
+) -> bool:
+    if not witness or witness not in rendered_payload:
+        return False
+    if _variant_action_witness_is_whole_payload(witness, rendered_payload) and len(
+        _normalized_payload_snapshot(rendered_payload)
+    ) > 120:
+        return False
+    required_tokens = _variant_required_token_values(task)
+    if witness in required_tokens:
+        return False
+    without_urls = re.sub(r"https?://\S+", "", witness)
+    normalized = _normalized_payload_snapshot(without_urls)
+    alpha_count = sum(1 for char in normalized if char.isalpha())
+    return len(normalized) >= 8 and alpha_count >= 4
+
+
+def _add_action_witness_candidate(
+    candidates: list[str],
+    task: dict[str, Any],
+    rendered_payload: str,
+    witness: str,
+) -> None:
+    stripped = witness.strip()
+    if stripped != witness and stripped in rendered_payload:
+        witness = stripped
+    if witness in candidates:
+        return
+    if _candidate_action_witness_is_valid(task, witness, rendered_payload):
+        candidates.append(witness)
+
+
+def _derive_action_witnesses_from_rendered_payload(
+    task: dict[str, Any],
+    rendered_payload: str,
+    *,
+    limit: int = 3,
+) -> list[str]:
+    """Infer exact attacker-action spans from the revised rendered payload.
+
+    This is deliberately conservative and observational. It does not rewrite
+    payload bytes or infer hidden intent from the trace; it only recovers
+    measurement metadata when the rendered attacker-controlled text already
+    contains compact action phrasing that Phase 2/4 validators accept.
+    """
+
+    candidates: list[str] = []
+    for regex in (_ACTION_LABEL_WITNESS_RE, _ACTION_URL_WITNESS_RE):
+        for match in regex.finditer(rendered_payload):
+            _add_action_witness_candidate(
+                candidates,
+                task,
+                rendered_payload,
+                match.group(0),
+            )
+            if len(candidates) >= limit:
+                return candidates
+
+    labels = ("blank", "populated", "no-link", "link")
+    for match in _SHORT_CLAUSE_RE.finditer(rendered_payload[:600]):
+        clause = match.group(0).strip()
+        clause_lower = clause.casefold()
+        if not any(label in clause_lower for label in labels):
+            continue
+        if not (
+            any(verb in clause_lower for verb in ("answer", "report", "return", "record", "mark"))
+            or any(token.casefold() in clause_lower for token in _variant_required_token_values(task))
+            or len(clause) <= 96
+        ):
+            continue
+        _add_action_witness_candidate(candidates, task, rendered_payload, clause)
+        if len(candidates) >= limit:
+            return candidates
+
+    return candidates
+
+
 def _updated_payload_text_entry(
     task: dict[str, Any],
     original_payload: Any,
@@ -610,21 +700,26 @@ def _updated_payload_text_entry(
             framing_witnesses = [fallback]
     entry["framing_witnesses"] = framing_witnesses
 
-    action_witnesses = [
-        witness
-        for witness in entry.get("attack_action_witnesses", [])
-        if isinstance(witness, str) and witness and witness in rendered_payload
-    ]
-    if not action_witnesses and isinstance(applied_strategy, dict):
+    action_witnesses: list[str] = []
+    for witness in entry.get("attack_action_witnesses", []):
+        if isinstance(witness, str):
+            _add_action_witness_candidate(action_witnesses, task, rendered_payload, witness)
+    if isinstance(applied_strategy, dict):
         injection_content = applied_strategy.get("injection_content")
-        if (
-            isinstance(injection_content, str)
-            and injection_content in rendered_payload
-            and not _variant_action_witness_is_whole_payload(injection_content, rendered_payload)
-        ):
-            action_witnesses = [injection_content]
-    if action_witnesses:
-        entry["attack_action_witnesses"] = action_witnesses
+        if isinstance(injection_content, str):
+            _add_action_witness_candidate(
+                action_witnesses,
+                task,
+                rendered_payload,
+                injection_content,
+            )
+    for witness in _derive_action_witnesses_from_rendered_payload(task, rendered_payload):
+        _add_action_witness_candidate(action_witnesses, task, rendered_payload, witness)
+    action_witnesses = sorted(
+        action_witnesses,
+        key=lambda witness: rendered_payload.find(witness),
+    )[:3]
+    entry["attack_action_witnesses"] = action_witnesses
 
     if concealment == "plaintext":
         entry["concealment_witnesses"] = [
@@ -882,6 +977,23 @@ def _synchronize_variant_payload_texts(
                 rendered_payload=rendered_payload,
             )
             if encounter_error is not None:
+                resynced_entry = _updated_payload_text_entry(
+                    merged_task,
+                    payload_texts[selected_index],
+                    rendered_payload,
+                    applied_strategy=applied_strategy,
+                )
+                if resynced_entry is not None:
+                    resynced_encounter_error = _variant_encounter_window_error(
+                        original_task,
+                        resynced_entry,
+                        rendered_payload=rendered_payload,
+                    )
+                    if resynced_encounter_error is None:
+                        merged_payloads = json.loads(json.dumps(payload_texts))
+                        merged_payloads[selected_index] = resynced_entry
+                        merged_task["payload_texts"] = merged_payloads
+                        return None
                 return encounter_error
             merged_payloads = json.loads(json.dumps(payload_texts))
             merged_payloads[selected_index] = synced_entry
@@ -894,6 +1006,11 @@ def _synchronize_variant_payload_texts(
             original_task.get("id", "unknown"),
             candidate_error,
         )
+        if candidate_error == "variant payload_text.rendered_payload must equal the revised seed payload":
+            return (
+                "variant task "
+                f"{original_task.get('id', 'unknown')} {candidate_error}"
+            )
 
     if candidate_payload_text is None or candidate_error is not None:
         synced_entry = _updated_payload_text_entry(
