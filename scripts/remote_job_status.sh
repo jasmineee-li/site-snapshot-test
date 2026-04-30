@@ -55,6 +55,7 @@ job_id="$2"
 python3 - "$remote_dir" "$job_id" <<'PY'
 import json
 import os
+import re
 import sys
 import time
 from collections import Counter
@@ -140,6 +141,15 @@ def count_map_text(counter: Counter[str]) -> str:
         return "none"
     return ",".join(f"{key}={value}" for key, value in sorted(counter.items()))
 
+def job_command_text() -> str:
+    command = metadata.get("original_command") or metadata.get("command") or []
+    if isinstance(command, list):
+        return " ".join(str(item) for item in command)
+    return str(command)
+
+def job_runs_phase4() -> bool:
+    return bool(re.search(r"\bworldsim\.main\s+phase\s+4(?:\s|$)", job_command_text()))
+
 def phase4_results_candidates() -> list[Path]:
     candidates: list[Path] = []
     configured_results_path = False
@@ -155,7 +165,7 @@ def phase4_results_candidates() -> list[Path]:
             path = Path(item)
             candidates.append(path if path.is_absolute() else remote_dir / path)
             configured_results_path = True
-    if not configured_results_path:
+    if not configured_results_path and job_runs_phase4():
         candidates.append(remote_dir / "logs" / "phase_4" / "results.json")
     deduped: list[Path] = []
     seen: set[str] = set()
