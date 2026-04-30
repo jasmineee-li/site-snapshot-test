@@ -1,19 +1,21 @@
 {
-  "started": "2026-04-29T07:47:59.466933+00:00",
+  "started": "2026-04-30T04:33:51.995803+00:00",
   "config": {
     "benchmark": "wasp",
     "splits": [
       "reddit",
       "gitlab"
     ],
-    "stage": "all",
+    "stage": "judge-only",
     "tasks_per_split": 100,
     "wasp_task_dir": null,
     "concurrency": 8,
     "avg_step_timeout": 60,
     "browser_stage1_timeout": null,
     "browser_stage1_overhead": 1800,
+    "browser_stage1_idle_timeout": 3600,
     "browser_splits_sequential": false,
+    "browser_relaunch_incomplete": false,
     "model_name": "anthropic/claude-opus-4.7:thinking",
     "condition": "baseline",
     "extra_instructions_preset": "none",
@@ -64,9 +66,9 @@
         "avg_step_timeout": 60,
         "written_at": "2026-04-29T08:36:20.649886+00:00"
       },
-      "n_trajectories": 98,
+      "n_trajectories": 96,
       "status": "judges_complete"
     }
   },
-  "finished": "2026-04-29T08:42:20.284844+00:00"
+  "finished": "2026-04-30T04:36:17.542683+00:00"
 }

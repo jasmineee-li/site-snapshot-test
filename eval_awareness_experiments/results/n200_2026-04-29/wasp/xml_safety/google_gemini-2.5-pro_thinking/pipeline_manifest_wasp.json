@@ -1,19 +1,21 @@
 {
-  "started": "2026-04-29T18:07:33.441953+00:00",
+  "started": "2026-04-30T04:50:44.713795+00:00",
   "config": {
     "benchmark": "wasp",
     "splits": [
       "reddit",
       "gitlab"
     ],
-    "stage": "all",
+    "stage": "judge-only",
     "tasks_per_split": 100,
-    "wasp_task_dir": "/tmp/wasp_full_gemini25",
+    "wasp_task_dir": null,
     "concurrency": 8,
     "avg_step_timeout": 60,
     "browser_stage1_timeout": null,
     "browser_stage1_overhead": 1800,
+    "browser_stage1_idle_timeout": 3600,
     "browser_splits_sequential": false,
+    "browser_relaunch_incomplete": false,
     "model_name": "google/gemini-2.5-pro:thinking",
     "condition": "baseline",
     "extra_instructions_preset": "none",
@@ -68,5 +70,5 @@
       "status": "judges_complete"
     }
   },
-  "finished": "2026-04-29T19:07:30.202041+00:00"
+  "finished": "2026-04-30T04:53:21.812444+00:00"
 }

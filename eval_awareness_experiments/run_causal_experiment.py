@@ -115,6 +115,7 @@ def run_causal_experiment(
     browser_stage1_overhead: int | None = None,
     browser_stage1_idle_timeout: int | None = None,
     browser_splits_sequential: bool = False,
+    browser_relaunch_incomplete: bool = False,
     wasp_task_dir: str | None = None,
 ) -> None:
     combos = list(product(benchmarks, conditions, models, presets, frames))
@@ -141,6 +142,8 @@ def run_causal_experiment(
         print(f"  Browser split timeout overhead: {browser_stage1_overhead}s")
     if browser_stage1_idle_timeout is not None:
         print(f"  Browser split idle timeout: {browser_stage1_idle_timeout}s")
+    if browser_relaunch_incomplete:
+        print("  Browser relaunch incomplete: ON")
     if wasp_task_dir is not None:
         print(f"  WASP task dir: {wasp_task_dir}")
     if skip_existing:
@@ -241,6 +244,8 @@ def run_causal_experiment(
             ])
         if browser_splits_sequential:
             cmd.append("--browser-splits-sequential")
+        if browser_relaunch_incomplete:
+            cmd.append("--browser-relaunch-incomplete")
         if benchmark == "wasp" and wasp_task_dir is not None:
             cmd.extend(["--wasp-task-dir", wasp_task_dir])
 
@@ -344,6 +349,11 @@ def main() -> None:
     parser.add_argument("--browser-splits-sequential", action="store_true",
                         help="Forwarded to run_safety_pipeline for debugging "
                              "site/container contention.")
+    parser.add_argument("--browser-relaunch-incomplete", action="store_true",
+                        help="Forwarded to run_safety_pipeline. Browser benchmarks "
+                             "resume the latest AgentLab study under each split root, "
+                             "rerunning incomplete or errored tasks instead of "
+                             "starting a fresh study.")
     parser.add_argument("--wasp-task-dir", default=None,
                         help="Forwarded to run_safety_pipeline for WASP. "
                              "Use this to point a model stream at its own "
@@ -372,6 +382,7 @@ def main() -> None:
         browser_stage1_overhead=args.browser_stage1_overhead,
         browser_stage1_idle_timeout=args.browser_stage1_idle_timeout,
         browser_splits_sequential=args.browser_splits_sequential,
+        browser_relaunch_incomplete=args.browser_relaunch_incomplete,
         wasp_task_dir=args.wasp_task_dir,
     )
 

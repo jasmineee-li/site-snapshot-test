@@ -21,6 +21,7 @@ every retry, which starves other concurrent calls.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import random
 from typing import Awaitable, Callable, TypeVar
@@ -76,6 +77,7 @@ async def call_with_retry(
         - APIStatusError with status in {429, 500, 502, 503, 529}
         - APIConnectionError (transient network)
         - APITimeoutError (request timed out)
+        - JSONDecodeError from malformed provider/transport response bodies
 
     Bubbles up:
         - APIStatusError with any other status (4xx auth/billing/quota,
@@ -120,6 +122,17 @@ async def call_with_retry(
             delay = base_delay * (2 ** attempt) + random.uniform(0, 0.5)
             logger.warning(
                 f"[{label}] {type(exc).__name__}; "
+                f"retry {attempt + 1}/{retries} after {delay:.1f}s: {exc}"
+            )
+            await asyncio.sleep(delay)
+            continue
+        except json.JSONDecodeError as exc:
+            last_exc = exc
+            if attempt >= retries:
+                raise
+            delay = base_delay * (2 ** attempt) + random.uniform(0, 0.5)
+            logger.warning(
+                f"[{label}] JSONDecodeError; "
                 f"retry {attempt + 1}/{retries} after {delay:.1f}s: {exc}"
             )
             await asyncio.sleep(delay)

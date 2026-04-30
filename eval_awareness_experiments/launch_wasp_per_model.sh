@@ -32,6 +32,7 @@ MAX_STEPS="${MAX_STEPS:-15}"
 AVG_STEP_TIMEOUT="${AVG_STEP_TIMEOUT:-60}"
 BROWSER_STAGE1_OVERHEAD="${BROWSER_STAGE1_OVERHEAD:-1800}"
 BROWSER_STAGE1_TIMEOUT="${BROWSER_STAGE1_TIMEOUT:-}"
+BROWSER_RELAUNCH_INCOMPLETE="${BROWSER_RELAUNCH_INCOMPLETE:-0}"
 SKIP_EXISTING="${SKIP_EXISTING:-1}"
 WASP_TASK_DIR_BASE="${WASP_TASK_DIR_BASE:-/tmp/wasp_full}"
 
@@ -86,6 +87,7 @@ echo "  browser_stage1_overhead=$BROWSER_STAGE1_OVERHEAD"
 if [ -n "$BROWSER_STAGE1_TIMEOUT" ]; then
     echo "  browser_stage1_timeout=$BROWSER_STAGE1_TIMEOUT"
 fi
+echo "  browser_relaunch_incomplete=$BROWSER_RELAUNCH_INCOMPLETE"
 echo "  skip_existing=$SKIP_EXISTING"
 echo "  wasp_task_dir_base=$WASP_TASK_DIR_BASE"
 if [ -n "$JUDGES" ]; then
@@ -149,6 +151,9 @@ for entry in "${MODEL_STACKS[@]}"; do
             fi
             if [ "$SKIP_EXISTING" = "1" ]; then
                 cmd+=(--skip-existing)
+            fi
+            if [ "$BROWSER_RELAUNCH_INCOMPLETE" = "1" ] || [ "$BROWSER_RELAUNCH_INCOMPLETE" = "true" ]; then
+                cmd+=(--browser-relaunch-incomplete)
             fi
 
             env \

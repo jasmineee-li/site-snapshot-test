@@ -211,6 +211,145 @@ def _latest_browser_activity_time(
     return latest
 
 
+def _is_hidden_browser_path(split_root: Path, path: Path) -> bool:
+    """Skip AgentLab dirs hidden by relaunch (`_old_dir`) or manual archives."""
+    try:
+        rel_parts = path.relative_to(split_root).parts
+    except ValueError:
+        return False
+    return any(part.startswith(("_", ".")) for part in rel_parts)
+
+
+def _browser_task_id(task_dir: Path) -> str:
+    task_name = task_dir.name
+    parts = task_name.rsplit("_on_", 1)
+    return parts[-1].rsplit("_", 1)[0] if len(parts) > 1 else task_name
+
+
+def _read_json_file(path: Path) -> dict:
+    try:
+        return json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _browser_task_progress(split_root: Path) -> dict[str, dict]:
+    """Summarize per-task state from AgentLab files under one split root."""
+    task_dirs: set[Path] = set()
+    for marker_name in ("exp_args.pkl", "summary_info.json"):
+        for marker in split_root.rglob(marker_name):
+            task_dir = marker.parent
+            if _is_hidden_browser_path(split_root, task_dir):
+                continue
+            task_dirs.add(task_dir)
+
+    progress: dict[str, dict] = {}
+    for task_dir in sorted(task_dirs):
+        summary_path = task_dir / "summary_info.json"
+        attack_summary_path = task_dir / "attack_summary_info.json"
+        experiment_log = task_dir / "experiment.log"
+        step_count = sum(1 for _ in task_dir.glob("step_*.pkl.gz"))
+        log_started = False
+        try:
+            log_started = experiment_log.stat().st_size > 0
+        except OSError:
+            pass
+        started = step_count > 0 or log_started or summary_path.exists()
+
+        summary = _read_json_file(summary_path) if summary_path.exists() else {}
+        attack_summary = (
+            _read_json_file(attack_summary_path) if attack_summary_path.exists() else {}
+        )
+        progress[str(task_dir)] = {
+            "task_id": _browser_task_id(task_dir),
+            "started": started,
+            "completed": summary_path.exists(),
+            "err_msg": summary.get("err_msg"),
+            "n_steps": summary.get("n_steps"),
+            "cum_reward": summary.get("cum_reward"),
+            "terminated": summary.get("terminated"),
+            "truncated": summary.get("truncated"),
+            "attack_successful": attack_summary.get("attack_successful"),
+            "step_count": step_count,
+        }
+    return progress
+
+
+def _log_browser_task_progress(item: dict, *, expected_total: int) -> None:
+    """Emit one parent-log line for every newly-started/completed browser task."""
+    split = item["split"]
+    progress = _browser_task_progress(item["split_root"])
+    started_keys = {k for k, v in progress.items() if v["started"]}
+    completed_keys = {k for k, v in progress.items() if v["completed"]}
+
+    new_started = sorted(
+        started_keys - item["seen_started_tasks"],
+        key=lambda k: (progress[k]["task_id"], k),
+    )
+    for key in new_started:
+        info = progress[key]
+        logger.info(
+            f"  [{split}] task START {info['task_id']} "
+            f"(started={len(item['seen_started_tasks']) + 1}/{expected_total})"
+        )
+        item["seen_started_tasks"].add(key)
+
+    new_completed = sorted(
+        completed_keys - item["seen_completed_tasks"],
+        key=lambda k: (progress[k]["task_id"], k),
+    )
+    for key in new_completed:
+        info = progress[key]
+        status = "ERROR" if info.get("err_msg") else "DONE"
+        message = (
+            f"  [{split}] task {status} {info['task_id']} "
+            f"(completed={len(item['seen_completed_tasks']) + 1}/{expected_total}, "
+            f"steps={info.get('n_steps')}, reward={info.get('cum_reward')}, "
+            f"attack_success={info.get('attack_successful')})"
+        )
+        if info.get("err_msg"):
+            logger.warning(message)
+        else:
+            logger.info(message)
+        item["seen_completed_tasks"].add(key)
+
+
+def _log_existing_browser_task_progress(
+    split: str,
+    progress: dict[str, dict],
+    *,
+    expected_total: int,
+) -> None:
+    """Emit one line per task that already exists before a resume subprocess."""
+    completed = [
+        (k, v)
+        for k, v in progress.items()
+        if v["completed"]
+    ]
+    incomplete = [
+        (k, v)
+        for k, v in progress.items()
+        if v["started"] and not v["completed"]
+    ]
+    for idx, (_, info) in enumerate(
+        sorted(completed, key=lambda kv: (kv[1]["task_id"], kv[0])), 1
+    ):
+        status = "EXISTING_ERROR" if info.get("err_msg") else "EXISTING_DONE"
+        logger.info(
+            f"  [{split}] task {status} {info['task_id']} "
+            f"(completed={idx}/{expected_total}, steps={info.get('n_steps')}, "
+            f"reward={info.get('cum_reward')}, "
+            f"attack_success={info.get('attack_successful')})"
+        )
+    for idx, (_, info) in enumerate(
+        sorted(incomplete, key=lambda kv: (kv[1]["task_id"], kv[0])), 1
+    ):
+        logger.info(
+            f"  [{split}] task EXISTING_INCOMPLETE {info['task_id']} "
+            f"(started={idx}/{expected_total}, steps_written={info.get('step_count')})"
+        )
+
+
 def _terminate_process_group(
     proc: subprocess.Popen,
     *,
@@ -374,6 +513,8 @@ def _build_browser_cmd(
         cmd += ["--online-sites", split]
     if cell_results_dir is not None:
         cmd += ["--results-dir", str(cell_results_dir / split)]
+    if getattr(args, "browser_relaunch_incomplete", False):
+        cmd += ["--relaunch-incomplete"]
     return cmd
 
 
@@ -408,6 +549,20 @@ def _cell_results_dir(args: argparse.Namespace, benchmark: str) -> Path | None:
     if benchmark not in {"doomarena", "wasp"}:
         return None
     return Path(args.output_dir) / "_browser_runs"
+
+
+def _browser_judge_only_root(args: argparse.Namespace, split: str) -> Path | None:
+    """Default trajectory root for browser benchmark judge-only re-runs.
+
+    Stage 1 writes browser trajectories to `<cell output>/_browser_runs/<split>`.
+    That path is known from `--output-dir`, so matrix-level judge-only runs do
+    not need to pass verbose `--existing-dirs split:path ...` arguments.
+    """
+    cell_dir = _cell_results_dir(args, args.benchmark)
+    if cell_dir is None:
+        return None
+    root = cell_dir / split
+    return root if root.exists() else None
 
 
 def _stage1_browser(benchmark: str, split: str, args) -> Path | None:
@@ -558,6 +713,12 @@ def _stage1_browser_parallel_splits(
         log_dir.mkdir(parents=True, exist_ok=True)
         stdout_path = log_dir / "subprocess.stdout.log"
         stderr_path = log_dir / "subprocess.stderr.log"
+        baseline_progress = _browser_task_progress(log_dir)
+        _log_existing_browser_task_progress(
+            split,
+            baseline_progress,
+            expected_total=int(getattr(args, "tasks_per_split", 0) or 0),
+        )
         stdout_file = stdout_path.open("w", encoding="utf-8")
         stderr_file = stderr_path.open("w", encoding="utf-8")
         proc = subprocess.Popen(
@@ -580,6 +741,12 @@ def _stage1_browser_parallel_splits(
             "last_activity": now,
             "kill_reason": None,
             "closed": False,
+            "seen_started_tasks": {
+                k for k, v in baseline_progress.items() if v["started"]
+            },
+            "seen_completed_tasks": {
+                k for k, v in baseline_progress.items() if v["completed"]
+            },
         })
 
     # Wait for all to finish. Child stdout/stderr go to files instead of pipes:
@@ -632,6 +799,10 @@ def _stage1_browser_parallel_splits(
             )
             if activity > item["last_activity"]:
                 item["last_activity"] = activity
+            _log_browser_task_progress(
+                item,
+                expected_total=int(getattr(args, "tasks_per_split", 0) or 0),
+            )
 
             if proc.poll() is not None:
                 _finalize_split(item)
@@ -778,6 +949,8 @@ def _discover_browser(study_dir: Path) -> list[dict]:
     trajectories: list[dict] = []
     for summary in sorted(study_dir.rglob("summary_info.json")):
         task_dir = summary.parent
+        if _is_hidden_browser_path(study_dir, task_dir):
+            continue
         steps = list(task_dir.glob("step_*.pkl.gz"))
         task_name = task_dir.name
         parts = task_name.rsplit("_on_", 1)
@@ -970,6 +1143,10 @@ def _parse_args() -> argparse.Namespace:
                              "cell (legacy behavior). Default is parallel — splits hit "
                              "different docker services so they don't contend, giving ~4× "
                              "speedup on DoomArena (4 splits) and ~2× on WASP (2 splits).")
+    parser.add_argument("--browser-relaunch-incomplete", action="store_true",
+                        help="Browser benchmarks only: resume the latest AgentLab study "
+                             "under each split's --results-dir, rerunning incomplete "
+                             "or errored tasks instead of creating a fresh study.")
     parser.add_argument("--model-name", default=None,
                         help="Agent model for stage 1. Required unless --stage judge-only.")
     parser.add_argument("--condition", choices=ALL_CONDITIONS, default="baseline")
@@ -1099,11 +1276,25 @@ def main() -> None:
         return
 
     # For judge-only on EIA/missing roots, fall back to default locations.
+    # Browser benchmark cells keep their AgentLab trajectory roots under the
+    # cell output dir, so `run_causal_experiment --stage judge-only` can
+    # rejudge a whole matrix without manually spelling out --existing-dirs.
     for split in splits:
         if split in split_to_root:
             continue
         if args.benchmark == "eia":
             split_to_root[split] = Path(__file__).parent / "data" / "eia"
+        elif args.benchmark in BROWSER_BENCHMARKS:
+            root = _browser_judge_only_root(args, split)
+            if root is not None:
+                split_to_root[split] = root
+                manifest["splits"].setdefault(split, {})["study_dir"] = str(root)
+            else:
+                logger.warning(
+                    f"No trajectory root known for {args.benchmark}/{split} "
+                    f"in judge-only mode. Expected {args.output_dir / '_browser_runs' / split} "
+                    f"or pass --existing-dirs {split}:PATH."
+                )
         elif args.benchmark in TOOLCALLING_BENCHMARKS:
             model_slug = (args.model_name or "").replace("/", "_").replace(":", "_")
             frame_suffix = (

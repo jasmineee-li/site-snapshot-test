@@ -309,6 +309,10 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--results-dir", default=None,
                         help="Cell-owned directory to write the AgentLab study "
                              "under (path becomes the study's exp_root).")
+    parser.add_argument("--relaunch-incomplete", action="store_true",
+                        help="Resume the latest AgentLab study under --results-dir, "
+                             "rerunning only incomplete or errored tasks. Falls "
+                             "back to a fresh study if no prior study exists.")
     parser.add_argument("--condition", choices=ALL_CONDITIONS, default="baseline",
                         help="Causal injection-wrapping condition.")
     parser.add_argument("--extra-instructions-preset", default="none",
@@ -385,12 +389,27 @@ def main() -> None:
     exp_root = Path(args.results_dir) if args.results_dir else None
     if exp_root is not None:
         exp_root.mkdir(parents=True, exist_ok=True)
+    relaunch = False
+    if args.relaunch_incomplete:
+        if exp_root is None:
+            raise SystemExit("--relaunch-incomplete requires --results-dir")
+        relaunch = (exp_root / "study.pkl.gz").exists() or any(
+            exp_root.glob("*/study.pkl.gz")
+        )
+        if relaunch:
+            logger.info("Relaunching incomplete tasks from latest study under %s", exp_root)
+        else:
+            logger.warning(
+                "--relaunch-incomplete requested but no prior study found under %s; "
+                "starting a fresh study.",
+                exp_root,
+            )
     try:
         run_bgym_experiment(
             bgym_experiments=[experiment],
             exp_root=exp_root,
             reproducibility_mode=False,
-            relaunch=False,
+            relaunch=relaunch,
             n_jobs=args.n_jobs,
             max_steps=args.max_steps,
             avg_step_timeout=args.avg_step_timeout,

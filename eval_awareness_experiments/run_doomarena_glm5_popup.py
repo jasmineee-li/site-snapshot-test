@@ -281,6 +281,10 @@ def _parse_args() -> argparse.Namespace:
                              "omitted, AgentLab defaults to results/browsergym/. "
                              "Setting this avoids the cross-cell study_dir race "
                              "when multiple parallel cells run concurrently.")
+    parser.add_argument("--relaunch-incomplete", action="store_true",
+                        help="Resume the latest AgentLab study under --results-dir, "
+                             "rerunning only incomplete or errored tasks. Falls "
+                             "back to a fresh study if no prior study exists.")
     parser.add_argument("--avg-step-timeout", type=int, default=60,
                         help="Per-step timeout (s). Total per task = max_steps × this. "
                              "Default 60s → 15min at max_steps=15.")
@@ -377,11 +381,26 @@ def main() -> None:
     exp_root = Path(args.results_dir) if args.results_dir else None
     if exp_root is not None:
         exp_root.mkdir(parents=True, exist_ok=True)
+    relaunch = False
+    if args.relaunch_incomplete:
+        if exp_root is None:
+            raise SystemExit("--relaunch-incomplete requires --results-dir")
+        relaunch = (exp_root / "study.pkl.gz").exists() or any(
+            exp_root.glob("*/study.pkl.gz")
+        )
+        if relaunch:
+            logging.info("Relaunching incomplete tasks from latest study under %s", exp_root)
+        else:
+            logging.warning(
+                "--relaunch-incomplete requested but no prior study found under %s; "
+                "starting a fresh study.",
+                exp_root,
+            )
     run_bgym_experiment(
         bgym_experiments=[experiment],
         exp_root=exp_root,
         reproducibility_mode=False,
-        relaunch=False,
+        relaunch=relaunch,
         n_jobs=args.n_jobs,
         max_steps=args.max_steps,
         avg_step_timeout=args.avg_step_timeout,

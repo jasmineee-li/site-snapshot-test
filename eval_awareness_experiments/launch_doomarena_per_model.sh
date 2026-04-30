@@ -52,9 +52,14 @@ BROWSER_TASK_TIMEOUT="${BROWSER_TASK_TIMEOUT:-900}"
 BROWSER_STAGE1_OVERHEAD="${BROWSER_STAGE1_OVERHEAD:-1800}"
 BROWSER_STAGE1_TIMEOUT="${BROWSER_STAGE1_TIMEOUT:-$((N_TASKS * BROWSER_TASK_TIMEOUT + BROWSER_STAGE1_OVERHEAD))}"
 BROWSER_STAGE1_IDLE_TIMEOUT="${BROWSER_STAGE1_IDLE_TIMEOUT:-3600}"
+BROWSER_RELAUNCH_INCOMPLETE="${BROWSER_RELAUNCH_INCOMPLETE:-0}"
 SKIP_EXISTING_FLAG=""
 if [ "$SKIP_EXISTING" = "1" ] || [ "$SKIP_EXISTING" = "true" ]; then
     SKIP_EXISTING_FLAG="--skip-existing"
+fi
+BROWSER_RELAUNCH_INCOMPLETE_FLAG=""
+if [ "$BROWSER_RELAUNCH_INCOMPLETE" = "1" ] || [ "$BROWSER_RELAUNCH_INCOMPLETE" = "true" ]; then
+    BROWSER_RELAUNCH_INCOMPLETE_FLAG="--browser-relaunch-incomplete"
 fi
 
 DRY_RUN=""
@@ -81,6 +86,7 @@ else
 fi
 echo "  browser_stage1_timeout=${BROWSER_STAGE1_TIMEOUT}s"
 echo "  browser_stage1_idle_timeout=${BROWSER_STAGE1_IDLE_TIMEOUT}s"
+echo "  browser_relaunch_incomplete=${BROWSER_RELAUNCH_INCOMPLETE}"
 echo "  skip_existing=${SKIP_EXISTING}"
 echo
 
@@ -239,6 +245,7 @@ for entry in "${SELECTED_WORKERS[@]}"; do
                 --browser-stage1-idle-timeout "$BROWSER_STAGE1_IDLE_TIMEOUT" \
                 --splits $SPLITS \
                 --output-base "$OUTPUT_BASE" \
+                $BROWSER_RELAUNCH_INCOMPLETE_FLAG \
                 $SKIP_EXISTING_FLAG
             status=$?
             set -e

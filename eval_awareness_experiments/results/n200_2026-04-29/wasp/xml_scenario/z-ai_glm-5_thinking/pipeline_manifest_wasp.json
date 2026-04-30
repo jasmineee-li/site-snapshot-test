@@ -1,19 +1,21 @@
 {
-  "started": "2026-04-29T14:47:09.760394+00:00",
+  "started": "2026-04-30T04:25:12.771679+00:00",
   "config": {
     "benchmark": "wasp",
     "splits": [
       "reddit",
       "gitlab"
     ],
-    "stage": "all",
+    "stage": "judge-only",
     "tasks_per_split": 100,
     "wasp_task_dir": null,
     "concurrency": 8,
     "avg_step_timeout": 60,
     "browser_stage1_timeout": null,
     "browser_stage1_overhead": 1800,
+    "browser_stage1_idle_timeout": 3600,
     "browser_splits_sequential": false,
+    "browser_relaunch_incomplete": false,
     "model_name": "z-ai/glm-5:thinking",
     "condition": "baseline",
     "extra_instructions_preset": "none",
@@ -46,7 +48,7 @@
         "avg_step_timeout": 60,
         "written_at": "2026-04-29T15:46:07.639008+00:00"
       },
-      "n_trajectories": 73,
+      "n_trajectories": 72,
       "status": "judges_complete"
     },
     "gitlab": {
@@ -68,5 +70,5 @@
       "status": "judges_complete"
     }
   },
-  "finished": "2026-04-29T16:00:39.092868+00:00"
+  "finished": "2026-04-30T04:26:46.399492+00:00"
 }
