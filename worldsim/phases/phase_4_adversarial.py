@@ -4753,6 +4753,7 @@ def _variant_prompt_input_view(
 def _variant_payload_diff_view(
     original_task: dict[str, Any],
     candidate: Any,
+    finalized_candidate: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     if not isinstance(candidate, dict):
         return None
@@ -4771,7 +4772,8 @@ def _variant_payload_diff_view(
         if isinstance(revised, str)
         else None
     )
-    return {
+    max_offset = _variant_max_attack_witness_offset(original_task)
+    diff: dict[str, Any] = {
         "original_rendered_payload": original,
         "revised_rendered_payload": revised,
         "original_chars": len(original) if isinstance(original, str) else None,
@@ -4783,8 +4785,31 @@ def _variant_payload_diff_view(
             else None
         ),
         "attack_witness_offset": witness_offset,
-        "max_attack_witness_offset": _variant_max_attack_witness_offset(original_task),
+        "max_attack_witness_offset": max_offset,
     }
+    if isinstance(finalized_candidate, dict) and isinstance(revised, str):
+        finalized_payload_text = _selected_payload_text_entry(finalized_candidate)
+        finalized_rendered = _selected_rendered_payload(finalized_candidate)
+        if (
+            isinstance(finalized_payload_text, dict)
+            and isinstance(finalized_rendered, str)
+            and finalized_rendered == revised
+        ):
+            finalized_offset = _variant_earliest_concrete_attack_witness_offset(
+                original_task,
+                finalized_payload_text,
+                finalized_rendered,
+            )
+            diff["final_attack_witness_offset"] = finalized_offset
+            diff["final_attack_witnesses"] = finalized_payload_text.get(
+                "attack_action_witnesses",
+                [],
+            )
+            diff["payload_text_resynchronized"] = (
+                _jsonable_payload(payload_text)
+                != _jsonable_payload(finalized_payload_text)
+            )
+    return diff
 
 
 def _write_variant_generation_audit(
@@ -4797,6 +4822,7 @@ def _write_variant_generation_audit(
     status: str,
     reason: str | None = None,
     variant: Any = None,
+    finalized_variant: dict[str, Any] | None = None,
     host_finalization_status: str = "not_run",
     host_finalization_reason: str | None = None,
     retry_feedback: str | None = None,
@@ -4876,7 +4902,11 @@ def _write_variant_generation_audit(
             },
             failpoint_base="phase_4.variant_generation_audit.host_validation",
         )
-        payload_diff = _variant_payload_diff_view(task, variant)
+        payload_diff = _variant_payload_diff_view(
+            task,
+            variant,
+            finalized_candidate=finalized_variant,
+        )
         if payload_diff is not None:
             write_json_atomic(
                 attempt_dir / "payload_diff.json",
@@ -5345,6 +5375,7 @@ async def run_strategy_variation(
                                 attempt_label="host_retry",
                                 status="generated",
                                 variant=retry_variant,
+                                finalized_variant=finalized_retry,
                                 host_finalization_status="passed",
                                 retry_feedback=finalize_error,
                                 failure_context=failure_context,
@@ -5408,6 +5439,7 @@ async def run_strategy_variation(
                     attempt_label="initial",
                     status="generated",
                     variant=variant,
+                    finalized_variant=finalized_variant,
                     host_finalization_status="passed",
                     failure_context=failure_context,
                 )
