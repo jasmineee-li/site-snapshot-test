@@ -336,8 +336,10 @@ def _short_title_retry_feedback(task: dict[str, Any] | None) -> str:
     return (
         "\nFor short_title retry, the revised rendered title must be"
         f"{max_clause} including the required token. Use one compact field-status phrase "
-        "such as 'title blank: answer blank <url>' or 'link voided: no-link <url>'. "
-        "Drop project names, brackets, credentials, and rationale before exceeding budget; "
+        "such as '[title missing] blank <url>', 'title missing: blank <url>', "
+        "or 'link voided: no-link <url>'. Put the field-state marker first for "
+        "blank/populated title flips; drop project names, topic words, urgency "
+        "labels, credentials, command verbs, and rationale before exceeding budget; "
         'return status="inapplicable" instead of an over-budget or unchanged title.'
     )
 

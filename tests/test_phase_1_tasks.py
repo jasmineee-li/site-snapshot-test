@@ -1674,16 +1674,16 @@ def _gitlab_title_stable_answer_task(
     "instruction",
     [
         (
-            "Report exactly `link` if the most recent issue title contains a URL or "
-            "`no-link` if it does not."
+            "Report exactly `link` if the most recent issue title contains a "
+            "qualifying URL or `no-link` if it does not."
         ),
         (
-            "Review the most recent issue title for a URL. Respond with exactly "
-            "`link` if yes, `no-link` if no."
+            "Review the most recent issue title for an actionable URL. Respond "
+            "with exactly `link` if yes, `no-link` if no."
         ),
         (
-            "Answer with exactly `link` if the most recent issue title contains a URL "
-            "or `no-link` if it does not."
+            "Answer with exactly `link` if the most recent issue title contains "
+            "a resolvable URL or `no-link` if it does not."
         ),
     ],
 )
@@ -1709,12 +1709,38 @@ def test_validate_generated_novel_tasks_accepts_gitlab_title_link_presence_stabl
     assert validated == [task]
 
 
-def test_validate_generated_novel_tasks_rejects_link_presence_without_seed_url():
+def test_validate_generated_novel_tasks_rejects_raw_url_presence_link_task():
     profile, route_contracts = _gitlab_title_stable_answer_profile_and_contracts()
     task = _gitlab_title_stable_answer_task(
         instruction=(
             "Report exactly `link` if the most recent issue title contains a URL or "
             "`no-link` if it does not."
+        ),
+        expected="link",
+        seeded_title="Seeded issue title with https://example.invalid/a11y",
+    )
+
+    validated, errors = (
+        phase_1_generate_new_tasks_validation.validate_generated_novel_tasks_detailed(
+            [task],
+            site_name="gitlab",
+            profile=profile,
+            expected_task_count=1,
+            route_contracts=route_contracts,
+        )
+    )
+
+    assert validated == []
+    assert [error.code for error in errors] == ["BINARY_STATUS_OUTPUT_UNCLEAR"]
+    assert "qualifying, active, actionable" in errors[0].message
+
+
+def test_validate_generated_novel_tasks_rejects_link_presence_without_seed_url():
+    profile, route_contracts = _gitlab_title_stable_answer_profile_and_contracts()
+    task = _gitlab_title_stable_answer_task(
+        instruction=(
+            "Report exactly `link` if the most recent issue title contains a "
+            "qualifying URL or `no-link` if it does not."
         ),
         expected="link",
         seeded_title="Seeded issue title without a url",
@@ -1739,8 +1765,8 @@ def test_validate_generated_novel_tasks_rejects_no_link_expected_for_ordered_chi
     profile, route_contracts = _gitlab_title_stable_answer_profile_and_contracts()
     task = _gitlab_title_stable_answer_task(
         instruction=(
-            "Report exactly `link` if the most recent issue title contains a URL or "
-            "`no-link` if it does not."
+            "Report exactly `link` if the most recent issue title contains a "
+            "qualifying URL or `no-link` if it does not."
         ),
         expected="no-link",
         seeded_title="Seeded issue title with https://example.invalid/a11y",
@@ -1808,8 +1834,8 @@ def test_validate_generated_novel_tasks_accepts_mixed_stable_answer_diversity():
         _gitlab_title_stable_answer_task(
             task_id=f"novel_gitlab_{idx}",
             instruction=(
-                "Report exactly `link` if the most recent issue title contains a URL or "
-                "`no-link` if it does not."
+                "Report exactly `link` if the most recent issue title contains a "
+                "qualifying URL or `no-link` if it does not."
             ),
             expected="link",
             seeded_title=f"Seeded issue title {idx} https://example.invalid/{idx}",

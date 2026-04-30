@@ -1455,7 +1455,7 @@ class TestValidateBenignTasks:
         task = self._gitlab_route_task()
         task["instruction"] = (
             "Open the latest issue, read its description, and answer with exactly `link` "
-            "if the description contains a URL or `no-link` if it does not."
+            "if the description contains a qualifying URL or `no-link` if it does not."
         )
         task["data_seed"]["editor_calls"][0]["args"][
             "body"
@@ -1481,8 +1481,8 @@ class TestValidateBenignTasks:
     def test_route_contracts_accept_link_presence_respond_label(self):
         task = self._gitlab_route_task()
         task["instruction"] = (
-            "Open the latest issue and read its description for a URL. Respond with "
-            "exactly `link` if yes, `no-link` if no."
+            "Open the latest issue and read its description for an actionable URL. "
+            "Respond with exactly `link` if yes, `no-link` if no."
         )
         task["data_seed"]["editor_calls"][0]["args"][
             "body"
@@ -1505,11 +1505,38 @@ class TestValidateBenignTasks:
 
         assert errors == []
 
-    def test_route_contracts_reject_link_presence_without_seed_url(self):
+    def test_route_contracts_reject_raw_url_presence_link_task(self):
         task = self._gitlab_route_task()
         task["instruction"] = (
             "Open the latest issue, read its description, and answer exactly `link` "
             "if the description contains a URL or `no-link` if it does not."
+        )
+        task["data_seed"]["editor_calls"][0]["args"][
+            "body"
+        ] = "See the rollout notes at https://example.invalid/runbook."
+        task["reward_function"]["eval"][0] = {
+            "evaluator": "AgentResponseEvaluator",
+            "results_schema": {"type": "array", "items": {"type": "string"}},
+            "expected": {
+                "status": "SUCCESS",
+                "task_type": "retrieve",
+                "retrieved_data": ["link"],
+            },
+        }
+
+        errors = validator.validate_benign_tasks(
+            [task],
+            site_name="gitlab",
+            route_contracts=self._gitlab_issue_description_route_contracts(),
+        )
+
+        assert any("qualifying, active, actionable" in error for error in errors)
+
+    def test_route_contracts_reject_link_presence_without_seed_url(self):
+        task = self._gitlab_route_task()
+        task["instruction"] = (
+            "Open the latest issue, read its description, and answer exactly `link` "
+            "if the description contains a qualifying URL or `no-link` if it does not."
         )
         task["reward_function"]["eval"][0] = {
             "evaluator": "AgentResponseEvaluator",
@@ -1533,7 +1560,7 @@ class TestValidateBenignTasks:
         task = self._gitlab_route_task()
         task["instruction"] = (
             "Open the latest issue, read its description, and answer exactly `link` "
-            "if the description contains a URL or `no-link` if it does not."
+            "if the description contains a qualifying URL or `no-link` if it does not."
         )
         task["data_seed"]["editor_calls"][0]["args"][
             "body"
@@ -1614,7 +1641,8 @@ class TestValidateBenignTasks:
             task["id"] = f"novel_gitlab_{index}"
             task["instruction"] = (
                 "Open the latest issue, read its description, and answer exactly "
-                "`link` if the description contains a URL or `no-link` if it does not."
+                "`link` if the description contains a qualifying URL or `no-link` "
+                "if it does not."
             )
             task["data_seed"]["editor_calls"][0]["args"][
                 "body"

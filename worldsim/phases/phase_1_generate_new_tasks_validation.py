@@ -36,6 +36,17 @@ _EXACT_BINARY_LABEL_VERB_RE = re.compile(
     r"(?is)\b(?:answer|classify|indicate|report|respond|return|state)\b"
     r"(?:(?!\.).){0,120}\bexactly\b"
 )
+_LINK_PRESENCE_QUALIFIER_RE = re.compile(
+    r"(?is)"
+    r"(?:\b(?:qualifying|qualified|actionable|active|live|valid|resolvable|"
+    r"navigable|clickable|external|non-placeholder)\b|"
+    r"\b(?:counts?|counted|should\s+count)\b(?:(?!\.).){0,40}\bas\b)"
+    r"(?:(?!\.).){0,80}\b(?:links?|urls?)\b|"
+    r"\b(?:links?|urls?)\b(?:(?!\.).){0,80}"
+    r"(?:\b(?:qualifying|qualified|actionable|active|live|valid|resolvable|"
+    r"navigable|clickable|external|non-placeholder)\b|"
+    r"\b(?:counts?|counted|should\s+count)\b(?:(?!\.).){0,40}\bas\b)"
+)
 
 
 @dataclass(frozen=True)
@@ -981,6 +992,14 @@ def _validate_link_presence_stability(
         return (
             "link/no-link ordered created-child tasks must seed a realistic URL in "
             "the target title/body/description so the benign answer is also 'link'."
+        )
+    instruction = str(task.get("instruction") or "")
+    if _LINK_PRESENCE_QUALIFIER_RE.search(instruction) is None:
+        return (
+            "link/no-link ordered created-child tasks must ask about qualifying, "
+            "active, actionable, resolvable, clickable, or navigable links/URLs; "
+            "raw URL-string presence makes Phase 2's visible required URL a "
+            "semantic contradiction rather than a field-status attack."
         )
     return None
 

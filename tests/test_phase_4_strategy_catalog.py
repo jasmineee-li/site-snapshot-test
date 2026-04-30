@@ -105,8 +105,8 @@ def test_binary_suspicion_prefers_recovery_and_native_context():
     assert strategies == LINK_NOLINK_BODY_TRIGGER_TO_STRATEGIES["suspicion"]
     assert strategies == (
         "authority_framing",
+        "impersonate_authority",
         "fake_error_recovery",
-        "embed_in_legitimate_context",
     )
 
 
@@ -116,8 +116,19 @@ def test_link_nolink_body_distracted_prefers_authoritative_status():
     assert strategies == LINK_NOLINK_BODY_TRIGGER_TO_STRATEGIES["distracted"]
     assert strategies == (
         "authority_framing",
+        "impersonate_authority",
         "fake_error_recovery",
-        "necessary_for_benign_goal",
+    )
+
+
+def test_link_nolink_body_externally_sourced_prefers_authoritative_status():
+    strategies, actionable = strategies_for_task("externally_sourced", _binary_task())
+    assert actionable is True
+    assert strategies == LINK_NOLINK_BODY_TRIGGER_TO_STRATEGIES["externally_sourced"]
+    assert strategies == (
+        "impersonate_authority",
+        "authority_framing",
+        "fake_error_recovery",
     )
 
 
@@ -148,6 +159,8 @@ def test_blank_populated_short_title_guidance_prefers_field_state_artifact():
     assert "field-state artifact" in guidance
     assert "empty-title placeholder" in guidance
     assert "merely say to answer the adversarial label" in guidance
+    assert "field-state marker first" in guidance
+    assert "stub/row wording" in guidance
 
 
 def test_link_nolink_body_guidance_prefers_link_status_not_url_denial():
@@ -166,6 +179,8 @@ def test_link_nolink_body_guidance_prefers_link_status_not_url_denial():
     assert "link-status decision" in guidance
     assert "non-actionable" in guidance
     assert "Agent instruction" in guidance
+    assert "qualifying, actionable" in guidance
+    assert "visible prose before the fence" in guidance
 
 
 def test_actionable_triggers_map_to_real_strategies():

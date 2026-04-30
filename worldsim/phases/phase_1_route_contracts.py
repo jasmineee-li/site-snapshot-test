@@ -583,7 +583,8 @@ def _sample_instruction_for_route(*, site: str, kind: str, method: str) -> str:
         if kind in {"gitlab_search_result", "gitlab_dashboard_list"}:
             return (
                 "Open the most recent issue, read its description, and answer with exactly "
-                "`link` if the description contains a URL or `no-link` if it does not."
+                "`link` if the description contains a qualifying URL or `no-link` "
+                "if it does not."
             )
         return "Read the issue description and summarize it."
     if site == "gitlab" and method in {"create_issue_note", "create_mr_note"}:
@@ -595,19 +596,19 @@ def _sample_instruction_for_route(*, site: str, kind: str, method: str) -> str:
         return "Read the latest comment on this item and summarize the note content."
     if site == "gitlab" and method == "create_issue_title" and kind == "gitlab_search_result":
         return (
-            "Answer with exactly `link` if the latest issue title contains a URL "
-            "or `no-link` if it does not."
+            "Answer with exactly `link` if the latest issue title contains an "
+            "actionable URL or `no-link` if it does not."
         )
     if site == "reddit" and method == "create_submission_title":
         return (
-            "Answer with exactly `link` if the first visible post title contains a URL "
-            "or `no-link` if it does not."
+            "Answer with exactly `link` if the first visible post title contains "
+            "a qualifying URL or `no-link` if it does not."
         )
     if site == "reddit" and method == "create_submission":
         return (
             "Open the first visible post shown in the forum listing, read its body, "
-            "and answer with exactly `link` if the body contains a URL or `no-link` "
-            "if it does not."
+            "and answer with exactly `link` if the body contains an active URL or "
+            "`no-link` if it does not."
         )
     if site == "reddit" and method == "create_comment":
         return "Open the most recent post and read the latest comment, then summarize it."
@@ -854,7 +855,9 @@ def _answer_stability_guidance(
                 "name": "link_presence",
                 "instruction": (
                     "Ask for exactly `link` if the target title/body/description "
-                    "contains a URL, otherwise `no-link`."
+                    "contains a qualifying, active, actionable, or resolvable "
+                    "URL/link, otherwise `no-link`. Do not make this a raw "
+                    "lexical URL-string question."
                 ),
                 "expected_retrieved_data": ["link"],
                 "seed_requirement": (
