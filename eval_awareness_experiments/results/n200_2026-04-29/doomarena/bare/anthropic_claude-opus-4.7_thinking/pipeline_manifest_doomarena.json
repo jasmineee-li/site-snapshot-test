@@ -1,0 +1,110 @@
+{
+  "started": "2026-04-29T13:36:08.886742+00:00",
+  "config": {
+    "benchmark": "doomarena",
+    "splits": [
+      "reddit",
+      "shopping",
+      "shopping_admin",
+      "gitlab"
+    ],
+    "stage": "all",
+    "tasks_per_split": 50,
+    "wasp_task_dir": null,
+    "concurrency": 8,
+    "avg_step_timeout": 60,
+    "browser_stage1_timeout": 46800,
+    "browser_stage1_overhead": 1800,
+    "browser_splits_sequential": false,
+    "model_name": "anthropic/claude-opus-4.7:thinking",
+    "condition": "baseline",
+    "extra_instructions_preset": "none",
+    "system_prompt_frame": "none",
+    "max_steps": 15,
+    "shuffle": 42,
+    "report_port": 1234,
+    "report_port_base": null,
+    "judge_model": "anthropic/claude-opus-4.7:thinking",
+    "judges": [
+      "verbalized_awareness",
+      "purpose_continue_5q"
+    ],
+    "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/bare/anthropic_claude-opus-4.7_thinking",
+    "existing_dirs": null
+  },
+  "splits": {
+    "reddit": {
+      "study_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/bare/anthropic_claude-opus-4.7_thinking/_browser_runs/reddit",
+      "original_run_meta": {
+        "benchmark": "doomarena",
+        "split": "reddit",
+        "model_name": "anthropic/claude-opus-4.7:thinking",
+        "condition": "baseline",
+        "extra_instructions_preset": "none",
+        "system_prompt_frame": "none",
+        "shuffle": 42,
+        "tasks_per_split": 50,
+        "max_steps": 15,
+        "avg_step_timeout": 60,
+        "written_at": "2026-04-29T16:11:37.079122+00:00"
+      },
+      "n_trajectories": 50,
+      "status": "judges_complete"
+    },
+    "shopping": {
+      "study_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/bare/anthropic_claude-opus-4.7_thinking/_browser_runs/shopping",
+      "original_run_meta": {
+        "benchmark": "doomarena",
+        "split": "shopping",
+        "model_name": "anthropic/claude-opus-4.7:thinking",
+        "condition": "baseline",
+        "extra_instructions_preset": "none",
+        "system_prompt_frame": "none",
+        "shuffle": 42,
+        "tasks_per_split": 50,
+        "max_steps": 15,
+        "avg_step_timeout": 60,
+        "written_at": "2026-04-29T16:11:37.079606+00:00"
+      },
+      "n_trajectories": 50,
+      "status": "judges_complete"
+    },
+    "shopping_admin": {
+      "study_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/bare/anthropic_claude-opus-4.7_thinking/_browser_runs/shopping_admin",
+      "original_run_meta": {
+        "benchmark": "doomarena",
+        "split": "shopping_admin",
+        "model_name": "anthropic/claude-opus-4.7:thinking",
+        "condition": "baseline",
+        "extra_instructions_preset": "none",
+        "system_prompt_frame": "none",
+        "shuffle": 42,
+        "tasks_per_split": 50,
+        "max_steps": 15,
+        "avg_step_timeout": 60,
+        "written_at": "2026-04-29T16:11:37.079736+00:00"
+      },
+      "n_trajectories": 50,
+      "status": "judges_complete"
+    },
+    "gitlab": {
+      "study_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/bare/anthropic_claude-opus-4.7_thinking/_browser_runs/gitlab",
+      "original_run_meta": {
+        "benchmark": "doomarena",
+        "split": "gitlab",
+        "model_name": "anthropic/claude-opus-4.7:thinking",
+        "condition": "baseline",
+        "extra_instructions_preset": "none",
+        "system_prompt_frame": "none",
+        "shuffle": 42,
+        "tasks_per_split": 50,
+        "max_steps": 15,
+        "avg_step_timeout": 60,
+        "written_at": "2026-04-29T16:11:37.079894+00:00"
+      },
+      "n_trajectories": 51,
+      "status": "judges_complete"
+    }
+  },
+  "finished": "2026-04-29T16:31:48.653528+00:00"
+}
