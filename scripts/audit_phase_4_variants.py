@@ -69,6 +69,16 @@ def _format_text_report(
         lines.append(f"Quality flags: {_fmt_count_map(report['quality_flag_counts'])}.")
     else:
         lines.append("Quality flags: none.")
+    failure_buckets = report.get("host_failure_buckets") or []
+    if failure_buckets:
+        lines.append("Host-finalization failure buckets:")
+        for row in failure_buckets[:10]:
+            lines.append(
+                "  "
+                f"{row['count']} {row['failure_class']} {row['site']} {row['surface']} "
+                f"route={row['route_variant']} strategy={row['strategy']}: "
+                f"{row['sample_reason']}"
+            )
 
     rows = report["task_rows"]
     if rows and task_limit != 0:
@@ -83,7 +93,8 @@ def _format_text_report(
                 f"generated={row['generated_records']} rejected={row['rejected_records']} "
                 f"evaluated={row['evaluated_variants']} pvpo={row['gate1_valid_variants']} "
                 f"complied={row['compliant_variants']} artifacts={row['artifact_attempts']} "
-                f"host={_fmt_count_map(row['artifact_host_status_counts'])} flags={flags}"
+                f"host={_fmt_count_map(row['artifact_host_status_counts'])} "
+                f"failures={_fmt_count_map(row['failure_class_counts'])} flags={flags}"
             )
             rejection = row.get("first_rejection")
             if isinstance(rejection, dict):
