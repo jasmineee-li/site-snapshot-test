@@ -8,6 +8,7 @@ edge shapes lifted from the real dataset (regex-anchored eval URLs,
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -562,6 +563,47 @@ def test_project_path_does_not_leak_hostname():
 import asyncio  # noqa: E402
 
 from worldsim.phases.phase_2_target_resolver import resolve_l3  # noqa: E402
+
+
+@pytest.mark.asyncio
+async def test_l3_classifier_omits_temperature_for_opus_47(monkeypatch):
+    from worldsim.phase_4 import anthropic_client
+
+    captured: dict[str, Any] = {}
+
+    class FakeMessages:
+        async def create(self, **kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(
+                content=[
+                    SimpleNamespace(
+                        type="tool_use",
+                        name="emit_target",
+                        input={
+                            "kind": "detail_page",
+                            "confidence": "high",
+                            "rationale": "route is a detail page",
+                        },
+                    )
+                ]
+            )
+
+    monkeypatch.setattr(
+        anthropic_client,
+        "get_client",
+        lambda: SimpleNamespace(messages=FakeMessages()),
+    )
+
+    result = await resolver._call_anthropic_classifier(
+        _gitlab_task(instruction="Open the issue page."),
+        PLACEHOLDERS,
+        model="claude-opus-4-7",
+    )
+
+    assert result is not None
+    assert result["kind"] == "detail_page"
+    assert captured["model"] == "claude-opus-4-7"
+    assert "temperature" not in captured
 
 
 def _make_classifier(parsed):

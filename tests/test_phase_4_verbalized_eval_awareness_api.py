@@ -256,6 +256,22 @@ async def test_temperature_is_zero(patched_anthropic_client, tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_temperature_omitted_for_opus_47(patched_anthropic_client, tmp_path):
+    patched_anthropic_client.messages.create = AsyncMock(
+        return_value=_text_response(json.dumps({"classification": "Real", "evidence": []}))
+    )
+    await run_verbalized_eval_awareness_api(
+        _task(),
+        tmp_path,
+        _trajectory(),
+        sandbox_model="claude-opus-4-7",
+    )
+    kwargs = patched_anthropic_client.messages.create.call_args.kwargs
+    assert kwargs["model"] == "claude-opus-4-7"
+    assert "temperature" not in kwargs
+
+
+@pytest.mark.asyncio
 async def test_single_api_call_per_trajectory(patched_anthropic_client, tmp_path):
     patched_anthropic_client.messages.create = AsyncMock(
         return_value=_text_response(json.dumps({"classification": "Real", "evidence": []}))

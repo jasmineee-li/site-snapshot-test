@@ -50,6 +50,7 @@ from worldsim.phase_4.anthropic_client import (
     classify_api_exception,
     get_client,
     normalize_model_for_auth,
+    temperature_kwargs_for_model,
 )
 from worldsim.phase_4.concurrency import get_api_semaphore
 from worldsim.phase_4.needham_trace import (
@@ -272,10 +273,10 @@ async def run_verbalized_eval_awareness_api(
             return await client.messages.create(
                 model=normalize_model_for_auth(sandbox_model),
                 max_tokens=_MAX_TOKENS,
-                temperature=_TEMPERATURE,
                 system=_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": prompt_body}],
                 metadata=_model_metadata(),
+                **temperature_kwargs_for_model(sandbox_model, _TEMPERATURE),
             )
 
     t0 = time.monotonic()

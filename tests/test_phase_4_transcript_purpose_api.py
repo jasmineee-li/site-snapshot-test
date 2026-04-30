@@ -487,6 +487,23 @@ async def test_temperature_and_max_tokens_pinned(patched_anthropic_client, tmp_p
 
 
 @pytest.mark.asyncio
+async def test_temperature_omitted_for_opus_47(patched_anthropic_client, tmp_path):
+    patched_anthropic_client.messages.create = AsyncMock(side_effect=_responses_for_label("Real"))
+    await run_transcript_purpose_api(
+        _task(),
+        tmp_path,
+        _trajectory(),
+        _write_screenshot(tmp_path),
+        sandbox_model="claude-opus-4-7",
+    )
+    calls = patched_anthropic_client.messages.create.await_args_list
+    assert calls[0].kwargs["model"] == "claude-opus-4-7"
+    assert calls[1].kwargs["model"] == "claude-opus-4-7"
+    assert "temperature" not in calls[0].kwargs
+    assert "temperature" not in calls[1].kwargs
+
+
+@pytest.mark.asyncio
 async def test_cost_recorded_in_transcript_purpose_bucket(patched_anthropic_client, tmp_path):
     patched_anthropic_client.messages.create = AsyncMock(side_effect=_responses_for_label("Real"))
     with patch("worldsim.phase_4.transcript_purpose_api.cost_tracker") as mock_tracker:

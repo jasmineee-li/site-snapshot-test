@@ -44,6 +44,7 @@ from worldsim.phase_4.anthropic_client import (
     classify_api_exception,
     get_client,
     normalize_model_for_auth,
+    temperature_kwargs_for_model,
 )
 from worldsim.phase_4.concurrency import get_api_semaphore
 from worldsim.phase_4.needham_trace import (
@@ -279,8 +280,8 @@ async def _call_step(
                 max_tokens=max_tokens,
                 messages=messages,
                 system=_SYSTEM_PROMPT,
-                temperature=_TEMPERATURE,
                 metadata=_model_metadata(),
+                **temperature_kwargs_for_model(sandbox_model, _TEMPERATURE),
             )
 
     try:

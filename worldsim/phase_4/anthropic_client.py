@@ -21,6 +21,7 @@ import asyncio
 import logging
 import os
 import random
+import re
 from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 
@@ -35,6 +36,9 @@ logger = logging.getLogger(__name__)
 
 _client: AsyncAnthropic | None = None
 _SDK_MAX_RETRIES = 0
+_TEMPERATURE_UNSUPPORTED_MODEL_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"^claude-opus-4-7(?:$|[-:])", re.IGNORECASE),
+)
 
 T = TypeVar("T")
 
@@ -105,6 +109,34 @@ def normalize_model_for_auth(model: str) -> str:
     # missing-credentials path, and we don't want to mask that by
     # silently mutating the model string.
     return model
+
+
+def _bare_model_name(model: str) -> str:
+    return (model or "").split("/", 1)[-1]
+
+
+def supports_temperature_parameter(model: str) -> bool:
+    """Return whether Anthropic Messages accepts an explicit temperature.
+
+    Claude Opus 4.7 currently rejects requests that include ``temperature``
+    with a 400 ``"`temperature` is deprecated for this model."`` response.
+    Host-side metrics still prefer deterministic calls where supported, so
+    callers should route temperature through ``temperature_kwargs_for_model``
+    instead of hard-coding the parameter on every request.
+    """
+
+    bare = _bare_model_name(model).strip()
+    return not any(pattern.search(bare) for pattern in _TEMPERATURE_UNSUPPORTED_MODEL_PATTERNS)
+
+
+def temperature_kwargs_for_model(model: str, temperature: float | int | None) -> dict[str, float]:
+    """Build a Messages API kwargs fragment for model-compatible temperature."""
+
+    if temperature is None:
+        return {}
+    if not supports_temperature_parameter(model):
+        return {}
+    return {"temperature": float(temperature)}
 
 
 def _resolve_auth() -> tuple[str, dict[str, Any]]:

@@ -359,6 +359,26 @@ def test_normalize_model_for_auth_passthrough_with_no_creds(monkeypatch):
     )
 
 
+def test_temperature_kwargs_preserve_determinism_for_supported_models():
+    assert anthropic_client.supports_temperature_parameter("claude-sonnet-4-6") is True
+    assert anthropic_client.temperature_kwargs_for_model("claude-sonnet-4-6", 0) == {
+        "temperature": 0.0
+    }
+
+
+def test_temperature_kwargs_omit_deprecated_opus_47_temperature():
+    assert anthropic_client.supports_temperature_parameter("claude-opus-4-7") is False
+    assert (
+        anthropic_client.supports_temperature_parameter("anthropic/claude-opus-4-7")
+        is False
+    )
+    assert (
+        anthropic_client.supports_temperature_parameter("claude-opus-4-7-20260429")
+        is False
+    )
+    assert anthropic_client.temperature_kwargs_for_model("claude-opus-4-7", 0.0) == {}
+
+
 def test_no_direct_async_anthropic_instantiation_outside_client_module():
     """Structural guard: every phase_4 module that uses `AsyncAnthropic`
     must route through `get_client()`. A direct `AsyncAnthropic(...)` call

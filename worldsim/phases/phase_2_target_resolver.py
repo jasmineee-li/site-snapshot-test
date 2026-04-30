@@ -1526,6 +1526,7 @@ async def _call_anthropic_classifier(
         call_with_retry,
         get_client,
         normalize_model_for_auth,
+        temperature_kwargs_for_model,
     )
 
     _l3_failure_class_var.set(None)
@@ -1537,11 +1538,11 @@ async def _call_anthropic_classifier(
         return client.messages.create(
             model=resolved_model,
             max_tokens=L3_MAX_TOKENS,
-            temperature=0,
             system=L3_SYSTEM_PROMPT,
             tools=[L3_TOOL_SCHEMA],
             tool_choice={"type": "tool", "name": "emit_target"},
             messages=[{"role": "user", "content": user_prompt}],
+            **temperature_kwargs_for_model(resolved_model, 0),
         )
 
     try:

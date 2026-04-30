@@ -32,7 +32,12 @@ from worldsim.host_api_observability import (
     instructor_semantic_retrying,
     synthesize_cost_summary,
 )
-from worldsim.phase_4.anthropic_client import call_with_retry, get_client, normalize_model_for_auth
+from worldsim.phase_4.anthropic_client import (
+    call_with_retry,
+    get_client,
+    normalize_model_for_auth,
+    temperature_kwargs_for_model,
+)
 from worldsim.phase_4.concurrency import get_api_semaphore
 from worldsim.phases.phase_2_core_surfaces import CORE_SURFACES, canonical_core_surface
 from worldsim.prompt_loading import load_prompt
@@ -846,7 +851,6 @@ async def _call_text_fill_api(
                     return await instructor_client.messages.create_with_completion(
                         model=normalized_model,
                         max_tokens=max_tokens,
-                        temperature=0.7,
                         messages=[{"role": "user", "content": prompt}],
                         response_model=TextPayloadResponse,
                         context=text_payload_validation_context(_validate_payload),
@@ -854,6 +858,7 @@ async def _call_text_fill_api(
                             TEXT_FILL_STRUCTURED_RETRIES
                         ),
                         hooks=hooks,
+                        **temperature_kwargs_for_model(normalized_model, 0.7),
                     )
 
             payload, raw_response = await call_with_retry(
@@ -898,8 +903,8 @@ async def _call_text_fill_api(
             return await client.messages.create(
                 model=normalize_model_for_auth(model),
                 max_tokens=_TEXT_FILL_DEFAULT_MAX_TOKENS,
-                temperature=0.7,
                 messages=[{"role": "user", "content": prompt}],
+                **temperature_kwargs_for_model(model, 0.7),
             )
 
     response = await call_with_retry(_call, retries=3, label="phase2b-text-fill")
