@@ -257,6 +257,39 @@ async def test_run_phase_0c_mounts_staged_site_subset_via_read_only_volume(monke
 
 
 @pytest.mark.asyncio
+async def test_run_phase_0c_honors_site_filter(monkeypatch, tmp_path):
+    profiled_sites: list[str] = []
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    gitlab_file = benchmark_root / "gitlab.py"
+    reddit_file = benchmark_root / "reddit.py"
+    shopping_file = benchmark_root / "shopping.py"
+    for path in (gitlab_file, reddit_file, shopping_file):
+        path.write_text("# fixture", encoding="utf-8")
+
+    async def fake_profile_one_site_tiered(**kwargs):
+        profiled_sites.append(kwargs["site_name"])
+        return kwargs["site_name"], {"profile": {}, "agent_context": {}}
+
+    monkeypatch.setattr(phase_0_recon, "_profile_one_site_tiered", fake_profile_one_site_tiered)
+
+    result = await phase_0_recon.run_phase_0c(
+        {"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        {
+            "gitlab": [str(gitlab_file)],
+            "reddit": [str(reddit_file)],
+            "shopping": [str(shopping_file)],
+        },
+        benchmark_root,
+        tmp_path / "phase_0c",
+        site_filter={"gitlab", "reddit"},
+    )
+
+    assert sorted(profiled_sites) == ["gitlab", "reddit"]
+    assert sorted(result) == ["gitlab", "reddit"]
+
+
+@pytest.mark.asyncio
 async def test_run_phase_0c_does_not_publish_invalid_profiles(monkeypatch, tmp_path):
     benchmark_root, source_file = _benchmark_setup(tmp_path)
     de_attempts = 0
@@ -608,6 +641,7 @@ async def test_run_persists_instances_path_across_phase_0_state(monkeypatch, tmp
     instances_path.write_text(json.dumps(_instances_config(benchmark_root)), encoding="utf-8")
 
     state_calls: list[tuple[str, dict]] = []
+    phase_0c_kwargs: dict[str, object] = {}
 
     async def fake_run_phase_0a(*args, **kwargs):
         return {
@@ -617,6 +651,7 @@ async def test_run_persists_instances_path_across_phase_0_state(monkeypatch, tmp
         }
 
     async def fake_run_phase_0c(*args, **kwargs):
+        phase_0c_kwargs.update(kwargs)
         return {"shopping": {"profile": {}, "agent_context": {}}}
 
     async def fake_preflight():
@@ -645,12 +680,14 @@ async def test_run_persists_instances_path_across_phase_0_state(monkeypatch, tmp
         benchmark=benchmark_root,
         sub="0",
         instances_path=instances_path,
+        site_filter={"shopping"},
     )
 
     assert rc == 0
     phase_calls = [call for call in state_calls if call[0].startswith("phase_0")]
     assert phase_calls
     assert all(call[1]["instances_path"] == str(instances_path) for call in phase_calls)
+    assert phase_0c_kwargs["site_filter"] == {"shopping"}
 
 
 def test_profile_injection_surface_prompt_includes_delivery_feasibility_probing():

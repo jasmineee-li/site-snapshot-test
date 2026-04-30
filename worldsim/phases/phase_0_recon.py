@@ -321,6 +321,7 @@ async def run(
     sub: str = "0",
     sandbox_model: str = "claude-sonnet-4-6",
     instances_path: Path | None = None,
+    site_filter: set[str] | None = None,
 ) -> int:
     """Phase 0 entrypoint.
 
@@ -331,6 +332,9 @@ async def run(
         instances_path: Optional path to instances.json. When provided,
             Phase 0c sandboxes receive instance connectivity info
             (site URLs only, no credentials).
+        site_filter: Optional normalized site names to profile in Phase 0c.
+            Phase 0a/0b still discover the full benchmark manifest and sandbox
+            map so downstream phases can validate provenance.
 
     Returns:
         Process exit code.
@@ -441,6 +445,7 @@ async def run(
                 sandbox_model=sandbox_model,
                 instances=instances,
                 verification_proxy=verification_proxy,
+                site_filter=site_filter,
             )
         except Exception as e:
             save_state(
@@ -763,6 +768,7 @@ async def run_phase_0c(
     sandbox_model: str = "claude-sonnet-4-6",
     instances: list[BenchmarkInstance] | None = None,
     verification_proxy: VerificationProxy | None = None,
+    site_filter: set[str] | None = None,
 ) -> dict[str, Any]:
     """Profile each site via tiered parallel Modal Sandboxes.
 
@@ -784,6 +790,8 @@ async def run_phase_0c(
         verification_proxy: Optional proxy config. When present, site URLs
             are rewritten to proxy ports and an auth header is included in
             the INSTANCE_CONNECTIVITY.json staged into Tier 2 sandboxes.
+        site_filter: Optional normalized site names to profile. Existing
+            outputs for unselected sites are ignored rather than deleted.
 
     Returns:
         Dict mapping site name to merged profile outputs.
@@ -798,10 +806,20 @@ async def run_phase_0c(
     instance_urls = _build_instance_site_url_map(instances)
     instance_lookup = _build_instance_lookup(instances)
 
+    normalized_site_filter = (
+        {normalize_site_name(site) for site in site_filter if str(site).strip()}
+        if site_filter is not None
+        else None
+    )
+
     # Skip sites that already have all outputs on disk (supports re-runs).
     sites_to_profile = {}
     for name, files in sandbox_map.items():
-        instance_site_url = instance_urls.get(normalize_site_name(name))
+        normalized_name = normalize_site_name(name)
+        if normalized_site_filter is not None and normalized_name not in normalized_site_filter:
+            logger.info("Phase 0c: skipping site %r (not selected by --sites)", name)
+            continue
+        instance_site_url = instance_urls.get(normalized_name)
         if _existing_site_outputs_are_reusable(
             output_dir=output_dir,
             site_name=name,

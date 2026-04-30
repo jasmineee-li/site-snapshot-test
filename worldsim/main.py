@@ -778,6 +778,13 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
+def _parse_cli_sites(raw_sites: str | None) -> set[str] | None:
+    if raw_sites is None:
+        return None
+    parsed = {site.strip() for site in raw_sites.split(",") if site.strip()}
+    return parsed or None
+
+
 def _task_bank_path_from_args(args: argparse.Namespace) -> Path:
     from worldsim.task_bank import default_task_bank_path
 
@@ -1237,6 +1244,7 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
                 sub=phase,
                 sandbox_model=args.sandbox_model,
                 instances_path=getattr(args, "instances", None),
+                site_filter=_parse_cli_sites(getattr(args, "sites", None)),
             )
         )
     elif phase == "0d":
