@@ -151,6 +151,44 @@ def _attempt_failure_class_reasons(attempt: dict[str, Any]) -> dict[str, str]:
     return class_reasons
 
 
+def _attempt_succeeded(attempt: dict[str, Any]) -> bool:
+    return (
+        attempt.get("generation_status") == "generated"
+        and attempt.get("host_status") == "passed"
+    )
+
+
+def _attempt_failed(attempt: dict[str, Any]) -> bool:
+    return bool(attempt.get("failure_classes"))
+
+
+def _attempt_group_key(attempt: dict[str, Any]) -> tuple[str, str, str]:
+    return (
+        str(attempt.get("task_id") or ""),
+        str(attempt.get("strategy_index") or ""),
+        str(attempt.get("strategy") or "unknown"),
+    )
+
+
+def _annotate_failure_resolution(attempts: list[dict[str, Any]]) -> None:
+    """Mark whether failed attempt artifacts were later repaired.
+
+    Phase 4 writes both the rejected initial attempt and the host-feedback retry
+    attempt. The rejected artifact is valuable QA evidence, but it is not a
+    terminal blocker when a later attempt for the same task/strategy passes host
+    finalization and enters browser evaluation.
+    """
+
+    groups_with_success = {
+        _attempt_group_key(attempt) for attempt in attempts if _attempt_succeeded(attempt)
+    }
+    for attempt in attempts:
+        if not _attempt_failed(attempt):
+            continue
+        repaired = _attempt_group_key(attempt) in groups_with_success
+        attempt["failure_resolution"] = "repaired_by_retry" if repaired else "terminal"
+
+
 def _strategy_name(value: Any) -> str:
     if isinstance(value, dict):
         name = value.get("strategy")
@@ -314,11 +352,15 @@ def build_variant_artifact_audit(
     artifacts_by_task: dict[str, list[dict[str, Any]]] = {}
     for artifact in artifacts:
         artifacts_by_task.setdefault(str(artifact.get("task_id") or ""), []).append(artifact)
+    for attempts in artifacts_by_task.values():
+        _annotate_failure_resolution(attempts)
 
     task_rows: list[dict[str, Any]] = []
     flag_counts = Counter()
     failure_buckets: Counter[tuple[str, str, str, str, str]] = Counter()
     failure_examples: dict[tuple[str, str, str, str, str], str] = {}
+    repaired_failure_buckets: Counter[tuple[str, str, str, str, str]] = Counter()
+    repaired_failure_examples: dict[tuple[str, str, str, str, str], str] = {}
     for result in results:
         has_variation = isinstance(result.get("strategy_variation"), dict)
         task_id = str(result.get("task_id") or "")
@@ -362,11 +404,20 @@ def build_variant_artifact_audit(
             ),
             None,
         )
+        first_terminal_rejection = next(
+            (
+                attempt
+                for attempt in attempts
+                if attempt.get("failure_resolution") == "terminal"
+            ),
+            None,
+        )
         metadata = _task_metadata(result, task_lookup)
         for attempt in attempts:
             raw_classes = attempt.get("failure_classes")
             if not isinstance(raw_classes, list):
                 continue
+            repaired = attempt.get("failure_resolution") == "repaired_by_retry"
             for failure_class in raw_classes:
                 if not isinstance(failure_class, str) or not failure_class:
                     continue
@@ -377,10 +428,14 @@ def build_variant_artifact_audit(
                     metadata["route_variant"],
                     str(attempt.get("strategy") or "unknown"),
                 )
-                failure_buckets[key] += 1
                 reasons = attempt.get("failure_class_reasons")
                 reason = reasons.get(failure_class) if isinstance(reasons, dict) else None
-                failure_examples.setdefault(key, str(reason or ""))
+                if repaired:
+                    repaired_failure_buckets[key] += 1
+                    repaired_failure_examples.setdefault(key, str(reason or ""))
+                else:
+                    failure_buckets[key] += 1
+                    failure_examples.setdefault(key, str(reason or ""))
         row = {
             **metadata,
             "final_status": str(result.get("final_status") or "missing"),
@@ -427,7 +482,34 @@ def build_variant_artifact_audit(
                     if isinstance(failure_class, str)
                 ]
             ),
+            "terminal_failure_class_counts": _count_map(
+                [
+                    str(failure_class)
+                    for attempt in attempts
+                    if attempt.get("failure_resolution") == "terminal"
+                    for failure_class in (
+                        attempt.get("failure_classes")
+                        if isinstance(attempt.get("failure_classes"), list)
+                        else []
+                    )
+                    if isinstance(failure_class, str)
+                ]
+            ),
+            "repaired_failure_class_counts": _count_map(
+                [
+                    str(failure_class)
+                    for attempt in attempts
+                    if attempt.get("failure_resolution") == "repaired_by_retry"
+                    for failure_class in (
+                        attempt.get("failure_classes")
+                        if isinstance(attempt.get("failure_classes"), list)
+                        else []
+                    )
+                    if isinstance(failure_class, str)
+                ]
+            ),
             "first_rejection": first_rejection,
+            "first_terminal_rejection": first_terminal_rejection,
         }
         task_rows.append(row)
 
@@ -468,6 +550,23 @@ def build_variant_artifact_audit(
                 or "",
             }
             for key, count in failure_buckets.most_common()
+            for failure_class, site, surface, route_variant, strategy in [key]
+        ],
+        "repaired_host_failure_buckets": [
+            {
+                "count": count,
+                "failure_class": failure_class,
+                "site": site,
+                "surface": surface,
+                "route_variant": route_variant,
+                "strategy": strategy,
+                "sample_reason": _compact_text(
+                    repaired_failure_examples.get(key, ""),
+                    limit=260,
+                )
+                or "",
+            }
+            for key, count in repaired_failure_buckets.most_common()
             for failure_class, site, surface, route_variant, strategy in [key]
         ],
         "task_rows": task_rows,

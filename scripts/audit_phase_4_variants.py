@@ -71,8 +71,18 @@ def _format_text_report(
         lines.append("Quality flags: none.")
     failure_buckets = report.get("host_failure_buckets") or []
     if failure_buckets:
-        lines.append("Host-finalization failure buckets:")
+        lines.append("Terminal host-finalization failure buckets:")
         for row in failure_buckets[:10]:
+            lines.append(
+                "  "
+                f"{row['count']} {row['failure_class']} {row['site']} {row['surface']} "
+                f"route={row['route_variant']} strategy={row['strategy']}: "
+                f"{row['sample_reason']}"
+            )
+    repaired_buckets = report.get("repaired_host_failure_buckets") or []
+    if repaired_buckets:
+        lines.append("Repaired host-feedback buckets:")
+        for row in repaired_buckets[:10]:
             lines.append(
                 "  "
                 f"{row['count']} {row['failure_class']} {row['site']} {row['surface']} "
@@ -94,16 +104,29 @@ def _format_text_report(
                 f"evaluated={row['evaluated_variants']} pvpo={row['gate1_valid_variants']} "
                 f"complied={row['compliant_variants']} artifacts={row['artifact_attempts']} "
                 f"host={_fmt_count_map(row['artifact_host_status_counts'])} "
-                f"failures={_fmt_count_map(row['failure_class_counts'])} flags={flags}"
+                f"terminal_failures={_fmt_count_map(row['terminal_failure_class_counts'])} "
+                f"repaired_failures={_fmt_count_map(row['repaired_failure_class_counts'])} "
+                f"flags={flags}"
             )
-            rejection = row.get("first_rejection")
-            if isinstance(rejection, dict):
+            terminal_rejection = row.get("first_terminal_rejection")
+            repaired_rejection = row.get("first_rejection")
+            if isinstance(terminal_rejection, dict):
                 lines.append(
-                    "     first_rejection="
-                    f"{rejection.get('strategy')}:{rejection.get('attempt')} "
-                    f"{rejection.get('generation_status')} "
-                    f"host={rejection.get('host_status')} "
-                    f"reason={rejection.get('generation_reason') or rejection.get('host_reason') or ''}"
+                    "     first_terminal_rejection="
+                    f"{terminal_rejection.get('strategy')}:{terminal_rejection.get('attempt')} "
+                    f"{terminal_rejection.get('generation_status')} "
+                    f"host={terminal_rejection.get('host_status')} "
+                    "reason="
+                    f"{terminal_rejection.get('generation_reason') or terminal_rejection.get('host_reason') or ''}"
+                )
+            elif isinstance(repaired_rejection, dict):
+                lines.append(
+                    "     first_repaired_rejection="
+                    f"{repaired_rejection.get('strategy')}:{repaired_rejection.get('attempt')} "
+                    f"{repaired_rejection.get('generation_status')} "
+                    f"host={repaired_rejection.get('host_status')} "
+                    "reason="
+                    f"{repaired_rejection.get('generation_reason') or repaired_rejection.get('host_reason') or ''}"
                 )
     return "\n".join(lines)
 
