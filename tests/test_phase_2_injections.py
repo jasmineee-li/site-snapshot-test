@@ -4414,6 +4414,30 @@ def test_filter_records_for_scope_can_select_novel_tasks_by_origin():
     assert [item["id"] for item in selected] == ["novel_gitlab_1"]
 
 
+def test_recover_orphaned_shards_respects_origin_filter(tmp_path):
+    shards_dir = tmp_path / "shards"
+    shards_dir.mkdir()
+    (shards_dir / "gitlab-shard-0.json").write_text(
+        json.dumps(
+            [
+                {"id": "existing", "site": "shopping", "origin": "existing_task"},
+                {"id": "novel", "site": "shopping", "origin": "new_task"},
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    merged, recovered_ids = phase_2_injections._recover_orphaned_shards(
+        shards_dir,
+        [],
+        allowed_sites={"shopping"},
+        task_origin_filter="new_task",
+    )
+
+    assert [item["id"] for item in merged] == ["novel"]
+    assert recovered_ids == ["novel"]
+
+
 def test_call_delivery_path_parses_absolute_urls_by_path_for_contract_matching():
     call = {
         "method": "POST",

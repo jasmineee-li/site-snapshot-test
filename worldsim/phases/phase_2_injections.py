@@ -680,6 +680,7 @@ async def run(args: argparse.Namespace) -> int:
             output_dir / "shards",
             all_plans,
             allowed_sites=active_sites,
+            task_origin_filter=task_origin_filter,
             benign_by_id=benign_by_id,
             site_profiles=site_profile_payloads,
         )
@@ -2966,6 +2967,7 @@ def _recover_orphaned_shards(
     in_memory_plans: list[dict[str, Any]],
     *,
     allowed_sites: set[str],
+    task_origin_filter: str = "all",
     benign_by_id: dict[str, dict[str, Any]] | None = None,
     site_profiles: dict[str, dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
@@ -3003,6 +3005,8 @@ def _recover_orphaned_shards(
                 continue
             site = _effective_task_site(task)
             if site not in allowed_sites:
+                continue
+            if task_origin_filter != "all" and _phase_1_task_origin(task) != task_origin_filter:
                 continue
             prior = best_by_id.get(task_id)
             if prior is None or mtime > prior[0]:
