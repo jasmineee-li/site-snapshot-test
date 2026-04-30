@@ -8,6 +8,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from worldsim.phases.phase_1_task_cards import card_route_ids, task_card_index
 from worldsim.phases.phase_2_exposure_contract import build_exposure_contract
 from worldsim.phases.phase_2_target_resolver import derive_benign_target_resource
 from worldsim.placeholders import extract_placeholders, placeholder_for_site
@@ -108,6 +109,7 @@ def validate_generated_novel_tasks(
     profile: dict[str, Any],
     expected_task_count: int | None = _DEFAULT_EXPECTED_TASK_COUNT,
     route_contracts: dict[str, Any] | None = None,
+    task_card_plan: dict[str, Any] | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     """Validate sandbox-generated generate-new-tasks output for one site."""
     validated, detailed_errors = validate_generated_novel_tasks_detailed(
@@ -116,6 +118,7 @@ def validate_generated_novel_tasks(
         profile=profile,
         expected_task_count=expected_task_count,
         route_contracts=route_contracts,
+        task_card_plan=task_card_plan,
     )
     return validated, [error.legacy_render() for error in detailed_errors]
 
@@ -127,6 +130,7 @@ def validate_generated_novel_tasks_detailed(
     profile: dict[str, Any],
     expected_task_count: int | None = _DEFAULT_EXPECTED_TASK_COUNT,
     route_contracts: dict[str, Any] | None = None,
+    task_card_plan: dict[str, Any] | None = None,
 ) -> tuple[list[dict[str, Any]], list[GeneratedTaskValidationError]]:
     """Validate sandbox-generated output and return structured errors."""
     if not isinstance(raw_tasks, list):
@@ -146,6 +150,7 @@ def validate_generated_novel_tasks_detailed(
         if capability.get("eval_type")
     }
     route_index = _route_contract_index(route_contracts)
+    card_index = task_card_index(task_card_plan)
     start_url_policy = None if route_index is not None else _build_start_url_policy(profile)
     validated: list[dict[str, Any]] = []
     errors: list[GeneratedTaskValidationError] = []
@@ -160,6 +165,7 @@ def validate_generated_novel_tasks_detailed(
             allowed_eval_types=allowed_eval_types,
             start_url_policy=start_url_policy,
             route_index=route_index,
+            task_card_index=card_index,
         )
         if problem is not None:
             errors.append(problem)
@@ -268,6 +274,7 @@ def validate_generated_novel_task(
     allowed_eval_types: set[str],
     start_url_policy: _StartUrlPolicy | None = None,
     route_index: dict[str, dict[str, Any]] | None = None,
+    task_card_index: dict[str, dict[str, Any]] | None = None,
 ) -> GeneratedTaskValidationError | None:
     """Validate one new_task against Phase 1 and runtime constraints."""
     path = f"$[{index}]"
@@ -399,6 +406,16 @@ def validate_generated_novel_task(
         )
         if route_problem is not None:
             return route_problem
+    if task_card_index:
+        card_problem = _validate_task_card_alignment(
+            task,
+            index=index,
+            site_name=site_name,
+            card_index=task_card_index,
+            route_index=route_index,
+        )
+        if card_problem is not None:
+            return card_problem
     policy_problem = None
     if start_url_policy is not None:
         policy_problem = start_url_policy.validate(start_urls, site_name=site_name)
@@ -895,6 +912,96 @@ def _validate_route_contract_alignment(
             ),
         )
 
+    return None
+
+
+def _validate_task_card_alignment(
+    task: dict[str, Any],
+    *,
+    index: int,
+    site_name: str,
+    card_index: dict[str, dict[str, Any]],
+    route_index: dict[str, dict[str, Any]] | None,
+) -> GeneratedTaskValidationError | None:
+    card_id = task.get("task_card_id")
+    if not isinstance(card_id, str) or not card_id.strip():
+        return _field_error(
+            index,
+            "MISSING_TASK_CARD_ID",
+            "task_card_id",
+            "task-card-guided generation requires every task to name task_card_id",
+            expected=sorted(card_index),
+            actual=card_id,
+        )
+    card = card_index.get(card_id)
+    if card is None:
+        return _field_error(
+            index,
+            "UNKNOWN_TASK_CARD_ID",
+            "task_card_id",
+            "task_card_id is not present in the active task-card plan",
+            expected=sorted(card_index),
+            actual=card_id,
+        )
+    if card.get("site") != site_name:
+        return _field_error(
+            index,
+            "TASK_CARD_SITE_MISMATCH",
+            "task_card_id",
+            "task card belongs to a different site",
+            expected=site_name,
+            actual=card.get("site"),
+        )
+    route_id = task.get("route_id")
+    allowed_route_ids = card_route_ids(card)
+    if allowed_route_ids and route_id not in allowed_route_ids:
+        return _field_error(
+            index,
+            "TASK_CARD_ROUTE_MISMATCH",
+            "route_id",
+            "task route_id does not match the selected task card",
+            expected=sorted(allowed_route_ids),
+            actual=route_id,
+        )
+    if route_index is not None and isinstance(route_id, str) and route_id not in route_index:
+        return _field_error(
+            index,
+            "TASK_CARD_ROUTE_UNKNOWN",
+            "route_id",
+            "task card references a route not present in TASK_ROUTE_CONTRACTS.json",
+            expected=sorted(route_index),
+            actual=route_id,
+        )
+    archetype_id = card.get("archetype_id")
+    task_archetype_id = task.get("archetype_id")
+    if isinstance(archetype_id, str) and task_archetype_id not in (None, archetype_id):
+        return _field_error(
+            index,
+            "TASK_CARD_ARCHETYPE_MISMATCH",
+            "archetype_id",
+            "task archetype_id does not match the selected task card",
+            expected=archetype_id,
+            actual=task_archetype_id,
+        )
+    provenance = task.get("task_provenance")
+    if provenance is not None and not isinstance(provenance, dict):
+        return _field_error(
+            index,
+            "INVALID_TASK_PROVENANCE",
+            "task_provenance",
+            "task_provenance must be an object when present",
+            expected="object",
+            actual=type(provenance).__name__,
+        )
+    task.setdefault("task_provenance", {})
+    if isinstance(task["task_provenance"], dict):
+        task["task_provenance"].setdefault("task_card_id", card_id)
+        if isinstance(archetype_id, str):
+            task["task_provenance"].setdefault("archetype_id", archetype_id)
+        if isinstance(card.get("task_archetype"), dict):
+            task["task_provenance"].setdefault(
+                "task_archetype", copy.deepcopy(card["task_archetype"])
+            )
     return None
 
 

@@ -36,6 +36,7 @@ from worldsim.phases.phase_1_generate_new_tasks_validation import (
 from worldsim.phases.phase_1_generate_new_tasks_validation import (
     sort_novel_tasks as _sort_novel_tasks,
 )
+from worldsim.phases.phase_1_task_cards import load_task_card_plan, task_card_plan_digest
 from worldsim.state import get_state_dir, save_state
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,8 @@ async def run(args: argparse.Namespace) -> int:
     novel_tasks_per_site = (
         getattr(args, "novel_tasks_per_site", None) or DEFAULT_NOVEL_TASKS_PER_SITE
     )
+    task_card_plan_arg = getattr(args, "task_card_plan", None)
+    task_card_plan_path = Path(task_card_plan_arg) if task_card_plan_arg else None
     sites_filter_raw = getattr(args, "sites", None)
     sites_filter = _parse_sites_filter(sites_filter_raw)
 
@@ -90,6 +93,26 @@ async def run(args: argparse.Namespace) -> int:
             novel_tasks_per_site=novel_tasks_per_site,
         )
         return 1
+    try:
+        task_card_plan = load_task_card_plan(task_card_plan_path)
+    except ValueError as exc:
+        logger.error("Phase 1 task-card plan gate failed: %s", exc)
+        _save_phase_1_failure_state(
+            reason="invalid_task_card_plan",
+            benchmark_root=Path(getattr(args, "benchmark", ""))
+            if getattr(args, "benchmark", None)
+            else None,
+            manifest_path=Path(manifest_path),
+            generate_novel=generate_novel,
+            sandbox_model=sandbox_model,
+            sites=sites_filter_raw,
+            novel_tasks_per_site=novel_tasks_per_site,
+            task_card_plan_path=task_card_plan_path,
+            task_card_plan_digest_value=None,
+            error=str(exc),
+        )
+        return 1
+    task_card_digest = task_card_plan_digest(task_card_plan)
 
     benchmark_root = _resolve_benchmark_root(args, manifest)
     if benchmark_root is None:
@@ -107,6 +130,8 @@ async def run(args: argparse.Namespace) -> int:
             sandbox_model=sandbox_model,
             sites=sites_filter_raw,
             novel_tasks_per_site=novel_tasks_per_site,
+            task_card_plan_path=task_card_plan_path,
+            task_card_plan_digest_value=task_card_digest,
         )
         return 1
     try:
@@ -121,6 +146,8 @@ async def run(args: argparse.Namespace) -> int:
             sandbox_model=sandbox_model,
             sites=sites_filter_raw,
             novel_tasks_per_site=novel_tasks_per_site,
+            task_card_plan_path=task_card_plan_path,
+            task_card_plan_digest_value=task_card_digest,
             error=str(exc),
         )
         return 1
@@ -136,6 +163,8 @@ async def run(args: argparse.Namespace) -> int:
         sandbox_model=sandbox_model,
         sites=sites_filter_raw,
         novel_tasks_per_site=novel_tasks_per_site,
+        task_card_plan_path=task_card_plan_path,
+        task_card_plan_digest_value=task_card_digest,
     )
 
     profiles_dir = get_state_dir() / "phase_0c"
@@ -155,6 +184,8 @@ async def run(args: argparse.Namespace) -> int:
             sandbox_model=sandbox_model,
             sites=sites_filter_raw,
             novel_tasks_per_site=novel_tasks_per_site,
+            task_card_plan_path=task_card_plan_path,
+            task_card_plan_digest_value=task_card_digest,
         )
         return 1
 
@@ -174,6 +205,7 @@ async def run(args: argparse.Namespace) -> int:
             sandbox_model=sandbox_model,
             site_filter=sites_filter,
             novel_tasks_per_site=novel_tasks_per_site,
+            task_card_plan=task_card_plan,
         )
         if novel_tasks is None:
             return 1
@@ -189,6 +221,7 @@ async def run(args: argparse.Namespace) -> int:
             sandbox_model=sandbox_model,
             site_filter=sites_filter,
             novel_tasks_per_site=novel_tasks_per_site,
+            task_card_plan=task_card_plan,
         )
 
     save_state(
@@ -205,6 +238,8 @@ async def run(args: argparse.Namespace) -> int:
         sandbox_model=sandbox_model,
         sites=sites_filter_raw,
         novel_tasks_per_site=novel_tasks_per_site,
+        task_card_plan_path=str(task_card_plan_path) if task_card_plan_path else None,
+        task_card_plan_digest=task_card_digest,
     )
     cost_tracker.log_phase_summary("phase_1")
     cost_tracker.save(state_dir / "cost_report.json")
@@ -291,6 +326,8 @@ def _save_phase_1_running_state(
     sandbox_model: str,
     sites: str | None = None,
     novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
+    task_card_plan_path: Path | None = None,
+    task_card_plan_digest_value: str | None = None,
 ) -> None:
     """Persist the start of Phase 1 for resume support."""
     save_state(
@@ -303,6 +340,8 @@ def _save_phase_1_running_state(
         sandbox_model=sandbox_model,
         sites=sites,
         novel_tasks_per_site=novel_tasks_per_site,
+        task_card_plan_path=str(task_card_plan_path) if task_card_plan_path else None,
+        task_card_plan_digest=task_card_plan_digest_value,
     )
 
 
@@ -315,6 +354,8 @@ def _save_phase_1_failure_state(
     sandbox_model: str,
     sites: str | None = None,
     novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
+    task_card_plan_path: Path | None = None,
+    task_card_plan_digest_value: str | None = None,
     existing_task_count: int | None = None,
     error: str | None = None,
 ) -> None:
@@ -326,6 +367,8 @@ def _save_phase_1_failure_state(
         "generate_novel": generate_novel,
         "sandbox_model": sandbox_model,
         "novel_tasks_per_site": novel_tasks_per_site,
+        "task_card_plan_path": str(task_card_plan_path) if task_card_plan_path else None,
+        "task_card_plan_digest": task_card_plan_digest_value,
     }
     if sites is not None:
         payload["sites"] = sites
@@ -351,6 +394,7 @@ async def _maybe_generate_new_tasks(
     sandbox_model: str,
     site_filter: set[str] | None,
     novel_tasks_per_site: int,
+    task_card_plan: dict[str, Any] | None,
 ) -> list[dict[str, Any]] | None:
     """Return generate-new-tasks output, reusing merged output when already present."""
     existing_novel_tasks = _reuse_existing_novel_tasks_if_valid(
@@ -362,6 +406,7 @@ async def _maybe_generate_new_tasks(
         sandbox_model=sandbox_model,
         site_filter=site_filter,
         novel_tasks_per_site=novel_tasks_per_site,
+        task_card_plan=task_card_plan,
     )
     if existing_novel_tasks is not None:
         return existing_novel_tasks
@@ -374,6 +419,7 @@ async def _maybe_generate_new_tasks(
             sandbox_model=sandbox_model,
             site_filter=site_filter,
             novel_tasks_per_site=novel_tasks_per_site,
+            task_card_plan=task_card_plan,
         )
     except Exception as exc:
         _save_phase_1_failure_state(
@@ -400,6 +446,7 @@ def _reuse_existing_novel_tasks_if_valid(
     sandbox_model: str,
     site_filter: set[str] | None,
     novel_tasks_per_site: int,
+    task_card_plan: dict[str, Any] | None,
 ) -> list[dict[str, Any]] | None:
     """Reuse merged generate-new-tasks output only on resume and only after provenance checks."""
     if not resume:
@@ -418,6 +465,7 @@ def _reuse_existing_novel_tasks_if_valid(
         existing_novel_tasks,
         eligible_sites=eligible_sites,
         expected_task_count=novel_tasks_per_site,
+        task_card_plan=task_card_plan,
     )
     if validation_errors:
         logger.warning(
@@ -430,11 +478,13 @@ def _reuse_existing_novel_tasks_if_valid(
         benchmark_root=benchmark_root,
         manifest=manifest,
         sandbox_model=sandbox_model,
+        task_card_plan=task_card_plan,
     )
     current_fingerprint = compute_generate_new_tasks_resume_fingerprint(
         shared_inputs_fingerprint=shared_inputs_fingerprint,
         eligible_sites=eligible_sites,
         novel_tasks_per_site=novel_tasks_per_site,
+        task_card_plan=task_card_plan,
     )
 
     metadata = _load_generate_new_tasks_resume_metadata(resume_metadata_path)
@@ -451,6 +501,7 @@ def _reuse_existing_novel_tasks_if_valid(
         eligible_sites=eligible_sites,
         shared_inputs_fingerprint=shared_inputs_fingerprint,
         novel_tasks_per_site=novel_tasks_per_site,
+        task_card_plan=task_card_plan,
     ):
         logger.info(
             "Phase 1 (generate-new-tasks): merged output already contains %d valid novel tasks and matches current per-site caches, skipping generation on resume",
@@ -472,6 +523,7 @@ def _write_generate_new_tasks_resume_metadata(
     sandbox_model: str,
     site_filter: set[str] | None,
     novel_tasks_per_site: int,
+    task_card_plan: dict[str, Any] | None,
 ) -> None:
     eligible_sites = _load_generate_new_tasks_eligible_sites(
         profiles_dir=get_state_dir() / "phase_0c",
@@ -484,14 +536,17 @@ def _write_generate_new_tasks_resume_metadata(
                 benchmark_root=benchmark_root,
                 manifest=manifest,
                 sandbox_model=sandbox_model,
+                task_card_plan=task_card_plan,
             ),
             eligible_sites=eligible_sites,
             novel_tasks_per_site=novel_tasks_per_site,
+            task_card_plan=task_card_plan,
         ),
         "benchmark_path": str(benchmark_root),
         "eligible_sites": [site.site_name for site in eligible_sites],
         "sandbox_model": sandbox_model,
         "novel_tasks_per_site": novel_tasks_per_site,
+        "task_card_plan_digest": task_card_plan_digest(task_card_plan),
     }
     metadata_path.write_text(json.dumps(payload, indent=2))
 
@@ -503,6 +558,7 @@ def _merged_output_matches_current_site_caches(
     eligible_sites: list[EligibleSiteProfile],
     shared_inputs_fingerprint: str,
     novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
+    task_card_plan: dict[str, Any] | None = None,
 ) -> bool:
     cached_tasks: list[dict[str, Any]] = []
     for site in eligible_sites:
@@ -514,8 +570,10 @@ def _merged_output_matches_current_site_caches(
                 shared_inputs_fingerprint=shared_inputs_fingerprint,
                 site=site,
                 novel_tasks_per_site=novel_tasks_per_site,
+                task_card_plan=task_card_plan,
             ),
             expected_task_count=novel_tasks_per_site,
+            task_card_plan=task_card_plan,
         )
         if cached_result is None:
             return False

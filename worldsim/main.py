@@ -148,6 +148,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Phase 1 generate-new-tasks: generate N novel tasks per eligible site. Defaults to 30.",
     )
     phase_cmd.add_argument(
+        "--task-card-plan",
+        type=Path,
+        default=None,
+        help=(
+            "Phase 1 generate-new-tasks: optional JSON task-card plan that constrains "
+            "novel generation by behavior/archetype while route contracts remain authoritative."
+        ),
+    )
+    phase_cmd.add_argument(
         "--instances",
         type=Path,
         help="JSON file with BenchmarkConfig (site_url, db_connection, "
@@ -380,6 +389,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=argparse.SUPPRESS,
         metavar="N",
         help="Override saved Phase 1 novel-task count per eligible site.",
+    )
+    resume_cmd.add_argument(
+        "--task-card-plan",
+        type=Path,
+        default=argparse.SUPPRESS,
+        help="Override saved Phase 1 task-card plan path.",
     )
     resume_cmd.add_argument(
         "--max-tasks-per-site",

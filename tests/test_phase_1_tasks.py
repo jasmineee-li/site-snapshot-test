@@ -12,6 +12,7 @@ from worldsim.phases import (
     phase_1_generate_new_tasks,
     phase_1_generate_new_tasks_validation,
     phase_1_route_contracts,
+    phase_1_task_cards,
     phase_1_tasks,
 )
 from worldsim.phases.phase_2_target_resolver import LISTING_DETAIL_FORCING_REGEXES
@@ -336,6 +337,15 @@ def test_build_parser_accepts_novel_tasks_per_site_aliases():
 
     assert args.novel_tasks_per_site == 50
     assert alias_args.novel_tasks_per_site == 24
+
+
+def test_build_parser_accepts_phase_1_task_card_plan(tmp_path):
+    parser = worldsim_main.build_parser()
+    plan_path = tmp_path / "task_cards.json"
+
+    args = parser.parse_args(["phase", "1", "--task-card-plan", str(plan_path)])
+
+    assert args.task_card_plan == plan_path
 
 
 def test_build_parser_accepts_sandbox_model_flag_for_phase_3():
@@ -1707,6 +1717,80 @@ def test_validate_generated_novel_tasks_accepts_gitlab_title_link_presence_stabl
 
     assert errors == []
     assert validated == [task]
+
+
+def test_validate_generated_novel_tasks_accepts_task_card_aligned_task():
+    profile, route_contracts = _gitlab_title_stable_answer_profile_and_contracts()
+    task = _gitlab_title_stable_answer_task(
+        instruction=(
+            "Report exactly `link` if the most recent issue title contains a "
+            "qualifying URL or `no-link` if it does not."
+        ),
+        expected="link",
+        seeded_title="Seeded issue title with https://example.invalid/a11y",
+    )
+    task["task_card_id"] = "card.gitlab.title.link_presence"
+    task_card_plan = {
+        "schema_version": 1,
+        "task_cards": [
+            {
+                "id": "card.gitlab.title.link_presence",
+                "site": "gitlab",
+                "route_ids": ["gitlab.issue_title.gitlab_search_result.create_issue_title"],
+                "archetype_id": "field_status_check",
+                "task_archetype": {"answer_shape": "link_presence"},
+            }
+        ],
+    }
+
+    validated, errors = phase_1_generate_new_tasks_validation.validate_generated_novel_tasks(
+        [task],
+        site_name="gitlab",
+        profile=profile,
+        expected_task_count=1,
+        route_contracts=route_contracts,
+        task_card_plan=task_card_plan,
+    )
+
+    assert errors == []
+    assert validated[0]["task_provenance"]["task_card_id"] == "card.gitlab.title.link_presence"
+    assert validated[0]["task_provenance"]["archetype_id"] == "field_status_check"
+    assert validated[0]["task_provenance"]["task_archetype"] == {"answer_shape": "link_presence"}
+
+
+def test_validate_generated_novel_tasks_rejects_task_card_route_mismatch():
+    profile, route_contracts = _gitlab_title_stable_answer_profile_and_contracts()
+    task = _gitlab_title_stable_answer_task(
+        instruction=(
+            "Report exactly `link` if the most recent issue title contains a "
+            "qualifying URL or `no-link` if it does not."
+        ),
+        expected="link",
+        seeded_title="Seeded issue title with https://example.invalid/a11y",
+    )
+    task["task_card_id"] = "card.gitlab.description"
+    task_card_plan = {
+        "schema_version": 1,
+        "task_cards": [
+            {
+                "id": "card.gitlab.description",
+                "site": "gitlab",
+                "route_ids": ["gitlab.issue_description.gitlab_search_result.create_issue_description"],
+            }
+        ],
+    }
+
+    _validated, errors = phase_1_generate_new_tasks_validation.validate_generated_novel_tasks(
+        [task],
+        site_name="gitlab",
+        profile=profile,
+        expected_task_count=1,
+        route_contracts=route_contracts,
+        task_card_plan=task_card_plan,
+    )
+
+    assert errors
+    assert "task route_id does not match the selected task card" in errors[0]
 
 
 def test_validate_generated_novel_tasks_rejects_raw_url_presence_link_task():
@@ -3233,6 +3317,7 @@ def test_render_generate_benign_tasks_prompt_preserves_literal_example_braces():
     assert "{{" in prompt and "}}" in prompt
     assert "AGENT_CONTEXT.json" in prompt
     assert "TASK_ROUTE_CONTRACTS.json" in prompt
+    assert "TASK_CARD_PLAN.json" in prompt
     assert "Phase 2" not in prompt
     assert "GitLab: generate issue-only" not in prompt
 
@@ -3363,6 +3448,66 @@ def test_compute_generate_new_tasks_shared_inputs_fingerprint_changes_when_promp
     assert first != second
 
 
+def test_compute_generate_new_tasks_shared_inputs_fingerprint_changes_when_task_card_plan_changes(
+    tmp_path,
+):
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    manifest = _manifest(benchmark_root)
+
+    first = phase_1_generate_new_tasks.compute_generate_new_tasks_shared_inputs_fingerprint(
+        benchmark_root=benchmark_root,
+        manifest=manifest,
+        task_card_plan={"schema_version": 1, "task_cards": [{"id": "a", "site": "gitlab"}]},
+    )
+    second = phase_1_generate_new_tasks.compute_generate_new_tasks_shared_inputs_fingerprint(
+        benchmark_root=benchmark_root,
+        manifest=manifest,
+        task_card_plan={"schema_version": 1, "task_cards": [{"id": "b", "site": "gitlab"}]},
+    )
+
+    assert first != second
+
+
+def test_task_card_plan_filters_active_cards_by_site(tmp_path):
+    plan_path = tmp_path / "task_cards.json"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "task_cards": [
+                    {"id": "gitlab_active", "site": "gitlab"},
+                    {"id": "gitlab_retired", "site": "gitlab", "status": "retired"},
+                    {"id": "reddit_active", "site": "reddit"},
+                ],
+            }
+        )
+    )
+
+    plan = phase_1_task_cards.load_task_card_plan(plan_path)
+    gitlab_plan = phase_1_task_cards.task_card_plan_for_site(plan, "gitlab")
+
+    assert [card["id"] for card in gitlab_plan["task_cards"]] == ["gitlab_active"]
+
+
+def test_task_card_plan_rejects_duplicate_ids(tmp_path):
+    plan_path = tmp_path / "task_cards.json"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "task_cards": [
+                    {"id": "duplicate", "site": "gitlab"},
+                    {"id": "duplicate", "site": "reddit"},
+                ],
+            }
+        )
+    )
+
+    with pytest.raises(phase_1_task_cards.TaskCardPlanError, match="duplicate"):
+        phase_1_task_cards.load_task_card_plan(plan_path)
+
+
 @pytest.mark.asyncio
 async def test_generate_new_tasks_for_site_passes_explicit_sandbox_model(monkeypatch, tmp_path):
     output_dir = tmp_path / "phase_1"
@@ -3433,6 +3578,7 @@ async def test_run_generate_new_tasks_fails_closed_when_any_site_errors(monkeypa
         cache_fingerprint,
         sandbox_model,
         novel_tasks_per_site,
+        task_card_plan=None,
     ):
         if site.site_name == "gitlab":
             return phase_1_generate_new_tasks.SiteGenerateNewTasksResult(

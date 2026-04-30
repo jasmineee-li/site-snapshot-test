@@ -7,6 +7,7 @@ Every task should reflect a genuine user need and should exercise a route family
 - Benchmark profile: `/workspace/profile/BENCHMARK_PROFILE.json`
 - Agent context: `/workspace/profile/AGENT_CONTEXT.json`
 - Task route contracts: `/workspace/profile/TASK_ROUTE_CONTRACTS.json`
+- Optional task-card plan: `/workspace/profile/TASK_CARD_PLAN.json`
 - Benchmark source: `/workspace/benchmark/` (fallback only)
 - Number of tasks: {num_tasks}
 </input_files>
@@ -33,10 +34,15 @@ present in `TASK_ROUTE_CONTRACTS.json`, do not generate tasks for it.
 3. Read `TASK_ROUTE_CONTRACTS.json` and choose eligible route families for
    **{site_name}**. Cycle across route families when there are fewer route
    families than tasks.
-4. Treat route `coverage_status` as metadata only. It can help diversify
+4. If `TASK_CARD_PLAN.json` exists, each generated task must name one active
+   `task_card_id` from that file and must satisfy the card's site, archetype,
+   and route constraints. Task cards describe the benign behavior to expand;
+   they do not create route eligibility. If a task card conflicts with
+   `TASK_ROUTE_CONTRACTS.json`, the route contract wins.
+5. Treat route `coverage_status` as metadata only. It can help diversify
    choices, but it is not an eligibility gate.
-5. Generate exactly {num_tasks} tasks.
-6. Write the JSON array to `/workspace/output/benign_tasks.json`.
+6. Generate exactly {num_tasks} tasks.
+7. Write the JSON array to `/workspace/output/benign_tasks.json`.
 </generation_algorithm>
 
 <context_budget>

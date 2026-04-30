@@ -27,6 +27,10 @@ from worldsim.phases.phase_1_route_contracts import (
     build_task_route_contracts,
     route_contracts_digest,
 )
+from worldsim.phases.phase_1_task_cards import (
+    task_card_plan_digest,
+    task_card_plan_for_site,
+)
 from worldsim.profile_validation import load_and_validate_profile
 from worldsim.prompt_corrections import render_validation_feedback
 from worldsim.prompt_loading import load_prompt
@@ -70,6 +74,7 @@ async def run_generate_new_tasks(
     sandbox_model: str = "claude-sonnet-4-6",
     site_filter: Iterable[str] | None = None,
     novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
+    task_card_plan: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Generate novel tasks for eligible sites."""
     state_dir = get_state_dir()
@@ -93,12 +98,14 @@ async def run_generate_new_tasks(
         benchmark_root=benchmark_root,
         manifest=manifest,
         sandbox_model=sandbox_model,
+        task_card_plan=task_card_plan,
     )
     cached_results = _load_all_cached_site_results(
         eligible_sites=eligible_sites,
         output_dir=output_dir,
         shared_inputs_fingerprint=shared_inputs_fingerprint,
         novel_tasks_per_site=novel_tasks_per_site,
+        task_card_plan=task_card_plan,
     )
     if cached_results is not None:
         logger.info(
@@ -129,9 +136,11 @@ async def run_generate_new_tasks(
                     shared_inputs_fingerprint=shared_inputs_fingerprint,
                     site=site,
                     novel_tasks_per_site=novel_tasks_per_site,
+                    task_card_plan=task_card_plan,
                 ),
                 sandbox_model=sandbox_model,
                 novel_tasks_per_site=novel_tasks_per_site,
+                task_card_plan=task_card_plan_for_site(task_card_plan, site.site_name),
             )
             for site in eligible_sites
         ],
@@ -218,6 +227,7 @@ async def generate_new_tasks_for_site(
     cache_fingerprint: str,
     sandbox_model: str = "claude-sonnet-4-6",
     novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
+    task_card_plan: dict[str, Any] | None = None,
 ) -> SiteGenerateNewTasksResult:
     """Generate and validate novel tasks for one site."""
     intermediate_path = output_dir / f"novel_tasks_{site.site_name}.json"
@@ -227,6 +237,9 @@ async def generate_new_tasks_for_site(
     route_contracts = build_task_route_contracts(site_name=site.site_name, profile=site.profile)
     route_contracts_path = output_dir / f"TASK_ROUTE_CONTRACTS_{site.site_name}.json"
     route_contracts_path.write_text(json.dumps(route_contracts, indent=2))
+    task_card_plan_path = output_dir / f"TASK_CARD_PLAN_{site.site_name}.json"
+    if task_card_plan is not None:
+        task_card_plan_path.write_text(json.dumps(task_card_plan, indent=2, sort_keys=True))
     if site.site_name in {"gitlab", "reddit"} and not route_contracts.get("route_families"):
         logger.info(
             "Phase 1 (generate-new-tasks): skipping site %r because no eligible route families remain after core-surface filtering",
@@ -241,6 +254,7 @@ async def generate_new_tasks_for_site(
         expected_agent_context=agent_context,
         expected_task_count=novel_tasks_per_site,
         route_contracts=route_contracts,
+        task_card_plan=task_card_plan,
     )
     if cached_result is not None:
         return cached_result
@@ -260,6 +274,8 @@ async def generate_new_tasks_for_site(
             "/workspace/profile/BENCHMARK_PROFILE.json": str(site.profile_path),
         }
         site_files["/workspace/profile/TASK_ROUTE_CONTRACTS.json"] = str(route_contracts_path)
+        if task_card_plan is not None:
+            site_files["/workspace/profile/TASK_CARD_PLAN.json"] = str(task_card_plan_path)
         # Pass agent context to sandbox so generated tasks align with response format
         agent_context_path = site.profile_path.parent / f"AGENT_CONTEXT_{site.site_name}.json"
         if agent_context_path.exists():
@@ -297,6 +313,7 @@ async def generate_new_tasks_for_site(
             profile=site.profile,
             expected_task_count=novel_tasks_per_site,
             route_contracts=route_contracts,
+            task_card_plan=task_card_plan,
         )
         if not detailed_errors:
             sorted_tasks = sort_novel_tasks(
@@ -351,6 +368,7 @@ def load_cached_novel_tasks(
     expected_agent_context: dict[str, Any] | None = None,
     expected_task_count: int = DEFAULT_NOVEL_TASKS_PER_SITE,
     route_contracts: dict[str, Any] | None = None,
+    task_card_plan: dict[str, Any] | None = None,
 ) -> SiteGenerateNewTasksResult | None:
     """Return a validated cached per-site result when available."""
     if not intermediate_path.exists():
@@ -381,6 +399,7 @@ def load_cached_novel_tasks(
         profile=profile,
         expected_task_count=expected_task_count,
         route_contracts=route_contracts,
+        task_card_plan=task_card_plan,
     )
     if errors:
         logger.warning(
@@ -437,6 +456,7 @@ def validate_existing_novel_tasks(
     *,
     eligible_sites: list[EligibleSiteProfile],
     expected_task_count: int = DEFAULT_NOVEL_TASKS_PER_SITE,
+    task_card_plan: dict[str, Any] | None = None,
 ) -> list[str]:
     """Validate merged-output novel tasks against the current eligible-site set."""
     tasks_by_site: dict[str, list[dict[str, Any]]] = {}
@@ -468,6 +488,7 @@ def validate_existing_novel_tasks(
                 site_name=site.site_name,
                 profile=site.profile,
             ),
+            task_card_plan=task_card_plan_for_site(task_card_plan, site_name),
         )
         errors.extend(site_errors)
 
@@ -480,6 +501,7 @@ def _load_all_cached_site_results(
     output_dir: Path,
     shared_inputs_fingerprint: str,
     novel_tasks_per_site: int,
+    task_card_plan: dict[str, Any] | None = None,
 ) -> list[SiteGenerateNewTasksResult] | None:
     """Return cached per-site results when every eligible site cache validates."""
     cached_results: list[SiteGenerateNewTasksResult] = []
@@ -495,6 +517,7 @@ def _load_all_cached_site_results(
                 shared_inputs_fingerprint=shared_inputs_fingerprint,
                 site=site,
                 novel_tasks_per_site=novel_tasks_per_site,
+                task_card_plan=task_card_plan,
             ),
             expected_agent_context=agent_context,
             expected_task_count=novel_tasks_per_site,
@@ -502,6 +525,7 @@ def _load_all_cached_site_results(
                 site_name=site.site_name,
                 profile=site.profile,
             ),
+            task_card_plan=task_card_plan_for_site(task_card_plan, site.site_name),
         )
         if cached_result is None:
             return None
@@ -538,6 +562,7 @@ def compute_generate_new_tasks_shared_inputs_fingerprint(
     benchmark_root: Path,
     manifest: dict[str, Any],
     sandbox_model: str = "claude-sonnet-4-6",
+    task_card_plan: dict[str, Any] | None = None,
 ) -> str:
     """Return a content-based digest for shared generate-new-tasks generation inputs."""
     payload = {
@@ -548,6 +573,7 @@ def compute_generate_new_tasks_shared_inputs_fingerprint(
             validation_command="benign-tasks --site-name {site_name}",
         ),
         "sandbox_model": sandbox_model,
+        "task_card_plan_digest": task_card_plan_digest(task_card_plan),
     }
     return _stable_json_digest(payload)
 
@@ -557,6 +583,7 @@ def compute_site_cache_fingerprint(
     shared_inputs_fingerprint: str,
     site: EligibleSiteProfile,
     novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
+    task_card_plan: dict[str, Any] | None = None,
 ) -> str:
     """Return a content-based digest for one site's cached novel-task output."""
     agent_context_path = site.profile_path.parent / f"AGENT_CONTEXT_{site.site_name}.json"
@@ -574,6 +601,9 @@ def compute_site_cache_fingerprint(
         ),
         "agent_context_digest": agent_context_digest,
         "task_count": novel_tasks_per_site,
+        "task_card_plan_digest": task_card_plan_digest(
+            task_card_plan_for_site(task_card_plan, site.site_name)
+        ),
     }
     return _stable_json_digest(payload)
 
@@ -623,6 +653,7 @@ def compute_generate_new_tasks_resume_fingerprint(
     shared_inputs_fingerprint: str,
     eligible_sites: list[EligibleSiteProfile],
     novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
+    task_card_plan: dict[str, Any] | None = None,
 ) -> str:
     """Return a deterministic digest for merged-output resume reuse."""
     payload = {
@@ -634,6 +665,7 @@ def compute_generate_new_tasks_resume_fingerprint(
                     shared_inputs_fingerprint=shared_inputs_fingerprint,
                     site=site,
                     novel_tasks_per_site=novel_tasks_per_site,
+                    task_card_plan=task_card_plan,
                 ),
             }
             for site in sorted(eligible_sites, key=lambda item: item.site_name)
