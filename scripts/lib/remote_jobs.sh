@@ -139,6 +139,14 @@ def _runs_phase(phase: str) -> bool:
     return bool(re.search(rf"\bworldsim\.main\s+phase\s+{re.escape(phase)}(?:\s|$)", command_text))
 
 
+def _phase_command(phase: str) -> str | None:
+    match = re.search(
+        rf"\bworldsim\.main\s+phase\s+{re.escape(phase)}(?:\s|$).*?(?=(?:\s+(?:&&|\|\||;)\s+.*?\bworldsim\.main\s+phase\s+)|$)",
+        command_text,
+    )
+    return match.group(0) if match else None
+
+
 def _option_value(option: str) -> str | None:
     name = re.escape(option)
     patterns = (
@@ -150,6 +158,13 @@ def _option_value(option: str) -> str | None:
         if match:
             return match.group(1).strip("'\"")
     return None
+
+
+def _has_option(text: str | None, option: str) -> bool:
+    if text is None:
+        return False
+    name = re.escape(option)
+    return bool(re.search(rf"{name}(?:=|\s|$)", text))
 
 
 def _is_smoke(value: str | None) -> bool:
@@ -169,6 +184,7 @@ phase0_live = _runs_phase("0") or _runs_phase("0c")
 phase2_live = _runs_phase("2") and "--skip-feasibility" not in command_text
 phase2c_live = _runs_phase("2c")
 phase4_live = _runs_phase("4")
+phase1_command = _phase_command("1")
 resume_phase2c = (
     bool(re.search(r"\bworldsim\.main\s+resume(?:\s|$)", command_text))
     and "--feasibility-only" in command_text
@@ -206,6 +222,19 @@ if phase4_live:
             "Phase 4 uses --instances instances.smoke.json, which points "
             "Browser Use/PVPO traffic at the public advertised host."
         )
+
+if (
+    phase0_live
+    and phase1_command
+    and _has_option(phase1_command, "--generate-novel")
+    and not _has_option(phase1_command, "--benchmark")
+    and not _has_option(phase1_command, "--config")
+):
+    issues.append(
+        "Chained Phase 0 -> Phase 1 novel generation must pass --benchmark or "
+        "--config on the Phase 1 command. Detached remote jobs should not rely "
+        "on implicit manifest discovery after an expensive Phase 0 run."
+    )
 
 resume_live = bool(re.search(r"\bworldsim\.main\s+resume(?:\s|$)", command_text))
 resume_instances = _option_value("--instances") if resume_live else None
