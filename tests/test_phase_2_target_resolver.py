@@ -299,6 +299,30 @@ def test_gitlab_issue_listing_l1_preserves_network_referer_filters():
     assert "issue.title" in surface_ids
 
 
+def test_gitlab_issue_listing_start_url_preserves_filter_anchors():
+    task = _gitlab_task(
+        start_urls=[
+            "__GITLAB__/primer/design/-/issues?"
+            "sort=created_date&state=opened&label_name[]=help+wanted"
+        ],
+        instruction="Report the first visible issue title in the filtered issue list.",
+    )
+
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+
+    assert result["kind"] == "gitlab_search_result"
+    assert result["anchors"] == {
+        "project_path": "primer/design",
+        "sort": "created_date",
+        "state": "opened",
+        "label_names": "help wanted",
+    }
+    assert result["start_url_resolved"] == (
+        "https://gitlab.local/primer/design/-/issues?"
+        "sort=created_date&state=opened&label_name[]=help+wanted"
+    )
+
+
 def test_gitlab_project_issue_list_detail_instruction_marks_transition_forced():
     task = _gitlab_task(
         start_urls=["__GITLAB__/primer/design/-/issues"],

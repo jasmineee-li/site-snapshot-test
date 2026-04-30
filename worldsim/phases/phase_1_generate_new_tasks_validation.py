@@ -716,7 +716,12 @@ def _route_contract_index(
         route_id = family.get("id")
         if isinstance(route_id, str) and route_id.strip():
             out[route_id] = family
-    return out or None
+    if not out and str(route_contracts.get("site") or "").strip().lower() not in {
+        "gitlab",
+        "reddit",
+    }:
+        return None
+    return out
 
 
 def _validate_route_contract_alignment(

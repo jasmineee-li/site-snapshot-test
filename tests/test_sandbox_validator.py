@@ -1451,6 +1451,20 @@ class TestValidateBenignTasks:
 
         assert errors == []
 
+    def test_route_contracts_reject_empty_route_family_catalog(self):
+        errors = validator.validate_benign_tasks(
+            [self._gitlab_route_task()],
+            site_name="gitlab",
+            route_contracts={
+                "schema_version": 1,
+                "site": "gitlab",
+                "benchmark": "webarena_verified",
+                "route_families": [],
+            },
+        )
+
+        assert any("no eligible route_families" in error for error in errors)
+
     def test_route_contracts_accept_link_presence_stable_answer(self):
         task = self._gitlab_route_task()
         task["instruction"] = (

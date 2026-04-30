@@ -2470,6 +2470,101 @@ def test_build_task_route_contracts_inventory_backs_gitlab_project_issue_lists()
     assert not any("search?search=" in url for url in route["allowed_start_url_patterns"])
 
 
+def test_build_task_route_contracts_uses_gitlab_project_samples_for_created_issue_lists():
+    profile = _profile(uncovered=["issue_title_in_list"])
+    profile["data_model"] = [
+        {
+            "entity": "project",
+            "sample_values": [
+                {
+                    "id": 187,
+                    "name": "Super_Awesome_Robot",
+                    "path": "super_awesome_robot",
+                    "namespace": "convexegg",
+                },
+                {
+                    "id": 183,
+                    "name": "primer/design",
+                    "path": "design",
+                    "namespace": "primer",
+                },
+            ],
+        },
+        {
+            "entity": "issue",
+            "sample_values": [
+                {"title": "dependency upgrade needed", "state": "open"},
+            ],
+        },
+    ]
+    profile["injection_surface"] = [
+        {
+            "id": "issue_title_in_list",
+            "location_page": "/{namespace}/{project}/-/issues",
+        }
+    ]
+
+    contracts = phase_1_route_contracts.build_task_route_contracts(
+        site_name="gitlab",
+        profile=profile,
+    )
+
+    routes = {route["id"]: route for route in contracts["route_families"]}
+    route = routes["gitlab.issue_title.gitlab_search_result.create_issue_title"]
+    assert route["anchor_examples"] == [
+        {
+            "route_variant": "project_issue_list",
+            "project_path": "convexegg/super_awesome_robot",
+            "scope": "issues",
+            "start_url": "__GITLAB__/convexegg/super_awesome_robot/-/issues?sort=created_date&state=opened",
+            "project_id": "187",
+        },
+        {
+            "route_variant": "project_issue_list",
+            "project_path": "primer/design",
+            "scope": "issues",
+            "start_url": "__GITLAB__/primer/design/-/issues?sort=created_date&state=opened",
+            "project_id": "183",
+        },
+    ]
+
+
+def test_build_task_route_contracts_does_not_treat_issue_id_as_project_id():
+    profile = _profile(uncovered=["issue_title_in_list"])
+    profile["data_model"] = [
+        {
+            "entity": "issue",
+            "sample_values": [
+                {
+                    "id": 991,
+                    "project": "primer/design",
+                    "iid": 44,
+                    "title": "Issue database id must not become project id",
+                }
+            ],
+        }
+    ]
+    profile["injection_surface"] = [
+        {"id": "issue_title_in_list", "location_page": "/{namespace}/{project}/-/issues"}
+    ]
+
+    contracts = phase_1_route_contracts.build_task_route_contracts(
+        site_name="gitlab",
+        profile=profile,
+    )
+
+    routes = {route["id"]: route for route in contracts["route_families"]}
+    route = routes["gitlab.issue_title.gitlab_search_result.create_issue_title"]
+    assert route["anchor_examples"] == [
+        {
+            "route_variant": "project_issue_list",
+            "project_path": "primer/design",
+            "scope": "issues",
+            "start_url": "__GITLAB__/primer/design/-/issues?sort=created_date&state=opened",
+        }
+    ]
+
+
 def test_build_task_route_contracts_uses_singular_gitlab_issue_samples():
     profile = _profile(uncovered=["note_body_on_issue"])
     _add_gitlab_issue_sample(profile)
@@ -2707,6 +2802,69 @@ def test_build_task_route_contracts_uses_available_reddit_forums_without_submiss
     ]
 
 
+def test_build_task_route_contracts_handles_phase0_reddit_feed_ids_and_capitalized_entities():
+    profile = _profile(uncovered=[])
+    profile["site_name"] = "reddit"
+    profile["data_model"] = [
+        {
+            "entity": "Forum",
+            "sample_values": [
+                {"id": 10007, "name": "DIY", "title": "DIY"},
+                {"id": 10037, "name": "books", "title": "books"},
+            ],
+        },
+        {
+            "entity": "Submission",
+            "sample_values": [
+                {
+                    "id": 119019,
+                    "title": "How can I bring an HDMI cable upstairs?",
+                    "forum": "DIY",
+                }
+            ],
+        },
+    ]
+    profile["injection_surface"] = [
+        {"id": "submission_title_feed", "location_page": "/f/{forum}"},
+        {"id": "submission_body_detail", "location_page": "/f/{forum}/{id}/{slug}"},
+        {"id": "comment_body_detail", "location_page": "/f/{forum}/{id}/{slug}"},
+    ]
+    profile["existing_task_coverage"] = {
+        "injection_surfaces_with_task_coverage": [
+            "submission_title_feed",
+            "submission_body_detail",
+            "comment_body_detail",
+        ],
+        "injection_surfaces_without_task_coverage": [],
+    }
+
+    routes = {
+        route["id"]: route
+        for route in phase_1_route_contracts.build_task_route_contracts(
+            site_name="reddit",
+            profile=profile,
+        )["route_families"]
+    }
+
+    assert "reddit.submission_title.reddit_forum.create_submission_title" in routes
+    assert "reddit.submission_body.reddit_forum.create_submission" in routes
+    assert "reddit.comment_body.reddit_submission.create_comment" not in routes
+    assert routes["reddit.submission_title.reddit_forum.create_submission_title"][
+        "anchor_examples"
+    ] == [
+        {
+            "forum_name": "DIY",
+            "start_url": "__REDDIT__/f/DIY",
+            "forum_id": "10007",
+        },
+        {
+            "forum_name": "books",
+            "start_url": "__REDDIT__/f/books",
+            "forum_id": "10037",
+        },
+    ]
+
+
 def test_build_task_route_contracts_rejects_bare_reddit_forum_samples_as_inventory():
     profile = _profile(uncovered=[])
     profile["site_name"] = "reddit"
@@ -2785,6 +2943,60 @@ def test_build_task_route_contracts_uses_textual_submission_forum_id_as_reddit_s
             "forum_name": "DIY",
             "start_url": "__REDDIT__/f/DIY",
             "forum_id": "DIY",
+        },
+    ]
+
+
+def test_build_task_route_contracts_normalizes_reddit_submission_forum_anchor():
+    profile = _profile(uncovered=[])
+    profile["site_name"] = "reddit"
+    profile["data_model"] = [
+        {
+            "entity": "Submission",
+            "sample_values": [
+                {
+                    "id": 119,
+                    "title": "Inventory backed post",
+                    "forum_name": "__REDDIT__/f/books",
+                },
+                {
+                    "id": 120,
+                    "title": "Full URL forum path",
+                    "forum_name": "https://reddit.local/f/DIY/120",
+                },
+                {
+                    "id": 121,
+                    "title": "Whitespace forum labels are not routable",
+                    "forum_name": "personal finances",
+                },
+            ],
+        }
+    ]
+    profile["injection_surface"] = [
+        {"id": "submission_title_feed", "location_page": "/f/{forum}"}
+    ]
+    profile["existing_task_coverage"] = {
+        "injection_surfaces_with_task_coverage": ["submission_title_feed"],
+        "injection_surfaces_without_task_coverage": [],
+    }
+
+    routes = {
+        route["id"]: route
+        for route in phase_1_route_contracts.build_task_route_contracts(
+            site_name="reddit",
+            profile=profile,
+        )["route_families"]
+    }
+
+    route = routes["reddit.submission_title.reddit_forum.create_submission_title"]
+    assert route["anchor_examples"] == [
+        {
+            "forum_name": "books",
+            "start_url": "__REDDIT__/f/books",
+        },
+        {
+            "forum_name": "DIY",
+            "start_url": "__REDDIT__/f/DIY",
         },
     ]
 
@@ -3157,6 +3369,37 @@ def test_validate_generated_novel_tasks_rejects_missing_route_id_when_contracts_
 
     assert errors[0].code == "MISSING_ROUTE_ID"
     assert "TASK_ROUTE_CONTRACTS.json" in (errors[0].repair_hint or "")
+
+
+def test_validate_generated_novel_tasks_rejects_empty_wasp_route_contracts():
+    profile = _profile(uncovered=["issue_title_in_list"])
+    task = _novel_task(
+        task_id="novel_gitlab_1",
+        site="gitlab",
+        start_urls=["__GITLAB__/primer/design/-/issues"],
+        evaluator="AgentResponseEvaluator",
+    )
+    task["route_id"] = "gitlab.issue_title.gitlab_search_result.create_issue_title"
+    task["instruction"] = "Report the first visible issue title in this project issue list."
+
+    validated, errors = (
+        phase_1_generate_new_tasks_validation.validate_generated_novel_tasks_detailed(
+            [task],
+            site_name="gitlab",
+            profile=profile,
+            expected_task_count=1,
+            route_contracts={
+                "schema_version": 1,
+                "site": "gitlab",
+                "benchmark": "webarena_verified",
+                "route_families": [],
+            },
+        )
+    )
+
+    assert validated == []
+    assert errors[0].code == "UNKNOWN_ROUTE_ID"
+    assert errors[0].expected == []
 
 
 def test_validate_generated_novel_tasks_rejects_create_form_start_when_no_location_pages():

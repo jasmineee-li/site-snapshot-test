@@ -39,8 +39,11 @@ PROFILE_SURFACE_ALIASES: dict[str, dict[str, str]] = {
     },
     "reddit": {
         "submissiontitlelisting": "submission.title",
+        "submissiontitlefeed": "submission.title",
+        "submissiontitledetail": "submission.title",
         "submissionbodydetail": "submission.body",
         "commentbodythread": "comment.body",
+        "commentbodydetail": "comment.body",
     },
 }
 
@@ -273,9 +276,9 @@ def _reddit_submission_examples(
         submission_id = sample.get("submission_id") or sample.get("id") or sample.get("post_id")
         if forum_name is None or submission_id is None:
             continue
-        forum_text = str(forum_name).strip().strip("/")
+        forum_text = _normalize_reddit_forum_name(forum_name)
         submission_text = str(submission_id).strip()
-        if not forum_text or not submission_text:
+        if not forum_text or re.search(r"\s", forum_text) or not submission_text:
             continue
         key = (forum_text, submission_text)
         if key in seen:
@@ -297,13 +300,26 @@ def _reddit_forum_examples(placeholder: str, profile: Mapping[str, Any]) -> list
     available_forums = _available_entity_records(profile, ("forums", "subreddits", "communities"))
     if available_forums:
         candidates = list(available_forums)
+        allow_id_as_forum_id = True
     else:
+        forum_samples = [
+            sample
+            for sample in _data_model_sample_values(
+                profile, ("forum", "forums", "subreddit", "subreddits", "community", "communities")
+            )
+            if sample.get("id") not in (None, "")
+        ]
         # Submission samples are acceptable as a fallback because they describe
         # an observed routed post. Bare Forum samples are not: profiles may
         # contain human-readable or stale forum labels that 404 as `/f/{name}`.
-        candidates = _data_model_sample_values(
-            profile, ("submission", "submissions", "post", "posts")
-        )
+        if forum_samples:
+            candidates = forum_samples
+            allow_id_as_forum_id = True
+        else:
+            candidates = _data_model_sample_values(
+                profile, ("submission", "submissions", "post", "posts")
+            )
+            allow_id_as_forum_id = False
     for sample in candidates:
         forum_name = (
             sample.get("forum_name")
@@ -326,9 +342,9 @@ def _reddit_forum_examples(placeholder: str, profile: Mapping[str, Any]) -> list
             "forum_name": forum_text,
             "start_url": f"{placeholder}/f/{forum_text}",
         }
-        forum_id = (
-            sample.get("forum_id") if sample.get("forum_id") not in (None, "") else sample.get("id")
-        )
+        forum_id = sample.get("forum_id")
+        if forum_id in (None, "") and allow_id_as_forum_id:
+            forum_id = sample.get("id")
         if forum_id not in (None, ""):
             example["forum_id"] = str(forum_id).strip()
         examples.append(example)
@@ -384,7 +400,17 @@ def _gitlab_project_issue_list_examples(
 ) -> list[dict[str, str]]:
     examples: list[dict[str, str]] = []
     seen: set[str] = set()
-    for sample in _data_model_sample_values(profile, ("issue", "issues")):
+    samples = [
+        *(
+            (sample, False)
+            for sample in _data_model_sample_values(profile, ("issue", "issues"))
+        ),
+        *(
+            (sample, True)
+            for sample in _data_model_sample_values(profile, ("project", "projects"))
+        ),
+    ]
+    for sample, sample_is_project in samples:
         project_path = _gitlab_project_path_from_sample(sample, profile)
         if not project_path or project_path in seen:
             continue
@@ -395,7 +421,7 @@ def _gitlab_project_issue_list_examples(
             "scope": "issues",
             "start_url": f"{placeholder}/{project_path}/-/issues?sort=created_date&state=opened",
         }
-        project_id = _gitlab_project_id_from_sample(sample)
+        project_id = _gitlab_project_id_from_sample(sample, sample_is_project=sample_is_project)
         if project_id:
             example["project_id"] = project_id
         examples.append(example)
@@ -409,6 +435,17 @@ def _gitlab_project_path_from_sample(sample: Mapping[str, Any], profile: Mapping
             path = _normalize_gitlab_project_path(value)
             if _is_resolvable_gitlab_project_path(path):
                 return path
+    name = sample.get("name")
+    if isinstance(name, str) and "/" in name:
+        path = _normalize_gitlab_project_path(name)
+        if _is_resolvable_gitlab_project_path(path):
+            return path
+    namespace = str(sample.get("namespace") or "").strip().strip("/")
+    path = str(sample.get("path") or "").strip().strip("/")
+    if namespace and path:
+        joined = _normalize_gitlab_project_path(f"{namespace}/{path}")
+        if _is_resolvable_gitlab_project_path(joined):
+            return joined
     for key in ("project_id", "target_project_id", "source_project_id"):
         project_id = sample.get(key)
         if project_id not in (None, ""):
@@ -418,8 +455,15 @@ def _gitlab_project_path_from_sample(sample: Mapping[str, Any], profile: Mapping
     return ""
 
 
-def _gitlab_project_id_from_sample(sample: Mapping[str, Any]) -> str:
-    for key in ("project_id", "target_project_id", "source_project_id"):
+def _gitlab_project_id_from_sample(
+    sample: Mapping[str, Any],
+    *,
+    sample_is_project: bool = False,
+) -> str:
+    keys = ["project_id", "target_project_id", "source_project_id"]
+    if sample_is_project:
+        keys.append("id")
+    for key in keys:
         value = sample.get(key)
         if value in (None, ""):
             continue
@@ -492,13 +536,14 @@ def _data_model_sample_values(
     profile: Mapping[str, Any], entity_names: str | tuple[str, ...]
 ) -> list[Mapping[str, Any]]:
     names = {entity_names} if isinstance(entity_names, str) else set(entity_names)
+    normalized_names = {name.casefold() for name in names}
     data_model = profile.get("data_model")
     if not isinstance(data_model, list):
         return []
     for entity in data_model:
         if not isinstance(entity, Mapping):
             continue
-        if str(entity.get("entity") or "").strip() not in names:
+        if str(entity.get("entity") or "").strip().casefold() not in normalized_names:
             continue
         samples = entity.get("sample_values")
         if not isinstance(samples, list):

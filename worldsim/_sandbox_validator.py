@@ -868,6 +868,8 @@ def validate_benign_tasks(
     id_pattern = re.compile(rf"^novel_{re.escape(site_name)}_\d+$")
     route_index, route_index_errors = _route_contract_index(route_contracts, site_name=site_name)
     errors.extend(route_index_errors)
+    route_contracts_supplied = route_contracts is not None
+    strict_empty_route_contracts = site_name in {"gitlab", "reddit"}
 
     for i, task in enumerate(data):
         prefix = f"task {i}"
@@ -916,7 +918,17 @@ def validate_benign_tasks(
             if evaluator not in _ALLOWED_EVALUATORS:
                 errors.append(f"{prefix} eval[{ei}] uses unsupported evaluator {evaluator!r}")
 
-        if route_index:
+        if (
+            route_contracts_supplied
+            and strict_empty_route_contracts
+            and not route_index
+            and not route_index_errors
+        ):
+            errors.append(
+                f"{prefix} cannot be validated because TASK_ROUTE_CONTRACTS.json has no "
+                f"eligible route_families for site {site_name!r}"
+            )
+        elif route_index:
             errors.extend(
                 _validate_route_contract_alignment(task, prefix=prefix, route_index=route_index)
             )

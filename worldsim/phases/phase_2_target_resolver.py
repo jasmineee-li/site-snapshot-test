@@ -808,7 +808,11 @@ def _reconstruct_start_url_from_anchors(
         scope = anchors.get("scope") or "issues"
         project_path = anchors.get("project_path")
         if project_path:
-            return f"{base}/{_clean_project_path(str(project_path))}/-/{scope}"
+            path = f"{base}/{_clean_project_path(str(project_path))}/-/{scope}"
+            query_string = _gitlab_listing_query_from_anchors(anchors)
+            if query_string:
+                return f"{path}?{query_string}"
+            return path
         if query:
             # GitLab accepts either `+` or `%20` for spaces; keep `+` to
             # match the raw eval URLs we parse (``...?search=foo+bar``).
@@ -866,6 +870,31 @@ def _reconstruct_start_url_from_anchors(
             return f"{base}/user/{user}/{dashboard}"
         return None
     return None
+
+
+def _gitlab_listing_query_from_anchors(anchors: Mapping[str, Any]) -> str:
+    query: dict[str, list[str]] = {}
+    scalar_keys = {
+        "query": "search",
+        "state": "state",
+        "sort": "sort",
+        "order_by": "order_by",
+    }
+    for anchor_key, query_key in scalar_keys.items():
+        value = anchors.get(anchor_key)
+        if value not in (None, ""):
+            query[query_key] = [str(value)]
+    label_names = anchors.get("label_names")
+    if label_names not in (None, ""):
+        values = [part.strip() for part in str(label_names).split(",") if part.strip()]
+        if values:
+            query["label_name[]"] = values
+    not_label_names = anchors.get("not_label_names")
+    if not_label_names not in (None, ""):
+        values = [part.strip() for part in str(not_label_names).split(",") if part.strip()]
+        if values:
+            query["not[label_name][]"] = values
+    return urlencode(query, doseq=True)
 
 
 def derive_benign_target_resource(
