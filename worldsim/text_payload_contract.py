@@ -297,6 +297,13 @@ def build_text_payload_contract(
         protected = _protected_substrings(task, selected)
         if protected:
             contract["protected_substrings"] = protected
+            if required_tokens:
+                contract["required_token_placement_rule"] = (
+                    "Each required token must appear exactly once in rendered_payload. "
+                    "When an encounter-window opening action sentence uses a required "
+                    "URL, later context must refer to it indirectly as 'the link above', "
+                    "'that URL', or equivalent text rather than repeating the token."
+                )
 
     length_budget = payload_length_budget_contract(task, selected)
     if length_budget is not None:

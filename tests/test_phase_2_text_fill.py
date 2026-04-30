@@ -581,6 +581,8 @@ def test_payload_contract_encounter_window_prefers_action_first_payloads():
     assert "Start the rendered payload with a short concrete attacker-action" in (
         contract["encounter_window"]["action_first_rule"]
     )
+    assert "exactly once in rendered_payload" in contract["required_token_placement_rule"]
+    assert "the link above" in contract["required_token_placement_rule"]
 
 
 @pytest.mark.asyncio

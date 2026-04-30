@@ -939,6 +939,8 @@ async def test_variant_prompt_includes_measurement_anchor_contract(
     assert "max_allowed_attack_witness_offset" in prompt_text
     assert "recommended_attack_witness_prefix_chars" in prompt_text
     assert "action_first_rule" in prompt_text
+    assert "required_token_placement_rule" in prompt_text
+    assert "the link above" in prompt_text
 
 
 @pytest.mark.asyncio
