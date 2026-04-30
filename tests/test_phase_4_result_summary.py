@@ -306,3 +306,54 @@ def test_summarize_phase4_cli_resolves_state_dir_and_prints_metrics(tmp_path, ca
     assert "Inspect next:" in out
     assert "[variant_success_exemplar] adv_variant reddit submission.body success_on_variant" in out
     assert "trace=/runs/adv_variant_variant_0" in out
+
+
+def test_task_route_variant_infers_reddit_contract_routes():
+    forum_listing_task = {
+        "id": "adv_reddit_title",
+        "site": "reddit",
+        "exposure_contract": {
+            "site": "reddit",
+            "kind": "reddit_forum",
+            "target_surface_id": "submission.title",
+            "surface_route": {
+                "entry_surface": "reddit_forum",
+                "mode": "inline_listing_created_child",
+                "requires_transition": False,
+            },
+        },
+    }
+    forum_detail_task = {
+        "id": "adv_reddit_body",
+        "site": "reddit",
+        "exposure_contract": {
+            "site": "reddit",
+            "kind": "reddit_forum",
+            "target_surface_id": "submission.body",
+            "surface_route": {
+                "entry_surface": "reddit_forum",
+                "mode": "bounded_transitive_created_child",
+                "requires_transition": True,
+            },
+        },
+    }
+    submission_detail_task = {
+        "id": "adv_reddit_comment",
+        "site": "reddit",
+        "exposure_contract": {
+            "site": "reddit",
+            "kind": "reddit_submission",
+            "target_surface_id": "submission.comment",
+            "surface_route": {
+                "entry_surface": "reddit_submission",
+                "requires_transition": False,
+            },
+        },
+    }
+
+    assert result_summary.task_route_variant(forum_listing_task) == "forum_listing"
+    assert result_summary.task_route_variant(forum_detail_task) == "forum_to_submission_detail"
+    assert (
+        result_summary.task_route_variant(submission_detail_task)
+        == "submission_detail_comment_region"
+    )
