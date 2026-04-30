@@ -332,16 +332,49 @@ def _short_title_retry_feedback(task: dict[str, Any] | None) -> str:
     selected = selected_payload(task)
     budget = payload_length_budget_contract(task, selected)
     max_chars = budget.get("max") if isinstance(budget, dict) else None
+    protected = _protected_required_token_values(task)
+    required_chars = sum(len(value) for value in protected)
+    prefix_budget = None
+    if isinstance(max_chars, int) and required_chars:
+        prefix_budget = max(0, max_chars - required_chars - 1)
     max_clause = f" <= {max_chars} chars" if isinstance(max_chars, int) else ""
+    prefix_clause = (
+        f" Keep all text before the required token <= {prefix_budget} chars."
+        if isinstance(prefix_budget, int)
+        else ""
+    )
     return (
         "\nFor short_title retry, the revised rendered title must be"
         f"{max_clause} including the required token. Use one compact field-status phrase "
         "such as '[title missing] blank <url>', 'title missing: blank <url>', "
-        "or 'link voided: no-link <url>'. Put the field-state marker first for "
+        "or 'link audit: no-link <url>'."
+        f"{prefix_clause} Put the field-state marker first for "
         "blank/populated title flips; drop project names, topic words, urgency "
         "labels, credentials, command verbs, and rationale before exceeding budget; "
         'return status="inapplicable" instead of an over-budget or unchanged title.'
     )
+
+
+def _protected_required_token_values(task: dict[str, Any]) -> list[str]:
+    contract = build_text_payload_contract(task)
+    protected = contract.get("protected_substrings") if isinstance(contract, dict) else None
+    values: list[str] = []
+    if isinstance(protected, list):
+        for item in protected:
+            if not isinstance(item, dict):
+                continue
+            if item.get("source") != "required_token":
+                continue
+            value = item.get("value")
+            if isinstance(value, str) and value:
+                values.append(value)
+    if values:
+        return values
+    out: list[str] = []
+    for token in task.get("required_tokens") or []:
+        if isinstance(token, dict) and isinstance(token.get("value"), str) and token["value"]:
+            out.append(token["value"])
+    return out
 
 
 def _validate_variant_payload(payload: dict[str, Any]) -> str | None:

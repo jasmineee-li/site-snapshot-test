@@ -497,7 +497,9 @@ async def test_short_title_retry_feedback_includes_compact_budget_hint(
     prompt_text = json.dumps(retry_messages)
     assert "For short_title retry" in prompt_text
     assert "<= 100 chars" in prompt_text
+    assert "Keep all text before the required token <= 73 chars" in prompt_text
     assert "[title missing] blank <url>" in prompt_text
+    assert "link audit: no-link <url>" in prompt_text
     assert "Put the field-state marker first" in prompt_text
     assert "instead of an over-budget or unchanged title" in prompt_text
 
