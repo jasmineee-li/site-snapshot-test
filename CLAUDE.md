@@ -15,9 +15,11 @@
 - Before non-trivial work, read the relevant spec section and one companion doc. Do not preload every `agent_docs/` file.
 - `agent_docs/verification.md` — test/lint/live-gate selection and quiet output wrappers.
 - `agent_docs/domain-invariants.md` — Phase 2/4, auth, sandbox, prompt, and WASP invariants.
+- `agent_docs/code-organization.md` — feature/domain module ownership, compatibility-wrapper policy, and readiness debt sequencing.
 - `agent_docs/remote-runs.md` — r5, proxy, fresh-host, and long-run discipline.
 - Work loop: Research -> Plan -> Implement -> Validate. Keep each context small; use `rg`; delegate focused exploration/verification to sub-agents when the harness supports it.
 - Prefer existing patterns and helpers over new abstractions. Keep edits scoped; do not rewrite generated logs or hand-edit `feasibility.status`.
+- Treat `logs/` as runtime output; use `agent_docs/artifacts.md` before deleting, restoring, or promoting generated artifacts.
 - Main commands: `uv sync --extra dev`, `bash scripts/verify_fast.sh`, `bash scripts/verify_default.sh`, `uv run python -m worldsim.main --help`, `uv run pytest <paths> -q`, `uv run ruff check <paths>`, `uv run ruff format <paths>`.
 - Use `scripts/lib/run_silent.sh` or repo quiet wrappers; for live gates use `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml --quiet`. Never truncate verbose output yourself.
 - Claude/Modal auth precedence lives in `worldsim/modal_sandbox.py::_build_claude_secrets` and `worldsim/phase_4/anthropic_client.py`; never hard-code one auth mode.
@@ -44,6 +46,7 @@
 
 <important if="you are changing Modal sandbox setup, secret wiring, sandbox lifecycle, or file routing">
 - Modal sandboxes are scoped by explicit `image.add_local_file` / `image.add_local_dir` inclusion, not ignore patterns.
+- Read `agent_docs/secrets.md` before changing tracked credentials or instance/proxy token handling.
 - Read the two AgentLab reference files if needed, then retype equivalent behavior in `worldsim/`; runtime imports from `AgentLab/` are forbidden.
 </important>
 

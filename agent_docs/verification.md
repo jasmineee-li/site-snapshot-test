@@ -32,6 +32,11 @@ It runs scoped Ruff over `worldsim tests scripts`, pytest collection, and the
 tracked-file readiness audit through `scripts/lib/run_silent.sh`. Use it before
 broader validation and before handing off agent-authored changes.
 
+`logs/` is runtime output, not source. Regenerate Phase artifacts through the
+pipeline commands instead of committing files under `logs/`. See
+`agent_docs/artifacts.md` for artifact traceability, recovery, and fixture
+promotion rules.
+
 Use the narrowest meaningful check first, then broaden before shipping:
 
 ```bash
@@ -76,6 +81,7 @@ scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml -
 - Phase 4 result audit: `uv run python scripts/summarize_phase_4_results.py logs/<run>`
 - Phase 4 variant-generation QA: `uv run python scripts/audit_phase_4_variants.py logs/<run>`
 - Phase 4 paired-run comparison: `uv run python scripts/compare_phase_4_runs.py logs/<baseline> logs/<candidate>`
+- Secrets policy: `agent_docs/secrets.md`
 
 ## Hooks
 
