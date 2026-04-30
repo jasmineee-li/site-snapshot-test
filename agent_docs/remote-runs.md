@@ -13,6 +13,12 @@ Read `docs/handoffs/rigor-run-setup.md` for the full runbook. The short version:
 5. Stop only with `scripts/remote_job_stop.sh --job-id <id>`.
 
 Avoid raw long-lived SSH pipes for runs. Never use broad `pkill -f` to stop jobs.
+Do not sync a remote checkout while a registered job is still running. Common
+Phase 0 -> 1 -> 2 and Phase 4 commands start fresh Python processes between
+steps; syncing mid-chain can make one artifact use multiple code versions.
+`sync_to_r5.sh` blocks active remote jobs by default. Use
+`--allow-active-jobs` only for deliberate maintenance after recording why mixed
+checkout provenance is acceptable.
 
 `remote_job_start.sh` normalizes common project toolchain commands such as
 `uv`, `uvx`, `pnpm`, `bun`, `npm`, `npx`, `node`, `modal`, and `claude` through

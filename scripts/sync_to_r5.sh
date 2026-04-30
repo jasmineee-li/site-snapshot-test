@@ -11,6 +11,7 @@ HOST_CONFIG=""
 REMOTE_DIR=""
 SSH_KEY_ARG=""
 DRY_RUN=0
+ALLOW_ACTIVE_JOBS=0
 
 usage() {
     cat <<'USAGE'
@@ -21,6 +22,7 @@ Options:
   --remote-dir <path>       remote checkout dir (default: <compose_dir_remote>/browser-sim)
   --ssh-key <path>          SSH private key (default: $SSH_KEY or ~/.ssh/webarena-key.pem)
   --dry-run                 print rsync changes without writing
+  --allow-active-jobs       sync even if remote_jobs registry has running jobs
   -h, --help                show this help
 USAGE
 }
@@ -31,6 +33,7 @@ while (($#)); do
         --remote-dir) REMOTE_DIR="$2"; shift 2 ;;
         --ssh-key) SSH_KEY_ARG="$2"; shift 2 ;;
         --dry-run) DRY_RUN=1; shift ;;
+        --allow-active-jobs) ALLOW_ACTIVE_JOBS=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) rj_die "unknown arg: $1" ;;
     esac
@@ -75,6 +78,71 @@ excludes=(
 
 if [[ -f "$REPO_ROOT/.git" ]]; then
     printf 'Source checkout uses a linked-worktree .git file; excluding Git metadata from rsync.\n' >&2
+fi
+
+if [[ "$DRY_RUN" -eq 0 && "$ALLOW_ACTIVE_JOBS" -eq 0 && "${WORLDSIM_ALLOW_SYNC_DURING_ACTIVE_JOBS:-}" != "1" ]]; then
+    rj_ssh_bash "$REMOTE_DIR" <<'REMOTE'
+set -euo pipefail
+remote_dir="$1"
+python3 - "$remote_dir" <<'PY'
+import json
+from pathlib import Path
+
+remote_dir = Path(__import__("sys").argv[1])
+root = remote_dir / "logs" / "remote_jobs"
+active: list[str] = []
+proc_root = Path("/proc")
+
+if root.exists():
+    for metadata_path in root.glob("*/metadata.json"):
+        try:
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        job_dir = metadata_path.parent
+        exit_path = job_dir / "exit.json"
+        if exit_path.exists():
+            continue
+        heartbeat_path = job_dir / "heartbeat.json"
+        if not proc_root.exists() and heartbeat_path.exists():
+            try:
+                heartbeat = json.loads(heartbeat_path.read_text(encoding="utf-8"))
+            except Exception:
+                heartbeat = {}
+            if heartbeat.get("status") == "running":
+                name = metadata.get("name") or "unknown"
+                active.append(f"{job_dir.name} name={name} pid={metadata.get('pid', 'unknown')}")
+                continue
+        try:
+            pid = int(metadata.get("pid") or (job_dir / "pid").read_text().strip())
+        except Exception:
+            continue
+        proc = proc_root / str(pid)
+        if not proc.exists():
+            continue
+        start_ticks = str(metadata.get("process_start_ticks") or "").strip()
+        if start_ticks:
+            try:
+                if proc.joinpath("stat").read_text().split()[21] != start_ticks:
+                    continue
+            except Exception:
+                continue
+        name = metadata.get("name") or "unknown"
+        active.append(f"{job_dir.name} name={name} pid={pid}")
+
+if active:
+    print("sync guard blocked: remote WorldSim jobs are still running.", file=__import__("sys").stderr)
+    print("Syncing now can mix code versions inside chained phase jobs.", file=__import__("sys").stderr)
+    for item in active[:10]:
+        print(f"- {item}", file=__import__("sys").stderr)
+    print(
+        "Use scripts/remote_job_status.sh/stop.sh first, or pass --allow-active-jobs "
+        "only for deliberate maintenance.",
+        file=__import__("sys").stderr,
+    )
+    raise SystemExit(2)
+PY
+REMOTE
 fi
 
 rsync_args=(-az --delete)

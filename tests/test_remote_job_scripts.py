@@ -157,6 +157,67 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
     assert "linked-worktree .git file" in completed.stderr
 
 
+def test_sync_blocks_when_remote_job_registry_has_active_job(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    remote_dir = tmp_path / "remote" / "browser-sim"
+    job_dir = remote_dir / "logs" / "remote_jobs" / "job-active"
+    job_dir.mkdir(parents=True)
+    (job_dir / "metadata.json").write_text(
+        json.dumps({"name": "phase-chain", "pid": 1}),
+        encoding="utf-8",
+    )
+    (job_dir / "heartbeat.json").write_text(
+        json.dumps({"status": "running"}),
+        encoding="utf-8",
+    )
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    rsync_called = tmp_path / "rsync_called"
+    _write_executable(
+        fakebin / "ssh",
+        """#!/usr/bin/env python3
+import subprocess
+import sys
+
+args = sys.argv[1:]
+remote_cmd = args[-1]
+raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).returncode)
+""",
+    )
+    _write_executable(
+        fakebin / "rsync",
+        f"""#!/usr/bin/env python3
+from pathlib import Path
+Path({str(rsync_called)!r}).write_text("called", encoding="utf-8")
+""",
+    )
+
+    env = _base_env(repo_root, tmp_path)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "sync_to_r5.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "sync guard blocked" in completed.stderr
+    assert "phase-chain" in completed.stderr
+    assert "mix code versions" in completed.stderr
+    assert not rsync_called.exists()
+
+
 def test_start_rejects_missing_name_and_missing_command(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     host_config = _host_config(tmp_path)
