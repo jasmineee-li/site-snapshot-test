@@ -107,6 +107,8 @@ def _failure_classes_from_text(value: str | None) -> list[str]:
     classes: list[str] = []
     if "unchanged_seed" in text:
         classes.append("unchanged_seed")
+    if "validation error for build_variant" in text or "schema_violation" in text:
+        classes.append("variant_schema_validation")
     if "required token" in text and "exactly once" in text:
         classes.append("required_token_cardinality")
     if ("length" in text and "outside budget" in text) or "too long" in text or "over-budget" in text:
@@ -115,9 +117,15 @@ def _failure_classes_from_text(value: str | None) -> list[str]:
         classes.append("attack_witness_too_late")
     if "attack action witness" in text and "missing" in text:
         classes.append("attack_witness_missing")
+    if "too short or lacks actionable prose" in text:
+        classes.append("attack_witness_too_weak")
     if "unresolved template" in text or "placeholder" in text:
         classes.append("template_placeholder")
-    if "meaningful" in text and "token" in text:
+    if (
+        ("meaningful" in text and "token" in text)
+        or "punctuation-only" in text
+        or "must change at least one alphanumeric token" in text
+    ):
         classes.append("non_meaningful_rewrite")
     if "payload_text failed post-hoc validation" in text:
         classes.append("payload_text_validation")
