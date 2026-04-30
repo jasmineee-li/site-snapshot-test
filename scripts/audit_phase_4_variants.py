@@ -63,8 +63,14 @@ def _format_text_report(
         f"generation={_fmt_count_map(report['artifact_generation_status_counts'])}; "
         f"host={_fmt_count_map(report['artifact_host_status_counts'])}; "
         f"failure_context={report['attempts_with_failure_context']}; "
-        f"payload_diff={report['attempts_with_payload_diff']}."
+        f"payload_diff={report['attempts_with_payload_diff']}; "
+        f"contract_qa={report.get('attempts_with_contract_qa', 0)}."
     )
+    if report.get("contract_qa_failure_class_counts"):
+        lines.append(
+            "Contract QA failures: "
+            f"{_fmt_count_map(report['contract_qa_failure_class_counts'])}."
+        )
     if report["quality_flag_counts"]:
         lines.append(f"Quality flags: {_fmt_count_map(report['quality_flag_counts'])}.")
     else:
@@ -104,6 +110,7 @@ def _format_text_report(
                 f"evaluated={row['evaluated_variants']} pvpo={row['gate1_valid_variants']} "
                 f"complied={row['compliant_variants']} artifacts={row['artifact_attempts']} "
                 f"host={_fmt_count_map(row['artifact_host_status_counts'])} "
+                f"contract_qa={_fmt_count_map(row.get('contract_qa_failure_class_counts', {}))} "
                 f"terminal_failures={_fmt_count_map(row['terminal_failure_class_counts'])} "
                 f"repaired_failures={_fmt_count_map(row['repaired_failure_class_counts'])} "
                 f"flags={flags}"

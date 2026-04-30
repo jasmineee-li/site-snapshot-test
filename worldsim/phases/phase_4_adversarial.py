@@ -118,6 +118,7 @@ from worldsim.phase_4.transcript_purpose_api import (
 from worldsim.phase_4.transcript_purpose_api import (
     run_transcript_purpose_api,
 )
+from worldsim.phase_4.variant_contract_qa import build_variant_contract_qa
 from worldsim.phase_4.verbalized_eval_awareness_api import (
     _failure_result as _vea_failure_result,
 )
@@ -4987,6 +4988,17 @@ def _write_variant_generation_audit(
                 attempt_dir / "payload_diff.json",
                 payload_diff,
                 failpoint_base="phase_4.variant_generation_audit.payload_diff",
+            )
+        contract_qa = build_variant_contract_qa(
+            task,
+            variant,
+            finalized_candidate=finalized_variant,
+        )
+        if contract_qa is not None:
+            write_json_atomic(
+                attempt_dir / "contract_qa.json",
+                contract_qa,
+                failpoint_base="phase_4.variant_generation_audit.contract_qa",
             )
         return attempt_dir
     except Exception as exc:

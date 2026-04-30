@@ -156,6 +156,15 @@ def test_variant_artifact_audit_reconciles_results_and_attempt_files(tmp_path: P
             "max_attack_witness_offset": 96,
         },
     )
+    _write_json(
+        generated_attempt / "contract_qa.json",
+        {
+            "status": "pass",
+            "failure_classes": [],
+            "changed_seed": True,
+            "meaningful_token_change": True,
+        },
+    )
 
     results_path = resolve_phase4_results_path(run_dir)
     report = build_variant_artifact_audit(
@@ -169,6 +178,7 @@ def test_variant_artifact_audit_reconciles_results_and_attempt_files(tmp_path: P
     assert report["artifact_host_status_counts"] == {"failed": 1, "passed": 1}
     assert report["attempts_with_failure_context"] == 2
     assert report["attempts_with_payload_diff"] == 1
+    assert report["attempts_with_contract_qa"] == 1
     assert report["quality_flag_counts"] == {}
     assert report["host_failure_buckets"] == [
         {
@@ -200,6 +210,8 @@ def test_variant_artifact_audit_reconciles_results_and_attempt_files(tmp_path: P
     assert row["rejected_records"] == 1
     assert row["artifact_generation_status_counts"] == {"failed": 1, "generated": 1}
     assert row["artifact_host_status_counts"] == {"failed": 1, "passed": 1}
+    assert row["contract_qa_artifacts"] == 1
+    assert row["contract_qa_failure_class_counts"] == {}
     assert row["failure_class_counts"] == {
         "attack_witness_too_late": 1,
         "payload_length_budget": 1,

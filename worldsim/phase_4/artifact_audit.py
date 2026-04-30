@@ -250,6 +250,7 @@ def discover_variant_generation_artifacts(phase4_dir: Path) -> list[dict[str, An
         host_validation = load_json_or_empty(attempt_dir / "host_validation.json")
         failure_context = load_json_or_empty(attempt_dir / "failure_context.json")
         payload_diff = load_json_or_empty(attempt_dir / "payload_diff.json")
+        contract_qa = load_json_or_empty(attempt_dir / "contract_qa.json")
         task_id = request_summary.get("task_id")
         if not isinstance(task_id, str) or not task_id:
             task_id = attempt_dir.parent.parent.parent.name
@@ -273,6 +274,11 @@ def discover_variant_generation_artifacts(phase4_dir: Path) -> list[dict[str, An
                 else request_summary.get("failure_context_trace_digest_status")
             ),
             "has_payload_diff": bool(payload_diff),
+            "has_contract_qa": bool(contract_qa),
+            "contract_qa_status": contract_qa.get("status"),
+            "contract_qa_failure_classes": contract_qa.get("failure_classes")
+            if isinstance(contract_qa.get("failure_classes"), list)
+            else [],
             "payload_changed_seed": payload_diff.get("changed_seed"),
             "payload_meaningful_token_change": payload_diff.get(
                 "meaningful_token_change"
@@ -315,6 +321,18 @@ def _artifact_flags(
     ]
     if generated_without_diff:
         flags.append("generated_without_payload_diff")
+    generated_without_contract_qa = [
+        attempt for attempt in generated_attempts if not attempt.get("has_contract_qa")
+    ]
+    if generated_without_contract_qa:
+        flags.append("generated_without_contract_qa")
+    contract_qa_failed = [
+        attempt
+        for attempt in generated_attempts
+        if attempt.get("contract_qa_status") == "fail"
+    ]
+    if contract_qa_failed:
+        flags.append("generated_contract_qa_failed")
     if generated_records and attempts and generated_records != len(generated_attempts):
         flags.append("generation_record_artifact_mismatch")
     host_passed = [attempt for attempt in attempts if attempt.get("host_status") == "passed"]
@@ -469,6 +487,21 @@ def build_variant_artifact_audit(
             "payload_diff_artifacts": sum(
                 1 for attempt in attempts if attempt.get("has_payload_diff")
             ),
+            "contract_qa_artifacts": sum(
+                1 for attempt in attempts if attempt.get("has_contract_qa")
+            ),
+            "contract_qa_failure_class_counts": _count_map(
+                [
+                    str(failure_class)
+                    for attempt in attempts
+                    for failure_class in (
+                        attempt.get("contract_qa_failure_classes")
+                        if isinstance(attempt.get("contract_qa_failure_classes"), list)
+                        else []
+                    )
+                    if isinstance(failure_class, str)
+                ]
+            ),
             "quality_flags": flags,
             "failure_class_counts": _count_map(
                 [
@@ -536,6 +569,21 @@ def build_variant_artifact_audit(
         ),
         "attempts_with_payload_diff": sum(
             1 for attempt in artifacts if attempt.get("has_payload_diff")
+        ),
+        "attempts_with_contract_qa": sum(
+            1 for attempt in artifacts if attempt.get("has_contract_qa")
+        ),
+        "contract_qa_failure_class_counts": _count_map(
+            [
+                str(failure_class)
+                for attempt in artifacts
+                for failure_class in (
+                    attempt.get("contract_qa_failure_classes")
+                    if isinstance(attempt.get("contract_qa_failure_classes"), list)
+                    else []
+                )
+                if isinstance(failure_class, str)
+            ]
         ),
         "quality_flag_counts": dict(sorted(flag_counts.items())),
         "host_failure_buckets": [
