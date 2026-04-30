@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -61,6 +62,102 @@ def load_task_lookup(run_root: Path) -> dict[str, dict[str, Any]]:
     return lookup
 
 
+def _load_json_array_if_present(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    data = load_json(path)
+    if not isinstance(data, list):
+        return []
+    return [item for item in data if isinstance(item, dict)]
+
+
+def _task_group_key(task: dict[str, Any]) -> tuple[str, str, str, str, str, str]:
+    contract = task.get("exposure_contract")
+    if not isinstance(contract, dict):
+        contract = {}
+    feasibility = task.get("feasibility")
+    if not isinstance(feasibility, dict):
+        feasibility = {}
+    default_status = "source_data_dropped" if task.get("drop_reason") else "verified"
+    status = str(feasibility.get("status") or default_status)
+    reason = str(
+        feasibility.get("reason")
+        or feasibility.get("failure_reason")
+        or task.get("preflight_reason")
+        or task.get("drop_reason")
+        or "none"
+    )
+    return (
+        str(task.get("site") or "unknown"),
+        str(task.get("origin") or "unknown"),
+        str(task.get("route_id") or "unknown"),
+        str(
+            task.get("target_surface_id")
+            or contract.get("target_surface_id")
+            or "unknown"
+        ),
+        str(task.get("editor_method") or contract.get("editor_method") or "unknown"),
+        f"{status}:{reason}",
+    )
+
+
+def _count_task_rows(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    counts = Counter(_task_group_key(task) for task in tasks)
+    rows = []
+    for (site, origin, route_id, surface, editor_method, status_reason), count in sorted(
+        counts.items(),
+        key=lambda item: (-item[1], item[0]),
+    ):
+        status, _, reason = status_reason.partition(":")
+        rows.append(
+            {
+                "count": count,
+                "site": site,
+                "origin": origin,
+                "route_id": route_id,
+                "target_surface_id": surface,
+                "editor_method": editor_method,
+                "status": status,
+                "reason": reason,
+            }
+        )
+    return rows
+
+
+def summarize_phase2c(run_root: Path) -> dict[str, Any] | None:
+    phase_2 = run_root / "phase_2"
+    admitted_path = phase_2 / "adversarial_tasks.json"
+    infeasible_path = phase_2 / "adversarial_tasks.infeasible.json"
+    dropped_path = phase_2 / "adversarial_tasks.dropped_source_data.json"
+    report_path = phase_2 / "feasibility_report.json"
+    ineligible_path = phase_2 / "exposure_ineligible.json"
+    no_contract_path = phase_2 / "dropped_no_contract.json"
+
+    if not any(path.exists() for path in (admitted_path, infeasible_path, dropped_path, report_path)):
+        return None
+
+    admitted = _load_json_array_if_present(admitted_path)
+    infeasible = _load_json_array_if_present(infeasible_path)
+    dropped = _load_json_array_if_present(dropped_path)
+    ineligible = _load_json_array_if_present(ineligible_path)
+    no_contract = _load_json_array_if_present(no_contract_path)
+    report = load_json(report_path) if report_path.exists() else {}
+    if not isinstance(report, dict):
+        report = {}
+
+    return {
+        "admitted_count": len(admitted),
+        "infeasible_count": len(infeasible),
+        "source_data_dropped_count": len(dropped),
+        "exposure_ineligible_count": len(ineligible),
+        "dropped_no_contract_count": len(no_contract),
+        "report": report,
+        "admitted_rows": _count_task_rows(admitted),
+        "infeasible_rows": _count_task_rows(infeasible),
+        "source_data_dropped_rows": _count_task_rows(dropped),
+    }
+
+
 def build_status_payload(path: Path | None = None) -> dict[str, Any]:
     run_root = resolve_run_root(path)
     state_path = run_root / "pipeline_state.json"
@@ -101,6 +198,9 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
         manifest = load_json(manifest_path)
         if isinstance(manifest, dict):
             payload["artifact_manifest"] = manifest
+    phase2c_summary = summarize_phase2c(run_root)
+    if phase2c_summary is not None:
+        payload["phase2c_summary"] = phase2c_summary
     if task_bank_path.exists():
         from worldsim.task_bank import load_task_bank, summarize_task_bank
 
@@ -179,6 +279,24 @@ def _format_variant_audit(summary: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _format_phase2c_rows(label: str, rows: list[dict[str, Any]], *, limit: int) -> list[str]:
+    if not rows:
+        return []
+    lines = [f"{label}:"]
+    for row in rows[: max(limit, 0)]:
+        lines.append(
+            "  "
+            f"{row.get('count', 0)} "
+            f"{row.get('site', 'unknown')} "
+            f"{row.get('origin', 'unknown')} "
+            f"{row.get('target_surface_id', 'unknown')} "
+            f"{row.get('editor_method', 'unknown')} "
+            f"route={row.get('route_id', 'unknown')} "
+            f"{row.get('status', 'unknown')}:{row.get('reason', 'none')}"
+        )
+    return lines
+
+
 def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) -> str:
     lines = [f"WorldSim status: {payload['run_root']}"]
     state = payload.get("pipeline_state")
@@ -227,6 +345,57 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
             f"phase4_results={task_bank_summary.get('phase4_results', 0)} "
             f"sites={_fmt_count_map(task_bank_summary.get('by_site') or {})} "
             f"archetypes={_fmt_count_map(task_bank_summary.get('by_archetype') or {})}"
+        )
+
+    phase2c = payload.get("phase2c_summary")
+    if isinstance(phase2c, dict):
+        report = phase2c.get("report")
+        if not isinstance(report, dict):
+            report = {}
+        per_site = report.get("per_site")
+        if not isinstance(per_site, dict):
+            per_site = {}
+        lines.append(
+            "Phase 2c: "
+            f"status={report.get('phase_2_status', 'unknown')} "
+            f"admitted={phase2c.get('admitted_count', 0)} "
+            f"infeasible={phase2c.get('infeasible_count', 0)} "
+            f"source_data_dropped={phase2c.get('source_data_dropped_count', 0)} "
+            f"exposure_ineligible={phase2c.get('exposure_ineligible_count', 0)} "
+            f"no_contract={phase2c.get('dropped_no_contract_count', 0)}"
+        )
+        if per_site:
+            site_parts = []
+            for site, counts in sorted(per_site.items()):
+                if not isinstance(counts, dict):
+                    continue
+                site_parts.append(
+                    f"{site}:v={counts.get('verified', 0)} "
+                    f"i={counts.get('infeasible', 0)} "
+                    f"s={counts.get('skipped', 0)}"
+                )
+            if site_parts:
+                lines.append(f"Phase 2c by site: {'; '.join(site_parts)}")
+        lines.extend(
+            _format_phase2c_rows(
+                "Phase 2c admitted buckets",
+                phase2c.get("admitted_rows") or [],
+                limit=inspect_limit,
+            )
+        )
+        lines.extend(
+            _format_phase2c_rows(
+                "Phase 2c infeasible buckets",
+                phase2c.get("infeasible_rows") or [],
+                limit=inspect_limit,
+            )
+        )
+        lines.extend(
+            _format_phase2c_rows(
+                "Phase 2c source-data drops",
+                phase2c.get("source_data_dropped_rows") or [],
+                limit=inspect_limit,
+            )
         )
 
     summary = payload.get("phase4_summary")
