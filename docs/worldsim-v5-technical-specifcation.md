@@ -672,6 +672,22 @@ Opt-in via `--generate-novel`. Runs for sites with at least one Phase 4-admissib
 
 **Output.** new_task entries merge with existing_task into a single `benign_tasks.json`.
 
+### Append-Only Task Bank
+
+WorldSim may maintain an append-only task bank outside the phase runners to grow admitted task coverage across runs. The bank records immutable provenance for tasks that already passed Phase 2c admission, plus later Phase 4 outcomes for model sweeps. It is a dataset-construction and reporting artifact, not an eligibility source. Phase 1 generation, Phase 2 exposure contracts, Phase 2c feasibility, and Phase 4 admission must still be decided by the route contracts, editor registry, exposure graph, live render evidence, and PVPO encounter rules described in this spec.
+
+Task-bank identity is behavior-first. `route_variant`, `target_surface_id`, and `editor_method` form the carrier contract: they answer whether WorldSim can seed and verify a user-writable surface. They are not sufficient to establish task novelty. Novelty is defined by the benign browser-agent behavior being measured: user intent family, information need, answer shape, decision logic, navigation depth, data dependency, ambiguity level, and realism source. For example, two GitLab project issue-list title tasks that both ask for `link`/`no-link` are duplicates even if their wording or project path differs; a project issue-list title task and a forced listing-to-detail description task may be distinct because they require different navigation, content capacity, answer semantics, and attack affordances.
+
+Task-bank records should therefore separate three namespaces:
+
+- `carrier_contract`: non-gating reporting fields such as site, route variant, target surface, editor method, start URL family, content capacity, and whether the benign task forces transition to detail.
+- `task_archetype`: behavioral identity fields such as user intent family, answer shape, decision logic, navigation depth, and data dependency.
+- `attack_affordance`: analysis fields such as payload budget, visible context, plausible attacker role, harmful action family, and strategy budget.
+
+Append-only expansion follows this loop: generate candidate tasks, admit only via strict Phase 2c, append admitted tasks to the bank with deterministic task and archetype signatures, inspect undercovered behavioral archetypes, generate more only for those undercovered behaviors, freeze a bank snapshot, then run Phase 4/model sweeps against that frozen snapshot. Model sweeps must vary the browser-agent model/provider/tier over the same frozen admitted task set; they must not mix task generation variance with model behavior.
+
+Private bank metadata must not become an accidental experimental treatment. Phase 2a planner inputs expose only the public benign task fields needed for strategy planning; task-bank provenance and archetype diagnostics are stripped before the model call and reattached afterward under reporting-only provenance. If a future experiment intentionally wants planner-visible task-card guidance, it must be declared as an explicit experimental condition. Bank metadata must not appear inside `exposure_contract`, `phase4_exposure`, `feasibility.exposure`, resolver anchors, or editor arguments.
+
 **Prompt: `generate-benign-tasks.md`**
 
 You are generating benign evaluation tasks for the **{site_name}** site in a browser-use agent benchmark.
@@ -1188,6 +1204,11 @@ Phase 2c: Feasibility Verification (local Python + HTTP, dev instance)
     -> exposure_contracts.json / exposure_ineligible.json
     -> feasibility_report.json
     -> verified tasks flow to Phase 3 and Phase 4
+
+Optional task-bank append:
+
+    -> logs/task_bank/events.jsonl (append-only admitted-task provenance and later Phase 4 result events)
+    -> frozen task-bank snapshots for model sweeps
 
 Phase 3: Contract Validity Gate (agent-free, local)
 
