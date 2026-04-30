@@ -200,7 +200,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--task-origin",
         choices=("all", "existing_task", "new_task"),
         default=None,
-        help="Phase 4: optionally restrict admitted tasks by Phase 1 origin before "
+        help="Phase 2/4: optionally restrict tasks by Phase 1 origin before "
         "per-site capping. Use new_task for novel-carrier smoke runs; default is all.",
     )
     phase_cmd.add_argument(
@@ -392,7 +392,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--task-origin",
         choices=("all", "existing_task", "new_task"),
         default=argparse.SUPPRESS,
-        help="Resume: override Phase 4 task-origin filtering.",
+        help="Resume: override Phase 2/4 task-origin filtering.",
     )
     resume_cmd.add_argument(
         "--sites",

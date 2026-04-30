@@ -399,10 +399,12 @@ async def run(args: argparse.Namespace) -> int:
         getattr(args, "phase_2_text_fill_concurrency", None) or DEFAULT_TEXT_FILL_CONCURRENCY
     )
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
+    task_origin_filter = _task_origin_filter_from_value(getattr(args, "task_origin", None))
     sites_filter_raw = getattr(args, "sites", None)
     state_metadata: dict[str, Any] = {
         "sandbox_model": sandbox_model,
         "max_tasks_per_site": max_tasks_per_site,
+        "task_origin": task_origin_filter,
         "sites": sites_filter_raw,
         "phase_2b_texts_per_plan": texts_per_plan,
         "phase_2_text_fill_concurrency": text_fill_concurrency,
@@ -462,6 +464,29 @@ async def run(args: argparse.Namespace) -> int:
         )
         return 1
     state_metadata["benchmark_name"] = benchmark_name
+
+    if task_origin_filter != "all":
+        before = len(benign_tasks)
+        benign_tasks = [
+            task
+            for task in benign_tasks
+            if _phase_1_task_origin(task) == task_origin_filter
+        ]
+        logger.info(
+            "Phase 2: --task-origin=%s kept %d/%d benign task(s)",
+            task_origin_filter,
+            len(benign_tasks),
+            before,
+        )
+        if not benign_tasks:
+            logger.error("Phase 2: --task-origin=%s selected no benign tasks", task_origin_filter)
+            save_state(
+                "phase_2",
+                status="failed",
+                reason="no_tasks_after_origin_filter",
+                **state_metadata,
+            )
+            return 1
 
     # Load profiles from Phase 0c
     profiles_dir = state_dir / "phase_0c"
@@ -669,6 +694,7 @@ async def run(args: argparse.Namespace) -> int:
             plans_path,
             all_plans,
             sites_filter=sites_filter,
+            task_origin_filter=task_origin_filter,
         )
         write_json_atomic(
             plans_path,
@@ -761,6 +787,7 @@ async def run(args: argparse.Namespace) -> int:
         output_path,
         filled_tasks,
         sites_filter=sites_filter,
+        task_origin_filter=task_origin_filter,
     )
     if reusable_final_tasks is None or output_path.read_text() != json.dumps(
         merged_output, indent=2
@@ -852,6 +879,9 @@ async def _run_feasibility_stage(
     sites_filter = _sites_filter_from_value(
         getattr(args, "sites", None) or state_metadata.get("sites")
     )
+    task_origin_filter = _task_origin_filter_from_value(
+        getattr(args, "task_origin", None) or state_metadata.get("task_origin")
+    )
 
     save_state(
         "phase_2",
@@ -879,7 +909,14 @@ async def _run_feasibility_stage(
         return 1
 
     if getattr(args, "skip_feasibility", False):
-        selected_current = _filter_records_for_sites(current, sites_filter)
+        selected_current = _filter_records_for_scope(
+            current,
+            sites_filter=sites_filter,
+            task_origin_filter=task_origin_filter,
+        )
+        if not selected_current:
+            logger.error("Phase 2c: selected task scope contains no records")
+            return 1
         try:
             benchmark_name = _gate_phase_2_skip_benchmark(selected_current)
         except ValueError as exc:
@@ -922,6 +959,7 @@ async def _run_feasibility_stage(
             dropped_source_data=[],
             report_summary=report_summary,
             sites_filter=sites_filter,
+            task_origin_filter=task_origin_filter,
             allow_unverified=True,
         )
         summary = artifact_result.summary
@@ -987,7 +1025,14 @@ async def _run_feasibility_stage(
         )
         return 1
 
-    selected_current = _filter_records_for_sites(current, sites_filter)
+    selected_current = _filter_records_for_scope(
+        current,
+        sites_filter=sites_filter,
+        task_origin_filter=task_origin_filter,
+    )
+    if not selected_current:
+        logger.error("Phase 2c: selected task scope contains no records")
+        return 1
     try:
         benchmark_name = _gate_phase_2c_benchmark(
             task_records=selected_current,
@@ -1038,7 +1083,7 @@ async def _run_feasibility_stage(
                 benchmark_root = Path(raw_benchmark_root.strip())
         verification_input = output_path
         temporary_input: Path | None = None
-        if sites_filter is not None:
+        if sites_filter is not None or task_origin_filter != "all":
             temporary = tempfile.NamedTemporaryFile(
                 "w",
                 encoding="utf-8",
@@ -1090,6 +1135,7 @@ async def _run_feasibility_stage(
         dropped_source_data=report.dropped_source_data,
         report_summary=_report_summary_dict(report, instances_path=instances_path.name),
         sites_filter=sites_filter,
+        task_origin_filter=task_origin_filter,
     )
     summary = artifact_result.summary
 
@@ -1142,11 +1188,13 @@ def _write_dropped_source_data_sidecar(
     dropped_source_data: list[dict[str, Any]],
     *,
     sites_filter: set[str] | None,
+    task_origin_filter: str = "all",
 ) -> list[dict[str, Any]]:
     deduped = _merged_dropped_source_data(
         path,
         dropped_source_data,
         sites_filter=sites_filter,
+        task_origin_filter=task_origin_filter,
     )
     write_json_atomic(
         path,
@@ -1161,11 +1209,13 @@ def _merged_dropped_source_data(
     dropped_source_data: list[dict[str, Any]],
     *,
     sites_filter: set[str] | None,
+    task_origin_filter: str = "all",
 ) -> list[dict[str, Any]]:
     items = _merge_preserving_unfiltered_sites(
         path,
         dropped_source_data,
         sites_filter=sites_filter,
+        task_origin_filter=task_origin_filter,
     )
     deduped: list[dict[str, Any]] = []
     seen_keys: set[tuple[str, str]] = set()
@@ -1189,6 +1239,7 @@ def _write_phase_2c_artifacts(
     dropped_source_data: list[dict[str, Any]],
     report_summary: dict[str, Any],
     sites_filter: set[str] | None,
+    task_origin_filter: str = "all",
     allow_unverified: bool = False,
 ) -> Phase2cArtifactWriteResult:
     """Write and validate the owned Phase 2c artifact set together."""
@@ -1196,16 +1247,19 @@ def _write_phase_2c_artifacts(
         output_path,
         verified,
         sites_filter=sites_filter,
+        task_origin_filter=task_origin_filter,
     )
     merged_infeasible = _merge_preserving_unfiltered_sites(
         infeasible_path,
         infeasible,
         sites_filter=sites_filter,
+        task_origin_filter=task_origin_filter,
     )
     merged_dropped_source_data = _merged_dropped_source_data(
         dropped_source_path,
         dropped_source_data,
         sites_filter=sites_filter,
+        task_origin_filter=task_origin_filter,
     )
     summary = _phase_2c_report_summary_with_artifacts(
         report_summary,
@@ -1398,13 +1452,49 @@ def _sites_filter_from_value(value: Any) -> set[str] | None:
     return sites or None
 
 
+def _task_origin_filter_from_value(value: Any) -> str:
+    if value in (None, ""):
+        return "all"
+    normalized = str(value).strip()
+    if normalized not in {"all", "existing_task", "new_task"}:
+        raise ValueError(
+            "task_origin must be one of all, existing_task, new_task; "
+            f"got {value!r}"
+        )
+    return normalized
+
+
+def _phase_1_task_origin(record: Mapping[str, Any]) -> str:
+    raw = str(record.get("origin") or "").strip()
+    if raw in {"existing_task", "new_task"}:
+        return raw
+    task_id = str(record.get("id") or "").strip()
+    if task_id.startswith("novel_") or task_id.startswith("adv_novel_"):
+        return "new_task"
+    return "existing_task"
+
+
+def _filter_records_for_scope(
+    records: list[dict[str, Any]],
+    *,
+    sites_filter: set[str] | None,
+    task_origin_filter: str = "all",
+) -> list[dict[str, Any]]:
+    if sites_filter is None and task_origin_filter == "all":
+        return records
+    return [
+        record
+        for record in records
+        if (sites_filter is None or _effective_task_site(record) in sites_filter)
+        and (task_origin_filter == "all" or _phase_1_task_origin(record) == task_origin_filter)
+    ]
+
+
 def _filter_records_for_sites(
     records: list[dict[str, Any]],
     sites_filter: set[str] | None,
 ) -> list[dict[str, Any]]:
-    if sites_filter is None:
-        return records
-    return [record for record in records if _effective_task_site(record) in sites_filter]
+    return _filter_records_for_scope(records, sites_filter=sites_filter)
 
 
 def _filter_instances_for_phase_2c(
@@ -3060,8 +3150,9 @@ def _merge_preserving_unfiltered_sites(
     items: list[dict[str, Any]],
     *,
     sites_filter: set[str] | None,
+    task_origin_filter: str = "all",
 ) -> list[dict[str, Any]]:
-    if sites_filter is None or not path.exists():
+    if (sites_filter is None and task_origin_filter == "all") or not path.exists():
         return items
     try:
         prior = json.loads(path.read_text())
@@ -3070,13 +3161,19 @@ def _merge_preserving_unfiltered_sites(
         return items
     if not isinstance(prior, list):
         return items
-    preserved = [
-        _sanitize_task_for_output(item)
-        for item in prior
-        if _effective_task_site(item) not in sites_filter and _effective_task_site(item) != "map"
-    ]
+    preserved = []
+    for item in prior:
+        site = _effective_task_site(item)
+        if site == "map":
+            continue
+        selected_site = sites_filter is None or site in sites_filter
+        selected_origin = (
+            task_origin_filter == "all" or _phase_1_task_origin(item) == task_origin_filter
+        )
+        if not (selected_site and selected_origin):
+            preserved.append(_sanitize_task_for_output(item))
     logger.info(
-        "Phase 2: --sites merge — preserved %d items from other sites, wrote %d new",
+        "Phase 2 scoped merge — preserved %d unselected item(s), wrote %d selected item(s)",
         len(preserved),
         len(items),
     )

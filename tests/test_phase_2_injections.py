@@ -4371,6 +4371,49 @@ def test_merge_preserving_unfiltered_sites_drops_quarantined_map_entries(tmp_pat
     assert [item["id"] for item in merged] == ["shopping-1", "gitlab-1"]
 
 
+def test_merge_preserving_unfiltered_sites_preserves_same_site_other_origin(tmp_path):
+    path = tmp_path / "adversarial_tasks.json"
+    path.write_text(
+        json.dumps(
+            [
+                {"id": "old-existing", "site": "gitlab", "origin": "existing_task"},
+                {"id": "old-novel", "site": "gitlab", "origin": "new_task"},
+                {"id": "old-reddit", "site": "reddit", "origin": "new_task"},
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    merged = phase_2_injections._merge_preserving_unfiltered_sites(
+        path,
+        [{"id": "new-novel", "site": "gitlab", "origin": "new_task"}],
+        sites_filter={"gitlab"},
+        task_origin_filter="new_task",
+    )
+
+    assert [item["id"] for item in merged] == [
+        "old-existing",
+        "old-reddit",
+        "new-novel",
+    ]
+
+
+def test_filter_records_for_scope_can_select_novel_tasks_by_origin():
+    records = [
+        {"id": "0", "site": "gitlab", "origin": "existing_task"},
+        {"id": "novel_gitlab_1", "site": "gitlab", "origin": "new_task"},
+        {"id": "novel_reddit_1", "site": "reddit", "origin": "new_task"},
+    ]
+
+    selected = phase_2_injections._filter_records_for_scope(
+        records,
+        sites_filter={"gitlab"},
+        task_origin_filter="new_task",
+    )
+
+    assert [item["id"] for item in selected] == ["novel_gitlab_1"]
+
+
 def test_call_delivery_path_parses_absolute_urls_by_path_for_contract_matching():
     call = {
         "method": "POST",
