@@ -44,6 +44,7 @@ from typing import Any
 from anthropic import AsyncAnthropic
 
 from worldsim.cost_tracker import tracker as cost_tracker
+from worldsim.host_api_observability import synthesize_cost_summary
 from worldsim.phase_4.aer_trajectory_extract import ExtractedTrajectory, extract_task_intent
 from worldsim.phase_4.anthropic_client import (
     call_with_retry,
@@ -84,33 +85,7 @@ def _model_metadata() -> dict[str, str]:
 
 
 def _synthesize_summary(response: Any, *, sandbox_model: str, elapsed_s: float) -> str:
-    usage = getattr(response, "usage", None)
-    in_tok = getattr(usage, "input_tokens", 0) or 0
-    out_tok = getattr(usage, "output_tokens", 0) or 0
-    cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
-    cache_create = getattr(usage, "cache_creation_input_tokens", 0) or 0
-    cost = (
-        (in_tok / 1_000_000) * 3.0
-        + (out_tok / 1_000_000) * 15.0
-        + (cache_create / 1_000_000) * 3.75
-        + (cache_read / 1_000_000) * 0.30
-    )
-    return json.dumps(
-        {
-            "total_cost_usd": cost,
-            "num_turns": 1,
-            "duration_ms": int(elapsed_s * 1000),
-            "session_id": getattr(response, "id", None),
-            "model_usage": {
-                sandbox_model: {
-                    "input_tokens": in_tok,
-                    "output_tokens": out_tok,
-                    "cache_creation_input_tokens": cache_create,
-                    "cache_read_input_tokens": cache_read,
-                }
-            },
-        }
-    )
+    return synthesize_cost_summary(response, model=sandbox_model, elapsed_s=elapsed_s)
 
 
 def _persist_raw_response(trajectory_dir: Path, payload: dict[str, Any]) -> Path:

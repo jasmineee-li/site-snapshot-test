@@ -9,6 +9,7 @@ from tenacity import RetryError
 from worldsim.host_api_observability import (
     InstructorCallTrace,
     build_instructor_hooks,
+    claude_token_pricing,
     instructor_semantic_retrying,
     summarize_provider_kwargs,
     summarize_provider_response,
@@ -39,9 +40,7 @@ def test_response_summary_captures_stop_reason_tool_blocks_and_usage():
         id="msg_1",
         model="claude-sonnet-4-6",
         stop_reason="tool_use",
-        content=[
-            SimpleNamespace(type="tool_use", name="TextPayloadResponse", input={"ok": True})
-        ],
+        content=[SimpleNamespace(type="tool_use", name="TextPayloadResponse", input={"ok": True})],
         usage=SimpleNamespace(
             input_tokens=10,
             output_tokens=5,
@@ -143,4 +142,35 @@ def test_synthesize_cost_summary_matches_host_api_shape():
     assert summary["num_turns"] == 1
     assert summary["duration_ms"] == 1200
     assert summary["session_id"] == "msg_1"
+    assert summary["pricing"]["source"] == "anthropic_pricing_2026_04"
     assert summary["model_usage"]["claude-sonnet-4-6"]["input_tokens"] == 100
+
+
+def test_synthesize_cost_summary_uses_model_specific_opus_pricing():
+    response = SimpleNamespace(
+        id="msg_1",
+        usage=SimpleNamespace(
+            input_tokens=10_000,
+            output_tokens=2_000,
+            cache_creation_input_tokens=1_000,
+            cache_read_input_tokens=4_000,
+        ),
+    )
+
+    summary = json.loads(synthesize_cost_summary(response, model="claude-opus-4-7", elapsed_s=1.0))
+
+    assert summary["total_cost_usd"] == pytest.approx(
+        # 10k input @ $5/MTok + 2k output @ $25/MTok
+        # + 1k 5m cache write @ $6.25/MTok + 4k cache read @ $0.50/MTok.
+        0.05 + 0.05 + 0.00625 + 0.002,
+        abs=1e-9,
+    )
+    assert summary["pricing"]["input_usd_per_mtok"] == 5.0
+    assert summary["pricing"]["output_usd_per_mtok"] == 25.0
+
+
+def test_claude_token_pricing_normalizes_provider_prefix_and_version_suffix():
+    pricing = claude_token_pricing("anthropic/claude-opus-4-7-20260429")
+
+    assert pricing.input == 5.0
+    assert pricing.output == 25.0

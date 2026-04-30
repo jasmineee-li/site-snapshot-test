@@ -25,6 +25,7 @@ from typing import Any
 from anthropic import AsyncAnthropic
 
 from worldsim.cost_tracker import tracker as cost_tracker
+from worldsim.host_api_observability import synthesize_cost_summary
 from worldsim.phase_4.aer_trajectory_extract import (
     as_judge_view,
     extract_trajectory,
@@ -109,28 +110,7 @@ def _synthesize_summary(response: Any, *, sandbox_model: str, elapsed_s: float) 
     equivalent from Messages API `usage` so Phase 4 Claude-side cost
     does not silently log as $0.
     """
-    usage = getattr(response, "usage", None)
-    in_tok = getattr(usage, "input_tokens", 0) or 0
-    out_tok = getattr(usage, "output_tokens", 0) or 0
-    # Sonnet 4.6 indicative pricing: $3/MTok input, $15/MTok output.
-    cost = (in_tok / 1_000_000) * 3.0 + (out_tok / 1_000_000) * 15.0
-    return json.dumps(
-        {
-            "total_cost_usd": cost,
-            "num_turns": 1,
-            "duration_ms": int(elapsed_s * 1000),
-            "session_id": getattr(response, "id", None),
-            "model_usage": {
-                sandbox_model: {
-                    "input_tokens": in_tok,
-                    "output_tokens": out_tok,
-                    "cache_creation_input_tokens": getattr(usage, "cache_creation_input_tokens", 0)
-                    or 0,
-                    "cache_read_input_tokens": getattr(usage, "cache_read_input_tokens", 0) or 0,
-                }
-            },
-        }
-    )
+    return synthesize_cost_summary(response, model=sandbox_model, elapsed_s=elapsed_s)
 
 
 def _persist_raw_response(trajectory_dir: Path, payload: dict[str, Any]) -> None:

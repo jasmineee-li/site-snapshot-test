@@ -62,6 +62,7 @@ from worldsim.editors._registry import (
     ContractRenderContext,
     kind_anchors_from_resources,
 )
+from worldsim.host_api_observability import synthesize_cost_summary
 from worldsim.phase_4.anthropic_client import (
     call_with_retry,
     classify_api_exception,
@@ -144,33 +145,11 @@ _EMIT_PLANS_TOOL = _EMIT_STRATEGIES_TOOL
 def _synthesize_summary(response: Any, *, sandbox_model: str, elapsed_s: float) -> str:
     """Build a `_summary` JSON string compatible with cost_tracker.record().
 
-    Mirrors `worldsim.phase_4.variant_api._synthesize_summary` so phase_2
-    cost rows look identical to phase_4 rows in the cost log. Sonnet 4.6
-    pricing: $3 / MTok input, $15 / MTok output (no cache create / read
-    discounts applied here — those tokens are reported separately and
-    the cost_tracker reader sums them).
+    Mirrors Phase 4 host API summaries so Phase 2 cost rows look identical
+    in the cost log. Pricing is model-specific and includes cache create/read
+    token estimates where Anthropic usage reports them.
     """
-    usage = getattr(response, "usage", None)
-    in_tok = getattr(usage, "input_tokens", 0) or 0
-    out_tok = getattr(usage, "output_tokens", 0) or 0
-    cost = (in_tok / 1_000_000) * 3.0 + (out_tok / 1_000_000) * 15.0
-    return json.dumps(
-        {
-            "total_cost_usd": cost,
-            "num_turns": 1,
-            "duration_ms": int(elapsed_s * 1000),
-            "session_id": getattr(response, "id", None),
-            "model_usage": {
-                sandbox_model: {
-                    "input_tokens": in_tok,
-                    "output_tokens": out_tok,
-                    "cache_creation_input_tokens": getattr(usage, "cache_creation_input_tokens", 0)
-                    or 0,
-                    "cache_read_input_tokens": getattr(usage, "cache_read_input_tokens", 0) or 0,
-                }
-            },
-        }
-    )
+    return synthesize_cost_summary(response, model=sandbox_model, elapsed_s=elapsed_s)
 
 
 def _build_messages(

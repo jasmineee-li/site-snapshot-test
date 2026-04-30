@@ -27,6 +27,60 @@ from instructor.core.hooks import HookName, Hooks
 from pydantic import ValidationError as PydanticValidationError
 from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt
 
+_MTOK = 1_000_000
+
+
+@dataclass(frozen=True)
+class ClaudeTokenPricing:
+    """Anthropic Messages token prices in USD per million tokens.
+
+    ``cache_creation_input_tokens`` do not expose whether a request used a
+    5-minute or 1-hour cache write. WorldSim's host-side calls use the
+    standard 5-minute cache path, so synthetic cost summaries estimate cache
+    writes at the 5-minute rate.
+    """
+
+    input: float
+    output: float
+    cache_write_5m: float
+    cache_read: float
+    source: str
+
+
+_CLAUDE_PRICING_TABLE: tuple[tuple[tuple[str, ...], ClaudeTokenPricing], ...] = (
+    (
+        ("claude-opus-4-7", "claude-opus-4-6", "claude-opus-4-5"),
+        ClaudeTokenPricing(5.0, 25.0, 6.25, 0.50, "anthropic_pricing_2026_04"),
+    ),
+    (
+        ("claude-opus-4-1", "claude-opus-4", "claude-opus-3"),
+        ClaudeTokenPricing(15.0, 75.0, 18.75, 1.50, "anthropic_pricing_2026_04"),
+    ),
+    (
+        ("claude-sonnet-4-6", "claude-sonnet-4-5", "claude-sonnet-4", "claude-sonnet-3-7"),
+        ClaudeTokenPricing(3.0, 15.0, 3.75, 0.30, "anthropic_pricing_2026_04"),
+    ),
+    (
+        ("claude-haiku-4-5",),
+        ClaudeTokenPricing(1.0, 5.0, 1.25, 0.10, "anthropic_pricing_2026_04"),
+    ),
+    (
+        ("claude-haiku-3-5",),
+        ClaudeTokenPricing(0.80, 4.0, 1.0, 0.08, "anthropic_pricing_2026_04"),
+    ),
+    (
+        ("claude-haiku-3",),
+        ClaudeTokenPricing(0.25, 1.25, 0.30, 0.03, "anthropic_pricing_2026_04"),
+    ),
+)
+_UNKNOWN_CLAUDE_PRICING = ClaudeTokenPricing(
+    3.0,
+    15.0,
+    3.75,
+    0.30,
+    "fallback_sonnet_family_estimate",
+)
+
 
 def instructor_semantic_retrying(max_attempts: int) -> AsyncRetrying:
     """Return Instructor retry policy for semantic/parse failures only.
@@ -196,26 +250,58 @@ def usage_dict(response: Any) -> dict[str, int] | None:
     }
 
 
+def _bare_model_name(model: str) -> str:
+    return (model or "").split("/", 1)[-1].lower().replace(".", "-")
+
+
+def claude_token_pricing(model: str) -> ClaudeTokenPricing:
+    """Return the best known per-MTok Messages API pricing for a Claude model."""
+
+    bare = _bare_model_name(model)
+    for prefixes, pricing in _CLAUDE_PRICING_TABLE:
+        if any(bare == prefix or bare.startswith(f"{prefix}-") for prefix in prefixes):
+            return pricing
+    return _UNKNOWN_CLAUDE_PRICING
+
+
+def estimate_claude_messages_cost_usd(response: Any, *, model: str) -> float:
+    usage = usage_dict(response) or {}
+    pricing = claude_token_pricing(model)
+    return (
+        (int(usage.get("input_tokens", 0) or 0) / _MTOK) * pricing.input
+        + (int(usage.get("output_tokens", 0) or 0) / _MTOK) * pricing.output
+        + (int(usage.get("cache_creation_input_tokens", 0) or 0) / _MTOK) * pricing.cache_write_5m
+        + (int(usage.get("cache_read_input_tokens", 0) or 0) / _MTOK) * pricing.cache_read
+    )
+
+
 def synthesize_cost_summary(response: Any, *, model: str, elapsed_s: float) -> str:
     usage = usage_dict(response) or {}
     in_tok = int(usage.get("input_tokens", 0) or 0)
     out_tok = int(usage.get("output_tokens", 0) or 0)
-    # Sonnet-family indicative pricing used by existing Phase 4 host API paths.
-    cost = (in_tok / 1_000_000) * 3.0 + (out_tok / 1_000_000) * 15.0
+    cache_create = int(usage.get("cache_creation_input_tokens", 0) or 0)
+    cache_read = int(usage.get("cache_read_input_tokens", 0) or 0)
+    pricing = claude_token_pricing(model)
+    cost = estimate_claude_messages_cost_usd(response, model=model)
     return json.dumps(
         {
             "total_cost_usd": cost,
             "num_turns": 1,
             "duration_ms": int(elapsed_s * 1000),
             "session_id": getattr(response, "id", None),
+            "pricing": {
+                "source": pricing.source,
+                "input_usd_per_mtok": pricing.input,
+                "output_usd_per_mtok": pricing.output,
+                "cache_write_5m_usd_per_mtok": pricing.cache_write_5m,
+                "cache_read_usd_per_mtok": pricing.cache_read,
+            },
             "model_usage": {
                 model: {
                     "input_tokens": in_tok,
                     "output_tokens": out_tok,
-                    "cache_creation_input_tokens": int(
-                        usage.get("cache_creation_input_tokens", 0) or 0
-                    ),
-                    "cache_read_input_tokens": int(usage.get("cache_read_input_tokens", 0) or 0),
+                    "cache_creation_input_tokens": cache_create,
+                    "cache_read_input_tokens": cache_read,
                 }
             },
         }
@@ -236,7 +322,9 @@ def _summarize_tools(tools: Any) -> list[dict[str, Any]] | None:
                 }
             )
         else:
-            summarized.append({"type": type(tool).__name__, "repr_sha256": _stable_sha256(repr(tool))})
+            summarized.append(
+                {"type": type(tool).__name__, "repr_sha256": _stable_sha256(repr(tool))}
+            )
     return summarized
 
 
