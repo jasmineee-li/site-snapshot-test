@@ -659,6 +659,7 @@ async def run_phase_0a(
         )
 
     manifest = json.loads(manifest_json)
+    _repair_manifest_paths(manifest, benchmark_root)
     missing_paths, unsafe_paths = _validate_manifest_paths(manifest, benchmark_root)
     if unsafe_paths:
         raise RuntimeError(
@@ -700,6 +701,7 @@ async def run_phase_0a(
         manifest_json = outputs.get("/workspace/output/BENCHMARK_MANIFEST.json")
         if manifest_json:
             manifest = json.loads(manifest_json)
+            _repair_manifest_paths(manifest, benchmark_root)
             missing_paths, unsafe_paths = _validate_manifest_paths(manifest, benchmark_root)
             if unsafe_paths:
                 raise RuntimeError(
@@ -725,6 +727,64 @@ async def run_phase_0a(
         len(manifest.get("evaluation", {}).get("eval_types", [])),
     )
     return manifest
+
+
+def _repair_manifest_paths(manifest: dict, benchmark_root: Path) -> None:
+    """Apply deterministic, verified repairs for common manifest path shapes.
+
+    Phase 0a is intentionally exploratory, but path existence is a host-side
+    contract. When a model emits a near-miss path and an unambiguous existing
+    sibling path can be verified under the benchmark root, repair it before
+    spending another sandbox attempt. This preserves fail-closed validation:
+    unresolved, unsafe, or ambiguous paths still fail below.
+    """
+    root = Path(benchmark_root).resolve()
+    for site in manifest.get("sites", []):
+        if not isinstance(site, dict):
+            continue
+        source_path = site.get("source_path")
+        site_name = site.get("name")
+        if not isinstance(source_path, str) or not isinstance(site_name, str):
+            continue
+        repaired = _repair_site_source_path(source_path, site_name, root)
+        if repaired is not None:
+            site["source_path"] = repaired
+
+
+def _repair_site_source_path(source_path: str, site_name: str, root: Path) -> str | None:
+    try:
+        current = _resolve_manifest_path(root, source_path)
+    except ValueError:
+        return None
+    if current.exists():
+        return None
+
+    raw = source_path.strip().strip("/")
+    if not raw:
+        return None
+    candidates = [
+        f"{raw}/sites/{site_name}",
+        f"{raw}/site/{site_name}",
+    ]
+    for prefix in ("docker", "environments"):
+        marker = f"/{prefix}/"
+        if marker in f"/{raw}/":
+            before, after = raw.split(f"{prefix}/", 1)
+            if after and not after.startswith("sites/"):
+                candidates.append(f"{before}{prefix}/sites/{after}")
+
+    existing: list[str] = []
+    for candidate in candidates:
+        try:
+            resolved = _resolve_manifest_path(root, candidate)
+        except ValueError:
+            continue
+        if resolved.exists():
+            existing.append(candidate)
+    unique = sorted(set(existing))
+    if len(unique) == 1:
+        return unique[0]
+    return None
 
 
 def _validate_manifest_paths(

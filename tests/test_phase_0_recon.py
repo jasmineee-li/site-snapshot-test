@@ -164,6 +164,53 @@ def _benchmark_setup(tmp_path):
     return benchmark_root, source_file
 
 
+def test_phase_0a_repairs_webarena_verified_site_source_paths(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    (benchmark_root / "dev/environments/docker/sites/gitlab").mkdir(parents=True)
+    (benchmark_root / "dev/environments/docker/sites/reddit").mkdir(parents=True)
+    manifest = {
+        "sites": [
+            {"name": "gitlab", "source_path": "dev/environments/docker/gitlab"},
+            {"name": "reddit", "source_path": "dev/environments/docker/reddit"},
+        ],
+        "evaluation": {"harness_paths": [], "task_definition_paths": []},
+    }
+
+    phase_0_recon._repair_manifest_paths(manifest, benchmark_root)
+
+    assert manifest["sites"] == [
+        {"name": "gitlab", "source_path": "dev/environments/docker/sites/gitlab"},
+        {"name": "reddit", "source_path": "dev/environments/docker/sites/reddit"},
+    ]
+    missing, unsafe = phase_0_recon._validate_manifest_paths(manifest, benchmark_root)
+    assert missing == []
+    assert unsafe == []
+
+
+def test_phase_0a_does_not_repair_unsafe_or_unmatched_source_paths(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    manifest = {
+        "sites": [
+            {"name": "gitlab", "source_path": "env/docker/gitlab"},
+            {"name": "reddit", "source_path": "../reddit"},
+        ],
+        "evaluation": {"harness_paths": [], "task_definition_paths": []},
+    }
+
+    phase_0_recon._repair_manifest_paths(manifest, benchmark_root)
+
+    assert manifest["sites"] == [
+        {"name": "gitlab", "source_path": "env/docker/gitlab"},
+        {"name": "reddit", "source_path": "../reddit"},
+    ]
+    missing, unsafe = phase_0_recon._validate_manifest_paths(manifest, benchmark_root)
+    assert missing == ["sites[gitlab].source_path: env/docker/gitlab"]
+    assert unsafe == [
+        "sites[reddit].source_path: Manifest path must not traverse out of root: ../reddit"
+    ]
+
+
 @pytest.mark.asyncio
 async def test_run_phase_0c_fails_when_any_tier_output_is_missing(monkeypatch, tmp_path):
     benchmark_root, source_file = _benchmark_setup(tmp_path)
