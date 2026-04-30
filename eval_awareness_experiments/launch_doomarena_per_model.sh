@@ -40,6 +40,7 @@ SPLITS="${SPLITS:-reddit gitlab}"
 MODEL_STACK_FILTER="${MODEL_STACK_FILTER:-all}"
 ARM_FILTER="${ARM_FILTER:-all}"
 JUDGES="${JUDGES:-}"
+SKIP_EXISTING="${SKIP_EXISTING:-0}"
 
 # Split subprocess timeout is a last-resort guard for process-level hangs.
 # AgentLab still has the tighter per-task episode timeout. Default this to
@@ -49,6 +50,10 @@ BROWSER_TASK_TIMEOUT="${BROWSER_TASK_TIMEOUT:-900}"
 BROWSER_STAGE1_OVERHEAD="${BROWSER_STAGE1_OVERHEAD:-1800}"
 BROWSER_STAGE1_TIMEOUT="${BROWSER_STAGE1_TIMEOUT:-$((N_TASKS * BROWSER_TASK_TIMEOUT + BROWSER_STAGE1_OVERHEAD))}"
 BROWSER_STAGE1_IDLE_TIMEOUT="${BROWSER_STAGE1_IDLE_TIMEOUT:-3600}"
+SKIP_EXISTING_FLAG=""
+if [ "$SKIP_EXISTING" = "1" ] || [ "$SKIP_EXISTING" = "true" ]; then
+    SKIP_EXISTING_FLAG="--skip-existing"
+fi
 
 DRY_RUN=""
 if [ "$1" = "--dry-run" ]; then
@@ -73,6 +78,7 @@ else
 fi
 echo "  browser_stage1_timeout=${BROWSER_STAGE1_TIMEOUT}s"
 echo "  browser_stage1_idle_timeout=${BROWSER_STAGE1_IDLE_TIMEOUT}s"
+echo "  skip_existing=${SKIP_EXISTING}"
 echo
 
 # (model_id | stack_slug | gitlab_port | reddit_port)
@@ -164,7 +170,8 @@ for entry in "${MODEL_STACKS[@]}"; do
                 --browser-stage1-timeout "$BROWSER_STAGE1_TIMEOUT" \
                 --browser-stage1-idle-timeout "$BROWSER_STAGE1_IDLE_TIMEOUT" \
                 --splits $SPLITS \
-                --output-base "$OUTPUT_BASE"
+                --output-base "$OUTPUT_BASE" \
+                $SKIP_EXISTING_FLAG
             status=$?
             set -e
             if [ "$status" -ne 0 ]; then

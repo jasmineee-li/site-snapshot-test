@@ -158,7 +158,15 @@ def run_causal_experiment(
     completed_cells: set[tuple[str, str, str]] = set()
     if skip_existing and output_base.exists():
         from eval_awareness_experiments.run_manifest import scan as scan_manifest
-        m = scan_manifest(output_base)
+        expected_splits_by_benchmark: dict[str, list[str]] = {}
+        for benchmark in benchmarks:
+            effective_splits = (benchmark_splits or {}).get(benchmark, splits)
+            if effective_splits:
+                expected_splits_by_benchmark[benchmark] = list(effective_splits)
+        m = scan_manifest(
+            output_base,
+            expected_splits_by_benchmark=expected_splits_by_benchmark or None,
+        )
         for c in m["cells"]:
             if c["status"].startswith("complete"):
                 completed_cells.add((c["benchmark"], c["arm"], c["model_slug"]))

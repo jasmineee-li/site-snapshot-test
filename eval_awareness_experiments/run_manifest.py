@@ -170,7 +170,13 @@ def _summarize_trajectories(trajectory_dir: Path) -> dict[str, Any]:
     return {"n_trajectories": n_traj, "n_attacks": n_attack, "n_passes": n_pass}
 
 
-def _scan_cell(cell_dir: Path, benchmark: str, arm: str, model_slug: str) -> dict[str, Any]:
+def _scan_cell(
+    cell_dir: Path,
+    benchmark: str,
+    arm: str,
+    model_slug: str,
+    expected_splits_override: list[str] | None = None,
+) -> dict[str, Any]:
     """Look at `<cell_dir>/<benchmark>/<split>/` for trajectory + judge data."""
     inner_bench_dir = cell_dir / benchmark
     cell: dict[str, Any] = {
@@ -232,7 +238,7 @@ def _scan_cell(cell_dir: Path, benchmark: str, arm: str, model_slug: str) -> dic
     # Strict completeness: every expected split must have at least one
     # judged trajectory. Old check skipped cells with judges in only ONE
     # split, which made --skip-existing skip half-empty DoomArena cells.
-    expected_splits = _expected_splits_for(benchmark)
+    expected_splits = _expected_splits_for(benchmark, expected_splits_override)
     seen_splits = {s["name"] for s in cell["splits"]}
     judged_splits: set[str] = set()
     for split_dir in (inner_bench_dir.iterdir() if inner_bench_dir.exists() else []):
@@ -244,9 +250,10 @@ def _scan_cell(cell_dir: Path, benchmark: str, arm: str, model_slug: str) -> dic
     cell["judged_splits"] = sorted(judged_splits)
     missing_splits = [s for s in expected_splits if s not in judged_splits]
 
-    if cell["n_trajectories"] == 0:
+    has_judges = cell["n_vea"] > 0 or cell["n_5pq"] > 0
+    if not seen_splits and not has_judges:
         cell["status"] = "empty"
-    elif cell["n_vea"] == 0 and cell["n_5pq"] == 0:
+    elif not has_judges:
         cell["status"] = "run-only (no judges)"
     elif missing_splits:
         cell["status"] = f"partial (missing splits: {','.join(missing_splits)})"
@@ -263,9 +270,13 @@ def _scan_cell(cell_dir: Path, benchmark: str, arm: str, model_slug: str) -> dic
     return cell
 
 
-def scan(results_dir: Path) -> dict[str, Any]:
+def scan(
+    results_dir: Path,
+    expected_splits_by_benchmark: dict[str, list[str]] | None = None,
+) -> dict[str, Any]:
     """Walk `results_dir/<benchmark>/<arm>/<model>/` and produce a manifest dict."""
     cells: list[dict[str, Any]] = []
+    expected_splits_by_benchmark = expected_splits_by_benchmark or {}
     if results_dir.exists():
         for benchmark_dir in sorted(results_dir.iterdir()):
             if not benchmark_dir.is_dir():
@@ -278,7 +289,13 @@ def scan(results_dir: Path) -> dict[str, Any]:
                 for model_dir in sorted(arm_dir.iterdir()):
                     if not model_dir.is_dir():
                         continue
-                    cell = _scan_cell(model_dir, benchmark, arm, model_dir.name)
+                    cell = _scan_cell(
+                        model_dir,
+                        benchmark,
+                        arm,
+                        model_dir.name,
+                        expected_splits_by_benchmark.get(benchmark),
+                    )
                     cells.append(cell)
     return {
         "scanned_at": datetime.now(timezone.utc).isoformat(),
