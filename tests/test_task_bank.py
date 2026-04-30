@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from worldsim import main as worldsim_main
 from worldsim import task_bank
 
 
@@ -114,3 +115,60 @@ def test_summarize_task_bank_uses_counts_without_private_payloads(tmp_path: Path
     assert summary["by_surface"] == {"issue.title": 1}
     assert summary["by_archetype"] == {"field_status_check": 1}
     assert "private_note" not in json.dumps(summary)
+
+
+def test_task_bank_cli_appends_phase2c_and_reports_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "state"))
+    run_dir = tmp_path / "run"
+    phase2 = run_dir / "phase_2"
+    phase2.mkdir(parents=True)
+    (phase2 / "adversarial_tasks.json").write_text(
+        json.dumps([_admitted_task()]),
+        encoding="utf-8",
+    )
+
+    rc = worldsim_main.main(["task-bank", "append", "--run-dir", str(run_dir)])
+
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "Task bank append: appended=1" in out
+    assert "By site: gitlab=1" in out
+    assert "private_note" not in out
+
+    rc = worldsim_main.main(["task-bank", "status"])
+
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "Events: total=1 admitted=1 phase4_results=0" in out
+    assert "By archetype: field_status_check=1" in out
+
+
+def test_task_bank_cli_export_summary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "state"))
+    run_dir = tmp_path / "run"
+    phase2 = run_dir / "phase_2"
+    phase2.mkdir(parents=True)
+    (phase2 / "adversarial_tasks.json").write_text(
+        json.dumps([_admitted_task()]),
+        encoding="utf-8",
+    )
+    export_path = tmp_path / "summary.json"
+
+    assert worldsim_main.main(["task-bank", "append", "--run-dir", str(run_dir)]) == 0
+    capsys.readouterr()
+    assert (
+        worldsim_main.main(["task-bank", "export", "--summary", "--output", str(export_path)])
+        == 0
+    )
+
+    payload = json.loads(export_path.read_text(encoding="utf-8"))
+    assert payload["admitted_tasks"] == 1
+    assert payload["by_site"] == {"gitlab": 1}

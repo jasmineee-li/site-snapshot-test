@@ -564,6 +564,52 @@ def build_parser() -> argparse.ArgumentParser:
     )
     inspect_cmd.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
 
+    task_bank_cmd = subparsers.add_parser(
+        "task-bank",
+        help="Manage the append-only admitted-task bank.",
+    )
+    task_bank_cmd.add_argument(
+        "--path",
+        type=Path,
+        default=None,
+        help="Task-bank JSONL path. Defaults to WORLDSIM_STATE_DIR/task_bank/events.jsonl.",
+    )
+    task_bank_sub = task_bank_cmd.add_subparsers(dest="task_bank_command", required=True)
+
+    task_bank_append = task_bank_sub.add_parser(
+        "append",
+        help="Append admitted tasks from a verified Phase 2c run.",
+    )
+    task_bank_append.add_argument(
+        "--run-dir",
+        type=Path,
+        required=True,
+        help="WorldSim run dir containing phase_2/adversarial_tasks.json.",
+    )
+    task_bank_append.add_argument(
+        "--source",
+        choices=("phase2c",),
+        default="phase2c",
+        help="Source artifact to append from.",
+    )
+    task_bank_append.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+
+    task_bank_status = task_bank_sub.add_parser("status", help="Show task-bank coverage counts.")
+    task_bank_status.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+
+    task_bank_export = task_bank_sub.add_parser("export", help="Export task-bank events or summary.")
+    task_bank_export.add_argument(
+        "--output",
+        type=Path,
+        required=True,
+        help="Output JSON path.",
+    )
+    task_bank_export.add_argument(
+        "--summary",
+        action="store_true",
+        help="Export summary JSON instead of raw event records.",
+    )
+
     return parser
 
 
@@ -711,7 +757,96 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "inspect":
         return _dispatch_inspect(args)
 
+    if args.command == "task-bank":
+        return _dispatch_task_bank(args)
+
     return 0
+
+
+def _task_bank_path_from_args(args: argparse.Namespace) -> Path:
+    from worldsim.task_bank import default_task_bank_path
+
+    return Path(getattr(args, "path", None) or default_task_bank_path())
+
+
+def _format_task_bank_summary(summary: dict[str, Any], *, path: Path) -> str:
+    def fmt_counts(values: Any) -> str:
+        if not isinstance(values, dict) or not values:
+            return "none"
+        return ", ".join(f"{key}={value}" for key, value in sorted(values.items()))
+
+    return "\n".join(
+        [
+            f"Task bank: {path}",
+            (
+                "Events: "
+                f"total={summary.get('total_events', 0)} "
+                f"admitted={summary.get('admitted_tasks', 0)} "
+                f"phase4_results={summary.get('phase4_results', 0)}"
+            ),
+            f"By site: {fmt_counts(summary.get('by_site'))}",
+            f"By origin: {fmt_counts(summary.get('by_origin'))}",
+            f"By surface: {fmt_counts(summary.get('by_surface'))}",
+            f"By archetype: {fmt_counts(summary.get('by_archetype'))}",
+            (
+                "Latest: "
+                f"{summary.get('latest_created_at') or 'none'} "
+                f"{summary.get('latest_event_id') or 'none'}"
+            ),
+        ]
+    )
+
+
+def _dispatch_task_bank(args: argparse.Namespace) -> int:
+    import json
+
+    from worldsim.task_bank import (
+        TaskBankError,
+        admitted_events_from_phase2c_run,
+        append_task_bank_events,
+        load_task_bank,
+        summarize_task_bank,
+    )
+
+    path = _task_bank_path_from_args(args)
+    try:
+        if args.task_bank_command == "append":
+            events = admitted_events_from_phase2c_run(Path(args.run_dir))
+            appended = append_task_bank_events(path, events)
+            payload = {
+                "task_bank_path": str(path),
+                "run_dir": str(args.run_dir),
+                "source": args.source,
+                "appended": len(appended),
+                "summary": summarize_task_bank(load_task_bank(path)),
+            }
+            if args.json:
+                print(json.dumps(payload, indent=2, sort_keys=True))
+            else:
+                print(
+                    f"Task bank append: appended={payload['appended']} "
+                    f"path={payload['task_bank_path']}"
+                )
+                print(_format_task_bank_summary(payload["summary"], path=path))
+            return 0
+        if args.task_bank_command == "status":
+            summary = summarize_task_bank(load_task_bank(path))
+            if args.json:
+                print(json.dumps({"task_bank_path": str(path), "summary": summary}, indent=2, sort_keys=True))
+            else:
+                print(_format_task_bank_summary(summary, path=path))
+            return 0
+        if args.task_bank_command == "export":
+            events = load_task_bank(path)
+            payload: Any = summarize_task_bank(events) if args.summary else events
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+            print(f"Task bank export: wrote {args.output}")
+            return 0
+    except TaskBankError as exc:
+        print(f"task-bank failed: {exc}", file=sys.stderr)
+        return 2
+    return 2
 
 
 def _dispatch_status(args: argparse.Namespace) -> int:
