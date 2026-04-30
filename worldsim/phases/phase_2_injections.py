@@ -3587,9 +3587,24 @@ def _materialize_strategy_plans_from_exposure(
             )
         benign_id = str(plan.get("benign_task_id") or "")
         contract_id = str(plan.get("exposure_contract_id") or "")
-        contract = (
-            contracts_by_id.get(contract_id) if contract_id else exposure_contracts.get(benign_id)
-        )
+        contract = contracts_by_id.get(contract_id) if contract_id else None
+        if not isinstance(contract, Mapping):
+            fallback_contract = exposure_contracts.get(benign_id)
+            if isinstance(fallback_contract, Mapping):
+                contract = fallback_contract
+                actual_contract_id = str(contract.get("contract_id") or "")
+                if contract_id and contract_id != actual_contract_id:
+                    adjustments = plan.setdefault("strategy_adjustments", [])
+                    if isinstance(adjustments, list):
+                        adjustments.append(
+                            {
+                                "field": "exposure_contract_id",
+                                "from": contract_id,
+                                "to": actual_contract_id,
+                                "reason": "planner_contract_id_mismatch_for_known_benign_task",
+                                "benign_task_id": benign_id,
+                            }
+                        )
         if not isinstance(contract, Mapping):
             raise ValueError(
                 f"plan {plan.get('id', '?')!r} references no known exposure contract "
