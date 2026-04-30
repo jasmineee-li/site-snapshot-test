@@ -1,0 +1,14 @@
+[
+  {
+    "benchmark": "doomarena",
+    "arm": "xml_safety",
+    "condition": "baseline",
+    "model": "anthropic/claude-sonnet-4.6:thinking",
+    "preset": "none",
+    "system_prompt_frame": "safety_test",
+    "stage": "all",
+    "status": "dry_run",
+    "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_safety/anthropic_claude-sonnet-4.6_thinking",
+    "cmd": "/local_data/temp/max/browser-sim/.venv/bin/python -m eval_awareness_experiments.run_safety_pipeline --benchmark doomarena --model-name anthropic/claude-sonnet-4.6:thinking --condition baseline --extra-instructions-preset none --system-prompt-frame safety_test --stage all --output-dir eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_safety/anthropic_claude-sonnet-4.6_thinking --tasks-per-split 50 --splits reddit shopping shopping_admin gitlab"
+  }
+]

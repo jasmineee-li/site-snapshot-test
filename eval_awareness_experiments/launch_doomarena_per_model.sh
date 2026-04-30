@@ -272,7 +272,7 @@ echo "Launched ${#PIDS[@]} generic stack workers for ${#CELL_SPECS[@]} selected 
 echo
 echo "Monitor:"
 echo "  tail -f $LOG_DIR/*.log"
-echo "  $PYTHON -m eval_awareness_experiments.run_manifest --results-dir $OUTPUT_BASE --print"
+echo "  $PYTHON -m eval_awareness_experiments.run_manifest --results-dir $OUTPUT_BASE --tasks-per-split $N_TASKS --benchmark-splits doomarena=$(echo "$SPLITS" | tr ' ' ',') --print"
 echo
 echo "Kill:"
 echo "  pkill -f 'run_causal_experiment.*$OUTPUT_BASE'"

@@ -117,6 +117,11 @@ def run_causal_experiment(
     browser_splits_sequential: bool = False,
     browser_relaunch_incomplete: bool = False,
     wasp_task_dir: str | None = None,
+    skip_wasp_asr: bool = False,
+    wasp_asr_classifier_model: str | None = None,
+    wasp_asr_concurrency: int | None = None,
+    wasp_asr_max_steps_per_task: int | None = None,
+    wasp_asr_force: bool = False,
 ) -> None:
     combos = list(product(benchmarks, conditions, models, presets, frames))
     print(f"Causal experiment: {len(combos)} combinations")
@@ -146,6 +151,13 @@ def run_causal_experiment(
         print("  Browser relaunch incomplete: ON")
     if wasp_task_dir is not None:
         print(f"  WASP task dir: {wasp_task_dir}")
+    if skip_wasp_asr:
+        print("  WASP ASR classifier: skipped")
+    elif "wasp" in benchmarks:
+        print(
+            "  WASP ASR classifier: "
+            f"{wasp_asr_classifier_model or 'pipeline default'}"
+        )
     if skip_existing:
         print(f"  Skip-existing: ON (cells already complete will be skipped)")
     print()
@@ -169,6 +181,11 @@ def run_causal_experiment(
         m = scan_manifest(
             output_base,
             expected_splits_by_benchmark=expected_splits_by_benchmark or None,
+            expected_tasks_per_split_by_benchmark={
+                benchmark: tasks_per_split
+                for benchmark in benchmarks
+                if tasks_per_split is not None
+            } or None,
         )
         for c in m["cells"]:
             if c["status"].startswith("complete"):
@@ -248,6 +265,20 @@ def run_causal_experiment(
             cmd.append("--browser-relaunch-incomplete")
         if benchmark == "wasp" and wasp_task_dir is not None:
             cmd.extend(["--wasp-task-dir", wasp_task_dir])
+        if benchmark == "wasp":
+            if skip_wasp_asr:
+                cmd.append("--skip-wasp-asr")
+            if wasp_asr_classifier_model is not None:
+                cmd.extend(["--wasp-asr-classifier-model", wasp_asr_classifier_model])
+            if wasp_asr_concurrency is not None:
+                cmd.extend(["--wasp-asr-concurrency", str(wasp_asr_concurrency)])
+            if wasp_asr_max_steps_per_task is not None:
+                cmd.extend([
+                    "--wasp-asr-max-steps-per-task",
+                    str(wasp_asr_max_steps_per_task),
+                ])
+            if wasp_asr_force:
+                cmd.append("--wasp-asr-force")
 
         label = f"{benchmark}/{arm}/{model} (preset={preset}, frame={frame}, condition={condition})"
         print(f"[{i}/{len(combos)}] {label}")
@@ -358,6 +389,19 @@ def main() -> None:
                         help="Forwarded to run_safety_pipeline for WASP. "
                              "Use this to point a model stream at its own "
                              "planted task pool, e.g. /tmp/wasp_full_gpt.")
+    parser.add_argument("--skip-wasp-asr", action="store_true",
+                        help="Forwarded to run_safety_pipeline for WASP. "
+                             "Disables automatic post-hoc ASR classification.")
+    parser.add_argument("--wasp-asr-classifier-model", default=None,
+                        help="Forwarded to run_safety_pipeline for WASP. "
+                             "Defaults to the pipeline's ASR classifier model.")
+    parser.add_argument("--wasp-asr-concurrency", type=int, default=None,
+                        help="Forwarded to run_safety_pipeline for WASP.")
+    parser.add_argument("--wasp-asr-max-steps-per-task", type=int, default=None,
+                        help="Forwarded to run_safety_pipeline for WASP.")
+    parser.add_argument("--wasp-asr-force", action="store_true",
+                        help="Forwarded to run_safety_pipeline for WASP. "
+                             "Recompute existing wasp_asr_<split>.jsonl files.")
     args = parser.parse_args()
     benchmark_splits = _parse_benchmark_splits(args.benchmark_splits)
 
@@ -384,6 +428,11 @@ def main() -> None:
         browser_splits_sequential=args.browser_splits_sequential,
         browser_relaunch_incomplete=args.browser_relaunch_incomplete,
         wasp_task_dir=args.wasp_task_dir,
+        skip_wasp_asr=args.skip_wasp_asr,
+        wasp_asr_classifier_model=args.wasp_asr_classifier_model,
+        wasp_asr_concurrency=args.wasp_asr_concurrency,
+        wasp_asr_max_steps_per_task=args.wasp_asr_max_steps_per_task,
+        wasp_asr_force=args.wasp_asr_force,
     )
 
 

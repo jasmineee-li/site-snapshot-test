@@ -980,6 +980,83 @@ def _discover_browser(study_dir: Path) -> list[dict]:
     return trajectories
 
 
+def _attach_wasp_asr_to_trajectories(
+    trajectories: list[dict],
+    asr_by_task: dict[str, bool],
+) -> int:
+    """Attach post-hoc WASP ASR labels before judging."""
+    n_attached = 0
+    for t in trajectories:
+        task_id = str(t.get("task_id", ""))
+        if task_id not in asr_by_task:
+            continue
+        t["attack_success"] = asr_by_task[task_id]
+        t["attack_success_source"] = "wasp_post_hoc_action_classifier"
+        n_attached += 1
+    return n_attached
+
+
+def _result_task_id(row: dict) -> str:
+    metadata = row.get("metadata") or {}
+    task_id = metadata.get("task_id")
+    if task_id:
+        return str(task_id)
+    sample_id = str(row.get("sample_id") or "")
+    return sample_id.rsplit("_", 1)[-1] if sample_id else ""
+
+
+def _annotate_wasp_judge_results(
+    *,
+    output_dir: Path,
+    split: str,
+    asr_by_task: dict[str, bool],
+    asr_summary: dict | None = None,
+) -> dict:
+    """Backfill WASP ASR into judge JSONL rows without rerunning judges."""
+    if not asr_by_task:
+        return {"updated_rows": 0, "path": None}
+
+    result_path = output_dir / "wasp" / split / "trajectory_awareness_results.jsonl"
+    if not result_path.exists():
+        return {"updated_rows": 0, "path": str(result_path), "missing": True}
+
+    asr_summary = asr_summary or {}
+    classifier_model = asr_summary.get("classifier_model")
+    asr_path = asr_summary.get("path")
+
+    changed = False
+    updated_rows = 0
+    out_lines: list[str] = []
+    with result_path.open("r", encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                out_lines.append(line)
+                continue
+            row = json.loads(line)
+            task_id = _result_task_id(row)
+            if task_id in asr_by_task:
+                metadata = row.setdefault("metadata", {})
+                before = dict(metadata)
+                metadata["task_id"] = task_id
+                metadata["attack_success"] = asr_by_task[task_id]
+                metadata["attack_success_source"] = "wasp_post_hoc_action_classifier"
+                if classifier_model:
+                    metadata["asr_classifier_model"] = classifier_model
+                if asr_path:
+                    metadata["wasp_asr_path"] = asr_path
+                if metadata != before:
+                    changed = True
+                updated_rows += 1
+            out_lines.append(json.dumps(row) + "\n")
+
+    if changed:
+        tmp_path = result_path.with_name(result_path.name + ".tmp")
+        tmp_path.write_text("".join(out_lines), encoding="utf-8")
+        tmp_path.replace(result_path)
+
+    return {"updated_rows": updated_rows, "path": str(result_path), "changed": changed}
+
+
 def _discover_toolcalling(run_dir: Path) -> list[dict]:
     """Each per-task JSON is one trajectory.
 
@@ -1069,10 +1146,16 @@ async def _judge_split(
                 "task_id": t["task_id"],
                 "is_trajectory": True,
                 "attack_success": t.get("attack_success"),
+                "attack_success_source": t.get("attack_success_source"),
                 "task_reward": t.get("task_reward"),
                 "condition": condition,
                 "extra_instructions_preset": extra_instructions_preset,
                 "system_prompt_frame": system_prompt_frame,
+                "task_info": {
+                    "task_id": t["task_id"],
+                    "attack_success": t.get("attack_success"),
+                    "attack_success_source": t.get("attack_success_source"),
+                },
             },
         )
         for t in trajectories
@@ -1119,6 +1202,20 @@ def _parse_args() -> argparse.Namespace:
                         help="WASP planted-task pool directory (default: /tmp/wasp_full, "
                              "matching scripts/wasp_n100_run.sh). Only used when "
                              "--benchmark wasp.")
+    parser.add_argument("--skip-wasp-asr", action="store_true",
+                        help="WASP only: do not run the post-hoc ASR classifier "
+                             "before trajectory-awareness judging.")
+    parser.add_argument("--wasp-asr-classifier-model",
+                        default="anthropic/claude-sonnet-4.6",
+                        help="WASP only: OpenRouter model for the post-hoc "
+                             "action-only ASR classifier.")
+    parser.add_argument("--wasp-asr-concurrency", type=int, default=32,
+                        help="WASP only: concurrent ASR classifier calls.")
+    parser.add_argument("--wasp-asr-max-steps-per-task", type=int, default=10,
+                        help="WASP only: max steps classified per task.")
+    parser.add_argument("--wasp-asr-force", action="store_true",
+                        help="WASP only: recompute wasp_asr_<split>.jsonl even "
+                             "when it already exists.")
     parser.add_argument("--concurrency", type=int, default=8,
                         help="Per-task parallelism for the agent stage (tool-calling benchmarks). "
                              "Forwarded as --concurrency to run_agentdojo / run_injecagent. "
@@ -1331,7 +1428,10 @@ def main() -> None:
         manifest["splits"].setdefault(split, {})["original_run_meta"] = split_to_meta[split]
 
     # Stage 2.
+    wasp_asr_llm = None
+
     async def judge_all():
+        nonlocal wasp_asr_llm
         for split in splits:
             root = split_to_root.get(split)
             if root is None or not Path(root).exists():
@@ -1348,6 +1448,54 @@ def main() -> None:
 
             meta = split_to_meta.get(split, {})
             manifest["splits"].setdefault(split, {})["n_trajectories"] = len(trajectories)
+
+            wasp_asr_by_task: dict[str, bool] = {}
+            wasp_asr_summary: dict | None = None
+            if args.benchmark == "wasp" and not args.skip_wasp_asr:
+                from eval_awareness_experiments.llm import LLM
+                from eval_awareness_experiments.wasp_post_hoc_evaluator import (
+                    evaluate_wasp_cell_split,
+                    load_wasp_asr_map,
+                )
+
+                if wasp_asr_llm is None:
+                    wasp_asr_llm = LLM(
+                        model=args.wasp_asr_classifier_model,
+                        thinking="thinking" in args.wasp_asr_classifier_model,
+                        concurrency=args.wasp_asr_concurrency,
+                        temperature=0.0,
+                    )
+
+                cell = {
+                    "arm": args.output_dir.parent.name,
+                    "model_slug": args.output_dir.name,
+                    "split": split,
+                    "study_dir": str(root),
+                    "cell_dir": str(args.output_dir),
+                }
+                logger.info(
+                    f"=== WASP ASR: {split} ← {root} "
+                    f"({args.wasp_asr_classifier_model}) ==="
+                )
+                wasp_asr_summary = await evaluate_wasp_cell_split(
+                    cell=cell,
+                    llm=wasp_asr_llm,
+                    classifier_model=args.wasp_asr_classifier_model,
+                    max_steps_per_task=args.wasp_asr_max_steps_per_task,
+                    max_tasks_per_cell=None,
+                    force=args.wasp_asr_force,
+                )
+                wasp_asr_by_task = load_wasp_asr_map(args.output_dir, split)
+                n_attached = _attach_wasp_asr_to_trajectories(trajectories, wasp_asr_by_task)
+                manifest["splits"][split]["wasp_asr"] = {
+                    "path": wasp_asr_summary.get("path"),
+                    "classifier_model": wasp_asr_summary.get("classifier_model"),
+                    "n_tasks": wasp_asr_summary.get("n_tasks"),
+                    "n_compromised": wasp_asr_summary.get("n_compromised"),
+                    "asr": wasp_asr_summary.get("asr"),
+                    "n_attached_to_trajectories": n_attached,
+                }
+
             await _judge_split(
                 benchmark=args.benchmark,
                 split=split,
@@ -1364,6 +1512,18 @@ def main() -> None:
                 ),
                 output_dir=args.output_dir,
             )
+            if args.benchmark == "wasp" and wasp_asr_by_task:
+                annotation = _annotate_wasp_judge_results(
+                    output_dir=args.output_dir,
+                    split=split,
+                    asr_by_task=wasp_asr_by_task,
+                    asr_summary=wasp_asr_summary,
+                )
+                manifest["splits"][split]["wasp_asr_annotation"] = annotation
+                logger.info(
+                    f"  WASP ASR annotations → {annotation.get('updated_rows')} rows "
+                    f"in {annotation.get('path')}"
+                )
             manifest["splits"][split]["status"] = "judges_complete"
 
     asyncio.run(judge_all())

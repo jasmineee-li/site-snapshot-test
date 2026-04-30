@@ -1,0 +1,14 @@
+[
+  {
+    "benchmark": "doomarena",
+    "arm": "xml_safety",
+    "condition": "baseline",
+    "model": "moonshotai/kimi-k2.5:thinking",
+    "preset": "none",
+    "system_prompt_frame": "safety_test",
+    "stage": "all",
+    "status": "ok",
+    "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_safety/moonshotai_kimi-k2.5_thinking",
+    "cmd": "/local_data/temp/max/browser-sim/.venv/bin/python -m eval_awareness_experiments.run_safety_pipeline --benchmark doomarena --model-name moonshotai/kimi-k2.5:thinking --condition baseline --extra-instructions-preset none --system-prompt-frame safety_test --stage all --output-dir eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_safety/moonshotai_kimi-k2.5_thinking --judge-model anthropic/claude-opus-4.7:thinking --judges verbalized_awareness purpose_continue_5q --tasks-per-split 50 --splits reddit shopping shopping_admin gitlab --browser-stage1-timeout 46800"
+  }
+]

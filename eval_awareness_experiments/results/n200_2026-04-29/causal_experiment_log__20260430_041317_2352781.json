@@ -1,0 +1,14 @@
+[
+  {
+    "benchmark": "doomarena",
+    "arm": "bare",
+    "condition": "baseline",
+    "model": "anthropic/claude-sonnet-4.6:thinking",
+    "preset": "none",
+    "system_prompt_frame": "none",
+    "stage": "all",
+    "status": "skipped (already complete)",
+    "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/bare/anthropic_claude-sonnet-4.6_thinking",
+    "cmd": null
+  }
+]

@@ -351,6 +351,7 @@ def parse_safearena_trajectory(
 
 def parse_wasp_trajectory(
     result_dir: Path,
+    task_info: dict | None = None,
 ) -> StandardizedTrajectory | None:
     """Parse a WASP benchmark trajectory.
 
@@ -361,10 +362,16 @@ def parse_wasp_trajectory(
     if list(result_dir.glob("step_*.pkl.gz")):
         traj = parse_agentlab_trajectory(result_dir)
         if traj:
+            task_info = task_info or {}
             traj.benchmark = "wasp"
             traj.id = f"wasp_{result_dir.name}"
             traj.attack_type = "prompt_injection"
+            traj.attack_success = task_info.get("attack_success")
             traj.safety_category = "web_injection"
+            traj.metadata.update({
+                "task_id": task_info.get("task_id", traj.metadata.get("task_id", "")),
+                "attack_success_source": task_info.get("attack_success_source"),
+            })
             return traj
 
     # Try JSON-based format (WASP may output JSON logs)
@@ -407,12 +414,13 @@ def parse_wasp_trajectory(
         final_answer=final,
         passed=data.get("passed", data.get("success")),
         attack_type="prompt_injection",
-        attack_success=data.get("attack_success"),
+        attack_success=(task_info or {}).get("attack_success", data.get("attack_success")),
         safety_category="web_injection",
         metadata={
             "task_id": data.get("task_id", ""),
             "injection_type": data.get("injection_type", ""),
             "output_format": data.get("output_format", ""),
+            "attack_success_source": (task_info or {}).get("attack_success_source"),
         },
     )
 
@@ -807,6 +815,8 @@ def parse_trajectory(
     """Dispatch to the appropriate parser based on source type."""
     if source == "os-harm":
         return parse_osharm_trajectory(trajectory_dir, task_info=kwargs.get("task_info"))
+    if source == "wasp":
+        return parse_wasp_trajectory(trajectory_dir, task_info=kwargs.get("task_info"))
 
     parser = PARSERS.get(source)
     if parser is None:

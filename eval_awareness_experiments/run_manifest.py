@@ -101,10 +101,11 @@ def _aggregate_judge_results(jsonl_path: Path) -> dict[str, Any]:
     rows = _read_jsonl(jsonl_path)
     if not rows:
         return {
-            "n_vea": 0, "n_5pq": 0, "vea_count": 0,
+            "n_samples": 0, "n_vea": 0, "n_5pq": 0, "vea_count": 0,
             "align_share": None, "any_eval_share": None,
         }
 
+    sample_ids = {r.get("sample_id") for r in rows if r.get("sample_id")}
     rows_vea = [r for r in rows if r.get("experiment_type") == "trajectory_verbalized_awareness"]
     rows_5pq = [r for r in rows if r.get("experiment_type") == "trajectory_purpose_continue_5q"]
 
@@ -135,6 +136,7 @@ def _aggregate_judge_results(jsonl_path: Path) -> dict[str, Any]:
     any_share = sum(any_per_task) / len(any_per_task) if any_per_task else None
 
     return {
+        "n_samples": len(sample_ids),
         "n_vea": len(rows_vea),
         "n_5pq": len(rows_5pq),
         "vea_count": vea_count,
@@ -176,6 +178,7 @@ def _scan_cell(
     arm: str,
     model_slug: str,
     expected_splits_override: list[str] | None = None,
+    expected_tasks_per_split: int | None = None,
 ) -> dict[str, Any]:
     """Look at `<cell_dir>/<benchmark>/<split>/` for trajectory + judge data."""
     inner_bench_dir = cell_dir / benchmark
@@ -189,6 +192,7 @@ def _scan_cell(
         "n_trajectories": 0,
         "n_attacks": 0,
         "n_passes": 0,
+        "n_judged_samples": 0,
         "n_vea": 0,
         "n_5pq": 0,
         "vea_count": 0,
@@ -205,7 +209,7 @@ def _scan_cell(
         if not split_dir.is_dir():
             continue
         split_summary = _summarize_trajectories(split_dir)
-        cell["splits"].append({"name": split_dir.name, **split_summary})
+        split_entry = {"name": split_dir.name, **split_summary, "n_judged_samples": 0}
         cell["n_trajectories"] += split_summary["n_trajectories"]
         cell["n_attacks"] += split_summary["n_attacks"]
         cell["n_passes"] += split_summary["n_passes"]
@@ -213,6 +217,8 @@ def _scan_cell(
         judge_jsonl = split_dir / "trajectory_awareness_results.jsonl"
         if judge_jsonl.exists():
             agg = _aggregate_judge_results(judge_jsonl)
+            split_entry["n_judged_samples"] = agg["n_samples"]
+            cell["n_judged_samples"] += agg["n_samples"]
             cell["n_vea"] += agg["n_vea"]
             cell["n_5pq"] += agg["n_5pq"]
             cell["vea_count"] += agg["vea_count"]
@@ -222,6 +228,7 @@ def _scan_cell(
                 cell["align_share"] = agg["align_share"]
             if agg["any_eval_share"] is not None:
                 cell["any_eval_share"] = agg["any_eval_share"]
+        cell["splits"].append(split_entry)
 
         # Track latest mtime for "last updated" display.
         for f in split_dir.rglob("*"):
@@ -235,20 +242,37 @@ def _scan_cell(
     if last_mtime:
         cell["last_modified"] = datetime.fromtimestamp(last_mtime, tz=timezone.utc).isoformat()
 
-    # Strict completeness: every expected split must have at least one
-    # judged trajectory. Old check skipped cells with judges in only ONE
-    # split, which made --skip-existing skip half-empty DoomArena cells.
+    # Strict completeness: every expected split must be present and, when
+    # `--tasks-per-split` is known, must have at least that many unique judged
+    # samples. Old checks only required the JSONL to exist, so a half-filled
+    # split could make --skip-existing skip a partial browser cell.
     expected_splits = _expected_splits_for(benchmark, expected_splits_override)
     seen_splits = {s["name"] for s in cell["splits"]}
-    judged_splits: set[str] = set()
-    for split_dir in (inner_bench_dir.iterdir() if inner_bench_dir.exists() else []):
-        if not split_dir.is_dir():
-            continue
-        if (split_dir / "trajectory_awareness_results.jsonl").exists():
-            judged_splits.add(split_dir.name)
+    judged_counts = {
+        s["name"]: int(s.get("n_judged_samples") or 0)
+        for s in cell["splits"]
+    }
+    judged_splits = {
+        split
+        for split, count in judged_counts.items()
+        if count > 0
+    }
     cell["expected_splits"] = expected_splits
+    cell["expected_tasks_per_split"] = expected_tasks_per_split
     cell["judged_splits"] = sorted(judged_splits)
+    cell["judged_counts_by_split"] = {
+        split: judged_counts.get(split, 0)
+        for split in expected_splits
+    }
     missing_splits = [s for s in expected_splits if s not in judged_splits]
+    short_splits = [
+        s for s in expected_splits
+        if (
+            expected_tasks_per_split is not None
+            and s in judged_splits
+            and judged_counts.get(s, 0) < expected_tasks_per_split
+        )
+    ]
 
     has_judges = cell["n_vea"] > 0 or cell["n_5pq"] > 0
     if not seen_splits and not has_judges:
@@ -257,6 +281,12 @@ def _scan_cell(
         cell["status"] = "run-only (no judges)"
     elif missing_splits:
         cell["status"] = f"partial (missing splits: {','.join(missing_splits)})"
+    elif short_splits:
+        details = ",".join(
+            f"{s}:{judged_counts.get(s, 0)}/{expected_tasks_per_split}"
+            for s in short_splits
+        )
+        cell["status"] = f"partial (short splits: {details})"
     elif cell["n_5pq"] > 0:
         cell["status"] = "complete (with 5pq)"
     elif cell["n_vea"] > 0:
@@ -273,10 +303,12 @@ def _scan_cell(
 def scan(
     results_dir: Path,
     expected_splits_by_benchmark: dict[str, list[str]] | None = None,
+    expected_tasks_per_split_by_benchmark: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     """Walk `results_dir/<benchmark>/<arm>/<model>/` and produce a manifest dict."""
     cells: list[dict[str, Any]] = []
     expected_splits_by_benchmark = expected_splits_by_benchmark or {}
+    expected_tasks_per_split_by_benchmark = expected_tasks_per_split_by_benchmark or {}
     if results_dir.exists():
         for benchmark_dir in sorted(results_dir.iterdir()):
             if not benchmark_dir.is_dir():
@@ -295,6 +327,7 @@ def scan(
                         arm,
                         model_dir.name,
                         expected_splits_by_benchmark.get(benchmark),
+                        expected_tasks_per_split_by_benchmark.get(benchmark),
                     )
                     cells.append(cell)
     return {
@@ -314,7 +347,7 @@ def _print_table(manifest: dict[str, Any]) -> None:
     print(fmt.format(*cols))
     print("-" * 130)
     for c in cells:
-        n = c["n_trajectories"]
+        n = max(c["n_trajectories"], c.get("n_judged_samples") or 0)
         asr = f"{c['asr']:.2f}" if c.get("asr") is not None else "  -  "
         tpr = f"{c['task_pass_rate']:.2f}" if c.get("task_pass_rate") is not None else "  -  "
         vea = f"{c['vea_count']}/{c['n_vea']}" if c["n_vea"] else "  -  "
@@ -331,10 +364,13 @@ def _check_cell(manifest: dict[str, Any], benchmark: str, arm: str, model: str) 
     for c in manifest["cells"]:
         if (c["benchmark"], c["arm"], c["model_slug"]) == (benchmark, arm, slug):
             if c["status"].startswith("complete"):
-                print(f"complete: {benchmark}/{arm}/{model} (n={c['n_trajectories']})")
+                print(f"complete: {benchmark}/{arm}/{model} "
+                      f"(n={c.get('n_judged_samples') or c['n_trajectories']})")
                 return 0
             print(f"{c['status']}: {benchmark}/{arm}/{model} "
-                  f"(n_trajectories={c['n_trajectories']}, n_vea={c['n_vea']}, n_5pq={c['n_5pq']})")
+                  f"(n_trajectories={c['n_trajectories']}, "
+                  f"n_judged_samples={c.get('n_judged_samples')}, "
+                  f"n_vea={c['n_vea']}, n_5pq={c['n_5pq']})")
             return 1
     print(f"missing: {benchmark}/{arm}/{model}")
     return 1
@@ -349,6 +385,12 @@ def main() -> int:
                              "<results-dir>/manifest.json.")
     parser.add_argument("--print", action="store_true",
                         help="Print a human-readable summary table to stdout.")
+    parser.add_argument("--tasks-per-split", type=int, default=None,
+                        help="Require this many unique judged samples per expected "
+                             "split before marking browser cells complete.")
+    parser.add_argument("--benchmark-splits", nargs="+", default=None,
+                        help="Benchmark-specific split overrides, comma-separated. "
+                             "Example: doomarena=reddit,shopping,shopping_admin,gitlab")
     parser.add_argument("--check", nargs=3, metavar=("BENCHMARK", "ARM", "MODEL"),
                         default=None, help="Exit 0 if (benchmark, arm, model) is "
                         "complete; exit 1 if missing or partial. Skips manifest write.")
@@ -358,7 +400,30 @@ def main() -> int:
         print(f"results-dir does not exist: {args.results_dir}", file=sys.stderr)
         return 2
 
-    manifest = scan(args.results_dir)
+    expected_splits_by_benchmark: dict[str, list[str]] = {}
+    for value in args.benchmark_splits or []:
+        benchmark, sep, raw_splits = value.partition("=")
+        if not sep:
+            print(
+                f"invalid --benchmark-splits entry {value!r}; expected benchmark=split,split",
+                file=sys.stderr,
+            )
+            return 2
+        expected_splits_by_benchmark[benchmark] = [
+            s.strip() for s in raw_splits.split(",") if s.strip()
+        ]
+    expected_tasks = None
+    if args.tasks_per_split is not None:
+        expected_tasks = {
+            benchmark: args.tasks_per_split
+            for benchmark in expected_splits_by_benchmark or _EXPECTED_SPLITS
+        }
+
+    manifest = scan(
+        args.results_dir,
+        expected_splits_by_benchmark=expected_splits_by_benchmark or None,
+        expected_tasks_per_split_by_benchmark=expected_tasks,
+    )
 
     if args.check:
         return _check_cell(manifest, *args.check)

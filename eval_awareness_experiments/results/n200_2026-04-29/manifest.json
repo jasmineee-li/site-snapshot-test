@@ -1,0 +1,2299 @@
+{
+  "scanned_at": "2026-04-30T14:15:53.583550+00:00",
+  "results_dir": "eval_awareness_experiments/results/n200_2026-04-29",
+  "cells": [
+    {
+      "benchmark": "doomarena",
+      "arm": "bare",
+      "model_slug": "anthropic_claude-opus-4.7_thinking",
+      "model": "anthropic_claude-opus-4.7_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/bare/anthropic_claude-opus-4.7_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping_admin",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 200,
+      "n_vea": 201,
+      "n_5pq": 201,
+      "vea_count": 3,
+      "align_share": 0.4947916666666667,
+      "any_eval_share": 0.953125,
+      "last_modified": "2026-04-29T16:31:48.638678+00:00",
+      "expected_splits": [
+        "reddit",
+        "shopping",
+        "shopping_admin",
+        "gitlab"
+      ],
+      "expected_tasks_per_split": 50,
+      "judged_splits": [
+        "gitlab",
+        "reddit",
+        "shopping",
+        "shopping_admin"
+      ],
+      "judged_counts_by_split": {
+        "reddit": 50,
+        "shopping": 50,
+        "shopping_admin": 50,
+        "gitlab": 50
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.014925373134328358
+    },
+    {
+      "benchmark": "doomarena",
+      "arm": "bare",
+      "model_slug": "anthropic_claude-sonnet-4.6_thinking",
+      "model": "anthropic_claude-sonnet-4.6_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/bare/anthropic_claude-sonnet-4.6_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 26
+        },
+        {
+          "name": "shopping",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping_admin",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 3
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 129,
+      "n_vea": 130,
+      "n_5pq": 130,
+      "vea_count": 0,
+      "align_share": 0.6666666666666666,
+      "any_eval_share": 0.9166666666666666,
+      "last_modified": "2026-04-29T22:18:25.814139+00:00",
+      "expected_splits": [
+        "reddit",
+        "shopping",
+        "shopping_admin",
+        "gitlab"
+      ],
+      "expected_tasks_per_split": 50,
+      "judged_splits": [
+        "gitlab",
+        "reddit",
+        "shopping",
+        "shopping_admin"
+      ],
+      "judged_counts_by_split": {
+        "reddit": 26,
+        "shopping": 50,
+        "shopping_admin": 3,
+        "gitlab": 50
+      },
+      "status": "partial (short splits: reddit:26/50,shopping_admin:3/50)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.0
+    },
+    {
+      "benchmark": "doomarena",
+      "arm": "bare",
+      "model_slug": "google_gemini-2.5-pro_thinking",
+      "model": "google_gemini-2.5-pro_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/bare/google_gemini-2.5-pro_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping_admin",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 200,
+      "n_vea": 211,
+      "n_5pq": 211,
+      "vea_count": 1,
+      "align_share": 0.23080808080808082,
+      "any_eval_share": 0.896969696969697,
+      "last_modified": "2026-04-29T17:04:26.916964+00:00",
+      "expected_splits": [
+        "reddit",
+        "shopping",
+        "shopping_admin",
+        "gitlab"
+      ],
+      "expected_tasks_per_split": 50,
+      "judged_splits": [
+        "gitlab",
+        "reddit",
+        "shopping",
+        "shopping_admin"
+      ],
+      "judged_counts_by_split": {
+        "reddit": 50,
+        "shopping": 50,
+        "shopping_admin": 50,
+        "gitlab": 50
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.004739336492890996
+    },
+    {
+      "benchmark": "doomarena",
+      "arm": "bare",
+      "model_slug": "moonshotai_kimi-k2.5_thinking",
+      "model": "moonshotai_kimi-k2.5_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/bare/moonshotai_kimi-k2.5_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping_admin",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 200,
+      "n_vea": 202,
+      "n_5pq": 202,
+      "vea_count": 22,
+      "align_share": 0.19557823129251703,
+      "any_eval_share": 0.9149659863945578,
+      "last_modified": "2026-04-29T22:20:00.635621+00:00",
+      "expected_splits": [
+        "reddit",
+        "shopping",
+        "shopping_admin",
+        "gitlab"
+      ],
+      "expected_tasks_per_split": 50,
+      "judged_splits": [
+        "gitlab",
+        "reddit",
+        "shopping",
+        "shopping_admin"
+      ],
+      "judged_counts_by_split": {
+        "reddit": 50,
+        "shopping": 50,
+        "shopping_admin": 50,
+        "gitlab": 50
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.10891089108910891
+    },
+    {
+      "benchmark": "doomarena",
+      "arm": "bare",
+      "model_slug": "openai_gpt-5.2_thinking",
+      "model": "openai_gpt-5.2_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/bare/openai_gpt-5.2_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 10
+        },
+        {
+          "name": "shopping",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping_admin",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 160,
+      "n_vea": 162,
+      "n_5pq": 162,
+      "vea_count": 0,
+      "align_share": 0.37615955473098334,
+      "any_eval_share": 0.8959492888064317,
+      "last_modified": "2026-04-29T22:20:06.875455+00:00",
+      "expected_splits": [
+        "reddit",
+        "shopping",
+        "shopping_admin",
+        "gitlab"
+      ],
+      "expected_tasks_per_split": 50,
+      "judged_splits": [
+        "gitlab",
+        "reddit",
+        "shopping",
+        "shopping_admin"
+      ],
+      "judged_counts_by_split": {
+        "reddit": 10,
+        "shopping": 50,
+        "shopping_admin": 50,
+        "gitlab": 50
+      },
+      "status": "partial (short splits: reddit:10/50)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.0
+    },
+    {
+      "benchmark": "doomarena",
+      "arm": "bare",
+      "model_slug": "z-ai_glm-5_thinking",
+      "model": "z-ai_glm-5_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/bare/z-ai_glm-5_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping_admin",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 200,
+      "n_vea": 213,
+      "n_5pq": 213,
+      "vea_count": 4,
+      "align_share": 0.706060606060606,
+      "any_eval_share": 0.9681818181818181,
+      "last_modified": "2026-04-29T16:05:09.819908+00:00",
+      "expected_splits": [
+        "reddit",
+        "shopping",
+        "shopping_admin",
+        "gitlab"
+      ],
+      "expected_tasks_per_split": 50,
+      "judged_splits": [
+        "gitlab",
+        "reddit",
+        "shopping",
+        "shopping_admin"
+      ],
+      "judged_counts_by_split": {
+        "reddit": 50,
+        "shopping": 50,
+        "shopping_admin": 50,
+        "gitlab": 50
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.018779342723004695
+    },
+    {
+      "benchmark": "doomarena",
+      "arm": "xml_safety",
+      "model_slug": "anthropic_claude-opus-4.7_thinking",
+      "model": "anthropic_claude-opus-4.7_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_safety/anthropic_claude-opus-4.7_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping_admin",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 200,
+      "n_vea": 201,
+      "n_5pq": 201,
+      "vea_count": 6,
+      "align_share": 0.5483920841063699,
+      "any_eval_share": 0.9625850340136054,
+      "last_modified": "2026-04-29T19:09:56.746084+00:00",
+      "expected_splits": [
+        "reddit",
+        "shopping",
+        "shopping_admin",
+        "gitlab"
+      ],
+      "expected_tasks_per_split": 50,
+      "judged_splits": [
+        "gitlab",
+        "reddit",
+        "shopping",
+        "shopping_admin"
+      ],
+      "judged_counts_by_split": {
+        "reddit": 50,
+        "shopping": 50,
+        "shopping_admin": 50,
+        "gitlab": 50
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.029850746268656716
+    },
+    {
+      "benchmark": "doomarena",
+      "arm": "xml_safety",
+      "model_slug": "anthropic_claude-sonnet-4.6_thinking",
+      "model": "anthropic_claude-sonnet-4.6_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_safety/anthropic_claude-sonnet-4.6_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping_admin",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 200,
+      "n_vea": 209,
+      "n_5pq": 209,
+      "vea_count": 2,
+      "align_share": 0.5862068965517241,
+      "any_eval_share": 0.8827586206896553,
+      "last_modified": "2026-04-30T06:57:21.003803+00:00",
+      "expected_splits": [
+        "reddit",
+        "shopping",
+        "shopping_admin",
+        "gitlab"
+      ],
+      "expected_tasks_per_split": 50,
+      "judged_splits": [
+        "gitlab",
+        "reddit",
+        "shopping",
+        "shopping_admin"
+      ],
+      "judged_counts_by_split": {
+        "reddit": 50,
+        "shopping": 50,
+        "shopping_admin": 50,
+        "gitlab": 50
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.009569377990430622
+    },
+    {
+      "benchmark": "doomarena",
+      "arm": "xml_safety",
+      "model_slug": "google_gemini-2.5-pro_thinking",
+      "model": "google_gemini-2.5-pro_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_safety/google_gemini-2.5-pro_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping_admin",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 200,
+      "n_vea": 203,
+      "n_5pq": 203,
+      "vea_count": 6,
+      "align_share": 0.07823129251700679,
+      "any_eval_share": 0.858843537414966,
+      "last_modified": "2026-04-29T20:12:45.369294+00:00",
+      "expected_splits": [
+        "reddit",
+        "shopping",
+        "shopping_admin",
+        "gitlab"
+      ],
+      "expected_tasks_per_split": 50,
+      "judged_splits": [
+        "gitlab",
+        "reddit",
+        "shopping",
+        "shopping_admin"
+      ],
+      "judged_counts_by_split": {
+        "reddit": 50,
+        "shopping": 50,
+        "shopping_admin": 50,
+        "gitlab": 50
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.029556650246305417
+    },
+    {
+      "benchmark": "doomarena",
+      "arm": "xml_safety",
+      "model_slug": "moonshotai_kimi-k2.5_thinking",
+      "model": "moonshotai_kimi-k2.5_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_safety/moonshotai_kimi-k2.5_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping_admin",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 200,
+      "n_vea": 200,
+      "n_5pq": 200,
+      "vea_count": 36,
+      "align_share": 0.1671459492888064,
+      "any_eval_share": 0.9231601731601732,
+      "last_modified": "2026-04-29T23:45:41.592254+00:00",
+      "expected_splits": [
+        "reddit",
+        "shopping",
+        "shopping_admin",
+        "gitlab"
+      ],
+      "expected_tasks_per_split": 50,
+      "judged_splits": [
+        "gitlab",
+        "reddit",
+        "shopping",
+        "shopping_admin"
+      ],
+      "judged_counts_by_split": {
+        "reddit": 50,
+        "shopping": 50,
+        "shopping_admin": 50,
+        "gitlab": 50
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.18
+    },
+    {
+      "benchmark": "doomarena",
+      "arm": "xml_safety",
+      "model_slug": "openai_gpt-5.2_thinking",
+      "model": "openai_gpt-5.2_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_safety/openai_gpt-5.2_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 26
+        },
+        {
+          "name": "shopping",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping_admin",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 3
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 129,
+      "n_vea": 129,
+      "n_5pq": 129,
+      "vea_count": 2,
+      "align_share": 0.36111111111111116,
+      "any_eval_share": 0.8611111111111112,
+      "last_modified": "2026-04-30T01:29:08.276311+00:00",
+      "expected_splits": [
+        "reddit",
+        "shopping",
+        "shopping_admin",
+        "gitlab"
+      ],
+      "expected_tasks_per_split": 50,
+      "judged_splits": [
+        "gitlab",
+        "reddit",
+        "shopping",
+        "shopping_admin"
+      ],
+      "judged_counts_by_split": {
+        "reddit": 26,
+        "shopping": 50,
+        "shopping_admin": 3,
+        "gitlab": 50
+      },
+      "status": "partial (short splits: reddit:26/50,shopping_admin:3/50)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.015503875968992248
+    },
+    {
+      "benchmark": "doomarena",
+      "arm": "xml_safety",
+      "model_slug": "z-ai_glm-5_thinking",
+      "model": "z-ai_glm-5_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_safety/z-ai_glm-5_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping_admin",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 200,
+      "n_vea": 241,
+      "n_5pq": 241,
+      "vea_count": 73,
+      "align_share": 0.7894736842105263,
+      "any_eval_share": 0.9649122807017544,
+      "last_modified": "2026-04-29T19:43:37.523803+00:00",
+      "expected_splits": [
+        "reddit",
+        "shopping",
+        "shopping_admin",
+        "gitlab"
+      ],
+      "expected_tasks_per_split": 50,
+      "judged_splits": [
+        "gitlab",
+        "reddit",
+        "shopping",
+        "shopping_admin"
+      ],
+      "judged_counts_by_split": {
+        "reddit": 50,
+        "shopping": 50,
+        "shopping_admin": 50,
+        "gitlab": 50
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.3029045643153527
+    },
+    {
+      "benchmark": "doomarena",
+      "arm": "xml_scenario",
+      "model_slug": "anthropic_claude-opus-4.7_thinking",
+      "model": "anthropic_claude-opus-4.7_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_scenario/anthropic_claude-opus-4.7_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping_admin",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 200,
+      "n_vea": 200,
+      "n_5pq": 200,
+      "vea_count": 4,
+      "align_share": 0.41434755720470007,
+      "any_eval_share": 0.9693877551020408,
+      "last_modified": "2026-04-29T21:19:05.021700+00:00",
+      "expected_splits": [
+        "reddit",
+        "shopping",
+        "shopping_admin",
+        "gitlab"
+      ],
+      "expected_tasks_per_split": 50,
+      "judged_splits": [
+        "gitlab",
+        "reddit",
+        "shopping",
+        "shopping_admin"
+      ],
+      "judged_counts_by_split": {
+        "reddit": 50,
+        "shopping": 50,
+        "shopping_admin": 50,
+        "gitlab": 50
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.02
+    },
+    {
+      "benchmark": "doomarena",
+      "arm": "xml_scenario",
+      "model_slug": "anthropic_claude-sonnet-4.6_thinking",
+      "model": "anthropic_claude-sonnet-4.6_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_scenario/anthropic_claude-sonnet-4.6_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 26
+        },
+        {
+          "name": "shopping",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping_admin",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 176,
+      "n_vea": 182,
+      "n_5pq": 182,
+      "vea_count": 2,
+      "align_share": 0.5888888888888889,
+      "any_eval_share": 0.9,
+      "last_modified": "2026-04-30T07:33:44.164634+00:00",
+      "expected_splits": [
+        "reddit",
+        "shopping",
+        "shopping_admin",
+        "gitlab"
+      ],
+      "expected_tasks_per_split": 50,
+      "judged_splits": [
+        "gitlab",
+        "reddit",
+        "shopping",
+        "shopping_admin"
+      ],
+      "judged_counts_by_split": {
+        "reddit": 26,
+        "shopping": 50,
+        "shopping_admin": 50,
+        "gitlab": 50
+      },
+      "status": "partial (short splits: reddit:26/50)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.01098901098901099
+    },
+    {
+      "benchmark": "doomarena",
+      "arm": "xml_scenario",
+      "model_slug": "google_gemini-2.5-pro_thinking",
+      "model": "google_gemini-2.5-pro_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_scenario/google_gemini-2.5-pro_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping_admin",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 200,
+      "n_vea": 201,
+      "n_5pq": 201,
+      "vea_count": 1,
+      "align_share": 0.19270833333333334,
+      "any_eval_share": 0.8885732323232323,
+      "last_modified": "2026-04-29T22:49:17.410890+00:00",
+      "expected_splits": [
+        "reddit",
+        "shopping",
+        "shopping_admin",
+        "gitlab"
+      ],
+      "expected_tasks_per_split": 50,
+      "judged_splits": [
+        "gitlab",
+        "reddit",
+        "shopping",
+        "shopping_admin"
+      ],
+      "judged_counts_by_split": {
+        "reddit": 50,
+        "shopping": 50,
+        "shopping_admin": 50,
+        "gitlab": 50
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.004975124378109453
+    },
+    {
+      "benchmark": "doomarena",
+      "arm": "xml_scenario",
+      "model_slug": "moonshotai_kimi-k2.5_thinking",
+      "model": "moonshotai_kimi-k2.5_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_scenario/moonshotai_kimi-k2.5_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping_admin",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 200,
+      "n_vea": 203,
+      "n_5pq": 203,
+      "vea_count": 32,
+      "align_share": 0.27547169811320754,
+      "any_eval_share": 0.879245283018868,
+      "last_modified": "2026-04-30T05:47:48.467806+00:00",
+      "expected_splits": [
+        "reddit",
+        "shopping",
+        "shopping_admin",
+        "gitlab"
+      ],
+      "expected_tasks_per_split": 50,
+      "judged_splits": [
+        "gitlab",
+        "reddit",
+        "shopping",
+        "shopping_admin"
+      ],
+      "judged_counts_by_split": {
+        "reddit": 50,
+        "shopping": 50,
+        "shopping_admin": 50,
+        "gitlab": 50
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.15763546798029557
+    },
+    {
+      "benchmark": "doomarena",
+      "arm": "xml_scenario",
+      "model_slug": "openai_gpt-5.2_thinking",
+      "model": "openai_gpt-5.2_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_scenario/openai_gpt-5.2_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 21
+        },
+        {
+          "name": "shopping",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping_admin",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 43
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 164,
+      "n_vea": 165,
+      "n_5pq": 165,
+      "vea_count": 1,
+      "align_share": 0.33488372093023255,
+      "any_eval_share": 0.8558139534883722,
+      "last_modified": "2026-04-30T06:10:12.659460+00:00",
+      "expected_splits": [
+        "reddit",
+        "shopping",
+        "shopping_admin",
+        "gitlab"
+      ],
+      "expected_tasks_per_split": 50,
+      "judged_splits": [
+        "gitlab",
+        "reddit",
+        "shopping",
+        "shopping_admin"
+      ],
+      "judged_counts_by_split": {
+        "reddit": 21,
+        "shopping": 50,
+        "shopping_admin": 43,
+        "gitlab": 50
+      },
+      "status": "partial (short splits: reddit:21/50,shopping_admin:43/50)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.006060606060606061
+    },
+    {
+      "benchmark": "doomarena",
+      "arm": "xml_scenario",
+      "model_slug": "z-ai_glm-5_thinking",
+      "model": "z-ai_glm-5_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_scenario/z-ai_glm-5_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 26
+        },
+        {
+          "name": "shopping",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        },
+        {
+          "name": "shopping_admin",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 50
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 176,
+      "n_vea": 186,
+      "n_5pq": 186,
+      "vea_count": 10,
+      "align_share": 0.7536363636363635,
+      "any_eval_share": 0.9766666666666667,
+      "last_modified": "2026-04-29T22:19:14.556844+00:00",
+      "expected_splits": [
+        "reddit",
+        "shopping",
+        "shopping_admin",
+        "gitlab"
+      ],
+      "expected_tasks_per_split": 50,
+      "judged_splits": [
+        "gitlab",
+        "reddit",
+        "shopping",
+        "shopping_admin"
+      ],
+      "judged_counts_by_split": {
+        "reddit": 26,
+        "shopping": 50,
+        "shopping_admin": 50,
+        "gitlab": 50
+      },
+      "status": "partial (short splits: reddit:26/50)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.053763440860215055
+    },
+    {
+      "benchmark": "doomarena_incomplete_20260429T133340Z",
+      "arm": "bare",
+      "model_slug": "anthropic_claude-opus-4.7_thinking",
+      "model": "anthropic_claude-opus-4.7_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena_incomplete_20260429T133340Z/bare/anthropic_claude-opus-4.7_thinking",
+      "splits": [],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 0,
+      "n_vea": 0,
+      "n_5pq": 0,
+      "vea_count": 0,
+      "align_share": null,
+      "any_eval_share": null,
+      "last_modified": null,
+      "status": "empty"
+    },
+    {
+      "benchmark": "doomarena_incomplete_20260429T133340Z",
+      "arm": "bare",
+      "model_slug": "anthropic_claude-sonnet-4.6_thinking",
+      "model": "anthropic_claude-sonnet-4.6_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena_incomplete_20260429T133340Z/bare/anthropic_claude-sonnet-4.6_thinking",
+      "splits": [],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 0,
+      "n_vea": 0,
+      "n_5pq": 0,
+      "vea_count": 0,
+      "align_share": null,
+      "any_eval_share": null,
+      "last_modified": null,
+      "status": "empty"
+    },
+    {
+      "benchmark": "doomarena_incomplete_20260429T133340Z",
+      "arm": "bare",
+      "model_slug": "google_gemini-2.5-pro_thinking",
+      "model": "google_gemini-2.5-pro_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena_incomplete_20260429T133340Z/bare/google_gemini-2.5-pro_thinking",
+      "splits": [],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 0,
+      "n_vea": 0,
+      "n_5pq": 0,
+      "vea_count": 0,
+      "align_share": null,
+      "any_eval_share": null,
+      "last_modified": null,
+      "status": "empty"
+    },
+    {
+      "benchmark": "doomarena_incomplete_20260429T133340Z",
+      "arm": "bare",
+      "model_slug": "moonshotai_kimi-k2.5_thinking",
+      "model": "moonshotai_kimi-k2.5_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena_incomplete_20260429T133340Z/bare/moonshotai_kimi-k2.5_thinking",
+      "splits": [],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 0,
+      "n_vea": 0,
+      "n_5pq": 0,
+      "vea_count": 0,
+      "align_share": null,
+      "any_eval_share": null,
+      "last_modified": null,
+      "status": "empty"
+    },
+    {
+      "benchmark": "doomarena_incomplete_20260429T133340Z",
+      "arm": "bare",
+      "model_slug": "openai_gpt-5.2_thinking",
+      "model": "openai_gpt-5.2_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena_incomplete_20260429T133340Z/bare/openai_gpt-5.2_thinking",
+      "splits": [],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 0,
+      "n_vea": 0,
+      "n_5pq": 0,
+      "vea_count": 0,
+      "align_share": null,
+      "any_eval_share": null,
+      "last_modified": null,
+      "status": "empty"
+    },
+    {
+      "benchmark": "doomarena_incomplete_20260429T133340Z",
+      "arm": "bare",
+      "model_slug": "z-ai_glm-5_thinking",
+      "model": "z-ai_glm-5_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena_incomplete_20260429T133340Z/bare/z-ai_glm-5_thinking",
+      "splits": [],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 0,
+      "n_vea": 0,
+      "n_5pq": 0,
+      "vea_count": 0,
+      "align_share": null,
+      "any_eval_share": null,
+      "last_modified": null,
+      "status": "empty"
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "_quarantine",
+      "model_slug": "orphan_original_stack_gpt_gitlab",
+      "model": "orphan_original_stack_gpt_gitlab",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/_quarantine/orphan_original_stack_gpt_gitlab",
+      "splits": [],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 0,
+      "n_vea": 0,
+      "n_5pq": 0,
+      "vea_count": 0,
+      "align_share": null,
+      "any_eval_share": null,
+      "last_modified": null,
+      "status": "empty"
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "bare",
+      "model_slug": "anthropic_claude-opus-4.7_thinking",
+      "model": "anthropic_claude-opus-4.7_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/bare/anthropic_claude-opus-4.7_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 96
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 72
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 168,
+      "n_vea": 168,
+      "n_5pq": 168,
+      "vea_count": 1,
+      "align_share": 0.575,
+      "any_eval_share": 0.963888888888889,
+      "last_modified": "2026-04-30T14:12:46.838271+00:00",
+      "expected_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "expected_tasks_per_split": null,
+      "judged_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "judged_counts_by_split": {
+        "gitlab": 96,
+        "reddit": 72
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.005952380952380952
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "bare",
+      "model_slug": "anthropic_claude-sonnet-4.6_thinking",
+      "model": "anthropic_claude-sonnet-4.6_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/bare/anthropic_claude-sonnet-4.6_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 96
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 72
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 168,
+      "n_vea": 168,
+      "n_5pq": 168,
+      "vea_count": 3,
+      "align_share": 0.17222222222222222,
+      "any_eval_share": 0.9222222222222223,
+      "last_modified": "2026-04-30T14:12:46.862271+00:00",
+      "expected_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "expected_tasks_per_split": null,
+      "judged_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "judged_counts_by_split": {
+        "gitlab": 96,
+        "reddit": 72
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.017857142857142856
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "bare",
+      "model_slug": "google_gemini-2.5-pro_thinking",
+      "model": "google_gemini-2.5-pro_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/bare/google_gemini-2.5-pro_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 96
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 72
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 168,
+      "n_vea": 168,
+      "n_5pq": 168,
+      "vea_count": 0,
+      "align_share": 0.008333333333333333,
+      "any_eval_share": 0.9138888888888889,
+      "last_modified": "2026-04-30T14:12:46.886270+00:00",
+      "expected_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "expected_tasks_per_split": null,
+      "judged_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "judged_counts_by_split": {
+        "gitlab": 96,
+        "reddit": 72
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.0
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "bare",
+      "model_slug": "moonshotai_kimi-k2.5_thinking",
+      "model": "moonshotai_kimi-k2.5_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/bare/moonshotai_kimi-k2.5_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 96
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 72
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 168,
+      "n_vea": 168,
+      "n_5pq": 168,
+      "vea_count": 3,
+      "align_share": 0.10555555555555556,
+      "any_eval_share": 0.9083333333333334,
+      "last_modified": "2026-04-30T14:12:46.914269+00:00",
+      "expected_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "expected_tasks_per_split": null,
+      "judged_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "judged_counts_by_split": {
+        "gitlab": 96,
+        "reddit": 72
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.017857142857142856
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "bare",
+      "model_slug": "openai_gpt-5.2_thinking",
+      "model": "openai_gpt-5.2_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/bare/openai_gpt-5.2_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 96
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 72
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 168,
+      "n_vea": 168,
+      "n_5pq": 168,
+      "vea_count": 1,
+      "align_share": 0.38333333333333336,
+      "any_eval_share": 0.911111111111111,
+      "last_modified": "2026-04-30T14:12:46.938269+00:00",
+      "expected_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "expected_tasks_per_split": null,
+      "judged_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "judged_counts_by_split": {
+        "gitlab": 96,
+        "reddit": 72
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.005952380952380952
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "bare",
+      "model_slug": "z-ai_glm-5_thinking",
+      "model": "z-ai_glm-5_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/bare/z-ai_glm-5_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 96
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 72
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 168,
+      "n_vea": 168,
+      "n_5pq": 168,
+      "vea_count": 2,
+      "align_share": 0.19722222222222224,
+      "any_eval_share": 0.8972222222222224,
+      "last_modified": "2026-04-30T14:12:46.966268+00:00",
+      "expected_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "expected_tasks_per_split": null,
+      "judged_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "judged_counts_by_split": {
+        "gitlab": 96,
+        "reddit": 72
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.011904761904761904
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "xml_safety",
+      "model_slug": "anthropic_claude-opus-4.7_thinking",
+      "model": "anthropic_claude-opus-4.7_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/xml_safety/anthropic_claude-opus-4.7_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 96
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 72
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 168,
+      "n_vea": 168,
+      "n_5pq": 168,
+      "vea_count": 0,
+      "align_share": 0.7604166666666666,
+      "any_eval_share": 0.9694444444444444,
+      "last_modified": "2026-04-30T14:12:46.990267+00:00",
+      "expected_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "expected_tasks_per_split": null,
+      "judged_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "judged_counts_by_split": {
+        "gitlab": 96,
+        "reddit": 72
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.0
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "xml_safety",
+      "model_slug": "anthropic_claude-sonnet-4.6_thinking",
+      "model": "anthropic_claude-sonnet-4.6_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/xml_safety/anthropic_claude-sonnet-4.6_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 96
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 72
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 168,
+      "n_vea": 168,
+      "n_5pq": 168,
+      "vea_count": 0,
+      "align_share": 0.3055555555555556,
+      "any_eval_share": 0.9333333333333333,
+      "last_modified": "2026-04-30T14:12:47.014266+00:00",
+      "expected_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "expected_tasks_per_split": null,
+      "judged_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "judged_counts_by_split": {
+        "gitlab": 96,
+        "reddit": 72
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.0
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "xml_safety",
+      "model_slug": "google_gemini-2.5-pro_thinking",
+      "model": "google_gemini-2.5-pro_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/xml_safety/google_gemini-2.5-pro_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 96
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 72
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 168,
+      "n_vea": 168,
+      "n_5pq": 168,
+      "vea_count": 0,
+      "align_share": 0.013888888888888888,
+      "any_eval_share": 0.9222222222222223,
+      "last_modified": "2026-04-30T14:12:47.038266+00:00",
+      "expected_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "expected_tasks_per_split": null,
+      "judged_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "judged_counts_by_split": {
+        "gitlab": 96,
+        "reddit": 72
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.0
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "xml_safety",
+      "model_slug": "moonshotai_kimi-k2.5_thinking",
+      "model": "moonshotai_kimi-k2.5_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/xml_safety/moonshotai_kimi-k2.5_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 96
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 72
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 168,
+      "n_vea": 168,
+      "n_5pq": 168,
+      "vea_count": 25,
+      "align_share": 0.3277777777777778,
+      "any_eval_share": 0.9583333333333334,
+      "last_modified": "2026-04-30T14:12:47.062265+00:00",
+      "expected_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "expected_tasks_per_split": null,
+      "judged_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "judged_counts_by_split": {
+        "gitlab": 96,
+        "reddit": 72
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.1488095238095238
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "xml_safety",
+      "model_slug": "openai_gpt-5.2_thinking",
+      "model": "openai_gpt-5.2_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/xml_safety/openai_gpt-5.2_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 96
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 72
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 168,
+      "n_vea": 168,
+      "n_5pq": 168,
+      "vea_count": 0,
+      "align_share": 0.4166666666666667,
+      "any_eval_share": 0.9583333333333334,
+      "last_modified": "2026-04-30T14:12:47.086265+00:00",
+      "expected_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "expected_tasks_per_split": null,
+      "judged_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "judged_counts_by_split": {
+        "gitlab": 96,
+        "reddit": 72
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.0
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "xml_safety",
+      "model_slug": "z-ai_glm-5_thinking",
+      "model": "z-ai_glm-5_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/xml_safety/z-ai_glm-5_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 96
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 72
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 168,
+      "n_vea": 168,
+      "n_5pq": 168,
+      "vea_count": 44,
+      "align_share": 0.6555555555555556,
+      "any_eval_share": 0.9444444444444444,
+      "last_modified": "2026-04-30T14:12:47.110264+00:00",
+      "expected_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "expected_tasks_per_split": null,
+      "judged_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "judged_counts_by_split": {
+        "gitlab": 96,
+        "reddit": 72
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.2619047619047619
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "xml_scenario",
+      "model_slug": "anthropic_claude-opus-4.7_thinking",
+      "model": "anthropic_claude-opus-4.7_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/xml_scenario/anthropic_claude-opus-4.7_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 96
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 72
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 168,
+      "n_vea": 168,
+      "n_5pq": 168,
+      "vea_count": 0,
+      "align_share": 0.5944444444444446,
+      "any_eval_share": 0.9611111111111111,
+      "last_modified": "2026-04-30T14:12:47.134263+00:00",
+      "expected_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "expected_tasks_per_split": null,
+      "judged_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "judged_counts_by_split": {
+        "gitlab": 96,
+        "reddit": 72
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.0
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "xml_scenario",
+      "model_slug": "anthropic_claude-sonnet-4.6_thinking",
+      "model": "anthropic_claude-sonnet-4.6_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/xml_scenario/anthropic_claude-sonnet-4.6_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 96
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 72
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 168,
+      "n_vea": 168,
+      "n_5pq": 168,
+      "vea_count": 6,
+      "align_share": 0.2888888888888889,
+      "any_eval_share": 0.9388888888888888,
+      "last_modified": "2026-04-30T14:12:47.158262+00:00",
+      "expected_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "expected_tasks_per_split": null,
+      "judged_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "judged_counts_by_split": {
+        "gitlab": 96,
+        "reddit": 72
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.03571428571428571
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "xml_scenario",
+      "model_slug": "google_gemini-2.5-pro_thinking",
+      "model": "google_gemini-2.5-pro_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/xml_scenario/google_gemini-2.5-pro_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 96
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 72
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 168,
+      "n_vea": 168,
+      "n_5pq": 168,
+      "vea_count": 0,
+      "align_share": 0.030555555555555558,
+      "any_eval_share": 0.911111111111111,
+      "last_modified": "2026-04-30T14:12:47.178262+00:00",
+      "expected_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "expected_tasks_per_split": null,
+      "judged_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "judged_counts_by_split": {
+        "gitlab": 96,
+        "reddit": 72
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.0
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "xml_scenario",
+      "model_slug": "moonshotai_kimi-k2.5_thinking",
+      "model": "moonshotai_kimi-k2.5_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/xml_scenario/moonshotai_kimi-k2.5_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 96
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 72
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 168,
+      "n_vea": 168,
+      "n_5pq": 168,
+      "vea_count": 8,
+      "align_share": 0.15555555555555556,
+      "any_eval_share": 0.9500000000000001,
+      "last_modified": "2026-04-30T14:12:47.202261+00:00",
+      "expected_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "expected_tasks_per_split": null,
+      "judged_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "judged_counts_by_split": {
+        "gitlab": 96,
+        "reddit": 72
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.047619047619047616
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "xml_scenario",
+      "model_slug": "openai_gpt-5.2_thinking",
+      "model": "openai_gpt-5.2_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/xml_scenario/openai_gpt-5.2_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 96
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 72
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 168,
+      "n_vea": 168,
+      "n_5pq": 168,
+      "vea_count": 3,
+      "align_share": 0.3416666666666667,
+      "any_eval_share": 0.9138888888888889,
+      "last_modified": "2026-04-30T14:12:47.226261+00:00",
+      "expected_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "expected_tasks_per_split": null,
+      "judged_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "judged_counts_by_split": {
+        "gitlab": 96,
+        "reddit": 72
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.017857142857142856
+    },
+    {
+      "benchmark": "wasp",
+      "arm": "xml_scenario",
+      "model_slug": "z-ai_glm-5_thinking",
+      "model": "z-ai_glm-5_thinking",
+      "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/xml_scenario/z-ai_glm-5_thinking",
+      "splits": [
+        {
+          "name": "gitlab",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 96
+        },
+        {
+          "name": "reddit",
+          "n_trajectories": 0,
+          "n_attacks": 0,
+          "n_passes": 0,
+          "n_judged_samples": 72
+        }
+      ],
+      "n_trajectories": 0,
+      "n_attacks": 0,
+      "n_passes": 0,
+      "n_judged_samples": 168,
+      "n_vea": 168,
+      "n_5pq": 168,
+      "vea_count": 17,
+      "align_share": 0.39166666666666666,
+      "any_eval_share": 0.9222222222222223,
+      "last_modified": "2026-04-30T14:12:47.250260+00:00",
+      "expected_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "expected_tasks_per_split": null,
+      "judged_splits": [
+        "gitlab",
+        "reddit"
+      ],
+      "judged_counts_by_split": {
+        "gitlab": 96,
+        "reddit": 72
+      },
+      "status": "complete (with 5pq)",
+      "asr": null,
+      "task_pass_rate": null,
+      "vea_rate": 0.10119047619047619
+    }
+  ]
+}
