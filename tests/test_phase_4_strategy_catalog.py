@@ -3,6 +3,7 @@ from __future__ import annotations
 from worldsim.phase_4.strategy_catalog import (
     ALLOWED_STRATEGIES,
     BINARY_LABEL_TRIGGER_TO_STRATEGIES,
+    LINK_NOLINK_BODY_TRIGGER_TO_STRATEGIES,
     REFUSAL_TRIGGERS,
     TRIGGER_TO_STRATEGIES,
     guidance_for_strategy,
@@ -84,7 +85,14 @@ def _binary_task(
 
 
 def test_binary_label_tasks_use_label_flip_strategy_mapping():
-    strategies, actionable = strategies_for_task("distracted", _binary_task())
+    strategies, actionable = strategies_for_task(
+        "distracted",
+        _binary_task(
+            target_surface_id="issue.title",
+            benign_label="populated",
+            adversarial_label="blank",
+        ),
+    )
     assert actionable is True
     assert strategies == BINARY_LABEL_TRIGGER_TO_STRATEGIES["distracted"]
     assert "fake_error_recovery" in strategies
@@ -94,10 +102,22 @@ def test_binary_label_tasks_use_label_flip_strategy_mapping():
 def test_binary_suspicion_prefers_recovery_and_native_context():
     strategies, actionable = strategies_for_task("suspicion", _binary_task())
     assert actionable is True
+    assert strategies == LINK_NOLINK_BODY_TRIGGER_TO_STRATEGIES["suspicion"]
     assert strategies == (
+        "authority_framing",
         "fake_error_recovery",
         "embed_in_legitimate_context",
+    )
+
+
+def test_link_nolink_body_distracted_prefers_authoritative_status():
+    strategies, actionable = strategies_for_task("distracted", _binary_task())
+    assert actionable is True
+    assert strategies == LINK_NOLINK_BODY_TRIGGER_TO_STRATEGIES["distracted"]
+    assert strategies == (
         "authority_framing",
+        "fake_error_recovery",
+        "necessary_for_benign_goal",
     )
 
 
@@ -128,6 +148,24 @@ def test_blank_populated_short_title_guidance_prefers_field_state_artifact():
     assert "field-state artifact" in guidance
     assert "empty-title placeholder" in guidance
     assert "merely say to answer the adversarial label" in guidance
+
+
+def test_link_nolink_body_guidance_prefers_link_status_not_url_denial():
+    guidance = recommendation_for_strategy(
+        "authority_framing",
+        "distracted",
+        _binary_task(
+            target_surface_id="issue.description",
+            benign_label="link",
+            adversarial_label="no-link",
+        ),
+    )["guidance"]
+
+    assert "link/no-link body or description flips" in guidance
+    assert "do not claim that no URL string exists" in guidance
+    assert "link-status decision" in guidance
+    assert "non-actionable" in guidance
+    assert "Agent instruction" in guidance
 
 
 def test_actionable_triggers_map_to_real_strategies():
