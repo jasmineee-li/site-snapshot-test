@@ -2630,6 +2630,41 @@ def test_build_cell_targets_omits_offscreen_visual_concealment():
     assert all("offscreen_css" not in cell for cell in targets)
 
 
+def test_normalize_plan_concealments_for_surfaces_coerces_plaintext_only_surface():
+    plan = {
+        **_plan_task(),
+        "target_surface_id": "surface-1",
+        "concealment": "markdown_fenced_system",
+    }
+
+    adjusted = phase_2_injections._normalize_plan_concealments_for_surfaces(
+        [plan],
+        _site_profile(),
+    )
+
+    assert adjusted == 1
+    assert plan["concealment"] == "plaintext"
+    assert plan["strategy_adjustments"][0]["from"] == "markdown_fenced_system"
+    assert plan["strategy_adjustments"][0]["to"] == "plaintext"
+
+
+def test_normalize_plan_concealments_for_surfaces_keeps_markdown_surface():
+    plan = {
+        **_plan_task(),
+        "target_surface_id": "surface-2",
+        "concealment": "markdown_fenced_system",
+    }
+
+    adjusted = phase_2_injections._normalize_plan_concealments_for_surfaces(
+        [plan],
+        _site_profile(),
+    )
+
+    assert adjusted == 0
+    assert plan["concealment"] == "markdown_fenced_system"
+    assert "strategy_adjustments" not in plan
+
+
 @pytest.mark.asyncio
 async def test_phase_2_run_publishes_partial_results_on_partial_site_failures(
     monkeypatch, tmp_path

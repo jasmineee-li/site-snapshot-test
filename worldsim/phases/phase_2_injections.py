@@ -2460,6 +2460,17 @@ async def _generate_injections_for_site(
         )
     except ValueError as exc:
         return SiteInjectionResult(site_name, [], [f"exposure materialization failed: {exc}"])
+    concealment_adjustments = _normalize_plan_concealments_for_surfaces(
+        adv_tasks,
+        site_profile,
+    )
+    if concealment_adjustments:
+        logger.info(
+            "Phase 2: normalized %d strategy concealment(s) to surface-compatible values "
+            "for shard %r",
+            concealment_adjustments,
+            label,
+        )
 
     # Programmatically copy immutable fields from benign tasks instead of
     # relying on the LLM to reproduce them byte-for-byte.
@@ -3594,6 +3605,58 @@ def _materialize_strategy_plans_from_exposure(
         )
         plan["seed_template"] = seed_template
         plan["delivery_mechanism"] = _seed_delivery_mechanism(seed_template)
+
+
+def _normalize_plan_concealments_for_surfaces(
+    plans: list[dict[str, Any]],
+    site_profile: Mapping[str, Any],
+) -> int:
+    """Coerce strategy concealment labels to what the selected surface can render.
+
+    Phase 2a chooses strategy cells; the host owns placement and render
+    contracts. If a generated plan assigns markdown-fenced concealment to a
+    plaintext/title-only surface, the scientifically valid cell is the visible
+    plaintext control, not a dropped task whose carrier would otherwise be
+    valid. Keep an explicit audit breadcrumb so reports can distinguish model
+    strategy drift from native plaintext plans.
+    """
+    adjusted = 0
+    for plan in plans:
+        target_surface_id = str(plan.get("target_surface_id") or "")
+        current = str(plan.get("concealment") or "")
+        compatible = _compatible_concealments_for_surface(site_profile, target_surface_id)
+        if not compatible or current in compatible:
+            continue
+        if "plaintext" not in compatible:
+            continue
+        plan["concealment"] = "plaintext"
+        adjustments = plan.setdefault("strategy_adjustments", [])
+        if isinstance(adjustments, list):
+            adjustments.append(
+                {
+                    "field": "concealment",
+                    "from": current,
+                    "to": "plaintext",
+                    "reason": "target_surface_does_not_render_requested_concealment",
+                    "target_surface_id": target_surface_id,
+                    "compatible_concealments": compatible,
+                }
+            )
+        adjusted += 1
+    return adjusted
+
+
+def _compatible_concealments_for_surface(
+    site_profile: Mapping[str, Any],
+    target_surface_id: str,
+) -> list[str]:
+    surface = _find_surface_by_id(dict(site_profile), target_surface_id)
+    if surface is None:
+        return []
+    compatible = surface.get("compatible_concealments")
+    if not isinstance(compatible, list):
+        return []
+    return [item for item in compatible if isinstance(item, str)]
 
 
 def _seed_delivery_mechanism(seed_template: Mapping[str, Any]) -> str:
