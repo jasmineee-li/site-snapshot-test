@@ -114,6 +114,7 @@ def run_causal_experiment(
     browser_stage1_timeout: int | None = None,
     browser_stage1_overhead: int | None = None,
     browser_stage1_idle_timeout: int | None = None,
+    browser_stage1_relaunch_attempts: int | None = None,
     browser_splits_sequential: bool = False,
     browser_relaunch_incomplete: bool = False,
     wasp_task_dir: str | None = None,
@@ -147,6 +148,8 @@ def run_causal_experiment(
         print(f"  Browser split timeout overhead: {browser_stage1_overhead}s")
     if browser_stage1_idle_timeout is not None:
         print(f"  Browser split idle timeout: {browser_stage1_idle_timeout}s")
+    if browser_stage1_relaunch_attempts is not None:
+        print(f"  Browser split relaunch attempts: {browser_stage1_relaunch_attempts}")
     if browser_relaunch_incomplete:
         print("  Browser relaunch incomplete: ON")
     if wasp_task_dir is not None:
@@ -258,6 +261,11 @@ def run_causal_experiment(
             cmd.extend([
                 "--browser-stage1-idle-timeout",
                 str(browser_stage1_idle_timeout),
+            ])
+        if browser_stage1_relaunch_attempts is not None:
+            cmd.extend([
+                "--browser-stage1-relaunch-attempts",
+                str(browser_stage1_relaunch_attempts),
             ])
         if browser_splits_sequential:
             cmd.append("--browser-splits-sequential")
@@ -377,6 +385,9 @@ def main() -> None:
     parser.add_argument("--browser-stage1-idle-timeout", type=int, default=None,
                         help="Forwarded to run_safety_pipeline. Browser split "
                              "idle watchdog in seconds; use 0 to disable.")
+    parser.add_argument("--browser-stage1-relaunch-attempts", type=int, default=None,
+                        help="Forwarded to run_safety_pipeline. Total attempts "
+                             "per browser split, including the first launch.")
     parser.add_argument("--browser-splits-sequential", action="store_true",
                         help="Forwarded to run_safety_pipeline for debugging "
                              "site/container contention.")
@@ -425,6 +436,7 @@ def main() -> None:
         browser_stage1_timeout=args.browser_stage1_timeout,
         browser_stage1_overhead=args.browser_stage1_overhead,
         browser_stage1_idle_timeout=args.browser_stage1_idle_timeout,
+        browser_stage1_relaunch_attempts=args.browser_stage1_relaunch_attempts,
         browser_splits_sequential=args.browser_splits_sequential,
         browser_relaunch_incomplete=args.browser_relaunch_incomplete,
         wasp_task_dir=args.wasp_task_dir,

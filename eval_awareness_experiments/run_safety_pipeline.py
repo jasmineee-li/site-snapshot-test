@@ -275,6 +275,38 @@ def _browser_task_progress(split_root: Path) -> dict[str, dict]:
     return progress
 
 
+def _browser_split_completion(
+    split_root: Path,
+    *,
+    expected_total: int,
+) -> dict[str, int | bool]:
+    """Return unique-task completion counts for one browser split root."""
+    progress = _browser_task_progress(split_root)
+    completed_ids = {
+        info["task_id"]
+        for info in progress.values()
+        if info["completed"]
+    }
+    error_ids = {
+        info["task_id"]
+        for info in progress.values()
+        if info["completed"] and info.get("err_msg")
+    }
+    incomplete_ids = {
+        info["task_id"]
+        for info in progress.values()
+        if info["started"] and not info["completed"]
+    }
+    done = expected_total > 0 and len(completed_ids) >= expected_total
+    return {
+        "completed": len(completed_ids),
+        "expected": expected_total,
+        "errors": len(error_ids),
+        "incomplete": len(incomplete_ids),
+        "done": done,
+    }
+
+
 def _log_browser_task_progress(item: dict, *, expected_total: int) -> None:
     """Emit one parent-log line for every newly-started/completed browser task."""
     split = item["split"]
@@ -474,6 +506,7 @@ def _build_browser_cmd(
     *,
     report_port: int | None = None,
     cell_results_dir: Path | None = None,
+    force_relaunch_incomplete: bool = False,
 ) -> list[str]:
     """Build the runner command for one browser benchmark + split.
 
@@ -513,7 +546,7 @@ def _build_browser_cmd(
         cmd += ["--online-sites", split]
     if cell_results_dir is not None:
         cmd += ["--results-dir", str(cell_results_dir / split)]
-    if getattr(args, "browser_relaunch_incomplete", False):
+    if force_relaunch_incomplete or getattr(args, "browser_relaunch_incomplete", False):
         cmd += ["--relaunch-incomplete"]
     return cmd
 
@@ -577,21 +610,59 @@ def _stage1_browser(benchmark: str, split: str, args) -> Path | None:
         offset = _DOOMARENA_SPLIT_PORT_OFFSETS.get(split, 0)
         report_port = base + offset
         _log_cell_env(args, benchmark, split, report_port, cell_dir)
-    cmd = _build_browser_cmd(
-        benchmark, split, args,
-        report_port=report_port,
-        cell_results_dir=cell_dir,
-    )
     before = set((REPO_ROOT / "results" / "browsergym").glob("study_*"))
     timeout_sec = _browser_stage1_timeout(args)
-    ok = _run_subprocess(cmd, cwd=REPO_ROOT, timeout_sec=timeout_sec)
-    if not ok:
-        return None
-    study_dir = _resolve_study_dir(benchmark, split, cell_dir, before)
-    if study_dir is None:
-        return None
-    _write_run_meta(study_dir, args, benchmark, split)
-    return study_dir
+    expected_total = int(getattr(args, "tasks_per_split", 0) or 0)
+    max_attempts = max(1, int(getattr(args, "browser_stage1_relaunch_attempts", 3) or 1))
+
+    last_study_dir: Path | None = None
+    for attempt in range(1, max_attempts + 1):
+        cmd = _build_browser_cmd(
+            benchmark, split, args,
+            report_port=report_port,
+            cell_results_dir=cell_dir,
+            force_relaunch_incomplete=attempt > 1,
+        )
+        ok = _run_subprocess(cmd, cwd=REPO_ROOT, timeout_sec=timeout_sec)
+        study_dir = _resolve_study_dir(benchmark, split, cell_dir, before)
+        if study_dir is not None:
+            last_study_dir = study_dir
+            _write_run_meta(study_dir, args, benchmark, split)
+
+        if study_dir is None:
+            if attempt < max_attempts:
+                logger.warning(
+                    f"  [{split}] no study_dir after attempt {attempt}/{max_attempts}; "
+                    "relaunching split"
+                )
+                continue
+            return last_study_dir
+
+        completion = _browser_split_completion(
+            study_dir,
+            expected_total=expected_total,
+        )
+        if ok and completion["done"]:
+            return study_dir
+
+        if attempt < max_attempts:
+            logger.warning(
+                f"  [{split}] partial after attempt {attempt}/{max_attempts}: "
+                f"{completion['completed']}/{completion['expected']} unique tasks "
+                f"({completion['errors']} error rows, "
+                f"{completion['incomplete']} incomplete started); relaunching split"
+            )
+            continue
+
+        logger.error(
+            f"  [{split}] exhausted {max_attempts} attempt(s): "
+            f"{completion['completed']}/{completion['expected']} unique tasks "
+            f"({completion['errors']} error rows, "
+            f"{completion['incomplete']} incomplete started)"
+        )
+        return study_dir
+
+    return last_study_dir
 
 
 def _resolve_study_dir(
@@ -689,159 +760,218 @@ def _stage1_browser_parallel_splits(
     else:
         port_base = None
 
-    procs: list[dict] = []
-    for i, split in enumerate(splits):
-        report_port = None
-        if port_base is not None:
-            report_port = port_base + _DOOMARENA_SPLIT_PORT_OFFSETS.get(split, i)
-            _log_cell_env(args, benchmark, split, report_port, cell_dir)
-        cmd = _build_browser_cmd(
-            benchmark, split, args,
-            report_port=report_port,
-            cell_results_dir=cell_dir,
-        )
-        cmd = ["timeout", "--kill-after=10", str(timeout_sec), *cmd]
-        if i > 0:
-            time.sleep(_LAUNCH_STAGGER_SEC)
-        logger.info(f"  [parallel split {split}] $ {' '.join(cmd)}")
-        if cell_dir is not None:
-            log_dir = cell_dir / split
-        else:
-            log_dir = REPO_ROOT / "results" / "browsergym" / "_split_logs" / (
-                datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-            )
-        log_dir.mkdir(parents=True, exist_ok=True)
-        stdout_path = log_dir / "subprocess.stdout.log"
-        stderr_path = log_dir / "subprocess.stderr.log"
-        baseline_progress = _browser_task_progress(log_dir)
-        _log_existing_browser_task_progress(
-            split,
-            baseline_progress,
-            expected_total=int(getattr(args, "tasks_per_split", 0) or 0),
-        )
-        stdout_file = stdout_path.open("w", encoding="utf-8")
-        stderr_file = stderr_path.open("w", encoding="utf-8")
-        proc = subprocess.Popen(
-            cmd, cwd=str(REPO_ROOT),
-            stdout=stdout_file, stderr=stderr_file, text=True,
-            env=os.environ.copy(),
-            start_new_session=True,
-        )
-        now = time.time()
-        procs.append({
-            "split": split,
-            "proc": proc,
-            "cmd": cmd,
-            "stdout_path": stdout_path,
-            "stderr_path": stderr_path,
-            "stdout_file": stdout_file,
-            "stderr_file": stderr_file,
-            "split_root": log_dir,
-            "started_at": now,
-            "last_activity": now,
-            "kill_reason": None,
-            "closed": False,
-            "seen_started_tasks": {
-                k for k, v in baseline_progress.items() if v["started"]
-            },
-            "seen_completed_tasks": {
-                k for k, v in baseline_progress.items() if v["completed"]
-            },
-        })
-
-    # Wait for all to finish. Child stdout/stderr go to files instead of pipes:
-    # this avoids pipe-buffer backpressure when one split logs heavily while
-    # another split is still running. Poll all splits together so a hung first
-    # split cannot prevent us from noticing later splits have completed.
     results: dict[str, bool] = {}
-    pending = {item["split"]: item for item in procs}
+    expected_total = int(getattr(args, "tasks_per_split", 0) or 0)
+    max_attempts = max(1, int(getattr(args, "browser_stage1_relaunch_attempts", 3) or 1))
+    splits_to_run = list(splits)
 
-    def _finalize_split(item: dict) -> None:
-        split = item["split"]
-        proc = item["proc"]
-        stdout_path = item["stdout_path"]
-        stderr_path = item["stderr_path"]
-        if not item["closed"]:
-            item["stdout_file"].close()
-            item["stderr_file"].close()
-            item["closed"] = True
-        logger.info(f"  [{split}] stdout log → {stdout_path}")
-        logger.info(f"  [{split}] stderr log → {stderr_path}")
-        for line in _tail_lines(stdout_path, 30):
-            logger.info(f"  [{split} stdout] {line.rstrip()}")
-        for line in _tail_lines(stderr_path, 15):
-            logger.warning(f"  [{split} stderr] {line.rstrip()}")
-        ok = proc.returncode == 0
-        if item["kill_reason"]:
-            logger.error(
-                f"  [{split}] subprocess killed: {item['kill_reason']} "
-                f"(exit={proc.returncode})"
+    for attempt in range(1, max_attempts + 1):
+        procs: list[dict] = []
+        for i, split in enumerate(splits_to_run):
+            report_port = None
+            split_index = splits.index(split)
+            if port_base is not None:
+                report_port = port_base + _DOOMARENA_SPLIT_PORT_OFFSETS.get(split, split_index)
+                _log_cell_env(args, benchmark, split, report_port, cell_dir)
+            cmd = _build_browser_cmd(
+                benchmark, split, args,
+                report_port=report_port,
+                cell_results_dir=cell_dir,
+                force_relaunch_incomplete=attempt > 1,
             )
-        elif proc.returncode in (124, 137):
-            logger.error(
-                f"  [{split}] subprocess TIMED OUT after {timeout_sec}s "
-                f"(exit={proc.returncode}). The split may be stuck in backend "
-                f"setup, task reset/login, agent execution, or browser teardown; "
-                f"see {stdout_path} and {stderr_path}."
+            cmd = ["timeout", "--kill-after=10", str(timeout_sec), *cmd]
+            if i > 0:
+                time.sleep(_LAUNCH_STAGGER_SEC)
+            logger.info(
+                f"  [parallel split {split} attempt {attempt}/{max_attempts}] "
+                f"$ {' '.join(cmd)}"
             )
-        elif not ok:
-            logger.error(f"  [{split}] subprocess failed: exit={proc.returncode}")
-        results[split] = ok
+            if cell_dir is not None:
+                log_dir = cell_dir / split
+            else:
+                log_dir = REPO_ROOT / "results" / "browsergym" / "_split_logs" / (
+                    datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+                )
+            log_dir.mkdir(parents=True, exist_ok=True)
+            log_prefix = "subprocess" if attempt == 1 else f"subprocess.attempt{attempt}"
+            stdout_path = log_dir / f"{log_prefix}.stdout.log"
+            stderr_path = log_dir / f"{log_prefix}.stderr.log"
+            baseline_progress = _browser_task_progress(log_dir)
+            _log_existing_browser_task_progress(
+                split,
+                baseline_progress,
+                expected_total=expected_total,
+            )
+            stdout_file = stdout_path.open("w", encoding="utf-8")
+            stderr_file = stderr_path.open("w", encoding="utf-8")
+            proc = subprocess.Popen(
+                cmd, cwd=str(REPO_ROOT),
+                stdout=stdout_file, stderr=stderr_file, text=True,
+                env=os.environ.copy(),
+                start_new_session=True,
+            )
+            now = time.time()
+            procs.append({
+                "split": split,
+                "proc": proc,
+                "cmd": cmd,
+                "stdout_path": stdout_path,
+                "stderr_path": stderr_path,
+                "stdout_file": stdout_file,
+                "stderr_file": stderr_file,
+                "split_root": log_dir,
+                "started_at": now,
+                "last_activity": now,
+                "kill_reason": None,
+                "closed": False,
+                "seen_started_tasks": {
+                    k for k, v in baseline_progress.items() if v["started"]
+                },
+                "seen_completed_tasks": {
+                    k for k, v in baseline_progress.items() if v["completed"]
+                },
+            })
 
-    while pending:
-        now = time.time()
-        for split, item in list(pending.items()):
+        # Wait for this attempt. Child stdout/stderr go to files instead of pipes:
+        # this avoids pipe-buffer backpressure when one split logs heavily while
+        # another split is still running. Poll all splits together so a hung first
+        # split cannot prevent us from noticing later splits have completed.
+        pending = {item["split"]: item for item in procs}
+
+        def _finalize_split(item: dict) -> None:
+            split = item["split"]
             proc = item["proc"]
-            activity = _latest_browser_activity_time(
-                item["split_root"],
-                item["stdout_path"],
-                item["stderr_path"],
-            )
-            if activity > item["last_activity"]:
-                item["last_activity"] = activity
-            _log_browser_task_progress(
-                item,
-                expected_total=int(getattr(args, "tasks_per_split", 0) or 0),
-            )
+            stdout_path = item["stdout_path"]
+            stderr_path = item["stderr_path"]
+            if not item["closed"]:
+                item["stdout_file"].close()
+                item["stderr_file"].close()
+                item["closed"] = True
+            logger.info(f"  [{split}] stdout log → {stdout_path}")
+            logger.info(f"  [{split}] stderr log → {stderr_path}")
+            for line in _tail_lines(stdout_path, 30):
+                logger.info(f"  [{split} stdout] {line.rstrip()}")
+            for line in _tail_lines(stderr_path, 15):
+                logger.warning(f"  [{split} stderr] {line.rstrip()}")
+            ok = proc.returncode == 0
+            if item["kill_reason"]:
+                logger.error(
+                    f"  [{split}] subprocess killed: {item['kill_reason']} "
+                    f"(exit={proc.returncode})"
+                )
+            elif proc.returncode in (124, 137):
+                logger.error(
+                    f"  [{split}] subprocess TIMED OUT after {timeout_sec}s "
+                    f"(exit={proc.returncode}). The split may be stuck in backend "
+                    f"setup, task reset/login, agent execution, or browser teardown; "
+                    f"see {stdout_path} and {stderr_path}."
+                )
+            elif not ok:
+                logger.error(f"  [{split}] subprocess failed: exit={proc.returncode}")
+            results[split] = ok
 
-            if proc.poll() is not None:
-                _finalize_split(item)
-                del pending[split]
+        while pending:
+            now = time.time()
+            for split, item in list(pending.items()):
+                proc = item["proc"]
+                activity = _latest_browser_activity_time(
+                    item["split_root"],
+                    item["stdout_path"],
+                    item["stderr_path"],
+                )
+                if activity > item["last_activity"]:
+                    item["last_activity"] = activity
+                _log_browser_task_progress(item, expected_total=expected_total)
+
+                if proc.poll() is not None:
+                    _finalize_split(item)
+                    del pending[split]
+                    continue
+
+                elapsed = now - item["started_at"]
+                idle_for = now - item["last_activity"]
+                if elapsed > timeout_sec + 30:
+                    item["kill_reason"] = (
+                        f"hard timeout after {timeout_sec}s process budget"
+                    )
+                    terminated = _terminate_process_group(
+                        proc,
+                        split=split,
+                        reason=item["kill_reason"],
+                    )
+                    if not terminated:
+                        continue
+                    _finalize_split(item)
+                    del pending[split]
+                    continue
+                if idle_timeout_sec > 0 and idle_for > idle_timeout_sec:
+                    item["kill_reason"] = (
+                        f"idle timeout after {idle_timeout_sec}s without browser "
+                        f"logs/results activity"
+                    )
+                    terminated = _terminate_process_group(
+                        proc,
+                        split=split,
+                        reason=item["kill_reason"],
+                    )
+                    if not terminated:
+                        continue
+                    _finalize_split(item)
+                    del pending[split]
+
+            if pending:
+                time.sleep(15)
+
+        retry_splits: list[str] = []
+        for split in splits_to_run:
+            split_root = cell_dir / split if cell_dir is not None else None
+            if split_root is not None and split_root.exists():
+                completion = _browser_split_completion(
+                    split_root,
+                    expected_total=expected_total,
+                )
+                split_done = (
+                    bool(completion["done"])
+                    if expected_total > 0
+                    else bool(results.get(split))
+                )
+            else:
+                completion = {
+                    "completed": 0,
+                    "expected": expected_total,
+                    "errors": 0,
+                    "incomplete": 0,
+                    "done": False,
+                }
+                split_done = False
+
+            if split_done:
+                logger.info(
+                    f"  [{split}] complete after attempt {attempt}/{max_attempts}: "
+                    f"{completion['completed']}/{completion['expected']} unique tasks "
+                    f"({completion['errors']} error rows)"
+                )
                 continue
 
-            elapsed = now - item["started_at"]
-            idle_for = now - item["last_activity"]
-            if elapsed > timeout_sec + 30:
-                item["kill_reason"] = (
-                    f"hard timeout after {timeout_sec}s process budget"
+            if attempt < max_attempts:
+                logger.warning(
+                    f"  [{split}] partial after attempt {attempt}/{max_attempts}: "
+                    f"{completion['completed']}/{completion['expected']} unique tasks "
+                    f"({completion['errors']} error rows, "
+                    f"{completion['incomplete']} incomplete started); relaunching split"
                 )
-                terminated = _terminate_process_group(
-                    proc,
-                    split=split,
-                    reason=item["kill_reason"],
+                retry_splits.append(split)
+            else:
+                logger.error(
+                    f"  [{split}] exhausted {max_attempts} attempt(s): "
+                    f"{completion['completed']}/{completion['expected']} unique tasks "
+                    f"({completion['errors']} error rows, "
+                    f"{completion['incomplete']} incomplete started)"
                 )
-                if not terminated:
-                    continue
-                _finalize_split(item)
-                del pending[split]
-                continue
-            if idle_timeout_sec > 0 and idle_for > idle_timeout_sec:
-                item["kill_reason"] = (
-                    f"idle timeout after {idle_timeout_sec}s without browser "
-                    f"logs/results activity"
-                )
-                terminated = _terminate_process_group(
-                    proc,
-                    split=split,
-                    reason=item["kill_reason"],
-                )
-                if not terminated:
-                    continue
-                _finalize_split(item)
-                del pending[split]
 
-        if pending:
-            time.sleep(15)
+        splits_to_run = retry_splits
+        if not splits_to_run:
+            break
 
     # Match new study_dirs to splits. Two paths:
     # 1. cell-namespaced: each split's runner wrote to <cell_dir>/<split>/study_*,
@@ -1235,6 +1365,12 @@ def _parse_args() -> argparse.Namespace:
                         help="Kill a browser split if no subprocess log, step, "
                              "summary, or aggregate result file changes for this "
                              "many seconds. Use 0 to disable. Default 3600s.")
+    parser.add_argument("--browser-stage1-relaunch-attempts", type=int, default=3,
+                        help="Total attempts per browser split, including the "
+                             "first launch. If a split is killed or remains "
+                             "partial, relaunch it with --relaunch-incomplete "
+                             "before judging. Use 1 for legacy behavior. "
+                             "Default 3.")
     parser.add_argument("--browser-splits-sequential", action="store_true",
                         help="Force browser-benchmark splits to run sequentially within a "
                              "cell (legacy behavior). Default is parallel — splits hit "

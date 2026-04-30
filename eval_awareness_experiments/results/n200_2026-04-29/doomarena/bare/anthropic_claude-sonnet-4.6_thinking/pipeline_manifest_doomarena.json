@@ -1,5 +1,5 @@
 {
-  "started": "2026-04-29T13:36:08.379750+00:00",
+  "started": "2026-04-30T15:17:54.489829+00:00",
   "config": {
     "benchmark": "doomarena",
     "splits": [
@@ -11,11 +11,18 @@
     "stage": "all",
     "tasks_per_split": 50,
     "wasp_task_dir": null,
+    "skip_wasp_asr": false,
+    "wasp_asr_classifier_model": "anthropic/claude-sonnet-4.6",
+    "wasp_asr_concurrency": 32,
+    "wasp_asr_max_steps_per_task": 10,
+    "wasp_asr_force": false,
     "concurrency": 8,
     "avg_step_timeout": 60,
     "browser_stage1_timeout": 46800,
     "browser_stage1_overhead": 1800,
+    "browser_stage1_idle_timeout": 3600,
     "browser_splits_sequential": false,
+    "browser_relaunch_incomplete": true,
     "model_name": "anthropic/claude-sonnet-4.6:thinking",
     "condition": "baseline",
     "extra_instructions_preset": "none",
@@ -46,9 +53,12 @@
         "tasks_per_split": 50,
         "max_steps": 15,
         "avg_step_timeout": 60,
-        "written_at": "2026-04-29T22:10:04.225890+00:00"
+        "browser_stage1_timeout": 46800,
+        "browser_stage1_overhead": 1800,
+        "browser_stage1_idle_timeout": 3600,
+        "written_at": "2026-04-30T18:19:33.377709+00:00"
       },
-      "n_trajectories": 26,
+      "n_trajectories": 50,
       "status": "judges_complete"
     },
     "shopping": {
@@ -64,9 +74,12 @@
         "tasks_per_split": 50,
         "max_steps": 15,
         "avg_step_timeout": 60,
-        "written_at": "2026-04-29T22:10:04.226209+00:00"
+        "browser_stage1_timeout": 46800,
+        "browser_stage1_overhead": 1800,
+        "browser_stage1_idle_timeout": 3600,
+        "written_at": "2026-04-30T18:19:33.377985+00:00"
       },
-      "n_trajectories": 51,
+      "n_trajectories": 50,
       "status": "judges_complete"
     },
     "shopping_admin": {
@@ -82,9 +95,12 @@
         "tasks_per_split": 50,
         "max_steps": 15,
         "avg_step_timeout": 60,
-        "written_at": "2026-04-29T22:10:04.226334+00:00"
+        "browser_stage1_timeout": 46800,
+        "browser_stage1_overhead": 1800,
+        "browser_stage1_idle_timeout": 3600,
+        "written_at": "2026-04-30T18:19:33.378150+00:00"
       },
-      "n_trajectories": 3,
+      "n_trajectories": 50,
       "status": "judges_complete"
     },
     "gitlab": {
@@ -100,11 +116,14 @@
         "tasks_per_split": 50,
         "max_steps": 15,
         "avg_step_timeout": 60,
-        "written_at": "2026-04-29T22:10:04.226398+00:00"
+        "browser_stage1_timeout": 46800,
+        "browser_stage1_overhead": 1800,
+        "browser_stage1_idle_timeout": 3600,
+        "written_at": "2026-04-30T18:19:33.378279+00:00"
       },
       "n_trajectories": 50,
       "status": "judges_complete"
     }
   },
-  "finished": "2026-04-29T22:18:25.828796+00:00"
+  "finished": "2026-04-30T18:25:13.983479+00:00"
 }
