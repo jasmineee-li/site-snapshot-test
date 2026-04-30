@@ -68,6 +68,7 @@ logger = logging.getLogger(__name__)
 _INITIAL_MAX_TOKENS = 8_192
 _MAX_MAX_TOKENS = 32_768
 _VARIANT_STRUCTURED_RETRIES = 2
+_APPLIED_STRATEGY_DESCRIPTION_MAX_CHARS = 400
 
 # stop_reason values the code branches on explicitly. Anything outside
 # this set gets a warning log + `no_tool_use` bucket so new SDK values
@@ -83,8 +84,15 @@ class AppliedStrategyPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     strategy: StrategyName
-    description: str = Field(min_length=1, max_length=400)
+    description: str = Field(min_length=1)
     injection_content: str
+
+    @field_validator("description", mode="after")
+    @classmethod
+    def compact_description_metadata(cls, value: str) -> str:
+        if len(value) <= _APPLIED_STRATEGY_DESCRIPTION_MAX_CHARS:
+            return value
+        return f"{value[: _APPLIED_STRATEGY_DESCRIPTION_MAX_CHARS - 1].rstrip()}…"
 
 
 # Instructor's Anthropic adapter uses `response_model.__name__` as the forced
@@ -412,7 +420,7 @@ def _validate_variant_payload(payload: dict[str, Any]) -> str | None:
     if strategy_name not in ALLOWED_STRATEGIES:
         return "schema_violation"
     description = applied.get("description")
-    if not isinstance(description, str) or not description or len(description) > 400:
+    if not isinstance(description, str) or not description:
         return "schema_violation"
     injection_content = applied.get("injection_content")
     if not isinstance(injection_content, str):

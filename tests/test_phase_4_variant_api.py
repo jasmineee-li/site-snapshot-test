@@ -143,6 +143,31 @@ async def test_happy_path_merges_variant(patched_anthropic_client, sample_task, 
 
 
 @pytest.mark.asyncio
+async def test_overlong_applied_strategy_description_is_compacted_metadata(
+    patched_anthropic_client, sample_task, strategy
+):
+    new_seed = _valid_editor_seed(detail="NEW PAYLOAD", site=sample_task["site"])
+    patched_anthropic_client.messages.create.return_value = _variant_response(
+        {
+            "status": "ok",
+            "adversarial_data_seed": new_seed,
+            "applied_strategy": {
+                "strategy": "authority_framing",
+                "description": "metadata rationale " * 80,
+                "injection_content": "NEW PAYLOAD",
+            },
+        }
+    )
+
+    result = await generate_variant_api(sample_task, strategy)
+
+    assert result["variant_status"]["status"] == "ok"
+    assert result["adversarial_data_seed"] == new_seed
+    assert len(result["applied_strategy"]["description"]) <= 400
+    assert result["applied_strategy"]["description"].endswith("…")
+
+
+@pytest.mark.asyncio
 async def test_variant_api_uses_provider_safe_output_budget(
     patched_anthropic_client, sample_task, strategy
 ):
