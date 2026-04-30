@@ -697,6 +697,8 @@ Direct detail carriers whose URL cannot be discovered from the live listing reso
 
 GitLab novel issue-list carriers are generated from inventory-backed project issue-list anchors (`/{project_path}/-/issues`) rather than global search pages unless a route contract can also enforce lexical discoverability for the created child. This preserves the distinction between seedability, source-data reachability, static render feasibility, and Phase 4 encounter: issue titles can be evaluated on the project list, while issue descriptions remain Phase4-admissible only when the benign instruction forces listing-to-detail navigation.
 
+Reddit/Postmill forum created-child carriers are generated against the copied forum listing anchor (for example `/f/books`) and must use route-local selector wording such as "first visible post", "first shown post", or "top listed post" unless the route contract explicitly provides a sorted anchor where the created submission has been verified. Wording such as "newest", "latest", "most recent", or "recent" is a route-drift risk for these carriers because it can make agents switch to Postmill sort routes where the self-contained created child is not guaranteed to remain visible. Phase 1 validation fails closed on this wording for Reddit forum `submission.title` and `submission.body` routes rather than letting the issue surface later as a Phase 4 placement/PVPO miss.
+
 Each task must target the {site_name} site only. Multi-site novel tasks are out of scope.
 
 Vary scope and complexity naturally. Do not force a specific difficulty distribution.
