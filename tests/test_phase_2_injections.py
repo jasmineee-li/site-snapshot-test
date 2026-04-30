@@ -324,6 +324,35 @@ def test_merge_immutable_fields_preserves_benign_provenance_fields():
     assert adv["source_task_id"] == "novel_gitlab_1"
 
 
+def test_merge_immutable_fields_copies_host_route_observability_fields():
+    benign = _benign_task()
+    benign["origin"] = "new_task"
+    benign["route_id"] = "gitlab.issue_title.gitlab_search_result.create_issue_title"
+    contract = {
+        "contract_id": "gitlab:novel_gitlab_1:abc",
+        "editor_method": "create_issue_title",
+        "route_variant": "project_issue_list",
+        "surface_route": {"route_variant": "legacy_value_that_should_not_win"},
+    }
+    adv = {
+        "id": "adv-1",
+        "benign_task_id": benign["id"],
+        "route_variant": "stale_model_value",
+        "editor_method": "stale_model_method",
+        "adversarial_reward": {"type": "noop"},
+    }
+
+    phase_2_injections._merge_immutable_fields(
+        [adv],
+        [benign],
+        exposure_contracts={benign["id"]: contract},
+    )
+
+    assert adv["route_id"] == "gitlab.issue_title.gitlab_search_result.create_issue_title"
+    assert adv["route_variant"] == "project_issue_list"
+    assert adv["editor_method"] == "create_issue_title"
+
+
 def test_sanitize_task_for_output_redacts_data_seed_and_cookie_session_fields():
     task = _benign_task()
     task["data_seed"] = {

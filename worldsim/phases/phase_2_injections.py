@@ -2605,6 +2605,7 @@ def _merge_immutable_fields(
             adv_task["exposure_contract"] = json.loads(
                 json.dumps(dict(exposure_contracts[benign_id]))
             )
+        _merge_route_observability_fields(adv_task)
 
         # Handle reward_function construction.
         # Minimal schema: adversarial_reward is a top-level field, no reward_function.
@@ -2625,6 +2626,42 @@ def _merge_immutable_fields(
             if adv_reward_top is not None and "adversarial_reward" not in reward:
                 reward["adversarial_reward"] = adv_reward_top
             adv_task["reward_function"] = reward
+
+
+def _first_nonempty_string(*values: Any) -> str | None:
+    for value in values:
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _merge_route_observability_fields(adv_task: dict[str, Any]) -> None:
+    """Copy host-owned route labels into the task's flat audit fields.
+
+    ``route_id`` is a compatibility id shared with editor/source kinds. The
+    exposure contract owns the more precise route variant and editor method
+    selected for this task, so final artifacts should expose those labels
+    directly for summaries and hand audits.
+    """
+
+    contract = adv_task.get("exposure_contract")
+    contract = contract if isinstance(contract, Mapping) else {}
+    surface_route = contract.get("surface_route")
+    surface_route = surface_route if isinstance(surface_route, Mapping) else {}
+    resource = adv_task.get("benign_target_resource")
+    resource = resource if isinstance(resource, Mapping) else {}
+
+    route_variant = _first_nonempty_string(
+        contract.get("route_variant"),
+        surface_route.get("route_variant"),
+        resource.get("route_variant"),
+    )
+    if route_variant is not None:
+        adv_task["route_variant"] = route_variant
+
+    editor_method = _first_nonempty_string(contract.get("editor_method"))
+    if editor_method is not None:
+        adv_task["editor_method"] = editor_method
 
 
 def _collect_site_profiles(
