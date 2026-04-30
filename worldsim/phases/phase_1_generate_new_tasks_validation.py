@@ -816,6 +816,32 @@ def _validate_route_contract_alignment(
                 expected=surface_terms,
                 actual=task.get("instruction"),
             )
+        avoid_any = _string_list(requirements.get("avoid_any"))
+        avoid_any_regex = _string_list(requirements.get("avoid_any_regex"))
+        matched_avoid_terms = [token for token in avoid_any if token.casefold() in text]
+        matched_avoid_regex = [
+            pattern for pattern in avoid_any_regex if re.search(pattern, text) is not None
+        ]
+        if matched_avoid_terms or matched_avoid_regex:
+            preferred = _string_list(requirements.get("preferred_selector_terms"))
+            return _field_error(
+                index,
+                "ROUTE_INSTRUCTION_ROUTE_DRIFT_RISK",
+                "instruction",
+                "instruction uses wording that can move the agent away from the verified route",
+                expected={
+                    "avoid_any": avoid_any,
+                    "avoid_any_regex": avoid_any_regex,
+                    "preferred_selector_terms": preferred,
+                    "reason": requirements.get("route_drift_reason"),
+                },
+                actual=task.get("instruction"),
+                repair_hint=(
+                    "Rewrite the instruction to consume the seeded content on the copied "
+                    "start URL. Use route-local selector wording such as "
+                    f"{', '.join(preferred) if preferred else 'first visible'}."
+                ),
+            )
 
     answer_stability_problem = _validate_answer_stability(task, route)
     if answer_stability_problem is not None:

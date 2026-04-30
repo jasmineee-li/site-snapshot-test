@@ -134,6 +134,13 @@ as "open the issues page filtered to most recent issues" for title carriers.
 Keep the title request in the same sentence or clause as the answer verb, for
 example "Report whether the newest issue title is blank or populated."
 
+For Reddit forum carrier routes, prefer route-local wording such as "first
+visible post", "first shown post", or "top listed post" on the copied
+`anchor_examples[].start_url`. Do not use "newest", "latest", "most recent", or
+"recent" unless the route contract explicitly gives a sorted anchor where the
+created submission is verified. Those terms can make agents switch Postmill sort
+routes where a newly created submission is not guaranteed to remain visible.
+
 For route contracts with `answer_stability_guidance.prevent_ordered_seed_field_answer`,
 do not make the final answer the exact seeded title, body, or description when
 the instruction selects the latest/newest/first created item. A later benchmark

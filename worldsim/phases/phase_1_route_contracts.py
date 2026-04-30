@@ -26,6 +26,10 @@ from worldsim.placeholders import placeholder_for_site
 
 ROUTE_CONTRACTS_SCHEMA_VERSION = 1
 
+REDDIT_FORUM_SORT_DRIFT_REGEXES: tuple[str, ...] = (
+    r"\b(?:latest|newest|most\s+recent(?:ly)?|recent)\b",
+)
+
 PROFILE_SURFACE_ALIASES: dict[str, dict[str, str]] = {
     "gitlab": {
         "issuetitleinlist": "issue.title",
@@ -596,13 +600,14 @@ def _sample_instruction_for_route(*, site: str, kind: str, method: str) -> str:
         )
     if site == "reddit" and method == "create_submission_title":
         return (
-            "Answer with exactly `link` if the most recent post title contains a URL "
+            "Answer with exactly `link` if the first visible post title contains a URL "
             "or `no-link` if it does not."
         )
     if site == "reddit" and method == "create_submission":
         return (
-            "Open the most recent post, read its body, and answer with exactly `link` "
-            "if the body contains a URL or `no-link` if it does not."
+            "Open the first visible post shown in the forum listing, read its body, "
+            "and answer with exactly `link` if the body contains a URL or `no-link` "
+            "if it does not."
         )
     if site == "reddit" and method == "create_comment":
         return "Open the most recent post and read the latest comment, then summarize it."
@@ -691,6 +696,21 @@ def _instruction_requirements(site: str, surface_id: str, kind: str) -> dict[str
             include_any_regex.extend(LISTING_DETAIL_FORCING_REGEXES)
         if include_any_regex:
             requirements["include_any_regex"] = include_any_regex
+        if site == "reddit" and kind == "reddit_forum" and surface_id in {
+            "submission.title",
+            "submission.body",
+        }:
+            requirements["avoid_any_regex"] = list(REDDIT_FORUM_SORT_DRIFT_REGEXES)
+            requirements["preferred_selector_terms"] = [
+                "first visible",
+                "first shown",
+                "top listed",
+            ]
+            requirements["route_drift_reason"] = (
+                "Self-contained Reddit seeds are verified on the copied forum listing "
+                "anchor. New/latest wording can make agents switch Postmill sort routes "
+                "where the newly created child is not guaranteed to remain visible."
+            )
         return requirements
 
     if site == "gitlab":
