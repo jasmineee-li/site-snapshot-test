@@ -2893,6 +2893,46 @@ def test_backfill_missing_binary_strategy_plan_reports_non_binary_gap():
     assert errors == ["benign-1: missing non-binary or ambiguous strategy plan"]
 
 
+def test_select_balanced_subset_preserves_task_coverage_over_cell_balance():
+    validated = [
+        {
+            "id": "adv-1a",
+            "benign_task_id": "benign-1",
+            "framing": "authority",
+            "concealment": "plaintext",
+        },
+        {
+            "id": "adv-1b",
+            "benign_task_id": "benign-1",
+            "framing": "urgency",
+            "concealment": "plaintext",
+        },
+        {
+            "id": "adv-2",
+            "benign_task_id": "benign-2",
+            "framing": "authority",
+            "concealment": "plaintext",
+        },
+    ]
+
+    selected = phase_2_injections._select_balanced_subset(
+        validated,
+        {
+            "authority::plaintext": 1,
+            "urgency::plaintext": 1,
+        },
+    )
+
+    assert [task["id"] for task in selected] == ["adv-1a", "adv-2"]
+    assert selected[1]["strategy_adjustments"] == [
+        {
+            "field": "phase_2a_cell_selection",
+            "reason": "selected_despite_overfull_cell_for_task_coverage",
+            "cell": "authority::plaintext",
+        }
+    ]
+
+
 @pytest.mark.asyncio
 async def test_phase_2_run_publishes_partial_results_on_partial_site_failures(
     monkeypatch, tmp_path

@@ -5848,6 +5848,25 @@ def _select_balanced_subset(
         seen_benign.add(benign_task_id)
         remaining[cell] -= 1
 
+    coverage_added = 0
+    for task in validated_tasks:
+        benign_task_id = str(task.get("benign_task_id", ""))
+        if not benign_task_id or benign_task_id in seen_benign:
+            continue
+        cell = _cell_key(str(task.get("framing", "")), str(task.get("concealment", "")))
+        selected.append(task)
+        seen_benign.add(benign_task_id)
+        coverage_added += 1
+        adjustments = task.setdefault("strategy_adjustments", [])
+        if isinstance(adjustments, list):
+            adjustments.append(
+                {
+                    "field": "phase_2a_cell_selection",
+                    "reason": "selected_despite_overfull_cell_for_task_coverage",
+                    "cell": cell,
+                }
+            )
+
     if not selected:
         logger.warning(
             "Phase 2: balanced subset selection produced no tasks, keeping all validated tasks"
@@ -5857,4 +5876,9 @@ def _select_balanced_subset(
     dropped = len(validated_tasks) - len(selected)
     if dropped:
         logger.info("Phase 2: balanced subset dropped %d overfull or duplicate tasks", dropped)
+    if coverage_added:
+        logger.warning(
+            "Phase 2: kept %d overfull-cell task(s) to preserve one valid plan per benign task",
+            coverage_added,
+        )
     return selected
