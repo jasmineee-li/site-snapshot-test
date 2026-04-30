@@ -29,9 +29,6 @@ COLUMNS = [
     "asr_success_count",
     "asr_n",
     "asr_source",
-    "stage1_attack_success_rate",
-    "stage1_attack_success_count",
-    "stage1_attack_success_n",
     "verbalized_eval_rate",
     "verbalized_alignment_eval_rate",
     "verbalized_capability_eval_rate",
@@ -56,8 +53,6 @@ MD_COLUMNS = [
     "asr_rate",
     "asr_n",
     "asr_source",
-    "stage1_attack_success_rate",
-    "stage1_attack_success_n",
     "user_task_pass_rate",
     "verbalized_eval_rate",
     "verbalized_real_rate",
@@ -110,14 +105,6 @@ def _rate(num: int | float, den: int | float) -> float | None:
     return (num / den) if den else None
 
 
-def _is_hidden(root: Path, path: Path) -> bool:
-    try:
-        parts = path.relative_to(root).parts
-    except ValueError:
-        return False
-    return any(part.startswith(("_", ".")) for part in parts)
-
-
 def _load_wasp_asr(cell_dir: Path, split: str) -> tuple[dict[str, Any], dict[str, bool]]:
     path = cell_dir / f"wasp_asr_{split}.jsonl"
     if not path.exists():
@@ -132,25 +119,6 @@ def _load_wasp_asr(cell_dir: Path, split: str) -> tuple[dict[str, Any], dict[str
         if "any_compromised" in row:
             task_map[str(row["task_id"])] = bool(row["any_compromised"])
     return summary, task_map
-
-
-def _stage1_attack_success(cell_dir: Path, split: str) -> tuple[int, int]:
-    split_root = cell_dir / "_browser_runs" / split
-    if not split_root.exists():
-        return 0, 0
-    success = 0
-    total = 0
-    for path in sorted(split_root.rglob("attack_summary_info.json")):
-        if _is_hidden(split_root, path):
-            continue
-        try:
-            value = json.loads(path.read_text(encoding="utf-8")).get("attack_successful")
-        except (json.JSONDecodeError, OSError):
-            continue
-        if isinstance(value, bool):
-            total += 1
-            success += int(value)
-    return success, total
 
 
 def _sum_bool_by_task(rows: list[dict[str, Any]], field: str) -> dict[str, bool]:
@@ -187,7 +155,6 @@ def _summarize_split(result_path: Path) -> dict[str, Any]:
         asr_map = {}
         asr_source = ""
 
-    stage1_success, stage1_n = _stage1_attack_success(cell_dir, split)
     judge_error_rows = sum(1 for row in rows if (row.get("metadata") or {}).get("error"))
     expected_judge_rows = len(task_ids) * 2
 
@@ -238,8 +205,6 @@ def _summarize_split(result_path: Path) -> dict[str, Any]:
         "asr_success_count": asr_success,
         "asr_n": asr_n,
         "asr_source": asr_source,
-        "stage1_attack_success_count": stage1_success,
-        "stage1_attack_success_n": stage1_n,
         "verbalized_n": verbalized_n,
         "verbalized_eval_count": sum(
             count for label, count in verbalized_counts.items()
@@ -269,10 +234,6 @@ def _finalize(row: dict[str, Any]) -> dict[str, Any]:
     row = dict(row)
     row["user_task_pass_rate"] = _rate(row["user_task_pass_count"], row["user_task_pass_n"])
     row["asr_rate"] = _rate(row["asr_success_count"], row["asr_n"])
-    row["stage1_attack_success_rate"] = _rate(
-        row["stage1_attack_success_count"],
-        row["stage1_attack_success_n"],
-    )
     row["verbalized_eval_rate"] = _rate(row["verbalized_eval_count"], row["verbalized_n"])
     row["verbalized_alignment_eval_rate"] = _rate(
         row["verbalized_alignment_eval_count"],
@@ -326,8 +287,6 @@ def _aggregate(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         "user_task_pass_n",
         "asr_success_count",
         "asr_n",
-        "stage1_attack_success_count",
-        "stage1_attack_success_n",
         "verbalized_n",
         "verbalized_eval_count",
         "verbalized_alignment_eval_count",
@@ -409,9 +368,6 @@ def summarize(results_dir: Path, output_dir: Path) -> None:
         "- `asr_rate` is the WASP post-hoc action-only ASR classifier when "
         "`asr_source=wasp_post_hoc_action_classifier`; otherwise it falls back "
         "to boolean `metadata.attack_success` if present.\n"
-        "- `stage1_attack_success_rate` is the AgentLab `attack_summary_info.json` "
-        "field. For WASP this is a native/stage-1 placeholder and should not be "
-        "used as WASP ASR.\n"
         "- `user_task_pass_rate` is from `metadata.task_passed` in the "
         "trajectory-awareness rows.\n"
         "- `verbalized_*` columns summarize `verbalized_awareness` headline "
