@@ -49,6 +49,7 @@
 
 <important if="you are setting up hosts, deploying the proxy, or preparing rigor runs">
 - Read `agent_docs/remote-runs.md` and `docs/handoffs/rigor-run-setup.md` first.
+- On r5, instance files are execution-locality contracts: Modal Phase 0/0c uses externally reachable/proxied `instances.smoke.json`, while on-host Phase 2c/4 uses `instances.scale.json`. Do not generalize one file across both localities.
 - Use `scripts/setup_phase4_on_host.sh` on fresh hosts; its preflight proves CDP endpoints, storage state, and evaluator venv.
 - Proxy source of truth is `scripts/deploy_benchmark_proxy.sh`; never hand-edit `/etc/nginx/conf.d/worldsim-proxy.conf`.
 - Rigor PVPO needs `chrome-headless-shell` Docker containers; native macOS Chrome cannot provide `HeadlessExperimental.beginFrame`.

@@ -31,27 +31,25 @@ Use an explicit `bash -lc '...'` command for multi-step runs. Set
 argv/PATH behavior; launch failures are written as `exit.status=launch_failed`
 and surfaced by `remote_job_status.sh`.
 
-For r5 jobs that run browsers on the host, including Phase 2c render checks and
-Phase 4 agent/PVPO runs, use the generated `instances.scale.json`. Do not use
-`instances.smoke.json` on-host unless you have regenerated it for the host's
-`orchestrator_host`. The smoke file may point at the public advertised IP; AWS
-does not reliably hairpin browser traffic from the instance back to its own
-public IP, which causes false `host_unreachable` render failures and host-bound
-storage-state mismatches. `instances.scale.json` is generated from the host
-config and uses `orchestrator_host` such as `172.17.0.1`.
-`scripts/remote_job_start.sh` enforces this for known on-host browser phases
-and blocks Phase 2/2c defaults or explicit smoke-instance inputs before the
-remote job starts. Override with
-`WORLDSIM_ALLOW_REMOTE_INSTANCE_TOPOLOGY_MISMATCH=1` only when intentionally
-testing an external-browser topology.
+WorldSim uses two different network localities on r5. Treat the instances file
+as an execution-locality contract, not just a dataset selector:
 
-Phase 0c is the topology exception. Its profiling work runs in Modal sandboxes,
-not in the on-host browser process, so it cannot reach r5-only addresses such
-as `172.17.0.1`. Use an externally reachable/proxied instance file such as
-`instances.smoke.json` for Phase 0/0c live probing, then switch back to
-`instances.scale.json` for Phase 2c and Phase 4. The remote launcher blocks
-`phase 0 --instances instances.scale.json` on `remote_direct_restricted` hosts
-for this reason.
+| Phase / caller | Where traffic originates | Correct r5 instances file | Why |
+| --- | --- | --- | --- |
+| Phase 0c profiling | Modal sandbox outside r5 | `instances.smoke.json` or equivalent public/proxy file | Modal cannot reach r5-only addresses such as `172.17.0.1`; it needs the authenticated public proxy. |
+| Phase 2c render checks | r5 host / browser containers | `instances.scale.json` | AWS does not reliably hairpin public-IP traffic from the instance to itself; on-host browsers need `orchestrator_host`. |
+| Phase 4 agent/PVPO | r5 host / browser containers | `instances.scale.json` | Same on-host browser topology as Phase 2c; storage-state cookies are host-bound. |
+
+Do not collapse these into one rule. `instances.scale.json` is correct for
+Phase 2c/4 and wrong for Modal Phase 0c. `instances.smoke.json` is correct for
+Modal Phase 0c and wrong for on-host Phase 2c/4 unless regenerated for the
+host's `orchestrator_host`.
+
+`scripts/remote_job_start.sh` enforces this split on
+`remote_direct_restricted` hosts: it blocks Phase 2/2c/4 smoke inputs and
+blocks Phase 0/0c scale inputs. Override with
+`WORLDSIM_ALLOW_REMOTE_INSTANCE_TOPOLOGY_MISMATCH=1` only when intentionally
+testing a different topology, and record why the run is not comparable.
 
 ## Resume and Compaction Checks
 
