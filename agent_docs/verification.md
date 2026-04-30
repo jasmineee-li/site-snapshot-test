@@ -74,6 +74,8 @@ scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml -
 - CLI smoke: `uv run python -m worldsim.main --help`
 - Readiness metrics: `uv run python scripts/readiness_audit.py --json`
 - Phase 4 result audit: `uv run python scripts/summarize_phase_4_results.py logs/<run>`
+- Phase 4 variant-generation QA: `uv run python scripts/audit_phase_4_variants.py logs/<run>`
+- Phase 4 paired-run comparison: `uv run python scripts/compare_phase_4_runs.py logs/<baseline> logs/<candidate>`
 
 ## Hooks
 
