@@ -100,43 +100,47 @@ def _compact_text(value: Any, *, limit: int = 220) -> str | None:
     return f"{text[: limit - 1].rstrip()}..."
 
 
-def _failure_class_from_text(value: str | None) -> str | None:
+def _failure_classes_from_text(value: str | None) -> list[str]:
     if not value:
-        return None
+        return []
     text = value.lower()
+    classes: list[str] = []
     if "unchanged_seed" in text:
-        return "unchanged_seed"
+        classes.append("unchanged_seed")
     if "required token" in text and "exactly once" in text:
-        return "required_token_cardinality"
-    if "length" in text and "outside budget" in text:
-        return "payload_length_budget"
+        classes.append("required_token_cardinality")
+    if ("length" in text and "outside budget" in text) or "too long" in text or "over-budget" in text:
+        classes.append("payload_length_budget")
     if "attack witness starts too late" in text:
-        return "attack_witness_too_late"
+        classes.append("attack_witness_too_late")
     if "attack action witness" in text and "missing" in text:
-        return "attack_witness_missing"
+        classes.append("attack_witness_missing")
     if "unresolved template" in text or "placeholder" in text:
-        return "template_placeholder"
+        classes.append("template_placeholder")
     if "meaningful" in text and "token" in text:
-        return "non_meaningful_rewrite"
+        classes.append("non_meaningful_rewrite")
     if "payload_text failed post-hoc validation" in text:
-        return "payload_text_validation"
+        classes.append("payload_text_validation")
     if "host resynchronization" in text:
-        return "payload_text_seed_mismatch"
-    return "other_host_finalization"
+        classes.append("payload_text_seed_mismatch")
+    if not classes:
+        classes.append("other_host_finalization")
+    return classes
 
 
-def _attempt_failure_class(attempt: dict[str, Any]) -> str | None:
+def _attempt_failure_class_reasons(attempt: dict[str, Any]) -> dict[str, str]:
     generation_status = attempt.get("generation_status")
     host_status = attempt.get("host_status")
     if generation_status == "generated" and host_status != "failed":
-        return None
+        return {}
+    class_reasons: dict[str, str] = {}
     for key in ("generation_reason", "host_reason", "retry_feedback"):
-        classified = _failure_class_from_text(
-            attempt.get(key) if isinstance(attempt.get(key), str) else None
-        )
-        if classified is not None:
-            return classified
-    return "other_host_finalization"
+        value = attempt.get(key) if isinstance(attempt.get(key), str) else None
+        for classified in _failure_classes_from_text(value):
+            class_reasons.setdefault(classified, value or "")
+    if not class_reasons:
+        class_reasons["other_host_finalization"] = ""
+    return class_reasons
 
 
 def _strategy_name(value: Any) -> str:
@@ -234,9 +238,12 @@ def discover_variant_generation_artifacts(phase4_dir: Path) -> list[dict[str, An
             ),
             "artifact_dir": str(attempt_dir),
         }
-        failure_class = _attempt_failure_class(attempt)
-        if failure_class is not None:
-            attempt["failure_class"] = failure_class
+        failure_class_reasons = _attempt_failure_class_reasons(attempt)
+        failure_classes = list(failure_class_reasons)
+        if failure_classes:
+            attempt["failure_classes"] = failure_classes
+            attempt["failure_class_reasons"] = failure_class_reasons
+            attempt["failure_class"] = failure_classes[0]
         attempts.append(attempt)
     return attempts
 
@@ -349,26 +356,23 @@ def build_variant_artifact_audit(
         )
         metadata = _task_metadata(result, task_lookup)
         for attempt in attempts:
-            failure_class = attempt.get("failure_class")
-            if not isinstance(failure_class, str) or not failure_class:
+            raw_classes = attempt.get("failure_classes")
+            if not isinstance(raw_classes, list):
                 continue
-            key = (
-                failure_class,
-                metadata["site"],
-                metadata["surface"],
-                metadata["route_variant"],
-                str(attempt.get("strategy") or "unknown"),
-            )
-            failure_buckets[key] += 1
-            failure_examples.setdefault(
-                key,
-                str(
-                    attempt.get("generation_reason")
-                    or attempt.get("host_reason")
-                    or attempt.get("retry_feedback")
-                    or ""
-                ),
-            )
+            for failure_class in raw_classes:
+                if not isinstance(failure_class, str) or not failure_class:
+                    continue
+                key = (
+                    failure_class,
+                    metadata["site"],
+                    metadata["surface"],
+                    metadata["route_variant"],
+                    str(attempt.get("strategy") or "unknown"),
+                )
+                failure_buckets[key] += 1
+                reasons = attempt.get("failure_class_reasons")
+                reason = reasons.get(failure_class) if isinstance(reasons, dict) else None
+                failure_examples.setdefault(key, str(reason or ""))
         row = {
             **metadata,
             "final_status": str(result.get("final_status") or "missing"),
@@ -405,9 +409,14 @@ def build_variant_artifact_audit(
             "quality_flags": flags,
             "failure_class_counts": _count_map(
                 [
-                    str(attempt.get("failure_class"))
+                    str(failure_class)
                     for attempt in attempts
-                    if isinstance(attempt.get("failure_class"), str)
+                    for failure_class in (
+                        attempt.get("failure_classes")
+                        if isinstance(attempt.get("failure_classes"), list)
+                        else []
+                    )
+                    if isinstance(failure_class, str)
                 ]
             ),
             "first_rejection": first_rejection,

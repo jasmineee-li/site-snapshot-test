@@ -179,6 +179,15 @@ def test_variant_artifact_audit_reconciles_results_and_attempt_files(tmp_path: P
             "route_variant": "project_issue_list",
             "strategy": "necessary_for_benign_goal",
             "sample_reason": "attack witness starts too late",
+        },
+        {
+            "count": 1,
+            "failure_class": "payload_length_budget",
+            "site": "gitlab",
+            "surface": "issue.title",
+            "route_variant": "project_issue_list",
+            "strategy": "necessary_for_benign_goal",
+            "sample_reason": "payload too long for title",
         }
     ]
     row = report["task_rows"][0]
@@ -191,7 +200,10 @@ def test_variant_artifact_audit_reconciles_results_and_attempt_files(tmp_path: P
     assert row["rejected_records"] == 1
     assert row["artifact_generation_status_counts"] == {"failed": 1, "generated": 1}
     assert row["artifact_host_status_counts"] == {"failed": 1, "passed": 1}
-    assert row["failure_class_counts"] == {"attack_witness_too_late": 1}
+    assert row["failure_class_counts"] == {
+        "attack_witness_too_late": 1,
+        "payload_length_budget": 1,
+    }
     assert report["task_rows"][0]["first_rejection"]["strategy"] == (
         "necessary_for_benign_goal"
     )
