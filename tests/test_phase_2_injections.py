@@ -348,6 +348,26 @@ def test_merge_immutable_fields_preserves_benign_provenance_fields():
     assert adv["source_task_id"] == "novel_gitlab_1"
 
 
+def test_merge_immutable_fields_copies_private_task_provenance_after_planning():
+    benign = _benign_task()
+    benign["task_provenance"] = {
+        "task_card_id": "card.gitlab.title.link_presence",
+        "archetype_id": "field_status_check",
+    }
+    benign["task_signature"] = "task-sig-123"
+    benign["archetype_signature"] = "arch-sig-456"
+    adv = {"id": "adv-1", "benign_task_id": benign["id"], "adversarial_reward": {"type": "noop"}}
+
+    phase_2_injections._merge_immutable_fields([adv], [benign])
+
+    assert adv["task_provenance"] == {
+        "task_card_id": "card.gitlab.title.link_presence",
+        "archetype_id": "field_status_check",
+        "task_signature": "task-sig-123",
+        "archetype_signature": "arch-sig-456",
+    }
+
+
 def test_merge_immutable_fields_copies_host_route_observability_fields():
     benign = _benign_task()
     benign["origin"] = "new_task"
@@ -402,6 +422,71 @@ def test_sanitize_task_for_output_redacts_data_seed_and_cookie_session_fields():
     assert sanitized["data_seed"]["api_calls"][0]["headers"]["Authorization"] == "<redacted>"
     assert sanitized["agent_context"]["auth_mechanism"]["cookies"] == {"session": "<redacted>"}
     assert sanitized["agent_context"]["auth_mechanism"]["session_cookie"] == "<redacted>"
+
+
+def test_sanitize_task_for_phase_2a_planner_drops_private_provenance_fields():
+    task = _benign_task()
+    task["agent_context"] = {"authentication": {"credentials": {"password": "secret"}}}
+    task["data_seed"] = {"mechanism": "none"}
+    task["task_provenance"] = {"task_card_id": "card-1"}
+    task["task_bank"] = {"name": "bank"}
+    task["task_bank_metadata"] = {"line": 7}
+    task["task_card"] = {"id": "card-1", "notes": "internal diagnosis"}
+    task["task_archetype"] = {"user_intent_family": "field_status_check"}
+    task["task_signature"] = "task-sig"
+    task["archetype_signature"] = "arch-sig"
+    task["private_fields"] = ["source_jsonl_line"]
+    task["source_jsonl_line"] = '{"raw":"private"}'
+    task["debug_generation_notes"] = "not for planner"
+
+    sanitized = phase_2_injections._sanitize_task_for_output(
+        task,
+        audience="phase_2a_planner",
+    )
+
+    assert "task_provenance" not in sanitized
+    assert "task_bank" not in sanitized
+    assert "task_bank_metadata" not in sanitized
+    assert "task_card" not in sanitized
+    assert "task_archetype" not in sanitized
+    assert "task_signature" not in sanitized
+    assert "archetype_signature" not in sanitized
+    assert "private_fields" not in sanitized
+    assert "source_jsonl_line" not in sanitized
+    assert "debug_generation_notes" not in sanitized
+    assert "agent_context" not in sanitized
+    assert "data_seed" not in sanitized
+    assert sanitized["instruction"] == task["instruction"]
+    assert sanitized["reward_function"] == task["reward_function"]
+
+
+def test_sanitize_task_for_phase_2a_planner_strips_nested_private_provenance_fields():
+    task = _benign_task()
+    task["instantiation_dict"] = {
+        "retrieved_data_format_spec": "Return one string.",
+        "task_provenance": {"task_card_id": "card-1"},
+        "private_source_row": {"source_jsonl_line": 3},
+        "nested": [{"task_bank_metadata": {"line": 7}}, {"public": "kept"}],
+    }
+
+    sanitized = phase_2_injections._sanitize_task_for_output(
+        task,
+        audience="phase_2a_planner",
+    )
+
+    assert sanitized["instantiation_dict"] == {
+        "retrieved_data_format_spec": "Return one string.",
+        "nested": [{}, {"public": "kept"}],
+    }
+
+
+def test_sanitize_task_for_artifact_preserves_private_provenance_fields():
+    task = _benign_task()
+    task["task_provenance"] = {"task_card_id": "card-1"}
+
+    sanitized = phase_2_injections._sanitize_task_for_output(task)
+
+    assert sanitized["task_provenance"] == {"task_card_id": "card-1"}
 
 
 def test_validate_adversarial_task_contract_rejects_benign_reward_drift():
@@ -1321,6 +1406,23 @@ def test_validate_generated_adversarial_tasks_rejects_plan_with_final_stage_fiel
 
     assert validated == []
     assert any("must not include Phase 2b/final-task fields" in error for error in errors)
+
+
+def test_validate_generated_adversarial_tasks_rejects_planner_private_provenance_echo():
+    task = {
+        **_plan_task(),
+        "task_bank_metadata": {"line": 7},
+        "private_fields": ["task_bank_metadata"],
+    }
+
+    validated, errors = phase_2_injections._validate_generated_adversarial_tasks(
+        [task],
+        [_benign_task()],
+        _single_surface_profile(),
+    )
+
+    assert validated == []
+    assert any("must not include private/provenance fields" in error for error in errors)
 
 
 def test_validate_generated_adversarial_tasks_rejects_legacy_shaped_task_with_payload_texts():
@@ -4124,17 +4226,11 @@ async def test_generate_injections_for_site_api_path_sanitizes_prompt_inputs(mon
     )
 
     assert result.adversarial_tasks == []
-    assert captured["benign_tasks"][0]["agent_context"]["authentication"]["credentials"] == {
-        "username": "<redacted>",
-        "password": "<redacted>",
-    }
+    assert "agent_context" not in captured["benign_tasks"][0]
     assert captured["agent_context"]["auth_mechanism"]["headers"] == {
         "X-Test-Auto-Login": "<redacted>"
     }
-    assert (
-        captured["benign_tasks"][0]["data_seed"]["api_calls"][0]["headers"]["Authorization"]
-        == "<redacted>"
-    )
+    assert "data_seed" not in captured["benign_tasks"][0]
 
 
 @pytest.mark.asyncio
@@ -4204,14 +4300,8 @@ async def test_generate_injections_for_site_api_path_sanitizes_agent_context_coo
         instance=None,
     )
 
-    assert captured["benign_tasks"][0]["agent_context"]["authentication"]["credentials"] == {
-        "username": "<redacted>",
-        "password": "<redacted>",
-    }
-    assert (
-        captured["benign_tasks"][0]["data_seed"]["api_calls"][0]["headers"]["Authorization"]
-        == "<redacted>"
-    )
+    assert "agent_context" not in captured["benign_tasks"][0]
+    assert "data_seed" not in captured["benign_tasks"][0]
     assert captured["agent_context"]["auth_mechanism"]["cookies"] == {"session": "<redacted>"}
     assert captured["agent_context"]["auth_mechanism"]["headers"] == {
         "X-Test-Auto-Login": "<redacted>"

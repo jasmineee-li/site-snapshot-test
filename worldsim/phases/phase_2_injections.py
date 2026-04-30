@@ -379,6 +379,23 @@ _FINAL_STAGE_ONLY_FIELDS = frozenset(
         "payload_text_diagnostics",
     }
 )
+_PRIVATE_PROVENANCE_FIELD_NAMES = frozenset(
+    {
+        "task_provenance",
+        "task_card",
+        "task_card_id",
+        "task_archetype",
+        "archetype_id",
+        "task_signature",
+        "archetype_signature",
+        "task_bank",
+        "task_bank_metadata",
+        "private_fields",
+        "source_jsonl_line",
+        "source_record",
+        "generation_diagnostics",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -2428,7 +2445,9 @@ async def _generate_injections_for_site(
             )
 
     logger.info("Phase 2: launching injection API call %r (%d tasks)", label, len(site_tasks))
-    sanitized_site_tasks = [_sanitize_task_for_output(task) for task in site_tasks]
+    sanitized_site_tasks = [
+        _sanitize_task_for_output(task, audience="phase_2a_planner") for task in site_tasks
+    ]
     sanitized_agent_context = (
         _sanitize_agent_context_for_output(agent_context) if agent_context is not None else None
     )
@@ -2775,6 +2794,7 @@ def _merge_immutable_fields(
                 if field in {"agent_context", "data_seed"}:
                     value = _sanitize_agent_context_for_output(value)
                 adv_task[field] = value
+        _merge_task_provenance_fields(adv_task, benign_task)
 
         # Inject benign_target_resource (Option A placement contract). The
         # LLM receives this in /workspace/tasks/benign_target_resources.json
@@ -3424,12 +3444,92 @@ def _merge_preserving_unfiltered_sites(
     return preserved + items
 
 
-def _sanitize_task_for_output(task: dict[str, Any]) -> dict[str, Any]:
+_PHASE_2A_PLANNER_VISIBLE_TASK_FIELDS = frozenset(
+    {
+        "id",
+        "benchmark",
+        "benchmark_name",
+        "benchmark_adapter",
+        "instruction",
+        "site",
+        "sites",
+        "start_urls",
+        "reward_function",
+        "origin",
+        "route_id",
+        "source_task_id",
+        "instantiation_dict",
+    }
+)
+
+_TASK_PROVENANCE_FIELDS = frozenset(
+    field
+    for field in _PRIVATE_PROVENANCE_FIELD_NAMES
+    if field
+    not in {
+        "private_fields",
+        "source_jsonl_line",
+        "source_record",
+        "generation_diagnostics",
+    }
+)
+
+
+def _sanitize_task_for_output(
+    task: dict[str, Any],
+    *,
+    audience: str = "artifact",
+) -> dict[str, Any]:
+    if audience not in {"artifact", "phase_2a_planner"}:
+        raise ValueError(f"unknown task sanitizer audience {audience!r}")
     sanitized = json.loads(json.dumps(task))
+    if audience == "phase_2a_planner":
+        sanitized = {
+            key: value
+            for key, value in sanitized.items()
+            if key in _PHASE_2A_PLANNER_VISIBLE_TASK_FIELDS
+        }
+        sanitized = _strip_private_provenance_nodes(sanitized)
     for field in ("agent_context", "data_seed"):
         if field in sanitized:
             sanitized[field] = _sanitize_agent_context_for_output(sanitized[field])
     return sanitized
+
+
+def _merge_task_provenance_fields(
+    adv_task: dict[str, Any],
+    benign_task: Mapping[str, Any],
+) -> None:
+    provenance: dict[str, Any] = {}
+    if isinstance(benign_task.get("task_provenance"), Mapping):
+        provenance.update(json.loads(json.dumps(dict(benign_task["task_provenance"]))))
+    for field in sorted(_TASK_PROVENANCE_FIELDS - {"task_provenance"}):
+        if field in benign_task:
+            provenance[field] = json.loads(json.dumps(benign_task[field]))
+    if provenance:
+        adv_task["task_provenance"] = provenance
+
+
+def _strip_private_provenance_nodes(value: Any) -> Any:
+    if isinstance(value, dict):
+        stripped: dict[str, Any] = {}
+        for key, item in value.items():
+            key_str = str(key)
+            if key_str in _PRIVATE_PROVENANCE_FIELD_NAMES or key_str.startswith("private_"):
+                continue
+            stripped[key_str] = _strip_private_provenance_nodes(item)
+        return stripped
+    if isinstance(value, list):
+        return [_strip_private_provenance_nodes(item) for item in value]
+    return value
+
+
+def _private_provenance_fields_present(task: Mapping[str, Any]) -> list[str]:
+    return sorted(
+        str(key)
+        for key in task
+        if str(key) in _PRIVATE_PROVENANCE_FIELD_NAMES or str(key).startswith("private_")
+    )
 
 
 def _effective_task_site(task: dict[str, Any]) -> str:
@@ -4136,6 +4236,9 @@ def _validate_generated_adversarial_task(
         forbidden_fields = sorted(_FORBIDDEN_PLAN_FIELDS.intersection(task.keys()))
         if forbidden_fields:
             return f"{task_name} must not include Phase 2b/final-task fields {forbidden_fields}"
+        private_fields = _private_provenance_fields_present(task)
+        if private_fields:
+            return f"{task_name} must not include private/provenance fields {private_fields}"
 
     benign_parent = benign_by_id.get(str(task.get("benign_task_id", "")))
     if benign_parent is None:
