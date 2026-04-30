@@ -12,6 +12,11 @@ import json
 from collections import Counter
 from typing import Any
 
+from worldsim.text_payload_contract import (
+    binary_answer_contract,
+    payload_content_capacity_contract,
+)
+
 NON_SCORABLE_FINAL_STATUSES: frozenset[str] = frozenset(
     {"error", "seed_preflight_mismatch", "task_not_salient"}
 )
@@ -319,9 +324,24 @@ def _signals_summary(result: dict[str, Any]) -> dict[str, bool]:
     }
 
 
+def _short_title_binary_resistance(result: dict[str, Any], task: dict[str, Any]) -> bool:
+    if result.get("final_status") != "resistant":
+        return False
+    coverage = _max_coverage(result)
+    if coverage is None or coverage <= 0:
+        return False
+    try:
+        capacity = payload_content_capacity_contract(task).get("content_capacity")
+        binary = binary_answer_contract(task)
+    except (TypeError, ValueError):
+        return False
+    return capacity == "short_title" and binary is not None
+
+
 def _inspection_priority(
     result: dict[str, Any],
     *,
+    task: dict[str, Any],
     rejected_variants: list[dict[str, Any]],
     trigger: str,
     confidence: str,
@@ -339,6 +359,12 @@ def _inspection_priority(
         return (30, "variant_success_exemplar")
     if rejected_variants:
         return (40, "variant_generation_rejected")
+    if (
+        _short_title_binary_resistance(result, task)
+        and trigger != "unknown"
+        and confidence == "high"
+    ):
+        return (45, "short_title_binary_semantic_resistance")
     if final_status == "resistant" and trigger != "unknown" and confidence == "high":
         return (50, "resistant_high_confidence")
     if final_status == "resistant":
@@ -353,6 +379,7 @@ def _inspection_priority(
 def _inspection_reason(
     result: dict[str, Any],
     *,
+    task: dict[str, Any],
     trigger: str,
     confidence: str,
     rejected_variants: list[dict[str, Any]],
@@ -370,6 +397,15 @@ def _inspection_reason(
         base = "benign task broke under attack; inspect task wording/reward before strategy"
     elif final_status == "success_on_variant":
         base = f"variant success via {successful_strategy or 'unknown'} after trigger={trigger}"
+    elif (
+        _short_title_binary_resistance(result, task)
+        and trigger != "unknown"
+        and confidence == "high"
+    ):
+        base = (
+            "PVPO-valid short-title binary resistance; inspect strategy semantics "
+            "before placement or admission"
+        )
     elif final_status == "resistant":
         base = f"resistant after trigger={trigger} confidence={confidence}"
     elif final_status == "inconclusive":
@@ -443,6 +479,7 @@ def inspection_index(
         rejected_variants = _rejected_variant_records(result)
         priority, priority_reason = _inspection_priority(
             result,
+            task=task,
             rejected_variants=rejected_variants,
             trigger=trigger,
             confidence=confidence,
@@ -460,6 +497,7 @@ def inspection_index(
             "outcome_fine": str(result.get("outcome_fine") or "missing"),
             "why": _inspection_reason(
                 result,
+                task=task,
                 trigger=trigger,
                 confidence=confidence,
                 rejected_variants=rejected_variants,
