@@ -185,6 +185,7 @@ _CHECKPOINT_FINGERPRINT_KEY = "_source_fingerprint"
 _PLACEMENT_FIX_CHECKPOINT = "placement_fix_checkpoint.json"
 _VARIANT_GENERATION_RECORDS_KEY = "variant_generation_records"
 _VARIANT_RESULT_METADATA = "resume_metadata.json"
+_VARIANT_PAYLOAD_AUDIT_PREVIEW_CHARS = 500
 _PHASE_4_RESUME_VERSION = "2026-04-20b"
 # 22-strategy pool from paper Table 6, filtered for editor-text injection
 # (Dziemian et al., 2026, arXiv:2603.15714). Authoritative source is
@@ -378,6 +379,80 @@ def _selected_payload_text_entry(task: dict[str, Any]) -> dict[str, Any] | None:
         return None
     selected = payload_texts[selected_index]
     return selected if isinstance(selected, dict) else None
+
+
+def _compact_variant_payload_text(value: Any, *, limit: int) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    text = " ".join(value.split())
+    if len(text) <= limit:
+        return text
+    return f"{text[: limit - 1].rstrip()}..."
+
+
+def _variant_payload_witnesses(values: Any) -> list[str]:
+    if not isinstance(values, list):
+        return []
+    out: list[str] = []
+    for value in values:
+        if isinstance(value, str) and value and value not in out:
+            out.append(value)
+        if len(out) >= 3:
+            break
+    return out
+
+
+def _variant_payload_audit_view(task: dict[str, Any]) -> dict[str, Any] | None:
+    selected = _selected_payload_text_entry(task)
+    rendered = _selected_rendered_payload(task)
+    if selected is None and rendered is None:
+        return None
+    selected_index = task.get("selected_payload_index", 0)
+    audit: dict[str, Any] = {
+        "selected_payload_index": selected_index if isinstance(selected_index, int) else 0,
+    }
+    if isinstance(rendered, str) and rendered:
+        audit["rendered_payload_preview"] = _compact_variant_payload_text(
+            rendered,
+            limit=_VARIANT_PAYLOAD_AUDIT_PREVIEW_CHARS,
+        )
+        audit["rendered_payload_chars"] = len(rendered)
+    if isinstance(selected, dict):
+        for source, target in (
+            ("framing_witnesses", "framing_witnesses"),
+            ("attack_action_witnesses", "attack_action_witnesses"),
+            ("concealment_witnesses", "concealment_witnesses"),
+        ):
+            witnesses = _variant_payload_witnesses(selected.get(source))
+            if witnesses:
+                audit[target] = witnesses
+        try:
+            contract = build_text_payload_contract(
+                task,
+                selected=selected,
+                include_protected_substrings=False,
+            )
+        except Exception:
+            contract = None
+        if isinstance(contract, dict):
+            content_capacity = contract.get("content_capacity")
+            if isinstance(content_capacity, str) and content_capacity:
+                audit["content_capacity"] = content_capacity
+            binary = contract.get("binary_answer_task")
+            if isinstance(binary, dict):
+                audit["binary_answer_task"] = {
+                    key: binary[key]
+                    for key in (
+                        "label_family",
+                        "benign_label",
+                        "adversarial_label",
+                    )
+                    if key in binary
+                }
+                semantic_fit = binary.get("semantic_fit")
+                if isinstance(semantic_fit, dict):
+                    audit["binary_semantic_fit"] = semantic_fit
+    return audit
 
 
 _PAYLOAD_BODY_FIELD_HINTS: tuple[str, ...] = (
@@ -4942,6 +5017,9 @@ def _compact_variant_generation_records(records: list[dict[str, Any]]) -> list[d
         }
         if isinstance(raw_record.get("variant"), dict):
             record["status"] = "generated"
+            payload_audit = _variant_payload_audit_view(raw_record["variant"])
+            if payload_audit is not None:
+                record["variant_payload"] = payload_audit
         elif isinstance(raw_record.get("status"), str):
             record["status"] = raw_record["status"]
         elif isinstance(raw_record.get("error"), str):
@@ -5873,6 +5951,11 @@ async def _evaluate_variant(
                 "strategy": strategy.get("strategy"),
                 "variant_index": index,
                 "variant_trajectory_dir": str(variant_dir),
+                **(
+                    {"variant_payload": payload_audit}
+                    if (payload_audit := _variant_payload_audit_view(variant)) is not None
+                    else {}
+                ),
             }
 
     agent = agent_factory()
@@ -5895,14 +5978,17 @@ async def _evaluate_variant(
             {_CHECKPOINT_FINGERPRINT_KEY: source_fingerprint},
             failpoint_base="phase_4.variant.result_metadata",
         )
+        payload_audit = _variant_payload_audit_view(variant)
         return {
             **result,
             "strategy": strategy.get("strategy", f"strategy_{index}"),
             "variant_index": index,
             "variant_trajectory_dir": str(variant_dir),
+            **({"variant_payload": payload_audit} if payload_audit is not None else {}),
         }
     except Exception as e:
         logger.exception("Variant %d evaluation failed: %s", index, e)
+        payload_audit = _variant_payload_audit_view(variant)
         return {
             "task_id": task.get("id", "?"),
             "outcome": "error",
@@ -5911,6 +5997,7 @@ async def _evaluate_variant(
             "variant_index": index,
             "variant_trajectory_dir": str(variant_dir),
             "trajectory_dir": str(variant_dir),
+            **({"variant_payload": payload_audit} if payload_audit is not None else {}),
         }
     finally:
         await agent.teardown()

@@ -798,16 +798,29 @@ def summarize_results(
                     if error_key is not None:
                         variant_error_buckets[error_key] += 1
         for variant in successful_strategy_variants(result):
-            variant_successes.append(
-                {
-                    "task_id": task_id,
-                    "site": site,
-                    "surface": surface,
-                    "editor_method": editor,
-                    "route_variant": route_variant,
-                    "strategy": variant.get("strategy"),
-                }
-            )
+            success_record = {
+                "task_id": task_id,
+                "site": site,
+                "surface": surface,
+                "editor_method": editor,
+                "route_variant": route_variant,
+                "strategy": variant.get("strategy"),
+            }
+            payload_audit = variant.get("variant_payload")
+            if isinstance(payload_audit, dict):
+                preview = _compact_text(
+                    payload_audit.get("rendered_payload_preview"),
+                    limit=180,
+                )
+                if preview is not None:
+                    success_record["payload_preview"] = preview
+                semantic_fit = payload_audit.get("binary_semantic_fit")
+                if isinstance(semantic_fit, dict) and isinstance(
+                    semantic_fit.get("status"),
+                    str,
+                ):
+                    success_record["binary_semantic_fit"] = semantic_fit["status"]
+            variant_successes.append(success_record)
         for key in (
             "variant_generation_errors",
             "variant_errors",

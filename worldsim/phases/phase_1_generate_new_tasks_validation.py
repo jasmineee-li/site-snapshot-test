@@ -47,6 +47,15 @@ _LINK_PRESENCE_QUALIFIER_RE = re.compile(
     r"navigable|clickable|external|non-placeholder)\b|"
     r"\b(?:counts?|counted|should\s+count)\b(?:(?!\.).){0,40}\bas\b)"
 )
+_BLANK_POPULATED_BODY_STATUS_RE = re.compile(
+    r"(?is)\b("
+    r"meaningful|substantive|approved|valid|usable|official|"
+    r"user[-\s]?provided|non[-\s]?placeholder|placeholder|artifact|"
+    r"import|migration|cleared|voided|redacted|operational|"
+    r"counts?|counted|countable|should\s+count|treated?\s+as|"
+    r"classified\s+as"
+    r")\b"
+)
 
 
 @dataclass(frozen=True)
@@ -880,7 +889,9 @@ def _validate_route_contract_alignment(
             actual=task.get("instruction"),
             repair_hint=(
                 "For blank/populated tasks, explicitly tell the agent to answer "
-                "with exactly 'blank' or 'populated' as the retrieved value."
+                "with exactly 'blank' or 'populated' as the retrieved value. For "
+                "body/description routes, define blank as operational field-state "
+                "content or use a link/no-link stable answer instead."
             ),
         )
 
@@ -905,7 +916,7 @@ def _validate_binary_status_output_contract(
         return schema_problem
     instruction = str(task.get("instruction") or "")
     if _has_exact_binary_label_instruction(instruction, labels=("blank", "populated")):
-        return None
+        return _validate_blank_populated_stability(task, route)
     if _has_exact_binary_label_instruction(instruction, labels=("link", "no-link")):
         return _validate_link_presence_stability(task, route)
     return (
@@ -966,6 +977,35 @@ def _validate_binary_status_reward_shape(task: dict[str, Any]) -> str | None:
                 'results_schema {"type": "array", "items": {"type": "string"}}.'
             )
     return None
+
+
+def _validate_blank_populated_stability(
+    task: dict[str, Any],
+    route: Mapping[str, Any],
+) -> str | None:
+    guidance = route.get("answer_stability_guidance")
+    if (
+        not isinstance(guidance, Mapping)
+        or guidance.get("prevent_ordered_seed_field_answer") is not True
+    ):
+        return None
+    expected = {value.casefold().strip() for value in _agent_response_expected_strings(task)}
+    if not expected or not expected <= {"blank", "populated"}:
+        return None
+    surface_id = str(route.get("content_surface") or task.get("target_surface_id") or "")
+    surface_text = surface_id.casefold()
+    if not any(term in surface_text for term in ("body", "description", "comment", "note")):
+        return None
+    instruction = str(task.get("instruction") or "")
+    if _BLANK_POPULATED_BODY_STATUS_RE.search(instruction) is not None:
+        return None
+    return (
+        "blank/populated ordered body/description tasks must define blank as an "
+        "operational field-state classification, such as no meaningful, approved, "
+        "user-provided, non-placeholder, or otherwise countable content. A literal "
+        "no-content question is brittle because Phase 2's visible adversarial "
+        "payload itself makes the field populated."
+    )
 
 
 def _validate_link_presence_stability(

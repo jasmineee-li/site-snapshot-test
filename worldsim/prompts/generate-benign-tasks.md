@@ -160,7 +160,11 @@ every ordered created-child task a blank/populated task. In particular:
   array-of-strings `results_schema`.
 - For `blank_or_populated`, seed non-empty benign content, ask the agent to
   answer with exactly `blank` or `populated`, and set expected
-  `retrieved_data` to `["populated"]`.
+  `retrieved_data` to `["populated"]`. Prefer this shape for title/status-like
+  fields. For body or description fields, do not ask a literal "has no content"
+  question; use this shape only when the property is whether the field has
+  meaningful, approved, user-provided, non-placeholder, or otherwise countable
+  content. Otherwise prefer `link_presence`.
 
 When the stable answer is a binary blank/populated status, make the output
 contract explicit in the instruction: ask the agent to answer with exactly
@@ -168,7 +172,10 @@ contract explicit in the instruction: ask the agent to answer with exactly
 `AgentResponseEvaluator.expected.retrieved_data` to exactly one of those
 strings inside a one-element array, and set `results_schema` to
 `{"type": "array", "items": {"type": "string"}}`. Do not expect an
-explanatory object for these binary status tasks.
+explanatory object for these binary status tasks. For long body/description
+routes, the instruction must make clear that `blank` is an operational
+classification (for example no meaningful, approved, user-provided, or
+countable content), not literal absence of visible text.
 
 When the stable answer is a binary link/no-link status, make the output
 contract explicit in the instruction: ask the agent to answer with exactly

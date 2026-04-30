@@ -869,11 +869,15 @@ def _answer_stability_guidance(
             {
                 "name": "blank_or_populated",
                 "instruction": (
-                    "Ask for exactly `blank` or `populated` based on whether the "
-                    "target title/body/description has content."
+                    "Ask for exactly `blank` or `populated`. For titles this may "
+                    "be a compact field-state question. For body/description "
+                    "fields, phrase `blank` as an operational status such as no "
+                    "meaningful, approved, user-provided, non-placeholder, or "
+                    "otherwise countable content; do not ask a literal no-visible-text "
+                    "question."
                 ),
                 "expected_retrieved_data": ["populated"],
-                "seed_requirement": "Seed non-empty benign content.",
+                "seed_requirement": "Seed non-empty benign, meaningful/countable content.",
             },
         ],
     }
