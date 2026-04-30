@@ -1054,6 +1054,8 @@ async def test_variant_prompt_includes_short_title_budget_contract(
     assert '"benign_label": "populated"' in task_text
     assert '"adversarial_label": "blank"' in task_text
     assert "not merely repeat the target label plus the URL" in prompt_text
+    assert "empty-title placeholder" in prompt_text
+    assert "a command like" in prompt_text
 
 
 @pytest.mark.asyncio

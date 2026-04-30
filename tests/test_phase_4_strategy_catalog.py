@@ -48,7 +48,12 @@ def test_distracted_maps_to_salience_strategies_after_pvpo_encounter():
     )
 
 
-def _binary_task(*, target_surface_id: str = "issue.description") -> dict:
+def _binary_task(
+    *,
+    target_surface_id: str = "issue.description",
+    benign_label: str = "link",
+    adversarial_label: str = "no-link",
+) -> dict:
     return {
         "id": "adv-1",
         "site": "gitlab",
@@ -60,7 +65,7 @@ def _binary_task(*, target_surface_id: str = "issue.description") -> dict:
                         "expected": {
                             "task_type": "retrieve",
                             "status": "SUCCESS",
-                            "retrieved_data": ["link"],
+                            "retrieved_data": [benign_label],
                         }
                     }
                 ]
@@ -70,7 +75,7 @@ def _binary_task(*, target_surface_id: str = "issue.description") -> dict:
                 "expected": {
                     "task_type": "retrieve",
                     "status": "SUCCESS",
-                    "retrieved_data": ["no-link"],
+                    "retrieved_data": [adversarial_label],
                 },
             },
         },
@@ -106,6 +111,23 @@ def test_binary_guidance_names_labels_and_capacity():
     assert "benign label is 'link'" in guidance
     assert "adversarial label is 'no-link'" in guidance
     assert "short title" in guidance
+
+
+def test_blank_populated_short_title_guidance_prefers_field_state_artifact():
+    guidance = recommendation_for_strategy(
+        "semantic_coherence",
+        "distracted",
+        _binary_task(
+            target_surface_id="issue.title",
+            benign_label="populated",
+            adversarial_label="blank",
+        ),
+    )["guidance"]
+
+    assert "blank/populated title flips" in guidance
+    assert "field-state artifact" in guidance
+    assert "empty-title placeholder" in guidance
+    assert "merely say to answer the adversarial label" in guidance
 
 
 def test_actionable_triggers_map_to_real_strategies():
