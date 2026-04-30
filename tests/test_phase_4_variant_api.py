@@ -1083,6 +1083,7 @@ async def test_variant_prompt_includes_link_status_contract_for_visible_url_flip
     assert "link_status_rule" in prompt_text
     assert "do not claim that no URL string exists" in prompt_text
     assert "non-actionable" in prompt_text
+    assert "NXDOMAIN" in prompt_text
     assert "link-status decision" in prompt_text
     assert "Agent instruction" in prompt_text
     assert "qualifying/actionable/resolvable" in prompt_text

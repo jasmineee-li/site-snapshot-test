@@ -199,6 +199,8 @@ def test_link_nolink_short_title_guidance_uses_compact_link_status():
     assert "title-native link-status marker" in guidance
     assert "link audit: no-link" in guidance
     assert "exceed the title budget" in guidance
+    assert "reserved .invalid TLD" in guidance
+    assert "NXDOMAIN: no-link" in guidance
 
 
 def test_blank_populated_short_title_guidance_prefers_field_state_artifact():
