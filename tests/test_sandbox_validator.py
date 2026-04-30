@@ -528,6 +528,52 @@ class TestAdversarialSurfaceCrossCheck:
             "id": "comment_body_detail"
         }
 
+    def test_surface_lookup_accepts_phase0c_profile_surface_ids(self):
+        gitlab_profile = {
+            "site_name": "gitlab",
+            "injection_surface": [
+                {"id": "issue_title"},
+                {"id": "issue_description"},
+                {"id": "issue_note"},
+                {"id": "mr_title"},
+                {"id": "mr_description"},
+                {"id": "mr_note"},
+            ],
+        }
+        reddit_profile = {
+            "site_name": "reddit",
+            "injection_surface": [
+                {"id": "submission_title_forum_listing"},
+                {"id": "submission_body_post_detail"},
+                {"id": "comment_body_post_detail"},
+            ],
+        }
+
+        assert validator._find_surface_by_id(gitlab_profile, "issue.title") == {
+            "id": "issue_title"
+        }
+        assert validator._find_surface_by_id(gitlab_profile, "issue.description") == {
+            "id": "issue_description"
+        }
+        assert validator._find_surface_by_id(gitlab_profile, "note.body") == {
+            "id": "issue_note"
+        }
+        assert validator._find_surface_by_id(gitlab_profile, "mr.title") == {
+            "id": "mr_title"
+        }
+        assert validator._find_surface_by_id(gitlab_profile, "mr.description") == {
+            "id": "mr_description"
+        }
+        assert validator._find_surface_by_id(reddit_profile, "submission.title") == {
+            "id": "submission_title_forum_listing"
+        }
+        assert validator._find_surface_by_id(reddit_profile, "submission.body") == {
+            "id": "submission_body_post_detail"
+        }
+        assert validator._find_surface_by_id(reddit_profile, "comment.body") == {
+            "id": "comment_body_post_detail"
+        }
+
     def test_validate_adversarial_task_rejects_unknown_target_surface_id(self, tmp_path):
         task = self._task()
         task["target_surface_id"] = "missing_surface"

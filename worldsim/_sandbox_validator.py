@@ -27,19 +27,28 @@ from pathlib import Path
 
 _CORE_SURFACE_ALIASES: dict[str, dict[str, str]] = {
     "gitlab": {
+        "issue_title": "issue.title",
         "issue_title_in_list": "issue.title",
+        "issue_description": "issue.description",
         "issue_description_detail": "issue.description",
+        "mr_title": "mr.title",
         "mr_title_in_list": "mr.title",
+        "mr_description": "mr.description",
         "mr_description_detail": "mr.description",
+        "issue_note": "note.body",
         "note_on_issue": "note.body",
         "note_body_on_issue": "note.body",
+        "mr_note": "note.body",
         "note_on_mr": "note.body",
         "note_body_on_mr": "note.body",
     },
     "reddit": {
+        "submission_title_forum_listing": "submission.title",
         "submission_title_listing": "submission.title",
         "submission_title_detail": "submission.title",
+        "submission_body_post_detail": "submission.body",
         "submission_body_detail": "submission.body",
+        "comment_body_post_detail": "comment.body",
         "comment_body_thread": "comment.body",
         "comment_body_detail": "comment.body",
     },
