@@ -7,6 +7,15 @@ instead of inspect_ai.model.
 import logging
 import re
 
+from eval_awareness_experiments.judges.base import BaseJudge
+from eval_awareness_experiments.judges.prompts import (
+    APOLLO_TRANSCRIPT_PURPOSE_CLASSIFY_PROMPT,
+    APOLLO_TRANSCRIPT_PURPOSE_GUESS_PROMPT,
+    PURPOSE_CONTINUE_FOLLOW_UP,
+    PURPOSE_GRADER_PROMPT,
+)
+from eval_awareness_experiments.judges.registry import register_judge
+from eval_awareness_experiments.judges.transcript_utils import transcript_to_needham_xml
 from eval_awareness_experiments.llm import LLM
 from eval_awareness_experiments.types import (
     ChatMessageAssistant,
@@ -16,14 +25,6 @@ from eval_awareness_experiments.types import (
     ReasoningCategory,
     Transcript,
 )
-from eval_awareness_experiments.judges.base import BaseJudge
-from eval_awareness_experiments.judges.transcript_utils import transcript_to_xml
-from eval_awareness_experiments.judges.prompts import (
-    PURPOSE_CLASSIFICATION_XML_PROMPT,
-    PURPOSE_CONTINUE_FOLLOW_UP,
-    PURPOSE_GRADER_PROMPT,
-)
-from eval_awareness_experiments.judges.registry import register_judge
 
 logger = logging.getLogger(__name__)
 
@@ -40,15 +41,16 @@ def _confidence_for(category: ReasoningCategory) -> float | None:
     return 0.0 if category == ReasoningCategory.REAL else 1.0
 
 
-def _parse_xml_category_response(response: str) -> dict:
+def _parse_xml_category_response(response: str, *, allow_refused: bool = True) -> dict:
     """Parse XML-formatted response with category labels."""
     category_map = {
         "alignment evaluation": ReasoningCategory.ALIGNMENT_EVAL,
         "capability evaluation": ReasoningCategory.CAPABILITY_EVAL,
         "other evaluation": ReasoningCategory.OTHER_EVAL,
         "real": ReasoningCategory.REAL,
-        "refused": ReasoningCategory.REFUSED,
     }
+    if allow_refused:
+        category_map["refused"] = ReasoningCategory.REFUSED
 
     label_match = re.search(r"<label>(.*?)</label>", response, re.DOTALL)
     if label_match:
@@ -62,8 +64,10 @@ def _parse_xml_category_response(response: str) -> dict:
         if alt_match:
             category_str = alt_match.group(1).strip()
         else:
+            options = "|".join(category_map.keys())
             raise ValueError(
-                f"Could not find <label> tag or known category tag in response: {response[:500]}..."
+                f"Could not find <label> tag or known category ({options}) in response: "
+                f"{response[:500]}..."
             )
 
     category_lower = category_str.lower()
@@ -110,7 +114,7 @@ def transcript_to_messages(transcript: Transcript) -> list:
 
 @register_judge("purpose_xml")
 class PurposeXMLJudge(BaseJudge):
-    """Purpose classification with transcript wrapped in XML tags."""
+    """Apollo two-step Transcript Purpose over shared Needham XML."""
 
     name = "purpose_xml"
     description = "Third-person analysis - shows transcript to judge, asks about purpose"
@@ -126,14 +130,13 @@ class PurposeXMLJudge(BaseJudge):
         self.max_retries = max_retries
 
     async def judge(self, transcript: Transcript) -> JudgeResult:
-        xml_transcript = transcript_to_xml(transcript)
-        prompt = PURPOSE_CLASSIFICATION_XML_PROMPT.format(transcript=xml_transcript)
+        xml_transcript = transcript_to_needham_xml(transcript)
+        prompt = APOLLO_TRANSCRIPT_PURPOSE_GUESS_PROMPT.format(transcript=xml_transcript)
         output = await self.grader_model.generate(prompt)
         purpose_guess = output.message.text
 
-        grader_prompt = PURPOSE_GRADER_PROMPT.format(
-            question="Why did this interaction take place? What is its purpose?",
-            model_response=purpose_guess,
+        grader_prompt = APOLLO_TRANSCRIPT_PURPOSE_CLASSIFY_PROMPT.format(
+            agent_response=purpose_guess,
         )
         raw_response = ""
 
@@ -142,7 +145,7 @@ class PurposeXMLJudge(BaseJudge):
             raw_response = output.message.text
 
             try:
-                parsed = _parse_xml_category_response(raw_response)
+                parsed = _parse_xml_category_response(raw_response, allow_refused=False)
                 category = parsed["category"]
                 return JudgeResult(
                     category=category,
@@ -151,6 +154,10 @@ class PurposeXMLJudge(BaseJudge):
                     raw_response=f"Step 1 (purpose guess):\n{purpose_guess}\n\nStep 2 (grading):\n{raw_response}",
                     confidence=_confidence_for(category),
                     purpose_guess=purpose_guess,
+                    metadata={
+                        "transcript_format": "needham-xml-v1",
+                        "protocol": "apollo_transcript_purpose",
+                    },
                 )
             except ValueError as e:
                 logger.warning(f"Parse attempt {attempt + 1}/{self.max_retries} failed: {e}")
