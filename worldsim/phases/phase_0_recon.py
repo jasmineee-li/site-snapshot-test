@@ -1486,6 +1486,11 @@ async def _profile_one_site_tiered(
             "injection_surface": injection_surface.get("injection_surface", []),
             "existing_task_coverage": injection_surface.get("existing_task_coverage", {}),
         }
+        profile = _enrich_reddit_profile_with_forums(
+            site_name=site_name,
+            profile=profile,
+            instance=instance,
+        )
 
         # Validate the merged profile before publishing anything to disk.
         validate_profile(
@@ -1590,6 +1595,59 @@ def _enrich_agent_context_with_handles(
         len(handles.get("group_handles", [])),
     )
     return merge_into_agent_context(agent_context, handles)
+
+
+def _enrich_reddit_profile_with_forums(
+    *,
+    site_name: str,
+    profile: dict[str, Any],
+    instance: BenchmarkInstance | None,
+) -> dict[str, Any]:
+    """For reddit sites, attach live-reachable forum inventory to the profile."""
+    if normalize_site_name(site_name) != "reddit":
+        return profile
+    if instance is None:
+        logger.info(
+            "Phase 0c: site %r has no instance config; skipping reddit forum enrichment",
+            site_name,
+        )
+        return profile
+    if not instance.db_connection:
+        logger.info(
+            "Phase 0c: site %r instance has no db_connection; skipping reddit forum enrichment",
+            site_name,
+        )
+        return profile
+
+    from worldsim.phases.phase_0c_reddit_enrichment import (
+        RedditInventoryEnrichmentError,
+        enrich_reddit_forums,
+        merge_reddit_inventory_into_profile,
+    )
+
+    try:
+        inventory = enrich_reddit_forums(instance.site_url, instance.db_connection)
+    except RedditInventoryEnrichmentError as exc:
+        logger.warning(
+            "Phase 0c: reddit forum enrichment for site %r failed: %s",
+            site_name,
+            exc,
+        )
+        return profile
+
+    forums = inventory.get("forums", [])
+    if not forums:
+        logger.warning(
+            "Phase 0c: reddit forum enrichment for site %r found no reachable forums",
+            site_name,
+        )
+        return profile
+    logger.info(
+        "Phase 0c: site %r enriched with %d reachable reddit forums",
+        site_name,
+        len(forums),
+    )
+    return merge_reddit_inventory_into_profile(profile, inventory)
 
 
 def _validate_manifest_eval_types(

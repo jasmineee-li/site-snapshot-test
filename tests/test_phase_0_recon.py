@@ -129,6 +129,58 @@ def _valid_injection_surface(*, source_field: str = "products.description") -> d
     }
 
 
+def test_enrich_reddit_profile_with_forums_merges_live_inventory(monkeypatch):
+    instance = BenchmarkInstance(
+        site_name="reddit",
+        site_url="http://reddit.local",
+        db_connection="mysql://u:p@h/db",
+    )
+
+    monkeypatch.setattr(
+        "worldsim.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
+        lambda site_url, db_connection: {
+            "forums": [{"id": "1", "name": "books", "title": "Books"}]
+        },
+    )
+
+    profile = phase_0_recon._enrich_reddit_profile_with_forums(
+        site_name="reddit",
+        profile={"site_name": "reddit"},
+        instance=instance,
+    )
+
+    assert profile["available_entities"]["forums"] == [
+        {"id": "1", "name": "books", "title": "Books"}
+    ]
+
+
+def test_enrich_reddit_profile_with_forums_falls_back_on_failure(monkeypatch):
+    instance = BenchmarkInstance(
+        site_name="reddit",
+        site_url="http://reddit.local",
+        db_connection="mysql://u:p@h/db",
+    )
+
+    from worldsim.phases.phase_0c_reddit_enrichment import RedditInventoryEnrichmentError
+
+    def fail(site_url, db_connection):
+        raise RedditInventoryEnrichmentError("boom")
+
+    monkeypatch.setattr(
+        "worldsim.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
+        fail,
+    )
+
+    original = {"site_name": "reddit"}
+    profile = phase_0_recon._enrich_reddit_profile_with_forums(
+        site_name="reddit",
+        profile=original,
+        instance=instance,
+    )
+
+    assert profile == original
+
+
 def _valid_injection_surface_with_verification(verified: object, note: str) -> dict:
     payload = _valid_injection_surface()
     payload["injection_surface"][0]["delivery_channels"][0]["verified"] = verified

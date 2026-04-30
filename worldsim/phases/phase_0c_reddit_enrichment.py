@@ -1,0 +1,161 @@
+"""Phase 0c host-side Reddit inventory enrichment.
+
+The LLM-authored Phase 0c profile can contain stale Postmill forum samples from
+task fixtures or database examples. Phase 1 route contracts need concrete
+forum-list anchors that are reachable on the live instance, so enumerate the
+forum table host-side and verify each ``/f/{name}`` page before exposing it as
+``profile.available_entities.forums``.
+"""
+
+from __future__ import annotations
+
+import logging
+from collections.abc import Mapping
+from typing import Any
+from urllib.parse import quote
+
+import requests
+
+from worldsim.seeding import (
+    _configure_read_only_connection,
+    _connect_db,
+    _parse_runtime_db_connection,
+    _quote_identifier,
+    _resolve_reddit_table_name,
+)
+
+logger = logging.getLogger(__name__)
+
+_MAX_FORUMS = 100
+_TIMEOUT_SECONDS = 10
+
+
+class RedditInventoryEnrichmentError(RuntimeError):
+    """Raised when Reddit inventory enrichment cannot complete."""
+
+
+def enrich_reddit_forums(
+    site_url: str,
+    db_connection: str | None,
+    *,
+    timeout: int = _TIMEOUT_SECONDS,
+) -> dict[str, list[dict[str, str]]]:
+    """Return live-reachable Reddit/Postmill forums from the benchmark instance."""
+    if not site_url:
+        raise RedditInventoryEnrichmentError("site_url is required for reddit forum enrichment")
+    if not db_connection:
+        raise RedditInventoryEnrichmentError(
+            "db_connection is required for reddit forum enrichment"
+        )
+
+    rows = _read_forum_rows(db_connection)
+    forums: list[dict[str, str]] = []
+    seen: set[str] = set()
+    base = site_url.rstrip("/")
+    for row in rows:
+        name = str(row.get("name") or "").strip()
+        if not name or name in seen:
+            continue
+        if not _forum_page_reachable(base, name, timeout=timeout):
+            continue
+        seen.add(name)
+        forum: dict[str, str] = {"name": name}
+        for key in ("id", "title"):
+            value = row.get(key)
+            if value not in (None, ""):
+                forum[key] = str(value).strip()
+        forums.append(forum)
+    return {"forums": forums}
+
+
+def merge_reddit_inventory_into_profile(
+    profile: Mapping[str, Any],
+    inventory: Mapping[str, list[dict[str, str]]],
+) -> dict[str, Any]:
+    """Return a profile copy with ``available_entities.forums`` populated."""
+    merged = dict(profile)
+    existing = merged.get("available_entities")
+    available: dict[str, Any] = dict(existing) if isinstance(existing, Mapping) else {}
+    forums = inventory.get("forums")
+    if forums:
+        available["forums"] = list(forums)
+    if available:
+        merged["available_entities"] = available
+    return merged
+
+
+def _read_forum_rows(db_connection: str) -> list[dict[str, Any]]:
+    parsed = _parse_runtime_db_connection(
+        db_connection,
+        purpose="Reddit Phase 0c forum enrichment requires instance['db_connection']",
+    )
+    conn = _connect_db(parsed)
+    try:
+        scheme = parsed.scheme.lower()
+        _configure_read_only_connection(conn, scheme)
+        table = _quote_identifier(
+            _resolve_reddit_table_name(
+                conn,
+                scheme,
+                db_connection,
+                logical_name="forum",
+                candidates=("forums", "forum"),
+            ),
+            scheme,
+        )
+        id_col = _quote_identifier("id", scheme)
+        name_col = _quote_identifier("name", scheme)
+        title_col = _quote_identifier("title", scheme)
+        query = (
+            f"SELECT {id_col}, {name_col}, {title_col} "
+            f"FROM {table} "
+            f"WHERE {name_col} IS NOT NULL AND {name_col} <> '' "
+            f"ORDER BY {id_col} ASC "
+            f"LIMIT {_MAX_FORUMS}"
+        )
+        with conn.cursor() as cursor:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+    except Exception as exc:
+        raise RedditInventoryEnrichmentError(f"failed to enumerate reddit forums: {exc}") from exc
+    finally:
+        try:
+            conn.rollback()
+        except Exception:
+            logger.debug("Failed to rollback reddit forum enrichment lookup", exc_info=True)
+        conn.close()
+
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        if isinstance(row, Mapping):
+            result.append({"id": row.get("id"), "name": row.get("name"), "title": row.get("title")})
+            continue
+        values = list(row)
+        result.append(
+            {
+                "id": values[0] if len(values) > 0 else None,
+                "name": values[1] if len(values) > 1 else None,
+                "title": values[2] if len(values) > 2 else None,
+            }
+        )
+    return result
+
+
+def _forum_page_reachable(base_url: str, forum_name: str, *, timeout: int) -> bool:
+    encoded = quote(forum_name.strip().strip("/"), safe="")
+    if not encoded:
+        return False
+    url = f"{base_url}/f/{encoded}"
+    try:
+        response = requests.get(url, timeout=timeout, allow_redirects=False)
+    except requests.RequestException as exc:
+        logger.debug("Reddit forum reachability probe failed for %s: %s", url, exc)
+        return False
+    return response.status_code == 200
+
+
+__all__ = [
+    "RedditInventoryEnrichmentError",
+    "enrich_reddit_forums",
+    "merge_reddit_inventory_into_profile",
+]
