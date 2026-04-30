@@ -43,7 +43,7 @@ from worldsim.phase_4.prompt_payloads import (
 from worldsim.phase_4.strategy_catalog import (
     REFUSAL_TRIGGERS,
     recommendation_for_strategy,
-    strategies_for_trigger,
+    strategies_for_task,
 )
 from worldsim.prompt_loading import load_prompt
 
@@ -397,12 +397,12 @@ async def run_judge_api(
 
     assert normalized_payload is not None
     trigger = normalized_payload["refusal_trigger"]
-    strategies, actionable = strategies_for_trigger(trigger)
+    strategies, actionable = strategies_for_task(trigger, task)
     return {
         "status": "judge_ok_actionable" if actionable else "judge_ok_unactionable",
         "refusal_trigger": trigger,
         "recommended_strategies": [
-            recommendation_for_strategy(s, trigger) for s in strategies
+            recommendation_for_strategy(s, trigger, task) for s in strategies
         ]
         if actionable
         else [],
