@@ -149,7 +149,9 @@ def test_generated_artifact_detection_covers_r5_copy_outputs(monkeypatch) -> Non
 
     audit = readiness_audit.build_audit()
 
-    assert audit.tracked_generated == sorted(paths)
+    assert audit.tracked_generated == sorted(
+        path for path in paths if path != "instances.smoke.json"
+    )
 
 
 def test_large_file_audit_uses_550_line_threshold(tmp_path, monkeypatch) -> None:

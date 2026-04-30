@@ -156,3 +156,22 @@ def test_dump_verification_proxy_config_omits_resolved_external_token(monkeypatc
         "scheme": "http",
         "port_offset": 10000,
     }
+
+
+def test_checked_in_smoke_config_is_token_safe_and_loadable(monkeypatch):
+    monkeypatch.delenv("WORLDSIM_VERIFICATION_PROXY_TOKEN", raising=False)
+    repo_root = Path(__file__).resolve().parents[1]
+    config_path = repo_root / "instances.smoke.json"
+    payload = json.loads(config_path.read_text())
+
+    assert payload["verification_proxy"] == {
+        "token_env": "WORLDSIM_VERIFICATION_PROXY_TOKEN",
+        "token_file": ".proxy_token",
+        "port_offset": 10000,
+    }
+    assert {instance["site_name"] for instance in payload["instances"]} == {"gitlab", "reddit"}
+
+    config = load_benchmark_config(config_path)
+
+    assert config.benchmark_name == "webarena_verified"
+    assert {instance.site_name for instance in config.instances} == {"gitlab", "reddit"}

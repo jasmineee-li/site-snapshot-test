@@ -86,7 +86,7 @@ closed.
    - Shopping, shopping_admin, map/OSM, Magento, Wikipedia, and classifieds settings are historical full-benchmark/support plumbing and are not active IPI carriers unless the spec reopens scope.
    - `pvpo_cdp_url` is required for shipping Phase 4 runs. Each execution instance needs its own dedicated local `chrome-headless-shell` CDP endpoint (for example `http://127.0.0.1:9222`, `http://127.0.0.1:9223`, ...). Do not point multiple workers at one shared browser.
 
-Phases 0, 1, 2a, and 2b only need the benchmark **codebase** on disk, not running instances. **Phase 2c requires a live dev instance** (defaults to the instances listed in `instances.smoke.json`): each adversarial task's `adversarial_data_seed` is POSTed against the live platform to prove feasibility. Pass `--skip-feasibility` to skip 2c for fast dev iteration; Phase 4 will run in grace mode and admit the unverified tasks with a warning.
+Phases 0, 1, 2a, and 2b only need the benchmark **codebase** on disk, not running instances. **Phase 2c requires a live dev instance** (defaults to the instances listed in `instances.smoke.json`): each adversarial task's `adversarial_data_seed` is POSTed against the live platform to prove feasibility. Pass `--skip-feasibility` only for fast dev iteration; unverified tasks are not suitable for shipping Phase 4 runs.
 
 ### Proxy Setup (Phase 0c live verification)
 
@@ -222,18 +222,18 @@ uv run python -m worldsim.main phase 4 --instances instances.json
 uv run python -m worldsim.main phase 2 --benchmark vendors/webarena-verified \
   --feasibility-instances instances.smoke.json
 
-# On r5, regenerate both instances.scale.json and instances.smoke.json from
-# configs/benchmark_hosts/r5.yaml instead of hand-editing IPs. The generated
-# files carry host_access metadata and bind site_url/reset_endpoint/placeholders
-# to orchestrator_host (172.17.0.1). Then re-mint Phase 0d against that exact
-# generated file so storage_state cookie domains match the runtime host view:
+# On r5, regenerate instances.scale.json from configs/benchmark_hosts/r5.yaml
+# instead of hand-editing IPs. The generated scale file carries host_access
+# metadata and binds site_url/reset_endpoint/placeholders to orchestrator_host
+# (172.17.0.1). Then re-mint Phase 0d against that exact generated file so
+# storage_state cookie domains match the runtime host view:
 ./scripts/generate_scale_r5.sh
 uv run python -m worldsim.main phase 0d --benchmark vendors/webarena-verified \
-  --instances instances.smoke.json
+  --instances instances.scale.json
 
 # Re-verify an already-generated dataset against a fresh dev host:
 uv run python -m worldsim.main phase 2c \
-  --feasibility-instances instances.smoke.json
+  --feasibility-instances instances.scale.json
 
 # Resume from the last checkpoint after a crash. Resume reads the saved
 # phase_2_stage and re-enters planning/text_fill/feasibility automatically.
