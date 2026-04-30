@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 import logging
 import os
 import re
@@ -2327,12 +2328,24 @@ def _write_history_atomically(history: Any, history_path: Path) -> None:
     os.close(fd)
     tmp_path = Path(tmp_name)
     try:
-        history.save_to_file(tmp_path)
+        try:
+            history.save_to_file(tmp_path)
+        except UnicodeEncodeError:
+            _write_history_with_ascii_escapes(history, tmp_path)
         os.replace(tmp_path, history_path)
     except BaseException:
         with suppress(OSError):
             tmp_path.unlink()
         raise
+
+
+def _write_history_with_ascii_escapes(history: Any, path: Path) -> None:
+    """Persist Browser Use history when raw UTF-8 serialization hits surrogates."""
+    if not hasattr(history, "model_dump"):
+        raise TypeError("history object does not expose model_dump()")
+    payload = history.model_dump()
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, ensure_ascii=True)
 
 
 def _extract_history_state(history: Any) -> tuple[int, bool, str | None, list[str]]:

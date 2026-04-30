@@ -34,6 +34,17 @@ class _FakeHistory:
         return ["partial failure"]
 
 
+class _SurrogateHistory(_FakeHistory):
+    def save_to_file(self, path):
+        path.write_text(
+            json.dumps(self.model_dump(), ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+    def model_dump(self):
+        return {"history": [{"model_output": "bad surrogate \udc4d"}]}
+
+
 def test_write_agent_artifacts_persists_partial_history_and_failure_metadata(tmp_path):
     screenshot = tmp_path / "source.png"
     screenshot.write_bytes(b"png")
@@ -53,6 +64,25 @@ def test_write_agent_artifacts_persists_partial_history_and_failure_metadata(tmp
     final_response = json.loads((task_dir / "final_response.json").read_text())
     assert final_response["status"] == "TIMEOUT"
     assert "agent timed out after 30s" in final_response["errors"]
+
+
+def test_write_agent_artifacts_preserves_history_with_surrogate_text(tmp_path):
+    screenshot = tmp_path / "source.png"
+    screenshot.write_bytes(b"png")
+    history = _SurrogateHistory(str(screenshot))
+
+    browser_use_agent._write_agent_artifacts(
+        task_dir=tmp_path / "task",
+        history=history,
+        status="done",
+        extra_errors=[],
+    )
+
+    raw = (tmp_path / "task" / "history.json").read_text(encoding="utf-8")
+    assert "\\udc4d" in raw
+    payload = json.loads(raw)
+    assert payload["history"][0]["model_output"] == "bad surrogate \udc4d"
+    assert "partial" not in payload
 
 
 def test_write_agent_artifacts_preserves_existing_pvpo_screenshot(tmp_path):
