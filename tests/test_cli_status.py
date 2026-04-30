@@ -44,6 +44,25 @@ def _write_status_fixture(run_dir: Path) -> None:
         },
     )
     _write_json(
+        run_dir / "phase_0c" / "REACHABILITY_REPORT.json",
+        {
+            "schema_version": 1,
+            "phase": "phase_0c",
+            "sites": [
+                {
+                    "site": "gitlab",
+                    "status": "verified",
+                    "channel_counts": {"verified": 2},
+                },
+                {
+                    "site": "reddit",
+                    "status": "unverified",
+                    "channel_counts": {"unverified": 3},
+                },
+            ],
+        },
+    )
+    _write_json(
         run_dir / "phase_2" / "adversarial_tasks.json",
         [
             {
@@ -189,6 +208,10 @@ def test_worldsim_status_prints_operator_card(tmp_path: Path, capsys) -> None:
     assert "Pipeline: step=phase_4 status=complete" in out
     assert "Phase 4 progress: status=complete stage=complete initial=1/1 postprocessed=1/1" in out
     assert "Artifact provenance: source=s3://bucket/run" in out
+    assert (
+        "Phase 0c reachability: gitlab=verified(verified=2); "
+        "reddit=unverified(unverified=3)"
+    ) in out
     assert (
         "Task bank: events=1 admitted=1 phase4_results=0 sites=gitlab=1 "
         "archetypes=field_status_check=1"

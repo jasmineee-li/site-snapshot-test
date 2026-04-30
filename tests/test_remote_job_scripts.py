@@ -670,6 +670,72 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
     assert "remote job child launch failed" in completed.stdout
 
 
+def test_status_surfaces_recent_health_warnings(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    remote_dir = tmp_path / "remote" / "browser-sim"
+    job_id = "20260429t000000z-health-warning-abcdef"
+    job_dir = remote_dir / "logs" / "remote_jobs" / job_id
+    job_dir.mkdir(parents=True)
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    _write_executable(
+        fakebin / "ssh",
+        """#!/usr/bin/env python3
+import subprocess
+import sys
+
+args = sys.argv[1:]
+remote_cmd = args[-1]
+raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).returncode)
+""",
+    )
+    (job_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "job_id": job_id,
+                "name": "phase0 warning",
+                "created_at": "2026-04-29T00:00:00+00:00",
+                "pid": 999999,
+                "pgid": 999999,
+                "remote_dir": str(remote_dir),
+                "command": ["bash", "-lc", "uv run python -m worldsim.main phase 0"],
+                "expected_outputs": [],
+            }
+        )
+    )
+    (job_dir / "exit.json").write_text(json.dumps({"status": "exited", "returncode": 0}))
+    (job_dir / "stdout.log").write_text(
+        "The instance is confirmed unreachable (connection timeout).\n"
+    )
+    (job_dir / "stderr.log").write_text("")
+
+    env = _base_env(repo_root, tmp_path)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_status.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+            "--job-id",
+            job_id,
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "health_warnings:" in completed.stdout
+    assert "host_unreachable:" in completed.stdout
+    assert "phase0_unreachable:" in completed.stdout
+
+
 def test_status_prints_phase4_summary_and_followup_command(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     host_config = _host_config(tmp_path)

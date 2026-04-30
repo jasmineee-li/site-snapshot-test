@@ -166,6 +166,7 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
     cost_path = run_root / "cost_report.json"
     manifest_path = run_root / "artifact_manifest.json"
     task_bank_path = run_root / "task_bank" / "events.jsonl"
+    reachability_path = run_root / "phase_0c" / "REACHABILITY_REPORT.json"
 
     payload: dict[str, Any] = {
         "run_root": str(run_root),
@@ -175,6 +176,7 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
         "cost_report_path": str(cost_path) if cost_path.exists() else None,
         "artifact_manifest_path": str(manifest_path) if manifest_path.exists() else None,
         "task_bank_path": str(task_bank_path) if task_bank_path.exists() else None,
+        "phase0_reachability_path": str(reachability_path) if reachability_path.exists() else None,
     }
     if state_path.exists():
         state = load_json(state_path)
@@ -198,6 +200,10 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
         manifest = load_json(manifest_path)
         if isinstance(manifest, dict):
             payload["artifact_manifest"] = manifest
+    if reachability_path.exists():
+        reachability = load_json(reachability_path)
+        if isinstance(reachability, dict):
+            payload["phase0_reachability"] = reachability
     phase2c_summary = summarize_phase2c(run_root)
     if phase2c_summary is not None:
         payload["phase2c_summary"] = phase2c_summary
@@ -335,6 +341,25 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
             f"generated_at={manifest.get('generated_at', 'unknown')} "
             f"artifacts={artifact_count}"
         )
+
+    reachability = payload.get("phase0_reachability")
+    if isinstance(reachability, dict):
+        sites = reachability.get("sites")
+        if isinstance(sites, list):
+            parts = []
+            for site in sites:
+                if not isinstance(site, dict):
+                    continue
+                counts = site.get("channel_counts")
+                if not isinstance(counts, dict):
+                    counts = {}
+                count_text = _fmt_count_map(counts)
+                parts.append(
+                    f"{site.get('site', 'unknown')}={site.get('status', 'unknown')}"
+                    f"({count_text})"
+                )
+            if parts:
+                lines.append(f"Phase 0c reachability: {'; '.join(parts)}")
 
     task_bank_summary = payload.get("task_bank_summary")
     if isinstance(task_bank_summary, dict):

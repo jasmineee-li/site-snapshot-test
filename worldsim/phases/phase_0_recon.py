@@ -79,6 +79,10 @@ def _profile_metadata_path(output_dir: Path, site_name: str) -> Path:
     return output_dir / f"{_PROFILE_METADATA_PREFIX}{site_name}.json"
 
 
+def _reachability_report_path(output_dir: Path) -> Path:
+    return output_dir / "REACHABILITY_REPORT.json"
+
+
 def _read_only_volume(volume: Any) -> Any:
     """Return a read-only mount when the object supports it."""
     read_only = getattr(volume, "read_only", None)
@@ -234,6 +238,91 @@ def _verification_proxy_metadata(
         "port_offset": verification_proxy.port_offset,
         "token_sha256": token_digest,
     }
+
+
+def _delivery_channel_verification_status(channel: object) -> tuple[str, str | None]:
+    if not isinstance(channel, dict):
+        return "malformed_channel", None
+    verified = channel.get("verified")
+    note = channel.get("verification_notes")
+    note_text = note.strip() if isinstance(note, str) and note.strip() else None
+    if verified is True:
+        return "verified", note_text
+    if verified is False:
+        return "discrepancy_corrected", note_text
+    if verified is None:
+        return "unverified", note_text
+    return "malformed_verified_field", note_text
+
+
+def _site_reachability_record(
+    *,
+    site_name: str,
+    site_url: str | None,
+    verification_proxy: VerificationProxy | None,
+    injection_surface: dict[str, Any] | None,
+    cached: bool = False,
+) -> dict[str, Any]:
+    """Summarize Phase 0c live verification health without gating profiles."""
+    proxy_metadata = _verification_proxy_metadata(verification_proxy)
+    if not site_url:
+        return {
+            "site": site_name,
+            "status": "no_instance_config",
+            "cached": cached,
+            "site_url": None,
+            "verification_proxy": proxy_metadata,
+            "channel_counts": {},
+            "notes": ["Phase 0c had no instance URL; profile is code-derived only."],
+        }
+
+    surfaces = []
+    if isinstance(injection_surface, dict) and isinstance(
+        injection_surface.get("injection_surface"), list
+    ):
+        surfaces = [item for item in injection_surface["injection_surface"] if isinstance(item, dict)]
+
+    channel_counts: dict[str, int] = {}
+    notes: list[str] = []
+    for surface in surfaces:
+        channels = surface.get("delivery_channels")
+        if not isinstance(channels, list):
+            continue
+        for channel in channels:
+            status, note = _delivery_channel_verification_status(channel)
+            channel_counts[status] = channel_counts.get(status, 0) + 1
+            if note and len(notes) < 8:
+                notes.append(f"{surface.get('id') or 'unknown'}: {note}")
+
+    if not channel_counts:
+        status = "no_channels"
+    elif channel_counts.get("unverified") or channel_counts.get("malformed_verified_field"):
+        status = "unverified"
+    elif channel_counts.get("discrepancy_corrected"):
+        status = "verified_with_corrections"
+    elif channel_counts.get("verified"):
+        status = "verified"
+    else:
+        status = "unknown"
+
+    return {
+        "site": site_name,
+        "status": status,
+        "cached": cached,
+        "site_url": site_url,
+        "verification_proxy": proxy_metadata,
+        "channel_counts": channel_counts,
+        "notes": notes,
+    }
+
+
+def _write_reachability_report(output_dir: Path, records: list[dict[str, Any]]) -> None:
+    payload = {
+        "schema_version": 1,
+        "phase": "phase_0c",
+        "sites": sorted(records, key=lambda item: str(item.get("site") or "")),
+    }
+    _write_text_atomic(_reachability_report_path(output_dir), json.dumps(payload, indent=2))
 
 
 def _existing_site_outputs_are_reusable(
@@ -814,6 +903,7 @@ async def run_phase_0c(
 
     # Skip sites that already have all outputs on disk (supports re-runs).
     sites_to_profile = {}
+    reachability_records: list[dict[str, Any]] = []
     for name, files in sandbox_map.items():
         normalized_name = normalize_site_name(name)
         if normalized_site_filter is not None and normalized_name not in normalized_site_filter:
@@ -830,11 +920,28 @@ async def run_phase_0c(
             verification_proxy=verification_proxy,
         ):
             logger.info("Phase 0c: skipping site %r (profile + agent context already exist)", name)
+            injection_surface_path = output_dir / f"INJECTION_SURFACE_{name}.json"
+            injection_surface = None
+            if injection_surface_path.exists():
+                try:
+                    injection_surface = json.loads(injection_surface_path.read_text())
+                except (OSError, json.JSONDecodeError):
+                    injection_surface = None
+            reachability_records.append(
+                _site_reachability_record(
+                    site_name=name,
+                    site_url=instance_site_url,
+                    verification_proxy=verification_proxy,
+                    injection_surface=injection_surface,
+                    cached=True,
+                )
+            )
         else:
             sites_to_profile[name] = files
 
     if not sites_to_profile:
         logger.info("Phase 0c: all sites already profiled, nothing to do")
+        _write_reachability_report(output_dir, reachability_records)
         return {}
 
     raw_results = await asyncio.gather(
@@ -865,6 +972,10 @@ async def run_phase_0c(
         elif isinstance(r, tuple) and len(r) == 2:
             site_name, site_outputs = r
             results[site_name] = site_outputs
+            if isinstance(site_outputs, dict) and isinstance(
+                site_outputs.get("reachability"), dict
+            ):
+                reachability_records.append(site_outputs["reachability"])
 
     expected_sites = set(sites_to_profile)
     missing_sites = sorted(expected_sites - set(results))
@@ -876,6 +987,7 @@ async def run_phase_0c(
             + "\n".join(f"  - {failure}" for failure in failures)
         )
 
+    _write_reachability_report(output_dir, reachability_records)
     return results
 
 
@@ -1234,6 +1346,12 @@ async def _profile_one_site_tiered(
                 "declared in injection_surface."
             ),
         )
+        reachability = _site_reachability_record(
+            site_name=site_name,
+            site_url=site_url,
+            verification_proxy=verification_proxy,
+            injection_surface=injection_surface if isinstance(injection_surface, dict) else None,
+        )
 
         logger.info("Phase 0c: site %r tier 2 complete, merging profile", site_name)
 
@@ -1302,6 +1420,7 @@ async def _profile_one_site_tiered(
         return site_name, {
             "profile": profile,
             "agent_context": agent_context,
+            "reachability": reachability,
         }
 
     finally:

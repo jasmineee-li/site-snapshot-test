@@ -129,6 +129,13 @@ def _valid_injection_surface(*, source_field: str = "products.description") -> d
     }
 
 
+def _valid_injection_surface_with_verification(verified: object, note: str) -> dict:
+    payload = _valid_injection_surface()
+    payload["injection_surface"][0]["delivery_channels"][0]["verified"] = verified
+    payload["injection_surface"][0]["delivery_channels"][0]["verification_notes"] = note
+    return payload
+
+
 def _sandbox_json(output_path: str, payload: object) -> dict[str, str | None]:
     return {
         output_path: json.dumps(payload),
@@ -602,6 +609,45 @@ async def test_run_phase_0c_stages_sanitized_instance_connectivity(monkeypatch, 
         "site_name": "shopping",
         "site_url": "http://shopping.test",
     }
+
+
+async def test_run_phase_0c_writes_reachability_report(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json(
+                INJECTION_OUTPUT,
+                _valid_injection_surface_with_verification(
+                    None,
+                    "Instance was unreachable during safe read-only probing.",
+                ),
+            )
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=tmp_path / "out",
+        instances=[BenchmarkInstance(site_name="shopping", site_url="http://shopping.test/")],
+    )
+
+    report = json.loads((tmp_path / "out" / "REACHABILITY_REPORT.json").read_text())
+    assert report["schema_version"] == 1
+    assert report["sites"][0]["site"] == "shopping"
+    assert report["sites"][0]["status"] == "unverified"
+    assert report["sites"][0]["channel_counts"] == {"unverified": 1}
+    assert "Instance was unreachable" in report["sites"][0]["notes"][0]
 
 
 def test_load_phase_0c_instances_rejects_invalid_config_shape(tmp_path):

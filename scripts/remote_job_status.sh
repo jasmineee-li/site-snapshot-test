@@ -245,12 +245,32 @@ def summarize_phase4_results(path: Path) -> dict[str, object] | None:
         "trace_root": trace_root,
     }
 
+def recent_health_warnings(lines: list[str]) -> list[str]:
+    patterns = [
+        ("host_unreachable", re.compile(r"host_unreachable|connection timeout|connection refused|name or service not known|could not resolve", re.I)),
+        ("storage_state_host_mismatch", re.compile(r"storage[-_ ]state.*host.*mismatch|host-bound storage", re.I)),
+        ("validation_retry", re.compile(r"failed validation, retrying|repair prompt|self[-_ ]verification failed", re.I)),
+        ("phase0_unreachable", re.compile(r"instance is confirmed unreachable|instance was unreachable|unreachable", re.I)),
+    ]
+    warnings: list[str] = []
+    seen: set[str] = set()
+    for line in lines:
+        for label, pattern in patterns:
+            if label in seen:
+                continue
+            if pattern.search(line):
+                warnings.append(f"{label}: {line[-220:]}")
+                seen.add(label)
+    return warnings
+
 stdout = job_dir / "stdout.log"
 stderr = job_dir / "stderr.log"
 latest_log_mtime = 0.0
 for path in (stdout, stderr):
     if path.exists():
         latest_log_mtime = max(latest_log_mtime, path.stat().st_mtime)
+recent_stdout = tail(stdout, lines=80)
+recent_stderr = tail(stderr, lines=80)
 
 print(f"job_id: {job_id}")
 print(f"name: {metadata.get('name')}")
@@ -302,6 +322,12 @@ if status == "running" and latest_log_mtime:
     if quiet_for > 900:
         print("warning: process is alive, but logs have not changed for more than 15 minutes")
 
+health_warnings = recent_health_warnings(recent_stdout + recent_stderr)
+if health_warnings:
+    print("health_warnings:")
+    for warning in health_warnings:
+        print(f"  {warning}")
+
 expected = metadata.get("expected_outputs") or []
 if expected:
     print("expected_outputs:")
@@ -352,10 +378,10 @@ for candidate in phase4_results_candidates():
     break
 
 print(f"stdout: {stdout}")
-for line in tail(stdout):
+for line in recent_stdout[-8:]:
     print(f"  {line}")
 print(f"stderr: {stderr}")
-for line in tail(stderr):
+for line in recent_stderr[-8:]:
     print(f"  {line}")
 PY
 REMOTE
