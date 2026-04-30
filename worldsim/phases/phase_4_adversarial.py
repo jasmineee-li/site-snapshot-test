@@ -1804,6 +1804,7 @@ _FINGERPRINT_RESULT_KEYS: tuple[str, ...] = (
     "trajectory_dir",
     "elapsed",
     "steps",
+    "final_result",
     "error",
     "pvpo_status",
     "pvpo_failure",
@@ -3441,6 +3442,7 @@ async def run_adversarial_task(
             "trajectory_dir": str(task_dir),
             "elapsed": 0.0,
             "steps": 0,
+            "final_result": None,
         }
         _save_seed_preflight_result(
             task_dir=task_dir,
@@ -3533,6 +3535,7 @@ async def run_adversarial_task(
                         "trajectory_dir": str(task_dir),
                         "elapsed": 0.0,
                         "steps": 0,
+                        "final_result": None,
                     }
                     _save_seed_preflight_result(
                         task_dir=task_dir,
@@ -3662,6 +3665,7 @@ async def run_adversarial_task(
                 "trajectory_dir": str(task_dir),
                 "elapsed": result.elapsed,
                 "steps": result.steps,
+                "final_result": result.final_result,
                 **_pvpo_metric_payload(pvpo),
                 **error_final_status_extra,
             }
@@ -3711,6 +3715,7 @@ async def run_adversarial_task(
                 "trajectory_dir": str(task_dir),
                 "elapsed": result.elapsed,
                 "steps": result.steps,
+                "final_result": result.final_result,
                 **_pvpo_metric_payload(pvpo),
                 **nonint_final_status_extra,
             }
@@ -3776,6 +3781,7 @@ async def run_adversarial_task(
             "trajectory_dir": str(task_dir),
             "elapsed": result.elapsed,
             "steps": result.steps,
+            "final_result": result.final_result,
             **_pvpo_metric_payload(pvpo),
             **final_status_extra,
             **taxonomy_fields,
@@ -5894,12 +5900,14 @@ def _build_phase_4_result(
     current_trace = current_result.get("trajectory_dir")
     successful_variant_trace = None
     successful_variant_index = None
+    successful_variant_final_result = None
     if isinstance(successful_variant, dict):
         successful_variant_trace = (
             successful_variant.get("variant_trajectory_dir")
             or successful_variant.get("trajectory_dir")
         )
         successful_variant_index = successful_variant.get("variant_index")
+        successful_variant_final_result = successful_variant.get("final_result")
     primary_inspection_trace = (
         successful_variant_trace
         if final_status == "success_on_variant" and successful_variant_trace
@@ -5918,6 +5926,14 @@ def _build_phase_4_result(
         "current_trace": current_trace,
         "successful_variant_trace": successful_variant_trace,
         "successful_variant_index": successful_variant_index,
+        "initial_final_result": initial_result.get("final_result"),
+        "current_final_result": current_result.get("final_result"),
+        "successful_variant_final_result": successful_variant_final_result,
+        "primary_final_result": (
+            successful_variant_final_result
+            if final_status == "success_on_variant"
+            else current_result.get("final_result")
+        ),
         "primary_inspection_trace": primary_inspection_trace,
     }
 

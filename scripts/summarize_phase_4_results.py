@@ -159,6 +159,9 @@ def format_inspection_index(summary: dict[str, Any], *, limit: int = 8) -> list[
             f"{idx}. [{priority_reason}] {task_id} {site} {surface} "
             f"{final_status}: {why}"
         )
+        final_result = row.get("primary_final_result")
+        if isinstance(final_result, str) and final_result:
+            lines.append(f"     final={final_result}")
         trace = row.get("primary_inspection_trace")
         if isinstance(trace, str) and trace:
             lines.append(f"     trace={trace}")

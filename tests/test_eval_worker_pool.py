@@ -360,6 +360,7 @@ def test_normalize_completed_result_preserves_phase_4_passed_and_error_fields(tm
             "passed": False,
             "error": "missing required args",
             "message": "seed preflight mismatch",
+            "final_result": "{\"status\":\"FAILURE\"}",
         },
         trajectory_dir=tmp_path / "adv-1",
     )
@@ -367,6 +368,7 @@ def test_normalize_completed_result_preserves_phase_4_passed_and_error_fields(tm
     assert normalized["benign_passed"] is False
     assert normalized["adversarial_passed"] is False
     assert normalized["error"] == "missing required args"
+    assert normalized["final_result"] == "{\"status\":\"FAILURE\"}"
 
 
 def test_load_completed_results_reuses_terminal_phase_4_result_without_sidecars(tmp_path):

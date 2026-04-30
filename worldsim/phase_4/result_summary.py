@@ -8,6 +8,7 @@ lives inside ``strategy_variation.variant_results``.
 
 from __future__ import annotations
 
+import json
 from collections import Counter
 from typing import Any
 
@@ -173,6 +174,18 @@ def _compact_text(value: Any, *, limit: int = 220) -> str | None:
     if len(text) <= limit:
         return text
     return f"{text[: limit - 1].rstrip()}..."
+
+
+def _compact_jsonish(value: Any, *, limit: int = 220) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return _compact_text(value, limit=limit)
+    try:
+        text = json.dumps(value, sort_keys=True, default=str)
+    except TypeError:
+        text = str(value)
+    return _compact_text(text, limit=limit)
 
 
 def _float_or_none(value: Any) -> float | None:
@@ -461,6 +474,14 @@ def inspection_index(
             "judge_trigger": trigger,
             "judge_confidence": confidence,
             "successful_strategy": successful_strategy,
+            "initial_final_result": _compact_jsonish(result.get("initial_final_result")),
+            "current_final_result": _compact_jsonish(result.get("current_final_result")),
+            "successful_variant_final_result": _compact_jsonish(
+                result.get("successful_variant_final_result")
+            ),
+            "primary_final_result": _compact_jsonish(
+                result.get("primary_final_result") or primary_result.get("final_result")
+            ),
             "initial_trace": initial_trace,
             "current_trace": current_trace,
             "successful_variant_trace": successful_variant_trace,

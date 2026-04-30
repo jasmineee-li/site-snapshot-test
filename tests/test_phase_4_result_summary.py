@@ -72,6 +72,7 @@ def test_summarize_results_attributes_success_on_variant_reward():
                         "strategy": "specificity",
                         "outcome": "complied",
                         "adversarial_passed": True,
+                        "final_result": "{\"retrieved_data\":[\"blank\"]}",
                         "encounter": {"max_coverage": 0.75},
                         "trajectory_dir": "/runs/adv_variant_variant_1",
                         "variant_trajectory_dir": "/runs/adv_variant_variant_1",
@@ -232,6 +233,9 @@ def test_summarize_results_attributes_success_on_variant_reward():
     assert summary["inspection_index"][0]["primary_inspection_trace"] == (
         "/runs/adv_variant_variant_1"
     )
+    assert summary["inspection_index"][0]["primary_final_result"] == (
+        "{\"retrieved_data\":[\"blank\"]}"
+    )
     assert summary["inspection_index"][0]["successful_strategy"] == "specificity"
     assert summary["inspection_index"][0]["rejected_variants"] == [
         {
@@ -262,6 +266,7 @@ def test_summarize_phase4_cli_resolves_state_dir_and_prints_metrics(tmp_path, ca
                         {
                             "strategy": "specificity",
                             "outcome": "complied",
+                            "final_result": "{\"retrieved_data\":[\"blank\"]}",
                             "encounter": {"max_coverage": 1.0},
                             "trajectory_dir": "/runs/adv_variant_variant_0",
                             "variant_trajectory_dir": "/runs/adv_variant_variant_0",
@@ -305,6 +310,7 @@ def test_summarize_phase4_cli_resolves_state_dir_and_prints_metrics(tmp_path, ca
     assert "suspicion -> specificity: planned=1 generated=1 rejected=0" in out
     assert "Inspect next:" in out
     assert "[variant_success_exemplar] adv_variant reddit submission.body success_on_variant" in out
+    assert 'final={"retrieved_data":["blank"]}' in out
     assert "trace=/runs/adv_variant_variant_0" in out
 
 
