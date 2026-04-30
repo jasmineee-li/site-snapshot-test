@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import ipaddress
 import json
 import logging
 import os
@@ -159,6 +160,55 @@ def _sanitize_instance_site_url(site_url: str, *, site_name: str) -> str:
         normalized_netloc = f"{host_display}:{port}"
     normalized_path = parts.path.rstrip("/")
     return urlunsplit((scheme, normalized_netloc, normalized_path, "", ""))
+
+
+def _phase_0c_modal_unreachable_host_reason(site_url: str) -> str | None:
+    parts = urlsplit(site_url)
+    host = parts.hostname
+    if not host:
+        return "missing host"
+    host_lower = host.lower()
+    if host_lower in {"localhost"} or host_lower.endswith(".local"):
+        return f"non-public hostname {host!r}"
+    try:
+        address = ipaddress.ip_address(host_lower)
+    except ValueError:
+        return None
+    if (
+        address.is_private
+        or address.is_loopback
+        or address.is_link_local
+        or address.is_reserved
+        or address.is_multicast
+        or address.is_unspecified
+    ):
+        return f"non-public IP address {host!r}"
+    return None
+
+
+def _validate_phase_0c_modal_connectivity_urls(
+    instance_urls: dict[str, str],
+    *,
+    instances_path: Path | None = None,
+) -> None:
+    """Fail early when Modal Phase 0c would receive host-local URLs."""
+    invalid = []
+    for site_name, site_url in sorted(instance_urls.items()):
+        reason = _phase_0c_modal_unreachable_host_reason(site_url)
+        if reason:
+            invalid.append(f"{site_name}: {site_url} ({reason})")
+    if not invalid:
+        return
+    path_hint = f" from {instances_path}" if instances_path is not None else ""
+    raise RuntimeError(
+        "Phase 0c live verification runs inside Modal sandboxes and requires "
+        f"externally reachable instance URLs{path_hint}. The selected instance "
+        "config uses host-local/on-host URLs that Modal cannot reach:\n"
+        + "\n".join(f"  - {item}" for item in invalid)
+        + "\nUse an externally reachable/proxied instance file for Phase 0c "
+        "(for r5, instances.smoke.json), and use instances.scale.json only for "
+        "on-host browser phases such as Phase 2c and Phase 4."
+    )
 
 
 def _build_instance_site_url_map(instances: list[BenchmarkInstance] | None) -> dict[str, str]:
@@ -893,6 +943,7 @@ async def run_phase_0c(
         if eval_type
     }
     instance_urls = _build_instance_site_url_map(instances)
+    _validate_phase_0c_modal_connectivity_urls(instance_urls)
     instance_lookup = _build_instance_lookup(instances)
 
     normalized_site_filter = (

@@ -227,7 +227,9 @@ Read the field once at the start and store it in a shell variable for reuse.
 
 5. If the instance is unreachable (connection refused, DNS failure, timeout),
    set all channels to `"verified": null` with a note, and proceed with the
-   code-derived profile. Do not retry or block on network failures.
+   code-derived profile. Do not retry or block on network failures. After the
+   output validates, stop immediately; do not continue probing unreachable
+   routes.
 
 ## Validation rules
 

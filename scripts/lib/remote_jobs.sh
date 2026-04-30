@@ -158,7 +158,14 @@ def _is_smoke(value: str | None) -> bool:
     return Path(value).name == "instances.smoke.json"
 
 
+def _is_scale(value: str | None) -> bool:
+    if value is None:
+        return False
+    return Path(value).name == "instances.scale.json"
+
+
 issues: list[str] = []
+phase0_live = _runs_phase("0") or _runs_phase("0c")
 phase2_live = _runs_phase("2") and "--skip-feasibility" not in command_text
 phase2c_live = _runs_phase("2c")
 phase4_live = _runs_phase("4")
@@ -167,6 +174,16 @@ resume_phase2c = (
     and "--feasibility-only" in command_text
     and "--skip-feasibility" not in command_text
 )
+
+if phase0_live:
+    phase0_instances = _option_value("--instances")
+    if _is_scale(phase0_instances):
+        issues.append(
+            "Phase 0c runs inside Modal sandboxes and cannot reach "
+            "--instances instances.scale.json host-local/orchestrator URLs. "
+            "Use an externally reachable/proxied instance file such as "
+            "instances.smoke.json for Phase 0/0c."
+        )
 
 if phase2_live or phase2c_live or resume_phase2c:
     feasibility_instances = _option_value("--feasibility-instances")
@@ -209,10 +226,13 @@ message = "\n".join(
         "On-host browser phases must use the orchestrator host view. Public-IP "
         "instance files can produce false Phase 2c host_unreachable failures, "
         "host-bound storage_state mismatches, and misleading 0-admission artifacts.",
+        "Phase 0c is the exception: its profiling sandboxes run outside the host "
+        "and must use externally reachable/proxied URLs.",
         *[f"- {issue}" for issue in issues],
-        "Use instances.scale.json generated from the host config, or set "
+        "Use instances.scale.json for on-host Phase 2c/4 and instances.smoke.json "
+        "or an equivalent public/proxy instance file for Phase 0c. Set "
         "WORLDSIM_ALLOW_REMOTE_INSTANCE_TOPOLOGY_MISMATCH=1 only for a deliberate "
-        "external-browser topology experiment.",
+        "topology experiment.",
     ]
 )
 print(message, file=sys.stderr)

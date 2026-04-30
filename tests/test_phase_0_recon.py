@@ -680,6 +680,25 @@ def test_sanitize_instance_site_url_canonicalizes_equivalent_origins():
     )
 
 
+def test_phase_0c_modal_connectivity_rejects_host_local_urls():
+    with pytest.raises(RuntimeError, match="Modal sandboxes"):
+        phase_0_recon._validate_phase_0c_modal_connectivity_urls(
+            {
+                "gitlab": "http://172.17.0.1:8023",
+                "reddit": "http://127.0.0.1:9900",
+            }
+        )
+
+
+def test_phase_0c_modal_connectivity_allows_public_proxy_urls():
+    phase_0_recon._validate_phase_0c_modal_connectivity_urls(
+        {
+            "gitlab": "http://8.8.8.8:18023",
+            "reddit": "http://1.1.1.1:19900",
+        }
+    )
+
+
 @pytest.mark.asyncio
 async def test_run_persists_instances_path_across_phase_0_state(monkeypatch, tmp_path):
     benchmark_root, source_file = _benchmark_setup(tmp_path)

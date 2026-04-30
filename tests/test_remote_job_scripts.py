@@ -296,6 +296,38 @@ def test_start_rejects_phase2c_smoke_instances_on_remote_orchestrator_host(
     assert "instances.scale.json" in completed.stderr
 
 
+def test_start_rejects_phase0_scale_instances_on_remote_orchestrator_host(
+    tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _remote_direct_host_config_with_orchestrator(tmp_path)
+    env = _base_env(repo_root, tmp_path)
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--name",
+            "bad phase0 topology",
+            "--",
+            "bash",
+            "-lc",
+            "uv run python -m worldsim.main phase 0 --instances instances.scale.json",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "Phase 0c runs inside Modal sandboxes" in completed.stderr
+    assert "instances.smoke.json" in completed.stderr
+    assert "instances.scale.json" in completed.stderr
+
+
 def test_start_rejects_phase2_default_smoke_instances_on_remote_orchestrator_host(
     tmp_path: Path,
 ) -> None:

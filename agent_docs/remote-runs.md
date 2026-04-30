@@ -45,6 +45,14 @@ remote job starts. Override with
 `WORLDSIM_ALLOW_REMOTE_INSTANCE_TOPOLOGY_MISMATCH=1` only when intentionally
 testing an external-browser topology.
 
+Phase 0c is the topology exception. Its profiling work runs in Modal sandboxes,
+not in the on-host browser process, so it cannot reach r5-only addresses such
+as `172.17.0.1`. Use an externally reachable/proxied instance file such as
+`instances.smoke.json` for Phase 0/0c live probing, then switch back to
+`instances.scale.json` for Phase 2c and Phase 4. The remote launcher blocks
+`phase 0 --instances instances.scale.json` on `remote_direct_restricted` hosts
+for this reason.
+
 ## Resume and Compaction Checks
 
 After context compaction or a long pause, treat any live artifact path as
