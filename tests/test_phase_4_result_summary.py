@@ -444,7 +444,16 @@ def test_summarize_phase4_results_reports_browser_runtime_scroll_counters(tmp_pa
             "pvpo_beginframe_prior_drain_timeouts": 1,
             "pvpo_navigation_tick_frames": 7,
             "pvpo_navigation_tick_navigations": 2,
+            "pvpo_cdp_timeouts": 3,
+            "pvpo_cdp_late_completions": 2,
             "network_trace_entries": 14,
+        },
+    )
+    _write_json(
+        trace_dir / "final_response.json",
+        {
+            "status": "SUCCESS",
+            "errors": ["<empty browser-use step error>", "Navigation failed:"],
         },
     )
 
@@ -453,6 +462,7 @@ def test_summarize_phase4_results_reports_browser_runtime_scroll_counters(tmp_pa
     assert rc == 0
     out = capsys.readouterr().out
     assert "Browser runtime counters: artifacts=1 traces_scanned=1" in out
+    assert "Browser Use step errors: total=2 traces=1 empty=1" in out
     assert "PVPO scroll:" in out
     assert "pvpo_scroll_wheel_timeouts=2" in out
     assert "pvpo_scroll_wheel_late_successes=1" in out
@@ -463,3 +473,6 @@ def test_summarize_phase4_results_reports_browser_runtime_scroll_counters(tmp_pa
     assert "PVPO navigation ticks:" in out
     assert "pvpo_navigation_tick_frames=7" in out
     assert "pvpo_navigation_tick_navigations=2" in out
+    assert "PVPO CDP deadlines:" in out
+    assert "pvpo_cdp_timeouts=3" in out
+    assert "pvpo_cdp_late_completions=2" in out

@@ -108,31 +108,58 @@ def _trace_dir_values(result: dict[str, Any]) -> list[str]:
     return list(dict.fromkeys(values))
 
 
-def _runtime_path_candidates(trace_dir: str, *, results_path: Path) -> list[Path]:
+def _trace_artifact_path_candidates(
+    trace_dir: str,
+    *,
+    results_path: Path,
+    filename: str,
+) -> list[Path]:
     raw_path = Path(trace_dir).expanduser()
     if raw_path.is_absolute():
-        return [raw_path / "browser_runtime.json"]
+        return [raw_path / filename]
     return [
-        raw_path / "browser_runtime.json",
-        results_path.parent / raw_path / "browser_runtime.json",
-        results_path.parent.parent / raw_path / "browser_runtime.json",
+        raw_path / filename,
+        results_path.parent / raw_path / filename,
+        results_path.parent.parent / raw_path / filename,
     ]
 
 
-def _resolve_browser_runtime_path(trace_dir: str, *, results_path: Path) -> Path | None:
-    for candidate in _runtime_path_candidates(trace_dir, results_path=results_path):
+def _resolve_trace_artifact_path(
+    trace_dir: str,
+    *,
+    results_path: Path,
+    filename: str,
+) -> Path | None:
+    for candidate in _trace_artifact_path_candidates(
+        trace_dir,
+        results_path=results_path,
+        filename=filename,
+    ):
         if candidate.exists():
             return candidate
     return None
+
+
+def _resolve_browser_runtime_path(trace_dir: str, *, results_path: Path) -> Path | None:
+    return _resolve_trace_artifact_path(
+        trace_dir,
+        results_path=results_path,
+        filename="browser_runtime.json",
+    )
 
 
 def summarize_browser_runtime(results: list[dict[str, Any]], *, results_path: Path) -> dict[str, Any]:
     """Aggregate per-trajectory Browser Use runtime counters when artifacts exist."""
 
     seen_paths: set[Path] = set()
+    seen_final_response_paths: set[Path] = set()
     scroll_counters: Counter[str] = Counter()
     beginframe_counters: Counter[str] = Counter()
     navigation_tick_counters: Counter[str] = Counter()
+    pvpo_cdp_counters: Counter[str] = Counter()
+    browser_use_step_errors = 0
+    browser_use_traces_with_step_errors = 0
+    browser_use_empty_step_errors = 0
     traces_scanned = 0
     for result in results:
         for trace_dir in _trace_dir_values(result):
@@ -157,12 +184,45 @@ def summarize_browser_runtime(results: list[dict[str, Any]], *, results_path: Pa
                         beginframe_counters[key] += value
                     elif isinstance(key, str) and key.startswith("pvpo_navigation_tick_"):
                         navigation_tick_counters[key] += value
+                    elif isinstance(key, str) and key.startswith("pvpo_cdp_"):
+                        pvpo_cdp_counters[key] += value
+            final_response_path = _resolve_trace_artifact_path(
+                trace_dir,
+                results_path=results_path,
+                filename="final_response.json",
+            )
+            if final_response_path is None or final_response_path in seen_final_response_paths:
+                continue
+            seen_final_response_paths.add(final_response_path)
+            try:
+                final_response = _load_json(final_response_path)
+            except (OSError, json.JSONDecodeError):
+                continue
+            if not isinstance(final_response, dict):
+                continue
+            errors = final_response.get("errors")
+            if not isinstance(errors, list):
+                continue
+            normalized_errors = [error for error in errors if error is not None]
+            if normalized_errors:
+                browser_use_step_errors += len(normalized_errors)
+                browser_use_traces_with_step_errors += 1
+                browser_use_empty_step_errors += sum(
+                    1
+                    for error in normalized_errors
+                    if isinstance(error, str)
+                    and error in ("", "<empty browser-use step error>")
+                )
     return {
         "traces_scanned": traces_scanned,
         "runtime_artifacts": len(seen_paths),
         "pvpo_scroll_counters": dict(sorted(scroll_counters.items())),
         "pvpo_beginframe_counters": dict(sorted(beginframe_counters.items())),
         "pvpo_navigation_tick_counters": dict(sorted(navigation_tick_counters.items())),
+        "pvpo_cdp_counters": dict(sorted(pvpo_cdp_counters.items())),
+        "browser_use_step_errors": browser_use_step_errors,
+        "browser_use_traces_with_step_errors": browser_use_traces_with_step_errors,
+        "browser_use_empty_step_errors": browser_use_empty_step_errors,
     }
 
 
@@ -317,12 +377,22 @@ def format_text_summary(
     if summary.get("judge_trigger_counts"):
         lines.append(f"Judge trigger counts: {summary['judge_trigger_counts']}")
     browser_runtime = summary.get("browser_runtime")
-    if isinstance(browser_runtime, dict) and browser_runtime.get("runtime_artifacts"):
+    if isinstance(browser_runtime, dict) and (
+        browser_runtime.get("runtime_artifacts")
+        or browser_runtime.get("browser_use_step_errors")
+    ):
         lines.append(
             "Browser runtime counters: "
             f"artifacts={browser_runtime.get('runtime_artifacts', 0)} "
             f"traces_scanned={browser_runtime.get('traces_scanned', 0)}"
         )
+        if browser_runtime.get("browser_use_step_errors"):
+            lines.append(
+                "  Browser Use step errors: "
+                f"total={browser_runtime.get('browser_use_step_errors', 0)} "
+                f"traces={browser_runtime.get('browser_use_traces_with_step_errors', 0)} "
+                f"empty={browser_runtime.get('browser_use_empty_step_errors', 0)}"
+            )
         pvpo_scroll_counters = browser_runtime.get("pvpo_scroll_counters")
         if isinstance(pvpo_scroll_counters, dict) and pvpo_scroll_counters:
             lines.append(f"  PVPO scroll: {_fmt_count_map(pvpo_scroll_counters)}")
@@ -334,6 +404,9 @@ def format_text_summary(
             lines.append(
                 f"  PVPO navigation ticks: {_fmt_count_map(pvpo_navigation_tick_counters)}"
             )
+        pvpo_cdp_counters = browser_runtime.get("pvpo_cdp_counters")
+        if isinstance(pvpo_cdp_counters, dict) and pvpo_cdp_counters:
+            lines.append(f"  PVPO CDP deadlines: {_fmt_count_map(pvpo_cdp_counters)}")
 
     rows = summary.get("by_site_surface_editor_status") or []
     if rows:

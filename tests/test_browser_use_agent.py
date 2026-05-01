@@ -46,6 +46,11 @@ class _SurrogateHistory(_FakeHistory):
         return {"history": [{"model_output": "bad surrogate \udc4d"}]}
 
 
+class _MixedErrorHistory(_FakeHistory):
+    def errors(self):
+        return [None, "", "Navigation failed:"]
+
+
 def test_write_agent_artifacts_persists_partial_history_and_failure_metadata(tmp_path):
     screenshot = tmp_path / "source.png"
     screenshot.write_bytes(b"png")
@@ -65,6 +70,16 @@ def test_write_agent_artifacts_persists_partial_history_and_failure_metadata(tmp
     final_response = json.loads((task_dir / "final_response.json").read_text())
     assert final_response["status"] == "TIMEOUT"
     assert "agent timed out after 30s" in final_response["errors"]
+
+
+def test_extract_history_state_filters_none_and_preserves_empty_step_errors(tmp_path):
+    screenshot = tmp_path / "source.png"
+    screenshot.write_bytes(b"png")
+    history = _MixedErrorHistory(str(screenshot))
+
+    _, _, _, errors = browser_use_agent._extract_history_state(history)
+
+    assert errors == ["<empty browser-use step error>", "Navigation failed:"]
 
 
 def test_write_agent_artifacts_preserves_history_with_surrogate_text(tmp_path):
@@ -998,7 +1013,7 @@ async def test_pvpo_navigation_tick_patch_records_tick_failures_without_failing_
 
 
 @pytest.mark.asyncio
-async def test_pvpo_navigation_tick_patch_marks_dirty_on_tick_timeout(
+async def test_pvpo_navigation_tick_patch_records_timeout_without_dirtying_endpoint(
     monkeypatch: pytest.MonkeyPatch,
 ):
     from browser_use.browser.session import BrowserSession
@@ -1036,8 +1051,7 @@ async def test_pvpo_navigation_tick_patch_marks_dirty_on_tick_timeout(
 
     assert session._worldsim_pvpo_navigation_tick_navigations == 1
     assert session._worldsim_pvpo_navigation_tick_timeouts == 1
-    assert coordinator.dirty_reason is not None
-    assert "navigation beginFrame tick timed out" in coordinator.dirty_reason
+    assert coordinator.dirty_reason is None
     coordinator.reset_after_recycle()
 
 
@@ -1085,6 +1099,49 @@ async def test_pvpo_navigation_tick_patch_waits_for_inflight_tick_on_navigation_
     assert session._worldsim_pvpo_navigation_tick_frames == 1
     assert coordinator.dirty_reason is None
     assert not hasattr(session, "_worldsim_pvpo_navigation_tick_stop_timeouts")
+
+
+@pytest.mark.asyncio
+async def test_pvpo_cdp_deadline_does_not_cancel_late_protocol_future():
+    loop = asyncio.get_running_loop()
+    future: asyncio.Future[str] = loop.create_future()
+    browser_session = SimpleNamespace()
+
+    with pytest.raises(TimeoutError):
+        await browser_use_agent._await_pvpo_cdp_deadline(
+            future,
+            timeout_s=0.01,
+            label="test cdp call",
+            browser_session=browser_session,
+        )
+
+    assert not future.cancelled()
+    assert browser_session._worldsim_pvpo_cdp_timeouts == 1
+
+    future.set_result("late-ok")
+    await asyncio.sleep(0)
+
+    assert browser_session._worldsim_pvpo_cdp_late_completions == 1
+
+
+@pytest.mark.asyncio
+async def test_pvpo_cdp_deadline_records_late_protocol_failure():
+    loop = asyncio.get_running_loop()
+    future: asyncio.Future[str] = loop.create_future()
+    browser_session = SimpleNamespace()
+
+    with pytest.raises(TimeoutError):
+        await browser_use_agent._await_pvpo_cdp_deadline(
+            future,
+            timeout_s=0.01,
+            browser_session=browser_session,
+        )
+
+    future.set_exception(RuntimeError("late browser error"))
+    await asyncio.sleep(0)
+
+    assert browser_session._worldsim_pvpo_cdp_timeouts == 1
+    assert browser_session._worldsim_pvpo_cdp_late_failures == 1
 
 
 @pytest.mark.asyncio
@@ -1409,6 +1466,8 @@ def test_record_browser_use_patch_runtime_persists_scroll_counters():
         _worldsim_pvpo_navigation_tick_navigations=1,
         _worldsim_pvpo_navigation_tick_frames=4,
         _worldsim_pvpo_navigation_tick_failures=0,
+        _worldsim_pvpo_cdp_timeouts=2,
+        _worldsim_pvpo_cdp_late_completions=1,
     )
 
     agent._record_browser_use_patch_runtime()
@@ -1422,6 +1481,8 @@ def test_record_browser_use_patch_runtime_persists_scroll_counters():
         "pvpo_scroll_js_noops": 1,
         "pvpo_navigation_tick_navigations": 1,
         "pvpo_navigation_tick_frames": 4,
+        "pvpo_cdp_timeouts": 2,
+        "pvpo_cdp_late_completions": 1,
         "pvpo_beginframe_sends": 2,
         "pvpo_beginframe_pending_errors": 1,
         "pvpo_beginframe_endpoint_identity": "127.0.0.1:9222",

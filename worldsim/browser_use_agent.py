@@ -1539,7 +1539,6 @@ async def _pvpo_navigation_tick_loop(
                 browser_session,
                 "_worldsim_pvpo_navigation_tick_timeouts",
             )
-            coordinator.mark_dirty(f"pvpo navigation beginFrame tick timed out: {exc}")
             logger.debug("pvpo navigation tick: beginFrame timed out: %s", exc)
             return
         except Exception as exc:
@@ -1610,6 +1609,8 @@ async def _pvpo_scroll_with_wheel_fallback(watchdog: Any, pixels: int) -> bool:
         await _pvpo_await_cdp_action(
             _pvpo_dispatch_mouse_wheel(browser_session, cdp_session, pixels),
             timeout_s=timeout_s,
+            browser_session=browser_session,
+            label="PVPO mouseWheel scroll",
         )
         after_state = await _pvpo_get_scroll_state(browser_session, cdp_session)
         if _pvpo_scroll_state_satisfies_request(before_state, after_state, pixels):
@@ -1686,26 +1687,87 @@ async def _pvpo_dispatch_mouse_wheel(
     )
 
 
-async def _pvpo_await_cdp_action(awaitable: Any, *, timeout_s: float) -> Any:
-    """Bound a CDP action without letting cancellation block Browser Use's event bus.
+async def _pvpo_await_cdp_action(
+    awaitable: Any,
+    *,
+    timeout_s: float,
+    browser_session: Any | None = None,
+    label: str | None = None,
+) -> Any:
+    return await _await_pvpo_cdp_deadline(
+        awaitable,
+        timeout_s=timeout_s,
+        label=label,
+        browser_session=browser_session,
+    )
 
-    Some CDP calls can ignore normal ``wait_for`` cancellation until the
-    underlying protocol response arrives. Phase 4 must not let a broken
-    browser actuator consume Browser Use's full 8s ``ScrollEvent`` budget, so
-    this helper abandons the task after timeout and drains any eventual result.
+
+async def _await_pvpo_cdp_deadline(
+    awaitable: Any,
+    *,
+    timeout_s: float,
+    label: str | None = None,
+    browser_session: Any | None = None,
+) -> Any:
+    """Bound a CDP-adjacent awaitable without cancelling the protocol future.
+
+    ``cdp_use`` stores one future per request id. Plain ``asyncio.wait_for``
+    cancels that future on timeout, so a later Chrome response is logged by
+    cdp_use as a misleading "duplicate response". WorldSim timeouts are local
+    deadlines: leave the CDP future alive, attach a late-result drain callback,
+    and let the owning browser recycle clean up genuinely wedged commands.
     """
-    task = asyncio.create_task(awaitable)
-    done, _ = await asyncio.wait({task}, timeout=timeout_s)
-    if task in done:
-        return await task
-    task.cancel()
-    task.add_done_callback(_suppress_late_cdp_task_result)
-    raise TimeoutError
+    task = asyncio.ensure_future(awaitable)
+    try:
+        return await asyncio.wait_for(asyncio.shield(task), timeout=timeout_s)
+    except TimeoutError as exc:
+        if browser_session is not None:
+            _increment_session_counter(browser_session, "_worldsim_pvpo_cdp_timeouts")
+        task.add_done_callback(
+            lambda done_task: _suppress_late_cdp_task_result(
+                done_task,
+                browser_session=browser_session,
+            )
+        )
+        if label:
+            raise TimeoutError(f"{label} timed out after {timeout_s:.2f}s") from exc
+        raise
+    except asyncio.CancelledError:
+        if not task.done():
+            task.add_done_callback(
+                lambda done_task: _suppress_late_cdp_task_result(
+                    done_task,
+                    browser_session=browser_session,
+                )
+            )
+        raise
 
 
-def _suppress_late_cdp_task_result(task: asyncio.Task[Any]) -> None:
-    with suppress(asyncio.CancelledError, Exception):
+def _suppress_late_cdp_task_result(
+    task: asyncio.Future[Any],
+    *,
+    browser_session: Any | None = None,
+) -> None:
+    try:
         task.result()
+    except asyncio.CancelledError:
+        if browser_session is not None:
+            _increment_session_counter(
+                browser_session,
+                "_worldsim_pvpo_cdp_late_cancellations",
+            )
+    except Exception:
+        if browser_session is not None:
+            _increment_session_counter(
+                browser_session,
+                "_worldsim_pvpo_cdp_late_failures",
+            )
+    else:
+        if browser_session is not None:
+            _increment_session_counter(
+                browser_session,
+                "_worldsim_pvpo_cdp_late_completions",
+            )
 
 
 async def _pvpo_get_scroll_state(browser_session: Any, cdp_session: Any) -> _PvpoScrollState | None:
@@ -1734,6 +1796,8 @@ async def _pvpo_get_scroll_state(browser_session: Any, cdp_session: Any) -> _Pvp
                 session_id=session_id,
             ),
             timeout_s=_pvpo_scroll_action_timeout_s(),
+            browser_session=browser_session,
+            label="PVPO scroll state probe",
         )
     except Exception as exc:
         logger.debug("PVPO scroll: could not read root scroll state: %s", exc)
@@ -1815,6 +1879,8 @@ async def _pvpo_scroll_with_js(browser_session: Any, cdp_session: Any, pixels: i
                 session_id=session_id,
             ),
             timeout_s=_pvpo_scroll_action_timeout_s(),
+            browser_session=browser_session,
+            label="PVPO JS scroll fallback",
         )
     except Exception as exc:
         logger.debug("PVPO scroll: JS fallback failed: %s", exc)
@@ -1931,7 +1997,12 @@ async def _capture_pvpo_beginframe_screenshot(watchdog: Any, event: Any) -> str:
                 label="browser-use-screenshot",
             )
         else:
-            result = await asyncio.wait_for(_capture(), timeout=_pvpo_cdp_timeout_s())
+            result = await _await_pvpo_cdp_deadline(
+                _capture(),
+                timeout_s=_pvpo_cdp_timeout_s(),
+                label="PVPO browser-use screenshot",
+                browser_session=browser_session,
+            )
     except Exception as exc:
         if is_beginframe_pending_error(exc) or isinstance(exc, TimeoutError):
             return _pvpo_browser_use_screenshot_fallback(browser_session)
@@ -1955,13 +2026,14 @@ async def _await_pvpo_cdp(
     *,
     timeout_s: float,
     label: str | None = None,
+    browser_session: Any | None = None,
 ) -> Any:
-    try:
-        return await asyncio.wait_for(awaitable, timeout=timeout_s)
-    except TimeoutError as exc:
-        if label:
-            raise TimeoutError(f"{label} timed out after {timeout_s:.2f}s") from exc
-        raise
+    return await _await_pvpo_cdp_deadline(
+        awaitable,
+        timeout_s=timeout_s,
+        label=label,
+        browser_session=browser_session,
+    )
 
 
 def _pvpo_issue_message(exc: BaseException, *, timeout_s: float) -> str:
@@ -2516,6 +2588,10 @@ class BrowserUseAgent:
             "_worldsim_pvpo_navigation_tick_timeouts",
             "_worldsim_pvpo_navigation_tick_stop_timeouts",
             "_worldsim_pvpo_navigation_tick_skipped_captures",
+            "_worldsim_pvpo_cdp_timeouts",
+            "_worldsim_pvpo_cdp_late_completions",
+            "_worldsim_pvpo_cdp_late_failures",
+            "_worldsim_pvpo_cdp_late_cancellations",
         )
         for name in counter_names:
             value = getattr(self._session, name, 0)
@@ -3021,7 +3097,12 @@ def _extract_history_state(history: Any) -> tuple[int, bool, str | None, list[st
         final_result = None
 
     try:
-        errors = [str(error) for error in history.errors()]
+        errors = []
+        for error in history.errors():
+            if error is None:
+                continue
+            text = str(error)
+            errors.append(text if text else "<empty browser-use step error>")
     except Exception:
         errors = []
 
@@ -3201,6 +3282,7 @@ def _make_pvpo_step_callback(
                 session.get_current_page(),
                 timeout_s=timeout_s,
                 label="BrowserSession.get_current_page",
+                browser_session=session,
             )
         except Exception as exc:  # pragma: no cover - CDP unavailable
             _record_issue(
@@ -3226,6 +3308,7 @@ def _make_pvpo_step_callback(
                 session.get_or_create_cdp_session(target_id=target_id, focus=False),
                 timeout_s=timeout_s,
                 label="BrowserSession.get_or_create_cdp_session",
+                browser_session=session,
             )
         except Exception as exc:  # pragma: no cover - CDP unavailable
             _record_issue(
@@ -3246,6 +3329,7 @@ def _make_pvpo_step_callback(
                     inject_animation_killer(page, cdp_session),
                     timeout_s=timeout_s,
                     label="PVPO animation killer",
+                    browser_session=session,
                 )
                 pages_prepared.add(target_id)
         except Exception as exc:
@@ -3260,6 +3344,7 @@ def _make_pvpo_step_callback(
                 runtime_evaluate_value(cdp_session, _CDP_VIEWPORT_JS),
                 timeout_s=timeout_s,
                 label="PVPO viewport probe",
+                browser_session=session,
             )
             if not isinstance(viewport, dict):
                 raise RuntimeError(

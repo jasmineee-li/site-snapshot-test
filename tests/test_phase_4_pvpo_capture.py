@@ -15,6 +15,7 @@ from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator
 from worldsim.phase_4.pvpo_capture import (
     Rect,
     StepCapture,
+    _await_cdp_deadline,
     _unwrap_runtime_evaluate,
     atomic_capture_with_visibility,
     build_pvpo_query_js,
@@ -188,6 +189,23 @@ def test_unwrap_runtime_evaluate_non_list_entries_marks_issue():
     assert bg == (1, 2, 3)
     assert issue_class == "runtime_evaluate_malformed"
     assert issue_message == "entries is not a list"
+
+
+@pytest.mark.asyncio
+async def test_pvpo_capture_cdp_deadline_preserves_late_response_future():
+    loop = asyncio.get_running_loop()
+    future: asyncio.Future[dict[str, Any]] = loop.create_future()
+
+    with pytest.raises(TimeoutError):
+        await _await_cdp_deadline(
+            future,
+            timeout_s=0.01,
+            method="Runtime.evaluate",
+        )
+
+    assert not future.cancelled()
+    future.set_result({"result": {}})
+    await asyncio.sleep(0)
 
 
 @pytest.mark.asyncio

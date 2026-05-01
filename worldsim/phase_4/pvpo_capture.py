@@ -29,6 +29,7 @@ import asyncio
 import base64
 import json
 import logging
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -45,6 +46,29 @@ _PAYLOAD_SUBSTITUTION_TOKEN = "__WORLDSIM_WITNESSES_JSON__"
 _SCROLL_TO_MATCH_SUBSTITUTION_TOKEN = "__WORLDSIM_SCROLL_TO_MATCH__"
 _PVPO_CAPTURE_SUMMARY_FILENAME = "capture_summary.json"
 _BEGINFRAME_EMPTY_SCREENSHOT_RETRIES = 1
+
+
+def _consume_late_cdp_result(task: asyncio.Future[Any]) -> None:
+    with suppress(asyncio.CancelledError, Exception):
+        task.result()
+
+
+async def _await_cdp_deadline(
+    request: Any,
+    *,
+    timeout_s: float,
+    method: str,
+) -> dict[str, Any]:
+    task = asyncio.ensure_future(request)
+    try:
+        return await asyncio.wait_for(asyncio.shield(task), timeout=timeout_s)
+    except TimeoutError as exc:
+        task.add_done_callback(_consume_late_cdp_result)
+        raise TimeoutError(f"PVPO CDP {method} timed out after {timeout_s:.2f}s") from exc
+    except asyncio.CancelledError:
+        if not task.done():
+            task.add_done_callback(_consume_late_cdp_result)
+        raise
 
 
 def _normalize_witness_specs(
@@ -223,12 +247,11 @@ async def atomic_capture_with_visibility(
         request = cdp.send(method, params)
         if cdp_timeout_s is None:
             return await request
-        try:
-            return await asyncio.wait_for(request, timeout=cdp_timeout_s)
-        except TimeoutError as exc:
-            raise TimeoutError(
-                f"PVPO CDP {method} timed out after {cdp_timeout_s:.2f}s"
-            ) from exc
+        return await _await_cdp_deadline(
+            request,
+            timeout_s=cdp_timeout_s,
+            method=method,
+        )
 
     # The Browser-Use PVPO compatibility context attaches a
     # BeginFrameCoordinator to the capturing Event so atomic capture,
