@@ -27,6 +27,7 @@ import os
 from collections.abc import AsyncIterator
 from typing import Any
 
+from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator, BeginFrameTimeout
 from worldsim.phase_4.pvpo_cdp import normalize_cdp_session
 
 logger = logging.getLogger(__name__)
@@ -76,7 +77,12 @@ def _beginframe_timeout_s() -> float:
     return value
 
 
-async def _pump_once(cdp_session: Any) -> None:
+async def _pump_once(
+    cdp_session: Any,
+    *,
+    coordinator: BeginFrameCoordinator,
+    timeout_s: float,
+) -> None:
     """Issue one ``HeadlessExperimental.beginFrame`` with defaults.
 
     Defaults (per CDP docs): no screenshot, ``noDisplayUpdates=false``. That
@@ -84,13 +90,18 @@ async def _pump_once(cdp_session: Any) -> None:
     needs to fire ``firstPaint`` / ``firstContentfulPaint`` / ``load``
     lifecycle events browser-use's navigation handler is waiting on.
     """
-    await normalize_cdp_session(cdp_session).send("HeadlessExperimental.beginFrame", {})
+    await coordinator.send(
+        normalize_cdp_session(cdp_session),
+        {},
+        timeout_s=timeout_s,
+        label="pump",
+    )
 
 
 async def _pump_loop(
     session: Any,
     capturing: asyncio.Event,
-    beginframe_lock: asyncio.Lock,
+    coordinator: BeginFrameCoordinator,
     stop: asyncio.Event,
     interval_s: float,
 ) -> None:
@@ -112,14 +123,13 @@ async def _pump_loop(
                 logger.debug("pvpo pump: cdp session unavailable: %s", exc)
                 await asyncio.sleep(interval_s)
                 continue
-            # Serialize beginFrame with any concurrent atomic capture so we
-            # don't trip Chrome's "Another frame is pending" guard. The
-            # capturing Event still short-circuits the loop above as a
-            # cheap skip during captures, but the lock is the real mutex.
             try:
-                async with beginframe_lock:
-                    await asyncio.wait_for(_pump_once(cdp_session), timeout=beginframe_timeout_s)
-            except TimeoutError:
+                await _pump_once(
+                    cdp_session,
+                    coordinator=coordinator,
+                    timeout_s=beginframe_timeout_s,
+                )
+            except BeginFrameTimeout:
                 logger.debug(
                     "pvpo pump: beginFrame timed out after %.2fs",
                     beginframe_timeout_s,
@@ -156,13 +166,20 @@ async def frame_pump(
     kill switch without having to edit code.
     """
     capturing = asyncio.Event()
-    existing_lock = getattr(session, "_worldsim_pvpo_beginframe_lock", None)
-    beginframe_lock = existing_lock if existing_lock is not None else asyncio.Lock()
+    existing_controller = getattr(session, "_worldsim_pvpo_beginframe_controller", None)
+    if isinstance(existing_controller, BeginFrameCoordinator):
+        coordinator = existing_controller
+    else:
+        existing_lock = getattr(session, "_worldsim_pvpo_beginframe_lock", None)
+        lock = existing_lock if isinstance(existing_lock, asyncio.Lock) else None
+        coordinator = BeginFrameCoordinator(lock=lock)
     # Attach the lock to the yielded Event so existing callers that just
     # `async with frame_pump(...) as capturing` keep their one-arg binding,
     # and the capture path can reach the lock via ``capturing.beginframe_lock``.
-    capturing.beginframe_lock = beginframe_lock  # type: ignore[attr-defined]
-    session._worldsim_pvpo_beginframe_lock = beginframe_lock
+    capturing.beginframe_lock = coordinator.lock  # type: ignore[attr-defined]
+    capturing.beginframe_controller = coordinator  # type: ignore[attr-defined]
+    session._worldsim_pvpo_beginframe_lock = coordinator.lock
+    session._worldsim_pvpo_beginframe_controller = coordinator
     effective_interval = _resolve_interval_s(interval_s)
     if effective_interval <= 0:
         logger.info("pvpo frame pump disabled (interval<=0)")
@@ -171,7 +188,7 @@ async def frame_pump(
 
     stop = asyncio.Event()
     task = asyncio.create_task(
-        _pump_loop(session, capturing, beginframe_lock, stop, effective_interval),
+        _pump_loop(session, capturing, coordinator, stop, effective_interval),
         name="pvpo-frame-pump",
     )
     try:

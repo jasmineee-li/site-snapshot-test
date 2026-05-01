@@ -645,6 +645,27 @@ async def test_pvpo_beginframe_screenshot_returns_cached_image_when_frame_pendin
 
 
 @pytest.mark.asyncio
+async def test_pvpo_beginframe_screenshot_skips_when_atomic_capture_active():
+    class FakeBrowserSession:
+        cdp_url = "http://127.0.0.1:9230"
+        _worldsim_pvpo_last_browser_use_screenshot = "previous-png"
+        _worldsim_pvpo_capturing_event = asyncio.Event()
+
+        def get_focused_target(self):
+            raise AssertionError("active PVPO capture should bypass Browser Use screenshot CDP")
+
+    session = FakeBrowserSession()
+    session._worldsim_pvpo_capturing_event.set()
+
+    data = await browser_use_agent._capture_pvpo_beginframe_screenshot(
+        SimpleNamespace(browser_session=session),
+        SimpleNamespace(full_page=False, clip=None),
+    )
+
+    assert data == "previous-png"
+
+
+@pytest.mark.asyncio
 async def test_pvpo_screenshot_patch_returns_placeholder_when_browser_use_screenshots_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ):

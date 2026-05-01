@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock
 import pytest
 from PIL import Image
 
+from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator
 from worldsim.phase_4.pvpo_capture import (
     Rect,
     StepCapture,
@@ -301,6 +302,49 @@ async def test_atomic_capture_sets_and_clears_capturing_event_on_success():
     # All CDP calls saw the gate held set during the capture.
     assert all(seen_set_while_running)
     # And it's cleared after the capture returns.
+    assert capturing.is_set() is False
+
+
+@pytest.mark.asyncio
+async def test_atomic_capture_uses_beginframe_controller_from_capturing_event():
+    png = _png_bytes()
+    cdp = AsyncMock()
+    coordinator = BeginFrameCoordinator()
+    capturing = asyncio.Event()
+    capturing.beginframe_controller = coordinator  # type: ignore[attr-defined]
+    capturing.beginframe_lock = coordinator.lock  # type: ignore[attr-defined]
+
+    async def _send(method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        if method == "Emulation.setVirtualTimePolicy":
+            return {}
+        if method == "Runtime.evaluate":
+            return {
+                "result": {
+                    "type": "object",
+                    "value": {"entries": [], "backgroundColor": {"r": 255, "g": 255, "b": 255}},
+                }
+            }
+        if method == "HeadlessExperimental.beginFrame":
+            return {
+                "hasDamage": True,
+                "screenshotData": base64.b64encode(png).decode("ascii"),
+            }
+        raise AssertionError(method)
+
+    cdp.send = AsyncMock(side_effect=_send)
+
+    capture = await atomic_capture_with_visibility(
+        cdp,
+        viewport_rect=Rect(0, 0, 100, 100),
+        capturing=capturing,
+        cdp_timeout_s=0.5,
+    )
+
+    assert capture.screenshot_png == png
+    assert coordinator.timeout_count == 0
+    assert [call.args[0] for call in cdp.send.call_args_list].count(
+        "HeadlessExperimental.beginFrame"
+    ) == 1
     assert capturing.is_set() is False
 
 

@@ -24,6 +24,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator
 from worldsim.phase_4.pvpo_frame_pump import frame_pump
 
 
@@ -197,6 +198,10 @@ async def test_pump_yields_beginframe_lock_on_capturing_event():
             "without it atomic_capture_with_visibility cannot serialize beginFrame"
         )
         assert not lock.locked()
+        assert isinstance(
+            getattr(capturing, "beginframe_controller", None),
+            BeginFrameCoordinator,
+        )
 
 
 @pytest.mark.asyncio
@@ -208,6 +213,7 @@ async def test_pump_reuses_existing_session_beginframe_lock():
     async with frame_pump(session, interval_s=0) as capturing:
         assert capturing.beginframe_lock is existing_lock  # type: ignore[attr-defined]
         assert session._worldsim_pvpo_beginframe_lock is existing_lock
+        assert capturing.beginframe_controller.lock is existing_lock  # type: ignore[attr-defined]
 
 
 @pytest.mark.asyncio

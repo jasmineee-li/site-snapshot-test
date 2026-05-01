@@ -1666,7 +1666,15 @@ async def _capture_pvpo_beginframe_screenshot(watchdog: Any, event: Any) -> str:
     """Handle Browser Use ``ScreenshotEvent`` using beginFrame screenshots."""
     from browser_use.browser.views import BrowserError
 
+    from worldsim.phase_4.pvpo_beginframe import (
+        BeginFrameCoordinator,
+        is_beginframe_pending_error,
+    )
+
     browser_session = watchdog.browser_session
+    capturing = getattr(browser_session, "_worldsim_pvpo_capturing_event", None)
+    if isinstance(capturing, asyncio.Event) and capturing.is_set():
+        return _pvpo_browser_use_screenshot_fallback(browser_session)
     focused_target = browser_session.get_focused_target()
     if focused_target and focused_target.target_type in ("page", "tab"):
         target_id = focused_target.target_id
@@ -1681,6 +1689,8 @@ async def _capture_pvpo_beginframe_screenshot(watchdog: Any, event: Any) -> str:
         await browser_session.remove_highlights()
     except Exception:
         pass
+    if isinstance(capturing, asyncio.Event) and capturing.is_set():
+        return _pvpo_browser_use_screenshot_fallback(browser_session)
 
     screenshot: dict[str, Any] = {"format": "png"}
     clip = getattr(event, "clip", None)
@@ -1701,6 +1711,14 @@ async def _capture_pvpo_beginframe_screenshot(watchdog: Any, event: Any) -> str:
             from worldsim.phase_4.pvpo_cdp import normalize_cdp_session
 
             cdp = normalize_cdp_session(cdp_session)
+        coordinator = getattr(browser_session, "_worldsim_pvpo_beginframe_controller", None)
+        if isinstance(coordinator, BeginFrameCoordinator):
+            return await coordinator.send(
+                cdp,
+                {"screenshot": screenshot},
+                timeout_s=_pvpo_cdp_timeout_s(),
+                label="browser-use-screenshot",
+            )
         return await cdp.send("HeadlessExperimental.beginFrame", {"screenshot": screenshot})
 
     async def _capture() -> dict[str, Any]:
@@ -1713,7 +1731,7 @@ async def _capture_pvpo_beginframe_screenshot(watchdog: Any, event: Any) -> str:
     try:
         result = await asyncio.wait_for(_capture(), timeout=_pvpo_cdp_timeout_s())
     except Exception as exc:
-        if _is_beginframe_pending_error(exc) or isinstance(exc, TimeoutError):
+        if is_beginframe_pending_error(exc) or isinstance(exc, TimeoutError):
             return _pvpo_browser_use_screenshot_fallback(browser_session)
         raise
     data = result.get("screenshotData") if isinstance(result, dict) else None
@@ -1721,10 +1739,6 @@ async def _capture_pvpo_beginframe_screenshot(watchdog: Any, event: Any) -> str:
         browser_session._worldsim_pvpo_last_browser_use_screenshot = data
         return data
     raise BrowserError("[PVPO ScreenshotWatchdog] beginFrame screenshot missing data")
-
-
-def _is_beginframe_pending_error(exc: BaseException) -> bool:
-    return "Another frame is pending" in str(exc)
 
 
 def _pvpo_browser_use_screenshot_fallback(browser_session: Any) -> str:
@@ -2147,6 +2161,10 @@ class BrowserUseAgent:
                 self._session._worldsim_pvpo_beginframe_lock = getattr(
                     capturing, "beginframe_lock", None
                 )
+                self._session._worldsim_pvpo_beginframe_controller = getattr(
+                    capturing, "beginframe_controller", None
+                )
+                self._session._worldsim_pvpo_capturing_event = capturing
                 pvpo_hook = _make_pvpo_step_callback(
                     self._session,
                     task_dir,

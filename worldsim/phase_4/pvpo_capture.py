@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any
 
 from worldsim.atomic_io import write_json_atomic
+from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator
 from worldsim.phase_4.pvpo_cdp import normalize_cdp_session
 
 logger = logging.getLogger(__name__)
@@ -224,11 +225,13 @@ async def atomic_capture_with_visibility(
             return await request
         return await asyncio.wait_for(request, timeout=cdp_timeout_s)
 
-    # The pump attaches an ``asyncio.Lock`` to the capturing Event so the
-    # atomic capture and the pump can serialize their beginFrame calls.
-    # Older callers that passed a bare Event without the attribute still
-    # work; they just don't get the mutex protection (same as before this
-    # change).
+    # The pump attaches a BeginFrameCoordinator to the capturing Event so the
+    # atomic capture and the pump can serialize and drain beginFrame calls.
+    # Older callers that passed only a bare Event/lock still work; they just
+    # don't get timeout-safe pending-frame draining.
+    beginframe_controller = (
+        getattr(capturing, "beginframe_controller", None) if capturing is not None else None
+    )
     beginframe_lock = getattr(capturing, "beginframe_lock", None) if capturing is not None else None
     if capturing is not None:
         capturing.set()
@@ -265,14 +268,29 @@ async def atomic_capture_with_visibility(
         }
 
         async def _capture_frame() -> tuple[dict[str, Any], bytes]:
-            frame = await _send("HeadlessExperimental.beginFrame", begin_frame_params)
+            if isinstance(beginframe_controller, BeginFrameCoordinator):
+                frame = await beginframe_controller.send(
+                    cdp,
+                    begin_frame_params,
+                    timeout_s=cdp_timeout_s,
+                    label="atomic-capture",
+                )
+            else:
+                frame = await _send("HeadlessExperimental.beginFrame", begin_frame_params)
             png_b64 = frame.get("screenshotData") or ""
             return frame, base64.b64decode(png_b64) if png_b64 else b""
 
         frame: dict[str, Any] = {}
         screenshot_png = b""
         attempts = _BEGINFRAME_EMPTY_SCREENSHOT_RETRIES + 1
-        if beginframe_lock is not None:
+        if isinstance(beginframe_controller, BeginFrameCoordinator):
+            for attempt in range(attempts):
+                frame, screenshot_png = await _capture_frame()
+                if screenshot_png:
+                    break
+                if attempt < attempts - 1:
+                    await asyncio.sleep(0)
+        elif beginframe_lock is not None:
             async with beginframe_lock:
                 for attempt in range(attempts):
                     frame, screenshot_png = await _capture_frame()
