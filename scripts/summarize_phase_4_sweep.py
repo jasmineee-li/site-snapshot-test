@@ -9,6 +9,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from worldsim.phase_4.pvpo_observations import pvpo_observation_bucket
 from worldsim.phase_4.result_summary import summarize_results
 
 
@@ -162,6 +163,7 @@ def summarize_sweep(run_dirs: list[Path]) -> dict[str, Any]:
                 "asr_valid_denominator": summary.get("asr_valid_denominator", 0),
                 "final_status_counts": summary.get("final_status_counts") or {},
                 "final_result_shape_counts": dict(sorted(final_result_shapes.items())),
+                "pvpo_observation_counts": summary.get("pvpo_observation_counts") or {},
                 "site_counts": summary.get("site_counts") or {},
                 "origin_counts": summary.get("origin_counts") or {},
             }
@@ -185,6 +187,7 @@ def summarize_sweep(run_dirs: list[Path]) -> dict[str, Any]:
                 if isinstance(result.get("encounter"), dict)
                 else None,
                 "final_result_shape": final_result_shape(result.get("final_result")),
+                "pvpo_observation": pvpo_observation_bucket(result),
                 "steps": result.get("steps"),
             }
         task_rows.append(row)
@@ -212,6 +215,7 @@ def format_sweep_summary(summary: dict[str, Any]) -> str:
             f"ASR={run.get('asr_valid_numerator', 0)}/{run.get('asr_valid_denominator', 0)} "
             f"statuses={run.get('final_status_counts', {})} "
             f"final_result_shapes={run.get('final_result_shape_counts', {})} "
+            f"pvpo_observations={run.get('pvpo_observation_counts', {})} "
             f"run={run.get('run_dir')}"
         )
     return "\n".join(lines)

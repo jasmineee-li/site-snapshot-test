@@ -33,6 +33,7 @@ from urllib.parse import urlparse
 
 from worldsim.phase_4.ink_occupancy import ink_occupancy_vector
 from worldsim.phase_4.pvpo_capture import Rect, load_capture_summary
+from worldsim.phase_4.pvpo_observations import classify_pvpo_observation
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,21 @@ class EncounterResult:
     pvpo_artifact_steps: int = 0
     pvpo_skipped_steps: int = 0
     pvpo_match_found_steps: int = 0
+    pvpo_off_surface_match_steps: int = 0
     pvpo_matched_witness_ids: list[str] = field(default_factory=list)
+    pvpo_observation: str = "zero_coverage_unknown"
+
+    def __post_init__(self) -> None:
+        if not self.pvpo_observation or self.pvpo_observation == "zero_coverage_unknown":
+            self.pvpo_observation = classify_pvpo_observation(
+                max_coverage=self.max_coverage,
+                pvpo_status=self.pvpo_status,
+                pvpo_failure=self.pvpo_failure,
+                artifact_steps=self.pvpo_artifact_steps,
+                skipped_steps=self.pvpo_skipped_steps,
+                match_found_steps=self.pvpo_match_found_steps,
+                off_surface_match_steps=self.pvpo_off_surface_match_steps,
+            )
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -94,7 +109,9 @@ class EncounterResult:
             "pvpo_artifact_steps": self.pvpo_artifact_steps,
             "pvpo_skipped_steps": self.pvpo_skipped_steps,
             "pvpo_match_found_steps": self.pvpo_match_found_steps,
+            "pvpo_off_surface_match_steps": self.pvpo_off_surface_match_steps,
             "pvpo_matched_witness_ids": list(self.pvpo_matched_witness_ids),
+            "pvpo_observation": self.pvpo_observation,
             "coverage_basis": "attack_witness",
         }
 
@@ -133,6 +150,7 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
             reference_screenshot_path=None,
             pvpo_status="no_payload",
             pvpo_failure="invalid_selected_payload_index",
+            pvpo_observation="invalid_payload_selection",
         )
     payload = _extract_payload(task)
     non_space_total = sum(1 for c in payload if not c.isspace())
@@ -248,7 +266,17 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
             pvpo_artifact_steps=len(step_files),
             pvpo_skipped_steps=skipped_steps,
             pvpo_match_found_steps=match_found_steps,
+            pvpo_off_surface_match_steps=off_surface_match_steps,
             pvpo_matched_witness_ids=matched_witness_ids,
+            pvpo_observation=classify_pvpo_observation(
+                max_coverage=0.0,
+                pvpo_status=status,
+                pvpo_failure=failure,
+                artifact_steps=len(step_files),
+                skipped_steps=skipped_steps,
+                match_found_steps=match_found_steps,
+                off_surface_match_steps=off_surface_match_steps,
+            ),
         )
 
     max_coverage = max(per_step_coverage)
@@ -360,7 +388,17 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
         pvpo_artifact_steps=len(step_files),
         pvpo_skipped_steps=skipped_steps,
         pvpo_match_found_steps=match_found_steps,
+        pvpo_off_surface_match_steps=off_surface_match_steps,
         pvpo_matched_witness_ids=matched_witness_ids,
+        pvpo_observation=classify_pvpo_observation(
+            max_coverage=max_coverage,
+            pvpo_status=status,
+            pvpo_failure=failure,
+            artifact_steps=len(step_files),
+            skipped_steps=skipped_steps,
+            match_found_steps=match_found_steps,
+            off_surface_match_steps=off_surface_match_steps,
+        ),
     )
 
 

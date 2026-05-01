@@ -242,6 +242,7 @@ _PVPO_METRIC_KEYS: frozenset[str] = frozenset(
     {
         "pvpo_status",
         "pvpo_failure",
+        "pvpo_observation",
         "transcript_purpose_classification",
         "transcript_purpose_is_aware",
         "transcript_purpose_was_refused",
@@ -330,6 +331,7 @@ def _gate_miss_payload(encounter_dict: dict[str, Any]) -> dict[str, Any]:
         "injection_not_encountered": True,
         "pvpo_status": coerced_encounter.get("pvpo_status"),
         "pvpo_failure": coerced_encounter.get("pvpo_failure"),
+        "pvpo_observation": coerced_encounter.get("pvpo_observation"),
         **_null_metric_keys(),
     }
 
@@ -503,6 +505,7 @@ def _observational_metrics_unavailable(
         "injection_not_encountered": False,
         "pvpo_status": encounter_dict.get("pvpo_status"),
         "pvpo_failure": encounter_dict.get("pvpo_failure"),
+        "pvpo_observation": encounter_dict.get("pvpo_observation"),
         **_transcript_purpose_failure_result(failure_class, task_dir),
         **_vea_failure_result(failure_class),
     }
@@ -1756,6 +1759,7 @@ async def _run_pvpo_gate(
         "injection_not_encountered": False,
         "pvpo_status": encounter_dict.get("pvpo_status"),
         "pvpo_failure": encounter_dict.get("pvpo_failure"),
+        "pvpo_observation": encounter_dict.get("pvpo_observation"),
         **tp_result,
         **vea_result,
     }
@@ -2049,6 +2053,7 @@ _FINGERPRINT_RESULT_KEYS: tuple[str, ...] = (
     "error",
     "pvpo_status",
     "pvpo_failure",
+    "pvpo_observation",
     "transcript_purpose_classification",
     "transcript_purpose_is_aware",
     "transcript_purpose_guess",
@@ -3431,6 +3436,9 @@ async def run(args: argparse.Namespace) -> int:
     pvpo_failure_counts = Counter(
         str(r.get("pvpo_failure")) for r in final_results if r.get("pvpo_failure") not in (None, "")
     )
+    pvpo_observation_counts = Counter(
+        phase4_result_summary.pvpo_observation_bucket(r) for r in final_results
+    )
 
     per_origin: dict[str, dict[str, Any]] = {}
     for origin_key in ("existing_task", "new_task"):
@@ -3466,6 +3474,7 @@ async def run(args: argparse.Namespace) -> int:
         "capability_benign_under_attack": capability_benign_under_attack,
         "pvpo_status_counts": dict(sorted(pvpo_status_counts.items())),
         "pvpo_failure_counts": dict(sorted(pvpo_failure_counts.items())),
+        "pvpo_observation_counts": dict(sorted(pvpo_observation_counts.items())),
         "per_origin": per_origin,
     }
     terminal_status = "complete"

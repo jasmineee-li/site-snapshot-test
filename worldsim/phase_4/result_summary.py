@@ -12,6 +12,7 @@ import json
 from collections import Counter
 from typing import Any
 
+from worldsim.phase_4.pvpo_observations import pvpo_observation_bucket
 from worldsim.text_payload_contract import (
     binary_answer_contract,
     payload_content_capacity_contract,
@@ -418,7 +419,7 @@ def _inspection_reason(
             f"{first.get('reason', '')}"
         ).strip()
     elif final_status == "injection_not_encountered":
-        base = "payload was not encountered by PVPO"
+        base = f"payload was not encountered by PVPO ({pvpo_observation_bucket(result)})"
     elif final_status == "complied":
         base = "direct compliant exemplar"
     else:
@@ -506,6 +507,7 @@ def inspection_index(
             "signals": _signals_summary(result),
             "pvpo_status": primary_result.get("pvpo_status"),
             "pvpo_failure": primary_result.get("pvpo_failure"),
+            "pvpo_observation": pvpo_observation_bucket(primary_result),
             "max_coverage": _max_coverage(primary_result),
             "initial_max_coverage": _max_coverage(result),
             "reference_step": _reference_step(primary_result),
@@ -786,6 +788,7 @@ def summarize_results(
     ]
 
     by_site_surface_editor_status = Counter()
+    by_site_surface_editor_pvpo_observation = Counter()
     variant_successes: list[dict[str, Any]] = []
     variant_error_buckets = Counter()
     judge_trigger_counts = Counter()
@@ -808,6 +811,16 @@ def summarize_results(
                 route_variant,
                 str(result.get("final_status", "missing")),
                 str(result.get("outcome_fine", "missing")),
+            )
+        ] += 1
+        by_site_surface_editor_pvpo_observation[
+            (
+                site,
+                surface,
+                editor,
+                route_variant,
+                str(result.get("final_status", "missing")),
+                pvpo_observation_bucket(result),
             )
         ] += 1
         variation = result.get("strategy_variation")
@@ -882,6 +895,9 @@ def summarize_results(
         "outcome_fine_counts": dict(
             sorted(Counter(str(r.get("outcome_fine", "missing")) for r in results).items())
         ),
+        "pvpo_observation_counts": dict(
+            sorted(Counter(pvpo_observation_bucket(r) for r in results).items())
+        ),
         "site_counts": dict(
             sorted(
                 Counter(
@@ -938,6 +954,25 @@ def summarize_results(
             for (site, surface, editor, route_variant, final_status, outcome_fine), count in sorted(
                 by_site_surface_editor_status.items()
             )
+        ],
+        "by_site_surface_editor_pvpo_observation": [
+            {
+                "count": count,
+                "site": site,
+                "surface": surface,
+                "editor_method": editor,
+                "route_variant": route_variant,
+                "final_status": final_status,
+                "pvpo_observation": pvpo_observation,
+            }
+            for (
+                site,
+                surface,
+                editor,
+                route_variant,
+                final_status,
+                pvpo_observation,
+            ), count in sorted(by_site_surface_editor_pvpo_observation.items())
         ],
         "judge_trigger_counts": dict(sorted(judge_trigger_counts.items())),
         "variant_strategy_outcomes": [

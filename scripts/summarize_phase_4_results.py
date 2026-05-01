@@ -306,6 +306,16 @@ def format_inspection_index(summary: dict[str, Any], *, limit: int = 8) -> list[
         final_result = row.get("primary_final_result")
         if isinstance(final_result, str) and final_result:
             lines.append(f"     final={final_result}")
+        pvpo_observation = row.get("pvpo_observation")
+        pvpo_status = row.get("pvpo_status")
+        pvpo_failure = row.get("pvpo_failure")
+        if pvpo_observation or pvpo_status or pvpo_failure:
+            lines.append(
+                "     pvpo_observation="
+                f"{pvpo_observation or 'unknown'} "
+                f"status={pvpo_status or 'unknown'} "
+                f"failure={pvpo_failure or 'none'}"
+            )
         trace = row.get("primary_inspection_trace")
         if isinstance(trace, str) and trace:
             lines.append(f"     trace={trace}")
@@ -372,6 +382,8 @@ def format_text_summary(
     )
     lines.append(f"Final status counts: {summary['final_status_counts']}")
     lines.append(f"Outcome fine counts: {summary['outcome_fine_counts']}")
+    if summary.get("pvpo_observation_counts"):
+        lines.append(f"PVPO observation counts: {summary['pvpo_observation_counts']}")
     lines.append(f"Site counts: {summary['site_counts']}")
     lines.append(f"Origin counts: {summary['origin_counts']}")
     if summary.get("judge_trigger_counts"):

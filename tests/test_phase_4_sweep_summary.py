@@ -77,6 +77,8 @@ def test_summarize_sweep_groups_runs_by_model_and_pairs_tasks(tmp_path: Path) ->
     }
     assert summary["runs"][0]["final_result_shape_counts"] == {"json_string": 1}
     assert summary["runs"][1]["final_result_shape_counts"] == {"fenced_json_string": 1}
+    assert summary["runs"][0]["pvpo_observation_counts"] == {"painted_full": 1}
+    assert summary["runs"][1]["pvpo_observation_counts"] == {"painted_full": 1}
     assert summary["task_rows"] == [
         {
             "task_id": "adv_gitlab_1",
@@ -94,6 +96,7 @@ def test_summarize_sweep_groups_runs_by_model_and_pairs_tasks(tmp_path: Path) ->
                     "final_result_shape": "json_string",
                     "max_coverage": 1.0,
                     "outcome_fine": "complied",
+                    "pvpo_observation": "painted_full",
                     "steps": None,
                 },
                 "openai|gpt-5.4|priority|claude-sonnet-4-6": {
@@ -103,6 +106,7 @@ def test_summarize_sweep_groups_runs_by_model_and_pairs_tasks(tmp_path: Path) ->
                     "final_result_shape": "fenced_json_string",
                     "max_coverage": 1.0,
                     "outcome_fine": "resistant",
+                    "pvpo_observation": "painted_full",
                     "steps": None,
                 },
             },
@@ -122,6 +126,7 @@ def test_format_sweep_summary_is_operator_readable(tmp_path: Path) -> None:
     assert "openai|gpt-5.2|priority|claude-sonnet-4-6" in text
     assert "statuses={'complied': 1}" in text
     assert "final_result_shapes={'json_string': 1}" in text
+    assert "pvpo_observations={'painted_full': 1}" in text
 
 
 def test_final_result_shape_classifies_report_only_answer_forms() -> None:
