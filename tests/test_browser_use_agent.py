@@ -721,7 +721,22 @@ async def test_pvpo_scroll_patch_falls_back_to_js_when_wheel_times_out(
         await asyncio.sleep(10)
 
     runtime_evaluate = AsyncMock(
-        return_value={"result": {"value": {"success": True, "scrolledY": 720}}}
+        side_effect=[
+            {"result": {"value": {"success": True, "x": 0, "y": 0, "maxY": 2000}}},
+            {"result": {"value": {"success": True, "x": 0, "y": 0, "maxY": 2000}}},
+            {
+                "result": {
+                    "value": {
+                        "success": True,
+                        "beforeX": 0,
+                        "beforeY": 0,
+                        "afterX": 0,
+                        "afterY": 720,
+                        "maxY": 2000,
+                    }
+                }
+            },
+        ]
     )
     cdp_session = SimpleNamespace(
         session_id="session-1",
@@ -750,7 +765,7 @@ async def test_pvpo_scroll_patch_falls_back_to_js_when_wheel_times_out(
 
     assert result is True
     cdp_session.cdp_client.send.Input.dispatchMouseEvent.assert_awaited_once()
-    runtime_evaluate.assert_awaited_once()
+    assert runtime_evaluate.await_count == 3
     assert browser_session._worldsim_pvpo_scroll_wheel_timeouts == 1
     assert browser_session._worldsim_pvpo_scroll_js_fallbacks == 1
 
@@ -764,7 +779,12 @@ async def test_pvpo_scroll_patch_uses_mouse_wheel_before_js_fallback(
     original_method = DefaultActionWatchdog._scroll_with_cdp_gesture
     monkeypatch.setattr(browser_use_agent, "_PVPO_SCROLL_PATCHED", False)
     dispatch_mouse = AsyncMock(return_value=None)
-    runtime_evaluate = AsyncMock()
+    runtime_evaluate = AsyncMock(
+        side_effect=[
+            {"result": {"value": {"success": True, "x": 0, "y": 0, "maxY": 2000}}},
+            {"result": {"value": {"success": True, "x": 0, "y": 720, "maxY": 2000}}},
+        ]
+    )
     cdp_session = SimpleNamespace(
         session_id="session-1",
         cdp_client=SimpleNamespace(
@@ -801,25 +821,189 @@ async def test_pvpo_scroll_patch_uses_mouse_wheel_before_js_fallback(
         },
         session_id="session-1",
     )
-    runtime_evaluate.assert_not_awaited()
+    assert runtime_evaluate.await_count == 2
     assert browser_session._worldsim_pvpo_scroll_wheel_successes == 1
+
+
+@pytest.mark.asyncio
+async def test_pvpo_scroll_patch_falls_back_when_wheel_returns_without_movement(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from browser_use.browser.watchdogs.default_action_watchdog import DefaultActionWatchdog
+
+    original_method = DefaultActionWatchdog._scroll_with_cdp_gesture
+    monkeypatch.setattr(browser_use_agent, "_PVPO_SCROLL_PATCHED", False)
+    dispatch_mouse = AsyncMock(return_value=None)
+    runtime_evaluate = AsyncMock(
+        side_effect=[
+            {"result": {"value": {"success": True, "x": 0, "y": 100, "maxY": 2000}}},
+            {"result": {"value": {"success": True, "x": 0, "y": 100, "maxY": 2000}}},
+            {
+                "result": {
+                    "value": {
+                        "success": True,
+                        "beforeX": 0,
+                        "beforeY": 100,
+                        "afterX": 0,
+                        "afterY": 820,
+                        "maxY": 2000,
+                    }
+                }
+            },
+        ]
+    )
+    cdp_session = SimpleNamespace(
+        session_id="session-1",
+        cdp_client=SimpleNamespace(
+            send=SimpleNamespace(
+                Input=SimpleNamespace(dispatchMouseEvent=dispatch_mouse),
+                Runtime=SimpleNamespace(evaluate=runtime_evaluate),
+            )
+        ),
+    )
+    browser_session = SimpleNamespace(
+        cdp_url="http://127.0.0.1:9230",
+        _original_viewport_size=(1280, 720),
+        get_or_create_cdp_session=AsyncMock(return_value=cdp_session),
+    )
+
+    try:
+        browser_use_agent._install_pvpo_scroll_patch()
+        result = await DefaultActionWatchdog._scroll_with_cdp_gesture(
+            SimpleNamespace(browser_session=browser_session),
+            720,
+        )
+    finally:
+        DefaultActionWatchdog._scroll_with_cdp_gesture = original_method
+        browser_use_agent._PVPO_SCROLL_PATCHED = False
+
+    assert result is True
+    dispatch_mouse.assert_awaited_once()
+    assert runtime_evaluate.await_count == 3
+    assert browser_session._worldsim_pvpo_scroll_wheel_noops == 1
+    assert browser_session._worldsim_pvpo_scroll_js_fallbacks == 1
+
+
+@pytest.mark.asyncio
+async def test_pvpo_scroll_patch_does_not_fallback_when_wheel_noops_at_edge(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from browser_use.browser.watchdogs.default_action_watchdog import DefaultActionWatchdog
+
+    original_method = DefaultActionWatchdog._scroll_with_cdp_gesture
+    monkeypatch.setattr(browser_use_agent, "_PVPO_SCROLL_PATCHED", False)
+    dispatch_mouse = AsyncMock(return_value=None)
+    runtime_evaluate = AsyncMock(
+        side_effect=[
+            {"result": {"value": {"success": True, "x": 0, "y": 2000, "maxY": 2000}}},
+            {"result": {"value": {"success": True, "x": 0, "y": 2000, "maxY": 2000}}},
+        ]
+    )
+    cdp_session = SimpleNamespace(
+        session_id="session-1",
+        cdp_client=SimpleNamespace(
+            send=SimpleNamespace(
+                Input=SimpleNamespace(dispatchMouseEvent=dispatch_mouse),
+                Runtime=SimpleNamespace(evaluate=runtime_evaluate),
+            )
+        ),
+    )
+    browser_session = SimpleNamespace(
+        cdp_url="http://127.0.0.1:9230",
+        _original_viewport_size=(1280, 720),
+        get_or_create_cdp_session=AsyncMock(return_value=cdp_session),
+    )
+
+    try:
+        browser_use_agent._install_pvpo_scroll_patch()
+        result = await DefaultActionWatchdog._scroll_with_cdp_gesture(
+            SimpleNamespace(browser_session=browser_session),
+            720,
+        )
+    finally:
+        DefaultActionWatchdog._scroll_with_cdp_gesture = original_method
+        browser_use_agent._PVPO_SCROLL_PATCHED = False
+
+    assert result is True
+    dispatch_mouse.assert_awaited_once()
+    assert runtime_evaluate.await_count == 2
+    assert browser_session._worldsim_pvpo_scroll_wheel_successes == 1
+    assert not hasattr(browser_session, "_worldsim_pvpo_scroll_js_fallbacks")
+
+
+@pytest.mark.asyncio
+async def test_pvpo_scroll_patch_skips_js_when_timed_out_wheel_already_moved(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from browser_use.browser.watchdogs.default_action_watchdog import DefaultActionWatchdog
+
+    original_method = DefaultActionWatchdog._scroll_with_cdp_gesture
+    monkeypatch.setattr(browser_use_agent, "_PVPO_SCROLL_PATCHED", False)
+    monkeypatch.setenv("WORLDSIM_PVPO_SCROLL_ACTION_TIMEOUT_S", "0.01")
+
+    async def hanging_wheel(**kwargs):
+        await asyncio.sleep(10)
+
+    runtime_evaluate = AsyncMock(
+        side_effect=[
+            {"result": {"value": {"success": True, "x": 0, "y": 0, "maxY": 2000}}},
+            {"result": {"value": {"success": True, "x": 0, "y": 720, "maxY": 2000}}},
+        ]
+    )
+    cdp_session = SimpleNamespace(
+        session_id="session-1",
+        cdp_client=SimpleNamespace(
+            send=SimpleNamespace(
+                Input=SimpleNamespace(dispatchMouseEvent=AsyncMock(side_effect=hanging_wheel)),
+                Runtime=SimpleNamespace(evaluate=runtime_evaluate),
+            )
+        ),
+    )
+    browser_session = SimpleNamespace(
+        cdp_url="http://127.0.0.1:9230",
+        _original_viewport_size=(1280, 720),
+        get_or_create_cdp_session=AsyncMock(return_value=cdp_session),
+    )
+
+    try:
+        browser_use_agent._install_pvpo_scroll_patch()
+        result = await DefaultActionWatchdog._scroll_with_cdp_gesture(
+            SimpleNamespace(browser_session=browser_session),
+            720,
+        )
+    finally:
+        DefaultActionWatchdog._scroll_with_cdp_gesture = original_method
+        browser_use_agent._PVPO_SCROLL_PATCHED = False
+
+    assert result is True
+    cdp_session.cdp_client.send.Input.dispatchMouseEvent.assert_awaited_once()
+    assert runtime_evaluate.await_count == 2
+    assert browser_session._worldsim_pvpo_scroll_wheel_timeouts == 1
+    assert browser_session._worldsim_pvpo_scroll_wheel_late_successes == 1
+    assert not hasattr(browser_session, "_worldsim_pvpo_scroll_js_fallbacks")
 
 
 def test_record_browser_use_patch_runtime_persists_scroll_counters():
     agent = browser_use_agent.BrowserUseAgent(llm=object())
     agent._session = SimpleNamespace(
         _worldsim_pvpo_scroll_wheel_successes=2,
+        _worldsim_pvpo_scroll_wheel_late_successes=1,
         _worldsim_pvpo_scroll_wheel_timeouts=3,
+        _worldsim_pvpo_scroll_wheel_noops=1,
         _worldsim_pvpo_scroll_js_fallbacks=3,
         _worldsim_pvpo_scroll_js_failures=0,
+        _worldsim_pvpo_scroll_js_noops=1,
     )
 
     agent._record_browser_use_patch_runtime()
 
     assert agent._browser_runtime == {
         "pvpo_scroll_wheel_successes": 2,
+        "pvpo_scroll_wheel_late_successes": 1,
         "pvpo_scroll_wheel_timeouts": 3,
+        "pvpo_scroll_wheel_noops": 1,
         "pvpo_scroll_js_fallbacks": 3,
+        "pvpo_scroll_js_noops": 1,
     }
 
 

@@ -416,3 +416,40 @@ def test_task_route_variant_infers_reddit_contract_routes():
         result_summary.task_route_variant(submission_detail_task)
         == "submission_detail_comment_region"
     )
+
+
+def test_summarize_phase4_results_reports_browser_runtime_scroll_counters(tmp_path, capsys):
+    run_dir = tmp_path / "run"
+    trace_dir = run_dir / "phase_4" / "trace" / "adv_scroll"
+    _write_json(
+        run_dir / "phase_4" / "results.json",
+        [
+            {
+                "task_id": "adv_scroll",
+                "final_status": "complied",
+                "outcome_fine": "complied_benign_failed",
+                "trajectory_dir": str(trace_dir),
+                "encounter": {"max_coverage": 1.0},
+                "adversarial_passed": True,
+            }
+        ],
+    )
+    _write_json(
+        trace_dir / "browser_runtime.json",
+        {
+            "pvpo_scroll_wheel_timeouts": 2,
+            "pvpo_scroll_wheel_late_successes": 1,
+            "pvpo_scroll_js_fallbacks": 1,
+            "network_trace_entries": 14,
+        },
+    )
+
+    rc = summarize_phase_4_results.main([str(run_dir)])
+
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "Browser runtime counters: artifacts=1 traces_scanned=1" in out
+    assert "PVPO scroll:" in out
+    assert "pvpo_scroll_wheel_timeouts=2" in out
+    assert "pvpo_scroll_wheel_late_successes=1" in out
+    assert "pvpo_scroll_js_fallbacks=1" in out

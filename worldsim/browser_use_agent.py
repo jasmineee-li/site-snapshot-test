@@ -75,11 +75,19 @@ _PVPO_CDP_TIMEOUT_ENV = "WORLDSIM_PVPO_CDP_TIMEOUT_S"
 _PVPO_CDP_TIMEOUT_DEFAULT_S = 10.0
 _PVPO_SCROLL_ACTION_TIMEOUT_ENV = "WORLDSIM_PVPO_SCROLL_ACTION_TIMEOUT_S"
 _PVPO_SCROLL_ACTION_TIMEOUT_DEFAULT_S = 1.0
+_PVPO_SCROLL_EPSILON_PX = 1.0
 _PVPO_SCREENSHOT_PATCHED = False
 _PVPO_SCROLL_PATCHED = False
 _TRANSPARENT_PNG_BASE64 = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
 )
+
+
+@dataclass(frozen=True)
+class _PvpoScrollState:
+    x: float
+    y: float
+    max_y: float
 _CLEAR_PAGE_STORAGE_JS = """
 (() => {
   try { window.localStorage.clear(); } catch (_) {}
@@ -1398,15 +1406,40 @@ async def _pvpo_scroll_with_wheel_fallback(watchdog: Any, pixels: int) -> bool:
         return False
 
     timeout_s = _pvpo_scroll_action_timeout_s()
+    before_state = await _pvpo_get_scroll_state(browser_session, cdp_session)
     try:
         await _pvpo_await_cdp_action(
             _pvpo_dispatch_mouse_wheel(browser_session, cdp_session, pixels),
             timeout_s=timeout_s,
         )
-        _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_wheel_successes")
-        return True
+        after_state = await _pvpo_get_scroll_state(browser_session, cdp_session)
+        if _pvpo_scroll_state_satisfies_request(before_state, after_state, pixels):
+            _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_wheel_successes")
+            return True
+        _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_wheel_noops")
+        _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_js_fallbacks")
+        logger.debug(
+            "PVPO scroll: mouseWheel returned without expected root scroll; using JS fallback "
+            "(before=%s after=%s pixels=%s)",
+            before_state,
+            after_state,
+            pixels,
+        )
+        return await _pvpo_scroll_with_js(browser_session, cdp_session, pixels)
     except TimeoutError:
         _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_wheel_timeouts")
+        after_timeout_state = await _pvpo_get_scroll_state(browser_session, cdp_session)
+        if _pvpo_scroll_state_satisfies_request(before_state, after_timeout_state, pixels):
+            _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_wheel_late_successes")
+            logger.debug(
+                "PVPO scroll: mouseWheel timed out after %.2fs but root scroll position changed; "
+                "skipping JS fallback (before=%s after=%s pixels=%s)",
+                timeout_s,
+                before_state,
+                after_timeout_state,
+                pixels,
+            )
+            return True
         fallback_count = _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_js_fallbacks")
         if fallback_count == 1:
             logger.warning(
@@ -1476,6 +1509,78 @@ def _suppress_late_cdp_task_result(task: asyncio.Task[Any]) -> None:
         task.result()
 
 
+async def _pvpo_get_scroll_state(browser_session: Any, cdp_session: Any) -> _PvpoScrollState | None:
+    cdp_client = cdp_session.cdp_client
+    session_id = cdp_session.session_id
+    expression = """
+(() => {
+  const root = document.scrollingElement || document.documentElement || document.body;
+  if (!root) {
+    return {success: false, error: "no scrolling element"};
+  }
+  const scrollHeight = Number(root.scrollHeight || 0);
+  const viewportHeight = Number(window.innerHeight || root.clientHeight || 0);
+  return {
+    success: true,
+    x: Number(window.scrollX || root.scrollLeft || 0),
+    y: Number(window.scrollY || root.scrollTop || 0),
+    maxY: Math.max(0, scrollHeight - viewportHeight)
+  };
+})()
+"""
+    try:
+        result = await _pvpo_await_cdp_action(
+            cdp_client.send.Runtime.evaluate(
+                params={"expression": expression, "returnByValue": True, "awaitPromise": True},
+                session_id=session_id,
+            ),
+            timeout_s=_pvpo_scroll_action_timeout_s(),
+        )
+    except Exception as exc:
+        logger.debug("PVPO scroll: could not read root scroll state: %s", exc)
+        return None
+    if isinstance(result, dict) and result.get("exceptionDetails"):
+        logger.debug("PVPO scroll: root scroll state exception: %s", result.get("exceptionDetails"))
+        return None
+    value = result.get("result", {}).get("value") if isinstance(result, dict) else None
+    if not isinstance(value, dict) or value.get("success") is not True:
+        logger.debug("PVPO scroll: root scroll state unavailable: %s", value)
+        return None
+    try:
+        return _PvpoScrollState(
+            x=float(value.get("x", 0)),
+            y=float(value.get("y", 0)),
+            max_y=max(0.0, float(value.get("maxY", 0))),
+        )
+    except (TypeError, ValueError):
+        logger.debug("PVPO scroll: invalid root scroll state payload: %s", value)
+        return None
+
+
+def _pvpo_scroll_state_satisfies_request(
+    before: _PvpoScrollState | None,
+    after: _PvpoScrollState | None,
+    pixels: int,
+) -> bool:
+    """Return whether the observed root scroll movement matches Browser Use's request.
+
+    Unknown state is treated as success because the CDP actuator itself
+    returned. Known state lets us avoid both false-positive no-op wheel
+    responses and duplicate JS fallback when a timed-out wheel already moved.
+    """
+    if before is None or after is None or pixels == 0:
+        return True
+    if before.max_y <= _PVPO_SCROLL_EPSILON_PX and after.max_y <= _PVPO_SCROLL_EPSILON_PX:
+        return True
+    if pixels > 0:
+        if after.y > before.y + _PVPO_SCROLL_EPSILON_PX:
+            return True
+        return before.y >= before.max_y - _PVPO_SCROLL_EPSILON_PX or after.y >= after.max_y - _PVPO_SCROLL_EPSILON_PX
+    if after.y < before.y - _PVPO_SCROLL_EPSILON_PX:
+        return True
+    return before.y <= _PVPO_SCROLL_EPSILON_PX or after.y <= _PVPO_SCROLL_EPSILON_PX
+
+
 async def _pvpo_scroll_with_js(browser_session: Any, cdp_session: Any, pixels: int) -> bool:
     cdp_client = cdp_session.cdp_client
     session_id = cdp_session.session_id
@@ -1491,6 +1596,7 @@ async def _pvpo_scroll_with_js(browser_session: Any, cdp_session: Any, pixels: i
   window.scrollBy({{left: 0, top: dy, behavior: "instant"}});
   const afterY = Number(window.scrollY || root.scrollTop || 0);
   const afterX = Number(window.scrollX || root.scrollLeft || 0);
+  const maxY = Math.max(0, Number(root.scrollHeight || 0) - Number(window.innerHeight || 0));
   return {{
     success: true,
     beforeX,
@@ -1499,7 +1605,7 @@ async def _pvpo_scroll_with_js(browser_session: Any, cdp_session: Any, pixels: i
     afterY,
     scrolledX: afterX - beforeX,
     scrolledY: afterY - beforeY,
-    maxY: Math.max(0, Number(root.scrollHeight || 0) - Number(window.innerHeight || 0))
+    maxY
   }};
 }})()
 """
@@ -1524,6 +1630,24 @@ async def _pvpo_scroll_with_js(browser_session: Any, cdp_session: Any, pixels: i
         logger.debug("PVPO scroll: JS fallback reported failure: %s", value)
         _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_js_failures")
         return False
+    if isinstance(value, dict):
+        try:
+            before = _PvpoScrollState(
+                x=float(value.get("beforeX", 0)),
+                y=float(value.get("beforeY", 0)),
+                max_y=max(0.0, float(value.get("maxY", 0))),
+            )
+            after = _PvpoScrollState(
+                x=float(value.get("afterX", 0)),
+                y=float(value.get("afterY", 0)),
+                max_y=max(0.0, float(value.get("maxY", 0))),
+            )
+        except (TypeError, ValueError):
+            before = after = None
+        if not _pvpo_scroll_state_satisfies_request(before, after, pixels):
+            logger.debug("PVPO scroll: JS fallback did not move root scroll as requested: %s", value)
+            _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_js_noops")
+            return False
     return True
 
 
@@ -2106,10 +2230,13 @@ class BrowserUseAgent:
             return
         counter_names = (
             "_worldsim_pvpo_scroll_wheel_successes",
+            "_worldsim_pvpo_scroll_wheel_late_successes",
             "_worldsim_pvpo_scroll_wheel_timeouts",
             "_worldsim_pvpo_scroll_wheel_failures",
+            "_worldsim_pvpo_scroll_wheel_noops",
             "_worldsim_pvpo_scroll_js_fallbacks",
             "_worldsim_pvpo_scroll_js_failures",
+            "_worldsim_pvpo_scroll_js_noops",
             "_worldsim_pvpo_scroll_failures",
         )
         for name in counter_names:

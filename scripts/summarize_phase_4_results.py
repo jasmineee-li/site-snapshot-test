@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -80,6 +81,82 @@ def _fmt_count_map(values: dict[str, Any]) -> str:
     if not values:
         return "none"
     return ", ".join(f"{key}={value}" for key, value in sorted(values.items()))
+
+
+def _trace_dir_values(result: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+    for key in (
+        "trajectory_dir",
+        "initial_trace",
+        "current_trace",
+        "primary_inspection_trace",
+        "successful_variant_trace",
+    ):
+        value = result.get(key)
+        if isinstance(value, str) and value.strip():
+            values.append(value.strip())
+    variation = result.get("strategy_variation")
+    variants = variation.get("variant_results") if isinstance(variation, dict) else None
+    if isinstance(variants, list):
+        for variant in variants:
+            if not isinstance(variant, dict):
+                continue
+            for key in ("trajectory_dir", "variant_trajectory_dir"):
+                value = variant.get(key)
+                if isinstance(value, str) and value.strip():
+                    values.append(value.strip())
+    return list(dict.fromkeys(values))
+
+
+def _runtime_path_candidates(trace_dir: str, *, results_path: Path) -> list[Path]:
+    raw_path = Path(trace_dir).expanduser()
+    if raw_path.is_absolute():
+        return [raw_path / "browser_runtime.json"]
+    return [
+        raw_path / "browser_runtime.json",
+        results_path.parent / raw_path / "browser_runtime.json",
+        results_path.parent.parent / raw_path / "browser_runtime.json",
+    ]
+
+
+def _resolve_browser_runtime_path(trace_dir: str, *, results_path: Path) -> Path | None:
+    for candidate in _runtime_path_candidates(trace_dir, results_path=results_path):
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def summarize_browser_runtime(results: list[dict[str, Any]], *, results_path: Path) -> dict[str, Any]:
+    """Aggregate per-trajectory Browser Use runtime counters when artifacts exist."""
+
+    seen_paths: set[Path] = set()
+    counters: Counter[str] = Counter()
+    traces_scanned = 0
+    for result in results:
+        for trace_dir in _trace_dir_values(result):
+            traces_scanned += 1
+            runtime_path = _resolve_browser_runtime_path(trace_dir, results_path=results_path)
+            if runtime_path is None or runtime_path in seen_paths:
+                continue
+            seen_paths.add(runtime_path)
+            try:
+                payload = _load_json(runtime_path)
+            except (OSError, json.JSONDecodeError):
+                continue
+            if not isinstance(payload, dict):
+                continue
+            for key, value in payload.items():
+                if not isinstance(key, str) or not key.startswith("pvpo_scroll_"):
+                    continue
+                if isinstance(value, bool) or not isinstance(value, int):
+                    continue
+                if value > 0:
+                    counters[key] += value
+    return {
+        "traces_scanned": traces_scanned,
+        "runtime_artifacts": len(seen_paths),
+        "pvpo_scroll_counters": dict(sorted(counters.items())),
+    }
 
 
 def format_variant_regeneration_audit(summary: dict[str, Any]) -> list[str]:
@@ -232,6 +309,16 @@ def format_text_summary(
     lines.append(f"Origin counts: {summary['origin_counts']}")
     if summary.get("judge_trigger_counts"):
         lines.append(f"Judge trigger counts: {summary['judge_trigger_counts']}")
+    browser_runtime = summary.get("browser_runtime")
+    if isinstance(browser_runtime, dict) and browser_runtime.get("runtime_artifacts"):
+        lines.append(
+            "Browser runtime counters: "
+            f"artifacts={browser_runtime.get('runtime_artifacts', 0)} "
+            f"traces_scanned={browser_runtime.get('traces_scanned', 0)}"
+        )
+        pvpo_scroll_counters = browser_runtime.get("pvpo_scroll_counters")
+        if isinstance(pvpo_scroll_counters, dict) and pvpo_scroll_counters:
+            lines.append(f"  PVPO scroll: {_fmt_count_map(pvpo_scroll_counters)}")
 
     rows = summary.get("by_site_surface_editor_status") or []
     if rows:
@@ -299,6 +386,7 @@ def main(argv: list[str] | None = None) -> int:
         task_paths = [*args.tasks, *_default_task_paths(results_path)]
         task_lookup = _load_task_lookup(task_paths)
         summary = summarize_results(results, task_lookup=task_lookup)
+        summary["browser_runtime"] = summarize_browser_runtime(results, results_path=results_path)
     except Exception as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
