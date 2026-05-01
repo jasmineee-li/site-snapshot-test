@@ -45,6 +45,14 @@ Phase 2c/4 and wrong for Modal Phase 0c. `instances.smoke.json` is correct for
 Modal Phase 0c and wrong for on-host Phase 2c/4 unless regenerated for the
 host's `orchestrator_host`.
 
+On r5, also treat the benchmark source path as host-local. `sync_to_r5.sh`
+intentionally excludes repo-local `vendors/`, so
+`/home/ubuntu/browser-sim/vendors/webarena-verified` may be stale or incomplete.
+Use `/home/ubuntu/vendors/webarena-verified` in remote Phase 0/1/2 commands
+unless you have explicitly hydrated and verified the repo-local vendor tree.
+`remote_job_start.sh` blocks the repo-relative WebArena Verified path by default
+for this reason.
+
 `scripts/remote_job_start.sh` enforces this split on
 `remote_direct_restricted` hosts: it blocks Phase 2/2c/4 smoke inputs and
 blocks Phase 0/0c scale inputs. Override with

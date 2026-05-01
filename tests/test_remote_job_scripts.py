@@ -517,9 +517,9 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
             "bash",
             "-lc",
             (
-                ": worldsim.main phase 0 --benchmark vendors/webarena-verified "
+                ": worldsim.main phase 0 --benchmark /home/ubuntu/vendors/webarena-verified "
                 "--instances instances.smoke.json && "
-                ": worldsim.main phase 1 --benchmark vendors/webarena-verified "
+                ": worldsim.main phase 1 --benchmark /home/ubuntu/vendors/webarena-verified "
                 "--generate-novel --sites gitlab,reddit && "
                 ": worldsim.main phase 2 --feasibility-instances instances.scale.json"
             ),
@@ -532,6 +532,40 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
 
     assert completed.returncode == 0, completed.stderr
     assert "Chained Phase 0 -> Phase 1 novel generation" not in completed.stderr
+
+
+def test_start_rejects_repo_relative_webarena_verified_benchmark_on_r5(
+    tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _remote_direct_host_config_with_orchestrator(tmp_path)
+    env = _base_env(repo_root, tmp_path)
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--name",
+            "repo relative benchmark",
+            "--",
+            "bash",
+            "-lc",
+            (
+                ": worldsim.main phase 0 --benchmark vendors/webarena-verified "
+                "--instances instances.smoke.json"
+            ),
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "must not use --benchmark vendors/webarena-verified" in completed.stderr
+    assert "/home/ubuntu/vendors/webarena-verified" in completed.stderr
 
 
 def test_start_rejects_phase2_default_smoke_instances_on_remote_orchestrator_host(

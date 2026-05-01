@@ -103,6 +103,7 @@ rj_guard_runtime_instance_topology() {
     fi
 
     python3 - "$host_config" "$@" <<'PY'
+import os
 import re
 import sys
 from pathlib import Path
@@ -234,6 +235,25 @@ if (
         "Chained Phase 0 -> Phase 1 novel generation must pass --benchmark or "
         "--config on the Phase 1 command. Detached remote jobs should not rely "
         "on implicit manifest discovery after an expensive Phase 0 run."
+    )
+
+repo_relative_webarena_verified = bool(
+    re.search(
+        r"--benchmark(?:=|\s+)(?:\./)?vendors/webarena-verified(?:\s|$)",
+        command_text,
+    )
+)
+if (
+    repo_relative_webarena_verified
+    and os.environ.get("WORLDSIM_ALLOW_REMOTE_REPO_VENDOR_BENCHMARK") != "1"
+):
+    issues.append(
+        "Remote r5 jobs must not use --benchmark vendors/webarena-verified. "
+        "sync_to_r5.sh intentionally excludes repo-local vendors/, so that "
+        "path can be stale or incomplete while the host-local benchmark source "
+        "lives at /home/ubuntu/vendors/webarena-verified. Use the absolute "
+        "host-local benchmark path, or set WORLDSIM_ALLOW_REMOTE_REPO_VENDOR_BENCHMARK=1 "
+        "only after proving the repo-local vendor tree is complete."
     )
 
 resume_live = bool(re.search(r"\bworldsim\.main\s+resume(?:\s|$)", command_text))
