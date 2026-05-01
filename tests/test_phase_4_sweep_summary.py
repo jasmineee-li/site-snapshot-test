@@ -11,7 +11,7 @@ def _write_json(path: Path, payload: object) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
-def _write_run(run_dir: Path, *, model: str, status: str) -> None:
+def _write_run(run_dir: Path, *, model: str, status: str, final_result: str = "{}") -> None:
     _write_json(
         run_dir / "pipeline_state.json",
         {
@@ -46,6 +46,7 @@ def _write_run(run_dir: Path, *, model: str, status: str) -> None:
                 "encounter": {"max_coverage": 1.0},
                 "benign_passed": True,
                 "adversarial_passed": status == "complied",
+                "final_result": final_result,
             }
         ],
     )
@@ -54,8 +55,13 @@ def _write_run(run_dir: Path, *, model: str, status: str) -> None:
 def test_summarize_sweep_groups_runs_by_model_and_pairs_tasks(tmp_path: Path) -> None:
     run_a = tmp_path / "run-a"
     run_b = tmp_path / "run-b"
-    _write_run(run_a, model="gpt-5.2", status="complied")
-    _write_run(run_b, model="gpt-5.4", status="resistant")
+    _write_run(run_a, model="gpt-5.2", status="complied", final_result='{"retrieved_data": ["x"]}')
+    _write_run(
+        run_b,
+        model="gpt-5.4",
+        status="resistant",
+        final_result='```json\n{"retrieved_data": ["x"]}\n```',
+    )
 
     summary = summarize_phase_4_sweep.summarize_sweep([run_a, run_b])
 
@@ -69,6 +75,8 @@ def test_summarize_sweep_groups_runs_by_model_and_pairs_tasks(tmp_path: Path) ->
     assert summary["by_model_status"]["openai|gpt-5.4|priority|claude-sonnet-4-6"] == {
         "resistant": 1
     }
+    assert summary["runs"][0]["final_result_shape_counts"] == {"json_string": 1}
+    assert summary["runs"][1]["final_result_shape_counts"] == {"fenced_json_string": 1}
     assert summary["task_rows"] == [
         {
             "task_id": "adv_gitlab_1",
@@ -83,6 +91,7 @@ def test_summarize_sweep_groups_runs_by_model_and_pairs_tasks(tmp_path: Path) ->
                     "adversarial_passed": True,
                     "benign_passed": True,
                     "final_status": "complied",
+                    "final_result_shape": "json_string",
                     "max_coverage": 1.0,
                     "outcome_fine": "complied",
                     "steps": None,
@@ -91,6 +100,7 @@ def test_summarize_sweep_groups_runs_by_model_and_pairs_tasks(tmp_path: Path) ->
                     "adversarial_passed": False,
                     "benign_passed": True,
                     "final_status": "resistant",
+                    "final_result_shape": "fenced_json_string",
                     "max_coverage": 1.0,
                     "outcome_fine": "resistant",
                     "steps": None,
@@ -111,3 +121,20 @@ def test_format_sweep_summary_is_operator_readable(tmp_path: Path) -> None:
     assert "Phase 4 sweep: runs=1 paired_tasks=1" in text
     assert "openai|gpt-5.2|priority|claude-sonnet-4-6" in text
     assert "statuses={'complied': 1}" in text
+    assert "final_result_shapes={'json_string': 1}" in text
+
+
+def test_final_result_shape_classifies_report_only_answer_forms() -> None:
+    assert summarize_phase_4_sweep.final_result_shape({"retrieved_data": ["x"]}) == "structured_json_value"
+    assert summarize_phase_4_sweep.final_result_shape('{"retrieved_data": ["x"]}') == "json_string"
+    assert (
+        summarize_phase_4_sweep.final_result_shape('```json\n{"retrieved_data": ["x"]}\n```')
+        == "fenced_json_string"
+    )
+    assert (
+        summarize_phase_4_sweep.final_result_shape(
+            'Task complete.\n{"task_type": "retrieve", "retrieved_data": ["x"]}'
+        )
+        == "prose_with_json_fragment"
+    )
+    assert summarize_phase_4_sweep.final_result_shape("Task complete, answer is x") == "plain_text"

@@ -45,6 +45,44 @@ def _state_metadata(run_dir: Path) -> dict[str, Any]:
     return data
 
 
+def _is_json_text(text: str) -> bool:
+    try:
+        json.loads(text)
+    except json.JSONDecodeError:
+        return False
+    return True
+
+
+def _fenced_body(text: str) -> str | None:
+    lines = text.splitlines()
+    if not lines or not lines[0].strip().startswith("```"):
+        return None
+    for index, line in enumerate(lines[1:], start=1):
+        if line.strip() == "```":
+            return "\n".join(lines[1:index]).strip()
+    return None
+
+
+def final_result_shape(value: Any) -> str:
+    """Classify agent final answers for reporting without changing scoring."""
+
+    if value is None:
+        return "missing"
+    if isinstance(value, dict | list):
+        return "structured_json_value"
+    text = str(value).strip()
+    if not text:
+        return "empty_string"
+    if _is_json_text(text):
+        return "json_string"
+    fenced = _fenced_body(text)
+    if fenced is not None and _is_json_text(fenced):
+        return "fenced_json_string"
+    if "retrieved_data" in text and "{" in text and "}" in text:
+        return "prose_with_json_fragment"
+    return "plain_text"
+
+
 def _route_variant(task: dict[str, Any]) -> str | None:
     if isinstance(task.get("route_variant"), str):
         return task["route_variant"]
@@ -96,6 +134,7 @@ def summarize_sweep(run_dirs: list[Path]) -> dict[str, Any]:
         task_lookup_merged.update({key: value for key, value in task_lookup.items() if key not in task_lookup_merged})
         summary = summarize_results(results, task_lookup=task_lookup)
         state = _state_metadata(run_dir)
+        final_result_shapes = Counter(final_result_shape(result.get("final_result")) for result in results)
         model_key = "|".join(
             str(state.get(key) or "unknown")
             for key in ("agent_provider", "agent_model", "agent_service_tier", "sandbox_model")
@@ -122,6 +161,7 @@ def summarize_sweep(run_dirs: list[Path]) -> dict[str, Any]:
                 "asr_valid_numerator": summary.get("asr_valid_numerator", 0),
                 "asr_valid_denominator": summary.get("asr_valid_denominator", 0),
                 "final_status_counts": summary.get("final_status_counts") or {},
+                "final_result_shape_counts": dict(sorted(final_result_shapes.items())),
                 "site_counts": summary.get("site_counts") or {},
                 "origin_counts": summary.get("origin_counts") or {},
             }
@@ -144,6 +184,7 @@ def summarize_sweep(run_dirs: list[Path]) -> dict[str, Any]:
                 "max_coverage": (result.get("encounter") or {}).get("max_coverage")
                 if isinstance(result.get("encounter"), dict)
                 else None,
+                "final_result_shape": final_result_shape(result.get("final_result")),
                 "steps": result.get("steps"),
             }
         task_rows.append(row)
@@ -170,6 +211,7 @@ def format_sweep_summary(summary: dict[str, Any]) -> str:
             f"{run.get('model_key')}: "
             f"ASR={run.get('asr_valid_numerator', 0)}/{run.get('asr_valid_denominator', 0)} "
             f"statuses={run.get('final_status_counts', {})} "
+            f"final_result_shapes={run.get('final_result_shape_counts', {})} "
             f"run={run.get('run_dir')}"
         )
     return "\n".join(lines)
