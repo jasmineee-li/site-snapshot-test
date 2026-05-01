@@ -130,7 +130,8 @@ def summarize_browser_runtime(results: list[dict[str, Any]], *, results_path: Pa
     """Aggregate per-trajectory Browser Use runtime counters when artifacts exist."""
 
     seen_paths: set[Path] = set()
-    counters: Counter[str] = Counter()
+    scroll_counters: Counter[str] = Counter()
+    beginframe_counters: Counter[str] = Counter()
     traces_scanned = 0
     for result in results:
         for trace_dir in _trace_dir_values(result):
@@ -146,16 +147,18 @@ def summarize_browser_runtime(results: list[dict[str, Any]], *, results_path: Pa
             if not isinstance(payload, dict):
                 continue
             for key, value in payload.items():
-                if not isinstance(key, str) or not key.startswith("pvpo_scroll_"):
-                    continue
                 if isinstance(value, bool) or not isinstance(value, int):
                     continue
                 if value > 0:
-                    counters[key] += value
+                    if isinstance(key, str) and key.startswith("pvpo_scroll_"):
+                        scroll_counters[key] += value
+                    elif isinstance(key, str) and key.startswith("pvpo_beginframe_"):
+                        beginframe_counters[key] += value
     return {
         "traces_scanned": traces_scanned,
         "runtime_artifacts": len(seen_paths),
-        "pvpo_scroll_counters": dict(sorted(counters.items())),
+        "pvpo_scroll_counters": dict(sorted(scroll_counters.items())),
+        "pvpo_beginframe_counters": dict(sorted(beginframe_counters.items())),
     }
 
 
@@ -319,6 +322,9 @@ def format_text_summary(
         pvpo_scroll_counters = browser_runtime.get("pvpo_scroll_counters")
         if isinstance(pvpo_scroll_counters, dict) and pvpo_scroll_counters:
             lines.append(f"  PVPO scroll: {_fmt_count_map(pvpo_scroll_counters)}")
+        pvpo_beginframe_counters = browser_runtime.get("pvpo_beginframe_counters")
+        if isinstance(pvpo_beginframe_counters, dict) and pvpo_beginframe_counters:
+            lines.append(f"  PVPO beginFrame: {_fmt_count_map(pvpo_beginframe_counters)}")
 
     rows = summary.get("by_site_surface_editor_status") or []
     if rows:

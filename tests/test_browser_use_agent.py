@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, call
 import pytest
 
 from worldsim import browser_use_agent
+from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator
 from worldsim.phase_4.pvpo_capture import Rect, StepCapture
 
 
@@ -615,6 +616,52 @@ async def test_pvpo_beginframe_screenshot_uses_beginframe_and_lock():
 
 
 @pytest.mark.asyncio
+async def test_pvpo_beginframe_screenshot_uses_coordinator_without_double_lock():
+    calls: list[tuple[str, dict]] = []
+    coordinator = BeginFrameCoordinator()
+
+    class GuardLock:
+        async def __aenter__(self):
+            raise AssertionError("coordinator path must not reacquire the raw lock")
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeCdpSession:
+        async def send(self, method, params):
+            calls.append((method, params))
+            return {"screenshotData": "png-base64"}
+
+    class FakeBrowserSession:
+        cdp_url = "http://127.0.0.1:9230"
+        _worldsim_pvpo_beginframe_lock = GuardLock()
+        _worldsim_pvpo_beginframe_controller = coordinator
+
+        def get_focused_target(self):
+            return SimpleNamespace(target_type="page", target_id="target-1")
+
+        def get_page_targets(self):
+            return []
+
+        async def get_or_create_cdp_session(self, target_id, focus=False):
+            assert target_id == "target-1"
+            assert focus is True
+            return FakeCdpSession()
+
+        async def remove_highlights(self):
+            return None
+
+    data = await browser_use_agent._capture_pvpo_beginframe_screenshot(
+        SimpleNamespace(browser_session=FakeBrowserSession()),
+        SimpleNamespace(full_page=False, clip=None),
+    )
+
+    assert data == "png-base64"
+    assert calls == [("HeadlessExperimental.beginFrame", {"screenshot": {"format": "png"}})]
+    assert coordinator.send_count == 1
+
+
+@pytest.mark.asyncio
 async def test_pvpo_beginframe_screenshot_returns_cached_image_when_frame_pending():
     class FakeCdpSession:
         async def send(self, method, params):
@@ -1005,6 +1052,9 @@ async def test_pvpo_scroll_patch_skips_js_when_timed_out_wheel_already_moved(
 
 
 def test_record_browser_use_patch_runtime_persists_scroll_counters():
+    coordinator = BeginFrameCoordinator(endpoint_identity="127.0.0.1:9222")
+    coordinator.send_count = 2
+    coordinator.pending_error_count = 1
     agent = browser_use_agent.BrowserUseAgent(llm=object())
     agent._session = SimpleNamespace(
         _worldsim_pvpo_scroll_wheel_successes=2,
@@ -1014,6 +1064,7 @@ def test_record_browser_use_patch_runtime_persists_scroll_counters():
         _worldsim_pvpo_scroll_js_fallbacks=3,
         _worldsim_pvpo_scroll_js_failures=0,
         _worldsim_pvpo_scroll_js_noops=1,
+        _worldsim_pvpo_beginframe_controller=coordinator,
     )
 
     agent._record_browser_use_patch_runtime()
@@ -1025,6 +1076,9 @@ def test_record_browser_use_patch_runtime_persists_scroll_counters():
         "pvpo_scroll_wheel_noops": 1,
         "pvpo_scroll_js_fallbacks": 3,
         "pvpo_scroll_js_noops": 1,
+        "pvpo_beginframe_sends": 2,
+        "pvpo_beginframe_pending_errors": 1,
+        "pvpo_beginframe_endpoint_identity": "127.0.0.1:9222",
     }
 
 

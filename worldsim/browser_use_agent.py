@@ -1666,10 +1666,7 @@ async def _capture_pvpo_beginframe_screenshot(watchdog: Any, event: Any) -> str:
     """Handle Browser Use ``ScreenshotEvent`` using beginFrame screenshots."""
     from browser_use.browser.views import BrowserError
 
-    from worldsim.phase_4.pvpo_beginframe import (
-        BeginFrameCoordinator,
-        is_beginframe_pending_error,
-    )
+    from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator, is_beginframe_pending_error
 
     browser_session = watchdog.browser_session
     capturing = getattr(browser_session, "_worldsim_pvpo_capturing_event", None)
@@ -1705,31 +1702,37 @@ async def _capture_pvpo_beginframe_screenshot(watchdog: Any, event: Any) -> str:
 
     cdp = None
 
-    async def _send() -> dict[str, Any]:
+    coordinator = getattr(browser_session, "_worldsim_pvpo_beginframe_controller", None)
+
+    async def _send_raw() -> dict[str, Any]:
         nonlocal cdp
         if cdp is None:
             from worldsim.phase_4.pvpo_cdp import normalize_cdp_session
 
             cdp = normalize_cdp_session(cdp_session)
-        coordinator = getattr(browser_session, "_worldsim_pvpo_beginframe_controller", None)
-        if isinstance(coordinator, BeginFrameCoordinator):
-            return await coordinator.send(
-                cdp,
-                {"screenshot": screenshot},
-                timeout_s=_pvpo_cdp_timeout_s(),
-                label="browser-use-screenshot",
-            )
         return await cdp.send("HeadlessExperimental.beginFrame", {"screenshot": screenshot})
 
     async def _capture() -> dict[str, Any]:
         lock = getattr(browser_session, "_worldsim_pvpo_beginframe_lock", None)
         if lock is not None:
             async with lock:
-                return await _send()
-        return await _send()
+                return await _send_raw()
+        return await _send_raw()
 
     try:
-        result = await asyncio.wait_for(_capture(), timeout=_pvpo_cdp_timeout_s())
+        if isinstance(coordinator, BeginFrameCoordinator):
+            if cdp is None:
+                from worldsim.phase_4.pvpo_cdp import normalize_cdp_session
+
+                cdp = normalize_cdp_session(cdp_session)
+            result = await coordinator.send(
+                cdp,
+                {"screenshot": screenshot},
+                timeout_s=_pvpo_cdp_timeout_s(),
+                label="browser-use-screenshot",
+            )
+        else:
+            result = await asyncio.wait_for(_capture(), timeout=_pvpo_cdp_timeout_s())
     except Exception as exc:
         if is_beginframe_pending_error(exc) or isinstance(exc, TimeoutError):
             return _pvpo_browser_use_screenshot_fallback(browser_session)
@@ -2027,6 +2030,16 @@ class BrowserUseAgent:
         self._owned_target_ids = set()
         self._primary_target_id = None
         self._browser_runtime = {}
+        pvpo_endpoint_lease_cm: Any = None
+        pvpo_beginframe_controller: Any = None
+
+        async def _release_pvpo_endpoint_lease() -> None:
+            nonlocal pvpo_endpoint_lease_cm
+            if pvpo_endpoint_lease_cm is None:
+                return
+            lease = pvpo_endpoint_lease_cm
+            pvpo_endpoint_lease_cm = None
+            await lease.__aexit__(None, None, None)
 
         # Resolve the declared auth_mechanism into BrowserSession kwargs +
         # deferred post-start actions. Errors here surface before we spin up a
@@ -2071,6 +2084,11 @@ class BrowserUseAgent:
             session_kwargs["cdp_url"] = resolved_pvpo_cdp_url
             _install_pvpo_beginframe_screenshot_patch()
             _install_pvpo_scroll_patch()
+            from worldsim.phase_4.pvpo_beginframe import pvpo_endpoint_lease
+
+            pvpo_endpoint_lease_cm = pvpo_endpoint_lease(resolved_pvpo_cdp_url)
+            pvpo_beginframe_controller = await pvpo_endpoint_lease_cm.__aenter__()
+            self._browser_runtime.update(pvpo_beginframe_controller.stats())
         else:
             session_kwargs["args"] = [
                 "--disable-gpu",
@@ -2078,30 +2096,49 @@ class BrowserUseAgent:
                 "--no-sandbox",  # required for Chrome on EC2/Docker/root
                 "--disable-software-rasterizer",  # reduce CPU when GPU unavailable
             ]
-        self._session = BrowserSession(**session_kwargs)
-        if resolved_pvpo_cdp_url:
-            self._session._worldsim_pvpo_beginframe_lock = asyncio.Lock()
-            self._session._worldsim_pvpo_disable_browser_use_screenshots = not bool(self.use_vision)
+        try:
+            self._session = BrowserSession(**session_kwargs)
+            if resolved_pvpo_cdp_url:
+                if pvpo_beginframe_controller is not None:
+                    self._session._worldsim_pvpo_beginframe_controller = (
+                        pvpo_beginframe_controller
+                    )
+                    self._session._worldsim_pvpo_beginframe_lock = (
+                        pvpo_beginframe_controller.lock
+                    )
+                else:
+                    self._session._worldsim_pvpo_beginframe_lock = asyncio.Lock()
+                self._session._worldsim_pvpo_disable_browser_use_screenshots = not bool(
+                    self.use_vision
+                )
+        except Exception:
+            await _release_pvpo_endpoint_lease()
+            raise
 
         # Retry browser startup with linear backoff for transient failures
         last_exc: Exception | None = None
-        for attempt in range(1, 4):
-            try:
-                await self._session.start()
-                last_exc = None
-                break
-            except (TimeoutError, ConnectionError, OSError, RuntimeError) as exc:
-                last_exc = exc
-                if attempt < 3:
-                    delay = 3 * attempt
-                    logger.warning(
-                        "Browser startup failed (attempt %d/3), retrying in %ds: %s",
-                        attempt,
-                        delay,
-                        exc,
-                    )
-                    await asyncio.sleep(delay)
+        try:
+            for attempt in range(1, 4):
+                try:
+                    await self._session.start()
+                    last_exc = None
+                    break
+                except (TimeoutError, ConnectionError, OSError, RuntimeError) as exc:
+                    last_exc = exc
+                    if attempt < 3:
+                        delay = 3 * attempt
+                        logger.warning(
+                            "Browser startup failed (attempt %d/3), retrying in %ds: %s",
+                            attempt,
+                            delay,
+                            exc,
+                        )
+                        await asyncio.sleep(delay)
+        except Exception:
+            await _release_pvpo_endpoint_lease()
+            raise
         if last_exc is not None:
+            await _release_pvpo_endpoint_lease()
             raise last_exc
 
         history = None
@@ -2226,10 +2263,13 @@ class BrowserUseAgent:
                 status=status,
                 extra_errors=extra_errors,
             )
-            if self._session is not None:
-                await self._shutdown_browser_session(task_dir=task_dir)
-            else:
-                _write_browser_runtime_artifact(task_dir, self._browser_runtime)
+            try:
+                if self._session is not None:
+                    await self._shutdown_browser_session(task_dir=task_dir)
+                else:
+                    _write_browser_runtime_artifact(task_dir, self._browser_runtime)
+            finally:
+                await _release_pvpo_endpoint_lease()
 
         steps, is_done, final_result, history_errors = _extract_history_state(history)
         return AgentResult(
@@ -2261,6 +2301,16 @@ class BrowserUseAgent:
             value = getattr(self._session, name, 0)
             if isinstance(value, int) and value > 0:
                 self._browser_runtime[name.removeprefix("_worldsim_")] = value
+        try:
+            from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator
+
+            controller = getattr(self._session, "_worldsim_pvpo_beginframe_controller", None)
+            if isinstance(controller, BeginFrameCoordinator):
+                for key, value in controller.stats().items():
+                    if value not in (None, "", 0, False):
+                        self._browser_runtime[f"pvpo_{key}"] = value
+        except Exception:
+            return
 
     async def teardown(self) -> None:
         if self._session is not None:
@@ -2476,6 +2526,16 @@ class BrowserUseAgent:
         from worldsim.phase_4.pvpo_browser_lifecycle import recycle_pvpo_browser_after_task
 
         recycle_artifact = await recycle_pvpo_browser_after_task(session, self._pvpo_cdp_url)
+        controller = getattr(session, "_worldsim_pvpo_beginframe_controller", None)
+        if recycle_artifact.get("recycle_status") == "recycled":
+            try:
+                from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator
+
+                if isinstance(controller, BeginFrameCoordinator):
+                    controller.reset_after_recycle()
+                    recycle_artifact["beginframe_state_reset"] = True
+            except Exception as exc:
+                recycle_artifact["beginframe_state_reset_error"] = str(exc)
         self._browser_runtime.update(
             {
                 "pvpo_browser_recycle": recycle_artifact,

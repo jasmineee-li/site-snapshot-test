@@ -100,8 +100,9 @@ async def test_pump_swallows_cdp_errors_at_debug(caplog):
 
 
 @pytest.mark.asyncio
-async def test_pump_times_out_stuck_beginframe_and_releases_lock(monkeypatch, caplog):
+async def test_pump_times_out_stuck_beginframe_and_marks_endpoint_dirty(monkeypatch, caplog):
     monkeypatch.setenv("WORLDSIM_PVPO_FRAME_PUMP_TIMEOUT_S", "0.01")
+    monkeypatch.setenv("WORLDSIM_PVPO_BEGINFRAME_DRAIN_TIMEOUT_S", "0.01")
     session = _FakeSession()
 
     async def stuck_send(method: str, params: dict | None = None):
@@ -114,8 +115,8 @@ async def test_pump_times_out_stuck_beginframe_and_releases_lock(monkeypatch, ca
             await asyncio.sleep(0.04)
             capturing.set()
             await asyncio.sleep(0.02)
-            lock = capturing.beginframe_lock  # type: ignore[attr-defined]
-            assert not lock.locked()
+            coordinator = capturing.beginframe_controller  # type: ignore[attr-defined]
+            assert "prior pvpo beginFrame" in (coordinator.dirty_reason or "")
     assert any("beginFrame timed out" in rec.message for rec in caplog.records)
 
 
