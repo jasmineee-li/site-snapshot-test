@@ -2303,6 +2303,8 @@ class BrowserUseAgent:
         use_vision: bool = False,
         max_steps: int = 50,
         timeout: int = 10800,
+        llm_timeout: int | None = None,
+        step_timeout: int | None = None,
         headless: bool = True,
     ) -> None:
         # ``llm`` is configured by the caller (see worldsim/main.py).
@@ -2311,6 +2313,8 @@ class BrowserUseAgent:
         self.use_vision = use_vision
         self.max_steps = max_steps
         self.timeout = timeout
+        self.llm_timeout = llm_timeout
+        self.step_timeout = step_timeout
         self.headless = headless
         self._session: Any = None
         self._pvpo_cdp_url: str = ""
@@ -2326,6 +2330,10 @@ class BrowserUseAgent:
         model_slug = getattr(llm, "model", None)
         if isinstance(model_slug, str) and model_slug:
             logger.info("BrowserUseAgent configured with model=%r", model_slug)
+        if llm_timeout is not None:
+            logger.info("BrowserUseAgent configured with llm_timeout=%ss", llm_timeout)
+        if step_timeout is not None:
+            logger.info("BrowserUseAgent configured with step_timeout=%ss", step_timeout)
 
     async def setup(self, server_url: str) -> None:
         # Browser sessions are task-scoped so trajectory artifacts remain
@@ -2372,6 +2380,10 @@ class BrowserUseAgent:
         self._owned_target_ids = set()
         self._primary_target_id = None
         self._browser_runtime = {}
+        if self.llm_timeout is not None:
+            self._browser_runtime["browser_use_llm_timeout_s"] = self.llm_timeout
+        if self.step_timeout is not None:
+            self._browser_runtime["browser_use_step_timeout_s"] = self.step_timeout
         pvpo_endpoint_lease_cm: Any = None
         pvpo_beginframe_controller: Any = None
 
@@ -2544,20 +2556,25 @@ class BrowserUseAgent:
                     owned_target_ids=self._owned_target_ids,
                     capturing=capturing,
                 )
-                agent = Agent(
-                    task=task_text,
-                    llm=self.llm,
-                    browser_session=self._session,
-                    use_vision=self.use_vision,
+                agent_kwargs: dict[str, Any] = {
+                    "task": task_text,
+                    "llm": self.llm,
+                    "browser_session": self._session,
+                    "use_vision": self.use_vision,
                     # WorldSim uses its own reward evaluators plus Phase 3/4
                     # diagnosis/judge flows; Browser Use's internal judge only adds
                     # post-hoc logging and currently breaks on the Anthropic-via-
                     # OpenRouter path.
-                    use_judge=False,
-                    save_conversation_path=str(task_dir / "conversations"),
-                    initial_actions=initial_actions,
-                    register_new_step_callback=pvpo_hook,
-                )
+                    "use_judge": False,
+                    "save_conversation_path": str(task_dir / "conversations"),
+                    "initial_actions": initial_actions,
+                    "register_new_step_callback": pvpo_hook,
+                }
+                if self.llm_timeout is not None:
+                    agent_kwargs["llm_timeout"] = self.llm_timeout
+                if self.step_timeout is not None:
+                    agent_kwargs["step_timeout"] = self.step_timeout
+                agent = Agent(**agent_kwargs)
 
                 t0 = time.time()
                 try:

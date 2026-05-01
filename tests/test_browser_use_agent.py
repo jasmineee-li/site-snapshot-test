@@ -1584,6 +1584,24 @@ def test_record_browser_use_patch_runtime_persists_scroll_counters():
     }
 
 
+def test_record_browser_use_patch_runtime_preserves_explicit_timeout_metadata():
+    agent = browser_use_agent.BrowserUseAgent(
+        llm=object(),
+        llm_timeout=240,
+        step_timeout=300,
+    )
+    agent._session = SimpleNamespace()
+    agent._browser_runtime = {
+        "browser_use_llm_timeout_s": agent.llm_timeout,
+        "browser_use_step_timeout_s": agent.step_timeout,
+    }
+
+    agent._record_browser_use_patch_runtime()
+
+    assert agent._browser_runtime["browser_use_llm_timeout_s"] == 240
+    assert agent._browser_runtime["browser_use_step_timeout_s"] == 300
+
+
 @pytest.mark.asyncio
 async def test_pvpo_callback_degrades_on_cdp_timeout(
     tmp_path,

@@ -432,3 +432,29 @@ def test_service_tier_omitted_leaves_baseline_unchanged(monkeypatch) -> None:
     make_llm("gpt-5.4-mini", provider="openrouter")
     inner = recorded["openrouter"]["extra_body"]["extra_body"]
     assert "service_tier" not in inner
+
+
+def test_make_agent_factory_threads_browser_use_timeouts(monkeypatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    recorded = _install_fake_llm_modules(monkeypatch)
+    captured: dict[str, object] = {}
+    from worldsim import agent_config
+
+    class FakeBrowserUseAgent:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(agent_config, "BrowserUseAgent", FakeBrowserUseAgent)
+
+    factory = agent_config.make_agent_factory(
+        model="claude-sonnet-4-6",
+        provider="anthropic",
+        llm_timeout=240,
+        step_timeout=300,
+    )
+
+    factory()
+
+    assert recorded["anthropic"]["model"] == "claude-sonnet-4-6"
+    assert captured["llm_timeout"] == 240
+    assert captured["step_timeout"] == 300

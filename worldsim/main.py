@@ -196,6 +196,26 @@ def build_parser() -> argparse.ArgumentParser:
         "ignored with a warning for google/anthropic. Omit to use provider default.",
     )
     phase_cmd.add_argument(
+        "--agent-llm-timeout",
+        type=_positive_int,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "Phase 4: explicit Browser Use per-step LLM-call timeout. "
+            "Omit to preserve Browser Use's provider/model default."
+        ),
+    )
+    phase_cmd.add_argument(
+        "--agent-step-timeout",
+        type=_positive_int,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "Phase 4: explicit Browser Use action-step timeout. "
+            "Omit to preserve Browser Use's default."
+        ),
+    )
+    phase_cmd.add_argument(
         "--max-tasks-per-site",
         type=_positive_int,
         default=None,
@@ -1020,6 +1040,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     sandbox_model = getattr(args, "sandbox_model", None)
     agent_provider = getattr(args, "agent_provider", None)
     agent_service_tier = getattr(args, "agent_service_tier", None)
+    agent_llm_timeout = getattr(args, "agent_llm_timeout", None)
+    agent_step_timeout = getattr(args, "agent_step_timeout", None)
     generate_novel = getattr(args, "generate_novel", None)
     novel_tasks_per_site = getattr(args, "novel_tasks_per_site", None)
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
@@ -1053,6 +1075,10 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         agent_provider = state.get("agent_provider")
     if agent_service_tier is None:
         agent_service_tier = state.get("agent_service_tier")
+    if agent_llm_timeout is None:
+        agent_llm_timeout = state.get("agent_llm_timeout")
+    if agent_step_timeout is None:
+        agent_step_timeout = state.get("agent_step_timeout")
     if generate_novel is None:
         generate_novel = state.get("generate_novel", False)
     if novel_tasks_per_site is None:
@@ -1109,6 +1135,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         sandbox_model=sandbox_model,
         agent_provider=agent_provider,
         agent_service_tier=agent_service_tier,
+        agent_llm_timeout=agent_llm_timeout,
+        agent_step_timeout=agent_step_timeout,
         generate_novel=generate_novel,
         novel_tasks_per_site=novel_tasks_per_site,
         max_tasks_per_site=max_tasks_per_site,

@@ -2085,6 +2085,8 @@ def _phase_4_state_metadata(
     sandbox_model: str,
     agent_provider: str | None,
     agent_service_tier: str | None,
+    agent_llm_timeout: int | None,
+    agent_step_timeout: int | None,
     max_tasks_per_site: int | None,
     task_origin: str | None,
     sites: str | None,
@@ -2099,6 +2101,8 @@ def _phase_4_state_metadata(
         "sandbox_model": sandbox_model,
         "agent_provider": agent_provider,
         "agent_service_tier": agent_service_tier,
+        "agent_llm_timeout": agent_llm_timeout,
+        "agent_step_timeout": agent_step_timeout,
         "max_tasks_per_site": max_tasks_per_site,
         "task_origin": task_origin,
         "allow_unknown_auth": allow_unknown_auth,
@@ -2258,6 +2262,8 @@ def _phase_4_eval_context(
     config_url_placeholders: dict[str, str] | None,
     agent_model: str,
     agent_provider: str | None,
+    agent_llm_timeout: int | None,
+    agent_step_timeout: int | None,
     sandbox_model: str,
     benchmark_root: Path | None,
 ) -> dict[str, Any]:
@@ -2268,6 +2274,8 @@ def _phase_4_eval_context(
         "config_url_placeholders": config_url_placeholders,
         "agent_model": agent_model,
         "agent_provider": agent_provider,
+        "agent_llm_timeout": agent_llm_timeout,
+        "agent_step_timeout": agent_step_timeout,
         "sandbox_model": sandbox_model,
         "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
     }
@@ -2375,6 +2383,8 @@ def _phase_4_eval_context_for_task(
     config_url_placeholders: dict[str, str] | None,
     agent_model: str,
     agent_provider: str,
+    agent_llm_timeout: int | None,
+    agent_step_timeout: int | None,
     sandbox_model: str,
     benchmark_root: Path | None,
 ) -> dict[str, Any]:
@@ -2383,6 +2393,8 @@ def _phase_4_eval_context_for_task(
         config_url_placeholders=_task_reachable_placeholders(task, config_url_placeholders),
         agent_model=agent_model,
         agent_provider=agent_provider,
+        agent_llm_timeout=agent_llm_timeout,
+        agent_step_timeout=agent_step_timeout,
         sandbox_model=sandbox_model,
         benchmark_root=benchmark_root,
     )
@@ -2565,6 +2577,8 @@ async def run(args: argparse.Namespace) -> int:
     sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
     agent_provider = getattr(args, "agent_provider", None)
     agent_service_tier = getattr(args, "agent_service_tier", None)
+    agent_llm_timeout = getattr(args, "agent_llm_timeout", None)
+    agent_step_timeout = getattr(args, "agent_step_timeout", None)
 
     benchmark_root = getattr(args, "benchmark", None)
     allow_unknown_auth = bool(getattr(args, "allow_unknown_auth", False))
@@ -2591,6 +2605,8 @@ async def run(args: argparse.Namespace) -> int:
         sandbox_model=sandbox_model,
         agent_provider=agent_provider,
         agent_service_tier=agent_service_tier,
+        agent_llm_timeout=agent_llm_timeout,
+        agent_step_timeout=agent_step_timeout,
         max_tasks_per_site=max_tasks_per_site,
         task_origin=task_origin_filter,
         sites=sites_filter_raw,
@@ -3183,6 +3199,8 @@ async def run(args: argparse.Namespace) -> int:
         model=agent_model,
         provider=agent_provider,
         service_tier=agent_service_tier,
+        llm_timeout=agent_llm_timeout,
+        step_timeout=agent_step_timeout,
     )
     reset_cache = TaskResetCache()
     save_state("phase_4", status="running", **state_metadata)
@@ -3231,6 +3249,8 @@ async def run(args: argparse.Namespace) -> int:
                     config_url_placeholders=config.url_placeholders,
                     agent_model=agent_model,
                     agent_provider=agent_provider,
+                    agent_llm_timeout=agent_llm_timeout,
+                    agent_step_timeout=agent_step_timeout,
                     sandbox_model=sandbox_model,
                     benchmark_root=benchmark_root,
                 ),
@@ -3275,6 +3295,8 @@ async def run(args: argparse.Namespace) -> int:
                 config_url_placeholders=config.url_placeholders,
                 agent_model=agent_model,
                 agent_provider=agent_provider,
+                agent_llm_timeout=agent_llm_timeout,
+                agent_step_timeout=agent_step_timeout,
                 sandbox_model=sandbox_model,
                 benchmark_root=benchmark_root,
             ),

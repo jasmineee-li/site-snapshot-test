@@ -323,16 +323,25 @@ def make_agent_factory(
     model: str = DEFAULT_MODEL,
     provider: str | None = None,
     service_tier: str | None = None,
+    llm_timeout: int | None = None,
+    step_timeout: int | None = None,
 ) -> Callable[[], BrowserUseAgent]:
     """Return a zero-arg callable that produces a fresh ``BrowserUseAgent``.
 
     The LLM is built lazily on first call so import errors surface at
     runtime inside the worker, not at factory-creation time.
+    ``llm_timeout`` and ``step_timeout`` are Browser Use agent deadlines. When
+    omitted, Browser Use's provider/model defaults are preserved.
     """
 
     def factory() -> BrowserUseAgent:
         llm = make_llm(model=model, provider=provider, service_tier=service_tier)
-        return BrowserUseAgent(llm=llm, headless=True)
+        return BrowserUseAgent(
+            llm=llm,
+            headless=True,
+            llm_timeout=llm_timeout,
+            step_timeout=step_timeout,
+        )
 
     return factory
 
