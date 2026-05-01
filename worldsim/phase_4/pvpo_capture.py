@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import Any
 
 from worldsim.atomic_io import write_json_atomic
-from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator
+from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator, BeginFrameTimeout
 from worldsim.phase_4.pvpo_cdp import normalize_cdp_session
 
 logger = logging.getLogger(__name__)
@@ -223,7 +223,12 @@ async def atomic_capture_with_visibility(
         request = cdp.send(method, params)
         if cdp_timeout_s is None:
             return await request
-        return await asyncio.wait_for(request, timeout=cdp_timeout_s)
+        try:
+            return await asyncio.wait_for(request, timeout=cdp_timeout_s)
+        except TimeoutError as exc:
+            raise TimeoutError(
+                f"PVPO CDP {method} timed out after {cdp_timeout_s:.2f}s"
+            ) from exc
 
     # The pump attaches a BeginFrameCoordinator to the capturing Event so the
     # atomic capture and the pump can serialize and drain beginFrame calls.
@@ -236,6 +241,13 @@ async def atomic_capture_with_visibility(
     if capturing is not None:
         capturing.set()
     try:
+        if (
+            isinstance(beginframe_controller, BeginFrameCoordinator)
+            and beginframe_controller.dirty_reason
+        ):
+            raise BeginFrameTimeout(
+                f"pvpo beginFrame endpoint is dirty: {beginframe_controller.dirty_reason}"
+            )
         await _send("Emulation.setVirtualTimePolicy", {"policy": "pause"})
         raw = await _send(
             "Runtime.evaluate",

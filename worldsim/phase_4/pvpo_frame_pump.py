@@ -33,7 +33,7 @@ from worldsim.phase_4.pvpo_cdp import normalize_cdp_session
 logger = logging.getLogger(__name__)
 
 _DEFAULT_INTERVAL_MS = 50.0
-_DEFAULT_BEGINFRAME_TIMEOUT_S = 1.0
+_DEFAULT_BEGINFRAME_TIMEOUT_S = 10.0
 _SHUTDOWN_GRACE_S = 2.0
 
 

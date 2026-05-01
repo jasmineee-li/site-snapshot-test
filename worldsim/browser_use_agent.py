@@ -1751,14 +1751,37 @@ def _pvpo_browser_use_screenshot_fallback(browser_session: Any) -> str:
     return _TRANSPARENT_PNG_BASE64
 
 
-async def _await_pvpo_cdp(awaitable: Any, *, timeout_s: float) -> Any:
-    return await asyncio.wait_for(awaitable, timeout=timeout_s)
+async def _await_pvpo_cdp(
+    awaitable: Any,
+    *,
+    timeout_s: float,
+    label: str | None = None,
+) -> Any:
+    try:
+        return await asyncio.wait_for(awaitable, timeout=timeout_s)
+    except TimeoutError as exc:
+        if label:
+            raise TimeoutError(f"{label} timed out after {timeout_s:.2f}s") from exc
+        raise
 
 
 def _pvpo_issue_message(exc: BaseException, *, timeout_s: float) -> str:
-    if isinstance(exc, TimeoutError):
+    message = str(exc)
+    if isinstance(exc, TimeoutError) and not message:
         return f"timed out after {timeout_s:.2f}s"
-    return str(exc)
+    return message or type(exc).__name__
+
+
+def _pvpo_beginframe_dirty_reason(session: Any) -> str | None:
+    try:
+        from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator
+
+        controller = getattr(session, "_worldsim_pvpo_beginframe_controller", None)
+        if isinstance(controller, BeginFrameCoordinator):
+            return controller.dirty_reason
+    except Exception:
+        return None
+    return None
 
 
 # Stable enum of first-batch implementations. Types outside this set are schema-
@@ -2977,7 +3000,11 @@ def _make_pvpo_step_callback(
         capture_summary["steps_seen"] += 1
         save_capture_summary(task_dir, capture_summary)
         try:
-            page = await _await_pvpo_cdp(session.get_current_page(), timeout_s=timeout_s)
+            page = await _await_pvpo_cdp(
+                session.get_current_page(),
+                timeout_s=timeout_s,
+                label="BrowserSession.get_current_page",
+            )
         except Exception as exc:  # pragma: no cover - CDP unavailable
             _record_issue(
                 "current_page_unavailable",
@@ -3001,6 +3028,7 @@ def _make_pvpo_step_callback(
             cdp_session = await _await_pvpo_cdp(
                 session.get_or_create_cdp_session(target_id=target_id, focus=False),
                 timeout_s=timeout_s,
+                label="BrowserSession.get_or_create_cdp_session",
             )
         except Exception as exc:  # pragma: no cover - CDP unavailable
             _record_issue(
@@ -3010,11 +3038,17 @@ def _make_pvpo_step_callback(
             )
             return
 
+        dirty_reason = _pvpo_beginframe_dirty_reason(session)
+        if dirty_reason:
+            _record_issue("beginframe_endpoint_dirty", step_idx, dirty_reason)
+            return
+
         try:
             if target_id not in pages_prepared:
                 await _await_pvpo_cdp(
                     inject_animation_killer(page, cdp_session),
                     timeout_s=timeout_s,
+                    label="PVPO animation killer",
                 )
                 pages_prepared.add(target_id)
         except Exception as exc:
@@ -3028,6 +3062,7 @@ def _make_pvpo_step_callback(
             viewport = await _await_pvpo_cdp(
                 runtime_evaluate_value(cdp_session, _CDP_VIEWPORT_JS),
                 timeout_s=timeout_s,
+                label="PVPO viewport probe",
             )
             if not isinstance(viewport, dict):
                 raise RuntimeError(
