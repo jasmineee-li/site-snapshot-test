@@ -283,7 +283,10 @@ def make_llm(
                 "browser-use is required for the Anthropic provider. "
                 "Install it with: uv pip install browser-use"
             ) from exc
-        kwargs: dict[str, Any] = {"model": model, "temperature": temperature}
+        from worldsim.phase_4.anthropic_client import temperature_kwargs_for_model
+
+        kwargs: dict[str, Any] = {"model": model}
+        kwargs.update(temperature_kwargs_for_model(model, temperature))
         proxy = _anthropic_proxy_env()
         if proxy is not None:
             # Route via ChatAnthropic's tool-calling path: it ignores `minimum`/`maximum`

@@ -418,6 +418,27 @@ def test_service_tier_ignored_and_warned_for_anthropic(monkeypatch, caplog) -> N
     )
 
 
+def test_anthropic_opus_47_omits_temperature(monkeypatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    recorded = _install_fake_llm_modules(monkeypatch)
+    from worldsim.agent_config import make_llm
+
+    make_llm("claude-opus-4-7", provider="anthropic")
+
+    assert recorded["anthropic"]["model"] == "claude-opus-4-7"
+    assert "temperature" not in recorded["anthropic"]
+
+
+def test_anthropic_sonnet_preserves_temperature(monkeypatch) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    recorded = _install_fake_llm_modules(monkeypatch)
+    from worldsim.agent_config import make_llm
+
+    make_llm("claude-sonnet-4-6", provider="anthropic", temperature=0)
+
+    assert recorded["anthropic"]["temperature"] == 0.0
+
+
 def test_service_tier_omitted_leaves_baseline_unchanged(monkeypatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-test")
