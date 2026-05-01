@@ -5994,7 +5994,15 @@ def _effective_adversarial_seed(adversarial_task: dict[str, Any]) -> Any:
     for payload_index, payload in enumerate(payload_texts):
         if not isinstance(payload, dict):
             raise ValueError(f"payload_texts[{payload_index}] must be an object")
-        payload_errors = validate_text_post_hoc(payload, adversarial_task)
+        # Phase 4 may rerun a frozen, already-admitted cohort after stricter
+        # semantic gates are added. Keep this load-time check structural so
+        # new validators do not retroactively mutate the task cohort; generated
+        # variants still use the strict validation path.
+        payload_errors = validate_text_post_hoc(
+            payload,
+            adversarial_task,
+            enforce_binary_semantic_fit=False,
+        )
         if payload_errors:
             raise ValueError(f"payload_texts[{payload_index}] invalid: {'; '.join(payload_errors)}")
     if isinstance(seed_template, dict) and isinstance(payload_texts, list) and payload_texts:

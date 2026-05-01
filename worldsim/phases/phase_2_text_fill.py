@@ -624,7 +624,12 @@ def _benign_fill_context(task: dict[str, Any]) -> tuple[str, str]:
     return benign_intent, " | ".join(parts)
 
 
-def validate_text_post_hoc(parsed: dict[str, Any], task: dict[str, Any]) -> list[str]:
+def validate_text_post_hoc(
+    parsed: dict[str, Any],
+    task: dict[str, Any],
+    *,
+    enforce_binary_semantic_fit: bool = True,
+) -> list[str]:
     errors: list[str] = []
     rendered_payload = parsed.get("rendered_payload")
     raw_text = parsed.get("raw_text")
@@ -702,15 +707,16 @@ def validate_text_post_hoc(parsed: dict[str, Any], task: dict[str, Any]) -> list
     action_witness_values = (
         attack_action_witnesses if isinstance(attack_action_witnesses, list) else []
     )
-    errors.extend(
-        _binary_semantic_post_hoc_errors(
-            task,
-            rendered_payload=rendered_payload,
-            visible_text=visible_text,
-            attack_action_witnesses=action_witness_values,
-            required_tokens=required_tokens,
+    if enforce_binary_semantic_fit:
+        errors.extend(
+            _binary_semantic_post_hoc_errors(
+                task,
+                rendered_payload=rendered_payload,
+                visible_text=visible_text,
+                attack_action_witnesses=action_witness_values,
+                required_tokens=required_tokens,
+            )
         )
-    )
 
     if concealment == "markdown_fenced_system":
         if _MARKDOWN_SYSTEM_FENCE_RE.search(rendered_payload) is None or not concealed_text.strip():
