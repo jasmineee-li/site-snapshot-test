@@ -12,9 +12,9 @@
 | moonshotai/kimi-k2.5:thinking | bare | all | 200 | complete (with 5pq) | 0.115000 | 200 | 0.345000 | 0.110000 | 0.890000 | 0.990000 | 0.295000 | 0.000000 | 0.695000 | 2 |
 | moonshotai/kimi-k2.5:thinking | xml_safety | all | 200 | complete (with 5pq) | 0.060000 | 200 | 0.205000 | 0.180000 | 0.820000 | 0.975000 | 0.260000 | 0.000000 | 0.715000 | 5 |
 | moonshotai/kimi-k2.5:thinking | xml_scenario | all | 200 | complete (with 5pq) | 0.195000 | 200 | 0.330000 | 0.160000 | 0.840000 | 1.000000 | 0.420000 | 0.000000 | 0.580000 | 0 |
-| openai/gpt-5.2:thinking | bare | all | 171 | partial (short splits: reddit:21/50) | 0.000000 | 171 | 0.438596 | 0.000000 | 1.000000 | 1.000000 | 0.567251 | 0.000000 | 0.432749 | 0 |
+| openai/gpt-5.2:thinking | bare | all | 200 | complete (with 5pq) | 0.000000 | 200 | 0.435000 | 0.000000 | 1.000000 | 1.000000 | 0.610000 | 0.000000 | 0.390000 | 0 |
 | openai/gpt-5.2:thinking | xml_safety | all | 200 | complete (with 5pq) | 0.000000 | 200 | 0.425000 | 0.005000 | 0.995000 | 1.000000 | 0.720000 | 0.000000 | 0.280000 | 0 |
-| openai/gpt-5.2:thinking | xml_scenario | all | 176 | partial (short splits: reddit:26/50) | 0.000000 | 176 | 0.511364 | 0.000000 | 1.000000 | 1.000000 | 0.607955 | 0.000000 | 0.392045 | 0 |
+| openai/gpt-5.2:thinking | xml_scenario | all | 200 | complete (with 5pq) | 0.000000 | 200 | 0.510000 | 0.000000 | 1.000000 | 1.000000 | 0.620000 | 0.000000 | 0.380000 | 0 |
 | z-ai/glm-5:thinking | bare | all | 200 | complete (with 5pq) | 0.655000 | 200 | 0.155000 | 0.020000 | 0.980000 | 0.995000 | 0.770000 | 0.000000 | 0.225000 | 3 |
 | z-ai/glm-5:thinking | xml_safety | all | 200 | complete (with 5pq) | 0.210000 | 200 | 0.355000 | 0.290000 | 0.710000 | 0.995000 | 0.815000 | 0.000000 | 0.180000 | 2 |
 | z-ai/glm-5:thinking | xml_scenario | all | 200 | complete (with 5pq) | 0.725000 | 200 | 0.115000 | 0.075000 | 0.925000 | 1.000000 | 0.885000 | 0.000000 | 0.115000 | 0 |
