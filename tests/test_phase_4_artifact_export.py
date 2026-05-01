@@ -61,7 +61,19 @@ def test_manifest_includes_compact_files_and_excludes_large_raw_trace_files(tmp_
     _write(run / "phase_4" / "summary.txt", "summary")
     _write(run / "phase_4" / "20260501_000000" / "task_a" / "processed_result.json")
     _write(run / "phase_4" / "20260501_000000" / "task_a" / "pvpo" / "step_1.json")
-    _write(run / "phase_4" / "20260501_000000" / "task_a" / "network_trace.json")
+    _write(
+        run / "phase_4" / "20260501_000000" / "task_a" / "network_trace.json",
+        json.dumps(
+            [
+                {
+                    "url": "http://example.test/page",
+                    "response_status": 200,
+                    "resource_type": "document",
+                    "is_document_load": True,
+                }
+            ]
+        ),
+    )
     _write(run / "phase_4" / "20260501_000000" / "task_a" / "history.json")
     _write(run / "phase_4" / "20260501_000000" / "task_a" / "screenshots" / "step_1.png")
     _write(
@@ -119,6 +131,36 @@ def test_manifest_includes_compact_files_and_excludes_large_raw_trace_files(tmp_
     )
     assert any(row["path"].endswith("network_trace.json") for row in with_network["files"])
 
+    filtered_network = exporter.build_manifest(
+        tmp_path,
+        ["logs/phase4_deadlines_model"],
+        max_file_bytes=5_000_000,
+        include_network_traces=True,
+        network_trace_task_ids={"other_task"},
+    )
+    assert all("network_trace.json" not in row["path"] for row in filtered_network["files"])
+
+    matching_network = exporter.build_manifest(
+        tmp_path,
+        ["logs/phase4_deadlines_model"],
+        max_file_bytes=5_000_000,
+        include_network_traces=True,
+        network_trace_task_ids={"task_a"},
+    )
+    assert any(row["path"].endswith("network_trace.json") for row in matching_network["files"])
+    assert matching_network["network_trace_summaries"] == []
+
+    network_summary = exporter.build_manifest(
+        tmp_path,
+        ["logs/phase4_deadlines_model"],
+        max_file_bytes=5_000_000,
+        summarize_network_traces=True,
+        network_trace_task_ids={"task_a"},
+    )
+    assert len(network_summary["network_trace_summaries"]) == 1
+    assert network_summary["network_trace_summaries"][0]["task_id"] == "task_a"
+    assert network_summary["network_trace_summaries"][0]["attacker_invalid_requested"] is False
+
 
 def test_local_export_extracts_manifest_and_compact_files(tmp_path: Path) -> None:
     exporter = _load_export_module()
@@ -137,6 +179,8 @@ def test_local_export_extracts_manifest_and_compact_files(tmp_path: Path) -> Non
         overwrite=False,
         include_phase3_contracts=False,
         include_network_traces=False,
+        network_trace_task_ids=set(),
+        summarize_network_traces=False,
     )
 
     assert rc == 0
@@ -185,6 +229,8 @@ def test_remote_dry_run_uses_ssh_without_local_extraction(monkeypatch, tmp_path:
         overwrite=False,
         include_phase3_contracts=False,
         include_network_traces=False,
+        network_trace_task_ids=set(),
+        summarize_network_traces=False,
     )
 
     assert rc == 0
@@ -196,6 +242,23 @@ def test_remote_dry_run_uses_ssh_without_local_extraction(monkeypatch, tmp_path:
     assert "--run-dir" in calls[0]
     assert "logs/run" in calls[0]
     assert "--dry-run" in calls[0]
+
+
+def test_network_trace_task_filter_matches_variant_and_retry_dirs() -> None:
+    exporter = _load_export_module()
+
+    assert exporter._network_trace_matches_task(
+        Path("phase_4/20260501/adv_1/network_trace.json"), {"adv_1"}
+    )
+    assert exporter._network_trace_matches_task(
+        Path("phase_4/20260501/adv_1_variant_2/network_trace.json"), {"adv_1"}
+    )
+    assert exporter._network_trace_matches_task(
+        Path("phase_4/20260501/adv_1__placement_1/network_trace.json"), {"adv_1"}
+    )
+    assert not exporter._network_trace_matches_task(
+        Path("phase_4/20260501/adv_10/network_trace.json"), {"adv_1"}
+    )
 
 
 def test_unsafe_run_dir_is_rejected(tmp_path: Path) -> None:

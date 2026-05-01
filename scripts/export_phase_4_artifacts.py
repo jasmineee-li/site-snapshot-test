@@ -11,10 +11,12 @@ import os
 import subprocess
 import sys
 import tarfile
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 # This script is streamed to host system Python during remote exports. r5 has
 # Python 3.10, so use timezone.utc instead of the Python 3.11 datetime.UTC alias.
@@ -159,14 +161,18 @@ def build_manifest(
     max_file_bytes: int,
     include_phase3_contracts: bool = False,
     include_network_traces: bool = False,
+    network_trace_task_ids: set[str] | None = None,
+    summarize_network_traces: bool = False,
 ) -> dict[str, Any]:
     root = root.resolve(strict=False)
     if max_file_bytes <= 0:
         raise ValueError("--max-file-bytes must be positive")
+    network_trace_task_ids = network_trace_task_ids or set()
 
     files: dict[str, PlannedFile] = {}
     skipped: list[dict[str, Any]] = []
     missing_runs: list[str] = []
+    network_trace_summaries: list[dict[str, Any]] = []
 
     patterns = [
         *COMPACT_PATTERNS,
@@ -185,6 +191,12 @@ def build_manifest(
                 if not candidate.is_file() or candidate.is_symlink():
                     continue
                 rel_to_run = candidate.relative_to(run_root)
+                if (
+                    pattern in NETWORK_TRACE_PATTERNS
+                    and network_trace_task_ids
+                    and not _network_trace_matches_task(rel_to_run, network_trace_task_ids)
+                ):
+                    continue
                 if _is_excluded(rel_to_run):
                     skipped.append(
                         {
@@ -211,6 +223,20 @@ def build_manifest(
                     sha256=_sha256(candidate),
                 )
 
+        if summarize_network_traces:
+            for pattern in NETWORK_TRACE_PATTERNS:
+                for candidate in run_root.glob(pattern):
+                    if not candidate.is_file() or candidate.is_symlink():
+                        continue
+                    rel_to_run = candidate.relative_to(run_root)
+                    if network_trace_task_ids and not _network_trace_matches_task(
+                        rel_to_run, network_trace_task_ids
+                    ):
+                        continue
+                    network_trace_summaries.append(
+                        summarize_network_trace(candidate, archive_path=candidate.relative_to(root).as_posix())
+                    )
+
     ordered_files = [files[key] for key in sorted(files)]
     return {
         "schema_version": "phase4_compact_artifact_export_v1",
@@ -221,6 +247,12 @@ def build_manifest(
         "max_file_bytes": max_file_bytes,
         "include_phase3_contracts": include_phase3_contracts,
         "include_network_traces": include_network_traces,
+        "network_trace_task_ids": sorted(network_trace_task_ids),
+        "summarize_network_traces": summarize_network_traces,
+        "network_trace_summaries": sorted(
+            network_trace_summaries,
+            key=lambda row: str(row.get("path") or ""),
+        ),
         "file_count": len(ordered_files),
         "total_bytes": sum(item.size for item in ordered_files),
         "files": [
@@ -233,6 +265,83 @@ def build_manifest(
         ],
         "skipped": skipped,
         "missing_runs": missing_runs,
+    }
+
+
+def _network_trace_matches_task(rel_to_run: Path, task_ids: set[str]) -> bool:
+    parts = rel_to_run.parts
+    if len(parts) < 4 or parts[0] != "phase_4" or parts[-1] != "network_trace.json":
+        return False
+    task_dir = parts[2]
+    return any(
+        task_dir == task_id
+        or task_dir.startswith(f"{task_id}_variant_")
+        or task_dir.startswith(f"{task_id}__")
+        for task_id in task_ids
+    )
+
+
+def _base_task_id(task_dir: str) -> str:
+    for marker in ("_variant_", "__"):
+        if marker in task_dir:
+            return task_dir.split(marker, 1)[0]
+    return task_dir
+
+
+def summarize_network_trace(path: Path, *, archive_path: str) -> dict[str, Any]:
+    try:
+        data = _load_json(path)
+    except Exception as exc:
+        return {
+            "path": archive_path,
+            "status": "error",
+            "error": str(exc),
+            "size": path.stat().st_size if path.exists() else None,
+        }
+    if not isinstance(data, list):
+        return {
+            "path": archive_path,
+            "status": "error",
+            "error": "network trace is not a JSON array",
+            "size": path.stat().st_size,
+        }
+    rel = Path(archive_path)
+    task_dir = rel.parent.name
+    urls = [str(item.get("url") or "") for item in data if isinstance(item, dict)]
+    document_events = [
+        item
+        for item in data
+        if isinstance(item, dict)
+        and (item.get("is_document_load") or item.get("resource_type") == "document")
+    ]
+    document_urls = [str(item.get("url") or "") for item in document_events]
+    status_counts = Counter(
+        str(item.get("response_status"))
+        for item in data
+        if isinstance(item, dict) and item.get("response_status") is not None
+    )
+    resource_counts = Counter(
+        str(item.get("resource_type") or "unknown") for item in data if isinstance(item, dict)
+    )
+    host_counts = Counter(urlparse(url).netloc for url in urls if url)
+    return {
+        "path": archive_path,
+        "status": "ok",
+        "size": path.stat().st_size,
+        "task_dir": task_dir,
+        "task_id": _base_task_id(task_dir),
+        "event_count": len(data),
+        "document_load_count": len(document_events),
+        "first_document_url": document_urls[0] if document_urls else None,
+        "last_document_url": document_urls[-1] if document_urls else None,
+        "document_urls": document_urls[:12],
+        "attacker_invalid_requested": any("attacker.invalid" in url for url in urls),
+        "attacker_invalid_document_requested": any(
+            "attacker.invalid" in url for url in document_urls
+        ),
+        "status_counts": dict(sorted(status_counts.items())),
+        "resource_counts": dict(sorted(resource_counts.items())),
+        "host_counts": dict(host_counts.most_common(12)),
     }
 
 
@@ -308,6 +417,8 @@ def _remote_script_args(
     dry_run: bool,
     include_phase3_contracts: bool,
     include_network_traces: bool,
+    network_trace_task_ids: set[str],
+    summarize_network_traces: bool,
 ) -> list[str]:
     args = [
         "--root",
@@ -325,6 +436,10 @@ def _remote_script_args(
         args.append("--include-phase3-contracts")
     if include_network_traces:
         args.append("--include-network-traces")
+    if summarize_network_traces:
+        args.append("--summarize-network-traces")
+    for task_id in sorted(network_trace_task_ids):
+        args.extend(["--network-trace-task-id", task_id])
     return args
 
 
@@ -340,6 +455,8 @@ def run_remote_export(
     overwrite: bool,
     include_phase3_contracts: bool,
     include_network_traces: bool,
+    network_trace_task_ids: set[str],
+    summarize_network_traces: bool,
 ) -> int:
     config = _parse_host_config(host_config_path)
     remote_root = _remote_dir_from_config(config, remote_dir)
@@ -367,6 +484,8 @@ def run_remote_export(
             dry_run=dry_run,
             include_phase3_contracts=include_phase3_contracts,
             include_network_traces=include_network_traces,
+            network_trace_task_ids=network_trace_task_ids,
+            summarize_network_traces=summarize_network_traces,
         ),
     ]
     source = Path(__file__).read_bytes()
@@ -402,6 +521,8 @@ def run_local_export(
     overwrite: bool,
     include_phase3_contracts: bool,
     include_network_traces: bool,
+    network_trace_task_ids: set[str],
+    summarize_network_traces: bool,
 ) -> int:
     manifest = build_manifest(
         root,
@@ -409,6 +530,8 @@ def run_local_export(
         max_file_bytes=max_file_bytes,
         include_phase3_contracts=include_phase3_contracts,
         include_network_traces=include_network_traces,
+        network_trace_task_ids=network_trace_task_ids,
+        summarize_network_traces=summarize_network_traces,
     )
     if dry_run:
         print(json.dumps(manifest, indent=2, sort_keys=True))
@@ -475,6 +598,20 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Include network_trace.json files; these can be tens of MB per task.",
     )
+    parser.add_argument(
+        "--network-trace-task-id",
+        action="append",
+        default=[],
+        help=(
+            "When including network traces, limit them to this task id and its "
+            "variant/retry task directories. Repeatable."
+        ),
+    )
+    parser.add_argument(
+        "--summarize-network-traces",
+        action="store_true",
+        help="Add compact network trace summaries to the export manifest.",
+    )
     parser.add_argument("--overwrite", action="store_true", help="Allow non-empty output dir.")
     parser.add_argument("--dry-run", action="store_true", help="Print the remote/local manifest.")
     parser.add_argument(
@@ -506,6 +643,8 @@ def main(argv: list[str] | None = None) -> int:
                 overwrite=args.overwrite,
                 include_phase3_contracts=args.include_phase3_contracts,
                 include_network_traces=args.include_network_traces,
+                network_trace_task_ids=set(args.network_trace_task_id),
+                summarize_network_traces=args.summarize_network_traces,
             )
         return run_local_export(
             root=args.root or Path.cwd(),
@@ -517,6 +656,8 @@ def main(argv: list[str] | None = None) -> int:
             overwrite=args.overwrite,
             include_phase3_contracts=args.include_phase3_contracts,
             include_network_traces=args.include_network_traces,
+            network_trace_task_ids=set(args.network_trace_task_id),
+            summarize_network_traces=args.summarize_network_traces,
         )
     except Exception as exc:
         print(f"error: {exc}", file=sys.stderr)
