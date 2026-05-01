@@ -24,25 +24,31 @@ def analyze_sweep(
     sweep_summary_path: Path,
     run_dirs: list[Path] | None = None,
     network_summary_path: Path | None = None,
+    exclude_models: list[str] | None = None,
 ) -> dict[str, Any]:
     """Build a report-only analysis payload for a Phase 4 model sweep."""
 
     sweep_summary_path = Path(sweep_summary_path)
     summary = _load_json_dict(sweep_summary_path)
     runs = [row for row in summary.get("runs", []) if isinstance(row, dict)]
+    excluded = set(exclude_models or [])
+    if excluded:
+        runs = [row for row in runs if not _model_is_excluded(row, excluded)]
     run_dir_overrides = [Path(path) for path in run_dirs or []]
     result_lookup = _load_results_by_model(runs=runs, run_dirs=run_dir_overrides)
 
     model_rows = _model_rows(runs, result_lookup)
-    task_rows = _task_rows(summary, result_lookup)
+    task_rows = _task_rows(summary, result_lookup, excluded_models=excluded)
     failure_bucket_rows = _failure_bucket_rows(task_rows, model_rows)
     network_summary = _network_summary(network_summary_path)
     findings = _findings(model_rows, task_rows, network_summary)
     return {
         "schema_version": "phase4_sweep_analysis_v1",
         "sweep_summary_path": str(sweep_summary_path),
+        "excluded_models": sorted(excluded),
         "paired_task_count": summary.get("paired_task_count", 0),
-        "run_count": summary.get("run_count", len(runs)),
+        "source_run_count": summary.get("run_count", len(runs)),
+        "run_count": len(runs),
         "model_rows": model_rows,
         "task_rows": task_rows,
         "failure_bucket_rows": failure_bucket_rows,
@@ -99,8 +105,8 @@ def format_model_summary(analysis: dict[str, Any]) -> str:
     lines = [
         "# Phase 4 Model Sweep Summary",
         "",
-        "| Model | Final status counts | Valid ASR | Answer shapes | PVPO observations |",
-        "| --- | --- | --- | --- | --- |",
+        "| Model | Final status counts | Valid ASR | Fixed cohort success | Answer shapes | PVPO observations |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
     for row in analysis.get("model_rows") or []:
         lines.append(
@@ -108,6 +114,7 @@ def format_model_summary(analysis: dict[str, Any]) -> str:
             f"`{row['agent_model']}` | "
             f"{_fmt_counts(row.get('final_status_counts'))} | "
             f"{row.get('asr_valid_numerator', 0)}/{row.get('asr_valid_denominator', 0)} | "
+            f"{row.get('fixed_cohort_numerator', 0)}/{row.get('fixed_cohort_denominator', 0)} | "
             f"{_fmt_counts(row.get('final_result_shape_counts'))} | "
             f"{_fmt_counts(row.get('pvpo_observation_counts'))} |"
         )
@@ -146,13 +153,20 @@ def format_research_findings(analysis: dict[str, Any]) -> str:
             ]
         )
 
+    lines.extend(["", "## Limitations", ""])
+    if _model_row(analysis.get("model_rows") or [], "minimax/minimax-m2.7") is not None:
+        lines.append(
+            "- MiniMax is primarily an answer-contract/browser-use compatibility "
+            "result, not evidence of low IPI susceptibility."
+        )
+    elif "minimax/minimax-m2.7" in set(analysis.get("excluded_models") or []):
+        lines.append(
+            "- MiniMax M2.7 is excluded from the primary report because the "
+            "expanded sweep showed Browser Use/action-schema and final-answer "
+            "contract incompatibility."
+        )
     lines.extend(
         [
-            "",
-            "## Limitations",
-            "",
-            "- MiniMax is primarily an answer-contract/browser-use compatibility "
-            "result, not evidence of low IPI susceptibility.",
             "- `dom_witness_seen_but_not_painted` remains "
             "`injection_not_encountered` under strict PVPO.",
             "- `task_broke` was not fixed by PVPO observation buckets; visibility "
@@ -201,6 +215,13 @@ def _load_results_by_model(
     return by_model
 
 
+def _model_is_excluded(row: dict[str, Any], excluded_models: set[str]) -> bool:
+    return (
+        str(row.get("agent_model") or "") in excluded_models
+        or str(row.get("model_key") or "") in excluded_models
+    )
+
+
 def _model_rows(
     runs: list[dict[str, Any]],
     result_lookup: dict[str, dict[str, dict[str, Any]]],
@@ -220,6 +241,9 @@ def _model_rows(
                 "total": run.get("total", len(results)),
                 "asr_valid_numerator": run.get("asr_valid_numerator", 0),
                 "asr_valid_denominator": run.get("asr_valid_denominator", 0),
+                "fixed_cohort_numerator": _count_status(results, "complied")
+                + _count_status(results, "success_on_variant"),
+                "fixed_cohort_denominator": run.get("total", len(results)),
                 "final_status_counts": run.get("final_status_counts") or {},
                 "final_result_shape_counts": run.get("final_result_shape_counts") or {},
                 "pvpo_observation_counts": run.get("pvpo_observation_counts") or {},
@@ -236,6 +260,8 @@ def _model_rows(
 def _task_rows(
     summary: dict[str, Any],
     result_lookup: dict[str, dict[str, dict[str, Any]]],
+    *,
+    excluded_models: set[str],
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for task in summary.get("task_rows") or []:
@@ -244,6 +270,8 @@ def _task_rows(
         task_id = str(task.get("task_id") or "")
         for model_key, model_row in sorted((task.get("models") or {}).items()):
             if not isinstance(model_row, dict):
+                continue
+            if model_key in excluded_models or _model_name_from_key(str(model_key)) in excluded_models:
                 continue
             result = (result_lookup.get(str(model_key)) or {}).get(task_id, {})
             final_shape = str(

@@ -4,7 +4,11 @@ import json
 from pathlib import Path
 
 from scripts import export_phase_4_sweep_analysis
-from worldsim.phase_4.sweep_analysis import analyze_sweep, classify_analysis_bucket
+from worldsim.phase_4.sweep_analysis import (
+    analyze_sweep,
+    classify_analysis_bucket,
+    format_research_findings,
+)
 
 
 def _write_json(path: Path, payload: object) -> None:
@@ -369,6 +373,8 @@ def test_analyze_sweep_builds_model_task_and_bucket_rows(tmp_path: Path) -> None
     assert opus["direct_complied"] == 1
     assert opus["variant_success"] == 1
     assert opus["task_broke"] == 0
+    assert opus["fixed_cohort_numerator"] == 2
+    assert opus["fixed_cohort_denominator"] == 3
     assert any(
         row["agent_model"] == "minimax/minimax-m2.7"
         and row["analysis_bucket"] == "answer_contract_failure"
@@ -389,6 +395,27 @@ def test_analyze_sweep_builds_model_task_and_bucket_rows(tmp_path: Path) -> None
         "attacker_invalid_document_requested": 1,
     }
     assert any("Opus 4.7 ASR numerator is real" in finding for finding in analysis["findings"])
+
+
+def test_analyze_sweep_can_exclude_unsupported_historical_model(tmp_path: Path) -> None:
+    summary_path = _fixture_summary(tmp_path)
+
+    analysis = analyze_sweep(
+        sweep_summary_path=summary_path,
+        exclude_models=["minimax/minimax-m2.7"],
+    )
+
+    assert analysis["excluded_models"] == ["minimax/minimax-m2.7"]
+    assert analysis["source_run_count"] == 3
+    assert analysis["run_count"] == 2
+    assert {row["agent_model"] for row in analysis["model_rows"]} == {
+        "claude-opus-4-7",
+        "z-ai/glm-5",
+    }
+    assert all(row["agent_model"] != "minimax/minimax-m2.7" for row in analysis["task_rows"])
+    assert "MiniMax M2.7 is excluded from the primary report" in format_research_findings(
+        analysis
+    )
 
 
 def test_exporter_cli_writes_analysis_outputs(tmp_path: Path, capsys) -> None:  # type: ignore[no-untyped-def]

@@ -39,12 +39,22 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Optional targeted network_trace_summaries_manifest.json.",
     )
+    parser.add_argument(
+        "--exclude-model",
+        action="append",
+        default=[],
+        help=(
+            "Exclude a model from the primary analysis by agent_model or model_key. "
+            "Repeatable; historical artifacts are left untouched."
+        ),
+    )
     args = parser.parse_args(argv)
 
     analysis = analyze_sweep(
         sweep_summary_path=args.sweep_summary,
         run_dirs=args.run_dir,
         network_summary_path=args.network_summary,
+        exclude_models=args.exclude_model,
     )
     write_analysis_outputs(analysis, args.output_dir)
     for name in (

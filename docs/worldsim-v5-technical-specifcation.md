@@ -268,7 +268,7 @@ On crash, `--resume` reads this file and applies two-branch logic:
 
 - `--agent-model <name>` (default `claude-sonnet-4-6`): LLM used by Browser Use in Phase 4.
 - `--agent-llm-timeout <seconds>` / `--agent-step-timeout <seconds>`: optional Phase 4 Browser Use runtime deadlines. These are execution controls, not task filters; changing them changes the model-run condition and is recorded in Phase 4 state/resume fingerprints.
-- `--agent-provider {google,openai,anthropic,openrouter}`: provider for the agent model. Auto-detected when omitted. Slash-qualified OpenRouter model IDs such as `z-ai/glm-5` and `minimax/minimax-m2.7` are treated as OpenRouter; Claude-family OpenRouter IDs such as `anthropic/claude-sonnet-4.6` are routed over OpenRouter's Anthropic-compatible endpoint. Operational OpenRouter Browser Use smoke results are tracked in `docs/phase4-openrouter-agent-model-smoke.md`.
+- `--agent-provider {google,openai,anthropic,openrouter}`: provider for the agent model. Auto-detected when omitted. Slash-qualified OpenRouter model IDs such as `z-ai/glm-5` and `google/gemini-2.5-pro` are treated as OpenRouter; Claude-family OpenRouter IDs such as `anthropic/claude-sonnet-4.6` are routed over OpenRouter's Anthropic-compatible endpoint. Operational OpenRouter Browser Use smoke results are tracked in `docs/phase4-openrouter-agent-model-smoke.md`.
 - `--sandbox-model <name>` (default `claude-sonnet-4-6`): Claude model used inside Modal sandboxes (Phase 0c, Phase 1 generate-new-tasks) and as the model-family knob for host-side Claude API calls.
 
 **Phase 1**:

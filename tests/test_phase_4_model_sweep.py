@@ -35,17 +35,15 @@ def test_config_parses_completed_run_and_remaining_model_order() -> None:
         "glm5",
         "gemini25pro",
         "kimi-k25",
-        "minimax-m27",
     ]
     assert [model.key for model in sweep.select_models(config, start_at="glm5")] == [
         "glm5",
         "gemini25pro",
         "kimi-k25",
-        "minimax-m27",
     ]
-    assert [model.key for model in sweep.select_models(config, only=["minimax-m27", "glm5"])] == [
+    assert [model.key for model in sweep.select_models(config, only=["kimi-k25", "glm5"])] == [
         "glm5",
-        "minimax-m27",
+        "kimi-k25",
     ]
 
 
@@ -137,10 +135,10 @@ def test_retry_budget_and_completed_run_serialize_in_dry_run() -> None:
 
     assert payload["completed_runs"][0]["key"] == "gpt52"
     assert payload["completed_runs"][0]["service_tier"] == "priority"
-    assert payload["runs"][0]["key"] == "minimax-m27"
+    assert payload["runs"][0]["key"] == "kimi-k25"
     assert payload["runs"][0]["retry_budget"] == 3
     assert payload["runs"][0]["run_dir"] == (
-        "logs/phase4_deadlines_minimax-m27_16ps_20260501T010203Z"
+        "logs/phase4_deadlines_kimi-k25_16ps_20260501T010203Z"
     )
 
 

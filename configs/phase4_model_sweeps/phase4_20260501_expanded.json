@@ -54,12 +54,6 @@
       "provider": "openrouter",
       "model": "moonshotai/kimi-k2.5",
       "retry_budget": 3
-    },
-    {
-      "key": "minimax-m27",
-      "provider": "openrouter",
-      "model": "minimax/minimax-m2.7",
-      "retry_budget": 3
     }
   ]
 }

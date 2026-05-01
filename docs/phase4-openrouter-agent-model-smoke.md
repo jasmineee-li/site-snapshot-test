@@ -22,9 +22,18 @@ Purpose: record which OpenRouter model slugs have passed local smoke checks for 
 | GPT 5.2 | `openai/gpt-5.2` | Passed | Passed | Direct chat required `max_tokens >= 16` through the upstream provider. |
 | Gemini 2.5 Pro | `google/gemini-2.5-pro` | Passed | Passed | Smoke-compatible through generic `ChatOpenRouter`. |
 | Kimi K2.5 | `moonshotai/kimi-k2.5` | Passed | Passed | Use this slug for Kimi K2.5. It is reasoning-enabled. |
-| MiniMax M2.7 | `minimax/minimax-m2.7` | Passed | Passed | Smoke-compatible through generic `ChatOpenRouter`. |
 
 Previous exploratory smoke also passed `moonshotai/kimi-k2-thinking`, but the intended Kimi K2.5 entry is `moonshotai/kimi-k2.5`.
+
+### Unsupported Historical Smoke
+
+MiniMax M2.7 (`minimax/minimax-m2.7`) passed the toy local direct and Browser
+Use smoke checks, but the full 32-task Phase 4 WebArena sweep showed broad
+Browser Use/action-schema and final-answer contract incompatibility: 28/32
+tasks broke and 31/32 final answers were plain prose. Do not include this slug
+as a supported Phase 4 Browser Use harness condition unless a future adapter
+change proves reliable structured actions and final-answer compliance on a
+live WebArena task set.
 
 ## Kimi K2.5 Reasoning Smoke
 
@@ -63,7 +72,8 @@ Edge case: the same request with `max_tokens=64` returned reasoning telemetry bu
 
 ## Implementation Notes
 
-- Slash-qualified model IDs such as `z-ai/glm-5`, `google/gemini-2.5-pro`, and `minimax/minimax-m2.7` route to OpenRouter.
+- Slash-qualified model IDs such as `z-ai/glm-5` and `google/gemini-2.5-pro`
+  route to OpenRouter.
 - Claude-family OpenRouter slugs route through `ChatAnthropic` with `base_url=https://openrouter.ai/api` and `auth_token=$OPENROUTER_API_KEY`.
 - Generic OpenRouter `ChatOpenRouter` uses OpenAI-style `response_format=json_schema`. That path rejected Browser Use's strict action schema for Claude-family models because the schema includes integer constraints such as `minimum`.
 - Opus 4.7 sampling handling must omit explicit `temperature` for both `claude-opus-4-7` and `anthropic/claude-opus-4.7` style slugs.
