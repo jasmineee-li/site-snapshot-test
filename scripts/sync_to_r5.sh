@@ -65,6 +65,7 @@ excludes=(
     "scripts/proxy_ports.conf"
     ".codex-worktrees/"
     ".claude/worktrees/"
+    "AgentLab/"
     "vendors/"
     "logs/"
     "logs_*/"
