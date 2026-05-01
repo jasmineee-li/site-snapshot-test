@@ -76,8 +76,12 @@ _PVPO_CDP_TIMEOUT_DEFAULT_S = 10.0
 _PVPO_SCROLL_ACTION_TIMEOUT_ENV = "WORLDSIM_PVPO_SCROLL_ACTION_TIMEOUT_S"
 _PVPO_SCROLL_ACTION_TIMEOUT_DEFAULT_S = 1.0
 _PVPO_SCROLL_EPSILON_PX = 1.0
+_PVPO_NAVIGATION_TICK_INTERVAL_ENV = "WORLDSIM_PVPO_NAVIGATION_TICK_MS"
+_PVPO_NAVIGATION_TICK_DEFAULT_MS = 50.0
+_PVPO_NAVIGATION_TICK_STOP_GRACE_S = 2.0
 _PVPO_SCREENSHOT_PATCHED = False
 _PVPO_SCROLL_PATCHED = False
+_PVPO_NAVIGATION_TICK_PATCHED = False
 _TRANSPARENT_PNG_BASE64 = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
 )
@@ -1337,6 +1341,28 @@ def _pvpo_scroll_action_timeout_s() -> float:
     return timeout_s
 
 
+def _pvpo_navigation_tick_interval_s() -> float:
+    raw = os.environ.get(_PVPO_NAVIGATION_TICK_INTERVAL_ENV, "").strip()
+    env_name = _PVPO_NAVIGATION_TICK_INTERVAL_ENV
+    if not raw:
+        # Keep the original emergency kill switch meaningful during the
+        # transition away from the always-on sidecar pump.
+        raw = os.environ.get("WORLDSIM_PVPO_FRAME_PUMP_MS", "").strip()
+        env_name = "WORLDSIM_PVPO_FRAME_PUMP_MS"
+    if not raw:
+        return _PVPO_NAVIGATION_TICK_DEFAULT_MS / 1000.0
+    try:
+        return float(raw) / 1000.0
+    except ValueError:
+        logger.warning(
+            "%s=%r is not a number; using default %.0fms",
+            env_name,
+            raw,
+            _PVPO_NAVIGATION_TICK_DEFAULT_MS,
+        )
+        return _PVPO_NAVIGATION_TICK_DEFAULT_MS / 1000.0
+
+
 def _install_pvpo_beginframe_screenshot_patch() -> None:
     """Patch Browser Use screenshots for begin-frame-controlled PVPO sessions.
 
@@ -1394,6 +1420,173 @@ def _install_pvpo_scroll_patch() -> None:
     _worldsim_scroll_with_pvpo_fallback.__name__ = "_scroll_with_cdp_gesture"
     DefaultActionWatchdog._scroll_with_cdp_gesture = _worldsim_scroll_with_pvpo_fallback
     _PVPO_SCROLL_PATCHED = True
+
+
+def _install_pvpo_navigation_tick_patch() -> None:
+    """Patch Browser Use navigation to tick begin-frame-controlled PVPO pages.
+
+    Browser Use waits for lifecycle events after ``Page.navigate``. In
+    ``chrome-headless-shell --enable-begin-frame-control`` those events can
+    stall unless the harness sends compositor frames. The old always-on pump
+    solved navigation but could race later PVPO screenshots. This patch scopes
+    the ticks to Browser Use's own navigation wait, which is the only period
+    that needs a synthetic clock.
+    """
+    global _PVPO_NAVIGATION_TICK_PATCHED
+    if _PVPO_NAVIGATION_TICK_PATCHED:
+        return
+
+    from browser_use.browser.session import BrowserSession
+
+    original = BrowserSession._navigate_and_wait
+
+    async def _worldsim_navigate_and_tick_pvpo(
+        self: Any,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        if not getattr(self, "cdp_url", None):
+            return await original(self, *args, **kwargs)
+
+        from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator
+
+        target_id = kwargs.get("target_id")
+        if target_id is None and len(args) >= 2:
+            target_id = args[1]
+        coordinator = getattr(self, "_worldsim_pvpo_beginframe_controller", None)
+        interval_s = _pvpo_navigation_tick_interval_s()
+        if (
+            not isinstance(coordinator, BeginFrameCoordinator)
+            or interval_s <= 0
+            or not isinstance(target_id, str)
+            or not target_id
+        ):
+            return await original(self, *args, **kwargs)
+
+        _increment_session_counter(self, "_worldsim_pvpo_navigation_tick_navigations")
+        stop = asyncio.Event()
+        tick_task = asyncio.create_task(
+            _pvpo_navigation_tick_loop(
+                self,
+                target_id=target_id,
+                stop=stop,
+                coordinator=coordinator,
+                interval_s=interval_s,
+            ),
+            name="worldsim-pvpo-navigation-tick",
+        )
+        try:
+            return await original(self, *args, **kwargs)
+        finally:
+            await _stop_pvpo_navigation_tick(
+                self,
+                tick_task=tick_task,
+                stop=stop,
+                coordinator=coordinator,
+            )
+
+    _worldsim_navigate_and_tick_pvpo.__name__ = "_navigate_and_wait"
+    BrowserSession._navigate_and_wait = _worldsim_navigate_and_tick_pvpo
+    _PVPO_NAVIGATION_TICK_PATCHED = True
+
+
+async def _pvpo_navigation_tick_loop(
+    browser_session: Any,
+    *,
+    target_id: str,
+    stop: asyncio.Event,
+    coordinator: Any,
+    interval_s: float,
+) -> None:
+    from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator, BeginFrameTimeout
+    from worldsim.phase_4.pvpo_cdp import normalize_cdp_session
+
+    if not isinstance(coordinator, BeginFrameCoordinator):
+        return
+    timeout_s = _pvpo_cdp_timeout_s()
+    while not stop.is_set():
+        try:
+            capturing = getattr(browser_session, "_worldsim_pvpo_capturing_event", None)
+            if isinstance(capturing, asyncio.Event) and capturing.is_set():
+                _increment_session_counter(
+                    browser_session,
+                    "_worldsim_pvpo_navigation_tick_skipped_captures",
+                )
+            else:
+                cdp_session = await browser_session.get_or_create_cdp_session(
+                    target_id=target_id,
+                    focus=False,
+                )
+                await coordinator.send(
+                    normalize_cdp_session(cdp_session),
+                    {},
+                    timeout_s=timeout_s,
+                    label="navigation-tick",
+                )
+                _increment_session_counter(
+                    browser_session,
+                    "_worldsim_pvpo_navigation_tick_frames",
+                )
+        except asyncio.CancelledError:
+            raise
+        except BeginFrameTimeout as exc:
+            _increment_session_counter(
+                browser_session,
+                "_worldsim_pvpo_navigation_tick_timeouts",
+            )
+            coordinator.mark_dirty(f"pvpo navigation beginFrame tick timed out: {exc}")
+            logger.debug("pvpo navigation tick: beginFrame timed out: %s", exc)
+            return
+        except Exception as exc:
+            _increment_session_counter(
+                browser_session,
+                "_worldsim_pvpo_navigation_tick_failures",
+            )
+            logger.debug("pvpo navigation tick: beginFrame failed: %s", exc)
+
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=interval_s)
+        except TimeoutError:
+            pass
+
+
+async def _stop_pvpo_navigation_tick(
+    browser_session: Any,
+    *,
+    tick_task: asyncio.Task[Any],
+    stop: asyncio.Event,
+    coordinator: Any,
+) -> None:
+    if tick_task.done():
+        with suppress(asyncio.CancelledError, Exception):
+            await tick_task
+        return
+
+    stop.set()
+    try:
+        await asyncio.wait_for(asyncio.shield(tick_task), timeout=_PVPO_NAVIGATION_TICK_STOP_GRACE_S)
+    except TimeoutError:
+        _increment_session_counter(
+            browser_session,
+            "_worldsim_pvpo_navigation_tick_stop_timeouts",
+        )
+        reason = (
+            "pvpo navigation beginFrame tick did not stop after "
+            f"{_PVPO_NAVIGATION_TICK_STOP_GRACE_S:.2f}s"
+        )
+        mark_dirty = getattr(coordinator, "mark_dirty", None)
+        if callable(mark_dirty):
+            mark_dirty(reason)
+        tick_task.cancel()
+        with suppress(asyncio.CancelledError, Exception):
+            await tick_task
+    except asyncio.CancelledError:
+        tick_task.cancel()
+        with suppress(asyncio.CancelledError, Exception):
+            await tick_task
+        raise
+    except Exception as exc:
+        logger.debug("pvpo navigation tick: teardown raised: %s", exc)
 
 
 async def _pvpo_scroll_with_wheel_fallback(watchdog: Any, pixels: int) -> bool:
@@ -2107,6 +2300,7 @@ class BrowserUseAgent:
             session_kwargs["cdp_url"] = resolved_pvpo_cdp_url
             _install_pvpo_beginframe_screenshot_patch()
             _install_pvpo_scroll_patch()
+            _install_pvpo_navigation_tick_patch()
             from worldsim.phase_4.pvpo_beginframe import pvpo_endpoint_lease
 
             pvpo_endpoint_lease_cm = pvpo_endpoint_lease(resolved_pvpo_cdp_url)
@@ -2201,22 +2395,13 @@ class BrowserUseAgent:
             await network_recorder.start()
 
             initial_actions = _build_initial_actions(start_urls or [])
-            # Per-session HeadlessExperimental.beginFrame pump. Required when
-            # Chrome is launched with --enable-begin-frame-control (PVPO
-            # rigor): browser-use 0.12.6 never issues beginFrame, so without
-            # this pump step-1 navigation stalls the compositor and times
-            # out. Pump is gated off during atomic PVPO capture via the
-            # yielded ``capturing`` Event so the capture remains atomic.
+            # ``frame_pump`` now owns only the shared capture event/coordinator
+            # context in production. Browser Use navigation gets compositor
+            # frames from the PVPO navigation-tick patch above, scoped to
+            # _navigate_and_wait instead of a broad background clock.
             from worldsim.phase_4.pvpo_frame_pump import frame_pump
 
-            # Keep the pump active for every PVPO-controlled Chrome session.
-            # Even when Browser Use is non-vision and no screenshots are sent
-            # to the agent, its native navigation and scroll actions use CDP
-            # input/lifecycle events that still require compositor frames under
-            # --enable-begin-frame-control. PVPO's atomic capture remains
-            # serialized by the yielded lock/event rather than by disabling the
-            # session clock between captures.
-            frame_pump_interval_s = None if resolved_pvpo_cdp_url else 0.0
+            frame_pump_interval_s = 0.0
             async with frame_pump(self._session, interval_s=frame_pump_interval_s) as capturing:
                 self._session._worldsim_pvpo_beginframe_lock = getattr(
                     capturing, "beginframe_lock", None
@@ -2319,6 +2504,12 @@ class BrowserUseAgent:
             "_worldsim_pvpo_scroll_js_failures",
             "_worldsim_pvpo_scroll_js_noops",
             "_worldsim_pvpo_scroll_failures",
+            "_worldsim_pvpo_navigation_tick_navigations",
+            "_worldsim_pvpo_navigation_tick_frames",
+            "_worldsim_pvpo_navigation_tick_failures",
+            "_worldsim_pvpo_navigation_tick_timeouts",
+            "_worldsim_pvpo_navigation_tick_stop_timeouts",
+            "_worldsim_pvpo_navigation_tick_skipped_captures",
         )
         for name in counter_names:
             value = getattr(self._session, name, 0)

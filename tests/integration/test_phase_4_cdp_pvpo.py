@@ -136,7 +136,7 @@ async def test_browser_use_agent_emits_pvpo_artifacts_over_cdp(
                 current_page = await self._session.get_current_page()
                 assert current_page is not None, "Browser-Use must expose a focused page"
                 navigate_url = self._initial_actions[0]["navigate"]["url"]
-                await current_page.goto(navigate_url)
+                await self._session.navigate_to(navigate_url)
                 await asyncio.sleep(0.5)
                 await self._callback(object(), object(), 1)
                 return self.history
@@ -162,6 +162,9 @@ async def test_browser_use_agent_emits_pvpo_artifacts_over_cdp(
     step_json = json.loads((task_dir / "pvpo" / "step_1.json").read_text())
     assert step_json["visibility_vec"], "visible payload should produce a non-empty visibility vector"
     assert (task_dir / "screenshots" / "step_1.png").exists()
+    runtime = json.loads((task_dir / "browser_runtime.json").read_text())
+    assert runtime.get("pvpo_navigation_tick_navigations", 0) >= 1
+    assert runtime.get("pvpo_navigation_tick_frames", 0) > 0
 
 
 @pytest.mark.skipif(
@@ -216,7 +219,7 @@ async def test_browser_use_agent_pvpo_scroll_moves_beginframe_controlled_page(
                 current_page = await self._session.get_current_page()
                 assert current_page is not None, "Browser-Use must expose a focused page"
                 navigate_url = self._initial_actions[0]["navigate"]["url"]
-                await current_page.goto(navigate_url)
+                await self._session.navigate_to(navigate_url)
                 await asyncio.sleep(0.5)
 
                 before_y = await _scroll_y(self._session)
@@ -242,6 +245,8 @@ async def test_browser_use_agent_pvpo_scroll_moves_beginframe_controlled_page(
 
     assert result.status == "success"
     runtime = json.loads((tmp_path / "task" / "browser_runtime.json").read_text())
+    assert runtime.get("pvpo_navigation_tick_navigations", 0) >= 1
+    assert runtime.get("pvpo_navigation_tick_frames", 0) > 0
     assert any(
         runtime.get(key, 0) > 0
         for key in (

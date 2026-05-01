@@ -132,6 +132,7 @@ def summarize_browser_runtime(results: list[dict[str, Any]], *, results_path: Pa
     seen_paths: set[Path] = set()
     scroll_counters: Counter[str] = Counter()
     beginframe_counters: Counter[str] = Counter()
+    navigation_tick_counters: Counter[str] = Counter()
     traces_scanned = 0
     for result in results:
         for trace_dir in _trace_dir_values(result):
@@ -154,11 +155,14 @@ def summarize_browser_runtime(results: list[dict[str, Any]], *, results_path: Pa
                         scroll_counters[key] += value
                     elif isinstance(key, str) and key.startswith("pvpo_beginframe_"):
                         beginframe_counters[key] += value
+                    elif isinstance(key, str) and key.startswith("pvpo_navigation_tick_"):
+                        navigation_tick_counters[key] += value
     return {
         "traces_scanned": traces_scanned,
         "runtime_artifacts": len(seen_paths),
         "pvpo_scroll_counters": dict(sorted(scroll_counters.items())),
         "pvpo_beginframe_counters": dict(sorted(beginframe_counters.items())),
+        "pvpo_navigation_tick_counters": dict(sorted(navigation_tick_counters.items())),
     }
 
 
@@ -325,6 +329,11 @@ def format_text_summary(
         pvpo_beginframe_counters = browser_runtime.get("pvpo_beginframe_counters")
         if isinstance(pvpo_beginframe_counters, dict) and pvpo_beginframe_counters:
             lines.append(f"  PVPO beginFrame: {_fmt_count_map(pvpo_beginframe_counters)}")
+        pvpo_navigation_tick_counters = browser_runtime.get("pvpo_navigation_tick_counters")
+        if isinstance(pvpo_navigation_tick_counters, dict) and pvpo_navigation_tick_counters:
+            lines.append(
+                f"  PVPO navigation ticks: {_fmt_count_map(pvpo_navigation_tick_counters)}"
+            )
 
     rows = summary.get("by_site_surface_editor_status") or []
     if rows:

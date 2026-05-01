@@ -1,6 +1,9 @@
 # Upstream browser-use PR — `on_navigation_tick` hook
 
-**Status:** draft, ready-to-submit. Not applied to our tree — we ship the equivalent behavior via `worldsim/phase_4/pvpo_frame_pump.py` in the meantime.
+**Status:** draft, ready-to-submit. Not applied upstream. WorldSim ships the equivalent
+behavior locally in `worldsim/browser_use_agent.py` by patching
+`BrowserSession._navigate_and_wait`; `worldsim/phase_4/pvpo_frame_pump.py` now only
+provides the shared capture event/coordinator context in production.
 
 **Target repo:** https://github.com/browser-use/browser-use (the package we pin via `pyproject.toml`).
 
@@ -112,7 +115,13 @@ against `--enable-begin-frame-control`.
 
 Once this lands upstream and our `pyproject.toml` bumps to a `browser-use` version containing it:
 
-1. Replace the body of `worldsim/phase_4/pvpo_frame_pump.py::frame_pump` with a thin wrapper that passes `_pump_once` as `navigation_tick_cb` on the `BrowserSession` kwargs.
-2. Keep the `WORLDSIM_PVPO_FRAME_PUMP_MS=0` kill switch: map that to the upstream `navigation_tick_interval_s=0` (or pass `navigation_tick_cb=None`) for parity.
-3. Once the new code path is confirmed green on a rigor run, delete `_pump_loop` / `_pump_once` and leave only the wrapper; the test file under `tests/test_phase_4_pvpo_frame_pump.py` can be pruned to the subset that exercises `_resolve_interval_s` behavior.
-4. After two green rigor runs on the upstream path, delete the shim entirely.
+1. Replace WorldSim's local `_navigate_and_wait` patch with the upstream
+   `navigation_tick_cb` kwarg and pass the same beginFrame callback through
+   `BrowserSession(...)`.
+2. Keep the `WORLDSIM_PVPO_FRAME_PUMP_MS=0` kill switch: map that to the
+   upstream `navigation_tick_interval_s=0` (or pass `navigation_tick_cb=None`)
+   for parity.
+3. Once the upstream path is confirmed green on a rigor run, delete `_pump_loop`
+   / `_pump_once` and leave `frame_pump` as the capture-context wrapper only.
+4. After two green rigor runs on the upstream path, delete the monkey-patch shim
+   entirely.

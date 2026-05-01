@@ -191,11 +191,11 @@ async def atomic_capture_with_visibility(
             normalized-substring matches these against text nodes in the DOM
             to locate the rendered payload — no HTML wrapper or data-attribute
             is required.
-        capturing: optional :class:`asyncio.Event` shared with the
-            per-session frame pump (:mod:`worldsim.phase_4.pvpo_frame_pump`)
-            so the pump pauses its own ``beginFrame`` ticks while this
-            atomic capture is in flight. Set on entry, cleared in
-            ``finally`` regardless of success.
+        capturing: optional :class:`asyncio.Event` shared with the Browser-Use
+            PVPO compatibility layer. It marks atomic capture as active so any
+            scoped beginFrame ticker can stand down, and it carries the
+            endpoint coordinator used to serialize screenshot beginFrames. Set
+            on entry, cleared in ``finally`` regardless of success.
         cdp_timeout_s: optional timeout applied to each CDP command. The
             Phase 4 Browser-Use callback sets this so saturated hosts degrade
             PVPO capture instead of spending the whole 180s Browser-Use step.
@@ -230,10 +230,12 @@ async def atomic_capture_with_visibility(
                 f"PVPO CDP {method} timed out after {cdp_timeout_s:.2f}s"
             ) from exc
 
-    # The pump attaches a BeginFrameCoordinator to the capturing Event so the
-    # atomic capture and the pump can serialize and drain beginFrame calls.
-    # Older callers that passed only a bare Event/lock still work; they just
-    # don't get timeout-safe pending-frame draining.
+    # The Browser-Use PVPO compatibility context attaches a
+    # BeginFrameCoordinator to the capturing Event so atomic capture,
+    # navigation ticks, and Browser-Use screenshot fallbacks share one
+    # timeout-safe beginFrame serialization path. Older callers that passed
+    # only a bare Event/lock still work; they just don't get pending-frame
+    # draining.
     beginframe_controller = (
         getattr(capturing, "beginframe_controller", None) if capturing is not None else None
     )

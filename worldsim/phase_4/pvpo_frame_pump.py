@@ -1,4 +1,4 @@
-"""Per-session ``HeadlessExperimental.beginFrame`` pump.
+"""PVPO beginFrame capture context plus legacy sidecar pump.
 
 Chrome launched with ``--enable-begin-frame-control`` issues frames only over
 the DevTools Protocol (see ``headless/public/switches.h``:
@@ -8,14 +8,16 @@ compositor stalls on the first navigation — no frames, no lifecycle events,
 no completion. PVPO's per-step capture would drive the compositor, but it
 runs *after* the agent step and therefore cannot help step 1.
 
-This module drives a minimal side-effect-only ``beginFrame`` at a short
-interval from a background task tied to the agent session. It is gated off
-during :func:`atomic_capture_with_visibility` (via an ``asyncio.Event``) so
-the atomic capture remains the single source of truth for the visible PNG
-bytes.
+Production Browser Use runs now drive those frames through the navigation-
+scoped patch in :mod:`worldsim.browser_use_agent`. This module still owns the
+shared capture event and ``BeginFrameCoordinator`` wiring used by atomic PVPO
+capture. The background sidecar pump remains as a compatibility helper for
+tests and emergency fallback, but production passes ``interval_s=0`` so it
+does not run a broad task-lifetime clock.
 
-Kill switch: set ``WORLDSIM_PVPO_FRAME_PUMP_MS=0`` to disable the pump
-without touching code. Any value <= 0 disables it.
+Kill switch: set ``WORLDSIM_PVPO_FRAME_PUMP_MS=0`` to disable both the legacy
+sidecar pump and, unless ``WORLDSIM_PVPO_NAVIGATION_TICK_MS`` overrides it,
+the navigation-scoped ticker without touching code. Any value <= 0 disables.
 """
 
 from __future__ import annotations
@@ -149,21 +151,19 @@ async def frame_pump(
     *,
     interval_s: float | None = None,
 ) -> AsyncIterator[asyncio.Event]:
-    """Run a per-session ``beginFrame`` pump for the lifetime of the block.
+    """Provide PVPO beginFrame coordination, optionally with a legacy pump.
 
     Yields a ``capturing`` :class:`asyncio.Event` with an attached
     ``beginframe_lock`` attribute (``asyncio.Lock``) that callers
     (specifically :func:`worldsim.phase_4.pvpo_capture.atomic_capture_with_visibility`)
     should use to serialize any ``HeadlessExperimental.beginFrame`` call
-    against the pump's own ticks. Setting ``capturing`` still causes the
-    pump to cheaply skip its tick during a capture; the lock is what
-    actually prevents Chrome's ``Another frame is pending`` guard from
-    tripping when the pump has a frame in flight.
+    against Browser Use screenshots and navigation ticks. If the optional
+    legacy pump is enabled, setting ``capturing`` also causes that pump to
+    cheaply skip its tick during a capture.
 
-    The pump is disabled (context manager yields immediately, no task is
-    spawned) when ``interval_s`` is <= 0, or when the env var
-    ``WORLDSIM_PVPO_FRAME_PUMP_MS`` is set to 0. Use that as the emergency
-    kill switch without having to edit code.
+    The legacy pump is disabled (context manager yields immediately, no task
+    is spawned) when ``interval_s`` is <= 0, or when the env var
+    ``WORLDSIM_PVPO_FRAME_PUMP_MS`` is set to 0.
     """
     capturing = asyncio.Event()
     existing_controller = getattr(session, "_worldsim_pvpo_beginframe_controller", None)
