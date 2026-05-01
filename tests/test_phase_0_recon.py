@@ -239,6 +239,44 @@ def test_phase_0a_repairs_webarena_verified_site_source_paths(tmp_path):
     assert unsafe == []
 
 
+def test_phase_0a_repairs_empty_webarena_verified_task_definition_paths(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    dataset = benchmark_root / "assets/dataset/webarena-verified.json"
+    dataset.parent.mkdir(parents=True)
+    dataset.write_text("[]")
+    manifest = {
+        "sites": [],
+        "evaluation": {"harness_paths": [], "task_definition_paths": []},
+    }
+
+    phase_0_recon._repair_manifest_paths(manifest, benchmark_root)
+
+    assert manifest["evaluation"]["task_definition_paths"] == [
+        "assets/dataset/webarena-verified.json"
+    ]
+    missing, unsafe = phase_0_recon._validate_manifest_paths(manifest, benchmark_root)
+    assert missing == []
+    assert unsafe == []
+
+
+def test_phase_0a_does_not_override_existing_task_definition_paths(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    dataset = benchmark_root / "assets/dataset/webarena-verified.json"
+    custom = benchmark_root / "custom/tasks.json"
+    dataset.parent.mkdir(parents=True)
+    custom.parent.mkdir(parents=True)
+    dataset.write_text("[]")
+    custom.write_text("[]")
+    manifest = {
+        "sites": [],
+        "evaluation": {"harness_paths": [], "task_definition_paths": ["custom/tasks.json"]},
+    }
+
+    phase_0_recon._repair_manifest_paths(manifest, benchmark_root)
+
+    assert manifest["evaluation"]["task_definition_paths"] == ["custom/tasks.json"]
+
+
 def test_phase_0a_does_not_repair_unsafe_or_unmatched_source_paths(tmp_path):
     benchmark_root = tmp_path / "benchmark"
     benchmark_root.mkdir()

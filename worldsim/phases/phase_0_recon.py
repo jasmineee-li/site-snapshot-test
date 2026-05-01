@@ -739,6 +739,7 @@ def _repair_manifest_paths(manifest: dict, benchmark_root: Path) -> None:
     unresolved, unsafe, or ambiguous paths still fail below.
     """
     root = Path(benchmark_root).resolve()
+    _repair_task_definition_paths(manifest, root)
     for site in manifest.get("sites", []):
         if not isinstance(site, dict):
             continue
@@ -749,6 +750,19 @@ def _repair_manifest_paths(manifest: dict, benchmark_root: Path) -> None:
         repaired = _repair_site_source_path(source_path, site_name, root)
         if repaired is not None:
             site["source_path"] = repaired
+
+
+def _repair_task_definition_paths(manifest: dict, root: Path) -> None:
+    evaluation = manifest.get("evaluation")
+    if not isinstance(evaluation, dict):
+        return
+    task_paths = evaluation.get("task_definition_paths")
+    if isinstance(task_paths, list) and task_paths:
+        return
+
+    candidate = "assets/dataset/webarena-verified.json"
+    if _resolve_manifest_path(root, candidate).is_file():
+        evaluation["task_definition_paths"] = [candidate]
 
 
 def _repair_site_source_path(source_path: str, site_name: str, root: Path) -> str | None:
