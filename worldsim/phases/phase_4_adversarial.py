@@ -195,6 +195,14 @@ _PHASE_4_RESUME_VERSION = "2026-04-20b"
 # validation callers.
 
 PLACEMENT_FIX_MAX_ITERATIONS = 2
+_PHASE4_INFRA_RETRY_ENV = "WORLDSIM_PHASE4_INFRA_RETRIES"
+_PHASE4_INFRA_RETRY_DEFAULT = 1
+_PHASE4_INFRA_CAPTURE_MESSAGE_TOKENS = (
+    "beginframe",
+    "headlessexperimental.beginframe",
+    "cdp deadline",
+    "cdp timeout",
+)
 
 
 _LEGACY_AER_INFLIGHT_SENTINEL = ".aer_inflight"
@@ -324,6 +332,163 @@ def _gate_miss_payload(encounter_dict: dict[str, Any]) -> dict[str, Any]:
         "pvpo_failure": coerced_encounter.get("pvpo_failure"),
         **_null_metric_keys(),
     }
+
+
+def _phase4_infra_retry_budget() -> int:
+    raw = os.environ.get(_PHASE4_INFRA_RETRY_ENV, "").strip()
+    if not raw:
+        return _PHASE4_INFRA_RETRY_DEFAULT
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning(
+            "%s=%r is not an integer; using %d",
+            _PHASE4_INFRA_RETRY_ENV,
+            raw,
+            _PHASE4_INFRA_RETRY_DEFAULT,
+        )
+        return _PHASE4_INFRA_RETRY_DEFAULT
+    return max(0, value)
+
+
+def _phase4_infra_retry_reason(result: dict[str, Any], task_dir: Path) -> str | None:
+    """Return a retry reason for non-interpretable PVPO infrastructure failures.
+
+    This intentionally stays narrow: only capture-layer degradation that can
+    turn a real encounter into zero PVPO evidence is retried. Task breaks,
+    reward failures, placement misses, and model refusals are experimental
+    outcomes and must not be hidden behind infrastructure retries.
+    """
+    if result.get("pvpo_status") != "degraded":
+        return None
+    encounter = result.get("encounter")
+    if isinstance(encounter, dict):
+        try:
+            if float(encounter.get("max_coverage", 0.0)) > 0.0:
+                return None
+        except (TypeError, ValueError):
+            return None
+    elif result.get("final_status") != "injection_not_encountered":
+        return None
+
+    capture_summary = _load_json_dict(task_dir / "pvpo" / "capture_summary.json") or {}
+    first_issue = str(
+        capture_summary.get("first_issue_class") or result.get("pvpo_failure") or ""
+    ).strip()
+    first_message = str(capture_summary.get("first_issue_message") or "").strip()
+    issue_counts = capture_summary.get("issue_counts")
+    issue_names: set[str] = {first_issue} if first_issue else set()
+    if isinstance(issue_counts, dict):
+        issue_names.update(str(key) for key in issue_counts)
+
+    if "beginframe_endpoint_dirty" in issue_names:
+        return first_message or "beginframe_endpoint_dirty"
+    if first_issue == "capture_failed" and any(
+        token in first_message.casefold() for token in _PHASE4_INFRA_CAPTURE_MESSAGE_TOKENS
+    ):
+        return first_message or "capture_failed"
+
+    browser_runtime = _load_json_dict(task_dir / "browser_runtime.json") or {}
+    dirty_reason = browser_runtime.get("pvpo_beginframe_dirty_reason")
+    if isinstance(dirty_reason, str) and dirty_reason.strip():
+        return dirty_reason.strip()
+    return None
+
+
+def _reserve_phase4_infra_retry_archive(task_dir: Path, attempt_index: int) -> Path:
+    base = task_dir.with_name(f"{task_dir.name}__infra_retry_{attempt_index}")
+    candidate = base
+    suffix = 1
+    while candidate.exists():
+        candidate = task_dir.with_name(f"{base.name}_{suffix}")
+        suffix += 1
+    return candidate
+
+
+def _archive_phase4_infra_retry_attempt(task_dir: Path, attempt_index: int) -> Path:
+    archive_dir = _reserve_phase4_infra_retry_archive(task_dir, attempt_index)
+    if task_dir.exists():
+        shutil.move(str(task_dir), str(archive_dir))
+    else:
+        archive_dir.mkdir(parents=True, exist_ok=False)
+    task_dir.mkdir(parents=True, exist_ok=True)
+    return archive_dir
+
+
+def _persist_phase4_infra_retry_metadata(
+    result: dict[str, Any],
+    *,
+    task_dir: Path,
+    metadata: dict[str, Any],
+) -> dict[str, Any]:
+    enriched = {**result, "infrastructure_retry": metadata}
+    _write_json_atomic(
+        task_dir / "infrastructure_retry.json",
+        metadata,
+        failpoint_base="phase_4.infrastructure_retry.sidecar",
+    )
+    result_path = Path(str(enriched.get("trajectory_dir") or task_dir)) / "result.json"
+    saved = _load_json_dict(result_path)
+    if saved is not None:
+        saved["infrastructure_retry"] = metadata
+        _write_json_atomic(
+            result_path,
+            saved,
+            failpoint_base="phase_4.infrastructure_retry.result",
+        )
+    return enriched
+
+
+async def _run_with_phase4_infra_retries(
+    *,
+    task: dict[str, Any],
+    task_dir: Path,
+    run_once: Callable[[Path], Any],
+    reset_cache: TaskResetCache | None = None,
+) -> dict[str, Any]:
+    max_retries = _phase4_infra_retry_budget()
+    result = await run_once(task_dir)
+    attempts: list[dict[str, Any]] = []
+
+    for attempt_index in range(1, max_retries + 1):
+        reason = _phase4_infra_retry_reason(result, task_dir)
+        if reason is None:
+            break
+        archive_dir = _archive_phase4_infra_retry_attempt(task_dir, attempt_index)
+        attempts.append(
+            {
+                "attempt": attempt_index,
+                "reason": reason,
+                "archived_trace": str(archive_dir),
+            }
+        )
+        logger.warning(
+            "Phase 4 infrastructure retry %d/%d for task %s after PVPO degradation: %s",
+            attempt_index,
+            max_retries,
+            task.get("id", "unknown"),
+            reason,
+        )
+        if reset_cache is not None:
+            reset_cache.mark_dirty(task)
+        result = await run_once(task_dir)
+
+    if not attempts:
+        return result
+
+    final_reason = _phase4_infra_retry_reason(result, task_dir)
+    metadata = {
+        "schema_version": "phase4_infrastructure_retry_v1",
+        "status": "exhausted" if final_reason is not None else "resolved",
+        "max_retries": max_retries,
+        "attempts": attempts,
+        "final_reason": final_reason,
+    }
+    return _persist_phase4_infra_retry_metadata(
+        result,
+        task_dir=task_dir,
+        metadata=metadata,
+    )
 
 
 def _observational_metrics_unavailable(
@@ -1898,6 +2063,7 @@ _FINGERPRINT_RESULT_KEYS: tuple[str, ...] = (
     "verbalized_eval_awareness_failure",
     "verbalized_eval_awareness_transcript_format",
     "verbalized_eval_awareness_raw_response_path",
+    "infrastructure_retry",
     "outcome_fine",
     "flags",
     "diagnosable_confidence",
@@ -3075,12 +3241,20 @@ async def run(args: argparse.Namespace) -> int:
             run_kwargs["reset_cache"] = reset_cache
         if callable_accepts_keyword(run_adversarial_task, "seed_probe_cache"):
             run_kwargs["seed_probe_cache"] = seed_probe_cache
-        return await run_adversarial_task(
-            task,
-            agent,
-            instance,
-            task_dir,
-            **run_kwargs,
+        async def _run_once(current_task_dir: Path) -> dict[str, Any]:
+            return await run_adversarial_task(
+                task,
+                agent,
+                instance,
+                current_task_dir,
+                **run_kwargs,
+            )
+
+        return await _run_with_phase4_infra_retries(
+            task=task,
+            task_dir=task_dir,
+            run_once=_run_once,
+            reset_cache=reset_cache,
         )
 
     # Initial adversarial run — run_tasks_by_site calls

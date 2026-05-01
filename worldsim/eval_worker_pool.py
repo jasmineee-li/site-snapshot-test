@@ -59,6 +59,7 @@ _OUTCOME_RESULT_EXTRA_KEYS: tuple[str, ...] = (
     "verbalized_eval_awareness_failure",
     "verbalized_eval_awareness_transcript_format",
     "verbalized_eval_awareness_raw_response_path",
+    "infrastructure_retry",
     "outcome_fine",
     "flags",
     "diagnosable_confidence",

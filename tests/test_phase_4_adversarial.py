@@ -108,6 +108,122 @@ def _phase4_exposure_fields(
     }
 
 
+def test_phase4_infra_retry_reason_detects_beginframe_dirty(tmp_path):
+    task_dir = tmp_path / "adv"
+    (task_dir / "pvpo").mkdir(parents=True)
+    (task_dir / "pvpo" / "capture_summary.json").write_text(
+        json.dumps(
+            {
+                "status": "degraded",
+                "steps_seen": 1,
+                "steps_captured": 0,
+                "first_issue_class": "beginframe_endpoint_dirty",
+                "first_issue_message": "prior pvpo beginFrame was still pending",
+            }
+        )
+    )
+    result = {
+        "pvpo_status": "degraded",
+        "pvpo_failure": "beginframe_endpoint_dirty",
+        "final_status": "injection_not_encountered",
+        "encounter": {"max_coverage": 0.0},
+    }
+
+    reason = phase_4_adversarial._phase4_infra_retry_reason(result, task_dir)
+
+    assert reason == "prior pvpo beginFrame was still pending"
+
+
+def test_phase4_infra_retry_reason_does_not_retry_valid_encounter(tmp_path):
+    task_dir = tmp_path / "adv"
+    (task_dir / "pvpo").mkdir(parents=True)
+    (task_dir / "pvpo" / "capture_summary.json").write_text(
+        json.dumps(
+            {
+                "status": "degraded",
+                "steps_seen": 2,
+                "steps_captured": 1,
+                "first_issue_class": "beginframe_endpoint_dirty",
+            }
+        )
+    )
+    result = {
+        "pvpo_status": "degraded",
+        "pvpo_failure": "beginframe_endpoint_dirty",
+        "encounter": {"max_coverage": 0.4},
+    }
+
+    assert phase_4_adversarial._phase4_infra_retry_reason(result, task_dir) is None
+
+
+@pytest.mark.asyncio
+async def test_phase4_infra_retry_archives_degraded_attempt_and_returns_clean(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("WORLDSIM_PHASE4_INFRA_RETRIES", "1")
+    task = {"id": "adv-infra"}
+    task_dir = tmp_path / "adv-infra"
+    calls = 0
+
+    async def run_once(current_dir):
+        nonlocal calls
+        calls += 1
+        (current_dir / "pvpo").mkdir(parents=True, exist_ok=True)
+        if calls == 1:
+            (current_dir / "pvpo" / "capture_summary.json").write_text(
+                json.dumps(
+                    {
+                        "status": "degraded",
+                        "steps_seen": 1,
+                        "steps_captured": 0,
+                        "first_issue_class": "beginframe_endpoint_dirty",
+                        "first_issue_message": "prior pvpo beginFrame was still pending",
+                    }
+                )
+            )
+            result = {
+                "task_id": "adv-infra",
+                "outcome": "refused_or_ignored",
+                "final_status": "injection_not_encountered",
+                "pvpo_status": "degraded",
+                "pvpo_failure": "beginframe_endpoint_dirty",
+                "encounter": {"max_coverage": 0.0},
+                "trajectory_dir": str(current_dir),
+            }
+        else:
+            (current_dir / "pvpo" / "capture_summary.json").write_text(
+                json.dumps({"status": "ok", "steps_seen": 1, "steps_captured": 1})
+            )
+            result = {
+                "task_id": "adv-infra",
+                "outcome": "refused_or_ignored",
+                "pvpo_status": "ok",
+                "pvpo_failure": None,
+                "encounter": {"max_coverage": 0.2},
+                "trajectory_dir": str(current_dir),
+            }
+        (current_dir / "result.json").write_text(json.dumps(result))
+        return result
+
+    result = await phase_4_adversarial._run_with_phase4_infra_retries(
+        task=task,
+        task_dir=task_dir,
+        run_once=run_once,
+    )
+
+    assert calls == 2
+    assert result["pvpo_status"] == "ok"
+    assert result["infrastructure_retry"]["status"] == "resolved"
+    assert result["infrastructure_retry"]["attempts"][0]["reason"] == (
+        "prior pvpo beginFrame was still pending"
+    )
+    archived = tmp_path / "adv-infra__infra_retry_1"
+    assert (archived / "result.json").exists()
+    saved = json.loads((task_dir / "result.json").read_text())
+    assert saved["infrastructure_retry"]["status"] == "resolved"
+
+
 def test_exposure_admission_requires_matching_evidence_contract_id():
     task = _phase4_exposure_fields()
     task["feasibility"]["exposure"]["contract_id"] = "gitlab:other:test"
