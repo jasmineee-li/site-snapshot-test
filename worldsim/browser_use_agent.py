@@ -78,7 +78,7 @@ _PVPO_SCROLL_ACTION_TIMEOUT_DEFAULT_S = 1.0
 _PVPO_SCROLL_EPSILON_PX = 1.0
 _PVPO_NAVIGATION_TICK_INTERVAL_ENV = "WORLDSIM_PVPO_NAVIGATION_TICK_MS"
 _PVPO_NAVIGATION_TICK_DEFAULT_MS = 50.0
-_PVPO_NAVIGATION_TICK_STOP_GRACE_S = 2.0
+_PVPO_NAVIGATION_TICK_STOP_GRACE_MIN_S = 2.0
 _PVPO_SCREENSHOT_PATCHED = False
 _PVPO_SCROLL_PATCHED = False
 _PVPO_NAVIGATION_TICK_PATCHED = False
@@ -1363,6 +1363,11 @@ def _pvpo_navigation_tick_interval_s() -> float:
         return _PVPO_NAVIGATION_TICK_DEFAULT_MS / 1000.0
 
 
+def _pvpo_navigation_tick_stop_grace_s() -> float:
+    """Allow an in-flight navigation tick to finish on its CDP timeout budget."""
+    return max(_PVPO_NAVIGATION_TICK_STOP_GRACE_MIN_S, _pvpo_cdp_timeout_s() + 0.25)
+
+
 def _install_pvpo_beginframe_screenshot_patch() -> None:
     """Patch Browser Use screenshots for begin-frame-controlled PVPO sessions.
 
@@ -1563,8 +1568,9 @@ async def _stop_pvpo_navigation_tick(
         return
 
     stop.set()
+    stop_grace_s = _pvpo_navigation_tick_stop_grace_s()
     try:
-        await asyncio.wait_for(asyncio.shield(tick_task), timeout=_PVPO_NAVIGATION_TICK_STOP_GRACE_S)
+        await asyncio.wait_for(asyncio.shield(tick_task), timeout=stop_grace_s)
     except TimeoutError:
         _increment_session_counter(
             browser_session,
@@ -1572,7 +1578,7 @@ async def _stop_pvpo_navigation_tick(
         )
         reason = (
             "pvpo navigation beginFrame tick did not stop after "
-            f"{_PVPO_NAVIGATION_TICK_STOP_GRACE_S:.2f}s"
+            f"{stop_grace_s:.2f}s"
         )
         mark_dirty = getattr(coordinator, "mark_dirty", None)
         if callable(mark_dirty):

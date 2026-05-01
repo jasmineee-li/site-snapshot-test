@@ -1042,6 +1042,52 @@ async def test_pvpo_navigation_tick_patch_marks_dirty_on_tick_timeout(
 
 
 @pytest.mark.asyncio
+async def test_pvpo_navigation_tick_patch_waits_for_inflight_tick_on_navigation_return(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from browser_use.browser.session import BrowserSession
+
+    calls: list[tuple[str, dict]] = []
+
+    async def fake_original(
+        self,
+        url,
+        target_id,
+        timeout=None,
+        wait_until="load",
+        nav_timeout=None,
+    ):
+        await asyncio.sleep(0.01)
+
+    class SlowSuccessfulCdpSession:
+        async def send(self, method, params):
+            calls.append((method, params))
+            await asyncio.sleep(0.05)
+            return {}
+
+    coordinator = BeginFrameCoordinator()
+    session = SimpleNamespace(
+        cdp_url="http://127.0.0.1:9230",
+        _worldsim_pvpo_beginframe_controller=coordinator,
+        get_or_create_cdp_session=AsyncMock(return_value=SlowSuccessfulCdpSession()),
+    )
+
+    monkeypatch.setattr(BrowserSession, "_navigate_and_wait", fake_original)
+    monkeypatch.setattr(browser_use_agent, "_PVPO_NAVIGATION_TICK_PATCHED", False)
+    monkeypatch.setenv("WORLDSIM_PVPO_NAVIGATION_TICK_MS", "1")
+    monkeypatch.setenv("WORLDSIM_PVPO_CDP_TIMEOUT_S", "0.2")
+
+    browser_use_agent._install_pvpo_navigation_tick_patch()
+
+    await BrowserSession._navigate_and_wait(session, "http://example.test", "target-1")
+
+    assert calls == [("HeadlessExperimental.beginFrame", {})]
+    assert session._worldsim_pvpo_navigation_tick_frames == 1
+    assert coordinator.dirty_reason is None
+    assert not hasattr(session, "_worldsim_pvpo_navigation_tick_stop_timeouts")
+
+
+@pytest.mark.asyncio
 async def test_pvpo_scroll_patch_delegates_for_non_pvpo_sessions(
     monkeypatch: pytest.MonkeyPatch,
 ):
