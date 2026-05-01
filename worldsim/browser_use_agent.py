@@ -73,8 +73,8 @@ _CDP_VIEWPORT_JS = """
 """
 _PVPO_CDP_TIMEOUT_ENV = "WORLDSIM_PVPO_CDP_TIMEOUT_S"
 _PVPO_CDP_TIMEOUT_DEFAULT_S = 10.0
-_PVPO_SCROLL_GESTURE_TIMEOUT_ENV = "WORLDSIM_PVPO_SCROLL_GESTURE_TIMEOUT_S"
-_PVPO_SCROLL_GESTURE_TIMEOUT_DEFAULT_S = 1.0
+_PVPO_SCROLL_ACTION_TIMEOUT_ENV = "WORLDSIM_PVPO_SCROLL_ACTION_TIMEOUT_S"
+_PVPO_SCROLL_ACTION_TIMEOUT_DEFAULT_S = 1.0
 _PVPO_SCREENSHOT_PATCHED = False
 _PVPO_SCROLL_PATCHED = False
 _TRANSPARENT_PNG_BASE64 = (
@@ -1304,28 +1304,28 @@ def _pvpo_cdp_timeout_s() -> float:
     return timeout_s
 
 
-def _pvpo_scroll_gesture_timeout_s() -> float:
-    raw = os.environ.get(_PVPO_SCROLL_GESTURE_TIMEOUT_ENV, "").strip()
+def _pvpo_scroll_action_timeout_s() -> float:
+    raw = os.environ.get(_PVPO_SCROLL_ACTION_TIMEOUT_ENV, "").strip()
     if not raw:
-        return _PVPO_SCROLL_GESTURE_TIMEOUT_DEFAULT_S
+        return _PVPO_SCROLL_ACTION_TIMEOUT_DEFAULT_S
     try:
         timeout_s = float(raw)
     except ValueError:
         logger.warning(
             "%s=%r is not a number; using %.1fs",
-            _PVPO_SCROLL_GESTURE_TIMEOUT_ENV,
+            _PVPO_SCROLL_ACTION_TIMEOUT_ENV,
             raw,
-            _PVPO_SCROLL_GESTURE_TIMEOUT_DEFAULT_S,
+            _PVPO_SCROLL_ACTION_TIMEOUT_DEFAULT_S,
         )
-        return _PVPO_SCROLL_GESTURE_TIMEOUT_DEFAULT_S
+        return _PVPO_SCROLL_ACTION_TIMEOUT_DEFAULT_S
     if timeout_s <= 0:
         logger.warning(
             "%s=%r is not positive; using %.1fs",
-            _PVPO_SCROLL_GESTURE_TIMEOUT_ENV,
+            _PVPO_SCROLL_ACTION_TIMEOUT_ENV,
             raw,
-            _PVPO_SCROLL_GESTURE_TIMEOUT_DEFAULT_S,
+            _PVPO_SCROLL_ACTION_TIMEOUT_DEFAULT_S,
         )
-        return _PVPO_SCROLL_GESTURE_TIMEOUT_DEFAULT_S
+        return _PVPO_SCROLL_ACTION_TIMEOUT_DEFAULT_S
     return timeout_s
 
 
@@ -1364,10 +1364,10 @@ def _install_pvpo_scroll_patch() -> None:
 
     Browser Use target-level scrolling uses ``Input.synthesizeScrollGesture``.
     In ``chrome-headless-shell --enable-begin-frame-control`` that CDP call can
-    hang until Browser Use's 8s ``ScrollEvent`` timeout, so the upstream code's
-    intended JS fallback never runs. Bound only the PVPO external-CDP path and
-    fall back to a normal page scroll; non-PVPO Browser Use sessions keep the
-    upstream implementation unchanged.
+    hang until Browser Use's 8s ``ScrollEvent`` timeout. Browser Use's newer
+    mouse actor already prefers ``Input.dispatchMouseEvent(type="mouseWheel")``
+    before falling back; mirror that safer actuator only for PVPO external-CDP
+    sessions. Non-PVPO Browser Use sessions keep the upstream implementation.
     """
     global _PVPO_SCROLL_PATCHED
     if _PVPO_SCROLL_PATCHED:
@@ -1381,14 +1381,14 @@ def _install_pvpo_scroll_patch() -> None:
         browser_session = getattr(self, "browser_session", None)
         if not getattr(browser_session, "cdp_url", None):
             return await original(self, pixels)
-        return await _pvpo_scroll_with_bounded_gesture_fallback(self, pixels)
+        return await _pvpo_scroll_with_wheel_fallback(self, pixels)
 
     _worldsim_scroll_with_pvpo_fallback.__name__ = "_scroll_with_cdp_gesture"
     DefaultActionWatchdog._scroll_with_cdp_gesture = _worldsim_scroll_with_pvpo_fallback
     _PVPO_SCROLL_PATCHED = True
 
 
-async def _pvpo_scroll_with_bounded_gesture_fallback(watchdog: Any, pixels: int) -> bool:
+async def _pvpo_scroll_with_wheel_fallback(watchdog: Any, pixels: int) -> bool:
     browser_session = watchdog.browser_session
     try:
         cdp_session = await browser_session.get_or_create_cdp_session()
@@ -1397,40 +1397,38 @@ async def _pvpo_scroll_with_bounded_gesture_fallback(watchdog: Any, pixels: int)
         _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_failures")
         return False
 
-    timeout_s = _pvpo_scroll_gesture_timeout_s()
+    timeout_s = _pvpo_scroll_action_timeout_s()
     try:
-        await asyncio.wait_for(
-            _pvpo_synthesize_scroll_gesture(browser_session, cdp_session, pixels),
-            timeout=timeout_s,
+        await _pvpo_await_cdp_action(
+            _pvpo_dispatch_mouse_wheel(browser_session, cdp_session, pixels),
+            timeout_s=timeout_s,
         )
-        _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_gesture_successes")
+        _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_wheel_successes")
         return True
     except TimeoutError:
-        _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_gesture_timeouts")
-        fallback_count = _increment_session_counter(
-            browser_session, "_worldsim_pvpo_scroll_js_fallbacks"
-        )
+        _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_wheel_timeouts")
+        fallback_count = _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_js_fallbacks")
         if fallback_count == 1:
             logger.warning(
-                "PVPO scroll: Input.synthesizeScrollGesture timed out after %.2fs; "
+                "PVPO scroll: Input.dispatchMouseEvent(mouseWheel) timed out after %.2fs; "
                 "using JS scroll fallback for this begin-frame-controlled session",
                 timeout_s,
             )
         else:
             logger.debug(
-                "PVPO scroll: Input.synthesizeScrollGesture timed out after %.2fs; "
+                "PVPO scroll: Input.dispatchMouseEvent(mouseWheel) timed out after %.2fs; "
                 "using JS scroll fallback",
                 timeout_s,
             )
         return await _pvpo_scroll_with_js(browser_session, cdp_session, pixels)
     except Exception as exc:
-        _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_gesture_failures")
-        logger.debug("PVPO scroll: CDP gesture failed (%s); using JS fallback", exc)
+        _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_wheel_failures")
+        logger.debug("PVPO scroll: CDP mouseWheel failed (%s); using JS fallback", exc)
         _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_js_fallbacks")
         return await _pvpo_scroll_with_js(browser_session, cdp_session, pixels)
 
 
-async def _pvpo_synthesize_scroll_gesture(
+async def _pvpo_dispatch_mouse_wheel(
     browser_session: Any,
     cdp_session: Any,
     pixels: int,
@@ -1444,16 +1442,38 @@ async def _pvpo_synthesize_scroll_gesture(
         viewport_width = layout_metrics["layoutViewport"]["clientWidth"]
         viewport_height = layout_metrics["layoutViewport"]["clientHeight"]
 
-    await cdp_client.send.Input.synthesizeScrollGesture(
+    await cdp_client.send.Input.dispatchMouseEvent(
         params={
+            "type": "mouseWheel",
             "x": viewport_width / 2,
             "y": viewport_height / 2,
-            "xDistance": 0,
-            "yDistance": -pixels,
-            "speed": 50000,
+            "deltaX": 0,
+            "deltaY": pixels,
         },
         session_id=session_id,
     )
+
+
+async def _pvpo_await_cdp_action(awaitable: Any, *, timeout_s: float) -> Any:
+    """Bound a CDP action without letting cancellation block Browser Use's event bus.
+
+    Some CDP calls can ignore normal ``wait_for`` cancellation until the
+    underlying protocol response arrives. Phase 4 must not let a broken
+    browser actuator consume Browser Use's full 8s ``ScrollEvent`` budget, so
+    this helper abandons the task after timeout and drains any eventual result.
+    """
+    task = asyncio.create_task(awaitable)
+    done, _ = await asyncio.wait({task}, timeout=timeout_s)
+    if task in done:
+        return await task
+    task.cancel()
+    task.add_done_callback(_suppress_late_cdp_task_result)
+    raise TimeoutError
+
+
+def _suppress_late_cdp_task_result(task: asyncio.Task[Any]) -> None:
+    with suppress(asyncio.CancelledError, Exception):
+        task.result()
 
 
 async def _pvpo_scroll_with_js(browser_session: Any, cdp_session: Any, pixels: int) -> bool:
@@ -1484,12 +1504,12 @@ async def _pvpo_scroll_with_js(browser_session: Any, cdp_session: Any, pixels: i
 }})()
 """
     try:
-        result = await asyncio.wait_for(
+        result = await _pvpo_await_cdp_action(
             cdp_client.send.Runtime.evaluate(
                 params={"expression": expression, "returnByValue": True, "awaitPromise": True},
                 session_id=session_id,
             ),
-            timeout=_pvpo_scroll_gesture_timeout_s(),
+            timeout_s=_pvpo_scroll_action_timeout_s(),
         )
     except Exception as exc:
         logger.debug("PVPO scroll: JS fallback failed: %s", exc)
@@ -2085,9 +2105,9 @@ class BrowserUseAgent:
         if self._session is None:
             return
         counter_names = (
-            "_worldsim_pvpo_scroll_gesture_successes",
-            "_worldsim_pvpo_scroll_gesture_timeouts",
-            "_worldsim_pvpo_scroll_gesture_failures",
+            "_worldsim_pvpo_scroll_wheel_successes",
+            "_worldsim_pvpo_scroll_wheel_timeouts",
+            "_worldsim_pvpo_scroll_wheel_failures",
             "_worldsim_pvpo_scroll_js_fallbacks",
             "_worldsim_pvpo_scroll_js_failures",
             "_worldsim_pvpo_scroll_failures",
