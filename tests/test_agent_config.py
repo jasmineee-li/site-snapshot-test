@@ -439,6 +439,39 @@ def test_anthropic_sonnet_preserves_temperature(monkeypatch) -> None:
     assert recorded["anthropic"]["temperature"] == 0.0
 
 
+def test_anthropic_provider_uses_openrouter_messages_proxy_when_only_openrouter_key(
+    monkeypatch,
+) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_BASE_URL", raising=False)
+    monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-test")
+    recorded = _install_fake_llm_modules(monkeypatch)
+    from worldsim.agent_config import OPENROUTER_ANTHROPIC_BASE_URL, make_llm
+
+    make_llm("anthropic/claude-sonnet-4.6", provider="anthropic", temperature=0)
+
+    assert recorded["anthropic"]["model"] == "anthropic/claude-sonnet-4.6"
+    assert recorded["anthropic"]["base_url"] == OPENROUTER_ANTHROPIC_BASE_URL
+    assert recorded["anthropic"]["auth_token"] == "or-test"
+    assert recorded["anthropic"]["temperature"] == 0.0
+    assert "openrouter" not in recorded
+
+
+def test_openrouter_anthropic_model_uses_messages_adapter(monkeypatch) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-test")
+    recorded = _install_fake_llm_modules(monkeypatch)
+    from worldsim.agent_config import OPENROUTER_ANTHROPIC_BASE_URL, make_llm
+
+    make_llm("anthropic/claude-opus-4.7", provider="openrouter")
+
+    assert recorded["anthropic"]["model"] == "anthropic/claude-opus-4.7"
+    assert recorded["anthropic"]["base_url"] == OPENROUTER_ANTHROPIC_BASE_URL
+    assert recorded["anthropic"]["auth_token"] == "or-test"
+    assert "temperature" not in recorded["anthropic"]
+    assert "openrouter" not in recorded
+
+
 def test_service_tier_omitted_leaves_baseline_unchanged(monkeypatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-test")

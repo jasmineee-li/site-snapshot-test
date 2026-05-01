@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 _client: AsyncAnthropic | None = None
 _SDK_MAX_RETRIES = 0
 _TEMPERATURE_UNSUPPORTED_MODEL_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(r"^claude-opus-4-7(?:$|[-:])", re.IGNORECASE),
+    re.compile(r"^claude-opus-4[.-]7(?:$|[-:.])", re.IGNORECASE),
 )
 
 T = TypeVar("T")

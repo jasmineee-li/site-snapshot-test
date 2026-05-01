@@ -67,6 +67,7 @@ RUNTIME_METADATA_KEY = "_worldsim_runtime"
 
 DEFAULT_MODEL = "claude-sonnet-4-6"
 SUPPORTED_PROVIDERS = ("google", "openai", "anthropic", "openrouter")
+OPENROUTER_ANTHROPIC_BASE_URL = "https://openrouter.ai/api"
 
 # Provider auto-detection: prefix -> provider name.
 _PREFIX_MAP: list[tuple[str, str]] = [
@@ -123,7 +124,18 @@ def _anthropic_proxy_env() -> tuple[str, str] | None:
         return None
     base = os.environ.get("ANTHROPIC_BASE_URL", "").strip()
     auth = os.environ.get("ANTHROPIC_AUTH_TOKEN", "").strip()
-    return (base, auth) if base and auth else None
+    if base and auth:
+        return (base, auth)
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if openrouter_key:
+        return (OPENROUTER_ANTHROPIC_BASE_URL, openrouter_key)
+    return None
+
+
+def _is_anthropic_family_model(model: str) -> bool:
+    """Return whether *model* names a Claude/Anthropic model."""
+    normalized = (model or "").strip().lower()
+    return normalized.startswith("anthropic/") or normalized.startswith("claude-")
 
 
 def _normalize_openrouter_model(model: str) -> str:
@@ -298,6 +310,31 @@ def make_llm(
         return ChatAnthropic(**kwargs)
 
     if provider == "openrouter":
+        if _is_anthropic_family_model(model):
+            try:
+                from browser_use.llm.anthropic.chat import ChatAnthropic
+            except ImportError as exc:
+                raise RuntimeError(
+                    "browser-use is required for Claude models on OpenRouter. "
+                    "Install it with: uv pip install browser-use"
+                ) from exc
+            # Claude models on OpenRouter should use OpenRouter's Anthropic
+            # Messages-compatible endpoint instead of the OpenAI-style
+            # ChatOpenRouter adapter. Browser Use's strict AgentOutput schema
+            # contains integer constraints that Anthropic rejects through
+            # response_format=json_schema, while the Anthropic tool path accepts.
+            kwargs: dict[str, Any] = {"model": model}
+            from worldsim.phase_4.anthropic_client import temperature_kwargs_for_model
+
+            kwargs.update(temperature_kwargs_for_model(model, temperature))
+            openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+            kwargs["base_url"] = OPENROUTER_ANTHROPIC_BASE_URL
+            kwargs["auth_token"] = openrouter_key
+            logger.info(
+                "OpenRouter provider: using Anthropic-compatible endpoint for %s",
+                model,
+            )
+            return ChatAnthropic(**kwargs)
         try:
             from browser_use.llm.openrouter.chat import ChatOpenRouter
         except ImportError as exc:

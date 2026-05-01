@@ -373,6 +373,10 @@ def test_temperature_kwargs_omit_deprecated_opus_47_temperature():
         is False
     )
     assert (
+        anthropic_client.supports_temperature_parameter("anthropic/claude-opus-4.7")
+        is False
+    )
+    assert (
         anthropic_client.supports_temperature_parameter("claude-opus-4-7-20260429")
         is False
     )
