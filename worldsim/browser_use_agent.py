@@ -1803,13 +1803,14 @@ class BrowserUseAgent:
             # yielded ``capturing`` Event so the capture remains atomic.
             from worldsim.phase_4.pvpo_frame_pump import frame_pump
 
-            # In Phase 4's default non-vision mode, Browser Use does not need
-            # screenshots for the LLM and PVPO's atomic capture should be the
-            # only beginFrame producer. The background pump remains available
-            # for vision/debug sessions where Browser Use needs real frames.
-            frame_pump_interval_s = (
-                0.0 if resolved_pvpo_cdp_url and not bool(self.use_vision) else None
-            )
+            # Keep the pump active for every PVPO-controlled Chrome session.
+            # Even when Browser Use is non-vision and no screenshots are sent
+            # to the agent, its native navigation and scroll actions use CDP
+            # input/lifecycle events that still require compositor frames under
+            # --enable-begin-frame-control. PVPO's atomic capture remains
+            # serialized by the yielded lock/event rather than by disabling the
+            # session clock between captures.
+            frame_pump_interval_s = None if resolved_pvpo_cdp_url else 0.0
             async with frame_pump(self._session, interval_s=frame_pump_interval_s) as capturing:
                 self._session._worldsim_pvpo_beginframe_lock = getattr(
                     capturing, "beginframe_lock", None

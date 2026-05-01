@@ -1238,6 +1238,105 @@ async def test_run_storage_state_remote_pvpo_reaches_session_start(monkeypatch, 
 
 
 @pytest.mark.asyncio
+async def test_run_keeps_pvpo_frame_pump_active_for_non_vision_agent(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+):
+    import browser_use
+
+    observed: dict[str, object] = {}
+
+    class FakeHistory:
+        history: ClassVar[list[object]] = []
+
+        def save_to_file(self, path):
+            path.write_text('{"history":[]}')
+
+        def screenshot_paths(self):
+            return []
+
+        def is_done(self):
+            return True
+
+        def final_result(self):
+            return "ok"
+
+        def errors(self):
+            return []
+
+    class FakeAgent:
+        def __init__(self, **kwargs):
+            observed["agent_use_vision"] = kwargs["use_vision"]
+            self.history = FakeHistory()
+
+        async def run(self, max_steps=50):
+            return self.history
+
+    class FakeBrowserSession:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        async def start(self):
+            return None
+
+        async def kill(self):
+            return None
+
+    class FakeFramePump:
+        def __init__(self, session, *, interval_s=None):
+            observed["frame_pump_interval_s"] = interval_s
+
+        async def __aenter__(self):
+            capturing = asyncio.Event()
+            capturing.beginframe_lock = asyncio.Lock()  # type: ignore[attr-defined]
+            return capturing
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(browser_use, "Agent", FakeAgent)
+    monkeypatch.setattr(browser_use, "BrowserSession", FakeBrowserSession)
+    monkeypatch.setattr("worldsim.phase_4.pvpo_frame_pump.frame_pump", FakeFramePump)
+    monkeypatch.setattr(
+        browser_use_agent.BrowserUseAgent,
+        "_reset_remote_browser_for_task",
+        AsyncMock(),
+    )
+    monkeypatch.setattr(
+        browser_use_agent._NetworkTraceRecorder,
+        "start",
+        AsyncMock(return_value=None),
+    )
+    monkeypatch.setattr(
+        browser_use_agent._NetworkTraceRecorder,
+        "stop",
+        AsyncMock(return_value=[]),
+    )
+    monkeypatch.setattr(
+        browser_use_agent.BrowserUseAgent,
+        "_cleanup_external_cdp_state",
+        AsyncMock(return_value=None),
+    )
+    monkeypatch.setattr(
+        browser_use_agent.BrowserUseAgent,
+        "_recycle_external_pvpo_browser",
+        AsyncMock(return_value=None),
+    )
+
+    runner = browser_use_agent.BrowserUseAgent(llm=object(), use_vision=False)
+    result = await runner.run(
+        task="task",
+        server_url="http://example.test",
+        task_dir=tmp_path / "task",
+        pvpo_cdp_url="http://127.0.0.1:9222",
+    )
+
+    assert result.status == "success"
+    assert observed["agent_use_vision"] is False
+    assert observed["frame_pump_interval_s"] is None
+
+
+@pytest.mark.asyncio
 async def test_run_writes_browser_runtime_after_cleanup(monkeypatch: pytest.MonkeyPatch, tmp_path):
     import browser_use
 
