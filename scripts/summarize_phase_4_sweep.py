@@ -45,16 +45,55 @@ def _state_metadata(run_dir: Path) -> dict[str, Any]:
     return data
 
 
+def _route_variant(task: dict[str, Any]) -> str | None:
+    if isinstance(task.get("route_variant"), str):
+        return task["route_variant"]
+    exposure = task.get("exposure_contract")
+    if not isinstance(exposure, dict):
+        return None
+    surface_route = exposure.get("surface_route")
+    if isinstance(surface_route, dict) and isinstance(surface_route.get("route_variant"), str):
+        return surface_route["route_variant"]
+    if isinstance(exposure.get("mode"), str):
+        return exposure["mode"]
+    return None
+
+
+def _task_metadata(task: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(task, dict):
+        return {
+            "site": None,
+            "origin": None,
+            "route_id": None,
+            "route_variant": None,
+            "target_surface_id": None,
+            "editor_method": None,
+        }
+    exposure = task.get("exposure_contract")
+    exposure = exposure if isinstance(exposure, dict) else {}
+    return {
+        "site": task.get("site"),
+        "origin": task.get("origin"),
+        "route_id": task.get("route_id"),
+        "route_variant": _route_variant(task),
+        "target_surface_id": task.get("target_surface_id") or exposure.get("target_surface_id"),
+        "editor_method": task.get("editor_method") or exposure.get("editor_method"),
+    }
+
+
 def summarize_sweep(run_dirs: list[Path]) -> dict[str, Any]:
     runs: list[dict[str, Any]] = []
     paired_task_ids: set[str] | None = None
     by_model_status: dict[str, Counter[str]] = {}
+    results_by_model: dict[str, dict[str, dict[str, Any]]] = {}
+    task_lookup_merged: dict[str, dict[str, Any]] = {}
     for run_dir in run_dirs:
         results_path = _phase4_results_path(run_dir)
         results = _load_json(results_path)
         if not isinstance(results, list):
             raise ValueError(f"{results_path} must contain a JSON array")
         task_lookup = _load_task_lookup(run_dir)
+        task_lookup_merged.update({key: value for key, value in task_lookup.items() if key not in task_lookup_merged})
         summary = summarize_results(results, task_lookup=task_lookup)
         state = _state_metadata(run_dir)
         model_key = "|".join(
@@ -64,6 +103,11 @@ def summarize_sweep(run_dirs: list[Path]) -> dict[str, Any]:
         task_ids = {str(result.get("task_id")) for result in results if result.get("task_id")}
         paired_task_ids = task_ids if paired_task_ids is None else paired_task_ids.intersection(task_ids)
         by_model_status[model_key] = Counter(summary.get("final_status_counts") or {})
+        results_by_model[model_key] = {
+            str(result.get("task_id")): result
+            for result in results
+            if isinstance(result, dict) and result.get("task_id")
+        }
         runs.append(
             {
                 "run_dir": str(run_dir),
@@ -82,13 +126,35 @@ def summarize_sweep(run_dirs: list[Path]) -> dict[str, Any]:
                 "origin_counts": summary.get("origin_counts") or {},
             }
         )
+    paired = sorted(paired_task_ids or set())
+    task_rows = []
+    for task_id in paired:
+        row: dict[str, Any] = {
+            "task_id": task_id,
+            **_task_metadata(task_lookup_merged.get(task_id)),
+            "models": {},
+        }
+        for model_key, model_results in sorted(results_by_model.items()):
+            result = model_results.get(task_id) or {}
+            row["models"][model_key] = {
+                "final_status": result.get("final_status"),
+                "outcome_fine": result.get("outcome_fine"),
+                "benign_passed": result.get("benign_passed"),
+                "adversarial_passed": result.get("adversarial_passed"),
+                "max_coverage": (result.get("encounter") or {}).get("max_coverage")
+                if isinstance(result.get("encounter"), dict)
+                else None,
+                "steps": result.get("steps"),
+            }
+        task_rows.append(row)
     return {
         "run_count": len(runs),
-        "paired_task_count": len(paired_task_ids or set()),
+        "paired_task_count": len(paired),
         "runs": runs,
         "by_model_status": {
             model: dict(sorted(counter.items())) for model, counter in sorted(by_model_status.items())
         },
+        "task_rows": task_rows,
     }
 
 
