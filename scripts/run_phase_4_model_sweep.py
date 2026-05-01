@@ -19,6 +19,10 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+def log_event(message: str) -> None:
+    print(f"[phase4-sweep] {message}", flush=True)
+
+
 @dataclass(frozen=True)
 class CompletedRun:
     key: str
@@ -595,14 +599,17 @@ def run_sweep(args: argparse.Namespace) -> int:
         return 2
 
     state_dir = args.state_dir or REPO_ROOT / "logs" / f"phase4_model_sweep_{timestamp}Z"
+    log_event(f"writing sweep state to {state_dir}")
     state = initial_state(config, state_dir)
     update_state(state_dir, state)
 
     state["status"] = "syncing"
     update_state(state_dir, state)
+    log_event("syncing current checkout to r5")
     sync_to_r5(config)
     state["remote_sync_stamp"] = local_git_stamp(config)
     update_state(state_dir, state)
+    log_event("sync complete")
 
     for model in models:
         record: dict[str, Any] = {
@@ -632,6 +639,9 @@ def run_sweep(args: argparse.Namespace) -> int:
             )
             state["status"] = f"running:{model.key}"
             update_state(state_dir, state)
+            log_event(
+                f"starting {model.key} attempt {attempt}/{model.retry_budget}: {run_dir}"
+            )
             try:
                 require_no_running_remote_jobs(config)
             except RuntimeError as exc:
@@ -673,11 +683,13 @@ def run_sweep(args: argparse.Namespace) -> int:
                 }
             )
             update_state(state_dir, state)
+            log_event(f"{model.key} launched as job {job_id}")
 
             def record_status(
                 status: dict[str, Any],
                 *,
                 current_record: dict[str, Any] = record,
+                model_key: str = model.key,
             ) -> None:
                 current_record.update(
                     {
@@ -694,6 +706,8 @@ def run_sweep(args: argparse.Namespace) -> int:
                 if status.get("tail"):
                     current_record["tail"] = status["tail"]
                 update_state(state_dir, state)
+                summary = status.get("phase4_results") or status.get("log_progress") or ""
+                log_event(f"{model_key} status={status.get('status')} {summary}".rstrip())
 
             status = monitor_job(
                 config,
@@ -722,6 +736,7 @@ def run_sweep(args: argparse.Namespace) -> int:
             if status.get("status") == "exited" and status.get("returncode") == 0:
                 record["status"] = "completed"
                 update_state(state_dir, state)
+                log_event(f"{model.key} completed")
                 break
             record["status"] = "failed"
             update_state(state_dir, state)
@@ -737,6 +752,7 @@ def run_sweep(args: argparse.Namespace) -> int:
 
     state["status"] = "completed"
     update_state(state_dir, state)
+    log_event("sweep completed")
     return 0
 
 
