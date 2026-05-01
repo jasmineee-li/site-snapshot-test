@@ -166,6 +166,57 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
     assert "linked-worktree .git file" in completed.stderr
 
 
+def test_remote_env_push_sends_selected_secret_over_stdin(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    env_file = tmp_path / ".env"
+    env_file.write_text("OPENROUTER_API_KEY=or-test-secret\nOTHER=value\n", encoding="utf-8")
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    args_file = tmp_path / "ssh_args.json"
+    payload_file = tmp_path / "payload.json"
+    _write_executable(
+        fakebin / "ssh",
+        f"""#!/usr/bin/env python3
+import json, sys
+open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
+open({str(payload_file)!r}, "w", encoding="utf-8").write(sys.stdin.read())
+print("updated remote .env keys: OPENROUTER_API_KEY")
+""",
+    )
+
+    env = _base_env(repo_root, tmp_path)
+    env["REMOTE_JOBS_SSH_BIN"] = str(fakebin / "ssh")
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_env_push.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            "/remote/browser-sim",
+            "--env-file",
+            str(env_file),
+            "--key",
+            "OPENROUTER_API_KEY",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == "updated remote .env keys: OPENROUTER_API_KEY"
+    assert "or-test-secret" not in completed.stdout
+    assert "or-test-secret" not in completed.stderr
+    payload_stdin = payload_file.read_text()
+    assert "PAYLOAD_JSON" in payload_stdin
+    assert "or-test-secret" in payload_stdin
+    assert "or-test-secret" not in "\n".join(json.loads(args_file.read_text()))
+
+
 def test_sync_blocks_when_remote_job_registry_has_active_job(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     host_config = _host_config(tmp_path)
