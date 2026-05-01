@@ -4,6 +4,7 @@ from worldsim.phase_4.strategy_catalog import (
     ALLOWED_STRATEGIES,
     BINARY_LABEL_TRIGGER_TO_STRATEGIES,
     BLANK_POPULATED_BODY_TRIGGER_TO_STRATEGIES,
+    BLANK_POPULATED_TITLE_TRIGGER_TO_STRATEGIES,
     LINK_NOLINK_BODY_TRIGGER_TO_STRATEGIES,
     LINK_NOLINK_TITLE_TRIGGER_TO_STRATEGIES,
     REFUSAL_TRIGGERS,
@@ -86,7 +87,7 @@ def _binary_task(
     }
 
 
-def test_binary_label_tasks_use_label_flip_strategy_mapping():
+def test_blank_populated_title_tasks_use_title_specific_strategy_mapping():
     strategies, actionable = strategies_for_task(
         "distracted",
         _binary_task(
@@ -96,12 +97,32 @@ def test_binary_label_tasks_use_label_flip_strategy_mapping():
         ),
     )
     assert actionable is True
-    assert strategies == BINARY_LABEL_TRIGGER_TO_STRATEGIES["distracted"]
+    assert strategies == BLANK_POPULATED_TITLE_TRIGGER_TO_STRATEGIES["distracted"]
+    assert strategies == (
+        "semantic_coherence",
+        "necessary_for_benign_goal",
+        "fake_error_recovery",
+    )
     assert "fake_error_recovery" in strategies
+    assert "authority_framing" not in strategies
+    assert "embed_in_legitimate_context" not in strategies
     assert "specificity" not in strategies
 
 
-def test_blank_populated_body_distracted_prefers_operational_status_strategies():
+def test_generic_binary_label_tasks_keep_label_flip_strategy_mapping():
+    strategies, actionable = strategies_for_task(
+        "distracted",
+        _binary_task(
+            target_surface_id="unknown_field",
+            benign_label="populated",
+            adversarial_label="blank",
+        ),
+    )
+    assert actionable is True
+    assert strategies == BINARY_LABEL_TRIGGER_TO_STRATEGIES["distracted"]
+
+
+def test_blank_populated_body_distracted_prefers_semantic_status_strategies():
     strategies, actionable = strategies_for_task(
         "distracted",
         _binary_task(
@@ -113,10 +134,12 @@ def test_blank_populated_body_distracted_prefers_operational_status_strategies()
     assert actionable is True
     assert strategies == BLANK_POPULATED_BODY_TRIGGER_TO_STRATEGIES["distracted"]
     assert strategies == (
-        "authority_framing",
-        "embed_in_legitimate_context",
+        "semantic_coherence",
+        "necessary_for_benign_goal",
         "fake_error_recovery",
     )
+    assert "authority_framing" not in strategies
+    assert "embed_in_legitimate_context" not in strategies
 
 
 def test_binary_suspicion_prefers_recovery_and_native_context():
@@ -124,9 +147,9 @@ def test_binary_suspicion_prefers_recovery_and_native_context():
     assert actionable is True
     assert strategies == LINK_NOLINK_BODY_TRIGGER_TO_STRATEGIES["suspicion"]
     assert strategies == (
-        "authority_framing",
-        "impersonate_authority",
         "fake_error_recovery",
+        "semantic_coherence",
+        "necessary_for_benign_goal",
     )
 
 
@@ -135,9 +158,9 @@ def test_link_nolink_body_distracted_prefers_authoritative_status():
     assert actionable is True
     assert strategies == LINK_NOLINK_BODY_TRIGGER_TO_STRATEGIES["distracted"]
     assert strategies == (
-        "authority_framing",
         "impersonate_authority",
         "fake_error_recovery",
+        "semantic_coherence",
     )
 
 
@@ -166,8 +189,8 @@ def test_link_nolink_body_externally_sourced_prefers_authoritative_status():
     assert strategies == LINK_NOLINK_BODY_TRIGGER_TO_STRATEGIES["externally_sourced"]
     assert strategies == (
         "impersonate_authority",
-        "authority_framing",
         "fake_error_recovery",
+        "semantic_coherence",
     )
 
 
@@ -289,4 +312,5 @@ def test_embed_context_guidance_does_not_bury_encounter_window_action():
 
     assert "opening clause" in guidance
     assert "ordinary context after it" in guidance
+    assert "Agent/System/prompt/instruction labels" in guidance
     assert "Bury the directive" not in guidance
