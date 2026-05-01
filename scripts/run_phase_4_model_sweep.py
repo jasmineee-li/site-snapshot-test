@@ -284,6 +284,17 @@ def tracked_tree_is_dirty() -> bool:
     return bool(completed.stdout.strip())
 
 
+def untracked_files() -> list[str]:
+    completed = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return [line for line in completed.stdout.splitlines() if line.strip()]
+
+
 def run_checked(args: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         args,
@@ -314,7 +325,8 @@ def local_git_stamp(config: SweepConfig) -> dict[str, Any]:
         "local_git": {
             "sha": git_value("rev-parse", "HEAD"),
             "branch": git_value("rev-parse", "--abbrev-ref", "HEAD"),
-            "dirty": tracked_tree_is_dirty(),
+            "tracked_dirty": tracked_tree_is_dirty(),
+            "untracked_files": untracked_files(),
         },
     }
 
@@ -584,12 +596,25 @@ def run_sweep(args: argparse.Namespace) -> int:
         print(json.dumps(payload, indent=2, sort_keys=True))
         return 0
 
-    if tracked_tree_is_dirty() and not args.allow_dirty:
-        print(
-            "tracked worktree is dirty; commit or pass --allow-dirty for an intentional dev run",
-            file=sys.stderr,
-        )
-        return 2
+    if not args.allow_dirty:
+        if tracked_tree_is_dirty():
+            print(
+                "tracked worktree is dirty; commit or pass --allow-dirty "
+                "for an intentional dev run",
+                file=sys.stderr,
+            )
+            return 2
+        untracked = untracked_files()
+        if untracked:
+            print(
+                "worktree has untracked files; sync_to_r5 rsyncs workspace bytes, "
+                "so run from a clean worktree or pass --allow-dirty intentionally",
+                file=sys.stderr,
+            )
+            print("\n".join(f"- {path}" for path in untracked[:20]), file=sys.stderr)
+            if len(untracked) > 20:
+                print(f"... {len(untracked) - 20} more", file=sys.stderr)
+            return 2
 
     try:
         require_no_running_remote_jobs(config)

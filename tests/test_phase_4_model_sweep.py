@@ -170,6 +170,32 @@ def test_dry_run_does_not_call_remote_wrappers(monkeypatch, capsys) -> None:
     assert payload["runs"][0]["remote_job_start_args"][0] == "scripts/remote_job_start.sh"
 
 
+def test_live_run_refuses_untracked_files_before_sync(monkeypatch, tmp_path, capsys) -> None:
+    sweep = _load_sweep_module()
+
+    monkeypatch.setattr(sweep, "tracked_tree_is_dirty", lambda: False)
+    monkeypatch.setattr(sweep, "untracked_files", lambda: ["scripts/smoke_local.py"])
+
+    def fail_run_checked(_args):
+        raise AssertionError("runner must fail before remote wrappers")
+
+    monkeypatch.setattr(sweep, "run_checked", fail_run_checked)
+
+    rc = sweep.main(
+        [
+            "--config",
+            str(CONFIG_PATH),
+            "--only",
+            "sonnet46",
+            "--state-dir",
+            str(tmp_path / "state"),
+        ]
+    )
+
+    assert rc == 2
+    assert "untracked files" in capsys.readouterr().err
+
+
 def test_phase4_status_line_counts_are_parsed() -> None:
     sweep = _load_sweep_module()
 
