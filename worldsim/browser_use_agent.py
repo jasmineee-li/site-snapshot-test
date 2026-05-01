@@ -1368,6 +1368,11 @@ def _pvpo_navigation_tick_stop_grace_s() -> float:
     return max(_PVPO_NAVIGATION_TICK_STOP_GRACE_MIN_S, _pvpo_cdp_timeout_s() + 0.25)
 
 
+def _pvpo_navigation_tick_beginframe_params() -> dict[str, Any]:
+    """Return low-impact beginFrame params for navigation progress ticks."""
+    return {"noDisplayUpdates": True}
+
+
 def _install_pvpo_beginframe_screenshot_patch() -> None:
     """Patch Browser Use screenshots for begin-frame-controlled PVPO sessions.
 
@@ -1524,7 +1529,7 @@ async def _pvpo_navigation_tick_loop(
                 )
                 await coordinator.send(
                     normalize_cdp_session(cdp_session),
-                    {},
+                    _pvpo_navigation_tick_beginframe_params(),
                     timeout_s=timeout_s,
                     label="navigation-tick",
                 )

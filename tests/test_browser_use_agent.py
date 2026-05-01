@@ -848,7 +848,10 @@ async def test_pvpo_navigation_tick_patch_sends_frames_during_browser_use_naviga
     await BrowserSession._navigate_and_wait(session, "http://example.test", "target-1")
 
     assert calls
-    assert all(call == ("HeadlessExperimental.beginFrame", {}) for call in calls)
+    assert all(
+        call == ("HeadlessExperimental.beginFrame", {"noDisplayUpdates": True})
+        for call in calls
+    )
     assert session._worldsim_pvpo_navigation_tick_navigations == 1
     assert session._worldsim_pvpo_navigation_tick_frames >= 1
     session.get_or_create_cdp_session.assert_awaited()
@@ -1183,7 +1186,7 @@ async def test_pvpo_navigation_tick_patch_waits_for_inflight_tick_on_navigation_
 
     await BrowserSession._navigate_and_wait(session, "http://example.test", "target-1")
 
-    assert calls == [("HeadlessExperimental.beginFrame", {})]
+    assert calls == [("HeadlessExperimental.beginFrame", {"noDisplayUpdates": True})]
     assert session._worldsim_pvpo_navigation_tick_frames == 1
     assert coordinator.dirty_reason is None
     assert not hasattr(session, "_worldsim_pvpo_navigation_tick_stop_timeouts")

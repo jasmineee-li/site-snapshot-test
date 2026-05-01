@@ -86,6 +86,12 @@ underlying protocol future or allow a second beginFrame to race the first. If th
 prior frame cannot drain, the endpoint should be marked dirty and recycled rather
 than treating a degraded screenshot as a valid model/task outcome.
 
+WorldSim's local hook uses `HeadlessExperimental.beginFrame({noDisplayUpdates:
+true})` for navigation ticks. Navigation ticks only need lifecycle/layout side
+effects so Browser Use stops waiting; deterministic display commits are reserved
+for the atomic PVPO screenshot boundary. Keeping those responsibilities separate
+reduces the chance that a progress tick corrupts the next measurement frame.
+
 ## Suggested test plan (to include in the upstream PR)
 
 1. Default: `BrowserSession()` with no `navigation_tick_cb` — verify no task named `browser-use-nav-tick` is ever created during a standard navigation (regression guard).
