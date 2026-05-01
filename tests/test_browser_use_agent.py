@@ -679,6 +679,101 @@ async def test_pvpo_screenshot_patch_returns_placeholder_when_browser_use_screen
 
 
 @pytest.mark.asyncio
+async def test_pvpo_scroll_patch_delegates_for_non_pvpo_sessions(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from browser_use.browser.watchdogs.default_action_watchdog import DefaultActionWatchdog
+
+    original_method = DefaultActionWatchdog._scroll_with_cdp_gesture
+    observed: dict[str, object] = {}
+
+    async def fake_original(self, pixels):
+        observed["pixels"] = pixels
+        return "original"
+
+    monkeypatch.setattr(browser_use_agent, "_PVPO_SCROLL_PATCHED", False)
+    DefaultActionWatchdog._scroll_with_cdp_gesture = fake_original
+    try:
+        browser_use_agent._install_pvpo_scroll_patch()
+        result = await DefaultActionWatchdog._scroll_with_cdp_gesture(
+            SimpleNamespace(browser_session=SimpleNamespace(cdp_url="")),
+            400,
+        )
+    finally:
+        DefaultActionWatchdog._scroll_with_cdp_gesture = original_method
+        browser_use_agent._PVPO_SCROLL_PATCHED = False
+
+    assert result == "original"
+    assert observed["pixels"] == 400
+
+
+@pytest.mark.asyncio
+async def test_pvpo_scroll_patch_falls_back_to_js_when_gesture_times_out(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from browser_use.browser.watchdogs.default_action_watchdog import DefaultActionWatchdog
+
+    original_method = DefaultActionWatchdog._scroll_with_cdp_gesture
+    monkeypatch.setattr(browser_use_agent, "_PVPO_SCROLL_PATCHED", False)
+    monkeypatch.setenv("WORLDSIM_PVPO_SCROLL_GESTURE_TIMEOUT_S", "0.01")
+
+    async def hanging_gesture(**kwargs):
+        await asyncio.sleep(10)
+
+    runtime_evaluate = AsyncMock(
+        return_value={"result": {"value": {"success": True, "scrolledY": 720}}}
+    )
+    cdp_session = SimpleNamespace(
+        session_id="session-1",
+        cdp_client=SimpleNamespace(
+            send=SimpleNamespace(
+                Input=SimpleNamespace(synthesizeScrollGesture=AsyncMock(side_effect=hanging_gesture)),
+                Runtime=SimpleNamespace(evaluate=runtime_evaluate),
+            )
+        ),
+    )
+    browser_session = SimpleNamespace(
+        cdp_url="http://127.0.0.1:9230",
+        _original_viewport_size=(1280, 720),
+        get_or_create_cdp_session=AsyncMock(return_value=cdp_session),
+    )
+
+    try:
+        browser_use_agent._install_pvpo_scroll_patch()
+        result = await DefaultActionWatchdog._scroll_with_cdp_gesture(
+            SimpleNamespace(browser_session=browser_session),
+            720,
+        )
+    finally:
+        DefaultActionWatchdog._scroll_with_cdp_gesture = original_method
+        browser_use_agent._PVPO_SCROLL_PATCHED = False
+
+    assert result is True
+    cdp_session.cdp_client.send.Input.synthesizeScrollGesture.assert_awaited_once()
+    runtime_evaluate.assert_awaited_once()
+    assert browser_session._worldsim_pvpo_scroll_gesture_timeouts == 1
+    assert browser_session._worldsim_pvpo_scroll_js_fallbacks == 1
+
+
+def test_record_browser_use_patch_runtime_persists_scroll_counters():
+    agent = browser_use_agent.BrowserUseAgent(llm=object())
+    agent._session = SimpleNamespace(
+        _worldsim_pvpo_scroll_gesture_successes=2,
+        _worldsim_pvpo_scroll_gesture_timeouts=3,
+        _worldsim_pvpo_scroll_js_fallbacks=3,
+        _worldsim_pvpo_scroll_js_failures=0,
+    )
+
+    agent._record_browser_use_patch_runtime()
+
+    assert agent._browser_runtime == {
+        "pvpo_scroll_gesture_successes": 2,
+        "pvpo_scroll_gesture_timeouts": 3,
+        "pvpo_scroll_js_fallbacks": 3,
+    }
+
+
+@pytest.mark.asyncio
 async def test_pvpo_callback_degrades_on_cdp_timeout(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,

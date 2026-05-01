@@ -73,7 +73,10 @@ _CDP_VIEWPORT_JS = """
 """
 _PVPO_CDP_TIMEOUT_ENV = "WORLDSIM_PVPO_CDP_TIMEOUT_S"
 _PVPO_CDP_TIMEOUT_DEFAULT_S = 10.0
+_PVPO_SCROLL_GESTURE_TIMEOUT_ENV = "WORLDSIM_PVPO_SCROLL_GESTURE_TIMEOUT_S"
+_PVPO_SCROLL_GESTURE_TIMEOUT_DEFAULT_S = 1.0
 _PVPO_SCREENSHOT_PATCHED = False
+_PVPO_SCROLL_PATCHED = False
 _TRANSPARENT_PNG_BASE64 = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
 )
@@ -1301,6 +1304,31 @@ def _pvpo_cdp_timeout_s() -> float:
     return timeout_s
 
 
+def _pvpo_scroll_gesture_timeout_s() -> float:
+    raw = os.environ.get(_PVPO_SCROLL_GESTURE_TIMEOUT_ENV, "").strip()
+    if not raw:
+        return _PVPO_SCROLL_GESTURE_TIMEOUT_DEFAULT_S
+    try:
+        timeout_s = float(raw)
+    except ValueError:
+        logger.warning(
+            "%s=%r is not a number; using %.1fs",
+            _PVPO_SCROLL_GESTURE_TIMEOUT_ENV,
+            raw,
+            _PVPO_SCROLL_GESTURE_TIMEOUT_DEFAULT_S,
+        )
+        return _PVPO_SCROLL_GESTURE_TIMEOUT_DEFAULT_S
+    if timeout_s <= 0:
+        logger.warning(
+            "%s=%r is not positive; using %.1fs",
+            _PVPO_SCROLL_GESTURE_TIMEOUT_ENV,
+            raw,
+            _PVPO_SCROLL_GESTURE_TIMEOUT_DEFAULT_S,
+        )
+        return _PVPO_SCROLL_GESTURE_TIMEOUT_DEFAULT_S
+    return timeout_s
+
+
 def _install_pvpo_beginframe_screenshot_patch() -> None:
     """Patch Browser Use screenshots for begin-frame-controlled PVPO sessions.
 
@@ -1329,6 +1357,165 @@ def _install_pvpo_beginframe_screenshot_patch() -> None:
     _worldsim_on_screenshot_event.__name__ = "on_ScreenshotEvent"
     ScreenshotWatchdog.on_ScreenshotEvent = _worldsim_on_screenshot_event
     _PVPO_SCREENSHOT_PATCHED = True
+
+
+def _install_pvpo_scroll_patch() -> None:
+    """Patch Browser Use scroll gestures for begin-frame-controlled PVPO sessions.
+
+    Browser Use target-level scrolling uses ``Input.synthesizeScrollGesture``.
+    In ``chrome-headless-shell --enable-begin-frame-control`` that CDP call can
+    hang until Browser Use's 8s ``ScrollEvent`` timeout, so the upstream code's
+    intended JS fallback never runs. Bound only the PVPO external-CDP path and
+    fall back to a normal page scroll; non-PVPO Browser Use sessions keep the
+    upstream implementation unchanged.
+    """
+    global _PVPO_SCROLL_PATCHED
+    if _PVPO_SCROLL_PATCHED:
+        return
+
+    from browser_use.browser.watchdogs.default_action_watchdog import DefaultActionWatchdog
+
+    original = DefaultActionWatchdog._scroll_with_cdp_gesture
+
+    async def _worldsim_scroll_with_pvpo_fallback(self: Any, pixels: int) -> bool:
+        browser_session = getattr(self, "browser_session", None)
+        if not getattr(browser_session, "cdp_url", None):
+            return await original(self, pixels)
+        return await _pvpo_scroll_with_bounded_gesture_fallback(self, pixels)
+
+    _worldsim_scroll_with_pvpo_fallback.__name__ = "_scroll_with_cdp_gesture"
+    DefaultActionWatchdog._scroll_with_cdp_gesture = _worldsim_scroll_with_pvpo_fallback
+    _PVPO_SCROLL_PATCHED = True
+
+
+async def _pvpo_scroll_with_bounded_gesture_fallback(watchdog: Any, pixels: int) -> bool:
+    browser_session = watchdog.browser_session
+    try:
+        cdp_session = await browser_session.get_or_create_cdp_session()
+    except Exception as exc:
+        logger.debug("PVPO scroll: CDP session unavailable: %s", exc)
+        _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_failures")
+        return False
+
+    timeout_s = _pvpo_scroll_gesture_timeout_s()
+    try:
+        await asyncio.wait_for(
+            _pvpo_synthesize_scroll_gesture(browser_session, cdp_session, pixels),
+            timeout=timeout_s,
+        )
+        _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_gesture_successes")
+        return True
+    except TimeoutError:
+        _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_gesture_timeouts")
+        fallback_count = _increment_session_counter(
+            browser_session, "_worldsim_pvpo_scroll_js_fallbacks"
+        )
+        if fallback_count == 1:
+            logger.warning(
+                "PVPO scroll: Input.synthesizeScrollGesture timed out after %.2fs; "
+                "using JS scroll fallback for this begin-frame-controlled session",
+                timeout_s,
+            )
+        else:
+            logger.debug(
+                "PVPO scroll: Input.synthesizeScrollGesture timed out after %.2fs; "
+                "using JS scroll fallback",
+                timeout_s,
+            )
+        return await _pvpo_scroll_with_js(browser_session, cdp_session, pixels)
+    except Exception as exc:
+        _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_gesture_failures")
+        logger.debug("PVPO scroll: CDP gesture failed (%s); using JS fallback", exc)
+        _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_js_fallbacks")
+        return await _pvpo_scroll_with_js(browser_session, cdp_session, pixels)
+
+
+async def _pvpo_synthesize_scroll_gesture(
+    browser_session: Any,
+    cdp_session: Any,
+    pixels: int,
+) -> None:
+    cdp_client = cdp_session.cdp_client
+    session_id = cdp_session.session_id
+    if getattr(browser_session, "_original_viewport_size", None):
+        viewport_width, viewport_height = browser_session._original_viewport_size
+    else:
+        layout_metrics = await cdp_client.send.Page.getLayoutMetrics(session_id=session_id)
+        viewport_width = layout_metrics["layoutViewport"]["clientWidth"]
+        viewport_height = layout_metrics["layoutViewport"]["clientHeight"]
+
+    await cdp_client.send.Input.synthesizeScrollGesture(
+        params={
+            "x": viewport_width / 2,
+            "y": viewport_height / 2,
+            "xDistance": 0,
+            "yDistance": -pixels,
+            "speed": 50000,
+        },
+        session_id=session_id,
+    )
+
+
+async def _pvpo_scroll_with_js(browser_session: Any, cdp_session: Any, pixels: int) -> bool:
+    cdp_client = cdp_session.cdp_client
+    session_id = cdp_session.session_id
+    expression = f"""
+(() => {{
+  const dy = {int(pixels)};
+  const root = document.scrollingElement || document.documentElement || document.body;
+  if (!root) {{
+    return {{success: false, error: "no scrolling element"}};
+  }}
+  const beforeY = Number(window.scrollY || root.scrollTop || 0);
+  const beforeX = Number(window.scrollX || root.scrollLeft || 0);
+  window.scrollBy({{left: 0, top: dy, behavior: "instant"}});
+  const afterY = Number(window.scrollY || root.scrollTop || 0);
+  const afterX = Number(window.scrollX || root.scrollLeft || 0);
+  return {{
+    success: true,
+    beforeX,
+    beforeY,
+    afterX,
+    afterY,
+    scrolledX: afterX - beforeX,
+    scrolledY: afterY - beforeY,
+    maxY: Math.max(0, Number(root.scrollHeight || 0) - Number(window.innerHeight || 0))
+  }};
+}})()
+"""
+    try:
+        result = await asyncio.wait_for(
+            cdp_client.send.Runtime.evaluate(
+                params={"expression": expression, "returnByValue": True, "awaitPromise": True},
+                session_id=session_id,
+            ),
+            timeout=_pvpo_scroll_gesture_timeout_s(),
+        )
+    except Exception as exc:
+        logger.debug("PVPO scroll: JS fallback failed: %s", exc)
+        _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_js_failures")
+        return False
+    if isinstance(result, dict) and result.get("exceptionDetails"):
+        logger.debug("PVPO scroll: JS fallback exception: %s", result.get("exceptionDetails"))
+        _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_js_failures")
+        return False
+    value = result.get("result", {}).get("value") if isinstance(result, dict) else None
+    if isinstance(value, dict) and value.get("success") is False:
+        logger.debug("PVPO scroll: JS fallback reported failure: %s", value)
+        _increment_session_counter(browser_session, "_worldsim_pvpo_scroll_js_failures")
+        return False
+    return True
+
+
+def _increment_session_counter(session: Any, name: str) -> int:
+    if session is None:
+        return 0
+    current = getattr(session, name, 0)
+    if not isinstance(current, int):
+        current = 0
+    updated = current + 1
+    setattr(session, name, updated)
+    return updated
 
 
 async def _capture_pvpo_beginframe_screenshot(watchdog: Any, event: Any) -> str:
@@ -1725,6 +1912,7 @@ class BrowserUseAgent:
         if resolved_pvpo_cdp_url:
             session_kwargs["cdp_url"] = resolved_pvpo_cdp_url
             _install_pvpo_beginframe_screenshot_patch()
+            _install_pvpo_scroll_patch()
         else:
             session_kwargs["args"] = [
                 "--disable-gpu",
@@ -1861,6 +2049,7 @@ class BrowserUseAgent:
             if network_recorder is not None:
                 network_trace = await network_recorder.stop()
             self._task_origins.update(_origins_from_network_trace(network_trace))
+            self._record_browser_use_patch_runtime()
             self._browser_runtime.update(
                 {
                     "network_trace_entries": len(network_trace),
@@ -1890,6 +2079,23 @@ class BrowserUseAgent:
             errors=[*history_errors, *extra_errors],
             network_trace=network_trace,
         )
+
+    def _record_browser_use_patch_runtime(self) -> None:
+        """Persist per-task counters from WorldSim's Browser Use compatibility patches."""
+        if self._session is None:
+            return
+        counter_names = (
+            "_worldsim_pvpo_scroll_gesture_successes",
+            "_worldsim_pvpo_scroll_gesture_timeouts",
+            "_worldsim_pvpo_scroll_gesture_failures",
+            "_worldsim_pvpo_scroll_js_fallbacks",
+            "_worldsim_pvpo_scroll_js_failures",
+            "_worldsim_pvpo_scroll_failures",
+        )
+        for name in counter_names:
+            value = getattr(self._session, name, 0)
+            if isinstance(value, int) and value > 0:
+                self._browser_runtime[name.removeprefix("_worldsim_")] = value
 
     async def teardown(self) -> None:
         if self._session is not None:
