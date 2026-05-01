@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import Any
 
 from worldsim.atomic_io import write_json_atomic
-from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator, BeginFrameTimeout
+from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator
 from worldsim.phase_4.pvpo_cdp import normalize_cdp_session
 
 logger = logging.getLogger(__name__)
@@ -265,15 +265,12 @@ async def atomic_capture_with_visibility(
     beginframe_lock = getattr(capturing, "beginframe_lock", None) if capturing is not None else None
     if capturing is not None:
         capturing.set()
+    virtual_time_paused = False
     try:
-        if (
-            isinstance(beginframe_controller, BeginFrameCoordinator)
-            and beginframe_controller.dirty_reason
-        ):
-            raise BeginFrameTimeout(
-                f"pvpo beginFrame endpoint is dirty: {beginframe_controller.dirty_reason}"
-            )
+        if isinstance(beginframe_controller, BeginFrameCoordinator):
+            await beginframe_controller.drain_prior(label="pre-atomic-capture")
         await _send("Emulation.setVirtualTimePolicy", {"policy": "pause"})
+        virtual_time_paused = True
         raw = await _send(
             "Runtime.evaluate",
             {"expression": query_js, "returnByValue": True, "awaitPromise": True},
@@ -356,13 +353,13 @@ async def atomic_capture_with_visibility(
                 f"after {attempts} attempt(s)"
             )
     finally:
-        try:
-            await _send("Emulation.setVirtualTimePolicy", {"policy": "advance"})
-        except Exception as exc:
-            logger.warning("pvpo: failed to resume virtual time after capture: %s", exc)
-        finally:
-            if capturing is not None:
-                capturing.clear()
+        if virtual_time_paused:
+            try:
+                await _send("Emulation.setVirtualTimePolicy", {"policy": "advance"})
+            except Exception as exc:
+                logger.warning("pvpo: failed to resume virtual time after capture: %s", exc)
+        if capturing is not None:
+            capturing.clear()
 
     return StepCapture(
         screenshot_png=screenshot_png,

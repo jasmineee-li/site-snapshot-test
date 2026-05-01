@@ -38,5 +38,13 @@ then attaches a done callback to consume any late result or exception. Stateful
 `BeginFrameCoordinator`; read/probe calls may be abandoned locally but still
 drained when Chrome replies.
 
+`HeadlessExperimental.beginFrame` has one extra invariant: a timed-out frame may
+still be pending inside Chrome even after the local deadline fires. WorldSim
+therefore exposes explicit quiescence points around non-measurement frame use
+(navigation ticks and Browser Use screenshots) and before atomic PVPO capture.
+If the prior frame drains, measurement proceeds. If it remains pending past the
+drain budget, the endpoint is marked dirty and the task is treated as degraded
+runtime evidence that must be rerun after browser recycle.
+
 This preserves research semantics: a timeout is observable runtime telemetry,
 not a reason to mutate the task, weaken PVPO, or hand-edit an outcome.

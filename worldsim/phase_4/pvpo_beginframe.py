@@ -260,7 +260,21 @@ class BeginFrameCoordinator:
                     await asyncio.sleep(sleep_s)
                     attempt += 1
 
-    async def _drain_prior_inflight(self, *, label: str) -> None:
+    async def drain_prior(self, *, label: str, timeout_s: float | None = None) -> None:
+        """Wait for a prior timed-out beginFrame before a new measurement boundary."""
+        async with self.lock:
+            if self._dirty_reason is not None:
+                raise BeginFrameTimeout(
+                    f"pvpo beginFrame endpoint is dirty: {self._dirty_reason}"
+                )
+            await self._drain_prior_inflight(label=label, timeout_s=timeout_s)
+
+    async def _drain_prior_inflight(
+        self,
+        *,
+        label: str,
+        timeout_s: float | None = None,
+    ) -> None:
         task = self._inflight
         if task is None:
             return
@@ -271,7 +285,7 @@ class BeginFrameCoordinator:
             return
 
         self.prior_drain_count += 1
-        drain_timeout_s = _drain_timeout_s()
+        drain_timeout_s = _drain_timeout_s() if timeout_s is None else timeout_s
         try:
             await asyncio.wait_for(asyncio.shield(task), timeout=drain_timeout_s)
         except TimeoutError as exc:

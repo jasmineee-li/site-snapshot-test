@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock
 import pytest
 from PIL import Image
 
-from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator
+from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator, BeginFrameTimeout
 from worldsim.phase_4.pvpo_capture import (
     Rect,
     StepCapture,
@@ -364,6 +364,95 @@ async def test_atomic_capture_uses_beginframe_controller_from_capturing_event():
         "HeadlessExperimental.beginFrame"
     ) == 1
     assert capturing.is_set() is False
+
+
+@pytest.mark.asyncio
+async def test_atomic_capture_drains_prior_frame_before_virtual_time_pause():
+    png = _png_bytes()
+    cdp = AsyncMock()
+    coordinator = BeginFrameCoordinator()
+    release_prior = asyncio.Event()
+    capturing = asyncio.Event()
+    capturing.beginframe_controller = coordinator  # type: ignore[attr-defined]
+    call_order: list[str] = []
+
+    async def _send(method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        call_order.append(method)
+        if method == "Emulation.setVirtualTimePolicy":
+            assert coordinator.stats().get("beginframe_inflight_pending") is None
+            return {}
+        if method == "Runtime.evaluate":
+            return {
+                "result": {
+                    "type": "object",
+                    "value": {"entries": [], "backgroundColor": {"r": 255, "g": 255, "b": 255}},
+                }
+            }
+        if method == "HeadlessExperimental.beginFrame":
+            if not release_prior.is_set():
+                await release_prior.wait()
+                return {"hasDamage": True}
+            return {
+                "hasDamage": True,
+                "screenshotData": base64.b64encode(png).decode("ascii"),
+            }
+        raise AssertionError(method)
+
+    cdp.send = AsyncMock(side_effect=_send)
+
+    with pytest.raises(BeginFrameTimeout):
+        await coordinator.send(cdp, {}, timeout_s=0.01, label="navigation-tick")
+    release_prior.set()
+
+    capture = await atomic_capture_with_visibility(
+        cdp,
+        viewport_rect=Rect(0, 0, 100, 100),
+        capturing=capturing,
+        cdp_timeout_s=0.5,
+    )
+
+    assert capture.screenshot_png == png
+    assert coordinator.prior_drain_count == 1
+    assert call_order.index("Emulation.setVirtualTimePolicy") > call_order.index(
+        "HeadlessExperimental.beginFrame"
+    )
+    assert capturing.is_set() is False
+
+
+@pytest.mark.asyncio
+async def test_atomic_capture_does_not_pause_virtual_time_when_prior_frame_stays_pending(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv("WORLDSIM_PVPO_BEGINFRAME_DRAIN_TIMEOUT_S", "0.01")
+    cdp = AsyncMock()
+    coordinator = BeginFrameCoordinator()
+    prior_release = asyncio.Event()
+    capturing = asyncio.Event()
+    capturing.beginframe_controller = coordinator  # type: ignore[attr-defined]
+
+    async def _send(method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        if method == "HeadlessExperimental.beginFrame":
+            await prior_release.wait()
+            return {"hasDamage": True}
+        if method == "Emulation.setVirtualTimePolicy":
+            raise AssertionError("virtual time must not pause before prior frame drains")
+        raise AssertionError(method)
+
+    cdp.send = AsyncMock(side_effect=_send)
+
+    with pytest.raises(BeginFrameTimeout):
+        await coordinator.send(cdp, {}, timeout_s=0.01, label="navigation-tick")
+    with pytest.raises(BeginFrameTimeout, match="pre-atomic-capture"):
+        await atomic_capture_with_visibility(
+            cdp,
+            viewport_rect=Rect(0, 0, 100, 100),
+            capturing=capturing,
+            cdp_timeout_s=0.5,
+        )
+
+    assert coordinator.prior_drain_timeout_count == 1
+    assert capturing.is_set() is False
+    prior_release.set()
 
 
 @pytest.mark.asyncio

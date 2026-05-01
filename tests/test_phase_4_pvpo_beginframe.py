@@ -74,6 +74,31 @@ async def test_beginframe_timeout_does_not_issue_second_frame_while_prior_is_pen
 
 
 @pytest.mark.asyncio
+async def test_beginframe_public_drain_quiesces_prior_inflight():
+    coordinator = BeginFrameCoordinator()
+    release_first = asyncio.Event()
+
+    async def _send(method: str, params: dict):
+        assert method == "HeadlessExperimental.beginFrame"
+        await release_first.wait()
+        return {"hasDamage": True}
+
+    cdp = AsyncMock()
+    cdp.send = AsyncMock(side_effect=_send)
+
+    with pytest.raises(BeginFrameTimeout):
+        await coordinator.send(cdp, {}, timeout_s=0.01, label="navigation-tick")
+
+    release_first.set()
+    await coordinator.drain_prior(label="post-navigation-tick", timeout_s=0.5)
+
+    assert coordinator.dirty_reason is None
+    assert coordinator.prior_drain_count == 1
+    await coordinator.send(cdp, {}, timeout_s=0.5, label="atomic-capture")
+    assert cdp.send.await_count == 2
+
+
+@pytest.mark.asyncio
 async def test_beginframe_pending_error_retries_within_controller():
     coordinator = BeginFrameCoordinator()
     calls = 0

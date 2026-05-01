@@ -707,6 +707,49 @@ async def test_pvpo_beginframe_screenshot_returns_cached_image_when_frame_pendin
 
 
 @pytest.mark.asyncio
+async def test_pvpo_beginframe_screenshot_marks_dirty_when_timeout_stays_pending(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    class HangingCdpSession:
+        async def send(self, method, params):
+            await asyncio.sleep(10)
+            return {"screenshotData": "late-png"}
+
+    coordinator = BeginFrameCoordinator()
+
+    class FakeBrowserSession:
+        cdp_url = "http://127.0.0.1:9230"
+        _worldsim_pvpo_beginframe_controller = coordinator
+        _worldsim_pvpo_last_browser_use_screenshot = "previous-png"
+
+        def get_focused_target(self):
+            return SimpleNamespace(target_type="page", target_id="target-1")
+
+        def get_page_targets(self):
+            return []
+
+        async def get_or_create_cdp_session(self, target_id, focus=False):
+            return HangingCdpSession()
+
+        async def remove_highlights(self):
+            return None
+
+    session = FakeBrowserSession()
+    monkeypatch.setenv("WORLDSIM_PVPO_CDP_TIMEOUT_S", "0.01")
+    monkeypatch.setenv("WORLDSIM_PVPO_BEGINFRAME_DRAIN_TIMEOUT_S", "0.01")
+
+    data = await browser_use_agent._capture_pvpo_beginframe_screenshot(
+        SimpleNamespace(browser_session=session),
+        SimpleNamespace(full_page=False, clip=None),
+    )
+
+    assert data == "previous-png"
+    assert session._worldsim_pvpo_browser_use_screenshot_drain_timeouts == 1
+    assert "post-browser-use-screenshot" in (coordinator.dirty_reason or "")
+    coordinator.reset_after_recycle()
+
+
+@pytest.mark.asyncio
 async def test_pvpo_beginframe_screenshot_skips_when_atomic_capture_active():
     class FakeBrowserSession:
         cdp_url = "http://127.0.0.1:9230"
@@ -1013,7 +1056,50 @@ async def test_pvpo_navigation_tick_patch_records_tick_failures_without_failing_
 
 
 @pytest.mark.asyncio
-async def test_pvpo_navigation_tick_patch_records_timeout_without_dirtying_endpoint(
+async def test_pvpo_navigation_tick_patch_drains_timeout_before_return(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from browser_use.browser.session import BrowserSession
+
+    async def fake_original(
+        self,
+        url,
+        target_id,
+        timeout=None,
+        wait_until="load",
+        nav_timeout=None,
+    ):
+        await asyncio.sleep(0.015)
+
+    class HangingCdpSession:
+        async def send(self, method, params):
+            await asyncio.sleep(0.03)
+            return {}
+
+    coordinator = BeginFrameCoordinator()
+    session = SimpleNamespace(
+        cdp_url="http://127.0.0.1:9230",
+        _worldsim_pvpo_beginframe_controller=coordinator,
+        get_or_create_cdp_session=AsyncMock(return_value=HangingCdpSession()),
+    )
+
+    monkeypatch.setattr(BrowserSession, "_navigate_and_wait", fake_original)
+    monkeypatch.setattr(browser_use_agent, "_PVPO_NAVIGATION_TICK_PATCHED", False)
+    monkeypatch.setenv("WORLDSIM_PVPO_NAVIGATION_TICK_MS", "1")
+    monkeypatch.setenv("WORLDSIM_PVPO_CDP_TIMEOUT_S", "0.01")
+
+    browser_use_agent._install_pvpo_navigation_tick_patch()
+
+    await BrowserSession._navigate_and_wait(session, "http://example.test", "target-1")
+
+    assert session._worldsim_pvpo_navigation_tick_navigations == 1
+    assert session._worldsim_pvpo_navigation_tick_timeouts == 1
+    assert coordinator.prior_drain_count == 1
+    assert coordinator.dirty_reason is None
+
+
+@pytest.mark.asyncio
+async def test_pvpo_navigation_tick_patch_marks_dirty_when_timeout_stays_pending(
     monkeypatch: pytest.MonkeyPatch,
 ):
     from browser_use.browser.session import BrowserSession
@@ -1044,6 +1130,7 @@ async def test_pvpo_navigation_tick_patch_records_timeout_without_dirtying_endpo
     monkeypatch.setattr(browser_use_agent, "_PVPO_NAVIGATION_TICK_PATCHED", False)
     monkeypatch.setenv("WORLDSIM_PVPO_NAVIGATION_TICK_MS", "1")
     monkeypatch.setenv("WORLDSIM_PVPO_CDP_TIMEOUT_S", "0.01")
+    monkeypatch.setenv("WORLDSIM_PVPO_BEGINFRAME_DRAIN_TIMEOUT_S", "0.01")
 
     browser_use_agent._install_pvpo_navigation_tick_patch()
 
@@ -1051,7 +1138,8 @@ async def test_pvpo_navigation_tick_patch_records_timeout_without_dirtying_endpo
 
     assert session._worldsim_pvpo_navigation_tick_navigations == 1
     assert session._worldsim_pvpo_navigation_tick_timeouts == 1
-    assert coordinator.dirty_reason is None
+    assert session._worldsim_pvpo_navigation_tick_drain_timeouts == 1
+    assert "post-navigation-tick" in (coordinator.dirty_reason or "")
     coordinator.reset_after_recycle()
 
 
@@ -1466,6 +1554,8 @@ def test_record_browser_use_patch_runtime_persists_scroll_counters():
         _worldsim_pvpo_navigation_tick_navigations=1,
         _worldsim_pvpo_navigation_tick_frames=4,
         _worldsim_pvpo_navigation_tick_failures=0,
+        _worldsim_pvpo_navigation_tick_drain_timeouts=1,
+        _worldsim_pvpo_browser_use_screenshot_drain_failures=1,
         _worldsim_pvpo_cdp_timeouts=2,
         _worldsim_pvpo_cdp_late_completions=1,
     )
@@ -1481,6 +1571,8 @@ def test_record_browser_use_patch_runtime_persists_scroll_counters():
         "pvpo_scroll_js_noops": 1,
         "pvpo_navigation_tick_navigations": 1,
         "pvpo_navigation_tick_frames": 4,
+        "pvpo_navigation_tick_drain_timeouts": 1,
+        "pvpo_browser_use_screenshot_drain_failures": 1,
         "pvpo_cdp_timeouts": 2,
         "pvpo_cdp_late_completions": 1,
         "pvpo_beginframe_sends": 2,

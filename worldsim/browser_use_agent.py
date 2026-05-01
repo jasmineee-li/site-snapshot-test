@@ -1561,37 +1561,46 @@ async def _stop_pvpo_navigation_tick(
     stop: asyncio.Event,
     coordinator: Any,
 ) -> None:
-    if tick_task.done():
-        with suppress(asyncio.CancelledError, Exception):
-            await tick_task
-        return
-
-    stop.set()
-    stop_grace_s = _pvpo_navigation_tick_stop_grace_s()
     try:
-        await asyncio.wait_for(asyncio.shield(tick_task), timeout=stop_grace_s)
-    except TimeoutError:
-        _increment_session_counter(
+        if tick_task.done():
+            with suppress(asyncio.CancelledError, Exception):
+                await tick_task
+            return
+
+        stop.set()
+        stop_grace_s = _pvpo_navigation_tick_stop_grace_s()
+        try:
+            await asyncio.wait_for(asyncio.shield(tick_task), timeout=stop_grace_s)
+        except TimeoutError:
+            _increment_session_counter(
+                browser_session,
+                "_worldsim_pvpo_navigation_tick_stop_timeouts",
+            )
+            reason = (
+                "pvpo navigation beginFrame tick did not stop after "
+                f"{stop_grace_s:.2f}s"
+            )
+            mark_dirty = getattr(coordinator, "mark_dirty", None)
+            if callable(mark_dirty):
+                mark_dirty(reason)
+            tick_task.cancel()
+            with suppress(asyncio.CancelledError, Exception):
+                await tick_task
+        except asyncio.CancelledError:
+            tick_task.cancel()
+            with suppress(asyncio.CancelledError, Exception):
+                await tick_task
+            raise
+        except Exception as exc:
+            logger.debug("pvpo navigation tick: teardown raised: %s", exc)
+    finally:
+        await _drain_pvpo_beginframe_after_auxiliary_frame(
             browser_session,
-            "_worldsim_pvpo_navigation_tick_stop_timeouts",
+            coordinator,
+            label="post-navigation-tick",
+            timeout_counter_name="_worldsim_pvpo_navigation_tick_drain_timeouts",
+            failure_counter_name="_worldsim_pvpo_navigation_tick_drain_failures",
         )
-        reason = (
-            "pvpo navigation beginFrame tick did not stop after "
-            f"{stop_grace_s:.2f}s"
-        )
-        mark_dirty = getattr(coordinator, "mark_dirty", None)
-        if callable(mark_dirty):
-            mark_dirty(reason)
-        tick_task.cancel()
-        with suppress(asyncio.CancelledError, Exception):
-            await tick_task
-    except asyncio.CancelledError:
-        tick_task.cancel()
-        with suppress(asyncio.CancelledError, Exception):
-            await tick_task
-        raise
-    except Exception as exc:
-        logger.debug("pvpo navigation tick: teardown raised: %s", exc)
 
 
 async def _pvpo_scroll_with_wheel_fallback(watchdog: Any, pixels: int) -> bool:
@@ -1927,6 +1936,29 @@ def _increment_session_counter(session: Any, name: str) -> int:
     return updated
 
 
+async def _drain_pvpo_beginframe_after_auxiliary_frame(
+    browser_session: Any,
+    coordinator: Any,
+    *,
+    label: str,
+    timeout_counter_name: str,
+    failure_counter_name: str,
+) -> None:
+    """Quiesce non-measurement beginFrame work before PVPO measurement resumes."""
+    from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator, BeginFrameTimeout
+
+    if not isinstance(coordinator, BeginFrameCoordinator):
+        return
+    try:
+        await coordinator.drain_prior(label=label)
+    except BeginFrameTimeout as exc:
+        _increment_session_counter(browser_session, timeout_counter_name)
+        logger.debug("pvpo %s: prior beginFrame drain timed out: %s", label, exc)
+    except Exception as exc:
+        _increment_session_counter(browser_session, failure_counter_name)
+        logger.debug("pvpo %s: prior beginFrame drain failed: %s", label, exc)
+
+
 async def _capture_pvpo_beginframe_screenshot(watchdog: Any, event: Any) -> str:
     """Handle Browser Use ``ScreenshotEvent`` using beginFrame screenshots."""
     from browser_use.browser.views import BrowserError
@@ -2005,6 +2037,17 @@ async def _capture_pvpo_beginframe_screenshot(watchdog: Any, event: Any) -> str:
             )
     except Exception as exc:
         if is_beginframe_pending_error(exc) or isinstance(exc, TimeoutError):
+            await _drain_pvpo_beginframe_after_auxiliary_frame(
+                browser_session,
+                coordinator,
+                label="post-browser-use-screenshot",
+                timeout_counter_name=(
+                    "_worldsim_pvpo_browser_use_screenshot_drain_timeouts"
+                ),
+                failure_counter_name=(
+                    "_worldsim_pvpo_browser_use_screenshot_drain_failures"
+                ),
+            )
             return _pvpo_browser_use_screenshot_fallback(browser_session)
         raise
     data = result.get("screenshotData") if isinstance(result, dict) else None
@@ -2587,7 +2630,11 @@ class BrowserUseAgent:
             "_worldsim_pvpo_navigation_tick_failures",
             "_worldsim_pvpo_navigation_tick_timeouts",
             "_worldsim_pvpo_navigation_tick_stop_timeouts",
+            "_worldsim_pvpo_navigation_tick_drain_timeouts",
+            "_worldsim_pvpo_navigation_tick_drain_failures",
             "_worldsim_pvpo_navigation_tick_skipped_captures",
+            "_worldsim_pvpo_browser_use_screenshot_drain_timeouts",
+            "_worldsim_pvpo_browser_use_screenshot_drain_failures",
             "_worldsim_pvpo_cdp_timeouts",
             "_worldsim_pvpo_cdp_late_completions",
             "_worldsim_pvpo_cdp_late_failures",

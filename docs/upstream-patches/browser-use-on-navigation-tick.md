@@ -79,13 +79,21 @@ An evaluation harness can work around this by spawning a sidecar coroutine that 
 
 That is the complete behavioral change. No existing caller is affected (default `None` means the ticker is never spawned). The tick task is scoped to a single navigation and cancelled when it returns; no lifecycle leak.
 
+For BeginFrame-controlled harnesses, the caller also needs a quiescence boundary:
+after the navigation tick loop stops, any timed-out `HeadlessExperimental.beginFrame`
+must be drained before measurement resumes. A local timeout should not cancel the
+underlying protocol future or allow a second beginFrame to race the first. If the
+prior frame cannot drain, the endpoint should be marked dirty and recycled rather
+than treating a degraded screenshot as a valid model/task outcome.
+
 ## Suggested test plan (to include in the upstream PR)
 
 1. Default: `BrowserSession()` with no `navigation_tick_cb` — verify no task named `browser-use-nav-tick` is ever created during a standard navigation (regression guard).
 2. With a stub callback that increments a counter: navigate to a page that's known to take >150ms to paint; assert the counter is >= 2 by the time the navigation returns.
 3. With a callback that raises: assert navigation still completes (the loop swallows exceptions at debug level).
 4. Cancel-on-return: assert the tick task is no longer running after `on_NavigateToUrlEvent` exits, regardless of success or failure.
-5. Integration against a Chrome launched with `--enable-begin-frame-control`: with the callback wired to `HeadlessExperimental.beginFrame`, navigation completes within the default timeout; without the callback, it times out. This is the motivation-repro.
+5. Quiescence: if the callback's local deadline expires but Chrome replies later, the harness drains the late frame before returning control to screenshot/measurement code.
+6. Integration against a Chrome launched with `--enable-begin-frame-control`: with the callback wired to `HeadlessExperimental.beginFrame`, navigation completes within the default timeout; without the callback, it times out. This is the motivation-repro.
 
 ## PR description template
 
