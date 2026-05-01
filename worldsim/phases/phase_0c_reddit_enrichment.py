@@ -89,8 +89,9 @@ def _read_forum_rows(db_connection: str) -> list[dict[str, Any]]:
         db_connection,
         purpose="Reddit Phase 0c forum enrichment requires instance['db_connection']",
     )
-    conn = _connect_db(parsed)
+    conn = None
     try:
+        conn = _connect_db(parsed)
         scheme = parsed.scheme.lower()
         _configure_read_only_connection(conn, scheme)
         table = _quote_identifier(
@@ -119,11 +120,12 @@ def _read_forum_rows(db_connection: str) -> list[dict[str, Any]]:
     except Exception as exc:
         raise RedditInventoryEnrichmentError(f"failed to enumerate reddit forums: {exc}") from exc
     finally:
-        try:
-            conn.rollback()
-        except Exception:
-            logger.debug("Failed to rollback reddit forum enrichment lookup", exc_info=True)
-        conn.close()
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                logger.debug("Failed to rollback reddit forum enrichment lookup", exc_info=True)
+            conn.close()
 
     result: list[dict[str, Any]] = []
     for row in rows:

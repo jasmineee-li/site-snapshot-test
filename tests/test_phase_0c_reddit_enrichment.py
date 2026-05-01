@@ -6,6 +6,7 @@ import pytest
 
 from worldsim.phases.phase_0c_reddit_enrichment import (
     RedditInventoryEnrichmentError,
+    _read_forum_rows,
     enrich_reddit_forums,
     merge_reddit_inventory_into_profile,
 )
@@ -63,6 +64,18 @@ def test_enrich_reddit_forums_encodes_forum_paths() -> None:
 def test_enrich_reddit_forums_requires_db_connection() -> None:
     with pytest.raises(RedditInventoryEnrichmentError, match="db_connection is required"):
         enrich_reddit_forums("http://reddit.local", None)
+
+
+def test_read_forum_rows_wraps_connection_failures() -> None:
+    with patch(
+        "worldsim.phases.phase_0c_reddit_enrichment._connect_db",
+        side_effect=TimeoutError("connection timed out"),
+    ):
+        with pytest.raises(
+            RedditInventoryEnrichmentError,
+            match="failed to enumerate reddit forums: connection timed out",
+        ):
+            _read_forum_rows("postgresql://u:p@db.example:5432/postmill")
 
 
 def test_merge_reddit_inventory_into_profile_preserves_existing_entities() -> None:
