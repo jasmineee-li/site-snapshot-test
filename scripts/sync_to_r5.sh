@@ -64,6 +64,8 @@ excludes=(
     "scripts/docker-compose.scale.yml"
     "scripts/proxy_ports.conf"
     ".codex-worktrees/"
+    ".claude/worktrees/"
+    "vendors/"
     "logs/"
     "logs_*/"
     "logs_run*/"

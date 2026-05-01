@@ -109,6 +109,8 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
     assert "scripts/docker-compose.scale.yml" in joined
     assert "scripts/proxy_ports.conf" in joined
     assert "agent-tools/" in joined
+    assert ".claude/worktrees/" in joined
+    assert "vendors/" in joined
     assert "$HOME" not in joined
     assert str(Path(env["HOME"]) / ".ssh" / "webarena-key.pem") in joined
 
