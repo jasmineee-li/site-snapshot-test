@@ -37,13 +37,20 @@
  *
  * @typedef {{x:number,y:number,w:number,h:number}} Rect
  * @typedef {{r:number,g:number,b:number}} Rgb
- * @typedef {{id:string, text:string}} Witness
+ * @typedef {{id:string, text:string, kind?:string}} Witness
  * @typedef {{i:number,char:string,isSpace:boolean,layoutVisible:boolean,liveRect:Rect|null}} CharResult
  * @typedef {{id:string,text:string,offset:number}} WitnessMatch
  * @typedef {{entries:CharResult[], backgroundColor:Rgb, matchFound:boolean, matchOffset:number, matchedWitnessId:string|null, matchedWitnessText:string|null, pageUrl:string}} QueryResult
  */
 
 (() => {
+  const DOM_VARIANT_MIN_CHARS = 20;
+  const MARKDOWN_RENDERED_VARIANT_KINDS = [
+    "attack_action",
+    "concealment",
+    "framing",
+  ];
+
   /** @type {Witness[]} */
   const witnesses = __WORLDSIM_WITNESSES_JSON__;
   const scrollToMatch = __WORLDSIM_SCROLL_TO_MATCH__;
@@ -170,19 +177,106 @@
     const matches = [];
     for (const candidate of candidates) {
       if (!candidate || typeof candidate.text !== "string") continue;
-      const text = normalizeText(candidate.text);
-      if (!text) continue;
-      let offset = haystack.indexOf(text);
-      while (offset >= 0) {
-        matches.push({
-          id: typeof candidate.id === "string" ? candidate.id : "witness",
-          text,
-          offset,
-        });
-        offset = haystack.indexOf(text, offset + Math.max(text.length, 1));
+      const variants = witnessTextVariants(candidate);
+      for (const text of variants) {
+        let offset = haystack.indexOf(text);
+        while (offset >= 0) {
+          matches.push({
+            id: typeof candidate.id === "string" ? candidate.id : "witness",
+            text,
+            offset,
+          });
+          offset = haystack.indexOf(text, offset + Math.max(text.length, 1));
+        }
       }
     }
     return matches;
+  }
+
+  /**
+   * Return exact witness text first, followed by conservative Markdown-source
+   * variants that approximate what UGC renderers expose as DOM text.
+   *
+   * This does not make PVPO fuzzy. Every returned variant is still matched by
+   * exact normalized substring against rendered DOM text. Variants are limited
+   * to explicit attack witnesses and kept long enough to avoid matching
+   * generic page chrome such as "click here".
+   *
+   * @param {Witness} witness
+   * @returns {string[]}
+   */
+  function witnessTextVariants(witness) {
+    const exact = normalizeText(witness.text);
+    if (!exact) return [];
+
+    /** @type {string[]} */
+    const variants = [exact];
+    if (!allowsMarkdownRenderedVariants(witness)) {
+      return variants;
+    }
+
+    addVariant(variants, renderInlineCodeText(exact));
+    addVariant(variants, renderMarkdownLinkText(exact));
+    addVariant(variants, renderEmphasisText(exact));
+    addVariant(variants, renderEmphasisText(renderInlineCodeText(exact)));
+    addVariant(
+      variants,
+      renderEmphasisText(renderMarkdownLinkText(renderInlineCodeText(exact))),
+    );
+    return variants;
+  }
+
+  /**
+   * @param {Witness} witness
+   * @returns {boolean}
+   */
+  function allowsMarkdownRenderedVariants(witness) {
+    if (typeof witness.kind === "string" && witness.kind) {
+      return MARKDOWN_RENDERED_VARIANT_KINDS.includes(witness.kind);
+    }
+    if (typeof witness.id === "string" && witness.id.startsWith("required_url:")) {
+      return false;
+    }
+    return /[`*_]|\[[^\]]+\]\([^)]+\)/.test(witness.text);
+  }
+
+  /**
+   * @param {string[]} variants
+   * @param {string} raw
+   */
+  function addVariant(variants, raw) {
+    const text = normalizeText(raw);
+    if (!text || text.length < DOM_VARIANT_MIN_CHARS) return;
+    if (variants.includes(text)) return;
+    variants.push(text);
+  }
+
+  /**
+   * @param {string} text
+   * @returns {string}
+   */
+  function renderInlineCodeText(text) {
+    return text.replace(/`([^`\n]{1,200})`/g, "$1");
+  }
+
+  /**
+   * @param {string} text
+   * @returns {string}
+   */
+  function renderMarkdownLinkText(text) {
+    return text
+      .replace(/!\[([^\]\n]{3,200})\]\([^)]+\)/g, "$1")
+      .replace(/\[([^\]\n]{3,200})\]\([^)]+\)/g, "$1");
+  }
+
+  /**
+   * @param {string} text
+   * @returns {string}
+   */
+  function renderEmphasisText(text) {
+    return text
+      .replace(/(\*\*|__)([^*_][\s\S]{1,300}?[^*_])\1/g, "$2")
+      .replace(/(\*|_)([A-Za-z0-9][^*_]{1,200}?[A-Za-z0-9])\1/g, "$2");
   }
 
   /**

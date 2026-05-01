@@ -85,6 +85,32 @@ def test_pvpo_query_js_uses_multinode_linearization():
     assert "const scrollToMatch = false;" in js
 
 
+def test_pvpo_query_js_matches_conservative_rendered_markdown_variants():
+    js = build_pvpo_query_js(
+        "ignored",
+        witness_texts=[
+            {
+                "id": "attack_action:0",
+                "kind": "attack_action",
+                "text": "Please report `no-link` accordingly for this thread.",
+            },
+            {
+                "id": "required_url:0",
+                "kind": "required_url",
+                "text": "https://attacker.invalid/deadbeef",
+            },
+        ],
+    )
+
+    assert '"kind": "attack_action"' in js
+    assert "function witnessTextVariants" in js
+    assert "renderInlineCodeText" in js
+    assert "DOM_VARIANT_MIN_CHARS = 20" in js
+    assert 'witness.id.startsWith("required_url:")' in js
+    assert "Please report `no-link` accordingly for this thread." in js
+    assert "Please report no-link accordingly for this thread." not in js
+
+
 def test_rect_as_cdp_clip_shape():
     rect = Rect(x=10, y=20, w=300, h=200)
     clip = rect.as_cdp_clip()
