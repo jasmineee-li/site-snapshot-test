@@ -54,6 +54,40 @@ State files:
 
 Raw Phase 4 artifacts remain under `logs/` and must not be committed.
 
+## Compact Artifact Export
+
+Use the compact exporter when a sweep needs local, compaction-safe audit
+artifacts without pulling full screenshots or browser histories:
+
+```bash
+uv run python scripts/export_phase_4_artifacts.py \
+  --host-config configs/benchmark_hosts/r5.yaml \
+  --remote-dir /home/ubuntu/browser-sim \
+  --sweep-state logs/phase4_model_sweep_20260501T085224Z/sweep_state.json \
+  --sweep-state logs/phase4_model_sweep_20260501T095151Z/sweep_state.json \
+  --output-dir logs/phase4_artifact_exports/phase4_20260501_expanded_compact
+```
+
+The export includes compact run metadata, Phase 2 task context, Phase 4
+`results.json`, summaries, variant-audit artifacts, per-task
+`processed_result.json` / `result.json`, PVPO JSON, and variant-generation
+contract QA/finalization files. It excludes screenshots, videos, full Browser
+Use histories, raw Needham transcripts, prompt-input blobs, network traces, and
+large Phase 3 `contracts.json` files by default. Use
+`--include-network-traces` or `--include-phase3-contracts` only for a targeted
+deeper pull.
+
+Dry-run first to inspect the planned manifest:
+
+```bash
+uv run python scripts/export_phase_4_artifacts.py \
+  --host-config configs/benchmark_hosts/r5.yaml \
+  --remote-dir /home/ubuntu/browser-sim \
+  --sweep-state logs/phase4_model_sweep_20260501T085224Z/sweep_state.json \
+  --sweep-state logs/phase4_model_sweep_20260501T095151Z/sweep_state.json \
+  --dry-run
+```
+
 ## Model Conditions
 
 Completed condition, included for summary provenance:
