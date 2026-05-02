@@ -180,6 +180,39 @@ async def test_run_honors_sites_filter(state_dir):
 
 
 @pytest.mark.asyncio
+async def test_run_task_origin_filter_happens_before_duplicate_check(state_dir):
+    benign = [
+        _existing_task("duplicate-existing"),
+        _existing_task("duplicate-existing"),
+        _new_task("novel_reddit_1", origin="new_task"),
+    ]
+    adversarial = [
+        _adversarial_task("adv-new", "novel_reddit_1"),
+        _adversarial_task("adv-existing", "duplicate-existing"),
+    ]
+    _write_phase_outputs(state_dir, benign_tasks=benign, adversarial_tasks=adversarial)
+
+    rc = await phase_3_benign.run(Namespace(sites=None, task_origin="new_task"))
+    assert rc == 0
+
+    contracts = json.loads((state_dir / "phase_3" / "contracts.json").read_text())
+    assert [entry["id"] for entry in contracts] == ["novel_reddit_1"]
+    state = json.loads((state_dir / "pipeline_state.json").read_text())
+    assert state["task_origin"] == "new_task"
+
+
+@pytest.mark.asyncio
+async def test_run_rejects_unknown_task_origin(state_dir, caplog):
+    _write_phase_outputs(state_dir, benign_tasks=[_new_task("novel_reddit_1")])
+
+    with caplog.at_level("ERROR"):
+        rc = await phase_3_benign.run(Namespace(sites=None, task_origin="bogus"))
+
+    assert rc == 1
+    assert any("--task-origin" in message for message in caplog.messages)
+
+
+@pytest.mark.asyncio
 async def test_run_saves_running_state_before_contract_build(state_dir, monkeypatch):
     benign = [_existing_task("task-a1"), _new_task("task-b1")]
     _write_phase_outputs(state_dir, benign_tasks=benign)

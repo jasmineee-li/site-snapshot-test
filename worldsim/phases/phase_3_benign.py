@@ -47,6 +47,24 @@ def _filter_tasks_by_sites(
     return filtered
 
 
+def _filter_tasks_by_origin(
+    tasks: list[dict[str, Any]],
+    task_origin: str | None,
+    *,
+    phase_label: str,
+) -> list[dict[str, Any]]:
+    if task_origin in (None, "", "all"):
+        return tasks
+    if task_origin not in ("existing_task", "new_task"):
+        raise ValueError(
+            f"{phase_label}: --task-origin must be one of all, existing_task, new_task; "
+            f"got {task_origin!r}"
+        )
+    filtered = [task for task in tasks if _classify_origin(task) == task_origin]
+    logger.info("%s: --task-origin filter active, running only %s", phase_label, task_origin)
+    return filtered
+
+
 def _classify_origin(task: dict[str, Any]) -> str:
     # Prefer the stamped origin field on the task (Phase 1 sets this at emit).
     # Fall back to id-prefix and seed-shape inference for legacy snapshots.
@@ -150,6 +168,19 @@ def _adversarial_task_errors(
     return errors
 
 
+def _filter_adversarial_tasks_by_selected_benigns(
+    adversarial_tasks: list[dict[str, Any]],
+    selected_benign_ids: set[str],
+) -> list[dict[str, Any]]:
+    if not selected_benign_ids:
+        return []
+    return [
+        adv_task
+        for adv_task in adversarial_tasks
+        if str(adv_task.get("benign_task_id", "")).strip() in selected_benign_ids
+    ]
+
+
 async def run(args: argparse.Namespace) -> int:
     state_dir = get_state_dir()
     tasks_path = state_dir / "phase_1" / "benign_tasks.json"
@@ -161,6 +192,12 @@ async def run(args: argparse.Namespace) -> int:
     sites_filter_raw = getattr(args, "sites", None)
     try:
         benign_tasks = _filter_tasks_by_sites(benign_tasks, sites_filter_raw, phase_label="Phase 3")
+        task_origin = getattr(args, "task_origin", None) or "all"
+        benign_tasks = _filter_tasks_by_origin(
+            benign_tasks,
+            task_origin,
+            phase_label="Phase 3",
+        )
     except ValueError as exc:
         logger.error("%s", exc)
         return 1
@@ -171,6 +208,8 @@ async def run(args: argparse.Namespace) -> int:
     }
     if sites_filter_raw:
         state_payload["sites"] = sites_filter_raw
+    if task_origin != "all":
+        state_payload["task_origin"] = task_origin
     save_state("phase_3", **state_payload)
 
     adv_tasks_path = state_dir / "phase_2" / "adversarial_tasks.json"
@@ -230,11 +269,15 @@ async def run(args: argparse.Namespace) -> int:
                     synthetic["feasibility"]["source_data_issue"] = source_data_issue
                 adversarial_tasks.append(synthetic)
 
-    if sites_filter_raw and adversarial_tasks:
-        benign_site_set = {str(task.get("site", "")).strip() for task in benign_tasks}
-        adversarial_tasks = [
-            adv for adv in adversarial_tasks if str(adv.get("site", "")).strip() in benign_site_set
-        ]
+    filter_active = bool(sites_filter_raw) or task_origin != "all"
+    if filter_active and adversarial_tasks:
+        selected_benign_ids = {
+            str(task.get("id", "")).strip() for task in benign_tasks if task.get("id")
+        }
+        adversarial_tasks = _filter_adversarial_tasks_by_selected_benigns(
+            adversarial_tasks,
+            selected_benign_ids,
+        )
 
     benign_by_id: dict[str, dict[str, Any]] = {}
     duplicate_ids: list[str] = []
@@ -321,6 +364,8 @@ async def run(args: argparse.Namespace) -> int:
     }
     if sites_filter_raw:
         state_payload["sites"] = sites_filter_raw
+    if task_origin != "all":
+        state_payload["task_origin"] = task_origin
     save_state("phase_3", **state_payload)
 
     if adversarial_errors:
