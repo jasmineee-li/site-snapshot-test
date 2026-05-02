@@ -15,7 +15,11 @@ from urllib.parse import urlsplit
 
 import worldsim.editors  # noqa: F401 - populate editor method registry
 from worldsim.editors._registry import iter_specs
-from worldsim.phases.phase_2_core_surfaces import canonical_core_surface, is_core_surface
+from worldsim.phases.phase_2_core_surfaces import (
+    canonical_core_surface,
+    is_active_carrier_surface,
+    is_core_surface,
+)
 from worldsim.phases.phase_2_exposure_contract import build_exposure_contract
 from worldsim.phases.phase_2_target_resolver import (
     LISTING_DETAIL_FORCING_REGEXES,
@@ -72,6 +76,8 @@ def build_task_route_contracts(
             raw_surface = spec.surface_id_per_kind.get(kind, spec.method)
             canonical = canonical_core_surface(site, raw_surface)
             if not canonical or not is_core_surface(site, canonical):
+                continue
+            if not is_active_carrier_surface(site, canonical):
                 continue
             route = _route_family_for_spec(
                 site=site,

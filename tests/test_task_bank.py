@@ -143,7 +143,8 @@ def test_task_bank_cli_appends_phase2c_and_reports_status(
 
     assert rc == 0
     out = capsys.readouterr().out
-    assert "Events: total=1 admitted=1 phase4_results=0" in out
+    assert "Events: total=1 admitted=1 active_admitted=0 retired_admitted=1 phase4_results=0" in out
+    assert "Retired by surface: issue.title=1" in out
     assert "By archetype: field_status_check=1" in out
 
 
@@ -171,4 +172,54 @@ def test_task_bank_cli_export_summary(
 
     payload = json.loads(export_path.read_text(encoding="utf-8"))
     assert payload["admitted_tasks"] == 1
+    assert payload["active_admitted_tasks"] == 0
+    assert payload["retired_admitted_tasks"] == 1
     assert payload["by_site"] == {"gitlab": 1}
+
+
+def test_task_bank_cli_export_raw_excludes_retired_by_default(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "state"))
+    run_dir = tmp_path / "run"
+    phase2 = run_dir / "phase_2"
+    phase2.mkdir(parents=True)
+    active = _admitted_task("adv_gitlab_active")
+    active["route_id"] = "gitlab.issue_description.gitlab_search_result.create_issue_description"
+    active["target_surface_id"] = "issue.description"
+    active["editor_method"] = "create_issue_description"
+    active["exposure_contract"]["target_surface_id"] = "issue.description"
+    active["exposure_contract"]["editor_method"] = "create_issue_description"
+    retired = _admitted_task("adv_gitlab_retired")
+    (phase2 / "adversarial_tasks.json").write_text(
+        json.dumps([active, retired]),
+        encoding="utf-8",
+    )
+    export_path = tmp_path / "events.json"
+
+    assert worldsim_main.main(["task-bank", "append", "--run-dir", str(run_dir)]) == 0
+    capsys.readouterr()
+    assert worldsim_main.main(["task-bank", "export", "--output", str(export_path)]) == 0
+
+    payload = json.loads(export_path.read_text(encoding="utf-8"))
+    assert [event["task_id"] for event in payload] == ["adv_gitlab_active"]
+
+    assert (
+        worldsim_main.main(
+            [
+                "task-bank",
+                "export",
+                "--include-retired-carriers",
+                "--output",
+                str(export_path),
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(export_path.read_text(encoding="utf-8"))
+    assert [event["task_id"] for event in payload] == [
+        "adv_gitlab_active",
+        "adv_gitlab_retired",
+    ]

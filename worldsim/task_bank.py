@@ -9,6 +9,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
+from worldsim.phases.phase_2_core_surfaces import retired_carrier_reason
 from worldsim.state import get_state_dir
 
 TASK_BANK_SCHEMA_VERSION = 1
@@ -173,6 +174,30 @@ def carrier_contract_from_task(task: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def carrier_status_from_contract(contract: dict[str, Any]) -> dict[str, Any]:
+    site = str(contract.get("site") or "").strip()
+    surface = str(contract.get("target_surface_id") or "").strip()
+    reason = retired_carrier_reason(site, surface)
+    if reason is not None:
+        return {"active": False, "reason": reason}
+    return {"active": True}
+
+
+def is_active_task_bank_event(event: dict[str, Any]) -> bool:
+    if event.get("event_type") != "admit_task":
+        return True
+    status = event.get("carrier_status")
+    if isinstance(status, dict) and status.get("active") is False:
+        return False
+    contract = event.get("carrier_contract")
+    if isinstance(contract, dict):
+        return retired_carrier_reason(
+            str(contract.get("site") or event.get("site") or ""),
+            str(contract.get("target_surface_id") or ""),
+        ) is None
+    return True
+
+
 def admitted_task_event(
     task: dict[str, Any],
     *,
@@ -185,6 +210,7 @@ def admitted_task_event(
     signature = build_task_signature(task)
     archetype_signature = build_archetype_signature(task)
     provenance = task_provenance(task)
+    carrier_contract = carrier_contract_from_task(task)
     event = {
         "schema_version": TASK_BANK_SCHEMA_VERSION,
         "event_type": "admit_task",
@@ -195,7 +221,8 @@ def admitted_task_event(
         "benign_task_id": str(task.get("benign_task_id") or ""),
         "site": str(task.get("site") or ""),
         "origin": str(task.get("origin") or ""),
-        "carrier_contract": carrier_contract_from_task(task),
+        "carrier_contract": carrier_contract,
+        "carrier_status": carrier_status_from_contract(carrier_contract),
         "task_archetype": provenance.get("task_archetype") or {},
         "archetype_id": str(provenance.get("archetype_id") or ""),
         "task_signature": signature,
@@ -240,10 +267,14 @@ def admitted_events_from_phase2c_run(
 
 def summarize_task_bank(events: list[dict[str, Any]]) -> dict[str, Any]:
     admitted = [event for event in events if event.get("event_type") == "admit_task"]
+    active_admitted = [event for event in admitted if is_active_task_bank_event(event)]
+    retired_admitted = [event for event in admitted if not is_active_task_bank_event(event)]
     phase4 = [event for event in events if event.get("event_type") == "phase4_result"]
     return {
         "total_events": len(events),
         "admitted_tasks": len(admitted),
+        "active_admitted_tasks": len(active_admitted),
+        "retired_admitted_tasks": len(retired_admitted),
         "phase4_results": len(phase4),
         "by_site": dict(Counter(str(event.get("site") or "unknown") for event in admitted)),
         "by_origin": dict(Counter(str(event.get("origin") or "unknown") for event in admitted)),
@@ -251,6 +282,20 @@ def summarize_task_bank(events: list[dict[str, Any]]) -> dict[str, Any]:
             Counter(
                 str((event.get("carrier_contract") or {}).get("target_surface_id") or "unknown")
                 for event in admitted
+                if isinstance(event.get("carrier_contract"), dict)
+            )
+        ),
+        "active_by_surface": dict(
+            Counter(
+                str((event.get("carrier_contract") or {}).get("target_surface_id") or "unknown")
+                for event in active_admitted
+                if isinstance(event.get("carrier_contract"), dict)
+            )
+        ),
+        "retired_by_surface": dict(
+            Counter(
+                str((event.get("carrier_contract") or {}).get("target_surface_id") or "unknown")
+                for event in retired_admitted
                 if isinstance(event.get("carrier_contract"), dict)
             )
         ),

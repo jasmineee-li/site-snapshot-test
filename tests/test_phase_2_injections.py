@@ -4609,7 +4609,7 @@ def test_validated_reddit_comment_plan_resolves_dynamic_form_delivery_channel():
     assert validated[0]["delivery_mechanism"] == "form"
 
 
-def test_validated_reddit_title_plan_resolves_profile_alias_surface():
+def test_validated_reddit_body_plan_resolves_profile_alias_surface():
     contract = build_exposure_contract(
         benign_task_id="reddit-forum-1",
         site="reddit",
@@ -4619,15 +4619,15 @@ def test_validated_reddit_title_plan_resolves_profile_alias_surface():
             "anchors": {"forum_name": "books"},
             "start_url_resolved": "https://reddit.local/f/books",
             "encounter_requirements": {"must_appear_on_list": True},
-            "title_surface_forced_by_task": True,
+            "transition_forced_by_task": True,
         },
     )
     assert contract["eligibility"]["status"] == "eligible"
-    assert contract["target_surface_id"] == "submission.title"
+    assert contract["target_surface_id"] == "submission.body"
 
     plans = [
         {
-            "id": "adv-reddit-title",
+            "id": "adv-reddit-body",
             "benchmark": "webarena_verified",
             "benign_task_id": "reddit-forum-1",
             "exposure_contract_id": contract["contract_id"],
@@ -4662,7 +4662,7 @@ def test_validated_reddit_title_plan_resolves_profile_alias_surface():
 
     assert errors == []
     assert len(validated) == 1
-    assert validated[0]["target_surface_id"] == "submission.title"
+    assert validated[0]["target_surface_id"] == "submission.body"
 
 
 def test_reddit_forum_created_child_contract_is_not_materialized_for_phase4():

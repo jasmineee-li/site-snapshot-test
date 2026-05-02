@@ -144,7 +144,7 @@ def test_core_surface_gitlab_issue_description_admitted(monkeypatch):
     assert contract["target_surface_id"] == "issue.description"
 
 
-def test_gitlab_listing_contract_prefers_created_issue_title_over_note():
+def test_gitlab_listing_contract_does_not_fall_back_to_retired_issue_title():
     contract = build_exposure_contract(
         benign_task_id="task-gitlab-listing-title",
         site="gitlab",
@@ -162,28 +162,19 @@ def test_gitlab_listing_contract_prefers_created_issue_title_over_note():
         },
     )
 
-    assert contract["eligibility"]["status"] == "eligible"
-    assert contract["editor_method"] == "create_issue_title"
-    assert contract["target_surface_id"] == "issue.title"
-    assert contract["editor_args_template"]["title"] == "{{PAYLOAD_TEXT}}"
-    assert contract["editor_args_template"]["project_id"] == "{benign_project_id}"
-    assert contract["surface_route"] == {
-        "schema_version": 1,
-        "entry_surface": "gitlab_search_result",
-        "seed_surface": "issue.title",
-        "mode": "inline_listing",
-        "requires_transition": False,
-        "transition_forced_by_task": True,
-        "exact_comment_region_forced_by_task": False,
-        "runtime_hook_required": False,
-        "route_evidence": "benign_read_surface: visible on entry route",
-        "content_capacity": "short_title",
-        "attack_fit": "compact_action_required",
+    assert contract["eligibility"] == {
+        "status": "ineligible",
+        "reason": "phase4_exposure:unforced_transitive_child_surface",
     }
+    assert contract["editor_method"] == "create_issue_description"
+    assert contract["target_surface_id"] == "issue.description"
     candidates = {
         candidate["target_surface_id"]: candidate for candidate in contract["surface_candidates"]
     }
-    assert candidates["issue.title"]["eligibility"] == {"status": "eligible"}
+    assert candidates["issue.title"]["eligibility"] == {
+        "status": "ineligible",
+        "reason": "phase4_exposure:retired_title_carrier_surface",
+    }
     assert candidates["issue.description"]["eligibility"] == {
         "status": "ineligible",
         "reason": "phase4_exposure:unforced_transitive_child_surface",
@@ -205,7 +196,10 @@ def test_gitlab_project_issue_list_title_uses_project_path_template():
         },
     )
 
-    assert contract["eligibility"]["status"] == "eligible"
+    assert contract["eligibility"] == {
+        "status": "ineligible",
+        "reason": "phase4_exposure:retired_title_carrier_surface",
+    }
     assert contract["route_variant"] == "project_issue_list"
     assert contract["mode"] == "inline_listing"
     assert contract["target_surface_id"] == "issue.title"
@@ -231,7 +225,7 @@ def test_gitlab_project_issue_list_title_requires_title_surface_forced():
 
     assert contract["eligibility"] == {
         "status": "ineligible",
-        "reason": "phase4_exposure:task_does_not_force_title_surface",
+        "reason": "phase4_exposure:retired_title_carrier_surface",
     }
     assert contract["target_surface_id"] == "issue.title"
 
@@ -307,7 +301,7 @@ def test_gitlab_listing_prefers_issue_description_when_detail_route_forced():
     }
     assert candidates["issue.title"]["eligibility"] == {
         "status": "ineligible",
-        "reason": "phase4_exposure:task_does_not_force_title_surface",
+        "reason": "phase4_exposure:retired_title_carrier_surface",
     }
     assert candidates["issue.description"]["eligibility"] == {"status": "eligible"}
 
@@ -694,7 +688,7 @@ def test_project_root_l4_record_is_ineligible_not_transitive():
     }
 
 
-def test_reddit_forum_contract_uses_visible_submission_title_listing_row():
+def test_reddit_forum_contract_does_not_fall_back_to_retired_submission_title():
     contract = build_exposure_contract(
         benign_task_id="task-reddit-forum",
         site="reddit",
@@ -711,32 +705,21 @@ def test_reddit_forum_contract_uses_visible_submission_title_listing_row():
         },
     )
 
-    assert contract["eligibility"] == {"status": "eligible"}
-    assert contract["seed_capability"]["status"] == "supported"
-    assert contract["phase4_exposure"] == {
-        "schema_version": 1,
-        "seed_timing": "pre_task",
-        "admissible": True,
-        "encounter_surface": "seed_created_child_listing_row",
-        "requires_transition": False,
-        "transition_forced_by_task": True,
-        "requires_runtime_hook": False,
-        "requires_visual_evidence": True,
+    assert contract["eligibility"] == {
+        "status": "ineligible",
+        "reason": "phase4_exposure:unforced_transitive_child_surface",
     }
-    assert contract["mode"] == "inline_listing_created_child"
-    assert contract["editor_method"] == "create_submission_title"
-    assert contract["target_surface_id"] == "submission.title"
-    assert contract["payload_arg"] == "title"
-    assert contract["editor_args_template"]["title"] == "{{PAYLOAD_TEXT}}"
-    assert contract["verification"]["entry"]["url"] == "https://reddit.local/f/deeplearning"
-    assert contract["verification"]["target"]["url_source"] == (
-        "seed_metadata.created_resource.parent_url"
-    )
-    assert contract["verification"]["transition"]["type"] == "inline_listing_row"
+    assert contract["seed_capability"]["status"] == "supported"
+    assert contract["mode"] == "bounded_transitive_created_child"
+    assert contract["editor_method"] == "create_submission"
+    assert contract["target_surface_id"] == "submission.body"
     candidates = {
         candidate["target_surface_id"]: candidate for candidate in contract["surface_candidates"]
     }
-    assert candidates["submission.title"]["eligibility"] == {"status": "eligible"}
+    assert candidates["submission.title"]["eligibility"] == {
+        "status": "ineligible",
+        "reason": "phase4_exposure:retired_title_carrier_surface",
+    }
     assert candidates["submission.body"]["eligibility"] == {
         "status": "ineligible",
         "reason": "phase4_exposure:unforced_transitive_child_surface",

@@ -21,7 +21,12 @@ from worldsim.editors._registry import (
     iter_specs,
     method_spec,
 )
-from worldsim.phases.phase_2_core_surfaces import canonical_core_surface, is_core_surface
+from worldsim.phases.phase_2_core_surfaces import (
+    canonical_core_surface,
+    is_active_carrier_surface,
+    is_core_surface,
+    retired_carrier_reason,
+)
 from worldsim.phases.phase_2_text_fill import PAYLOAD_PLACEHOLDER
 
 PREFERRED_PAYLOAD_ARGS: tuple[str, ...] = ("body", "description", "message", "text", "content")
@@ -476,8 +481,34 @@ def _surface_candidate(
         }
         return candidate
 
-    verification = _verification_contract(resource, effective_mode, benign_read_url, kind)
     seed_capability = _seed_capability(spec, payload_arg, target_surface_id)
+    if not is_active_carrier_surface(site, target_surface_id):
+        reason = retired_carrier_reason(site, target_surface_id) or "retired_carrier_surface"
+        phase4_exposure = _phase4_exposure_capability(
+            "ineligible",
+            reason=reason,
+        )
+        return {
+            "mode": effective_mode,
+            "editor_method": spec.method,
+            "target_surface_id": target_surface_id,
+            "editor_surface_id": editor_surface_id,
+            "payload_arg": payload_arg,
+            "editor_args_template": template,
+            "required_tokens": sorted(available),
+            "seed_capability": seed_capability,
+            "phase4_exposure": phase4_exposure,
+            "surface_route": _surface_route_metadata(
+                resource=resource,
+                mode=effective_mode,
+                kind=kind,
+                target_surface_id=target_surface_id,
+                phase4_exposure=phase4_exposure,
+            ),
+            "eligibility": _eligibility_from_capabilities(seed_capability, phase4_exposure),
+        }
+
+    verification = _verification_contract(resource, effective_mode, benign_read_url, kind)
     phase4_exposure = _phase4_exposure_for_seeded_surface(
         mode=effective_mode,
         site=site,

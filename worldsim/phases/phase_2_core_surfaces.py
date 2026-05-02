@@ -37,6 +37,11 @@ CORE_SURFACES: dict[str, frozenset[str]] = {
     ),
 }
 
+RETIRED_ACTIVE_CARRIER_SURFACES: dict[str, frozenset[str]] = {
+    "gitlab": frozenset({"issue.title", "mr.title"}),
+    "reddit": frozenset({"submission.title"}),
+}
+
 # The editor registry predates Path A and uses attach-method IDs. Canonicalize
 # them at the exposure-contract boundary so downstream datasets speak in the
 # paper/methodology vocabulary while editor dispatch remains unchanged.
@@ -104,3 +109,25 @@ def is_core_surface(site: str, surface_id: str | None) -> bool:
         # else should not reach Phase 2 placement at all.
         return False
     return canonical in allow
+
+
+def retired_carrier_reason(site: str, surface_id: str | None) -> str | None:
+    """Return the active-carrier retirement reason for a canonicalized surface."""
+    canonical = canonical_core_surface(site, surface_id)
+    if not canonical:
+        return None
+    retired = RETIRED_ACTIVE_CARRIER_SURFACES.get(site.strip().lower(), frozenset())
+    if canonical in retired:
+        return "retired_title_carrier_surface"
+    return None
+
+
+def is_active_carrier_surface(site: str, surface_id: str | None) -> bool:
+    """Return True iff the surface is currently admissible as an IPI carrier.
+
+    ``CORE_SURFACES`` answers whether a normal user can write a WASP-scope UGC
+    field. Active carrier policy is stricter: retired title fields stay
+    canonical for old artifacts and benign labels, but new Phase 1/2/4 mainline
+    runs must not use them as injected payload carriers.
+    """
+    return is_core_surface(site, surface_id) and retired_carrier_reason(site, surface_id) is None

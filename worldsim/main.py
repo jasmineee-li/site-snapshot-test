@@ -661,6 +661,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Export summary JSON instead of raw event records.",
     )
+    task_bank_export.add_argument(
+        "--include-retired-carriers",
+        action="store_true",
+        help="Include retired title-carrier events in raw exports. Summary exports always report both counts.",
+    )
 
     return parser
 
@@ -841,11 +846,15 @@ def _format_task_bank_summary(summary: dict[str, Any], *, path: Path) -> str:
                 "Events: "
                 f"total={summary.get('total_events', 0)} "
                 f"admitted={summary.get('admitted_tasks', 0)} "
+                f"active_admitted={summary.get('active_admitted_tasks', 0)} "
+                f"retired_admitted={summary.get('retired_admitted_tasks', 0)} "
                 f"phase4_results={summary.get('phase4_results', 0)}"
             ),
             f"By site: {fmt_counts(summary.get('by_site'))}",
             f"By origin: {fmt_counts(summary.get('by_origin'))}",
             f"By surface: {fmt_counts(summary.get('by_surface'))}",
+            f"Active by surface: {fmt_counts(summary.get('active_by_surface'))}",
+            f"Retired by surface: {fmt_counts(summary.get('retired_by_surface'))}",
             f"By archetype: {fmt_counts(summary.get('by_archetype'))}",
             (
                 "Latest: "
@@ -863,6 +872,7 @@ def _dispatch_task_bank(args: argparse.Namespace) -> int:
         TaskBankError,
         admitted_events_from_phase2c_run,
         append_task_bank_events,
+        is_active_task_bank_event,
         load_task_bank,
         summarize_task_bank,
     )
@@ -901,7 +911,14 @@ def _dispatch_task_bank(args: argparse.Namespace) -> int:
             return 0
         if args.task_bank_command == "export":
             events = load_task_bank(path)
-            payload: Any = summarize_task_bank(events) if args.summary else events
+            if args.summary:
+                payload: Any = summarize_task_bank(events)
+            else:
+                payload = (
+                    events
+                    if args.include_retired_carriers
+                    else [event for event in events if is_active_task_bank_event(event)]
+                )
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
             print(f"Task bank export: wrote {args.output}")
