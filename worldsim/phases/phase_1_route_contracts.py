@@ -455,14 +455,9 @@ def _gitlab_project_issue_list_examples(
     examples: list[dict[str, str]] = []
     seen: set[str] = set()
     samples = [
-        *(
-            (sample, False)
-            for sample in _data_model_sample_values(profile, ("issue", "issues"))
-        ),
-        *(
-            (sample, True)
-            for sample in _data_model_sample_values(profile, ("project", "projects"))
-        ),
+        *((sample, False) for sample in _data_model_sample_values(profile, ("issue", "issues"))),
+        *((sample, True) for sample in _available_entity_records(profile, ("projects",))),
+        *((sample, True) for sample in _data_model_sample_values(profile, ("project", "projects"))),
     ]
     for sample, sample_is_project in samples:
         project_path = _gitlab_project_path_from_sample(sample, profile)
@@ -562,7 +557,11 @@ def _gitlab_project_path_by_id(profile: Mapping[str, Any], project_id: Any) -> s
     wanted = str(project_id).strip()
     if not wanted:
         return ""
-    for sample in _data_model_sample_values(profile, ("project", "projects")):
+    samples = [
+        *_available_entity_records(profile, ("projects",)),
+        *_data_model_sample_values(profile, ("project", "projects")),
+    ]
+    for sample in samples:
         if str(sample.get("id") or "").strip() != wanted:
             continue
         for key in ("project", "project_path", "path_with_namespace", "full_path"):
@@ -817,10 +816,15 @@ def _instruction_requirements(site: str, surface_id: str, kind: str) -> dict[str
             include_any_regex.extend(LISTING_DETAIL_FORCING_REGEXES)
         if include_any_regex:
             requirements["include_any_regex"] = include_any_regex
-        if site == "reddit" and kind == "reddit_forum" and surface_id in {
-            "submission.title",
-            "submission.body",
-        }:
+        if (
+            site == "reddit"
+            and kind == "reddit_forum"
+            and surface_id
+            in {
+                "submission.title",
+                "submission.body",
+            }
+        ):
             requirements["avoid_any_regex"] = list(REDDIT_FORUM_SORT_DRIFT_REGEXES)
             requirements["preferred_selector_terms"] = [
                 "first visible",

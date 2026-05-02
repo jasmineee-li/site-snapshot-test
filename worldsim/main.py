@@ -163,6 +163,17 @@ def build_parser() -> argparse.ArgumentParser:
         "reset_endpoint). Required for Phase 4.",
     )
     phase_cmd.add_argument(
+        "--host-inventory-instances",
+        type=Path,
+        default=None,
+        help=(
+            "Phase 0/0c: optional host-local BenchmarkConfig used only for "
+            "host-side inventory enrichment. On r5, use instances.smoke.json "
+            "with --instances for Modal browser probes and instances.scale.json "
+            "here for DB/API inventory reads."
+        ),
+    )
+    phase_cmd.add_argument(
         "--agent-model",
         default=DEFAULT_AGENT_MODEL,
         help=f"LLM model name for Browser Use agent (default: {DEFAULT_AGENT_MODEL}). "
@@ -627,12 +638,18 @@ def build_parser() -> argparse.ArgumentParser:
         default="phase2c",
         help="Source artifact to append from.",
     )
-    task_bank_append.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+    task_bank_append.add_argument(
+        "--json", action="store_true", help="Print machine-readable JSON."
+    )
 
     task_bank_status = task_bank_sub.add_parser("status", help="Show task-bank coverage counts.")
-    task_bank_status.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+    task_bank_status.add_argument(
+        "--json", action="store_true", help="Print machine-readable JSON."
+    )
 
-    task_bank_export = task_bank_sub.add_parser("export", help="Export task-bank events or summary.")
+    task_bank_export = task_bank_sub.add_parser(
+        "export", help="Export task-bank events or summary."
+    )
     task_bank_export.add_argument(
         "--output",
         type=Path,
@@ -874,7 +891,11 @@ def _dispatch_task_bank(args: argparse.Namespace) -> int:
         if args.task_bank_command == "status":
             summary = summarize_task_bank(load_task_bank(path))
             if args.json:
-                print(json.dumps({"task_bank_path": str(path), "summary": summary}, indent=2, sort_keys=True))
+                print(
+                    json.dumps(
+                        {"task_bank_path": str(path), "summary": summary}, indent=2, sort_keys=True
+                    )
+                )
             else:
                 print(_format_task_bank_summary(summary, path=path))
             return 0
@@ -1272,6 +1293,7 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
                 sub=phase,
                 sandbox_model=args.sandbox_model,
                 instances_path=getattr(args, "instances", None),
+                host_inventory_instances_path=getattr(args, "host_inventory_instances", None),
                 site_filter=_parse_cli_sites(getattr(args, "sites", None)),
             )
         )

@@ -121,6 +121,29 @@ def _add_gitlab_issue_sample(profile: dict) -> None:
     ]
 
 
+def _add_gitlab_issue_sample_with_project_id(profile: dict) -> None:
+    profile["data_model"] = [
+        {
+            "entity": "issue",
+            "sample_values": [
+                {
+                    "project_id": 179,
+                    "iid": 1478,
+                    "title": "accessibility issue",
+                }
+            ],
+        }
+    ]
+    profile["available_entities"] = {
+        "projects": [
+            {
+                "id": "179",
+                "path_with_namespace": "a11yproject/a11y-webring.club",
+            }
+        ]
+    }
+
+
 def _add_reddit_submission_sample(profile: dict) -> None:
     profile["data_model"] = [
         {
@@ -328,6 +351,24 @@ def test_build_parser_accepts_generate_novel_flag():
     args = parser.parse_args(["phase", "1", "--generate-novel"])
 
     assert args.generate_novel is True
+
+
+def test_build_parser_accepts_phase_0_host_inventory_instances(tmp_path):
+    parser = worldsim_main.build_parser()
+    inventory_path = tmp_path / "instances.scale.json"
+
+    args = parser.parse_args(
+        [
+            "phase",
+            "0",
+            "--benchmark",
+            "vendors/webarena-verified",
+            "--host-inventory-instances",
+            str(inventory_path),
+        ]
+    )
+
+    assert args.host_inventory_instances == inventory_path
 
 
 def test_build_parser_accepts_novel_tasks_per_site_aliases():
@@ -1776,7 +1817,9 @@ def test_validate_generated_novel_tasks_rejects_task_card_route_mismatch():
             {
                 "id": "card.gitlab.description",
                 "site": "gitlab",
-                "route_ids": ["gitlab.issue_description.gitlab_search_result.create_issue_description"],
+                "route_ids": [
+                    "gitlab.issue_description.gitlab_search_result.create_issue_description"
+                ],
             }
         ],
     }
@@ -2471,6 +2514,34 @@ def test_build_task_route_contracts_inventory_backs_gitlab_project_issue_lists()
     assert not any("search?search=" in url for url in route["allowed_start_url_patterns"])
 
 
+def test_build_task_route_contracts_resolves_gitlab_project_id_from_live_inventory():
+    profile = _profile(uncovered=["issue_title_in_list"])
+    _add_gitlab_issue_sample_with_project_id(profile)
+    profile["injection_surface"] = [
+        {
+            "id": "issue_title_in_list",
+            "location_page": "/{namespace}/{project}/-/issues",
+        }
+    ]
+
+    contracts = phase_1_route_contracts.build_task_route_contracts(
+        site_name="gitlab",
+        profile=profile,
+    )
+
+    routes = {route["id"]: route for route in contracts["route_families"]}
+    route = routes["gitlab.issue_title.gitlab_search_result.create_issue_title"]
+    assert route["anchor_examples"] == [
+        {
+            "route_variant": "project_issue_list",
+            "project_path": "a11yproject/a11y-webring.club",
+            "scope": "issues",
+            "start_url": "__GITLAB__/a11yproject/a11y-webring.club/-/issues?sort=created_date&state=opened",
+            "project_id": "179",
+        }
+    ]
+
+
 def test_build_task_route_contracts_uses_gitlab_project_samples_for_created_issue_lists():
     profile = _profile(uncovered=["issue_title_in_list"])
     profile["data_model"] = [
@@ -2679,9 +2750,9 @@ def test_build_task_route_contracts_rejects_single_segment_gitlab_project_paths(
     )
 
     routes = {route["id"]: route for route in contracts["route_families"]}
-    title_examples = routes[
-        "gitlab.issue_title.gitlab_search_result.create_issue_title"
-    ]["anchor_examples"]
+    title_examples = routes["gitlab.issue_title.gitlab_search_result.create_issue_title"][
+        "anchor_examples"
+    ]
     issue_note_examples = routes["gitlab.note_body.gitlab_issue.create_issue_note"][
         "anchor_examples"
     ]
@@ -3022,9 +3093,7 @@ def test_build_task_route_contracts_normalizes_reddit_submission_forum_anchor():
             ],
         }
     ]
-    profile["injection_surface"] = [
-        {"id": "submission_title_feed", "location_page": "/f/{forum}"}
-    ]
+    profile["injection_surface"] = [{"id": "submission_title_feed", "location_page": "/f/{forum}"}]
     profile["existing_task_coverage"] = {
         "injection_surfaces_with_task_coverage": ["submission_title_feed"],
         "injection_surfaces_without_task_coverage": [],

@@ -9,6 +9,8 @@ from worldsim.phases.phase_0c_handle_enrichment import (
     HandleEnrichmentError,
     _site_url_candidates,
     enrich_gitlab_handles,
+    enrich_gitlab_projects,
+    merge_gitlab_project_inventory_into_profile,
     merge_into_agent_context,
 )
 
@@ -52,6 +54,81 @@ def test_enrich_collects_user_and_group_handles(auth_config: dict[str, Any]) -> 
         "user_handles": ["byteblaze", "primer", "root"],
         "group_handles": ["a11yproject", "design"],
     }
+
+
+def test_enrich_collects_namespace_qualified_projects(auth_config: dict[str, Any]) -> None:
+    projects = [
+        {
+            "id": 179,
+            "name": "a11y-webring.club",
+            "path": "a11y-webring.club",
+            "path_with_namespace": "a11yproject/a11y-webring.club",
+            "namespace": {"path": "a11yproject", "full_path": "a11yproject"},
+        },
+        {
+            "id": 180,
+            "name": "bare",
+            "path": "bare",
+            "path_with_namespace": "bare",
+        },
+    ]
+
+    with (
+        patch(
+            "worldsim.phases.phase_0c_handle_enrichment.acquire_token",
+            return_value="glpat-deadbeef",
+        ),
+        patch("worldsim.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
+    ):
+        mock_get.return_value = _mock_response(projects)
+        result = enrich_gitlab_projects("http://gitlab.local", auth_config)
+
+    assert result == {
+        "projects": [
+            {
+                "id": "179",
+                "name": "a11y-webring.club",
+                "path": "a11y-webring.club",
+                "path_with_namespace": "a11yproject/a11y-webring.club",
+                "full_path": "a11yproject/a11y-webring.club",
+                "namespace": "a11yproject",
+                "namespace_full_path": "a11yproject",
+            }
+        ]
+    }
+    assert mock_get.call_args.args[0] == "http://gitlab.local/api/v4/projects"
+
+
+def test_enrich_projects_prefers_runtime_web_host(auth_config: dict[str, Any]) -> None:
+    projects = [
+        {
+            "id": 179,
+            "path_with_namespace": "a11yproject/a11y-webring.club",
+        }
+    ]
+    acquired_bases: list[str] = []
+
+    def fake_acquire_token(config: dict[str, Any], site_url: str) -> str:
+        acquired_bases.append(site_url)
+        return "glpat-deadbeef"
+
+    with (
+        patch(
+            "worldsim.phases.phase_0c_handle_enrichment.acquire_token",
+            side_effect=fake_acquire_token,
+        ),
+        patch("worldsim.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
+    ):
+        mock_get.return_value = _mock_response(projects)
+        result = enrich_gitlab_projects(
+            "http://3.12.221.9:8023",
+            auth_config,
+            runtime_web_host="172.17.0.1",
+        )
+
+    assert acquired_bases == ["http://172.17.0.1:8023"]
+    assert mock_get.call_args.args[0] == "http://172.17.0.1:8023/api/v4/projects"
+    assert result["projects"][0]["path_with_namespace"] == "a11yproject/a11y-webring.club"
 
 
 def test_enrich_prefers_runtime_web_host_for_host_side_api(auth_config: dict[str, Any]) -> None:
@@ -241,3 +318,17 @@ def test_merge_preserves_existing_gitlab_block() -> None:
     )
     assert result["gitlab"]["existing_field"] == "kept"
     assert result["gitlab"]["user_handles"] == ["a"]
+    assert result["gitlab"]["group_handles"] == ["b"]
+
+
+def test_merge_gitlab_project_inventory_into_profile_preserves_existing_entities() -> None:
+    profile = {"available_entities": {"users": [{"username": "root"}]}}
+    result = merge_gitlab_project_inventory_into_profile(
+        profile,
+        {"projects": [{"id": "179", "path_with_namespace": "a11yproject/a11y-webring.club"}]},
+    )
+
+    assert result["available_entities"]["users"] == [{"username": "root"}]
+    assert result["available_entities"]["projects"] == [
+        {"id": "179", "path_with_namespace": "a11yproject/a11y-webring.club"}
+    ]

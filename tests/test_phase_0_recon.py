@@ -193,6 +193,45 @@ def test_enrich_reddit_profile_with_forums_passes_remote_runtime_db_host(monkeyp
     ]
 
 
+def test_enrich_reddit_profile_with_forums_uses_explicit_host_inventory_instance(monkeypatch):
+    instance = BenchmarkInstance(
+        site_name="reddit",
+        site_url="http://172.17.0.1:9990",
+        db_connection="postgresql://u:p@172.17.0.1:5500/postmill",
+    )
+    calls: list[dict] = []
+
+    def fake_enrich(site_url, db_connection, **kwargs):
+        calls.append(
+            {
+                "site_url": site_url,
+                "db_connection": db_connection,
+                "runtime_db_host": kwargs.get("runtime_db_host"),
+            }
+        )
+        return {"forums": [{"id": "1", "name": "books", "title": "Books"}]}
+
+    monkeypatch.setenv("WORLDSIM_ORCHESTRATOR_HOST", "172.17.0.1")
+    monkeypatch.setattr(
+        "worldsim.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
+        fake_enrich,
+    )
+
+    phase_0_recon._enrich_reddit_profile_with_forums(
+        site_name="reddit",
+        profile={"site_name": "reddit"},
+        instance=instance,
+    )
+
+    assert calls == [
+        {
+            "site_url": "http://172.17.0.1:9990",
+            "db_connection": "postgresql://u:p@172.17.0.1:5500/postmill",
+            "runtime_db_host": "172.17.0.1",
+        }
+    ]
+
+
 def test_enrich_agent_context_with_handles_passes_remote_runtime_web_host(monkeypatch):
     instance = BenchmarkInstance(
         site_name="gitlab",
@@ -236,6 +275,60 @@ def test_enrich_agent_context_with_handles_passes_remote_runtime_web_host(monkey
         }
     ]
     assert context["gitlab"]["user_handles"] == ["byteblaze"]
+
+
+def test_enrich_gitlab_profile_with_projects_merges_project_inventory(monkeypatch):
+    instance = BenchmarkInstance(
+        site_name="gitlab",
+        site_url="http://172.17.0.1:8023",
+        auth={
+            "type": "bearer_token",
+            "header_name": "PRIVATE-TOKEN",
+            "token_generator": "gitlab_pat",
+            "credentials": {"username": "byteblaze", "password": "hello1234"},
+        },
+    )
+    calls: list[dict] = []
+
+    def fake_enrich(site_url, auth_config, **kwargs):
+        calls.append(
+            {
+                "site_url": site_url,
+                "auth_config": auth_config,
+                "runtime_web_host": kwargs.get("runtime_web_host"),
+            }
+        )
+        return {
+            "projects": [
+                {
+                    "id": "179",
+                    "path_with_namespace": "a11yproject/a11y-webring.club",
+                }
+            ]
+        }
+
+    monkeypatch.setenv("WORLDSIM_ORCHESTRATOR_HOST", "172.17.0.1")
+    monkeypatch.setattr(
+        "worldsim.phases.phase_0c_handle_enrichment.enrich_gitlab_projects",
+        fake_enrich,
+    )
+
+    profile = phase_0_recon._enrich_gitlab_profile_with_projects(
+        site_name="gitlab",
+        profile={"site_name": "gitlab"},
+        instance=instance,
+    )
+
+    assert calls == [
+        {
+            "site_url": "http://172.17.0.1:8023",
+            "auth_config": instance.auth,
+            "runtime_web_host": "172.17.0.1",
+        }
+    ]
+    assert profile["available_entities"]["projects"] == [
+        {"id": "179", "path_with_namespace": "a11yproject/a11y-webring.club"}
+    ]
 
 
 def test_enrich_reddit_profile_with_forums_falls_back_on_failure(monkeypatch):
@@ -518,6 +611,44 @@ async def test_run_phase_0c_honors_site_filter(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_run_phase_0c_separates_modal_and_host_inventory_instances(monkeypatch, tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    reddit_file = benchmark_root / "reddit.py"
+    reddit_file.write_text("# fixture", encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    async def fake_profile_one_site_tiered(**kwargs):
+        captured.update(kwargs)
+        return "reddit", {"profile": {}, "agent_context": {}}
+
+    monkeypatch.setattr(phase_0_recon, "_profile_one_site_tiered", fake_profile_one_site_tiered)
+
+    await phase_0_recon.run_phase_0c(
+        {"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        {"reddit": [str(reddit_file)]},
+        benchmark_root,
+        tmp_path / "phase_0c",
+        instances=[BenchmarkInstance(site_name="reddit", site_url="http://8.8.8.8:19900")],
+        host_inventory_instances=[
+            BenchmarkInstance(
+                site_name="reddit",
+                site_url="http://172.17.0.1:9990",
+                db_connection="postgresql://u:p@172.17.0.1:5500/postmill",
+            )
+        ],
+    )
+
+    assert captured["site_url"] == "http://8.8.8.8:19900"
+    assert captured["instance"].site_url == "http://8.8.8.8:19900"
+    assert captured["host_inventory_instance"].site_url == "http://172.17.0.1:9990"
+    assert (
+        captured["host_inventory_instance"].db_connection
+        == "postgresql://u:p@172.17.0.1:5500/postmill"
+    )
+
+
+@pytest.mark.asyncio
 async def test_run_phase_0c_does_not_publish_invalid_profiles(monkeypatch, tmp_path):
     benchmark_root, source_file = _benchmark_setup(tmp_path)
     de_attempts = 0
@@ -797,6 +928,56 @@ async def test_run_phase_0c_reprofiles_when_instance_site_url_changes(monkeypatc
     assert metadata["instance_site_url"] == "http://shopping-v2.test"
 
 
+def test_existing_phase_0c_outputs_reprofile_when_host_inventory_changes(tmp_path):
+    benchmark_root, _ = _benchmark_setup(tmp_path)
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    site_name = "shopping"
+    profile = {
+        "site_name": site_name,
+        "verification_capabilities": _valid_verification_capabilities(),
+        "data_model": _valid_data_model(),
+        "agent_context": _valid_agent_context(),
+        "injection_surface": _valid_injection_surface()["injection_surface"],
+        "existing_task_coverage": _valid_injection_surface()["existing_task_coverage"],
+    }
+    (output_dir / f"BENCHMARK_PROFILE_{site_name}.json").write_text(
+        json.dumps(profile), encoding="utf-8"
+    )
+    (output_dir / f"AGENT_CONTEXT_{site_name}.json").write_text(
+        json.dumps(_valid_agent_context()), encoding="utf-8"
+    )
+    (output_dir / f"PROFILE_METADATA_{site_name}.json").write_text(
+        json.dumps(
+            {
+                "site_name": site_name,
+                "benchmark_root": str(benchmark_root),
+                "sandbox_model": "claude-sonnet-4-6",
+                "instance_site_url": "http://shopping.test",
+                "host_inventory_instance_fingerprint": "stale",
+                "verification_proxy": None,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    reusable = phase_0_recon._existing_site_outputs_are_reusable(
+        output_dir=output_dir,
+        site_name=site_name,
+        benchmark_root=benchmark_root,
+        sandbox_model="claude-sonnet-4-6",
+        manifest_eval_type_set={"NetworkEventEvaluator"},
+        instance_site_url="http://shopping.test",
+        host_inventory_instance=BenchmarkInstance(
+            site_name=site_name,
+            site_url="http://172.17.0.1:9990",
+        ),
+        verification_proxy=None,
+    )
+
+    assert reusable is False
+
+
 @pytest.mark.asyncio
 async def test_run_phase_0c_stages_sanitized_instance_connectivity(monkeypatch, tmp_path):
     benchmark_root, source_file = _benchmark_setup(tmp_path)
@@ -925,6 +1106,11 @@ async def test_run_persists_instances_path_across_phase_0_state(monkeypatch, tmp
     benchmark_root, source_file = _benchmark_setup(tmp_path)
     instances_path = tmp_path / "instances.json"
     instances_path.write_text(json.dumps(_instances_config(benchmark_root)), encoding="utf-8")
+    host_inventory_path = tmp_path / "instances.scale.json"
+    host_inventory_path.write_text(
+        json.dumps(_instances_config(benchmark_root, site_url="http://172.17.0.1:9990")),
+        encoding="utf-8",
+    )
 
     state_calls: list[tuple[str, dict]] = []
     phase_0c_kwargs: dict[str, object] = {}
@@ -966,6 +1152,7 @@ async def test_run_persists_instances_path_across_phase_0_state(monkeypatch, tmp
         benchmark=benchmark_root,
         sub="0",
         instances_path=instances_path,
+        host_inventory_instances_path=host_inventory_path,
         site_filter={"shopping"},
     )
 
@@ -973,7 +1160,12 @@ async def test_run_persists_instances_path_across_phase_0_state(monkeypatch, tmp
     phase_calls = [call for call in state_calls if call[0].startswith("phase_0")]
     assert phase_calls
     assert all(call[1]["instances_path"] == str(instances_path) for call in phase_calls)
+    assert all(
+        call[1]["host_inventory_instances_path"] == str(host_inventory_path) for call in phase_calls
+    )
+    assert all("host_inventory_instances_sha256" in call[1] for call in phase_calls)
     assert phase_0c_kwargs["site_filter"] == {"shopping"}
+    assert phase_0c_kwargs["host_inventory_instances"][0].site_url == "http://172.17.0.1:9990"
 
 
 def test_profile_injection_surface_prompt_includes_delivery_feasibility_probing():

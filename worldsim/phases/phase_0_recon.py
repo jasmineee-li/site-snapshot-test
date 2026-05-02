@@ -95,6 +95,7 @@ def _phase_0_state_metadata(
     benchmark: Path,
     sandbox_model: str,
     instances_path: Path | None,
+    host_inventory_instances_path: Path | None = None,
 ) -> dict[str, str]:
     metadata = {
         "benchmark_path": str(benchmark),
@@ -102,7 +103,20 @@ def _phase_0_state_metadata(
     }
     if instances_path is not None:
         metadata["instances_path"] = str(Path(instances_path))
+    if host_inventory_instances_path is not None:
+        metadata["host_inventory_instances_path"] = str(Path(host_inventory_instances_path))
+        metadata["host_inventory_instances_sha256"] = _file_sha256(
+            Path(host_inventory_instances_path)
+        )
     return metadata
+
+
+def _file_sha256(path: Path) -> str:
+    hasher = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
 
 
 def _load_phase_0c_config(
@@ -258,6 +272,17 @@ def _build_instance_lookup(
     return out
 
 
+def _instance_inventory_fingerprint(instance: BenchmarkInstance | None) -> str | None:
+    """Return a non-secret cache fingerprint for host-side inventory inputs."""
+    if instance is None:
+        return None
+    payload = instance.model_dump(mode="json", exclude_none=True)
+    # Store only a digest in profile metadata because auth/db fields can carry
+    # credentials. The digest still invalidates stale profiles when the host
+    # inventory topology changes.
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+
+
 def _apply_proxy_to_url(site_url: str, port_offset: int, *, scheme: str | None = None) -> str:
     """Rewrite a site URL to use the proxy port (real_port + port_offset)."""
     parts = urlsplit(site_url)
@@ -330,7 +355,9 @@ def _site_reachability_record(
     if isinstance(injection_surface, dict) and isinstance(
         injection_surface.get("injection_surface"), list
     ):
-        surfaces = [item for item in injection_surface["injection_surface"] if isinstance(item, dict)]
+        surfaces = [
+            item for item in injection_surface["injection_surface"] if isinstance(item, dict)
+        ]
 
     channel_counts: dict[str, int] = {}
     notes: list[str] = []
@@ -383,6 +410,7 @@ def _existing_site_outputs_are_reusable(
     sandbox_model: str,
     manifest_eval_type_set: set[str],
     instance_site_url: str | None,
+    host_inventory_instance: BenchmarkInstance | None,
     verification_proxy: VerificationProxy | None,
 ) -> bool:
     """Return True only when existing site outputs are complete and match this run."""
@@ -426,6 +454,9 @@ def _existing_site_outputs_are_reusable(
         "benchmark_root": str(benchmark_root),
         "sandbox_model": sandbox_model,
         "instance_site_url": instance_site_url,
+        "host_inventory_instance_fingerprint": _instance_inventory_fingerprint(
+            host_inventory_instance
+        ),
         "verification_proxy": _verification_proxy_metadata(verification_proxy),
     }
     for key, expected in expected_metadata.items():
@@ -460,6 +491,7 @@ async def run(
     sub: str = "0",
     sandbox_model: str = "claude-sonnet-4-6",
     instances_path: Path | None = None,
+    host_inventory_instances_path: Path | None = None,
     site_filter: set[str] | None = None,
 ) -> int:
     """Phase 0 entrypoint.
@@ -471,6 +503,10 @@ async def run(
         instances_path: Optional path to instances.json. When provided,
             Phase 0c sandboxes receive instance connectivity info
             (site URLs only, no credentials).
+        host_inventory_instances_path: Optional host-local instances file for
+            Phase 0c host-side inventory enrichment. On r5 this is normally
+            ``instances.scale.json`` while ``instances_path`` remains
+            ``instances.smoke.json`` for Modal browser probes.
         site_filter: Optional normalized site names to profile in Phase 0c.
             Phase 0a/0b still discover the full benchmark manifest and sandbox
             map so downstream phases can validate provenance.
@@ -485,6 +521,7 @@ async def run(
         benchmark=benchmark,
         sandbox_model=sandbox_model,
         instances_path=instances_path,
+        host_inventory_instances_path=host_inventory_instances_path,
     )
 
     # Fail fast if sandbox auth or image setup is missing — 0a and 0c need sandboxes.
@@ -573,9 +610,12 @@ async def run(
         try:
             # Load instance configs and optional proxy for connectivity context.
             instances: list[BenchmarkInstance] | None = None
+            host_inventory_instances: list[BenchmarkInstance] | None = None
             verification_proxy = None
             if instances_path is not None:
                 instances, verification_proxy = _load_phase_0c_config(instances_path)
+            if host_inventory_instances_path is not None:
+                host_inventory_instances, _ = _load_phase_0c_config(host_inventory_instances_path)
             await run_phase_0c(
                 manifest,
                 sandbox_map,
@@ -583,6 +623,7 @@ async def run(
                 output_base / "phase_0c",
                 sandbox_model=sandbox_model,
                 instances=instances,
+                host_inventory_instances=host_inventory_instances,
                 verification_proxy=verification_proxy,
                 site_filter=site_filter,
             )
@@ -980,6 +1021,7 @@ async def run_phase_0c(
     timeout: int = 14400,
     sandbox_model: str = "claude-sonnet-4-6",
     instances: list[BenchmarkInstance] | None = None,
+    host_inventory_instances: list[BenchmarkInstance] | None = None,
     verification_proxy: VerificationProxy | None = None,
     site_filter: set[str] | None = None,
 ) -> dict[str, Any]:
@@ -1000,6 +1042,10 @@ async def run_phase_0c(
         instances: Optional list of validated benchmark instances. When
             provided, Tier 2 sandboxes receive one representative site URL per
             site for live verification.
+        host_inventory_instances: Optional list of validated benchmark
+            instances used only by host-side inventory enrichment hooks. This
+            lets r5 keep Modal-facing Phase 0c URLs public/proxied while
+            enriching Reddit/GitLab from host-local scale topology.
         verification_proxy: Optional proxy config. When present, site URLs
             are rewritten to proxy ports and an auth header is included in
             the INSTANCE_CONNECTIVITY.json staged into Tier 2 sandboxes.
@@ -1019,6 +1065,11 @@ async def run_phase_0c(
     instance_urls = _build_instance_site_url_map(instances)
     _validate_phase_0c_modal_connectivity_urls(instance_urls)
     instance_lookup = _build_instance_lookup(instances)
+    host_inventory_lookup = (
+        _build_instance_lookup(host_inventory_instances)
+        if host_inventory_instances is not None
+        else instance_lookup
+    )
 
     normalized_site_filter = (
         {normalize_site_name(site) for site in site_filter if str(site).strip()}
@@ -1035,6 +1086,7 @@ async def run_phase_0c(
             logger.info("Phase 0c: skipping site %r (not selected by --sites)", name)
             continue
         instance_site_url = instance_urls.get(normalized_name)
+        host_inventory_instance = host_inventory_lookup.get(normalized_name)
         if _existing_site_outputs_are_reusable(
             output_dir=output_dir,
             site_name=name,
@@ -1042,6 +1094,7 @@ async def run_phase_0c(
             sandbox_model=sandbox_model,
             manifest_eval_type_set=manifest_eval_type_set,
             instance_site_url=instance_site_url,
+            host_inventory_instance=host_inventory_instance,
             verification_proxy=verification_proxy,
         ):
             logger.info("Phase 0c: skipping site %r (profile + agent context already exist)", name)
@@ -1082,6 +1135,7 @@ async def run_phase_0c(
                 site_url=instance_urls.get(normalize_site_name(name)),
                 verification_proxy=verification_proxy,
                 instance=instance_lookup.get(normalize_site_name(name)),
+                host_inventory_instance=host_inventory_lookup.get(normalize_site_name(name)),
             )
             for name, files in sites_to_profile.items()
         ],
@@ -1298,6 +1352,7 @@ async def _profile_one_site_tiered(
     site_url: str | None = None,
     verification_proxy: VerificationProxy | None = None,
     instance: BenchmarkInstance | None = None,
+    host_inventory_instance: BenchmarkInstance | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Profile one site using two-tier sandbox execution.
 
@@ -1485,10 +1540,11 @@ async def _profile_one_site_tiered(
         # URLs as user_profile vs group via these handle lists. Best
         # effort: enrichment failure logs and continues; the resolver
         # gracefully degrades to kind=None for ambiguous segments.
+        inventory_instance = host_inventory_instance or instance
         agent_context = _enrich_agent_context_with_handles(
             site_name=site_name,
             agent_context=agent_context,
-            instance=instance,
+            instance=inventory_instance,
         )
 
         # ── Merge into BENCHMARK_PROFILE ────────────────────────────────
@@ -1500,10 +1556,15 @@ async def _profile_one_site_tiered(
             "injection_surface": injection_surface.get("injection_surface", []),
             "existing_task_coverage": injection_surface.get("existing_task_coverage", {}),
         }
+        profile = _enrich_gitlab_profile_with_projects(
+            site_name=site_name,
+            profile=profile,
+            instance=inventory_instance,
+        )
         profile = _enrich_reddit_profile_with_forums(
             site_name=site_name,
             profile=profile,
-            instance=instance,
+            instance=inventory_instance,
         )
 
         # Validate the merged profile before publishing anything to disk.
@@ -1532,6 +1593,9 @@ async def _profile_one_site_tiered(
                     "benchmark_root": str(benchmark_root),
                     "sandbox_model": sandbox_model,
                     "instance_site_url": site_url,
+                    "host_inventory_instance_fingerprint": _instance_inventory_fingerprint(
+                        inventory_instance
+                    ),
                     "verification_proxy": _verification_proxy_metadata(verification_proxy),
                 },
                 indent=2,
@@ -1613,6 +1677,64 @@ def _enrich_agent_context_with_handles(
         len(handles.get("group_handles", [])),
     )
     return merge_into_agent_context(agent_context, handles)
+
+
+def _enrich_gitlab_profile_with_projects(
+    *,
+    site_name: str,
+    profile: dict[str, Any],
+    instance: BenchmarkInstance | None,
+) -> dict[str, Any]:
+    """For gitlab sites, attach namespace-qualified project inventory."""
+    if normalize_site_name(site_name) != "gitlab":
+        return profile
+    if instance is None:
+        logger.info(
+            "Phase 0c: site %r has no instance config; skipping gitlab project enrichment",
+            site_name,
+        )
+        return profile
+    auth_config = instance.api_auth or instance.auth
+    if not auth_config:
+        logger.info(
+            "Phase 0c: site %r instance has no api_auth/auth; skipping gitlab project enrichment",
+            site_name,
+        )
+        return profile
+
+    from worldsim.phases.phase_0c_handle_enrichment import (
+        HandleEnrichmentError,
+        enrich_gitlab_projects,
+        merge_gitlab_project_inventory_into_profile,
+    )
+
+    try:
+        inventory = enrich_gitlab_projects(
+            instance.site_url,
+            auth_config,
+            runtime_web_host=_host_side_runtime_host(),
+        )
+    except HandleEnrichmentError as exc:
+        logger.warning(
+            "Phase 0c: gitlab project enrichment for site %r failed: %s",
+            site_name,
+            exc,
+        )
+        return profile
+
+    projects = inventory.get("projects", [])
+    if not projects:
+        logger.warning(
+            "Phase 0c: gitlab project enrichment for site %r found no projects",
+            site_name,
+        )
+        return profile
+    logger.info(
+        "Phase 0c: site %r enriched with %d gitlab projects",
+        site_name,
+        len(projects),
+    )
+    return merge_gitlab_project_inventory_into_profile(profile, inventory)
 
 
 def _enrich_reddit_profile_with_forums(
