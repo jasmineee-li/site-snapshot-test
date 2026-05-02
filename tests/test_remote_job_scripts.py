@@ -673,6 +673,94 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
     assert "Chained Phase 0 -> Phase 1 novel generation" not in completed.stderr
 
 
+def test_start_rejects_chained_phase2_origin_without_matching_phase3_origin(
+    tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _remote_direct_host_config_with_orchestrator(tmp_path)
+    env = _base_env(repo_root, tmp_path)
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--name",
+            "origin mismatch",
+            "--",
+            "bash",
+            "-lc",
+            (
+                ": worldsim.main phase 2 --task-origin new_task "
+                "--feasibility-instances instances.scale.json && "
+                ": worldsim.main phase 3 --sites gitlab,reddit"
+            ),
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "Chained Phase 2 -> Phase 3 with --task-origin new_task" in completed.stderr
+    assert "same --task-origin to Phase 3" in completed.stderr
+
+
+def test_start_allows_chained_phase2_and_phase3_with_matching_origin(
+    tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _remote_direct_host_config_with_orchestrator(tmp_path)
+    remote_dir = tmp_path / "remote" / "browser-sim"
+    remote_dir.mkdir(parents=True)
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    _write_executable(
+        fakebin / "ssh",
+        """#!/usr/bin/env python3
+import subprocess
+import sys
+
+args = sys.argv[1:]
+remote_cmd = args[-1]
+raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).returncode)
+""",
+    )
+
+    env = _base_env(repo_root, tmp_path)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+            "--name",
+            "origin matched",
+            "--",
+            "bash",
+            "-lc",
+            (
+                ": worldsim.main phase 2 --task-origin new_task "
+                "--feasibility-instances instances.scale.json && "
+                ": worldsim.main phase 3 --task-origin new_task --sites gitlab,reddit"
+            ),
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "same --task-origin to Phase 3" not in completed.stderr
+
+
 def test_start_rejects_repo_relative_webarena_verified_benchmark_on_r5(
     tmp_path: Path,
 ) -> None:

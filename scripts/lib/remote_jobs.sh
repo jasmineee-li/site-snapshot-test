@@ -266,6 +266,22 @@ if (
         "on implicit manifest discovery after an expensive Phase 0 run."
     )
 
+phase2_command = _phase_command("2")
+phase3_command = _phase_command("3")
+if phase2_command and phase3_command:
+    phase2_task_origin = _option_value_from(phase2_command, "--task-origin") or "all"
+    phase3_task_origin = _option_value_from(phase3_command, "--task-origin") or "all"
+    if phase2_task_origin in {"existing_task", "new_task"} and (
+        phase3_task_origin != phase2_task_origin
+    ):
+        issues.append(
+            "Chained Phase 2 -> Phase 3 with --task-origin "
+            f"{phase2_task_origin} must pass the same --task-origin to Phase 3. "
+            "Otherwise Phase 3 can mix a scoped Phase 2 adversarial set with "
+            "unscoped Phase 1 benign tasks and fail on duplicate benchmark IDs "
+            "or write contracts for the wrong cohort."
+        )
+
 repo_relative_webarena_verified = bool(
     re.search(
         r"--benchmark(?:=|\s+)(?:\./)?vendors/webarena-verified(?:\s|$)",
