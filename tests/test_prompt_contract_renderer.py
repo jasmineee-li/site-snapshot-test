@@ -20,6 +20,8 @@ Covers:
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from worldsim.editors._registry import (
@@ -44,6 +46,21 @@ _FULL_REDDIT_SUBMISSION_ANCHORS = frozenset({"submission_id", "forum_name"})
 
 def _ctx(site: str, kind_anchors: dict[str, frozenset[str]]) -> ContractRenderContext:
     return ContractRenderContext(site=site, kind_anchors=kind_anchors)
+
+
+def test_model_facing_prompt_sources_are_not_platform_hardcoded() -> None:
+    prompt_dir = Path("worldsim/prompts")
+    prompt_names = [
+        "generate-benign-tasks.md",
+        "generate-injections.md",
+        "profile-injection-surface.md",
+    ]
+    forbidden = ("GitLab", "gitlab", "Reddit", "reddit", "Postmill", "postmill")
+
+    for prompt_name in prompt_names:
+        text = (prompt_dir / prompt_name).read_text(encoding="utf-8")
+        for term in forbidden:
+            assert term not in text, f"{prompt_name} contains platform-specific term {term!r}"
 
 
 class TestRenderContractTable:
@@ -230,8 +247,8 @@ class TestLoadPromptSentinelHandling:
         text = load_prompt("generate-injections", contract_context=ctx)
 
         assert "Do not silently skip compact title carriers" not in text
-        assert "title fields are retired as active IPI carrier surfaces" in text
-        assert "title carriers should not appear as eligible exposure contracts" in text
+        assert "retired as active ipi carrier surfaces" in text.lower()
+        assert "should not appear as eligible exposure contracts" in text
 
 
 class TestSandboxApiPathParity:

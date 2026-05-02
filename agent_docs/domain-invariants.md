@@ -86,19 +86,19 @@ rewrite the benign task at Phase 4 to make the payload easier.
 
 WorldSim canonical carrier IDs are methodological labels: `issue.description`,
 `note.body`, `submission.body`, and `comment.body`. Benchmark profiles may use
-adapter-local observed IDs such as `gitlab_issue_description` or
-`comment_body_thread`. Do not ask the generator or profiler to be the authority
+adapter-local observed IDs such as `profile_issue_description` or
+`thread_comment_body`. Do not ask the generator or profiler to be the authority
 for both vocabularies. Route generation, Phase 2 validation, and text-fill
 budgeting must resolve profile surfaces through the benchmark adapter mapping in
 `worldsim/surface_identity.py`.
 
 Unknown benchmark/site mappings and ambiguous profile surfaces fail closed. For
-example, GitLab `note.body` must resolve through issue-note or MR-note context
-from the route/editor method; if both are present and the caller provides no
-context, the resolver must return no surface rather than choosing arbitrarily.
-Adding a new benchmark means adding its profile-ID/source-field aliases at the
-adapter boundary and tests that prove canonical WorldSim surfaces resolve to the
-new profile vocabulary.
+example, a shared `note.body` canonical surface may have multiple concrete
+profile locations; it must resolve through route/editor context, and if the
+caller provides no disambiguating context, the resolver must return no surface
+rather than choosing arbitrarily. Adding a new benchmark means adding its
+profile-ID/source-field aliases at the adapter boundary and tests that prove
+canonical WorldSim surfaces resolve to the new profile vocabulary.
 
 ## Auth and Runtime Boundaries
 

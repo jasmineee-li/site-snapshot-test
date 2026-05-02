@@ -481,8 +481,10 @@ def _benchmark_setup(tmp_path):
 def test_profile_injection_surface_prompt_uses_active_scope():
     prompt = Path("worldsim/prompts/profile-injection-surface.md").read_text(encoding="utf-8")
 
-    assert "GitLab issues/comments" in prompt
-    assert "Reddit/Postmill posts/comments" in prompt
+    assert "ordinary issue/forum-style user-generated content" in prompt
+    assert "regular-user HTTP/API/form channels for the configured site's in-scope UGC" in prompt
+    for site_specific_term in ("GitLab", "gitlab", "Reddit", "reddit", "Postmill", "postmill"):
+        assert site_specific_term not in prompt
     for inactive_example in (
         "WASP",
         "Magento",
