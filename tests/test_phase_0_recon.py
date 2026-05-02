@@ -232,6 +232,50 @@ def test_enrich_reddit_profile_with_forums_uses_explicit_host_inventory_instance
     ]
 
 
+def test_enrich_reddit_profile_with_forums_keeps_only_cross_replica_common_forums(monkeypatch):
+    instances = [
+        BenchmarkInstance(
+            site_name="reddit",
+            site_url="http://172.17.0.1:9900",
+            db_connection="postgresql://u:p@172.17.0.1:5500/postmill",
+        ),
+        BenchmarkInstance(
+            site_name="reddit",
+            site_url="http://172.17.0.1:9910",
+            db_connection="postgresql://u:p@172.17.0.1:5501/postmill",
+        ),
+    ]
+    calls: list[str] = []
+
+    def fake_enrich(site_url, db_connection, **kwargs):
+        calls.append(site_url)
+        if site_url.endswith(":9900"):
+            return {
+                "forums": [
+                    {"id": "1", "name": "probe-only", "title": "probe-only"},
+                    {"id": "2", "name": "AskReddit", "title": "AskReddit"},
+                ]
+            }
+        return {"forums": [{"id": "7", "name": "AskReddit", "title": "AskReddit"}]}
+
+    monkeypatch.setattr(
+        "worldsim.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
+        fake_enrich,
+    )
+
+    profile = phase_0_recon._enrich_reddit_profile_with_forums(
+        site_name="reddit",
+        profile={"site_name": "reddit"},
+        instance=instances[0],
+        instances=instances,
+    )
+
+    assert calls == ["http://172.17.0.1:9900", "http://172.17.0.1:9910"]
+    assert profile["available_entities"]["forums"] == [
+        {"id": "2", "name": "AskReddit", "title": "AskReddit"}
+    ]
+
+
 def test_enrich_agent_context_with_handles_passes_remote_runtime_web_host(monkeypatch):
     instance = BenchmarkInstance(
         site_name="gitlab",

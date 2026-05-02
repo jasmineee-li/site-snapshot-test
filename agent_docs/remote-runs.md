@@ -53,11 +53,13 @@ r5, pass both localities explicitly:
 `--instances instances.smoke.json --host-inventory-instances instances.scale.json`.
 Do not rely on rewriting only the host portion of `instances.smoke.json`: scale
 topology can use different per-replica DB/API ports, so a host-only rewrite can
-silently point at the wrong service. GitLab handle enrichment follows the same
-host-side API rule and falls back to the original URL if the host-local
-candidate fails. If enrichment falls back to static profile samples, treat any
-later source-data 404s as stale inventory evidence, not as a carrier-render
-verdict.
+silently point at the wrong service. Reddit forum enrichment must also intersect
+the scale replica pool before advertising forum anchors; forums created by live
+profiling or prior editor probes on a single replica are not stable benchmark
+inventory. GitLab handle enrichment follows the same host-side API rule and
+falls back to the original URL if the host-local candidate fails. If enrichment
+falls back to static profile samples, treat any later source-data 404s as stale
+inventory evidence, not as a carrier-render verdict.
 
 On r5, also treat the benchmark source path as host-local. `sync_to_r5.sh`
 intentionally excludes repo-local `vendors/`, so

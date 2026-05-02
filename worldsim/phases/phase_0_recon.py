@@ -272,6 +272,21 @@ def _build_instance_lookup(
     return out
 
 
+def _build_instance_groups(
+    instances: list[BenchmarkInstance] | None,
+) -> dict[str, list[BenchmarkInstance]]:
+    """Map normalized site name to all configured instances for that site."""
+    if not instances:
+        return {}
+    out: dict[str, list[BenchmarkInstance]] = {}
+    for instance in instances:
+        normalized_site = normalize_site_name(instance.site_name)
+        if not normalized_site:
+            continue
+        out.setdefault(normalized_site, []).append(instance)
+    return out
+
+
 def _instance_inventory_fingerprint(instance: BenchmarkInstance | None) -> str | None:
     """Return a non-secret cache fingerprint for host-side inventory inputs."""
     if instance is None:
@@ -1070,6 +1085,11 @@ async def run_phase_0c(
         if host_inventory_instances is not None
         else instance_lookup
     )
+    host_inventory_groups = (
+        _build_instance_groups(host_inventory_instances)
+        if host_inventory_instances is not None
+        else _build_instance_groups(instances)
+    )
 
     normalized_site_filter = (
         {normalize_site_name(site) for site in site_filter if str(site).strip()}
@@ -1136,6 +1156,7 @@ async def run_phase_0c(
                 verification_proxy=verification_proxy,
                 instance=instance_lookup.get(normalize_site_name(name)),
                 host_inventory_instance=host_inventory_lookup.get(normalize_site_name(name)),
+                host_inventory_instances=host_inventory_groups.get(normalize_site_name(name), []),
             )
             for name, files in sites_to_profile.items()
         ],
@@ -1353,6 +1374,7 @@ async def _profile_one_site_tiered(
     verification_proxy: VerificationProxy | None = None,
     instance: BenchmarkInstance | None = None,
     host_inventory_instance: BenchmarkInstance | None = None,
+    host_inventory_instances: list[BenchmarkInstance] | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Profile one site using two-tier sandbox execution.
 
@@ -1565,6 +1587,7 @@ async def _profile_one_site_tiered(
             site_name=site_name,
             profile=profile,
             instance=inventory_instance,
+            instances=host_inventory_instances,
         )
 
         # Validate the merged profile before publishing anything to disk.
@@ -1742,35 +1765,38 @@ def _enrich_reddit_profile_with_forums(
     site_name: str,
     profile: dict[str, Any],
     instance: BenchmarkInstance | None,
+    instances: list[BenchmarkInstance] | None = None,
 ) -> dict[str, Any]:
     """For reddit sites, attach live-reachable forum inventory to the profile."""
     if normalize_site_name(site_name) != "reddit":
         return profile
-    if instance is None:
+    inventory_instances = list(instances or ([instance] if instance is not None else []))
+    inventory_instances = [
+        item for item in inventory_instances if item is not None and item.db_connection
+    ]
+    if not inventory_instances:
         logger.info(
             "Phase 0c: site %r has no instance config; skipping reddit forum enrichment",
-            site_name,
-        )
-        return profile
-    if not instance.db_connection:
-        logger.info(
-            "Phase 0c: site %r instance has no db_connection; skipping reddit forum enrichment",
             site_name,
         )
         return profile
 
     from worldsim.phases.phase_0c_reddit_enrichment import (
         RedditInventoryEnrichmentError,
+        common_reddit_forum_inventory,
         enrich_reddit_forums,
         merge_reddit_inventory_into_profile,
     )
 
     try:
-        inventory = enrich_reddit_forums(
-            instance.site_url,
-            instance.db_connection,
-            runtime_db_host=_host_side_runtime_host(),
-        )
+        inventories = [
+            enrich_reddit_forums(
+                item.site_url,
+                item.db_connection,
+                runtime_db_host=_host_side_runtime_host(),
+            )
+            for item in inventory_instances
+        ]
     except RedditInventoryEnrichmentError as exc:
         logger.warning(
             "Phase 0c: reddit forum enrichment for site %r failed: %s",
@@ -1779,17 +1805,20 @@ def _enrich_reddit_profile_with_forums(
         )
         return profile
 
+    inventory = common_reddit_forum_inventory(inventories)
     forums = inventory.get("forums", [])
     if not forums:
         logger.warning(
-            "Phase 0c: reddit forum enrichment for site %r found no reachable forums",
+            "Phase 0c: reddit forum enrichment for site %r found no forums common to %d replica(s)",
             site_name,
+            len(inventory_instances),
         )
         return profile
     logger.info(
-        "Phase 0c: site %r enriched with %d reachable reddit forums",
+        "Phase 0c: site %r enriched with %d reachable reddit forums common to %d replica(s)",
         site_name,
         len(forums),
+        len(inventory_instances),
     )
     return merge_reddit_inventory_into_profile(profile, inventory)
 

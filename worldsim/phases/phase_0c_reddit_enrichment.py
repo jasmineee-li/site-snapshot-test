@@ -126,6 +126,38 @@ def merge_reddit_inventory_into_profile(
     return merged
 
 
+def common_reddit_forum_inventory(
+    inventories: list[Mapping[str, list[dict[str, str]]]],
+) -> dict[str, list[dict[str, str]]]:
+    """Return forums present in every replica inventory, preserving first order."""
+    if not inventories:
+        return {"forums": []}
+    forum_lists: list[list[dict[str, str]]] = []
+    for inventory in inventories:
+        forums = inventory.get("forums")
+        if not forums:
+            return {"forums": []}
+        forum_lists.append([forum for forum in forums if isinstance(forum, Mapping)])
+    name_sets = [
+        {str(forum.get("name") or "").strip() for forum in forums if forum.get("name")}
+        for forums in forum_lists
+    ]
+    common_names = set.intersection(*name_sets) if name_sets else set()
+    if not common_names:
+        return {"forums": []}
+    out: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for forum in forum_lists[0]:
+        name = str(forum.get("name") or "").strip()
+        if not name or name not in common_names or name in seen:
+            continue
+        seen.add(name)
+        out.append(
+            {str(key): str(value) for key, value in forum.items() if value not in (None, "")}
+        )
+    return {"forums": out}
+
+
 def _read_forum_rows(db_connection: str) -> list[dict[str, Any]]:
     parsed = _parse_runtime_db_connection(
         db_connection,
@@ -200,6 +232,7 @@ def _forum_page_reachable(base_url: str, forum_name: str, *, timeout: int) -> bo
 
 __all__ = [
     "RedditInventoryEnrichmentError",
+    "common_reddit_forum_inventory",
     "enrich_reddit_forums",
     "merge_reddit_inventory_into_profile",
 ]

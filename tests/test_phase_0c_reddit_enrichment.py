@@ -8,6 +8,7 @@ from worldsim.phases.phase_0c_reddit_enrichment import (
     RedditInventoryEnrichmentError,
     _db_connection_candidates,
     _read_forum_rows,
+    common_reddit_forum_inventory,
     enrich_reddit_forums,
     merge_reddit_inventory_into_profile,
 )
@@ -89,9 +90,7 @@ def test_enrich_reddit_forums_prefers_runtime_db_host_for_host_side_inventory() 
             runtime_db_host="172.17.0.1",
         )
 
-    assert seen_connections == [
-        "postgresql://postmill:postmill@172.17.0.1:5434/postmill"
-    ]
+    assert seen_connections == ["postgresql://postmill:postmill@172.17.0.1:5434/postmill"]
     assert result["forums"] == [{"id": "1", "name": "books", "title": "Books"}]
 
 
@@ -103,6 +102,33 @@ def test_db_connection_candidates_fall_back_to_original_after_runtime_host() -> 
         "postgresql://u:p@172.17.0.1:5434/postmill",
         "postgresql://u:p@3.12.221.9:5434/postmill",
     ]
+
+
+def test_common_reddit_forum_inventory_filters_replica_local_probe_forums() -> None:
+    result = common_reddit_forum_inventory(
+        [
+            {
+                "forums": [
+                    {"id": "1", "name": "ws-probe", "title": "ws-probe"},
+                    {"id": "2", "name": "AskReddit", "title": "AskReddit"},
+                    {"id": "3", "name": "DIY", "title": "DIY"},
+                ]
+            },
+            {
+                "forums": [
+                    {"id": "9", "name": "AskReddit", "title": "AskReddit"},
+                    {"id": "10", "name": "DIY", "title": "DIY"},
+                ]
+            },
+        ]
+    )
+
+    assert result == {
+        "forums": [
+            {"id": "2", "name": "AskReddit", "title": "AskReddit"},
+            {"id": "3", "name": "DIY", "title": "DIY"},
+        ]
+    }
 
 
 def test_read_forum_rows_wraps_connection_failures() -> None:
