@@ -2895,6 +2895,64 @@ def test_build_task_route_contracts_includes_covered_core_carrier_surfaces():
     assert comment_route["answer_stability_guidance"]["prevent_ordered_seed_field_answer"] is True
 
 
+def test_build_task_route_contracts_never_emits_retired_title_carriers():
+    gitlab_profile = _profile(uncovered=[])
+    gitlab_profile["site_name"] = "gitlab"
+    _add_gitlab_issue_sample(gitlab_profile)
+    gitlab_profile["injection_surface"] = [
+        {"id": "issue_title_in_list", "location_page": "/{namespace}/{project}/-/issues"},
+        {"id": "issue_description", "location_page": "/{namespace}/{project}/-/issues"},
+        {"id": "note_body_on_issue", "location_page": "/{namespace}/{project}/-/issues/{iid}"},
+    ]
+    gitlab_profile["existing_task_coverage"] = {
+        "injection_surfaces_with_task_coverage": [
+            "issue_title_in_list",
+            "issue_description",
+            "note_body_on_issue",
+        ],
+        "injection_surfaces_without_task_coverage": [],
+    }
+
+    reddit_profile = _profile(uncovered=[])
+    reddit_profile["site_name"] = "reddit"
+    _add_reddit_submission_sample(reddit_profile)
+    _add_reddit_available_forums(reddit_profile)
+    reddit_profile["existing_task_coverage"] = {
+        "injection_surfaces_with_task_coverage": [
+            "submission_title_listing",
+            "submission_body_detail",
+            "comment_body_thread",
+        ],
+        "injection_surfaces_without_task_coverage": [],
+    }
+
+    routes = [
+        *phase_1_route_contracts.build_task_route_contracts(
+            site_name="gitlab",
+            profile=gitlab_profile,
+        )["route_families"],
+        *phase_1_route_contracts.build_task_route_contracts(
+            site_name="reddit",
+            profile=reddit_profile,
+        )["route_families"],
+    ]
+
+    assert routes
+    assert {
+        route["content_surface"]
+        for route in routes
+        if route["content_surface"].endswith(".title")
+    } == set()
+    assert {
+        method
+        for route in routes
+        for method in route.get("allowed_editor_methods", [])
+    }.isdisjoint(
+        {"create_issue_title", "create_submission_title"}
+    )
+    assert all("_title." not in route["id"] for route in routes)
+
+
 def test_build_task_route_contracts_uses_available_reddit_forums_without_submission_samples():
     profile = _profile(uncovered=[])
     profile["site_name"] = "reddit"

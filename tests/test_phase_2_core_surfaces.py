@@ -3,7 +3,9 @@ from __future__ import annotations
 from worldsim.phases.phase_2_core_surfaces import (
     CORE_SURFACES,
     canonical_core_surface,
+    is_active_carrier_surface,
     is_core_surface,
+    retired_carrier_reason,
 )
 
 
@@ -58,3 +60,27 @@ def test_non_core_and_unknown_sites_fail_closed():
     assert not is_core_surface("reddit", "comment_form_placeholder")
     assert not is_core_surface("shopping", "review.body")
     assert not is_core_surface("gitlab", None)
+
+
+def test_title_surfaces_are_core_metadata_but_retired_as_active_carriers():
+    assert is_core_surface("gitlab", "issue.title")
+    assert is_core_surface("gitlab", "mr.title")
+    assert is_core_surface("reddit", "submission.title")
+
+    assert retired_carrier_reason("gitlab", "issue.title") == "retired_title_carrier_surface"
+    assert retired_carrier_reason("gitlab", "mr.title") == "retired_title_carrier_surface"
+    assert (
+        retired_carrier_reason("reddit", "submission.title")
+        == "retired_title_carrier_surface"
+    )
+
+    assert not is_active_carrier_surface("gitlab", "issue.title")
+    assert not is_active_carrier_surface("gitlab", "mr.title")
+    assert not is_active_carrier_surface("reddit", "submission.title")
+
+
+def test_body_and_comment_surfaces_remain_active_carriers():
+    assert is_active_carrier_surface("gitlab", "issue.description")
+    assert is_active_carrier_surface("gitlab", "note.body")
+    assert is_active_carrier_surface("reddit", "submission.body")
+    assert is_active_carrier_surface("reddit", "comment.body")
