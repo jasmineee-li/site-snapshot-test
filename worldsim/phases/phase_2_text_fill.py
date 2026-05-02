@@ -42,6 +42,7 @@ from worldsim.phase_4.concurrency import get_api_semaphore
 from worldsim.phases.phase_2_core_surfaces import CORE_SURFACES, canonical_core_surface
 from worldsim.prompt_loading import load_prompt
 from worldsim.seeding import validate_data_seed
+from worldsim.surface_identity import has_surface_mapping, resolve_profile_surface
 from worldsim.text_payload_contract import (
     TextPayloadResponse,
     binary_answer_contract,
@@ -300,7 +301,7 @@ def derive_length_budget(
     source = "fallback_default"
     # Resolve source_field from the site profile surface, or use the task-level value
     resolved_source_field: str | None = task.get("source_field")
-    surface = _find_surface_by_id(site_profile, str(task.get("target_surface_id", "")))
+    surface = _find_surface_by_id(site_profile, task)
     if isinstance(surface, dict) and resolved_source_field is None:
         resolved_source_field = surface.get("source_field")
     exemplar_budget = _exemplar_length_budget(
@@ -1356,9 +1357,31 @@ def _load_site_kind_payload(registry: dict[str, Any], site_kind: str) -> dict[st
 
 
 def _find_surface_by_id(
-    site_profile: dict[str, Any], target_surface_id: str
+    site_profile: dict[str, Any],
+    task_or_surface_id: dict[str, Any] | str,
 ) -> dict[str, Any] | None:
     site = str(site_profile.get("site") or site_profile.get("site_name") or "").strip().lower()
+    if isinstance(task_or_surface_id, dict):
+        task = task_or_surface_id
+        target_surface_id = str(task.get("target_surface_id") or "")
+        resolution = resolve_profile_surface(
+            benchmark=str(task.get("benchmark") or "webarena_verified"),
+            site=site or str(task.get("site") or ""),
+            profile=site_profile,
+            target_surface_id=target_surface_id,
+            kind=_route_kind_from_task(task),
+            method=str(task.get("editor_method") or "") or _route_method_from_task(task),
+            editor_surface_id=str(task.get("editor_surface_id") or "") or None,
+        )
+        if resolution is not None and isinstance(resolution.profile_surface, dict):
+            return resolution.profile_surface
+        if has_surface_mapping(
+            benchmark=str(task.get("benchmark") or "webarena_verified"),
+            site=site or str(task.get("site") or ""),
+        ):
+            return None
+    else:
+        target_surface_id = str(task_or_surface_id)
     sites = (site,) if site else tuple(CORE_SURFACES)
     canonical_targets = {canonical_core_surface(site_key, target_surface_id) for site_key in sites}
     for surface in site_profile.get("injection_surface", []):
@@ -1372,6 +1395,22 @@ def _find_surface_by_id(
             for site_key in sites
         ):
             return surface
+    return None
+
+
+def _route_kind_from_task(task: dict[str, Any]) -> str | None:
+    route_id = str(task.get("route_id") or "").strip()
+    parts = route_id.split(".")
+    if len(parts) >= 4:
+        return parts[-2] or None
+    return None
+
+
+def _route_method_from_task(task: dict[str, Any]) -> str | None:
+    route_id = str(task.get("route_id") or "").strip()
+    parts = route_id.split(".")
+    if len(parts) >= 4:
+        return parts[-1] or None
     return None
 
 

@@ -149,6 +149,14 @@ def test_phase2_surface_lookup_accepts_live_phase0c_aliases():
             {"id": "mr_note_body"},
         ],
     }
+    fresh_gitlab_profile = {
+        "site_name": "gitlab",
+        "injection_surface": [
+            {"id": "gitlab_issue_description", "source_field": "Issue.description"},
+            {"id": "gitlab_note_body_on_issue", "source_field": "Note.body"},
+            {"id": "gitlab_note_body_on_mr", "source_field": "Note.body"},
+        ],
+    }
     reddit_profile = {
         "site_name": "reddit",
         "injection_surface": [
@@ -164,9 +172,26 @@ def test_phase2_surface_lookup_accepts_live_phase0c_aliases():
     assert phase_2_injections._find_surface_by_id(gitlab_profile, "issue.description") == {
         "id": "issue_description_detail"
     }
-    assert phase_2_injections._find_surface_by_id(gitlab_profile, "note.body") == {
-        "id": "issue_note_body"
-    }
+    assert phase_2_injections._find_surface_by_id(
+        fresh_gitlab_profile,
+        "issue.description",
+    ) == {"id": "gitlab_issue_description", "source_field": "Issue.description"}
+    assert phase_2_injections._find_surface_by_id(gitlab_profile, "note.body") is None
+    assert phase_2_injections._find_surface_by_id(
+        gitlab_profile,
+        "note.body",
+        method="create_issue_note",
+    )["id"] in {"issue_note_body", "gitlab_note_body_on_issue"}
+    assert phase_2_injections._find_surface_by_id(
+        gitlab_profile,
+        "note.body",
+        method="create_mr_note",
+    )["id"] in {"mr_note_body", "gitlab_note_body_on_mr"}
+    assert phase_2_injections._find_surface_by_id(
+        fresh_gitlab_profile,
+        "note.body",
+        method="create_issue_note",
+    ) == {"id": "gitlab_note_body_on_issue", "source_field": "Note.body"}
     assert phase_2_injections._find_surface_by_id(gitlab_profile, "mr.title") == {
         "id": "mr_title_list"
     }
@@ -198,6 +223,50 @@ def test_phase2_surface_lookup_accepts_live_phase0c_aliases():
         {"site_name": "reddit", "injection_surface": [{"id": "comment_body_detail"}]},
         "comment.body",
     ) == {"id": "comment_body_detail"}
+
+
+def test_profile_surface_resolution_preflight_accepts_fresh_gitlab_aliases():
+    errors = phase_2_injections._profile_surface_resolution_errors(
+        site_tasks=[{"id": "novel_gitlab_1"}],
+        exposure_contracts={
+            "novel_gitlab_1": {
+                "target_surface_id": "issue.description",
+                "editor_method": "create_issue_description",
+                "kind": "gitlab_issue",
+                "eligibility": {"status": "eligible"},
+            }
+        },
+        site_profile={
+            "site_name": "gitlab",
+            "injection_surface": [
+                {"id": "gitlab_issue_description", "source_field": "Issue.description"},
+            ],
+        },
+        site="gitlab",
+        benchmark="webarena_verified",
+    )
+
+    assert errors == []
+
+
+def test_profile_surface_resolution_preflight_fails_closed_before_api_generation():
+    errors = phase_2_injections._profile_surface_resolution_errors(
+        site_tasks=[{"id": "novel_gitlab_1"}],
+        exposure_contracts={
+            "novel_gitlab_1": {
+                "target_surface_id": "issue.description",
+                "editor_method": "create_issue_description",
+                "kind": "gitlab_issue",
+                "eligibility": {"status": "eligible"},
+            }
+        },
+        site_profile={"site_name": "gitlab", "injection_surface": [{"id": "unknown"}]},
+        site="gitlab",
+        benchmark="webarena_verified",
+    )
+
+    assert len(errors) == 1
+    assert "target_surface_id 'issue.description'" in errors[0]
 
 
 def _plan_task() -> dict:

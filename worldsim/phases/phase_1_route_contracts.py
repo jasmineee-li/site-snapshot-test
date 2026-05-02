@@ -27,36 +27,17 @@ from worldsim.phases.phase_2_target_resolver import (
     derive_benign_target_resource,
 )
 from worldsim.placeholders import placeholder_for_site
+from worldsim.surface_identity import (
+    canonicalize_surface_id,
+    resolve_profile_surface,
+    surface_resolution_dict,
+)
 
 ROUTE_CONTRACTS_SCHEMA_VERSION = 1
 
 REDDIT_FORUM_SORT_DRIFT_REGEXES: tuple[str, ...] = (
     r"\b(?:latest|newest|most\s+recent(?:ly)?|recent)\b",
 )
-
-PROFILE_SURFACE_ALIASES: dict[str, dict[str, str]] = {
-    "gitlab": {
-        "issuetitleinlist": "issue.title",
-        "issuetitlelist": "issue.title",
-        "issuedescription": "issue.description",
-        "issuedescriptiondetail": "issue.description",
-        "mrtitlelist": "mr.title",
-        "mrdescriptiondetail": "mr.description",
-        "issuenotebody": "note_on_issue",
-        "notebodyonissue": "note_on_issue",
-        "mrnotebody": "note_on_mr",
-        "notebodyonmr": "note_on_mr",
-    },
-    "reddit": {
-        "submissiontitlelisting": "submission.title",
-        "submissiontitlefeed": "submission.title",
-        "submissiontitledetail": "submission.title",
-        "submissionbodydetail": "submission.body",
-        "commentbodythread": "comment.body",
-        "commentbodydetail": "comment.body",
-    },
-}
-
 
 def build_task_route_contracts(
     *,
@@ -66,9 +47,8 @@ def build_task_route_contracts(
 ) -> dict[str, Any]:
     """Build the route contracts a Phase 1 generator may target."""
     site = site_name.strip().lower()
-    surfaces = _surface_lookup(profile)
-    uncovered = _uncovered_surface_ids(site, profile)
-    covered = _covered_surface_ids(site, profile)
+    uncovered = _uncovered_surface_ids(site, profile, benchmark=benchmark)
+    covered = _covered_surface_ids(site, profile, benchmark=benchmark)
     route_families: list[dict[str, Any]] = []
 
     for spec in sorted(iter_specs(site=site, benchmark=benchmark), key=lambda item: item.method):
@@ -79,6 +59,17 @@ def build_task_route_contracts(
                 continue
             if not is_active_carrier_surface(site, canonical, kind=kind, method=spec.method):
                 continue
+            profile_resolution = resolve_profile_surface(
+                benchmark=benchmark,
+                site=site,
+                profile=profile,
+                target_surface_id=canonical,
+                kind=kind,
+                method=spec.method,
+                editor_surface_id=raw_surface,
+            )
+            if profile_resolution is None:
+                continue
             route = _route_family_for_spec(
                 site=site,
                 kind=kind,
@@ -87,8 +78,8 @@ def build_task_route_contracts(
                 canonical_surface_id=canonical,
                 coverage_status=_coverage_status(canonical, raw_surface, uncovered, covered),
                 profile=profile,
-                profile_surface=surfaces.get(_surface_key(canonical))
-                or surfaces.get(_surface_key(raw_surface)),
+                profile_surface=profile_resolution.profile_surface,
+                surface_resolution=surface_resolution_dict(profile_resolution),
             )
             if route is not None:
                 route_families.append(route)
@@ -116,6 +107,7 @@ def _route_family_for_spec(
     coverage_status: str,
     profile: Mapping[str, Any],
     profile_surface: Mapping[str, Any] | None,
+    surface_resolution: Mapping[str, Any] | None,
 ) -> dict[str, Any] | None:
     placeholder = placeholder_for_site(site)
     if placeholder is None:
@@ -145,6 +137,7 @@ def _route_family_for_spec(
         "content_surface": canonical_surface_id,
         "coverage_status": coverage_status,
         "profile_surface_id": _profile_surface_id(profile_surface),
+        "surface_resolution": dict(surface_resolution or {}),
         "allowed_start_url_patterns": start_patterns,
         "allowed_editor_methods": [method],
         "editor_arg_templates": {method: _sample_editor_args(method, kind=kind)},
@@ -1040,18 +1033,12 @@ def _answer_stability_guidance(
     }
 
 
-def _surface_lookup(profile: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
-    out: dict[str, Mapping[str, Any]] = {}
-    for surface in profile.get("injection_surface", []):
-        if not isinstance(surface, Mapping):
-            continue
-        sid = surface.get("id")
-        if isinstance(sid, str) and sid.strip():
-            out[_surface_key(sid)] = surface
-    return out
-
-
-def _uncovered_surface_ids(site: str, profile: Mapping[str, Any]) -> set[str]:
+def _uncovered_surface_ids(
+    site: str,
+    profile: Mapping[str, Any],
+    *,
+    benchmark: str = "webarena_verified",
+) -> set[str]:
     coverage = profile.get("existing_task_coverage")
     if not isinstance(coverage, Mapping):
         return set()
@@ -1059,23 +1046,28 @@ def _uncovered_surface_ids(site: str, profile: Mapping[str, Any]) -> set[str]:
     if not isinstance(uncovered, list):
         return set()
     out: set[str] = set()
-    aliases = PROFILE_SURFACE_ALIASES.get(site, {})
     for item in uncovered:
         raw = str(item).strip()
         if not raw:
             continue
         key = _surface_key(raw)
         out.add(key)
-        aliased = aliases.get(key)
-        if aliased:
-            out.add(_surface_key(aliased))
-        canonical = canonical_core_surface(site, raw)
-        if canonical and _surface_key(canonical) == key:
+        canonical = canonicalize_surface_id(
+            benchmark=benchmark,
+            site=site,
+            raw_surface_id=raw,
+        )
+        if canonical:
             out.add(_surface_key(canonical))
     return out
 
 
-def _covered_surface_ids(site: str, profile: Mapping[str, Any]) -> set[str]:
+def _covered_surface_ids(
+    site: str,
+    profile: Mapping[str, Any],
+    *,
+    benchmark: str = "webarena_verified",
+) -> set[str]:
     coverage = profile.get("existing_task_coverage")
     if not isinstance(coverage, Mapping):
         return set()
@@ -1083,18 +1075,18 @@ def _covered_surface_ids(site: str, profile: Mapping[str, Any]) -> set[str]:
     if not isinstance(covered, list):
         return set()
     out: set[str] = set()
-    aliases = PROFILE_SURFACE_ALIASES.get(site, {})
     for item in covered:
         raw = str(item).strip()
         if not raw:
             continue
         key = _surface_key(raw)
         out.add(key)
-        aliased = aliases.get(key)
-        if aliased:
-            out.add(_surface_key(aliased))
-        canonical = canonical_core_surface(site, raw)
-        if canonical and _surface_key(canonical) == key:
+        canonical = canonicalize_surface_id(
+            benchmark=benchmark,
+            site=site,
+            raw_surface_id=raw,
+        )
+        if canonical:
             out.add(_surface_key(canonical))
     return out
 

@@ -1200,3 +1200,64 @@ class TestExemplarLengthBudgetWithSourceField:
         assert budget is not None
         assert "min" in budget
         assert "max" in budget
+
+
+class TestDeriveLengthBudgetSurfaceResolution:
+    def test_uses_fresh_gitlab_profile_surface_source_field(self):
+        registry = phase_2_text_fill.load_voice_registry()
+        task = {
+            "id": "adv-gitlab-1",
+            "benchmark": "webarena_verified",
+            "site": "gitlab",
+            "target_surface_id": "issue.description",
+            "route_id": "gitlab.issue_description.gitlab_issue.create_issue_description",
+        }
+        profile = {
+            "site_name": "gitlab",
+            "data_model": [
+                {
+                    "entity": "Issue",
+                    "fields": [
+                        {"name": "description", "type": "text"},
+                    ],
+                }
+            ],
+            "injection_surface": [
+                {"id": "gitlab_issue_description", "source_field": "Issue.description"},
+            ],
+        }
+
+        budget = phase_2_text_fill.derive_length_budget(task, profile, registry)
+
+        assert budget["source"] == "data_model_text"
+        assert budget["max"] == 1500
+
+    def test_disambiguates_gitlab_issue_notes_before_source_field_lookup(self):
+        registry = phase_2_text_fill.load_voice_registry()
+        task = {
+            "id": "adv-gitlab-note-1",
+            "benchmark": "webarena_verified",
+            "site": "gitlab",
+            "target_surface_id": "note.body",
+            "route_id": "gitlab.note_body.gitlab_issue.create_issue_note",
+            "editor_method": "create_issue_note",
+        }
+        profile = {
+            "site_name": "gitlab",
+            "data_model": [
+                {
+                    "entity": "Note",
+                    "fields": [
+                        {"name": "body", "type": "text"},
+                    ],
+                }
+            ],
+            "injection_surface": [
+                {"id": "gitlab_note_body_on_issue", "source_field": "Note.body"},
+                {"id": "gitlab_note_body_on_mr", "source_field": "Note.body"},
+            ],
+        }
+
+        budget = phase_2_text_fill.derive_length_budget(task, profile, registry)
+
+        assert budget["source"] == "data_model_text"

@@ -91,6 +91,7 @@ from worldsim.profile_validation import load_and_validate_profile
 from worldsim.prompt_loading import load_prompt
 from worldsim.seeding import self_contained_adversarial_seed_error, validate_data_seed
 from worldsim.state import get_state_dir, load_state, save_state
+from worldsim.surface_identity import has_surface_mapping, resolve_profile_surface
 
 logger = logging.getLogger(__name__)
 
@@ -2436,6 +2437,15 @@ async def _generate_injections_for_site(
             "Phase 2: shard %r has no eligible tasks after target-resolution filtering", label
         )
         return SiteInjectionResult(site_name, [], [])
+    surface_errors = _profile_surface_resolution_errors(
+        site_tasks=site_tasks,
+        exposure_contracts=exposure_contracts,
+        site_profile=site_profile,
+        site=site_name,
+        benchmark=benchmark,
+    )
+    if surface_errors:
+        return SiteInjectionResult(site_name, [], surface_errors)
     cell_targets = _build_cell_targets(site_profile, site_tasks, all_site_tasks)
 
     agent_context_path = profile_path.parent / f"AGENT_CONTEXT_{site_name}.json"
@@ -3821,6 +3831,52 @@ def _build_exposure_contracts_for_shard(
     return contracts
 
 
+def _profile_surface_resolution_errors(
+    *,
+    site_tasks: list[dict],
+    exposure_contracts: Mapping[str, Mapping[str, Any]],
+    site_profile: Mapping[str, Any],
+    site: str,
+    benchmark: str,
+) -> list[str]:
+    if site.strip().lower() not in _OPTION_A_SITES:
+        return []
+    errors: list[str] = []
+    for task in site_tasks:
+        task_id = str(task.get("id") or "")
+        contract = exposure_contracts.get(task_id)
+        if not isinstance(contract, Mapping):
+            continue
+        eligibility = contract.get("eligibility")
+        if isinstance(eligibility, Mapping) and eligibility.get("status") != "eligible":
+            continue
+        target_surface_id = str(contract.get("target_surface_id") or "").strip()
+        if not target_surface_id:
+            continue
+        resolution = resolve_profile_surface(
+            benchmark=benchmark,
+            site=site,
+            profile=site_profile,
+            target_surface_id=target_surface_id,
+            kind=str(contract.get("kind") or "") or None,
+            method=str(contract.get("editor_method") or "") or None,
+            editor_surface_id=str(contract.get("editor_surface_id") or "") or None,
+        )
+        if resolution is None:
+            errors.append(
+                f"task {task_id} has eligible exposure contract for "
+                f"target_surface_id {target_surface_id!r}, but the surface does not resolve "
+                f"against the {benchmark!r}/{site!r} profile"
+            )
+    if errors:
+        logger.error(
+            "Phase 2a: profile surface resolution preflight failed for site %r (%d task(s))",
+            site,
+            len(errors),
+        )
+    return errors
+
+
 def _surface_visibility_by_id(site_profile: Mapping[str, Any]) -> dict[str, str]:
     out: dict[str, str] = {}
     surfaces = site_profile.get("injection_surface")
@@ -4159,11 +4215,16 @@ def _enrich_adversarial_plans(
     registry = _voice_registry()
     enriched: list[dict[str, Any]] = []
     for plan in plans:
+        context = _surface_resolution_context(plan, plan.get("seed_template"))
         delivery_channel = _resolve_delivery_channel(
             site_profile,
             target_surface_id=str(plan.get("target_surface_id", "")),
             delivery_mechanism=str(plan.get("delivery_mechanism", "")),
             seed_template=plan.get("seed_template"),
+            benchmark=context["benchmark"],
+            kind=context["kind"],
+            method=context["method"],
+            editor_surface_id=context["editor_surface_id"],
         )
         updated = json.loads(json.dumps(plan))
         updated["delivery_channel"] = delivery_channel
@@ -4173,6 +4234,10 @@ def _enrich_adversarial_plans(
         surface = _find_surface_by_id(
             site_profile,
             str(plan.get("target_surface_id", "")),
+            benchmark=context["benchmark"],
+            kind=context["kind"],
+            method=context["method"],
+            editor_surface_id=context["editor_surface_id"],
         )
         if isinstance(surface, dict):
             sf = surface.get("source_field")
@@ -5002,7 +5067,18 @@ def _validate_legacy_adversarial_task_contract(
     if seed_writes and any(write.get("mechanism") != delivery_mechanism for write in seed_writes):
         return "delivery_mechanism must match the mechanism declared in adversarial_data_seed"
 
-    surface = _find_surface_by_id(site_profile, target_surface_id)
+    context = _surface_resolution_context(
+        adversarial_task,
+        adversarial_task.get("adversarial_data_seed"),
+    )
+    surface = _find_surface_by_id(
+        site_profile,
+        target_surface_id,
+        benchmark=context["benchmark"],
+        kind=context["kind"],
+        method=context["method"],
+        editor_surface_id=context["editor_surface_id"],
+    )
     if surface is None:
         return f"target_surface_id {target_surface_id!r} not found in site profile"
 
@@ -5011,6 +5087,10 @@ def _validate_legacy_adversarial_task_contract(
         target_surface_id,
         concealment,
         delivery_mechanism,
+        benchmark=context["benchmark"],
+        kind=context["kind"],
+        method=context["method"],
+        editor_surface_id=context["editor_surface_id"],
     ):
         return (
             f"target surface {target_surface_id!r} does not support "
@@ -5065,7 +5145,15 @@ def _validate_common_surface_contract(
     if delivery_mechanism == "upload":
         return "delivery_mechanism='upload' is not supported by the current runtime"
 
-    surface = _find_surface_by_id(site_profile, target_surface_id)
+    context = _surface_resolution_context(adversarial_task, seed_payload)
+    surface = _find_surface_by_id(
+        site_profile,
+        target_surface_id,
+        benchmark=context["benchmark"],
+        kind=context["kind"],
+        method=context["method"],
+        editor_surface_id=context["editor_surface_id"],
+    )
     if surface is None:
         return f"target_surface_id {target_surface_id!r} not found in site profile"
 
@@ -5074,6 +5162,10 @@ def _validate_common_surface_contract(
         target_surface_id,
         concealment,
         delivery_mechanism,
+        benchmark=context["benchmark"],
+        kind=context["kind"],
+        method=context["method"],
+        editor_surface_id=context["editor_surface_id"],
     ):
         return (
             f"target surface {target_surface_id!r} does not support "
@@ -5094,6 +5186,10 @@ def _validate_common_surface_contract(
             target_surface_id=target_surface_id,
             delivery_mechanism=str(delivery_mechanism),
             seed_template=seed_payload,
+            benchmark=context["benchmark"],
+            kind=context["kind"],
+            method=context["method"],
+            editor_surface_id=context["editor_surface_id"],
         )
     except ValueError as exc:
         return str(exc)
@@ -5108,6 +5204,52 @@ def _validate_common_surface_contract(
             return discriminating_error
 
     return None
+
+
+def _surface_resolution_context(
+    adversarial_task: Mapping[str, Any],
+    seed_payload: Any,
+) -> dict[str, str | None]:
+    benchmark = _benchmark_for_option_a_plan(dict(adversarial_task))
+    route_kind, route_method = _route_context_from_task(adversarial_task)
+    seed_method = _single_seed_editor_method(seed_payload)
+    method = (
+        seed_method
+        or _string_or_none(adversarial_task.get("editor_method"))
+        or route_method
+    )
+    return {
+        "benchmark": benchmark,
+        "kind": route_kind,
+        "method": method,
+        "editor_surface_id": _string_or_none(adversarial_task.get("editor_surface_id")),
+    }
+
+
+def _route_context_from_task(task: Mapping[str, Any]) -> tuple[str | None, str | None]:
+    route_id = str(task.get("route_id") or "").strip()
+    if not route_id:
+        return None, None
+    parts = route_id.split(".")
+    if len(parts) < 4:
+        return None, None
+    return parts[-2] or None, parts[-1] or None
+
+
+def _single_seed_editor_method(seed_payload: Any) -> str | None:
+    if not isinstance(seed_payload, dict):
+        return None
+    calls = _seed_calls(seed_payload)
+    if len(calls) != 1:
+        return None
+    return _string_or_none(calls[0].get("method"))
+
+
+def _string_or_none(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    stripped = value.strip()
+    return stripped or None
 
 
 def _validate_finalized_http_seed_contract(
@@ -5280,8 +5422,20 @@ def _site_profile_supports_attack(
     target_surface_id: str,
     concealment: str,
     delivery_mechanism: str,
+    *,
+    benchmark: str = "webarena_verified",
+    kind: str | None = None,
+    method: str | None = None,
+    editor_surface_id: str | None = None,
 ) -> bool:
-    surface = _find_surface_by_id(site_profile, target_surface_id)
+    surface = _find_surface_by_id(
+        site_profile,
+        target_surface_id,
+        benchmark=benchmark,
+        kind=kind,
+        method=method,
+        editor_surface_id=editor_surface_id,
+    )
     if surface is None:
         return False
     if surface.get("controllable_by_tier") not in _ELIGIBLE_CONTROLLABLE_TIERS:
@@ -5308,8 +5462,19 @@ def _resolve_delivery_channel(
     target_surface_id: str,
     delivery_mechanism: str,
     seed_template: Any,
+    benchmark: str = "webarena_verified",
+    kind: str | None = None,
+    method: str | None = None,
+    editor_surface_id: str | None = None,
 ) -> dict[str, Any]:
-    surface = _find_surface_by_id(site_profile, target_surface_id)
+    surface = _find_surface_by_id(
+        site_profile,
+        target_surface_id,
+        benchmark=benchmark,
+        kind=kind,
+        method=method,
+        editor_surface_id=editor_surface_id,
+    )
     if surface is None:
         raise ValueError(f"target_surface_id {target_surface_id!r} not found in site profile")
     attack_write = _extract_attack_write(seed_template)
@@ -5334,9 +5499,32 @@ def _resolve_delivery_channel(
 
 
 def _find_surface_by_id(
-    site_profile: dict[str, Any], target_surface_id: str
+    site_profile: dict[str, Any],
+    target_surface_id: str,
+    *,
+    benchmark: str = "webarena_verified",
+    kind: str | None = None,
+    method: str | None = None,
+    editor_surface_id: str | None = None,
 ) -> dict[str, Any] | None:
     site = str(site_profile.get("site") or site_profile.get("site_name") or "").strip().lower()
+    if site:
+        resolution = resolve_profile_surface(
+            benchmark=benchmark,
+            site=site,
+            profile=site_profile,
+            target_surface_id=target_surface_id,
+            kind=kind,
+            method=method,
+            editor_surface_id=editor_surface_id,
+        )
+        if resolution is not None and isinstance(resolution.profile_surface, dict):
+            return resolution.profile_surface
+        if has_surface_mapping(benchmark=benchmark, site=site):
+            return None
+
+    # Legacy fallback for callers that supply minimal synthetic profiles with
+    # canonical IDs but no benchmark/site metadata.
     sites = (site,) if site else tuple(CORE_SURFACES)
     canonical_targets = {canonical_core_surface(site_key, target_surface_id) for site_key in sites}
     for surface in site_profile.get("injection_surface", []):

@@ -106,6 +106,38 @@ def _profile(*, uncovered: list[str], eval_types: list[str] | None = None) -> di
     }
 
 
+def _append_injection_surface(profile: dict, surface_id: str, **fields: object) -> None:
+    surfaces = profile.setdefault("injection_surface", [])
+    if any(surface.get("id") == surface_id for surface in surfaces if isinstance(surface, dict)):
+        return
+    surface = {
+        "id": surface_id,
+        "rendering_format": "plaintext",
+        "controllable_by_tier": "any_user",
+        "controllability_justification": "Synthetic fixture surface for route-contract tests.",
+        "delivery_channels": [
+            {
+                "mechanism": "api",
+                "privileged_seed": False,
+                "path_template": "/fixture/{id}",
+                "method": "POST",
+                "body_field": "body",
+                "table": None,
+                "column": None,
+                "postcondition": {
+                    "type": "db_row_value",
+                    "table": "fixture_payloads",
+                    "value_column": "body",
+                    "where": {"id": {"path_param": "id"}},
+                },
+            }
+        ],
+        "compatible_concealments": ["plaintext"],
+    }
+    surface.update(fields)
+    surfaces.append(surface)
+
+
 def _add_gitlab_issue_sample(profile: dict) -> None:
     profile["data_model"] = [
         {
@@ -119,6 +151,16 @@ def _add_gitlab_issue_sample(profile: dict) -> None:
             ],
         }
     ]
+    _append_injection_surface(
+        profile,
+        "issue_description",
+        location_page="/{namespace}/{project}/-/issues/{iid}",
+    )
+    _append_injection_surface(
+        profile,
+        "note_body_on_issue",
+        location_page="/{namespace}/{project}/-/issues/{iid}#notes",
+    )
 
 
 def _add_gitlab_issue_sample_with_project_id(profile: dict) -> None:
@@ -142,6 +184,16 @@ def _add_gitlab_issue_sample_with_project_id(profile: dict) -> None:
             }
         ]
     }
+    _append_injection_surface(
+        profile,
+        "issue_description",
+        location_page="/{namespace}/{project}/-/issues/{iid}",
+    )
+    _append_injection_surface(
+        profile,
+        "note_body_on_issue",
+        location_page="/{namespace}/{project}/-/issues/{iid}#notes",
+    )
 
 
 def _add_reddit_submission_sample(profile: dict) -> None:
@@ -158,6 +210,16 @@ def _add_reddit_submission_sample(profile: dict) -> None:
             ],
         }
     ]
+    _append_injection_surface(
+        profile,
+        "submission_body_detail",
+        location_page="/f/{forum_name}/{submission_id}",
+    )
+    _append_injection_surface(
+        profile,
+        "comment_body_thread",
+        location_page="/f/{forum_name}/{submission_id}#comments",
+    )
 
 
 def _add_reddit_available_forums(profile: dict) -> None:
@@ -167,6 +229,16 @@ def _add_reddit_available_forums(profile: dict) -> None:
             {"name": "deeplearning", "id": 10043},
         ]
     }
+    _append_injection_surface(
+        profile,
+        "submission_body_detail",
+        location_page="/f/{forum_name}/{submission_id}",
+    )
+    _append_injection_surface(
+        profile,
+        "comment_body_thread",
+        location_page="/f/{forum_name}/{submission_id}#comments",
+    )
 
 
 def _agent_context(
@@ -2524,6 +2596,31 @@ def test_build_task_route_contracts_derives_gitlab_issue_description_route():
     } == {"blank_or_populated", "link_presence"}
 
 
+def test_build_task_route_contracts_records_fresh_gitlab_surface_resolution():
+    profile = _profile(uncovered=["gitlab_issue_description"])
+    profile["site_name"] = "gitlab"
+    _add_gitlab_issue_sample(profile)
+    profile["injection_surface"] = [
+        {
+            "id": "gitlab_issue_description",
+            "source_field": "Issue.description",
+            "location_page": "/{namespace}/{project}/-/issues/{iid}",
+        }
+    ]
+
+    contracts = phase_1_route_contracts.build_task_route_contracts(
+        site_name="gitlab",
+        profile=profile,
+    )
+
+    routes = {route["id"]: route for route in contracts["route_families"]}
+    route = routes["gitlab.issue_description.gitlab_search_result.create_issue_description"]
+    assert route["profile_surface_id"] == "gitlab_issue_description"
+    assert route["surface_resolution"]["canonical_surface_id"] == "issue.description"
+    assert route["surface_resolution"]["profile_surface_id"] == "gitlab_issue_description"
+    assert "adapter_profile_id_alias" in route["surface_resolution"]["evidence"]
+
+
 def test_build_task_route_contracts_inventory_backs_gitlab_project_issue_lists():
     profile = _profile(uncovered=["issue_description"])
     profile["data_model"] = [
@@ -2959,6 +3056,11 @@ def test_build_task_route_contracts_uses_available_reddit_forums_without_submiss
         "injection_surfaces_with_task_coverage": ["submission_body_detail"],
         "injection_surfaces_without_task_coverage": [],
     }
+    _append_injection_surface(
+        profile,
+        "submission_body_detail",
+        location_page="/f/{forum_name}/{submission_id}",
+    )
 
     routes = {
         route["id"]: route
@@ -3087,6 +3189,11 @@ def test_build_task_route_contracts_rejects_structured_reddit_forum_names_withou
         "injection_surfaces_with_task_coverage": ["submission_body_detail"],
         "injection_surfaces_without_task_coverage": [],
     }
+    _append_injection_surface(
+        profile,
+        "submission_body_detail",
+        location_page="/f/{forum_name}/{submission_id}",
+    )
 
     routes = {
         route["id"]: route
@@ -3116,6 +3223,11 @@ def test_build_task_route_contracts_rejects_bare_reddit_forum_names_as_inventory
         "injection_surfaces_with_task_coverage": ["submission_body_detail"],
         "injection_surfaces_without_task_coverage": [],
     }
+    _append_injection_surface(
+        profile,
+        "submission_body_detail",
+        location_page="/f/{forum_name}/{submission_id}",
+    )
 
     routes = {
         route["id"]: route
@@ -3159,6 +3271,11 @@ def test_build_task_route_contracts_uses_routed_submission_urls_as_reddit_forum_
         "injection_surfaces_with_task_coverage": ["submission_body_detail"],
         "injection_surfaces_without_task_coverage": [],
     }
+    _append_injection_surface(
+        profile,
+        "submission_body_detail",
+        location_page="/f/{forum_name}/{submission_id}",
+    )
 
     routes = {
         route["id"]: route
