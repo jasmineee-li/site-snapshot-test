@@ -151,13 +151,19 @@ def _phase_command(phase: str) -> str | None:
 
 
 def _option_value(option: str) -> str | None:
+    return _option_value_from(command_text, option)
+
+
+def _option_value_from(text: str | None, option: str) -> str | None:
+    if text is None:
+        return None
     name = re.escape(option)
     patterns = (
         rf"{name}=([^\s;&]+)",
         rf"{name}\s+([^\s;&]+)",
     )
     for pattern in patterns:
-        match = re.search(pattern, command_text)
+        match = re.search(pattern, text)
         if match:
             return match.group(1).strip("'\"")
     return None
@@ -195,7 +201,8 @@ resume_phase2c = (
 )
 
 if phase0_live:
-    phase0_instances = _option_value("--instances")
+    phase0_command = _phase_command("0") or _phase_command("0c") or command_text
+    phase0_instances = _option_value_from(phase0_command, "--instances")
     if _is_scale(phase0_instances):
         issues.append(
             "Phase 0c runs inside Modal sandboxes and cannot reach "
@@ -203,6 +210,26 @@ if phase0_live:
             "Use an externally reachable/proxied instance file such as "
             "instances.smoke.json for Phase 0/0c."
         )
+    if phase1_command and _has_option(phase1_command, "--generate-novel"):
+        host_inventory_instances = _option_value_from(
+            phase0_command, "--host-inventory-instances"
+        )
+        if host_inventory_instances is None:
+            issues.append(
+                "Chained Phase 0 -> Phase 1 novel generation on r5 must pass "
+                "--host-inventory-instances instances.scale.json on the Phase 0 "
+                "command. Phase 0c browser probes still use --instances "
+                "instances.smoke.json, but host-side GitLab/Reddit inventory "
+                "enrichment needs the orchestrator-local topology."
+            )
+        elif _is_smoke(host_inventory_instances):
+            issues.append(
+                "Phase 0 host-side inventory enrichment uses "
+                "--host-inventory-instances instances.smoke.json. Use "
+                "instances.scale.json or an equivalent host-local instances file "
+                "so Reddit DB and GitLab API inventory reads use orchestrator_host "
+                "ports."
+            )
 
 if phase2_live or phase2c_live or resume_phase2c:
     feasibility_instances = _option_value("--feasibility-instances")

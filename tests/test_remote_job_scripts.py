@@ -536,6 +536,87 @@ def test_start_rejects_chained_phase1_novel_without_benchmark(
     assert "--benchmark or --config on the Phase 1 command" in completed.stderr
 
 
+def test_start_rejects_chained_phase1_novel_without_host_inventory_instances(
+    tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _remote_direct_host_config_with_orchestrator(tmp_path)
+    env = _base_env(repo_root, tmp_path)
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--name",
+            "missing host inventory",
+            "--",
+            "bash",
+            "-lc",
+            (
+                "uv run python -m worldsim.main phase 0 "
+                "--benchmark /home/ubuntu/vendors/webarena-verified "
+                "--instances instances.smoke.json && "
+                "uv run python -m worldsim.main phase 1 "
+                "--benchmark /home/ubuntu/vendors/webarena-verified "
+                "--generate-novel --sites gitlab,reddit && "
+                "uv run python -m worldsim.main phase 2 "
+                "--feasibility-instances instances.scale.json"
+            ),
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "--host-inventory-instances instances.scale.json" in completed.stderr
+    assert "host-side GitLab/Reddit inventory enrichment" in completed.stderr
+
+
+def test_start_rejects_chained_phase1_novel_with_smoke_host_inventory_instances(
+    tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _remote_direct_host_config_with_orchestrator(tmp_path)
+    env = _base_env(repo_root, tmp_path)
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--name",
+            "smoke host inventory",
+            "--",
+            "bash",
+            "-lc",
+            (
+                "uv run python -m worldsim.main phase 0 "
+                "--benchmark /home/ubuntu/vendors/webarena-verified "
+                "--instances instances.smoke.json "
+                "--host-inventory-instances instances.smoke.json && "
+                "uv run python -m worldsim.main phase 1 "
+                "--benchmark /home/ubuntu/vendors/webarena-verified "
+                "--generate-novel --sites gitlab,reddit && "
+                "uv run python -m worldsim.main phase 2 "
+                "--feasibility-instances instances.scale.json"
+            ),
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "--host-inventory-instances instances.smoke.json" in completed.stderr
+    assert "orchestrator_host ports" in completed.stderr
+
+
 def test_start_allows_chained_phase1_novel_with_explicit_benchmark(
     tmp_path: Path,
 ) -> None:
@@ -575,7 +656,8 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
             "-lc",
             (
                 ": worldsim.main phase 0 --benchmark /home/ubuntu/vendors/webarena-verified "
-                "--instances instances.smoke.json && "
+                "--instances instances.smoke.json "
+                "--host-inventory-instances instances.scale.json && "
                 ": worldsim.main phase 1 --benchmark /home/ubuntu/vendors/webarena-verified "
                 "--generate-novel --sites gitlab,reddit && "
                 ": worldsim.main phase 2 --feasibility-instances instances.scale.json"
@@ -967,9 +1049,7 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
             }
         )
     )
-    (job_dir / "exit.json").write_text(
-        json.dumps({"status": "launch_failed", "returncode": 127})
-    )
+    (job_dir / "exit.json").write_text(json.dumps({"status": "launch_failed", "returncode": 127}))
     (job_dir / "stdout.log").write_text("")
     (job_dir / "stderr.log").write_text("remote job child launch failed\n")
 

@@ -37,6 +37,7 @@ as an execution-locality contract, not just a dataset selector:
 | Phase / caller | Where traffic originates | Correct r5 instances file | Why |
 | --- | --- | --- | --- |
 | Phase 0c profiling | Modal sandbox outside r5 | `instances.smoke.json` or equivalent public/proxy file | Modal cannot reach r5-only addresses such as `172.17.0.1`; it needs the authenticated public proxy. |
+| Phase 0c host-side inventory enrichment | r5 orchestrator process | `--host-inventory-instances instances.scale.json` | Reddit DB enumeration and GitLab project inventory run on the host, not in Modal; they need the orchestrator-local topology. |
 | Phase 2c render checks | r5 host / browser containers | `instances.scale.json` | AWS does not reliably hairpin public-IP traffic from the instance to itself; on-host browsers need `orchestrator_host`. |
 | Phase 4 agent/PVPO | r5 host / browser containers | `instances.scale.json` | Same on-host browser topology as Phase 2c; storage-state cookies are host-bound. |
 
@@ -47,13 +48,16 @@ host's `orchestrator_host`.
 
 Phase 0c has one mixed-locality edge case: its browser probes run in Modal, but
 host-side inventory enrichment, such as Reddit forum DB enumeration, runs in
-the detached orchestrator process. Registered remote jobs export
-`WORLDSIM_ORCHESTRATOR_HOST` so those host-side DB queries use the r5-local
-network view even when the Phase 0c web URL is public/proxied. GitLab handle
-enrichment follows the same rule for host-side API requests and falls back to
-the original URL if the host-local candidate fails. If enrichment falls back to
-static profile samples, treat any later source-data 404s as stale inventory
-evidence, not as a carrier-render verdict.
+the detached orchestrator process. For fresh novel GitLab/Reddit generation on
+r5, pass both localities explicitly:
+`--instances instances.smoke.json --host-inventory-instances instances.scale.json`.
+Do not rely on rewriting only the host portion of `instances.smoke.json`: scale
+topology can use different per-replica DB/API ports, so a host-only rewrite can
+silently point at the wrong service. GitLab handle enrichment follows the same
+host-side API rule and falls back to the original URL if the host-local
+candidate fails. If enrichment falls back to static profile samples, treat any
+later source-data 404s as stale inventory evidence, not as a carrier-render
+verdict.
 
 On r5, also treat the benchmark source path as host-local. `sync_to_r5.sh`
 intentionally excludes repo-local `vendors/`, so

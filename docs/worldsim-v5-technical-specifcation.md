@@ -263,6 +263,7 @@ On crash, `--resume` reads this file and applies two-branch logic:
 - `--benchmark <path>`: path to the benchmark codebase. Required for Phase 0 (`0`, `0a`, `0b`, `0c`, `0d`). Phase 1 can infer it from `benchmark_codebase` in the manifest.
 - `--config <path>`: override the `BENCHMARK_MANIFEST.json` path. Default is the manifest under `logs/phase_0a/`.
 - `--instances <path>`: `BenchmarkConfig` JSON (see Prerequisites). Required for Phase 4; optional for Phase 0c/0d (lets the profiler connect to live hosts and supplies `agent_auth` for bootstrap).
+- `--host-inventory-instances <path>`: Phase 0/0c-only host-side inventory topology. Phase 0c browser probes still use `--instances` because they run inside Modal; host-side inventory enrichment runs in the orchestrator process and may need a different host-local config. On r5, pass `--instances instances.smoke.json --host-inventory-instances instances.scale.json` for fresh GitLab/Reddit novel task generation.
 
 **Model selection**:
 
@@ -1329,6 +1330,8 @@ The pipeline does not start, stop, or manage benchmark environments. It connects
 ### Verification Proxy (Phase 0c)
 
 Phase 0c sandboxes run in Modal and exit from dynamic IPs. To let them probe live benchmark instances without opening the real site ports to `0.0.0.0/0`, an optional authenticated nginx reverse proxy can be deployed on the EC2 host. The proxy listens on offset ports (real port + `port_offset`, default 10000) and requires an `X-Worldsim-Token` header on every request. Unauthenticated requests receive a 403.
+
+Phase 0c also performs limited host-side inventory enrichment after sandbox profiling. That enrichment is not a Modal browser probe: it runs in the orchestrator process and may need host-local DB/API endpoints. Rigor runs that fresh-generate novel GitLab/Reddit tasks on r5 therefore provide both localities explicitly: `--instances instances.smoke.json` for Modal connectivity and `--host-inventory-instances instances.scale.json` for Reddit forum enumeration and GitLab project inventory.
 
 Configuration lives in `instances.json` under a top-level `verification_proxy` object:
 
