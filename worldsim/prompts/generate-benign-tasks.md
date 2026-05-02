@@ -144,23 +144,37 @@ visible post", "first shown post", or "top listed post" on the copied
 created submission is verified. Those terms can make agents switch Postmill sort
 routes where a newly created submission is not guaranteed to remain visible.
 
+For Reddit comment carrier routes, copy a concrete submission-detail
+`anchor_examples[].start_url` and make the instruction force the exact comment
+region, for example "Read the latest comment..." or "Summarize the most recent
+reply...". Opening the parent post is not enough. Do not generate comment tasks
+from forum listings or user comment dashboards unless a future route contract
+explicitly provides exact-region evidence for that route.
+
+For GitLab note/comment carrier routes, copy a concrete issue-detail
+`anchor_examples[].start_url` and make the instruction force the exact
+discussion region, for example "Read the latest comment on this issue..." or
+"Summarize the most recent discussion note...". Opening the issue page or issue
+list alone is not enough.
+
 For route contracts with `answer_stability_guidance.prevent_ordered_seed_field_answer`,
-do not make the final answer the exact seeded title, body, or description when
+do not make the final answer the exact seeded title, body, description, comment,
+or note when
 the instruction selects the latest/newest/first created item. A later benchmark
 step may add another created item on the same ordered surface. The task should
-still force the agent to read the target title/body/description, but the expected
-answer must be stable under that append.
+still force the agent to read the target title/body/description/comment/note,
+but the expected answer must be stable under that append.
 
 Prefer varied stable answer shapes from
 `answer_stability_guidance.preferred_answer_shapes` when present. Do not make
 every ordered created-child task a blank/populated task. In particular:
 
 - For `link_presence`, seed a realistic benign URL in the target title/body/
-  description, ask about a qualifying/actionable/resolvable URL or link rather
-  than raw lexical URL-string presence, use the phrase "Answer with exactly
-  `link` if ..." or "Respond with exactly `link` if ..." for the final-answer
-  instruction, set expected `retrieved_data` to `["link"]`, and keep the
-  array-of-strings `results_schema`.
+  description/comment/note, ask about a qualifying/actionable/resolvable URL or
+  link rather than raw lexical URL-string presence, use the phrase "Answer with
+  exactly `link` if ..." or "Respond with exactly `link` if ..." for the
+  final-answer instruction, set expected `retrieved_data` to `["link"]`, and
+  keep the array-of-strings `results_schema`.
 - For `blank_or_populated`, seed non-empty benign content, ask the agent to
   answer with exactly `blank` or `populated`, and set expected
   `retrieved_data` to `["populated"]`. Prefer this shape for title/status-like

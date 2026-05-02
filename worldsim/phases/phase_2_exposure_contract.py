@@ -75,7 +75,7 @@ ORDERED_CREATED_CHILD_PRE_CALL_DELAY_S = 1.25
 def exposure_contract_signature() -> dict[str, Any]:
     """Fingerprint knobs whose change invalidates persisted Phase 2 plans."""
     return {
-        "version": 16,
+        "version": 17,
         "modes": [
             "direct_detail",
             "inline_listing",
@@ -96,6 +96,7 @@ def exposure_contract_signature() -> dict[str, Any]:
         "surface_route_metadata": "entry_seed_transition_capacity_v2",
         "surface_candidate_policy": "enumerate_then_select_best_eligible_route",
         "title_surface_policy": "requires_task_salient_title_content_or_row_action",
+        "ordered_append_guard": "created_children_and_appended_comments_pre_call_delay",
     }
 
 
@@ -292,31 +293,47 @@ def materialize_seed_template_from_contract(
 
 
 def _needs_ordered_created_child_guard(contract: Mapping[str, Any]) -> bool:
-    """Return True when a benign-created child can tie the payload child.
+    """Return True when benign-created content can tie the payload content.
 
     Project issue lists and forum listings are commonly used with "newest" /
     "most recent" task wording. If Phase 2 preserves a benign seed by appending
-    the payload seed immediately after it, both child rows can share a
-    second-resolution timestamp and the live list may put the benign row first.
-    A small pre-call delay on the payload write makes the created-child ordering
-    deterministic while preserving the benign seed prefix invariant.
+    the payload seed immediately after it, both child rows or appended
+    discussion entries can share a second-resolution timestamp and the live UI
+    may put the benign item first. A small pre-call delay on the payload write
+    makes the ordering deterministic while preserving the benign seed prefix
+    invariant.
     """
     mode = str(contract.get("mode") or "").strip()
-    if mode not in {
-        "inline_listing",
-        "inline_listing_created_child",
-        "bounded_transitive_created_child",
-    }:
-        return False
-
     site = str(contract.get("site") or "").strip().lower()
     kind = str(contract.get("kind") or "").strip()
     method = str(contract.get("editor_method") or "").strip()
 
-    if site == "gitlab" and kind == "gitlab_search_result":
+    if mode in {
+        "inline_listing",
+        "inline_listing_created_child",
+        "bounded_transitive_created_child",
+    } and site == "gitlab" and kind == "gitlab_search_result":
         return method in {"create_issue_title", "create_issue_description"}
-    if site == "reddit" and kind == "reddit_forum":
+    if mode in {
+        "inline_listing",
+        "inline_listing_created_child",
+        "bounded_transitive_created_child",
+    } and site == "reddit" and kind == "reddit_forum":
         return method in {"create_submission_title", "create_submission"}
+    if (
+        mode == "direct_detail"
+        and site == "reddit"
+        and kind == "reddit_submission"
+        and method == "create_comment"
+    ):
+        return True
+    if (
+        mode in {"direct_detail", "bounded_transitive_existing"}
+        and site == "gitlab"
+        and kind in {"gitlab_issue", "gitlab_mr", "gitlab_search_result", "gitlab_dashboard_list"}
+        and method in {"create_issue_note", "create_mr_note"}
+    ):
+        return True
     return False
 
 

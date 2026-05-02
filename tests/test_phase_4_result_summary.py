@@ -430,7 +430,7 @@ def test_task_route_variant_infers_reddit_contract_routes():
         "exposure_contract": {
             "site": "reddit",
             "kind": "reddit_submission",
-            "target_surface_id": "submission.comment",
+            "target_surface_id": "comment.body",
             "surface_route": {
                 "entry_surface": "reddit_submission",
                 "requires_transition": False,

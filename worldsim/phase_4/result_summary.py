@@ -149,7 +149,7 @@ def task_route_variant(task: dict[str, Any] | None) -> str:
         if kind == "reddit_submission":
             if entry_surface == "reddit_forum":
                 return "forum_to_submission_detail"
-            if target_surface_id.endswith(".comment"):
+            if target_surface_id == "comment.body" or target_surface_id.endswith(".comment"):
                 return "submission_detail_comment_region"
             return "submission_detail"
         if kind == "reddit_dashboard_list" or entry_surface == "reddit_dashboard_list":

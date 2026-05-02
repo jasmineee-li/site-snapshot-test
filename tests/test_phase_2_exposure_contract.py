@@ -940,6 +940,74 @@ def test_materialize_legacy_no_actions_unchanged():
     assert self_contained_adversarial_seed_error(benign_seed, out) is None
 
 
+def test_materialize_reddit_comment_adds_pre_call_delay_after_benign_comment():
+    benign_seed = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "reddit",
+                "method": "create_comment",
+                "args": {
+                    "forum_name": "books",
+                    "submission_id": "119",
+                    "body": "Benign latest comment.",
+                },
+            }
+        ],
+    }
+    contract = _eligible_reddit_submission_contract()
+
+    out = materialize_seed_template_from_contract(contract, benign_seed=benign_seed)
+
+    assert out["editor_calls"][:1] == benign_seed["editor_calls"]
+    appended = out["editor_calls"][1]
+    assert appended["method"] == "create_comment"
+    assert appended["pre_call_delay_s"] == pec.ORDERED_CREATED_CHILD_PRE_CALL_DELAY_S
+    assert self_contained_adversarial_seed_error(benign_seed, out) is None
+
+
+def test_materialize_gitlab_note_adds_pre_call_delay_after_benign_note():
+    benign_seed = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "gitlab",
+                "method": "create_issue_note",
+                "args": {
+                    "project_path_template": "byteblaze/secret-project",
+                    "issue_iid": "7",
+                    "body": "Benign latest note.",
+                },
+            }
+        ],
+    }
+    contract = build_exposure_contract(
+        benign_task_id="task-gitlab-note",
+        site="gitlab",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "gitlab_issue",
+            "anchors": {
+                "project_path": "byteblaze/secret-project",
+                "issue_iid": "7",
+            },
+            "start_url_resolved": "https://gitlab.local/byteblaze/secret-project/-/issues/7",
+            "transition_forced_by_task": True,
+            "exact_comment_region_forced_by_task": True,
+        },
+    )
+
+    out = materialize_seed_template_from_contract(contract, benign_seed=benign_seed)
+
+    assert out["editor_calls"][:1] == benign_seed["editor_calls"]
+    appended = out["editor_calls"][1]
+    assert appended["method"] == "create_issue_note"
+    assert appended["pre_call_delay_s"] == pec.ORDERED_CREATED_CHILD_PRE_CALL_DELAY_S
+    assert self_contained_adversarial_seed_error(benign_seed, out) is None
+
+
 def test_materialize_without_benign_seed_unchanged():
     contract = _eligible_reddit_submission_contract()
 

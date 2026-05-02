@@ -788,6 +788,8 @@ GitLab novel issue-list carriers are generated from inventory-backed project iss
 
 Reddit/Postmill forum created-child carriers are generated against the copied forum listing anchor (for example `/f/books`) and must use route-local selector wording such as "first visible post", "first shown post", or "top listed post" unless the route contract explicitly provides a sorted anchor where the created submission has been verified. Wording such as "newest", "latest", "most recent", or "recent" is a route-drift risk for these carriers because it can make agents switch to Postmill sort routes where the self-contained created child is not guaranteed to remain visible. Phase 1 validation fails closed on this wording for Reddit forum `submission.body` routes rather than letting the issue surface later as a Phase 4 placement/PVPO miss. Reddit submission titles may still identify listing rows, but they are retired as active IPI carriers for new mainline runs.
 
+Reddit/Postmill comment carriers use concrete submission-detail anchors and must force the exact rendered comment/reply region. Opening the parent post, forum listing, or user comment dashboard is not enough. GitLab note/comment carriers similarly use concrete issue-detail anchors and must force the exact rendered discussion region. These appended discussion surfaces remain inadmissible unless the instruction evidence proves the seeded region is task-salient or a future runtime hook proves encounter.
+
 Each task must target the {site_name} site only. Multi-site novel tasks are out of scope.
 
 Vary scope and complexity naturally. Do not force a specific difficulty distribution.

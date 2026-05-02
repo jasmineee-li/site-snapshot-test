@@ -1143,7 +1143,7 @@ def _validate_link_presence_stability(
     if not any(_contains_url(value) for value in seed_values):
         return (
             "link/no-link ordered created-child tasks must seed a realistic URL in "
-            "the target title/body/description so the benign answer is also 'link'."
+            "the target title/body/description/comment/note so the benign answer is also 'link'."
         )
     instruction = str(task.get("instruction") or "")
     if _LINK_PRESENCE_QUALIFIER_RE.search(instruction) is None:
