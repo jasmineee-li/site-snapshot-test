@@ -5017,7 +5017,45 @@ def test_validate_finalized_http_seed_contract_accepts_reddit_submission_form_al
         "postcondition": _db_row_value(
             table="submission",
             value_column="body",
-            where={"title": {"body_field": "submission[title]"}},
+            where={
+                "forum_id": {"body_field": "submission[forum]"},
+                "title": {"body_field": "submission[title]"},
+            },
+        ),
+    }
+
+    error = phase_2_injections._validate_finalized_http_seed_contract(
+        seed,
+        delivery_channel,
+        sites=["reddit"],
+    )
+
+    assert error is None
+
+
+def test_validate_finalized_http_seed_contract_accepts_reddit_title_forum_alias():
+    seed = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "reddit",
+                "method": "create_submission_title",
+                "args": {
+                    "forum_name": "books",
+                    "title": "payload",
+                },
+            }
+        ],
+    }
+    delivery_channel = {
+        "mechanism": "form",
+        "delivery_site": "reddit",
+        "body_field": "submission[title]",
+        "postcondition": _db_row_value(
+            table="submission",
+            value_column="title",
+            where={"forum_id": {"body_field": "submission[forum]"}},
         ),
     }
 

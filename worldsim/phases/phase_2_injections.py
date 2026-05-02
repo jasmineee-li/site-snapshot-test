@@ -251,12 +251,18 @@ _EDITOR_BODY_FIELD_ALIASES = {
         "forum[description]": "description_template",
     },
     ("reddit", "create_submission"): {
+        "forum": "forum_name",
+        "forum_name": "forum_name",
+        "submission[forum]": "forum_name",
         "title": "title_template",
         "body": "body_template",
         "submission[title]": "title_template",
         "submission[body]": "body_template",
     },
     ("reddit", "create_submission_title"): {
+        "forum": "forum_name",
+        "forum_name": "forum_name",
+        "submission[forum]": "forum_name",
         "title": "title",
         "body": "body",
         "submission[title]": "title",
