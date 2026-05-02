@@ -71,6 +71,16 @@ scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml -
 
 `--quiet` captures passing pytest output and surfaces full output only on failure. If it fails, include the surfaced failure output in the PR or handoff.
 
+Docs-only changes that describe Phase 4 behavior do not require a live stack by
+themselves, but they should name the expected runtime evidence. For the
+`3+3+1` adaptive strategy loop, verification evidence should show:
+
+- the configured attack budget (`[3, 3, 1]`, total variant budget 7)
+- per-round generated, host-rejected, browser-evaluated, PVPO-valid, and compliant counts
+- round lineage for each variant (`root_attempt_id`, `parent_attempt_id`, `round_index`, `round_variant_index`, selected strategy, refusal trigger)
+- unchanged benign task contracts and Phase 3 reward functions across variants
+- termination reason (`success`, no actionable lineage, no viable generation, or budget exhausted)
+
 Wrapper facts that matter:
 
 - Default instances file is `instances.smoke.json`; pass `--instances` when
@@ -88,7 +98,7 @@ Wrapper facts that matter:
 - CLI smoke: `uv run python -m worldsim.main --help`
 - Readiness metrics: `uv run python scripts/readiness_audit.py --json`
 - Phase 4 result audit: `uv run python scripts/summarize_phase_4_results.py logs/<run>`
-- Phase 4 variant-generation QA: `uv run python scripts/audit_phase_4_variants.py logs/<run>`
+- Phase 4 variant-generation QA: `uv run python scripts/audit_phase_4_variants.py logs/<run>`; for `3+3+1` runs, confirm attack-budget totals, round lineage, host-finalization rejection buckets, and that only selected payload text changed across variants
 - Phase 4 paired-run comparison: `uv run python scripts/compare_phase_4_runs.py logs/<baseline> logs/<candidate>`
 - Phase 0c profile provenance/quality audit: `uv run python scripts/audit_phase_0c_profiles.py logs/<run>/phase_0c`
 - Secrets policy: `agent_docs/secrets.md`

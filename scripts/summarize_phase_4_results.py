@@ -242,6 +242,9 @@ def format_variant_regeneration_audit(summary: dict[str, Any]) -> list[str]:
     lines.append(
         "  Flow: "
         f"{audit.get('tasks_entered', 0)} task(s) entered; "
+        f"{audit.get('tasks_with_adaptive_rounds', 0)} with adaptive rounds; "
+        f"max_rounds={audit.get('max_rounds_observed', 0)}; "
+        f"max_budget={audit.get('max_budget_observed', 0)}; "
         f"{audit.get('planned_attempts', 0)} strategy attempt(s) planned; "
         f"{audit.get('generated_attempts', 0)} generated; "
         f"{audit.get('rejected_before_eval', 0)} rejected before browser eval; "
@@ -259,6 +262,14 @@ def format_variant_regeneration_audit(summary: dict[str, Any]) -> list[str]:
     generation_statuses = audit.get("generation_status_counts") or {}
     if generation_statuses:
         lines.append(f"  Generation statuses: {_fmt_count_map(generation_statuses)}.")
+    round_statuses = audit.get("round_status_counts") or {}
+    round_kinds = audit.get("round_kind_counts") or {}
+    if round_statuses or round_kinds:
+        lines.append(
+            "  Adaptive rounds: "
+            f"kinds={_fmt_count_map(round_kinds)}; "
+            f"stops={_fmt_count_map(round_statuses)}."
+        )
 
     rows = audit.get("trigger_strategy_rows") or []
     if rows:

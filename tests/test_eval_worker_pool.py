@@ -371,6 +371,30 @@ def test_normalize_completed_result_preserves_phase_4_passed_and_error_fields(tm
     assert normalized["final_result"] == "{\"status\":\"FAILURE\"}"
 
 
+def test_normalize_completed_result_preserves_final_state_fields(tmp_path):
+    normalized = _normalize_completed_result(
+        {
+            "task_id": "adv-1",
+            "outcome": "complied",
+            "passed": False,
+            "encounter": {"max_coverage": 0.75},
+            "adversarial_final_state_checked": True,
+            "adversarial_final_state_passed": False,
+            "adversarial_final_state_message": "gitlab create_issue final state did not contain witness",
+        },
+        trajectory_dir=tmp_path / "adv-1",
+    )
+
+    assert normalized["benign_passed"] is False
+    assert normalized["adversarial_passed"] is True
+    assert normalized["adversarial_final_state_checked"] is True
+    assert normalized["adversarial_final_state_passed"] is False
+    assert (
+        normalized["adversarial_final_state_message"]
+        == "gitlab create_issue final state did not contain witness"
+    )
+
+
 def test_load_completed_results_reuses_terminal_phase_4_result_without_sidecars(tmp_path):
     task_dir = tmp_path / "adv-1"
     task_dir.mkdir()

@@ -27,6 +27,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
+from worldsim.adversarial_actions import ACTION_POLICIES
 from worldsim.config import BenchmarkConfig, has_configured_agent_auth
 
 load_dotenv(override=True)  # override=True: .env values win over empty-string shell vars.
@@ -275,6 +276,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Phase 2b text fill: model identifier for host-side text fill requests.",
     )
     phase_cmd.add_argument(
+        "--phase-2a-action-policy",
+        choices=ACTION_POLICIES,
+        default=None,
+        help=(
+            "Phase 2a adversarial-action policy. Default preserves planner choice; "
+            "mutation_when_available marks compatible exposure contracts with a "
+            "host-owned mutation preference for a controlled pilot."
+        ),
+    )
+    phase_cmd.add_argument(
         "--allow-unknown-auth",
         action="store_true",
         default=False,
@@ -481,6 +492,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=argparse.SUPPRESS,
         metavar="MODEL",
         help="Override the saved Phase 2b text-fill model on resume.",
+    )
+    resume_cmd.add_argument(
+        "--phase-2a-action-policy",
+        choices=ACTION_POLICIES,
+        default=argparse.SUPPRESS,
+        help="Override the saved Phase 2a adversarial-action policy on resume.",
     )
     resume_cmd.add_argument(
         "--allow-unknown-auth",
@@ -1102,6 +1119,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     phase_2b_texts_per_plan = getattr(args, "phase_2b_texts_per_plan", None)
     phase_2_text_fill_concurrency = getattr(args, "phase_2_text_fill_concurrency", None)
     phase_2_text_model = getattr(args, "phase_2_text_model", None)
+    phase_2a_action_policy = getattr(args, "phase_2a_action_policy", None)
 
     skip_feasibility = getattr(args, "skip_feasibility", None)
     feasibility_only = getattr(args, "feasibility_only", None)
@@ -1145,6 +1163,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         phase_2_text_fill_concurrency = state.get("phase_2_text_fill_concurrency")
     if phase_2_text_model is None:
         phase_2_text_model = state.get("phase_2_text_model")
+    if phase_2a_action_policy is None:
+        phase_2a_action_policy = state.get("phase_2a_action_policy")
     if skip_feasibility is None:
         skip_feasibility = state.get("skip_feasibility", False)
     if feasibility_only is None:
@@ -1197,6 +1217,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         phase_2b_texts_per_plan=phase_2b_texts_per_plan,
         phase_2_text_fill_concurrency=phase_2_text_fill_concurrency,
         phase_2_text_model=phase_2_text_model,
+        phase_2a_action_policy=phase_2a_action_policy,
         allow_unknown_auth=allow_unknown_auth,
         skip_host_bound_storage_state_auth=skip_host_bound_storage_state_auth,
         skip_feasibility=skip_feasibility,

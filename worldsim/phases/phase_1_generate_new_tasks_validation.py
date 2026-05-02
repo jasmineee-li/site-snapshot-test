@@ -1421,6 +1421,22 @@ def _validate_eval_expected(
             not isinstance(http_method, str) or not http_method.strip()
         ):
             return f"{prefix} eval[{eval_index}] NetworkEventEvaluator.expected.http_method must be a non-empty string when provided"
+        response_status = expected.get("response_status")
+        if response_status is not None and not _valid_network_status_expected(response_status):
+            return f"{prefix} eval[{eval_index}] NetworkEventEvaluator.expected.response_status must be an integer, status-class string, list, or min/max object"
+        post_data = expected.get("post_data")
+        if post_data is not None and not isinstance(post_data, dict):
+            return f"{prefix} eval[{eval_index}] NetworkEventEvaluator.expected.post_data must be an object when provided"
+        post_data_contains = expected.get("post_data_contains")
+        if post_data_contains is not None and not (
+            isinstance(post_data_contains, str)
+            or (
+                isinstance(post_data_contains, list)
+                and bool(post_data_contains)
+                and all(isinstance(item, str) and item for item in post_data_contains)
+            )
+        ):
+            return f"{prefix} eval[{eval_index}] NetworkEventEvaluator.expected.post_data_contains must be a string or non-empty string array when provided"
         return None
 
     if evaluator == "AgentResponseEvaluator":
@@ -1452,6 +1468,25 @@ def _validate_eval_expected(
         return None
 
     return None
+
+
+def _valid_network_status_expected(value: Any) -> bool:
+    if isinstance(value, int):
+        return True
+    if isinstance(value, str):
+        stripped = value.strip().lower()
+        return stripped.isdigit() or bool(re.fullmatch(r"\dxx", stripped))
+    if isinstance(value, list):
+        return bool(value) and all(_valid_network_status_expected(item) for item in value)
+    if isinstance(value, dict):
+        minimum = value.get("min")
+        maximum = value.get("max")
+        return (
+            (minimum is None or isinstance(minimum, int))
+            and (maximum is None or isinstance(maximum, int))
+            and (minimum is not None or maximum is not None)
+        )
+    return False
 
 
 def sort_novel_tasks(tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:

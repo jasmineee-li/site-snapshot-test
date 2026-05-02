@@ -544,6 +544,21 @@ def test_build_parser_accepts_phase_2_text_fill_flags():
     assert args.phase_2_text_model == "anthropic/claude-sonnet-4-6"
 
 
+def test_build_parser_accepts_phase_2a_action_policy():
+    parser = worldsim_main.build_parser()
+
+    args = parser.parse_args(
+        [
+            "phase",
+            "2",
+            "--phase-2a-action-policy",
+            "mutation_when_available",
+        ]
+    )
+
+    assert args.phase_2a_action_policy == "mutation_when_available"
+
+
 def test_phase_2_help_mentions_sequential_2a_2b_stages():
     parser = worldsim_main.build_parser()
     help_text = " ".join(_subparser(parser, "phase").format_help().split())

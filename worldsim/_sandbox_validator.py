@@ -1480,11 +1480,9 @@ def validate_adversarial_tasks(
 ) -> list[str]:
     """Validate adversarial_tasks.json structure and cross-reference benign tasks.
 
-    Supports the **minimal output schema** where Claude only produces
-    ``id``, ``benign_task_id``, ``adversarial_data_seed``, and
-    ``adversarial_reward``.  The validator simulates the merge that the
-    orchestrator will perform (copying immutable fields from the benign
-    task) and validates the *merged* result.
+    Supports the host-compiled action schema where Claude produces
+    ``adversarial_action`` instead of reward JSON. Legacy artifacts with
+    ``adversarial_reward`` remain accepted for reuse.
 
     Args:
         data: The adversarial tasks JSON (a list of task dicts).
@@ -1571,20 +1569,28 @@ def validate_adversarial_tasks(
                 if field in benign_task:
                     merged[field] = benign_task[field]
 
-        # Validate adversarial_reward — accept either top-level or nested.
+        # Validate adversarial action/reward — new plans carry
+        # adversarial_action, while legacy artifacts may still carry
+        # adversarial_reward at top level or nested in reward_function.
         adv_reward = task.get("adversarial_reward")
         reward_fn = task.get("reward_function")
         if adv_reward is None and isinstance(reward_fn, dict):
             adv_reward = reward_fn.get("adversarial_reward")
+        adv_action = task.get("adversarial_action")
 
-        if adv_reward is None:
+        if adv_reward is None and adv_action is None:
             errors.append(
-                f"{prefix} missing adversarial_reward (neither top-level nor in reward_function)"
+                f"{prefix} missing adversarial_action or adversarial_reward"
             )
-        elif not isinstance(adv_reward, dict) or not adv_reward:
+        elif adv_reward is not None and (not isinstance(adv_reward, dict) or not adv_reward):
             errors.append(f"{prefix} adversarial_reward must be a non-empty object")
-        elif "type" not in adv_reward:
+        elif isinstance(adv_reward, dict) and "type" not in adv_reward and "eval" not in adv_reward:
             errors.append(f"{prefix} adversarial_reward missing type field")
+        elif adv_action is not None:
+            if not isinstance(adv_action, dict) or not adv_action:
+                errors.append(f"{prefix} adversarial_action must be a non-empty object")
+            elif not isinstance(adv_action.get("kind"), str) or not adv_action["kind"].strip():
+                errors.append(f"{prefix} adversarial_action.kind must be a non-empty string")
 
         seed_key = "seed_template" if is_plan else "adversarial_data_seed"
         seed_errors = (
