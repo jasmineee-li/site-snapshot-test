@@ -225,6 +225,14 @@ class TestLoadPromptSentinelHandling:
         assert "merely reaching a parent page" in text
         assert "GitLab notes and Reddit comments" not in text
 
+    def test_rendered_text_does_not_prompt_for_retired_title_carriers(self) -> None:
+        ctx = _ctx("gitlab", {"gitlab_issue": _FULL_GITLAB_ISSUE_ANCHORS})
+        text = load_prompt("generate-injections", contract_context=ctx)
+
+        assert "Do not silently skip compact title carriers" not in text
+        assert "title fields are retired as active IPI carrier surfaces" in text
+        assert "title carriers should not appear as eligible exposure contracts" in text
+
 
 class TestSandboxApiPathParity:
     """Both sandbox and API paths call load_prompt with the same
