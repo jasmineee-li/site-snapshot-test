@@ -522,11 +522,56 @@ Tier 1 outputs are independently validated before Tier 2 uses them, preventing e
 
 Host-side validation retries invalid tier outputs up to ``PROFILE_FIX_MAX_ITERATIONS`` times with the concrete validation errors appended to the retry prompt. The merged profile is validated again before publication; if that final validation fails, ``BENCHMARK_PROFILE_{site}.json`` and ``AGENT_CONTEXT_{site}.json`` are not written.
 
+**Tier publication and reuse.** A validated Tier 1 artifact may be published
+immediately, before Tier 2 runs. A later rerun may reuse that tier only when
+the tier metadata exactly matches the current run's non-secret fingerprint:
+prompt hash, validation command, sandbox model, benchmark content digest,
+manifest/evaluator context, representative instance URL, host-inventory
+fingerprint, and verification-proxy metadata where applicable. Reuse is a
+provenance-preserving optimization, not a semantic shortcut. If any fingerprint
+is absent, malformed, stale, or produced by a different validator/prompt/model,
+the tier must be regenerated.
+
+**Neutral evidence indexes.** Phase 0b/0c may stage deterministic evidence
+indexes such as ``FILES_INDEX.json``, ``TASK_INDEX.json``, ``ROUTES_INDEX.json``,
+and ``SCHEMA_INDEX.json`` under ``/workspace/inputs``. These indexes are maps to
+evidence, not conclusions: they may list files, route declarations, task ids,
+evaluator types, schema/table/column names, and source anchors, but they must
+not decide attacker controllability, injection validity, task relevance, or
+route eligibility. The profiling sandboxes retain responsibility for
+interpreting evidence under the threat model.
+
+**Path B evidence.** The data-model tier should produce
+``DATA_MODEL_EVIDENCE.json`` alongside ``DATA_MODEL.json``. The evidence file
+maps each entity and important field/storage claim to source files or fixtures
+that support the claim. During migration, missing evidence is an audit warning;
+once all active profiles are regenerated under this contract, missing evidence
+should become an audit error.
+
+**Tier 2 checkpoints.** The injection-surface tier remains one coherent
+sandbox-owned synthesis. It should, however, write intermediate checkpoint
+artifacts before final output: code-derived surface draft, task-coverage draft,
+and live-verification notes. These artifacts improve auditability and targeted
+correction without letting separate model calls drift apart.
+
+**Bounded live verification.** When ``INSTANCE_CONNECTIVITY.json`` exists, live
+verification remains part of Phase 0c's evidence contract. Probing should be
+performed with a staged helper that enforces request timeouts, maximum response
+bytes, proxy-header handling, and normalized JSON outcomes. The helper makes
+route existence, CSRF/form feasibility, entity existence, and unreachable-host
+evidence comparable across runs. It does not manage benchmark lifecycles and
+does not decide downstream task admission.
+
 **Outputs per site:**
 
 - ``BENCHMARK_PROFILE_{site}.json`` — merged profile (same schema as before)
 - ``AGENT_CONTEXT_{site}.json`` — discovered agent prompt template, response format, site context
 - ``VERIFICATION_CAPABILITIES_{site}.json``, ``DATA_MODEL_{site}.json``, ``INJECTION_SURFACE_{site}.json`` — individual tier outputs for debugging
+- ``TIER_METADATA_{site}_{tier}.json`` — provenance for each validated tier artifact, including prompt hash, validation command, sandbox model, benchmark content fingerprint, instance/proxy fingerprints, and validation status
+- ``DATA_MODEL_EVIDENCE_{site}.json`` — Path B evidence sidecar mapping data-model entity/field/storage claims to source files or fixture/schema/controller evidence
+- ``SURFACE_DRAFT_{site}.json``, ``TASK_COVERAGE_DRAFT_{site}.json``, ``LIVE_VERIFICATION_NOTES_{site}.json`` — Tier 2 checkpoint artifacts for audit/debugging only; downstream phases consume only the final ``INJECTION_SURFACE_{site}.json``
+- ``PHASE_0C_TRACE.jsonl`` and ``PHASE_0C_TIMINGS.json`` — run-level provenance and timing artifacts. These are observational and must not gate profile publication or downstream eligibility.
+- ``REACHABILITY_REPORT.json`` — diagnostic live-verification summary, also observational.
 
 **Profile JSON schema** (merged from Tier 1 + Tier 2, unchanged from previous):
 

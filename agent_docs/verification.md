@@ -81,6 +81,7 @@ scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml -
 - Phase 4 result audit: `uv run python scripts/summarize_phase_4_results.py logs/<run>`
 - Phase 4 variant-generation QA: `uv run python scripts/audit_phase_4_variants.py logs/<run>`
 - Phase 4 paired-run comparison: `uv run python scripts/compare_phase_4_runs.py logs/<baseline> logs/<candidate>`
+- Phase 0c profile provenance/quality audit: `uv run python scripts/audit_phase_0c_profiles.py logs/<run>/phase_0c`
 - Secrets policy: `agent_docs/secrets.md`
 
 ## Hooks
