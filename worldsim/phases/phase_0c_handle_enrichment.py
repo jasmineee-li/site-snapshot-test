@@ -34,6 +34,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 import requests
 
@@ -54,6 +55,7 @@ def enrich_gitlab_handles(
     site_url: str,
     auth_config: Mapping[str, Any] | None,
     *,
+    runtime_web_host: str | None = None,
     timeout: int = _TIMEOUT_SECONDS,
 ) -> dict[str, list[str]]:
     """Enumerate gitlab user / top-level group handles via the v4 API.
@@ -72,6 +74,22 @@ def enrich_gitlab_handles(
     if not isinstance(auth_config, Mapping) or not auth_config:
         raise HandleEnrichmentError("auth_config is required for handle enrichment")
 
+    errors: list[str] = []
+    for candidate in _site_url_candidates(site_url, runtime_web_host):
+        try:
+            return _enrich_gitlab_handles_once(candidate, auth_config, timeout=timeout)
+        except HandleEnrichmentError as exc:
+            errors.append(str(exc))
+    detail = "; ".join(errors) if errors else "no URL candidates"
+    raise HandleEnrichmentError(detail)
+
+
+def _enrich_gitlab_handles_once(
+    site_url: str,
+    auth_config: Mapping[str, Any],
+    *,
+    timeout: int,
+) -> dict[str, list[str]]:
     base = site_url.rstrip("/")
     try:
         token = acquire_token(dict(auth_config), base)
@@ -109,6 +127,37 @@ def enrich_gitlab_handles(
         "user_handles": sorted(set(user_handles)),
         "group_handles": sorted(set(group_handles)),
     }
+
+
+def _site_url_candidates(site_url: str, runtime_web_host: str | None) -> list[str]:
+    candidates: list[str] = []
+    host = str(runtime_web_host or "").strip()
+    if host:
+        rewritten = _replace_url_host(site_url, host)
+        if rewritten != site_url:
+            candidates.append(rewritten)
+    candidates.append(site_url)
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        normalized = candidate.rstrip("/")
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(normalized)
+    return deduped
+
+
+def _replace_url_host(url: str, host: str) -> str:
+    parsed = urlsplit(url)
+    if not parsed.scheme or not parsed.netloc or not host:
+        return url
+    hostname = host.strip()
+    host_display = f"[{hostname}]" if ":" in hostname and not hostname.startswith("[") else hostname
+    netloc = host_display
+    if parsed.port is not None:
+        netloc = f"{host_display}:{parsed.port}"
+    return urlunsplit(parsed._replace(netloc=netloc))
 
 
 def merge_into_agent_context(

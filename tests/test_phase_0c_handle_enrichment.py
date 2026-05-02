@@ -7,6 +7,7 @@ import pytest
 
 from worldsim.phases.phase_0c_handle_enrichment import (
     HandleEnrichmentError,
+    _site_url_candidates,
     enrich_gitlab_handles,
     merge_into_agent_context,
 )
@@ -51,6 +52,74 @@ def test_enrich_collects_user_and_group_handles(auth_config: dict[str, Any]) -> 
         "user_handles": ["byteblaze", "primer", "root"],
         "group_handles": ["a11yproject", "design"],
     }
+
+
+def test_enrich_prefers_runtime_web_host_for_host_side_api(auth_config: dict[str, Any]) -> None:
+    users = [{"username": "root"}]
+    groups = [{"full_path": "a11yproject"}]
+    acquired_bases: list[str] = []
+
+    def fake_acquire_token(config: dict[str, Any], site_url: str) -> str:
+        acquired_bases.append(site_url)
+        return "glpat-deadbeef"
+
+    with (
+        patch(
+            "worldsim.phases.phase_0c_handle_enrichment.acquire_token",
+            side_effect=fake_acquire_token,
+        ),
+        patch("worldsim.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
+    ):
+        mock_get.side_effect = [_mock_response(users), _mock_response(groups)]
+        result = enrich_gitlab_handles(
+            "http://3.12.221.9:8023",
+            auth_config,
+            runtime_web_host="172.17.0.1",
+        )
+
+    assert acquired_bases == ["http://172.17.0.1:8023"]
+    assert [call.args[0] for call in mock_get.call_args_list] == [
+        "http://172.17.0.1:8023/api/v4/users",
+        "http://172.17.0.1:8023/api/v4/groups",
+    ]
+    assert result == {"user_handles": ["root"], "group_handles": ["a11yproject"]}
+
+
+def test_enrich_falls_back_to_original_url_after_runtime_host_failure(
+    auth_config: dict[str, Any],
+) -> None:
+    users = [{"username": "root"}]
+    groups = [{"full_path": "a11yproject"}]
+    acquired_bases: list[str] = []
+
+    def fake_acquire_token(config: dict[str, Any], site_url: str) -> str:
+        acquired_bases.append(site_url)
+        if site_url == "http://172.17.0.1:8023":
+            raise RuntimeError("host-local transient failure")
+        return "glpat-deadbeef"
+
+    with (
+        patch(
+            "worldsim.phases.phase_0c_handle_enrichment.acquire_token",
+            side_effect=fake_acquire_token,
+        ),
+        patch("worldsim.phases.phase_0c_handle_enrichment.requests.get") as mock_get,
+    ):
+        mock_get.side_effect = [_mock_response(users), _mock_response(groups)]
+        result = enrich_gitlab_handles(
+            "http://3.12.221.9:8023",
+            auth_config,
+            runtime_web_host="172.17.0.1",
+        )
+
+    assert acquired_bases == ["http://172.17.0.1:8023", "http://3.12.221.9:8023"]
+    assert result == {"user_handles": ["root"], "group_handles": ["a11yproject"]}
+
+
+def test_site_url_candidates_dedupes_matching_runtime_host() -> None:
+    assert _site_url_candidates("http://172.17.0.1:8023/", "172.17.0.1") == [
+        "http://172.17.0.1:8023"
+    ]
 
 
 def test_enrich_paginates_users(auth_config: dict[str, Any]) -> None:

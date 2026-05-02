@@ -193,6 +193,51 @@ def test_enrich_reddit_profile_with_forums_passes_remote_runtime_db_host(monkeyp
     ]
 
 
+def test_enrich_agent_context_with_handles_passes_remote_runtime_web_host(monkeypatch):
+    instance = BenchmarkInstance(
+        site_name="gitlab",
+        site_url="http://3.12.221.9:8023",
+        auth={
+            "type": "bearer_token",
+            "header_name": "PRIVATE-TOKEN",
+            "token_generator": "gitlab_pat",
+            "credentials": {"username": "byteblaze", "password": "hello1234"},
+        },
+    )
+    calls: list[dict] = []
+
+    def fake_enrich(site_url, auth_config, **kwargs):
+        calls.append(
+            {
+                "site_url": site_url,
+                "auth_config": auth_config,
+                "runtime_web_host": kwargs.get("runtime_web_host"),
+            }
+        )
+        return {"user_handles": ["byteblaze"], "group_handles": ["a11yproject"]}
+
+    monkeypatch.setenv("WORLDSIM_ORCHESTRATOR_HOST", "172.17.0.1")
+    monkeypatch.setattr(
+        "worldsim.phases.phase_0c_handle_enrichment.enrich_gitlab_handles",
+        fake_enrich,
+    )
+
+    context = phase_0_recon._enrich_agent_context_with_handles(
+        site_name="gitlab",
+        agent_context={"site_context": {"platform_name": "GitLab"}},
+        instance=instance,
+    )
+
+    assert calls == [
+        {
+            "site_url": "http://3.12.221.9:8023",
+            "auth_config": instance.auth,
+            "runtime_web_host": "172.17.0.1",
+        }
+    ]
+    assert context["gitlab"]["user_handles"] == ["byteblaze"]
+
+
 def test_enrich_reddit_profile_with_forums_falls_back_on_failure(monkeypatch):
     instance = BenchmarkInstance(
         site_name="reddit",

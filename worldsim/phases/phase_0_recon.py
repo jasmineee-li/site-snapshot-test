@@ -1593,7 +1593,11 @@ def _enrich_agent_context_with_handles(
     )
 
     try:
-        handles = enrich_gitlab_handles(instance.site_url, auth_config)
+        handles = enrich_gitlab_handles(
+            instance.site_url,
+            auth_config,
+            runtime_web_host=_host_side_runtime_host(),
+        )
     except HandleEnrichmentError as exc:
         logger.warning(
             "Phase 0c: gitlab handle enrichment for site %r failed: %s",
@@ -1643,7 +1647,7 @@ def _enrich_reddit_profile_with_forums(
         inventory = enrich_reddit_forums(
             instance.site_url,
             instance.db_connection,
-            runtime_db_host=_host_side_runtime_db_host(),
+            runtime_db_host=_host_side_runtime_host(),
         )
     except RedditInventoryEnrichmentError as exc:
         logger.warning(
@@ -1668,12 +1672,12 @@ def _enrich_reddit_profile_with_forums(
     return merge_reddit_inventory_into_profile(profile, inventory)
 
 
-def _host_side_runtime_db_host() -> str | None:
-    """Return an optional host-local DB hostname for Phase 0c enrichment.
+def _host_side_runtime_host() -> str | None:
+    """Return an optional host-local hostname for Phase 0c enrichment.
 
     Modal receives public/proxied web URLs for Phase 0c live browsing, but the
-    Reddit inventory DB query runs in the orchestrator process. Registered r5
-    jobs export ``WORLDSIM_ORCHESTRATOR_HOST`` so this host-side query can use
+    enrichment hooks run in the orchestrator process. Registered r5 jobs
+    export ``WORLDSIM_ORCHESTRATOR_HOST`` so host-side DB/API queries can use
     the same local network view as Phase 2c/4 instead of trying to hairpin
     through the public EC2 address.
     """
