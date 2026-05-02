@@ -410,6 +410,8 @@ def test_dispatch_resume_restores_saved_agent_settings_when_not_overridden(monke
         instances_path="/tmp/instances.json",
         agent_model="claude-sonnet-4-6",
         agent_provider="anthropic",
+        agent_llm_timeout=240,
+        agent_step_timeout=300,
     )
     monkeypatch.delenv("WORLDSIM_STATE_DIR")
 
@@ -419,6 +421,8 @@ def test_dispatch_resume_restores_saved_agent_settings_when_not_overridden(monke
         captured["phase"] = args.phase
         captured["agent_model"] = args.agent_model
         captured["agent_provider"] = args.agent_provider
+        captured["agent_llm_timeout"] = args.agent_llm_timeout
+        captured["agent_step_timeout"] = args.agent_step_timeout
         return 0
 
     monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
@@ -429,6 +433,41 @@ def test_dispatch_resume_restores_saved_agent_settings_when_not_overridden(monke
     assert captured["phase"] == "4"
     assert captured["agent_model"] == "claude-sonnet-4-6"
     assert captured["agent_provider"] == "anthropic"
+    assert captured["agent_llm_timeout"] == 240
+    assert captured["agent_step_timeout"] == 300
+
+
+def test_dispatch_resume_overrides_saved_phase_4_timeouts(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
+    save_state(
+        "phase_4",
+        status="running",
+        instances_path="/tmp/instances.json",
+        agent_llm_timeout=120,
+        agent_step_timeout=180,
+    )
+    monkeypatch.delenv("WORLDSIM_STATE_DIR")
+
+    captured = {}
+
+    def fake_dispatch_phase(args):
+        captured["phase"] = args.phase
+        captured["agent_llm_timeout"] = args.agent_llm_timeout
+        captured["agent_step_timeout"] = args.agent_step_timeout
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(
+        Namespace(agent_llm_timeout=240, agent_step_timeout=300)
+    )
+
+    assert rc == 0
+    assert captured["phase"] == "4"
+    assert captured["agent_llm_timeout"] == 240
+    assert captured["agent_step_timeout"] == 300
 
 
 def test_dispatch_resume_accepts_legacy_statusless_mirror(monkeypatch, tmp_path):

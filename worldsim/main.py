@@ -407,6 +407,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Override the saved OpenAI service tier for the resumed phase.",
     )
     resume_cmd.add_argument(
+        "--agent-llm-timeout",
+        type=_positive_int,
+        default=argparse.SUPPRESS,
+        metavar="SECONDS",
+        help="Override the saved Phase 4 Browser Use per-step LLM-call timeout.",
+    )
+    resume_cmd.add_argument(
+        "--agent-step-timeout",
+        type=_positive_int,
+        default=argparse.SUPPRESS,
+        metavar="SECONDS",
+        help="Override the saved Phase 4 Browser Use action-step timeout.",
+    )
+    resume_cmd.add_argument(
         "--generate-novel",
         action="store_true",
         default=argparse.SUPPRESS,

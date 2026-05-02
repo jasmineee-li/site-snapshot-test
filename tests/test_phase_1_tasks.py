@@ -472,6 +472,23 @@ def test_build_parser_accepts_resume_no_l3_l4_flag():
     assert args.no_l3_l4 is True
 
 
+def test_build_parser_accepts_resume_phase_4_timeout_overrides():
+    parser = worldsim_main.build_parser()
+
+    args = parser.parse_args(
+        [
+            "resume",
+            "--agent-llm-timeout",
+            "240",
+            "--agent-step-timeout",
+            "300",
+        ]
+    )
+
+    assert args.agent_llm_timeout == 240
+    assert args.agent_step_timeout == 300
+
+
 def test_dispatch_resume_preserves_saved_phase_2_l1_l2_mode(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     save_state(
