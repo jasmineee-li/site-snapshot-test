@@ -1,5 +1,7 @@
 # Engineering status update
 
+> **HISTORICAL HANDOFF - April 17/26 snapshot, not current status.** This file captures project state around the Phase 3 cutover and editor migration, with later notes through April 26. It is useful for rationale and provenance, but current implementation and operations should be checked against `docs/worldsim-v5-technical-specifcation.md`, `docs/handoffs/phase-2c-admission-floor.md`, and the May 2026 Phase 4 sweep docs.
+
 April 17, 2026. Branch `feat/worldsim-v5` (181 commits, 7 days). Parallel branch `feat/multi-benchmark` is rebased onto this branch as of `42b8594e` and carries 6 exclusive commits (the pluggable-runner layer plus four follow-up fixes).
 
 ---

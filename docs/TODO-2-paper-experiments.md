@@ -1,5 +1,7 @@
 # TODO-2: Paper Experiments and Integration
 
+> **STALE PAPER-PLAN DRAFT - needs rewrite before execution.** This document is a pre-sweep planning inventory, not the current paper execution plan. Revalidate scope, models, costs, comparison benchmarks, and analysis tracks against `docs/worldsim-v5-technical-specifcation.md`, `docs/phase4-expanded-model-sweep-20260501.md`, and current handoffs before using any item as a task.
+
 Status: planning. Owner: Ashton (infra), Max + Jasmine (eval awareness + comparisons). Target: close the gap between the MVP pipeline (`docs/TODO-adversarial-rigor-mvp.md`) and a submittable NeurIPS paper per `docs/worldsim-v5-full-specification.md`.
 
 The MVP TODO covers Contribution 1 (IPI wrapper) and produces cohort-quality adversarial trajectories. This doc covers everything else the paper needs: Contribution 2 (eval-awareness measurement), Contribution 3 (ecological-validity gap), Experiments A/B/C, the comparison benchmark claim, analysis tooling, and pre-registration.
