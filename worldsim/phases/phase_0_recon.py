@@ -58,9 +58,9 @@ from worldsim.phases.phase_0c_artifacts import (
     load_reusable_tier_output,
     phase_0c_timings_path,
     profile_metadata_path,
-    publish_json_sidecar,
     publish_tier_output,
     reachability_report_path,
+    redact_json_secrets,
     text_sha256,
     write_text_atomic,
 )
@@ -561,6 +561,7 @@ def _existing_site_tiers_are_reusable(
     """Return True only when all tier artifacts match the current provenance contract."""
     host_inventory_fingerprint = _instance_inventory_fingerprint(host_inventory_instance)
     proxy_metadata = _verification_proxy_metadata(verification_proxy)
+    redact_values = _phase_0c_redact_values(verification_proxy)
     verify_caps = load_reusable_tier_output(
         output_dir=output_dir,
         site_name=site_name,
@@ -584,6 +585,7 @@ def _existing_site_tiers_are_reusable(
             validate_verification_capabilities(data, site_name=site_name)
             + _validate_manifest_eval_types(data, manifest_eval_type_set)
         ),
+        redact_values=redact_values,
     )
     data_model = load_reusable_tier_output(
         output_dir=output_dir,
@@ -607,6 +609,7 @@ def _existing_site_tiers_are_reusable(
         ),
         validate_parsed=lambda data: validate_data_model_profile(data, site_name=site_name),
         required_sidecars=_DATA_MODEL_SIDECARS,
+        redact_values=redact_values,
     )
     agent_context_raw = load_reusable_tier_output(
         output_dir=output_dir,
@@ -628,6 +631,7 @@ def _existing_site_tiers_are_reusable(
             host_inventory_instance_fingerprint=host_inventory_fingerprint,
         ),
         validate_parsed=lambda data: validate_agent_context(data, site_name=site_name),
+        redact_values=redact_values,
     )
     if verify_caps is None or data_model is None or agent_context_raw is None:
         return False
@@ -664,6 +668,7 @@ def _existing_site_tiers_are_reusable(
             agent_context=agent_context_raw,
         ),
         required_sidecars=_INJECTION_SURFACE_SIDECARS,
+        redact_values=redact_values,
     )
     if injection_surface is None or not isinstance(injection_surface, dict):
         return False
@@ -1288,7 +1293,9 @@ async def run_phase_0c(
             logger.info("Phase 0c: skipping site %r (not selected by --sites)", name)
             continue
         instance_site_url = instance_urls.get(normalized_name)
-        host_inventory_instance = host_inventory_lookup.get(normalized_name)
+        instance_record = instance_lookup.get(normalized_name)
+        host_inventory_instance = host_inventory_lookup.get(normalized_name) or instance_record
+        host_inventory_instances_for_site = host_inventory_groups.get(normalized_name, [])
         evidence_payloads = build_phase_0c_evidence_payloads(
             file_list=files,
             benchmark_root=benchmark_root,
@@ -1333,12 +1340,18 @@ async def run_phase_0c(
                 "evidence_payloads": evidence_payloads,
                 "benchmark_digest": benchmark_digest,
                 "evidence_index_digest": evidence_index_digest,
+                "site_url": instance_site_url,
+                "instance": instance_record,
+                "host_inventory_instance": host_inventory_instance,
+                "host_inventory_instances": host_inventory_instances_for_site,
             }
 
     if not sites_to_profile:
         logger.info("Phase 0c: all sites already profiled, nothing to do")
         _write_reachability_report(output_dir, reachability_records)
-        trace_writer.record("phase_0c_completed", profiled_sites=0, cached_sites=len(reachability_records))
+        trace_writer.record(
+            "phase_0c_completed", profiled_sites=0, cached_sites=len(reachability_records)
+        )
         trace_writer.write_timings_summary()
         return {}
 
@@ -1352,11 +1365,11 @@ async def run_phase_0c(
                 manifest=manifest,
                 timeout=timeout,
                 sandbox_model=sandbox_model,
-                site_url=instance_urls.get(normalize_site_name(name)),
+                site_url=site_plan["site_url"],
                 verification_proxy=verification_proxy,
-                instance=instance_lookup.get(normalize_site_name(name)),
-                host_inventory_instance=host_inventory_lookup.get(normalize_site_name(name)),
-                host_inventory_instances=host_inventory_groups.get(normalize_site_name(name), []),
+                instance=site_plan["instance"],
+                host_inventory_instance=site_plan["host_inventory_instance"],
+                host_inventory_instances=site_plan["host_inventory_instances"],
                 trace_writer=trace_writer,
                 evidence_payloads=site_plan["evidence_payloads"],
                 benchmark_digest=site_plan["benchmark_digest"],
@@ -1567,6 +1580,17 @@ def _tier_success_publisher(
         if not raw:
             return
         payload = json.loads(raw)
+        sidecars: dict[str, object] = {}
+        for side_output_path, sidecar_stem in (sidecar_outputs or {}).items():
+            side_raw = outputs.get(side_output_path)
+            if not side_raw:
+                raise ValueError(f"{Path(side_output_path).name} was not produced")
+            try:
+                sidecars[sidecar_stem] = json.loads(side_raw)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"{Path(side_output_path).name} contained invalid JSON: {exc}"
+                ) from exc
         publish_tier_output(
             output_dir=output_dir,
             site_name=site_name,
@@ -1575,23 +1599,9 @@ def _tier_success_publisher(
             payload=payload,
             metadata=metadata,
             sandbox_outputs=outputs,
+            sidecars=sidecars,
+            redact_values=redact_values,
         )
-        for side_output_path, sidecar_stem in (sidecar_outputs or {}).items():
-            side_raw = outputs.get(side_output_path)
-            if not side_raw:
-                continue
-            if not publish_json_sidecar(
-                output_dir=output_dir,
-                site_name=site_name,
-                artifact_stem=sidecar_stem,
-                raw_text=side_raw,
-                redact_values=redact_values,
-            ):
-                logger.warning(
-                    "Phase 0c: site %r produced malformed optional sidecar %s",
-                    site_name,
-                    Path(side_output_path).name,
-                )
 
     return publish
 
@@ -1612,6 +1622,7 @@ async def _run_tier_json_with_retries(
     volumes: dict[str, Any] | None = None,
     side_output_paths: list[str] | None = None,
     on_success_outputs: Callable[[dict[str, str | None]], None] | None = None,
+    redact_values: tuple[str, ...] = (),
     trace_writer: Phase0cTraceWriter | None = None,
     trace_context: dict[str, Any] | None = None,
 ) -> Any:
@@ -1666,26 +1677,44 @@ async def _run_tier_json_with_retries(
             errors.append(f"{artifact_name} was not produced")
         else:
             try:
-                parsed = json.loads(raw)
+                parsed = redact_json_secrets(
+                    json.loads(raw),
+                    redact_values=redact_values,
+                )
             except json.JSONDecodeError as exc:
                 errors.append(f"{artifact_name} contained invalid JSON: {exc}")
+
+        for side_output_path in side_output_paths or []:
+            side_name = Path(side_output_path).name
+            side_raw = outputs.get(side_output_path)
+            if not side_raw:
+                errors.append(f"{side_name} was not produced")
+                continue
+            try:
+                json.loads(side_raw)
+            except json.JSONDecodeError as exc:
+                errors.append(f"{side_name} contained invalid JSON: {exc}")
 
         if not errors and parsed is not None:
             errors.extend(validate_parsed(parsed))
 
         if not errors:
             if on_success_outputs is not None:
-                on_success_outputs(outputs)
-            if trace_writer is not None:
-                trace_writer.record(
-                    "tier_generated",
-                    site_name=site_name,
-                    label=attempt_label,
-                    attempt=attempt,
-                    output_path=output_path,
-                    **(trace_context or {}),
-                )
-            return parsed
+                try:
+                    on_success_outputs(outputs)
+                except ValueError as exc:
+                    errors.append(str(exc))
+            if not errors:
+                if trace_writer is not None:
+                    trace_writer.record(
+                        "tier_generated",
+                        site_name=site_name,
+                        label=attempt_label,
+                        attempt=attempt,
+                        output_path=output_path,
+                        **(trace_context or {}),
+                    )
+                return parsed
 
         last_errors = errors
         if trace_writer is not None:
@@ -1881,6 +1910,7 @@ async def _profile_one_site_tiered(
                 expected_metadata=metadata,
                 validate_parsed=validate_parsed,
                 required_sidecars=tuple((sidecar_outputs or {}).values()),
+                redact_values=redact_values,
             )
             if cached is not None:
                 logger.info("Phase 0c: site %r reusing tier %s", site_name, tier_name)
@@ -1902,7 +1932,9 @@ async def _profile_one_site_tiered(
                 label=label,
                 sandbox_model=sandbox_model,
                 validate_parsed=validate_parsed,
-                extra_inputs=extra_inputs_for_tier if extra_inputs_for_tier is not None else evidence_inputs,
+                extra_inputs=extra_inputs_for_tier
+                if extra_inputs_for_tier is not None
+                else evidence_inputs,
                 volumes=benchmark_mount,
                 correction_guidance=correction_guidance,
                 side_output_paths=list(sidecar_outputs or {}),
@@ -1916,6 +1948,7 @@ async def _profile_one_site_tiered(
                     sidecar_outputs=sidecar_outputs,
                     redact_values=redact_values,
                 ),
+                redact_values=redact_values,
                 trace_writer=trace_writer,
                 trace_context={"tier_name": tier_name, "artifact_stem": artifact_stem},
             )
@@ -2043,6 +2076,7 @@ async def _profile_one_site_tiered(
                 data_model=data_model,
                 agent_context=agent_context,
             )
+
         tier1_input_hashes = _tier1_input_hashes(
             verify_caps=verify_caps,
             data_model=data_model,

@@ -412,10 +412,38 @@ def _valid_injection_surface_with_verification(verified: object, note: str) -> d
 
 
 def _sandbox_json(output_path: str, payload: object) -> dict[str, str | None]:
-    return {
+    output = {
         output_path: json.dumps(payload),
         "_summary": None,
     }
+    if output_path == DATA_MODEL_OUTPUT:
+        output["/workspace/output/DATA_MODEL_EVIDENCE.json"] = json.dumps(
+            {"site_name": "shopping", "entities": [], "limitations": []}
+        )
+    if output_path == INJECTION_OUTPUT:
+        output.update(
+            {
+                "/workspace/output/SURFACE_DRAFT.json": json.dumps(
+                    {"site_name": "shopping", "surfaces": []}
+                ),
+                "/workspace/output/TASK_COVERAGE_DRAFT.json": json.dumps(
+                    {
+                        "site_name": "shopping",
+                        "task_links": [],
+                        "uncovered_surface_ids": [],
+                    }
+                ),
+                "/workspace/output/LIVE_VERIFICATION_NOTES.json": json.dumps(
+                    {
+                        "site_name": "shopping",
+                        "requests": [],
+                        "corrections": [],
+                        "limitations": [],
+                    }
+                ),
+            }
+        )
+    return output
 
 
 def _sandbox_json_with_sidecars(
@@ -448,6 +476,22 @@ def _benchmark_setup(tmp_path):
     source_file = benchmark_root / "shopping.txt"
     source_file.write_text("demo")
     return benchmark_root, source_file
+
+
+def test_profile_injection_surface_prompt_uses_active_scope():
+    prompt = Path("worldsim/prompts/profile-injection-surface.md").read_text(encoding="utf-8")
+
+    assert "GitLab issues/comments" in prompt
+    assert "Reddit/Postmill posts/comments" in prompt
+    for inactive_example in (
+        "WASP",
+        "Magento",
+        "OpenStreetMap",
+        "Wikipedia",
+        "wiki edit",
+        "review_detail_pdp",
+    ):
+        assert inactive_example not in prompt
 
 
 def test_phase_0a_repairs_webarena_verified_site_source_paths(tmp_path):
@@ -752,7 +796,9 @@ async def test_run_phase_0c_publishes_provenance_sidecars_and_trace(monkeypatch,
         (out / "TIER_METADATA_shopping_B_DATA_MODEL.json").read_text(encoding="utf-8")
     )
     artifact_text = (out / "DATA_MODEL_shopping.json").read_text(encoding="utf-8")
+    sidecar_text = (out / "DATA_MODEL_EVIDENCE_shopping.json").read_text(encoding="utf-8")
     assert metadata["artifact_sha256"] == text_sha256(artifact_text)
+    assert metadata["sidecar_sha256"]["DATA_MODEL_EVIDENCE"] == text_sha256(sidecar_text)
     assert metadata["evidence_index_digest"]
     assert metadata["sandbox_telemetry"]["tool_calls"] == 3
     profile_metadata = json.loads(
@@ -925,9 +971,7 @@ async def test_run_phase_0c_reprofiles_when_whole_site_tier_metadata_is_stale(
 
 
 @pytest.mark.asyncio
-async def test_run_phase_0c_reprofiles_tier2_when_tier1_input_hash_changes(
-    monkeypatch, tmp_path
-):
+async def test_run_phase_0c_reprofiles_tier2_when_tier1_input_hash_changes(monkeypatch, tmp_path):
     benchmark_root, source_file = _benchmark_setup(tmp_path)
 
     async def fake_run_claude_in_sandbox(*args, **kwargs):
@@ -1012,6 +1056,62 @@ async def test_run_phase_0c_reprofiles_tier2_when_tier1_input_hash_changes(
 
 
 @pytest.mark.asyncio
+async def test_run_phase_0c_reprofiles_tier_when_required_sidecar_hash_changes(
+    monkeypatch, tmp_path
+):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    out = tmp_path / "out"
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=out,
+    )
+    write_json_atomic(
+        out / "LIVE_VERIFICATION_NOTES_shopping.json",
+        {
+            "site_name": "shopping",
+            "requests": [{"tampered": True}],
+            "corrections": [],
+            "limitations": [],
+        },
+    )
+    sandbox_calls: list[str] = []
+
+    async def only_tier2_should_rerun(*args, **kwargs):
+        label = kwargs["label"]
+        sandbox_calls.append(label)
+        if "-DE-inject" in label:
+            return await fake_run_claude_in_sandbox(*args, **kwargs)
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", only_tier2_should_rerun)
+
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=out,
+    )
+
+    assert sandbox_calls == ["0c-shopping-DE-inject"]
+
+
+@pytest.mark.asyncio
 async def test_run_phase_0c_redacts_proxy_tokens_from_optional_sidecars(monkeypatch, tmp_path):
     benchmark_root, source_file = _benchmark_setup(tmp_path)
     token = "secret-token-123"
@@ -1035,9 +1135,13 @@ async def test_run_phase_0c_redacts_proxy_tokens_from_optional_sidecars(monkeypa
         if "-C-context" in label:
             return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
         if "-DE-inject" in label:
+            injection_surface = _valid_injection_surface_with_verification(
+                True,
+                f"checked with X-Worldsim-Token: {token}",
+            )
             return _sandbox_json_with_sidecars(
                 INJECTION_OUTPUT,
-                _valid_injection_surface(),
+                injection_surface,
                 {
                     "/workspace/output/SURFACE_DRAFT.json": {
                         "site_name": "shopping",
@@ -1079,8 +1183,48 @@ async def test_run_phase_0c_redacts_proxy_tokens_from_optional_sidecars(monkeypa
     notes_text = (tmp_path / "out" / "LIVE_VERIFICATION_NOTES_shopping.json").read_text(
         encoding="utf-8"
     )
+    profile_text = (tmp_path / "out" / "BENCHMARK_PROFILE_shopping.json").read_text(
+        encoding="utf-8"
+    )
     assert token not in notes_text
+    assert token not in profile_text
     assert "X-Worldsim-Token: [REDACTED]" in notes_text
+    assert "X-Worldsim-Token: [REDACTED]" in profile_text
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_retries_malformed_required_sidecar(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    data_attempts = 0
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        nonlocal data_attempts
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            data_attempts += 1
+            output = _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+            if data_attempts == 1:
+                output["/workspace/output/DATA_MODEL_EVIDENCE.json"] = "{bad"
+            return output
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    result = await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=tmp_path / "out",
+    )
+
+    assert "shopping" in result
+    assert data_attempts == 2
 
 
 @pytest.mark.asyncio
@@ -1112,9 +1256,7 @@ async def test_phase_0c_audit_catches_tier_artifact_tampering(monkeypatch, tmp_p
     report = audit_phase_0c_profiles(out, manifest_eval_types={"NetworkEventEvaluator"})
 
     assert any(error["code"] == "TIER_ARTIFACT_HASH_MISMATCH" for error in report["errors"])
-    assert any(
-        error["code"] == "TIER_ARTIFACT_PROFILE_MISMATCH" for error in report["errors"]
-    )
+    assert any(error["code"] == "TIER_ARTIFACT_PROFILE_MISMATCH" for error in report["errors"])
 
 
 @pytest.mark.asyncio
@@ -1186,6 +1328,56 @@ async def test_run_phase_0c_separates_modal_and_host_inventory_instances(monkeyp
         captured["host_inventory_instance"].db_connection
         == "postgresql://u:p@172.17.0.1:5500/postmill"
     )
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_reuses_when_host_inventory_file_omits_site(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    out = tmp_path / "phase_0c"
+    await phase_0_recon.run_phase_0c(
+        {"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        {"shopping": [str(source_file)]},
+        benchmark_root,
+        out,
+        instances=[BenchmarkInstance(site_name="shopping", site_url="http://8.8.8.8:8023")],
+        host_inventory_instances=[
+            BenchmarkInstance(site_name="reddit", site_url="http://172.17.0.1:9990")
+        ],
+    )
+    sandbox_calls: list[str] = []
+
+    async def fail_if_sandbox_runs(*args, **kwargs):
+        sandbox_calls.append(kwargs["label"])
+        raise AssertionError("profile should have been reused")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fail_if_sandbox_runs)
+
+    await phase_0_recon.run_phase_0c(
+        {"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        {"shopping": [str(source_file)]},
+        benchmark_root,
+        out,
+        instances=[BenchmarkInstance(site_name="shopping", site_url="http://8.8.8.8:8023")],
+        host_inventory_instances=[
+            BenchmarkInstance(site_name="reddit", site_url="http://172.17.0.1:9990")
+        ],
+    )
+
+    assert sandbox_calls == []
 
 
 @pytest.mark.asyncio

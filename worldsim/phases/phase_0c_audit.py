@@ -28,6 +28,14 @@ _OPTIONAL_SIDECARS = (
     "TASK_COVERAGE_DRAFT",
     "LIVE_VERIFICATION_NOTES",
 )
+_SIDECARS_BY_TIER = {
+    "B_DATA_MODEL": ("DATA_MODEL_EVIDENCE",),
+    "DE_INJECTION_SURFACE": (
+        "SURFACE_DRAFT",
+        "TASK_COVERAGE_DRAFT",
+        "LIVE_VERIFICATION_NOTES",
+    ),
+}
 
 
 def audit_phase_0c_profiles(
@@ -104,6 +112,7 @@ def _audit_site(
         profiles_dir=profiles_dir,
         site_name=site_name,
         benchmark_root=benchmark_root,
+        errors=errors,
         warnings=warnings,
     )
     return {"site": site_name, "errors": errors, "warnings": warnings}
@@ -252,24 +261,72 @@ def _audit_optional_sidecars(
     profiles_dir: Path,
     site_name: str,
     benchmark_root: Path | None,
+    errors: list[dict[str, Any]],
     warnings: list[dict[str, Any]],
 ) -> None:
     del benchmark_root
+    sidecar_to_tier = {
+        sidecar: tier_name
+        for tier_name, sidecars in _SIDECARS_BY_TIER.items()
+        for sidecar in sidecars
+    }
     for artifact_stem in _OPTIONAL_SIDECARS:
         path = profiles_dir / f"{artifact_stem}_{site_name}.json"
-        if path.exists():
+        if not path.exists():
+            warnings.append(
+                {
+                    "site": site_name,
+                    "code": "MISSING_OPTIONAL_SIDECAR",
+                    "path": str(path),
+                    "message": (
+                        f"{artifact_stem} sidecar is absent; profile remains valid but has weaker "
+                        "review provenance"
+                    ),
+                }
+            )
             continue
-        warnings.append(
-            {
-                "site": site_name,
-                "code": "MISSING_OPTIONAL_SIDECAR",
-                "path": str(path),
-                "message": (
-                    f"{artifact_stem} sidecar is absent; profile remains valid but has weaker "
-                    "review provenance"
-                ),
-            }
-        )
+        try:
+            raw = path.read_text(encoding="utf-8")
+            json.loads(raw)
+        except (OSError, json.JSONDecodeError) as exc:
+            errors.append(
+                {
+                    "site": site_name,
+                    "code": "SIDECAR_INVALID_JSON",
+                    "path": str(path),
+                    "message": f"{artifact_stem} sidecar is not valid JSON: {exc}",
+                }
+            )
+            continue
+        tier_name = sidecar_to_tier.get(artifact_stem)
+        if tier_name is None:
+            continue
+        metadata_path = tier_metadata_path(profiles_dir, site_name, tier_name)
+        if not metadata_path.exists():
+            continue
+        metadata = _load_json(metadata_path, site_name=site_name, errors=errors)
+        if not isinstance(metadata, dict):
+            continue
+        sidecar_hashes = metadata.get("sidecar_sha256")
+        if not isinstance(sidecar_hashes, dict) or artifact_stem not in sidecar_hashes:
+            warnings.append(
+                {
+                    "site": site_name,
+                    "code": "SIDECAR_HASH_UNRECORDED",
+                    "path": str(path),
+                    "message": f"{artifact_stem} sidecar is not hash-bound in tier metadata",
+                }
+            )
+            continue
+        if sidecar_hashes.get(artifact_stem) != text_sha256(raw):
+            errors.append(
+                {
+                    "site": site_name,
+                    "code": "SIDECAR_HASH_MISMATCH",
+                    "path": str(path),
+                    "message": f"{artifact_stem} sidecar hash does not match tier metadata",
+                }
+            )
 
 
 def _check_artifact_matches_profile(

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Iterable, Mapping
+from itertools import islice
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +18,14 @@ from worldsim.phases.phase_0c_artifacts import (
 
 _ROUTE_LITERAL = re.compile(r"""["'](/[A-Za-z0-9_./{}:$<>\-\[\]]{1,180})["']""")
 _MAX_TASK_RECORDS = 1000
+_MAX_ROUTE_RECORDS = 2000
+_MAX_TEXT_INDEX_BYTES = 2 * 1024 * 1024
+_MAX_TEXT_INDEX_LINES = 20000
+_MAX_TEXT_LINE_BYTES = 64 * 1024
 _MAX_JSON_TASK_BYTES = 2 * 1024 * 1024
+_MAX_JSONL_TASK_BYTES = 2 * 1024 * 1024
+_MAX_JSONL_TASK_LINES = 5000
+_MAX_JSONL_LINE_BYTES = 64 * 1024
 _MAX_JSON_WALK_NODES = 5000
 _MAX_JSON_WALK_DEPTH = 12
 _TASK_KEY_HINTS = frozenset(
@@ -179,23 +187,51 @@ def _route_candidates(
 ) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     for record in files:
+        if len(records) >= _MAX_ROUTE_RECORDS:
+            break
         if not record.get("text_indexed"):
             continue
         rel = str(record["path"])
-        path = benchmark_root / rel
-        text = _read_text(path)
-        if text is None:
+        if int(record.get("size_bytes") or 0) > _MAX_TEXT_INDEX_BYTES:
+            records.append(
+                {
+                    "file": rel,
+                    "skipped": "text_file_too_large_for_route_index",
+                    "size_bytes": record.get("size_bytes"),
+                }
+            )
             continue
+        path = benchmark_root / rel
         seen: set[str] = set()
-        for match in _ROUTE_LITERAL.finditer(text):
-            route = match.group(1)
-            if route in seen:
+        line_limit_hit = False
+        long_line_seen = False
+        for line_number, line, status in _bounded_text_lines(path):
+            if status == "line_too_long":
+                long_line_seen = True
                 continue
-            seen.add(route)
-            line = text.count("\n", 0, match.start()) + 1
-            records.append({"file": rel, "line": line, "literal": route})
-            if len(seen) >= 100:
+            if status == "line_limit_reached":
+                line_limit_hit = True
                 break
+            for match in _ROUTE_LITERAL.finditer(line):
+                route = match.group(1)
+                if route in seen:
+                    continue
+                seen.add(route)
+                records.append({"file": rel, "line": line_number, "literal": route})
+                if len(seen) >= 100 or len(records) >= _MAX_ROUTE_RECORDS:
+                    break
+            if len(seen) >= 100 or len(records) >= _MAX_ROUTE_RECORDS:
+                break
+        if long_line_seen and len(records) < _MAX_ROUTE_RECORDS:
+            records.append({"file": rel, "skipped": "route_index_line_too_long"})
+        if line_limit_hit and len(records) < _MAX_ROUTE_RECORDS:
+            records.append(
+                {
+                    "file": rel,
+                    "skipped": "route_index_line_cap_reached",
+                    "max_lines": _MAX_TEXT_INDEX_LINES,
+                }
+            )
     return records
 
 
@@ -227,10 +263,17 @@ def _task_candidates(
             payload = _read_json(path)
             if payload is not None:
                 remaining = max(0, _MAX_TASK_RECORDS - len(records))
-                records.extend(
-                    _extract_task_like_records(payload, source=rel, limit=remaining)
-                )
+                records.extend(_extract_task_like_records(payload, source=rel, limit=remaining))
         else:
+            if int(record.get("size_bytes") or 0) > _MAX_JSONL_TASK_BYTES:
+                records.append(
+                    {
+                        "source": rel,
+                        "skipped": "jsonl_file_too_large_for_task_index",
+                        "size_bytes": record.get("size_bytes"),
+                    }
+                )
+                continue
             remaining = max(0, _MAX_TASK_RECORDS - len(records))
             records.extend(_jsonl_task_records(path, source=rel, limit=remaining))
     return records[:_MAX_TASK_RECORDS]
@@ -301,8 +344,26 @@ def _jsonl_task_records(
     if limit <= 0:
         return records
     try:
-        with path.open(encoding="utf-8") as handle:
-            for index, line in enumerate(handle, start=1):
+        with path.open("rb") as handle:
+            for index in range(1, _MAX_JSONL_TASK_LINES + 1):
+                raw_line = handle.readline(_MAX_JSONL_LINE_BYTES + 1)
+                if not raw_line:
+                    break
+                if len(raw_line) > _MAX_JSONL_LINE_BYTES:
+                    records.append(
+                        {
+                            "source": source,
+                            "line": index,
+                            "skipped": "jsonl_line_too_large_for_task_index",
+                            "max_line_bytes": _MAX_JSONL_LINE_BYTES,
+                        }
+                    )
+                    if not raw_line.endswith(b"\n"):
+                        _drain_line(handle)
+                    if len(records) >= limit:
+                        break
+                    continue
+                line = raw_line.decode("utf-8", errors="replace")
                 if not line.strip():
                     continue
                 try:
@@ -318,6 +379,14 @@ def _jsonl_task_records(
                     records.append(item)
                 if len(records) >= limit:
                     break
+            else:
+                records.append(
+                    {
+                        "source": source,
+                        "skipped": "jsonl_line_cap_reached",
+                        "max_lines": _MAX_JSONL_TASK_LINES,
+                    }
+                )
     except OSError:
         return []
     return records
@@ -332,13 +401,43 @@ def _walk_json(payload: object, path: str = "$") -> Iterable[tuple[str, object]]
         yield current_path, current
         if depth >= _MAX_JSON_WALK_DEPTH:
             continue
+        remaining_slots = _MAX_JSON_WALK_NODES - seen - len(stack)
+        if remaining_slots <= 0:
+            continue
         if isinstance(current, Mapping):
-            for key, value in reversed(list(current.items())):
+            items = list(islice(current.items(), remaining_slots))
+            for key, value in reversed(items):
                 stack.append((f"{current_path}.{key}", value, depth + 1))
         elif isinstance(current, list):
-            for index in range(len(current) - 1, -1, -1):
+            upper = min(len(current), remaining_slots)
+            for index in range(upper - 1, -1, -1):
                 stack.append((f"{current_path}[{index}]", current[index], depth + 1))
     return
+
+
+def _bounded_text_lines(path: Path) -> Iterable[tuple[int, str, str | None]]:
+    try:
+        with path.open("rb") as handle:
+            for line_number in range(1, _MAX_TEXT_INDEX_LINES + 1):
+                raw_line = handle.readline(_MAX_TEXT_LINE_BYTES + 1)
+                if not raw_line:
+                    return
+                if len(raw_line) > _MAX_TEXT_LINE_BYTES:
+                    if not raw_line.endswith(b"\n"):
+                        _drain_line(handle)
+                    yield line_number, "", "line_too_long"
+                    continue
+                yield line_number, raw_line.decode("utf-8", errors="replace"), None
+            yield _MAX_TEXT_INDEX_LINES, "", "line_limit_reached"
+    except OSError:
+        return
+
+
+def _drain_line(handle: Any) -> None:
+    while True:
+        chunk = handle.readline(8192)
+        if not chunk or chunk.endswith(b"\n"):
+            return
 
 
 def _is_compact_json_value(value: object) -> bool:
@@ -347,7 +446,9 @@ def _is_compact_json_value(value: object) -> bool:
     if isinstance(value, str):
         return len(value) <= 500
     if isinstance(value, list):
-        return len(value) <= 12 and all(isinstance(item, str | int | float | bool) for item in value)
+        return len(value) <= 12 and all(
+            isinstance(item, str | int | float | bool) for item in value
+        )
     return False
 
 

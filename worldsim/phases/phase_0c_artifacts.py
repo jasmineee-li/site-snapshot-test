@@ -41,8 +41,12 @@ def write_text_atomic(path: Path, text: str) -> None:
         raise
 
 
+def _json_atomic_text(payload: object) -> str:
+    return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
 def write_json_atomic(path: Path, payload: object) -> None:
-    write_text_atomic(path, json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    write_text_atomic(path, _json_atomic_text(payload))
 
 
 def profile_metadata_path(output_dir: Path, site_name: str) -> Path:
@@ -177,23 +181,32 @@ def load_reusable_tier_output(
     expected_metadata: Mapping[str, Any],
     validate_parsed: Callable[[object], list[str]],
     required_sidecars: Iterable[str] = (),
+    redact_values: Iterable[str] = (),
 ) -> Any | None:
     """Load a tier artifact only when metadata and validation still match."""
     artifact_path = tier_artifact_path(output_dir, site_name, artifact_stem)
     metadata_path = tier_metadata_path(output_dir, site_name, tier_name)
     if not (artifact_path.exists() and metadata_path.exists()):
         return None
-    for sidecar_stem in required_sidecars:
+    required_sidecar_stems = tuple(required_sidecars)
+    sidecar_raws: dict[str, str] = {}
+    for sidecar_stem in required_sidecar_stems:
         sidecar_path = sidecar_artifact_path(output_dir, site_name, sidecar_stem)
         if not sidecar_path.exists():
             return None
         try:
-            json.loads(sidecar_path.read_text(encoding="utf-8"))
+            sidecar_raw = sidecar_path.read_text(encoding="utf-8")
+            if contains_unredacted_secrets(sidecar_raw, redact_values=redact_values):
+                return None
+            json.loads(sidecar_raw)
+            sidecar_raws[sidecar_stem] = sidecar_raw
         except (OSError, json.JSONDecodeError):
             return None
 
     try:
         raw = artifact_path.read_text(encoding="utf-8")
+        if contains_unredacted_secrets(raw, redact_values=redact_values):
+            return None
         parsed = json.loads(raw)
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
@@ -206,6 +219,13 @@ def load_reusable_tier_output(
             return None
     if metadata.get("artifact_sha256") != text_sha256(raw):
         return None
+    if required_sidecar_stems:
+        sidecar_hashes = metadata.get("sidecar_sha256")
+        if not isinstance(sidecar_hashes, dict):
+            return None
+        for sidecar_stem, sidecar_raw in sidecar_raws.items():
+            if sidecar_hashes.get(sidecar_stem) != text_sha256(sidecar_raw):
+                return None
     if validate_parsed(parsed):
         return None
     return parsed
@@ -220,7 +240,20 @@ def publish_tier_output(
     payload: object,
     metadata: Mapping[str, Any],
     sandbox_outputs: Mapping[str, Any] | None = None,
+    sidecars: Mapping[str, object] | None = None,
+    redact_values: Iterable[str] = (),
 ) -> None:
+    payload = redact_json_secrets(payload, redact_values=redact_values)
+    sidecar_hashes: dict[str, str] = {}
+    sidecar_paths: dict[str, str] = {}
+    for sidecar_stem, sidecar_payload in sorted((sidecars or {}).items()):
+        sidecar_path = sidecar_artifact_path(output_dir, site_name, sidecar_stem)
+        sidecar_payload = redact_json_secrets(sidecar_payload, redact_values=redact_values)
+        sidecar_raw = _json_atomic_text(sidecar_payload)
+        write_text_atomic(sidecar_path, sidecar_raw)
+        sidecar_hashes[sidecar_stem] = text_sha256(sidecar_raw)
+        sidecar_paths[sidecar_stem] = sidecar_path.name
+
     raw = json.dumps(payload, indent=2)
     artifact_path = tier_artifact_path(output_dir, site_name, artifact_stem)
     write_text_atomic(artifact_path, raw)
@@ -231,6 +264,9 @@ def publish_tier_output(
             "artifact_sha256": text_sha256(raw),
         }
     )
+    if sidecar_hashes:
+        full_metadata["sidecar_sha256"] = sidecar_hashes
+        full_metadata["sidecar_paths"] = sidecar_paths
     telemetry = sandbox_outputs.get("_telemetry") if sandbox_outputs else None
     if telemetry is not None:
         if isinstance(telemetry, str):
@@ -265,6 +301,21 @@ def publish_json_sidecar(
     payload = redact_json_secrets(payload, redact_values=redact_values)
     write_json_atomic(sidecar_artifact_path(output_dir, site_name, artifact_stem), payload)
     return True
+
+
+def contains_unredacted_secrets(
+    text: str,
+    *,
+    redact_values: Iterable[str] = (),
+) -> bool:
+    """Return True when persisted text still contains a configured secret."""
+    secrets = {value for value in redact_values if value}
+    if any(secret in text for secret in secrets):
+        return True
+    for match in _AUTH_HEADER_PATTERN.finditer(text):
+        if match.group(2) != "[REDACTED]":
+            return True
+    return False
 
 
 def redact_json_secrets(payload: object, *, redact_values: Iterable[str] = ()) -> object:

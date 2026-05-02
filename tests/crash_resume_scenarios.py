@@ -442,6 +442,9 @@ async def _run_phase_0c(mode: str, state_dir: Path) -> int:
                         }
                     ]
                 ),
+                "/workspace/output/DATA_MODEL_EVIDENCE.json": json.dumps(
+                    {"site_name": "shopping", "entities": [], "limitations": []}
+                ),
                 "_summary": None,
             }
         if "-C-context" in label:
@@ -476,6 +479,24 @@ async def _run_phase_0c(mode: str, state_dir: Path) -> int:
                             "injection_surfaces_with_task_coverage": [],
                             "injection_surfaces_without_task_coverage": [],
                         },
+                    }
+                ),
+                "/workspace/output/SURFACE_DRAFT.json": json.dumps(
+                    {"site_name": "shopping", "surfaces": []}
+                ),
+                "/workspace/output/TASK_COVERAGE_DRAFT.json": json.dumps(
+                    {
+                        "site_name": "shopping",
+                        "task_links": [],
+                        "uncovered_surface_ids": [],
+                    }
+                ),
+                "/workspace/output/LIVE_VERIFICATION_NOTES.json": json.dumps(
+                    {
+                        "site_name": "shopping",
+                        "requests": [],
+                        "corrections": [],
+                        "limitations": [],
                     }
                 ),
                 "_summary": None,

@@ -532,6 +532,13 @@ provenance-preserving optimization, not a semantic shortcut. If any fingerprint
 is absent, malformed, stale, or produced by a different validator/prompt/model,
 the tier must be regenerated.
 
+When tier metadata declares required checkpoint sidecars, those sidecars are
+part of tier success rather than best-effort debug output. The tier retry loop
+must reject missing or malformed required sidecars, publish tier metadata only
+after sidecars are written, and record each sidecar hash in
+``TIER_METADATA_{site}_{tier}.json``. Reuse must reject missing, malformed,
+hash-mismatched, or unredacted sidecars.
+
 Complete-profile reuse is allowed only after the same tier provenance checks
 pass. The final profile metadata alone is not sufficient. Tier 2 reuse must also
 include a fingerprint of the exact validated Tier 1 inputs
@@ -540,22 +547,26 @@ include a fingerprint of the exact validated Tier 1 inputs
 model or agent context invalidates stale injection-surface synthesis.
 
 **Neutral evidence indexes.** Phase 0b/0c may stage deterministic evidence
-indexes such as ``FILES_INDEX.json``, ``TASK_INDEX.json``, ``ROUTES_INDEX.json``,
-and ``SCHEMA_INDEX.json`` under ``/workspace/inputs``. These indexes are maps to
+indexes such as ``FILES_INDEX.json``, ``TASKS_INDEX.json``, ``ROUTES_INDEX.json``,
+and ``MANIFEST_SLICE.json`` under ``/workspace/inputs``. These indexes are maps to
 evidence, not conclusions: they may list files, route declarations, task ids,
 evaluator types, schema/table/column names, and source anchors, but they must
 not decide attacker controllability, injection validity, task relevance, or
 route eligibility. The profiling sandboxes retain responsibility for
 interpreting evidence under the threat model. Index generation should be bounded
-by file size, traversal depth, and record-count limits so a large fixture cannot
-move the bottleneck from Modal profiling into host-side pre-indexing.
+by file size, line length, line count, traversal depth, and record-count limits
+so a large fixture cannot move the bottleneck from Modal profiling into
+host-side pre-indexing. JSON, JSONL, and route-literal indexing all need
+independent caps because sparse or malformed files can otherwise avoid
+record-count limits.
 
 **Path B evidence.** The data-model tier should produce
 ``DATA_MODEL_EVIDENCE.json`` alongside ``DATA_MODEL.json``. The evidence file
 maps each entity and important field/storage claim to source files or fixtures
-that support the claim. During migration, missing evidence is an audit warning;
-once all active profiles are regenerated under this contract, missing evidence
-should become an audit error.
+that support the claim. For newly generated profiles, missing or malformed
+``DATA_MODEL_EVIDENCE.json`` is a tier failure. Legacy profiles without the
+sidecar remain auditable but are not reusable under the current provenance
+contract.
 
 **Tier 2 checkpoints.** The injection-surface tier remains one coherent
 sandbox-owned synthesis. It should, however, write intermediate checkpoint
@@ -572,14 +583,15 @@ bounded 3xx response is enough evidence for route-existence checks. The helper
 makes route existence, CSRF/form feasibility, entity existence, and
 unreachable-host evidence comparable across runs. It does not manage benchmark
 lifecycles and does not decide downstream task admission. Persisted checkpoint
-artifacts must redact configured proxy tokens and auth-header values.
+artifacts and core tier/profile artifacts must redact configured proxy tokens
+and auth-header values.
 
 **Outputs per site:**
 
 - ``BENCHMARK_PROFILE_{site}.json`` — merged profile (same schema as before)
 - ``AGENT_CONTEXT_{site}.json`` — discovered agent prompt template, response format, site context
 - ``VERIFICATION_CAPABILITIES_{site}.json``, ``DATA_MODEL_{site}.json``, ``INJECTION_SURFACE_{site}.json`` — individual tier outputs for debugging
-- ``TIER_METADATA_{site}_{tier}.json`` — provenance for each validated tier artifact, including prompt hash, validation command, sandbox model, benchmark content fingerprint, instance/proxy fingerprints, and validation status
+- ``TIER_METADATA_{site}_{tier}.json`` — provenance for each validated tier artifact, including prompt hash, validation command, sandbox model, benchmark content fingerprint, instance/proxy fingerprints, artifact hash, required sidecar list, and sidecar hashes when applicable
 - ``DATA_MODEL_EVIDENCE_{site}.json`` — Path B evidence sidecar mapping data-model entity/field/storage claims to source files or fixture/schema/controller evidence
 - ``SURFACE_DRAFT_{site}.json``, ``TASK_COVERAGE_DRAFT_{site}.json``, ``LIVE_VERIFICATION_NOTES_{site}.json`` — Tier 2 checkpoint artifacts for audit/debugging only; downstream phases consume only the final ``INJECTION_SURFACE_{site}.json``
 - ``PHASE_0C_TRACE.jsonl`` and ``PHASE_0C_TIMINGS.json`` — run-level provenance and timing artifacts. These are observational and must not gate profile publication or downstream eligibility.
