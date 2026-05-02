@@ -195,7 +195,7 @@ print(base64.b64encode(json.dumps(payload).encode()).decode())
 PY
 )"
 
-rj_ssh_bash "$REMOTE_DIR" "$JOB_ID" "$NAME" "$HOST_CONFIG" "$STATE_DIR_MODE" "$STATE_DIR_VALUE" "$EXPECTED_B64" "$LOCAL_META_B64" "$COMMAND_ENVELOPE_B64" "$ORIGINAL_COMMAND_B64" <<'REMOTE'
+rj_ssh_bash "$REMOTE_DIR" "$JOB_ID" "$NAME" "$HOST_CONFIG" "$STATE_DIR_MODE" "$STATE_DIR_VALUE" "$EXPECTED_B64" "$LOCAL_META_B64" "$COMMAND_ENVELOPE_B64" "$ORIGINAL_COMMAND_B64" "$RJ_ADVERTISE_HOST" "$RJ_ORCHESTRATOR_HOST" <<'REMOTE'
 set -euo pipefail
 
 remote_dir="$1"
@@ -208,11 +208,13 @@ expected_b64="$7"
 local_meta_b64="$8"
 command_envelope_b64="$9"
 original_command_b64="${10}"
+advertise_host="${11}"
+orchestrator_host="${12}"
 
 job_dir="$remote_dir/logs/remote_jobs/$job_id"
 mkdir -p "$job_dir"
 
-python3 - "$job_dir" "$remote_dir" "$job_id" "$name" "$host_config" "$state_dir_mode" "$state_dir_value" "$expected_b64" "$local_meta_b64" "$command_envelope_b64" "$original_command_b64" <<'PY'
+python3 - "$job_dir" "$remote_dir" "$job_id" "$name" "$host_config" "$state_dir_mode" "$state_dir_value" "$expected_b64" "$local_meta_b64" "$command_envelope_b64" "$original_command_b64" "$advertise_host" "$orchestrator_host" <<'PY'
 import base64
 import hashlib
 import json
@@ -233,6 +235,8 @@ expected_outputs = json.loads(base64.b64decode(sys.argv[8]).decode())
 local_meta = json.loads(base64.b64decode(sys.argv[9]).decode())
 command_envelope = json.loads(base64.b64decode(sys.argv[10]).decode())
 original_argv = json.loads(base64.b64decode(sys.argv[11]).decode())
+advertise_host = sys.argv[12]
+orchestrator_host = sys.argv[13]
 if isinstance(command_envelope, list):
     argv = command_envelope
     command_execution = {
@@ -300,6 +304,10 @@ metadata = {
         "dirty": bool(git_value(["status", "--porcelain"])),
     },
     "remote_sync_stamp": read_json(remote_dir / ".worldsim_sync_stamp.json"),
+    "remote_host_access": {
+        "advertise_host": advertise_host,
+        "orchestrator_host": orchestrator_host,
+    },
 }
 (job_dir / "metadata.json").write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 (job_dir / "stdout.log").touch()
@@ -336,6 +344,8 @@ def write_json(path, payload):
 env = os.environ.copy()
 env["WORLDSIM_REMOTE_JOB_ID"] = {job_id!r}
 env["WORLDSIM_REMOTE_JOB_DIR"] = str(job_dir)
+env["WORLDSIM_ADVERTISE_HOST"] = {advertise_host!r}
+env["WORLDSIM_ORCHESTRATOR_HOST"] = {orchestrator_host!r}
 if state_dir:
     env["WORLDSIM_STATE_DIR"] = state_dir
 

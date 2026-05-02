@@ -45,3 +45,21 @@ def parse_supported_db_connection(
         raise ValueError(f"{purpose} must include a database name in the path")
 
     return parsed
+
+
+def replace_db_host(db_connection: str, host: str) -> str:
+    """Return ``db_connection`` with only the network host replaced."""
+
+    parsed = urllib.parse.urlparse(db_connection)
+    if not parsed.scheme or not parsed.netloc or not host:
+        return db_connection
+    auth = ""
+    if parsed.username:
+        auth = urllib.parse.quote(parsed.username)
+        if parsed.password:
+            auth += f":{urllib.parse.quote(parsed.password)}"
+        auth += "@"
+    netloc = f"{auth}{host}"
+    if parsed.port is not None:
+        netloc = f"{netloc}:{parsed.port}"
+    return urllib.parse.urlunparse(parsed._replace(netloc=netloc))

@@ -186,6 +186,7 @@ print("updated remote .env keys: OPENROUTER_API_KEY")
     )
 
     env = _base_env(repo_root, tmp_path)
+    env.pop("OPENROUTER_API_KEY", None)
     env["REMOTE_JOBS_SSH_BIN"] = str(fakebin / "ssh")
 
     completed = subprocess.run(
@@ -438,6 +439,62 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
 
     assert completed.returncode == 0, completed.stderr
     assert "instance-topology guard blocked" not in completed.stderr
+
+
+def test_start_exports_orchestrator_host_to_remote_job_env(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _remote_direct_host_config_with_orchestrator(tmp_path)
+    remote_dir = tmp_path / "remote" / "browser-sim"
+    remote_dir.mkdir(parents=True)
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    _write_executable(
+        fakebin / "ssh",
+        """#!/usr/bin/env python3
+import subprocess
+import sys
+
+args = sys.argv[1:]
+remote_cmd = args[-1]
+raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).returncode)
+""",
+    )
+
+    env = _base_env(repo_root, tmp_path)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+            "--name",
+            "env export",
+            "--",
+            "python3",
+            "-c",
+            (
+                "import os, pathlib; "
+                "pathlib.Path('orchestrator_env.txt').write_text("
+                "os.environ.get('WORLDSIM_ORCHESTRATOR_HOST', ''))"
+            ),
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    output = remote_dir / "orchestrator_env.txt"
+    for _ in range(50):
+        if output.exists():
+            break
+        time.sleep(0.05)
+    assert output.read_text() == "172.17.0.1"
 
 
 def test_start_rejects_chained_phase1_novel_without_benchmark(

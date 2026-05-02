@@ -1640,7 +1640,11 @@ def _enrich_reddit_profile_with_forums(
     )
 
     try:
-        inventory = enrich_reddit_forums(instance.site_url, instance.db_connection)
+        inventory = enrich_reddit_forums(
+            instance.site_url,
+            instance.db_connection,
+            runtime_db_host=_host_side_runtime_db_host(),
+        )
     except RedditInventoryEnrichmentError as exc:
         logger.warning(
             "Phase 0c: reddit forum enrichment for site %r failed: %s",
@@ -1662,6 +1666,23 @@ def _enrich_reddit_profile_with_forums(
         len(forums),
     )
     return merge_reddit_inventory_into_profile(profile, inventory)
+
+
+def _host_side_runtime_db_host() -> str | None:
+    """Return an optional host-local DB hostname for Phase 0c enrichment.
+
+    Modal receives public/proxied web URLs for Phase 0c live browsing, but the
+    Reddit inventory DB query runs in the orchestrator process. Registered r5
+    jobs export ``WORLDSIM_ORCHESTRATOR_HOST`` so this host-side query can use
+    the same local network view as Phase 2c/4 instead of trying to hairpin
+    through the public EC2 address.
+    """
+
+    for name in ("WORLDSIM_ORCHESTRATOR_HOST", "WORLDSIM_REMOTE_ORCHESTRATOR_HOST"):
+        value = os.environ.get(name)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
 
 
 def _validate_manifest_eval_types(

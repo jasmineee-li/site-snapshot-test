@@ -308,33 +308,12 @@ def _reddit_forum_examples(placeholder: str, profile: Mapping[str, Any]) -> list
         candidates = list(available_forums)
         allow_id_as_forum_id = True
     else:
-        forum_samples = [
-            sample
-            for sample in _data_model_sample_values(
-                profile, ("forum", "forums", "subreddit", "subreddits", "community", "communities")
-            )
-            if sample.get("id") not in (None, "")
-        ]
-        # Submission samples are acceptable as a fallback because they describe
-        # an observed routed post. Bare Forum samples are not: profiles may
-        # contain human-readable or stale forum labels that 404 as `/f/{name}`.
-        if forum_samples:
-            candidates = forum_samples
-            allow_id_as_forum_id = True
-        else:
-            candidates = [
-                sample
-                for sample in _data_model_sample_values(
-                    profile,
-                    ("forum", "forums", "subreddit", "subreddits", "community", "communities"),
-                )
-                if _structured_reddit_forum_sample_has_slug_name(sample)
-            ]
-            allow_id_as_forum_id = False
-            if not candidates:
-                candidates = _data_model_sample_values(
-                    profile, ("submission", "submissions", "post", "posts")
-                )
+        # Inventory-backed forum listing routes need live-reachable forum
+        # anchors. If Phase 0c DB enrichment is unavailable, accept only
+        # samples that carry explicit routed URL evidence. Static data-model
+        # Forum rows can include stale slugs that 404 on the live scale pool.
+        candidates = _routed_reddit_forum_samples(profile)
+        allow_id_as_forum_id = False
     for sample in candidates:
         forum_name = (
             sample.get("forum_name")
@@ -364,6 +343,49 @@ def _reddit_forum_examples(placeholder: str, profile: Mapping[str, Any]) -> list
             example["forum_id"] = str(forum_id).strip()
         examples.append(example)
     return examples
+
+
+def _routed_reddit_forum_samples(profile: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    samples = [
+        *_data_model_sample_values(
+            profile, ("forum", "forums", "subreddit", "subreddits", "community", "communities")
+        ),
+        *_data_model_sample_values(profile, ("submission", "submissions", "post", "posts")),
+    ]
+    routed: list[Mapping[str, Any]] = []
+    for sample in samples:
+        forum_name = _reddit_forum_name_from_routed_sample(sample)
+        if not forum_name:
+            continue
+        merged = dict(sample)
+        merged["forum_name"] = forum_name
+        routed.append(merged)
+    return routed
+
+
+def _reddit_forum_name_from_routed_sample(sample: Mapping[str, Any]) -> str:
+    for key in ("start_url", "url", "permalink", "path", "location_page"):
+        value = sample.get(key)
+        if not isinstance(value, str) or not value.strip():
+            continue
+        forum_name = _reddit_forum_name_from_route_path(value)
+        if forum_name:
+            return forum_name
+    return ""
+
+
+def _reddit_forum_name_from_route_path(value: str) -> str:
+    raw = value.strip()
+    if not raw:
+        return ""
+    if raw.startswith("__REDDIT__/"):
+        raw = raw[len("__REDDIT__") :]
+    elif "://" in raw:
+        raw = urlsplit(raw).path
+    match = re.search(r"(?:^|/)f/([^/?#]+)", raw.strip())
+    if not match:
+        return ""
+    return _normalize_reddit_forum_name(match.group(1))
 
 
 def _available_entity_records(
@@ -398,14 +420,11 @@ def _normalize_reddit_forum_name(value: Any) -> str:
 
 
 def _structured_reddit_forum_sample_has_slug_name(sample: Mapping[str, Any]) -> bool:
-    """Return whether a Forum sample carries a routable slug-like ``name``.
+    """Return whether a Forum sample carries a slug-like ``name``.
 
-    Phase 0c DB enrichment normally populates ``available_entities.forums``.
-    When that live DB path is unavailable, the profile's data-model samples may
-    still contain Postmill Forum rows where ``name`` is the route slug and
-    ``title``/``description`` are display metadata. Accept those structured
-    rows, but keep rejecting bare name-only strings because old profiles have
-    mixed route slugs with human labels.
+    Kept for profile diagnostics. Route contracts do not treat this as
+    inventory evidence by itself because live runs showed structured
+    data-model Forum rows can still be stale.
     """
 
     name = sample.get("name") or sample.get("slug")

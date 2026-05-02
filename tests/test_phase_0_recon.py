@@ -138,7 +138,7 @@ def test_enrich_reddit_profile_with_forums_merges_live_inventory(monkeypatch):
 
     monkeypatch.setattr(
         "worldsim.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
-        lambda site_url, db_connection: {
+        lambda site_url, db_connection, **kwargs: {
             "forums": [{"id": "1", "name": "books", "title": "Books"}]
         },
     )
@@ -154,6 +154,45 @@ def test_enrich_reddit_profile_with_forums_merges_live_inventory(monkeypatch):
     ]
 
 
+def test_enrich_reddit_profile_with_forums_passes_remote_runtime_db_host(monkeypatch):
+    instance = BenchmarkInstance(
+        site_name="reddit",
+        site_url="http://reddit.local",
+        db_connection="postgresql://u:p@3.12.221.9:5434/postmill",
+    )
+    calls: list[dict] = []
+
+    def fake_enrich(site_url, db_connection, **kwargs):
+        calls.append(
+            {
+                "site_url": site_url,
+                "db_connection": db_connection,
+                "runtime_db_host": kwargs.get("runtime_db_host"),
+            }
+        )
+        return {"forums": [{"id": "1", "name": "books", "title": "Books"}]}
+
+    monkeypatch.setenv("WORLDSIM_ORCHESTRATOR_HOST", "172.17.0.1")
+    monkeypatch.setattr(
+        "worldsim.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
+        fake_enrich,
+    )
+
+    phase_0_recon._enrich_reddit_profile_with_forums(
+        site_name="reddit",
+        profile={"site_name": "reddit"},
+        instance=instance,
+    )
+
+    assert calls == [
+        {
+            "site_url": "http://reddit.local",
+            "db_connection": "postgresql://u:p@3.12.221.9:5434/postmill",
+            "runtime_db_host": "172.17.0.1",
+        }
+    ]
+
+
 def test_enrich_reddit_profile_with_forums_falls_back_on_failure(monkeypatch):
     instance = BenchmarkInstance(
         site_name="reddit",
@@ -163,7 +202,7 @@ def test_enrich_reddit_profile_with_forums_falls_back_on_failure(monkeypatch):
 
     from worldsim.phases.phase_0c_reddit_enrichment import RedditInventoryEnrichmentError
 
-    def fail(site_url, db_connection):
+    def fail(site_url, db_connection, **kwargs):
         raise RedditInventoryEnrichmentError("boom")
 
     monkeypatch.setattr(

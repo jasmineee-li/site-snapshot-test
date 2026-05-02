@@ -45,6 +45,14 @@ Phase 2c/4 and wrong for Modal Phase 0c. `instances.smoke.json` is correct for
 Modal Phase 0c and wrong for on-host Phase 2c/4 unless regenerated for the
 host's `orchestrator_host`.
 
+Phase 0c has one mixed-locality edge case: its browser probes run in Modal, but
+host-side inventory enrichment, such as Reddit forum DB enumeration, runs in
+the detached orchestrator process. Registered remote jobs export
+`WORLDSIM_ORCHESTRATOR_HOST` so those host-side DB queries use the r5-local
+network view even when the Phase 0c web URL is public/proxied. If enrichment
+falls back to static profile samples, treat any later source-data 404s as stale
+inventory evidence, not as a carrier-render verdict.
+
 On r5, also treat the benchmark source path as host-local. `sync_to_r5.sh`
 intentionally excludes repo-local `vendors/`, so
 `/home/ubuntu/browser-sim/vendors/webarena-verified` may be stale or incomplete.

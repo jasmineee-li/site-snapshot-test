@@ -6,6 +6,7 @@ import pytest
 
 from worldsim.phases.phase_0c_reddit_enrichment import (
     RedditInventoryEnrichmentError,
+    _db_connection_candidates,
     _read_forum_rows,
     enrich_reddit_forums,
     merge_reddit_inventory_into_profile,
@@ -64,6 +65,44 @@ def test_enrich_reddit_forums_encodes_forum_paths() -> None:
 def test_enrich_reddit_forums_requires_db_connection() -> None:
     with pytest.raises(RedditInventoryEnrichmentError, match="db_connection is required"):
         enrich_reddit_forums("http://reddit.local", None)
+
+
+def test_enrich_reddit_forums_prefers_runtime_db_host_for_host_side_inventory() -> None:
+    rows = [{"id": 1, "name": "books", "title": "Books"}]
+    seen_connections: list[str] = []
+
+    def fake_read_forum_rows(db_connection: str):
+        seen_connections.append(db_connection)
+        return rows
+
+    with (
+        patch(
+            "worldsim.phases.phase_0c_reddit_enrichment._read_forum_rows",
+            side_effect=fake_read_forum_rows,
+        ),
+        patch("worldsim.phases.phase_0c_reddit_enrichment.requests.get") as mock_get,
+    ):
+        mock_get.return_value = _response(200)
+        result = enrich_reddit_forums(
+            "http://reddit.local",
+            "postgresql://postmill:postmill@3.12.221.9:5434/postmill",
+            runtime_db_host="172.17.0.1",
+        )
+
+    assert seen_connections == [
+        "postgresql://postmill:postmill@172.17.0.1:5434/postmill"
+    ]
+    assert result["forums"] == [{"id": "1", "name": "books", "title": "Books"}]
+
+
+def test_db_connection_candidates_fall_back_to_original_after_runtime_host() -> None:
+    assert _db_connection_candidates(
+        "postgresql://u:p@3.12.221.9:5434/postmill",
+        "172.17.0.1",
+    ) == [
+        "postgresql://u:p@172.17.0.1:5434/postmill",
+        "postgresql://u:p@3.12.221.9:5434/postmill",
+    ]
 
 
 def test_read_forum_rows_wraps_connection_failures() -> None:

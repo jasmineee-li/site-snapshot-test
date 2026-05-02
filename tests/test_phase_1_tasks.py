@@ -130,6 +130,7 @@ def _add_reddit_submission_sample(profile: dict) -> None:
                     "forum_name": "books",
                     "submission_id": "119",
                     "title": "Inventory backed post",
+                    "url": "__REDDIT__/f/books/119",
                 }
             ],
         }
@@ -2805,6 +2806,12 @@ def test_build_task_route_contracts_uses_available_reddit_forums_without_submiss
 def test_build_task_route_contracts_handles_phase0_reddit_feed_ids_and_capitalized_entities():
     profile = _profile(uncovered=[])
     profile["site_name"] = "reddit"
+    profile["available_entities"] = {
+        "forums": [
+            {"id": 10007, "name": "DIY", "title": "DIY"},
+            {"id": 10037, "name": "books", "title": "books"},
+        ]
+    }
     profile["data_model"] = [
         {
             "entity": "Forum",
@@ -2865,7 +2872,7 @@ def test_build_task_route_contracts_handles_phase0_reddit_feed_ids_and_capitaliz
     ]
 
 
-def test_build_task_route_contracts_uses_structured_reddit_forum_names_without_ids():
+def test_build_task_route_contracts_rejects_structured_reddit_forum_names_without_inventory():
     profile = _profile(uncovered=[])
     profile["site_name"] = "reddit"
     profile["data_model"] = [
@@ -2903,17 +2910,7 @@ def test_build_task_route_contracts_uses_structured_reddit_forum_names_without_i
         )["route_families"]
     }
 
-    route = routes["reddit.submission_title.reddit_forum.create_submission_title"]
-    assert route["anchor_examples"] == [
-        {
-            "forum_name": "books",
-            "start_url": "__REDDIT__/f/books",
-        },
-        {
-            "forum_name": "DIY",
-            "start_url": "__REDDIT__/f/DIY",
-        },
-    ]
+    assert "reddit.submission_title.reddit_forum.create_submission_title" not in routes
 
 
 def test_build_task_route_contracts_rejects_bare_reddit_forum_names_as_inventory():
@@ -2945,7 +2942,7 @@ def test_build_task_route_contracts_rejects_bare_reddit_forum_names_as_inventory
     assert "reddit.submission_title.reddit_forum.create_submission_title" not in routes
 
 
-def test_build_task_route_contracts_uses_textual_submission_forum_id_as_reddit_slug():
+def test_build_task_route_contracts_uses_routed_submission_urls_as_reddit_forum_evidence():
     profile = _profile(uncovered=[])
     profile["site_name"] = "reddit"
     profile["data_model"] = [
@@ -2956,11 +2953,13 @@ def test_build_task_route_contracts_uses_textual_submission_forum_id_as_reddit_s
                     "id": 59421,
                     "title": "Post in books forum",
                     "forum_id": "books",
+                    "url": "__REDDIT__/f/books/59421",
                 },
                 {
                     "id": 119019,
                     "title": "HDMI routing question",
                     "forum_id": "DIY",
+                    "url": "https://reddit.local/f/DIY/119019",
                 },
                 {
                     "id": 999,
@@ -3008,12 +3007,12 @@ def test_build_task_route_contracts_normalizes_reddit_submission_forum_anchor():
                 {
                     "id": 119,
                     "title": "Inventory backed post",
-                    "forum_name": "__REDDIT__/f/books",
+                    "url": "__REDDIT__/f/books/119",
                 },
                 {
                     "id": 120,
                     "title": "Full URL forum path",
-                    "forum_name": "https://reddit.local/f/DIY/120",
+                    "url": "https://reddit.local/f/DIY/120",
                 },
                 {
                     "id": 121,

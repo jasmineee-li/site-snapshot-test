@@ -84,6 +84,8 @@ if not host:
 
 out = {
     "RJ_HOST_IP": host,
+    "RJ_ADVERTISE_HOST": values.get("advertise_host") or host,
+    "RJ_ORCHESTRATOR_HOST": values.get("orchestrator_host") or host,
     "RJ_SSH_USER": values.get("ssh_user") or "ubuntu",
     "RJ_COMPOSE_DIR_REMOTE": values.get("compose_dir_remote") or "/home/ubuntu",
 }

@@ -16,6 +16,7 @@ from urllib.parse import quote
 
 import requests
 
+from worldsim.db_urls import replace_db_host
 from worldsim.seeding import (
     _configure_read_only_connection,
     _connect_db,
@@ -38,6 +39,7 @@ def enrich_reddit_forums(
     site_url: str,
     db_connection: str | None,
     *,
+    runtime_db_host: str | None = None,
     timeout: int = _TIMEOUT_SECONDS,
 ) -> dict[str, list[dict[str, str]]]:
     """Return live-reachable Reddit/Postmill forums from the benchmark instance."""
@@ -48,7 +50,18 @@ def enrich_reddit_forums(
             "db_connection is required for reddit forum enrichment"
         )
 
-    rows = _read_forum_rows(db_connection)
+    errors: list[str] = []
+    rows: list[dict[str, Any]] | None = None
+    for candidate in _db_connection_candidates(db_connection, runtime_db_host):
+        try:
+            rows = _read_forum_rows(candidate)
+            break
+        except RedditInventoryEnrichmentError as exc:
+            errors.append(str(exc))
+    if rows is None:
+        detail = "; ".join(errors) if errors else "no DB connection candidates"
+        raise RedditInventoryEnrichmentError(detail)
+
     forums: list[dict[str, str]] = []
     seen: set[str] = set()
     base = site_url.rstrip("/")
@@ -66,6 +79,35 @@ def enrich_reddit_forums(
                 forum[key] = str(value).strip()
         forums.append(forum)
     return {"forums": forums}
+
+
+def _db_connection_candidates(
+    db_connection: str,
+    runtime_db_host: str | None,
+) -> list[str]:
+    """Return DB connection strings in preferred host-local order.
+
+    Phase 0c's browser probes run in Modal and need externally reachable web
+    URLs, but this DB inventory enrichment runs on the orchestrator host. On r5
+    that host cannot hairpin to its public EC2 IP, so remote jobs export the
+    host-local orchestrator address and we try that first.
+    """
+
+    candidates: list[str] = []
+    host = str(runtime_db_host or "").strip()
+    if host:
+        rewritten = replace_db_host(db_connection, host)
+        if rewritten != db_connection:
+            candidates.append(rewritten)
+    candidates.append(db_connection)
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        deduped.append(candidate)
+    return deduped
 
 
 def merge_reddit_inventory_into_profile(
