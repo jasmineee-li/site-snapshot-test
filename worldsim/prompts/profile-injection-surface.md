@@ -260,7 +260,8 @@ it in a shell variable for reuse.
 - `LIVE_VERIFICATION_NOTES.json` should contain
   `{ "site_name": "{site_name}", "requests": [...], "corrections": [...], "limitations": [...] }`.
   Each request entry should include the `/workspace/verify_http.py` JSON result
-  or the reason probing was skipped.
+  or the reason probing was skipped. Do not copy proxy tokens into this file;
+  summarize auth as present or absent instead of recording raw header values.
 
 ## Validation rules
 

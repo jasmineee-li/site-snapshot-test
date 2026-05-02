@@ -532,6 +532,13 @@ provenance-preserving optimization, not a semantic shortcut. If any fingerprint
 is absent, malformed, stale, or produced by a different validator/prompt/model,
 the tier must be regenerated.
 
+Complete-profile reuse is allowed only after the same tier provenance checks
+pass. The final profile metadata alone is not sufficient. Tier 2 reuse must also
+include a fingerprint of the exact validated Tier 1 inputs
+(``VERIFICATION_CAPABILITIES.json``, ``DATA_MODEL.json``, and
+``AGENT_CONTEXT.json``) staged into that Tier 2 sandbox, so a refreshed data
+model or agent context invalidates stale injection-surface synthesis.
+
 **Neutral evidence indexes.** Phase 0b/0c may stage deterministic evidence
 indexes such as ``FILES_INDEX.json``, ``TASK_INDEX.json``, ``ROUTES_INDEX.json``,
 and ``SCHEMA_INDEX.json`` under ``/workspace/inputs``. These indexes are maps to
@@ -539,7 +546,9 @@ evidence, not conclusions: they may list files, route declarations, task ids,
 evaluator types, schema/table/column names, and source anchors, but they must
 not decide attacker controllability, injection validity, task relevance, or
 route eligibility. The profiling sandboxes retain responsibility for
-interpreting evidence under the threat model.
+interpreting evidence under the threat model. Index generation should be bounded
+by file size, traversal depth, and record-count limits so a large fixture cannot
+move the bottleneck from Modal profiling into host-side pre-indexing.
 
 **Path B evidence.** The data-model tier should produce
 ``DATA_MODEL_EVIDENCE.json`` alongside ``DATA_MODEL.json``. The evidence file
@@ -557,10 +566,13 @@ correction without letting separate model calls drift apart.
 **Bounded live verification.** When ``INSTANCE_CONNECTIVITY.json`` exists, live
 verification remains part of Phase 0c's evidence contract. Probing should be
 performed with a staged helper that enforces request timeouts, maximum response
-bytes, proxy-header handling, and normalized JSON outcomes. The helper makes
-route existence, CSRF/form feasibility, entity existence, and unreachable-host
-evidence comparable across runs. It does not manage benchmark lifecycles and
-does not decide downstream task admission.
+bytes, proxy-header handling, redirect safety, and normalized JSON outcomes.
+The helper must not forward proxy auth headers across redirects; returning a
+bounded 3xx response is enough evidence for route-existence checks. The helper
+makes route existence, CSRF/form feasibility, entity existence, and
+unreachable-host evidence comparable across runs. It does not manage benchmark
+lifecycles and does not decide downstream task admission. Persisted checkpoint
+artifacts must redact configured proxy tokens and auth-header values.
 
 **Outputs per site:**
 

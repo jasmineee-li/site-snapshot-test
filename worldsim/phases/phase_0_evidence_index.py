@@ -8,9 +8,18 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
-from worldsim.phases.phase_0c_artifacts import file_sha256, write_json_atomic
+from worldsim.phases.phase_0c_artifacts import (
+    file_sha256,
+    hash_file_records,
+    hash_json,
+    write_json_atomic,
+)
 
 _ROUTE_LITERAL = re.compile(r"""["'](/[A-Za-z0-9_./{}:$<>\-\[\]]{1,180})["']""")
+_MAX_TASK_RECORDS = 1000
+_MAX_JSON_TASK_BYTES = 2 * 1024 * 1024
+_MAX_JSON_WALK_NODES = 5000
+_MAX_JSON_WALK_DEPTH = 12
 _TASK_KEY_HINTS = frozenset(
     {
         "task",
@@ -65,14 +74,30 @@ def build_phase_0c_evidence_indexes(
     Phase 0c prompts can cite evidence without making the host code pre-decide
     the research answer.
     """
-    output_dir.mkdir(parents=True, exist_ok=True)
+    artifacts = build_phase_0c_evidence_payloads(
+        file_list=file_list,
+        benchmark_root=benchmark_root,
+        manifest=manifest,
+        site_name=site_name,
+    )
+    return write_phase_0c_evidence_indexes(artifacts, output_dir=output_dir)
+
+
+def build_phase_0c_evidence_payloads(
+    *,
+    file_list: Iterable[str],
+    benchmark_root: Path,
+    manifest: Mapping[str, Any],
+    site_name: str,
+) -> dict[str, object]:
+    """Build neutral evidence payloads without writing them to disk."""
     root = Path(benchmark_root).resolve()
     files = _indexed_files(file_list, root)
     routes = _route_candidates(files, root)
     tasks = _task_candidates(files, root, manifest)
     manifest_slice = _manifest_slice(manifest, site_name)
 
-    artifacts = {
+    return {
         "FILES_INDEX.json": {
             "schema_version": 1,
             "site_name": site_name,
@@ -95,12 +120,34 @@ def build_phase_0c_evidence_indexes(
         },
     }
 
+
+def write_phase_0c_evidence_indexes(
+    artifacts: Mapping[str, object],
+    *,
+    output_dir: Path,
+) -> dict[str, str]:
+    """Write prebuilt evidence indexes and return sandbox route mappings."""
+    output_dir.mkdir(parents=True, exist_ok=True)
     routed: dict[str, str] = {}
     for filename, payload in artifacts.items():
         path = output_dir / filename
         write_json_atomic(path, payload)
         routed[f"/workspace/inputs/{filename}"] = str(path)
     return routed
+
+
+def hash_phase_0c_evidence_payloads(artifacts: Mapping[str, object]) -> str:
+    """Hash evidence payloads without depending on temp paths or formatting."""
+    return hash_json({filename: artifacts[filename] for filename in sorted(artifacts)})
+
+
+def benchmark_digest_from_evidence_payloads(artifacts: Mapping[str, object]) -> str:
+    """Return the benchmark content digest from FILES_INDEX records."""
+    files_index = artifacts.get("FILES_INDEX.json")
+    if not isinstance(files_index, Mapping):
+        return hash_json([])
+    files = files_index.get("files")
+    return hash_file_records(files if isinstance(files, list) else [])
 
 
 def _indexed_files(file_list: Iterable[str], benchmark_root: Path) -> list[dict[str, Any]]:
@@ -160,18 +207,33 @@ def _task_candidates(
     records: list[dict[str, Any]] = []
     records.extend(_task_candidates_from_manifest(manifest))
     for record in files:
+        if len(records) >= _MAX_TASK_RECORDS:
+            break
         rel = str(record["path"])
         suffix = str(record.get("suffix") or "")
         if suffix not in {".json", ".jsonl"}:
             continue
         path = benchmark_root / rel
         if suffix == ".json":
+            if int(record.get("size_bytes") or 0) > _MAX_JSON_TASK_BYTES:
+                records.append(
+                    {
+                        "source": rel,
+                        "skipped": "json_file_too_large_for_task_index",
+                        "size_bytes": record.get("size_bytes"),
+                    }
+                )
+                continue
             payload = _read_json(path)
             if payload is not None:
-                records.extend(_extract_task_like_records(payload, source=rel))
+                remaining = max(0, _MAX_TASK_RECORDS - len(records))
+                records.extend(
+                    _extract_task_like_records(payload, source=rel, limit=remaining)
+                )
         else:
-            records.extend(_jsonl_task_records(path, source=rel))
-    return records[:1000]
+            remaining = max(0, _MAX_TASK_RECORDS - len(records))
+            records.extend(_jsonl_task_records(path, source=rel, limit=remaining))
+    return records[:_MAX_TASK_RECORDS]
 
 
 def _task_candidates_from_manifest(manifest: Mapping[str, Any]) -> list[dict[str, Any]]:
@@ -202,8 +264,15 @@ def _manifest_slice(manifest: Mapping[str, Any], site_name: str) -> dict[str, An
     }
 
 
-def _extract_task_like_records(payload: object, *, source: str) -> list[dict[str, Any]]:
+def _extract_task_like_records(
+    payload: object,
+    *,
+    source: str,
+    limit: int = _MAX_TASK_RECORDS,
+) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
+    if limit <= 0:
+        return records
     for path, value in _walk_json(payload):
         if not isinstance(value, Mapping):
             continue
@@ -217,11 +286,20 @@ def _extract_task_like_records(payload: object, *, source: str) -> list[dict[str
         }
         if compact:
             records.append({"source": source, "json_path": path, "fields": compact})
+            if len(records) >= limit:
+                break
     return records
 
 
-def _jsonl_task_records(path: Path, *, source: str) -> list[dict[str, Any]]:
+def _jsonl_task_records(
+    path: Path,
+    *,
+    source: str,
+    limit: int = _MAX_TASK_RECORDS,
+) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
+    if limit <= 0:
+        return records
     try:
         with path.open(encoding="utf-8") as handle:
             for index, line in enumerate(handle, start=1):
@@ -231,10 +309,14 @@ def _jsonl_task_records(path: Path, *, source: str) -> list[dict[str, Any]]:
                     payload = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-                for item in _extract_task_like_records(payload, source=source):
+                for item in _extract_task_like_records(
+                    payload,
+                    source=source,
+                    limit=limit - len(records),
+                ):
                     item["line"] = index
                     records.append(item)
-                if len(records) >= 200:
+                if len(records) >= limit:
                     break
     except OSError:
         return []
@@ -242,13 +324,21 @@ def _jsonl_task_records(path: Path, *, source: str) -> list[dict[str, Any]]:
 
 
 def _walk_json(payload: object, path: str = "$") -> Iterable[tuple[str, object]]:
-    yield path, payload
-    if isinstance(payload, Mapping):
-        for key, value in payload.items():
-            yield from _walk_json(value, f"{path}.{key}")
-    elif isinstance(payload, list):
-        for index, value in enumerate(payload):
-            yield from _walk_json(value, f"{path}[{index}]")
+    seen = 0
+    stack: list[tuple[str, object, int]] = [(path, payload, 0)]
+    while stack and seen < _MAX_JSON_WALK_NODES:
+        current_path, current, depth = stack.pop()
+        seen += 1
+        yield current_path, current
+        if depth >= _MAX_JSON_WALK_DEPTH:
+            continue
+        if isinstance(current, Mapping):
+            for key, value in reversed(list(current.items())):
+                stack.append((f"{current_path}.{key}", value, depth + 1))
+        elif isinstance(current, list):
+            for index in range(len(current) - 1, -1, -1):
+                stack.append((f"{current_path}[{index}]", current[index], depth + 1))
+    return
 
 
 def _is_compact_json_value(value: object) -> bool:

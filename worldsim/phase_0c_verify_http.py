@@ -8,6 +8,7 @@ import json
 import time
 import urllib.error
 import urllib.request
+import urllib.response
 from collections.abc import Iterable
 from typing import Any
 
@@ -36,12 +37,13 @@ def verify_http(
     )
     started = time.monotonic()
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with _NO_REDIRECT_OPENER.open(request, timeout=timeout) as response:
             body_bytes = response.read(max(0, max_bytes))
+            status = getattr(response, "status", response.getcode())
             return _record(
                 url=url,
                 method=method,
-                status=response.status,
+                status=status,
                 outcome="ok",
                 elapsed=time.monotonic() - started,
                 body=body_bytes,
@@ -105,6 +107,28 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(json.dumps(result, sort_keys=True))
     return 0
+
+
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Return 3xx responses as evidence instead of following them with secrets."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+    def http_error_301(self, req, fp, code, msg, headers):
+        return _redirect_response(req, fp, code, msg, headers)
+
+    http_error_302 = http_error_301
+    http_error_303 = http_error_301
+    http_error_307 = http_error_301
+    http_error_308 = http_error_301
+
+
+def _redirect_response(req, fp, code, msg, headers):
+    return urllib.response.addinfourl(fp, headers, req.full_url, code)
+
+
+_NO_REDIRECT_OPENER = urllib.request.build_opener(_NoRedirectHandler)
 
 
 def _parse_headers(headers: Iterable[str]) -> dict[str, str]:

@@ -44,13 +44,17 @@ from worldsim.modal_sandbox import (
     run_claude_in_sandbox,
     upload_to_volume,
 )
-from worldsim.phases.phase_0_evidence_index import build_phase_0c_evidence_indexes
+from worldsim.phases.phase_0_evidence_index import (
+    benchmark_digest_from_evidence_payloads,
+    build_phase_0c_evidence_payloads,
+    hash_phase_0c_evidence_payloads,
+    write_phase_0c_evidence_indexes,
+)
 from worldsim.phases.phase_0c_artifacts import (
     Phase0cTraceWriter,
     build_tier_metadata,
     file_sha256,
-    hash_file_list,
-    hash_routed_inputs,
+    hash_json,
     load_reusable_tier_output,
     phase_0c_timings_path,
     profile_metadata_path,
@@ -70,6 +74,12 @@ logger = logging.getLogger(__name__)
 
 # Maximum number of correction retries for profile validation (initial attempt + this many).
 PROFILE_FIX_MAX_ITERATIONS = 2
+_DATA_MODEL_SIDECARS = ("DATA_MODEL_EVIDENCE",)
+_INJECTION_SURFACE_SIDECARS = (
+    "SURFACE_DRAFT",
+    "TASK_COVERAGE_DRAFT",
+    "LIVE_VERIFICATION_NOTES",
+)
 
 
 def _write_text_atomic(path: Path, text: str) -> None:
@@ -327,6 +337,15 @@ def _verification_proxy_metadata(
     }
 
 
+def _phase_0c_redact_values(verification_proxy: VerificationProxy | None) -> tuple[str, ...]:
+    if verification_proxy is None:
+        return ()
+    return (
+        verification_proxy.token,
+        f"X-Worldsim-Token: {verification_proxy.token}",
+    )
+
+
 def _delivery_channel_verification_status(channel: object) -> tuple[str, str | None]:
     if not isinstance(channel, dict):
         return "malformed_channel", None
@@ -419,12 +438,13 @@ def _existing_site_outputs_are_reusable(
     output_dir: Path,
     site_name: str,
     benchmark_root: Path,
-    file_list: list[str] | None = None,
     sandbox_model: str,
     manifest_eval_type_set: set[str],
     instance_site_url: str | None,
     host_inventory_instance: BenchmarkInstance | None,
     verification_proxy: VerificationProxy | None,
+    benchmark_digest: str | None = None,
+    evidence_index_digest: str | None = None,
 ) -> bool:
     """Return True only when existing site outputs are complete and match this run."""
     profile_path = output_dir / f"BENCHMARK_PROFILE_{site_name}.json"
@@ -473,8 +493,10 @@ def _existing_site_outputs_are_reusable(
         ),
         "verification_proxy": _verification_proxy_metadata(verification_proxy),
     }
-    if file_list is not None:
-        expected_metadata["benchmark_digest"] = hash_file_list(file_list, benchmark_root)
+    if benchmark_digest is not None:
+        expected_metadata["benchmark_digest"] = benchmark_digest
+    if evidence_index_digest is not None:
+        expected_metadata["evidence_index_digest"] = evidence_index_digest
     for key, expected in expected_metadata.items():
         if metadata.get(key) != expected:
             logger.info(
@@ -483,6 +505,27 @@ def _existing_site_outputs_are_reusable(
                 key,
             )
             return False
+
+    if benchmark_digest is None or evidence_index_digest is None:
+        return False
+
+    if not _existing_site_tiers_are_reusable(
+        output_dir=output_dir,
+        site_name=site_name,
+        profile=profile,
+        benchmark_digest=benchmark_digest,
+        evidence_index_digest=evidence_index_digest,
+        sandbox_model=sandbox_model,
+        manifest_eval_type_set=manifest_eval_type_set,
+        instance_site_url=instance_site_url,
+        host_inventory_instance=host_inventory_instance,
+        verification_proxy=verification_proxy,
+    ):
+        logger.info(
+            "Phase 0c: existing tier provenance for site %r is stale or incomplete, re-profiling",
+            site_name,
+        )
+        return False
 
     try:
         validate_agent_context(agent_context, site_name=site_name)
@@ -500,6 +543,137 @@ def _existing_site_outputs_are_reusable(
         return False
 
     return True
+
+
+def _existing_site_tiers_are_reusable(
+    *,
+    output_dir: Path,
+    site_name: str,
+    profile: dict[str, Any],
+    benchmark_digest: str,
+    evidence_index_digest: str,
+    sandbox_model: str,
+    manifest_eval_type_set: set[str],
+    instance_site_url: str | None,
+    host_inventory_instance: BenchmarkInstance | None,
+    verification_proxy: VerificationProxy | None,
+) -> bool:
+    """Return True only when all tier artifacts match the current provenance contract."""
+    host_inventory_fingerprint = _instance_inventory_fingerprint(host_inventory_instance)
+    proxy_metadata = _verification_proxy_metadata(verification_proxy)
+    verify_caps = load_reusable_tier_output(
+        output_dir=output_dir,
+        site_name=site_name,
+        tier_name="A_VERIFICATION_CAPABILITIES",
+        artifact_stem="VERIFICATION_CAPABILITIES",
+        expected_metadata=_expected_tier_metadata(
+            site_name=site_name,
+            tier_name="A_VERIFICATION_CAPABILITIES",
+            prompt_name="profile-verification-capabilities",
+            validation_command=f"verification-capabilities --site-name {site_name}",
+            output_path="/workspace/output/VERIFICATION_CAPABILITIES.json",
+            sandbox_model=sandbox_model,
+            benchmark_digest=benchmark_digest,
+            manifest_eval_type_set=manifest_eval_type_set,
+            instance_site_url=None,
+            verification_proxy_metadata=None,
+            evidence_index_digest=evidence_index_digest,
+            host_inventory_instance_fingerprint=host_inventory_fingerprint,
+        ),
+        validate_parsed=lambda data: (
+            validate_verification_capabilities(data, site_name=site_name)
+            + _validate_manifest_eval_types(data, manifest_eval_type_set)
+        ),
+    )
+    data_model = load_reusable_tier_output(
+        output_dir=output_dir,
+        site_name=site_name,
+        tier_name="B_DATA_MODEL",
+        artifact_stem="DATA_MODEL",
+        expected_metadata=_expected_tier_metadata(
+            site_name=site_name,
+            tier_name="B_DATA_MODEL",
+            prompt_name="profile-data-model",
+            validation_command=f"data-model --site-name {site_name}",
+            output_path="/workspace/output/DATA_MODEL.json",
+            sandbox_model=sandbox_model,
+            benchmark_digest=benchmark_digest,
+            manifest_eval_type_set=manifest_eval_type_set,
+            instance_site_url=None,
+            verification_proxy_metadata=None,
+            evidence_index_digest=evidence_index_digest,
+            host_inventory_instance_fingerprint=host_inventory_fingerprint,
+            required_sidecars=_DATA_MODEL_SIDECARS,
+        ),
+        validate_parsed=lambda data: validate_data_model_profile(data, site_name=site_name),
+        required_sidecars=_DATA_MODEL_SIDECARS,
+    )
+    agent_context_raw = load_reusable_tier_output(
+        output_dir=output_dir,
+        site_name=site_name,
+        tier_name="C_AGENT_CONTEXT",
+        artifact_stem="AGENT_CONTEXT_RAW",
+        expected_metadata=_expected_tier_metadata(
+            site_name=site_name,
+            tier_name="C_AGENT_CONTEXT",
+            prompt_name="profile-agent-context",
+            validation_command=f"agent-context --site-name {site_name}",
+            output_path="/workspace/output/AGENT_CONTEXT.json",
+            sandbox_model=sandbox_model,
+            benchmark_digest=benchmark_digest,
+            manifest_eval_type_set=manifest_eval_type_set,
+            instance_site_url=None,
+            verification_proxy_metadata=None,
+            evidence_index_digest=evidence_index_digest,
+            host_inventory_instance_fingerprint=host_inventory_fingerprint,
+        ),
+        validate_parsed=lambda data: validate_agent_context(data, site_name=site_name),
+    )
+    if verify_caps is None or data_model is None or agent_context_raw is None:
+        return False
+    tier1_input_hashes = _tier1_input_hashes(
+        verify_caps=verify_caps,
+        data_model=data_model,
+        agent_context=agent_context_raw,
+    )
+    injection_surface = load_reusable_tier_output(
+        output_dir=output_dir,
+        site_name=site_name,
+        tier_name="DE_INJECTION_SURFACE",
+        artifact_stem="INJECTION_SURFACE",
+        expected_metadata=_expected_tier_metadata(
+            site_name=site_name,
+            tier_name="DE_INJECTION_SURFACE",
+            prompt_name="profile-injection-surface",
+            validation_command=f"injection-surface --site-name {site_name}",
+            output_path="/workspace/output/INJECTION_SURFACE.json",
+            sandbox_model=sandbox_model,
+            benchmark_digest=benchmark_digest,
+            manifest_eval_type_set=manifest_eval_type_set,
+            instance_site_url=instance_site_url,
+            verification_proxy_metadata=proxy_metadata,
+            evidence_index_digest=evidence_index_digest,
+            host_inventory_instance_fingerprint=host_inventory_fingerprint,
+            tier_input_hashes=tier1_input_hashes,
+            required_sidecars=_INJECTION_SURFACE_SIDECARS,
+        ),
+        validate_parsed=lambda data: validate_injection_surface(
+            data,
+            site_name=site_name,
+            data_model=data_model,
+            agent_context=agent_context_raw,
+        ),
+        required_sidecars=_INJECTION_SURFACE_SIDECARS,
+    )
+    if injection_surface is None or not isinstance(injection_surface, dict):
+        return False
+    return (
+        profile.get("verification_capabilities") == verify_caps
+        and profile.get("data_model") == data_model
+        and profile.get("injection_surface") == injection_surface.get("injection_surface", [])
+        and profile.get("existing_task_coverage")
+        == injection_surface.get("existing_task_coverage", {})
+    )
 
 
 async def run(
@@ -1105,8 +1279,8 @@ async def run_phase_0c(
         else None
     )
 
-    # Skip sites that already have all outputs on disk (supports re-runs).
-    sites_to_profile = {}
+    # Skip sites that already have all outputs and tier provenance on disk.
+    sites_to_profile: dict[str, dict[str, Any]] = {}
     reachability_records: list[dict[str, Any]] = []
     for name, files in sandbox_map.items():
         normalized_name = normalize_site_name(name)
@@ -1115,11 +1289,20 @@ async def run_phase_0c(
             continue
         instance_site_url = instance_urls.get(normalized_name)
         host_inventory_instance = host_inventory_lookup.get(normalized_name)
+        evidence_payloads = build_phase_0c_evidence_payloads(
+            file_list=files,
+            benchmark_root=benchmark_root,
+            manifest=manifest,
+            site_name=name,
+        )
+        benchmark_digest = benchmark_digest_from_evidence_payloads(evidence_payloads)
+        evidence_index_digest = hash_phase_0c_evidence_payloads(evidence_payloads)
         if _existing_site_outputs_are_reusable(
             output_dir=output_dir,
             site_name=name,
             benchmark_root=benchmark_root,
-            file_list=files,
+            benchmark_digest=benchmark_digest,
+            evidence_index_digest=evidence_index_digest,
             sandbox_model=sandbox_model,
             manifest_eval_type_set=manifest_eval_type_set,
             instance_site_url=instance_site_url,
@@ -1145,7 +1328,12 @@ async def run_phase_0c(
                 )
             )
         else:
-            sites_to_profile[name] = files
+            sites_to_profile[name] = {
+                "files": files,
+                "evidence_payloads": evidence_payloads,
+                "benchmark_digest": benchmark_digest,
+                "evidence_index_digest": evidence_index_digest,
+            }
 
     if not sites_to_profile:
         logger.info("Phase 0c: all sites already profiled, nothing to do")
@@ -1158,7 +1346,7 @@ async def run_phase_0c(
         *[
             _profile_one_site_tiered(
                 site_name=name,
-                file_list=files,
+                file_list=site_plan["files"],
                 benchmark_root=benchmark_root,
                 output_dir=output_dir,
                 manifest=manifest,
@@ -1170,8 +1358,11 @@ async def run_phase_0c(
                 host_inventory_instance=host_inventory_lookup.get(normalize_site_name(name)),
                 host_inventory_instances=host_inventory_groups.get(normalize_site_name(name), []),
                 trace_writer=trace_writer,
+                evidence_payloads=site_plan["evidence_payloads"],
+                benchmark_digest=site_plan["benchmark_digest"],
+                evidence_index_digest=site_plan["evidence_index_digest"],
             )
-            for name, files in sites_to_profile.items()
+            for name, site_plan in sites_to_profile.items()
         ],
         return_exceptions=True,
     )
@@ -1315,12 +1506,20 @@ def _expected_tier_metadata(
     instance_site_url: str | None,
     verification_proxy_metadata: dict[str, Any] | None,
     evidence_index_digest: str | None,
+    host_inventory_instance_fingerprint: str | None,
+    tier_input_hashes: dict[str, str] | None = None,
+    required_sidecars: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     prompt = _render_tier_prompt(
         prompt_name=prompt_name,
         validation_command=validation_command,
         site_name=site_name,
     )
+    extra: dict[str, Any] = {}
+    if tier_input_hashes is not None:
+        extra["tier_input_sha256"] = tier_input_hashes
+    if required_sidecars:
+        extra["required_sidecars"] = list(required_sidecars)
     return build_tier_metadata(
         site_name=site_name,
         tier_name=tier_name,
@@ -1332,10 +1531,24 @@ def _expected_tier_metadata(
         benchmark_digest=benchmark_digest,
         manifest_eval_types=manifest_eval_type_set,
         instance_site_url=instance_site_url,
-        host_inventory_instance_fingerprint=None,
+        host_inventory_instance_fingerprint=host_inventory_instance_fingerprint,
         verification_proxy=verification_proxy_metadata,
         evidence_index_digest=evidence_index_digest,
+        extra=extra,
     )
+
+
+def _tier1_input_hashes(
+    *,
+    verify_caps: object,
+    data_model: object,
+    agent_context: object,
+) -> dict[str, str]:
+    return {
+        "VERIFICATION_CAPABILITIES.json": hash_json(verify_caps),
+        "DATA_MODEL.json": hash_json(data_model),
+        "AGENT_CONTEXT.json": hash_json(agent_context),
+    }
 
 
 def _tier_success_publisher(
@@ -1347,6 +1560,7 @@ def _tier_success_publisher(
     output_path: str,
     metadata: dict[str, Any],
     sidecar_outputs: dict[str, str] | None = None,
+    redact_values: tuple[str, ...] = (),
 ) -> Callable[[dict[str, str | None]], None]:
     def publish(outputs: dict[str, str | None]) -> None:
         raw = outputs.get(output_path)
@@ -1371,6 +1585,7 @@ def _tier_success_publisher(
                 site_name=site_name,
                 artifact_stem=sidecar_stem,
                 raw_text=side_raw,
+                redact_values=redact_values,
             ):
                 logger.warning(
                     "Phase 0c: site %r produced malformed optional sidecar %s",
@@ -1529,6 +1744,9 @@ async def _profile_one_site_tiered(
     host_inventory_instance: BenchmarkInstance | None = None,
     host_inventory_instances: list[BenchmarkInstance] | None = None,
     trace_writer: Phase0cTraceWriter | None = None,
+    evidence_payloads: dict[str, object] | None = None,
+    benchmark_digest: str | None = None,
+    evidence_index_digest: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Profile one site using two-tier sandbox execution.
 
@@ -1552,16 +1770,26 @@ async def _profile_one_site_tiered(
             for eval_type in manifest.get("evaluation", {}).get("eval_types", [])
             if eval_type
         }
-        benchmark_digest = hash_file_list(file_list, benchmark_root)
-        evidence_inputs = build_phase_0c_evidence_indexes(
-            file_list=file_list,
-            benchmark_root=benchmark_root,
-            manifest=manifest,
-            site_name=site_name,
+        if evidence_payloads is None:
+            evidence_payloads = build_phase_0c_evidence_payloads(
+                file_list=file_list,
+                benchmark_root=benchmark_root,
+                manifest=manifest,
+                site_name=site_name,
+            )
+        if benchmark_digest is None:
+            benchmark_digest = benchmark_digest_from_evidence_payloads(evidence_payloads)
+        if evidence_index_digest is None:
+            evidence_index_digest = hash_phase_0c_evidence_payloads(evidence_payloads)
+        evidence_inputs = write_phase_0c_evidence_indexes(
+            evidence_payloads,
             output_dir=staging_root / "phase0c_evidence",
         )
-        evidence_index_digest = hash_routed_inputs(evidence_inputs)
         proxy_metadata = _verification_proxy_metadata(verification_proxy)
+        host_inventory_fingerprint = _instance_inventory_fingerprint(
+            host_inventory_instance or instance
+        )
+        redact_values = _phase_0c_redact_values(verification_proxy)
         if trace_writer is not None:
             trace_writer.record(
                 "site_started",
@@ -1599,6 +1827,7 @@ async def _profile_one_site_tiered(
             instance_site_url=None,
             verification_proxy_metadata=None,
             evidence_index_digest=evidence_index_digest,
+            host_inventory_instance_fingerprint=host_inventory_fingerprint,
         )
         data_metadata = _expected_tier_metadata(
             site_name=site_name,
@@ -1612,6 +1841,8 @@ async def _profile_one_site_tiered(
             instance_site_url=None,
             verification_proxy_metadata=None,
             evidence_index_digest=evidence_index_digest,
+            host_inventory_instance_fingerprint=host_inventory_fingerprint,
+            required_sidecars=_DATA_MODEL_SIDECARS,
         )
         context_metadata = _expected_tier_metadata(
             site_name=site_name,
@@ -1625,6 +1856,7 @@ async def _profile_one_site_tiered(
             instance_site_url=None,
             verification_proxy_metadata=None,
             evidence_index_digest=evidence_index_digest,
+            host_inventory_instance_fingerprint=host_inventory_fingerprint,
         )
 
         async def reuse_or_run_tier(
@@ -1648,6 +1880,7 @@ async def _profile_one_site_tiered(
                 artifact_stem=artifact_stem,
                 expected_metadata=metadata,
                 validate_parsed=validate_parsed,
+                required_sidecars=tuple((sidecar_outputs or {}).values()),
             )
             if cached is not None:
                 logger.info("Phase 0c: site %r reusing tier %s", site_name, tier_name)
@@ -1681,6 +1914,7 @@ async def _profile_one_site_tiered(
                     output_path=output_path,
                     metadata=metadata,
                     sidecar_outputs=sidecar_outputs,
+                    redact_values=redact_values,
                 ),
                 trace_writer=trace_writer,
                 trace_context={"tier_name": tier_name, "artifact_stem": artifact_stem},
@@ -1809,6 +2043,11 @@ async def _profile_one_site_tiered(
                 data_model=data_model,
                 agent_context=agent_context,
             )
+        tier1_input_hashes = _tier1_input_hashes(
+            verify_caps=verify_caps,
+            data_model=data_model,
+            agent_context=agent_context,
+        )
         injection_metadata = _expected_tier_metadata(
             site_name=site_name,
             tier_name="DE_INJECTION_SURFACE",
@@ -1821,6 +2060,9 @@ async def _profile_one_site_tiered(
             instance_site_url=site_url,
             verification_proxy_metadata=proxy_metadata,
             evidence_index_digest=evidence_index_digest,
+            host_inventory_instance_fingerprint=host_inventory_fingerprint,
+            tier_input_hashes=tier1_input_hashes,
+            required_sidecars=_INJECTION_SURFACE_SIDECARS,
         )
         injection_surface = await reuse_or_run_tier(
             tier_name="DE_INJECTION_SURFACE",

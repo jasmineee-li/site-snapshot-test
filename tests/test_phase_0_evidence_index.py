@@ -58,3 +58,39 @@ def test_phase_0c_evidence_indexes_record_files_routes_and_task_candidates(tmp_p
         record.get("fields", {}).get("task_id") == "task-1"
         for record in task_index["task_candidates"]
     )
+
+
+def test_phase_0c_evidence_index_skips_large_json_and_caps_jsonl_tasks(tmp_path: Path):
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    large_json = benchmark_root / "large_tasks.json"
+    large_json.write_text(
+        json.dumps({"task_id": "large", "padding": "x" * (2 * 1024 * 1024)}),
+        encoding="utf-8",
+    )
+    jsonl = benchmark_root / "tasks.jsonl"
+    jsonl.write_text(
+        "\n".join(
+            json.dumps({"task_id": f"task-{index}", "intent": "check"})
+            for index in range(1200)
+        ),
+        encoding="utf-8",
+    )
+
+    routed = build_phase_0c_evidence_indexes(
+        file_list=[str(large_json), str(jsonl)],
+        benchmark_root=benchmark_root,
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        site_name="gitlab",
+        output_dir=tmp_path / "indexes",
+    )
+
+    task_index = json.loads(
+        Path(routed["/workspace/inputs/TASKS_INDEX.json"]).read_text(encoding="utf-8")
+    )
+    candidates = task_index["task_candidates"]
+    assert len(candidates) == 1000
+    assert any(
+        candidate.get("skipped") == "json_file_too_large_for_task_index"
+        for candidate in candidates
+    )

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import tempfile
 import threading
 import time
@@ -19,6 +20,7 @@ TIER_METADATA_PREFIX = "TIER_METADATA_"
 PHASE_0C_TRACE = "PHASE_0C_TRACE.jsonl"
 PHASE_0C_TIMINGS = "PHASE_0C_TIMINGS.json"
 REACHABILITY_REPORT = "REACHABILITY_REPORT.json"
+_AUTH_HEADER_PATTERN = re.compile(r"(?i)(x-worldsim-token\s*:\s*)([^\s\"',;]+)")
 
 
 def write_text_atomic(path: Path, text: str) -> None:
@@ -104,6 +106,15 @@ def hash_file_list(file_list: Iterable[str], benchmark_root: Path) -> str:
     return hasher.hexdigest()
 
 
+def hash_file_records(file_records: Iterable[Mapping[str, Any]]) -> str:
+    """Hash indexed relative paths and per-file hashes without re-reading files."""
+    compact = [
+        {"path": str(record.get("path") or ""), "sha256": str(record.get("sha256") or "")}
+        for record in file_records
+    ]
+    return hash_json(sorted(compact, key=lambda record: record["path"]))
+
+
 def hash_routed_inputs(routed_inputs: Mapping[str, str]) -> str:
     """Hash remote paths and local file contents for generated input indexes."""
     hasher = hashlib.sha256()
@@ -165,12 +176,21 @@ def load_reusable_tier_output(
     artifact_stem: str,
     expected_metadata: Mapping[str, Any],
     validate_parsed: Callable[[object], list[str]],
+    required_sidecars: Iterable[str] = (),
 ) -> Any | None:
     """Load a tier artifact only when metadata and validation still match."""
     artifact_path = tier_artifact_path(output_dir, site_name, artifact_stem)
     metadata_path = tier_metadata_path(output_dir, site_name, tier_name)
     if not (artifact_path.exists() and metadata_path.exists()):
         return None
+    for sidecar_stem in required_sidecars:
+        sidecar_path = sidecar_artifact_path(output_dir, site_name, sidecar_stem)
+        if not sidecar_path.exists():
+            return None
+        try:
+            json.loads(sidecar_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
 
     try:
         raw = artifact_path.read_text(encoding="utf-8")
@@ -235,14 +255,38 @@ def publish_json_sidecar(
     site_name: str,
     artifact_stem: str,
     raw_text: str,
+    redact_values: Iterable[str] = (),
 ) -> bool:
     """Publish an optional JSON sidecar; return False when it is malformed."""
     try:
         payload = json.loads(raw_text)
     except json.JSONDecodeError:
         return False
+    payload = redact_json_secrets(payload, redact_values=redact_values)
     write_json_atomic(sidecar_artifact_path(output_dir, site_name, artifact_stem), payload)
     return True
+
+
+def redact_json_secrets(payload: object, *, redact_values: Iterable[str] = ()) -> object:
+    """Return JSON-compatible payload with known secret values redacted recursively."""
+    secrets = sorted({value for value in redact_values if value}, key=len, reverse=True)
+    if isinstance(payload, dict):
+        return {
+            _redact_text(str(key), secrets): redact_json_secrets(value, redact_values=secrets)
+            for key, value in payload.items()
+        }
+    if isinstance(payload, list):
+        return [redact_json_secrets(item, redact_values=secrets) for item in payload]
+    if isinstance(payload, str):
+        return _redact_text(payload, secrets)
+    return payload
+
+
+def _redact_text(text: str, secrets: Iterable[str]) -> str:
+    redacted = _AUTH_HEADER_PATTERN.sub(r"\1[REDACTED]", text)
+    for secret in secrets:
+        redacted = redacted.replace(secret, "[REDACTED]")
+    return redacted
 
 
 class Phase0cTraceWriter:
