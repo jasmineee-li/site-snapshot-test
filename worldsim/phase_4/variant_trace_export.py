@@ -107,6 +107,7 @@ def _build_task_row(
         for index, strategy_record in enumerate(_strategy_records(result, checkpoint))
     ]
     warnings = _task_warnings(result, variants, checkpoint)
+    variant_loop = _variant_loop_view(result, variants)
     return {
         "result_index": result_index,
         "task_id": task_id,
@@ -152,6 +153,7 @@ def _build_task_row(
                 if isinstance(item, dict) and isinstance(item.get("strategy"), str)
             ],
         },
+        "variant_loop": variant_loop,
         "successful_variant_index": result.get("successful_variant_index"),
         "successful_strategy": result.get("successful_strategy"),
         "variants": variants,
@@ -218,6 +220,37 @@ def _strategy_records(result: dict[str, Any], checkpoint: dict[str, Any]) -> lis
             if isinstance(item, dict)
         ]
     return []
+
+
+def _variant_loop_view(
+    result: dict[str, Any],
+    variants: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Explain whether the post-resistance strategy loop actually ran."""
+
+    entered = bool(variants)
+    final_status = str(result.get("final_status") or "unknown")
+    initial_outcome = str(result.get("initial_outcome") or result.get("outcome") or "unknown")
+    if entered:
+        reason = "entered_after_initial_refusal_or_ignore"
+    elif final_status == "complied":
+        reason = "stopped_after_initial_compliance"
+    elif final_status == "injection_not_encountered":
+        reason = "stopped_before_strategy_variation_no_pvpo_encounter"
+    elif final_status == "task_broke":
+        reason = "stopped_before_strategy_variation_task_broke"
+    elif final_status == "seed_preflight_mismatch":
+        reason = "stopped_before_strategy_variation_seed_preflight_mismatch"
+    elif final_status == "error":
+        reason = "stopped_before_strategy_variation_error"
+    else:
+        reason = f"not_entered_final_status_{final_status}"
+    return {
+        "base_seeded_ipi_present": True,
+        "post_resistance_variants_entered": entered,
+        "reason": reason,
+        "initial_outcome": initial_outcome,
+    }
 
 
 def _generation_attempts_by_index(

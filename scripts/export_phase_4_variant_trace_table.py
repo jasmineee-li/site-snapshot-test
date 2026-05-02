@@ -2,7 +2,10 @@
 """Export a human-readable Phase 4 variant trace table.
 
 This is report-only. It reads existing Phase 4 results and variant-generation
-artifacts and writes JSON, CSV, and/or HTML projections.
+artifacts and writes JSON, CSV, and/or HTML projections. The initial column is
+the base Phase 2 seeded IPI that every task starts with; variant columns are
+post-resistance rewrites and only exist for tasks whose initial run was resisted
+or ignored.
 """
 
 from __future__ import annotations
@@ -55,7 +58,11 @@ def main(argv: list[str] | None = None) -> int:
         "--include",
         choices=("all", "variant-entered", "success-on-variant"),
         default="all",
-        help="Which task rows to include. Default: all.",
+        help=(
+            "Which task rows to include. 'variant-entered' means the "
+            "post-resistance strategy loop ran, not merely that the base seeded "
+            "IPI was present. Default: all."
+        ),
     )
     parser.add_argument(
         "--payload-limit",

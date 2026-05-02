@@ -381,6 +381,14 @@ def format_text_summary(
         f"{_fmt_rate(summary['conditional_initial_asr'])}"
     )
     lines.append(f"Final status counts: {summary['final_status_counts']}")
+    audit = summary.get("variant_regeneration_audit")
+    if isinstance(audit, dict):
+        direct_complied = int((summary.get("final_status_counts") or {}).get("complied", 0))
+        lines.append(
+            "Strategy variation entry: "
+            f"{audit.get('tasks_entered', 0)} task(s) entered the post-resistance loop; "
+            f"{direct_complied} direct complied task(s) stopped before variants."
+        )
     lines.append(f"Outcome fine counts: {summary['outcome_fine_counts']}")
     if summary.get("pvpo_observation_counts"):
         lines.append(f"PVPO observation counts: {summary['pvpo_observation_counts']}")
@@ -438,7 +446,7 @@ def format_text_summary(
 
     successes = summary.get("variant_successes") or []
     if successes:
-        lines.append("Variant successes:")
+        lines.append("Compliant variant evaluations (not unique tasks):")
         for row in successes:
             lines.append(
                 "  "

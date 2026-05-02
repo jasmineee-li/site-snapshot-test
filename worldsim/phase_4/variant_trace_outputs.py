@@ -26,6 +26,9 @@ def write_variant_trace_csv(export: dict[str, Any], path: Path) -> None:
         "site",
         "surface",
         "instruction",
+        "base_seeded_ipi_present",
+        "post_resistance_variants_entered",
+        "variant_loop_reason",
         "initial_answer_label",
         "variant_index",
         "strategy",
@@ -67,6 +70,8 @@ def _csv_row(row: dict[str, Any], variant: dict[str, Any] | None) -> dict[str, A
         *row.get("warnings", []),
         *(variant.get("warnings", []) if isinstance(variant, dict) else []),
     ]
+    variant_loop = row.get("variant_loop")
+    variant_loop = variant_loop if isinstance(variant_loop, dict) else {}
     return {
         "result_index": row.get("result_index"),
         "task_id": row.get("task_id"),
@@ -75,6 +80,11 @@ def _csv_row(row: dict[str, Any], variant: dict[str, Any] | None) -> dict[str, A
         "site": row.get("site"),
         "surface": row.get("surface"),
         "instruction": row.get("instruction"),
+        "base_seeded_ipi_present": variant_loop.get("base_seeded_ipi_present"),
+        "post_resistance_variants_entered": variant_loop.get(
+            "post_resistance_variants_entered"
+        ),
+        "variant_loop_reason": variant_loop.get("reason"),
         "initial_answer_label": _nested_get(row, "initial", "answer_label"),
         "variant_index": variant.get("variant_index") if isinstance(variant, dict) else None,
         "strategy": variant.get("strategy") if isinstance(variant, dict) else None,
@@ -96,6 +106,13 @@ def _csv_row(row: dict[str, Any], variant: dict[str, Any] | None) -> dict[str, A
 def _render_html(export: dict[str, Any], *, title: str) -> str:
     rows = "\n".join(_render_task_row(row) for row in export.get("rows", []))
     escaped_title = html.escape(title)
+    export_rows = list(export.get("rows", []))
+    entered_count = sum(1 for row in export_rows if _variant_loop_entered(row))
+    direct_stop_count = sum(
+        1
+        for row in export_rows
+        if _nested_get(row, "variant_loop", "reason") == "stopped_after_initial_compliance"
+    )
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -125,6 +142,7 @@ def _render_html(export: dict[str, Any], *, title: str) -> str:
     .payload {{ color: #334155; }}
     .delta {{ color: #647083; margin-top: 8px; }}
     .warnings {{ color: #9a3412; margin-top: 8px; }}
+    .stage {{ margin-top: 8px; color: #475569; font-size: 12px; }}
   </style>
 </head>
 <body>
@@ -135,6 +153,9 @@ def _render_html(export: dict[str, Any], *, title: str) -> str:
       <span class="pill">Rows: {len(export.get("rows", []))}</span>
       <span class="pill">Total results: {html.escape(str(export.get("total_results")))}</span>
       <span class="pill">Warnings: {html.escape(str(export.get("warning_count")))}</span>
+      <span class="pill">Base seeded IPI shown for every row</span>
+      <span class="pill">Post-resistance variant loop entered: {entered_count}</span>
+      <span class="pill">Stopped after direct compliance: {direct_stop_count}</span>
     </section>
     <div class="table-wrap">
       <table>
@@ -142,10 +163,10 @@ def _render_html(export: dict[str, Any], *, title: str) -> str:
           <tr>
             <th>#</th>
             <th>Task</th>
-            <th>Initial</th>
-            <th>Variant 1</th>
-            <th>Variant 2</th>
-            <th>Variant 3</th>
+            <th>Base Seeded IPI / Initial Response</th>
+            <th>Post-Resistance Variant 1</th>
+            <th>Post-Resistance Variant 2</th>
+            <th>Post-Resistance Variant 3</th>
             <th>Warnings</th>
           </tr>
         </thead>
@@ -162,12 +183,15 @@ def _render_task_row(row: dict[str, Any]) -> str:
     variants = list(row.get("variants") or [])
     variant_cells = [_render_variant_cell(variant) for variant in variants[:3]]
     while len(variant_cells) < 3:
-        variant_cells.append('<td class="variant none muted">No variant</td>')
+        variant_cells.append(
+            '<td class="variant none muted">No post-resistance variant executed</td>'
+        )
     warnings = "<br>".join(html.escape(warning) for warning in row.get("warnings", []))
+    loop_note = _variant_loop_note(row)
     return f"""
           <tr>
             <td class="mono">{html.escape(str(row.get("result_index")))}</td>
-            <td><div class="mono">{html.escape(str(row.get("task_id")))}</div><div>{html.escape(str(row.get("instruction") or ""))}</div><div class="muted">{html.escape(str(row.get("final_status") or ""))} / {html.escape(str(row.get("outcome_fine") or ""))}</div></td>
+            <td><div class="mono">{html.escape(str(row.get("task_id")))}</div><div>{html.escape(str(row.get("instruction") or ""))}</div><div class="muted">{html.escape(str(row.get("final_status") or ""))} / {html.escape(str(row.get("outcome_fine") or ""))}</div><div class="stage">{html.escape(loop_note)}</div></td>
             <td><span class="answer mono">{html.escape(str(_nested_get(row, "initial", "answer_label") or ""))}</span><div class="payload">{html.escape(str(compact_text(_nested_get(row, "initial", "final_result"), limit=220) or ""))}</div></td>
             {"".join(variant_cells)}
             <td class="warnings">{warnings}</td>
@@ -199,6 +223,23 @@ def _nested_get(payload: Any, *keys: str, default: Any = None) -> Any:
             return default
         current = current.get(key)
     return default if current is None else current
+
+
+def _variant_loop_entered(row: dict[str, Any]) -> bool:
+    return bool(_nested_get(row, "variant_loop", "post_resistance_variants_entered"))
+
+
+def _variant_loop_note(row: dict[str, Any]) -> str:
+    reason = str(_nested_get(row, "variant_loop", "reason") or "unknown")
+    if reason == "entered_after_initial_refusal_or_ignore":
+        return "Post-resistance variant loop entered after the initial attack was resisted or ignored."
+    if reason == "stopped_after_initial_compliance":
+        return "Stopped after direct compliance; no post-resistance variants were generated."
+    if reason == "stopped_before_strategy_variation_no_pvpo_encounter":
+        return "Stopped before strategy variation because strict PVPO did not confirm encounter."
+    if reason == "stopped_before_strategy_variation_task_broke":
+        return "Stopped before strategy variation because the task broke."
+    return f"Post-resistance variant loop did not enter: {reason}."
 
 
 __all__ = [

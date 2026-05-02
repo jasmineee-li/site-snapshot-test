@@ -377,6 +377,10 @@ def test_summarize_phase4_cli_resolves_state_dir_and_prints_metrics(tmp_path, ca
     out = capsys.readouterr().out
     assert "Final Gate-1 ASR: 1 / 1 = 1.00" in out
     assert "Final compliant with adversarial reward: 1 / 1" in out
+    assert (
+        "Strategy variation entry: 1 task(s) entered the post-resistance loop; "
+        "0 direct complied task(s) stopped before variants."
+    ) in out
     assert "PVPO observation counts: {'painted_full': 1}" in out
     assert "Judge trigger counts: {'suspicion': 1}" in out
     assert "1 specificity complied gate1_valid" in out
