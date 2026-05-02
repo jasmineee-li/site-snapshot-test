@@ -46,7 +46,7 @@ done
 
 [[ -n "$HOST_CONFIG" ]] || { usage >&2; rj_die "--host-config required"; }
 [[ -n "$JOB_ID" ]] || { usage >&2; rj_die "--job-id required; command patterns are not accepted"; }
-[[ "$TIMEOUT" =~ ^[0-9]+$ ]] || rj_die "--timeout must be a positive integer"
+[[ "$TIMEOUT" =~ ^[1-9][0-9]*$ ]] || rj_die "--timeout must be a positive integer"
 
 rj_prepare_connection "$HOST_CONFIG" "$SSH_KEY_ARG"
 REMOTE_DIR="${REMOTE_DIR:-$(rj_default_remote_dir)}"

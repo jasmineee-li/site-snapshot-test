@@ -7,8 +7,8 @@
 #
 # The script codifies everything the operator had to do by hand on the
 # 2026-04-20 r5 setup. Run order matters: uv/venvs → playwright system
-# deps → pvpo-chrome container → artifact sync → Phase 0d storage_state mint →
-# Magento base_url sync → preflight gate.
+# deps → instances regen → pvpo-chrome container → artifact sync →
+# Phase 0d storage_state mint → preflight gate.
 #
 # Usage:
 #   scripts/setup_phase4_on_host.sh \
@@ -61,11 +61,22 @@ done
 
 log() { printf '==> %s\n' "$*" >&2; }
 substep() { printf '    %s\n' "$*" >&2; }
+abs_path() {
+    case "$1" in
+        /*) printf '%s\n' "$1" ;;
+        *) printf '%s/%s\n' "$REPO_ROOT" "$1" ;;
+    esac
+}
 
 if [[ -z "$HOST_CONFIG" ]]; then
     echo "ERROR: --host-config required" >&2
     usage
     exit 2
+fi
+HOST_CONFIG_PATH="$(abs_path "$HOST_CONFIG")"
+INSTANCES_PATH="$(abs_path "$INSTANCES")"
+if [[ "$SKIP_MAGENTO_SYNC" -eq 1 ]]; then
+    substep "--skip-magento-sync is deprecated; Magento left WASP scope on 2026-04-21"
 fi
 
 # ---------------------------------------------------------------------------
@@ -102,7 +113,7 @@ ORCHESTRATOR_HOST="$(uv run python -c '
 import sys, yaml, pathlib
 data = yaml.safe_load(pathlib.Path(sys.argv[1]).read_text())
 print(str(data.get("orchestrator_host") or data["advertise_host"]).strip())
-' "$REPO_ROOT/$HOST_CONFIG")"
+' "$HOST_CONFIG_PATH")"
 substep "orchestrator_host=${ORCHESTRATOR_HOST} (from $HOST_CONFIG)"
 
 # ---------------------------------------------------------------------------
@@ -113,7 +124,8 @@ substep "orchestrator_host=${ORCHESTRATOR_HOST} (from $HOST_CONFIG)"
 # patching the 62 fields that got bandaided on 2026-04-21. Also keeps
 # advertise_host ↔ control_host in sync with the host's actual topology.
 log "step 1b: regen $INSTANCES"
-"$REPO_ROOT/scripts/generate_scale_r5.sh" >/dev/null
+"$REPO_ROOT/scripts/generate_scale_r5.sh" --host-config "$HOST_CONFIG_PATH" >/dev/null
+INSTANCES_PATH="$(abs_path "$INSTANCES")"
 substep "regenerated $INSTANCES"
 
 # ---------------------------------------------------------------------------
@@ -165,12 +177,12 @@ if [[ "$SKIP_PVPO_CONTAINER" -eq 0 ]]; then
     else
         substep "Dockerfile unchanged; skipping rebuild"
     fi
-    if [[ ! -f "$REPO_ROOT/$INSTANCES" ]]; then
+    if [[ ! -f "$INSTANCES_PATH" ]]; then
         echo "ERROR: instances file not found: $INSTANCES" >&2
         exit 2
     fi
     mapfile -t PVPO_PORTS < <(
-        uv run python - "$REPO_ROOT/$INSTANCES" <<'PY'
+        uv run python - "$INSTANCES_PATH" <<'PY'
 import json
 import sys
 from urllib.parse import urlparse
@@ -290,7 +302,7 @@ else
 fi
 MANIFEST_ARGS=(
     --state-dir "$STATE_DIR"
-    --instances "$REPO_ROOT/$INSTANCES"
+    --instances "$INSTANCES_PATH"
     --output "$STATE_DIR/artifact_manifest.json"
 )
 if [[ -n "$ARTIFACTS_SOURCE" ]]; then
@@ -311,7 +323,7 @@ if [[ "$SKIP_GITLAB_MINT" -eq 0 ]]; then
     log "step 5: mint Phase 0d storage_state from $INSTANCES (unconditional)"
     uv run python -m worldsim.main phase 0d \
         --benchmark "$REPO_ROOT/vendors/webarena-verified" \
-        --instances "$REPO_ROOT/$INSTANCES"
+        --instances "$INSTANCES_PATH"
 fi
 
 # Step 6 (Magento base_url sync) was removed 2026-04-21 with the
@@ -323,9 +335,9 @@ fi
 log "step 7: preflight (pytest -m preflight)"
 PYTEST_ARGS=(-m preflight tests/preflight -v)
 if [[ -n "$HOST_CONFIG" ]]; then
-    export WORLDSIM_PREFLIGHT_HOST_CONFIG="$REPO_ROOT/$HOST_CONFIG"
+    export WORLDSIM_PREFLIGHT_HOST_CONFIG="$HOST_CONFIG_PATH"
 fi
-export WORLDSIM_PREFLIGHT_INSTANCES="$REPO_ROOT/$INSTANCES"
+export WORLDSIM_PREFLIGHT_INSTANCES="$INSTANCES_PATH"
 uv run pytest "${PYTEST_ARGS[@]}"
 
-log "Phase 4 setup complete. Next: uv run python -m worldsim.main phase 4 --instances $INSTANCES --resume"
+log "Phase 4 setup complete. Next: uv run python -m worldsim.main resume --instances $INSTANCES"

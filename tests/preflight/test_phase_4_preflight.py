@@ -3,9 +3,8 @@
 The setup script ``scripts/setup_phase4_on_host.sh`` drives these tests as
 the final gate after bootstrapping uv/playwright/docker/artifacts. A green
 preflight proves: every configured PVPO CDP endpoint is reachable and
-uniquely assigned, every Magento replica has the correct base_url, the
-gitlab Phase 0d artifact exists, and the WebArena-Verified evaluator venv
-resolves.
+uniquely assigned, the GitLab Phase 0d artifact exists, and the
+WebArena-Verified evaluator venv resolves.
 
 Inputs (setup script exports these):
 - ``WORLDSIM_PREFLIGHT_INSTANCES`` — path to instances.json

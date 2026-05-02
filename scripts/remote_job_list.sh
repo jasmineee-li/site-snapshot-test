@@ -40,7 +40,7 @@ while (($#)); do
 done
 
 [[ -n "$HOST_CONFIG" ]] || { usage >&2; rj_die "--host-config required"; }
-[[ "$LIMIT" =~ ^[0-9]+$ ]] || rj_die "--limit must be a positive integer"
+[[ "$LIMIT" =~ ^[1-9][0-9]*$ ]] || rj_die "--limit must be a positive integer"
 rj_prepare_connection "$HOST_CONFIG" "$SSH_KEY_ARG"
 REMOTE_DIR="${REMOTE_DIR:-$(rj_default_remote_dir)}"
 
@@ -74,7 +74,12 @@ for metadata_path in root.glob("*/metadata.json"):
     if exit_path.exists():
         status = "exited"
     elif data.get("pid") and Path("/proc", str(data["pid"])).exists():
-        status = "running"
+        try:
+            state = Path("/proc", str(data["pid"]), "stat").read_text().split()[2]
+        except Exception:
+            status = "unknown"
+        else:
+            status = "stale" if state == "Z" else "running"
     else:
         status = "stale"
     rows.append((metadata_path.stat().st_mtime, data.get("created_at", ""), data.get("job_id", metadata_path.parent.name), data.get("name", ""), status))

@@ -54,7 +54,7 @@ while (($#)); do
 done
 
 [[ -n "$HOST_CONFIG" ]] || { usage >&2; rj_die "--host-config required"; }
-[[ "$LINES" =~ ^[0-9]+$ ]] || rj_die "--lines must be a positive integer"
+[[ "$LINES" =~ ^[1-9][0-9]*$ ]] || rj_die "--lines must be a positive integer"
 if [[ "$STREAM" == "both" && "$FOLLOW" -eq 1 ]]; then
     rj_die "--both cannot be combined with --follow"
 fi
