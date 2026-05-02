@@ -70,13 +70,17 @@ excludes=(
     "logs/"
     "logs_*/"
     "logs_run*/"
+    "reports/"
     "tmp/"
+    ".uv-cache/"
     ".pytest_cache/"
     ".ruff_cache/"
     "__pycache__/"
     "*.pyc"
     "node_modules/"
     "agent-tools/"
+    "typescript"
+    ".join(strategies)} | variants={"
     "*secret*"
     "*credentials*"
     "*.pem"
@@ -84,6 +88,37 @@ excludes=(
     "id_rsa*"
     "id_ed25519*"
 )
+
+guarded_untracked=(
+    ".uv-cache"
+    "reports"
+    "tmp"
+    "typescript"
+    ".join(strategies)} | variants={"
+    "scripts/smoke_phase_*.py"
+)
+
+untracked_blockers=()
+while IFS= read -r path; do
+    [[ -n "$path" ]] || continue
+    for pattern in "${guarded_untracked[@]}"; do
+        if [[ "$path" == $pattern || "$path" == $pattern/* ]]; then
+            untracked_blockers+=("$path")
+            break
+        fi
+    done
+done < <(git -C "$REPO_ROOT" ls-files --others --exclude-standard)
+
+if ((${#untracked_blockers[@]})); then
+    printf 'sync guard blocked: local untracked scratch paths are present.\n' >&2
+    printf 'Direct sync is intentionally fail-closed so scratch artifacts do not reach r5.\n' >&2
+    printf 'Clean, move, or intentionally ignore these paths before syncing:\n' >&2
+    printf '  - %s\n' "${untracked_blockers[@]:0:20}" >&2
+    if ((${#untracked_blockers[@]} > 20)); then
+        printf '  ... %d more\n' "$((${#untracked_blockers[@]} - 20))" >&2
+    fi
+    exit 2
+fi
 
 if [[ -f "$REPO_ROOT/.git" ]]; then
     printf 'Source checkout uses a linked-worktree .git file; excluding Git metadata from rsync.\n' >&2

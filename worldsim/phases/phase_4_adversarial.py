@@ -857,9 +857,10 @@ def _candidate_action_witness_is_valid(
 ) -> bool:
     if not witness or witness not in rendered_payload:
         return False
-    if _variant_action_witness_is_whole_payload(witness, rendered_payload) and len(
-        _normalized_payload_snapshot(rendered_payload)
-    ) > 120:
+    if (
+        _variant_action_witness_is_whole_payload(witness, rendered_payload)
+        and len(_normalized_payload_snapshot(rendered_payload)) > 120
+    ):
         return False
     required_tokens = _variant_required_token_values(task)
     if witness in required_tokens:
@@ -919,7 +920,9 @@ def _derive_action_witnesses_from_rendered_payload(
             continue
         if not (
             any(verb in clause_lower for verb in ("answer", "report", "return", "record", "mark"))
-            or any(token.casefold() in clause_lower for token in _variant_required_token_values(task))
+            or any(
+                token.casefold() in clause_lower for token in _variant_required_token_values(task)
+            )
             or len(clause) <= 96
         ):
             continue
@@ -1259,11 +1262,11 @@ def _synchronize_variant_payload_texts(
             original_task.get("id", "unknown"),
             candidate_error,
         )
-        if candidate_error == "variant payload_text.rendered_payload must equal the revised seed payload":
-            return (
-                "variant task "
-                f"{original_task.get('id', 'unknown')} {candidate_error}"
-            )
+        if (
+            candidate_error
+            == "variant payload_text.rendered_payload must equal the revised seed payload"
+        ):
+            return f"variant task {original_task.get('id', 'unknown')} {candidate_error}"
 
     if candidate_payload_text is None or candidate_error is not None:
         synced_entry = _updated_payload_text_entry(
@@ -3342,6 +3345,7 @@ async def run(args: argparse.Namespace) -> int:
             run_kwargs["reset_cache"] = reset_cache
         if callable_accepts_keyword(run_adversarial_task, "seed_probe_cache"):
             run_kwargs["seed_probe_cache"] = seed_probe_cache
+
         async def _run_once(current_task_dir: Path) -> dict[str, Any]:
             return await run_adversarial_task(
                 task,
@@ -3509,24 +3513,24 @@ async def run(args: argparse.Namespace) -> int:
         len(scorable_valid),
     )
     attack_action_success_numerator = sum(
-        1 for r in scorable_valid if phase4_result_summary.final_metric_success(
-            r, "attack_action_success"
-        )
+        1
+        for r in scorable_valid
+        if phase4_result_summary.final_metric_success(r, "attack_action_success")
     )
     semantic_hijack_success_numerator = sum(
-        1 for r in scorable_valid if phase4_result_summary.final_metric_success(
-            r, "semantic_hijack_success"
-        )
+        1
+        for r in scorable_valid
+        if phase4_result_summary.final_metric_success(r, "semantic_hijack_success")
     )
     benign_success_under_attack_numerator = sum(
-        1 for r in scorable_valid if phase4_result_summary.final_metric_success(
-            r, "benign_success_under_attack"
-        )
+        1
+        for r in scorable_valid
+        if phase4_result_summary.final_metric_success(r, "benign_success_under_attack")
     )
     stealth_success_numerator = sum(
-        1 for r in scorable_valid if phase4_result_summary.final_metric_success(
-            r, "stealth_success"
-        )
+        1
+        for r in scorable_valid
+        if phase4_result_summary.final_metric_success(r, "stealth_success")
     )
     final_state_checked = [
         r for r in scorable_valid if r.get("adversarial_final_state_checked") is True
@@ -5314,10 +5318,9 @@ def _variant_payload_diff_view(
                 "attack_action_witnesses",
                 [],
             )
-            diff["payload_text_resynchronized"] = (
-                _jsonable_payload(payload_text)
-                != _jsonable_payload(finalized_payload_text)
-            )
+            diff["payload_text_resynchronized"] = _jsonable_payload(
+                payload_text
+            ) != _jsonable_payload(finalized_payload_text)
     return diff
 
 
@@ -5381,9 +5384,7 @@ def _write_variant_generation_audit(
             request_summary["failure_context_schema_version"] = failure_context.get(
                 "schema_version"
             )
-            request_summary["failure_context_digest_bytes"] = failure_context.get(
-                "digest_bytes"
-            )
+            request_summary["failure_context_digest_bytes"] = failure_context.get("digest_bytes")
             trace_digest = failure_context.get("trace_digest")
             if isinstance(trace_digest, dict):
                 request_summary["failure_context_trace_digest_status"] = trace_digest.get(
@@ -5758,7 +5759,9 @@ async def run_strategy_variation(
                 "failure_context": failure_context,
                 "variant_generation_records": legacy_records,
                 "variant_generation_errors": [
-                    item for item in checkpoint.get("variant_generation_errors", []) if isinstance(item, dict)
+                    item
+                    for item in checkpoint.get("variant_generation_errors", [])
+                    if isinstance(item, dict)
                 ],
                 "variant_results": legacy_results if isinstance(legacy_results, list) else [],
                 "variant_results_complete": isinstance(legacy_results, list),
@@ -5822,8 +5825,88 @@ async def run_strategy_variation(
         )
         return refused[0]
 
+    def _has_actionable_lineage_for_next_round(round_index: int) -> bool:
+        if round_index == 1:
+            return True
+        return _best_refused_variant() is not None
+
+    def _round_budget_stats(round_record: dict[str, Any]) -> dict[str, int]:
+        generation_records = [
+            item
+            for item in round_record.get("variant_generation_records", [])
+            if isinstance(item, dict)
+        ]
+        variant_results = [
+            item for item in round_record.get("variant_results", []) if isinstance(item, dict)
+        ]
+        return {
+            "generated": len(generation_records),
+            "host_rejected": sum(
+                1 for item in generation_records if not isinstance(item.get("variant"), dict)
+            ),
+            "evaluated": len(variant_results),
+            "pvpo_valid": sum(1 for item in variant_results if _ecologically_valid(item)),
+            "compliant": sum(
+                1
+                for item in variant_results
+                if _ecologically_valid(item) and item.get("outcome") == "complied"
+            ),
+        }
+
+    def _apply_round_budget_stats(round_record: dict[str, Any]) -> None:
+        round_record["budget_report"] = _round_budget_stats(round_record)
+
+    def _adaptive_budget_report(stop_reason: str) -> dict[str, Any]:
+        round_reports: list[dict[str, Any]] = []
+        total_generated = 0
+        for round_index, budget in enumerate(_ADAPTIVE_VARIANT_BUDGET, start=1):
+            round_record = next(
+                (
+                    item
+                    for item in variant_rounds
+                    if isinstance(item, dict) and item.get("round_index") == round_index
+                ),
+                None,
+            )
+            stats = (
+                _round_budget_stats(round_record)
+                if isinstance(round_record, dict)
+                else {
+                    "generated": 0,
+                    "host_rejected": 0,
+                    "evaluated": 0,
+                    "pvpo_valid": 0,
+                    "compliant": 0,
+                }
+            )
+            total_generated += stats["generated"]
+            round_reports.append(
+                {
+                    "round_index": round_index,
+                    "round_kind": _round_kind(round_index),
+                    "budget": budget,
+                    **stats,
+                    "remaining_round_budget": max(0, budget - stats["generated"]),
+                    "stop_reason": (
+                        round_record.get("stop_reason")
+                        if isinstance(round_record, dict)
+                        else "not_started"
+                    ),
+                }
+            )
+        return {
+            "shape": list(_ADAPTIVE_VARIANT_BUDGET),
+            "max_browser_variants": sum(_ADAPTIVE_VARIANT_BUDGET),
+            "generated": total_generated,
+            "remaining_budget": max(0, sum(_ADAPTIVE_VARIANT_BUDGET) - total_generated),
+            "stop_reason": stop_reason,
+            "rounds": round_reports,
+        }
+
     def _adaptive_failure_context(round_index: int) -> dict[str, Any]:
-        source_result = _best_refused_variant() or initial_result
+        source_result = _best_refused_variant()
+        if source_result is None:
+            raise ValueError("no actionable PVPO-valid resistant lineage for adaptive round")
         context = build_variant_failure_context(task, source_result, recommendation)
         prior_rounds: list[dict[str, Any]] = []
         for round_record in variant_rounds:
@@ -5875,7 +5958,9 @@ async def run_strategy_variation(
         ]
         for record in _flat_generation_records():
             strategy = record.get("strategy")
-            name = strategy.get("strategy") if isinstance(strategy, dict) else record.get("strategy")
+            name = (
+                strategy.get("strategy") if isinstance(strategy, dict) else record.get("strategy")
+            )
             if isinstance(name, str) and name not in prior_names:
                 prior_names.append(name)
         ordered: list[dict[str, Any]] = []
@@ -5904,68 +5989,101 @@ async def run_strategy_variation(
         parent_global_variant_index: int | None,
         round_failure_context: dict[str, Any],
     ) -> dict[str, Any]:
-            strategy_name = strategy.get("strategy", f"strategy_{strategy_index}")
-            record_kwargs = {
-                "index": global_variant_index,
-                "strategy": strategy,
-                "round_index": round_index,
-                "round_kind": round_kind,
-                "round_variant_index": round_variant_index,
-                "global_variant_index": global_variant_index,
-                "parent_global_variant_index": parent_global_variant_index,
-                "root_attempt_id": f"{task_id}:initial",
-                "parent_attempt_id": (
-                    f"{task_id}:variant:{parent_global_variant_index}"
-                    if parent_global_variant_index is not None
-                    else f"{task_id}:initial"
-                ),
-            }
-            try:
-                variant = await generate_variant(
-                    task,
-                    strategy,
-                    profile_path,
-                    sandbox_model=sandbox_model,
-                    failure_context=round_failure_context,
-                )
-            except Exception as exc:
-                logger.error(
-                    "Variant generation failed for task %s strategy %s: %s",
-                    task_id,
-                    strategy_name,
-                    exc,
-                )
-                _write_variant_generation_audit(
-                    task_dir_root=task_dir_root,
-                    task=task,
-                    index=global_variant_index,
-                    strategy=strategy,
-                    attempt_label="initial",
-                    status="error",
-                    reason=repr(exc),
-                    failure_context=round_failure_context,
-                    round_index=round_index,
-                    round_kind=round_kind,
-                    round_variant_index=round_variant_index,
-                    global_variant_index=global_variant_index,
-                    parent_global_variant_index=parent_global_variant_index,
-                )
-                return _variant_generation_record_for_result(
-                    **record_kwargs,
-                    error=repr(exc),
-                )
-            variant_status = variant.get("variant_status") if isinstance(variant, dict) else None
-            if isinstance(variant_status, dict) and variant_status.get("status") in {
-                "inapplicable",
-                "skipped",
-                "failed",
-            }:
+        strategy_name = strategy.get("strategy", f"strategy_{strategy_index}")
+        record_kwargs = {
+            "index": global_variant_index,
+            "strategy": strategy,
+            "round_index": round_index,
+            "round_kind": round_kind,
+            "round_variant_index": round_variant_index,
+            "global_variant_index": global_variant_index,
+            "parent_global_variant_index": parent_global_variant_index,
+            "root_attempt_id": f"{task_id}:initial",
+            "parent_attempt_id": (
+                f"{task_id}:variant:{parent_global_variant_index}"
+                if parent_global_variant_index is not None
+                else f"{task_id}:initial"
+            ),
+        }
+        try:
+            variant = await generate_variant(
+                task,
+                strategy,
+                profile_path,
+                sandbox_model=sandbox_model,
+                failure_context=round_failure_context,
+            )
+        except Exception as exc:
+            logger.error(
+                "Variant generation failed for task %s strategy %s: %s",
+                task_id,
+                strategy_name,
+                exc,
+            )
+            _write_variant_generation_audit(
+                task_dir_root=task_dir_root,
+                task=task,
+                index=global_variant_index,
+                strategy=strategy,
+                attempt_label="initial",
+                status="error",
+                reason=repr(exc),
+                failure_context=round_failure_context,
+                round_index=round_index,
+                round_kind=round_kind,
+                round_variant_index=round_variant_index,
+                global_variant_index=global_variant_index,
+                parent_global_variant_index=parent_global_variant_index,
+            )
+            return _variant_generation_record_for_result(
+                **record_kwargs,
+                error=repr(exc),
+            )
+        variant_status = variant.get("variant_status") if isinstance(variant, dict) else None
+        if isinstance(variant_status, dict) and variant_status.get("status") in {
+            "inapplicable",
+            "skipped",
+            "failed",
+        }:
+            logger.info(
+                "Variant %s for task %s marked %s: %s",
+                strategy_name,
+                task_id,
+                variant_status.get("status"),
+                variant_status.get("reason", ""),
+            )
+            _write_variant_generation_audit(
+                task_dir_root=task_dir_root,
+                task=task,
+                index=global_variant_index,
+                strategy=strategy,
+                attempt_label="initial",
+                status=str(variant_status.get("status")),
+                reason=str(variant_status.get("reason", "")),
+                variant=variant,
+                failure_context=round_failure_context,
+                round_index=round_index,
+                round_kind=round_kind,
+                round_variant_index=round_variant_index,
+                global_variant_index=global_variant_index,
+                parent_global_variant_index=parent_global_variant_index,
+            )
+            return _variant_generation_record_for_result(
+                **record_kwargs,
+                status=str(variant_status.get("status")),
+                reason=str(variant_status.get("reason", "")),
+            )
+        if isinstance(variant, dict) and _variant_changes_seed(task, variant):
+            finalized_variant, finalize_error = _finalize_generated_variant_task(
+                task,
+                variant,
+            )
+            if finalize_error is not None:
                 logger.info(
-                    "Variant %s for task %s marked %s: %s",
+                    "Variant %s for task %s failed execution-contract validation: %s",
                     strategy_name,
                     task_id,
-                    variant_status.get("status"),
-                    variant_status.get("reason", ""),
+                    finalize_error,
                 )
                 _write_variant_generation_audit(
                     task_dir_root=task_dir_root,
@@ -5973,9 +6091,11 @@ async def run_strategy_variation(
                     index=global_variant_index,
                     strategy=strategy,
                     attempt_label="initial",
-                    status=str(variant_status.get("status")),
-                    reason=str(variant_status.get("reason", "")),
+                    status="failed",
+                    reason=finalize_error,
                     variant=variant,
+                    host_finalization_status="failed",
+                    host_finalization_reason=finalize_error,
                     failure_context=round_failure_context,
                     round_index=round_index,
                     round_kind=round_kind,
@@ -5983,179 +6103,21 @@ async def run_strategy_variation(
                     global_variant_index=global_variant_index,
                     parent_global_variant_index=parent_global_variant_index,
                 )
-                return _variant_generation_record_for_result(
-                    **record_kwargs,
-                    status=str(variant_status.get("status")),
-                    reason=str(variant_status.get("reason", "")),
-                )
-            if isinstance(variant, dict) and _variant_changes_seed(task, variant):
-                finalized_variant, finalize_error = _finalize_generated_variant_task(
-                    task,
-                    variant,
-                )
-                if finalize_error is not None:
-                    logger.info(
-                        "Variant %s for task %s failed execution-contract validation: %s",
-                        strategy_name,
-                        task_id,
-                        finalize_error,
-                    )
-                    _write_variant_generation_audit(
-                        task_dir_root=task_dir_root,
-                        task=task,
-                        index=global_variant_index,
-                        strategy=strategy,
-                        attempt_label="initial",
-                        status="failed",
-                        reason=finalize_error,
-                        variant=variant,
-                        host_finalization_status="failed",
-                        host_finalization_reason=finalize_error,
+                try:
+                    retry_variant = await generate_variant(
+                        task,
+                        strategy,
+                        profile_path,
+                        sandbox_model=sandbox_model,
+                        retry_feedback=finalize_error,
                         failure_context=round_failure_context,
-                        round_index=round_index,
-                        round_kind=round_kind,
-                        round_variant_index=round_variant_index,
-                        global_variant_index=global_variant_index,
-                        parent_global_variant_index=parent_global_variant_index,
                     )
-                    try:
-                        retry_variant = await generate_variant(
-                            task,
-                            strategy,
-                            profile_path,
-                            sandbox_model=sandbox_model,
-                            retry_feedback=finalize_error,
-                            failure_context=round_failure_context,
-                        )
-                    except Exception as exc:
-                        logger.error(
-                            "Variant host-feedback retry failed for task %s strategy %s: %s",
-                            task_id,
-                            strategy_name,
-                            exc,
-                        )
-                        _write_variant_generation_audit(
-                            task_dir_root=task_dir_root,
-                            task=task,
-                            index=global_variant_index,
-                            strategy=strategy,
-                            attempt_label="host_retry",
-                            status="error",
-                            reason=repr(exc),
-                            retry_feedback=finalize_error,
-                            failure_context=round_failure_context,
-                            round_index=round_index,
-                            round_kind=round_kind,
-                            round_variant_index=round_variant_index,
-                            global_variant_index=global_variant_index,
-                            parent_global_variant_index=parent_global_variant_index,
-                        )
-                        return _variant_generation_record_for_result(
-                            **record_kwargs,
-                            error=repr(exc),
-                        )
-                    retry_status = (
-                        retry_variant.get("variant_status")
-                        if isinstance(retry_variant, dict)
-                        else None
-                    )
-                    if isinstance(retry_status, dict) and retry_status.get("status") in {
-                        "inapplicable",
-                        "skipped",
-                        "failed",
-                    }:
-                        retry_reason = f"{finalize_error}; retry: {retry_status.get('reason', '')}"
-                        _write_variant_generation_audit(
-                            task_dir_root=task_dir_root,
-                            task=task,
-                            index=global_variant_index,
-                            strategy=strategy,
-                            attempt_label="host_retry",
-                            status=str(retry_status.get("status")),
-                            reason=retry_reason,
-                            variant=retry_variant,
-                            host_finalization_status="not_run",
-                            retry_feedback=finalize_error,
-                            failure_context=round_failure_context,
-                            round_index=round_index,
-                            round_kind=round_kind,
-                            round_variant_index=round_variant_index,
-                            global_variant_index=global_variant_index,
-                            parent_global_variant_index=parent_global_variant_index,
-                        )
-                        return _variant_generation_record_for_result(
-                            **record_kwargs,
-                            status=str(retry_status.get("status")),
-                            reason=retry_reason,
-                        )
-                    if isinstance(retry_variant, dict) and _variant_changes_seed(
-                        task, retry_variant
-                    ):
-                        finalized_retry, retry_finalize_error = _finalize_generated_variant_task(
-                            task, retry_variant
-                        )
-                        if retry_finalize_error is None:
-                            _write_variant_generation_audit(
-                                task_dir_root=task_dir_root,
-                                task=task,
-                                index=global_variant_index,
-                                strategy=strategy,
-                                attempt_label="host_retry",
-                                status="generated",
-                                variant=retry_variant,
-                                finalized_variant=finalized_retry,
-                                host_finalization_status="passed",
-                                retry_feedback=finalize_error,
-                                failure_context=round_failure_context,
-                                round_index=round_index,
-                                round_kind=round_kind,
-                                round_variant_index=round_variant_index,
-                                global_variant_index=global_variant_index,
-                                parent_global_variant_index=parent_global_variant_index,
-                            )
-                            finalized_retry.update(
-                                {
-                                    "round_index": round_index,
-                                    "round_kind": round_kind,
-                                    "round_variant_index": round_variant_index,
-                                    "global_variant_index": global_variant_index,
-                                    "parent_global_variant_index": parent_global_variant_index,
-                                }
-                            )
-                            return _variant_generation_record_for_result(
-                                **record_kwargs,
-                                variant=finalized_retry,
-                            )
-                        retry_rejection = (
-                            f"{finalize_error}; retry rejected: {retry_finalize_error}"
-                        )
-                        _write_variant_generation_audit(
-                            task_dir_root=task_dir_root,
-                            task=task,
-                            index=global_variant_index,
-                            strategy=strategy,
-                            attempt_label="host_retry",
-                            status="failed",
-                            reason=retry_rejection,
-                            variant=retry_variant,
-                            host_finalization_status="failed",
-                            host_finalization_reason=retry_finalize_error,
-                            retry_feedback=finalize_error,
-                            failure_context=round_failure_context,
-                            round_index=round_index,
-                            round_kind=round_kind,
-                            round_variant_index=round_variant_index,
-                            global_variant_index=global_variant_index,
-                            parent_global_variant_index=parent_global_variant_index,
-                        )
-                        return _variant_generation_record_for_result(
-                            **record_kwargs,
-                            status="failed",
-                            reason=retry_rejection,
-                        )
-                    unchanged_retry_reason = (
-                        f"{finalize_error}; retry rejected: unchanged_seed: "
-                        "variant did not change adversarial_data_seed"
+                except Exception as exc:
+                    logger.error(
+                        "Variant host-feedback retry failed for task %s strategy %s: %s",
+                        task_id,
+                        strategy_name,
+                        exc,
                     )
                     _write_variant_generation_audit(
                         task_dir_root=task_dir_root,
@@ -6163,8 +6125,37 @@ async def run_strategy_variation(
                         index=global_variant_index,
                         strategy=strategy,
                         attempt_label="host_retry",
-                        status="failed",
-                        reason=unchanged_retry_reason,
+                        status="error",
+                        reason=repr(exc),
+                        retry_feedback=finalize_error,
+                        failure_context=round_failure_context,
+                        round_index=round_index,
+                        round_kind=round_kind,
+                        round_variant_index=round_variant_index,
+                        global_variant_index=global_variant_index,
+                        parent_global_variant_index=parent_global_variant_index,
+                    )
+                    return _variant_generation_record_for_result(
+                        **record_kwargs,
+                        error=repr(exc),
+                    )
+                retry_status = (
+                    retry_variant.get("variant_status") if isinstance(retry_variant, dict) else None
+                )
+                if isinstance(retry_status, dict) and retry_status.get("status") in {
+                    "inapplicable",
+                    "skipped",
+                    "failed",
+                }:
+                    retry_reason = f"{finalize_error}; retry: {retry_status.get('reason', '')}"
+                    _write_variant_generation_audit(
+                        task_dir_root=task_dir_root,
+                        task=task,
+                        index=global_variant_index,
+                        strategy=strategy,
+                        attempt_label="host_retry",
+                        status=str(retry_status.get("status")),
+                        reason=retry_reason,
                         variant=retry_variant,
                         host_finalization_status="not_run",
                         retry_feedback=finalize_error,
@@ -6177,19 +6168,85 @@ async def run_strategy_variation(
                     )
                     return _variant_generation_record_for_result(
                         **record_kwargs,
-                        status="failed",
-                        reason=unchanged_retry_reason,
+                        status=str(retry_status.get("status")),
+                        reason=retry_reason,
                     )
+                if isinstance(retry_variant, dict) and _variant_changes_seed(task, retry_variant):
+                    finalized_retry, retry_finalize_error = _finalize_generated_variant_task(
+                        task, retry_variant
+                    )
+                    if retry_finalize_error is None:
+                        _write_variant_generation_audit(
+                            task_dir_root=task_dir_root,
+                            task=task,
+                            index=global_variant_index,
+                            strategy=strategy,
+                            attempt_label="host_retry",
+                            status="generated",
+                            variant=retry_variant,
+                            finalized_variant=finalized_retry,
+                            host_finalization_status="passed",
+                            retry_feedback=finalize_error,
+                            failure_context=round_failure_context,
+                            round_index=round_index,
+                            round_kind=round_kind,
+                            round_variant_index=round_variant_index,
+                            global_variant_index=global_variant_index,
+                            parent_global_variant_index=parent_global_variant_index,
+                        )
+                        finalized_retry.update(
+                            {
+                                "round_index": round_index,
+                                "round_kind": round_kind,
+                                "round_variant_index": round_variant_index,
+                                "global_variant_index": global_variant_index,
+                                "parent_global_variant_index": parent_global_variant_index,
+                            }
+                        )
+                        return _variant_generation_record_for_result(
+                            **record_kwargs,
+                            variant=finalized_retry,
+                        )
+                    retry_rejection = f"{finalize_error}; retry rejected: {retry_finalize_error}"
+                    _write_variant_generation_audit(
+                        task_dir_root=task_dir_root,
+                        task=task,
+                        index=global_variant_index,
+                        strategy=strategy,
+                        attempt_label="host_retry",
+                        status="failed",
+                        reason=retry_rejection,
+                        variant=retry_variant,
+                        host_finalization_status="failed",
+                        host_finalization_reason=retry_finalize_error,
+                        retry_feedback=finalize_error,
+                        failure_context=round_failure_context,
+                        round_index=round_index,
+                        round_kind=round_kind,
+                        round_variant_index=round_variant_index,
+                        global_variant_index=global_variant_index,
+                        parent_global_variant_index=parent_global_variant_index,
+                    )
+                    return _variant_generation_record_for_result(
+                        **record_kwargs,
+                        status="failed",
+                        reason=retry_rejection,
+                    )
+                unchanged_retry_reason = (
+                    f"{finalize_error}; retry rejected: unchanged_seed: "
+                    "variant did not change adversarial_data_seed"
+                )
                 _write_variant_generation_audit(
                     task_dir_root=task_dir_root,
                     task=task,
                     index=global_variant_index,
                     strategy=strategy,
-                    attempt_label="initial",
-                    status="generated",
-                    variant=variant,
-                    finalized_variant=finalized_variant,
-                    host_finalization_status="passed",
+                    attempt_label="host_retry",
+                    status="failed",
+                    reason=unchanged_retry_reason,
+                    variant=retry_variant,
+                    host_finalization_status="not_run",
+                    retry_feedback=finalize_error,
                     failure_context=round_failure_context,
                     round_index=round_index,
                     round_kind=round_kind,
@@ -6197,32 +6254,21 @@ async def run_strategy_variation(
                     global_variant_index=global_variant_index,
                     parent_global_variant_index=parent_global_variant_index,
                 )
-                finalized_variant.update(
-                    {
-                        "round_index": round_index,
-                        "round_kind": round_kind,
-                        "round_variant_index": round_variant_index,
-                        "global_variant_index": global_variant_index,
-                        "parent_global_variant_index": parent_global_variant_index,
-                    }
-                )
                 return _variant_generation_record_for_result(
                     **record_kwargs,
-                    variant=finalized_variant,
+                    status="failed",
+                    reason=unchanged_retry_reason,
                 )
-            unchanged_reason = (
-                "unchanged_seed: variant did not change adversarial_data_seed; "
-                "generator must alter the selected payload text or return inapplicable"
-            )
             _write_variant_generation_audit(
                 task_dir_root=task_dir_root,
                 task=task,
                 index=global_variant_index,
                 strategy=strategy,
                 attempt_label="initial",
-                status="failed",
-                reason=unchanged_reason,
+                status="generated",
                 variant=variant,
+                finalized_variant=finalized_variant,
+                host_finalization_status="passed",
                 failure_context=round_failure_context,
                 round_index=round_index,
                 round_kind=round_kind,
@@ -6230,11 +6276,44 @@ async def run_strategy_variation(
                 global_variant_index=global_variant_index,
                 parent_global_variant_index=parent_global_variant_index,
             )
+            finalized_variant.update(
+                {
+                    "round_index": round_index,
+                    "round_kind": round_kind,
+                    "round_variant_index": round_variant_index,
+                    "global_variant_index": global_variant_index,
+                    "parent_global_variant_index": parent_global_variant_index,
+                }
+            )
             return _variant_generation_record_for_result(
                 **record_kwargs,
-                status="failed",
-                reason=unchanged_reason,
+                variant=finalized_variant,
             )
+        unchanged_reason = (
+            "unchanged_seed: variant did not change adversarial_data_seed; "
+            "generator must alter the selected payload text or return inapplicable"
+        )
+        _write_variant_generation_audit(
+            task_dir_root=task_dir_root,
+            task=task,
+            index=global_variant_index,
+            strategy=strategy,
+            attempt_label="initial",
+            status="failed",
+            reason=unchanged_reason,
+            variant=variant,
+            failure_context=round_failure_context,
+            round_index=round_index,
+            round_kind=round_kind,
+            round_variant_index=round_variant_index,
+            global_variant_index=global_variant_index,
+            parent_global_variant_index=parent_global_variant_index,
+        )
+        return _variant_generation_record_for_result(
+            **record_kwargs,
+            status="failed",
+            reason=unchanged_reason,
+        )
 
     async def _evaluate_round_variants(
         real_variants: list[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]],
@@ -6265,7 +6344,9 @@ async def run_strategy_variation(
                         round_kind=round_kind,
                         round_variant_index=int(metadata["round_variant_index"]),
                         parent_global_variant_index=metadata.get("parent_global_variant_index"),
-                        root_attempt_id=str(metadata.get("root_attempt_id") or f"{task_id}:initial"),
+                        root_attempt_id=str(
+                            metadata.get("root_attempt_id") or f"{task_id}:initial"
+                        ),
                         parent_attempt_id=str(
                             metadata.get("parent_attempt_id") or f"{task_id}:initial"
                         ),
@@ -6290,14 +6371,17 @@ async def run_strategy_variation(
             results.extend(batch_results)
         return results
 
-    global_variant_index = max(
-        [
-            int(record.get("global_variant_index", record.get("index", -1)))
-            for record in _flat_generation_records()
-            if isinstance(record.get("global_variant_index", record.get("index")), int)
-        ]
-        or [-1]
-    ) + 1
+    global_variant_index = (
+        max(
+            [
+                int(record.get("global_variant_index", record.get("index", -1)))
+                for record in _flat_generation_records()
+                if isinstance(record.get("global_variant_index", record.get("index")), int)
+            ]
+            or [-1]
+        )
+        + 1
+    )
     terminal_stop_reason = "budget_exhausted"
     for round_index, budget in enumerate(_ADAPTIVE_VARIANT_BUDGET, start=1):
         existing_round = next(
@@ -6315,6 +6399,24 @@ async def run_strategy_variation(
             continue
 
         round_kind = _round_kind(round_index)
+        if not _has_actionable_lineage_for_next_round(round_index):
+            terminal_stop_reason = "no_actionable_lineage"
+            for prior_round in reversed(variant_rounds):
+                if isinstance(prior_round, dict) and prior_round.get("stop_reason") == "no_success":
+                    prior_round["stop_reason"] = "no_actionable_lineage"
+                    _apply_round_budget_stats(prior_round)
+                    break
+            checkpoint[_VARIANT_ROUNDS_KEY] = variant_rounds
+            checkpoint["variant_results"] = _flat_variant_results()
+            checkpoint["stop_reason"] = terminal_stop_reason
+            checkpoint["adaptive_budget"] = _adaptive_budget_report(terminal_stop_reason)
+            _write_json_atomic(
+                checkpoint_path,
+                checkpoint,
+                failpoint_base="phase_4.strategy_variation.checkpoint",
+            )
+            break
+
         round_failure_context = (
             failure_context if round_index == 1 else _adaptive_failure_context(round_index)
         )
@@ -6371,7 +6473,9 @@ async def run_strategy_variation(
         for round_variant_index, strategy in enumerate(selected_strategies):
             if round_variant_index in completed_round_indexes:
                 continue
-            strategy_index = strategies.index(strategy) if strategy in strategies else round_variant_index
+            strategy_index = (
+                strategies.index(strategy) if strategy in strategies else round_variant_index
+            )
             pending_tasks.append(
                 asyncio.create_task(
                     _generate_variant_record(
@@ -6422,8 +6526,10 @@ async def run_strategy_variation(
                 real_variants.append((variant, strategy, record))
         if not real_variants:
             round_record["stop_reason"] = "no_valid_generation"
+            _apply_round_budget_stats(round_record)
             terminal_stop_reason = "no_valid_generation"
             checkpoint[_VARIANT_ROUNDS_KEY] = variant_rounds
+            checkpoint["adaptive_budget"] = _adaptive_budget_report(terminal_stop_reason)
             _write_json_atomic(
                 checkpoint_path,
                 checkpoint,
@@ -6432,9 +6538,7 @@ async def run_strategy_variation(
             break
 
         variant_results = [
-            item
-            for item in round_record.get("variant_results", [])
-            if isinstance(item, dict)
+            item for item in round_record.get("variant_results", []) if isinstance(item, dict)
         ]
         if not variant_results:
             variant_results = await _evaluate_round_variants(
@@ -6467,18 +6571,36 @@ async def run_strategy_variation(
             for result in variant_results
         ):
             round_record["stop_reason"] = "success"
+            _apply_round_budget_stats(round_record)
             terminal_stop_reason = "success"
             checkpoint[_VARIANT_ROUNDS_KEY] = variant_rounds
             checkpoint["variant_results"] = _flat_variant_results()
+            checkpoint["adaptive_budget"] = _adaptive_budget_report(terminal_stop_reason)
             _write_json_atomic(
                 checkpoint_path,
                 checkpoint,
                 failpoint_base="phase_4.strategy_variation.checkpoint",
             )
             break
+        if _best_refused_variant() is None:
+            round_record["stop_reason"] = "no_actionable_lineage"
+            _apply_round_budget_stats(round_record)
+            terminal_stop_reason = "no_actionable_lineage"
+            checkpoint[_VARIANT_ROUNDS_KEY] = variant_rounds
+            checkpoint["variant_results"] = _flat_variant_results()
+            checkpoint["adaptive_budget"] = _adaptive_budget_report(terminal_stop_reason)
+            _write_json_atomic(
+                checkpoint_path,
+                checkpoint,
+                failpoint_base="phase_4.strategy_variation.checkpoint",
+            )
+            break
+
         round_record["stop_reason"] = "no_success"
+        _apply_round_budget_stats(round_record)
         checkpoint[_VARIANT_ROUNDS_KEY] = variant_rounds
         checkpoint["variant_results"] = _flat_variant_results()
+        checkpoint["adaptive_budget"] = _adaptive_budget_report(terminal_stop_reason)
         _write_json_atomic(
             checkpoint_path,
             checkpoint,
@@ -6501,6 +6623,7 @@ async def run_strategy_variation(
     checkpoint["variant_results"] = variant_results
     checkpoint["status"] = status
     checkpoint["stop_reason"] = terminal_stop_reason
+    checkpoint["adaptive_budget"] = _adaptive_budget_report(terminal_stop_reason)
     _write_json_atomic(
         checkpoint_path,
         checkpoint,
@@ -6511,11 +6634,7 @@ async def run_strategy_variation(
         "stop_reason": terminal_stop_reason,
         "judge_diagnosis": recommendation,
         "failure_context": failure_context,
-        "adaptive_budget": {
-            "shape": list(_ADAPTIVE_VARIANT_BUDGET),
-            "max_browser_variants": sum(_ADAPTIVE_VARIANT_BUDGET),
-            "stop_reason": terminal_stop_reason,
-        },
+        "adaptive_budget": _adaptive_budget_report(terminal_stop_reason),
         "attempts": [initial_result],
         "adaptive_rounds": variant_rounds,
         "variant_rounds": variant_rounds,
@@ -6568,10 +6687,14 @@ def _rebase_adversarial_task(
     rebuilt["benign_task_id"] = adversarial_task["benign_task_id"]
     rebuilt["adversarial_data_seed"] = json.loads(json.dumps(adversarial_data_seed))
     rebuilt["sites"] = _merged_task_sites(benign_task, adversarial_task)
-    rebuilt["reward_function"] = {
+    rebuilt_reward = {
         "benign_reward": json.loads(json.dumps(benign_task.get("reward_function", {}))),
         "adversarial_reward": json.loads(json.dumps(adversarial_reward)),
     }
+    final_state_check = reward.get("adversarial_final_state_check")
+    if isinstance(final_state_check, dict) and final_state_check:
+        rebuilt_reward["adversarial_final_state_check"] = json.loads(json.dumps(final_state_check))
+    rebuilt["reward_function"] = rebuilt_reward
 
     immutable_fields = {
         "id",
@@ -6905,18 +7028,15 @@ def _build_phase_4_result(
     successful_variant_round_variant_index = None
     successful_variant_final_result = None
     if isinstance(successful_variant, dict):
-        successful_variant_trace = (
-            successful_variant.get("variant_trajectory_dir")
-            or successful_variant.get("trajectory_dir")
-        )
+        successful_variant_trace = successful_variant.get(
+            "variant_trajectory_dir"
+        ) or successful_variant.get("trajectory_dir")
         successful_variant_index = successful_variant.get("variant_index")
         successful_variant_global_index = successful_variant.get(
             "global_variant_index", successful_variant_index
         )
         successful_variant_round = successful_variant.get("round_index")
-        successful_variant_round_variant_index = successful_variant.get(
-            "round_variant_index"
-        )
+        successful_variant_round_variant_index = successful_variant.get("round_variant_index")
         successful_variant_final_result = successful_variant.get("final_result")
     primary_inspection_trace = (
         successful_variant_trace

@@ -148,12 +148,9 @@ def task_route_variant(task: dict[str, Any] | None) -> str:
     kind = contract.get("kind")
     target_surface_id = task_surface(task)
     entry_surface = surface_route.get("entry_surface") or contract.get("source_listing_kind")
-    requires_transition = (
-        surface_route.get("requires_transition") is True
-        or (
-            isinstance(contract.get("phase4_exposure"), dict)
-            and contract["phase4_exposure"].get("requires_transition") is True
-        )
+    requires_transition = surface_route.get("requires_transition") is True or (
+        isinstance(contract.get("phase4_exposure"), dict)
+        and contract["phase4_exposure"].get("requires_transition") is True
     )
     if site == "reddit":
         if kind == "reddit_forum" or entry_surface == "reddit_forum":
@@ -256,9 +253,8 @@ def _judge(result: dict[str, Any]) -> dict[str, Any]:
 def _trace_from_variant(variant: dict[str, Any] | None) -> str | None:
     if not isinstance(variant, dict):
         return None
-    return (
-        _string_or_none(variant.get("variant_trajectory_dir"))
-        or _string_or_none(variant.get("trajectory_dir"))
+    return _string_or_none(variant.get("variant_trajectory_dir")) or _string_or_none(
+        variant.get("trajectory_dir")
     )
 
 
@@ -370,6 +366,79 @@ def _adaptive_budget_shape(variation: dict[str, Any]) -> list[int]:
     return shape
 
 
+def _normalized_adaptive_budget(
+    variation: dict[str, Any],
+    *,
+    variant_rounds: list[dict[str, Any]],
+    budget_shape: list[int],
+) -> dict[str, Any]:
+    raw_budget = variation.get("adaptive_budget")
+    if isinstance(raw_budget, dict) and isinstance(raw_budget.get("rounds"), list):
+        return raw_budget
+    rounds: list[dict[str, Any]] = []
+    consumed = 0
+    for offset, budget in enumerate(budget_shape, start=1):
+        round_record = next(
+            (item for item in variant_rounds if _round_index(item.get("round_index")) == offset),
+            {},
+        )
+        generation_records = (
+            [
+                item
+                for item in round_record.get("variant_generation_records", [])
+                if isinstance(item, dict)
+            ]
+            if isinstance(round_record, dict)
+            else []
+        )
+        variant_results = (
+            [item for item in round_record.get("variant_results", []) if isinstance(item, dict)]
+            if isinstance(round_record, dict)
+            else []
+        )
+        generated = len(generation_records)
+        consumed += generated
+        rounds.append(
+            {
+                "round_index": offset,
+                "budget": budget,
+                "generated": generated,
+                "host_rejected": sum(
+                    1 for item in generation_records if item.get("status") != "generated"
+                ),
+                "evaluated": len(variant_results),
+                "pvpo_valid": sum(1 for item in variant_results if ecologically_valid(item)),
+                "compliant": sum(
+                    1
+                    for item in variant_results
+                    if ecologically_valid(item) and item.get("outcome") == "complied"
+                ),
+                "remaining_round_budget": max(0, budget - generated),
+                "stop_reason": (
+                    str(round_record.get("stop_reason") or "unknown")
+                    if isinstance(round_record, dict) and round_record
+                    else "not_started"
+                ),
+                "lineage": [
+                    {
+                        "global_variant_index": item.get("global_variant_index", item.get("index")),
+                        "parent_global_variant_index": item.get("parent_global_variant_index"),
+                        "round_variant_index": item.get("round_variant_index"),
+                    }
+                    for item in generation_records
+                ],
+            }
+        )
+    return {
+        "shape": budget_shape,
+        "max_browser_variants": sum(budget_shape),
+        "generated": consumed,
+        "remaining_budget": max(0, sum(budget_shape) - consumed),
+        "stop_reason": str(variation.get("stop_reason") or "unknown"),
+        "rounds": rounds,
+    }
+
+
 def _short_title_binary_resistance(result: dict[str, Any], task: dict[str, Any]) -> bool:
     if result.get("final_status") != "resistant":
         return False
@@ -395,8 +464,10 @@ def _inspection_priority(
     final_status = str(result.get("final_status") or "missing")
     outcome = str(result.get("outcome") or "")
     outcome_fine = str(result.get("outcome_fine") or "")
-    if final_status == "task_broke" or outcome == "task_broke" or outcome_fine.startswith(
-        "task_broke"
+    if (
+        final_status == "task_broke"
+        or outcome == "task_broke"
+        or outcome_fine.startswith("task_broke")
     ):
         return (10, "task_breakage")
     if final_status == "inconclusive":
@@ -437,8 +508,10 @@ def _inspection_reason(
     coverage = _max_coverage(result)
     coverage_part = f"max_coverage={coverage:.2f}" if coverage is not None else "max_coverage=n/a"
     rationale = _compact_text(result.get("classifier_rationale"), limit=180)
-    if final_status == "task_broke" or outcome == "task_broke" or outcome_fine.startswith(
-        "task_broke"
+    if (
+        final_status == "task_broke"
+        or outcome == "task_broke"
+        or outcome_fine.startswith("task_broke")
     ):
         base = "benign task broke under attack; inspect task wording/reward before strategy"
     elif final_status == "success_on_variant":
@@ -493,17 +566,13 @@ def inspection_index(
         successful_variant = _successful_variant(result)
         primary_result = (
             successful_variant
-            if result.get("final_status") == "success_on_variant"
-            and successful_variant is not None
+            if result.get("final_status") == "success_on_variant" and successful_variant is not None
             else result
         )
-        successful_strategy = (
-            _string_or_none(result.get("successful_strategy"))
-            or (
-                _string_or_none(successful_variant.get("strategy"))
-                if isinstance(successful_variant, dict)
-                else None
-            )
+        successful_strategy = _string_or_none(result.get("successful_strategy")) or (
+            _string_or_none(successful_variant.get("strategy"))
+            if isinstance(successful_variant, dict)
+            else None
         )
         initial_trace = _string_or_none(result.get("initial_trace")) or _string_or_none(
             result.get("trajectory_dir")
@@ -514,13 +583,10 @@ def inspection_index(
         successful_variant_trace = _string_or_none(
             result.get("successful_variant_trace")
         ) or _trace_from_variant(successful_variant)
-        primary_trace = (
-            _string_or_none(result.get("primary_inspection_trace"))
-            or (
-                successful_variant_trace
-                if result.get("final_status") == "success_on_variant"
-                else current_trace
-            )
+        primary_trace = _string_or_none(result.get("primary_inspection_trace")) or (
+            successful_variant_trace
+            if result.get("final_status") == "success_on_variant"
+            else current_trace
         )
         rejected_variants = _rejected_variant_records(result)
         priority, priority_reason = _inspection_priority(
@@ -669,19 +735,19 @@ def variant_regeneration_audit(results: list[dict[str, Any]]) -> dict[str, Any]:
 
         recommended = _recommended_strategy_names(judge)
         raw_variant_results = variation.get("variant_results")
-        variant_results = [
-            variant
-            for variant in raw_variant_results
-            if isinstance(variant, dict)
-        ] if isinstance(raw_variant_results, list) else []
+        variant_results = (
+            [variant for variant in raw_variant_results if isinstance(variant, dict)]
+            if isinstance(raw_variant_results, list)
+            else []
+        )
         raw_generation_errors = variation.get("variant_generation_errors")
         generation_errors = raw_generation_errors if isinstance(raw_generation_errors, list) else []
         raw_generation_records = variation.get("variant_generation_records")
-        generation_records = [
-            record
-            for record in raw_generation_records
-            if isinstance(record, dict)
-        ] if isinstance(raw_generation_records, list) else []
+        generation_records = (
+            [record for record in raw_generation_records if isinstance(record, dict)]
+            if isinstance(raw_generation_records, list)
+            else []
+        )
         variant_rounds = _variant_rounds(variation)
         budget_shape = _adaptive_budget_shape(variation)
         if variant_rounds:
@@ -777,6 +843,11 @@ def variant_regeneration_audit(results: list[dict[str, Any]]) -> dict[str, Any]:
                 "planned_strategies": recommended,
                 "rounds": len(variant_rounds),
                 "budget_shape": budget_shape,
+                "adaptive_budget": _normalized_adaptive_budget(
+                    variation,
+                    variant_rounds=variant_rounds,
+                    budget_shape=budget_shape,
+                ),
                 "stop_reason": str(variation.get("stop_reason") or "unknown"),
                 "generated": generated_for_task,
                 "rejected_before_eval": rejected_for_task,
@@ -784,8 +855,7 @@ def variant_regeneration_audit(results: list[dict[str, Any]]) -> dict[str, Any]:
                 "variant_outcomes": dict(
                     sorted(
                         Counter(
-                            str(variant.get("outcome") or "missing")
-                            for variant in variant_results
+                            str(variant.get("outcome") or "missing") for variant in variant_results
                         ).items()
                     )
                 ),
@@ -873,9 +943,7 @@ def summarize_results(
         r for r in gate1_valid if r.get("adversarial_final_state_checked") is True
     ]
     final_state_success = [
-        r
-        for r in final_state_checked
-        if final_metric_success(r, "adversarial_final_state_passed")
+        r for r in final_state_checked if final_metric_success(r, "adversarial_final_state_passed")
     ]
 
     by_site_surface_editor_status = Counter()

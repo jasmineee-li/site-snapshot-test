@@ -301,9 +301,12 @@ On crash, `--resume` reads this file and applies two-branch logic:
 
 **Phase 2**:
 
-- `--phase-2a-action-policy default|mutation_when_available` (default `default`):
+- `--phase-2a-action-policy default|semantic_only|mutation_when_available`
+  (default `default`):
   opt-in strategy-planning policy. `default` preserves planner choice among
-  compatible action options. `mutation_when_available` marks compatible
+  compatible action options. `semantic_only` restricts compatible contracts to
+  host-compiled binary answer hijack for minimum validation, suppressing
+  navigation and mutation actions. `mutation_when_available` marks compatible
   exposure contracts with a host-owned mutation preference so the single
   mutation pilot can be run without changing route eligibility or prompt
   defaults.

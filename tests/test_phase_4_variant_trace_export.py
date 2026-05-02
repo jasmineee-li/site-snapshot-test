@@ -244,6 +244,103 @@ def test_export_prefers_passing_host_retry_attempt(tmp_path: Path) -> None:
     assert variant["delta"]["revised_payload"] == "retry revision"
 
 
+def test_export_joins_sparse_global_variant_indexes(tmp_path: Path) -> None:
+    run, trace = _base_run(tmp_path)
+    _write_json(
+        trace / "result.json",
+        _result('{"retrieved_data":["populated"]}', outcome="refused_or_ignored"),
+    )
+    _attempt(
+        trace,
+        index=0,
+        strategy="specificity",
+        original="original zero",
+        revised="revised zero",
+    )
+    _attempt(
+        trace,
+        index=1,
+        strategy="authority_framing",
+        original="original rejected",
+        revised="revised rejected",
+        host_status="failed",
+    )
+    _attempt(
+        trace,
+        index=2,
+        strategy="semantic_coherence",
+        original="original two",
+        revised="revised two",
+    )
+    variant0 = trace.parent / "task-1_variant_0"
+    variant2 = trace.parent / "task-1_variant_2"
+    _write_json(
+        variant0 / "result.json",
+        _result('{"retrieved_data":["populated"]}', outcome="refused_or_ignored"),
+    )
+    _write_json(variant2 / "result.json", _result('{"retrieved_data":["blank"]}'))
+    _write_json(
+        trace / "strategy_variation_checkpoint.json",
+        {
+            "variant_generation_records": [
+                {
+                    "index": 0,
+                    "global_variant_index": 0,
+                    "round_index": 1,
+                    "round_variant_index": 0,
+                    "strategy": "specificity",
+                    "status": "generated",
+                },
+                {
+                    "index": 1,
+                    "global_variant_index": 1,
+                    "round_index": 1,
+                    "round_variant_index": 1,
+                    "strategy": "authority_framing",
+                    "status": "failed",
+                    "reason": "host rejected",
+                },
+                {
+                    "index": 2,
+                    "global_variant_index": 2,
+                    "round_index": 1,
+                    "round_variant_index": 2,
+                    "strategy": "semantic_coherence",
+                    "status": "generated",
+                },
+            ],
+        },
+    )
+    _write_json(
+        run / "phase_4" / "results.json",
+        [
+            {
+                "task_id": "task-1",
+                "final_status": "success_on_variant",
+                "initial_trace": str(trace),
+                "successful_variant_index": 2,
+                "successful_variant_global_index": 2,
+                "successful_variant_trace": str(variant2),
+                "strategies_attempted": [
+                    {"strategy": "specificity", "outcome": "refused_or_ignored"},
+                    {"strategy": "semantic_coherence", "outcome": "complied"},
+                ],
+            }
+        ],
+    )
+
+    variants = build_variant_trace_export(run)["rows"][0]["variants"]
+
+    assert [variant["global_variant_index"] for variant in variants] == [0, 1, 2]
+    assert variants[1]["strategy"] == "authority_framing"
+    assert variants[1]["evaluation"]["status"] == "not_evaluated_host_rejected"
+    assert variants[1]["evaluation"]["trace"] is None
+    assert variants[2]["strategy"] == "semantic_coherence"
+    assert variants[2]["delta"]["revised_payload"] == "revised two"
+    assert variants[2]["evaluation"]["answer_label"] == "blank"
+    assert variants[2]["selected_success"] is True
+
+
 def test_export_warns_for_missing_payload_diff_and_variant_result(tmp_path: Path) -> None:
     run, trace = _base_run(tmp_path)
     _write_json(

@@ -63,6 +63,9 @@ second, mixed headline sweeps only after both families pass admission.
 
 Use artifact-local gates before changing prompts broadly. The binary compiler
 canary proves existing semantic rewards still compile deterministically; the
+`semantic_only` action policy is for minimum validation runs that must isolate
+host-compiled binary answer hijack without navigation or mutation-action
+confounds. The
 mutation pilot audit proves a Phase 2 artifact has compatible editor/action
 contracts and POST/status/body-witness rewards before Phase 2a is biased toward
 mutation actions or Phase 4 headline metrics are mixed across reward signals.

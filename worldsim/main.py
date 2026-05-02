@@ -281,6 +281,8 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help=(
             "Phase 2a adversarial-action policy. Default preserves planner choice; "
+            "semantic_only restricts compatible contracts to host-compiled binary "
+            "answer hijack for minimum validation; "
             "mutation_when_available marks compatible exposure contracts with a "
             "host-owned mutation preference for a controlled pilot."
         ),

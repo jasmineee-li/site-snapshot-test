@@ -95,16 +95,22 @@ def _build_task_row(
     initial_result = _load_result_json(initial_trace)
     checkpoint = _load_checkpoint(initial_trace)
     generation_attempts = _generation_attempts_by_index(initial_trace, payload_limit)
+    variant_records = _strategy_records(result, checkpoint)
     variants = [
         _build_variant_row(
             task_id=task_id,
-            index=index,
+            record_index=index,
             strategy_record=strategy_record,
-            attempt=_select_generation_attempt(generation_attempts.get(index, [])),
+            attempt=_select_generation_attempt(
+                generation_attempts.get(
+                    _variant_join_index(strategy_record, fallback=index),
+                    [],
+                )
+            ),
             phase4_dir=phase4_dir,
             result=result,
         )
-        for index, strategy_record in enumerate(_strategy_records(result, checkpoint))
+        for index, strategy_record in enumerate(variant_records)
     ]
     warnings = _task_warnings(result, variants, checkpoint)
     variant_loop = _variant_loop_view(result, variants)
@@ -164,28 +170,38 @@ def _build_task_row(
 def _build_variant_row(
     *,
     task_id: str,
-    index: int,
+    record_index: int,
     strategy_record: dict[str, Any],
     attempt: dict[str, Any] | None,
     phase4_dir: Path,
     result: dict[str, Any],
 ) -> dict[str, Any]:
-    variant_trace = _variant_trace_path(task_id, index, phase4_dir, result)
+    join_index = _variant_join_index(strategy_record, fallback=record_index)
+    round_index = _int_or_none(strategy_record.get("round_index"))
+    round_variant_index = _int_or_none(strategy_record.get("round_variant_index"))
+    variant_trace = _variant_trace_path(task_id, join_index, phase4_dir, result)
     variant_result = _load_result_json(variant_trace)
+    generation_status = str(strategy_record.get("generation_status") or "")
+    host_rejected = generation_status in {"failed", "inapplicable", "skipped", "error"}
     adversarial_passed = variant_result.get("adversarial_passed")
     worked = (
         bool(adversarial_passed)
         if adversarial_passed is not None
         else variant_result.get("outcome") == "complied"
     )
-    selected_success = (
-        result.get("final_status") == "success_on_variant"
-        and result.get("successful_variant_index") == index
+    selected_success = result.get("final_status") == "success_on_variant" and (
+        result.get("successful_variant_global_index") == join_index
+        or result.get("successful_variant_index") == join_index
     )
     delta = _payload_delta(attempt)
     return {
-        "variant_index": index,
-        "strategy_index": index,
+        "variant_index": join_index,
+        "global_variant_index": join_index,
+        "strategy_index": _int_or_none(strategy_record.get("index")),
+        "row_index": record_index,
+        "round_index": round_index,
+        "round_variant_index": round_variant_index,
+        "parent_global_variant_index": strategy_record.get("parent_global_variant_index"),
         "strategy": strategy_record.get("strategy"),
         "strategy_outcome": strategy_record.get("outcome"),
         "strategy_ecologically_valid": strategy_record.get("ecologically_valid"),
@@ -194,24 +210,51 @@ def _build_variant_row(
         "delta": delta,
         "evaluation": {
             "trace": str(variant_trace) if variant_trace else None,
+            "status": (
+                "not_evaluated_host_rejected"
+                if host_rejected and variant_trace is None
+                else "evaluated"
+                if variant_trace is not None
+                else "missing"
+            ),
             "outcome": variant_result.get("outcome"),
             "outcome_fine": variant_result.get("outcome_fine"),
             "answer_label": answer_label(variant_result.get("final_result")),
             "final_result": variant_result.get("final_result"),
             "worked": worked,
         },
-        "warnings": _variant_warnings(index, attempt, variant_trace, variant_result),
+        "warnings": _variant_warnings(
+            join_index,
+            attempt,
+            variant_trace,
+            variant_result,
+            host_rejected=host_rejected,
+        ),
     }
 
 
 def _strategy_records(result: dict[str, Any], checkpoint: dict[str, Any]) -> list[dict[str, Any]]:
-    raw = result.get("strategies_attempted")
-    if isinstance(raw, list) and raw:
-        return [item for item in raw if isinstance(item, dict)]
     raw_generation = checkpoint.get("variant_generation_records")
-    if isinstance(raw_generation, list):
+    if not isinstance(raw_generation, list):
+        raw_rounds = checkpoint.get("variant_rounds") or checkpoint.get("adaptive_rounds")
+        if isinstance(raw_rounds, list):
+            raw_generation = [
+                item
+                for round_record in raw_rounds
+                if isinstance(round_record, dict)
+                for item in round_record.get("variant_generation_records", [])
+                if isinstance(item, dict)
+            ]
+    if isinstance(raw_generation, list) and raw_generation:
         return [
             {
+                "index": item.get("index"),
+                "round_index": item.get("round_index"),
+                "round_variant_index": item.get("round_variant_index"),
+                "global_variant_index": item.get("global_variant_index"),
+                "parent_global_variant_index": item.get("parent_global_variant_index"),
+                "generation_status": item.get("status"),
+                "generation_reason": item.get("reason"),
                 "strategy": _nested_get(item, "strategy", "strategy")
                 or _nested_get(item, "strategy")
                 or "unknown",
@@ -219,6 +262,9 @@ def _strategy_records(result: dict[str, Any], checkpoint: dict[str, Any]) -> lis
             for item in raw_generation
             if isinstance(item, dict)
         ]
+    raw = result.get("strategies_attempted")
+    if isinstance(raw, list) and raw:
+        return [item for item in raw if isinstance(item, dict)]
     return []
 
 
@@ -271,6 +317,9 @@ def _generation_attempts_by_index(
             strategy_index = _index_from_generation_dir(attempt_dir.parent.name)
         if strategy_index is None:
             continue
+        global_variant_index = request.get("global_variant_index")
+        if isinstance(global_variant_index, int):
+            strategy_index = global_variant_index
         host_validation = _load_json_dict(attempt_dir / "host_validation.json")
         contract_qa = _load_json_dict(attempt_dir / "contract_qa.json")
         payload_diff = _load_json_dict(attempt_dir / "payload_diff.json")
@@ -289,6 +338,9 @@ def _generation_attempts_by_index(
         attempts[strategy_index].append(
             {
                 "strategy_index": strategy_index,
+                "global_variant_index": global_variant_index,
+                "round_index": request.get("round_index"),
+                "round_variant_index": request.get("round_variant_index"),
                 "strategy": request.get("strategy"),
                 "attempt": request.get("attempt") or attempt_dir.name,
                 "request_summary": request,
@@ -463,6 +515,8 @@ def _variant_warnings(
     attempt: dict[str, Any] | None,
     variant_trace: Path | None,
     variant_result: dict[str, Any],
+    *,
+    host_rejected: bool = False,
 ) -> list[str]:
     warnings: list[str] = []
     if attempt is None:
@@ -477,6 +531,8 @@ def _variant_warnings(
         )
         if dir_index is not None and dir_index != index:
             warnings.append("strategy_index_mismatch")
+    if host_rejected:
+        return warnings
     if variant_trace is None:
         warnings.append("missing_variant_trace")
     elif not variant_result:
@@ -535,6 +591,18 @@ def _index_from_generation_dir(name: str) -> int | None:
     if not prefix.isdigit():
         return None
     return int(prefix)
+
+
+def _variant_join_index(strategy_record: dict[str, Any], *, fallback: int) -> int:
+    for key in ("global_variant_index", "variant_index", "index"):
+        value = strategy_record.get(key)
+        if isinstance(value, int):
+            return value
+    return fallback
+
+
+def _int_or_none(value: Any) -> int | None:
+    return value if isinstance(value, int) else None
 
 
 __all__ = [
