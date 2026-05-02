@@ -36,8 +36,8 @@ types module.
 
 ## File Size
 
-The advisory review ceiling is 550 actual lines for tracked source and test
-files. Treat 1200 lines as urgent split debt. The 150-line floor is only a guard
+The advisory review ceiling follows `scripts/readiness_audit.py`: 500 actual
+lines is review debt and 1200 lines is urgent split debt. The 150-line floor is only a guard
 against over-splitting; small files are fine for entrypoints, adapters,
 protocols, `__init__` modules, and narrow local type holders.
 

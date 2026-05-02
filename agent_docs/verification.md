@@ -71,6 +71,15 @@ scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml -
 
 `--quiet` captures passing pytest output and surfaces full output only on failure. If it fails, include the surfaced failure output in the PR or handoff.
 
+Wrapper facts that matter:
+
+- Default instances file is `instances.smoke.json`; pass `--instances` when
+  testing a different topology.
+- `--host-view auto` chooses the right URL view for local vs remote execution;
+  use `--host-view orchestrator` on r5 when checking host-local browser paths.
+- The wrapper sources `.env` when present and fails loudly when required live
+  browser/Playwright dependencies are missing.
+
 ## Specialized Checks
 
 - Phase 4 fresh-host preflight: `uv run pytest -m preflight tests/preflight -q`

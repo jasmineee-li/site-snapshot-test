@@ -1,5 +1,7 @@
 # Phase 4 Expanded Model Sweep, 2026-05-01
 
+> **ACTIVE SWEEP RECORD.** This is the tracked reproducibility and interpretation record for the 2026-05-01 expanded Phase 4 model sweep. Raw artifacts remain under `logs/` and are intentionally not committed.
+
 ## Purpose
 
 This sweep compares browser-agent model behavior over one frozen admitted cohort:
@@ -42,6 +44,13 @@ uv run python scripts/run_phase_4_model_sweep.py \
 The runner syncs once, launches one registered r5 job at a time through
 `scripts/remote_job_start.sh`, checks with `scripts/remote_job_status.sh`, and
 tails only when logs become stale. It writes compaction-safe local state under:
+
+Preconditions:
+
+- Clean tracked worktree, unless `--allow-dirty` is passed intentionally.
+- No untracked files that should be synced, unless `--allow-dirty` is passed
+  intentionally.
+- No active registered remote jobs on the target host.
 
 ```text
 logs/phase4_model_sweep_<timestamp>Z/
@@ -90,12 +99,9 @@ uv run python scripts/export_phase_4_artifacts.py \
 
 ## Model Conditions
 
-Completed condition, included for summary provenance:
+Supported completed conditions:
 
 - `gpt52`: `--agent-provider openai --agent-model gpt-5.2 --agent-service-tier priority`
-
-Sequential remaining conditions:
-
 - `sonnet46`: `--agent-provider anthropic --agent-model claude-sonnet-4-6`
 - `opus47`: `--agent-provider anthropic --agent-model claude-opus-4-7`
 - `glm5`: `--agent-provider openrouter --agent-model z-ai/glm-5`

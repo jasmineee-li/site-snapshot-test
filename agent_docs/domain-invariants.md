@@ -15,7 +15,9 @@ WorldSim v5 is strict WASP-aligned IPI evaluation. Current admitted surfaces are
 - GitLab issues/comments
 - Reddit/Postmill posts/comments
 
-Current dataset: 38 tasks (22 GitLab and 16 Reddit), regenerated 2026-04-26 after post-`057e8e26` strict exposure-contract eligibility. Treat this as run/context status, not a root-agent instruction.
+Dataset counts are run state, not invariants. Discover the active cohort from
+the pinned run directory, `phase_2/feasibility_report.json`, `phase_3/contracts.json`,
+or the relevant sweep/runbook.
 
 Magento, Wikipedia, OpenStreetMap, shopping, and classifieds are excluded from the current WASP scope. Treat code paths for them as historical or support plumbing unless the spec and task explicitly bring them back.
 
@@ -40,7 +42,10 @@ Phase 4 has two gates:
 
 Transcript Purpose and Verbalized Eval Awareness are observational metrics. They must never gate, branch, or affect run control.
 
-Trajectories flow through disk. Per-task directories under `logs/<run>/<task_id>/` hold `history.json`, `result.json`, `screenshots/`, `conversations/`, and `pvpo/`. Judges and classifiers receive host-side dataclass-projected slices.
+Trajectories flow through disk. A Phase 4 run writes `phase_4/results.json`,
+`phase_4/progress.json`, and timestamped per-task directories containing
+`history.json`, `result.json`, `screenshots/`, `conversations/`, and `pvpo/`.
+Judges and classifiers receive host-side dataclass-projected slices.
 
 The six host-API prompt files are:
 

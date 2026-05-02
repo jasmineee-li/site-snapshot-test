@@ -22,6 +22,10 @@ tracked. For new rigor runs, prefer an artifact archive such as the S3 path in
 `docs/handoffs/rigor-run-setup.md`, then keep only the manifest or runbook in
 git.
 
+Some legacy generated artifacts may still be tracked while readiness debt is
+being unwound. Treat those as deferred historical fixtures, not permission to
+commit new runtime output under `logs/`.
+
 ## Where To Look
 
 Do not assume git has the newest task artifacts. Phase commands write mutable

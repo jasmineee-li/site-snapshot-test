@@ -31,6 +31,16 @@ Use an explicit `bash -lc '...'` command for multi-step runs. Set
 argv/PATH behavior; launch failures are written as `exit.status=launch_failed`
 and surfaced by `remote_job_status.sh`.
 
+Use `--expected-output <path>` for the artifact that proves the job did real
+work. Use `--state-dir auto` only for isolated experiments; normal Phase
+1/2/3/4 chains should write canonical `logs/phase_*` artifacts. Push required
+remote environment variables with `scripts/remote_env_push.sh`; do not paste
+secrets into job commands or hand-written shell history.
+
+`remote_job_status.sh` is the first status surface. It reports process liveness,
+heartbeat age, expected-output presence, and Phase 4 progress when available.
+Tail logs only when status says output is stale or failed.
+
 WorldSim uses two different network localities on r5. Treat the instances file
 as an execution-locality contract, not just a dataset selector:
 
@@ -143,3 +153,6 @@ scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml -
 ```
 
 Use `--quiet` for agent sessions. It prints a one-line pass summary or full failure output.
+On a laptop/public-proxy run, pass a public/proxy `--instances` file. On r5,
+use the host-local/orchestrator topology (`--host-view orchestrator` or the
+auto-selected equivalent) and do not reuse public smoke inputs for Phase 2c/4.

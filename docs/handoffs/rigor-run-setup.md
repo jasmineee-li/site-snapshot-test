@@ -9,24 +9,24 @@ zero hand-patching.
 1. **`scripts/bootstrap_r5.sh`** (or equivalent for the target host).
    Generates the scale compose, preflights the SG, brings benchmark
    containers up with env-ctrl responding.
-2. **`scripts/setup_phase4_on_host.sh`** — idempotent, 7 steps:
+2. **`scripts/setup_phase4_on_host.sh`** — idempotent setup:
    1. uv + repo venv + evaluator venv (`packages/worldsim-webarena-verified`).
-   2. Playwright Chromium + system libs.
-   3. one `pvpo-chrome` Docker container per configured `pvpo_cdp_url`
+   2. Regenerate `instances.scale.json` / `instances.smoke.json` from
+      `scripts/scale_config.yml` and the selected host config.
+   3. Playwright Chromium + system libs when Playwright is installed.
+   4. One `pvpo-chrome` Docker container per configured `pvpo_cdp_url`
       (content-hash stamped; rebuilds only when
       `worldsim/docker/chrome-headless-shell.Dockerfile` changes; containers
       are `--restart unless-stopped` because Phase 4 recycles the browser
       process after every task).
-   4. Artifact sync (`logs/phase_0c`, `logs/phase_2/adversarial_tasks.json`,
+   5. Artifact sync (`logs/phase_0c`, `logs/phase_2/adversarial_tasks.json`,
       `logs/phase_3/contracts.json`). Prefer `aws s3 sync` from
       `s3://benchmark-archives/worldsim-runs/<run_id>/` — same-region intra
       -AWS transfer, no egress, no SSH key dependency.
-   5. Mint gitlab Phase 0d `storage_state.json` (skipped when present).
-   6. `sync_magento_base_urls.py` across every shopping replica using
-      `config:set --lock-env` (writes `app/etc/env.php`, top of Magento's
-      precedence chain).
+   6. Re-mint GitLab Phase 0d `storage_state.json` unconditionally so cookies
+      bind to the current host topology.
    7. `pytest -m preflight tests/preflight` — the pass/fail gate.
-3. **Launch**:
+3. **Launch or resume**:
    ```
    uv run python -m worldsim.main phase 4 \
        --instances instances.scale.json
@@ -108,7 +108,6 @@ Failure recovery:
 |---|---|
 | every configured `pvpo_cdp_url` reachable and unique | rerun setup step 3 |
 | each loopback `pvpo-chrome-<port>` has restart policy `unless-stopped` | rerun setup step 3 |
-| Magento base_url matches proxy origin | rerun `sync_magento_base_urls.py` |
 | `logs/phase_0d/gitlab/storage_state.json` has cookies | rerun `login_gitlab_r5.py` (setup step 5) |
 | evaluator venv imports `webarena_verified` | rerun setup step 1 |
 
@@ -141,9 +140,12 @@ kill the supervised parent process on r5. Use `WORLDSIM_PVPO_BROWSER_RECYCLE=0`
 only for local smoke tests against a manually-started Chrome without restart
 supervision.
 
-## Magento base_url drift: root cause + defense in depth
+## Historical Magento Base-URL Drift
 
-Root cause: `scripts/generate_compose_scale.py:96` baked
+Magento left active WASP scope on 2026-04-21. Keep this note only for reading
+old shopping artifacts; it is not part of the active Phase 4 rigor setup.
+
+Root cause: `scripts/generate_compose_scale.py:96` once baked
 `WA_ENV_CTRL_EXTERNAL_SITE_URL` with the raw backend port. Every Phase 4
 `reset_endpoint` POST triggered env-ctrl `_init()` which ran
 `setup:store-config:set --base-url=<raw>` and reverted the repair on
@@ -188,9 +190,6 @@ double-check the slug against the provider's current catalog.
   than `recycled` means the browser process was not restarted cleanly; rerun
   setup step 3 and inspect the `pvpo-chrome-<port>` restart policy plus
   `docker_restart_*` fields in the runtime artifact.
-- **Magento 502 / base_url shows `3.12.221.9:7770`**: the compose env var
-  regression returned. Run `docker exec webarena-verified-shopping_0 env
-  | grep WA_ENV_CTRL_EXTERNAL_SITE_URL` — must show the proxy port.
 - **Evaluator subprocess error in rewards**: the evaluator venv isn't
   synced. `cd packages/worldsim-webarena-verified && uv sync --locked`.
 - **Gitlab task fails with `AuthArtifactMissingError`**: the auto-heal

@@ -1,5 +1,7 @@
 # Phase 2c admission floor: 113 / 124 (91.1%)
 
+> **ACTIVE OPERATIONAL PIN.** This records the accepted 113/124 Phase 2c admission floor verified on 2026-04-25. Replace it only when a newer admitted cohort is intentionally pinned.
+
 Last verified: 2026-04-25T04:28:08Z on r5 (3.12.221.9), code at HEAD=48150838.
 
 ## Outcome
@@ -34,7 +36,22 @@ This is the documented floor for shipping Phase 4. Future Phase 2c runs that pro
 
 ## Rigor-run provenance pin
 
-`logs/phase_2/adversarial_tasks.json` is mutable on r5 — Phase 2c reverifies, integration tests, and ad-hoc scripts all overwrite it. Once a Phase 4 rigor run is intended, immediately freeze the source-of-truth artifacts:
+`logs/phase_2/adversarial_tasks.json` is mutable on r5 — Phase 2c reverifies,
+integration tests, and ad-hoc scripts can overwrite it. For new rigor runs,
+prefer an immutable run directory or archive plus `artifact_manifest.json`
+instead of copying backup files inside canonical `logs/phase_2`.
+
+Current setup writes provenance with:
+
+```
+scripts/setup_phase4_on_host.sh \
+  --host-config configs/benchmark_hosts/r5.yaml \
+  --instances instances.scale.json \
+  --artifacts-source s3://benchmark-archives/worldsim-runs/<run_id>/
+```
+
+If you must preserve this historical floor in-place, use the backup commands
+below and update the hashes. Do not hand-edit `feasibility.status`.
 
 ```
 cp -p logs/phase_2/adversarial_tasks.json                   logs/phase_2/adversarial_tasks.rigor_run_pinned.bak.json
@@ -68,6 +85,14 @@ sha1  90b69de4e717b35312640be2946228a6e2c4aae4  feasibility_report.rigor_run_pin
 ```
 
 If a future reverify intentionally produces a new admitted set, replace the pinned files and update both the SHAs above and the timestamp.
+
+On r5, reverify with host-local topology. Do not rely on the CLI default
+`instances.smoke.json` for Phase 2c:
+
+```
+uv run python -m worldsim.main phase 2c \
+  --feasibility-instances instances.scale.json
+```
 
 ## Not in scope
 

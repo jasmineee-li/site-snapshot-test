@@ -1,5 +1,7 @@
 # Phase 4 OpenRouter Agent Model Smoke Matrix
 
+> **ACTIVE COMPATIBILITY MATRIX.** This records OpenRouter Browser Use smoke compatibility only. It is not benchmark evidence, and reasoning-mode notes are not benchmark-ready knobs unless the Phase 4 runner exposes and records those controls.
+
 Date: 2026-05-01
 
 Purpose: record which OpenRouter model slugs have passed local smoke checks for the Phase 4 Browser Use web-agent path. This is operational compatibility evidence only. It is not a Phase 4 benchmark result, not a PVPO encounter result, and not evidence of IPI resistance or compliance.
@@ -68,7 +70,7 @@ returned:
 - reasoning delta chunks observed: `108`
 - reasoning details chunks observed: `108`
 
-Edge case: the same request with `max_tokens=64` returned reasoning telemetry but no final content because the output budget was consumed by reasoning tokens. For reasoning-enabled OpenRouter models, smoke and benchmark runs need enough output budget for both reasoning and final action JSON.
+Edge case: the same request with `max_tokens=64` returned reasoning telemetry but no final content because the output budget was consumed by reasoning tokens. This is a smoke finding only. Do not treat reasoning-enabled mode as benchmark-ready until Phase 4 exposes, records, and resumes the relevant reasoning/output-budget controls.
 
 ## Implementation Notes
 
