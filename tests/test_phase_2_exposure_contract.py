@@ -72,6 +72,33 @@ def test_gitlab_issue_note_admitted_with_exact_comment_region_evidence():
     assert call["args"]["body"] == "{{PAYLOAD_TEXT}}"
 
 
+def test_gitlab_mr_note_is_not_active_even_with_exact_region_evidence():
+    contract = build_exposure_contract(
+        benign_task_id="task-mr-note",
+        site="gitlab",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "gitlab_mr",
+            "anchors": {"project_id": "22", "mr_iid": "7"},
+            "start_url_resolved": "https://gitlab.local/acme/demo/-/merge_requests/7",
+            "exact_comment_region_forced_by_task": True,
+        },
+    )
+
+    assert contract["eligibility"] == {
+        "status": "ineligible",
+        "reason": "phase4_exposure:unsupported_merge_request_carrier_surface",
+    }
+    assert contract["seed_capability"]["status"] == "supported"
+    assert contract["phase4_exposure"]["admissible"] is False
+    assert (
+        contract["phase4_exposure"]["reason"]
+        == "unsupported_merge_request_carrier_surface"
+    )
+    assert contract["target_surface_id"] == "note.body"
+    assert contract["editor_method"] == "create_mr_note"
+
+
 def test_prefers_always_shown_surface_when_multiple_specs_qualify(monkeypatch):
     conditional = EditorMethodSpec(
         benchmark="webarena_verified",

@@ -42,6 +42,14 @@ RETIRED_ACTIVE_CARRIER_SURFACES: dict[str, frozenset[str]] = {
     "reddit": frozenset({"submission.title"}),
 }
 
+UNSUPPORTED_ACTIVE_CARRIER_KINDS: dict[str, frozenset[str]] = {
+    "gitlab": frozenset({"gitlab_mr"}),
+}
+
+UNSUPPORTED_ACTIVE_CARRIER_METHODS: dict[str, frozenset[str]] = {
+    "gitlab": frozenset({"create_mr_note", "create_mr_description"}),
+}
+
 # The editor registry predates Path A and uses attach-method IDs. Canonicalize
 # them at the exposure-contract boundary so downstream datasets speak in the
 # paper/methodology vocabulary while editor dispatch remains unchanged.
@@ -122,7 +130,39 @@ def retired_carrier_reason(site: str, surface_id: str | None) -> str | None:
     return None
 
 
-def is_active_carrier_surface(site: str, surface_id: str | None) -> bool:
+def active_carrier_ineligible_reason(
+    site: str,
+    surface_id: str | None,
+    *,
+    kind: str | None = None,
+    method: str | None = None,
+) -> str | None:
+    """Return why this route cannot be used as a mainline active IPI carrier."""
+    retired_reason = retired_carrier_reason(site, surface_id)
+    if retired_reason is not None:
+        return retired_reason
+
+    site_key = site.strip().lower()
+    canonical = canonical_core_surface(site_key, surface_id)
+    kind_key = kind.strip().lower() if isinstance(kind, str) else ""
+    method_key = method.strip() if isinstance(method, str) else ""
+
+    if kind_key in UNSUPPORTED_ACTIVE_CARRIER_KINDS.get(site_key, frozenset()):
+        return "unsupported_merge_request_carrier_surface"
+    if method_key in UNSUPPORTED_ACTIVE_CARRIER_METHODS.get(site_key, frozenset()):
+        return "unsupported_merge_request_carrier_surface"
+    if site_key == "gitlab" and canonical == "mr.description":
+        return "unsupported_merge_request_carrier_surface"
+    return None
+
+
+def is_active_carrier_surface(
+    site: str,
+    surface_id: str | None,
+    *,
+    kind: str | None = None,
+    method: str | None = None,
+) -> bool:
     """Return True iff the surface is currently admissible as an IPI carrier.
 
     ``CORE_SURFACES`` answers whether a normal user can write a WASP-scope UGC
@@ -130,4 +170,9 @@ def is_active_carrier_surface(site: str, surface_id: str | None) -> bool:
     canonical for old artifacts and benign labels, but new Phase 1/2/4 mainline
     runs must not use them as injected payload carriers.
     """
-    return is_core_surface(site, surface_id) and retired_carrier_reason(site, surface_id) is None
+    return is_core_surface(site, surface_id) and active_carrier_ineligible_reason(
+        site,
+        surface_id,
+        kind=kind,
+        method=method,
+    ) is None

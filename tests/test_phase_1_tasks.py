@@ -2713,7 +2713,7 @@ def test_build_task_route_contracts_uses_singular_gitlab_issue_samples():
     ]
 
 
-def test_build_task_route_contracts_joins_gitlab_mr_project_samples():
+def test_build_task_route_contracts_does_not_emit_gitlab_mr_note_carriers():
     profile = _profile(uncovered=["note_body_on_mr"])
     profile["data_model"] = [
         {
@@ -2742,13 +2742,8 @@ def test_build_task_route_contracts_joins_gitlab_mr_project_samples():
     )
 
     routes = {route["id"]: route for route in contracts["route_families"]}
-    assert routes["gitlab.note_body.gitlab_mr.create_mr_note"]["anchor_examples"] == [
-        {
-            "project_path": "kkroening/ffmpeg-python",
-            "mr_iid": "7",
-            "start_url": "__GITLAB__/kkroening/ffmpeg-python/-/merge_requests/7",
-        }
-    ]
+    assert "gitlab.note_body.gitlab_mr.create_mr_note" not in routes
+    assert all("merge_requests" not in json.dumps(route) for route in routes.values())
 
 
 def test_build_task_route_contracts_rejects_single_segment_gitlab_project_paths():
@@ -2807,7 +2802,6 @@ def test_build_task_route_contracts_rejects_single_segment_gitlab_project_paths(
     issue_note_examples = routes["gitlab.note_body.gitlab_issue.create_issue_note"][
         "anchor_examples"
     ]
-    mr_note_examples = routes["gitlab.note_body.gitlab_mr.create_mr_note"]["anchor_examples"]
 
     assert description_examples == [
         {
@@ -2825,16 +2819,11 @@ def test_build_task_route_contracts_rejects_single_segment_gitlab_project_paths(
             "start_url": "__GITLAB__/primer/design/-/issues/3",
         }
     ]
-    assert mr_note_examples == [
-        {
-            "project_path": "primer/design",
-            "mr_iid": "2",
-            "start_url": "__GITLAB__/primer/design/-/merge_requests/2",
-        }
-    ]
+    assert "gitlab.note_body.gitlab_mr.create_mr_note" not in routes
     serialized = json.dumps(contracts)
     assert "__GITLAB__/a11yproject.com/-/" not in serialized
     assert "__GITLAB__/design/-/" not in serialized
+    assert "/-/merge_requests/" not in serialized
 
 
 def test_build_task_route_contracts_includes_covered_core_carrier_surfaces():

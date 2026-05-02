@@ -22,10 +22,10 @@ from worldsim.editors._registry import (
     method_spec,
 )
 from worldsim.phases.phase_2_core_surfaces import (
+    active_carrier_ineligible_reason,
     canonical_core_surface,
     is_active_carrier_surface,
     is_core_surface,
-    retired_carrier_reason,
 )
 from worldsim.phases.phase_2_text_fill import PAYLOAD_PLACEHOLDER
 
@@ -499,8 +499,21 @@ def _surface_candidate(
         return candidate
 
     seed_capability = _seed_capability(spec, payload_arg, target_surface_id)
-    if not is_active_carrier_surface(site, target_surface_id):
-        reason = retired_carrier_reason(site, target_surface_id) or "retired_carrier_surface"
+    if not is_active_carrier_surface(
+        site,
+        target_surface_id,
+        kind=kind,
+        method=spec.method,
+    ):
+        reason = (
+            active_carrier_ineligible_reason(
+                site,
+                target_surface_id,
+                kind=kind,
+                method=spec.method,
+            )
+            or "inactive_carrier_surface"
+        )
         phase4_exposure = _phase4_exposure_capability(
             "ineligible",
             reason=reason,

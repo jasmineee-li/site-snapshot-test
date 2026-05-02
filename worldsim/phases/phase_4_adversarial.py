@@ -125,7 +125,7 @@ from worldsim.phase_4.verbalized_eval_awareness_api import (
 from worldsim.phase_4.verbalized_eval_awareness_api import (
     run_verbalized_eval_awareness_api,
 )
-from worldsim.phases.phase_2_core_surfaces import retired_carrier_reason
+from worldsim.phases.phase_2_core_surfaces import active_carrier_ineligible_reason
 from worldsim.phases.phase_2_text_fill import (
     materialize_adversarial_seed,
     validate_seed_template_contract,
@@ -2562,8 +2562,8 @@ def _placement_iteration_result_fingerprint(
     )
 
 
-def _retired_carrier_task_errors(tasks: list[dict[str, Any]]) -> list[str]:
-    """Return fail-fast errors for retired active-carrier surfaces."""
+def _inactive_carrier_task_errors(tasks: list[dict[str, Any]]) -> list[str]:
+    """Return fail-fast errors for inactive active-carrier routes."""
     errors: list[str] = []
     for task in tasks:
         site = str(task.get("site") or "").strip()
@@ -2571,7 +2571,12 @@ def _retired_carrier_task_errors(tasks: list[dict[str, Any]]) -> list[str]:
         surface = str(task.get("target_surface_id") or "").strip()
         if not surface and isinstance(contract, Mapping):
             surface = str(contract.get("target_surface_id") or "").strip()
-        reason = retired_carrier_reason(site, surface)
+        kind = ""
+        method = ""
+        if isinstance(contract, Mapping):
+            kind = str(contract.get("kind") or "").strip()
+            method = str(contract.get("editor_method") or "").strip()
+        reason = active_carrier_ineligible_reason(site, surface, kind=kind, method=method)
         if reason is None:
             continue
         errors.append(f"{task.get('id', '?')}: {site}.{surface}: {reason}")
@@ -2824,17 +2829,23 @@ async def run(args: argparse.Namespace) -> int:
             pre_origin_filter,
         )
 
-    retired_carrier_errors = _retired_carrier_task_errors(tasks)
-    if retired_carrier_errors:
+    inactive_carrier_errors = _inactive_carrier_task_errors(tasks)
+    if inactive_carrier_errors:
+        state_reason = (
+            "retired_carrier_surface"
+            if all("retired_title_carrier_surface" in error for error in inactive_carrier_errors)
+            else "inactive_carrier_surface"
+        )
         logger.error(
-            "Phase 4 refusing retired active-carrier tasks after title-carrier cutover:\n%s",
-            "\n".join(f"  - {error}" for error in retired_carrier_errors),
+            "Phase 4 refusing inactive active-carrier tasks after surface cutover:\n%s",
+            "\n".join(f"  - {error}" for error in inactive_carrier_errors),
         )
         save_state(
             "phase_4",
             status="failed",
-            reason="retired_carrier_surface",
-            retired_carrier_errors=retired_carrier_errors,
+            reason=state_reason,
+            inactive_carrier_errors=inactive_carrier_errors,
+            retired_carrier_errors=inactive_carrier_errors,
             **state_metadata,
         )
         return 1

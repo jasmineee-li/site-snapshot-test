@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from worldsim.phases.phase_2_core_surfaces import (
     CORE_SURFACES,
+    active_carrier_ineligible_reason,
     canonical_core_surface,
     is_active_carrier_surface,
     is_core_surface,
@@ -84,3 +85,25 @@ def test_body_and_comment_surfaces_remain_active_carriers():
     assert is_active_carrier_surface("gitlab", "note.body")
     assert is_active_carrier_surface("reddit", "submission.body")
     assert is_active_carrier_surface("reddit", "comment.body")
+
+
+def test_gitlab_merge_request_routes_are_not_active_mainline_carriers():
+    assert (
+        active_carrier_ineligible_reason("gitlab", "mr.description")
+        == "unsupported_merge_request_carrier_surface"
+    )
+    assert (
+        active_carrier_ineligible_reason("gitlab", "note.body", kind="gitlab_mr")
+        == "unsupported_merge_request_carrier_surface"
+    )
+    assert (
+        active_carrier_ineligible_reason("gitlab", "note.body", method="create_mr_note")
+        == "unsupported_merge_request_carrier_surface"
+    )
+
+    assert not is_active_carrier_surface("gitlab", "mr.description")
+    assert not is_active_carrier_surface("gitlab", "note.body", kind="gitlab_mr")
+    assert not is_active_carrier_surface("gitlab", "note.body", method="create_mr_note")
+
+    assert is_active_carrier_surface("gitlab", "note.body", kind="gitlab_issue")
+    assert is_active_carrier_surface("gitlab", "note.body", method="create_issue_note")

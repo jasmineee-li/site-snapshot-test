@@ -77,7 +77,7 @@ def build_task_route_contracts(
             canonical = canonical_core_surface(site, raw_surface)
             if not canonical or not is_core_surface(site, canonical):
                 continue
-            if not is_active_carrier_surface(site, canonical):
+            if not is_active_carrier_surface(site, canonical, kind=kind, method=spec.method):
                 continue
             route = _route_family_for_spec(
                 site=site,
