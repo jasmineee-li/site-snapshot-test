@@ -306,6 +306,68 @@ def test_phase4_status_line_counts_are_parsed() -> None:
     }
 
 
+def test_phase4_progress_line_is_parsed() -> None:
+    sweep = _load_sweep_module()
+
+    parsed = sweep.parse_status_output(
+        "\n".join(
+            [
+                "status: running",
+                (
+                    "phase4_progress: present logs/run/phase_4/progress.json "
+                    "status=running stage=initial_evaluation initial=30/32 "
+                    "postprocessed=0/32 age_seconds=901 "
+                    "updated_at=2026-05-02T12:00:22.308663"
+                ),
+                "log_progress: latest write 12s ago",
+            ]
+        )
+    )
+
+    assert parsed["phase4_progress_status"] == "running"
+    assert parsed["phase4_progress_stage"] == "initial_evaluation"
+    assert parsed["phase4_completed_initial_tasks"] == 30
+    assert parsed["phase4_postprocessed_tasks"] == 0
+    assert parsed["phase4_total_tasks"] == 32
+    assert parsed["phase4_progress_quiet_seconds"] == 901
+    assert parsed["log_quiet_seconds"] == 12
+
+
+def test_monitor_uses_phase4_progress_staleness_before_noisy_logs(monkeypatch) -> None:
+    sweep = _load_sweep_module()
+    config = sweep.load_sweep_config(NO_TITLE_CONFIG_PATH)
+
+    monkeypatch.setattr(sweep.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(
+        sweep,
+        "status_for_job",
+        lambda _config, _job_id: {
+            "status": "running",
+            "phase4_progress": (
+                "phase4_progress: present logs/run/phase_4/progress.json "
+                "status=running stage=initial_evaluation initial=30/32 "
+                "postprocessed=0/32 age_seconds=901 updated_at=2026-05-02T12:00:22"
+            ),
+            "phase4_progress_quiet_seconds": 901,
+            "log_progress": "log_progress: latest write 10s ago",
+            "log_quiet_seconds": 10,
+        },
+    )
+    monkeypatch.setattr(sweep, "tail_job", lambda _config, _job_id: "watchdog noise")
+
+    status = sweep.monitor_job(
+        config,
+        "job-stale-progress",
+        initial_poll_seconds=300,
+        poll_seconds=600,
+        stale_seconds=900,
+    )
+
+    assert status["status"] == "attention_required"
+    assert status["failure_class"] == "stale_phase4_progress"
+    assert status["tail"] == "watchdog noise"
+
+
 def test_invalid_start_at_and_only_raise_clear_errors() -> None:
     sweep = _load_sweep_module()
     config = sweep.load_sweep_config(CONFIG_PATH)

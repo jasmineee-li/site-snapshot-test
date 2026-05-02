@@ -467,6 +467,9 @@ def parse_status_output(stdout: str) -> dict[str, Any]:
         elif line.startswith("phase4_results:"):
             parsed["phase4_results"] = line.strip()
             parsed.update(parse_phase4_results_line(line.strip()))
+        elif line.startswith("phase4_progress:"):
+            parsed["phase4_progress"] = line.strip()
+            parsed.update(parse_phase4_progress_line(line.strip()))
         elif line.startswith("log_progress:"):
             parsed["log_progress"] = line.strip()
             match = re.search(r"latest write ([0-9]+)s ago", line)
@@ -495,6 +498,27 @@ def parse_phase4_results_line(line: str) -> dict[str, Any]:
     final_status = re.search(r"\bfinal_status=([^ ]+)", line)
     if final_status:
         parsed["final_status_counts"] = _parse_count_map(final_status.group(1))
+    return parsed
+
+
+def parse_phase4_progress_line(line: str) -> dict[str, Any]:
+    parsed: dict[str, Any] = {}
+    status = re.search(r"\bstatus=([^ ]+)", line)
+    if status:
+        parsed["phase4_progress_status"] = status.group(1)
+    stage = re.search(r"\bstage=([^ ]+)", line)
+    if stage:
+        parsed["phase4_progress_stage"] = stage.group(1)
+    age = re.search(r"\bage_seconds=([0-9]+)\b", line)
+    if age:
+        parsed["phase4_progress_quiet_seconds"] = int(age.group(1))
+    initial = re.search(r"\binitial=([0-9]+)/([0-9]+)", line)
+    if initial:
+        parsed["phase4_completed_initial_tasks"] = int(initial.group(1))
+        parsed["phase4_total_tasks"] = int(initial.group(2))
+    postprocessed = re.search(r"\bpostprocessed=([0-9]+)/([0-9]+)", line)
+    if postprocessed:
+        parsed["phase4_postprocessed_tasks"] = int(postprocessed.group(1))
     return parsed
 
 
@@ -563,6 +587,7 @@ def write_handoff(state_dir: Path, state: dict[str, Any]) -> None:
                 f"- status: `{record.get('status')}`",
                 f"- retries: `{record.get('retries_consumed', 0)}`",
                 f"- phase4: `{record.get('phase4_results')}`",
+                f"- progress: `{record.get('phase4_progress')}`",
             ]
         )
     (state_dir / "handoff.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -663,6 +688,14 @@ def monitor_job(
                 on_status(status)
             return status
         quiet = int(status.get("log_quiet_seconds") or 0)
+        phase4_quiet = int(status.get("phase4_progress_quiet_seconds") or 0)
+        if phase4_quiet >= stale_seconds and not status.get("phase4_results"):
+            status["status"] = "attention_required"
+            status["failure_class"] = "stale_phase4_progress"
+            status["tail"] = tail_job(config, job_id)
+            if on_status:
+                on_status(status)
+            return status
         if quiet >= stale_seconds:
             status["status"] = "attention_required"
             status["failure_class"] = "stale_logs"
@@ -847,6 +880,11 @@ def run_sweep(args: argparse.Namespace) -> int:
                         "status": status.get("status"),
                         "returncode": status.get("returncode"),
                         "phase4_results": status.get("phase4_results"),
+                        "phase4_progress": status.get("phase4_progress"),
+                        "phase4_progress_quiet_seconds": status.get(
+                            "phase4_progress_quiet_seconds"
+                        ),
+                        "phase4_progress_stage": status.get("phase4_progress_stage"),
                         "log_progress": status.get("log_progress"),
                         "failure_class": status.get("failure_class"),
                         "total": status.get("total"),
@@ -857,7 +895,12 @@ def run_sweep(args: argparse.Namespace) -> int:
                 if status.get("tail"):
                     current_record["tail"] = status["tail"]
                 update_state(state_dir, state)
-                summary = status.get("phase4_results") or status.get("log_progress") or ""
+                summary = (
+                    status.get("phase4_results")
+                    or status.get("phase4_progress")
+                    or status.get("log_progress")
+                    or ""
+                )
                 log_event(f"{model_key} status={status.get('status')} {summary}".rstrip())
 
             stale_resumes_consumed = 0
@@ -876,6 +919,11 @@ def run_sweep(args: argparse.Namespace) -> int:
                         "status": status.get("status"),
                         "returncode": status.get("returncode"),
                         "phase4_results": status.get("phase4_results"),
+                        "phase4_progress": status.get("phase4_progress"),
+                        "phase4_progress_quiet_seconds": status.get(
+                            "phase4_progress_quiet_seconds"
+                        ),
+                        "phase4_progress_stage": status.get("phase4_progress_stage"),
                         "log_progress": status.get("log_progress"),
                         "failure_class": status.get("failure_class"),
                         "total": status.get("total"),
@@ -893,7 +941,8 @@ def run_sweep(args: argparse.Namespace) -> int:
                     break
                 if (
                     status.get("status") == "attention_required"
-                    and status.get("failure_class") == "stale_logs"
+                    and status.get("failure_class")
+                    in {"stale_logs", "stale_phase4_progress"}
                     and stale_resumes_consumed < config.stale_resume_budget
                 ):
                     stale_resumes_consumed += 1

@@ -150,31 +150,41 @@ def job_command_text() -> str:
 def job_runs_phase4() -> bool:
     return bool(re.search(r"\bworldsim\.main\s+phase\s+4(?:\s|$)", job_command_text()))
 
-def phase4_results_candidates() -> list[Path]:
-    candidates: list[Path] = []
+def phase4_run_roots() -> list[Path]:
+    roots: list[Path] = []
     configured_results_path = False
     state_dir = metadata.get("state_dir")
     if isinstance(state_dir, str) and state_dir.strip():
         root = Path(state_dir)
         if not root.is_absolute():
             root = remote_dir / root
-        candidates.append(root / "phase_4" / "results.json")
+        roots.append(root)
         configured_results_path = True
     for item in metadata.get("expected_outputs") or []:
         if isinstance(item, str) and item.endswith("phase_4/results.json"):
             path = Path(item)
-            candidates.append(path if path.is_absolute() else remote_dir / path)
+            path = path if path.is_absolute() else remote_dir / path
+            roots.append(path.parent.parent)
             configured_results_path = True
     if not configured_results_path and job_runs_phase4():
-        candidates.append(remote_dir / "logs" / "phase_4" / "results.json")
+        roots.append(remote_dir / "logs")
     deduped: list[Path] = []
     seen: set[str] = set()
-    for candidate in candidates:
-        key = str(candidate)
+    for root in roots:
+        key = str(root)
         if key not in seen:
             seen.add(key)
-            deduped.append(candidate)
+            deduped.append(root)
     return deduped
+
+def phase4_results_candidates() -> list[Path]:
+    candidates: list[Path] = []
+    for root in phase4_run_roots():
+        candidates.append(root / "phase_4" / "results.json")
+    return candidates
+
+def phase4_progress_candidates() -> list[Path]:
+    return [root / "phase_4" / "progress.json" for root in phase4_run_roots()]
 
 def load_task_lookup_for_results(results_path: Path) -> dict[str, dict[str, object]]:
     task_path = results_path.parent.parent / "phase_2" / "adversarial_tasks.json"
@@ -243,6 +253,37 @@ def summarize_phase4_results(path: Path) -> dict[str, object] | None:
         "final_counts": final_counts,
         "site_counts": site_counts,
         "trace_root": trace_root,
+    }
+
+def summarize_phase4_progress(path: Path) -> dict[str, object] | None:
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"path": path, "error": f"unparseable: {exc}"}
+    if not isinstance(data, dict):
+        return {"path": path, "error": "progress.json is not an object"}
+
+    def int_value(key: str) -> int:
+        value = data.get(key)
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str) and value.isdigit():
+            return int(value)
+        return 0
+
+    total = int_value("total_tasks")
+    age_seconds = max(0, int(time.time() - path.stat().st_mtime))
+    return {
+        "path": path,
+        "status": str(data.get("status") or "unknown"),
+        "stage": str(data.get("stage") or "unknown"),
+        "updated_at": str(data.get("updated_at") or "unknown"),
+        "total_tasks": total,
+        "completed_initial_tasks": int_value("completed_initial_tasks"),
+        "postprocessed_tasks": int_value("postprocessed_tasks"),
+        "age_seconds": age_seconds,
     }
 
 def recent_health_warnings(lines: list[str]) -> list[str]:
@@ -338,6 +379,25 @@ if expected:
             print(f"  present {rel_path} size={path.stat().st_size} mtime={mtime_iso(path)}")
         else:
             print(f"  missing {rel_path}")
+
+for candidate in phase4_progress_candidates():
+    summary = summarize_phase4_progress(candidate)
+    if summary is None:
+        continue
+    if summary.get("error"):
+        print(f"phase4_progress: present {rel(candidate)} error={summary['error']}")
+        break
+    print(
+        "phase4_progress: "
+        f"present {rel(candidate)} "
+        f"status={summary['status']} "
+        f"stage={summary['stage']} "
+        f"initial={summary['completed_initial_tasks']}/{summary['total_tasks']} "
+        f"postprocessed={summary['postprocessed_tasks']}/{summary['total_tasks']} "
+        f"age_seconds={summary['age_seconds']} "
+        f"updated_at={summary['updated_at']}"
+    )
+    break
 
 for candidate in phase4_results_candidates():
     summary = summarize_phase4_results(candidate)

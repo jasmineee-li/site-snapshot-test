@@ -1253,6 +1253,85 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
     ) in completed.stdout
 
 
+def test_status_prints_phase4_progress_age_from_expected_run_dir(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    remote_dir = tmp_path / "remote" / "browser-sim"
+    job_id = "20260429t000000z-phase4-progress-abcdef"
+    job_dir = remote_dir / "logs" / "remote_jobs" / job_id
+    phase4_dir = remote_dir / "logs" / "custom_run" / "phase_4"
+    job_dir.mkdir(parents=True)
+    phase4_dir.mkdir(parents=True)
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    _write_executable(
+        fakebin / "ssh",
+        """#!/usr/bin/env python3
+import subprocess
+import sys
+
+args = sys.argv[1:]
+remote_cmd = args[-1]
+raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).returncode)
+""",
+    )
+    (job_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "job_id": job_id,
+                "name": "phase4 progress",
+                "created_at": "2026-04-29T00:00:00+00:00",
+                "pid": 999999,
+                "pgid": 999999,
+                "remote_dir": str(remote_dir),
+                "command": ["uv", "run", "python", "-m", "worldsim.main", "phase", "4"],
+                "expected_outputs": ["logs/custom_run/phase_4/results.json"],
+            }
+        )
+    )
+    (job_dir / "stdout.log").write_text("watchdog line\n")
+    (job_dir / "stderr.log").write_text("")
+    (phase4_dir / "progress.json").write_text(
+        json.dumps(
+            {
+                "status": "running",
+                "stage": "initial_evaluation",
+                "updated_at": "2026-05-02T12:00:22.308663",
+                "total_tasks": 32,
+                "completed_initial_tasks": 30,
+                "postprocessed_tasks": 0,
+            }
+        )
+    )
+
+    env = _base_env(repo_root, tmp_path)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_status.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+            "--job-id",
+            job_id,
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "phase4_progress: present logs/custom_run/phase_4/progress.json" in completed.stdout
+    assert "status=running stage=initial_evaluation" in completed.stdout
+    assert "initial=30/32 postprocessed=0/32" in completed.stdout
+    assert "age_seconds=" in completed.stdout
+    assert "updated_at=2026-05-02T12:00:22.308663" in completed.stdout
+
+
 def test_status_does_not_report_stale_default_phase4_when_custom_expected_missing(
     tmp_path: Path,
 ) -> None:
