@@ -37,6 +37,7 @@ SANDBOX_LIVENESS_LOG_SECONDS = 2 * 60
 
 _RUNNER_PATH = str(Path(__file__).with_name("_sandbox_runner.py"))
 _VALIDATOR_PATH = str(Path(__file__).with_name("_sandbox_validator.py"))
+_PHASE_0C_VERIFY_HTTP_PATH = str(Path(__file__).with_name("phase_0c_verify_http.py"))
 
 
 def _write_registry_snapshot() -> str:
@@ -116,6 +117,11 @@ base_image = (
     # static image removes two per-launch local-file injections.
     .add_local_file(_RUNNER_PATH, remote_path="/workspace/_sdk_runner.py", copy=True)
     .add_local_file(_VALIDATOR_PATH, remote_path="/workspace/_validate.py", copy=True)
+    .add_local_file(
+        _PHASE_0C_VERIFY_HTTP_PATH,
+        remote_path="/workspace/verify_http.py",
+        copy=True,
+    )
     .add_local_file(
         _EDITOR_REGISTRY_JSON_PATH,
         remote_path="/workspace/_editor_registry.json",
@@ -480,9 +486,13 @@ async def run_claude_in_sandbox(
         watchdog_done = asyncio.Event()
         watchdog_reason: str | None = None
         first_event_at: float | None = None
+        event_counts: dict[str, int] = {}
+        rate_limit_events = 0
+        non_json_stdout_lines = 0
 
         async def _drain_stdout() -> None:
-            nonlocal summary_data, turn_count, first_event_at
+            nonlocal summary_data, turn_count, first_event_at, rate_limit_events
+            nonlocal non_json_stdout_lines
             try:
                 async for line in claude_ps.stdout:
                     line = line.strip()
@@ -496,6 +506,7 @@ async def run_claude_in_sandbox(
                             tag,
                             line[:200],
                         )
+                        non_json_stdout_lines += 1
                         continue
 
                     now_monotonic = time.monotonic()
@@ -515,6 +526,8 @@ async def run_claude_in_sandbox(
                     )
                     watchdog_state.last_liveness_log_at = now_monotonic
                     etype = event.get("type")
+                    event_key = str(etype or "unknown")
+                    event_counts[event_key] = event_counts.get(event_key, 0) + 1
                     if etype == "tool_call":
                         turn_count += 1
                         logger.info(
@@ -538,6 +551,7 @@ async def run_claude_in_sandbox(
                         preview = (event.get("preview", "") or "")[:100]
                         logger.debug("  %s[sandbox] thinking: %s", tag, preview)
                     elif etype == "rate_limit":
+                        rate_limit_events += 1
                         status = event.get("status")
                         rate_limit_type = event.get("rate_limit_type")
                         utilization = event.get("utilization")
@@ -642,15 +656,48 @@ async def run_claude_in_sandbox(
 
         # -- Read output files -------------------------------------------------
         outputs: dict[str, str | None] = {}
+        missing_output_paths: list[str] = []
         for path in output_paths:
             try:
                 outputs[path] = await sandbox.filesystem.read_text.aio(path)
             except Exception as e:
                 outputs[path] = None
+                missing_output_paths.append(path)
                 logger.warning("could not read %s from sandbox: %s", path, e)
 
         # Attach summary metadata under a reserved key that callers can ignore.
         outputs["_summary"] = json.dumps(summary_data) if summary_data else None
+        outputs["_telemetry"] = json.dumps(
+            {
+                "schema_version": 1,
+                "label": label,
+                "model": model,
+                "timeout_seconds": timeout,
+                "startup_seconds": {
+                    "app_lookup": app_lookup_done - app_lookup_start,
+                    "sandbox_create": sandbox_create_done - sandbox_create_start,
+                    "prompt_write": prompt_write_done - prompt_write_start,
+                    "exec_start": exec_done - exec_start,
+                    "launch_to_exec": exec_done - launch_start,
+                    "first_event_from_exec": (
+                        first_event_at - exec_done if first_event_at is not None else None
+                    ),
+                    "first_event_from_launch": (
+                        first_event_at - launch_start if first_event_at is not None else None
+                    ),
+                },
+                "event_counts": dict(sorted(event_counts.items())),
+                "tool_calls": turn_count,
+                "rate_limit_events": rate_limit_events,
+                "non_json_stdout_lines": non_json_stdout_lines,
+                "stderr_line_count": len(stderr_lines),
+                "returncode": claude_ps.returncode,
+                "watchdog_reason": watchdog_reason,
+                "requested_output_paths": output_paths,
+                "missing_output_paths": missing_output_paths,
+            },
+            sort_keys=True,
+        )
 
         return outputs
     finally:

@@ -16,6 +16,12 @@ Current and target ownership should stay explicit:
 - Phase 4 behavior includes adversarial execution, PVPO placement, postprocess
   judges, strategy variation, resume, and results. A package split may move this
   toward `worldsim.phase_4`, but Phase 4 must not own benign task eligibility.
+- Phase 0c profile rigor is split by behavior: `phase_0_recon.py` remains the
+  compatibility runner, `phase_0_evidence_index.py` owns neutral source indexes,
+  `phase_0c_artifacts.py` owns provenance/reuse/trace artifacts, and
+  `phase_0c_audit.py` owns deterministic host audits. Do not move these
+  concerns into Modal sandbox setup; `modal_sandbox.py` stays an
+  infrastructure-only runner.
 - Seed/editor-call contracts are a shared domain used by Phase 2, Phase 4,
   seeding, and sandbox validation. If extracted, the shared package must preserve
   sandbox packaging constraints and parity tests.

@@ -39,11 +39,26 @@ from worldsim._sandbox_validator import (
 )
 from worldsim.config import BenchmarkConfig, BenchmarkInstance, VerificationProxy
 from worldsim.cost_tracker import tracker as cost_tracker
-from worldsim.failpoints import crash_if_enabled
 from worldsim.modal_sandbox import (
     preflight_sandbox_environment,
     run_claude_in_sandbox,
     upload_to_volume,
+)
+from worldsim.phases.phase_0_evidence_index import build_phase_0c_evidence_indexes
+from worldsim.phases.phase_0c_artifacts import (
+    Phase0cTraceWriter,
+    build_tier_metadata,
+    file_sha256,
+    hash_file_list,
+    hash_routed_inputs,
+    load_reusable_tier_output,
+    phase_0c_timings_path,
+    profile_metadata_path,
+    publish_json_sidecar,
+    publish_tier_output,
+    reachability_report_path,
+    text_sha256,
+    write_text_atomic,
 )
 from worldsim.placeholders import normalize_site_name
 from worldsim.profile_validation import validate_profile
@@ -55,33 +70,19 @@ logger = logging.getLogger(__name__)
 
 # Maximum number of correction retries for profile validation (initial attempt + this many).
 PROFILE_FIX_MAX_ITERATIONS = 2
-_PROFILE_METADATA_PREFIX = "PROFILE_METADATA_"
 
 
 def _write_text_atomic(path: Path, text: str) -> None:
     """Atomically replace *path* with *text*."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(text)
-        crash_if_enabled("phase_0c.outputs.before_replace")
-        os.replace(tmp_path, path)
-        crash_if_enabled("phase_0c.outputs.after_replace")
-    except BaseException:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+    write_text_atomic(path, text)
 
 
 def _profile_metadata_path(output_dir: Path, site_name: str) -> Path:
-    return output_dir / f"{_PROFILE_METADATA_PREFIX}{site_name}.json"
+    return profile_metadata_path(output_dir, site_name)
 
 
 def _reachability_report_path(output_dir: Path) -> Path:
-    return output_dir / "REACHABILITY_REPORT.json"
+    return reachability_report_path(output_dir)
 
 
 def _read_only_volume(volume: Any) -> Any:
@@ -112,11 +113,7 @@ def _phase_0_state_metadata(
 
 
 def _file_sha256(path: Path) -> str:
-    hasher = hashlib.sha256()
-    with Path(path).open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            hasher.update(chunk)
-    return hasher.hexdigest()
+    return file_sha256(path)
 
 
 def _load_phase_0c_config(
@@ -422,6 +419,7 @@ def _existing_site_outputs_are_reusable(
     output_dir: Path,
     site_name: str,
     benchmark_root: Path,
+    file_list: list[str] | None = None,
     sandbox_model: str,
     manifest_eval_type_set: set[str],
     instance_site_url: str | None,
@@ -465,6 +463,7 @@ def _existing_site_outputs_are_reusable(
         return False
 
     expected_metadata = {
+        "provenance_schema_version": 1,
         "site_name": site_name,
         "benchmark_root": str(benchmark_root),
         "sandbox_model": sandbox_model,
@@ -474,6 +473,8 @@ def _existing_site_outputs_are_reusable(
         ),
         "verification_proxy": _verification_proxy_metadata(verification_proxy),
     }
+    if file_list is not None:
+        expected_metadata["benchmark_digest"] = hash_file_list(file_list, benchmark_root)
     for key, expected in expected_metadata.items():
         if metadata.get(key) != expected:
             logger.info(
@@ -1072,6 +1073,13 @@ async def run_phase_0c(
     """
     benchmark_root = Path(benchmark_root).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
+    trace_writer = Phase0cTraceWriter(output_dir)
+    trace_writer.record(
+        "phase_0c_started",
+        benchmark_root=str(benchmark_root),
+        sandbox_model=sandbox_model,
+        site_filter=sorted(site_filter or []),
+    )
     manifest_eval_type_set = {
         str(eval_type)
         for eval_type in manifest.get("evaluation", {}).get("eval_types", [])
@@ -1111,6 +1119,7 @@ async def run_phase_0c(
             output_dir=output_dir,
             site_name=name,
             benchmark_root=benchmark_root,
+            file_list=files,
             sandbox_model=sandbox_model,
             manifest_eval_type_set=manifest_eval_type_set,
             instance_site_url=instance_site_url,
@@ -1118,6 +1127,7 @@ async def run_phase_0c(
             verification_proxy=verification_proxy,
         ):
             logger.info("Phase 0c: skipping site %r (profile + agent context already exist)", name)
+            trace_writer.record("site_reused", site_name=name, instance_site_url=instance_site_url)
             injection_surface_path = output_dir / f"INJECTION_SURFACE_{name}.json"
             injection_surface = None
             if injection_surface_path.exists():
@@ -1140,6 +1150,8 @@ async def run_phase_0c(
     if not sites_to_profile:
         logger.info("Phase 0c: all sites already profiled, nothing to do")
         _write_reachability_report(output_dir, reachability_records)
+        trace_writer.record("phase_0c_completed", profiled_sites=0, cached_sites=len(reachability_records))
+        trace_writer.write_timings_summary()
         return {}
 
     raw_results = await asyncio.gather(
@@ -1157,6 +1169,7 @@ async def run_phase_0c(
                 instance=instance_lookup.get(normalize_site_name(name)),
                 host_inventory_instance=host_inventory_lookup.get(normalize_site_name(name)),
                 host_inventory_instances=host_inventory_groups.get(normalize_site_name(name), []),
+                trace_writer=trace_writer,
             )
             for name, files in sites_to_profile.items()
         ],
@@ -1182,12 +1195,19 @@ async def run_phase_0c(
     failures.extend(f"missing profile result for site {site}" for site in missing_sites)
 
     if failures:
+        trace_writer.write_timings_summary(failures=failures)
         raise RuntimeError(
             "Phase 0c did not complete all required site profiles:\n"
             + "\n".join(f"  - {failure}" for failure in failures)
         )
 
     _write_reachability_report(output_dir, reachability_records)
+    trace_writer.record(
+        "phase_0c_completed",
+        profiled_sites=len(results),
+        cached_sites=len(reachability_records) - len(results),
+    )
+    trace_writer.write_timings_summary()
     return results
 
 
@@ -1282,6 +1302,85 @@ def _render_correction_block(
     )
 
 
+def _expected_tier_metadata(
+    *,
+    site_name: str,
+    tier_name: str,
+    prompt_name: str,
+    validation_command: str,
+    output_path: str,
+    sandbox_model: str,
+    benchmark_digest: str,
+    manifest_eval_type_set: set[str],
+    instance_site_url: str | None,
+    verification_proxy_metadata: dict[str, Any] | None,
+    evidence_index_digest: str | None,
+) -> dict[str, Any]:
+    prompt = _render_tier_prompt(
+        prompt_name=prompt_name,
+        validation_command=validation_command,
+        site_name=site_name,
+    )
+    return build_tier_metadata(
+        site_name=site_name,
+        tier_name=tier_name,
+        prompt_name=prompt_name,
+        prompt_hash=text_sha256(prompt),
+        validation_command=validation_command,
+        output_path=output_path,
+        sandbox_model=sandbox_model,
+        benchmark_digest=benchmark_digest,
+        manifest_eval_types=manifest_eval_type_set,
+        instance_site_url=instance_site_url,
+        host_inventory_instance_fingerprint=None,
+        verification_proxy=verification_proxy_metadata,
+        evidence_index_digest=evidence_index_digest,
+    )
+
+
+def _tier_success_publisher(
+    *,
+    output_dir: Path,
+    site_name: str,
+    tier_name: str,
+    artifact_stem: str,
+    output_path: str,
+    metadata: dict[str, Any],
+    sidecar_outputs: dict[str, str] | None = None,
+) -> Callable[[dict[str, str | None]], None]:
+    def publish(outputs: dict[str, str | None]) -> None:
+        raw = outputs.get(output_path)
+        if not raw:
+            return
+        payload = json.loads(raw)
+        publish_tier_output(
+            output_dir=output_dir,
+            site_name=site_name,
+            tier_name=tier_name,
+            artifact_stem=artifact_stem,
+            payload=payload,
+            metadata=metadata,
+            sandbox_outputs=outputs,
+        )
+        for side_output_path, sidecar_stem in (sidecar_outputs or {}).items():
+            side_raw = outputs.get(side_output_path)
+            if not side_raw:
+                continue
+            if not publish_json_sidecar(
+                output_dir=output_dir,
+                site_name=site_name,
+                artifact_stem=sidecar_stem,
+                raw_text=side_raw,
+            ):
+                logger.warning(
+                    "Phase 0c: site %r produced malformed optional sidecar %s",
+                    site_name,
+                    Path(side_output_path).name,
+                )
+
+    return publish
+
+
 async def _run_tier_json_with_retries(
     *,
     site_name: str,
@@ -1296,6 +1395,10 @@ async def _run_tier_json_with_retries(
     extra_inputs: dict[str, str] | None = None,
     correction_guidance: str | None = None,
     volumes: dict[str, Any] | None = None,
+    side_output_paths: list[str] | None = None,
+    on_success_outputs: Callable[[dict[str, str | None]], None] | None = None,
+    trace_writer: Phase0cTraceWriter | None = None,
+    trace_context: dict[str, Any] | None = None,
 ) -> Any:
     """Run one profiling tier, retrying semantic validation failures in-place."""
     artifact_name = Path(output_path).name
@@ -1309,17 +1412,37 @@ async def _run_tier_json_with_retries(
 
     for attempt in range(1 + PROFILE_FIX_MAX_ITERATIONS):
         attempt_label = label if attempt == 0 else f"{label}-retry{attempt}"
+        if trace_writer is not None:
+            trace_writer.record(
+                "tier_attempt_started",
+                site_name=site_name,
+                label=attempt_label,
+                attempt=attempt,
+                output_path=output_path,
+                **(trace_context or {}),
+            )
         outputs = await _run_tier_sandbox(
             site_name=site_name,
             site_files=site_files,
             prompt=prompt,
-            output_paths=[output_path],
+            output_paths=[output_path, *list(side_output_paths or [])],
             timeout=timeout,
             label=attempt_label,
             sandbox_model=sandbox_model,
             extra_inputs=extra_inputs,
             volumes=volumes,
         )
+        if trace_writer is not None:
+            telemetry = outputs.get("_telemetry")
+            trace_writer.record(
+                "tier_attempt_finished",
+                site_name=site_name,
+                label=attempt_label,
+                attempt=attempt,
+                output_path=output_path,
+                telemetry=telemetry,
+                **(trace_context or {}),
+            )
 
         raw = outputs.get(output_path)
         parsed: object | None = None
@@ -1336,9 +1459,30 @@ async def _run_tier_json_with_retries(
             errors.extend(validate_parsed(parsed))
 
         if not errors:
+            if on_success_outputs is not None:
+                on_success_outputs(outputs)
+            if trace_writer is not None:
+                trace_writer.record(
+                    "tier_generated",
+                    site_name=site_name,
+                    label=attempt_label,
+                    attempt=attempt,
+                    output_path=output_path,
+                    **(trace_context or {}),
+                )
             return parsed
 
         last_errors = errors
+        if trace_writer is not None:
+            trace_writer.record(
+                "tier_validation_failed",
+                site_name=site_name,
+                label=attempt_label,
+                attempt=attempt,
+                output_path=output_path,
+                errors=errors,
+                **(trace_context or {}),
+            )
         if attempt < PROFILE_FIX_MAX_ITERATIONS:
             logger.warning(
                 "Phase 0c: site %r %s failed validation, retrying (%d/%d): %s",
@@ -1355,6 +1499,15 @@ async def _run_tier_json_with_retries(
                 extra_guidance=correction_guidance,
             )
 
+    if trace_writer is not None:
+        trace_writer.record(
+            "tier_failed",
+            site_name=site_name,
+            label=label,
+            output_path=output_path,
+            errors=last_errors,
+            **(trace_context or {}),
+        )
     raise RuntimeError(
         f"{artifact_name} for site {site_name} failed validation:\n"
         + "\n".join(f"  - {error}" for error in last_errors)
@@ -1375,6 +1528,7 @@ async def _profile_one_site_tiered(
     instance: BenchmarkInstance | None = None,
     host_inventory_instance: BenchmarkInstance | None = None,
     host_inventory_instances: list[BenchmarkInstance] | None = None,
+    trace_writer: Phase0cTraceWriter | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Profile one site using two-tier sandbox execution.
 
@@ -1398,60 +1552,182 @@ async def _profile_one_site_tiered(
             for eval_type in manifest.get("evaluation", {}).get("eval_types", [])
             if eval_type
         }
+        benchmark_digest = hash_file_list(file_list, benchmark_root)
+        evidence_inputs = build_phase_0c_evidence_indexes(
+            file_list=file_list,
+            benchmark_root=benchmark_root,
+            manifest=manifest,
+            site_name=site_name,
+            output_dir=staging_root / "phase0c_evidence",
+        )
+        evidence_index_digest = hash_routed_inputs(evidence_inputs)
+        proxy_metadata = _verification_proxy_metadata(verification_proxy)
+        if trace_writer is not None:
+            trace_writer.record(
+                "site_started",
+                site_name=site_name,
+                file_count=len(file_list),
+                benchmark_digest=benchmark_digest,
+                evidence_index_digest=evidence_index_digest,
+            )
         logger.info(
             "Phase 0c: profiling site %r (%d files staged), tier 1 starting",
             site_name,
             len(file_list),
         )
 
-        # ── Tier 1: parallel ────────────────────────────────────────────
-        tier1_results = await asyncio.gather(
-            _run_tier_json_with_retries(
+        def verify_validate(data: object) -> list[str]:
+            return validate_verification_capabilities(
+                data, site_name=site_name
+            ) + _validate_manifest_eval_types(data, manifest_eval_type_set)
+
+        def data_validate(data: object) -> list[str]:
+            return validate_data_model_profile(data, site_name=site_name)
+
+        def context_validate(data: object) -> list[str]:
+            return validate_agent_context(data, site_name=site_name)
+
+        verify_metadata = _expected_tier_metadata(
+            site_name=site_name,
+            tier_name="A_VERIFICATION_CAPABILITIES",
+            prompt_name="profile-verification-capabilities",
+            validation_command=f"verification-capabilities --site-name {site_name}",
+            output_path="/workspace/output/VERIFICATION_CAPABILITIES.json",
+            sandbox_model=sandbox_model,
+            benchmark_digest=benchmark_digest,
+            manifest_eval_type_set=manifest_eval_type_set,
+            instance_site_url=None,
+            verification_proxy_metadata=None,
+            evidence_index_digest=evidence_index_digest,
+        )
+        data_metadata = _expected_tier_metadata(
+            site_name=site_name,
+            tier_name="B_DATA_MODEL",
+            prompt_name="profile-data-model",
+            validation_command=f"data-model --site-name {site_name}",
+            output_path="/workspace/output/DATA_MODEL.json",
+            sandbox_model=sandbox_model,
+            benchmark_digest=benchmark_digest,
+            manifest_eval_type_set=manifest_eval_type_set,
+            instance_site_url=None,
+            verification_proxy_metadata=None,
+            evidence_index_digest=evidence_index_digest,
+        )
+        context_metadata = _expected_tier_metadata(
+            site_name=site_name,
+            tier_name="C_AGENT_CONTEXT",
+            prompt_name="profile-agent-context",
+            validation_command=f"agent-context --site-name {site_name}",
+            output_path="/workspace/output/AGENT_CONTEXT.json",
+            sandbox_model=sandbox_model,
+            benchmark_digest=benchmark_digest,
+            manifest_eval_type_set=manifest_eval_type_set,
+            instance_site_url=None,
+            verification_proxy_metadata=None,
+            evidence_index_digest=evidence_index_digest,
+        )
+
+        async def reuse_or_run_tier(
+            *,
+            tier_name: str,
+            artifact_stem: str,
+            prompt_name: str,
+            validation_command: str,
+            output_path: str,
+            label: str,
+            metadata: dict[str, Any],
+            validate_parsed: Callable[[object], list[str]],
+            correction_guidance: str,
+            sidecar_outputs: dict[str, str] | None = None,
+            extra_inputs_for_tier: dict[str, str] | None = None,
+        ) -> Any:
+            cached = load_reusable_tier_output(
+                output_dir=output_dir,
+                site_name=site_name,
+                tier_name=tier_name,
+                artifact_stem=artifact_stem,
+                expected_metadata=metadata,
+                validate_parsed=validate_parsed,
+            )
+            if cached is not None:
+                logger.info("Phase 0c: site %r reusing tier %s", site_name, tier_name)
+                if trace_writer is not None:
+                    trace_writer.record(
+                        "tier_reused",
+                        site_name=site_name,
+                        tier_name=tier_name,
+                        artifact_stem=artifact_stem,
+                    )
+                return cached
+            return await _run_tier_json_with_retries(
                 site_name=site_name,
                 site_files=site_files,
+                prompt_name=prompt_name,
+                validation_command=validation_command,
+                output_path=output_path,
+                timeout=timeout,
+                label=label,
+                sandbox_model=sandbox_model,
+                validate_parsed=validate_parsed,
+                extra_inputs=extra_inputs_for_tier if extra_inputs_for_tier is not None else evidence_inputs,
+                volumes=benchmark_mount,
+                correction_guidance=correction_guidance,
+                side_output_paths=list(sidecar_outputs or {}),
+                on_success_outputs=_tier_success_publisher(
+                    output_dir=output_dir,
+                    site_name=site_name,
+                    tier_name=tier_name,
+                    artifact_stem=artifact_stem,
+                    output_path=output_path,
+                    metadata=metadata,
+                    sidecar_outputs=sidecar_outputs,
+                ),
+                trace_writer=trace_writer,
+                trace_context={"tier_name": tier_name, "artifact_stem": artifact_stem},
+            )
+
+        # ── Tier 1: parallel ────────────────────────────────────────────
+        tier1_results = await asyncio.gather(
+            reuse_or_run_tier(
+                tier_name="A_VERIFICATION_CAPABILITIES",
+                artifact_stem="VERIFICATION_CAPABILITIES",
                 prompt_name="profile-verification-capabilities",
                 validation_command=f"verification-capabilities --site-name {site_name}",
                 output_path="/workspace/output/VERIFICATION_CAPABILITIES.json",
-                timeout=timeout,
                 label=f"0c-{site_name}-A-verify",
-                sandbox_model=sandbox_model,
-                validate_parsed=lambda data: (
-                    validate_verification_capabilities(data, site_name=site_name)
-                    + _validate_manifest_eval_types(data, manifest_eval_type_set)
-                ),
-                volumes=benchmark_mount,
+                metadata=verify_metadata,
+                validate_parsed=verify_validate,
                 correction_guidance=(
                     "Only include evaluation methods that actually exist in the benchmark harness. "
                     "Each entry needs a string eval_type and description."
                 ),
             ),
-            _run_tier_json_with_retries(
-                site_name=site_name,
-                site_files=site_files,
+            reuse_or_run_tier(
+                tier_name="B_DATA_MODEL",
+                artifact_stem="DATA_MODEL",
                 prompt_name="profile-data-model",
                 validation_command=f"data-model --site-name {site_name}",
                 output_path="/workspace/output/DATA_MODEL.json",
-                timeout=timeout,
                 label=f"0c-{site_name}-B-data",
-                sandbox_model=sandbox_model,
-                validate_parsed=lambda data: validate_data_model_profile(data, site_name=site_name),
-                volumes=benchmark_mount,
+                metadata=data_metadata,
+                validate_parsed=data_validate,
                 correction_guidance=(
                     "Every entity must declare a non-empty fields array, and every field name should "
                     "match the entity it belongs to."
                 ),
+                sidecar_outputs={
+                    "/workspace/output/DATA_MODEL_EVIDENCE.json": "DATA_MODEL_EVIDENCE"
+                },
             ),
-            _run_tier_json_with_retries(
-                site_name=site_name,
-                site_files=site_files,
+            reuse_or_run_tier(
+                tier_name="C_AGENT_CONTEXT",
+                artifact_stem="AGENT_CONTEXT_RAW",
                 prompt_name="profile-agent-context",
                 validation_command=f"agent-context --site-name {site_name}",
                 output_path="/workspace/output/AGENT_CONTEXT.json",
-                timeout=timeout,
                 label=f"0c-{site_name}-C-context",
-                sandbox_model=sandbox_model,
-                validate_parsed=lambda data: validate_agent_context(data, site_name=site_name),
-                volumes=benchmark_mount,
+                metadata=context_metadata,
+                validate_parsed=context_validate,
                 correction_guidance=(
                     "When structured output is required, output_schema must be a JSON object. "
                     "If agent_prompt_template is present, it must contain both {{INSTRUCTION}} "
@@ -1518,6 +1794,7 @@ async def _profile_one_site_tiered(
             "/workspace/inputs/DATA_MODEL.json": str(inputs_dir / "DATA_MODEL.json"),
             "/workspace/inputs/AGENT_CONTEXT.json": str(inputs_dir / "AGENT_CONTEXT.json"),
         }
+        tier2_extra_inputs.update(evidence_inputs)
 
         # Only stage connectivity file when an instance URL was provided.
         if site_url:
@@ -1525,28 +1802,46 @@ async def _profile_one_site_tiered(
                 inputs_dir / "INSTANCE_CONNECTIVITY.json"
             )
 
-        injection_surface = await _run_tier_json_with_retries(
-            site_name=site_name,
-            site_files=site_files,
-            prompt_name="profile-injection-surface",
-            validation_command=f"injection-surface --site-name {site_name}",
-            output_path="/workspace/output/INJECTION_SURFACE.json",
-            timeout=timeout,
-            label=f"0c-{site_name}-DE-inject",
-            sandbox_model=sandbox_model,
-            extra_inputs=tier2_extra_inputs,
-            volumes=benchmark_mount,
-            validate_parsed=lambda data: validate_injection_surface(
+        def injection_validate(data: object) -> list[str]:
+            return validate_injection_surface(
                 data,
                 site_name=site_name,
                 data_model=data_model,
                 agent_context=agent_context,
-            ),
+            )
+        injection_metadata = _expected_tier_metadata(
+            site_name=site_name,
+            tier_name="DE_INJECTION_SURFACE",
+            prompt_name="profile-injection-surface",
+            validation_command=f"injection-surface --site-name {site_name}",
+            output_path="/workspace/output/INJECTION_SURFACE.json",
+            sandbox_model=sandbox_model,
+            benchmark_digest=benchmark_digest,
+            manifest_eval_type_set=manifest_eval_type_set,
+            instance_site_url=site_url,
+            verification_proxy_metadata=proxy_metadata,
+            evidence_index_digest=evidence_index_digest,
+        )
+        injection_surface = await reuse_or_run_tier(
+            tier_name="DE_INJECTION_SURFACE",
+            artifact_stem="INJECTION_SURFACE",
+            prompt_name="profile-injection-surface",
+            validation_command=f"injection-surface --site-name {site_name}",
+            output_path="/workspace/output/INJECTION_SURFACE.json",
+            label=f"0c-{site_name}-DE-inject",
+            metadata=injection_metadata,
+            validate_parsed=injection_validate,
             correction_guidance=(
                 "Every source_field must use entity.field format and reference a real field on the "
                 "matching entity in DATA_MODEL.json. existing_task_coverage may only reference ids "
                 "declared in injection_surface."
             ),
+            sidecar_outputs={
+                "/workspace/output/SURFACE_DRAFT.json": "SURFACE_DRAFT",
+                "/workspace/output/TASK_COVERAGE_DRAFT.json": "TASK_COVERAGE_DRAFT",
+                "/workspace/output/LIVE_VERIFICATION_NOTES.json": "LIVE_VERIFICATION_NOTES",
+            },
+            extra_inputs_for_tier=tier2_extra_inputs,
         )
         reachability = _site_reachability_record(
             site_name=site_name,
@@ -1612,14 +1907,21 @@ async def _profile_one_site_tiered(
             _profile_metadata_path(output_dir, site_name),
             json.dumps(
                 {
+                    "provenance_schema_version": 1,
                     "site_name": site_name,
                     "benchmark_root": str(benchmark_root),
                     "sandbox_model": sandbox_model,
+                    "benchmark_digest": benchmark_digest,
+                    "evidence_index_digest": evidence_index_digest,
                     "instance_site_url": site_url,
                     "host_inventory_instance_fingerprint": _instance_inventory_fingerprint(
                         inventory_instance
                     ),
                     "verification_proxy": _verification_proxy_metadata(verification_proxy),
+                    "trace_artifacts": {
+                        "trace": "PHASE_0C_TRACE.jsonl",
+                        "timings": phase_0c_timings_path(output_dir).name,
+                    },
                 },
                 indent=2,
             ),
@@ -1633,6 +1935,13 @@ async def _profile_one_site_tiered(
         ]:
             tier_path = output_dir / f"{tier_name}_{site_name}.json"
             _write_text_atomic(tier_path, json.dumps(tier_data, indent=2))
+
+        if trace_writer is not None:
+            trace_writer.record(
+                "site_completed",
+                site_name=site_name,
+                injection_surface_count=len(profile.get("injection_surface", [])),
+            )
 
         return site_name, {
             "profile": profile,
