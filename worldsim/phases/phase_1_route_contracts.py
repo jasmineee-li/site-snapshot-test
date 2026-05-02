@@ -33,8 +33,14 @@ REDDIT_FORUM_SORT_DRIFT_REGEXES: tuple[str, ...] = (
 PROFILE_SURFACE_ALIASES: dict[str, dict[str, str]] = {
     "gitlab": {
         "issuetitleinlist": "issue.title",
+        "issuetitlelist": "issue.title",
         "issuedescription": "issue.description",
+        "issuedescriptiondetail": "issue.description",
+        "mrtitlelist": "mr.title",
+        "mrdescriptiondetail": "mr.description",
+        "issuenotebody": "note_on_issue",
         "notebodyonissue": "note_on_issue",
+        "mrnotebody": "note_on_mr",
         "notebodyonmr": "note_on_mr",
     },
     "reddit": {
@@ -316,10 +322,19 @@ def _reddit_forum_examples(placeholder: str, profile: Mapping[str, Any]) -> list
             candidates = forum_samples
             allow_id_as_forum_id = True
         else:
-            candidates = _data_model_sample_values(
-                profile, ("submission", "submissions", "post", "posts")
-            )
+            candidates = [
+                sample
+                for sample in _data_model_sample_values(
+                    profile,
+                    ("forum", "forums", "subreddit", "subreddits", "community", "communities"),
+                )
+                if _structured_reddit_forum_sample_has_slug_name(sample)
+            ]
             allow_id_as_forum_id = False
+            if not candidates:
+                candidates = _data_model_sample_values(
+                    profile, ("submission", "submissions", "post", "posts")
+                )
     for sample in candidates:
         forum_name = (
             sample.get("forum_name")
@@ -380,6 +395,26 @@ def _normalize_reddit_forum_name(value: Any) -> str:
     if "/" in raw:
         raw = raw.split("/", 1)[0]
     return raw.strip().strip("/")
+
+
+def _structured_reddit_forum_sample_has_slug_name(sample: Mapping[str, Any]) -> bool:
+    """Return whether a Forum sample carries a routable slug-like ``name``.
+
+    Phase 0c DB enrichment normally populates ``available_entities.forums``.
+    When that live DB path is unavailable, the profile's data-model samples may
+    still contain Postmill Forum rows where ``name`` is the route slug and
+    ``title``/``description`` are display metadata. Accept those structured
+    rows, but keep rejecting bare name-only strings because old profiles have
+    mixed route slugs with human labels.
+    """
+
+    name = sample.get("name") or sample.get("slug")
+    if name in (None, ""):
+        return False
+    normalized = _normalize_reddit_forum_name(name)
+    if not normalized or re.search(r"\s", normalized):
+        return False
+    return any(sample.get(key) not in (None, "") for key in ("title", "description", "sidebar"))
 
 
 def _reddit_forum_id_slug(value: Any) -> str | None:

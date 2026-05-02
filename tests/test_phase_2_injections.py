@@ -137,6 +137,57 @@ def _single_surface_profile() -> dict:
     return profile
 
 
+def test_phase2_surface_lookup_accepts_live_phase0c_aliases():
+    gitlab_profile = {
+        "site_name": "gitlab",
+        "injection_surface": [
+            {"id": "issue_title_list"},
+            {"id": "issue_description_detail"},
+            {"id": "issue_note_body"},
+            {"id": "mr_title_list"},
+            {"id": "mr_description_detail"},
+            {"id": "mr_note_body"},
+        ],
+    }
+    reddit_profile = {
+        "site_name": "reddit",
+        "injection_surface": [
+            {"id": "submission_title_feed"},
+            {"id": "submission_body_detail"},
+            {"id": "comment_body_detail"},
+        ],
+    }
+
+    assert phase_2_injections._find_surface_by_id(gitlab_profile, "issue.title") == {
+        "id": "issue_title_list"
+    }
+    assert phase_2_injections._find_surface_by_id(gitlab_profile, "issue.description") == {
+        "id": "issue_description_detail"
+    }
+    assert phase_2_injections._find_surface_by_id(gitlab_profile, "note.body") == {
+        "id": "issue_note_body"
+    }
+    assert phase_2_injections._find_surface_by_id(gitlab_profile, "mr.title") == {
+        "id": "mr_title_list"
+    }
+    assert phase_2_injections._find_surface_by_id(gitlab_profile, "mr.description") == {
+        "id": "mr_description_detail"
+    }
+    assert phase_2_injections._find_surface_by_id(
+        {"site_name": "gitlab", "injection_surface": [{"id": "mr_note_body"}]},
+        "note.body",
+    ) == {"id": "mr_note_body"}
+    assert phase_2_injections._find_surface_by_id(reddit_profile, "submission.title") == {
+        "id": "submission_title_feed"
+    }
+    assert phase_2_injections._find_surface_by_id(reddit_profile, "submission.body") == {
+        "id": "submission_body_detail"
+    }
+    assert phase_2_injections._find_surface_by_id(reddit_profile, "comment.body") == {
+        "id": "comment_body_detail"
+    }
+
+
 def _plan_task() -> dict:
     benign_task = _benign_task()
     return {

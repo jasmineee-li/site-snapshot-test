@@ -2865,7 +2865,58 @@ def test_build_task_route_contracts_handles_phase0_reddit_feed_ids_and_capitaliz
     ]
 
 
-def test_build_task_route_contracts_rejects_bare_reddit_forum_samples_as_inventory():
+def test_build_task_route_contracts_uses_structured_reddit_forum_names_without_ids():
+    profile = _profile(uncovered=[])
+    profile["site_name"] = "reddit"
+    profile["data_model"] = [
+        {
+            "entity": "forum",
+            "sample_values": [
+                {
+                    "name": "books",
+                    "title": "Books",
+                    "description": "A place to discuss books",
+                },
+                {
+                    "name": "DIY",
+                    "title": "DIY",
+                    "description": "Do it yourself projects",
+                },
+                {
+                    "name": "personal finances",
+                    "title": "Personal finances",
+                    "description": "Whitespace display names are not routable slugs",
+                },
+            ],
+        }
+    ]
+    profile["existing_task_coverage"] = {
+        "injection_surfaces_with_task_coverage": ["submission_title_listing"],
+        "injection_surfaces_without_task_coverage": [],
+    }
+
+    routes = {
+        route["id"]: route
+        for route in phase_1_route_contracts.build_task_route_contracts(
+            site_name="reddit",
+            profile=profile,
+        )["route_families"]
+    }
+
+    route = routes["reddit.submission_title.reddit_forum.create_submission_title"]
+    assert route["anchor_examples"] == [
+        {
+            "forum_name": "books",
+            "start_url": "__REDDIT__/f/books",
+        },
+        {
+            "forum_name": "DIY",
+            "start_url": "__REDDIT__/f/DIY",
+        },
+    ]
+
+
+def test_build_task_route_contracts_rejects_bare_reddit_forum_names_as_inventory():
     profile = _profile(uncovered=[])
     profile["site_name"] = "reddit"
     profile["data_model"] = [
