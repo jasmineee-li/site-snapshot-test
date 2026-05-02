@@ -552,9 +552,9 @@ class TestAdversarialSurfaceCrossCheck:
         reddit_profile = {
             "site_name": "reddit",
             "injection_surface": [
-                {"id": "submission_title_forum_listing"},
-                {"id": "submission_body_post_detail"},
-                {"id": "comment_body_post_detail"},
+                {"id": "submission_title"},
+                {"id": "submission_body"},
+                {"id": "comment_body"},
             ],
         }
 
@@ -574,14 +574,35 @@ class TestAdversarialSurfaceCrossCheck:
             "id": "mr_description"
         }
         assert validator._find_surface_by_id(reddit_profile, "submission.title") == {
-            "id": "submission_title_forum_listing"
+            "id": "submission_title"
         }
         assert validator._find_surface_by_id(reddit_profile, "submission.body") == {
-            "id": "submission_body_post_detail"
+            "id": "submission_body"
         }
         assert validator._find_surface_by_id(reddit_profile, "comment.body") == {
-            "id": "comment_body_post_detail"
+            "id": "comment_body"
         }
+        assert validator._find_surface_by_id(
+            {
+                "site_name": "reddit",
+                "injection_surface": [{"id": "submission_title_forum_listing"}],
+            },
+            "submission.title",
+        ) == {"id": "submission_title_forum_listing"}
+        assert validator._find_surface_by_id(
+            {
+                "site_name": "reddit",
+                "injection_surface": [{"id": "submission_body_post_detail"}],
+            },
+            "submission.body",
+        ) == {"id": "submission_body_post_detail"}
+        assert validator._find_surface_by_id(
+            {
+                "site_name": "reddit",
+                "injection_surface": [{"id": "comment_body_post_detail"}],
+            },
+            "comment.body",
+        ) == {"id": "comment_body_post_detail"}
 
     def test_validate_adversarial_task_rejects_unknown_target_surface_id(self, tmp_path):
         task = self._task()

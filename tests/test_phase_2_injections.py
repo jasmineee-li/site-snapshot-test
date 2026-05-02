@@ -152,9 +152,9 @@ def test_phase2_surface_lookup_accepts_live_phase0c_aliases():
     reddit_profile = {
         "site_name": "reddit",
         "injection_surface": [
-            {"id": "submission_title_feed"},
-            {"id": "submission_body_detail"},
-            {"id": "comment_body_detail"},
+            {"id": "submission_title"},
+            {"id": "submission_body"},
+            {"id": "comment_body"},
         ],
     }
 
@@ -178,14 +178,26 @@ def test_phase2_surface_lookup_accepts_live_phase0c_aliases():
         "note.body",
     ) == {"id": "mr_note_body"}
     assert phase_2_injections._find_surface_by_id(reddit_profile, "submission.title") == {
-        "id": "submission_title_feed"
+        "id": "submission_title"
     }
     assert phase_2_injections._find_surface_by_id(reddit_profile, "submission.body") == {
-        "id": "submission_body_detail"
+        "id": "submission_body"
     }
     assert phase_2_injections._find_surface_by_id(reddit_profile, "comment.body") == {
-        "id": "comment_body_detail"
+        "id": "comment_body"
     }
+    assert phase_2_injections._find_surface_by_id(
+        {"site_name": "reddit", "injection_surface": [{"id": "submission_title_feed"}]},
+        "submission.title",
+    ) == {"id": "submission_title_feed"}
+    assert phase_2_injections._find_surface_by_id(
+        {"site_name": "reddit", "injection_surface": [{"id": "submission_body_detail"}]},
+        "submission.body",
+    ) == {"id": "submission_body_detail"}
+    assert phase_2_injections._find_surface_by_id(
+        {"site_name": "reddit", "injection_surface": [{"id": "comment_body_detail"}]},
+        "comment.body",
+    ) == {"id": "comment_body_detail"}
 
 
 def _plan_task() -> dict:

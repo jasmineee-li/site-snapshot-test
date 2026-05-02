@@ -42,9 +42,12 @@ def test_legacy_editor_surface_ids_canonicalize_to_core_surfaces():
     assert canonical_core_surface("gitlab", "note_body_on_issue") == "note.body"
     assert canonical_core_surface("gitlab", "note_on_mr") == "note.body"
     assert canonical_core_surface("gitlab", "note_body_on_mr") == "note.body"
+    assert canonical_core_surface("reddit", "submission_title") == "submission.title"
     assert canonical_core_surface("reddit", "submission_title_listing") == "submission.title"
     assert canonical_core_surface("reddit", "submission_title_detail") == "submission.title"
+    assert canonical_core_surface("reddit", "submission_body") == "submission.body"
     assert canonical_core_surface("reddit", "submission_body_detail") == "submission.body"
+    assert canonical_core_surface("reddit", "comment_body") == "comment.body"
     assert canonical_core_surface("reddit", "comment_body_thread") == "comment.body"
     assert canonical_core_surface("reddit", "comment_body_detail") == "comment.body"
 
