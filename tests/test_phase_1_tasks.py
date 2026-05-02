@@ -4018,6 +4018,51 @@ async def test_run_generate_new_tasks_returns_empty_when_no_sites_are_eligible(
 
 
 @pytest.mark.asyncio
+async def test_run_generate_new_tasks_fails_when_requested_site_has_no_route_families(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    output_dir = tmp_path / "phase_1"
+    output_dir.mkdir()
+    (tmp_path / "phase_0c").mkdir()
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+
+    gitlab_site = phase_1_generate_new_tasks.EligibleSiteProfile(
+        site_name="gitlab",
+        profile_path=tmp_path / "gitlab.json",
+        profile={"existing_task_coverage": {"injection_surfaces_without_task_coverage": ["x"]}},
+    )
+    seen: dict[str, object] = {}
+
+    def fake_load_generate_new_tasks_eligible_sites(**kwargs):
+        seen["site_filter"] = kwargs["site_filter"]
+        return [gitlab_site]
+
+    monkeypatch.setattr(
+        phase_1_generate_new_tasks,
+        "load_generate_new_tasks_eligible_sites",
+        fake_load_generate_new_tasks_eligible_sites,
+    )
+
+    async def fail_if_called(*args, **kwargs):
+        raise AssertionError("upload_to_volume should not run for ineligible requested sites")
+
+    monkeypatch.setattr(phase_1_generate_new_tasks, "upload_to_volume", fail_if_called)
+    site_filter = (site for site in ["GitLab", "reddit"])
+
+    with pytest.raises(RuntimeError, match="reddit"):
+        await phase_1_generate_new_tasks.run_generate_new_tasks(
+            manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+            benchmark_root=benchmark_root,
+            output_dir=output_dir,
+            site_filter=site_filter,
+        )
+
+    assert seen["site_filter"] == {"gitlab", "reddit"}
+
+
+@pytest.mark.asyncio
 async def test_run_generate_new_tasks_skips_benchmark_upload_when_all_sites_are_cached(
     monkeypatch, tmp_path
 ):

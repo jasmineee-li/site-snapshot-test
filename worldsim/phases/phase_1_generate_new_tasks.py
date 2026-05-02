@@ -31,6 +31,7 @@ from worldsim.phases.phase_1_task_cards import (
     task_card_plan_digest,
     task_card_plan_for_site,
 )
+from worldsim.placeholders import normalize_site_name
 from worldsim.profile_validation import load_and_validate_profile
 from worldsim.prompt_corrections import render_validation_feedback
 from worldsim.prompt_loading import load_prompt
@@ -85,11 +86,13 @@ async def run_generate_new_tasks(
         )
 
     manifest_eval_types = manifest.get("evaluation", {}).get("eval_types", [])
+    site_filter_set = _normalize_site_filter(site_filter)
     eligible_sites = load_generate_new_tasks_eligible_sites(
         profiles_dir=profiles_dir,
         manifest_eval_types=manifest_eval_types,
-        site_filter=site_filter,
+        site_filter=site_filter_set,
     )
+    _fail_if_requested_sites_ineligible(site_filter=site_filter_set, eligible_sites=eligible_sites)
     if not eligible_sites:
         logger.info("Phase 1 (generate-new-tasks): no eligible sites found, nothing to generate")
         return []
@@ -215,8 +218,32 @@ def load_generate_new_tasks_eligible_sites(
 def _normalize_site_filter(site_filter: Iterable[str] | None) -> set[str] | None:
     if site_filter is None:
         return None
-    normalized = {str(site).strip() for site in site_filter if str(site).strip()}
+    normalized = {
+        normalize_site_name(str(site).strip()) for site in site_filter if str(site).strip()
+    }
     return normalized or None
+
+
+def _fail_if_requested_sites_ineligible(
+    *,
+    site_filter: Iterable[str] | None,
+    eligible_sites: list[EligibleSiteProfile],
+) -> None:
+    requested = _normalize_site_filter(site_filter)
+    if requested is None:
+        return
+    eligible = {site.site_name for site in eligible_sites}
+    missing = sorted(requested - eligible)
+    if not missing:
+        return
+    raise RuntimeError(
+        "Phase 1 (generate-new-tasks) cannot satisfy the requested site filter because "
+        "the following selected site(s) have no Phase 4-admissible carrier route "
+        f"families: {', '.join(missing)}. This usually means Phase 0c did not produce "
+        "live inventory for inventory-backed routes, or the site has no strict-WASP "
+        "carrier surface under the current route contracts. Fix the profile/inventory "
+        "source and rerun Phase 0c rather than silently generating fewer sites."
+    )
 
 
 async def generate_new_tasks_for_site(
