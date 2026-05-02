@@ -57,6 +57,8 @@ class SweepConfig:
     agent_step_timeout: int
     sandbox_model: str
     inspect_limit: int
+    benchmark: str | None = None
+    stale_resume_budget: int = 0
     completed_runs: list[CompletedRun] = field(default_factory=list)
     models: list[ModelRun] = field(default_factory=list)
 
@@ -139,6 +141,8 @@ def load_sweep_config(path: Path) -> SweepConfig:
         agent_step_timeout=_require_int(common, "agent_step_timeout"),
         sandbox_model=_require_str(common, "sandbox_model"),
         inspect_limit=_require_int(common, "inspect_limit"),
+        benchmark=_optional_str(common, "benchmark"),
+        stale_resume_budget=int(common.get("stale_resume_budget") or 0),
         completed_runs=completed_runs,
         models=model_runs,
     )
@@ -180,25 +184,31 @@ def build_phase4_command(config: SweepConfig, model: ModelRun, run_dir: str) -> 
         "worldsim.main",
         "phase",
         "4",
-        "--instances",
-        config.instances,
-        "--sites",
-        config.sites,
-        "--task-origin",
-        config.task_origin,
-        "--max-tasks-per-site",
-        str(config.max_tasks_per_site),
-        "--agent-provider",
-        model.provider,
-        "--agent-model",
-        model.model,
-        "--agent-llm-timeout",
-        str(config.agent_llm_timeout),
-        "--agent-step-timeout",
-        str(config.agent_step_timeout),
-        "--sandbox-model",
-        config.sandbox_model,
     ]
+    if config.benchmark:
+        phase4_args.extend(["--benchmark", config.benchmark])
+    phase4_args.extend(
+        [
+            "--instances",
+            config.instances,
+            "--sites",
+            config.sites,
+            "--task-origin",
+            config.task_origin,
+            "--max-tasks-per-site",
+            str(config.max_tasks_per_site),
+            "--agent-provider",
+            model.provider,
+            "--agent-model",
+            model.model,
+            "--agent-llm-timeout",
+            str(config.agent_llm_timeout),
+            "--agent-step-timeout",
+            str(config.agent_step_timeout),
+            "--sandbox-model",
+            config.sandbox_model,
+        ]
+    )
     if model.service_tier:
         phase4_args.extend(["--agent-service-tier", model.service_tier])
     lines = [
@@ -214,6 +224,13 @@ def build_phase4_command(config: SweepConfig, model: ModelRun, run_dir: str) -> 
         'cp -a "$SOURCE/phase_3" "$RUN/"',
         'export WORLDSIM_STATE_DIR="$RUN"',
         shlex.join(phase4_args),
+        *_post_phase4_report_lines(config),
+    ]
+    return "\n".join(lines)
+
+
+def _post_phase4_report_lines(config: SweepConfig) -> list[str]:
+    return [
         'mkdir -p "$RUN/phase_4"',
         (
             "uv run python scripts/summarize_phase_4_results.py "
@@ -224,6 +241,56 @@ def build_phase4_command(config: SweepConfig, model: ModelRun, run_dir: str) -> 
             '{ uv run python scripts/audit_phase_4_variants.py "$RUN"; } '
             '> "$RUN/phase_4/variant_audit.txt" 2>&1 || true'
         ),
+    ]
+
+
+def _phase4_resume_args(config: SweepConfig, model: ModelRun) -> list[str]:
+    args = [
+        "uv",
+        "run",
+        "python",
+        "-m",
+        "worldsim.main",
+        "resume",
+    ]
+    if config.benchmark:
+        args.extend(["--benchmark", config.benchmark])
+    args.extend(
+        [
+            "--instances",
+            config.instances,
+            "--sites",
+            config.sites,
+            "--task-origin",
+            config.task_origin,
+            "--max-tasks-per-site",
+            str(config.max_tasks_per_site),
+            "--agent-provider",
+            model.provider,
+            "--agent-model",
+            model.model,
+            "--agent-llm-timeout",
+            str(config.agent_llm_timeout),
+            "--agent-step-timeout",
+            str(config.agent_step_timeout),
+            "--sandbox-model",
+            config.sandbox_model,
+        ]
+    )
+    if model.service_tier:
+        args.extend(["--agent-service-tier", model.service_tier])
+    return args
+
+
+def build_phase4_resume_command(config: SweepConfig, model: ModelRun, run_dir: str) -> str:
+    lines = [
+        "set -euo pipefail",
+        f"RUN={shlex.quote(run_dir)}",
+        'test -f "$RUN/phase_2/adversarial_tasks.json"',
+        'test -d "$RUN/phase_3"',
+        'export WORLDSIM_STATE_DIR="$RUN"',
+        shlex.join(_phase4_resume_args(config, model)),
+        *_post_phase4_report_lines(config),
     ]
     return "\n".join(lines)
 
@@ -243,6 +310,31 @@ def build_remote_job_start_args(
         config.remote_dir,
         "--name",
         f"phase4-deadlines-{sanitize_slug(model.key)}-16ps",
+        "--expected-output",
+        f"{run_dir}/phase_4/results.json",
+        "--",
+        "bash",
+        "-lc",
+        command_body,
+    ]
+
+
+def build_remote_resume_job_start_args(
+    config: SweepConfig,
+    model: ModelRun,
+    *,
+    run_dir: str,
+    command_body: str,
+    resume_index: int,
+) -> list[str]:
+    return [
+        "scripts/remote_job_start.sh",
+        "--host-config",
+        config.host_config,
+        "--remote-dir",
+        config.remote_dir,
+        "--name",
+        f"phase4-deadlines-{sanitize_slug(model.key)}-16ps-resume{resume_index}",
         "--expected-output",
         f"{run_dir}/phase_4/results.json",
         "--",
@@ -518,6 +610,39 @@ def start_remote_job(config: SweepConfig, model: ModelRun, run_dir: str) -> tupl
     return parse_job_id(completed.stdout), command_body
 
 
+def start_remote_resume_job(
+    config: SweepConfig,
+    model: ModelRun,
+    run_dir: str,
+    *,
+    resume_index: int,
+) -> tuple[str, str]:
+    command_body = build_phase4_resume_command(config, model, run_dir)
+    args = build_remote_resume_job_start_args(
+        config,
+        model,
+        run_dir=run_dir,
+        command_body=command_body,
+        resume_index=resume_index,
+    )
+    completed = run_checked(args)
+    return parse_job_id(completed.stdout), command_body
+
+
+def stop_remote_job(config: SweepConfig, job_id: str) -> subprocess.CompletedProcess[str]:
+    return run_checked(
+        [
+            "scripts/remote_job_stop.sh",
+            "--host-config",
+            config.host_config,
+            "--remote-dir",
+            config.remote_dir,
+            "--job-id",
+            job_id,
+        ]
+    )
+
+
 def monitor_job(
     config: SweepConfig,
     job_id: str,
@@ -664,9 +789,7 @@ def run_sweep(args: argparse.Namespace) -> int:
             )
             state["status"] = f"running:{model.key}"
             update_state(state_dir, state)
-            log_event(
-                f"starting {model.key} attempt {attempt}/{model.retry_budget}: {run_dir}"
-            )
+            log_event(f"starting {model.key} attempt {attempt}/{model.retry_budget}: {run_dir}")
             try:
                 require_no_running_remote_jobs(config)
             except RuntimeError as exc:
@@ -699,6 +822,9 @@ def run_sweep(args: argparse.Namespace) -> int:
                     "status": "running",
                     "job_id": job_id,
                     "command_body": command_body,
+                    "stale_resumes_consumed": 0,
+                    "resume_job_ids": [],
+                    "stale_resume_events": [],
                     "remote_job_start_args": build_remote_job_start_args(
                         config,
                         model,
@@ -734,42 +860,110 @@ def run_sweep(args: argparse.Namespace) -> int:
                 summary = status.get("phase4_results") or status.get("log_progress") or ""
                 log_event(f"{model_key} status={status.get('status')} {summary}".rstrip())
 
-            status = monitor_job(
-                config,
-                job_id,
-                initial_poll_seconds=args.initial_poll_seconds,
-                poll_seconds=args.poll_seconds,
-                stale_seconds=args.stale_seconds,
-                max_status_checks=args.max_status_checks,
-                on_status=record_status,
-            )
-            record.update(
-                {
-                    "status": status.get("status"),
-                    "returncode": status.get("returncode"),
-                    "phase4_results": status.get("phase4_results"),
-                    "log_progress": status.get("log_progress"),
-                    "failure_class": status.get("failure_class"),
-                    "total": status.get("total"),
-                    "site_counts": status.get("site_counts"),
-                    "final_status_counts": status.get("final_status_counts"),
-                }
-            )
-            if status.get("tail"):
-                record["tail"] = status["tail"]
-            update_state(state_dir, state)
-            if status.get("status") == "exited" and status.get("returncode") == 0:
-                record["status"] = "completed"
+            stale_resumes_consumed = 0
+            while True:
+                status = monitor_job(
+                    config,
+                    job_id,
+                    initial_poll_seconds=args.initial_poll_seconds,
+                    poll_seconds=args.poll_seconds,
+                    stale_seconds=args.stale_seconds,
+                    max_status_checks=args.max_status_checks,
+                    on_status=record_status,
+                )
+                record.update(
+                    {
+                        "status": status.get("status"),
+                        "returncode": status.get("returncode"),
+                        "phase4_results": status.get("phase4_results"),
+                        "log_progress": status.get("log_progress"),
+                        "failure_class": status.get("failure_class"),
+                        "total": status.get("total"),
+                        "site_counts": status.get("site_counts"),
+                        "final_status_counts": status.get("final_status_counts"),
+                    }
+                )
+                if status.get("tail"):
+                    record["tail"] = status["tail"]
                 update_state(state_dir, state)
-                log_event(f"{model.key} completed")
+                if status.get("status") == "exited" and status.get("returncode") == 0:
+                    record["status"] = "completed"
+                    update_state(state_dir, state)
+                    log_event(f"{model.key} completed")
+                    break
+                if (
+                    status.get("status") == "attention_required"
+                    and status.get("failure_class") == "stale_logs"
+                    and stale_resumes_consumed < config.stale_resume_budget
+                ):
+                    stale_resumes_consumed += 1
+                    log_event(
+                        f"{model.key} stale; stopping job {job_id} and resuming "
+                        f"checkpoint ({stale_resumes_consumed}/{config.stale_resume_budget})"
+                    )
+                    event = {
+                        "stale_job_id": job_id,
+                        "resume_index": stale_resumes_consumed,
+                        "status": status,
+                    }
+                    try:
+                        stop_remote_job(config, job_id)
+                    except subprocess.CalledProcessError as exc:
+                        event.update(
+                            {
+                                "stop_failed": True,
+                                "stop_stdout": exc.stdout,
+                                "stop_stderr": exc.stderr,
+                            }
+                        )
+                        record.setdefault("stale_resume_events", []).append(event)
+                        record["status"] = "failed"
+                        state["status"] = "failed"
+                        update_state(state_dir, state)
+                        return exc.returncode or 1
+                    event["stopped"] = True
+                    record.setdefault("stale_resume_events", []).append(event)
+                    try:
+                        require_no_running_remote_jobs(config)
+                        job_id, command_body = start_remote_resume_job(
+                            config,
+                            model,
+                            run_dir,
+                            resume_index=stale_resumes_consumed,
+                        )
+                    except (subprocess.CalledProcessError, RuntimeError) as exc:
+                        record.update(
+                            {
+                                "status": "failed_to_resume",
+                                "failure_class": "remote_resume_start_failed",
+                                "stderr": str(exc),
+                            }
+                        )
+                        state["status"] = "failed"
+                        update_state(state_dir, state)
+                        return getattr(exc, "returncode", 1) or 1
+                    record.update(
+                        {
+                            "status": "running",
+                            "job_id": job_id,
+                            "command_body": command_body,
+                            "stale_resumes_consumed": stale_resumes_consumed,
+                            "last_resume_job_id": job_id,
+                        }
+                    )
+                    record.setdefault("resume_job_ids", []).append(job_id)
+                    update_state(state_dir, state)
+                    log_event(f"{model.key} resume launched as job {job_id}")
+                    continue
+                record["status"] = "failed"
+                update_state(state_dir, state)
+                # Preserve failed artifacts and stop. The retry budget is recorded
+                # but not consumed automatically because reruns require diagnosis.
+                state["status"] = "failed"
+                update_state(state_dir, state)
+                return 1
+            if record.get("status") == "completed":
                 break
-            record["status"] = "failed"
-            update_state(state_dir, state)
-            # Preserve failed artifacts and stop. The retry budget is recorded
-            # but not consumed automatically because reruns require diagnosis.
-            state["status"] = "failed"
-            update_state(state_dir, state)
-            return 1
         else:
             state["status"] = "failed"
             update_state(state_dir, state)

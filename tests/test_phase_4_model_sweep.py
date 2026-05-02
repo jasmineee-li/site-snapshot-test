@@ -9,6 +9,9 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "configs" / "phase4_model_sweeps" / "phase4_20260501_expanded.json"
+NO_TITLE_CONFIG_PATH = (
+    REPO_ROOT / "configs" / "phase4_model_sweeps" / "phase4_20260502_no_title.json"
+)
 SCRIPT_PATH = REPO_ROOT / "scripts" / "run_phase_4_model_sweep.py"
 
 
@@ -47,6 +50,24 @@ def test_config_parses_completed_run_and_remaining_model_order() -> None:
     ]
 
 
+def test_no_title_config_uses_fresh_body_description_cohort() -> None:
+    sweep = _load_sweep_module()
+
+    config = sweep.load_sweep_config(NO_TITLE_CONFIG_PATH)
+
+    assert config.source_run_dir == "logs/no_title_carrier_regen_20260502T0857Z"
+    assert config.benchmark == "/home/ubuntu/vendors/webarena-verified"
+    assert config.stale_resume_budget == 2
+    assert [run.key for run in config.completed_runs] == ["gpt52"]
+    assert [model.key for model in config.models] == [
+        "sonnet46",
+        "opus47",
+        "glm5",
+        "gemini25pro",
+        "kimi-k25",
+    ]
+
+
 def test_command_generation_preserves_phase4_contract() -> None:
     sweep = _load_sweep_module()
     config = sweep.load_sweep_config(CONFIG_PATH)
@@ -64,7 +85,7 @@ def test_command_generation_preserves_phase4_contract() -> None:
         "logs/phase4_deadlines_gpt52_16ps_20260501T000000Z",
     )
 
-    assert 'SOURCE=logs/task_bank_live_verify_phase0_path_repair_20260430T1900Z' in command
+    assert "SOURCE=logs/task_bank_live_verify_phase0_path_repair_20260430T1900Z" in command
     assert 'cp -a "$SOURCE/phase_0c" "$RUN/"' in command
     assert 'cp -a "$SOURCE/phase_2" "$RUN/"' in command
     assert 'cp -a "$SOURCE/phase_3" "$RUN/"' in command
@@ -80,6 +101,44 @@ def test_command_generation_preserves_phase4_contract() -> None:
     assert "--sandbox-model claude-sonnet-4-6" in command
     assert 'tee "$RUN/phase_4/summary.txt"' in command
     assert 'variant_audit.txt" 2>&1 || true' in command
+
+
+def test_no_title_command_includes_remote_benchmark_root() -> None:
+    sweep = _load_sweep_module()
+    config = sweep.load_sweep_config(NO_TITLE_CONFIG_PATH)
+
+    command = sweep.build_phase4_command(
+        config,
+        config.models[0],
+        "logs/phase4_no_title_sonnet46_16ps_20260502T000000Z",
+    )
+
+    assert "SOURCE=logs/no_title_carrier_regen_20260502T0857Z" in command
+    assert "--benchmark /home/ubuntu/vendors/webarena-verified" in command
+
+
+def test_resume_command_uses_same_phase4_contract_without_recopied_source() -> None:
+    sweep = _load_sweep_module()
+    config = sweep.load_sweep_config(NO_TITLE_CONFIG_PATH)
+
+    command = sweep.build_phase4_resume_command(
+        config,
+        config.models[0],
+        "logs/phase4_no_title_sonnet46_16ps_20260502T000000Z",
+    )
+
+    assert "worldsim.main resume" in command
+    assert "--benchmark /home/ubuntu/vendors/webarena-verified" in command
+    assert "--instances instances.scale.json" in command
+    assert "--sites gitlab,reddit" in command
+    assert "--task-origin new_task" in command
+    assert "--max-tasks-per-site 16" in command
+    assert "--agent-provider anthropic" in command
+    assert "--agent-model claude-sonnet-4-6" in command
+    assert "--agent-llm-timeout 240" in command
+    assert "--agent-step-timeout 300" in command
+    assert 'cp -a "$SOURCE/phase_2" "$RUN/"' not in command
+    assert 'tee "$RUN/phase_4/summary.txt"' in command
 
 
 def test_remote_job_args_use_wrappers_and_expected_output() -> None:
@@ -105,6 +164,34 @@ def test_remote_job_args_use_wrappers_and_expected_output() -> None:
     ]
     assert "--expected-output" in args
     assert f"{run_dir}/phase_4/results.json" in args
+    assert args[-3:] == ["bash", "-lc", command]
+
+
+def test_remote_resume_job_args_use_wrappers_and_expected_output() -> None:
+    sweep = _load_sweep_module()
+    config = sweep.load_sweep_config(NO_TITLE_CONFIG_PATH)
+    model = config.models[0]
+    run_dir = "logs/phase4_no_title_sonnet46_16ps_20260502T000000Z"
+    command = sweep.build_phase4_resume_command(config, model, run_dir)
+
+    args = sweep.build_remote_resume_job_start_args(
+        config,
+        model,
+        run_dir=run_dir,
+        command_body=command,
+        resume_index=1,
+    )
+
+    assert args[:5] == [
+        "scripts/remote_job_start.sh",
+        "--host-config",
+        "configs/benchmark_hosts/r5.yaml",
+        "--remote-dir",
+        "/home/ubuntu/browser-sim",
+    ]
+    assert "--expected-output" in args
+    assert f"{run_dir}/phase_4/results.json" in args
+    assert "phase4-deadlines-sonnet46-16ps-resume1" in args
     assert args[-3:] == ["bash", "-lc", command]
 
 
@@ -137,9 +224,7 @@ def test_retry_budget_and_completed_run_serialize_in_dry_run() -> None:
     assert payload["completed_runs"][0]["service_tier"] == "priority"
     assert payload["runs"][0]["key"] == "kimi-k25"
     assert payload["runs"][0]["retry_budget"] == 3
-    assert payload["runs"][0]["run_dir"] == (
-        "logs/phase4_deadlines_kimi-k25_16ps_20260501T010203Z"
-    )
+    assert payload["runs"][0]["run_dir"] == ("logs/phase4_deadlines_kimi-k25_16ps_20260501T010203Z")
 
 
 def test_dry_run_does_not_call_remote_wrappers(monkeypatch, capsys) -> None:
