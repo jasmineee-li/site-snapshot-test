@@ -102,8 +102,8 @@ def test_export_includes_direct_rows_and_phase2_instruction(tmp_path: Path) -> N
             {
                 "task_id": "task-1",
                 "final_status": "complied",
-                "trajectory_dir": str(trace),
-                "initial_trace": str(trace),
+                "trajectory_dir": "/home/ubuntu/browser-sim/logs/run/phase_4/ts/task-1",
+                "initial_trace": "/home/ubuntu/browser-sim/logs/run/phase_4/ts/task-1",
                 "primary_final_result": '{"retrieved_data":["blank"]}',
             }
         ],

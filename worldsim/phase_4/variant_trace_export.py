@@ -86,8 +86,12 @@ def _build_task_row(
     if not task_id:
         return None
     task = task_lookup.get(task_id, {})
-    initial_trace = _path_or_none(result.get("initial_trace") or result.get("trajectory_dir"))
-    current_trace = _path_or_none(result.get("current_trace") or result.get("trajectory_dir"))
+    initial_trace = _initial_trace_path(result, phase4_dir=phase4_dir, task_id=task_id)
+    current_trace = _trace_path(
+        result.get("current_trace") or result.get("trajectory_dir"),
+        phase4_dir=phase4_dir,
+        task_id=task_id,
+    )
     initial_result = _load_result_json(initial_trace)
     checkpoint = _load_checkpoint(initial_trace)
     generation_attempts = _generation_attempts_by_index(initial_trace, payload_limit)
@@ -366,16 +370,41 @@ def _variant_trace_path(
     phase4_dir: Path,
     result: dict[str, Any],
 ) -> Path | None:
-    successful_trace = _path_or_none(result.get("successful_variant_trace"))
+    successful_trace = _trace_path(
+        result.get("successful_variant_trace"),
+        phase4_dir=phase4_dir,
+        task_id=f"{task_id}_variant_{index}",
+    )
     if result.get("successful_variant_index") == index and successful_trace:
         return successful_trace
-    initial_trace = _path_or_none(result.get("initial_trace") or result.get("trajectory_dir"))
+    initial_trace = _initial_trace_path(result, phase4_dir=phase4_dir, task_id=task_id)
     if initial_trace is not None:
         candidate = initial_trace.parent / f"{task_id}_variant_{index}"
         if candidate.exists():
             return candidate
     matches = sorted(phase4_dir.glob(f"*/*{task_id}_variant_{index}"))
     return matches[0] if matches else None
+
+
+def _initial_trace_path(
+    result: dict[str, Any],
+    *,
+    phase4_dir: Path,
+    task_id: str,
+) -> Path | None:
+    return _trace_path(
+        result.get("initial_trace") or result.get("trajectory_dir"),
+        phase4_dir=phase4_dir,
+        task_id=task_id,
+    )
+
+
+def _trace_path(raw: Any, *, phase4_dir: Path, task_id: str) -> Path | None:
+    path = _path_or_none(raw)
+    if path is not None and path.exists():
+        return path
+    matches = sorted(phase4_dir.glob(f"*/{task_id}"))
+    return matches[0] if matches else path
 
 
 def _task_warnings(
