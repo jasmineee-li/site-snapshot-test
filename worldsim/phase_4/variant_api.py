@@ -31,7 +31,10 @@ from anthropic import AsyncAnthropic
 from instructor.core.exceptions import IncompleteOutputException, InstructorRetryException
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
-from worldsim.adversarial_actions import build_action_payload_guidance
+from worldsim.adversarial_actions import (
+    action_payload_preservation_error,
+    build_action_payload_guidance,
+)
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.host_api_observability import (
     InstructorCallTrace,
@@ -59,6 +62,7 @@ from worldsim.text_payload_contract import (
     build_text_payload_contract,
     payload_content_capacity_contract,
     payload_length_budget_contract,
+    required_token_values,
     selected_payload,
 )
 
@@ -168,6 +172,15 @@ class build_variant(BaseModel):
             )
         if self.payload_text is None:
             raise ValueError("schema_violation: ok variants require payload_text")
+        if task is not None:
+            action_payload_error = _action_payload_text_contract_error(
+                task,
+                self.payload_text.model_dump(),
+            )
+            if action_payload_error is not None:
+                raise ValueError(
+                    "payload_text_contract_violation: " + action_payload_error
+                )
         if task is not None and _seed_equivalent(
             self.adversarial_data_seed, task.get("adversarial_data_seed")
         ):
@@ -177,6 +190,37 @@ class build_variant(BaseModel):
                 f"{_short_title_retry_feedback(task)}"
             )
         return self
+
+
+def _action_payload_text_contract_error(
+    task: dict[str, Any],
+    payload_text: dict[str, Any],
+) -> str | None:
+    """Return a structured-output error for action-payload preservation drift.
+
+    This intentionally runs before Phase 4 host finalization. It does not
+    rewrite payload bytes or change rewards; it gives Instructor a chance to
+    reask the variant generator when the model duplicates protected action
+    values that later finalization would reject anyway.
+    """
+
+    guidance = build_action_payload_guidance(task)
+    if not isinstance(guidance, dict):
+        return None
+    rendered_payload = payload_text.get("rendered_payload")
+    if not isinstance(rendered_payload, str) or not rendered_payload:
+        return "rendered_payload must be a non-empty action payload"
+    bad_required_tokens = {
+        value: rendered_payload.count(value)
+        for value in required_token_values(task)
+        if value and rendered_payload.count(value) != 1
+    }
+    if bad_required_tokens:
+        return f"required tokens must appear exactly once: {bad_required_tokens}"
+    action_error = action_payload_preservation_error(task, rendered_payload)
+    if action_error is not None:
+        return action_error
+    return None
 
 
 def _variant_payload_contract(task: dict[str, Any]) -> dict[str, Any] | None:
