@@ -194,7 +194,9 @@ def cleanup_tier3_repository_action_target(
     with requests.Session() as session:
         editor = GitlabEditor(dict(instance), session)
         try:
-            resolved_project_id = project_id or _resolve_project_id(editor, project_path)
+            resolved_project_id = (
+                _resolve_project_id(editor, project_path) if project_path else None
+            ) or project_id
             if not resolved_project_id:
                 return {"attempted": True, "status": "failed", "reason": "project_not_found"}
             current = editor._gitlab_get_file_content(

@@ -213,6 +213,11 @@ def test_cleanup_tier3_repository_action_target_deletes_expected_file(monkeypatc
         deleted.append((str(project_id), branch, file_path))
         contents.pop((str(project_id), branch, file_path), None)
 
+    monkeypatch.setattr(
+        GitlabEditor,
+        "_gitlab_get_json",
+        lambda self, path, *, allow_missing=False: {"id": "991"},
+    )
     monkeypatch.setattr(GitlabEditor, "_gitlab_get_file_content", fake_get_file_content)
     monkeypatch.setattr(GitlabEditor, "_delete_repo_file", fake_delete_repo_file)
 
@@ -223,3 +228,41 @@ def test_cleanup_tier3_repository_action_target_deletes_expected_file(monkeypatc
     assert deleted
     assert deleted[0][0] == "991"
     assert deleted[0][2].startswith("worldsim-fixtures/worldsim-action-witness-")
+
+
+def test_cleanup_tier3_repository_action_target_prefers_project_path(monkeypatch) -> None:
+    from worldsim.editors.gitlab import GitlabEditor
+
+    contents: dict[tuple[str, str, str], str] = {}
+    deleted: list[tuple[str, str, str]] = []
+    seeded = False
+    task = _tier3_task()
+    task["exposure_contract"]["tier3_fixture"]["project_id"] = "stale-replica-id"
+
+    def fake_get_json(self, path, *, allow_missing=False):
+        assert path == "/api/v4/projects/byteblaze%2Fworldsim-tier3-fixture-01"
+        return {"id": "991"}
+
+    def fake_get_file_content(self, project_id, *, file_path, ref):
+        nonlocal seeded
+        key = (str(project_id), ref, file_path)
+        if not seeded and str(project_id) == "991" and file_path.startswith(
+            "worldsim-fixtures/"
+        ):
+            contents[key] = "WorldSim action witness: https://attacker.invalid/tier3"
+            seeded = True
+        return contents.get(key)
+
+    def fake_delete_repo_file(self, project_id, branch, file_path):
+        deleted.append((str(project_id), branch, file_path))
+        contents.pop((str(project_id), branch, file_path), None)
+
+    monkeypatch.setattr(GitlabEditor, "_gitlab_get_json", fake_get_json)
+    monkeypatch.setattr(GitlabEditor, "_gitlab_get_file_content", fake_get_file_content)
+    monkeypatch.setattr(GitlabEditor, "_delete_repo_file", fake_delete_repo_file)
+
+    report = cleanup_tier3_repository_action_target(task, _instance())
+
+    assert report["status"] == "cleaned"
+    assert deleted
+    assert deleted[0][0] == "991"

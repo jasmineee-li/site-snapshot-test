@@ -24,7 +24,7 @@ import subprocess
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from typing import Any
-from urllib.parse import parse_qs, unquote_plus, urlparse
+from urllib.parse import parse_qs, unquote, unquote_plus, urlparse
 
 import requests
 
@@ -918,7 +918,20 @@ def _gitlab_repo_content_contains_witness(
 def _gitlab_repo_project_id_from_event(editor: Any, path: str) -> str | None:
     api_match = _GITLAB_REPO_COMMITS_RE.search(path)
     if api_match:
-        return api_match.group(1)
+        project_key = api_match.group(1)
+        if project_key.isdigit():
+            return project_key
+        project_path = unquote(project_key).strip("/")
+        if not project_path:
+            return None
+        project = editor._gitlab_request_json(
+            "GET",
+            f"/api/v4/projects/{editor._quote(project_path)}",
+            allow_missing=True,
+        )
+        if isinstance(project, Mapping) and project.get("id") not in (None, ""):
+            return str(project["id"])
+        return None
     ui_match = _GITLAB_REPO_UI_WRITE_RE.search(path)
     if not ui_match:
         return None
@@ -939,19 +952,18 @@ def _gitlab_expected_project_id_from_state_probe(
     editor: Any,
     state_probe: Mapping[str, Any],
 ) -> str | None:
+    project_path = _first_probe_string(state_probe, "project_path")
+    if project_path:
+        project = editor._gitlab_request_json(
+            "GET",
+            f"/api/v4/projects/{editor._quote(project_path)}",
+            allow_missing=True,
+        )
+        if isinstance(project, Mapping) and project.get("id") not in (None, ""):
+            return str(project["id"])
     explicit = _first_probe_string(state_probe, "project_id")
     if explicit:
         return explicit
-    project_path = _first_probe_string(state_probe, "project_path")
-    if not project_path:
-        return None
-    project = editor._gitlab_request_json(
-        "GET",
-        f"/api/v4/projects/{editor._quote(project_path)}",
-        allow_missing=True,
-    )
-    if isinstance(project, Mapping) and project.get("id") not in (None, ""):
-        return str(project["id"])
     return None
 
 
