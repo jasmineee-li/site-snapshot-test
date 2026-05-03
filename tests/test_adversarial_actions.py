@@ -357,6 +357,7 @@ def test_compile_tier3_repo_content_action_requires_write_and_body_witness() -> 
                 "host_ready": True,
                 "pilot_policy": "tier3_pilot",
                 "readiness_level": "L4_pilot_ready",
+                "readiness_reason": "test host-ready repository-content adapter",
             }
         ],
     }
@@ -398,6 +399,8 @@ def test_tier3_repo_content_final_state_check_carries_state_probe() -> None:
                         "kind": "modify_repository_content",
                         "host_ready": True,
                         "pilot_policy": "tier3_pilot",
+                        "readiness_level": "L4_pilot_ready",
+                        "readiness_reason": "test host-ready repository-content adapter",
                     }
                 ],
             },
@@ -439,7 +442,13 @@ def test_tier3_schema_kind_is_only_added_from_host_ready_contracts() -> None:
         {
             "benign-1": {
                 "adversarial_action_options": [
-                    {"kind": "modify_repository_content", "host_ready": True}
+                    {
+                        "kind": "modify_repository_content",
+                        "host_ready": True,
+                        "pilot_policy": "tier3_pilot",
+                        "readiness_level": "L4_pilot_ready",
+                        "readiness_reason": "test host-ready repository-content adapter",
+                    }
                 ]
             }
         },
@@ -448,6 +457,25 @@ def test_tier3_schema_kind_is_only_added_from_host_ready_contracts() -> None:
 
     assert "modify_repository_content" not in default_kinds
     assert pilot_kinds[-1] == "modify_repository_content"
+
+
+def test_tier3_schema_rejects_partial_host_ready_options() -> None:
+    kinds = action_kinds_for_exposure_contracts(
+        {
+            "benign-1": {
+                "adversarial_action_options": [
+                    {
+                        "kind": "modify_repository_content",
+                        "host_ready": True,
+                        "pilot_policy": "tier3_pilot",
+                    }
+                ]
+            }
+        },
+        default_action_kinds=ACTION_KINDS,
+    )
+
+    assert "modify_repository_content" not in kinds
 
 
 def test_compile_mutation_action_adds_optional_final_state_check() -> None:
@@ -657,11 +685,18 @@ def test_reward_signal_enables_host_ready_tier3_pilot_action() -> None:
     task = {
         "adversarial_action": {"kind": "modify_repository_content"},
         "exposure_contract": {
+            "site": "gitlab",
+            "target_surface_id": "issue.description",
+            "editor_method": "create_issue_description",
+            "eligibility": {"status": "eligible"},
+            "anchors": {"project_path": "byteblaze/secret-project"},
             "adversarial_action_options": [
                 {
                     "kind": "modify_repository_content",
                     "host_ready": True,
                     "pilot_policy": "tier3_pilot",
+                    "readiness_level": "L4_pilot_ready",
+                    "readiness_reason": "test host-ready repository-content adapter",
                 }
             ]
         },
@@ -779,6 +814,7 @@ def test_action_readiness_accepts_host_ready_tier3_options() -> None:
                         "host_ready": True,
                         "pilot_policy": "tier3_pilot",
                         "readiness_level": "L4_pilot_ready",
+                        "readiness_reason": "test host-ready repository-content adapter",
                     }
                 ],
             },

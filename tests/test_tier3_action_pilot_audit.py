@@ -70,6 +70,7 @@ def _selected_tier3_task() -> dict:
                     "host_ready": True,
                     "pilot_policy": "tier3_pilot",
                     "readiness_level": "L4_pilot_ready",
+                    "readiness_reason": "test host-ready repository-content adapter",
                 }
             ],
         },

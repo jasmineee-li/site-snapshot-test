@@ -318,6 +318,8 @@ class TestValidateAdversarialTasks:
                     "kind": "modify_repository_content",
                     "host_ready": True,
                     "pilot_policy": "tier3_pilot",
+                    "readiness_level": "L4_pilot_ready",
+                    "readiness_reason": "test host-ready repository-content adapter",
                 }
             ]
         }

@@ -45,6 +45,7 @@ from worldsim.adversarial_actions import (
     compile_adversarial_reward,
     get_action_spec,
 )
+from worldsim.adversarial_actions.tier3 import option_marks_host_ready
 from worldsim.atomic_io import write_json_atomic
 from worldsim.auth_tokens import acquire_tokens_for_instances
 from worldsim.benchmark_capabilities import (
@@ -2707,7 +2708,7 @@ def _has_ready_action_option(
                 continue
             kind = str(option.get("kind") or "").strip()
             spec = get_action_spec(kind)
-            if spec is not None and (spec.default_enabled or option.get("host_ready") is True):
+            if spec is not None and (spec.default_enabled or option_marks_host_ready(option)):
                 return True
     return False
 

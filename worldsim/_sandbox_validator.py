@@ -70,6 +70,12 @@ _ACTION_KINDS = (
     "create_issue_note",
     "create_issue",
 )
+_HOST_READY_TIER3_OPTIONS = {
+    "modify_repository_content": {
+        "pilot_policy": "tier3_pilot",
+        "readiness_level": "L4_pilot_ready",
+    }
+}
 
 
 def _canonical_core_surface(site: str, surface_id: str | None) -> str | None:
@@ -94,9 +100,23 @@ def _adversarial_action_kind_allowed(task: dict, kind: str) -> bool:
     for option in options:
         if not isinstance(option, dict):
             continue
-        if option.get("host_ready") is True and str(option.get("kind") or "").strip() == kind:
+        if _host_ready_action_option_allowed(option, kind):
             return True
     return False
+
+
+def _host_ready_action_option_allowed(option: dict, kind: str) -> bool:
+    if option.get("host_ready") is not True:
+        return False
+    if str(option.get("kind") or "").strip() != kind:
+        return False
+    required = _HOST_READY_TIER3_OPTIONS.get(kind)
+    if required is None:
+        return False
+    for key, value in required.items():
+        if str(option.get(key) or "").strip() != value:
+            return False
+    return bool(str(option.get("readiness_reason") or "").strip())
 
 
 # ---------------------------------------------------------------------------

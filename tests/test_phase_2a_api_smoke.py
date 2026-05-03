@@ -353,7 +353,13 @@ async def test_api_call_schema_includes_host_ready_tier3_contract(
         exposure_contracts={
             "benign_1": {
                 "adversarial_action_options": [
-                    {"kind": "modify_repository_content", "host_ready": True}
+                    {
+                        "kind": "modify_repository_content",
+                        "host_ready": True,
+                        "pilot_policy": "tier3_pilot",
+                        "readiness_level": "L4_pilot_ready",
+                        "readiness_reason": "test host-ready repository-content adapter",
+                    }
                 ]
             }
         },

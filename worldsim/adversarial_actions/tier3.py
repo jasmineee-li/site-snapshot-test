@@ -134,7 +134,17 @@ def tier3_action_readiness(
 
 
 def option_marks_host_ready(option: Mapping[str, Any]) -> bool:
-    return option.get(HOST_READY_FLAG) is True
+    if option.get(HOST_READY_FLAG) is not True:
+        return False
+    kind = str(option.get("kind") or "").strip()
+    adapter = _ADAPTER_BY_KIND.get(kind)
+    if adapter is None:
+        return False
+    if str(option.get("pilot_policy") or "").strip() not in adapter.pilot_policies:
+        return False
+    if str(option.get("readiness_level") or "").strip() != adapter.maturity_level:
+        return False
+    return bool(str(option.get("readiness_reason") or "").strip())
 
 
 def task_action_is_host_ready(task: Mapping[str, Any]) -> bool:
@@ -143,8 +153,18 @@ def task_action_is_host_ready(task: Mapping[str, Any]) -> bool:
     if not kind:
         return False
     for option in _contract_action_options(task):
-        if str(option.get("kind") or "").strip() == kind and option_marks_host_ready(option):
-            return True
+        if str(option.get("kind") or "").strip() != kind or not option_marks_host_ready(option):
+            continue
+        contract = task.get("exposure_contract")
+        if not isinstance(contract, Mapping):
+            return False
+        readiness = tier3_action_readiness(
+            kind,
+            benign_task=task,
+            exposure_contract=contract,
+            policy=str(option.get("pilot_policy") or ""),
+        )
+        return readiness["status"] == "ready"
     return False
 
 
