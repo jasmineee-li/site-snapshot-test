@@ -816,8 +816,10 @@ def test_tier3_repo_content_final_state_check_carries_state_probe() -> None:
 
     assert check is not None
     assert check["expected"]["action_kind"] == "modify_repository_content"
+    network_event = check["expected"]["network_event"]
     state_probe = dict(check["expected"]["state_probe"])
     expected_file_path = state_probe.pop("expected_file_path")
+    assert network_event["post_data_contains"] == [url, expected_file_path]
     assert state_probe == {
         "kind": "repo_file_contains",
         "site": "gitlab",
