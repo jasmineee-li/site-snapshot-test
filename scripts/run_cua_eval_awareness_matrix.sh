@@ -3,26 +3,36 @@
 #
 #                   No primer       Primer (eval_safety_primer)
 #   No steering     baseline        primed
-#   Steer away     [held — see notes below]
+#   Steer away      baseline_neg    primed_neg
 #
-# This runner covers the no-steering row end-to-end via the existing
-# `run_safety_pipeline.py`. The steered cells require running
-# benchmarks under HF generation with the steering hook active, which
-# means *not* going through the vLLM serve path. That's intentionally
-# out of scope for this script; once probe-training has produced
-# vectors and `score_probe.py` has tuned alpha, run a separate steered
-# pass through a HF generation harness (see TODO at the bottom).
+# Cells:
+#   1. baseline      — no primer, no steering. Routes via vLLM (fast).
+#   2. primed        — primer in system prompt, no steering. vLLM.
+#   3. baseline_neg  — no primer, steer α=ALPHA on layer probe.best_layer.
+#                      Requires HF generation (vLLM can't take hooks). Slow.
+#   4. primed_neg    — primer + steer α=ALPHA. Slow.
+#
+# Tool-calling benchmarks only (agentdojo, injecagent). The browser
+# benchmarks (wasp, doomarena) lack an HF-hook harness in AgentLab, so
+# steered cells are not implemented for them. Pass --benchmark wasp /
+# doomarena to skip cells 3 + 4 automatically.
 #
 # Usage:
 #   bash scripts/run_cua_eval_awareness_matrix.sh \
 #       --model local/opencua-32b \
 #       --benchmark agentdojo \
+#       --probe-dir probes/trained/opencua-32b/ \
+#       --steering-alpha -3.0 \
 #       --max-tasks 30
 #
 # Pre-reqs:
-#   1. Local vLLM server already running (e.g. bash scripts/serve_opencua_32b.sh).
-#   2. (For steered cells) Trained probe at probes/trained/<short-id>/.
-#   3. .env with judge-model API keys + OPENROUTER_API_KEY for the judges.
+#   1. vLLM server up for cells 1 + 2 (e.g. bash scripts/serve_opencua_32b.sh).
+#   2. Trained probe at --probe-dir for cells 3 + 4
+#      (bash scripts/train_probe_<model>.sh).
+#   3. .env with OPENROUTER_API_KEY for the judges.
+#   4. For cells 3 + 4: at least one H100 free for HF model loading.
+#      (Can be the same GPU vLLM uses if you stop vLLM between rows; or
+#      a separate GPU if you have one.)
 
 set -euo pipefail
 
@@ -38,6 +48,11 @@ MODEL=""
 BENCHMARK=""
 MAX_TASKS=20
 JUDGE_MODEL="anthropic/claude-opus-4.6:thinking"
+PROBE_DIR=""
+STEERING_ALPHA="-3.0"
+STEERING_LAYER=""           # empty → probe.best_layer
+SKIP_BASELINE=0
+SKIP_STEERED=0
 EXTRA_PIPELINE_ARGS=()
 
 while [[ $# -gt 0 ]]; do
@@ -46,6 +61,11 @@ while [[ $# -gt 0 ]]; do
         --benchmark) BENCHMARK="$2"; shift 2 ;;
         --max-tasks) MAX_TASKS="$2"; shift 2 ;;
         --judge-model) JUDGE_MODEL="$2"; shift 2 ;;
+        --probe-dir) PROBE_DIR="$2"; shift 2 ;;
+        --steering-alpha) STEERING_ALPHA="$2"; shift 2 ;;
+        --steering-layer) STEERING_LAYER="$2"; shift 2 ;;
+        --skip-baseline) SKIP_BASELINE=1; shift ;;
+        --skip-steered) SKIP_STEERED=1; shift ;;
         --) shift; EXTRA_PIPELINE_ARGS+=("$@"); break ;;
         *) EXTRA_PIPELINE_ARGS+=("$1"); shift ;;
     esac
@@ -54,13 +74,40 @@ done
 [[ -z $MODEL ]] && { echo "ERROR: --model required (e.g. local/opencua-32b)"; exit 2; }
 [[ -z $BENCHMARK ]] && { echo "ERROR: --benchmark required (agentdojo|injecagent|wasp|doomarena)"; exit 2; }
 
+# Steered cells are only wired for the tool-calling benchmarks. Auto-skip
+# them for the browser benchmarks so callers can use the same matrix
+# command across all four benchmarks.
+case "$BENCHMARK" in
+    wasp|doomarena)
+        if [[ $SKIP_STEERED -eq 0 ]]; then
+            echo "[matrix] benchmark=$BENCHMARK has no HF-hook harness — skipping steered cells."
+            SKIP_STEERED=1
+        fi
+        ;;
+esac
+
 echo "=== matrix: model=$MODEL benchmark=$BENCHMARK max_tasks=$MAX_TASKS judge=$JUDGE_MODEL ==="
+echo "    probe_dir=${PROBE_DIR:-<none>} steering_alpha=$STEERING_ALPHA steering_layer=${STEERING_LAYER:-best}"
 
 run_cell() {
     local cell_label="$1"
     local preset="$2"
+    local alpha="$3"           # 0 for no-steering, e.g. -3 for steer-away
     echo
-    echo "--- cell: $cell_label (preset=$preset) ---"
+    echo "--- cell: $cell_label (preset=$preset alpha=$alpha) ---"
+
+    local steer_flags=()
+    if [[ "$alpha" != "0" && "$alpha" != "0.0" ]]; then
+        if [[ -z $PROBE_DIR ]]; then
+            echo "ERROR: --probe-dir required for steered cell $cell_label"
+            exit 2
+        fi
+        steer_flags+=("--probe-dir" "$PROBE_DIR" "--steering-alpha" "$alpha")
+        if [[ -n $STEERING_LAYER ]]; then
+            steer_flags+=("--steering-layer" "$STEERING_LAYER")
+        fi
+    fi
+
     python -m eval_awareness_experiments.run_safety_pipeline \
         --benchmark "$BENCHMARK" \
         --model-name "$MODEL" \
@@ -68,30 +115,26 @@ run_cell() {
         --extra-instructions-preset "$preset" \
         --judge-model "$JUDGE_MODEL" \
         --tasks-per-split "$MAX_TASKS" \
+        "${steer_flags[@]}" \
         "${EXTRA_PIPELINE_ARGS[@]}"
 }
 
-# Cell 1: baseline (no primer, no steering) — reuses existing pipeline.
-run_cell "baseline" "none"
+if [[ $SKIP_BASELINE -eq 0 ]]; then
+    # Cell 1: baseline (no primer, no steering) — reuses existing pipeline.
+    run_cell "baseline" "none" "0"
+    # Cell 2: primed (eval-awareness primer, no steering).
+    run_cell "primed" "eval_safety_primer" "0"
+fi
 
-# Cell 2: primed (eval-awareness primer, no steering).
-run_cell "primed" "eval_safety_primer"
+if [[ $SKIP_STEERED -eq 0 ]]; then
+    # Cells 3 + 4 use the HF runner; vLLM can stay up but the GPU it's
+    # bound to has to have headroom (or stop vLLM first). The HF runner
+    # serializes on a per-process asyncio.Lock so concurrency=1.
+    run_cell "baseline_neg" "none" "$STEERING_ALPHA"
+    run_cell "primed_neg" "eval_safety_primer" "$STEERING_ALPHA"
+fi
 
-cat <<NOTE
-
-=== Steered cells ===
-
-The two steered cells (baseline-steered, primed-steered) require running
-benchmarks under HF generation with probes.steering.steering_hook
-installed on the trained probe's best layer. That is not driven through
-run_safety_pipeline; see probes/README.md "Causal-effect experiment
-matrix" for the planned harness.
-
-Required artifacts before launching steered cells:
-  - probes/trained/${MODEL##local/}/normalized_vectors/layer_*.pt
-  - tuned alpha (e.g. via probes.score_probe on the baseline trajectories)
-
-The two no-steering cells produced trajectories under:
-  results/{toolcalling,browsergym}/<benchmark>/.../{baseline,eval_safety_primer}_*
-
-NOTE
+echo
+echo "=== matrix done ==="
+echo "Trajectories under: results/toolcalling/$BENCHMARK/.../<run_name>/*.json"
+echo "Run names embed condition / preset / alpha so cells don't collide."
