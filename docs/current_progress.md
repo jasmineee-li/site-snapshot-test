@@ -6,10 +6,12 @@
 
 WorldSim v5 mainline is strict WASP scope:
 
-- GitLab issues, merge requests, and comments
+- GitLab issues and issue comments/notes
 - Reddit/Postmill submissions and comments
 
-Shopping, shopping_admin, Wikipedia, map/OSM, Magento, and classifieds are historical or support plumbing unless the spec explicitly reopens scope.
+GitLab merge requests are historical/support plumbing, not active mainline
+carriers. Shopping, shopping_admin, Wikipedia, map/OSM, Magento, and classifieds
+are historical or support plumbing unless the spec explicitly reopens scope.
 
 ## Current Gates
 
@@ -25,7 +27,8 @@ Shopping, shopping_admin, Wikipedia, map/OSM, Magento, and classifieds are histo
 - Domain invariants: `agent_docs/domain-invariants.md`
 - r5 and rigor runbook: `docs/handoffs/rigor-run-setup.md`
 - Phase 2c floor: `docs/handoffs/phase-2c-admission-floor.md`
-- Expanded Phase 4 sweep: `docs/phase4-expanded-model-sweep-20260501.md`
+- Expanded Phase 4 sweep, title-inclusive historical cohort: `docs/phase4-expanded-model-sweep-20260501.md`
+- No-title mainline sweep config: `configs/phase4_model_sweeps/phase4_20260502_no_title.json`
 - OpenRouter smoke matrix: `docs/phase4-openrouter-agent-model-smoke.md`
 
 ## Operator Rule

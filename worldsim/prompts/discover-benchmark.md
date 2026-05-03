@@ -27,6 +27,10 @@ Explore by reading:
 <json_output_contract>
 `BENCHMARK_MANIFEST.json` must be valid JSON with this shape:
 
+The sample below is an example of top-level benchmark discovery only. Active
+WASP carrier admission happens later through WorldSim exposure contracts and is
+currently GitLab/Reddit-only.
+
 ```json
 {
   "benchmark_name": "WebArena Verified",
