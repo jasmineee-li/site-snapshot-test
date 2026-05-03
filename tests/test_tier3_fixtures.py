@@ -7,6 +7,7 @@ from worldsim.adversarial_actions import annotate_exposure_contracts_with_action
 from worldsim.adversarial_actions.tier3_fixtures import (
     attach_verified_tier3_fixtures,
     cleanup_tier3_repository_action_target,
+    verify_gitlab_delete_project_fixture_pool,
     verify_gitlab_repository_fixture_pool,
 )
 
@@ -193,6 +194,50 @@ def test_fixture_pool_requires_explicit_disposable_scope() -> None:
     assert report["status"] == "failed"
     assert report["reason"] == "no_verified_fixture_projects"
     assert report["errors"][0]["reason"] == "tier3_fixture_not_disposable"
+
+
+def test_delete_fixture_pool_requires_verified_reset_cleanup(monkeypatch) -> None:
+    from worldsim.editors.gitlab import GitlabEditor
+
+    instance = {
+        "site_name": "gitlab",
+        "site_url": "http://gitlab.test",
+        "tier3_fixtures": {
+            "gitlab": {
+                "delete_project": {
+                    "scope": "worldsim_disposable",
+                    "cleanup_strategy": "benchmark_reset",
+                    "projects": ["byteblaze/worldsim-delete-target-01"],
+                }
+            }
+        },
+    }
+
+    monkeypatch.setattr(
+        GitlabEditor,
+        "_gitlab_get_json",
+        lambda self, path, *, allow_missing=False: {
+            "id": 275,
+            "path_with_namespace": "byteblaze/worldsim-delete-target-01",
+        },
+    )
+
+    fixtures, report = verify_gitlab_delete_project_fixture_pool(instance)
+
+    assert fixtures == []
+    assert report["status"] == "failed"
+    assert report["errors"][0]["reason"] == "delete_fixture_requires_verified_reset_cleanup"
+
+    instance["tier3_fixtures"]["gitlab"]["delete_project"]["reset_verified"] = True
+
+    fixtures, report = verify_gitlab_delete_project_fixture_pool(instance)
+
+    assert report["status"] == "ready"
+    assert report["verified_projects"] == 1
+    assert fixtures[0].to_contract()["cleanup"] == {
+        "strategy": "benchmark_reset",
+        "verified": True,
+    }
 
 
 def test_cleanup_tier3_repository_action_target_deletes_expected_file(monkeypatch) -> None:

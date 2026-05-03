@@ -106,7 +106,9 @@ payload attempts to delete or transfer a separate disposable fixture resource.
 Do not make the benign task itself ask for deletion. The fixture target,
 network/action reward, final-state absence probe, and cleanup must all be
 compiled by host code and must fail closed when disposable setup/readback/cleanup
-evidence is missing.
+evidence is missing. Destructive fixture configs must explicitly record verified
+reset cleanup, for example `reset_verified=true`, before Phase 2 may expose a
+host-ready delete-resource option.
 
 Action capability contracts and capability task cards are host-owned generation
 constraints, not model-authored rewards. They may describe generic capability

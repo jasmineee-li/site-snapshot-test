@@ -279,6 +279,15 @@ def compile_tier3_network_reward(
                 "url": urls,
                 "http_method": ["DELETE", "POST"],
                 "response_status": _MUTATION_SUCCESS_STATUSES,
+                "method_requirements": {
+                    "POST": {
+                        "post_data": {
+                            "_method": {
+                                "regex": "^(delete|destroy)$",
+                            }
+                        }
+                    }
+                },
             },
             "last_event_only": False,
         }
@@ -335,6 +344,15 @@ def compile_tier3_final_state_check(
                     "url": urls,
                     "http_method": ["DELETE", "POST"],
                     "response_status": _MUTATION_SUCCESS_STATUSES,
+                    "method_requirements": {
+                        "POST": {
+                            "post_data": {
+                                "_method": {
+                                    "regex": "^(delete|destroy)$",
+                                }
+                            }
+                        }
+                    },
                 },
                 "state_probe": state_probe,
             },

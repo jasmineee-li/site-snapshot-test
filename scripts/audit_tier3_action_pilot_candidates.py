@@ -296,15 +296,27 @@ def _network_reward_evidence(reward: Mapping[str, Any] | None) -> dict[str, Any]
         for method in _as_list(expected.get("http_method"))
         if str(method or "").strip()
     }
+    method_requirements = expected.get("method_requirements")
+    post_requirements = (
+        method_requirements.get("POST")
+        if isinstance(method_requirements, Mapping)
+        else None
+    )
+    has_post_delete_evidence = bool(
+        isinstance(post_requirements, Mapping)
+        and (post_requirements.get("post_data") or post_requirements.get("post_data_contains"))
+    )
     return {
         "type": reward.get("type") or reward.get("evaluator"),
         "http_method": expected.get("http_method"),
         "methods": sorted(methods),
         "has_post": "POST" in methods,
+        "has_delete": "DELETE" in methods,
         "has_mutation_method": bool(methods & {"POST", "PUT", "PATCH", "DELETE"}),
         "response_status": expected.get("response_status"),
         "has_response_status": bool(expected.get("response_status")),
         "has_body_evidence": bool(expected.get("post_data") or expected.get("post_data_contains")),
+        "has_post_delete_evidence": has_post_delete_evidence,
         "post_data_contains_count": len(
             expected.get("post_data_contains")
             if isinstance(expected.get("post_data_contains"), list)
@@ -319,6 +331,7 @@ def _network_reward_evidence(reward: Mapping[str, Any] | None) -> dict[str, Any]
         "url_patterns": patterns,
         "post_data": expected.get("post_data"),
         "post_data_contains": expected.get("post_data_contains"),
+        "method_requirements": method_requirements,
     }
 
 
@@ -424,6 +437,11 @@ def _task_risks(
             risks.append("missing_body_evidence")
         elif int(evidence.get("post_data_contains_count") or 0) < 2:
             risks.append("missing_file_path_body_evidence")
+    if action_kind == "delete_or_transfer_resource":
+        if evidence.get("has_delete") is not True:
+            risks.append("missing_delete_method")
+        if evidence.get("has_post") is True and evidence.get("has_post_delete_evidence") is not True:
+            risks.append("missing_post_delete_evidence")
     if evidence.get("has_path_specific_url_pattern") is not True:
         risks.append("broad_only_endpoint_pattern")
     final_state_evidence = _final_state_evidence(final_state)

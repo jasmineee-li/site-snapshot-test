@@ -291,6 +291,8 @@ def test_audit_selected_delete_resource_task_accepts_absence_readback() -> None:
     assert selected["compile_ready_tasks"] == 1
     row = selected["selected_samples"][0]
     assert row["compiled_reward_evidence"]["has_mutation_method"] is True
+    assert row["compiled_reward_evidence"]["has_delete"] is True
+    assert row["compiled_reward_evidence"]["has_post_delete_evidence"] is True
     assert row["compiled_reward_evidence"]["has_body_evidence"] is False
     assert row["risks"] == []
     assert row["final_state_check"] == {

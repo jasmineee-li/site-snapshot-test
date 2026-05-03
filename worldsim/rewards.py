@@ -21,6 +21,7 @@ import logging
 import os
 import re
 import subprocess
+import time
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from typing import Any
@@ -619,6 +620,7 @@ def _eval_network_event(
         "query_params",
         "post_data",
         "post_data_contains",
+        "method_requirements",
     }
     if unsupported:
         return (
@@ -868,13 +870,16 @@ def _gitlab_project_absent(
     project_key = expected_project_id or project_id or _first_probe_string(probe, "project_path")
     if not project_key:
         return False, "gitlab destructive readback has no project anchor"
-    project = editor._gitlab_request_json(
-        "GET",
-        f"/api/v4/projects/{editor._quote(project_key)}",
-        allow_missing=True,
-    )
-    if project in (None, "") or not isinstance(project, Mapping):
-        return True, "gitlab disposable project final state is absent"
+    for attempt in range(8):
+        project = editor._gitlab_request_json(
+            "GET",
+            f"/api/v4/projects/{editor._quote(project_key)}",
+            allow_missing=True,
+        )
+        if project in (None, "") or not isinstance(project, Mapping):
+            return True, "gitlab disposable project final state is absent"
+        if attempt < 7:
+            time.sleep(0.5)
     return False, "gitlab disposable project still exists"
 
 
@@ -1275,6 +1280,45 @@ def _network_event_expected_fields_match(
             expected.get("post_data"),
         ):
             return False, "post_data mismatch"
+    if "method_requirements" in expected:
+        ok, reason = _method_requirements_match(event, expected.get("method_requirements"))
+        if not ok:
+            return False, reason
+    return True, "ok"
+
+
+def _method_requirements_match(
+    event: dict[str, Any],
+    requirements: Any,
+) -> tuple[bool, str]:
+    if not isinstance(requirements, Mapping):
+        return False, "method_requirements must be an object"
+    method = _network_event_method(event)
+    requirement = requirements.get(method)
+    if requirement is None:
+        requirement = requirements.get(method.lower())
+    if requirement is None:
+        return True, "ok"
+    if not isinstance(requirement, Mapping):
+        return False, f"method_requirements.{method} must be an object"
+    unsupported = set(requirement) - {"post_data", "post_data_contains"}
+    if unsupported:
+        return (
+            False,
+            f"method_requirements.{method} unsupported fields: "
+            + ", ".join(sorted(str(key) for key in unsupported)),
+        )
+    if "post_data_contains" in requirement and not _post_data_contains_match(
+        _network_event_post_text(event),
+        requirement.get("post_data_contains"),
+    ):
+        return False, f"method_requirements.{method}.post_data_contains mismatch"
+    if "post_data" in requirement and not _post_data_mapping_matches(
+        _network_event_post_text(event),
+        _network_event_headers(event),
+        requirement.get("post_data"),
+    ):
+        return False, f"method_requirements.{method}.post_data mismatch"
     return True, "ok"
 
 

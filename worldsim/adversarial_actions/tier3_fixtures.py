@@ -262,6 +262,7 @@ def verify_gitlab_delete_project_fixture_pool(
             "reason": "delete_fixture_requires_reset_cleanup",
             "cleanup_strategy": default_cleanup,
         }
+    default_reset_verified = _reset_verified(config)
 
     with requests.Session() as session:
         editor = GitlabEditor(dict(instance), session)
@@ -278,6 +279,7 @@ def verify_gitlab_delete_project_fixture_pool(
                     project_config,
                     default_scope=default_scope,
                     default_cleanup=default_cleanup,
+                    default_reset_verified=default_reset_verified,
                 )
             except Exception as exc:
                 errors.append(
@@ -382,11 +384,11 @@ def cleanup_tier3_delete_project_action_target(
     task: Mapping[str, Any],
     instance: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Best-effort cleanup for destructive project pilots.
+    """Report destructive project fixture state without issuing a delete.
 
-    If the agent succeeded, reset is expected to restore the project. If it did
-    not, deleting the still-present disposable target keeps subsequent runs from
-    inheriting a mutated fixture.
+    Delete-resource pilots rely on benchmark/fixture reset to restore disposable
+    projects. Cleanup telemetry must not become a second destructive actor after
+    a failed attack.
     """
 
     exposure_contract = task.get("exposure_contract")
@@ -415,7 +417,14 @@ def cleanup_tier3_delete_project_action_target(
         try:
             resolved_project_id = (
                 _resolve_project_id(editor, project_path) if project_path else None
-            ) or project_id
+            )
+            if resolved_project_id is None and project_id:
+                project = editor._gitlab_get_json(
+                    f"/api/v4/projects/{editor._quote(project_id)}",
+                    allow_missing=True,
+                )
+                if isinstance(project, Mapping) and project.get("id") not in (None, ""):
+                    resolved_project_id = str(project["id"])
             if not resolved_project_id:
                 return {
                     "attempted": True,
@@ -423,12 +432,13 @@ def cleanup_tier3_delete_project_action_target(
                     "project_path": project_path,
                     "reason": "project_absent",
                 }
-            editor.delete_project(resolved_project_id)
             return {
                 "attempted": True,
-                "status": "cleaned",
+                "status": "reset_required",
                 "project_path": project_path,
-                "cleanup_strategy": "delete_project_if_present",
+                "project_id": resolved_project_id,
+                "cleanup_strategy": "benchmark_or_fixture_reset",
+                "reason": "project_present_after_run",
             }
         except Exception as exc:
             return {
@@ -524,6 +534,7 @@ def _verify_one_gitlab_delete_fixture(
     *,
     default_scope: str,
     default_cleanup: str,
+    default_reset_verified: bool,
 ) -> VerifiedDeleteProjectFixture:
     project_key = str(
         project_config.get("project_id") or project_config.get("project_path") or ""
@@ -541,6 +552,8 @@ def _verify_one_gitlab_delete_fixture(
     cleanup = str(project_config.get("cleanup_strategy") or default_cleanup).strip()
     if cleanup not in {"benchmark_reset", "fixture_reset"}:
         raise ValueError("delete_fixture_requires_reset_cleanup")
+    if not _reset_verified(project_config, default=default_reset_verified):
+        raise ValueError("delete_fixture_requires_verified_reset_cleanup")
     project = editor._gitlab_get_json(
         f"/api/v4/projects/{editor._quote(project_key)}",
         allow_missing=True,
@@ -648,6 +661,20 @@ def _fixture_scope(config: Mapping[str, Any]) -> str:
     if config.get("disposable") is True and not scope:
         scope = "worldsim_disposable"
     return scope
+
+
+def _reset_verified(config: Mapping[str, Any], *, default: bool = False) -> bool:
+    if config.get("reset_verified") is True or config.get("cleanup_verified") is True:
+        return True
+    cleanup = config.get("cleanup")
+    if isinstance(cleanup, Mapping) and (
+        cleanup.get("verified") is True or cleanup.get("reset_verified") is True
+    ):
+        return True
+    reset = config.get("reset")
+    if isinstance(reset, Mapping) and reset.get("verified") is True:
+        return True
+    return default
 
 
 def _safe_file_path_prefix(value: Any) -> str:
