@@ -508,9 +508,7 @@ async def run(args: argparse.Namespace) -> int:
     if task_origin_filter != "all":
         before = len(benign_tasks)
         benign_tasks = [
-            task
-            for task in benign_tasks
-            if _phase_1_task_origin(task) == task_origin_filter
+            task for task in benign_tasks if _phase_1_task_origin(task) == task_origin_filter
         ]
         logger.info(
             "Phase 2: --task-origin=%s kept %d/%d benign task(s)",
@@ -1502,10 +1500,7 @@ def _task_origin_filter_from_value(value: Any) -> str:
         return "all"
     normalized = str(value).strip()
     if normalized not in {"all", "existing_task", "new_task"}:
-        raise ValueError(
-            "task_origin must be one of all, existing_task, new_task; "
-            f"got {value!r}"
-        )
+        raise ValueError(f"task_origin must be one of all, existing_task, new_task; got {value!r}")
     return normalized
 
 
@@ -2614,14 +2609,10 @@ def _backfill_missing_binary_strategy_plans(
     """
 
     planned_benign_ids = {
-        str(plan.get("benign_task_id") or "").strip()
-        for plan in plans
-        if isinstance(plan, Mapping)
+        str(plan.get("benign_task_id") or "").strip() for plan in plans if isinstance(plan, Mapping)
     }
     used_plan_ids = {
-        str(plan.get("id") or "").strip()
-        for plan in plans
-        if isinstance(plan, Mapping)
+        str(plan.get("id") or "").strip() for plan in plans if isinstance(plan, Mapping)
     }
     eligible_task_ids = {
         str(task.get("id") or "").strip()
@@ -2877,6 +2868,7 @@ def _merge_immutable_fields(
         reward = adv_task.get("reward_function")
         action = adv_task.get("adversarial_action")
         if isinstance(action, Mapping):
+            adv_task.pop("reward_function", None)
             try:
                 adv_reward_top = compile_adversarial_reward(adv_task, benign_task)
             except ValueError as exc:
@@ -4054,21 +4046,27 @@ def _materialize_strategy_plans_from_exposure(
                 f"strategy plan {plan.get('id', '?')!r} included host-owned placement "
                 f"fields: {', '.join(forbidden_fields)}"
             )
+        top_level_reward_is_host_backfill = any(
+            isinstance(adjustment, Mapping)
+            and adjustment.get("reason") == "host_backfilled_missing_binary_strategy_plan"
+            for adjustment in plan.get("strategy_adjustments", [])
+            if isinstance(plan.get("strategy_adjustments"), list)
+        )
+        # Fresh Phase 2a strategy plans are minimal and must not carry evaluator
+        # JSON. Historical reusable/full-schema records include benchmark
+        # metadata and still use the no-action legacy reward path.
+        legacy_reward_config_allowed = top_level_reward_is_host_backfill or "benchmark" in plan
         stripped_reward_fields = [
             field
             for field in ("reward_function", "adversarial_final_state_check")
-            if field in plan
+            if field in plan and not legacy_reward_config_allowed
         ]
-        reward_function = plan.get("reward_function")
         if (
-            isinstance(reward_function, Mapping)
-            and "adversarial_reward" not in plan
-            and "adversarial_action" not in plan
-            and isinstance(reward_function.get("adversarial_reward"), Mapping)
+            "adversarial_reward" in plan
+            and not top_level_reward_is_host_backfill
+            and not legacy_reward_config_allowed
         ):
-            plan["adversarial_reward"] = json.loads(
-                json.dumps(reward_function["adversarial_reward"])
-            )
+            stripped_reward_fields.append("adversarial_reward")
         for field in stripped_reward_fields:
             plan.pop(field, None)
         if stripped_reward_fields:
@@ -4938,6 +4936,10 @@ def _validate_binary_label_adversarial_contract(
     action = adversarial_task.get("adversarial_action")
     action_kind = str(action.get("kind") or "").strip() if isinstance(action, Mapping) else ""
     if action_kind and action_kind != "answer_opposite_binary_label":
+        if ACTION_SIGNAL_BY_KIND.get(
+            action_kind
+        ) == "network_action" and not _is_network_event_reward(adv_reward):
+            return "network-action adversarial_reward must use NetworkEventEvaluator"
         return None
     if _is_network_event_reward(adv_reward):
         return None
@@ -4996,19 +4998,13 @@ def _validate_adversarial_reward_semantics(
                 )
             action = adversarial_task.get("adversarial_action")
             action_kind = (
-                str(action.get("kind") or "").strip()
-                if isinstance(action, Mapping)
-                else ""
+                str(action.get("kind") or "").strip() if isinstance(action, Mapping) else ""
             )
             if ACTION_SIGNAL_BY_KIND.get(action_kind) == "network_action":
                 if "response_status" not in expected:
-                    return (
-                        "network-action adversarial_reward must validate response_status"
-                    )
+                    return "network-action adversarial_reward must validate response_status"
                 if "post_data" not in expected and "post_data_contains" not in expected:
-                    return (
-                        "network-action adversarial_reward must validate request body evidence"
-                    )
+                    return "network-action adversarial_reward must validate request body evidence"
 
     for config in _agent_response_reward_configs(adv_reward):
         expected = config.get("expected")
@@ -5347,11 +5343,7 @@ def _surface_resolution_context(
     benchmark = _benchmark_for_option_a_plan(dict(adversarial_task))
     route_kind, route_method = _route_context_from_task(adversarial_task)
     seed_method = _single_seed_editor_method(seed_payload)
-    method = (
-        seed_method
-        or _string_or_none(adversarial_task.get("editor_method"))
-        or route_method
-    )
+    method = seed_method or _string_or_none(adversarial_task.get("editor_method")) or route_method
     return {
         "benchmark": benchmark,
         "kind": route_kind,
