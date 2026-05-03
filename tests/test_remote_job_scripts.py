@@ -101,6 +101,7 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
     assert ".venv/" in joined
     assert ".venv.*" in joined
     assert ".codex-worktrees/" in joined
+    assert "docs/handoffs/codex-handoff-*.md" in joined
     assert "logs/" in joined
     assert "pipeline_outputs/" in joined
     assert "*.sqlite" in joined
