@@ -47,7 +47,7 @@ from doomarena.browsergym.scripts.run_bgym_experiment import (
     setup_logging,
 )
 
-from eval_awareness_experiments.agent_factory import build_openrouter_agent
+from eval_awareness_experiments.agent_factory import build_agent
 from eval_awareness_experiments.extra_instructions import PRESETS as EXTRA_INSTRUCTION_PRESETS
 from eval_awareness_experiments.system_prompt_frame import ALL_FRAMES
 from eval_awareness_experiments.injection_modifier import (
@@ -367,7 +367,7 @@ def main() -> None:
         args.extra_instructions_preset
     )
     experiment = BgymExperiment(
-        agent=build_openrouter_agent(
+        agent=build_agent(
             args.model_name,
             extra_instructions=extra_instr,
             system_prompt_frame=args.system_prompt_frame,
