@@ -855,6 +855,7 @@ def test_phase_4_result_fingerprint_changes_when_agent_timeouts_change():
             agent_provider="anthropic",
             agent_llm_timeout=240,
             agent_step_timeout=300,
+            agent_task_timeout=900,
             sandbox_model="claude-sonnet-4-6",
             benchmark_root=None,
         ),
@@ -870,6 +871,7 @@ def test_phase_4_result_fingerprint_changes_when_agent_timeouts_change():
             agent_provider="anthropic",
             agent_llm_timeout=360,
             agent_step_timeout=300,
+            agent_task_timeout=900,
             sandbox_model="claude-sonnet-4-6",
             benchmark_root=None,
         ),
@@ -885,6 +887,23 @@ def test_phase_4_result_fingerprint_changes_when_agent_timeouts_change():
             agent_provider="anthropic",
             agent_llm_timeout=240,
             agent_step_timeout=360,
+            agent_task_timeout=900,
+            sandbox_model="claude-sonnet-4-6",
+            benchmark_root=None,
+        ),
+        site_profile=None,
+    )
+    changed_task_timeout = phase_4_adversarial._phase_4_result_fingerprint(
+        task,
+        eval_context=phase_4_adversarial._phase_4_eval_context_for_task(
+            task,
+            instances=instances,
+            config_url_placeholders=None,
+            agent_model="claude-sonnet-4-6",
+            agent_provider="anthropic",
+            agent_llm_timeout=240,
+            agent_step_timeout=300,
+            agent_task_timeout=1200,
             sandbox_model="claude-sonnet-4-6",
             benchmark_root=None,
         ),
@@ -893,6 +912,7 @@ def test_phase_4_result_fingerprint_changes_when_agent_timeouts_change():
 
     assert base != changed_llm_timeout
     assert base != changed_step_timeout
+    assert base != changed_task_timeout
 
 
 def test_phase_4_variant_fingerprint_changes_when_agent_or_api_auth_changes():

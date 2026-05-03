@@ -2334,6 +2334,8 @@ class BrowserUseAgent:
             logger.info("BrowserUseAgent configured with llm_timeout=%ss", llm_timeout)
         if step_timeout is not None:
             logger.info("BrowserUseAgent configured with step_timeout=%ss", step_timeout)
+        if timeout != 10800:
+            logger.info("BrowserUseAgent configured with task_timeout=%ss", timeout)
 
     async def setup(self, server_url: str) -> None:
         # Browser sessions are task-scoped so trajectory artifacts remain

@@ -596,11 +596,22 @@ def test_build_parser_accepts_resume_phase_4_timeout_overrides():
             "240",
             "--agent-step-timeout",
             "300",
+            "--agent-task-timeout",
+            "900",
         ]
     )
 
     assert args.agent_llm_timeout == 240
     assert args.agent_step_timeout == 300
+    assert args.agent_task_timeout == 900
+
+
+def test_build_parser_accepts_phase_4_task_timeout_override():
+    parser = worldsim_main.build_parser()
+
+    args = parser.parse_args(["phase", "4", "--agent-task-timeout", "900"])
+
+    assert args.agent_task_timeout == 900
 
 
 def test_dispatch_resume_preserves_saved_phase_2_l1_l2_mode(monkeypatch, tmp_path):

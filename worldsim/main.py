@@ -228,6 +228,17 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     phase_cmd.add_argument(
+        "--agent-task-timeout",
+        type=_positive_int,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "Phase 4: explicit WorldSim wall-clock timeout for one Browser Use "
+            "task. Omit to preserve Browser Use's long-running default. This is "
+            "an infrastructure guard for stuck sessions, not an action-step limit."
+        ),
+    )
+    phase_cmd.add_argument(
         "--max-tasks-per-site",
         type=_positive_int,
         default=None,
@@ -432,6 +443,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=argparse.SUPPRESS,
         metavar="SECONDS",
         help="Override the saved Phase 4 Browser Use action-step timeout.",
+    )
+    resume_cmd.add_argument(
+        "--agent-task-timeout",
+        type=_positive_int,
+        default=argparse.SUPPRESS,
+        metavar="SECONDS",
+        help="Override the saved Phase 4 Browser Use task wall-clock timeout.",
     )
     resume_cmd.add_argument(
         "--generate-novel",
@@ -1113,6 +1131,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     agent_service_tier = getattr(args, "agent_service_tier", None)
     agent_llm_timeout = getattr(args, "agent_llm_timeout", None)
     agent_step_timeout = getattr(args, "agent_step_timeout", None)
+    agent_task_timeout = getattr(args, "agent_task_timeout", None)
     generate_novel = getattr(args, "generate_novel", None)
     novel_tasks_per_site = getattr(args, "novel_tasks_per_site", None)
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
@@ -1151,6 +1170,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         agent_llm_timeout = state.get("agent_llm_timeout")
     if agent_step_timeout is None:
         agent_step_timeout = state.get("agent_step_timeout")
+    if agent_task_timeout is None:
+        agent_task_timeout = state.get("agent_task_timeout")
     if generate_novel is None:
         generate_novel = state.get("generate_novel", False)
     if novel_tasks_per_site is None:
@@ -1211,6 +1232,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         agent_service_tier=agent_service_tier,
         agent_llm_timeout=agent_llm_timeout,
         agent_step_timeout=agent_step_timeout,
+        agent_task_timeout=agent_task_timeout,
         generate_novel=generate_novel,
         novel_tasks_per_site=novel_tasks_per_site,
         max_tasks_per_site=max_tasks_per_site,

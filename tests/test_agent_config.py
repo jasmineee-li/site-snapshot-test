@@ -505,6 +505,7 @@ def test_make_agent_factory_threads_browser_use_timeouts(monkeypatch) -> None:
         provider="anthropic",
         llm_timeout=240,
         step_timeout=300,
+        task_timeout=900,
     )
 
     factory()
@@ -512,3 +513,4 @@ def test_make_agent_factory_threads_browser_use_timeouts(monkeypatch) -> None:
     assert recorded["anthropic"]["model"] == "claude-sonnet-4-6"
     assert captured["llm_timeout"] == 240
     assert captured["step_timeout"] == 300
+    assert captured["timeout"] == 900
