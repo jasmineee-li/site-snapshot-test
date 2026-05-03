@@ -98,6 +98,7 @@ def test_command_generation_preserves_phase4_contract() -> None:
     assert "--agent-service-tier priority" in command
     assert "--agent-llm-timeout 240" in command
     assert "--agent-step-timeout 300" in command
+    assert "--agent-task-timeout 900" in command
     assert "--sandbox-model claude-sonnet-4-6" in command
     assert 'tee "$RUN/phase_4/summary.txt"' in command
     assert 'variant_audit.txt" 2>&1 || true' in command
@@ -137,6 +138,7 @@ def test_resume_command_uses_same_phase4_contract_without_recopied_source() -> N
     assert "--agent-model claude-sonnet-4-6" in command
     assert "--agent-llm-timeout 240" in command
     assert "--agent-step-timeout 300" in command
+    assert "--agent-task-timeout 900" in command
     assert 'cp -a "$SOURCE/phase_2" "$RUN/"' not in command
     assert 'tee "$RUN/phase_4/summary.txt"' in command
 

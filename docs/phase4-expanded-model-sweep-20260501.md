@@ -12,7 +12,7 @@ This sweep compares browser-agent model behavior over one frozen admitted cohort
 - Sites: `gitlab,reddit`
 - Instance file: `instances.scale.json`
 - Sandbox judge: `claude-sonnet-4-6`
-- Browser-use deadlines: `--agent-llm-timeout 240 --agent-step-timeout 300`
+- Browser-use deadlines: `--agent-llm-timeout 240 --agent-step-timeout 300 --agent-task-timeout 900`
 
 The sweep only varies the Phase 4 web-agent provider/model/tier. It must not
 regenerate tasks, mutate rewards, alter Phase 2c admission, change strategy
@@ -44,6 +44,13 @@ uv run python scripts/run_phase_4_model_sweep.py \
 The runner syncs once, launches one registered r5 job at a time through
 `scripts/remote_job_start.sh`, checks with `scripts/remote_job_status.sh`, and
 tails only when logs become stale. It writes compaction-safe local state under:
+
+Remote Phase 4 jobs must include an explicit task wall-clock timeout. The task
+timeout is an infrastructure guard for stale CDP/session-start or cleanup
+failures; it does not change the model's per-step action budget. If Phase 4
+progress goes stale while stderr is still writing Browser Use watchdog noise,
+the runner treats progress staleness as the authoritative signal and stops or
+resumes according to the configured stale-resume budget.
 
 Preconditions:
 

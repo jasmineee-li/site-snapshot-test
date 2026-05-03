@@ -252,6 +252,14 @@ if phase4_live:
             "Phase 4 uses --instances instances.smoke.json, which points "
             "Browser Use/PVPO traffic at the public advertised host."
         )
+    phase4_command = _phase_command("4") or command_text
+    if not _has_option(phase4_command, "--agent-task-timeout"):
+        issues.append(
+            "Phase 4 remote jobs must pass --agent-task-timeout explicitly. "
+            "Browser Use's default task wall-clock timeout is long enough for "
+            "stale CDP/session-start failures to stall a full registered run; "
+            "use a bounded infrastructure guard such as --agent-task-timeout 900."
+        )
 
 if (
     phase0_live

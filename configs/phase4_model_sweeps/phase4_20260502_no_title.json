@@ -12,6 +12,7 @@
     "max_tasks_per_site": 16,
     "agent_llm_timeout": 240,
     "agent_step_timeout": 300,
+    "agent_task_timeout": 900,
     "sandbox_model": "claude-sonnet-4-6",
     "inspect_limit": 12,
     "stale_resume_budget": 2

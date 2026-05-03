@@ -40,6 +40,10 @@ secrets into job commands or hand-written shell history.
 `remote_job_status.sh` is the first status surface. It reports process liveness,
 heartbeat age, expected-output presence, and Phase 4 progress when available.
 Tail logs only when status says output is stale or failed.
+For Phase 4, treat `phase4_progress` staleness as stronger evidence than noisy
+Browser Use stderr. Remote Phase 4 commands must pass `--agent-task-timeout`
+explicitly; `--agent-llm-timeout` and `--agent-step-timeout` do not bound
+session-start, CDP, or cleanup deadlocks.
 
 WorldSim uses two different network localities on r5. Treat the instances file
 as an execution-locality contract, not just a dataset selector:

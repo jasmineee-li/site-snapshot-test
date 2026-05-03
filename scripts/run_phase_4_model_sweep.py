@@ -55,6 +55,7 @@ class SweepConfig:
     max_tasks_per_site: int
     agent_llm_timeout: int
     agent_step_timeout: int
+    agent_task_timeout: int
     sandbox_model: str
     inspect_limit: int
     benchmark: str | None = None
@@ -139,6 +140,7 @@ def load_sweep_config(path: Path) -> SweepConfig:
         max_tasks_per_site=_require_int(common, "max_tasks_per_site"),
         agent_llm_timeout=_require_int(common, "agent_llm_timeout"),
         agent_step_timeout=_require_int(common, "agent_step_timeout"),
+        agent_task_timeout=_require_int(common, "agent_task_timeout"),
         sandbox_model=_require_str(common, "sandbox_model"),
         inspect_limit=_require_int(common, "inspect_limit"),
         benchmark=_optional_str(common, "benchmark"),
@@ -205,6 +207,8 @@ def build_phase4_command(config: SweepConfig, model: ModelRun, run_dir: str) -> 
             str(config.agent_llm_timeout),
             "--agent-step-timeout",
             str(config.agent_step_timeout),
+            "--agent-task-timeout",
+            str(config.agent_task_timeout),
             "--sandbox-model",
             config.sandbox_model,
         ]
@@ -273,6 +277,8 @@ def _phase4_resume_args(config: SweepConfig, model: ModelRun) -> list[str]:
             str(config.agent_llm_timeout),
             "--agent-step-timeout",
             str(config.agent_step_timeout),
+            "--agent-task-timeout",
+            str(config.agent_task_timeout),
             "--sandbox-model",
             config.sandbox_model,
         ]
