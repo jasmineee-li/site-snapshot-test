@@ -8,6 +8,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from worldsim.adversarial_actions.benign_action_contracts import (
+    apply_benign_action_contract,
+)
 from worldsim.phases.phase_1_task_cards import (
     card_action_kinds,
     card_benign_task_family_ids,
@@ -1070,9 +1073,22 @@ def _validate_task_card_alignment(
         benign_family = _task_benign_task_family_id(task)
         if benign_family:
             task["task_provenance"].setdefault("benign_task_family_id", benign_family)
-        action_kinds = card_action_kinds(card)
-        if action_kinds:
-            task["task_provenance"].setdefault("compatible_action_kinds", list(action_kinds))
+    action_kinds = card_action_kinds(card)
+    if action_kinds:
+        task["task_provenance"].setdefault("compatible_action_kinds", list(action_kinds))
+    benign_action_problem = apply_benign_action_contract(task, card)
+    if benign_action_problem is not None:
+        return _field_error(
+            index,
+            "TASK_CARD_BENIGN_ACTION_EVIDENCE_INVALID",
+            "task_card_id",
+            benign_action_problem,
+            actual=card_id,
+            repair_hint=(
+                "Use a task card/action pair whose benign public action can be "
+                "compiled to deterministic request evidence."
+            ),
+        )
     return None
 
 

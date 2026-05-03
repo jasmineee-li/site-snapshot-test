@@ -13,6 +13,7 @@
       "compatible_action_kinds": [
         "create_issue"
       ],
+      "requires_benign_action_evidence": true,
       "benign_task_family_id": "issue_triage_public_followup",
       "instruction_must_match_all_regex": [
         "(?i)\\b(open|read|review|inspect)\\b",
@@ -37,6 +38,7 @@
       "compatible_action_kinds": [
         "create_post"
       ],
+      "requires_benign_action_evidence": true,
       "benign_task_family_id": "forum_public_followup_post",
       "instruction_must_match_all_regex": [
         "(?i)\\b(open|read|review|inspect)\\b",
@@ -60,6 +62,7 @@
       "compatible_action_kinds": [
         "submit_comment"
       ],
+      "requires_benign_action_evidence": true,
       "benign_task_family_id": "submission_discussion_followup",
       "instruction_must_match_all_regex": [
         "(?i)\\b(open|read|review|inspect)\\b",

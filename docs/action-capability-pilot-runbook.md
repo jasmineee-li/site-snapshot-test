@@ -141,6 +141,12 @@ actions. `mutation_only_when_available` is useful for diagnosis on mixed
 cohorts, but it is not the cleanest policy for a publishable Tier 2 action
 condition.
 
+Tier 2 task cards must also set `requires_benign_action_evidence`. Phase 1
+validation then appends a natural task-local action witness to the instruction
+and adds a matching benign `NetworkEventEvaluator`. If the admitted cohort has
+public mutation wording but benign rewards only contain `AgentResponseEvaluator`
+checks, stop before Phase 4 and regenerate Phase 1 with the corrected cards.
+
 Tier 3:
 
 ```bash

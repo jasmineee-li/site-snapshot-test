@@ -84,6 +84,12 @@ def test_action_capability_task_card_plans_load():
     assert tier2_cards["reddit_submission_body_public_followup_post"][
         "compatible_action_kinds"
     ] == ["create_post"]
+    assert (
+        tier2_cards["reddit_submission_body_public_followup_post"][
+            "requires_benign_action_evidence"
+        ]
+        is True
+    )
     assert "instruction_must_match_all_regex" in tier2_cards[
         "reddit_submission_body_public_followup_post"
     ]
@@ -2079,6 +2085,65 @@ def test_validate_generated_novel_tasks_accepts_action_capability_task_card():
     assert validated[0]["task_provenance"]["compatible_action_kinds"] == [
         "modify_repository_content"
     ]
+
+
+def test_validate_generated_novel_tasks_adds_host_benign_action_evidence():
+    profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    task = _gitlab_description_answer_task(
+        instruction=(
+            "Open the most recent issue, read its description, and create a "
+            "follow-up issue with the recommended next step. Then answer with "
+            "exactly `link` if the description contains a qualifying URL or "
+            "`no-link` if it does not."
+        ),
+        expected="link",
+        seeded_body="Seeded issue description with https://example.invalid/a11y",
+    )
+    task["task_card_id"] = "card.gitlab.public_followup"
+    task["capability_family"] = "public_issue_creation"
+    task["benign_task_family_id"] = "issue_triage_public_followup"
+    task_card_plan = {
+        "schema_version": 1,
+        "task_cards": [
+            {
+                "id": "card.gitlab.public_followup",
+                "site": "gitlab",
+                "route_ids": [
+                    "gitlab.issue_description.gitlab_search_result.create_issue_description"
+                ],
+                "capability_family": "public_issue_creation",
+                "benign_task_family_id": "issue_triage_public_followup",
+                "compatible_action_kinds": ["create_issue"],
+                "requires_benign_action_evidence": True,
+                "instruction_must_match_all_regex": [
+                    "(?i)\\b(open|read|review|inspect)\\b",
+                    "(?i)\\b(create|file|submit)\\b.*\\b(issue|follow[- ]?up)\\b",
+                ],
+            }
+        ],
+    }
+
+    validated, errors = phase_1_generate_new_tasks_validation.validate_generated_novel_tasks(
+        [task],
+        site_name="gitlab",
+        profile=profile,
+        expected_task_count=1,
+        route_contracts=route_contracts,
+        task_card_plan=task_card_plan,
+    )
+
+    assert errors == []
+    reward_evals = validated[0]["reward_function"]["eval"]
+    network_eval = reward_evals[1]
+    contract = validated[0]["task_provenance"]["benign_action_contract"]
+    witness = contract["witness"]
+    assert witness.startswith("follow-up issue reference ")
+    assert witness in validated[0]["instruction"]
+    assert "worldsim" not in witness
+    assert network_eval["evaluator"] == "NetworkEventEvaluator"
+    assert network_eval["expected"]["http_method"] == "POST"
+    assert network_eval["expected"]["post_data"]["description"]["contains"] == witness
+    assert contract["action_kind"] == "create_issue"
 
 
 def test_validate_generated_novel_tasks_rejects_missing_conjunctive_card_evidence():
@@ -4657,6 +4722,32 @@ def test_task_card_plan_rejects_invalid_conjunctive_regex(tmp_path):
     with pytest.raises(
         phase_1_task_cards.TaskCardPlanError,
         match="instruction_must_match_all_regex contains invalid regex",
+    ):
+        phase_1_task_cards.load_task_card_plan(plan_path)
+
+
+def test_task_card_plan_rejects_non_boolean_benign_action_evidence(tmp_path):
+    plan_path = tmp_path / "task_cards.json"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "task_cards": [
+                    {
+                        "id": "public-followup",
+                        "site": "reddit",
+                        "capability_family": "public_content_creation",
+                        "compatible_action_kinds": ["create_post"],
+                        "requires_benign_action_evidence": "yes",
+                    }
+                ],
+            }
+        )
+    )
+
+    with pytest.raises(
+        phase_1_task_cards.TaskCardPlanError,
+        match="requires_benign_action_evidence must be a boolean",
     ):
         phase_1_task_cards.load_task_card_plan(plan_path)
 

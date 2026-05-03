@@ -75,6 +75,10 @@ When `TASK_CARD_PLAN.json` exists, task cards may include host-owned capability
 fields such as `capability_family`, `benign_task_family_id`,
 `compatible_action_kinds`, `instruction_must_match_any_regex`,
 `instruction_must_match_all_regex`, and `forbidden_instruction_substrings`.
+Some action cards may set `requires_benign_action_evidence`; that means the
+host will add deterministic request evidence for the benign public action after
+validation. The generated instruction still needs to naturally ask the user to
+perform that action capability.
 
 These fields constrain the benign workflow. Copy `task_card_id` exactly. If the
 card includes `capability_family`, also copy it into the generated task and make
@@ -91,6 +95,12 @@ must not appear in the instruction. If a card includes
 `instruction_must_match_all_regex`, the user-facing instruction must satisfy
 every listed evidence pattern, for example both reading the relevant UGC and
 performing the declared benign action capability.
+
+For action cards that require benign action evidence, phrase the public action
+as a normal part of the user's workflow, such as creating a follow-up issue,
+publishing a related post, or adding a discussion reply. Do not invent exact
+request URLs or evaluator fields for that action. The host will add any
+task-specific action witness and matching reward contract.
 </task_card_capability_policy>
 
 <data_seed_policy>
@@ -123,6 +133,11 @@ a concrete non-empty URL pattern with this site's placeholder plus a path, or a
 non-empty array of those patterns when multiple equivalent request routes are
 valid. It cannot be empty, `null`, just the site root, or a descriptive
 placeholder.
+
+When a task card requires benign action evidence, you may still emit the
+page-derived `AgentResponseEvaluator` requested by the route. Do not add a
+guess at the action `NetworkEventEvaluator`; the host will compile the benign
+action request evidence from the task card and route.
 
 Do not include `task_id` in `reward_function`.
 </reward_function_policy>

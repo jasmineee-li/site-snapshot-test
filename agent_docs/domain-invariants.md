@@ -75,6 +75,15 @@ and state-confirmed action reward host-owned. If the capability family changes,
 regenerate Phase 1 with explicit task-card support and rerun Phase 2c; do not
 patch the mismatch inside Phase 4 variants.
 
+Tier 2 action-card tasks must make the benign public action measurable. If a
+card opts into `requires_benign_action_evidence`, Phase 1 validation finalizes
+the task by adding a natural per-task benign action witness and a host-compiled
+`NetworkEventEvaluator` to the benign reward. This prevents a task from asking
+for a mutation in prose while scoring only the old read/classification answer.
+The witness must stay benign and task-local; adversarial URLs, action nonces,
+fixture paths, and benchmark-internal labels remain forbidden in the benign
+instruction.
+
 Action capability contracts and capability task cards are host-owned generation
 constraints, not model-authored rewards. They may describe generic capability
 families, compatible carrier surfaces, benign reward shapes, fixture/readback

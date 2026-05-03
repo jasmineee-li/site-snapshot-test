@@ -98,6 +98,26 @@ def validate_task_card_plan(plan: Any) -> None:
             "forbidden_instruction_substrings",
         ):
             _validate_string_array(card, index=index, key=key)
+        if "requires_benign_action_evidence" in card and not isinstance(
+            card["requires_benign_action_evidence"], bool
+        ):
+            raise TaskCardPlanError(
+                "task_cards["
+                f"{index}].requires_benign_action_evidence must be a boolean"
+            )
+        benign_action_evidence = card.get("benign_action_evidence")
+        if benign_action_evidence is not None and not isinstance(
+            benign_action_evidence, dict
+        ):
+            raise TaskCardPlanError(
+                f"task_cards[{index}].benign_action_evidence must be an object"
+            )
+        if isinstance(benign_action_evidence, dict):
+            required = benign_action_evidence.get("required")
+            if required is not None and not isinstance(required, bool):
+                raise TaskCardPlanError(
+                    f"task_cards[{index}].benign_action_evidence.required must be a boolean"
+                )
         for key in (
             "instruction_must_match_any_regex",
             "instruction_must_match_all_regex",
