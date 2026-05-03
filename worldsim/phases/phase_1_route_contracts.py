@@ -69,7 +69,19 @@ def build_task_route_contracts(
                 editor_surface_id=raw_surface,
             )
             if profile_resolution is None:
-                continue
+                profile_surface, surface_resolution = _profile_surface_fallback(
+                    benchmark=benchmark,
+                    site=site,
+                    target_surface_id=canonical,
+                    kind=kind,
+                    method=spec.method,
+                    editor_surface_id=raw_surface,
+                )
+                if profile_surface is None:
+                    continue
+            else:
+                profile_surface = profile_resolution.profile_surface
+                surface_resolution = surface_resolution_dict(profile_resolution)
             route = _route_family_for_spec(
                 site=site,
                 kind=kind,
@@ -78,8 +90,8 @@ def build_task_route_contracts(
                 canonical_surface_id=canonical,
                 coverage_status=_coverage_status(canonical, raw_surface, uncovered, covered),
                 profile=profile,
-                profile_surface=profile_resolution.profile_surface,
-                surface_resolution=surface_resolution_dict(profile_resolution),
+                profile_surface=profile_surface,
+                surface_resolution=surface_resolution,
             )
             if route is not None:
                 route_families.append(route)
@@ -95,6 +107,55 @@ def build_task_route_contracts(
 def route_contracts_digest(route_contracts: Mapping[str, Any]) -> str:
     """Return a stable string representation suitable for existing hash helpers."""
     return json.dumps(route_contracts, sort_keys=True, separators=(",", ":"))
+
+
+def _profile_surface_fallback(
+    *,
+    benchmark: str,
+    site: str,
+    target_surface_id: str,
+    kind: str,
+    method: str,
+    editor_surface_id: str,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Return a deterministic profile-surface fallback for known non-appended carriers.
+
+    Phase 0c profiles are LLM-authored and can omit a known editor-backed body
+    surface even when host inventory is present. For non-appended created-child
+    carriers, the editor registry plus core-surface policy is authoritative
+    enough to build a candidate route; inventory-backed anchors and Phase 2c
+    still provide the strict live gate. Do not use this for appended discussion
+    surfaces, where exact rendered-region evidence is required.
+    """
+
+    if benchmark != "webarena_verified":
+        return None, None
+    if (
+        site == "gitlab"
+        and target_surface_id == "issue.description"
+        and kind == "gitlab_search_result"
+        and method == "create_issue_description"
+    ):
+        surface = {
+            "id": "issue_description",
+            "source_field": "Issue.description",
+            "location_page": "/{namespace}/{project}/-/issues/{iid}",
+        }
+        resolution = {
+            "benchmark": benchmark,
+            "site": site,
+            "canonical_surface_id": target_surface_id,
+            "profile_surface_id": surface["id"],
+            "evidence": "editor_registry_active_carrier_fallback",
+            "source_field": surface["source_field"],
+            "editor_surface_id": editor_surface_id,
+            "reason": (
+                "profile omitted a known non-appended WASP carrier; route remains "
+                "inventory-backed and must pass Phase 2c render feasibility"
+            ),
+        }
+        return surface, resolution
+    return None, None
 
 
 def _route_family_for_spec(

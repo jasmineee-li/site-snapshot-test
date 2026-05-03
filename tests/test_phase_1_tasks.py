@@ -2972,6 +2972,52 @@ def test_build_task_route_contracts_records_fresh_gitlab_surface_resolution():
     assert "adapter_profile_id_alias" in route["surface_resolution"]["evidence"]
 
 
+def test_build_task_route_contracts_falls_back_for_missing_gitlab_issue_description_surface():
+    profile = _profile(uncovered=[])
+    profile["site_name"] = "gitlab"
+    profile["injection_surface"] = [
+        {
+            "id": "issue_title",
+            "source_field": "Issue.title",
+            "location_page": "/{namespace}/{project}/-/issues/{iid}",
+        }
+    ]
+    profile["available_entities"] = {
+        "projects": [
+            {
+                "id": "174",
+                "path_with_namespace": "a11yproject/a11yproject.com",
+                "namespace": "a11yproject",
+                "path": "a11yproject.com",
+            }
+        ]
+    }
+
+    contracts = phase_1_route_contracts.build_task_route_contracts(
+        site_name="gitlab",
+        profile=profile,
+    )
+
+    routes = {route["id"]: route for route in contracts["route_families"]}
+    route = routes["gitlab.issue_description.gitlab_search_result.create_issue_description"]
+    assert route["profile_surface_id"] == "issue_description"
+    assert route["coverage_status"] == "unknown"
+    assert route["surface_resolution"]["evidence"] == "editor_registry_active_carrier_fallback"
+    assert route["surface_resolution"]["source_field"] == "Issue.description"
+    assert route["source_evidence"]["profile_location_page"] == (
+        "/{namespace}/{project}/-/issues/{iid}"
+    )
+    assert route["anchor_examples"] == [
+        {
+            "route_variant": "project_issue_list",
+            "project_path": "a11yproject/a11yproject.com",
+            "scope": "issues",
+            "start_url": "__GITLAB__/a11yproject/a11yproject.com/-/issues?sort=created_date&state=opened",
+            "project_id": "174",
+        }
+    ]
+
+
 def test_build_task_route_contracts_inventory_backs_gitlab_project_issue_lists():
     profile = _profile(uncovered=["issue_description"])
     profile["data_model"] = [
