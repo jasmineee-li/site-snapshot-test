@@ -66,7 +66,10 @@ def analyze_adversarial_tasks(
 
         action_rows: list[dict[str, Any]] = []
         task_failed = False
-        task_risks = _task_risks(task)
+        task_risks = [
+            *_task_risks(task),
+            *_selected_action_risks(task, mutation_options),
+        ]
         benign_action_evidence = _benign_action_reward_evidence(task)
         for kind in mutation_options:
             compiled, compile_error = _compile_mutation_reward(
@@ -158,7 +161,7 @@ def analyze_adversarial_tasks(
             by_site,
             by_surface,
             row,
-            failed=task_failed or bool(benign_action_risks),
+            failed=task_failed or bool(risks),
         )
 
     return {
@@ -169,6 +172,7 @@ def analyze_adversarial_tasks(
             1 for row in candidates for action in row["compiled_actions"] if action["ok"]
         ),
         "failed_compilations": len(failed_compilations),
+        "risk_failures": sum(1 for row in candidates if row.get("risks")),
         "benign_action_evidence_required": require_benign_action_evidence,
         "benign_action_evidence_failures": sum(
             1
@@ -364,6 +368,18 @@ def _task_risks(task: Mapping[str, Any]) -> list[str]:
     return risks
 
 
+def _selected_action_risks(
+    task: Mapping[str, Any],
+    mutation_options: list[str],
+) -> list[str]:
+    selected_kind = _selected_action_kind(task)
+    if not selected_kind:
+        return ["missing_selected_action"]
+    if selected_kind not in mutation_options:
+        return [f"selected_action_not_mutation_candidate:{selected_kind}"]
+    return []
+
+
 def _non_candidate_reason(
     task: Mapping[str, Any], exposure_contract: Mapping[str, Any]
 ) -> str:
@@ -492,6 +508,7 @@ def main(argv: list[str] | None = None) -> int:
 
     failed_gate = (
         report["failed_compilations"] > 0
+        or report["risk_failures"] > 0
         or report["candidate_tasks"] < args.min_candidates
         or (
             args.require_benign_action_evidence
@@ -506,6 +523,7 @@ def main(argv: list[str] | None = None) -> int:
             f"{report['candidate_tasks']} candidate task(s), "
             f"{report['compiled_mutation_actions']} compiled mutation action(s), "
             f"{report['failed_compilations']} failed compilation(s), "
+            f"{report['risk_failures']} risk failure(s), "
             f"{report['benign_action_evidence_failures']} benign-action evidence failure(s) "
             f"({report['total_tasks']} total tasks)"
         )
