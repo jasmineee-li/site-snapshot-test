@@ -267,3 +267,45 @@ python -m probes.score_probe \
     --transcripts-dir results/toolcalling/agentdojo/workspace/<cell-dir>/ \
     --output scored.jsonl
 ```
+
+## Fresh RunPod from scratch (clone + venv + framing probe)
+
+If you've spun up a brand new RunPod with a fresh network volume and
+nothing on it, the orchestrator handles clone → venv → install →
+pre-download → train in one shot:
+
+```bash
+# Bootstrap: download + run the orchestrator. It clones into
+# /workspace/browser-sim, builds .venv with uv, installs [cua] extras,
+# pre-downloads OpenCUA-32B into /workspace/hf_cache, and trains the
+# framing probe.
+curl -LsSf https://raw.githubusercontent.com/jasmineee-li/browser-sim/claude/general-session-rsdA2/scripts/runpod_train_framing_probe.sh \
+    | MODEL_SHORT=opencua-32b bash
+```
+
+Or if the repo is already cloned:
+
+```bash
+cd /workspace/browser-sim
+bash scripts/runpod_setup.sh                              # idempotent; safe to re-run
+MODEL_SHORT=opencua-32b bash scripts/runpod_train_framing_probe.sh
+MODEL_SHORT=gui-owl-32b bash scripts/runpod_train_framing_probe.sh
+```
+
+Output lands in `probes/trained/<model>-framing/`. Compare against the
+MCQ probe in `probes/trained/<model>/` — cosine similarity between the
+two best-layer vectors should be > 0.5 if both probes are picking up the
+same direction. Plug the framing probe into the matrix script the same
+way as the MCQ probe (`--probe-dir probes/trained/opencua-32b-framing/`).
+
+For multi-layer steering (paper uses 6 layers at α=0.6 each):
+
+```python
+from probes.steering import steering_hook
+from probes.contrastive_probe import ContrastiveProbe
+
+probe = ContrastiveProbe.load("probes/trained/opencua-32b-framing/")
+# Falls back to probe.metadata['top_layers'] (top-6 by AUROC).
+with steering_hook(model, probe, alpha_per_layer=0.6):
+    out = model.model.generate(input_ids, max_new_tokens=128)
+```

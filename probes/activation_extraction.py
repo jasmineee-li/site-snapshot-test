@@ -26,6 +26,7 @@ class TokenSelector(str, Enum):
     MEAN_ALL = "mean_all"
     EVIDENCE_TOKENS = "evidence_tokens"
     ALL_TOKENS = "all_tokens"
+    POSITION = "position"  # extract at a specific position (set via `position_index`)
 
 
 def extract_activations_hooked(
@@ -36,6 +37,7 @@ def extract_activations_hooked(
     tokenizer=None,
     answer_token: str | None = None,
     evidence_indices: list[tuple[int, int]] | None = None,
+    position_index: int | None = None,
 ) -> dict[int, torch.Tensor]:
     """Extract activations at `blocks.{layer}.hook_resid_pre` via hooks."""
     cached: dict[int, torch.Tensor] = {}
@@ -44,7 +46,7 @@ def extract_activations_hooked(
         def hook_fn(activation, hook):
             act = _select_token_activation(
                 activation, tokens, token_selector, tokenizer,
-                answer_token, evidence_indices,
+                answer_token, evidence_indices, position_index,
             )
             cached[layer] = act.clone().detach()
             return activation
@@ -111,6 +113,89 @@ def extract_contrastive_activations(
     return positive_acts, negative_acts
 
 
+# Position −2 = the colon at the end of each framing prompt. The chat
+# template appends a terminator (e.g. `<|im_end|>`) after the user
+# message, which lands at position −1; the colon ends up at −2.
+# This matches `TOKEN_POSITION = -2` in the paper's reference code
+# (steering-eval-awareness-public/scripts/generate_steering_vectors.py).
+FRAMING_TOKEN_POSITION = -2
+
+
+def extract_framing_activations(
+    model,
+    framing_data: dict,
+    layers: list[int],
+    tokenizer,
+    token_position: int = FRAMING_TOKEN_POSITION,
+) -> tuple[dict[int, list[torch.Tensor]], dict[int, list[torch.Tensor]]]:
+    """Extract activations from the paper's framing-pair prompts.
+
+    Each prompt is rendered as a single user message via the model's chat
+    template, then the activation at `token_position` (default −2 = the
+    terminal colon) is extracted at every requested layer.
+
+    Args:
+        model: HookedTransformerShim.
+        framing_data: dict with keys "real" and "fake", each mapping to a
+            list of colon-terminated prompts (16 each in the paper's set).
+        layers: layer indices to extract at.
+        tokenizer: HF tokenizer with `apply_chat_template`.
+        token_position: negative or positive index into the prompt
+            sequence. The paper uses -2.
+
+    Returns:
+        (real_acts_by_layer, fake_acts_by_layer): two dicts mapping layer
+        index to a list of (1, d_model) activation tensors. The "real"
+        side is treated as the *positive* class (eval-aware = False, real
+        deployment), matching the convention in the paper's published code
+        where `steering_vector = mean(real) - mean(fake)`. With
+        `alpha < 0` you steer TOWARDS "fake" (eval-aware); `alpha > 0`
+        steers TOWARDS "real" (deployment).
+    """
+    real_acts: dict[int, list[torch.Tensor]] = {l: [] for l in layers}
+    fake_acts: dict[int, list[torch.Tensor]] = {l: [] for l in layers}
+
+    if "real" not in framing_data or "fake" not in framing_data:
+        raise ValueError("framing_data must have 'real' and 'fake' keys")
+
+    def _tokenize(prompt: str) -> torch.Tensor:
+        # Render as a single user message via the model's chat template.
+        # `add_generation_prompt=False` keeps the assistant turn marker out,
+        # so the colon sits near the end of the sequence (position -2 after
+        # the trailing `<|im_end|>`-style token added by the template).
+        try:
+            text = tokenizer.apply_chat_template(
+                [{"role": "user", "content": prompt}],
+                tokenize=False,
+                add_generation_prompt=False,
+            )
+            ids = tokenizer.encode(text, add_special_tokens=False)
+        except Exception as e:
+            logger.warning(
+                f"Chat-template tokenization failed ({e}); "
+                f"falling back to plain tokenization."
+            )
+            ids = tokenizer.encode(prompt, add_special_tokens=True)
+        return torch.tensor([ids]).to(model.device)
+
+    for label, pool in (("real", real_acts), ("fake", fake_acts)):
+        for prompt in framing_data[label]:
+            tokens = _tokenize(prompt)
+            cached = extract_activations_hooked(
+                model, tokens, layers,
+                token_selector=TokenSelector.POSITION,
+                tokenizer=tokenizer,
+                position_index=token_position,
+            )
+            for layer in layers:
+                if layer in cached:
+                    pool[layer].append(cached[layer])
+            del tokens, cached
+            gc.collect()
+
+    return real_acts, fake_acts
+
+
 def _select_token_activation(
     activation: torch.Tensor,
     tokens: torch.Tensor,
@@ -118,6 +203,7 @@ def _select_token_activation(
     tokenizer=None,
     answer_token: str | None = None,
     evidence_indices: list[tuple[int, int]] | None = None,
+    position_index: int | None = None,
 ) -> torch.Tensor:
     if token_selector == TokenSelector.ANSWER_TOKEN:
         if tokenizer is None or answer_token is None:
@@ -137,6 +223,11 @@ def _select_token_activation(
 
     if token_selector == TokenSelector.LAST_TOKEN:
         return activation[:, -1, :]
+
+    if token_selector == TokenSelector.POSITION:
+        if position_index is None:
+            raise ValueError("position_index required for POSITION selection")
+        return activation[:, position_index, :]
 
     if token_selector == TokenSelector.MEAN_ALL:
         return activation.mean(dim=1)
