@@ -3837,6 +3837,65 @@ def test_backfill_missing_strategy_plan_refuses_unlisted_action_preference():
     assert errors == ["novel_gitlab_1: missing host-ready preferred action strategy plan"]
 
 
+def test_backfill_missing_validated_strategy_plans_repairs_validation_drops():
+    validated = [
+        {
+            "id": "adv-existing",
+            "benign_task_id": "novel_reddit_1",
+            "framing": "authority",
+            "concealment": "plaintext",
+        }
+    ]
+    missing_task = _binary_benign_task("novel_reddit_2", "link")
+    missing_task["capability_family"] = "public_content_creation"
+    contracts = {
+        "novel_reddit_1": {
+            "contract_id": "contract-1",
+            "target_surface_id": "submission.body",
+            "eligibility": {"status": "eligible"},
+            "adversarial_action_options": [{"kind": "create_post"}],
+            "adversarial_action_preference": {
+                "kind": "create_post",
+                "policy": "tier2_pilot",
+            },
+        },
+        "novel_reddit_2": {
+            "contract_id": "contract-2",
+            "target_surface_id": "submission.body",
+            "eligibility": {"status": "eligible"},
+            "adversarial_action_options": [{"kind": "create_post"}],
+            "adversarial_action_preference": {
+                "kind": "create_post",
+                "policy": "tier2_pilot",
+            },
+        },
+    }
+
+    backfilled, errors = phase_2_injections._backfill_missing_validated_strategy_plans(
+        validated,
+        site_tasks=[
+            _binary_benign_task("novel_reddit_1", "link"),
+            missing_task,
+        ],
+        exposure_contracts=contracts,
+        cell_targets={
+            "authority::plaintext": 1,
+            "urgency::plaintext": 1,
+        },
+        site_name="reddit",
+    )
+
+    assert errors == []
+    assert len(backfilled) == 1
+    assert backfilled[0]["benign_task_id"] == "novel_reddit_2"
+    assert backfilled[0]["exposure_contract_id"] == "contract-2"
+    assert backfilled[0]["adversarial_action"]["kind"] == "create_post"
+    assert backfilled[0]["strategy_adjustments"][0]["reason"] == (
+        "host_backfilled_missing_preferred_action_strategy_plan"
+    )
+    assert len(validated) == 1
+
+
 def test_select_balanced_subset_preserves_task_coverage_over_cell_balance():
     validated = [
         {

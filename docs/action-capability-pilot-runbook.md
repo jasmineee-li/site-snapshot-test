@@ -161,6 +161,8 @@ under-generation without giving the model new reward authority: placement,
 action kind, reward compilation, request-body evidence, and feasibility remain
 host-owned. If the preferred action is missing from the contract's allowed
 options, backfill fails closed rather than falling back to semantic scoring.
+The same repair runs after host validation, so malformed or ID-drifted model
+plans do not count as coverage for a benign task unless they actually validate.
 
 Tier 3:
 

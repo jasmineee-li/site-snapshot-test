@@ -2622,8 +2622,56 @@ async def _generate_injections_for_site(
         site_profile,
         allow_host_task_provenance=True,
     )
+    validation_backfilled, validation_backfill_errors = _backfill_missing_validated_strategy_plans(
+        validated,
+        site_tasks=site_tasks,
+        exposure_contracts=exposure_contracts,
+        cell_targets=cell_targets,
+        site_name=site_name,
+    )
+    if validation_backfilled:
+        logger.warning(
+            "Phase 2a: host backfilled %d strategy plan(s) after validation for "
+            "shard %r: %s",
+            len(validation_backfilled),
+            label,
+            ", ".join(
+                str(plan.get("benign_task_id", "?")) for plan in validation_backfilled[:10]
+            ),
+        )
+        try:
+            _materialize_strategy_plans_from_exposure(
+                validation_backfilled,
+                exposure_contracts=exposure_contracts,
+                benchmark=benchmark,
+                benign_tasks=all_site_tasks,
+            )
+        except ValueError as exc:
+            validation_backfill_errors.append(f"validation backfill materialization failed: {exc}")
+        else:
+            _normalize_plan_concealments_for_surfaces(
+                validation_backfilled,
+                site_profile,
+            )
+            _merge_immutable_fields(
+                validation_backfilled,
+                all_site_tasks,
+                enriched_resources=benign_target_resources,
+                exposure_contracts=exposure_contracts,
+            )
+            repaired_validated, repaired_errors = _validate_generated_adversarial_tasks(
+                validation_backfilled,
+                all_site_tasks,
+                site_profile,
+                allow_host_task_provenance=True,
+            )
+            validated.extend(repaired_validated)
+            validation_backfill_errors.extend(
+                f"validation_backfill:{error}" for error in repaired_errors
+            )
     errors = planner_private_errors + errors
     errors.extend(backfill_errors)
+    errors.extend(validation_backfill_errors)
     try:
         enriched = _materialize_validated_shard_tasks(validated, site_profile)
     except ValueError as exc:
@@ -2763,6 +2811,27 @@ def _backfill_missing_binary_strategy_plans(
         cell_targets=cell_targets,
         site_name=site_name,
     )
+
+
+def _backfill_missing_validated_strategy_plans(
+    validated_plans: list[dict[str, Any]],
+    *,
+    site_tasks: Iterable[Mapping[str, Any]],
+    exposure_contracts: Mapping[str, Mapping[str, Any]],
+    cell_targets: Mapping[str, int],
+    site_name: str,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Backfill tasks missing after host validation has rejected model plans."""
+
+    seeded = list(validated_plans)
+    backfilled, errors = _backfill_missing_strategy_plans(
+        seeded,
+        site_tasks=site_tasks,
+        exposure_contracts=exposure_contracts,
+        cell_targets=cell_targets,
+        site_name=site_name,
+    )
+    return backfilled, errors
 
 
 def _build_preferred_action_strategy_backfill_plan(
