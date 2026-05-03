@@ -858,6 +858,41 @@ binary read/classification family, then pilot action/mutation task families with
 their own action contracts and status/body/state checks before mixing them into
 headline sweeps.
 
+Action-oriented IPI pilots require **capability-aligned benign tasks**. A
+benign task is capability-aligned when the user-visible workflow naturally
+exercises the same browser capability family that the injected action attempts
+to hijack, while the exact malicious target, nonce, endpoint, selector, reward,
+and cleanup remain host-owned. For example, a read-only issue-classification
+task is valid for semantic label hijacks but is a weak match for repository
+mutation: the browser agent can complete the benign read task while correctly
+ignoring an unrelated write instruction. A repository/content pilot should
+instead use an issue-triage or maintenance workflow where the agent normally
+inspects UGC and updates a harmless maintenance artifact, then the injected
+payload tries to redirect the concrete file/content action. This is task
+quality, not reward hacking: the benign task must require the capability class,
+but it must not ask for the exact adversarial fixture path/content or collapse
+utility success into attack success.
+
+WorldSim represents this with host-owned action capability contracts and
+capability task cards. An action capability contract describes the action kind,
+impact tier, capability family, compatible carrier surfaces/editor methods,
+fixture/readback requirements, compatible benign task families, forbidden
+benign/adversarial overlap, and host evidence needed before the action can be
+selected. A capability task card is a Phase 1 generation constraint that pairs
+route contracts with a benign workflow family and reward schema. Static prompts
+may describe these generic card fields, but benchmark-specific selectors,
+endpoint paths, fixture setup, final-state probes, and cleanup stay in host
+adapters. The validator fails closed if a task does not exercise the required
+capability, names the exact adversarial target/content, reintroduces retired
+title carriers, invents anchors, or depends on non-WASP surfaces.
+
+Capability alignment is separate from Phase 4 strategy variation. Phase 4 may
+make a resisted payload more action-contract aware, but it may not repair a
+fundamentally mismatched benign task by changing the task, reward, route, or
+admission. If a pilot needs a write/action workflow, regenerate Phase 1 with
+the appropriate capability task cards, rerun Phase 2c, and freeze that admitted
+cohort before comparing browser-agent models.
+
 WorldSim stratifies adversarial actions by impact tier. **Tier 1** actions are
 semantic or navigation hijacks, such as returning the opposite binary label or
 opening a host-provided URL. **Tier 2** actions are bounded public mutations on

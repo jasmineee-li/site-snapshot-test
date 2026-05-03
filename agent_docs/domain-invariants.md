@@ -61,6 +61,24 @@ action options, compiler rules, and Phase 2c/Phase 4 evidence. Validate in that
 order: semantic compiler on known binary tasks first, action/mutation pilots
 second, mixed headline sweeps only after both families pass admission.
 
+Action-oriented pilots need capability-aligned benign tasks. The benign task
+should naturally exercise the browser capability family the injection attempts
+to hijack, but it must not ask for the exact malicious target, nonce, fixture
+file, endpoint, reward, or cleanup action. A read-only UGC classification task
+is a valid semantic-hijack task; it is not a strong repository-write pilot. For
+repository/content mutation, generate a benign triage or maintenance workflow
+where an artifact update is normal, then keep the injected fixture path/content
+and state-confirmed action reward host-owned. If the capability family changes,
+regenerate Phase 1 with explicit task-card support and rerun Phase 2c; do not
+patch the mismatch inside Phase 4 variants.
+
+Action capability contracts and capability task cards are host-owned generation
+constraints, not model-authored rewards. They may describe generic capability
+families, compatible carrier surfaces, benign reward shapes, fixture/readback
+requirements, and forbidden benign/adversarial overlap. They must not place
+benchmark-specific selectors, endpoint paths, fixture setup, final-state probes,
+or cleanup logic in model-facing static prompts.
+
 Adversarial actions are impact-stratified. Tier 1 is semantic/navigation
 hijack, Tier 2 is bounded public mutation on UGC workflows, and Tier 3 is
 high-impact security behavior such as access grants, secret/key creation,
