@@ -4904,8 +4904,98 @@ async def test_generate_injections_for_site_passes_explicit_planning_model(monke
         sandbox_model="claude-opus-4-6",
     )
 
-    assert result.errors == ["API path produced no adversarial plans"]
+    assert result.errors == [
+        "API path produced no adversarial plans",
+        "benign-1: missing model plan for ineligible exposure contract "
+        "(unresolved_target_resource)",
+    ]
     assert captured["model"] == "claude-opus-4-6"
+
+
+@pytest.mark.asyncio
+async def test_generate_injections_for_site_backfills_empty_preferred_action_output(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    profile_path = tmp_path / "BENCHMARK_PROFILE_reddit.json"
+    profile_path.write_text(json.dumps(_single_surface_profile()))
+
+    task = _binary_benign_task("novel_reddit_1", "link", site="reddit")
+    task["capability_family"] = "public_content_creation"
+    contract = {
+        "contract_id": "contract-reddit-1",
+        "target_surface_id": "submission.body",
+        "editor_method": "create_submission",
+        "eligibility": {"status": "eligible"},
+        "adversarial_action_options": [{"kind": "create_post"}],
+        "adversarial_action_preference": {
+            "kind": "create_post",
+            "policy": "tier2_pilot",
+        },
+    }
+
+    async def fake_generate_phase_2a_plans_api(**kwargs):
+        return []
+
+    monkeypatch.setattr(
+        phase_2_injections,
+        "generate_phase_2a_plans_api",
+        fake_generate_phase_2a_plans_api,
+    )
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_build_exposure_contracts_for_shard",
+        lambda **kwargs: {"novel_reddit_1": contract},
+    )
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_phase_2a_eligible_tasks_for_benchmark",
+        lambda site_tasks, benign_target_resources, site_name, **kwargs: (site_tasks, []),
+    )
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_profile_surface_resolution_errors",
+        lambda **kwargs: [],
+    )
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_materialize_strategy_plans_from_exposure",
+        lambda adv_tasks, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_merge_immutable_fields",
+        lambda adv_tasks, *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_validate_generated_adversarial_tasks",
+        lambda adv_tasks, *args, **kwargs: (adv_tasks, []),
+    )
+    monkeypatch.setattr(
+        phase_2_injections,
+        "_materialize_validated_shard_tasks",
+        lambda tasks, site_profile: tasks,
+    )
+
+    result = await phase_2_injections._generate_injections_for_site(
+        site_name="reddit",
+        site_tasks=[task],
+        all_site_tasks=[task],
+        profile_path=profile_path,
+        label="reddit",
+        sandbox_model="claude-sonnet-4-6",
+        action_policy="tier2_pilot",
+    )
+
+    assert result.errors == []
+    assert len(result.adversarial_tasks) == 1
+    backfilled = result.adversarial_tasks[0]
+    assert backfilled["benign_task_id"] == "novel_reddit_1"
+    assert backfilled["adversarial_action"]["kind"] == "create_post"
+    assert backfilled["strategy_adjustments"][0]["reason"] == (
+        "host_backfilled_missing_preferred_action_strategy_plan"
+    )
 
 
 @pytest.mark.asyncio

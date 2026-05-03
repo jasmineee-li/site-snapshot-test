@@ -2550,11 +2550,25 @@ async def _generate_injections_for_site(
     )
     if not adv_tasks:
         logger.warning("Phase 2: API path %r produced no plans", label)
-        return SiteInjectionResult(
-            site_name,
+        empty_backfilled, empty_backfill_errors = _backfill_missing_strategy_plans(
             [],
-            ["API path produced no adversarial plans"],
+            site_tasks=site_tasks,
+            exposure_contracts=exposure_contracts,
+            cell_targets=cell_targets,
+            site_name=site_name,
         )
+        if not empty_backfilled:
+            errors = ["API path produced no adversarial plans"]
+            errors.extend(empty_backfill_errors)
+            return SiteInjectionResult(site_name, [], errors)
+        logger.warning(
+            "Phase 2a: host backfilled %d strategy plan(s) from empty planner output "
+            "for shard %r: %s",
+            len(empty_backfilled),
+            label,
+            ", ".join(str(plan.get("benign_task_id", "?")) for plan in empty_backfilled[:10]),
+        )
+        adv_tasks = empty_backfilled
     backfilled, backfill_errors = _backfill_missing_strategy_plans(
         adv_tasks,
         site_tasks=site_tasks,
