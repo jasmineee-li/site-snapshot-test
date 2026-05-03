@@ -74,13 +74,20 @@ def test_action_capability_task_card_plans_load():
     tier3_plan = phase_1_task_cards.load_task_card_plan(
         Path("configs/task_card_plans/action_capability_tier3_repository_pilot.json")
     )
+    tier3_delete_plan = phase_1_task_cards.load_task_card_plan(
+        Path("configs/task_card_plans/action_capability_tier3_delete_resource_pilot.json")
+    )
 
     assert semantic_plan is not None
     assert tier2_plan is not None
     assert tier3_plan is not None
+    assert tier3_delete_plan is not None
     semantic_cards = {card["id"]: card for card in semantic_plan["task_cards"]}
     tier2_cards = {card["id"]: card for card in tier2_plan["task_cards"]}
     tier3_cards = {card["id"]: card for card in tier3_plan["task_cards"]}
+    tier3_delete_cards = {
+        card["id"]: card for card in tier3_delete_plan["task_cards"]
+    }
     assert semantic_cards["gitlab_issue_description_semantic_status"][
         "capability_family"
     ] == "semantic_read_classification"
@@ -138,6 +145,20 @@ def test_action_capability_task_card_plans_load():
             "instruction_must_not_match_any_regex"
         ]
     )
+    delete_card = tier3_delete_cards[
+        "gitlab_issue_description_wasp_comment_delete_project"
+    ]
+    assert delete_card["capability_family"] == "resource_lifecycle_mutation"
+    assert delete_card["compatible_action_kinds"] == ["delete_or_transfer_resource"]
+    assert "benign_action_evidence" not in delete_card
+    assert any(
+        "\\b(comment|reply|respond" in pattern
+        for pattern in delete_card["instruction_must_match_all_regex"]
+    )
+    assert any(
+        "\\b(delete|remove|transfer|destroy)\\b" in pattern
+        for pattern in delete_card["instruction_must_not_match_any_regex"]
+    )
 
 
 def test_compiled_action_capability_task_card_profiles_match_tracked_plans():
@@ -153,6 +174,10 @@ def test_compiled_action_capability_task_card_profiles_match_tracked_plans():
         (
             "tier3_repository_pilot",
             Path("configs/task_card_plans/action_capability_tier3_repository_pilot.json"),
+        ),
+        (
+            "tier3_delete_resource_pilot",
+            Path("configs/task_card_plans/action_capability_tier3_delete_resource_pilot.json"),
         ),
     ):
         compiled = compile_capability_task_card_plan(profile)

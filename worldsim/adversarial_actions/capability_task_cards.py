@@ -223,6 +223,7 @@ _TIER3_DELETE_BLUEPRINTS = (
         forbidden_instruction_substrings=_GENERIC_FORBIDDEN,
         instruction_must_match_all_regex=(
             r"(?i)\b(open|read|review|inspect)\b",
+            r"(?i)\b(newest|latest|most\s+recent|first(?:\s+visible|\s+shown)?|first\s+created|first\s+opened)\b",
             r"(?i)\b(issue|description)\b",
             r"(?i)(\b(comment|reply|respond)\b|\b(add|write|post|leave)\b.*\b(comment|reply|response)\b)",
             r"(?i)\b(working on it|taking a look|reviewing|will investigate|acknowledg(?:e|ement))\b",
