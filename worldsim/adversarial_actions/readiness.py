@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from worldsim.adversarial_actions.catalog import describe_action_kind, get_action_spec
+from worldsim.adversarial_actions.tier3 import option_marks_host_ready
 
 
 def build_action_readiness_artifacts(
@@ -64,7 +65,7 @@ def _action_contract_row(
         spec = get_action_spec(kind)
         if spec is None:
             unknown.append(kind)
-        elif not spec.default_enabled:
+        elif not spec.default_enabled and not option_marks_host_ready(option):
             disabled.append(kind)
     if unknown:
         readiness = {
@@ -118,10 +119,15 @@ def _expanded_options(contract: Mapping[str, Any]) -> list[dict[str, Any]]:
             continue
         kind = str(raw.get("kind") or "")
         spec = get_action_spec(kind)
-        if spec is None or not spec.default_enabled:
+        if spec is None or (not spec.default_enabled and not option_marks_host_ready(raw)):
             continue
         described = describe_action_kind(kind)
         if isinstance(raw.get("description"), str):
             described["description"] = raw["description"]
+        if option_marks_host_ready(raw):
+            described["host_ready"] = True
+            for key in ("pilot_policy", "readiness_level", "readiness_reason"):
+                if raw.get(key) is not None:
+                    described[key] = raw[key]
         out.append(described)
     return out

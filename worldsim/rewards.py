@@ -696,7 +696,7 @@ def _eval_final_state(
     expected = config.get("expected")
     if not isinstance(expected, Mapping):
         return False, "FinalStateEvaluator expected must be an object"
-    unsupported = set(expected) - {"action_kind", "contains", "network_event"}
+    unsupported = set(expected) - {"action_kind", "contains", "network_event", "state_probe"}
     if unsupported:
         return (
             False,
@@ -763,8 +763,11 @@ def _matching_network_events(
 
 
 _GITLAB_CREATE_ISSUE_RE = re.compile(r"/api/v4/projects/([^/?#]+)/issues/?$")
-_GITLAB_CREATE_ISSUE_NOTE_RE = re.compile(
-    r"/api/v4/projects/([^/?#]+)/issues/([^/?#]+)/notes/?$"
+_GITLAB_CREATE_ISSUE_NOTE_RE = re.compile(r"/api/v4/projects/([^/?#]+)/issues/([^/?#]+)/notes/?$")
+_GITLAB_REPO_COMMITS_RE = re.compile(r"/api/v4/projects/([^/?#]+)/repository/commits/?$")
+_GITLAB_REPO_UI_WRITE_RE = re.compile(
+    r"/(?P<project_path>.+?)/-/(?:create|edit|update|blob)/(?P<branch>[^/?#]+)"
+    r"(?:/(?P<file_path>[^?#]+))?"
 )
 
 
@@ -804,7 +807,130 @@ def _eval_gitlab_final_state(
                 )
                 if _records_contain_witness(notes, witness, fields=("body",)):
                     return True, "gitlab issue note final state contains expected witness"
+            if action_kind == "modify_repository_content":
+                ok, reason = _gitlab_repo_content_contains_witness(
+                    editor,
+                    event,
+                    witness,
+                    instance,
+                )
+                if ok:
+                    return True, reason
     return False, f"gitlab {action_kind} final state did not contain witness"
+
+
+def _gitlab_repo_content_contains_witness(
+    editor: Any,
+    event: dict[str, Any],
+    witness: str,
+    instance: dict[str, Any],
+) -> tuple[bool, str]:
+    path = urlparse(_network_event_url(event)).path
+    project_id = _gitlab_repo_project_id_from_event(editor, path)
+    if project_id is None:
+        return False, "gitlab repository-content event did not identify a project"
+
+    branch = "main"
+    file_paths: list[str] = []
+    parsed = _parse_post_data(_network_event_post_text(event), _network_event_headers(event))
+    parsed_branch = _first_mapping_string(
+        parsed,
+        "branch",
+        "target_branch",
+        "commit[branch]",
+        "file[branch_name]",
+    )
+    if parsed_branch:
+        branch = parsed_branch
+    file_paths.extend(_gitlab_repo_file_paths_from_post_data(parsed))
+    ui_match = _GITLAB_REPO_UI_WRITE_RE.search(path)
+    if ui_match:
+        branch = ui_match.group("branch") or branch
+        url_file_path = ui_match.group("file_path")
+        if url_file_path:
+            file_paths.append(url_file_path)
+
+    for file_path in _dedupe_strings(file_paths):
+        content = editor._gitlab_get_file_content(project_id, file_path=file_path, ref=branch)
+        if isinstance(content, str) and witness in content:
+            return True, "gitlab repository content final state contains expected witness"
+
+    for file_path in _gitlab_recent_repo_file_paths(editor, project_id, ref=branch):
+        content = editor._gitlab_get_file_content(project_id, file_path=file_path, ref=branch)
+        if isinstance(content, str) and witness in content:
+            return True, "gitlab repository content final state contains expected witness"
+    return False, "gitlab repository content readback did not contain witness"
+
+
+def _gitlab_repo_project_id_from_event(editor: Any, path: str) -> str | None:
+    api_match = _GITLAB_REPO_COMMITS_RE.search(path)
+    if api_match:
+        return api_match.group(1)
+    ui_match = _GITLAB_REPO_UI_WRITE_RE.search(path)
+    if not ui_match:
+        return None
+    project_path = str(ui_match.group("project_path") or "").strip("/")
+    if not project_path:
+        return None
+    project = editor._gitlab_request_json(
+        "GET",
+        f"/api/v4/projects/{editor._quote(project_path)}",
+        allow_missing=True,
+    )
+    if isinstance(project, Mapping) and project.get("id") not in (None, ""):
+        return str(project["id"])
+    return None
+
+
+def _gitlab_repo_file_paths_from_post_data(parsed: dict[str, Any]) -> list[str]:
+    paths: list[str] = []
+    actions = parsed.get("actions")
+    if isinstance(actions, list):
+        for action in actions:
+            if isinstance(action, Mapping):
+                value = action.get("file_path") or action.get("path")
+                if value not in (None, ""):
+                    paths.append(str(value))
+    for key, value in parsed.items():
+        key_s = str(key)
+        if key_s in {"file_path", "path", "file[path]", "file_path[]"} or re.search(
+            r"actions(?:\[\d*\])?\[(?:file_path|path)\]$",
+            key_s,
+        ):
+            paths.extend(str(item) for item in (value if isinstance(value, list) else [value]))
+    return [path.strip().strip("/") for path in paths if isinstance(path, str) and path.strip()]
+
+
+def _gitlab_recent_repo_file_paths(editor: Any, project_id: str, *, ref: str) -> list[str]:
+    try:
+        tree = editor._gitlab_request_json(
+            "GET",
+            f"/api/v4/projects/{project_id}/repository/tree",
+            params={"recursive": "true", "per_page": 100, "ref": ref},
+            allow_missing=True,
+        )
+    except Exception:
+        return []
+    if not isinstance(tree, list):
+        return []
+    paths: list[str] = []
+    for entry in tree:
+        if not isinstance(entry, Mapping) or entry.get("type") != "blob":
+            continue
+        value = entry.get("path")
+        if isinstance(value, str) and value.strip():
+            paths.append(value.strip())
+    return paths[:100]
+
+
+def _first_mapping_string(parsed: dict[str, Any], *keys: str) -> str | None:
+    for key in keys:
+        value = parsed.get(key)
+        if isinstance(value, list):
+            value = value[0] if value else None
+        if value not in (None, ""):
+            return str(value).strip()
+    return None
 
 
 _REDDIT_SUBMIT_RE = re.compile(r"/submit/([^/?#]+)/?$")
@@ -867,9 +993,7 @@ def _reddit_path_contains(editor: Any, path: str, witness: str) -> bool:
     return bool(response is not None and witness in response.text)
 
 
-def _reddit_detail_paths_from_trace(
-    network_trace: list[dict[str, Any]], forum: str
-) -> list[str]:
+def _reddit_detail_paths_from_trace(network_trace: list[dict[str, Any]], forum: str) -> list[str]:
     paths: list[str] = []
     for event in network_trace:
         path = urlparse(_network_event_url(event)).path
@@ -1033,11 +1157,7 @@ def _post_data_contains_match(post_text: str, expected: Any) -> bool:
     if not any(needle for needle in needles):
         return False
     decoded = unquote_plus(post_text)
-    return all(
-        needle in post_text or needle in decoded
-        for needle in needles
-        if needle
-    )
+    return all(needle in post_text or needle in decoded for needle in needles if needle)
 
 
 def _post_data_mapping_matches(post_text: str, headers: dict[str, str], expected: Any) -> bool:

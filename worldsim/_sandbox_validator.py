@@ -82,6 +82,23 @@ def _canonical_core_surface(site: str, surface_id: str | None) -> str | None:
     return _CORE_SURFACE_ALIASES.get(site_key, {}).get(surface, surface)
 
 
+def _adversarial_action_kind_allowed(task: dict, kind: str) -> bool:
+    if kind in _ACTION_KINDS:
+        return True
+    contract = task.get("exposure_contract")
+    if not isinstance(contract, dict):
+        return False
+    options = contract.get("adversarial_action_options")
+    if not isinstance(options, list):
+        return False
+    for option in options:
+        if not isinstance(option, dict):
+            continue
+        if option.get("host_ready") is True and str(option.get("kind") or "").strip() == kind:
+            return True
+    return False
+
+
 # ---------------------------------------------------------------------------
 # Data-seed validation (mirrors worldsim/seeding.py)
 # ---------------------------------------------------------------------------
@@ -1118,8 +1135,7 @@ def _has_exact_binary_label_instruction(instruction: str, *, labels: tuple[str, 
     if _EXACT_BINARY_LABEL_VERB_RE.search(instruction) is None:
         return False
     return all(
-        re.search(rf"(?<![\w-]){re.escape(label)}(?![\w-])", instruction, re.IGNORECASE)
-        is not None
+        re.search(rf"(?<![\w-]){re.escape(label)}(?![\w-])", instruction, re.IGNORECASE) is not None
         for label in labels
     )
 
@@ -1142,10 +1158,14 @@ def _validate_binary_status_reward_shape(task: dict, *, prefix: str) -> list[str
             expected_values <= {"blank", "populated"} or expected_values <= {"link", "no-link"}
         ):
             continue
-        allowed_values = {"blank", "populated"} if expected_values <= {"blank", "populated"} else {
-            "link",
-            "no-link",
-        }
+        allowed_values = (
+            {"blank", "populated"}
+            if expected_values <= {"blank", "populated"}
+            else {
+                "link",
+                "no-link",
+            }
+        )
         if not (
             isinstance(retrieved, list)
             and len(retrieved) == 1
@@ -1608,9 +1628,7 @@ def validate_adversarial_tasks(
         adv_action = task.get("adversarial_action")
 
         if adv_reward is None and adv_action is None:
-            errors.append(
-                f"{prefix} missing adversarial_action or adversarial_reward"
-            )
+            errors.append(f"{prefix} missing adversarial_action or adversarial_reward")
         elif adv_reward is not None and (not isinstance(adv_reward, dict) or not adv_reward):
             errors.append(f"{prefix} adversarial_reward must be a non-empty object")
         elif isinstance(adv_reward, dict) and "type" not in adv_reward and "eval" not in adv_reward:
@@ -1620,9 +1638,10 @@ def validate_adversarial_tasks(
                 errors.append(f"{prefix} adversarial_action must be a non-empty object")
             elif not isinstance(adv_action.get("kind"), str) or not adv_action["kind"].strip():
                 errors.append(f"{prefix} adversarial_action.kind must be a non-empty string")
-            elif adv_action["kind"].strip() not in _ACTION_KINDS:
+            elif not _adversarial_action_kind_allowed(task, adv_action["kind"].strip()):
                 errors.append(
-                    f"{prefix} adversarial_action.kind must be one of {sorted(_ACTION_KINDS)}"
+                    f"{prefix} adversarial_action.kind must be one of "
+                    f"{sorted(_ACTION_KINDS)} or a host-ready pilot action"
                 )
 
         if not is_strategy_only_plan:

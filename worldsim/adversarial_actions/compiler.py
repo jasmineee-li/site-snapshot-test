@@ -16,12 +16,20 @@ from worldsim.adversarial_actions.catalog import (
     ACTION_SIGNAL_BY_KIND as _CATALOG_ACTION_SIGNAL_BY_KIND,
 )
 from worldsim.adversarial_actions.catalog import (
+    ACTION_SPEC_BY_KIND,
     DEFAULT_ACTION_KINDS,
     EDITOR_METHODS_BY_MUTATION_ACTION,
     MUTATION_ACTION_BY_EDITOR_METHOD,
     MUTATION_ACTION_KINDS,
     get_action_spec,
     option_for_kind,
+)
+from worldsim.adversarial_actions.tier3 import (
+    compile_tier3_final_state_check,
+    compile_tier3_network_reward,
+    option_marks_host_ready,
+    task_action_is_host_ready,
+    tier3_action_options,
 )
 from worldsim.placeholders import placeholder_for_site
 
@@ -53,14 +61,17 @@ _MUTATION_SUCCESS_STATUSES = [200, 201, 202, 204, 302, 303]
 def annotate_exposure_contracts_with_actions(
     exposure_contracts: Mapping[str, Mapping[str, Any]],
     benign_tasks: list[Mapping[str, Any]],
+    *,
+    policy: str = "default",
 ) -> dict[str, dict[str, Any]]:
     """Return exposure contracts annotated with planner-facing action options."""
+    policy = canonical_action_policy(policy)
     benign_by_id = {str(task.get("id") or ""): task for task in benign_tasks}
     annotated: dict[str, dict[str, Any]] = {}
     for task_id, contract in exposure_contracts.items():
         copied = json.loads(json.dumps(dict(contract)))
         benign_task = benign_by_id.get(str(task_id))
-        options = allowed_action_options(benign_task, copied)
+        options = allowed_action_options(benign_task, copied, policy=policy)
         if options:
             copied["adversarial_action_options"] = options
         annotated[str(task_id)] = copied
@@ -77,7 +88,12 @@ def annotate_exposure_contracts_with_action_policy(
     if policy not in ACTION_POLICIES:
         raise ValueError("action policy must be one of " + ", ".join(ACTION_POLICIES))
     policy = canonical_action_policy(policy)
-    annotated = annotate_exposure_contracts_with_actions(exposure_contracts, benign_tasks)
+    policy = canonical_action_policy(policy)
+    annotated = annotate_exposure_contracts_with_actions(
+        exposure_contracts,
+        benign_tasks,
+        policy=policy,
+    )
     if policy == "default":
         return annotated
     if policy == "semantic_only":
@@ -242,6 +258,8 @@ def _normalized_tier_policy(policy: str) -> tuple[int, str] | None:
 def allowed_action_options(
     benign_task: Mapping[str, Any] | None,
     exposure_contract: Mapping[str, Any],
+    *,
+    policy: str = "default",
 ) -> list[dict[str, str]]:
     options: list[dict[str, str]] = [option_for_kind("open_required_url")]
     if benign_task is not None and _single_binary_label_expected(
@@ -253,6 +271,13 @@ def allowed_action_options(
     action = _EDITOR_ACTION_BY_METHOD.get(method)
     if action:
         options.append(option_for_kind(action))
+    options.extend(
+        tier3_action_options(
+            benign_task,
+            exposure_contract,
+            policy=canonical_action_policy(policy),
+        )
+    )
     return options
 
 
@@ -264,8 +289,8 @@ def compile_adversarial_reward(
     if not isinstance(action, Mapping):
         raise ValueError("adversarial_action must be an object")
     kind = str(action.get("kind") or "").strip()
-    if kind not in ACTION_KINDS:
-        raise ValueError("adversarial_action.kind must be one of " + ", ".join(ACTION_KINDS))
+    if kind not in ACTION_SPEC_BY_KIND:
+        raise ValueError("adversarial_action.kind is not a known catalog action")
 
     exposure_contract = adversarial_task.get("exposure_contract")
     if not isinstance(exposure_contract, Mapping):
@@ -287,6 +312,13 @@ def compile_adversarial_reward(
             },
             "last_event_only": False,
         }
+    tier3_reward = compile_tier3_network_reward(
+        adversarial_task,
+        kind=kind,
+        witness=_required_url_for_task(adversarial_task),
+    )
+    if tier3_reward is not None:
+        return tier3_reward
     if kind in _MUTATION_ACTIONS:
         return _compile_mutation_network_reward(adversarial_task, kind=kind)
 
@@ -301,6 +333,13 @@ def compile_adversarial_final_state_check(
     if not isinstance(action, Mapping):
         return None
     kind = str(action.get("kind") or "").strip()
+    tier3_check = compile_tier3_final_state_check(
+        adversarial_task,
+        kind=kind,
+        witness=_required_url_for_task(adversarial_task),
+    )
+    if tier3_check is not None:
+        return tier3_check
     if kind not in _MUTATION_ACTIONS:
         return None
 
@@ -335,7 +374,7 @@ def reward_signal_for_task(task: Mapping[str, Any]) -> str:
     if isinstance(action, Mapping):
         kind = str(action.get("kind") or "")
         spec = get_action_spec(kind)
-        if spec is not None and spec.default_enabled:
+        if spec is not None and (spec.default_enabled or task_action_is_host_ready(task)):
             return spec.reward_signal
         if spec is not None and not spec.default_enabled:
             return "disabled_action"
@@ -361,11 +400,12 @@ def action_metadata_for_task(task: Mapping[str, Any]) -> dict[str, Any]:
             "adversarial_action_family": "unknown",
             "adversarial_action_enabled": False,
         }
+    enabled = spec.default_enabled or task_action_is_host_ready(task)
     return {
         "adversarial_action_kind": spec.kind,
         "adversarial_action_tier": spec.impact_tier,
         "adversarial_action_family": spec.action_family,
-        "adversarial_action_enabled": spec.default_enabled,
+        "adversarial_action_enabled": enabled,
     }
 
 
@@ -470,7 +510,12 @@ def _allowed_action_kinds(
         return {
             str(option.get("kind") or "").strip()
             for option in annotated
-            if isinstance(option, Mapping) and str(option.get("kind") or "").strip()
+            if isinstance(option, Mapping)
+            and str(option.get("kind") or "").strip()
+            and (
+                str(option.get("kind") or "").strip() in ACTION_KINDS
+                or option_marks_host_ready(option)
+            )
         }
     preference = exposure_contract.get("adversarial_action_preference")
     if isinstance(preference, Mapping) and preference.get("policy") == "semantic_only":

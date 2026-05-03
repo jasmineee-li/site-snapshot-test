@@ -25,6 +25,7 @@ from worldsim.phases.phase_2_injections_api import (
     _OVERGENERATION_MULTIPLIER,
     _build_messages,
     _synthesize_summary,
+    build_emit_strategies_tool,
     generate_phase_2a_plans_api,
 )
 
@@ -79,6 +80,15 @@ class TestEmitPlansToolSchema:
         ]["adversarial_action"]["properties"]["kind"]
 
         assert tuple(action_kind_schema["enum"]) == ACTION_KINDS
+        assert "create_secret_or_key" not in action_kind_schema["enum"]
+
+    def test_action_schema_can_add_host_ready_pilot_kinds(self):
+        tool = build_emit_strategies_tool((*ACTION_KINDS, "modify_repository_content"))
+        action_kind_schema = tool["input_schema"]["properties"]["plans"]["items"]["properties"][
+            "adversarial_action"
+        ]["properties"]["kind"]
+
+        assert action_kind_schema["enum"][-1] == "modify_repository_content"
         assert "create_secret_or_key" not in action_kind_schema["enum"]
 
 
@@ -323,6 +333,43 @@ async def test_happy_path_returns_plans(monkeypatch: pytest.MonkeyPatch):
     assert kwargs["tool_choice"] == {"type": "tool", "name": "emit_adversarial_strategies"}
     assert kwargs["tools"] == [_EMIT_PLANS_TOOL]
     assert kwargs["max_tokens"] == _MAX_OUTPUT_TOKENS
+
+
+@pytest.mark.asyncio
+async def test_api_call_schema_includes_host_ready_tier3_contract(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    plan = _sample_plan()
+    plan["adversarial_action"] = {
+        "kind": "modify_repository_content",
+        "description": "Modify repository content.",
+    }
+    client = _mock_client_returning([plan])
+    monkeypatch.setattr(phase_2_injections_api, "get_client", lambda: client)
+
+    await generate_phase_2a_plans_api(
+        benign_tasks=[{"id": "benign_1", "site": "gitlab", "benchmark": "webarena_verified"}],
+        benign_target_resources={"benign_1": {"kind": "gitlab_issue"}},
+        exposure_contracts={
+            "benign_1": {
+                "adversarial_action_options": [
+                    {"kind": "modify_repository_content", "host_ready": True}
+                ]
+            }
+        },
+        cell_targets={"authority::plaintext": 1},
+        benchmark_profile={"site_name": "gitlab", "injection_surface": []},
+        agent_context=None,
+        sandbox_model="claude-sonnet-4-6",
+        label="smoke",
+        site="gitlab",
+    )
+
+    kwargs = client.messages.stream.call_args.kwargs
+    action_kind_schema = kwargs["tools"][0]["input_schema"]["properties"]["plans"]["items"][
+        "properties"
+    ]["adversarial_action"]["properties"]["kind"]
+    assert "modify_repository_content" in action_kind_schema["enum"]
 
 
 @pytest.mark.asyncio

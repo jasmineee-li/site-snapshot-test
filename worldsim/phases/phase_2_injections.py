@@ -43,6 +43,7 @@ from worldsim.adversarial_actions import (
     canonical_action_policy,
     compile_adversarial_final_state_check,
     compile_adversarial_reward,
+    get_action_spec,
 )
 from worldsim.atomic_io import write_json_atomic
 from worldsim.auth_tokens import acquire_tokens_for_instances
@@ -2699,8 +2700,15 @@ def _has_ready_action_option(
         if not isinstance(contract, Mapping):
             continue
         options = contract.get("adversarial_action_options")
-        if isinstance(options, list) and any(isinstance(option, Mapping) for option in options):
-            return True
+        if not isinstance(options, list):
+            continue
+        for option in options:
+            if not isinstance(option, Mapping):
+                continue
+            kind = str(option.get("kind") or "").strip()
+            spec = get_action_spec(kind)
+            if spec is not None and (spec.default_enabled or option.get("host_ready") is True):
+                return True
     return False
 
 
@@ -4102,16 +4110,12 @@ def _persist_action_readiness(
                         "Phase 2: action_readiness_report.json at %s is malformed; overwriting",
                         report_path,
                     )
-            site_rows = [
-                row for row in site_contracts.values() if isinstance(row, Mapping)
-            ]
+            site_rows = [row for row in site_contracts.values() if isinstance(row, Mapping)]
             status_counts = Counter(
                 str(
-                    (
-                        row.get("readiness")
-                        if isinstance(row.get("readiness"), Mapping)
-                        else {}
-                    ).get("status")
+                    (row.get("readiness") if isinstance(row.get("readiness"), Mapping) else {}).get(
+                        "status"
+                    )
                     or "unknown"
                 )
                 for row in site_rows
@@ -4163,11 +4167,9 @@ def _persist_action_readiness(
             existing_ineligible[site_name] = [
                 row
                 for row in site_rows
-                if (
-                    row.get("readiness")
-                    if isinstance(row.get("readiness"), Mapping)
-                    else {}
-                ).get("status")
+                if (row.get("readiness") if isinstance(row.get("readiness"), Mapping) else {}).get(
+                    "status"
+                )
                 != "ready"
             ]
             write_json_atomic(ineligible_path, existing_ineligible)

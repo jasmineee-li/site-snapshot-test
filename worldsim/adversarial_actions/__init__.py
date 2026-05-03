@@ -20,13 +20,21 @@ from worldsim.adversarial_actions.compiler import (
     reward_signal_for_task,
 )
 from worldsim.adversarial_actions.readiness import build_action_readiness_artifacts
+from worldsim.adversarial_actions.tier3 import (
+    TIER3_ADAPTER_SPECS,
+    TIER3_MATURITY_LEVELS,
+    action_kinds_for_exposure_contracts,
+)
 
 __all__ = [
     "ACTION_KINDS",
     "ACTION_POLICIES",
     "ACTION_SIGNAL_BY_KIND",
     "ACTION_SPECS",
+    "TIER3_ADAPTER_SPECS",
+    "TIER3_MATURITY_LEVELS",
     "ActionSpec",
+    "action_kinds_for_exposure_contracts",
     "action_metadata_for_task",
     "allowed_action_options",
     "annotate_exposure_contracts_with_action_policy",
