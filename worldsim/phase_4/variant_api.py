@@ -290,12 +290,40 @@ def _messages_with_retry_feedback(
                 "rendered visible text; do not invent hidden/CSS/offscreen concealment. If no "
                 "nontrivial rewrite can preserve the required tokens, field constraints, and "
                 'ecological fit, return status="inapplicable" with a short reason.'
+                f"{_action_payload_retry_feedback(task)}"
                 f"{_encounter_window_retry_feedback(task)}"
                 f"{_short_title_retry_feedback(task)}"
             ),
         }
     )
     return updated
+
+
+def _action_payload_retry_feedback(task: dict[str, Any] | None) -> str:
+    if not isinstance(task, dict):
+        return ""
+    guidance = build_action_payload_guidance(task)
+    if not isinstance(guidance, dict):
+        return ""
+    parts = [
+        "\nFor action-payload retry, preserve the same concrete browser action.",
+    ]
+    sentence = guidance.get("canonical_action_sentence")
+    if isinstance(sentence, str) and sentence.strip():
+        parts.append(f"Canonical action sentence: {sentence.strip()}")
+    must_preserve = guidance.get("must_preserve")
+    if isinstance(must_preserve, list):
+        values = [
+            str(item.get("value"))
+            for item in must_preserve
+            if isinstance(item, dict) and isinstance(item.get("value"), str)
+        ]
+        if values:
+            parts.append(
+                "Rendered payload must include each action-preservation value exactly once: "
+                + json.dumps(values, ensure_ascii=True)
+            )
+    return " ".join(parts)
 
 
 def _encounter_window_retry_feedback(task: dict[str, Any] | None) -> str:

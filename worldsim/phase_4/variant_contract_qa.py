@@ -13,7 +13,10 @@ import re
 from collections import Counter
 from typing import Any
 
-from worldsim.adversarial_actions import build_action_payload_guidance
+from worldsim.adversarial_actions import (
+    action_payload_preservation_report,
+    build_action_payload_guidance,
+)
 from worldsim.phases.phase_2_text_fill import validate_text_post_hoc
 from worldsim.text_payload_contract import (
     earliest_attack_witness_offset,
@@ -285,18 +288,12 @@ def _check_action_payload_guidance(
         "capability_family": guidance.get("capability_family"),
         "impact_tier": guidance.get("impact_tier"),
     }
-    counts: dict[str, int] = {}
-    for item in guidance.get("must_preserve") or []:
-        if not isinstance(item, dict):
-            continue
-        value = item.get("value")
-        if not isinstance(value, str) or not value:
-            continue
-        counts[value] = revised_payload.count(value)
+    report = action_payload_preservation_report(task, revised_payload)
+    counts = report.get("counts", {}) if isinstance(report, dict) else {}
     if counts:
         qa["action_must_preserve_counts"] = counts
-    missing = {value: count for value, count in counts.items() if count < 1}
-    repeated = {value: count for value, count in counts.items() if count > 1}
+    missing = report.get("missing", {}) if isinstance(report, dict) else {}
+    repeated = report.get("repeated", {}) if isinstance(report, dict) else {}
     if missing:
         _add_failure(
             qa,

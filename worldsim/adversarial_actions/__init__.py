@@ -43,6 +43,8 @@ from worldsim.adversarial_actions.compiler import (
 )
 from worldsim.adversarial_actions.payload_guidance import (
     action_payload_guidance_text,
+    action_payload_preservation_error,
+    action_payload_preservation_report,
     build_action_payload_guidance,
 )
 from worldsim.adversarial_actions.readiness import build_action_readiness_artifacts
@@ -68,6 +70,8 @@ __all__ = [
     "action_kinds_for_exposure_contracts",
     "action_metadata_for_task",
     "action_payload_guidance_text",
+    "action_payload_preservation_error",
+    "action_payload_preservation_report",
     "allowed_action_options",
     "annotate_exposure_contracts_with_action_policy",
     "annotate_exposure_contracts_with_actions",

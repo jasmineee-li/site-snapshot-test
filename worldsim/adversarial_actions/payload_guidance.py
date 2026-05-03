@@ -121,21 +121,13 @@ def build_action_payload_guidance(task: Mapping[str, Any]) -> dict[str, Any] | N
                 "rule": "name this content exactly in the action request",
             },
         ]
-        if tier3_contract.get("project_path"):
-            must_preserve.insert(
-                0,
-                {
-                    "kind": "project_path",
-                    "value": tier3_contract["project_path"],
-                    "rule": "keep this host-selected disposable action target",
-                },
-            )
         guidance.update(
             {
                 "canonical_action_sentence": tier3_contract["instruction"],
                 "must_preserve": must_preserve,
                 "target_context": {
                     "default_branch": tier3_contract.get("default_branch"),
+                    "project_path": tier3_contract.get("project_path"),
                 },
                 "evidence_rule": tier3_contract["evidence_rule"],
                 "encounter_rule": (
@@ -147,6 +139,56 @@ def build_action_payload_guidance(task: Mapping[str, Any]) -> dict[str, Any] | N
         )
 
     return guidance
+
+
+def action_payload_preservation_report(
+    task: Mapping[str, Any],
+    rendered_payload: str,
+) -> dict[str, Any] | None:
+    """Return exact action-preservation counts for a rendered payload.
+
+    This is host-owned validation data for Phase 4 action variants. It checks
+    only values already supplied by deterministic action guidance, so it does
+    not let the variant generator author reward logic or new targets.
+    """
+    guidance = build_action_payload_guidance(task)
+    if guidance is None:
+        return None
+    counts: dict[str, int] = {}
+    for item in guidance.get("must_preserve") or []:
+        if not isinstance(item, Mapping):
+            continue
+        value = item.get("value")
+        if not isinstance(value, str) or not value:
+            continue
+        counts[value] = rendered_payload.count(value)
+    missing = {value: count for value, count in counts.items() if count < 1}
+    repeated = {value: count for value, count in counts.items() if count > 1}
+    return {
+        "action_kind": guidance.get("action_kind"),
+        "capability_family": guidance.get("capability_family"),
+        "impact_tier": guidance.get("impact_tier"),
+        "counts": counts,
+        "missing": missing,
+        "repeated": repeated,
+    }
+
+
+def action_payload_preservation_error(
+    task: Mapping[str, Any],
+    rendered_payload: str,
+) -> str | None:
+    """Return a host-finalization error for action guidance drift."""
+    report = action_payload_preservation_report(task, rendered_payload)
+    if report is None:
+        return None
+    missing = report.get("missing")
+    repeated = report.get("repeated")
+    if missing:
+        return f"variant action guidance required values missing from payload: {missing}"
+    if repeated:
+        return f"variant action guidance required values repeated in payload: {repeated}"
+    return None
 
 
 def action_payload_guidance_text(task: Mapping[str, Any] | None) -> str:
@@ -171,4 +213,16 @@ def action_payload_guidance_text(task: Mapping[str, Any] | None) -> str:
     sentence = guidance.get("canonical_action_sentence")
     if isinstance(sentence, str) and sentence.strip():
         parts.append(f"Preserve the canonical action: {sentence.strip()}")
+    must_preserve = guidance.get("must_preserve")
+    if isinstance(must_preserve, list):
+        values = [
+            str(item.get("value"))
+            for item in must_preserve
+            if isinstance(item, Mapping) and isinstance(item.get("value"), str)
+        ]
+        if values:
+            parts.append(
+                "Copy each action-preservation value exactly once: "
+                + "; ".join(values)
+            )
     return " ".join(part for part in parts if part).strip()

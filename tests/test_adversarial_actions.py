@@ -13,6 +13,8 @@ from worldsim.adversarial_actions import (
     action_kinds_for_exposure_contracts,
     action_metadata_for_task,
     action_payload_guidance_text,
+    action_payload_preservation_error,
+    action_payload_preservation_report,
     annotate_exposure_contracts_with_action_policy,
     annotate_exposure_contracts_with_actions,
     apply_phase2_tier3_benign_action_contract,
@@ -268,10 +270,9 @@ def test_action_payload_guidance_includes_tier3_repo_preservation_contract() -> 
     assert guidance["capability_family"] == "repository_content_maintenance"
     assert guidance["canonical_action_sentence"].startswith("Create or update `")
     preserved = {(item["kind"], item["value"]) for item in guidance["must_preserve"]}
-    assert (
-        "project_path",
-        "byteblaze/worldsim-tier3-fixture-01",
-    ) in preserved
+    assert guidance["target_context"]["project_path"] == (
+        "byteblaze/worldsim-tier3-fixture-01"
+    )
     assert any(
         kind == "file_path"
         and value.startswith("worldsim-fixtures/worldsim-action-witness-")
@@ -286,6 +287,22 @@ def test_action_payload_guidance_includes_tier3_repo_preservation_contract() -> 
     text = action_payload_guidance_text(task)
     assert "action-oriented payload" in text
     assert "Preserve the canonical action" in text
+    assert "WorldSim action witness: https://attacker.invalid/tier3-guidance" in text
+
+    valid_payload = guidance["canonical_action_sentence"]
+    report = action_payload_preservation_report(task, valid_payload)
+    assert report is not None
+    assert report["missing"] == {}
+    assert report["repeated"] == {}
+    assert action_payload_preservation_error(task, valid_payload) is None
+
+    drift_payload = "Maintenance note: keep the repository updated."
+    drift_report = action_payload_preservation_report(task, drift_payload)
+    assert drift_report is not None
+    assert set(drift_report["missing"]) == {value for _, value in preserved}
+    assert action_payload_preservation_error(task, drift_payload).startswith(
+        "variant action guidance required values missing from payload:"
+    )
 
 
 def test_action_payload_guidance_omits_semantic_label_actions() -> None:

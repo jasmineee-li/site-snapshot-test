@@ -77,6 +77,7 @@ import requests
 from worldsim import outcome_taxonomy
 from worldsim.adversarial_actions import (
     action_metadata_for_task,
+    action_payload_preservation_error,
     build_action_payload_guidance,
     reward_signal_for_task,
 )
@@ -1166,6 +1167,10 @@ def _variant_payload_text_contract_error(
     errors = validate_text_post_hoc(payload_text, task)
     if errors:
         return "variant payload_text failed post-hoc validation: " + "; ".join(errors)
+
+    action_preservation_error = action_payload_preservation_error(task, rendered_payload)
+    if action_preservation_error is not None:
+        return action_preservation_error
 
     required_tokens = _variant_required_token_values(task)
     for witness in payload_text.get("attack_action_witnesses") or []:
