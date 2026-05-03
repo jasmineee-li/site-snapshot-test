@@ -13,7 +13,9 @@ from collections.abc import Mapping
 from typing import Any
 
 from worldsim.adversarial_actions.catalog import (
-    ACTION_SIGNAL_BY_KIND,
+    ACTION_SIGNAL_BY_KIND as _CATALOG_ACTION_SIGNAL_BY_KIND,
+)
+from worldsim.adversarial_actions.catalog import (
     DEFAULT_ACTION_KINDS,
     EDITOR_METHODS_BY_MUTATION_ACTION,
     MUTATION_ACTION_BY_EDITOR_METHOD,
@@ -24,6 +26,7 @@ from worldsim.adversarial_actions.catalog import (
 from worldsim.placeholders import placeholder_for_site
 
 ACTION_KINDS: tuple[str, ...] = DEFAULT_ACTION_KINDS
+ACTION_SIGNAL_BY_KIND: dict[str, str] = _CATALOG_ACTION_SIGNAL_BY_KIND
 ACTION_POLICIES: tuple[str, ...] = (
     "default",
     "semantic_only",
@@ -73,6 +76,7 @@ def annotate_exposure_contracts_with_action_policy(
     """Annotate exposure contracts and apply an optional action-selection policy."""
     if policy not in ACTION_POLICIES:
         raise ValueError("action policy must be one of " + ", ".join(ACTION_POLICIES))
+    policy = canonical_action_policy(policy)
     annotated = annotate_exposure_contracts_with_actions(exposure_contracts, benign_tasks)
     if policy == "default":
         return annotated
@@ -95,6 +99,15 @@ def annotate_exposure_contracts_with_action_policy(
             _keep_tier_actions(contract, tier=tier, policy=canonical_policy)
         return annotated
     raise ValueError(f"unsupported action policy {policy!r}")
+
+
+def canonical_action_policy(policy: str | None) -> str:
+    if not policy:
+        return "default"
+    normalized = _normalized_tier_policy(policy)
+    if normalized is not None:
+        return normalized[1]
+    return policy
 
 
 def _keep_semantic_actions_only(contract: dict[str, Any]) -> None:
@@ -199,15 +212,14 @@ def _keep_tier_actions(contract: dict[str, Any], *, tier: int, policy: str) -> N
             ),
         }
         return
-    if tier == 3:
-        contract["adversarial_action_options"] = []
-        contract["adversarial_action_preference"] = {
-            "policy": policy,
-            "reason": (
-                "Tier 3 pilot requested, but this contract has no host-ready "
-                "high-impact action option."
-            ),
-        }
+    contract["adversarial_action_options"] = []
+    contract["adversarial_action_preference"] = {
+        "policy": policy,
+        "reason": (
+            f"Tier {tier} pilot requested, but this contract has no host-ready "
+            "action option in that impact tier."
+        ),
+    }
 
 
 def _action_tier(kind: str) -> int | None:
@@ -322,9 +334,11 @@ def reward_signal_for_task(task: Mapping[str, Any]) -> str:
     action = task.get("adversarial_action")
     if isinstance(action, Mapping):
         kind = str(action.get("kind") or "")
-        signal = ACTION_SIGNAL_BY_KIND.get(kind)
-        if signal:
-            return signal
+        spec = get_action_spec(kind)
+        if spec is not None and spec.default_enabled:
+            return spec.reward_signal
+        if spec is not None and not spec.default_enabled:
+            return "disabled_action"
     reward = task.get("reward_function")
     adversarial_reward = reward.get("adversarial_reward") if isinstance(reward, Mapping) else None
     if isinstance(adversarial_reward, Mapping):
@@ -333,6 +347,26 @@ def reward_signal_for_task(task: Mapping[str, Any]) -> str:
         if _contains_agent_response(adversarial_reward):
             return "semantic_answer"
     return "unknown"
+
+
+def action_metadata_for_task(task: Mapping[str, Any]) -> dict[str, Any]:
+    """Return reporting metadata for the host-owned adversarial action."""
+    action = task.get("adversarial_action")
+    kind = str(action.get("kind") or "").strip() if isinstance(action, Mapping) else ""
+    spec = get_action_spec(kind)
+    if spec is None:
+        return {
+            "adversarial_action_kind": kind or "unknown",
+            "adversarial_action_tier": None,
+            "adversarial_action_family": "unknown",
+            "adversarial_action_enabled": False,
+        }
+    return {
+        "adversarial_action_kind": spec.kind,
+        "adversarial_action_tier": spec.impact_tier,
+        "adversarial_action_family": spec.action_family,
+        "adversarial_action_enabled": spec.default_enabled,
+    }
 
 
 def _compile_binary_label_reward(benign_task: Mapping[str, Any]) -> dict[str, Any]:

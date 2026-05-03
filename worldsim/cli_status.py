@@ -66,9 +66,17 @@ def _load_json_array_if_present(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
     data = load_json(path)
-    if not isinstance(data, list):
-        return []
-    return [item for item in data if isinstance(item, dict)]
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, dict)]
+    if isinstance(data, dict):
+        rows: list[dict[str, Any]] = []
+        for value in data.values():
+            if isinstance(value, list):
+                rows.extend(item for item in value if isinstance(item, dict))
+            elif isinstance(value, dict):
+                rows.append(value)
+        return rows
+    return []
 
 
 def _task_group_key(task: dict[str, Any]) -> tuple[str, str, str, str, str, str]:

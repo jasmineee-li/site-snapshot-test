@@ -90,6 +90,11 @@ def _action_contract_row(
     eligibility_status = (
         str(eligibility.get("status") or "") if isinstance(eligibility, Mapping) else None
     )
+    if eligibility_status and eligibility_status != "eligible":
+        readiness = {
+            "status": "ineligible",
+            "reason": "exposure_contract_not_eligible:" + eligibility_status,
+        }
     return {
         "task_id": task_id,
         "site": site_name,

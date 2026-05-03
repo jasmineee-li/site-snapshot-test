@@ -20,10 +20,12 @@ Covers:
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
 
+from worldsim.adversarial_actions import ACTION_KINDS
 from worldsim.editors._registry import (
     EDITOR_CONTRACT_TABLE_SENTINEL,
     ContractRenderContext,
@@ -61,6 +63,19 @@ def test_model_facing_prompt_sources_are_not_platform_hardcoded() -> None:
         text = (prompt_dir / prompt_name).read_text(encoding="utf-8")
         for term in forbidden:
             assert term not in text, f"{prompt_name} contains platform-specific term {term!r}"
+
+
+def test_phase_2_prompt_action_kind_list_matches_default_action_kinds() -> None:
+    text = Path("worldsim/prompts/generate-injections.md").read_text(encoding="utf-8")
+    match = re.search(r'"kind": "([^"]+)"', text)
+    assert match is not None
+
+    prompt_kinds = tuple(part.strip() for part in match.group(1).split("|"))
+
+    assert prompt_kinds == ACTION_KINDS
+    assert "create_secret_or_key" not in prompt_kinds
+    assert "WebArena" not in text
+    assert "wasp_tier" not in text
 
 
 class TestRenderContractTable:

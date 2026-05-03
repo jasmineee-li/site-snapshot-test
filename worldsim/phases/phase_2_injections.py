@@ -26,6 +26,7 @@ import re
 import tempfile
 import threading
 import urllib.parse
+from collections import Counter
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -39,6 +40,7 @@ from worldsim.adversarial_actions import (
     ACTION_SIGNAL_BY_KIND,
     annotate_exposure_contracts_with_action_policy,
     build_action_readiness_artifacts,
+    canonical_action_policy,
     compile_adversarial_final_state_check,
     compile_adversarial_reward,
 )
@@ -438,6 +440,7 @@ async def run(args: argparse.Namespace) -> int:
             action_policy,
         )
         return 1
+    action_policy = canonical_action_policy(action_policy)
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
     task_origin_filter = _task_origin_filter_from_value(getattr(args, "task_origin", None))
     sites_filter_raw = getattr(args, "sites", None)
@@ -2460,6 +2463,18 @@ async def _generate_injections_for_site(
             "Phase 2: shard %r has no eligible tasks after target-resolution filtering", label
         )
         return SiteInjectionResult(site_name, [], [])
+    if _action_policy_requires_ready_options(action_policy) and not _has_ready_action_option(
+        site_tasks=site_tasks,
+        exposure_contracts=exposure_contracts,
+    ):
+        return SiteInjectionResult(
+            site_name,
+            [],
+            [
+                "action policy "
+                f"{action_policy!r} has no host-ready action options for eligible tasks"
+            ],
+        )
     surface_errors = _profile_surface_resolution_errors(
         site_tasks=site_tasks,
         exposure_contracts=exposure_contracts,
@@ -2668,6 +2683,25 @@ def _backfill_missing_binary_strategy_plans(
         planned_benign_ids.add(benign_id)
         used_plan_ids.add(str(plan["id"]))
     return backfilled, errors
+
+
+def _action_policy_requires_ready_options(policy: str) -> bool:
+    return policy in {"tier1_only", "tier2_pilot", "tier3_pilot"}
+
+
+def _has_ready_action_option(
+    *,
+    site_tasks: Iterable[Mapping[str, Any]],
+    exposure_contracts: Mapping[str, Mapping[str, Any]],
+) -> bool:
+    for task in site_tasks:
+        contract = exposure_contracts.get(str(task.get("id") or ""))
+        if not isinstance(contract, Mapping):
+            continue
+        options = contract.get("adversarial_action_options")
+        if isinstance(options, list) and any(isinstance(option, Mapping) for option in options):
+            return True
+    return False
 
 
 def _build_binary_strategy_backfill_plan(
@@ -3157,6 +3191,9 @@ def _resume_setting_matches(
             return True
     if field == "phase_2a_action_policy" and current_value is None:
         current_value = "default"
+    if field == "phase_2a_action_policy":
+        prior_value = canonical_action_policy(str(prior_value))
+        current_value = canonical_action_policy(str(current_value))
     if field == "phase_2a_resolution_signature":
         prior_value = _phase_2a_resolution_signature_comparable(prior_value)
         current_value = _phase_2a_resolution_signature_comparable(current_value)
@@ -3986,9 +4023,11 @@ def _persist_exposure_contracts(
                         "Phase 2: exposure_contracts.json at %s is malformed; overwriting",
                         path,
                     )
-            existing.setdefault(site_name, {}).update(
-                {str(key): dict(value) for key, value in contracts.items()}
-            )
+            site_existing = existing.get(site_name)
+            if not isinstance(site_existing, dict):
+                site_existing = {}
+            site_existing.update({str(key): dict(value) for key, value in contracts.items()})
+            existing[site_name] = site_existing
             write_json_atomic(path, existing)
 
             ineligible_existing: dict[str, list[dict[str, Any]]] = {}
@@ -4004,13 +4043,12 @@ def _persist_exposure_contracts(
                     )
             site_ineligible = [
                 dict(contract)
-                for contract in contracts.values()
+                for contract in site_existing.values()
                 if isinstance(contract.get("eligibility"), Mapping)
                 and contract["eligibility"].get("status") != "eligible"
             ]
-            if site_ineligible:
-                ineligible_existing.setdefault(site_name, []).extend(site_ineligible)
-                write_json_atomic(ineligible_path, ineligible_existing)
+            ineligible_existing[site_name] = site_ineligible
+            write_json_atomic(ineligible_path, ineligible_existing)
     except Exception as exc:
         logger.warning(
             "Phase 2a: could not persist exposure contracts for site %r: %s",
@@ -4025,7 +4063,7 @@ def _persist_action_readiness(
     contracts: Mapping[str, Mapping[str, Any]],
 ) -> None:
     try:
-        action_contracts, report, ineligible = build_action_readiness_artifacts(
+        action_contracts, _report, _ineligible = build_action_readiness_artifacts(
             site_name=site_name,
             contracts=contracts,
         )
@@ -4046,7 +4084,11 @@ def _persist_action_readiness(
                         "Phase 2: action_contracts.json at %s is malformed; overwriting",
                         contracts_path,
                     )
-            existing_contracts.setdefault(site_name, {}).update(action_contracts)
+            site_contracts = existing_contracts.get(site_name)
+            if not isinstance(site_contracts, dict):
+                site_contracts = {}
+            site_contracts.update(action_contracts)
+            existing_contracts[site_name] = site_contracts
             write_json_atomic(contracts_path, existing_contracts)
 
             existing_report: dict[str, Any] = {}
@@ -4060,7 +4102,51 @@ def _persist_action_readiness(
                         "Phase 2: action_readiness_report.json at %s is malformed; overwriting",
                         report_path,
                     )
-            existing_report[site_name] = report
+            site_rows = [
+                row for row in site_contracts.values() if isinstance(row, Mapping)
+            ]
+            status_counts = Counter(
+                str(
+                    (
+                        row.get("readiness")
+                        if isinstance(row.get("readiness"), Mapping)
+                        else {}
+                    ).get("status")
+                    or "unknown"
+                )
+                for row in site_rows
+            )
+            by_kind: Counter[str] = Counter()
+            by_tier: Counter[str] = Counter()
+            by_signal: Counter[str] = Counter()
+            for row in site_rows:
+                options = row.get("action_options")
+                if not isinstance(options, list):
+                    continue
+                for option in options:
+                    if not isinstance(option, Mapping):
+                        continue
+                    kind = str(option.get("kind") or "")
+                    tier = option.get("impact_tier")
+                    signal = str(option.get("reward_signal") or "")
+                    if kind:
+                        by_kind[kind] += 1
+                    if isinstance(tier, int):
+                        by_tier[f"tier_{tier}"] += 1
+                    if signal:
+                        by_signal[signal] += 1
+            existing_report[site_name] = {
+                "site": site_name,
+                "total_contracts": len(site_rows),
+                "ready_contracts": status_counts.get("ready", 0),
+                "ineligible_contracts": sum(
+                    count for status, count in status_counts.items() if status != "ready"
+                ),
+                "by_readiness_status": dict(sorted(status_counts.items())),
+                "by_action_kind": dict(sorted(by_kind.items())),
+                "by_impact_tier": dict(sorted(by_tier.items())),
+                "by_reward_signal": dict(sorted(by_signal.items())),
+            }
             write_json_atomic(report_path, existing_report)
 
             existing_ineligible: dict[str, list[dict[str, Any]]] = {}
@@ -4074,10 +4160,16 @@ def _persist_action_readiness(
                         "Phase 2: action_ineligible.json at %s is malformed; overwriting",
                         ineligible_path,
                     )
-            if ineligible:
-                existing_ineligible[site_name] = ineligible
-            else:
-                existing_ineligible.pop(site_name, None)
+            existing_ineligible[site_name] = [
+                row
+                for row in site_rows
+                if (
+                    row.get("readiness")
+                    if isinstance(row.get("readiness"), Mapping)
+                    else {}
+                ).get("status")
+                != "ready"
+            ]
             write_json_atomic(ineligible_path, existing_ineligible)
     except Exception as exc:
         logger.warning(

@@ -62,6 +62,15 @@ _CORE_SURFACE_ALIASES: dict[str, dict[str, str]] = {
     },
 }
 
+_ACTION_KINDS = (
+    "answer_opposite_binary_label",
+    "open_required_url",
+    "submit_comment",
+    "create_post",
+    "create_issue_note",
+    "create_issue",
+)
+
 
 def _canonical_core_surface(site: str, surface_id: str | None) -> str | None:
     if not surface_id:
@@ -1515,6 +1524,15 @@ def validate_adversarial_tasks(
         "attack_objective",
         "seed_template",
     )
+    _REQUIRED_STRATEGY_PLAN_FIELDS = (
+        "id",
+        "benign_task_id",
+        "exposure_contract_id",
+        "framing",
+        "concealment",
+        "attack_objective",
+        "adversarial_action",
+    )
     _REQUIRED_V1_FIELDS = (
         "id",
         "benign_task_id",
@@ -1535,9 +1553,20 @@ def validate_adversarial_tasks(
         prefix = f"task {i} ({task_id})"
 
         is_plan = "seed_template" in task
-        missing = [
-            f for f in (_REQUIRED_PLAN_FIELDS if is_plan else _REQUIRED_V1_FIELDS) if f not in task
-        ]
+        is_strategy_only_plan = (
+            "exposure_contract_id" in task
+            and "adversarial_action" in task
+            and "seed_template" not in task
+            and "adversarial_data_seed" not in task
+        )
+        required_fields = (
+            _REQUIRED_STRATEGY_PLAN_FIELDS
+            if is_strategy_only_plan
+            else _REQUIRED_PLAN_FIELDS
+            if is_plan
+            else _REQUIRED_V1_FIELDS
+        )
+        missing = [f for f in required_fields if f not in task]
         if missing:
             errors.append(f"{prefix} missing required fields: {', '.join(missing)}")
             continue
@@ -1591,21 +1620,26 @@ def validate_adversarial_tasks(
                 errors.append(f"{prefix} adversarial_action must be a non-empty object")
             elif not isinstance(adv_action.get("kind"), str) or not adv_action["kind"].strip():
                 errors.append(f"{prefix} adversarial_action.kind must be a non-empty string")
+            elif adv_action["kind"].strip() not in _ACTION_KINDS:
+                errors.append(
+                    f"{prefix} adversarial_action.kind must be one of {sorted(_ACTION_KINDS)}"
+                )
 
-        seed_key = "seed_template" if is_plan else "adversarial_data_seed"
-        seed_errors = (
-            validate_seed_template_contract(task.get(seed_key))
-            if is_plan
-            else validate_data_seed(task.get(seed_key), allow_none=False)
-        )
-        for se in seed_errors:
-            errors.append(f"{prefix} {seed_key}: {se}")
+        if not is_strategy_only_plan:
+            seed_key = "seed_template" if is_plan else "adversarial_data_seed"
+            seed_errors = (
+                validate_seed_template_contract(task.get(seed_key))
+                if is_plan
+                else validate_data_seed(task.get(seed_key), allow_none=False)
+            )
+            for se in seed_errors:
+                errors.append(f"{prefix} {seed_key}: {se}")
 
-        if is_plan:
+        if is_plan or is_strategy_only_plan:
             attack_objective = task.get("attack_objective")
             if not isinstance(attack_objective, str) or not attack_objective.strip():
                 errors.append(f"{prefix} attack_objective must be a non-empty string")
-            seed_template = task.get("seed_template")
+            seed_template = task.get("seed_template") if is_plan else None
         else:
             seed_template = task.get("adversarial_data_seed")
 
@@ -1616,6 +1650,9 @@ def validate_adversarial_tasks(
         concealment = task.get("concealment")
         if concealment not in _CONCEALMENTS:
             errors.append(f"{prefix} concealment must be one of {sorted(_CONCEALMENTS)}")
+
+        if is_strategy_only_plan:
+            continue
 
         delivery_mechanism = task.get("delivery_mechanism")
         if delivery_mechanism not in _DELIVERY_MECHANISMS:

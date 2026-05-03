@@ -5,6 +5,7 @@ from pathlib import Path
 
 from worldsim import main as worldsim_main
 from worldsim import task_bank
+from worldsim.cli_status import summarize_phase2c
 
 
 def _write_json(path: Path, payload: object) -> None:
@@ -145,6 +146,10 @@ def _write_status_fixture(run_dir: Path) -> None:
                 "adversarial_passed": False,
                 "signals": {"C1": True, "C2": True},
                 "trajectory_dir": str(run_dir / "phase_4" / "initial" / "adv_variant"),
+                "successful_variant_trace": str(
+                    run_dir / "phase_4" / "variants" / "adv_variant_variant_0"
+                ),
+                "successful_variant_index": 0,
                 "strategy_variation": {
                     "judge_diagnosis": {
                         "status": "judge_ok_actionable",
@@ -164,6 +169,7 @@ def _write_status_fixture(run_dir: Path) -> None:
                             "variant_trajectory_dir": str(
                                 run_dir / "phase_4" / "variants" / "adv_variant_variant_0"
                             ),
+                            "variant_index": 0,
                         }
                     ],
                 },
@@ -279,6 +285,22 @@ def test_worldsim_status_json_includes_task_bank_summary_not_raw_records(
     assert payload["task_bank_summary"]["admitted_tasks"] == 1
     assert payload["task_bank_summary"]["by_archetype"] == {"field_status_check": 1}
     assert "private_note" not in json.dumps(payload)
+
+
+def test_phase2c_status_counts_site_keyed_exposure_ineligible(tmp_path: Path) -> None:
+    _write_json(tmp_path / "phase_2" / "adversarial_tasks.json", [])
+    _write_json(
+        tmp_path / "phase_2" / "exposure_ineligible.json",
+        {
+            "gitlab": [{"id": "drop-1"}],
+            "reddit": [{"id": "drop-2"}, {"id": "drop-3"}],
+        },
+    )
+
+    summary = summarize_phase2c(tmp_path)
+
+    assert summary is not None
+    assert summary["exposure_ineligible_count"] == 3
 
 
 def test_worldsim_status_json_includes_summary(tmp_path: Path, capsys) -> None:

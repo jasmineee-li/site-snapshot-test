@@ -17,6 +17,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from worldsim.adversarial_actions import ACTION_KINDS
 from worldsim.phases import phase_2_injections_api
 from worldsim.phases.phase_2_injections_api import (
     _EMIT_PLANS_TOOL,
@@ -71,6 +72,14 @@ class TestEmitPlansToolSchema:
     def test_overgeneration_multiplier_is_above_one(self):
         """Overgeneration must be > 1 for skip-on-reject to net the target count."""
         assert _OVERGENERATION_MULTIPLIER > 1.0
+
+    def test_action_schema_matches_default_enabled_action_kinds(self):
+        action_kind_schema = _EMIT_PLANS_TOOL["input_schema"]["properties"]["plans"]["items"][
+            "properties"
+        ]["adversarial_action"]["properties"]["kind"]
+
+        assert tuple(action_kind_schema["enum"]) == ACTION_KINDS
+        assert "create_secret_or_key" not in action_kind_schema["enum"]
 
 
 # ---------------------------------------------------------------------------

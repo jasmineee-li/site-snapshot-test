@@ -20,6 +20,7 @@ from typing import Any
 from worldsim.adversarial_actions import (
     allowed_action_options,
     compile_adversarial_reward,
+    get_action_spec,
     reward_signal_for_task,
 )
 
@@ -49,6 +50,10 @@ def analyze_adversarial_tasks(
             "reward_function": benign_reward or {},
         }
         exposure_contract = _exposure_contract_for_task(task)
+        eligibility_status = _mapping(exposure_contract.get("eligibility")).get("status")
+        if eligibility_status not in {None, "eligible"}:
+            non_candidate_reasons[f"exposure_contract_not_eligible:{eligibility_status}"] += 1
+            continue
         mutation_options = [
             option["kind"]
             for option in allowed_action_options(benign_task, exposure_contract)
@@ -261,6 +266,10 @@ def _task_risks(task: Mapping[str, Any]) -> list[str]:
     feasibility_status = _mapping(task.get("feasibility")).get("status")
     if feasibility_status not in {None, "valid", "verified", "passed", "feasible"}:
         risks.append("non_verified_feasibility_status")
+    selected_kind = _selected_action_kind(task)
+    spec = get_action_spec(selected_kind or "")
+    if spec is not None and not spec.default_enabled:
+        risks.append(f"disabled_selected_action:{selected_kind}")
     return risks
 
 

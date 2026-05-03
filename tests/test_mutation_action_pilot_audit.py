@@ -101,6 +101,33 @@ def test_audit_keeps_retired_title_methods_out_of_mutation_candidates():
     }
 
 
+def test_audit_excludes_exposure_ineligible_contracts():
+    task = _task()
+    task["exposure_contract"]["eligibility"] = {"status": "ineligible"}
+
+    report = analyze_adversarial_tasks([task])
+
+    assert report["candidate_tasks"] == 0
+    assert report["non_candidate_reasons"] == {
+        "exposure_contract_not_eligible:ineligible": 1
+    }
+
+
+def test_audit_flags_disabled_selected_action_on_candidate():
+    task = _task()
+    task["adversarial_action"] = {"kind": "create_secret_or_key"}
+
+    report = analyze_adversarial_tasks([task])
+
+    assert report["candidate_tasks"] == 1
+    assert report["risk_counts"] == {
+        "disabled_selected_action:create_secret_or_key": 1
+    }
+    assert report["candidates"][0]["risks"] == [
+        "disabled_selected_action:create_secret_or_key"
+    ]
+
+
 def test_audit_cli_fails_when_candidate_floor_is_not_met(tmp_path, capsys):
     artifact = tmp_path / "adversarial_tasks.json"
     artifact.write_text("[]", encoding="utf-8")

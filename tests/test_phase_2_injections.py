@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 
 from worldsim.adversarial_actions import (
+    build_action_readiness_artifacts,
     compile_adversarial_final_state_check,
     compile_adversarial_reward,
 )
@@ -2144,6 +2145,36 @@ def test_resume_setting_matches_treats_missing_action_policy_as_default():
     )
 
 
+def test_resume_setting_matches_canonical_action_policy_aliases():
+    assert phase_2_injections._resume_setting_matches(
+        {"phase_2a_action_policy": "wasp_tier2_pilot"},
+        field="phase_2a_action_policy",
+        current_value="tier2_pilot",
+    )
+
+
+def test_action_policy_ready_option_gate_fails_when_all_tier_options_empty():
+    assert phase_2_injections._action_policy_requires_ready_options("tier3_pilot") is True
+    assert (
+        phase_2_injections._has_ready_action_option(
+            site_tasks=[{"id": "benign-1"}],
+            exposure_contracts={"benign-1": {"adversarial_action_options": []}},
+        )
+        is False
+    )
+    assert (
+        phase_2_injections._has_ready_action_option(
+            site_tasks=[{"id": "benign-1"}],
+            exposure_contracts={
+                "benign-1": {
+                    "adversarial_action_options": [{"kind": "create_post"}]
+                }
+            },
+        )
+        is True
+    )
+
+
 def test_load_reusable_phase_2_plans_rejects_phase_2a_resolution_signature_drift(tmp_path):
     plans_path = tmp_path / "adversarial_plans.json"
     plans_path.write_text(json.dumps([_plan_task()], indent=2))
@@ -3548,6 +3579,140 @@ def test_persist_action_readiness_writes_report_artifacts(monkeypatch, tmp_path)
     assert action_ineligible["reddit"][0]["readiness"]["reason"] == (
         "disabled_action_kind:create_secret_or_key"
     )
+
+
+def test_persist_action_readiness_aggregates_same_site_shards(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+
+    phase_2_injections._persist_action_readiness(
+        site_name="reddit",
+        contracts={
+            "benign-1": {
+                "contract_id": "contract-1",
+                "eligibility": {"status": "eligible"},
+                "adversarial_action_options": [{"kind": "create_post"}],
+            }
+        },
+    )
+    phase_2_injections._persist_action_readiness(
+        site_name="reddit",
+        contracts={
+            "benign-2": {
+                "contract_id": "contract-2",
+                "eligibility": {"status": "eligible"},
+                "adversarial_action_options": [{"kind": "submit_comment"}],
+            }
+        },
+    )
+
+    readiness_report = json.loads(
+        (tmp_path / "phase_2" / "action_readiness_report.json").read_text()
+    )
+    action_contracts = json.loads((tmp_path / "phase_2" / "action_contracts.json").read_text())
+
+    assert set(action_contracts["reddit"]) == {"benign-1", "benign-2"}
+    assert readiness_report["reddit"]["total_contracts"] == 2
+    assert readiness_report["reddit"]["ready_contracts"] == 2
+    assert readiness_report["reddit"]["by_action_kind"] == {
+        "create_post": 1,
+        "submit_comment": 1,
+    }
+
+
+def test_persist_action_readiness_keeps_prior_ineligible_after_ready_shard(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+
+    phase_2_injections._persist_action_readiness(
+        site_name="reddit",
+        contracts={
+            "benign-1": {
+                "contract_id": "contract-1",
+                "eligibility": {"status": "eligible"},
+                "adversarial_action_options": [{"kind": "create_secret_or_key"}],
+            }
+        },
+    )
+    phase_2_injections._persist_action_readiness(
+        site_name="reddit",
+        contracts={
+            "benign-2": {
+                "contract_id": "contract-2",
+                "eligibility": {"status": "eligible"},
+                "adversarial_action_options": [{"kind": "create_post"}],
+            }
+        },
+    )
+
+    readiness_report = json.loads(
+        (tmp_path / "phase_2" / "action_readiness_report.json").read_text()
+    )
+    action_ineligible = json.loads((tmp_path / "phase_2" / "action_ineligible.json").read_text())
+
+    assert readiness_report["reddit"]["total_contracts"] == 2
+    assert readiness_report["reddit"]["ready_contracts"] == 1
+    assert readiness_report["reddit"]["ineligible_contracts"] == 1
+    assert [row["task_id"] for row in action_ineligible["reddit"]] == ["benign-1"]
+
+
+def test_action_readiness_marks_exposure_ineligible_contract_not_ready():
+    _contracts, report, ineligible = build_action_readiness_artifacts(
+        site_name="reddit",
+        contracts={
+            "benign-1": {
+                "contract_id": "contract-1",
+                "eligibility": {"status": "ineligible"},
+                "adversarial_action_options": [{"kind": "create_post"}],
+            }
+        },
+    )
+
+    assert report["ready_contracts"] == 0
+    assert report["ineligible_contracts"] == 1
+    assert ineligible[0]["readiness"]["reason"] == "exposure_contract_not_eligible:ineligible"
+
+
+def test_persist_exposure_contracts_clears_stale_site_ineligible(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    stale_path = tmp_path / "phase_2" / "exposure_ineligible.json"
+    stale_path.parent.mkdir(parents=True)
+    stale_path.write_text(json.dumps({"reddit": [{"contract_id": "stale"}]}))
+
+    phase_2_injections._persist_exposure_contracts(
+        site_name="reddit",
+        contracts={
+            "benign-1": {
+                "contract_id": "contract-1",
+                "eligibility": {"status": "eligible"},
+            }
+        },
+    )
+
+    exposure_ineligible = json.loads(stale_path.read_text())
+    assert exposure_ineligible["reddit"] == []
+
+
+def test_persist_exposure_contracts_recovers_from_malformed_site_entry(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    contracts_path = tmp_path / "phase_2" / "exposure_contracts.json"
+    contracts_path.parent.mkdir(parents=True)
+    contracts_path.write_text(json.dumps({"reddit": []}))
+
+    phase_2_injections._persist_exposure_contracts(
+        site_name="reddit",
+        contracts={
+            "benign-1": {
+                "contract_id": "contract-1",
+                "eligibility": {"status": "eligible"},
+            }
+        },
+    )
+
+    exposure_contracts = json.loads(contracts_path.read_text())
+    assert exposure_contracts["reddit"]["benign-1"]["contract_id"] == "contract-1"
 
 
 @pytest.mark.asyncio
