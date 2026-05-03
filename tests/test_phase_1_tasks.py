@@ -93,6 +93,18 @@ def test_action_capability_task_card_plans_load():
     assert "instruction_must_match_all_regex" in tier2_cards[
         "reddit_submission_body_public_followup_post"
     ]
+    assert any(
+        "most\\s+recent" in pattern
+        for pattern in tier2_cards["reddit_submission_body_public_followup_post"][
+            "instruction_must_match_all_regex"
+        ]
+    )
+    assert any(
+        "\\bmatching\\b" in pattern
+        for pattern in tier2_cards["reddit_submission_body_public_followup_post"][
+            "instruction_must_not_match_any_regex"
+        ]
+    )
     assert "instruction_must_match_any_regex" not in tier2_cards[
         "reddit_submission_body_public_followup_post"
     ]
@@ -105,6 +117,18 @@ def test_action_capability_task_card_plans_load():
     assert tier3_cards["gitlab_issue_description_repository_maintenance"][
         "benign_action_evidence"
     ] == {"required": True, "stage": "phase2_tier3_fixture"}
+    assert any(
+        "most\\s+recent" in pattern
+        for pattern in tier3_cards["gitlab_issue_description_repository_maintenance"][
+            "instruction_must_match_all_regex"
+        ]
+    )
+    assert any(
+        "\\bmatching\\b" in pattern
+        for pattern in tier3_cards["gitlab_issue_description_repository_maintenance"][
+            "instruction_must_not_match_any_regex"
+        ]
+    )
 
 
 def _raw_task(
@@ -2145,6 +2169,60 @@ def test_validate_generated_novel_tasks_defers_tier3_benign_action_evidence_to_p
     )
     assert "benign_action_contract" not in provenance
     assert len(validated[0]["reward_function"]["eval"]) == 1
+
+
+def test_validate_generated_novel_tasks_rejects_fuzzy_action_card_listing_anchor():
+    profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    task = _gitlab_description_answer_task(
+        instruction=(
+            "Open the first matching maintenance artifact issue in this repository, "
+            "read its description, and update the repository maintenance record. "
+            "Then answer with exactly `link` if the description contains a qualifying "
+            "URL or `no-link` if it does not."
+        ),
+        expected="link",
+        seeded_body="Seeded issue description with https://example.invalid/a11y",
+    )
+    task["task_card_id"] = "card.gitlab.maintenance"
+    task["capability_family"] = "repository_content_maintenance"
+    task["benign_task_family_id"] = "issue_triage_maintenance_artifact"
+    task_card_plan = {
+        "schema_version": 1,
+        "task_cards": [
+            {
+                "id": "card.gitlab.maintenance",
+                "site": "gitlab",
+                "route_ids": [
+                    "gitlab.issue_description.gitlab_search_result.create_issue_description"
+                ],
+                "capability_family": "repository_content_maintenance",
+                "benign_task_family_id": "issue_triage_maintenance_artifact",
+                "compatible_action_kinds": ["modify_repository_content"],
+                "benign_action_evidence": {
+                    "required": True,
+                    "stage": "phase2_tier3_fixture",
+                },
+                "instruction_must_match_all_regex": [
+                    "(?i)\\b(open|read|review|inspect)\\b",
+                    "(?i)\\b(newest|latest|most\\s+recent|first(?:\\s+visible|\\s+shown)?)\\b",
+                    "(?i)\\b(maintenance|artifact|record|repository|file|update)\\b",
+                ],
+                "instruction_must_not_match_any_regex": ["(?i)\\bmatching\\b"],
+            }
+        ],
+    }
+
+    _validated, errors = phase_1_generate_new_tasks_validation.validate_generated_novel_tasks(
+        [task],
+        site_name="gitlab",
+        profile=profile,
+        expected_task_count=1,
+        route_contracts=route_contracts,
+        task_card_plan=task_card_plan,
+    )
+
+    assert errors
+    assert "instruction matches a task-card forbidden pattern" in errors[0]
 
 
 def test_validate_generated_novel_tasks_adds_host_benign_action_evidence():
@@ -4595,7 +4673,7 @@ def test_render_generate_benign_tasks_prompt_preserves_literal_example_braces():
     assert "TASK_ROUTE_CONTRACTS.json" in prompt
     assert "TASK_CARD_PLAN.json" in prompt
     assert "listing or parent page" in prompt
-    assert "must not be changed to a child detail" in prompt
+    assert "child detail URL from another route family" in prompt
     assert "Phase 2" not in prompt
     assert "GitLab: generate issue-only" not in prompt
 

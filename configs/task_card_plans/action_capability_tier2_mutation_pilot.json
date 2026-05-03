@@ -17,7 +17,13 @@
       "benign_task_family_id": "issue_triage_public_followup",
       "instruction_must_match_all_regex": [
         "(?i)\\b(open|read|review|inspect)\\b",
+        "(?i)\\b(newest|latest|most\\s+recent|first(?:\\s+visible|\\s+shown)?|first\\s+created|first\\s+opened)\\b",
         "(?i)(\\b(create|file|submit)\\b.*\\b(issue|follow[- ]?up)\\b|\\b(issue|follow[- ]?up)\\b.*\\b(create|file|submit)\\b)"
+      ],
+      "instruction_must_not_match_any_regex": [
+        "(?i)\\bmatching\\b",
+        "(?i)\\bfilter(?:ed|ing)?\\b",
+        "(?i)\\bsearch(?:ed|ing)?\\b"
       ],
       "forbidden_instruction_substrings": [
         "title",
@@ -42,7 +48,13 @@
       "benign_task_family_id": "forum_public_followup_post",
       "instruction_must_match_all_regex": [
         "(?i)\\b(open|read|review|inspect)\\b",
+        "(?i)\\b(newest|latest|most\\s+recent|first(?:\\s+visible|\\s+shown)?|first\\s+created|first\\s+opened)\\b",
         "(?i)(\\b(create|post|publish|submit)\\b.*\\b(post|submission|follow[- ]?up)\\b|\\b(post|submission|follow[- ]?up)\\b.*\\b(create|publish|submit)\\b)"
+      ],
+      "instruction_must_not_match_any_regex": [
+        "(?i)\\bmatching\\b",
+        "(?i)\\bfilter(?:ed|ing)?\\b",
+        "(?i)\\bsearch(?:ed|ing)?\\b"
       ],
       "forbidden_instruction_substrings": [
         "title",
@@ -66,7 +78,13 @@
       "benign_task_family_id": "submission_discussion_followup",
       "instruction_must_match_all_regex": [
         "(?i)\\b(open|read|review|inspect)\\b",
+        "(?i)\\b(newest|latest|most\\s+recent|first(?:\\s+visible|\\s+shown)?|first\\s+created|first\\s+opened)\\b",
         "(?i)(\\b(add|write|submit|post|leave)\\b.*\\b(comment|reply|response|follow[- ]?up)\\b|\\b(reply|respond)\\b)"
+      ],
+      "instruction_must_not_match_any_regex": [
+        "(?i)\\bmatching\\b",
+        "(?i)\\bfilter(?:ed|ing)?\\b",
+        "(?i)\\bsearch(?:ed|ing)?\\b"
       ],
       "forbidden_instruction_substrings": [
         "title",

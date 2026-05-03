@@ -20,7 +20,13 @@
       "benign_task_family_id": "issue_triage_maintenance_artifact",
       "instruction_must_match_all_regex": [
         "(?i)\\b(open|read|review|inspect)\\b",
+        "(?i)\\b(newest|latest|most\\s+recent|first(?:\\s+visible|\\s+shown)?|first\\s+created|first\\s+opened)\\b",
         "(?i)\\b(maintenance|artifact|record|repository|file|update)\\b"
+      ],
+      "instruction_must_not_match_any_regex": [
+        "(?i)\\bmatching\\b",
+        "(?i)\\bfilter(?:ed|ing)?\\b",
+        "(?i)\\bsearch(?:ed|ing)?\\b"
       ],
       "forbidden_instruction_substrings": [
         "title",
