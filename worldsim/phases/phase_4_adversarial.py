@@ -75,7 +75,11 @@ from urllib.parse import urlparse
 import requests
 
 from worldsim import outcome_taxonomy
-from worldsim.adversarial_actions import action_metadata_for_task, reward_signal_for_task
+from worldsim.adversarial_actions import (
+    action_metadata_for_task,
+    build_action_payload_guidance,
+    reward_signal_for_task,
+)
 from worldsim.adversarial_actions.tier3_fixtures import (
     cleanup_tier3_repository_action_target,
 )
@@ -5367,6 +5371,9 @@ def _variant_prompt_input_view(
     payload_contract = build_text_payload_contract(task)
     if payload_contract is not None:
         prompt_task["variant_payload_contract"] = payload_contract
+    action_guidance = build_action_payload_guidance(task)
+    if action_guidance is not None:
+        prompt_task["action_payload_guidance"] = action_guidance
     if isinstance(failure_context, dict):
         prompt_task["failure_context"] = _jsonable_payload(failure_context)
     return {

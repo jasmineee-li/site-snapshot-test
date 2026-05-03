@@ -31,6 +31,7 @@ from anthropic import AsyncAnthropic
 from instructor.core.exceptions import IncompleteOutputException, InstructorRetryException
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
+from worldsim.adversarial_actions import build_action_payload_guidance
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.host_api_observability import (
     InstructorCallTrace,
@@ -211,6 +212,9 @@ def _build_messages(
     payload_contract = _variant_payload_contract(task)
     if payload_contract is not None:
         task_with_strategy["variant_payload_contract"] = payload_contract
+    action_guidance = build_action_payload_guidance(task)
+    if action_guidance is not None:
+        task_with_strategy["action_payload_guidance"] = action_guidance
     prompt_failure_context = _failure_context_for_prompt(failure_context)
     if prompt_failure_context is not None:
         task_with_strategy["failure_context"] = prompt_failure_context

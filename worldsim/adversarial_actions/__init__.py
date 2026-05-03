@@ -32,6 +32,10 @@ from worldsim.adversarial_actions.compiler import (
     compile_adversarial_reward,
     reward_signal_for_task,
 )
+from worldsim.adversarial_actions.payload_guidance import (
+    action_payload_guidance_text,
+    build_action_payload_guidance,
+)
 from worldsim.adversarial_actions.readiness import build_action_readiness_artifacts
 from worldsim.adversarial_actions.tier3 import (
     TIER3_ADAPTER_SPECS,
@@ -54,9 +58,11 @@ __all__ = [
     "action_kinds_for_capability_family",
     "action_kinds_for_exposure_contracts",
     "action_metadata_for_task",
+    "action_payload_guidance_text",
     "allowed_action_options",
     "annotate_exposure_contracts_with_action_policy",
     "annotate_exposure_contracts_with_actions",
+    "build_action_payload_guidance",
     "build_action_readiness_artifacts",
     "canonical_action_policy",
     "capability_family_from_task",
