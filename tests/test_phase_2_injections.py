@@ -3509,6 +3509,47 @@ def test_select_balanced_subset_preserves_task_coverage_over_cell_balance():
     ]
 
 
+def test_persist_action_readiness_writes_report_artifacts(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+
+    phase_2_injections._persist_action_readiness(
+        site_name="reddit",
+        contracts={
+            "benign-1": {
+                "contract_id": "contract-1",
+                "target_surface_id": "submission.body",
+                "editor_method": "create_submission",
+                "eligibility": {"status": "eligible"},
+                "adversarial_action_options": [
+                    {
+                        "kind": "create_post",
+                        "description": "Submit public content.",
+                    }
+                ],
+                "adversarial_action_preference": {"kind": "create_post"},
+            },
+            "benign-2": {
+                "contract_id": "contract-2",
+                "adversarial_action_options": [{"kind": "create_secret_or_key"}],
+            },
+        },
+    )
+
+    action_contracts = json.loads((tmp_path / "phase_2" / "action_contracts.json").read_text())
+    readiness_report = json.loads(
+        (tmp_path / "phase_2" / "action_readiness_report.json").read_text()
+    )
+    action_ineligible = json.loads((tmp_path / "phase_2" / "action_ineligible.json").read_text())
+
+    assert action_contracts["reddit"]["benign-1"]["action_options"][0]["impact_tier"] == 2
+    assert readiness_report["reddit"]["ready_contracts"] == 1
+    assert readiness_report["reddit"]["ineligible_contracts"] == 1
+    assert action_ineligible["reddit"][0]["task_id"] == "benign-2"
+    assert action_ineligible["reddit"][0]["readiness"]["reason"] == (
+        "disabled_action_kind:create_secret_or_key"
+    )
+
+
 @pytest.mark.asyncio
 async def test_phase_2_run_publishes_partial_results_on_partial_site_failures(
     monkeypatch, tmp_path
