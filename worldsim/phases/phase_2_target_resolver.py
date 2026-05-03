@@ -420,13 +420,17 @@ def _iter_eval_urls(task: Mapping[str, Any]) -> list[str]:
 
     Prefers NetworkEventEvaluator entries first (they name the URL the
     agent must hit); AgentResponseEvaluator entries rarely carry URLs
-    but are included as fallback.
+    but are included as fallback. Host-compiled benign action evidence is
+    deliberately skipped: it measures utility/action completion and must not
+    become the carrier/read target used for IPI placement.
     """
     reward = task.get("reward_function") or {}
     evals = reward.get("eval") or []
     ranked: list[tuple[int, str]] = []
     for ev in evals:
         if not isinstance(ev, dict):
+            continue
+        if _is_benign_action_evidence_eval(task, ev):
             continue
         evaluator = str(ev.get("evaluator") or "")
         priority = 0 if "NetworkEvent" in evaluator else 1
@@ -460,6 +464,26 @@ def _iter_eval_urls(task: Mapping[str, Any]) -> list[str]:
             )
     ranked.sort(key=lambda pair: pair[0])
     return [url for _, url in ranked]
+
+
+def _is_benign_action_evidence_eval(task: Mapping[str, Any], ev: Mapping[str, Any]) -> bool:
+    provenance = task.get("task_provenance")
+    if not isinstance(provenance, Mapping):
+        return False
+    contract = provenance.get("benign_action_contract")
+    if not isinstance(contract, Mapping):
+        return False
+    evaluator = contract.get("evaluator")
+    if not isinstance(evaluator, Mapping):
+        return False
+    return _stable_mapping_fingerprint(ev) == _stable_mapping_fingerprint(evaluator)
+
+
+def _stable_mapping_fingerprint(value: Mapping[str, Any]) -> str:
+    try:
+        return _json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
+    except TypeError:
+        return repr(value)
 
 
 def _url_with_expected_query_params(url: str, expected: Mapping[str, Any]) -> str:
