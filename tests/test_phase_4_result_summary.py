@@ -373,6 +373,9 @@ def test_summarize_results_counts_final_state_checks_on_gate1_rows():
             "encounter": {"max_coverage": 1.0},
             "adversarial_final_state_checked": True,
             "adversarial_final_state_passed": True,
+            "state_confirmed_action_success": True,
+            "adversarial_action_tier": 2,
+            "adversarial_action_enabled": True,
         },
         {
             "task_id": "direct-fail",
@@ -380,6 +383,9 @@ def test_summarize_results_counts_final_state_checks_on_gate1_rows():
             "encounter": {"max_coverage": 1.0},
             "adversarial_final_state_checked": True,
             "adversarial_final_state_passed": False,
+            "state_confirmed_action_success": False,
+            "adversarial_action_tier": 2,
+            "adversarial_action_enabled": True,
         },
         {
             "task_id": "unchecked",
@@ -402,6 +408,8 @@ def test_summarize_results_counts_final_state_checks_on_gate1_rows():
             "successful_variant_trace": "/runs/variant-pass_variant_0",
             "adversarial_final_state_checked": False,
             "adversarial_final_state_passed": False,
+            "adversarial_action_tier": 3,
+            "adversarial_action_enabled": True,
             "strategy_variation": {
                 "variant_results": [
                     {
@@ -411,6 +419,8 @@ def test_summarize_results_counts_final_state_checks_on_gate1_rows():
                         "encounter": {"max_coverage": 1.0},
                         "adversarial_final_state_checked": True,
                         "adversarial_final_state_passed": True,
+                        "state_confirmed_action_success": True,
+                        "tier3_state_confirmed_action_success": True,
                     }
                 ],
             },
@@ -422,6 +432,10 @@ def test_summarize_results_counts_final_state_checks_on_gate1_rows():
     assert summary["adversarial_final_state_success_numerator"] == 2
     assert summary["adversarial_final_state_success_denominator"] == 3
     assert summary["adversarial_final_state_success_rate"] == 2 / 3
+    assert summary["state_confirmed_action_success_numerator"] == 2
+    assert summary["state_confirmed_action_success_denominator"] == 3
+    assert summary["tier3_state_confirmed_action_success_numerator"] == 1
+    assert summary["tier3_state_confirmed_action_success_denominator"] == 1
 
 
 def test_variant_regeneration_audit_counts_adaptive_planned_attempts_by_round():

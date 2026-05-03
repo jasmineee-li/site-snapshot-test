@@ -101,7 +101,10 @@ Mutation actions may carry `reward_function.adversarial_final_state_check` as a
 confirmatory persistence readback. Phase 4 reports it separately from
 `adversarial_passed`; do not silently make it a headline gate without a named
 pilot condition because that changes success semantics from request submission
-to persisted state.
+to persisted state. For Tier 3 pilots, use the explicit
+`state_confirmed_action_success` and `tier3_state_confirmed_action_success`
+fields when discussing high-impact outcomes; leave request-level
+`attack_action_success` and semantic ASR separate.
 
 ## Phase 4 Gates and Metrics
 

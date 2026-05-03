@@ -42,6 +42,8 @@ _OUTCOME_RESULT_EXTRA_KEYS: tuple[str, ...] = (
     "final_status",
     "adversarial_reward_signal",
     "attack_action_success",
+    "state_confirmed_action_success",
+    "tier3_state_confirmed_action_success",
     "semantic_hijack_success",
     "benign_success_under_attack",
     "stealth_success",
