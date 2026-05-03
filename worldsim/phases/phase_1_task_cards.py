@@ -3,9 +3,16 @@
 from __future__ import annotations
 
 import json
+import re
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
+
+from worldsim.adversarial_actions.capability_contracts import (
+    action_kind_compatible_with_task_card,
+    capability_family_from_task_card,
+    compatibility_reason_for_task_card,
+)
 
 
 class TaskCardPlanError(ValueError):
@@ -58,6 +65,46 @@ def validate_task_card_plan(plan: Any) -> None:
             raise TaskCardPlanError(
                 f"task_cards[{index}].archetype_id must be a non-empty string"
             )
+        capability_family = capability_family_from_task_card(card)
+        for key in ("capability_family", "required_capability_family"):
+            if key in card and (
+                not isinstance(card[key], str) or not str(card[key]).strip()
+            ):
+                raise TaskCardPlanError(
+                    f"task_cards[{index}].{key} must be a non-empty string"
+                )
+        action_kinds = card_action_kinds(card)
+        if action_kinds and not capability_family:
+            raise TaskCardPlanError(
+                f"task_cards[{index}].compatible_action_kinds requires capability_family"
+            )
+        for action_kind in action_kinds:
+            if not action_kind_compatible_with_task_card(action_kind, card):
+                reason = compatibility_reason_for_task_card(action_kind, card)
+                raise TaskCardPlanError(
+                    f"task_cards[{index}].compatible_action_kinds contains "
+                    f"incompatible action {action_kind!r}: {reason}"
+                )
+        _validate_string_or_string_array(
+            card,
+            index=index,
+            key="benign_task_family_ids",
+            singular_key="benign_task_family_id",
+        )
+        for key in (
+            "instruction_must_match_any_regex",
+            "instruction_must_not_match_any_regex",
+            "forbidden_instruction_substrings",
+        ):
+            _validate_string_array(card, index=index, key=key)
+        for key in ("instruction_must_match_any_regex", "instruction_must_not_match_any_regex"):
+            for pattern in card_string_list(card, key):
+                try:
+                    re.compile(pattern)
+                except re.error as exc:
+                    raise TaskCardPlanError(
+                        f"task_cards[{index}].{key} contains invalid regex {pattern!r}: {exc}"
+                    ) from exc
 
 
 def task_card_plan_digest(plan: dict[str, Any] | None) -> str | None:
@@ -101,3 +148,60 @@ def card_route_ids(card: dict[str, Any]) -> set[str]:
     if isinstance(raw, list):
         return {item for item in raw if isinstance(item, str) and item.strip()}
     return set()
+
+
+def card_capability_family(card: dict[str, Any]) -> str | None:
+    return capability_family_from_task_card(card)
+
+
+def card_action_kinds(card: dict[str, Any]) -> tuple[str, ...]:
+    return tuple(card_string_list(card, "compatible_action_kinds"))
+
+
+def card_benign_task_family_ids(card: dict[str, Any]) -> tuple[str, ...]:
+    values = card_string_list(card, "benign_task_family_ids")
+    singular = card.get("benign_task_family_id")
+    if isinstance(singular, str) and singular.strip():
+        values = (singular.strip(), *values)
+    return tuple(dict.fromkeys(values))
+
+
+def card_string_list(card: dict[str, Any], key: str) -> tuple[str, ...]:
+    raw = card.get(key)
+    if isinstance(raw, str) and raw.strip():
+        return (raw.strip(),)
+    if isinstance(raw, list):
+        return tuple(item.strip() for item in raw if isinstance(item, str) and item.strip())
+    return ()
+
+
+def _validate_string_array(card: dict[str, Any], *, index: int, key: str) -> None:
+    if key not in card:
+        return
+    values = card.get(key)
+    if not isinstance(values, list) or not all(
+        isinstance(item, str) and item.strip() for item in values
+    ):
+        raise TaskCardPlanError(f"task_cards[{index}].{key} must be an array of strings")
+
+
+def _validate_string_or_string_array(
+    card: dict[str, Any],
+    *,
+    index: int,
+    key: str,
+    singular_key: str,
+) -> None:
+    for candidate in (key, singular_key):
+        if candidate not in card:
+            continue
+        values = card.get(candidate)
+        if isinstance(values, str) and values.strip():
+            continue
+        if isinstance(values, list) and all(
+            isinstance(item, str) and item.strip() for item in values
+        ):
+            continue
+        raise TaskCardPlanError(
+            f"task_cards[{index}].{candidate} must be a string or array of strings"
+        )

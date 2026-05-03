@@ -8,7 +8,14 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from worldsim.phases.phase_1_task_cards import card_route_ids, task_card_index
+from worldsim.phases.phase_1_task_cards import (
+    card_action_kinds,
+    card_benign_task_family_ids,
+    card_capability_family,
+    card_route_ids,
+    card_string_list,
+    task_card_index,
+)
 from worldsim.phases.phase_2_exposure_contract import build_exposure_contract
 from worldsim.phases.phase_2_target_resolver import derive_benign_target_resource
 from worldsim.placeholders import extract_placeholders, placeholder_for_site
@@ -1031,6 +1038,13 @@ def _validate_task_card_alignment(
             expected=archetype_id,
             actual=task_archetype_id,
         )
+    capability_problem = _validate_task_card_capability_alignment(
+        task,
+        card=card,
+        index=index,
+    )
+    if capability_problem is not None:
+        return capability_problem
     provenance = task.get("task_provenance")
     if provenance is not None and not isinstance(provenance, dict):
         return _field_error(
@@ -1050,6 +1064,111 @@ def _validate_task_card_alignment(
             task["task_provenance"].setdefault(
                 "task_archetype", copy.deepcopy(card["task_archetype"])
             )
+        capability_family = card_capability_family(card)
+        if capability_family:
+            task["task_provenance"].setdefault("capability_family", capability_family)
+        benign_family = _task_benign_task_family_id(task)
+        if benign_family:
+            task["task_provenance"].setdefault("benign_task_family_id", benign_family)
+        action_kinds = card_action_kinds(card)
+        if action_kinds:
+            task["task_provenance"].setdefault("compatible_action_kinds", list(action_kinds))
+    return None
+
+
+def _validate_task_card_capability_alignment(
+    task: dict[str, Any],
+    *,
+    card: dict[str, Any],
+    index: int,
+) -> GeneratedTaskValidationError | None:
+    capability_family = card_capability_family(card)
+    if not capability_family:
+        return None
+    task_capability = _task_capability_family(task)
+    if task_capability != capability_family:
+        return _field_error(
+            index,
+            "TASK_CARD_CAPABILITY_MISMATCH",
+            "capability_family",
+            "task capability_family does not match the selected task card",
+            expected=capability_family,
+            actual=task_capability,
+            repair_hint=(
+                "Copy the selected task card's capability_family into the task "
+                "and make the benign instruction exercise that capability family."
+            ),
+        )
+    allowed_families = card_benign_task_family_ids(card)
+    task_family = _task_benign_task_family_id(task)
+    if allowed_families and task_family not in allowed_families:
+        return _field_error(
+            index,
+            "TASK_CARD_BENIGN_FAMILY_MISMATCH",
+            "benign_task_family_id",
+            "task benign_task_family_id does not match the selected task card",
+            expected=list(allowed_families),
+            actual=task_family,
+        )
+    instruction = str(task.get("instruction") or "")
+    required_patterns = card_string_list(card, "instruction_must_match_any_regex")
+    if required_patterns and not any(re.search(pattern, instruction) for pattern in required_patterns):
+        return _field_error(
+            index,
+            "TASK_CARD_INSTRUCTION_CAPABILITY_EVIDENCE_MISSING",
+            "instruction",
+            "instruction does not show the task-card capability evidence",
+            expected=list(required_patterns),
+            actual=instruction,
+        )
+    forbidden_patterns = card_string_list(card, "instruction_must_not_match_any_regex")
+    for pattern in forbidden_patterns:
+        if re.search(pattern, instruction):
+            return _field_error(
+                index,
+                "TASK_CARD_INSTRUCTION_FORBIDDEN_PATTERN",
+                "instruction",
+                "instruction matches a task-card forbidden pattern",
+                expected=f"not {pattern!r}",
+                actual=instruction,
+            )
+    for forbidden in card_string_list(card, "forbidden_instruction_substrings"):
+        if forbidden.casefold() in instruction.casefold():
+            return _field_error(
+                index,
+                "TASK_CARD_FORBIDDEN_BENIGN_OVERLAP",
+                "instruction",
+                "instruction contains a task-card forbidden benign/adversarial overlap term",
+                expected=f"omit {forbidden!r}",
+                actual=instruction,
+            )
+    return None
+
+
+def _task_capability_family(task: Mapping[str, Any]) -> str | None:
+    for key in ("capability_family", "required_capability_family"):
+        value = task.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    provenance = task.get("task_provenance")
+    if isinstance(provenance, Mapping):
+        value = provenance.get("capability_family") or provenance.get(
+            "required_capability_family"
+        )
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _task_benign_task_family_id(task: Mapping[str, Any]) -> str | None:
+    value = task.get("benign_task_family_id") or task.get("task_family_id")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    provenance = task.get("task_provenance")
+    if isinstance(provenance, Mapping):
+        value = provenance.get("benign_task_family_id") or provenance.get("task_family_id")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
     return None
 
 
