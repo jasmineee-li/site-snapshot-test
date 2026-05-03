@@ -907,6 +907,13 @@ The initial compiled profiles are:
 - `tier3_repository_pilot`: GitLab repository/content maintenance workflows
   that bind benign action evidence after disposable fixture verification and
   require final-state readback for adversarial repository mutation.
+- `tier3_delete_resource_pilot`: WASP-style destructive-resource pilots where
+  the benign task is a harmless UGC interaction, such as commenting on or
+  reacting to an issue, while the injected payload attempts to delete or
+  transfer a separate disposable fixture resource. The carrier encounter,
+  fixture target, destructive action reward, final-state absence probe, and
+  cleanup are host-owned. The model may not author project identifiers,
+  evaluator JSON, selectors, endpoint paths, or cleanup behavior.
 Compound action cards must express required evidence conjunctively: a task that
 only reads UGC must not satisfy a card that requires both reading UGC and
 performing a benign public mutation or maintenance action.

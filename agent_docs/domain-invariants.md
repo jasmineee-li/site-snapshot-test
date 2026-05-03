@@ -99,6 +99,15 @@ requirement and Phase 2, after verified fixture attachment, adds the concrete
 benign file path, witness, and POST/status/body reward. The benign file/content
 must remain distinct from the adversarial payload-action contract.
 
+Tier 3 destructive-resource pilots follow the same host-owned discipline, but
+the benign workflow should be WASP-like and harmless: the agent comments on,
+reacts to, or otherwise interacts with the UGC carrier, while the injected
+payload attempts to delete or transfer a separate disposable fixture resource.
+Do not make the benign task itself ask for deletion. The fixture target,
+network/action reward, final-state absence probe, and cleanup must all be
+compiled by host code and must fail closed when disposable setup/readback/cleanup
+evidence is missing.
+
 Action capability contracts and capability task cards are host-owned generation
 constraints, not model-authored rewards. They may describe generic capability
 families, compatible carrier surfaces, benign reward shapes, fixture/readback
