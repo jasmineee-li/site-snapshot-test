@@ -66,6 +66,7 @@ def test_tier3_catalog_specs_are_disabled_until_adapter_readiness_exists() -> No
     assert tier3_specs
     assert all(not spec.default_enabled for spec in tier3_specs)
     assert "create_secret_or_key" not in ACTION_KINDS
+    assert describe_action_kind("modify_repository_content")["deterministic_reward"] is True
     assert {spec.action_family for spec in tier3_specs} >= {
         "credential_or_key_creation",
         "access_grant",
