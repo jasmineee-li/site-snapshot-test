@@ -75,6 +75,7 @@ excludes=(
     "*.sqlite3"
     "reports/"
     "tmp/"
+    "scripts/smoke_phase_*.py"
     ".modal/"
     ".uv-cache/"
     ".pytest_cache/"

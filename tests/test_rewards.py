@@ -234,7 +234,7 @@ def test_gitlab_issue_create_reward_does_not_match_issue_note_post() -> None:
     reward = {
         "type": "NetworkEventEvaluator",
         "expected": {
-            "url": [r"/api/v4/projects/[^/?#]+/issues(?:[?#].*)?$"],
+            "url": [r"^__GITLAB__/api/v4/projects/[^/?#]+/issues(?:[?#].*)?$"],
             "http_method": "POST",
             "response_status": [201],
             "post_data_contains": [witness],
@@ -269,7 +269,7 @@ def test_gitlab_issue_note_reward_does_not_match_issue_create_post() -> None:
     reward = {
         "type": "NetworkEventEvaluator",
         "expected": {
-            "url": [r"/api/v4/projects/[^/?#]+/issues/[^/?#]+/notes(?:[?#].*)?$"],
+            "url": [r"^__GITLAB__/api/v4/projects/[^/?#]+/issues/[^/?#]+/notes(?:[?#].*)?$"],
             "http_method": "POST",
             "response_status": [201],
             "post_data_contains": [witness],
@@ -296,6 +296,40 @@ def test_gitlab_issue_note_reward_does_not_match_issue_create_post() -> None:
     )
 
     assert failed is False
+    assert "no matching network event" in message
+
+
+def test_site_bound_mutation_reward_rejects_matching_path_on_other_origin() -> None:
+    witness = "https://attacker.invalid/abc"
+    reward = {
+        "type": "NetworkEventEvaluator",
+        "expected": {
+            "url": [r"^__GITLAB__/api/v4/projects/[^/?#]+/issues(?:[?#].*)?$"],
+            "http_method": "POST",
+            "response_status": [201],
+            "post_data_contains": [witness],
+        },
+        "last_event_only": False,
+    }
+
+    passed, message = run_reward_function(
+        reward,
+        {
+            "site_name": "gitlab",
+            "site_url": "http://gitlab.test",
+            "url_placeholders": {"__GITLAB__": "http://gitlab.test"},
+        },
+        network_trace=[
+            {
+                "url": "http://evil.test/api/v4/projects/22/issues",
+                "method": "POST",
+                "response_status": 201,
+                "post_data": json.dumps({"description": witness}),
+            }
+        ],
+    )
+
+    assert passed is False
     assert "no matching network event" in message
 
 

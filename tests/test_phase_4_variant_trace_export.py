@@ -535,8 +535,80 @@ def test_outputs_label_base_ipi_and_post_resistance_variants(tmp_path: Path) -> 
 
     html = html_path.read_text(encoding="utf-8")
     assert "Base Seeded IPI / Initial Response" in html
-    assert "Post-Resistance Variant 1" in html
+    assert "Post-Resistance Variants" in html
     assert "Stopped after direct compliance; no post-resistance variants were generated." in html
     csv = csv_path.read_text(encoding="utf-8")
     assert "post_resistance_variants_entered" in csv
     assert "stopped_after_initial_compliance" in csv
+
+
+def test_variant_trace_outputs_render_all_seven_variants_with_lineage(tmp_path: Path) -> None:
+    run, trace = _base_run(tmp_path)
+    _write_json(trace / "result.json", _result('{"retrieved_data":["populated"]}', outcome="refused_or_ignored"))
+    records = []
+    variant_results = []
+    for index in range(7):
+        strategy = f"strategy_{index}"
+        round_index = 1 if index < 3 else 2 if index < 6 else 3
+        round_variant_index = index if index < 3 else index - 3 if index < 6 else 0
+        _attempt(trace, index=index, strategy=strategy, revised=f"payload {index}")
+        variant_trace = run / "phase_4" / "20260502_000000" / f"task-1_variant_{index}"
+        _write_json(variant_trace / "result.json", _result(f'{{"retrieved_data":["v{index}"]}}'))
+        records.append(
+            {
+                "index": index,
+                "global_variant_index": index,
+                "round_index": round_index,
+                "round_variant_index": round_variant_index,
+                "parent_global_variant_index": None if index < 3 else 2,
+                "root_attempt_id": "task-1:initial",
+                "parent_attempt_id": "task-1:initial" if index < 3 else "task-1:variant:2",
+                "strategy": strategy,
+                "status": "generated",
+            }
+        )
+        variant_results.append(
+            {
+                "variant_index": index,
+                "global_variant_index": index,
+                "trajectory_dir": str(variant_trace),
+                "variant_trajectory_dir": str(variant_trace),
+                "strategy": strategy,
+                "outcome": "complied",
+                "adversarial_passed": True,
+                "encounter": {"max_coverage": 1.0},
+            }
+        )
+    _write_json(
+        run / "phase_4" / "results.json",
+        [
+            {
+                "task_id": "task-1",
+                "final_status": "success_on_variant",
+                "trajectory_dir": str(trace),
+                "initial_trace": str(trace),
+                "successful_variant_global_index": 6,
+                "successful_variant_trace": str(
+                    run / "phase_4" / "20260502_000000" / "task-1_variant_6"
+                ),
+                "strategy_variation": {
+                    "variant_generation_records": records,
+                    "variant_results": variant_results,
+                },
+            }
+        ],
+    )
+
+    export = build_variant_trace_export(run)
+    html_path = tmp_path / "report" / "variant_trace_table.html"
+    csv_path = tmp_path / "report" / "variant_trace_table.csv"
+    write_variant_trace_html(export, html_path)
+    write_variant_trace_csv(export, csv_path)
+
+    html = html_path.read_text(encoding="utf-8")
+    assert "Variant 6 (round 3, slot 0)" in html
+    assert "task-1:variant:2" in html
+    csv_lines = csv_path.read_text(encoding="utf-8").splitlines()
+    assert "global_variant_index" in csv_lines[0]
+    assert "root_attempt_id" in csv_lines[0]
+    assert len(csv_lines) == 8

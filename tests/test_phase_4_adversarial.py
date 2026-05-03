@@ -4536,6 +4536,9 @@ async def test_run_strategy_variation_adaptive_generation_rejection_indexing(mon
         "generated",
         "generated",
     ]
+    assert records[0]["host_finalization_status"] == "passed"
+    assert records[1]["host_finalization_status"] == "failed"
+    assert records[1]["host_finalization_reason"] == "planned host rejection"
     assert result["variant_generation_errors"] == [
         {
             "global_variant_index": 1,
@@ -4544,6 +4547,8 @@ async def test_run_strategy_variation_adaptive_generation_rejection_indexing(mon
             "strategy": "authority_framing",
             "status": "failed",
             "reason": "planned host rejection; retry rejected: planned host rejection",
+            "host_finalization_status": "failed",
+            "host_finalization_reason": "planned host rejection",
         },
         {
             "global_variant_index": 4,
@@ -4552,6 +4557,8 @@ async def test_run_strategy_variation_adaptive_generation_rejection_indexing(mon
             "strategy": "embed_in_legitimate_context",
             "status": "failed",
             "reason": "planned host rejection; retry rejected: planned host rejection",
+            "host_finalization_status": "failed",
+            "host_finalization_reason": "planned host rejection",
         },
     ]
 

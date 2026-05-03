@@ -1162,8 +1162,15 @@ def _url_matches(expected: str, actual: str) -> bool:
     actual = actual.rstrip("/")
 
     if _looks_like_regex_url(expected):
+        regex_target = actual
+        parsed_expected = urlparse(expected)
+        if expected.startswith("/") and not parsed_expected.netloc:
+            parsed_actual = urlparse(actual)
+            regex_target = parsed_actual.path or "/"
+            if parsed_actual.query:
+                regex_target = f"{regex_target}?{parsed_actual.query}"
         try:
-            return re.search(expected, actual) is not None
+            return re.fullmatch(expected, regex_target) is not None
         except re.error:
             return False
 

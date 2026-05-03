@@ -359,6 +359,63 @@ def _round_index(value: Any) -> int | None:
     return None
 
 
+def _generation_records_for_round(
+    variation: dict[str, Any],
+    round_record: dict[str, Any],
+    round_index: int,
+) -> list[dict[str, Any]]:
+    records = round_record.get("variant_generation_records")
+    if isinstance(records, list) and records:
+        return [item for item in records if isinstance(item, dict)]
+    raw_records = variation.get("variant_generation_records")
+    if not isinstance(raw_records, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for item in raw_records:
+        if not isinstance(item, dict):
+            continue
+        item_round = _round_index(item.get("round_index"))
+        if item_round == round_index or (item_round is None and round_index == 1):
+            out.append(item)
+    return out
+
+
+def _variant_results_for_round(
+    variation: dict[str, Any],
+    round_record: dict[str, Any],
+    round_index: int,
+) -> list[dict[str, Any]]:
+    records = round_record.get("variant_results")
+    if isinstance(records, list) and records:
+        return [item for item in records if isinstance(item, dict)]
+    raw_records = variation.get("variant_results")
+    if not isinstance(raw_records, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for item in raw_records:
+        if not isinstance(item, dict):
+            continue
+        item_round = _round_index(item.get("round_index"))
+        if item_round == round_index or (item_round is None and round_index == 1):
+            out.append(item)
+    return out
+
+
+def _planned_strategy_names_for_rounds(
+    variant_rounds: list[dict[str, Any]],
+) -> list[str]:
+    planned: list[str] = []
+    for round_record in variant_rounds:
+        raw = round_record.get("planned_strategies")
+        if not isinstance(raw, list):
+            continue
+        for strategy in raw:
+            name = _strategy_name(strategy)
+            if name != "unknown":
+                planned.append(name)
+    return planned
+
+
 def _adaptive_budget_shape(variation: dict[str, Any]) -> list[int]:
     raw_budget = variation.get("adaptive_budget")
     if not isinstance(raw_budget, dict):
@@ -379,9 +436,6 @@ def _normalized_adaptive_budget(
     variant_rounds: list[dict[str, Any]],
     budget_shape: list[int],
 ) -> dict[str, Any]:
-    raw_budget = variation.get("adaptive_budget")
-    if isinstance(raw_budget, dict) and isinstance(raw_budget.get("rounds"), list):
-        return raw_budget
     rounds: list[dict[str, Any]] = []
     consumed = 0
     for offset, budget in enumerate(budget_shape, start=1):
@@ -390,16 +444,12 @@ def _normalized_adaptive_budget(
             {},
         )
         generation_records = (
-            [
-                item
-                for item in round_record.get("variant_generation_records", [])
-                if isinstance(item, dict)
-            ]
+            _generation_records_for_round(variation, round_record, offset)
             if isinstance(round_record, dict)
             else []
         )
         variant_results = (
-            [item for item in round_record.get("variant_results", []) if isinstance(item, dict)]
+            _variant_results_for_round(variation, round_record, offset)
             if isinstance(round_record, dict)
             else []
         )
@@ -771,21 +821,22 @@ def variant_regeneration_audit(results: list[dict[str, Any]]) -> dict[str, Any]:
         if budget_shape:
             max_budget_observed = max(max_budget_observed, sum(budget_shape))
 
-        if not recommended:
+        planned = _planned_strategy_names_for_rounds(variant_rounds)
+        if not planned:
+            planned = list(recommended)
+        if not planned:
             for variant in variant_results:
                 name = _strategy_name(variant.get("strategy"))
                 if name != "unknown":
-                    recommended.append(name)
+                    planned.append(name)
             for error in generation_errors:
                 if isinstance(error, dict):
                     name = _strategy_name(error.get("strategy"))
                     if name != "unknown":
-                        recommended.append(name)
-        # Preserve order while de-duplicating fallback names.
-        recommended = list(dict.fromkeys(recommended))
+                        planned.append(name)
 
-        planned_attempts += len(recommended)
-        for strategy in recommended:
+        planned_attempts += len(planned)
+        for strategy in planned:
             trigger_strategy_rows[(trigger, strategy, "planned")] += 1
 
         generated_for_task = 0
@@ -847,7 +898,7 @@ def variant_regeneration_audit(results: list[dict[str, Any]]) -> dict[str, Any]:
                 "judge_status": judge_status,
                 "refusal_trigger": trigger,
                 "confidence": confidence,
-                "planned_strategies": recommended,
+                "planned_strategies": planned,
                 "rounds": len(variant_rounds),
                 "budget_shape": budget_shape,
                 "adaptive_budget": _normalized_adaptive_budget(

@@ -31,6 +31,12 @@ def write_variant_trace_csv(export: dict[str, Any], path: Path) -> None:
         "variant_loop_reason",
         "initial_answer_label",
         "variant_index",
+        "global_variant_index",
+        "round_index",
+        "round_variant_index",
+        "parent_global_variant_index",
+        "root_attempt_id",
+        "parent_attempt_id",
         "strategy",
         "generation_status",
         "host_status",
@@ -87,6 +93,20 @@ def _csv_row(row: dict[str, Any], variant: dict[str, Any] | None) -> dict[str, A
         "variant_loop_reason": variant_loop.get("reason"),
         "initial_answer_label": _nested_get(row, "initial", "answer_label"),
         "variant_index": variant.get("variant_index") if isinstance(variant, dict) else None,
+        "global_variant_index": (
+            variant.get("global_variant_index") if isinstance(variant, dict) else None
+        ),
+        "round_index": variant.get("round_index") if isinstance(variant, dict) else None,
+        "round_variant_index": (
+            variant.get("round_variant_index") if isinstance(variant, dict) else None
+        ),
+        "parent_global_variant_index": (
+            variant.get("parent_global_variant_index") if isinstance(variant, dict) else None
+        ),
+        "root_attempt_id": variant.get("root_attempt_id") if isinstance(variant, dict) else None,
+        "parent_attempt_id": (
+            variant.get("parent_attempt_id") if isinstance(variant, dict) else None
+        ),
         "strategy": variant.get("strategy") if isinstance(variant, dict) else None,
         "generation_status": generation.get("status"),
         "host_status": generation.get("host_status"),
@@ -164,9 +184,7 @@ def _render_html(export: dict[str, Any], *, title: str) -> str:
             <th>#</th>
             <th>Task</th>
             <th>Base Seeded IPI / Initial Response</th>
-            <th>Post-Resistance Variant 1</th>
-            <th>Post-Resistance Variant 2</th>
-            <th>Post-Resistance Variant 3</th>
+            <th>Post-Resistance Variants</th>
             <th>Warnings</th>
           </tr>
         </thead>
@@ -181,11 +199,13 @@ def _render_html(export: dict[str, Any], *, title: str) -> str:
 
 def _render_task_row(row: dict[str, Any]) -> str:
     variants = list(row.get("variants") or [])
-    variant_cells = [_render_variant_cell(variant) for variant in variants[:3]]
-    while len(variant_cells) < 3:
-        variant_cells.append(
-            '<td class="variant none muted">No post-resistance variant executed</td>'
-        )
+    variant_cell = (
+        "<td>"
+        + "".join(_render_variant_card(variant) for variant in variants)
+        + "</td>"
+        if variants
+        else '<td class="variant none muted">No post-resistance variant executed</td>'
+    )
     warnings = "<br>".join(html.escape(warning) for warning in row.get("warnings", []))
     loop_note = _variant_loop_note(row)
     return f"""
@@ -193,12 +213,12 @@ def _render_task_row(row: dict[str, Any]) -> str:
             <td class="mono">{html.escape(str(row.get("result_index")))}</td>
             <td><div class="mono">{html.escape(str(row.get("task_id")))}</div><div>{html.escape(str(row.get("instruction") or ""))}</div><div class="muted">{html.escape(str(row.get("final_status") or ""))} / {html.escape(str(row.get("outcome_fine") or ""))}</div><div class="stage">{html.escape(loop_note)}</div></td>
             <td><span class="answer mono">{html.escape(str(_nested_get(row, "initial", "answer_label") or ""))}</span><div class="payload">{html.escape(str(compact_text(_nested_get(row, "initial", "final_result"), limit=220) or ""))}</div></td>
-            {"".join(variant_cells)}
+            {variant_cell}
             <td class="warnings">{warnings}</td>
           </tr>"""
 
 
-def _render_variant_cell(variant: dict[str, Any]) -> str:
+def _render_variant_card(variant: dict[str, Any]) -> str:
     evaluation = variant.get("evaluation", {})
     delta = variant.get("delta", {})
     generation = variant.get("generation", {})
@@ -206,14 +226,23 @@ def _render_variant_cell(variant: dict[str, Any]) -> str:
     if variant.get("selected_success"):
         css = "worked"
     warnings = " ".join(variant.get("warnings", []))
-    return f"""<td class="variant {css}">
-      <div class="mono">{html.escape(str(variant.get("strategy") or ""))}</div>
+    label = (
+        f"Variant {variant.get('global_variant_index')} "
+        f"(round {variant.get('round_index')}, slot {variant.get('round_variant_index')})"
+    )
+    lineage = (
+        f"parent={variant.get('parent_global_variant_index')} "
+        f"root={variant.get('root_attempt_id')} attempt={variant.get('parent_attempt_id')}"
+    )
+    return f"""<div class="variant {css}">
+      <div class="mono">{html.escape(label)} · {html.escape(str(variant.get("strategy") or ""))}</div>
+      <div class="muted mono">{html.escape(lineage)}</div>
       <span class="answer mono">{html.escape(str(evaluation.get("answer_label") or ""))}</span>
       <div class="muted">{html.escape(str(evaluation.get("outcome") or ""))} | gen={html.escape(str(generation.get("status") or ""))} host={html.escape(str(generation.get("host_status") or ""))}</div>
       <div class="payload">{html.escape(str(compact_text(delta.get("revised_payload"), limit=260) or ""))}</div>
       <div class="delta">chars {html.escape(str(delta.get("original_chars")))} → {html.escape(str(delta.get("revised_chars")))}; witness {html.escape(str(delta.get("attack_witness_offset")))}/{html.escape(str(delta.get("max_attack_witness_offset")))}</div>
       <div class="warnings">{html.escape(warnings)}</div>
-    </td>"""
+    </div>"""
 
 
 def _nested_get(payload: Any, *keys: str, default: Any = None) -> Any:

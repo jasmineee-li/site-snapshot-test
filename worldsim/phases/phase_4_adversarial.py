@@ -3533,7 +3533,12 @@ async def run(args: argparse.Namespace) -> int:
         if phase4_result_summary.final_metric_success(r, "stealth_success")
     )
     final_state_checked = [
-        r for r in scorable_valid if r.get("adversarial_final_state_checked") is True
+        r
+        for r in scorable_valid
+        if phase4_result_summary.final_metric_checked(
+            r,
+            "adversarial_final_state_checked",
+        )
     ]
     final_state_success_numerator = sum(
         1
@@ -5173,6 +5178,8 @@ def _variant_generation_record_for_result(
     parent_global_variant_index: int | None = None,
     root_attempt_id: str | None = None,
     parent_attempt_id: str | None = None,
+    host_finalization_status: str | None = None,
+    host_finalization_reason: str | None = None,
 ) -> dict[str, Any]:
     record: dict[str, Any] = {
         "index": index,
@@ -5200,6 +5207,10 @@ def _variant_generation_record_for_result(
         record["status"] = status
     if reason is not None:
         record["reason"] = reason
+    if host_finalization_status is not None:
+        record["host_finalization_status"] = host_finalization_status
+    if host_finalization_reason is not None:
+        record["host_finalization_reason"] = host_finalization_reason
     return record
 
 
@@ -5480,6 +5491,8 @@ def _compact_variant_generation_records(records: list[dict[str, Any]]) -> list[d
             "parent_global_variant_index",
             "root_attempt_id",
             "parent_attempt_id",
+            "host_finalization_status",
+            "host_finalization_reason",
         ):
             if key in raw_record:
                 record[key] = raw_record[key]
@@ -6138,6 +6151,8 @@ async def run_strategy_variation(
                     return _variant_generation_record_for_result(
                         **record_kwargs,
                         error=repr(exc),
+                        host_finalization_status="failed",
+                        host_finalization_reason=finalize_error,
                     )
                 retry_status = (
                     retry_variant.get("variant_status") if isinstance(retry_variant, dict) else None
@@ -6170,6 +6185,8 @@ async def run_strategy_variation(
                         **record_kwargs,
                         status=str(retry_status.get("status")),
                         reason=retry_reason,
+                        host_finalization_status="failed",
+                        host_finalization_reason=finalize_error,
                     )
                 if isinstance(retry_variant, dict) and _variant_changes_seed(task, retry_variant):
                     finalized_retry, retry_finalize_error = _finalize_generated_variant_task(
@@ -6206,6 +6223,7 @@ async def run_strategy_variation(
                         return _variant_generation_record_for_result(
                             **record_kwargs,
                             variant=finalized_retry,
+                            host_finalization_status="passed",
                         )
                     retry_rejection = f"{finalize_error}; retry rejected: {retry_finalize_error}"
                     _write_variant_generation_audit(
@@ -6231,6 +6249,8 @@ async def run_strategy_variation(
                         **record_kwargs,
                         status="failed",
                         reason=retry_rejection,
+                        host_finalization_status="failed",
+                        host_finalization_reason=retry_finalize_error,
                     )
                 unchanged_retry_reason = (
                     f"{finalize_error}; retry rejected: unchanged_seed: "
@@ -6258,6 +6278,8 @@ async def run_strategy_variation(
                     **record_kwargs,
                     status="failed",
                     reason=unchanged_retry_reason,
+                    host_finalization_status="failed",
+                    host_finalization_reason=finalize_error,
                 )
             _write_variant_generation_audit(
                 task_dir_root=task_dir_root,
@@ -6288,6 +6310,7 @@ async def run_strategy_variation(
             return _variant_generation_record_for_result(
                 **record_kwargs,
                 variant=finalized_variant,
+                host_finalization_status="passed",
             )
         unchanged_reason = (
             "unchanged_seed: variant did not change adversarial_data_seed; "
@@ -6313,6 +6336,7 @@ async def run_strategy_variation(
             **record_kwargs,
             status="failed",
             reason=unchanged_reason,
+            host_finalization_status="not_run",
         )
 
     async def _evaluate_round_variants(
@@ -6421,12 +6445,12 @@ async def run_strategy_variation(
             failure_context if round_index == 1 else _adaptive_failure_context(round_index)
         )
         parent_variant = _best_refused_variant()
-        parent_global_variant_index = (
-            parent_variant.get("global_variant_index")
-            if isinstance(parent_variant, dict)
-            and isinstance(parent_variant.get("global_variant_index"), int)
-            else None
-        )
+        parent_global_variant_index = None
+        if isinstance(parent_variant, dict):
+            if isinstance(parent_variant.get("global_variant_index"), int):
+                parent_global_variant_index = parent_variant.get("global_variant_index")
+            elif isinstance(parent_variant.get("variant_index"), int):
+                parent_global_variant_index = parent_variant.get("variant_index")
         selected_strategies = _selected_strategies_for_round(round_index, budget)
         logger.info(
             "Adaptive strategy round %d/%d for task %s: kind=%s selected_strategies=%s",
@@ -6507,6 +6531,8 @@ async def run_strategy_variation(
                     "round_index": record.get("round_index"),
                     "round_variant_index": record.get("round_variant_index"),
                     "global_variant_index": record.get("global_variant_index"),
+                    "host_finalization_status": record.get("host_finalization_status"),
+                    "host_finalization_reason": record.get("host_finalization_reason"),
                 }
                 for record in generation_records
                 if not isinstance(record.get("variant"), dict)

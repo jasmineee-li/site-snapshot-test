@@ -277,21 +277,32 @@ def test_summarize_results_attributes_success_on_variant_reward():
                 "adaptive_budget": {
                     "shape": [3, 3, 1],
                     "max_browser_variants": 7,
-                    "generated": 0,
-                    "remaining_budget": 7,
+                    "generated": 2,
+                    "remaining_budget": 5,
                     "stop_reason": "success",
                     "rounds": [
                         {
                             "round_index": 1,
                             "budget": 3,
-                            "generated": 0,
-                            "host_rejected": 0,
-                            "evaluated": 0,
-                            "pvpo_valid": 0,
-                            "compliant": 0,
-                            "remaining_round_budget": 3,
+                            "generated": 2,
+                            "host_rejected": 1,
+                            "evaluated": 1,
+                            "pvpo_valid": 1,
+                            "compliant": 1,
+                            "remaining_round_budget": 1,
                             "stop_reason": "success",
-                            "lineage": [],
+                            "lineage": [
+                                {
+                                    "global_variant_index": 0,
+                                    "parent_global_variant_index": None,
+                                    "round_variant_index": None,
+                                },
+                                {
+                                    "global_variant_index": 1,
+                                    "parent_global_variant_index": None,
+                                    "round_variant_index": None,
+                                },
+                            ],
                         },
                         {
                             "round_index": 2,
@@ -407,6 +418,60 @@ def test_summarize_results_counts_final_state_checks_on_gate1_rows():
     assert summary["adversarial_final_state_success_numerator"] == 2
     assert summary["adversarial_final_state_success_denominator"] == 3
     assert summary["adversarial_final_state_success_rate"] == 2 / 3
+
+
+def test_variant_regeneration_audit_counts_adaptive_planned_attempts_by_round():
+    variation = {
+        "stop_reason": "budget_exhausted",
+        "adaptive_budget": {"shape": [3, 3, 1], "max_browser_variants": 7},
+        "judge_diagnosis": {"status": "judge_ok_actionable", "refusal_trigger": "distracted"},
+        "variant_rounds": [
+            {
+                "round_index": 1,
+                "round_kind": "initial_fanout",
+                "planned_strategies": [{"strategy": "a"}, {"strategy": "b"}, {"strategy": "c"}],
+                "variant_generation_records": [],
+                "variant_results": [],
+            },
+            {
+                "round_index": 2,
+                "round_kind": "adaptive_fanout",
+                "planned_strategies": [{"strategy": "d"}, {"strategy": "e"}, {"strategy": "f"}],
+                "variant_generation_records": [],
+                "variant_results": [],
+            },
+            {
+                "round_index": 3,
+                "round_kind": "terminal_probe",
+                "planned_strategies": [{"strategy": "g"}],
+                "variant_generation_records": [],
+                "variant_results": [],
+            },
+        ],
+        "variant_results": [],
+    }
+
+    summary = result_summary.summarize_results(
+        [
+            {
+                "task_id": "adv",
+                "final_status": "resistant",
+                "encounter": {"max_coverage": 1.0},
+                "strategy_variation": variation,
+            }
+        ]
+    )
+
+    assert summary["variant_regeneration_audit"]["planned_attempts"] == 7
+    assert summary["variant_regeneration_audit"]["task_records"][0]["planned_strategies"] == [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+    ]
 
 
 def test_final_metric_success_attributes_final_state_to_successful_variant():

@@ -106,6 +106,7 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
     assert "*.sqlite" in joined
     assert "*.sqlite3" in joined
     assert ".modal/" in joined
+    assert "scripts/smoke_phase_*.py" in joined
     assert "instances.scale.json" in joined
     assert "instances.scale.json.fragment" in joined
     assert "compose.scale.yml" in joined

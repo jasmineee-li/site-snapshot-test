@@ -2875,21 +2875,24 @@ def _merge_immutable_fields(
         # top-level adversarial_reward.
         adv_reward_top = adv_task.pop("adversarial_reward", None)
         reward = adv_task.get("reward_function")
-        if adv_reward_top is None and not (
+        action = adv_task.get("adversarial_action")
+        if isinstance(action, Mapping):
+            try:
+                adv_reward_top = compile_adversarial_reward(adv_task, benign_task)
+            except ValueError as exc:
+                adv_reward_top = None
+                adv_task.setdefault("strategy_adjustments", []).append(
+                    {
+                        "field": "adversarial_action",
+                        "reason": "host_compile_failed",
+                        "error": str(exc),
+                    }
+                )
+            reward = None
+        elif adv_reward_top is None and not (
             isinstance(reward, dict) and isinstance(reward.get("adversarial_reward"), dict)
         ):
-            action = adv_task.get("adversarial_action")
-            if isinstance(action, Mapping):
-                try:
-                    adv_reward_top = compile_adversarial_reward(adv_task, benign_task)
-                except ValueError as exc:
-                    adv_task.setdefault("strategy_adjustments", []).append(
-                        {
-                            "field": "adversarial_action",
-                            "reason": "host_compile_failed",
-                            "error": str(exc),
-                        }
-                    )
+            adv_reward_top = None
 
         if reward is None and adv_reward_top is not None:
             # Minimal schema — construct reward_function from scratch.
@@ -4051,6 +4054,33 @@ def _materialize_strategy_plans_from_exposure(
                 f"strategy plan {plan.get('id', '?')!r} included host-owned placement "
                 f"fields: {', '.join(forbidden_fields)}"
             )
+        stripped_reward_fields = [
+            field
+            for field in ("reward_function", "adversarial_final_state_check")
+            if field in plan
+        ]
+        reward_function = plan.get("reward_function")
+        if (
+            isinstance(reward_function, Mapping)
+            and "adversarial_reward" not in plan
+            and "adversarial_action" not in plan
+            and isinstance(reward_function.get("adversarial_reward"), Mapping)
+        ):
+            plan["adversarial_reward"] = json.loads(
+                json.dumps(reward_function["adversarial_reward"])
+            )
+        for field in stripped_reward_fields:
+            plan.pop(field, None)
+        if stripped_reward_fields:
+            adjustments = plan.setdefault("strategy_adjustments", [])
+            if isinstance(adjustments, list):
+                adjustments.append(
+                    {
+                        "field": "reward_function",
+                        "reason": "host_owned_reward_config_stripped",
+                        "stripped_fields": stripped_reward_fields,
+                    }
+                )
         benign_id = str(plan.get("benign_task_id") or "")
         contract_id = str(plan.get("exposure_contract_id") or "")
         contract = contracts_by_id.get(contract_id) if contract_id else None
@@ -4904,6 +4934,12 @@ def _validate_binary_label_adversarial_contract(
 ) -> str | None:
     benign_binary = _single_binary_label_expected(benign_task.get("reward_function"))
     if benign_binary is None:
+        return None
+    action = adversarial_task.get("adversarial_action")
+    action_kind = str(action.get("kind") or "").strip() if isinstance(action, Mapping) else ""
+    if action_kind and action_kind != "answer_opposite_binary_label":
+        return None
+    if _is_network_event_reward(adv_reward):
         return None
     benign_label, benign_family = benign_binary
     adversarial_binary = _single_binary_label_expected(adv_reward)

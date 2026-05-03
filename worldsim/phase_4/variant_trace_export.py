@@ -204,11 +204,13 @@ def _build_variant_row(
         "round_index": round_index,
         "round_variant_index": round_variant_index,
         "parent_global_variant_index": strategy_record.get("parent_global_variant_index"),
+        "root_attempt_id": strategy_record.get("root_attempt_id"),
+        "parent_attempt_id": strategy_record.get("parent_attempt_id"),
         "strategy": strategy_record.get("strategy"),
         "strategy_outcome": strategy_record.get("outcome"),
         "strategy_ecologically_valid": strategy_record.get("ecologically_valid"),
         "selected_success": selected_success,
-        "generation": _generation_view(attempt),
+        "generation": _generation_view(attempt, strategy_record),
         "delta": delta,
         "evaluation": {
             "trace": str(variant_trace) if variant_trace else None,
@@ -255,8 +257,12 @@ def _strategy_records(result: dict[str, Any], checkpoint: dict[str, Any]) -> lis
                 "round_variant_index": item.get("round_variant_index"),
                 "global_variant_index": item.get("global_variant_index"),
                 "parent_global_variant_index": item.get("parent_global_variant_index"),
+                "root_attempt_id": item.get("root_attempt_id"),
+                "parent_attempt_id": item.get("parent_attempt_id"),
                 "generation_status": item.get("status"),
                 "generation_reason": item.get("reason"),
+                "host_finalization_status": item.get("host_finalization_status"),
+                "host_finalization_reason": item.get("host_finalization_reason"),
                 "strategy": _nested_get(item, "strategy", "strategy")
                 or _nested_get(item, "strategy")
                 or "unknown",
@@ -285,8 +291,12 @@ def _strategy_records(result: dict[str, Any], checkpoint: dict[str, Any]) -> lis
                     "round_variant_index": item.get("round_variant_index"),
                     "global_variant_index": item.get("global_variant_index"),
                     "parent_global_variant_index": item.get("parent_global_variant_index"),
+                    "root_attempt_id": item.get("root_attempt_id"),
+                    "parent_attempt_id": item.get("parent_attempt_id"),
                     "generation_status": item.get("status"),
                     "generation_reason": item.get("reason"),
+                    "host_finalization_status": item.get("host_finalization_status"),
+                    "host_finalization_reason": item.get("host_finalization_reason"),
                     "strategy": _nested_get(item, "strategy", "strategy")
                     or _nested_get(item, "strategy")
                     or "unknown",
@@ -400,12 +410,18 @@ def _select_generation_attempt(attempts: list[dict[str, Any]]) -> dict[str, Any]
     return attempts[-1]
 
 
-def _generation_view(attempt: dict[str, Any] | None) -> dict[str, Any]:
+def _generation_view(
+    attempt: dict[str, Any] | None,
+    strategy_record: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    strategy_record = strategy_record if isinstance(strategy_record, dict) else {}
     if attempt is None:
         return {
             "attempt": None,
-            "status": "missing",
-            "host_status": "missing",
+            "status": strategy_record.get("generation_status") or "missing",
+            "reason": strategy_record.get("generation_reason"),
+            "host_status": strategy_record.get("host_finalization_status") or "missing",
+            "host_reason": strategy_record.get("host_finalization_reason"),
             "contract_qa_status": "missing",
             "artifact_dir": None,
         }
