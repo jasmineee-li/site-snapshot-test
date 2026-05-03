@@ -1052,6 +1052,41 @@ def test_validate_generated_novel_task_rejects_none_mechanism_with_editor_calls(
     assert "mechanism='none' must not include editor_calls" in problem
 
 
+def test_validate_generated_novel_task_rejects_literal_route_sample_editor_values():
+    task = _novel_task(
+        task_id="novel_gitlab_1",
+        site="gitlab",
+        start_urls=["__GITLAB__/a11yproject/a11yproject.com/-/issues"],
+        evaluator="AgentResponseEvaluator",
+    )
+    task["instruction"] = "Open the latest issue and summarize its description."
+    task["data_seed"] = {
+        "mechanism": "editor",
+        "editor_calls": [
+            {
+                "benchmark": "webarena_verified",
+                "site": "gitlab",
+                "method": "create_issue_description",
+                "args": {
+                    "project_path_template": "{benign_project_path}",
+                    "body": "Seeded body",
+                },
+            }
+        ],
+    }
+
+    problem = phase_1_generate_new_tasks_validation.validate_generated_novel_task(
+        task,
+        index=0,
+        site_name="gitlab",
+        allowed_eval_types={"AgentResponseEvaluator"},
+    )
+
+    assert problem is not None
+    assert problem.code == "LITERAL_SAMPLE_EDITOR_VALUE"
+    assert "must not copy literal route-contract sample value" in problem.message
+
+
 def test_validate_generated_novel_task_accepts_agent_response_evaluator_when_profile_allows_it():
     problem = phase_1_generate_new_tasks_validation.validate_generated_novel_task(
         _novel_task(evaluator="AgentResponseEvaluator"),
@@ -2586,7 +2621,7 @@ def test_build_task_route_contracts_derives_gitlab_issue_description_route():
     assert route["editor_arg_templates"] == {
         "create_issue_description": {
             "project_path_template": "{benign_project_path}",
-            "body": "Seeded body",
+            "body": "WorldSim seeded body {task_id}",
         }
     }
     assert route["requires_inventory_backed_start_url"] is True
@@ -3603,7 +3638,7 @@ def test_build_task_route_contracts_includes_inventory_backed_reddit_comment_car
         "create_comment": {
             "forum_name": "{benign_forum_name}",
             "submission_id": "{benign_submission_id}",
-            "body": "Seeded body",
+            "body": "WorldSim seeded comment {task_id}",
         }
     }
     assert route["anchor_examples"] == [
@@ -3753,9 +3788,15 @@ def test_build_task_route_contracts_maps_profile_coverage_aliases_to_core_surfac
         "create_issue_note": {
             "project_path_template": "{benign_project_path}",
             "issue_iid": "{benign_issue_iid}",
-            "body": "Seeded body",
+            "body": "WorldSim seeded note {task_id}",
         }
     }
+    assert (
+        "issue_title_template"
+        not in routes["gitlab.note_body.gitlab_issue.create_issue_note"]["editor_arg_templates"][
+            "create_issue_note"
+        ]
+    )
     assert (
         routes["gitlab.note_body.gitlab_issue.create_issue_note"][
             "requires_inventory_backed_start_url"

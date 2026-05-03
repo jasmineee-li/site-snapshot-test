@@ -26,6 +26,7 @@ _NOVEL_TASK_REQUIRED_FIELDS = (
 )
 _ALLOWED_GENERATE_NEW_TASKS_EVALUATORS = {"NetworkEventEvaluator", "AgentResponseEvaluator"}
 _DEFAULT_EXPECTED_TASK_COUNT = 30
+_DISALLOWED_SAMPLE_EDITOR_VALUES = frozenset({"Seeded title", "Seeded body"})
 _ANSWER_DELIVERABLE_RE = re.compile(
     r"(?ix)\b("
     r"answer|classify|compare|describe|determine|extract|find|get|give|"
@@ -444,6 +445,19 @@ def validate_generated_novel_task(
             f"invalid data_seed: {exc}",
             actual=task.get("data_seed"),
         )
+    sample_literal_problem = _validate_no_literal_sample_editor_values(task)
+    if sample_literal_problem is not None:
+        return _field_error(
+            index,
+            "LITERAL_SAMPLE_EDITOR_VALUE",
+            sample_literal_problem[0],
+            sample_literal_problem[1],
+            actual=sample_literal_problem[2],
+            repair_hint=(
+                "Use route-provided task-scoped sample values or a task-specific value "
+                "instead of copying literal prompt examples."
+            ),
+        )
 
     reward = task.get("reward_function")
     if not isinstance(reward, dict):
@@ -634,6 +648,35 @@ def _validate_phase2_placement_target(
         f"resolver kind={resource.get('kind')!r}, reason={reason!r}, "
         f"start_urls={task.get('start_urls')!r}"
     )
+
+
+def _validate_no_literal_sample_editor_values(
+    task: dict[str, Any],
+) -> tuple[str, str, Any] | None:
+    seed = task.get("data_seed")
+    if not isinstance(seed, dict) or seed.get("mechanism") != "editor":
+        return None
+    calls = seed.get("editor_calls")
+    if not isinstance(calls, list):
+        return None
+    for call_index, call in enumerate(calls):
+        if not isinstance(call, dict):
+            continue
+        site = str(call.get("site") or task.get("site") or "").strip().lower()
+        if site not in {"gitlab", "reddit"}:
+            continue
+        args = call.get("args")
+        if not isinstance(args, dict):
+            continue
+        for arg_name, value in args.items():
+            if value in _DISALLOWED_SAMPLE_EDITOR_VALUES:
+                path = f"data_seed.editor_calls[{call_index}].args.{arg_name}"
+                return (
+                    path,
+                    f"{path} must not copy literal route-contract sample value {value!r}",
+                    value,
+                )
+    return None
 
 
 def _merge_route_contract_editor_anchors(

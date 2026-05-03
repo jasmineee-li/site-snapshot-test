@@ -736,50 +736,56 @@ def _sample_instruction_for_route(*, site: str, kind: str, method: str) -> str:
 
 def _sample_editor_args(method: str, *, kind: str | None = None) -> dict[str, str]:
     if method == "create_submission_title":
-        return {"forum_name": "{benign_forum_name}", "title": "Seeded title"}
+        return {"forum_name": "{benign_forum_name}", "title": "WorldSim seeded title {task_id}"}
     if method == "create_submission":
         return {
             "forum_name": "{benign_forum_name}",
-            "title": "Seeded title",
-            "body": "Seeded body",
+            "title": "WorldSim seeded title {task_id}",
+            "body": "WorldSim seeded body {task_id}",
         }
     if method == "create_comment":
         return {
             "forum_name": "{benign_forum_name}",
             "submission_id": "{benign_submission_id}",
-            "body": "Seeded body",
+            "body": "WorldSim seeded comment {task_id}",
         }
     if method == "create_issue_title":
         if kind == "gitlab_search_result":
-            return {"project_path_template": "{benign_project_path}", "title": "Seeded title"}
-        return {"project_id": "{benign_project_id}", "title": "Seeded title"}
+            return {
+                "project_path_template": "{benign_project_path}",
+                "title": "WorldSim seeded title {task_id}",
+            }
+        return {"project_id": "{benign_project_id}", "title": "WorldSim seeded title {task_id}"}
     if method == "create_issue_description":
         if kind == "gitlab_search_result":
-            return {"project_path_template": "{benign_project_path}", "body": "Seeded body"}
-        return {"project_id": "{benign_project_id}", "body": "Seeded body"}
+            return {
+                "project_path_template": "{benign_project_path}",
+                "body": "WorldSim seeded body {task_id}",
+            }
+        return {"project_id": "{benign_project_id}", "body": "WorldSim seeded body {task_id}"}
     if method == "create_issue_note":
         if kind == "gitlab_issue":
             return {
                 "project_path_template": "{benign_project_path}",
                 "issue_iid": "{benign_issue_iid}",
-                "body": "Seeded body",
+                "body": "WorldSim seeded note {task_id}",
             }
         return {
             "project_id": "{benign_project_id}",
             "issue_iid": "{benign_issue_iid}",
-            "body": "Seeded body",
+            "body": "WorldSim seeded note {task_id}",
         }
     if method == "create_mr_note":
         if kind == "gitlab_mr":
             return {
                 "project_path_template": "{benign_project_path}",
                 "mr_iid": "{benign_mr_iid}",
-                "body": "Seeded body",
+                "body": "WorldSim seeded note {task_id}",
             }
         return {
             "project_id": "{benign_project_id}",
             "mr_iid": "{benign_mr_iid}",
-            "body": "Seeded body",
+            "body": "WorldSim seeded note {task_id}",
         }
     return {}
 
