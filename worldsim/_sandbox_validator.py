@@ -74,8 +74,12 @@ _HOST_READY_TIER3_OPTIONS = {
     "modify_repository_content": {
         "pilot_policy": "tier3_pilot",
         "readiness_level": "L4_pilot_ready",
+        "fixture_kind": "gitlab_repository_content",
+        "fixture_scope": "disposable",
+        "readback_kind": "repo_file_contains",
     }
 }
+_TIER3_FIXTURE_CLEANUP_STRATEGIES = {"benchmark_reset", "fixture_reset", "delete_file"}
 
 
 def _canonical_core_surface(site: str, surface_id: str | None) -> str | None:
@@ -100,12 +104,17 @@ def _adversarial_action_kind_allowed(task: dict, kind: str) -> bool:
     for option in options:
         if not isinstance(option, dict):
             continue
-        if _host_ready_action_option_allowed(option, kind):
+        if _host_ready_action_option_allowed(option, kind, contract, task):
             return True
     return False
 
 
-def _host_ready_action_option_allowed(option: dict, kind: str) -> bool:
+def _host_ready_action_option_allowed(
+    option: dict,
+    kind: str,
+    contract: dict,
+    task: dict,
+) -> bool:
     if option.get("host_ready") is not True:
         return False
     if str(option.get("kind") or "").strip() != kind:
@@ -116,7 +125,77 @@ def _host_ready_action_option_allowed(option: dict, kind: str) -> bool:
     for key, value in required.items():
         if str(option.get(key) or "").strip() != value:
             return False
-    return bool(str(option.get("readiness_reason") or "").strip())
+    if str(option.get("cleanup_strategy") or "").strip() not in _TIER3_FIXTURE_CLEANUP_STRATEGIES:
+        return False
+    if not bool(str(option.get("readiness_reason") or "").strip()):
+        return False
+    return _tier3_fixture_contract_allowed(contract, task)
+
+
+def _tier3_fixture_contract_allowed(contract: dict, task: dict) -> bool:
+    if str(task.get("site") or contract.get("site") or "").strip().lower() != "gitlab":
+        return False
+    eligibility = contract.get("eligibility")
+    if not isinstance(eligibility, dict) or eligibility.get("status") != "eligible":
+        return False
+    if str(contract.get("target_surface_id") or "").strip() not in {
+        "issue.description",
+        "note.body",
+    }:
+        return False
+    if str(contract.get("editor_method") or "").strip() not in {
+        "create_issue",
+        "create_issue_description",
+        "create_issue_note",
+    }:
+        return False
+    anchors = contract.get("anchors")
+    if not isinstance(anchors, dict):
+        anchors = {}
+    fixture = contract.get("tier3_fixture")
+    if not isinstance(fixture, dict):
+        return False
+    if str(fixture.get("kind") or "").strip() not in {
+        "gitlab_repository_content",
+        "repository_content",
+    }:
+        return False
+    scope = str(fixture.get("scope") or fixture.get("fixture_scope") or "").strip()
+    if fixture.get("disposable") is True and not scope:
+        scope = "disposable"
+    if scope not in {"disposable", "worldsim_disposable"}:
+        return False
+    cleanup = fixture.get("cleanup")
+    cleanup_map = cleanup if isinstance(cleanup, dict) else {}
+    cleanup_strategy = str(
+        cleanup_map.get("strategy") or fixture.get("cleanup_strategy") or ""
+    ).strip()
+    if cleanup_strategy not in _TIER3_FIXTURE_CLEANUP_STRATEGIES:
+        return False
+    cleanup_verified = cleanup_map.get("verified")
+    if cleanup_verified is None:
+        cleanup_verified = fixture.get("cleanup_verified")
+    if cleanup_verified is not True:
+        return False
+    readback = fixture.get("readback") or fixture.get("state_probe")
+    readback_map = readback if isinstance(readback, dict) else {}
+    if str(readback_map.get("kind") or fixture.get("readback_kind") or "").strip() != (
+        "repo_file_contains"
+    ):
+        return False
+    fixture_project_id = str(fixture.get("project_id") or "").strip().strip("/")
+    fixture_project_path = str(fixture.get("project_path") or "").strip().strip("/")
+    if not (fixture_project_id or fixture_project_path):
+        return False
+    if fixture_project_id and str(anchors.get("project_id") or "").strip().strip("/") != (
+        fixture_project_id
+    ):
+        return False
+    if fixture_project_path and str(anchors.get("project_path") or "").strip().strip("/") != (
+        fixture_project_path
+    ):
+        return False
+    return True
 
 
 # ---------------------------------------------------------------------------

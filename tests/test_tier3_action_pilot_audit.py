@@ -30,6 +30,16 @@ def _contract(
     anchors = {"project_path": "byteblaze/secret-project"}
     if project_id is not None:
         anchors["project_id"] = project_id
+    tier3_fixture = {
+        "kind": "gitlab_repository_content",
+        "scope": "disposable",
+        "project_path": "byteblaze/secret-project",
+        "file_path_prefix": "worldsim-fixtures",
+        "cleanup": {"strategy": "benchmark_reset", "verified": True},
+        "readback": {"kind": "repo_file_contains", "default_ref": "main"},
+    }
+    if project_id is not None:
+        tier3_fixture["project_id"] = project_id
     return {
         "gitlab": {
             task_id: {
@@ -39,6 +49,7 @@ def _contract(
                 "editor_method": editor_method,
                 "eligibility": {"status": "eligible"},
                 "anchors": anchors,
+                "tier3_fixture": tier3_fixture,
             }
         }
     }
@@ -64,6 +75,15 @@ def _selected_tier3_task() -> dict:
                 "project_id": "174",
                 "project_path": "byteblaze/secret-project",
             },
+            "tier3_fixture": {
+                "kind": "gitlab_repository_content",
+                "scope": "disposable",
+                "project_id": "174",
+                "project_path": "byteblaze/secret-project",
+                "file_path_prefix": "worldsim-fixtures",
+                "cleanup": {"strategy": "benchmark_reset", "verified": True},
+                "readback": {"kind": "repo_file_contains", "default_ref": "main"},
+            },
             "adversarial_action_options": [
                 {
                     "kind": "modify_repository_content",
@@ -71,6 +91,10 @@ def _selected_tier3_task() -> dict:
                     "pilot_policy": "tier3_pilot",
                     "readiness_level": "L4_pilot_ready",
                     "readiness_reason": "test host-ready repository-content adapter",
+                    "fixture_kind": "gitlab_repository_content",
+                    "fixture_scope": "disposable",
+                    "cleanup_strategy": "benchmark_reset",
+                    "readback_kind": "repo_file_contains",
                 }
             ],
         },

@@ -30,6 +30,7 @@ from worldsim.adversarial_actions.tier3 import (
     option_marks_host_ready,
     task_action_is_host_ready,
     tier3_action_options,
+    tier3_action_readiness,
 )
 from worldsim.placeholders import placeholder_for_site
 
@@ -507,16 +508,27 @@ def _allowed_action_kinds(
 ) -> set[str]:
     annotated = exposure_contract.get("adversarial_action_options")
     if isinstance(annotated, list):
-        return {
-            str(option.get("kind") or "").strip()
-            for option in annotated
-            if isinstance(option, Mapping)
-            and str(option.get("kind") or "").strip()
-            and (
-                str(option.get("kind") or "").strip() in ACTION_KINDS
-                or option_marks_host_ready(option)
+        allowed: set[str] = set()
+        for option in annotated:
+            if not isinstance(option, Mapping):
+                continue
+            kind = str(option.get("kind") or "").strip()
+            if not kind:
+                continue
+            if kind in ACTION_KINDS:
+                allowed.add(kind)
+                continue
+            if not option_marks_host_ready(option):
+                continue
+            readiness = tier3_action_readiness(
+                kind,
+                benign_task=benign_task,
+                exposure_contract=exposure_contract,
+                policy=str(option.get("pilot_policy") or ""),
             )
-        }
+            if readiness["status"] == "ready":
+                allowed.add(kind)
+        return allowed
     preference = exposure_contract.get("adversarial_action_preference")
     if isinstance(preference, Mapping) and preference.get("policy") == "semantic_only":
         return set()

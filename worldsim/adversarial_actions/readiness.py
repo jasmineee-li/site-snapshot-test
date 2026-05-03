@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from worldsim.adversarial_actions.catalog import describe_action_kind, get_action_spec
-from worldsim.adversarial_actions.tier3 import option_marks_host_ready
+from worldsim.adversarial_actions.tier3 import option_marks_host_ready, tier3_action_readiness
 
 
 def build_action_readiness_artifacts(
@@ -55,7 +55,7 @@ def _action_contract_row(
     task_id: str,
     contract: Mapping[str, Any],
 ) -> dict[str, Any]:
-    options = _expanded_options(contract)
+    options = _expanded_options(contract, site_name=site_name)
     unknown: list[str] = []
     disabled: list[str] = []
     for option in contract.get("adversarial_action_options") or []:
@@ -65,7 +65,11 @@ def _action_contract_row(
         spec = get_action_spec(kind)
         if spec is None:
             unknown.append(kind)
-        elif not spec.default_enabled and not option_marks_host_ready(option):
+        elif not spec.default_enabled and not _host_ready_option_recomputes(
+            option,
+            contract,
+            site_name=site_name,
+        ):
             disabled.append(kind)
     if unknown:
         readiness = {
@@ -109,7 +113,7 @@ def _action_contract_row(
     }
 
 
-def _expanded_options(contract: Mapping[str, Any]) -> list[dict[str, Any]]:
+def _expanded_options(contract: Mapping[str, Any], *, site_name: str) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     raw_options = contract.get("adversarial_action_options")
     if not isinstance(raw_options, list):
@@ -119,15 +123,45 @@ def _expanded_options(contract: Mapping[str, Any]) -> list[dict[str, Any]]:
             continue
         kind = str(raw.get("kind") or "")
         spec = get_action_spec(kind)
-        if spec is None or (not spec.default_enabled and not option_marks_host_ready(raw)):
+        host_ready = _host_ready_option_recomputes(raw, contract, site_name=site_name)
+        if spec is None or (not spec.default_enabled and not host_ready):
             continue
         described = describe_action_kind(kind)
         if isinstance(raw.get("description"), str):
             described["description"] = raw["description"]
-        if option_marks_host_ready(raw):
+        if host_ready:
             described["host_ready"] = True
-            for key in ("pilot_policy", "readiness_level", "readiness_reason"):
+            for key in (
+                "pilot_policy",
+                "readiness_level",
+                "readiness_reason",
+                "fixture_kind",
+                "fixture_scope",
+                "cleanup_strategy",
+                "readback_kind",
+            ):
                 if raw.get(key) is not None:
                     described[key] = raw[key]
         out.append(described)
     return out
+
+
+def _host_ready_option_recomputes(
+    option: Mapping[str, Any],
+    contract: Mapping[str, Any],
+    *,
+    site_name: str,
+) -> bool:
+    if not option_marks_host_ready(option):
+        return False
+    kind = str(option.get("kind") or "").strip()
+    policy = str(option.get("pilot_policy") or "").strip()
+    contract_with_site = dict(contract)
+    contract_with_site.setdefault("site", site_name)
+    readiness = tier3_action_readiness(
+        kind,
+        benign_task=None,
+        exposure_contract=contract_with_site,
+        policy=policy,
+    )
+    return readiness["status"] == "ready"

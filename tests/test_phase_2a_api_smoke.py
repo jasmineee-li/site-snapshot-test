@@ -352,6 +352,22 @@ async def test_api_call_schema_includes_host_ready_tier3_contract(
         benign_target_resources={"benign_1": {"kind": "gitlab_issue"}},
         exposure_contracts={
             "benign_1": {
+                "site": "gitlab",
+                "target_surface_id": "issue.description",
+                "editor_method": "create_issue_description",
+                "eligibility": {"status": "eligible"},
+                "anchors": {
+                    "project_id": "174",
+                    "project_path": "byteblaze/secret-project",
+                },
+                "tier3_fixture": {
+                    "kind": "gitlab_repository_content",
+                    "scope": "disposable",
+                    "project_id": "174",
+                    "project_path": "byteblaze/secret-project",
+                    "cleanup": {"strategy": "benchmark_reset", "verified": True},
+                    "readback": {"kind": "repo_file_contains", "default_ref": "main"},
+                },
                 "adversarial_action_options": [
                     {
                         "kind": "modify_repository_content",
@@ -359,6 +375,10 @@ async def test_api_call_schema_includes_host_ready_tier3_contract(
                         "pilot_policy": "tier3_pilot",
                         "readiness_level": "L4_pilot_ready",
                         "readiness_reason": "test host-ready repository-content adapter",
+                        "fixture_kind": "gitlab_repository_content",
+                        "fixture_scope": "disposable",
+                        "cleanup_strategy": "benchmark_reset",
+                        "readback_kind": "repo_file_contains",
                     }
                 ]
             }
