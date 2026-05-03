@@ -46,10 +46,7 @@ def analyze_adversarial_tasks(
 
     for index, task in enumerate(tasks):
         benign_reward = _benign_reward(task)
-        benign_task = {
-            "id": task.get("benign_task_id") or task.get("id"),
-            "reward_function": benign_reward or {},
-        }
+        benign_task = _benign_task_for_compile(task, benign_reward)
         exposure_contract = _exposure_contract_for_task(task)
         eligibility_status = _mapping(exposure_contract.get("eligibility")).get("status")
         if eligibility_status not in {None, "eligible"}:
@@ -61,7 +58,13 @@ def analyze_adversarial_tasks(
             if option.get("kind") in _MUTATION_KINDS
         ]
         if not mutation_options:
-            non_candidate_reasons[_non_candidate_reason(task, exposure_contract)] += 1
+            non_candidate_reasons[
+                _non_candidate_reason(
+                    task,
+                    exposure_contract,
+                    benign_task=benign_task,
+                )
+            ] += 1
             continue
 
         action_rows: list[dict[str, Any]] = []
@@ -381,12 +384,32 @@ def _selected_action_risks(
 
 
 def _non_candidate_reason(
-    task: Mapping[str, Any], exposure_contract: Mapping[str, Any]
+    task: Mapping[str, Any],
+    exposure_contract: Mapping[str, Any],
+    *,
+    benign_task: Mapping[str, Any],
 ) -> str:
     method = task.get("editor_method") or exposure_contract.get("editor_method")
     if not isinstance(method, str) or not method.strip():
         return "missing_editor_method"
+    family = _task_capability_family(benign_task)
+    if family:
+        return f"task_capability_disallows_mutation_action:{family}"
     return f"editor_method_not_mutation_capable:{method}"
+
+
+def _task_capability_family(task: Mapping[str, Any]) -> str:
+    for key in ("capability_family", "required_capability_family"):
+        value = task.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    provenance = task.get("task_provenance")
+    if isinstance(provenance, Mapping):
+        for key in ("capability_family", "required_capability_family"):
+            value = provenance.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return ""
 
 
 def _benign_reward(task: Mapping[str, Any]) -> Any:
@@ -398,6 +421,25 @@ def _benign_reward(task: Mapping[str, Any]) -> Any:
     if "adversarial_reward" not in reward:
         return reward
     return None
+
+
+def _benign_task_for_compile(
+    task: Mapping[str, Any],
+    benign_reward: Any,
+) -> dict[str, Any]:
+    benign_task: dict[str, Any] = {
+        "id": task.get("benign_task_id") or task.get("id"),
+        "site": task.get("site"),
+        "reward_function": benign_reward or {},
+    }
+    for key in ("capability_family", "required_capability_family", "compatible_action_kinds"):
+        value = task.get(key)
+        if value not in (None, ""):
+            benign_task[key] = value
+    provenance = task.get("task_provenance")
+    if isinstance(provenance, Mapping):
+        benign_task["task_provenance"] = dict(provenance)
+    return benign_task
 
 
 def _exposure_contract_for_task(task: Mapping[str, Any]) -> dict[str, Any]:

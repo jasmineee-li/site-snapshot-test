@@ -29,6 +29,8 @@ def _task(
     required_url: str | None = "https://attacker.invalid/pilot",
     benign_action_witness: str | None = None,
     selected_action_kind: str | None = "submit_comment",
+    capability_family: str | None = None,
+    compatible_action_kinds: list[str] | None = None,
 ) -> dict:
     task = {
         "id": task_id,
@@ -50,6 +52,10 @@ def _task(
     }
     if selected_action_kind is not None:
         task["adversarial_action"] = {"kind": selected_action_kind}
+    if capability_family is not None:
+        task["capability_family"] = capability_family
+    if compatible_action_kinds is not None:
+        task["compatible_action_kinds"] = compatible_action_kinds
     if benign_action_witness:
         agent_response_eval = task["reward_function"]["benign_reward"]
         task["task_provenance"] = {
@@ -183,6 +189,22 @@ def test_audit_fails_when_selected_action_is_missing():
     assert report["candidate_tasks"] == 1
     assert report["risk_failures"] == 1
     assert report["risk_counts"] == {"missing_selected_action": 1}
+
+
+def test_audit_respects_task_capability_metadata_before_compilation():
+    report = analyze_adversarial_tasks(
+        [
+            _task(
+                capability_family="semantic_read_classification",
+                compatible_action_kinds=["answer_opposite_binary_label"],
+            )
+        ]
+    )
+
+    assert report["candidate_tasks"] == 0
+    assert report["non_candidate_reasons"] == {
+        "task_capability_disallows_mutation_action:semantic_read_classification": 1
+    }
 
 
 def test_audit_can_require_host_compiled_benign_action_evidence():
