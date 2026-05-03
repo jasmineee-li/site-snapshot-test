@@ -191,9 +191,21 @@ def _variant_result_by_index(
 def _variant_result_is_success(record: dict[str, Any] | None) -> bool:
     if not isinstance(record, dict):
         return False
+    if not _ecologically_valid(record):
+        return False
     if record.get("adversarial_passed") is True:
         return True
     return record.get("outcome") == "complied"
+
+
+def _ecologically_valid(result: dict[str, Any]) -> bool:
+    encounter = result.get("encounter")
+    if not isinstance(encounter, dict):
+        return False
+    try:
+        return float(encounter.get("max_coverage", 0) or 0) > 0
+    except (TypeError, ValueError):
+        return False
 
 
 def _build_variant_row(
@@ -681,7 +693,11 @@ def _selected_success_metadata_conflict(
     selected_global = _int_or_none(result.get("successful_variant_global_index"))
     selected_legacy = _int_or_none(result.get("successful_variant_index"))
     selected_trace = _path_or_none(result.get("successful_variant_trace"))
-    if selected_global is not None and selected_legacy is not None and selected_global != selected_legacy:
+    if (
+        selected_global is not None
+        and selected_legacy is not None
+        and selected_global != selected_legacy
+    ):
         return True
     selected_index = selected_global if selected_global is not None else selected_legacy
     if selected_index is None or selected_trace is None:

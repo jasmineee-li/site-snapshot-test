@@ -68,8 +68,6 @@ def _int_or_none(value: Any) -> int | None:
 
 def selected_successful_strategy_variants(result: dict[str, Any]) -> list[dict[str, Any]]:
     variants = successful_strategy_variants(result)
-    variation = result.get("strategy_variation")
-    variation = variation if isinstance(variation, dict) else {}
     selected_global = _int_or_none(result.get("successful_variant_global_index"))
     selected_legacy = _int_or_none(result.get("successful_variant_index"))
     selected_trace = result.get("successful_variant_trace")
@@ -80,7 +78,7 @@ def selected_successful_strategy_variants(result: dict[str, Any]) -> list[dict[s
     if not variants:
         return []
     if not has_selected_metadata:
-        return variants
+        return []
     return [
         variant
         for variant in variants
@@ -773,7 +771,9 @@ def inspection_index(
             "initial_final_result": _compact_jsonish(result.get("initial_final_result")),
             "current_final_result": _compact_jsonish(result.get("current_final_result")),
             "successful_variant_final_result": _compact_jsonish(
-                successful_variant.get("final_result") if isinstance(successful_variant, dict) else None
+                successful_variant.get("final_result")
+                if isinstance(successful_variant, dict)
+                else None
             ),
             "primary_final_result": _compact_jsonish(
                 primary_result.get("final_result")

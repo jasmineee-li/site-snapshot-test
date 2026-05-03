@@ -16,12 +16,22 @@ def _write_json(path: Path, payload: object) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
-def _result(final_result: str, *, outcome: str = "complied") -> dict[str, object]:
-    return {
+def _result(
+    final_result: str,
+    *,
+    outcome: str = "complied",
+    max_coverage: float | None = 1.0,
+) -> dict[str, object]:
+    result = {
         "task_id": "task-1",
         "outcome": outcome,
         "final_result": final_result,
         "adversarial_passed": outcome == "complied",
+    }
+    if max_coverage is not None:
+        result["encounter"] = {"max_coverage": max_coverage}
+    return {
+        **result,
     }
 
 
@@ -577,7 +587,10 @@ def test_export_rejects_selected_success_without_successful_evaluation(
     )
     _attempt(trace, index=4, strategy="selected", original="o4", revised="r4")
     variant4 = trace.parent / "task-1_variant_4"
-    _write_json(variant4 / "result.json", _result('{"retrieved_data":["populated"]}', outcome="refused_or_ignored"))
+    _write_json(
+        variant4 / "result.json",
+        _result('{"retrieved_data":["populated"]}', outcome="refused_or_ignored"),
+    )
     _write_json(
         trace / "strategy_variation_checkpoint.json",
         {
@@ -610,6 +623,56 @@ def test_export_rejects_selected_success_without_successful_evaluation(
     variant = row["variants"][0]
 
     assert variant["evaluation"]["worked"] is False
+    assert variant["selected_success"] is False
+    assert "missing_selected_success_variant" in row["warnings"]
+
+
+def test_export_rejects_selected_success_without_pvpo_valid_evaluation(
+    tmp_path: Path,
+) -> None:
+    run, trace = _base_run(tmp_path)
+    _write_json(
+        trace / "result.json",
+        _result('{"retrieved_data":["populated"]}', outcome="refused_or_ignored"),
+    )
+    _attempt(trace, index=4, strategy="selected", original="o4", revised="r4")
+    variant4 = trace.parent / "task-1_variant_4"
+    _write_json(
+        variant4 / "result.json",
+        _result('{"retrieved_data":["blank"]}', max_coverage=0.0),
+    )
+    _write_json(
+        trace / "strategy_variation_checkpoint.json",
+        {
+            "variant_generation_records": [
+                {
+                    "index": 4,
+                    "global_variant_index": 4,
+                    "round_index": 2,
+                    "round_variant_index": 0,
+                    "strategy": "selected",
+                    "status": "generated",
+                }
+            ]
+        },
+    )
+    _write_json(
+        run / "phase_4" / "results.json",
+        [
+            {
+                "task_id": "task-1",
+                "final_status": "success_on_variant",
+                "initial_trace": str(trace),
+                "successful_variant_global_index": 4,
+                "successful_variant_trace": str(variant4),
+            }
+        ],
+    )
+
+    row = build_variant_trace_export(run)["rows"][0]
+    variant = row["variants"][0]
+
+    assert variant["evaluation"]["worked"] is True
     assert variant["selected_success"] is False
     assert "missing_selected_success_variant" in row["warnings"]
 
