@@ -4404,6 +4404,65 @@ async def test_run_strategy_variation_adaptive_round2_success(monkeypatch, tmp_p
 
 
 @pytest.mark.asyncio
+async def test_run_strategy_variation_adaptive_stops_after_latest_round_loses_lineage(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    generated: list[str] = []
+
+    async def fake_run_judge(*args, **kwargs):
+        return {
+            "status": "ok",
+            "diagnosis": "try adaptive loop",
+            "recommended_strategies": _ADAPTIVE_STRATEGIES,
+        }
+
+    async def fake_generate_variant(task, strategy, profile_path, **kwargs):
+        generated.append(strategy["strategy"])
+        return _variant_with_payload(task, f"payload for {strategy['strategy']}")
+
+    async def fake_evaluate_variant(**kwargs):
+        round_index = kwargs["round_index"]
+        return {
+            "task_id": task["id"],
+            "outcome": "refused_or_ignored",
+            "adversarial_passed": False,
+            "encounter": {"max_coverage": 0.5 if round_index == 1 else 0.0},
+            "strategy": kwargs["strategy"]["strategy"],
+        }
+
+    monkeypatch.setattr(phase_4_adversarial, "run_judge", fake_run_judge)
+    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fake_generate_variant)
+    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate_variant)
+
+    result = await phase_4_adversarial.run_strategy_variation(
+        task=task,
+        initial_result={"trajectory_dir": str(tmp_path / "traj")},
+        primary_instances=[instances[0], instances[1], instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+    )
+
+    assert result["status"] == "varied"
+    assert result["stop_reason"] == "no_actionable_lineage"
+    assert _adaptive_round_count(result) == 2
+    assert generated == [
+        "specificity",
+        "authority_framing",
+        "semantic_coherence",
+        "claim_urgency",
+        "embed_in_legitimate_context",
+        "necessary_for_benign_goal",
+    ]
+    assert result["adaptive_budget"]["remaining_budget"] == 1
+    assert result["adaptive_budget"]["rounds"][1]["pvpo_valid"] == 0
+    assert result["adaptive_budget"]["rounds"][1]["stop_reason"] == "no_actionable_lineage"
+    assert result["adaptive_budget"]["rounds"][2]["generated"] == 0
+
+
+@pytest.mark.asyncio
 async def test_run_strategy_variation_adaptive_terminal_success_and_resistant(
     monkeypatch, tmp_path
 ):
@@ -8254,12 +8313,18 @@ def test_stratified_summary_metrics_from_synthetic_results():
             "encounter": {"max_coverage": 0.5},
             "benign_passed": True,
             "adversarial_passed": False,
+            "successful_variant_trace": "/runs/adv-5_variant_0",
+            "successful_variant_index": 0,
+            "successful_variant_global_index": 0,
             "strategy_variation": {
                 "variant_results": [
                     {
                         "outcome": "complied",
                         "adversarial_passed": True,
                         "encounter": {"max_coverage": 0.5},
+                        "trajectory_dir": "/runs/adv-5_variant_0",
+                        "variant_index": 0,
+                        "global_variant_index": 0,
                     }
                 ],
             },

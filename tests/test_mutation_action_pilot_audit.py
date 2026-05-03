@@ -66,7 +66,14 @@ def test_audit_reports_mutation_candidate_with_network_evidence():
     assert action["evidence"]["has_response_status"] is True
     assert action["evidence"]["has_body_evidence"] is True
     assert action["evidence"]["has_path_specific_url_pattern"] is True
-    assert action["evidence"]["post_data_contains"] == ["https://attacker.invalid/pilot"]
+    assert action["evidence"]["post_data_fields"] == [
+        r"^reply_to_submission_.*\[comment\]$"
+    ]
+    assert action["evidence"]["post_data"] == {
+        r"^reply_to_submission_.*\[comment\]$": {
+            "contains": "https://attacker.invalid/pilot"
+        }
+    }
 
 
 def test_audit_surfaces_missing_required_url_as_pilot_risk():

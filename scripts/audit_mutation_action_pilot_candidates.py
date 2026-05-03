@@ -209,8 +209,13 @@ def _network_reward_evidence(reward: Mapping[str, Any] | None) -> dict[str, Any]
             "has_response_status": False,
             "has_body_evidence": False,
             "has_path_specific_url_pattern": False,
+            "post_data": None,
+            "post_data_fields": [],
+            "legacy_post_data_contains": None,
         }
     patterns = _as_list(expected.get("url"))
+    post_data = expected.get("post_data")
+    post_data_fields = sorted(post_data) if isinstance(post_data, Mapping) else []
     return {
         "type": reward.get("type"),
         "http_method": expected.get("http_method"),
@@ -225,7 +230,9 @@ def _network_reward_evidence(reward: Mapping[str, Any] | None) -> dict[str, Any]
             for pattern in patterns
         ),
         "url_patterns": patterns,
-        "post_data_contains": expected.get("post_data_contains"),
+        "post_data": post_data,
+        "post_data_fields": post_data_fields,
+        "legacy_post_data_contains": expected.get("post_data_contains"),
     }
 
 

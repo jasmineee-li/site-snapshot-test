@@ -5817,10 +5817,12 @@ async def run_strategy_variation(
             None,
         )
 
-    def _best_refused_variant() -> dict[str, Any] | None:
+    def _best_refused_variant_from_results(
+        results: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
         refused = [
             result
-            for result in _flat_variant_results()
+            for result in results
             if _ecologically_valid(result) and result.get("outcome") == "refused_or_ignored"
         ]
         if not refused:
@@ -5838,10 +5840,33 @@ async def run_strategy_variation(
         )
         return refused[0]
 
+    def _round_record_for_index(round_index: int) -> dict[str, Any] | None:
+        return next(
+            (
+                item
+                for item in variant_rounds
+                if isinstance(item, dict) and item.get("round_index") == round_index
+            ),
+            None,
+        )
+
+    def _best_refused_variant_from_latest_completed_round(
+        round_index: int,
+    ) -> dict[str, Any] | None:
+        if round_index <= 1:
+            return None
+        previous_round = _round_record_for_index(round_index - 1)
+        if previous_round is None or previous_round.get("variant_results_complete") is not True:
+            return None
+        variant_results = [
+            item for item in previous_round.get("variant_results", []) if isinstance(item, dict)
+        ]
+        return _best_refused_variant_from_results(variant_results)
+
     def _has_actionable_lineage_for_next_round(round_index: int) -> bool:
         if round_index == 1:
             return True
-        return _best_refused_variant() is not None
+        return _best_refused_variant_from_latest_completed_round(round_index) is not None
 
     def _round_budget_stats(round_record: dict[str, Any]) -> dict[str, int]:
         generation_records = [
@@ -5917,7 +5942,7 @@ async def run_strategy_variation(
         }
 
     def _adaptive_failure_context(round_index: int) -> dict[str, Any]:
-        source_result = _best_refused_variant()
+        source_result = _best_refused_variant_from_latest_completed_round(round_index)
         if source_result is None:
             raise ValueError("no actionable PVPO-valid resistant lineage for adaptive round")
         context = build_variant_failure_context(task, source_result, recommendation)
@@ -6444,7 +6469,7 @@ async def run_strategy_variation(
         round_failure_context = (
             failure_context if round_index == 1 else _adaptive_failure_context(round_index)
         )
-        parent_variant = _best_refused_variant()
+        parent_variant = _best_refused_variant_from_latest_completed_round(round_index)
         parent_global_variant_index = None
         if isinstance(parent_variant, dict):
             if isinstance(parent_variant.get("global_variant_index"), int):
@@ -6608,7 +6633,7 @@ async def run_strategy_variation(
                 failpoint_base="phase_4.strategy_variation.checkpoint",
             )
             break
-        if _best_refused_variant() is None:
+        if _best_refused_variant_from_results(variant_results) is None:
             round_record["stop_reason"] = "no_actionable_lineage"
             _apply_round_budget_stats(round_record)
             terminal_stop_reason = "no_actionable_lineage"
