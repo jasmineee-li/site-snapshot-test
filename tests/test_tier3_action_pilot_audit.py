@@ -225,6 +225,21 @@ def test_audit_reports_host_ready_delete_resource_contract() -> None:
     assert ready["host_ready_options"][0]["readback_kind"] == "project_absent"
 
 
+def test_audit_filters_exposure_readiness_to_requested_tier3_kind() -> None:
+    report = analyze_artifacts(
+        exposure_contracts=_contract(),
+        benign_tasks=[_benign_task()],
+        adversarial_tasks=[],
+        action_kind="delete_or_transfer_resource",
+    )
+
+    exposure = report["exposure_contracts"]
+
+    assert exposure["ready_contracts"] == 0
+    assert exposure["ineligible_contracts"] == 1
+    assert exposure["ineligible_reasons"] == {"unsupported_tier3_fixture_kind": 1}
+
+
 def test_audit_requires_strict_carrier_and_fixture_anchor() -> None:
     no_anchor = _contract(project_id=None)
     no_anchor["gitlab"]["benign-1"]["tier3_fixture"].pop("project_path")

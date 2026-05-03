@@ -133,7 +133,10 @@ def _analyze_exposure_contracts(
             exposure_contract=contract,
             policy=TIER3_PILOT_POLICY,
         )
-        host_ready_options = _host_ready_tier3_options(annotated)
+        host_ready_options = _host_ready_tier3_options(
+            annotated,
+            action_kind=action_kind,
+        )
         status = "ready" if host_ready_options else "ineligible"
         reason = readiness.get("reason") or "unknown"
         item = {
@@ -491,7 +494,11 @@ def _flatten_contracts(exposure_contracts: Mapping[str, Any]) -> list[dict[str, 
     return rows
 
 
-def _host_ready_tier3_options(contract: Mapping[str, Any]) -> list[dict[str, Any]]:
+def _host_ready_tier3_options(
+    contract: Mapping[str, Any],
+    *,
+    action_kind: str | None = None,
+) -> list[dict[str, Any]]:
     options = contract.get("adversarial_action_options")
     if not isinstance(options, list):
         return []
@@ -502,6 +509,8 @@ def _host_ready_tier3_options(contract: Mapping[str, Any]) -> list[dict[str, Any
         kind = str(option.get("kind") or "").strip()
         spec = get_action_spec(kind)
         if spec is None or spec.impact_tier != 3 or not option_marks_host_ready(option):
+            continue
+        if action_kind is not None and kind != action_kind:
             continue
         out.append(dict(option))
     return out

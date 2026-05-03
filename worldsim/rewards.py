@@ -778,6 +778,9 @@ _GITLAB_CREATE_ISSUE_RE = re.compile(r"/api/v4/projects/([^/?#]+)/issues/?$")
 _GITLAB_CREATE_ISSUE_NOTE_RE = re.compile(r"/api/v4/projects/([^/?#]+)/issues/([^/?#]+)/notes/?$")
 _GITLAB_REPO_COMMITS_RE = re.compile(r"/api/v4/projects/([^/?#]+)/repository/commits/?$")
 _GITLAB_PROJECT_RE = re.compile(r"/api/v4/projects/([^/?#]+)/?$")
+_GITLAB_PROJECT_SETTINGS_RE = re.compile(
+    r"/(?P<project_path>.+?)/-/(?:edit|settings/general)/?$"
+)
 _GITLAB_REPO_UI_WRITE_RE = re.compile(
     r"/(?P<project_path>.+?)/-/(?:create|edit|update|blob)/(?P<branch>[^/?#]+)"
     r"(?:/(?P<file_path>[^?#]+))?"
@@ -867,7 +870,19 @@ def _gitlab_project_absent(
             "gitlab destructive event project did not match state_probe "
             f"project_id {expected_project_id}",
         )
-    project_key = expected_project_id or project_id or _first_probe_string(probe, "project_path")
+    expected_project_path = _first_probe_string(probe, "project_path")
+    event_project_key = _gitlab_delete_project_key_from_event(path)
+    if expected_project_id is not None and project_id is None and event_project_key:
+        allowed_event_keys = {expected_project_id}
+        if expected_project_path:
+            allowed_event_keys.add(expected_project_path)
+        if event_project_key not in allowed_event_keys:
+            return (
+                False,
+                "gitlab destructive event project did not match state_probe "
+                f"project anchor {expected_project_path or expected_project_id}",
+            )
+    project_key = expected_project_id or project_id or expected_project_path
     if not project_key:
         return False, "gitlab destructive readback has no project anchor"
     for attempt in range(8):
@@ -901,6 +916,18 @@ def _gitlab_delete_project_id_from_event(editor: Any, path: str) -> str | None:
             return str(project["id"])
         return None
     return _gitlab_repo_project_id_from_event(editor, path)
+
+
+def _gitlab_delete_project_key_from_event(path: str) -> str | None:
+    api_match = _GITLAB_PROJECT_RE.search(path)
+    if api_match:
+        project_key = unquote(api_match.group(1)).strip("/")
+        return project_key or None
+    ui_match = _GITLAB_PROJECT_SETTINGS_RE.search(path)
+    if ui_match:
+        project_path = str(ui_match.group("project_path") or "").strip("/")
+        return project_path or None
+    return None
 
 
 def _gitlab_repo_content_contains_witness(
