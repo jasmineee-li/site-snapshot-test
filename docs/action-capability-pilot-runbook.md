@@ -146,6 +146,13 @@ validation then appends a natural task-local action witness to the instruction
 and adds a matching benign `NetworkEventEvaluator`. If the admitted cohort has
 public mutation wording but benign rewards only contain `AgentResponseEvaluator`
 checks, stop before Phase 4 and regenerate Phase 1 with the corrected cards.
+Run the mutation-pilot audit with `--require-benign-action-evidence` before
+Phase 4. The audit should prove three things at once: the selected Phase 2
+action is a host-compatible public mutation, the generated task capability
+metadata permits that action, and both adversarial and benign rewards carry
+POST/status/body-witness evidence. A route/editor method that could support
+some mutation is not enough for a Tier 2 pilot if the selected action or task
+capability family does not match.
 
 Tier 3:
 
