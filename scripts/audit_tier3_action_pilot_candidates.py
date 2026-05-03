@@ -39,6 +39,7 @@ TIER3_KIND = "modify_repository_content"
 def analyze_run_dir(
     run_dir: Path,
     *,
+    action_kind: str = TIER3_KIND,
     max_samples: int = 50,
     require_benign_action_evidence: bool = False,
 ) -> dict[str, Any]:
@@ -59,6 +60,7 @@ def analyze_run_dir(
             "exposure_contracts": str(run_dir / "phase_2" / "exposure_contracts.json"),
             "adversarial_tasks": str(run_dir / "phase_2" / "adversarial_tasks.json"),
         },
+        action_kind=action_kind,
         max_samples=max_samples,
         require_benign_action_evidence=require_benign_action_evidence,
     )
@@ -70,6 +72,7 @@ def analyze_artifacts(
     benign_tasks: list[Mapping[str, Any]],
     adversarial_tasks: list[Mapping[str, Any]],
     artifact_paths: Mapping[str, str] | None = None,
+    action_kind: str = TIER3_KIND,
     max_samples: int = 50,
     require_benign_action_evidence: bool = False,
 ) -> dict[str, Any]:
@@ -80,18 +83,20 @@ def analyze_artifacts(
         flattened_contracts,
         annotated_contracts=annotated_contracts,
         benign_by_id=benign_by_id,
+        action_kind=action_kind,
         max_samples=max_samples,
     )
     selected_report = _analyze_selected_tasks(
         adversarial_tasks,
         benign_by_id=benign_by_id,
+        action_kind=action_kind,
         max_samples=max_samples,
         require_benign_action_evidence=require_benign_action_evidence,
     )
     return {
         "artifact_paths": dict(artifact_paths or {}),
         "policy": TIER3_PILOT_POLICY,
-        "tier3_kind": TIER3_KIND,
+        "tier3_kind": action_kind,
         "exposure_contracts": exposure_report,
         "selected_tasks": selected_report,
         "methodology": (
@@ -106,6 +111,7 @@ def _analyze_exposure_contracts(
     *,
     annotated_contracts: dict[str, dict[str, Any]],
     benign_by_id: Mapping[str, Mapping[str, Any]],
+    action_kind: str,
     max_samples: int,
 ) -> dict[str, Any]:
     total = len(rows)
@@ -122,7 +128,7 @@ def _analyze_exposure_contracts(
         annotated = annotated_contracts.get(task_id) or {}
         benign_task = benign_by_id.get(task_id)
         readiness = tier3_action_readiness(
-            TIER3_KIND,
+            action_kind,
             benign_task=benign_task,
             exposure_contract=contract,
             policy=TIER3_PILOT_POLICY,
@@ -166,6 +172,7 @@ def _analyze_selected_tasks(
     tasks: list[Mapping[str, Any]],
     *,
     benign_by_id: Mapping[str, Mapping[str, Any]],
+    action_kind: str,
     max_samples: int,
     require_benign_action_evidence: bool,
 ) -> dict[str, Any]:
@@ -179,7 +186,7 @@ def _analyze_selected_tasks(
 
     for index, task in enumerate(tasks):
         kind = _selected_action_kind(task)
-        if kind != TIER3_KIND:
+        if kind != action_kind:
             non_selected_reasons[f"selected_action_not_tier3:{kind or 'missing'}"] += 1
             continue
         benign_task = _benign_task_for_compile(task, benign_by_id)
@@ -193,6 +200,7 @@ def _analyze_selected_tasks(
             final_state,
             reward_error,
             final_state_error,
+            action_kind=action_kind,
             benign_action_evidence=benign_evidence,
             require_benign_action_evidence=require_benign_action_evidence,
         )
@@ -283,10 +291,17 @@ def _network_reward_evidence(reward: Mapping[str, Any] | None) -> dict[str, Any]
             "url_patterns": [],
         }
     patterns = _as_list(expected.get("url"))
+    methods = {
+        str(method).upper()
+        for method in _as_list(expected.get("http_method"))
+        if str(method or "").strip()
+    }
     return {
         "type": reward.get("type") or reward.get("evaluator"),
         "http_method": expected.get("http_method"),
-        "has_post": str(expected.get("http_method") or "").upper() == "POST",
+        "methods": sorted(methods),
+        "has_post": "POST" in methods,
+        "has_mutation_method": bool(methods & {"POST", "PUT", "PATCH", "DELETE"}),
         "response_status": expected.get("response_status"),
         "has_response_status": bool(expected.get("response_status")),
         "has_body_evidence": bool(expected.get("post_data") or expected.get("post_data_contains")),
@@ -385,6 +400,7 @@ def _task_risks(
     reward_error: str | None,
     final_state_error: str | None,
     *,
+    action_kind: str,
     benign_action_evidence: Mapping[str, Any],
     require_benign_action_evidence: bool,
 ) -> list[str]:
@@ -397,14 +413,17 @@ def _task_risks(
         risks.append("missing_required_url_token")
     if evidence.get("type") != "NetworkEventEvaluator":
         risks.append("not_network_event_evaluator")
-    if evidence.get("has_post") is not True:
-        risks.append("missing_post_method")
+    if evidence.get("has_mutation_method") is not True:
+        risks.append("missing_mutation_method")
     if evidence.get("has_response_status") is not True:
         risks.append("missing_response_status")
-    if evidence.get("has_body_evidence") is not True:
-        risks.append("missing_body_evidence")
-    elif int(evidence.get("post_data_contains_count") or 0) < 2:
-        risks.append("missing_file_path_body_evidence")
+    if action_kind == "modify_repository_content":
+        if evidence.get("has_post") is not True:
+            risks.append("missing_post_method")
+        if evidence.get("has_body_evidence") is not True:
+            risks.append("missing_body_evidence")
+        elif int(evidence.get("post_data_contains_count") or 0) < 2:
+            risks.append("missing_file_path_body_evidence")
     if evidence.get("has_path_specific_url_pattern") is not True:
         risks.append("broad_only_endpoint_pattern")
     final_state_evidence = _final_state_evidence(final_state)
@@ -607,6 +626,12 @@ def main(argv: list[str] | None = None) -> int:
         default=50,
         help="Maximum ready/ineligible/selected/failure rows to include.",
     )
+    parser.add_argument(
+        "--action-kind",
+        default=TIER3_KIND,
+        choices=("modify_repository_content", "delete_or_transfer_resource"),
+        help="Tier 3 action kind to audit.",
+    )
     parser.add_argument("--output", type=Path, help="Optional JSON report path.")
     parser.add_argument("--json", action="store_true", help="Print full JSON report.")
     parser.add_argument(
@@ -627,6 +652,7 @@ def main(argv: list[str] | None = None) -> int:
 
     report = analyze_run_dir(
         args.run_dir,
+        action_kind=args.action_kind,
         max_samples=args.max_samples,
         require_benign_action_evidence=args.require_benign_action_evidence,
     )

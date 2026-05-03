@@ -82,6 +82,7 @@ from worldsim.adversarial_actions import (
     reward_signal_for_task,
 )
 from worldsim.adversarial_actions.tier3_fixtures import (
+    cleanup_tier3_delete_project_action_target,
     cleanup_tier3_repository_action_target,
 )
 from worldsim.agent_auth import resolve_agent_auth_headers
@@ -1982,13 +1983,16 @@ async def _tier3_action_cleanup_fields(
     task: Mapping[str, Any],
     instance_dict: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Return reporting-only cleanup telemetry for Tier 3 repository actions."""
+    """Return reporting-only cleanup telemetry for Tier 3 action targets."""
 
-    report = await asyncio.to_thread(
-        cleanup_tier3_repository_action_target,
-        task,
-        instance_dict,
+    action = task.get("adversarial_action")
+    kind = str(action.get("kind") or "").strip() if isinstance(action, Mapping) else ""
+    cleanup_fn = (
+        cleanup_tier3_delete_project_action_target
+        if kind == "delete_or_transfer_resource"
+        else cleanup_tier3_repository_action_target
     )
+    report = await asyncio.to_thread(cleanup_fn, task, instance_dict)
     if not report.get("attempted"):
         return {}
     if report.get("status") == "failed":

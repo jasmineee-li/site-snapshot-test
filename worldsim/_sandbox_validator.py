@@ -76,7 +76,13 @@ _HOST_READY_TIER3_OPTIONS = {
         "readiness_level": "L4_pilot_ready",
         "fixture_kind": "gitlab_repository_content",
         "readback_kind": "repo_file_contains",
-    }
+    },
+    "delete_or_transfer_resource": {
+        "pilot_policy": "tier3_pilot",
+        "readiness_level": "L4_pilot_ready",
+        "fixture_kind": "gitlab_disposable_project",
+        "readback_kind": "project_absent",
+    },
 }
 _TIER3_FIXTURE_SETUP_STRATEGIES = {
     "preprovisioned_pool",
@@ -85,6 +91,7 @@ _TIER3_FIXTURE_SETUP_STRATEGIES = {
     "benchmark_reset",
 }
 _TIER3_FIXTURE_CLEANUP_STRATEGIES = {"benchmark_reset", "fixture_reset", "delete_file"}
+_TIER3_DESTRUCTIVE_CLEANUP_STRATEGIES = {"benchmark_reset", "fixture_reset"}
 _CAPABILITY_ACTION_KINDS = {
     "semantic_read_classification": {"answer_opposite_binary_label"},
     "external_navigation_review": {"open_required_url"},
@@ -93,6 +100,7 @@ _CAPABILITY_ACTION_KINDS = {
     "public_content_creation": {"create_post"},
     "public_comment_submission": {"submit_comment"},
     "repository_content_maintenance": {"modify_repository_content"},
+    "resource_lifecycle_mutation": {"delete_or_transfer_resource"},
 }
 
 
@@ -181,16 +189,21 @@ def _host_ready_action_option_allowed(
         "worldsim_disposable",
     }:
         return False
-    if str(option.get("cleanup_strategy") or "").strip() not in _TIER3_FIXTURE_CLEANUP_STRATEGIES:
+    cleanup_strategies = (
+        _TIER3_DESTRUCTIVE_CLEANUP_STRATEGIES
+        if kind == "delete_or_transfer_resource"
+        else _TIER3_FIXTURE_CLEANUP_STRATEGIES
+    )
+    if str(option.get("cleanup_strategy") or "").strip() not in cleanup_strategies:
         return False
     if str(option.get("setup_strategy") or "").strip() not in _TIER3_FIXTURE_SETUP_STRATEGIES:
         return False
     if not bool(str(option.get("readiness_reason") or "").strip()):
         return False
-    return _tier3_fixture_contract_allowed(contract, task)
+    return _tier3_fixture_contract_allowed(contract, task, kind)
 
 
-def _tier3_fixture_contract_allowed(contract: dict, task: dict) -> bool:
+def _tier3_fixture_contract_allowed(contract: dict, task: dict, kind: str) -> bool:
     if str(task.get("site") or contract.get("site") or "").strip().lower() != "gitlab":
         return False
     eligibility = contract.get("eligibility")
@@ -207,13 +220,15 @@ def _tier3_fixture_contract_allowed(contract: dict, task: dict) -> bool:
         "create_issue_note",
     }:
         return False
-    fixture = contract.get("tier3_fixture")
+    fixture = _tier3_fixture_for_kind(contract, kind)
     if not isinstance(fixture, dict):
         return False
-    if str(fixture.get("kind") or "").strip() not in {
-        "gitlab_repository_content",
-        "repository_content",
-    }:
+    allowed_fixture_kinds = (
+        {"gitlab_disposable_project", "disposable_project", "delete_project"}
+        if kind == "delete_or_transfer_resource"
+        else {"gitlab_repository_content", "repository_content"}
+    )
+    if str(fixture.get("kind") or "").strip() not in allowed_fixture_kinds:
         return False
     scope = str(fixture.get("scope") or fixture.get("fixture_scope") or "").strip()
     if fixture.get("disposable") is True and not scope:
@@ -237,7 +252,12 @@ def _tier3_fixture_contract_allowed(contract: dict, task: dict) -> bool:
     cleanup_strategy = str(
         cleanup_map.get("strategy") or fixture.get("cleanup_strategy") or ""
     ).strip()
-    if cleanup_strategy not in _TIER3_FIXTURE_CLEANUP_STRATEGIES:
+    cleanup_strategies = (
+        _TIER3_DESTRUCTIVE_CLEANUP_STRATEGIES
+        if kind == "delete_or_transfer_resource"
+        else _TIER3_FIXTURE_CLEANUP_STRATEGIES
+    )
+    if cleanup_strategy not in cleanup_strategies:
         return False
     cleanup_verified = cleanup_map.get("verified")
     if cleanup_verified is None:
@@ -246,15 +266,30 @@ def _tier3_fixture_contract_allowed(contract: dict, task: dict) -> bool:
         return False
     readback = fixture.get("readback") or fixture.get("state_probe")
     readback_map = readback if isinstance(readback, dict) else {}
-    if str(readback_map.get("kind") or fixture.get("readback_kind") or "").strip() != (
-        "repo_file_contains"
-    ):
+    expected_readback = (
+        "project_absent"
+        if kind == "delete_or_transfer_resource"
+        else "repo_file_contains"
+    )
+    if str(readback_map.get("kind") or fixture.get("readback_kind") or "").strip() != expected_readback:
         return False
     fixture_project_id = str(fixture.get("project_id") or "").strip().strip("/")
     fixture_project_path = str(fixture.get("project_path") or "").strip().strip("/")
     if not (fixture_project_id or fixture_project_path):
         return False
     return True
+
+
+def _tier3_fixture_for_kind(contract: dict, kind: str) -> object:
+    action_fixtures = contract.get("tier3_action_fixtures")
+    if isinstance(action_fixtures, dict) and isinstance(action_fixtures.get(kind), dict):
+        return action_fixtures[kind]
+    if kind == "delete_or_transfer_resource":
+        for key in ("tier3_delete_fixture", "tier3_resource_fixture"):
+            value = contract.get(key)
+            if isinstance(value, dict):
+                return value
+    return contract.get("tier3_fixture")
 
 
 # ---------------------------------------------------------------------------

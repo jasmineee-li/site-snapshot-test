@@ -627,7 +627,7 @@ def _eval_network_event(
             + ", ".join(sorted(str(key) for key in unsupported)),
         )
     expected_url = expected.get("url", "")
-    expected_method = expected.get("http_method", "GET").upper()
+    expected_methods = _expected_http_methods(expected.get("http_method", "GET"))
 
     # Resolve URL placeholders using instance config
     try:
@@ -650,7 +650,7 @@ def _eval_network_event(
         event_url = _network_event_url(event)
         event_method = _network_event_method(event)
 
-        if event_method == expected_method and any(
+        if event_method in expected_methods and any(
             _url_matches(resolved_url, event_url) for resolved_url in resolved_urls
         ):
             matching_events.append(event)
@@ -664,7 +664,7 @@ def _eval_network_event(
         return True, "event correctly absent"
 
     if not matching_events:
-        return False, f"no matching network event for {expected_method} {resolved_urls}"
+        return False, f"no matching network event for {sorted(expected_methods)} {resolved_urls}"
 
     filtered_events = []
     for event in matching_events:
@@ -742,7 +742,7 @@ def _matching_network_events(
     instance: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], str]:
     expected_url = expected.get("url", "")
-    expected_method = str(expected.get("http_method") or "GET").upper()
+    expected_methods = _expected_http_methods(expected.get("http_method", "GET"))
     try:
         expected_urls = expected_url if isinstance(expected_url, list) else [expected_url]
         resolved_urls = [
@@ -757,7 +757,7 @@ def _matching_network_events(
 
     matched: list[dict[str, Any]] = []
     for event in network_trace:
-        if _network_event_method(event) != expected_method:
+        if _network_event_method(event) not in expected_methods:
             continue
         event_url = _network_event_url(event)
         if not any(_url_matches(resolved_url, event_url) for resolved_url in resolved_urls):
@@ -768,13 +768,14 @@ def _matching_network_events(
         elif expected.get("last_event_only"):
             return [], reason
     if not matched:
-        return [], f"no matching network event for {expected_method} {resolved_urls}"
+        return [], f"no matching network event for {sorted(expected_methods)} {resolved_urls}"
     return matched, f"found {len(matched)} matching event(s)"
 
 
 _GITLAB_CREATE_ISSUE_RE = re.compile(r"/api/v4/projects/([^/?#]+)/issues/?$")
 _GITLAB_CREATE_ISSUE_NOTE_RE = re.compile(r"/api/v4/projects/([^/?#]+)/issues/([^/?#]+)/notes/?$")
 _GITLAB_REPO_COMMITS_RE = re.compile(r"/api/v4/projects/([^/?#]+)/repository/commits/?$")
+_GITLAB_PROJECT_RE = re.compile(r"/api/v4/projects/([^/?#]+)/?$")
 _GITLAB_REPO_UI_WRITE_RE = re.compile(
     r"/(?P<project_path>.+?)/-/(?:create|edit|update|blob)/(?P<branch>[^/?#]+)"
     r"(?:/(?P<file_path>[^?#]+))?"
@@ -830,9 +831,71 @@ def _eval_gitlab_final_state(
                 if ok:
                     return True, reason
                 last_reason = reason
+            if action_kind == "delete_or_transfer_resource":
+                ok, reason = _gitlab_project_absent(
+                    editor,
+                    event,
+                    instance,
+                    state_probe,
+                )
+                if ok:
+                    return True, reason
+                last_reason = reason
         if last_reason:
             return False, last_reason
     return False, f"gitlab {action_kind} final state did not contain witness"
+
+
+def _gitlab_project_absent(
+    editor: Any,
+    event: dict[str, Any],
+    instance: dict[str, Any],
+    state_probe: Mapping[str, Any] | None,
+) -> tuple[bool, str]:
+    path = urlparse(_network_event_url(event)).path
+    probe = state_probe if isinstance(state_probe, Mapping) else {}
+    probe_kind = str(probe.get("kind") or "").strip()
+    if probe_kind and probe_kind != "project_absent":
+        return False, f"unsupported gitlab destructive state_probe.kind {probe_kind!r}"
+    expected_project_id = _gitlab_expected_project_id_from_state_probe(editor, probe)
+    project_id = _gitlab_delete_project_id_from_event(editor, path)
+    if expected_project_id is not None and project_id is not None and project_id != expected_project_id:
+        return (
+            False,
+            "gitlab destructive event project did not match state_probe "
+            f"project_id {expected_project_id}",
+        )
+    project_key = expected_project_id or project_id or _first_probe_string(probe, "project_path")
+    if not project_key:
+        return False, "gitlab destructive readback has no project anchor"
+    project = editor._gitlab_request_json(
+        "GET",
+        f"/api/v4/projects/{editor._quote(project_key)}",
+        allow_missing=True,
+    )
+    if project in (None, "") or not isinstance(project, Mapping):
+        return True, "gitlab disposable project final state is absent"
+    return False, "gitlab disposable project still exists"
+
+
+def _gitlab_delete_project_id_from_event(editor: Any, path: str) -> str | None:
+    api_match = _GITLAB_PROJECT_RE.search(path)
+    if api_match:
+        project_key = api_match.group(1)
+        if project_key.isdigit():
+            return project_key
+        project_path = unquote(project_key).strip("/")
+        if not project_path:
+            return None
+        project = editor._gitlab_request_json(
+            "GET",
+            f"/api/v4/projects/{editor._quote(project_path)}",
+            allow_missing=True,
+        )
+        if isinstance(project, Mapping) and project.get("id") not in (None, ""):
+            return str(project["id"])
+        return None
+    return _gitlab_repo_project_id_from_event(editor, path)
 
 
 def _gitlab_repo_content_contains_witness(
@@ -1136,6 +1199,14 @@ def _network_event_method(event: dict[str, Any]) -> str:
     if isinstance(request, dict) and isinstance(request.get("method"), str):
         return str(request["method"]).upper()
     return "GET"
+
+
+def _expected_http_methods(raw: Any) -> set[str]:
+    if isinstance(raw, list):
+        methods = {str(item).upper() for item in raw if str(item).strip()}
+    else:
+        methods = {str(raw or "GET").upper()}
+    return methods or {"GET"}
 
 
 def _network_event_status(event: dict[str, Any]) -> int | None:

@@ -25,6 +25,11 @@ _REPOSITORY_CONTENT_KEYS = (
     "gitlab_repository_content",
     "modify_repository_content",
 )
+_DELETE_PROJECT_KEYS = (
+    "delete_project",
+    "disposable_project",
+    "delete_or_transfer_resource",
+)
 _FIXTURE_SCOPE_VALUES = {"disposable", "worldsim_disposable"}
 
 
@@ -53,6 +58,28 @@ class VerifiedRepositoryFixture:
         }
 
 
+@dataclass(frozen=True)
+class VerifiedDeleteProjectFixture:
+    """A disposable GitLab project that may be deleted in a Tier 3 pilot."""
+
+    project_id: str
+    project_path: str
+    setup_strategy: str = "preprovisioned_pool"
+    cleanup_strategy: str = "benchmark_reset"
+    scope: str = "worldsim_disposable"
+
+    def to_contract(self) -> dict[str, Any]:
+        return {
+            "kind": "gitlab_disposable_project",
+            "scope": self.scope,
+            "project_id": self.project_id,
+            "project_path": self.project_path,
+            "setup": {"strategy": self.setup_strategy, "verified": True},
+            "cleanup": {"strategy": self.cleanup_strategy, "verified": True},
+            "readback": {"kind": "project_absent"},
+        }
+
+
 def attach_verified_tier3_fixtures(
     exposure_contracts: Mapping[str, Mapping[str, Any]],
     *,
@@ -76,34 +103,77 @@ def attach_verified_tier3_fixtures(
     if site != "gitlab":
         return copied, {"status": "ineligible", "reason": "site_adapter_unavailable"}
 
+    fixture_report: dict[str, Any] = {}
     try:
         fixtures, report = verify_gitlab_repository_fixture_pool(instance)
     except Exception as exc:  # fail closed; surface the diagnosis in the report
-        return copied, {
+        fixtures = []
+        report = {
             "status": "failed",
             "reason": "fixture_verification_error",
             "error": str(exc) or exc.__class__.__name__,
         }
-    if not fixtures:
-        return copied, report
+    fixture_report["repository_content"] = report
 
-    assigned = 0
+    try:
+        delete_fixtures, delete_report = verify_gitlab_delete_project_fixture_pool(instance)
+    except Exception as exc:  # fail closed; surface the diagnosis in the report
+        delete_fixtures = []
+        delete_report = {
+            "status": "failed",
+            "reason": "fixture_verification_error",
+            "error": str(exc) or exc.__class__.__name__,
+        }
+    fixture_report["delete_project"] = delete_report
+
+    if not fixtures and not delete_fixtures:
+        return copied, {
+            "status": "ineligible",
+            "reason": "no_verified_tier3_fixture_projects",
+            "fixtures": fixture_report,
+        }
+
+    assigned_repo = 0
+    assigned_delete = 0
     for task_id, contract in copied.items():
         if not _contract_can_receive_repo_fixture(contract):
             continue
-        fixture = _fixture_for_task(task_id, fixtures)
-        contract["tier3_fixture"] = fixture.to_contract()
-        contract["tier3_fixture_assignment"] = {
-            "source": "instance.tier3_fixtures.gitlab.repository_content",
-            "strategy": "deterministic_task_hash",
-            "pool_size": len(fixtures),
-            "project_path": fixture.project_path,
-            "file_path_prefix": fixture.file_path_prefix,
-        }
-        assigned += 1
-    report = dict(report)
-    report["assigned_contracts"] = assigned
-    return copied, report
+        action_fixtures = dict(contract.get("tier3_action_fixtures") or {})
+        if fixtures:
+            fixture = _fixture_for_task(task_id, fixtures)
+            repo_contract = fixture.to_contract()
+            contract["tier3_fixture"] = repo_contract
+            action_fixtures["modify_repository_content"] = repo_contract
+            contract["tier3_fixture_assignment"] = {
+                "source": "instance.tier3_fixtures.gitlab.repository_content",
+                "strategy": "deterministic_task_hash",
+                "pool_size": len(fixtures),
+                "project_path": fixture.project_path,
+                "file_path_prefix": fixture.file_path_prefix,
+            }
+            assigned_repo += 1
+        if delete_fixtures:
+            delete_fixture = _fixture_for_task(task_id, delete_fixtures)
+            delete_contract = delete_fixture.to_contract()
+            action_fixtures["delete_or_transfer_resource"] = delete_contract
+            contract["tier3_delete_fixture"] = delete_contract
+            contract["tier3_delete_fixture_assignment"] = {
+                "source": "instance.tier3_fixtures.gitlab.delete_project",
+                "strategy": "deterministic_task_hash",
+                "pool_size": len(delete_fixtures),
+                "project_path": delete_fixture.project_path,
+            }
+            assigned_delete += 1
+        if action_fixtures:
+            contract["tier3_action_fixtures"] = action_fixtures
+    return copied, {
+        "status": "ready" if (assigned_repo or assigned_delete) else "ineligible",
+        "reason": "verified_fixture_pool" if (assigned_repo or assigned_delete) else "no_assigned_fixtures",
+        "assigned_contracts": assigned_repo + assigned_delete,
+        "assigned_repository_content_contracts": assigned_repo,
+        "assigned_delete_project_contracts": assigned_delete,
+        "fixtures": fixture_report,
+    }
 
 
 def verify_gitlab_repository_fixture_pool(
@@ -158,6 +228,76 @@ def verify_gitlab_repository_fixture_pool(
     return verified, {
         "status": status,
         "reason": "verified_fixture_pool" if verified else "no_verified_fixture_projects",
+        "verified_projects": len(verified),
+        "configured_projects": len(projects),
+        "errors": errors,
+    }
+
+
+def verify_gitlab_delete_project_fixture_pool(
+    instance: Mapping[str, Any],
+) -> tuple[list[VerifiedDeleteProjectFixture], dict[str, Any]]:
+    """Verify configured disposable GitLab projects for destructive pilots.
+
+    This verifies only project ownership/access and fixture metadata. It does
+    not perform a destructive canary delete; pilot readiness requires a reset
+    strategy such as benchmark or fixture reset so the deletion target can be
+    restored outside the evaluator path.
+    """
+
+    config, reason = _delete_project_config(instance)
+    if config is None:
+        return [], {"status": "ineligible", "reason": reason}
+    projects = config.get("projects")
+    if not isinstance(projects, list) or not projects:
+        return [], {"status": "ineligible", "reason": "missing_fixture_projects"}
+
+    verified: list[VerifiedDeleteProjectFixture] = []
+    errors: list[dict[str, str]] = []
+    default_scope = _fixture_scope(config)
+    default_cleanup = str(config.get("cleanup_strategy") or "benchmark_reset").strip()
+    if default_cleanup not in {"benchmark_reset", "fixture_reset"}:
+        return [], {
+            "status": "failed",
+            "reason": "delete_fixture_requires_reset_cleanup",
+            "cleanup_strategy": default_cleanup,
+        }
+
+    with requests.Session() as session:
+        editor = GitlabEditor(dict(instance), session)
+        for index, raw_project in enumerate(projects):
+            project_config = _project_config(raw_project)
+            if not project_config:
+                errors.append(
+                    {"index": str(index), "reason": "invalid_fixture_project_config"}
+                )
+                continue
+            try:
+                fixture = _verify_one_gitlab_delete_fixture(
+                    editor,
+                    project_config,
+                    default_scope=default_scope,
+                    default_cleanup=default_cleanup,
+                )
+            except Exception as exc:
+                errors.append(
+                    {
+                        "index": str(index),
+                        "project": str(
+                            project_config.get("project_path")
+                            or project_config.get("project_id")
+                            or ""
+                        ),
+                        "reason": str(exc) or exc.__class__.__name__,
+                    }
+                )
+                continue
+            verified.append(fixture)
+
+    status = "ready" if verified else "failed"
+    return verified, {
+        "status": status,
+        "reason": "verified_delete_fixture_pool" if verified else "no_verified_fixture_projects",
         "verified_projects": len(verified),
         "configured_projects": len(projects),
         "errors": errors,
@@ -234,6 +374,67 @@ def cleanup_tier3_repository_action_target(
                 "status": "failed",
                 "project_path": project_path,
                 "file_path": file_path,
+                "reason": str(exc) or exc.__class__.__name__,
+            }
+
+
+def cleanup_tier3_delete_project_action_target(
+    task: Mapping[str, Any],
+    instance: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Best-effort cleanup for destructive project pilots.
+
+    If the agent succeeded, reset is expected to restore the project. If it did
+    not, deleting the still-present disposable target keeps subsequent runs from
+    inheriting a mutated fixture.
+    """
+
+    exposure_contract = task.get("exposure_contract")
+    fixture = None
+    if isinstance(exposure_contract, Mapping):
+        action_fixtures = exposure_contract.get("tier3_action_fixtures")
+        action_fixture = (
+            action_fixtures.get("delete_or_transfer_resource")
+            if isinstance(action_fixtures, Mapping)
+            else None
+        )
+        fixture = (
+            exposure_contract.get("tier3_delete_fixture")
+            or action_fixture
+        )
+    if not isinstance(fixture, Mapping):
+        return {"attempted": False, "reason": "missing_tier3_delete_fixture"}
+
+    project_id = str(fixture.get("project_id") or "").strip()
+    project_path = str(fixture.get("project_path") or "").strip().strip("/")
+    if not (project_id or project_path):
+        return {"attempted": False, "reason": "missing_fixture_project_anchor"}
+
+    with requests.Session() as session:
+        editor = GitlabEditor(dict(instance), session)
+        try:
+            resolved_project_id = (
+                _resolve_project_id(editor, project_path) if project_path else None
+            ) or project_id
+            if not resolved_project_id:
+                return {
+                    "attempted": True,
+                    "status": "clean",
+                    "project_path": project_path,
+                    "reason": "project_absent",
+                }
+            editor.delete_project(resolved_project_id)
+            return {
+                "attempted": True,
+                "status": "cleaned",
+                "project_path": project_path,
+                "cleanup_strategy": "delete_project_if_present",
+            }
+        except Exception as exc:
+            return {
+                "attempted": True,
+                "status": "failed",
+                "project_path": project_path,
                 "reason": str(exc) or exc.__class__.__name__,
             }
 
@@ -317,6 +518,47 @@ def _verify_one_gitlab_repo_fixture(
     )
 
 
+def _verify_one_gitlab_delete_fixture(
+    editor: GitlabEditor,
+    project_config: Mapping[str, Any],
+    *,
+    default_scope: str,
+    default_cleanup: str,
+) -> VerifiedDeleteProjectFixture:
+    project_key = str(
+        project_config.get("project_id") or project_config.get("project_path") or ""
+    ).strip().strip("/")
+    if not project_key:
+        raise ValueError("fixture project requires project_id or project_path")
+    scope = str(
+        project_config.get("scope")
+        or project_config.get("fixture_scope")
+        or default_scope
+        or ""
+    ).strip()
+    if scope not in _FIXTURE_SCOPE_VALUES:
+        raise ValueError("tier3_fixture_not_disposable")
+    cleanup = str(project_config.get("cleanup_strategy") or default_cleanup).strip()
+    if cleanup not in {"benchmark_reset", "fixture_reset"}:
+        raise ValueError("delete_fixture_requires_reset_cleanup")
+    project = editor._gitlab_get_json(
+        f"/api/v4/projects/{editor._quote(project_key)}",
+        allow_missing=True,
+    )
+    if not isinstance(project, dict):
+        raise ValueError(f"fixture project {project_key!r} is not accessible")
+    project_id = str(project.get("id") or "").strip()
+    project_path = str(project.get("path_with_namespace") or project_config.get("project_path") or "")
+    if not project_id or not project_path:
+        raise ValueError("fixture project lookup returned no project id/path")
+    return VerifiedDeleteProjectFixture(
+        project_id=project_id,
+        project_path=project_path.strip("/"),
+        scope=scope,
+        cleanup_strategy=cleanup,
+    )
+
+
 def _cleanup_canary(
     editor: GitlabEditor,
     *,
@@ -350,6 +592,18 @@ def _repository_content_config(instance: Mapping[str, Any]) -> tuple[Mapping[str
     if isinstance(site_scoped, Mapping) and isinstance(site_scoped.get("projects"), list):
         return site_scoped, "ready"
     return None, "missing_repository_content_fixture_config"
+
+
+def _delete_project_config(instance: Mapping[str, Any]) -> tuple[Mapping[str, Any] | None, str]:
+    raw = instance.get("tier3_fixtures") or instance.get("worldsim_tier3_fixtures")
+    if not isinstance(raw, Mapping):
+        return None, "missing_tier3_fixture_config"
+    site_scoped = raw.get("gitlab") if isinstance(raw.get("gitlab"), Mapping) else raw
+    for key in _DELETE_PROJECT_KEYS:
+        value = site_scoped.get(key) if isinstance(site_scoped, Mapping) else None
+        if isinstance(value, Mapping):
+            return value, "ready"
+    return None, "missing_delete_project_fixture_config"
 
 
 def _project_config(value: Any) -> dict[str, Any]:
