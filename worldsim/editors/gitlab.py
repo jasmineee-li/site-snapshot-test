@@ -73,6 +73,10 @@ def _append_issue_title_marker(title: str, marker: str) -> str:
     return f"{clean_title[:title_budget].rstrip()}{marker_suffix}".strip()
 
 
+def _unique_issue_title(title: str) -> str:
+    return _append_issue_title_marker(title, f"WorldSimMarker-{time.time_ns():x}")
+
+
 def _extract_gitlab_error_messages(response: requests.Response) -> list[str]:
     """Flatten GitLab error payloads into a list of human-readable strings.
 
@@ -590,7 +594,9 @@ class GitlabEditor(BaseSiteEditor):
         project_description_template: str | None = None,
     ) -> dict[str, Any]:
         return self.create_issue(
-            title_template=title or "WorldSim seeded issue context",
+            title_template=str(title).strip()
+            if title
+            else _unique_issue_title("WorldSim seeded issue context"),
             body_template=body,
             labels=labels,
             project_id=project_id,
@@ -1719,9 +1725,10 @@ class GitlabEditor(BaseSiteEditor):
                 return {"issue_iid": issue["iid"]}
         if not title_template:
             raise EditorError("invalid_args", "issue_title_template or issue_iid is required")
+        title = _unique_issue_title(title_template)
         created = self.create_issue(
             project_id=project_id,
-            title_template=title_template,
+            title_template=title,
             body_template=body_template,
         )
         return {"issue_iid": created["issue_iid"]}

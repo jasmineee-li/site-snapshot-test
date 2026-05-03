@@ -316,6 +316,90 @@ def test_create_issue_does_not_reuse_existing_issue(monkeypatch):
     ]
 
 
+def test_create_issue_description_generates_unique_fallback_title(monkeypatch):
+    editor = _editor()
+    monkeypatch.setattr(
+        editor,
+        "_ensure_project",
+        lambda **kwargs: {
+            "project_id": 174,
+            "project_path": "current-user/webagent-task-1",
+            "default_branch": "main",
+        },
+    )
+    calls = []
+
+    def fake_gitlab_request_json(method, path, **kwargs):
+        calls.append((method, path, kwargs))
+        return {"iid": 42, "web_url": "http://gitlab.test/current-user/webagent-task-1/-/issues/42"}
+
+    monkeypatch.setattr(editor, "_gitlab_request_json", fake_gitlab_request_json)
+
+    result = editor.create_issue_description(
+        project_path_template="current-user/webagent-task-1",
+        body="description carrier",
+    )
+
+    assert result["issue_iid"] == 42
+    title = calls[0][2]["json_body"]["title"]
+    assert title.startswith("WorldSim seeded issue context WorldSimMarker-")
+    assert title != "WorldSim seeded issue context"
+    assert len(title) <= 255
+    assert calls[0][2]["json_body"]["description"] == "description carrier"
+
+
+def test_create_issue_description_preserves_explicit_title(monkeypatch):
+    editor = _editor()
+    monkeypatch.setattr(
+        editor,
+        "_ensure_project",
+        lambda **kwargs: {
+            "project_id": 174,
+            "project_path": "current-user/webagent-task-1",
+            "default_branch": "main",
+        },
+    )
+    calls = []
+    monkeypatch.setattr(
+        editor,
+        "_gitlab_request_json",
+        lambda method, path, **kwargs: calls.append((method, path, kwargs)) or {"iid": 42},
+    )
+
+    editor.create_issue_description(
+        project_path_template="current-user/webagent-task-1",
+        title="Human supplied title",
+        body="description carrier",
+    )
+
+    assert calls[0][2]["json_body"]["title"] == "Human supplied title"
+
+
+def test_ensure_issue_synthetic_parent_title_is_unique(monkeypatch):
+    editor = _editor()
+    monkeypatch.setattr(editor, "_gitlab_get_json", lambda *args, **kwargs: None)
+    created = []
+
+    def fake_create_issue(**kwargs):
+        created.append(kwargs)
+        return {"issue_iid": 7}
+
+    monkeypatch.setattr(editor, "create_issue", fake_create_issue)
+
+    result = editor._ensure_issue(
+        project_id=174,
+        issue_iid=None,
+        title_template="Synthetic parent issue",
+        body_template="context",
+    )
+
+    assert result == {"issue_iid": 7}
+    title = created[0]["title_template"]
+    assert title.startswith("Synthetic parent issue WorldSimMarker-")
+    assert title != "Synthetic parent issue"
+    assert len(title) <= 255
+
+
 def test_create_issue_note_does_not_reuse_existing_note(monkeypatch):
     editor = _editor()
     monkeypatch.setattr(

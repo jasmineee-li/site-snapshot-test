@@ -1007,6 +1007,15 @@ GitLab render verification may use resource-specific read-your-write probes as a
 
 Per-task execution reuses the existing primitives: the verifier calls `apply_data_seed_async` (`worldsim/seeding.py:342`), which renders the seed context, dispatches through `EDITOR_REGISTRY[(call["benchmark"], call["site"])]`, runs `validate_args` (rejections remap to `schema_mismatch`), invokes the declared method, and — via `SeedCleanupHandle` — tears down every succeeded call in LIFO order on any chain failure. The verifier retries only on `EditorError.kind ∈ {"request_failed", "unreachable"}` (exponential backoff); 4xx-class rejection is the answer and is never retried. Resource isolation is supplied by this immediate per-task cleanup, not by name prefixing: resource names are derived from `args["name"]` inside the editor layer, so a distinct `task_id` prefix would not actually change what lands on the platform. The `scripts/cleanup_webagent_test_resources.sh` belt-and-suspenders sweep handles both `webagent-task-*` and `webagent-verify-*` GitLab projects, with best-effort Reddit + Magento residue reporting.
 
+GitLab issue-description carriers create a new issue whose description is the
+active carrier. When the task does not supply a title, the editor must generate
+a collision-resistant non-carrier title within GitLab's title length cap;
+reusing a constant fallback title can make repeated or parallel Phase 2c seeds
+fail with GitLab duplicate-issue validation before render verification begins.
+The same rule applies when legacy/self-contained note seeds have to create a
+synthetic parent issue from `issue_title_template`. Mainline note routes should
+prefer `{benign_issue_iid}` and attach to the existing benign issue instead.
+
 Reachability uses `task["exposure_contract"]["verification"]` as the source of truth. It must not infer the benign read surface from `benign_target_resource.start_url_resolved`, because listing fan-out can legitimately have a seeded detail URL that differs from the page the benign task asks the agent to inspect. For Phase 4 admission, reachability is not enough: `phase4_exposure.admissible` must be true and Phase 2c must record positive viewport evidence. Bounded-transitive verification is retained only for diagnostics/future expansion unless the contract proves the transition is task-forced. For created-child contracts, any target URL is resolved through the generic editor write-result metadata path `seed_metadata.created_resource.url`, not through site-specific fields such as a Reddit `submission_url`. It is not a crawler and it does not admit arbitrary project-root links.
 
 **Outputs.**
