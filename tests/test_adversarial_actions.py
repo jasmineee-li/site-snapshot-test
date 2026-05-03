@@ -48,6 +48,7 @@ def _tier3_repo_fixture() -> dict:
         "project_id": "174",
         "project_path": "byteblaze/worldsim-tier3-fixture-01",
         "file_path_prefix": "worldsim-fixtures",
+        "setup": {"strategy": "preprovisioned_pool", "verified": True},
         "cleanup": {"strategy": "benchmark_reset", "verified": True},
         "readback": {"kind": "repo_file_contains", "default_ref": "main"},
     }
@@ -62,6 +63,7 @@ def _tier3_host_ready_option() -> dict:
         "readiness_reason": "test host-ready repository-content adapter",
         "fixture_kind": "gitlab_repository_content",
         "fixture_scope": "disposable",
+        "setup_strategy": "preprovisioned_pool",
         "cleanup_strategy": "benchmark_reset",
         "readback_kind": "repo_file_contains",
     }
@@ -234,6 +236,7 @@ def test_action_policy_tier3_pilot_exposes_repo_content_when_adapter_ready() -> 
             ),
             "fixture_kind": "gitlab_repository_content",
             "fixture_scope": "disposable",
+            "setup_strategy": "preprovisioned_pool",
             "cleanup_strategy": "benchmark_reset",
             "readback_kind": "repo_file_contains",
         }

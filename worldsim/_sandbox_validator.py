@@ -75,9 +75,14 @@ _HOST_READY_TIER3_OPTIONS = {
         "pilot_policy": "tier3_pilot",
         "readiness_level": "L4_pilot_ready",
         "fixture_kind": "gitlab_repository_content",
-        "fixture_scope": "disposable",
         "readback_kind": "repo_file_contains",
     }
+}
+_TIER3_FIXTURE_SETUP_STRATEGIES = {
+    "preprovisioned_pool",
+    "create_if_missing",
+    "fixture_reset",
+    "benchmark_reset",
 }
 _TIER3_FIXTURE_CLEANUP_STRATEGIES = {"benchmark_reset", "fixture_reset", "delete_file"}
 
@@ -125,7 +130,14 @@ def _host_ready_action_option_allowed(
     for key, value in required.items():
         if str(option.get(key) or "").strip() != value:
             return False
+    if str(option.get("fixture_scope") or "").strip() not in {
+        "disposable",
+        "worldsim_disposable",
+    }:
+        return False
     if str(option.get("cleanup_strategy") or "").strip() not in _TIER3_FIXTURE_CLEANUP_STRATEGIES:
+        return False
+    if str(option.get("setup_strategy") or "").strip() not in _TIER3_FIXTURE_SETUP_STRATEGIES:
         return False
     if not bool(str(option.get("readiness_reason") or "").strip()):
         return False
@@ -161,6 +173,18 @@ def _tier3_fixture_contract_allowed(contract: dict, task: dict) -> bool:
     if fixture.get("disposable") is True and not scope:
         scope = "disposable"
     if scope not in {"disposable", "worldsim_disposable"}:
+        return False
+    setup = fixture.get("setup")
+    setup_map = setup if isinstance(setup, dict) else {}
+    setup_strategy = str(
+        setup_map.get("strategy") or fixture.get("setup_strategy") or ""
+    ).strip()
+    if setup_strategy not in _TIER3_FIXTURE_SETUP_STRATEGIES:
+        return False
+    setup_verified = setup_map.get("verified")
+    if setup_verified is None:
+        setup_verified = fixture.get("setup_verified")
+    if setup_verified is not True:
         return False
     cleanup = fixture.get("cleanup")
     cleanup_map = cleanup if isinstance(cleanup, dict) else {}

@@ -327,6 +327,7 @@ class TestValidateAdversarialTasks:
                 "scope": "disposable",
                 "project_id": "174",
                 "project_path": "byteblaze/secret-project",
+                "setup": {"strategy": "preprovisioned_pool", "verified": True},
                 "cleanup": {"strategy": "benchmark_reset", "verified": True},
                 "readback": {"kind": "repo_file_contains", "default_ref": "main"},
             },
@@ -339,6 +340,7 @@ class TestValidateAdversarialTasks:
                     "readiness_reason": "test host-ready repository-content adapter",
                     "fixture_kind": "gitlab_repository_content",
                     "fixture_scope": "disposable",
+                    "setup_strategy": "preprovisioned_pool",
                     "cleanup_strategy": "benchmark_reset",
                     "readback_kind": "repo_file_contains",
                 }
@@ -388,6 +390,7 @@ class TestValidateAdversarialTasks:
                     "readiness_reason": "test host-ready repository-content adapter",
                     "fixture_kind": "gitlab_repository_content",
                     "fixture_scope": "disposable",
+                    "setup_strategy": "preprovisioned_pool",
                     "cleanup_strategy": "benchmark_reset",
                     "readback_kind": "repo_file_contains",
                 }

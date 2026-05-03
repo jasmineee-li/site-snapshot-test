@@ -35,6 +35,9 @@ _GITLAB_CARRIER_METHODS = frozenset(
 )
 _GITLAB_REPO_FIXTURE_KINDS = frozenset({"gitlab_repository_content", "repository_content"})
 _DISPOSABLE_FIXTURE_SCOPES = frozenset({"disposable", "worldsim_disposable"})
+_FIXTURE_SETUP_STRATEGIES = frozenset(
+    {"preprovisioned_pool", "create_if_missing", "fixture_reset", "benchmark_reset"}
+)
 _FIXTURE_CLEANUP_STRATEGIES = frozenset({"benchmark_reset", "fixture_reset", "delete_file"})
 
 
@@ -99,6 +102,7 @@ def tier3_action_options(
                 "readiness_reason": readiness["reason"],
                 "fixture_kind": fixture.get("kind"),
                 "fixture_scope": fixture.get("scope"),
+                "setup_strategy": fixture.get("setup_strategy"),
                 "cleanup_strategy": fixture.get("cleanup_strategy"),
                 "readback_kind": fixture.get("readback_kind"),
             }
@@ -158,6 +162,7 @@ def option_marks_host_ready(option: Mapping[str, Any]) -> bool:
     return (
         str(option.get("fixture_kind") or "").strip() in _GITLAB_REPO_FIXTURE_KINDS
         and str(option.get("fixture_scope") or "").strip() in _DISPOSABLE_FIXTURE_SCOPES
+        and str(option.get("setup_strategy") or "").strip() in _FIXTURE_SETUP_STRATEGIES
         and str(option.get("cleanup_strategy") or "").strip() in _FIXTURE_CLEANUP_STRATEGIES
         and str(option.get("readback_kind") or "").strip() == "repo_file_contains"
     )
@@ -417,6 +422,17 @@ def _normalize_tier3_fixture_contract(
     if scope not in _DISPOSABLE_FIXTURE_SCOPES:
         return None, "tier3_fixture_not_disposable"
 
+    setup = raw.get("setup")
+    setup_map = setup if isinstance(setup, Mapping) else {}
+    setup_strategy = str(setup_map.get("strategy") or raw.get("setup_strategy") or "").strip()
+    if setup_strategy not in _FIXTURE_SETUP_STRATEGIES:
+        return None, "missing_tier3_setup_strategy"
+    setup_verified = setup_map.get("verified")
+    if setup_verified is None:
+        setup_verified = raw.get("setup_verified")
+    if setup_verified is not True:
+        return None, "tier3_setup_not_verified"
+
     cleanup = raw.get("cleanup")
     cleanup_map = cleanup if isinstance(cleanup, Mapping) else {}
     cleanup_strategy = str(
@@ -444,6 +460,7 @@ def _normalize_tier3_fixture_contract(
     normalized = {
         "kind": kind,
         "scope": scope,
+        "setup_strategy": setup_strategy,
         "cleanup_strategy": cleanup_strategy,
         "readback_kind": readback_kind,
         "default_ref": str(

@@ -2406,6 +2406,33 @@ def test_phase_2a_resolution_signature_ignores_overwritten_duplicate_site_entrie
     assert first["instances_sha256"] == second["instances_sha256"]
 
 
+def test_phase_2a_instance_loader_propagates_top_level_tier3_fixtures(tmp_path):
+    path = tmp_path / "instances.json"
+    fixture_config = {
+        "gitlab": {
+            "repository_content": {
+                "scope": "worldsim_disposable",
+                "projects": ["byteblaze/worldsim-tier3-fixture-01"],
+            }
+        }
+    }
+    path.write_text(
+        json.dumps(
+            {
+                "instances": [{"site_name": "gitlab", "site_url": "https://gitlab.local"}],
+                "tier3_fixtures": fixture_config,
+            }
+        )
+    )
+
+    loaded = phase_2_injections._load_phase_2a_instance_by_site(
+        Namespace(feasibility_instances=str(path), no_l3_l4=False)
+    )
+
+    assert loaded is not None
+    assert loaded["gitlab"]["tier3_fixtures"] == fixture_config
+
+
 def test_resume_setting_matches_ignores_phase_2a_resolution_signature_path_only_drift():
     assert phase_2_injections._resume_setting_matches(
         {

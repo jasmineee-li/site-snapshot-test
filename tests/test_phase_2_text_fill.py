@@ -201,6 +201,7 @@ def _tier3_repo_text_fill_task() -> dict:
                     "scope": "disposable",
                     "project_path": "owner/project",
                     "file_path_prefix": "worldsim-fixtures",
+                    "setup": {"strategy": "preprovisioned_pool", "verified": True},
                     "cleanup": {"strategy": "benchmark_reset", "verified": True},
                     "readback": {"kind": "repo_file_contains", "default_ref": "main"},
                 },
@@ -214,6 +215,7 @@ def _tier3_repo_text_fill_task() -> dict:
                         "readiness_reason": "test host-ready repository-content adapter",
                         "fixture_kind": "gitlab_repository_content",
                         "fixture_scope": "disposable",
+                        "setup_strategy": "preprovisioned_pool",
                         "cleanup_strategy": "benchmark_reset",
                         "readback_kind": "repo_file_contains",
                     }

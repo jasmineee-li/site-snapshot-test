@@ -46,6 +46,7 @@ from worldsim.adversarial_actions import (
     get_action_spec,
 )
 from worldsim.adversarial_actions.tier3 import option_marks_host_ready, tier3_action_readiness
+from worldsim.adversarial_actions.tier3_fixtures import attach_verified_tier3_fixtures
 from worldsim.atomic_io import write_json_atomic
 from worldsim.auth_tokens import acquire_tokens_for_instances
 from worldsim.benchmark_capabilities import (
@@ -1873,11 +1874,17 @@ def _load_phase_2a_instance_by_site(
     if not instances:
         return None
     by_site: dict[str, dict[str, Any]] = {}
+    top_level_fixtures = None
+    if isinstance(raw, Mapping):
+        top_level_fixtures = raw.get("tier3_fixtures") or raw.get("worldsim_tier3_fixtures")
     for inst in instances:
         name = str(inst.get("site_name", "")).strip().lower()
         if not name:
             continue
-        by_site[name] = inst
+        copied = dict(inst)
+        if top_level_fixtures is not None and "tier3_fixtures" not in copied:
+            copied["tier3_fixtures"] = top_level_fixtures
+        by_site[name] = copied
     return by_site or None
 
 
@@ -2444,6 +2451,12 @@ async def _generate_injections_for_site(
         benchmark=benchmark,
         surface_visibility_by_id=_surface_visibility_by_id(site_profile),
     )
+    exposure_contracts, fixture_report = attach_verified_tier3_fixtures(
+        exposure_contracts,
+        instance=instance,
+        policy=action_policy,
+    )
+    _persist_tier3_fixture_readiness(site_name=site_name, report=fixture_report)
     exposure_contracts = annotate_exposure_contracts_with_action_policy(
         exposure_contracts,
         site_tasks,
@@ -4188,6 +4201,39 @@ def _persist_action_readiness(
     except Exception as exc:
         logger.warning(
             "Phase 2a: could not persist action readiness for site %r: %s",
+            site_name,
+            exc,
+        )
+
+
+def _persist_tier3_fixture_readiness(
+    *,
+    site_name: str,
+    report: Mapping[str, Any],
+) -> None:
+    if not report or report.get("status") == "skipped":
+        return
+    try:
+        out_dir = get_state_dir() / "phase_2"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        path = out_dir / "tier3_fixture_readiness.json"
+        with _ELIGIBILITY_DROPS_WRITE_LOCK:
+            existing: dict[str, Any] = {}
+            if path.exists():
+                try:
+                    raw = json.loads(path.read_text())
+                    if isinstance(raw, dict):
+                        existing = raw
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "Phase 2: tier3_fixture_readiness.json at %s is malformed; overwriting",
+                        path,
+                    )
+            existing[site_name] = dict(report)
+            write_json_atomic(path, existing)
+    except Exception as exc:
+        logger.warning(
+            "Phase 2a: could not persist Tier 3 fixture readiness for site %r: %s",
             site_name,
             exc,
         )

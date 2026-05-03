@@ -137,6 +137,7 @@ def _expanded_options(contract: Mapping[str, Any], *, site_name: str) -> list[di
                 "readiness_reason",
                 "fixture_kind",
                 "fixture_scope",
+                "setup_strategy",
                 "cleanup_strategy",
                 "readback_kind",
             ):
