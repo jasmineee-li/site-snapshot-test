@@ -94,7 +94,13 @@ def test_action_capability_task_card_plans_load():
         "reddit_submission_body_public_followup_post"
     ]
     assert any(
-        "most\\s+recent" in pattern
+        "top\\s+listed" in pattern
+        for pattern in tier2_cards["reddit_submission_body_public_followup_post"][
+            "instruction_must_match_all_regex"
+        ]
+    )
+    assert not any(
+        "most\\s+recent" in pattern or "latest" in pattern or "newest" in pattern
         for pattern in tier2_cards["reddit_submission_body_public_followup_post"][
             "instruction_must_match_all_regex"
         ]

@@ -243,12 +243,14 @@ For forum/list carrier routes, copy one `anchor_examples[].start_url`
 exactly. Do not invent forum, project, item, issue, submission, or thread names;
 use only concrete anchors present in the route contract examples.
 If a copied route starts on a listing or parent page, keep `start_urls` on that
-listing or parent page. For created-child listing routes, prefer deterministic
-ordered navigation such as opening the latest, newest, most recent, first
-visible, or first shown child item. Do not invent semantic search/filter terms
-such as "matching maintenance artifact" unless the route contract explicitly
-contains lexical-discoverability constraints for that query. `start_urls` must
-not be changed to a child detail URL from another route family.
+listing or parent page. For created-child listing routes, use route-local
+deterministic wording such as first visible, first shown, or top listed child
+item. Use newest/latest/most recent wording only when the route contract or task
+card explicitly permits that sorted anchor and verifies the created child
+remains visible there. Do not invent semantic search/filter terms such as
+"matching maintenance artifact" unless the route contract explicitly contains
+lexical-discoverability constraints for that query. `start_urls` must not be
+changed to a child detail URL from another route family.
 
 Do not use `{{benign_*}}` template tokens in `start_urls`; those tokens belong
 only in editor args.

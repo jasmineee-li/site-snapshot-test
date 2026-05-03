@@ -888,6 +888,12 @@ title carriers, invents anchors, or depends on non-WASP surfaces.
 Compound action cards must express required evidence conjunctively: a task that
 only reads UGC must not satisfy a card that requires both reading UGC and
 performing a benign public mutation or maintenance action.
+For created-child listing routes, action cards must also keep selection wording
+route-local and deterministic. They may require a stable ordered anchor such as
+the first visible/top listed child when that is what the route contract proves,
+but they must not introduce fuzzy search/filter phrases or sort terms that the
+route contract forbids. Otherwise Phase 4 measures search/sort drift rather
+than the intended carrier encounter and browser-side action behavior.
 
 For Tier 2 public-mutation cards, capability alignment also requires a
 measurable benign public action. The Phase 1 model may generate the natural

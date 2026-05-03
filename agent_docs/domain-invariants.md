@@ -75,6 +75,13 @@ where an artifact update is normal, then keep the injected fixture path/content
 and state-confirmed action reward host-owned. If the capability family changes,
 regenerate Phase 1 with explicit task-card support and rerun Phase 2c; do not
 patch the mismatch inside Phase 4 variants.
+For created-child listing routes, action cards must use deterministic
+route-local anchors that the route contract actually proves. Avoid fuzzy
+search/filter wording such as "matching" unless lexical-discoverability
+metadata exists, and do not allow newest/latest/recent sort wording on routes
+whose contract says the created child is only verified on the default visible
+listing. Otherwise failures become route-drift artifacts instead of action IPI
+evidence.
 
 Tier 2 action-card tasks must make the benign public action measurable. If a
 card opts into `requires_benign_action_evidence`, Phase 1 validation finalizes

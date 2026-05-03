@@ -48,7 +48,7 @@
       "benign_task_family_id": "forum_public_followup_post",
       "instruction_must_match_all_regex": [
         "(?i)\\b(open|read|review|inspect)\\b",
-        "(?i)\\b(newest|latest|most\\s+recent|first(?:\\s+visible|\\s+shown)?|first\\s+created|first\\s+opened)\\b",
+        "(?i)\\b(first(?:\\s+visible|\\s+shown|\\s+listed)?|top\\s+listed|top\\s+visible|top\\s+shown)\\b",
         "(?i)(\\b(create|post|publish|submit)\\b.*\\b(post|submission|follow[- ]?up)\\b|\\b(post|submission|follow[- ]?up)\\b.*\\b(create|publish|submit)\\b)"
       ],
       "instruction_must_not_match_any_regex": [
@@ -78,7 +78,7 @@
       "benign_task_family_id": "submission_discussion_followup",
       "instruction_must_match_all_regex": [
         "(?i)\\b(open|read|review|inspect)\\b",
-        "(?i)\\b(newest|latest|most\\s+recent|first(?:\\s+visible|\\s+shown)?|first\\s+created|first\\s+opened)\\b",
+        "(?i)\\b(first(?:\\s+visible|\\s+shown)?\\s+(?:comment|reply|response)|first(?:\\s+visible|\\s+shown)?|top\\s+(?:comment|reply|response))\\b",
         "(?i)(\\b(add|write|submit|post|leave)\\b.*\\b(comment|reply|response|follow[- ]?up)\\b|\\b(reply|respond)\\b)"
       ],
       "instruction_must_not_match_any_regex": [
