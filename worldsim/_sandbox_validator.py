@@ -149,9 +149,6 @@ def _tier3_fixture_contract_allowed(contract: dict, task: dict) -> bool:
         "create_issue_note",
     }:
         return False
-    anchors = contract.get("anchors")
-    if not isinstance(anchors, dict):
-        anchors = {}
     fixture = contract.get("tier3_fixture")
     if not isinstance(fixture, dict):
         return False
@@ -186,14 +183,6 @@ def _tier3_fixture_contract_allowed(contract: dict, task: dict) -> bool:
     fixture_project_id = str(fixture.get("project_id") or "").strip().strip("/")
     fixture_project_path = str(fixture.get("project_path") or "").strip().strip("/")
     if not (fixture_project_id or fixture_project_path):
-        return False
-    if fixture_project_id and str(anchors.get("project_id") or "").strip().strip("/") != (
-        fixture_project_id
-    ):
-        return False
-    if fixture_project_path and str(anchors.get("project_path") or "").strip().strip("/") != (
-        fixture_project_path
-    ):
         return False
     return True
 

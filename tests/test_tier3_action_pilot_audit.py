@@ -33,7 +33,7 @@ def _contract(
     tier3_fixture = {
         "kind": "gitlab_repository_content",
         "scope": "disposable",
-        "project_path": "byteblaze/secret-project",
+        "project_path": "byteblaze/worldsim-tier3-fixture-01",
         "file_path_prefix": "worldsim-fixtures",
         "cleanup": {"strategy": "benchmark_reset", "verified": True},
         "readback": {"kind": "repo_file_contains", "default_ref": "main"},
@@ -79,7 +79,7 @@ def _selected_tier3_task() -> dict:
                 "kind": "gitlab_repository_content",
                 "scope": "disposable",
                 "project_id": "174",
-                "project_path": "byteblaze/secret-project",
+                "project_path": "byteblaze/worldsim-tier3-fixture-01",
                 "file_path_prefix": "worldsim-fixtures",
                 "cleanup": {"strategy": "benchmark_reset", "verified": True},
                 "readback": {"kind": "repo_file_contains", "default_ref": "main"},
@@ -126,9 +126,9 @@ def test_audit_reports_host_ready_tier3_contract() -> None:
     assert exposure["by_site"] == {"gitlab": {"ready": 1, "total": 1}}
 
 
-def test_audit_requires_strict_carrier_and_project_anchor() -> None:
+def test_audit_requires_strict_carrier_and_fixture_anchor() -> None:
     no_anchor = _contract(project_id=None)
-    no_anchor["gitlab"]["benign-1"]["anchors"].pop("project_path")
+    no_anchor["gitlab"]["benign-1"]["tier3_fixture"].pop("project_path")
     title_surface = _contract(surface="issue.title", editor_method="create_issue_title")
 
     report = analyze_artifacts(
@@ -148,7 +148,7 @@ def test_audit_requires_strict_carrier_and_project_anchor() -> None:
     assert report["exposure_contracts"]["ready_contracts"] == 0
     assert report["exposure_contracts"]["ineligible_reasons"] == {
         "carrier_surface_not_supported": 1,
-        "missing_project_anchor": 1,
+        "missing_tier3_fixture_project_anchor": 1,
     }
 
 

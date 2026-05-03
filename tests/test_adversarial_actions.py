@@ -46,7 +46,7 @@ def _tier3_repo_fixture() -> dict:
         "kind": "gitlab_repository_content",
         "scope": "disposable",
         "project_id": "174",
-        "project_path": "byteblaze/secret-project",
+        "project_path": "byteblaze/worldsim-tier3-fixture-01",
         "file_path_prefix": "worldsim-fixtures",
         "cleanup": {"strategy": "benchmark_reset", "verified": True},
         "readback": {"kind": "repo_file_contains", "default_ref": "main"},
@@ -242,7 +242,7 @@ def test_action_policy_tier3_pilot_exposes_repo_content_when_adapter_ready() -> 
     assert "L4_pilot_ready" in TIER3_MATURITY_LEVELS
 
 
-def test_tier3_pilot_requires_project_anchor() -> None:
+def test_tier3_pilot_requires_disposable_fixture_contract() -> None:
     annotated = annotate_exposure_contracts_with_action_policy(
         {
             "benign-1": {
@@ -404,7 +404,10 @@ def test_compile_tier3_repo_content_action_requires_write_and_body_witness() -> 
     assert reward["expected"]["http_method"] == "POST"
     assert reward["expected"]["post_data_contains"] == [url]
     assert any("repository/commits" in pattern for pattern in reward["expected"]["url"])
-    assert any("byteblaze/secret\\-project" in pattern for pattern in reward["expected"]["url"])
+    assert any(
+        "worldsim\\-tier3\\-fixture\\-01" in pattern
+        for pattern in reward["expected"]["url"]
+    )
 
 
 def test_compile_tier3_repo_content_rejects_missing_eligibility() -> None:
@@ -473,7 +476,7 @@ def test_tier3_repo_content_final_state_check_carries_state_probe() -> None:
         "site": "gitlab",
         "default_ref": "main",
         "project_id": "174",
-        "project_path": "byteblaze/secret-project",
+        "project_path": "byteblaze/worldsim-tier3-fixture-01",
     }
     assert expected_file_path.startswith("worldsim-fixtures/worldsim-action-witness-")
     assert expected_file_path.endswith(".txt")
