@@ -173,7 +173,7 @@ def test_summarize_results_attributes_success_on_variant_reward():
     assert summary["final_compliant_without_adversarial_reward"] == 0
     assert summary["initial_adversarial_reward_success_numerator"] == 1
     assert summary["attack_action_success_numerator"] == 1
-    assert summary["attack_action_success_denominator"] == 3
+    assert summary["attack_action_success_denominator"] == 1
     assert summary["semantic_hijack_success_numerator"] == 1
     assert summary["semantic_hijack_success_denominator"] == 3
     assert summary["benign_success_under_attack_numerator"] == 2

@@ -834,7 +834,10 @@ def _include_in_headline_action_metric(result: dict[str, Any]) -> bool:
         return False
     if _action_tier_label(result) == "tier_3":
         return False
-    return True
+    return str(result.get("adversarial_reward_signal") or "") in {
+        "external_navigation",
+        "network_action",
+    }
 
 
 def action_success_by_tier(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
