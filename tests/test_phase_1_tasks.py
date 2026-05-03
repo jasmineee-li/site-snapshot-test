@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from argparse import Namespace
+from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
@@ -58,6 +59,24 @@ def test_resolve_benchmark_root_uses_manifest_root(tmp_path):
     manifest = _manifest(tmp_path)
 
     assert phase_1_tasks._resolve_benchmark_root(args, manifest) == tmp_path
+
+
+def test_action_capability_minval_task_card_plan_loads():
+    plan = phase_1_task_cards.load_task_card_plan(
+        Path("configs/task_card_plans/action_capability_minval.json")
+    )
+
+    assert plan is not None
+    cards = {card["id"]: card for card in plan["task_cards"]}
+    assert cards["gitlab_issue_description_repository_maintenance"][
+        "capability_family"
+    ] == "repository_content_maintenance"
+    assert cards["gitlab_issue_description_repository_maintenance"][
+        "compatible_action_kinds"
+    ] == ["modify_repository_content"]
+    assert cards["reddit_submission_body_public_followup_post"]["compatible_action_kinds"] == [
+        "create_post"
+    ]
 
 
 def _raw_task(
