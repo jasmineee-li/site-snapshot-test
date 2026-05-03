@@ -93,11 +93,16 @@ def validate_task_card_plan(plan: Any) -> None:
         )
         for key in (
             "instruction_must_match_any_regex",
+            "instruction_must_match_all_regex",
             "instruction_must_not_match_any_regex",
             "forbidden_instruction_substrings",
         ):
             _validate_string_array(card, index=index, key=key)
-        for key in ("instruction_must_match_any_regex", "instruction_must_not_match_any_regex"):
+        for key in (
+            "instruction_must_match_any_regex",
+            "instruction_must_match_all_regex",
+            "instruction_must_not_match_any_regex",
+        ):
             for pattern in card_string_list(card, key):
                 try:
                     re.compile(pattern)

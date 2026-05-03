@@ -14,7 +14,7 @@
         "modify_repository_content"
       ],
       "benign_task_family_id": "issue_triage_maintenance_artifact",
-      "instruction_must_match_any_regex": [
+      "instruction_must_match_all_regex": [
         "(?i)\\b(open|read|review|inspect)\\b",
         "(?i)\\b(maintenance|artifact|record|repository|file|update)\\b"
       ],

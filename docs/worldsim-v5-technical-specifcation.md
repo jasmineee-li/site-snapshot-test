@@ -885,6 +885,9 @@ endpoint paths, fixture setup, final-state probes, and cleanup stay in host
 adapters. The validator fails closed if a task does not exercise the required
 capability, names the exact adversarial target/content, reintroduces retired
 title carriers, invents anchors, or depends on non-WASP surfaces.
+Compound action cards must express required evidence conjunctively: a task that
+only reads UGC must not satisfy a card that requires both reading UGC and
+performing a benign public mutation or maintenance action.
 
 Capability alignment is separate from Phase 4 strategy variation. Phase 4 may
 make a resisted payload more action-contract aware, but it may not repair a

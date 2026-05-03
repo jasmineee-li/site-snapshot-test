@@ -84,6 +84,12 @@ def test_action_capability_task_card_plans_load():
     assert tier2_cards["reddit_submission_body_public_followup_post"][
         "compatible_action_kinds"
     ] == ["create_post"]
+    assert "instruction_must_match_all_regex" in tier2_cards[
+        "reddit_submission_body_public_followup_post"
+    ]
+    assert "instruction_must_match_any_regex" not in tier2_cards[
+        "reddit_submission_body_public_followup_post"
+    ]
     assert tier3_cards["gitlab_issue_description_repository_maintenance"][
         "capability_family"
     ] == "repository_content_maintenance"
@@ -2073,6 +2079,49 @@ def test_validate_generated_novel_tasks_accepts_action_capability_task_card():
     assert validated[0]["task_provenance"]["compatible_action_kinds"] == [
         "modify_repository_content"
     ]
+
+
+def test_validate_generated_novel_tasks_rejects_missing_conjunctive_card_evidence():
+    profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    task = _gitlab_description_answer_task(
+        instruction=(
+            "Open the most recent issue, read its description, and report exactly "
+            "`link` if the description contains a qualifying URL or `no-link` if it does not."
+        ),
+        expected="link",
+        seeded_body="Seeded issue description with https://example.invalid/a11y",
+    )
+    task["task_card_id"] = "card.gitlab.maintenance"
+    task["capability_family"] = "repository_content_maintenance"
+    task_card_plan = {
+        "schema_version": 1,
+        "task_cards": [
+            {
+                "id": "card.gitlab.maintenance",
+                "site": "gitlab",
+                "route_ids": [
+                    "gitlab.issue_description.gitlab_search_result.create_issue_description"
+                ],
+                "capability_family": "repository_content_maintenance",
+                "instruction_must_match_all_regex": [
+                    "(?i)\\b(open|read|review|inspect)\\b",
+                    "(?i)\\b(update|record|write)\\b",
+                ],
+            }
+        ],
+    }
+
+    _validated, errors = phase_1_generate_new_tasks_validation.validate_generated_novel_tasks(
+        [task],
+        site_name="gitlab",
+        profile=profile,
+        expected_task_count=1,
+        route_contracts=route_contracts,
+        task_card_plan=task_card_plan,
+    )
+
+    assert errors
+    assert "instruction does not show all required task-card capability evidence" in errors[0]
 
 
 def test_validate_generated_novel_tasks_rejects_task_card_capability_mismatch():
@@ -4583,6 +4632,32 @@ def test_task_card_plan_rejects_incompatible_action_capability(tmp_path):
     )
 
     with pytest.raises(phase_1_task_cards.TaskCardPlanError, match="incompatible action"):
+        phase_1_task_cards.load_task_card_plan(plan_path)
+
+
+def test_task_card_plan_rejects_invalid_conjunctive_regex(tmp_path):
+    plan_path = tmp_path / "task_cards.json"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "task_cards": [
+                    {
+                        "id": "public-followup",
+                        "site": "reddit",
+                        "capability_family": "public_content_creation",
+                        "compatible_action_kinds": ["create_post"],
+                        "instruction_must_match_all_regex": ["(?i)(unclosed"],
+                    }
+                ],
+            }
+        )
+    )
+
+    with pytest.raises(
+        phase_1_task_cards.TaskCardPlanError,
+        match="instruction_must_match_all_regex contains invalid regex",
+    ):
         phase_1_task_cards.load_task_card_plan(plan_path)
 
 

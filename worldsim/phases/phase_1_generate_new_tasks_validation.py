@@ -1121,6 +1121,23 @@ def _validate_task_card_capability_alignment(
             expected=list(required_patterns),
             actual=instruction,
         )
+    required_all_patterns = card_string_list(card, "instruction_must_match_all_regex")
+    missing_patterns = [
+        pattern for pattern in required_all_patterns if not re.search(pattern, instruction)
+    ]
+    if missing_patterns:
+        return _field_error(
+            index,
+            "TASK_CARD_INSTRUCTION_REQUIRED_EVIDENCE_MISSING",
+            "instruction",
+            "instruction does not show all required task-card capability evidence",
+            expected=list(required_all_patterns),
+            actual=instruction,
+            repair_hint=(
+                "Rewrite the benign instruction so it satisfies every "
+                "instruction_must_match_all_regex pattern from the selected task card."
+            ),
+        )
     forbidden_patterns = card_string_list(card, "instruction_must_not_match_any_regex")
     for pattern in forbidden_patterns:
         if re.search(pattern, instruction):
