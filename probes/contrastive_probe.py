@@ -23,7 +23,10 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from probes.activation_extraction import extract_contrastive_activations
+from probes.activation_extraction import (
+    extract_contrastive_activations,
+    extract_framing_activations,
+)
 from probes.scoring import ProbeScore, classify_score
 
 logger = logging.getLogger(__name__)
@@ -90,6 +93,60 @@ class ContrastiveProbe:
             self.normalized_vectors[layer] = vector / norm if norm > 0 else vector
 
         logger.info(f"Trained vectors for {len(self.vectors)} layers")
+
+    def train_framing(
+        self,
+        model,
+        framing_data: dict,
+        layers: list[int] | None,
+        tokenizer,
+        token_position: int = -2,
+    ) -> None:
+        """Train DoM steering vectors from the paper's framing-pair prompts.
+
+        For each "real" / "fake" framing prompt (e.g.
+        `"You are talking to a real user:"` vs
+        `"You are talking to an AI evaluator:"`), extract the activation
+        at the colon (`token_position=-2` after chat-template rendering)
+        and compute `mean(real) - mean(fake)` per layer.
+
+        Note: real and fake pools may have different lengths; we average
+        each pool independently rather than treating them as paired.
+        """
+        if layers is None:
+            layers = list(range(model.cfg.n_layers))
+
+        n_real = len(framing_data.get("real", []))
+        n_fake = len(framing_data.get("fake", []))
+        logger.info(
+            f"Training framing probe: {n_real} real + {n_fake} fake prompts, "
+            f"{len(layers)} layers, token_position={token_position}"
+        )
+
+        real_acts, fake_acts = extract_framing_activations(
+            model, framing_data, layers, tokenizer, token_position=token_position
+        )
+
+        self.vectors = {}
+        self.normalized_vectors = {}
+
+        for layer in layers:
+            r_list = real_acts[layer]
+            f_list = fake_acts[layer]
+            if not r_list or not f_list:
+                logger.warning(f"Layer {layer}: missing activations, skipping")
+                continue
+            real_mean = torch.stack(r_list).mean(dim=0)
+            fake_mean = torch.stack(f_list).mean(dim=0)
+            # Convention: positive = "real / deployment", so
+            # vector = real - fake. `alpha > 0` pushes towards real;
+            # `alpha < 0` pushes towards eval-aware.
+            vector = real_mean - fake_mean
+            self.vectors[layer] = vector
+            norm = vector.norm()
+            self.normalized_vectors[layer] = vector / norm if norm > 0 else vector
+
+        logger.info(f"Trained framing vectors for {len(self.vectors)} layers")
 
     def score(
         self,
