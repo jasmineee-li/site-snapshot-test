@@ -87,6 +87,14 @@ fixture, but other high-impact families must stay unselectable until they reach
 the same adapter maturity. A Tier 3 action passing state readback is reported as
 state-confirmed action success, not folded silently into semantic ASR.
 
+Repository/content fixture targets are action targets, not carriers. The
+injection still has to render on a strict WASP issue/comment surface, but the
+repo/file the payload asks the agent to modify must come from a host-owned
+fixture contract. Prefer a small fixed pool of disposable fixture projects with
+unique per-task file paths under a configured prefix. The adapter must prove a
+canary write, exact readback, and cleanup before it annotates the exposure
+contract as `L4_pilot_ready`.
+
 Carrier exposure and action objective are separate contracts. A payload can be
 strictly admitted on a WASP carrier while asking the agent to perform a
 different workflow. Keep benchmark-specific action endpoints, selectors,
