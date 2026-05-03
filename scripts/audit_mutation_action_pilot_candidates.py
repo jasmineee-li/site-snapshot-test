@@ -34,6 +34,7 @@ def analyze_adversarial_tasks(
     *,
     artifact: str | None = None,
     max_samples: int = 50,
+    require_benign_action_evidence: bool = False,
 ) -> dict[str, Any]:
     candidates: list[dict[str, Any]] = []
     failed_compilations: list[dict[str, Any]] = []
@@ -66,6 +67,7 @@ def analyze_adversarial_tasks(
         action_rows: list[dict[str, Any]] = []
         task_failed = False
         task_risks = _task_risks(task)
+        benign_action_evidence = _benign_action_reward_evidence(task)
         for kind in mutation_options:
             compiled, compile_error = _compile_mutation_reward(
                 task,
@@ -89,6 +91,7 @@ def analyze_adversarial_tasks(
                         mutation_options=mutation_options,
                         action_rows=[action_row],
                         risks=task_risks,
+                        benign_action_evidence=benign_action_evidence,
                     )
                 )
                 action_rows.append(action_row)
@@ -114,6 +117,7 @@ def analyze_adversarial_tasks(
                             }
                         ],
                         risks=action_risks,
+                        benign_action_evidence=benign_action_evidence,
                     )
                 )
             by_action_kind[kind] += 1
@@ -127,7 +131,18 @@ def analyze_adversarial_tasks(
                 }
             )
 
-        risks = sorted({risk for action in action_rows for risk in action.get("risks", [])})
+        benign_action_risks = _benign_action_evidence_risks(
+            benign_action_evidence,
+            required=require_benign_action_evidence,
+        )
+        risks = sorted(
+            {
+                risk
+                for action in action_rows
+                for risk in action.get("risks", [])
+            }
+            | set(benign_action_risks)
+        )
         for risk in risks:
             risk_counts[risk] += 1
         row = _candidate_row(
@@ -136,9 +151,15 @@ def analyze_adversarial_tasks(
             mutation_options=mutation_options,
             action_rows=action_rows,
             risks=risks,
+            benign_action_evidence=benign_action_evidence,
         )
         candidates.append(row)
-        _increment_buckets(by_site, by_surface, row, failed=task_failed)
+        _increment_buckets(
+            by_site,
+            by_surface,
+            row,
+            failed=task_failed or bool(benign_action_risks),
+        )
 
     return {
         "artifact": artifact,
@@ -148,6 +169,14 @@ def analyze_adversarial_tasks(
             1 for row in candidates for action in row["compiled_actions"] if action["ok"]
         ),
         "failed_compilations": len(failed_compilations),
+        "benign_action_evidence_required": require_benign_action_evidence,
+        "benign_action_evidence_failures": sum(
+            1
+            for row in candidates
+            if "missing_benign_action_contract" in row.get("risks", [])
+            or "missing_benign_action_network_reward" in row.get("risks", [])
+            or "benign_action_network_reward_missing_witness" in row.get("risks", [])
+        ),
         "non_candidate_reasons": dict(sorted(non_candidate_reasons.items())),
         "risk_counts": dict(sorted(risk_counts.items())),
         "by_site": _counter_map_to_dict(by_site),
@@ -185,6 +214,7 @@ def _candidate_row(
     mutation_options: list[str],
     action_rows: list[dict[str, Any]],
     risks: list[str],
+    benign_action_evidence: dict[str, Any],
 ) -> dict[str, Any]:
     contract = _exposure_contract_for_task(task)
     return {
@@ -201,6 +231,7 @@ def _candidate_row(
         "feasibility_status": _mapping(task.get("feasibility")).get("status"),
         "mutation_options": mutation_options,
         "compiled_actions": action_rows,
+        "benign_action_evidence": benign_action_evidence,
         "risks": risks,
     }
 
@@ -254,6 +285,66 @@ def _network_reward_risks(evidence: Mapping[str, Any]) -> list[str]:
     if evidence.get("has_path_specific_url_pattern") is not True:
         risks.append("broad_only_endpoint_pattern")
     return risks
+
+
+def _benign_action_reward_evidence(task: Mapping[str, Any]) -> dict[str, Any]:
+    reward = _benign_reward(task)
+    evals = reward.get("eval") if isinstance(reward, Mapping) else None
+    provenance = task.get("task_provenance")
+    action_contract = (
+        provenance.get("benign_action_contract") if isinstance(provenance, Mapping) else None
+    )
+    witness = (
+        str(action_contract.get("witness") or "").strip()
+        if isinstance(action_contract, Mapping)
+        else ""
+    )
+    network_evidence: list[dict[str, Any]] = []
+    if isinstance(evals, list):
+        for config in evals:
+            if not isinstance(config, Mapping):
+                continue
+            if config.get("evaluator") != "NetworkEventEvaluator":
+                continue
+            evidence = _network_reward_evidence(config)
+            evidence["contains_benign_witness"] = bool(witness and witness in str(config))
+            network_evidence.append(evidence)
+    matching = [
+        evidence
+        for evidence in network_evidence
+        if evidence.get("contains_benign_witness")
+        and evidence.get("has_post") is True
+        and evidence.get("has_response_status") is True
+        and evidence.get("has_body_evidence") is True
+        and evidence.get("has_path_specific_url_pattern") is True
+    ]
+    return {
+        "has_contract": isinstance(action_contract, Mapping),
+        "action_kind": (
+            action_contract.get("action_kind") if isinstance(action_contract, Mapping) else None
+        ),
+        "witness": witness or None,
+        "network_reward_count": len(network_evidence),
+        "matching_network_reward_count": len(matching),
+        "ok": bool(matching),
+        "network_rewards": network_evidence,
+    }
+
+
+def _benign_action_evidence_risks(
+    evidence: Mapping[str, Any],
+    *,
+    required: bool,
+) -> list[str]:
+    if not required:
+        return []
+    if evidence.get("has_contract") is not True:
+        return ["missing_benign_action_contract"]
+    if not evidence.get("network_reward_count"):
+        return ["missing_benign_action_network_reward"]
+    if not evidence.get("matching_network_reward_count"):
+        return ["benign_action_network_reward_missing_witness"]
+    return []
 
 
 def _task_risks(task: Mapping[str, Any]) -> list[str]:
@@ -378,6 +469,14 @@ def main(argv: list[str] | None = None) -> int:
         default=50,
         help="Maximum candidate/failure rows to include in JSON output.",
     )
+    parser.add_argument(
+        "--require-benign-action-evidence",
+        action="store_true",
+        help=(
+            "Fail if mutation candidates lack host-compiled benign action "
+            "NetworkEventEvaluator evidence."
+        ),
+    )
     parser.add_argument("--json", action="store_true", help="Print full JSON report.")
     args = parser.parse_args(argv)
 
@@ -388,11 +487,16 @@ def main(argv: list[str] | None = None) -> int:
         [task for task in tasks if isinstance(task, dict)],
         artifact=str(args.adversarial_tasks),
         max_samples=args.max_samples,
+        require_benign_action_evidence=args.require_benign_action_evidence,
     )
 
     failed_gate = (
         report["failed_compilations"] > 0
         or report["candidate_tasks"] < args.min_candidates
+        or (
+            args.require_benign_action_evidence
+            and report["benign_action_evidence_failures"] > 0
+        )
     )
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
@@ -401,7 +505,8 @@ def main(argv: list[str] | None = None) -> int:
             "mutation action pilot audit: "
             f"{report['candidate_tasks']} candidate task(s), "
             f"{report['compiled_mutation_actions']} compiled mutation action(s), "
-            f"{report['failed_compilations']} failed compilation(s) "
+            f"{report['failed_compilations']} failed compilation(s), "
+            f"{report['benign_action_evidence_failures']} benign-action evidence failure(s) "
             f"({report['total_tasks']} total tasks)"
         )
         if report["candidate_tasks"] < args.min_candidates:
@@ -417,6 +522,22 @@ def main(argv: list[str] | None = None) -> int:
                 f"actions={failure.get('mutation_options')} risks={failure.get('risks')}",
                 file=sys.stderr,
             )
+        if args.require_benign_action_evidence:
+            for candidate in report["candidates"][:10]:
+                risks = set(candidate.get("risks") or [])
+                if not risks.intersection(
+                    {
+                        "missing_benign_action_contract",
+                        "missing_benign_action_network_reward",
+                        "benign_action_network_reward_missing_witness",
+                    }
+                ):
+                    continue
+                print(
+                    "BENIGN_ACTION_EVIDENCE_FAIL "
+                    f"{candidate.get('id')}: risks={candidate.get('risks')}",
+                    file=sys.stderr,
+                )
     return 1 if failed_gate else 0
 
 
