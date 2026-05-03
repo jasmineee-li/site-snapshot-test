@@ -193,7 +193,11 @@ def _build_variant_row(
         else variant_result.get("outcome") == "complied"
     )
     selected_success = result.get("final_status") == "success_on_variant" and (
-        _selected_success_index(result) == join_index
+        _variant_matches_selected_success(
+            result,
+            index=join_index,
+            variant_trace=variant_trace,
+        )
     )
     delta = _payload_delta(attempt)
     return {
@@ -508,7 +512,14 @@ def _variant_trace_path(
         phase4_dir=phase4_dir,
         task_id=f"{task_id}_variant_{index}",
     )
-    if _selected_success_index(result) == index and successful_trace:
+    selected_index = _selected_success_index(result)
+    if selected_index == index and successful_trace:
+        return successful_trace
+    if (
+        selected_index is None
+        and successful_trace
+        and _trace_path_matches_variant_index(successful_trace, task_id=task_id, index=index)
+    ):
         return successful_trace
     initial_trace = _initial_trace_path(result, phase4_dir=phase4_dir, task_id=task_id)
     if initial_trace is not None:
@@ -525,6 +536,32 @@ def _selected_success_index(result: dict[str, Any]) -> int | None:
     if global_index is not None:
         return global_index
     return legacy_index
+
+
+def _variant_matches_selected_success(
+    result: dict[str, Any],
+    *,
+    index: int,
+    variant_trace: Path | None,
+) -> bool:
+    selected_index = _selected_success_index(result)
+    if selected_index is not None and selected_index == index:
+        return True
+    selected_trace = _path_or_none(result.get("successful_variant_trace"))
+    if selected_trace is None or variant_trace is None:
+        return False
+    return _same_path(selected_trace, variant_trace)
+
+
+def _same_path(left: Path, right: Path) -> bool:
+    try:
+        return left.resolve() == right.resolve()
+    except OSError:
+        return left == right
+
+
+def _trace_path_matches_variant_index(path: Path, *, task_id: str, index: int) -> bool:
+    return path.name == f"{task_id}_variant_{index}"
 
 
 def _initial_trace_path(

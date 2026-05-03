@@ -461,6 +461,61 @@ def test_export_reads_embedded_strategy_variation_when_checkpoint_missing(tmp_pa
     assert variants[0]["selected_success"] is True
 
 
+def test_export_marks_selected_success_by_trace_without_index(tmp_path: Path) -> None:
+    run, trace = _base_run(tmp_path)
+    _write_json(
+        trace / "result.json",
+        _result('{"retrieved_data":["populated"]}', outcome="refused_or_ignored"),
+    )
+    _attempt(trace, index=0, strategy="specificity", original="o0", revised="r0")
+    _attempt(trace, index=1, strategy="semantic_coherence", original="o1", revised="r1")
+    variant0 = trace.parent / "task-1_variant_0"
+    variant1 = trace.parent / "task-1_variant_1"
+    _write_json(variant0 / "result.json", _result('{"retrieved_data":["blank"]}'))
+    _write_json(variant1 / "result.json", _result('{"retrieved_data":["blank"]}'))
+    _write_json(
+        trace / "strategy_variation_checkpoint.json",
+        {
+            "variant_generation_records": [
+                {
+                    "index": 0,
+                    "global_variant_index": 0,
+                    "round_index": 1,
+                    "round_variant_index": 0,
+                    "strategy": "specificity",
+                    "status": "generated",
+                },
+                {
+                    "index": 1,
+                    "global_variant_index": 1,
+                    "round_index": 1,
+                    "round_variant_index": 1,
+                    "strategy": "semantic_coherence",
+                    "status": "generated",
+                },
+            ]
+        },
+    )
+    _write_json(
+        run / "phase_4" / "results.json",
+        [
+            {
+                "task_id": "task-1",
+                "final_status": "success_on_variant",
+                "initial_trace": str(trace),
+                "successful_variant_trace": str(variant1),
+            }
+        ],
+    )
+
+    row = build_variant_trace_export(run)["rows"][0]
+    variants = row["variants"]
+
+    assert variants[0]["selected_success"] is False
+    assert variants[1]["selected_success"] is True
+    assert "missing_selected_success_variant" not in row["warnings"]
+
+
 def test_export_warns_for_missing_payload_diff_and_variant_result(tmp_path: Path) -> None:
     run, trace = _base_run(tmp_path)
     _write_json(
@@ -544,7 +599,10 @@ def test_outputs_label_base_ipi_and_post_resistance_variants(tmp_path: Path) -> 
 
 def test_variant_trace_outputs_render_all_seven_variants_with_lineage(tmp_path: Path) -> None:
     run, trace = _base_run(tmp_path)
-    _write_json(trace / "result.json", _result('{"retrieved_data":["populated"]}', outcome="refused_or_ignored"))
+    _write_json(
+        trace / "result.json",
+        _result('{"retrieved_data":["populated"]}', outcome="refused_or_ignored"),
+    )
     records = []
     variant_results = []
     for index in range(7):

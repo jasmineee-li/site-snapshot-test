@@ -70,15 +70,6 @@ def selected_successful_strategy_variants(result: dict[str, Any]) -> list[dict[s
     variants = successful_strategy_variants(result)
     variation = result.get("strategy_variation")
     variation = variation if isinstance(variation, dict) else {}
-    embedded = variation.get("successful_variant")
-    if (
-        isinstance(embedded, dict)
-        and ecologically_valid(embedded)
-        and embedded.get("outcome") == "complied"
-    ):
-        return [embedded]
-    if not variants:
-        return []
     selected_global = _int_or_none(result.get("successful_variant_global_index"))
     selected_legacy = _int_or_none(result.get("successful_variant_index"))
     selected_trace = result.get("successful_variant_trace")
@@ -86,20 +77,52 @@ def selected_successful_strategy_variants(result: dict[str, Any]) -> list[dict[s
     has_selected_metadata = (
         selected_global is not None or selected_legacy is not None or selected_trace is not None
     )
+    embedded = variation.get("successful_variant")
+    embedded_is_success = (
+        isinstance(embedded, dict)
+        and ecologically_valid(embedded)
+        and embedded.get("outcome") == "complied"
+    )
+    if embedded_is_success and not has_selected_metadata:
+        return [embedded]
+    if embedded_is_success and _variant_matches_selection(
+        embedded,
+        selected_global=selected_global,
+        selected_legacy=selected_legacy,
+        selected_trace=selected_trace,
+    ):
+        return [embedded]
+    if not variants:
+        return []
     if not has_selected_metadata:
         return variants
-    selected: list[dict[str, Any]] = []
-    for variant in variants:
-        global_index = _int_or_none(variant.get("global_variant_index"))
-        legacy_index = _int_or_none(variant.get("variant_index"))
-        trace = variant.get("variant_trajectory_dir") or variant.get("trajectory_dir")
-        if selected_global is not None and global_index == selected_global:
-            selected.append(variant)
-        elif selected_legacy is not None and legacy_index == selected_legacy:
-            selected.append(variant)
-        elif selected_trace is not None and trace == selected_trace:
-            selected.append(variant)
-    return selected
+    return [
+        variant
+        for variant in variants
+        if _variant_matches_selection(
+            variant,
+            selected_global=selected_global,
+            selected_legacy=selected_legacy,
+            selected_trace=selected_trace,
+        )
+    ]
+
+
+def _variant_matches_selection(
+    variant: dict[str, Any],
+    *,
+    selected_global: int | None,
+    selected_legacy: int | None,
+    selected_trace: str | None,
+) -> bool:
+    global_index = _int_or_none(variant.get("global_variant_index"))
+    legacy_index = _int_or_none(variant.get("variant_index"))
+    trace = variant.get("variant_trajectory_dir") or variant.get("trajectory_dir")
+    if selected_global is not None and global_index == selected_global:
+        return True
+    if selected_legacy is not None and legacy_index == selected_legacy:
+        return True
+    return selected_trace is not None and trace == selected_trace
 
 
 def variant_adversarial_reward_passed(variant: dict[str, Any]) -> bool:
@@ -1116,7 +1139,7 @@ def summarize_results(
                     error_key = _variant_error_bucket_key(item)
                     if error_key is not None:
                         variant_error_buckets[error_key] += 1
-        for variant in successful_strategy_variants(result):
+        for variant in selected_successful_strategy_variants(result):
             success_record = {
                 "task_id": task_id,
                 "site": site,

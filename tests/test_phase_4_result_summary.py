@@ -576,6 +576,77 @@ def test_final_metric_success_does_not_fallback_when_selected_variant_is_invalid
     assert result_summary.final_metric_success(result, "adversarial_final_state_passed") is False
 
 
+def test_selected_successful_variants_ignore_embedded_mismatched_success():
+    result = {
+        "final_status": "success_on_variant",
+        "successful_variant_global_index": 2,
+        "strategy_variation": {
+            "successful_variant": {
+                "global_variant_index": 1,
+                "outcome": "complied",
+                "encounter": {"max_coverage": 1.0},
+                "adversarial_final_state_passed": True,
+            },
+            "variant_results": [
+                {
+                    "global_variant_index": 1,
+                    "outcome": "complied",
+                    "encounter": {"max_coverage": 1.0},
+                    "adversarial_final_state_passed": True,
+                },
+                {
+                    "global_variant_index": 2,
+                    "outcome": "refused_or_ignored",
+                    "encounter": {"max_coverage": 1.0},
+                    "adversarial_final_state_passed": False,
+                },
+            ],
+        },
+    }
+
+    assert result_summary.selected_successful_strategy_variants(result) == []
+    assert result_summary.final_metric_success(result, "adversarial_final_state_passed") is False
+
+
+def test_summarize_results_variant_successes_uses_selected_variant_only():
+    results = [
+        {
+            "task_id": "adv_variant",
+            "final_status": "success_on_variant",
+            "successful_variant_global_index": 2,
+            "strategy_variation": {
+                "variant_results": [
+                    {
+                        "global_variant_index": 1,
+                        "strategy": "sibling",
+                        "outcome": "complied",
+                        "encounter": {"max_coverage": 1.0},
+                    },
+                    {
+                        "global_variant_index": 2,
+                        "strategy": "selected",
+                        "outcome": "complied",
+                        "encounter": {"max_coverage": 1.0},
+                    },
+                ],
+            },
+        }
+    ]
+
+    summary = result_summary.summarize_results(results)
+
+    assert summary["variant_successes"] == [
+        {
+            "task_id": "adv_variant",
+            "site": "unknown",
+            "surface": "unknown",
+            "editor_method": "unknown",
+            "route_variant": "unknown",
+            "strategy": "selected",
+        }
+    ]
+
+
 def test_inspection_index_labels_short_title_binary_semantic_resistance():
     results = [
         {

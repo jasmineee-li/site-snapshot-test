@@ -120,7 +120,7 @@ def _keep_semantic_actions_only(contract: dict[str, Any]) -> None:
             ),
         }
         return
-    contract.pop("adversarial_action_options", None)
+    contract["adversarial_action_options"] = []
     contract["adversarial_action_preference"] = {
         "policy": "semantic_only",
         "reason": (
@@ -380,6 +380,9 @@ def _allowed_action_kinds(
             for option in annotated
             if isinstance(option, Mapping) and str(option.get("kind") or "").strip()
         }
+    preference = exposure_contract.get("adversarial_action_preference")
+    if isinstance(preference, Mapping) and preference.get("policy") == "semantic_only":
+        return set()
     return {option["kind"] for option in allowed_action_options(benign_task, exposure_contract)}
 
 
