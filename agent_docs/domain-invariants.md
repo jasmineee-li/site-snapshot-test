@@ -97,6 +97,13 @@ Only use `--phase-2a-action-policy mutation_when_available` for an explicit
 pilot cohort after that audit passes; default runs must leave planner action
 choice unchanged.
 
+For Tier 3 pilots, run the Tier 3 action-pilot audit before a live browser
+pilot. It recomputes `tier3_pilot` readiness from benign tasks and exposure
+contracts, then checks selected Tier 3 tasks for host-compiled request evidence
+and final-state readback when Phase 2 artifacts exist. Treat it as a fail-closed
+preflight only; it is not an admission layer and must not edit feasibility or
+scoring artifacts.
+
 Mutation actions may carry `reward_function.adversarial_final_state_check` as a
 confirmatory persistence readback. Phase 4 reports it separately from
 `adversarial_passed`; do not silently make it a headline gate without a named

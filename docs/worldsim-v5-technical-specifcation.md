@@ -924,6 +924,15 @@ headline reporting. After the audit passes, rerun Phase 2 with
 that opt-in policy adds an `adversarial_action_preference` only to contracts
 whose host-computed options already include a mutation kind.
 
+The Tier 3 pilot audit reads a run directory and recomputes
+`tier3_pilot` readiness from `phase_1/benign_tasks.json` plus
+`phase_2/exposure_contracts.json`, then optionally checks
+`phase_2/adversarial_tasks.json` for selected Tier 3 actions whose compiled
+request reward and final-state readback are both host-owned. This audit is a
+preflight gate, not an admission or scoring layer: it fails closed before a
+live pilot when the cohort has no host-ready contracts, but it never edits
+Phase 2c feasibility or Phase 4 outcomes.
+
 For mutation actions, Phase 2 also emits an optional
 `reward_function.adversarial_final_state_check` with type
 `FinalStateEvaluator`. Phase 4 evaluates and reports this check after the

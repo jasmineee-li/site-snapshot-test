@@ -180,6 +180,8 @@ def compile_tier3_network_reward(
 ) -> dict[str, Any] | None:
     if kind != "modify_repository_content":
         return None
+    if not task_action_is_host_ready(adversarial_task):
+        return None
     urls = _repo_content_write_url_patterns(adversarial_task)
     if not urls:
         return None
@@ -202,6 +204,8 @@ def compile_tier3_final_state_check(
     witness: str,
 ) -> dict[str, Any] | None:
     if kind != "modify_repository_content":
+        return None
+    if not task_action_is_host_ready(adversarial_task):
         return None
     urls = _repo_content_write_url_patterns(adversarial_task)
     if not urls:
