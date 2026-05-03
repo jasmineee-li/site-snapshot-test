@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from worldsim.phase_4 import result_summary
 from worldsim.phase_4.variant_trace_export import build_variant_trace_export
 from worldsim.phase_4.variant_trace_outputs import (
     write_variant_trace_csv,
@@ -631,6 +632,166 @@ def test_export_does_not_load_stale_success_trace_for_selected_index(tmp_path: P
     assert variants[1]["evaluation"]["answer_label"] == "selected"
     assert variants[1]["selected_success"] is False
     assert "conflicting_selected_success_metadata" in row["warnings"]
+
+
+def test_export_rejects_conflicting_string_selectors_and_sparse_indexes(
+    tmp_path: Path,
+) -> None:
+    run, trace = _base_run(tmp_path)
+    _write_json(
+        trace / "result.json",
+        _result('{"retrieved_data":["populated"]}', outcome="refused_or_ignored"),
+    )
+    _attempt(trace, index=1, strategy="sibling", original="o1", revised="r1")
+    _attempt(trace, index=4, strategy="selected", original="o4", revised="r4")
+    variant4 = trace.parent / "task-1_variant_4"
+    _write_json(variant4 / "result.json", _result('{"retrieved_data":["selected"]}'))
+    _write_json(
+        trace / "strategy_variation_checkpoint.json",
+        {
+            "variant_generation_records": [
+                {
+                    "index": "1",
+                    "global_variant_index": "1",
+                    "round_index": "1",
+                    "round_variant_index": "0",
+                    "strategy": "sibling",
+                    "status": "generated",
+                },
+                {
+                    "index": "4",
+                    "global_variant_index": "4",
+                    "round_index": "2",
+                    "round_variant_index": "0",
+                    "strategy": "selected",
+                    "status": "generated",
+                },
+            ]
+        },
+    )
+    _write_json(
+        run / "phase_4" / "results.json",
+        [
+            {
+                "task_id": "task-1",
+                "final_status": "success_on_variant",
+                "initial_trace": str(trace),
+                "successful_variant_index": "1",
+                "successful_variant_global_index": "4",
+                "successful_variant_trace": str(variant4),
+            }
+        ],
+    )
+
+    row = build_variant_trace_export(run)["rows"][0]
+    variants = row["variants"]
+
+    assert [variant["global_variant_index"] for variant in variants] == [1, 4]
+    assert [variant["selected_success"] for variant in variants] == [False, False]
+    assert "conflicting_selected_success_metadata" in row["warnings"]
+    assert "missing_selected_success_variant" in row["warnings"]
+
+
+def test_variant_reports_summaries_and_renderers_agree_on_selected_identity(
+    tmp_path: Path,
+) -> None:
+    run, trace = _base_run(tmp_path)
+    _write_json(
+        trace / "result.json",
+        _result('{"retrieved_data":["populated"]}', outcome="refused_or_ignored"),
+    )
+    _attempt(trace, index=1, strategy="sibling", original="o1", revised="r1")
+    _attempt(trace, index=4, strategy="selected", original="o4", revised="r4")
+    variant1 = trace.parent / "task-1_variant_1"
+    variant4 = trace.parent / "task-1_variant_4"
+    _write_json(variant1 / "result.json", _result('{"retrieved_data":["sibling"]}'))
+    _write_json(variant4 / "result.json", _result('{"retrieved_data":["selected"]}'))
+    _write_json(
+        trace / "strategy_variation_checkpoint.json",
+        {
+            "variant_generation_records": [
+                {
+                    "index": 1,
+                    "global_variant_index": 1,
+                    "round_index": 1,
+                    "round_variant_index": 0,
+                    "strategy": "sibling",
+                    "status": "generated",
+                },
+                {
+                    "index": 4,
+                    "global_variant_index": 4,
+                    "round_index": 2,
+                    "round_variant_index": 0,
+                    "strategy": "selected",
+                    "status": "generated",
+                },
+            ]
+        },
+    )
+    result = {
+        "task_id": "task-1",
+        "final_status": "success_on_variant",
+        "encounter": {"max_coverage": 1.0},
+        "initial_trace": str(trace),
+        "successful_variant_global_index": 4,
+        "successful_variant_trace": str(variant4),
+        "strategy_variation": {
+            "variant_results": [
+                {
+                    "global_variant_index": 1,
+                    "variant_index": 1,
+                    "variant_trajectory_dir": str(variant1),
+                    "strategy": "sibling",
+                    "outcome": "complied",
+                    "encounter": {"max_coverage": 1.0},
+                },
+                {
+                    "global_variant_index": 4,
+                    "variant_index": 4,
+                    "variant_trajectory_dir": str(variant4),
+                    "strategy": "selected",
+                    "outcome": "complied",
+                    "adversarial_passed": True,
+                    "final_result": '{"retrieved_data":["selected"]}',
+                    "encounter": {"max_coverage": 1.0},
+                },
+            ]
+        },
+    }
+    _write_json(run / "phase_4" / "results.json", [result])
+
+    summary = result_summary.summarize_results([result])
+    export = build_variant_trace_export(run)
+    csv_path = tmp_path / "report" / "variant_trace_table.csv"
+    html_path = tmp_path / "report" / "variant_trace_table.html"
+    write_variant_trace_csv(export, csv_path)
+    write_variant_trace_html(export, html_path)
+
+    row = export["rows"][0]
+    selected_rows = [variant for variant in row["variants"] if variant["selected_success"]]
+    csv_text = csv_path.read_text(encoding="utf-8")
+    html = html_path.read_text(encoding="utf-8")
+
+    assert summary["asr_valid_numerator"] == 1
+    assert summary["variant_successes"] == [
+        {
+            "task_id": "task-1",
+            "site": "unknown",
+            "surface": "unknown",
+            "editor_method": "unknown",
+            "route_variant": "unknown",
+            "strategy": "selected",
+        }
+    ]
+    assert summary["inspection_index"][0]["successful_variant_trace"] == str(variant4)
+    assert [variant["global_variant_index"] for variant in selected_rows] == [4]
+    assert "task-1,success_on_variant" in csv_text
+    assert "4,4,2,0" in csv_text
+    assert "selected,generated,passed" in csv_text
+    assert "True," in csv_text
+    assert "Variant 4" in html
+    assert "selected" in html
 
 
 def test_export_warns_for_missing_payload_diff_and_variant_result(tmp_path: Path) -> None:

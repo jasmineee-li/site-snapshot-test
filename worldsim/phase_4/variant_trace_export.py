@@ -727,14 +727,22 @@ def _index_from_generation_dir(name: str) -> int | None:
 
 def _variant_join_index(strategy_record: dict[str, Any], *, fallback: int) -> int:
     for key in ("global_variant_index", "variant_index", "index"):
-        value = strategy_record.get(key)
-        if isinstance(value, int):
+        value = _int_or_none(strategy_record.get(key))
+        if value is not None:
             return value
     return fallback
 
 
 def _int_or_none(value: Any) -> int | None:
-    return value if isinstance(value, int) else None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped.isdigit():
+            return int(stripped)
+    return None
 
 
 __all__ = [
