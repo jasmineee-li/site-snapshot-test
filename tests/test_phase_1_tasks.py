@@ -547,16 +547,21 @@ def test_build_parser_accepts_phase_2_text_fill_flags():
 def test_build_parser_accepts_phase_2a_action_policy():
     parser = worldsim_main.build_parser()
 
-    args = parser.parse_args(
-        [
-            "phase",
-            "2",
-            "--phase-2a-action-policy",
-            "mutation_when_available",
-        ]
-    )
+    for policy in (
+        "mutation_when_available",
+        "mutation_only_when_available",
+        "tier3_pilot",
+    ):
+        args = parser.parse_args(
+            [
+                "phase",
+                "2",
+                "--phase-2a-action-policy",
+                policy,
+            ]
+        )
 
-    assert args.phase_2a_action_policy == "mutation_when_available"
+        assert args.phase_2a_action_policy == policy
 
 
 def test_phase_2_help_mentions_sequential_2a_2b_stages():
