@@ -79,6 +79,8 @@ def selected_successful_strategy_variants(result: dict[str, Any]) -> list[dict[s
         return []
     if not has_selected_metadata:
         return []
+    if selected_trace is None:
+        return []
     return [
         variant
         for variant in variants
@@ -101,21 +103,19 @@ def _variant_matches_selection(
     global_index = _int_or_none(variant.get("global_variant_index"))
     legacy_index = _int_or_none(variant.get("variant_index"))
     trace = variant.get("variant_trajectory_dir") or variant.get("trajectory_dir")
+    if selected_trace is None or trace != selected_trace:
+        return False
     if selected_global is not None:
         if global_index != selected_global:
             return False
         if selected_legacy is not None and legacy_index != selected_legacy:
             return False
-        if selected_trace is not None and trace != selected_trace:
-            return False
         return True
     if selected_legacy is not None:
         if legacy_index != selected_legacy:
             return False
-        if selected_trace is not None and trace != selected_trace:
-            return False
         return True
-    return selected_trace is not None and trace == selected_trace
+    return True
 
 
 def variant_adversarial_reward_passed(variant: dict[str, Any]) -> bool:

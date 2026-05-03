@@ -615,23 +615,21 @@ def _variant_matches_selected_success(
     selected_global = _int_or_none(result.get("successful_variant_global_index"))
     selected_legacy = _int_or_none(result.get("successful_variant_index"))
     selected_trace = _path_or_none(result.get("successful_variant_trace"))
+    if selected_trace is None or variant_trace is None:
+        return False
+    if not _same_path(selected_trace, variant_trace):
+        return False
     if selected_global is not None:
         if selected_global != index:
             return False
         if selected_legacy is not None and selected_legacy != index:
             return False
-        if selected_trace is not None:
-            return variant_trace is not None and _same_path(selected_trace, variant_trace)
         return True
     if selected_legacy is not None:
         if selected_legacy != index:
             return False
-        if selected_trace is not None:
-            return variant_trace is not None and _same_path(selected_trace, variant_trace)
         return True
-    if selected_trace is None or variant_trace is None:
-        return False
-    return _same_path(selected_trace, variant_trace)
+    return True
 
 
 def _same_path(left: Path, right: Path) -> bool:
@@ -678,6 +676,12 @@ def _task_warnings(
         variant.get("selected_success") for variant in variants
     ):
         warnings.append("missing_selected_success_variant")
+    if (
+        result.get("final_status") == "success_on_variant"
+        and _selected_success_index(result) is not None
+        and _path_or_none(result.get("successful_variant_trace")) is None
+    ):
+        warnings.append("selected_success_missing_trace_identity")
     if _selected_success_metadata_conflict(result, variants):
         warnings.append("conflicting_selected_success_metadata")
     for variant in variants:

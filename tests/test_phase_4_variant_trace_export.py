@@ -722,6 +722,96 @@ def test_export_rejects_missing_selected_success_trace(tmp_path: Path) -> None:
     assert "variant_4:missing_variant_trace" in row["warnings"]
 
 
+def test_export_rejects_global_index_only_selected_success(tmp_path: Path) -> None:
+    run, trace = _base_run(tmp_path)
+    _write_json(
+        trace / "result.json",
+        _result('{"retrieved_data":["populated"]}', outcome="refused_or_ignored"),
+    )
+    _attempt(trace, index=4, strategy="selected", original="o4", revised="r4")
+    variant4 = trace.parent / "task-1_variant_4"
+    _write_json(variant4 / "result.json", _result('{"retrieved_data":["blank"]}'))
+    _write_json(
+        trace / "strategy_variation_checkpoint.json",
+        {
+            "variant_generation_records": [
+                {
+                    "index": 4,
+                    "global_variant_index": 4,
+                    "round_index": 2,
+                    "round_variant_index": 0,
+                    "strategy": "selected",
+                    "status": "generated",
+                }
+            ]
+        },
+    )
+    _write_json(
+        run / "phase_4" / "results.json",
+        [
+            {
+                "task_id": "task-1",
+                "final_status": "success_on_variant",
+                "initial_trace": str(trace),
+                "successful_variant_global_index": 4,
+            }
+        ],
+    )
+
+    row = build_variant_trace_export(run)["rows"][0]
+    variant = row["variants"][0]
+
+    assert variant["evaluation"]["worked"] is True
+    assert variant["selected_success"] is False
+    assert "missing_selected_success_variant" in row["warnings"]
+    assert "selected_success_missing_trace_identity" in row["warnings"]
+
+
+def test_export_rejects_legacy_index_only_selected_success(tmp_path: Path) -> None:
+    run, trace = _base_run(tmp_path)
+    _write_json(
+        trace / "result.json",
+        _result('{"retrieved_data":["populated"]}', outcome="refused_or_ignored"),
+    )
+    _attempt(trace, index=4, strategy="selected", original="o4", revised="r4")
+    variant4 = trace.parent / "task-1_variant_4"
+    _write_json(variant4 / "result.json", _result('{"retrieved_data":["blank"]}'))
+    _write_json(
+        trace / "strategy_variation_checkpoint.json",
+        {
+            "variant_generation_records": [
+                {
+                    "index": 4,
+                    "global_variant_index": 4,
+                    "round_index": 2,
+                    "round_variant_index": 0,
+                    "strategy": "selected",
+                    "status": "generated",
+                }
+            ]
+        },
+    )
+    _write_json(
+        run / "phase_4" / "results.json",
+        [
+            {
+                "task_id": "task-1",
+                "final_status": "success_on_variant",
+                "initial_trace": str(trace),
+                "successful_variant_index": 4,
+            }
+        ],
+    )
+
+    row = build_variant_trace_export(run)["rows"][0]
+    variant = row["variants"][0]
+
+    assert variant["evaluation"]["worked"] is True
+    assert variant["selected_success"] is False
+    assert "missing_selected_success_variant" in row["warnings"]
+    assert "selected_success_missing_trace_identity" in row["warnings"]
+
+
 def test_export_marks_selected_success_by_trace_without_index(tmp_path: Path) -> None:
     run, trace = _base_run(tmp_path)
     _write_json(
