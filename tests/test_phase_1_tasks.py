@@ -183,6 +183,14 @@ def test_compiled_tier2_profile_filters_by_site_without_route_drift():
         )
 
 
+def test_compiled_profile_rejects_requested_sites_without_cards():
+    with pytest.raises(ValueError, match="no cards for requested site"):
+        compile_capability_task_card_plan(
+            "tier3_repository_pilot",
+            sites={"gitlab", "reddit"},
+        )
+
+
 def test_task_card_loader_rejects_json_plan_and_compiled_profile_together(tmp_path):
     plan_path = tmp_path / "task_cards.json"
     plan_path.write_text(

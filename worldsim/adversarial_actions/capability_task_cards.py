@@ -255,6 +255,14 @@ def compile_capability_task_card_plan(
         allowed = ", ".join(available_capability_task_card_profiles())
         raise ValueError(f"unknown task capability profile {profile_name!r}; choose one of: {allowed}")
     site_filter = _normalize_sites(sites)
+    supported_sites = {blueprint.site for blueprint in _PROFILE_BLUEPRINTS[profile_name]}
+    if site_filter is not None:
+        missing_sites = sorted(site_filter - supported_sites)
+        if missing_sites:
+            raise ValueError(
+                f"task capability profile {profile_name!r} has no cards for requested "
+                f"site(s): {', '.join(missing_sites)}"
+            )
     cards = [
         blueprint.to_task_card()
         for blueprint in _PROFILE_BLUEPRINTS[profile_name]
