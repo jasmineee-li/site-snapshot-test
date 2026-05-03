@@ -125,13 +125,12 @@ advertise_host = values.get("advertise_host", "").strip()
 orchestrator_host = (values.get("orchestrator_host") or advertise_host).strip()
 access_mode = values.get("access_mode", "").strip()
 
-if (
-    not advertise_host
-    or not orchestrator_host
-    or advertise_host == orchestrator_host
-    or access_mode != "remote_direct_restricted"
-):
-    raise SystemExit(0)
+topology_sensitive = (
+    bool(advertise_host)
+    and bool(orchestrator_host)
+    and advertise_host != orchestrator_host
+    and access_mode == "remote_direct_restricted"
+)
 
 command_text = " ".join(" ".join(argv).split())
 if "worldsim.main" not in command_text:
@@ -194,13 +193,30 @@ phase2_live = _runs_phase("2") and "--skip-feasibility" not in command_text
 phase2c_live = _runs_phase("2c")
 phase4_live = _runs_phase("4")
 phase1_command = _phase_command("1")
+resume_live = bool(re.search(r"\bworldsim\.main\s+resume(?:\s|$)", command_text))
 resume_phase2c = (
-    bool(re.search(r"\bworldsim\.main\s+resume(?:\s|$)", command_text))
+    resume_live
     and "--feasibility-only" in command_text
     and "--skip-feasibility" not in command_text
 )
+resume_phase4 = (
+    resume_live
+    and "--feasibility-only" not in command_text
+    and any(
+        _has_option(command_text, option)
+        for option in (
+            "--agent-provider",
+            "--agent-model",
+            "--agent-llm-timeout",
+            "--agent-step-timeout",
+            "--agent-service-tier",
+            "--max-tasks-per-site",
+            "--instances",
+        )
+    )
+)
 
-if phase0_live:
+if topology_sensitive and phase0_live:
     phase0_command = _phase_command("0") or _phase_command("0c") or command_text
     phase0_instances = _option_value_from(phase0_command, "--instances")
     if _is_scale(phase0_instances):
@@ -231,7 +247,7 @@ if phase0_live:
                 "ports."
             )
 
-if phase2_live or phase2c_live or resume_phase2c:
+if topology_sensitive and (phase2_live or phase2c_live or resume_phase2c):
     feasibility_instances = _option_value("--feasibility-instances")
     if feasibility_instances is None:
         issues.append(
@@ -245,21 +261,22 @@ if phase2_live or phase2c_live or resume_phase2c:
             "which points browser probes at the public advertised host."
         )
 
-if phase4_live:
+if topology_sensitive and phase4_live:
     instances = _option_value("--instances")
     if _is_smoke(instances):
         issues.append(
             "Phase 4 uses --instances instances.smoke.json, which points "
             "Browser Use/PVPO traffic at the public advertised host."
         )
-    phase4_command = _phase_command("4") or command_text
-    if not _has_option(phase4_command, "--agent-task-timeout"):
-        issues.append(
-            "Phase 4 remote jobs must pass --agent-task-timeout explicitly. "
-            "Browser Use's default task wall-clock timeout is long enough for "
-            "stale CDP/session-start failures to stall a full registered run; "
-            "use a bounded infrastructure guard such as --agent-task-timeout 900."
-        )
+
+phase4_command = _phase_command("4") or command_text
+if (phase4_live or resume_phase4) and not _has_option(phase4_command, "--agent-task-timeout"):
+    issues.append(
+        "Phase 4 remote jobs must pass --agent-task-timeout explicitly. "
+        "Browser Use's default task wall-clock timeout is long enough for "
+        "stale CDP/session-start failures to stall a full registered run; "
+        "use a bounded infrastructure guard such as --agent-task-timeout 900."
+    )
 
 if (
     phase0_live
@@ -297,6 +314,8 @@ repo_relative_webarena_verified = bool(
     )
 )
 if (
+    topology_sensitive
+    and
     repo_relative_webarena_verified
     and os.environ.get("WORLDSIM_ALLOW_REMOTE_REPO_VENDOR_BENCHMARK") != "1"
 ):
@@ -309,9 +328,8 @@ if (
         "only after proving the repo-local vendor tree is complete."
     )
 
-resume_live = bool(re.search(r"\bworldsim\.main\s+resume(?:\s|$)", command_text))
 resume_instances = _option_value("--instances") if resume_live else None
-if resume_instances is not None and _is_smoke(resume_instances):
+if topology_sensitive and resume_instances is not None and _is_smoke(resume_instances):
     issues.append(
         "Resume uses --instances instances.smoke.json on a host whose runtime "
         "traffic must use orchestrator_host."
