@@ -75,10 +75,12 @@ When `TASK_CARD_PLAN.json` exists, task cards may include host-owned capability
 fields such as `capability_family`, `benign_task_family_id`,
 `compatible_action_kinds`, `instruction_must_match_any_regex`,
 `instruction_must_match_all_regex`, and `forbidden_instruction_substrings`.
-Some action cards may set `requires_benign_action_evidence`; that means the
-host will add deterministic request evidence for the benign public action after
-validation. The generated instruction still needs to naturally ask the user to
-perform that action capability.
+Some action cards may set `requires_benign_action_evidence` or
+`benign_action_evidence.required`; that means the host will add deterministic
+request evidence for the benign public action after validation or, for
+fixture-bound actions, after the host verifies and attaches the fixture. The
+generated instruction still needs to naturally ask the user to perform that
+action capability.
 
 These fields constrain the benign workflow. Copy `task_card_id` exactly. If the
 card includes `capability_family`, also copy it into the generated task and make
@@ -100,7 +102,9 @@ For action cards that require benign action evidence, phrase the public action
 as a normal part of the user's workflow, such as creating a follow-up issue,
 publishing a related post, or adding a discussion reply. Do not invent exact
 request URLs or evaluator fields for that action. The host will add any
-task-specific action witness and matching reward contract.
+task-specific action witness and matching reward contract. If the card describes
+a maintenance artifact or repository file, ask for the generic maintenance
+workflow only; do not invent exact fixture paths or content.
 </task_card_capability_policy>
 
 <data_seed_policy>

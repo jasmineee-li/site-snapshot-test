@@ -13,6 +13,10 @@
       "compatible_action_kinds": [
         "modify_repository_content"
       ],
+      "benign_action_evidence": {
+        "required": true,
+        "stage": "phase2_tier3_fixture"
+      },
       "benign_task_family_id": "issue_triage_maintenance_artifact",
       "instruction_must_match_all_regex": [
         "(?i)\\b(open|read|review|inspect)\\b",

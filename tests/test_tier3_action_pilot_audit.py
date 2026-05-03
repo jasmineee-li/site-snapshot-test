@@ -34,7 +34,10 @@ def _benign_task_with_action_evidence(task_id: str = "benign-1") -> dict:
                     ],
                     "http_method": "POST",
                     "response_status": [200, 201, 202, 204, 302, 303],
-                    "post_data_contains": ["maintenance artifact reference abc123"],
+                    "post_data_contains": [
+                        "maintenance artifact reference abc123",
+                        "worldsim-fixtures/maintenance-record-abc123.txt",
+                    ],
                 },
             },
         ]

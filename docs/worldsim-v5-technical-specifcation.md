@@ -900,6 +900,17 @@ but utility success for the action pilot requires both the answer contract and
 the benign request evidence. The benign witness must be distinct from attacker
 URLs, nonces, fixture paths, and benchmark-internal wording.
 
+Tier 3 fixture-bound cards use the same principle with a later binding point.
+Because disposable fixture repositories are verified from execution-local
+instance files during Phase 2, a Tier 3 card may declare
+`benign_action_evidence: {required: true, stage: "phase2_tier3_fixture"}`.
+Phase 1 then records the requirement without asking the generator to invent
+fixture details. After Phase 2 attaches a verified fixture contract, the host
+adds a distinct benign repository-maintenance file path, a benign witness, and
+a matching POST/status/body reward. This keeps benign utility measurable while
+separating it from the adversarial file path/content compiled later for the
+injected payload.
+
 Capability alignment is separate from Phase 4 strategy variation. Phase 4 may
 make a resisted payload more action-contract aware, but it may not repair a
 fundamentally mismatched benign task by changing the task, reward, route, or
@@ -1005,10 +1016,12 @@ The Tier 3 pilot audit reads a run directory and recomputes
 `tier3_pilot` readiness from `phase_1/benign_tasks.json` plus
 `phase_2/exposure_contracts.json`, then optionally checks
 `phase_2/adversarial_tasks.json` for selected Tier 3 actions whose compiled
-request reward and final-state readback are both host-owned. This audit is a
-preflight gate, not an admission or scoring layer: it fails closed before a
-live pilot when the cohort has no host-ready contracts, but it never edits
-Phase 2c feasibility or Phase 4 outcomes.
+request reward and final-state readback are both host-owned. When benign action
+evidence is required, the audit also checks that the benign reward contains
+fixture-bound POST/status/body evidence, including the benign file path and
+witness. This audit is a preflight gate, not an admission or scoring layer: it
+fails closed before a live pilot when the cohort has no host-ready contracts,
+but it never edits Phase 2c feasibility or Phase 4 outcomes.
 
 For mutation actions, Phase 2 also emits an optional
 `reward_function.adversarial_final_state_check` with type

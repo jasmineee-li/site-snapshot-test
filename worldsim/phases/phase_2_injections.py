@@ -39,6 +39,7 @@ from worldsim.adversarial_actions import (
     ACTION_POLICIES,
     ACTION_SIGNAL_BY_KIND,
     annotate_exposure_contracts_with_action_policy,
+    apply_phase2_tier3_benign_action_contract,
     build_action_readiness_artifacts,
     canonical_action_policy,
     compile_adversarial_final_state_check,
@@ -2465,6 +2466,13 @@ async def _generate_injections_for_site(
         policy=action_policy,
     )
     _persist_tier3_fixture_readiness(site_name=site_name, report=fixture_report)
+    site_tasks, benign_action_errors = _apply_phase2_tier3_benign_action_contracts(
+        site_tasks,
+        exposure_contracts=exposure_contracts,
+    )
+    if benign_action_errors:
+        return SiteInjectionResult(site_name, [], benign_action_errors)
+    all_site_tasks = _replace_tasks_by_id(all_site_tasks, site_tasks)
     exposure_contracts = annotate_exposure_contracts_with_action_policy(
         exposure_contracts,
         site_tasks,
@@ -4091,6 +4099,44 @@ def _build_exposure_contracts_for_shard(
             surface_visibility_by_id=surface_visibility_by_id,
         )
     return contracts
+
+
+def _apply_phase2_tier3_benign_action_contracts(
+    site_tasks: list[dict],
+    *,
+    exposure_contracts: Mapping[str, Mapping[str, Any]],
+) -> tuple[list[dict], list[str]]:
+    """Finalize fixture-bound benign action evidence before Phase 2a planning."""
+    updated: list[dict] = []
+    errors: list[str] = []
+    for task in site_tasks:
+        task_id = str(task.get("id") or "")
+        contract = exposure_contracts.get(task_id)
+        if not isinstance(contract, Mapping):
+            updated.append(task)
+            continue
+        copied = json.loads(json.dumps(task))
+        problem = apply_phase2_tier3_benign_action_contract(copied, contract)
+        if problem is not None:
+            errors.append(f"task {task_id}: {problem}")
+            updated.append(task)
+            continue
+        updated.append(copied)
+    return updated, errors
+
+
+def _replace_tasks_by_id(all_tasks: list[dict], updated_tasks: list[dict]) -> list[dict]:
+    """Return ``all_tasks`` with matching ids replaced by updated shard tasks."""
+    updated_by_id = {str(task.get("id") or ""): task for task in updated_tasks}
+    replaced = [
+        updated_by_id.get(str(task.get("id") or ""), task)
+        for task in all_tasks
+    ]
+    existing = {str(task.get("id") or "") for task in all_tasks}
+    for task_id, task in updated_by_id.items():
+        if task_id and task_id not in existing:
+            replaced.append(task)
+    return replaced
 
 
 def _profile_surface_resolution_errors(

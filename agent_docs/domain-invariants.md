@@ -84,6 +84,13 @@ The witness must stay benign and task-local; adversarial URLs, action nonces,
 fixture paths, and benchmark-internal labels remain forbidden in the benign
 instruction.
 
+Tier 3 repository-maintenance cards bind benign action evidence later because
+the disposable fixture is execution-local. Use
+`benign_action_evidence.stage="phase2_tier3_fixture"` so Phase 1 records the
+requirement and Phase 2, after verified fixture attachment, adds the concrete
+benign file path, witness, and POST/status/body reward. The benign file/content
+must remain distinct from the adversarial payload-action contract.
+
 Action capability contracts and capability task cards are host-owned generation
 constraints, not model-authored rewards. They may describe generic capability
 families, compatible carrier surfaces, benign reward shapes, fixture/readback
@@ -145,10 +152,10 @@ choice unchanged.
 
 For Tier 3 pilots, run the Tier 3 action-pilot audit before a live browser
 pilot. It recomputes `tier3_pilot` readiness from benign tasks and exposure
-contracts, then checks selected Tier 3 tasks for host-compiled request evidence
-and final-state readback when Phase 2 artifacts exist. Treat it as a fail-closed
-preflight only; it is not an admission layer and must not edit feasibility or
-scoring artifacts.
+contracts, then checks selected Tier 3 tasks for host-compiled request evidence,
+final-state readback, and fixture-bound benign action evidence when Phase 2
+artifacts exist. Treat it as a fail-closed preflight only; it is not an
+admission layer and must not edit feasibility or scoring artifacts.
 
 Mutation actions may carry `reward_function.adversarial_final_state_check` as a
 confirmatory persistence readback. Phase 4 reports it separately from

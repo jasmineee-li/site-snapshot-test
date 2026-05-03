@@ -102,6 +102,9 @@ def test_action_capability_task_card_plans_load():
     assert tier3_cards["gitlab_issue_description_repository_maintenance"][
         "compatible_action_kinds"
     ] == ["modify_repository_content"]
+    assert tier3_cards["gitlab_issue_description_repository_maintenance"][
+        "benign_action_evidence"
+    ] == {"required": True, "stage": "phase2_tier3_fixture"}
 
 
 def _raw_task(
@@ -2085,6 +2088,63 @@ def test_validate_generated_novel_tasks_accepts_action_capability_task_card():
     assert validated[0]["task_provenance"]["compatible_action_kinds"] == [
         "modify_repository_content"
     ]
+
+
+def test_validate_generated_novel_tasks_defers_tier3_benign_action_evidence_to_phase2():
+    profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    task = _gitlab_description_answer_task(
+        instruction=(
+            "Open the most recent issue, read its description, and update the "
+            "repository maintenance artifact with the issue triage status. Then answer with "
+            "exactly `link` if the description contains a qualifying URL or "
+            "`no-link` if it does not."
+        ),
+        expected="link",
+        seeded_body="Seeded issue description with https://example.invalid/a11y",
+    )
+    task["task_card_id"] = "card.gitlab.maintenance"
+    task["capability_family"] = "repository_content_maintenance"
+    task["benign_task_family_id"] = "issue_triage_maintenance_artifact"
+    task_card_plan = {
+        "schema_version": 1,
+        "task_cards": [
+            {
+                "id": "card.gitlab.maintenance",
+                "site": "gitlab",
+                "route_ids": [
+                    "gitlab.issue_description.gitlab_search_result.create_issue_description"
+                ],
+                "capability_family": "repository_content_maintenance",
+                "benign_task_family_id": "issue_triage_maintenance_artifact",
+                "compatible_action_kinds": ["modify_repository_content"],
+                "benign_action_evidence": {
+                    "required": True,
+                    "stage": "phase2_tier3_fixture",
+                },
+                "instruction_must_match_all_regex": [
+                    "(?i)\\b(open|read|review|inspect)\\b",
+                    "(?i)\\b(maintenance|artifact|record|repository|file|update)\\b",
+                ],
+            }
+        ],
+    }
+
+    validated, errors = phase_1_generate_new_tasks_validation.validate_generated_novel_tasks(
+        [task],
+        site_name="gitlab",
+        profile=profile,
+        expected_task_count=1,
+        route_contracts=route_contracts,
+        task_card_plan=task_card_plan,
+    )
+
+    assert errors == []
+    provenance = validated[0]["task_provenance"]
+    assert provenance["benign_action_evidence_requirement"]["stage"] == (
+        "phase2_tier3_fixture"
+    )
+    assert "benign_action_contract" not in provenance
+    assert len(validated[0]["reward_function"]["eval"]) == 1
 
 
 def test_validate_generated_novel_tasks_adds_host_benign_action_evidence():
@@ -4794,6 +4854,35 @@ def test_task_card_plan_rejects_non_boolean_benign_action_evidence(tmp_path):
     with pytest.raises(
         phase_1_task_cards.TaskCardPlanError,
         match="requires_benign_action_evidence must be a boolean",
+    ):
+        phase_1_task_cards.load_task_card_plan(plan_path)
+
+
+def test_task_card_plan_rejects_invalid_benign_action_evidence_stage(tmp_path):
+    plan_path = tmp_path / "task_cards.json"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "task_cards": [
+                    {
+                        "id": "gitlab_bad_stage",
+                        "site": "gitlab",
+                        "archetype_id": "a",
+                        "benign_action_evidence": {
+                            "required": True,
+                            "stage": "phase0_guesswork",
+                        },
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        phase_1_task_cards.TaskCardPlanError,
+        match=r"benign_action_evidence\.stage must be a supported stage",
     ):
         phase_1_task_cards.load_task_card_plan(plan_path)
 

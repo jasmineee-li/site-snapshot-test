@@ -8,6 +8,9 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
+from worldsim.adversarial_actions.benign_action_contracts import (
+    validate_benign_action_evidence_stage,
+)
 from worldsim.adversarial_actions.capability_contracts import (
     action_kind_compatible_with_task_card,
     capability_family_from_task_card,
@@ -117,6 +120,13 @@ def validate_task_card_plan(plan: Any) -> None:
             if required is not None and not isinstance(required, bool):
                 raise TaskCardPlanError(
                     f"task_cards[{index}].benign_action_evidence.required must be a boolean"
+                )
+            stage = benign_action_evidence.get("stage")
+            if stage is not None and (
+                not isinstance(stage, str) or not validate_benign_action_evidence_stage(stage)
+            ):
+                raise TaskCardPlanError(
+                    f"task_cards[{index}].benign_action_evidence.stage must be a supported stage"
                 )
         for key in (
             "instruction_must_match_any_regex",

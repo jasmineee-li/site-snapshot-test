@@ -16,6 +16,10 @@ from typing import Any
 
 from worldsim.adversarial_actions.catalog import MUTATION_ACTION_KINDS
 from worldsim.adversarial_actions.compiler import compile_public_mutation_network_reward
+from worldsim.adversarial_actions.tier3 import (
+    compile_tier3_benign_repository_network_reward,
+    tier3_benign_repository_action_contract,
+)
 
 _BENIGN_ACTION_CONTRACT_VERSION = "worldsim-benign-action-contract-v1"
 
@@ -33,6 +37,15 @@ _WITNESS_PREFIX_BY_ACTION_KIND = {
     "create_issue_note": "issue comment reference",
 }
 
+_PHASE1_BENIGN_ACTION_STAGE = "phase1_public_mutation"
+_PHASE2_TIER3_BENIGN_ACTION_STAGE = "phase2_tier3_fixture"
+_BENIGN_ACTION_STAGES = frozenset(
+    {
+        _PHASE1_BENIGN_ACTION_STAGE,
+        _PHASE2_TIER3_BENIGN_ACTION_STAGE,
+    }
+)
+
 
 def card_requires_benign_action_evidence(card: Mapping[str, Any]) -> bool:
     """Return whether a task card requires host-compiled benign action evidence."""
@@ -40,6 +53,28 @@ def card_requires_benign_action_evidence(card: Mapping[str, Any]) -> bool:
         return True
     metadata = card.get("benign_action_evidence")
     return isinstance(metadata, Mapping) and metadata.get("required") is True
+
+
+def card_benign_action_evidence_stage(card: Mapping[str, Any]) -> str | None:
+    """Return the host stage that should attach benign action evidence."""
+    if not card_requires_benign_action_evidence(card):
+        return None
+    metadata = card.get("benign_action_evidence")
+    if isinstance(metadata, Mapping):
+        stage = str(metadata.get("stage") or "").strip()
+        if stage:
+            return stage
+    return _PHASE1_BENIGN_ACTION_STAGE
+
+
+def card_requires_phase2_tier3_benign_action_evidence(card: Mapping[str, Any]) -> bool:
+    """Return whether a card defers benign evidence until Tier 3 fixture binding."""
+    return card_benign_action_evidence_stage(card) == _PHASE2_TIER3_BENIGN_ACTION_STAGE
+
+
+def validate_benign_action_evidence_stage(stage: str) -> bool:
+    """Return whether ``stage`` is a supported benign action evidence stage."""
+    return stage in _BENIGN_ACTION_STAGES
 
 
 def apply_benign_action_contract(
@@ -54,6 +89,22 @@ def apply_benign_action_contract(
     """
     if not card_requires_benign_action_evidence(card):
         return None
+    stage = card_benign_action_evidence_stage(card)
+    if stage == _PHASE2_TIER3_BENIGN_ACTION_STAGE:
+        provenance = task.setdefault("task_provenance", {})
+        if isinstance(provenance, dict):
+            provenance["benign_action_evidence_requirement"] = {
+                "schema_version": _BENIGN_ACTION_CONTRACT_VERSION,
+                "required": True,
+                "stage": stage,
+                "reason": (
+                    "Tier 3 benign action evidence is finalized after Phase 2 "
+                    "attaches a verified disposable fixture contract."
+                ),
+            }
+        return None
+    if stage != _PHASE1_BENIGN_ACTION_STAGE:
+        return f"unsupported benign action evidence stage {stage!r}"
 
     action_kind, action_error = _single_public_mutation_action_kind(card)
     if action_error is not None:
@@ -105,12 +156,71 @@ def apply_benign_action_contract(
     return None
 
 
+def apply_phase2_tier3_benign_action_contract(
+    task: dict[str, Any],
+    exposure_contract: Mapping[str, Any],
+) -> str | None:
+    """Attach fixture-bound benign repository write evidence for Tier 3 tasks."""
+    requirement = _benign_action_requirement(task)
+    if requirement.get("stage") != _PHASE2_TIER3_BENIGN_ACTION_STAGE:
+        return None
+    action_contract = tier3_benign_repository_action_contract(task, exposure_contract)
+    if action_contract is None:
+        return "Tier 3 benign action evidence requires a verified repository fixture"
+    eval_config = compile_tier3_benign_repository_network_reward(
+        task,
+        exposure_contract,
+        reward_key="evaluator",
+    )
+    if eval_config is None:
+        return "could not compile Tier 3 benign repository action evidence"
+
+    instruction = str(task.get("instruction") or "").strip()
+    suffix = action_contract["instruction"]
+    witness = str(action_contract["witness"])
+    if witness.casefold() not in instruction.casefold():
+        task["instruction"] = f"{instruction.rstrip()} {suffix}".strip()
+
+    reward = task.setdefault("reward_function", {})
+    if not isinstance(reward, dict):
+        return "reward_function must be an object before adding Tier 3 benign action evidence"
+    evals = reward.setdefault("eval", [])
+    if not isinstance(evals, list):
+        return "reward_function.eval must be a list before adding Tier 3 benign action evidence"
+    if not _evals_contain_benign_witness(evals, witness):
+        evals.append(eval_config)
+
+    provenance = task.setdefault("task_provenance", {})
+    if isinstance(provenance, dict):
+        provenance["benign_action_contract"] = {
+            "schema_version": _BENIGN_ACTION_CONTRACT_VERSION,
+            "action_kind": "modify_repository_content",
+            "reward_signal": "network_action",
+            "impact_tier": 3,
+            "witness": witness,
+            "file_path": action_contract["file_path"],
+            "project_path": action_contract.get("project_path"),
+            "project_id": action_contract.get("project_id"),
+            "evaluator": copy.deepcopy(eval_config),
+            "stage": _PHASE2_TIER3_BENIGN_ACTION_STAGE,
+        }
+    return None
+
+
 def benign_action_witness(task: Mapping[str, Any], action_kind: str) -> str:
     """Return a stable, natural witness phrase for a benign action."""
     task_id = str(task.get("id") or task.get("task_id") or "task").strip()
     digest = hashlib.sha256(f"{task_id}:{action_kind}".encode()).hexdigest()[:10]
     prefix = _WITNESS_PREFIX_BY_ACTION_KIND.get(action_kind, "follow-up reference")
     return f"{prefix} {digest}"
+
+
+def _benign_action_requirement(task: Mapping[str, Any]) -> Mapping[str, Any]:
+    provenance = task.get("task_provenance")
+    if not isinstance(provenance, Mapping):
+        return {}
+    requirement = provenance.get("benign_action_evidence_requirement")
+    return requirement if isinstance(requirement, Mapping) else {}
 
 
 def _single_public_mutation_action_kind(card: Mapping[str, Any]) -> tuple[str, str | None]:

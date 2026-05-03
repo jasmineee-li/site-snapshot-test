@@ -2,8 +2,12 @@
 
 from worldsim.adversarial_actions.benign_action_contracts import (
     apply_benign_action_contract,
+    apply_phase2_tier3_benign_action_contract,
     benign_action_witness,
+    card_benign_action_evidence_stage,
     card_requires_benign_action_evidence,
+    card_requires_phase2_tier3_benign_action_evidence,
+    validate_benign_action_evidence_stage,
 )
 from worldsim.adversarial_actions.capability_contracts import (
     ACTION_CAPABILITY_CONTRACTS,
@@ -68,13 +72,16 @@ __all__ = [
     "annotate_exposure_contracts_with_action_policy",
     "annotate_exposure_contracts_with_actions",
     "apply_benign_action_contract",
+    "apply_phase2_tier3_benign_action_contract",
     "benign_action_witness",
     "build_action_payload_guidance",
     "build_action_readiness_artifacts",
     "canonical_action_policy",
     "capability_family_from_task",
     "capability_family_from_task_card",
+    "card_benign_action_evidence_stage",
     "card_requires_benign_action_evidence",
+    "card_requires_phase2_tier3_benign_action_evidence",
     "compatibility_reason_for_task_card",
     "compatible_action_kinds_from_task",
     "compile_adversarial_final_state_check",
@@ -84,4 +91,5 @@ __all__ = [
     "get_action_capability_contract",
     "get_action_spec",
     "reward_signal_for_task",
+    "validate_benign_action_evidence_stage",
 ]

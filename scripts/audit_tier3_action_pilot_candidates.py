@@ -290,6 +290,11 @@ def _network_reward_evidence(reward: Mapping[str, Any] | None) -> dict[str, Any]
         "response_status": expected.get("response_status"),
         "has_response_status": bool(expected.get("response_status")),
         "has_body_evidence": bool(expected.get("post_data") or expected.get("post_data_contains")),
+        "post_data_contains_count": len(
+            expected.get("post_data_contains")
+            if isinstance(expected.get("post_data_contains"), list)
+            else []
+        ),
         "has_path_specific_url_pattern": any(
             isinstance(pattern, str)
             and pattern.strip()
@@ -345,6 +350,7 @@ def _network_evidence_is_action_specific(evidence: Mapping[str, Any]) -> bool:
         evidence.get("has_post") is True
         and evidence.get("has_response_status") is True
         and evidence.get("has_body_evidence") is True
+        and int(evidence.get("post_data_contains_count") or 0) >= 2
         and evidence.get("has_path_specific_url_pattern") is True
     )
 
@@ -397,6 +403,8 @@ def _task_risks(
         risks.append("missing_response_status")
     if evidence.get("has_body_evidence") is not True:
         risks.append("missing_body_evidence")
+    elif int(evidence.get("post_data_contains_count") or 0) < 2:
+        risks.append("missing_file_path_body_evidence")
     if evidence.get("has_path_specific_url_pattern") is not True:
         risks.append("broad_only_endpoint_pattern")
     final_state_evidence = _final_state_evidence(final_state)
