@@ -179,10 +179,13 @@ def _build_variant_row(
     join_index = _variant_join_index(strategy_record, fallback=record_index)
     round_index = _int_or_none(strategy_record.get("round_index"))
     round_variant_index = _int_or_none(strategy_record.get("round_variant_index"))
-    variant_trace = _variant_trace_path(task_id, join_index, phase4_dir, result)
-    variant_result = _load_result_json(variant_trace)
     generation_status = str(strategy_record.get("generation_status") or "")
     host_rejected = generation_status in {"failed", "inapplicable", "skipped", "error"}
+    variant_trace = None
+    variant_result: dict[str, Any] = {}
+    if not host_rejected:
+        variant_trace = _variant_trace_path(task_id, join_index, phase4_dir, result)
+        variant_result = _load_result_json(variant_trace)
     adversarial_passed = variant_result.get("adversarial_passed")
     worked = (
         bool(adversarial_passed)
@@ -190,8 +193,7 @@ def _build_variant_row(
         else variant_result.get("outcome") == "complied"
     )
     selected_success = result.get("final_status") == "success_on_variant" and (
-        result.get("successful_variant_global_index") == join_index
-        or result.get("successful_variant_index") == join_index
+        _selected_success_index(result) == join_index
     )
     delta = _payload_delta(attempt)
     return {
@@ -262,6 +264,36 @@ def _strategy_records(result: dict[str, Any], checkpoint: dict[str, Any]) -> lis
             for item in raw_generation
             if isinstance(item, dict)
         ]
+    variation = result.get("strategy_variation")
+    if isinstance(variation, dict):
+        raw_generation = variation.get("variant_generation_records")
+        if not isinstance(raw_generation, list):
+            raw_rounds = variation.get("variant_rounds") or variation.get("adaptive_rounds")
+            if isinstance(raw_rounds, list):
+                raw_generation = [
+                    item
+                    for round_record in raw_rounds
+                    if isinstance(round_record, dict)
+                    for item in round_record.get("variant_generation_records", [])
+                    if isinstance(item, dict)
+                ]
+        if isinstance(raw_generation, list) and raw_generation:
+            return [
+                {
+                    "index": item.get("index"),
+                    "round_index": item.get("round_index"),
+                    "round_variant_index": item.get("round_variant_index"),
+                    "global_variant_index": item.get("global_variant_index"),
+                    "parent_global_variant_index": item.get("parent_global_variant_index"),
+                    "generation_status": item.get("status"),
+                    "generation_reason": item.get("reason"),
+                    "strategy": _nested_get(item, "strategy", "strategy")
+                    or _nested_get(item, "strategy")
+                    or "unknown",
+                }
+                for item in raw_generation
+                if isinstance(item, dict)
+            ]
     raw = result.get("strategies_attempted")
     if isinstance(raw, list) and raw:
         return [item for item in raw if isinstance(item, dict)]
@@ -460,7 +492,7 @@ def _variant_trace_path(
         phase4_dir=phase4_dir,
         task_id=f"{task_id}_variant_{index}",
     )
-    if result.get("successful_variant_index") == index and successful_trace:
+    if _selected_success_index(result) == index and successful_trace:
         return successful_trace
     initial_trace = _initial_trace_path(result, phase4_dir=phase4_dir, task_id=task_id)
     if initial_trace is not None:
@@ -469,6 +501,14 @@ def _variant_trace_path(
             return candidate
     matches = sorted(phase4_dir.glob(f"*/*{task_id}_variant_{index}"))
     return matches[0] if matches else None
+
+
+def _selected_success_index(result: dict[str, Any]) -> int | None:
+    global_index = _int_or_none(result.get("successful_variant_global_index"))
+    legacy_index = _int_or_none(result.get("successful_variant_index"))
+    if global_index is not None:
+        return global_index
+    return legacy_index
 
 
 def _initial_trace_path(

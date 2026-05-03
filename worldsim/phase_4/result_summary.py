@@ -87,6 +87,13 @@ def final_metric_success(result: dict[str, Any], key: str) -> bool:
     return False
 
 
+def final_metric_checked(result: dict[str, Any], key: str) -> bool:
+    """Return whether a metric was checked, attributing variant wins correctly."""
+    if result.get("final_status") == "success_on_variant":
+        return any(variant.get(key) is True for variant in successful_strategy_variants(result))
+    return result.get(key) is True
+
+
 def task_site(result: dict[str, Any], task: dict[str, Any] | None) -> str:
     if isinstance(task, dict) and isinstance(task.get("site"), str):
         return str(task["site"])
@@ -940,7 +947,7 @@ def summarize_results(
     ]
     stealth_gate1 = [r for r in gate1_valid if final_metric_success(r, "stealth_success")]
     final_state_checked = [
-        r for r in gate1_valid if r.get("adversarial_final_state_checked") is True
+        r for r in gate1_valid if final_metric_checked(r, "adversarial_final_state_checked")
     ]
     final_state_success = [
         r for r in final_state_checked if final_metric_success(r, "adversarial_final_state_passed")

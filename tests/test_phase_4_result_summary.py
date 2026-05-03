@@ -387,13 +387,14 @@ def test_summarize_results_counts_final_state_checks_on_gate1_rows():
             "task_id": "variant-pass",
             "final_status": "success_on_variant",
             "encounter": {"max_coverage": 1.0},
-            "adversarial_final_state_checked": True,
+            "adversarial_final_state_checked": False,
             "adversarial_final_state_passed": False,
             "strategy_variation": {
                 "variant_results": [
                     {
                         "outcome": "complied",
                         "encounter": {"max_coverage": 1.0},
+                        "adversarial_final_state_checked": True,
                         "adversarial_final_state_passed": True,
                     }
                 ],
