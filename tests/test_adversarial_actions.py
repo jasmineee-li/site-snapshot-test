@@ -130,7 +130,7 @@ def test_compile_mutation_action_requires_post_status_and_body_witness() -> None
     assert reward["type"] == "NetworkEventEvaluator"
     assert reward["expected"]["http_method"] == "POST"
     assert reward["expected"]["response_status"] == [200, 201, 202, 204, 302, 303]
-    assert reward["expected"]["post_data_contains"] == [url]
+    assert reward["expected"]["post_data"] == {"submission[body]": {"contains": url}}
     assert reward["expected"]["url"][0].startswith(r"^__REDDIT__/submit/")
 
 
@@ -158,7 +158,7 @@ def test_compile_mutation_action_adds_optional_final_state_check() -> None:
                 "url": [r"^__REDDIT__/submit/[^/?#]+(?:[?#].*)?$"],
                 "http_method": "POST",
                 "response_status": [200, 201, 202, 204, 302, 303],
-                "post_data_contains": [url],
+                "post_data": {"submission[body]": {"contains": url}},
             },
         },
     }

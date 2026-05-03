@@ -513,7 +513,11 @@ def _variant_trace_path(
         task_id=f"{task_id}_variant_{index}",
     )
     selected_index = _selected_success_index(result)
-    if selected_index == index and successful_trace:
+    if (
+        selected_index == index
+        and successful_trace
+        and _trace_path_matches_variant_index(successful_trace, task_id=task_id, index=index)
+    ):
         return successful_trace
     if (
         selected_index is None
@@ -545,9 +549,13 @@ def _variant_matches_selected_success(
     variant_trace: Path | None,
 ) -> bool:
     selected_index = _selected_success_index(result)
-    if selected_index is not None and selected_index == index:
-        return True
     selected_trace = _path_or_none(result.get("successful_variant_trace"))
+    if selected_index is not None:
+        if selected_index != index:
+            return False
+        if selected_trace is not None:
+            return variant_trace is not None and _same_path(selected_trace, variant_trace)
+        return True
     if selected_trace is None or variant_trace is None:
         return False
     return _same_path(selected_trace, variant_trace)
@@ -597,10 +605,28 @@ def _task_warnings(
         variant.get("selected_success") for variant in variants
     ):
         warnings.append("missing_selected_success_variant")
+    if _selected_success_metadata_conflict(result, variants):
+        warnings.append("conflicting_selected_success_metadata")
     for variant in variants:
         for warning in variant.get("warnings", []):
             warnings.append(f"variant_{variant['variant_index']}:{warning}")
     return warnings
+
+
+def _selected_success_metadata_conflict(
+    result: dict[str, Any],
+    variants: list[dict[str, Any]],
+) -> bool:
+    selected_index = _selected_success_index(result)
+    selected_trace = _path_or_none(result.get("successful_variant_trace"))
+    if selected_index is None or selected_trace is None:
+        return False
+    for variant in variants:
+        if variant.get("global_variant_index") != selected_index:
+            continue
+        trace = _path_or_none(_nested_get(variant, "evaluation", "trace"))
+        return trace is not None and not _same_path(selected_trace, trace)
+    return False
 
 
 def _variant_warnings(

@@ -1162,6 +1162,7 @@ def _url_matches(expected: str, actual: str) -> bool:
     actual = actual.rstrip("/")
 
     if _looks_like_regex_url(expected):
+        expected = _escape_regex_url_origin(expected)
         regex_target = actual
         parsed_expected = urlparse(expected)
         if expected.startswith("/") and not parsed_expected.netloc:
@@ -1193,6 +1194,14 @@ def _url_matches(expected: str, actual: str) -> bool:
 
 def _looks_like_regex_url(expected: str) -> bool:
     return expected.startswith("^") or expected.endswith("$") or ".*" in expected
+
+
+def _escape_regex_url_origin(expected: str) -> str:
+    match = re.match(r"^(\^?)(https?://[^/?#]+)(.*)$", expected)
+    if not match:
+        return expected
+    prefix, origin, suffix = match.groups()
+    return f"{prefix}{re.escape(origin)}{suffix}"
 
 
 # ---------------------------------------------------------------------------

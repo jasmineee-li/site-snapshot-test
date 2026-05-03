@@ -608,6 +608,35 @@ def test_selected_successful_variants_ignore_embedded_mismatched_success():
     assert result_summary.final_metric_success(result, "adversarial_final_state_passed") is False
 
 
+def test_selected_successful_variants_reject_conflicting_global_and_legacy_metadata():
+    result = {
+        "final_status": "success_on_variant",
+        "successful_variant_global_index": 2,
+        "successful_variant_index": 1,
+        "strategy_variation": {
+            "variant_results": [
+                {
+                    "global_variant_index": 1,
+                    "variant_index": 1,
+                    "outcome": "complied",
+                    "encounter": {"max_coverage": 1.0},
+                    "adversarial_final_state_passed": True,
+                },
+                {
+                    "global_variant_index": 2,
+                    "variant_index": 2,
+                    "outcome": "complied",
+                    "encounter": {"max_coverage": 1.0},
+                    "adversarial_final_state_passed": True,
+                },
+            ],
+        },
+    }
+
+    assert result_summary.selected_successful_strategy_variants(result) == []
+    assert result_summary.final_metric_success(result, "adversarial_final_state_passed") is False
+
+
 def test_summarize_results_variant_successes_uses_selected_variant_only():
     results = [
         {

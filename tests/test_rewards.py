@@ -35,6 +35,35 @@ def test_network_event_reward_accepts_expected_url_list() -> None:
     assert "matching event" in message
 
 
+def test_site_bound_regex_does_not_overmatch_origin_metacharacters() -> None:
+    reward = {
+        "type": "NetworkEventEvaluator",
+        "expected": {
+            "url": [r"^__GITLAB__/api/v4/projects/[^/?#]+/issues(?:[?#].*)?$"],
+            "http_method": "POST",
+        },
+    }
+    instance = {
+        "site_name": "gitlab",
+        "site_url": "http://gitlab.test",
+        "url_placeholders": {"__GITLAB__": "http://gitlab.test"},
+    }
+
+    passed, message = run_reward_function(
+        reward,
+        instance,
+        network_trace=[
+            {
+                "url": "http://gitlabXtest/api/v4/projects/1/issues",
+                "method": "POST",
+            }
+        ],
+    )
+
+    assert passed is False
+    assert "no matching network event" in message
+
+
 def test_agent_response_fallback_rejects_plaintext_final_answer() -> None:
     passed, message = run_reward_function(
         {

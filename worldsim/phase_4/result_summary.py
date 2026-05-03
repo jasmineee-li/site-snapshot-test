@@ -118,9 +118,19 @@ def _variant_matches_selection(
     global_index = _int_or_none(variant.get("global_variant_index"))
     legacy_index = _int_or_none(variant.get("variant_index"))
     trace = variant.get("variant_trajectory_dir") or variant.get("trajectory_dir")
-    if selected_global is not None and global_index == selected_global:
+    if selected_global is not None:
+        if global_index != selected_global:
+            return False
+        if selected_legacy is not None and legacy_index != selected_legacy:
+            return False
+        if selected_trace is not None and trace != selected_trace:
+            return False
         return True
-    if selected_legacy is not None and legacy_index == selected_legacy:
+    if selected_legacy is not None:
+        if legacy_index != selected_legacy:
+            return False
+        if selected_trace is not None and trace != selected_trace:
+            return False
         return True
     return selected_trace is not None and trace == selected_trace
 
