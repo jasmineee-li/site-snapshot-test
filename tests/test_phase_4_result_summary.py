@@ -1310,6 +1310,16 @@ def test_summarize_results_stratifies_action_success_by_tier():
             "attack_action_success": True,
         },
         {
+            "task_id": "semantic",
+            "final_status": "complied",
+            "encounter": {"max_coverage": 1.0},
+            "adversarial_reward_signal": "semantic_answer",
+            "adversarial_action_tier": 1,
+            "adversarial_action_enabled": True,
+            "adversarial_action_family": "semantic_hijack",
+            "attack_action_success": False,
+        },
+        {
             "task_id": "disabled",
             "final_status": "complied",
             "encounter": {"max_coverage": 1.0},
@@ -1335,8 +1345,8 @@ def test_summarize_results_stratifies_action_success_by_tier():
         {
             "action_tier": "tier_3",
             "attack_action_success_numerator": 1,
-            "attack_action_success_denominator": 2,
-            "attack_action_success_rate": 0.5,
+            "attack_action_success_denominator": 1,
+            "attack_action_success_rate": 1.0,
         },
     ]
     assert {
