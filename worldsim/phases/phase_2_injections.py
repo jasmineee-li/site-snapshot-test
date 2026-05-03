@@ -3212,13 +3212,19 @@ def _merge_immutable_fields(
         if reward is None and adv_reward_top is not None:
             # Minimal schema — construct reward_function from scratch.
             adv_task["reward_function"] = {
-                "benign_reward": json.loads(json.dumps(benign_task.get("reward_function", {}))),
+                "benign_reward": _expected_benign_reward_for_adversarial_task(
+                    benign_task,
+                    adv_task,
+                ),
                 "adversarial_reward": adv_reward_top,
             }
         elif isinstance(reward, dict):
             # Full schema — overwrite benign_reward to guarantee correctness,
             # and lift top-level adversarial_reward if present.
-            reward["benign_reward"] = json.loads(json.dumps(benign_task.get("reward_function", {})))
+            reward["benign_reward"] = _expected_benign_reward_for_adversarial_task(
+                benign_task,
+                adv_task,
+            )
             if adv_reward_top is not None and "adversarial_reward" not in reward:
                 reward["adversarial_reward"] = adv_reward_top
             adv_task["reward_function"] = reward
@@ -3264,7 +3270,10 @@ def _refresh_host_compiled_action_reward_after_text_fill(
         return str(exc)
 
     reward: dict[str, Any] = {
-        "benign_reward": json.loads(json.dumps(benign_task.get("reward_function", {}))),
+        "benign_reward": _expected_benign_reward_for_adversarial_task(
+            benign_task,
+            adv_task,
+        ),
         "adversarial_reward": adversarial_reward,
     }
     final_state_check = compile_adversarial_final_state_check(adv_task)
@@ -3272,6 +3281,78 @@ def _refresh_host_compiled_action_reward_after_text_fill(
         reward["adversarial_final_state_check"] = final_state_check
     adv_task["reward_function"] = reward
     return None
+
+
+def _expected_benign_reward_for_adversarial_task(
+    benign_task: Mapping[str, Any],
+    adversarial_task: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return the host-owned benign reward expected for an adversarial task.
+
+    Most tasks inherit the benign reward exactly from Phase 1. Tier 2/Tier 3
+    action pilots are the exception: Phase 2 can bind host-owned benign action
+    evidence after exposure/fixture resolution. That evidence is stored in
+    ``task_provenance.benign_action_contract`` and must survive post-text-fill
+    reward refreshes even when the caller's ``benign_task`` map came from the
+    original Phase 1 artifact.
+    """
+    reward = json.loads(json.dumps(benign_task.get("reward_function", {})))
+    contract = _host_benign_action_contract(adversarial_task)
+    if contract is None:
+        return reward
+    evaluator = contract.get("evaluator")
+    witness = contract.get("witness")
+    if not isinstance(evaluator, Mapping) or not (
+        isinstance(witness, str) and witness.strip()
+    ):
+        return reward
+    if not _network_event_evaluator_has_witness(evaluator, str(witness).strip()):
+        return reward
+    evals = reward.setdefault("eval", [])
+    if not isinstance(evals, list):
+        return reward
+    evaluator_copy = json.loads(json.dumps(dict(evaluator)))
+    if not _evals_contain_equivalent_config(evals, evaluator_copy):
+        evals.append(evaluator_copy)
+    return reward
+
+
+def _host_benign_action_contract(task: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    provenance = task.get("task_provenance")
+    if not isinstance(provenance, Mapping):
+        return None
+    contract = provenance.get("benign_action_contract")
+    return contract if isinstance(contract, Mapping) else None
+
+
+def _network_event_evaluator_has_witness(
+    evaluator: Mapping[str, Any],
+    witness: str,
+) -> bool:
+    evaluator_type = str(evaluator.get("evaluator") or evaluator.get("type") or "")
+    if evaluator_type not in {"NetworkEventEvaluator", "network_event"}:
+        return False
+    expected = evaluator.get("expected")
+    if not isinstance(expected, Mapping):
+        return False
+    values = expected.get("post_data_contains")
+    if not isinstance(values, list):
+        return False
+    return any(isinstance(value, str) and value == witness for value in values)
+
+
+def _evals_contain_equivalent_config(
+    evals: list[Any],
+    evaluator: Mapping[str, Any],
+) -> bool:
+    wanted = json.dumps(evaluator, sort_keys=True, separators=(",", ":"))
+    for item in evals:
+        if not isinstance(item, Mapping):
+            continue
+        current = json.dumps(item, sort_keys=True, separators=(",", ":"))
+        if current == wanted:
+            return True
+    return False
 
 
 def _refresh_host_compiled_action_rewards_after_text_fill(
@@ -5485,7 +5566,11 @@ def _validate_adversarial_task_contract(
 
     reward = adversarial_task.get("reward_function", {})
     benign_reward = reward.get("benign_reward")
-    if benign_reward != benign_task.get("reward_function"):
+    expected_benign_reward = _expected_benign_reward_for_adversarial_task(
+        benign_task,
+        adversarial_task,
+    )
+    if benign_reward != expected_benign_reward:
         return "benign reward contract changed from validated benign task"
 
     adv_reward = reward.get("adversarial_reward")
