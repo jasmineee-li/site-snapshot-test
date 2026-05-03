@@ -29,6 +29,7 @@ from dotenv import load_dotenv
 
 from worldsim.adversarial_actions import ACTION_POLICIES
 from worldsim.config import BenchmarkConfig, has_configured_agent_auth
+from worldsim.phases.phase_1_task_cards import task_capability_profile_choices
 
 load_dotenv(override=True)  # override=True: .env values win over empty-string shell vars.
 
@@ -248,6 +249,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Phase 1 generate-new-tasks: optional JSON task-card plan that constrains "
             "novel generation by behavior/archetype while route contracts remain authoritative."
+        ),
+    )
+    phase_cmd.add_argument(
+        "--task-capability-profile",
+        choices=task_capability_profile_choices(),
+        default=None,
+        help=(
+            "Phase 1 generate-new-tasks: compile a named host-owned action-capability "
+            "task-card profile. Mutually exclusive with --task-card-plan."
         ),
     )
     phase_cmd.add_argument(
@@ -567,6 +577,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=argparse.SUPPRESS,
         help="Override saved Phase 1 task-card plan path.",
+    )
+    resume_cmd.add_argument(
+        "--task-capability-profile",
+        choices=task_capability_profile_choices(),
+        default=argparse.SUPPRESS,
+        help="Override saved Phase 1 compiled action-capability task-card profile.",
     )
     resume_cmd.add_argument(
         "--max-tasks-per-site",
@@ -1230,6 +1246,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     agent_task_timeout = getattr(args, "agent_task_timeout", None)
     generate_novel = getattr(args, "generate_novel", None)
     novel_tasks_per_site = getattr(args, "novel_tasks_per_site", None)
+    task_card_plan = getattr(args, "task_card_plan", None)
+    task_capability_profile = getattr(args, "task_capability_profile", None)
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
     task_origin = getattr(args, "task_origin", None)
     sites = getattr(args, "sites", None)
@@ -1272,6 +1290,12 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         generate_novel = state.get("generate_novel", False)
     if novel_tasks_per_site is None:
         novel_tasks_per_site = state.get("novel_tasks_per_site")
+    if task_card_plan is None and "task_card_plan_path" in state:
+        raw_task_card_plan = state.get("task_card_plan_path")
+        if raw_task_card_plan:
+            task_card_plan = Path(raw_task_card_plan)
+    if task_capability_profile is None:
+        task_capability_profile = state.get("task_capability_profile")
     if task_origin is None:
         task_origin = state.get("task_origin")
     if sites is None:
@@ -1331,6 +1355,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         agent_task_timeout=agent_task_timeout,
         generate_novel=generate_novel,
         novel_tasks_per_site=novel_tasks_per_site,
+        task_card_plan=task_card_plan,
+        task_capability_profile=task_capability_profile,
         max_tasks_per_site=max_tasks_per_site,
         task_origin=task_origin,
         sites=sites,

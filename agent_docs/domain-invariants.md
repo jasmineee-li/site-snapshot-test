@@ -106,6 +106,13 @@ requirements, and forbidden benign/adversarial overlap. They must not place
 benchmark-specific selectors, endpoint paths, fixture setup, final-state probes,
 or cleanup logic in model-facing static prompts.
 
+For live pilots, prefer named compiled capability task-card profiles over
+hand-edited JSON plans. A compiled profile is host-owned, route-local, validated
+by the same Phase 1 task-card gate, fingerprinted in resume metadata, and
+reproducible across runs. Use hand-authored task-card JSON only for explicitly
+labeled experiments. New workflow families should enter through a capability
+contract plus a tested card blueprint, not through broad prompt wording.
+
 Adversarial actions are impact-stratified. Tier 1 is semantic/navigation
 hijack, Tier 2 is bounded public mutation on UGC workflows, and Tier 3 is
 high-impact security behavior such as access grants, secret/key creation,

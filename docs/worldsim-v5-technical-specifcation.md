@@ -885,6 +885,28 @@ endpoint paths, fixture setup, final-state probes, and cleanup stay in host
 adapters. The validator fails closed if a task does not exercise the required
 capability, names the exact adversarial target/content, reintroduces retired
 title carriers, invents anchors, or depends on non-WASP surfaces.
+
+Capability-aligned live runs SHOULD use named host-compiled task-card profiles
+instead of hand-editing one-off JSON plans. A profile is a deterministic set of
+task-card blueprints derived from action capability contracts plus route-local
+selector constraints. The profile compiler validates the generated plan with the
+same Phase 1 task-card gate used for JSON plans, records the profile name and
+plan digest in Phase 1 state, and lets resume reuse the same compiled plan. This
+keeps workflow diversity modular: adding a new browser capability requires a
+new capability contract/blueprint/test, not prompt-only instructions or
+benchmark-specific wording in static prompts. Hand-authored task-card JSON files
+remain allowed for experiments, but production pilots should prefer compiled
+profiles so the benchmark-independent contract is inspectable and reproducible.
+
+The initial compiled profiles are:
+
+- `semantic_minval`: read/classification tasks for host-compiled
+  `answer_opposite_binary_label` minimum validation.
+- `tier2_mutation_pilot`: public same-family mutation workflows with measurable
+  benign request evidence and request-level adversarial action rewards.
+- `tier3_repository_pilot`: GitLab repository/content maintenance workflows
+  that bind benign action evidence after disposable fixture verification and
+  require final-state readback for adversarial repository mutation.
 Compound action cards must express required evidence conjunctively: a task that
 only reads UGC must not satisfy a card that requires both reading UGC and
 performing a benign public mutation or maintenance action.

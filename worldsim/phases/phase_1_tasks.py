@@ -36,7 +36,10 @@ from worldsim.phases.phase_1_generate_new_tasks_validation import (
 from worldsim.phases.phase_1_generate_new_tasks_validation import (
     sort_novel_tasks as _sort_novel_tasks,
 )
-from worldsim.phases.phase_1_task_cards import load_task_card_plan, task_card_plan_digest
+from worldsim.phases.phase_1_task_cards import (
+    load_or_compile_task_card_plan,
+    task_card_plan_digest,
+)
 from worldsim.state import get_state_dir, save_state
 
 logger = logging.getLogger(__name__)
@@ -58,6 +61,7 @@ async def run(args: argparse.Namespace) -> int:
     )
     task_card_plan_arg = getattr(args, "task_card_plan", None)
     task_card_plan_path = Path(task_card_plan_arg) if task_card_plan_arg else None
+    task_capability_profile = getattr(args, "task_capability_profile", None)
     sites_filter_raw = getattr(args, "sites", None)
     sites_filter = _parse_sites_filter(sites_filter_raw)
 
@@ -94,7 +98,11 @@ async def run(args: argparse.Namespace) -> int:
         )
         return 1
     try:
-        task_card_plan = load_task_card_plan(task_card_plan_path)
+        task_card_plan = load_or_compile_task_card_plan(
+            path=task_card_plan_path,
+            task_capability_profile=task_capability_profile,
+            sites=sites_filter,
+        )
     except ValueError as exc:
         logger.error("Phase 1 task-card plan gate failed: %s", exc)
         _save_phase_1_failure_state(
@@ -108,6 +116,7 @@ async def run(args: argparse.Namespace) -> int:
             sites=sites_filter_raw,
             novel_tasks_per_site=novel_tasks_per_site,
             task_card_plan_path=task_card_plan_path,
+            task_capability_profile=task_capability_profile,
             task_card_plan_digest_value=None,
             error=str(exc),
         )
@@ -131,6 +140,7 @@ async def run(args: argparse.Namespace) -> int:
             sites=sites_filter_raw,
             novel_tasks_per_site=novel_tasks_per_site,
             task_card_plan_path=task_card_plan_path,
+            task_capability_profile=task_capability_profile,
             task_card_plan_digest_value=task_card_digest,
         )
         return 1
@@ -147,6 +157,7 @@ async def run(args: argparse.Namespace) -> int:
             sites=sites_filter_raw,
             novel_tasks_per_site=novel_tasks_per_site,
             task_card_plan_path=task_card_plan_path,
+            task_capability_profile=task_capability_profile,
             task_card_plan_digest_value=task_card_digest,
             error=str(exc),
         )
@@ -164,6 +175,7 @@ async def run(args: argparse.Namespace) -> int:
         sites=sites_filter_raw,
         novel_tasks_per_site=novel_tasks_per_site,
         task_card_plan_path=task_card_plan_path,
+        task_capability_profile=task_capability_profile,
         task_card_plan_digest_value=task_card_digest,
     )
 
@@ -185,6 +197,7 @@ async def run(args: argparse.Namespace) -> int:
             sites=sites_filter_raw,
             novel_tasks_per_site=novel_tasks_per_site,
             task_card_plan_path=task_card_plan_path,
+            task_capability_profile=task_capability_profile,
             task_card_plan_digest_value=task_card_digest,
         )
         return 1
@@ -222,6 +235,7 @@ async def run(args: argparse.Namespace) -> int:
             site_filter=sites_filter,
             novel_tasks_per_site=novel_tasks_per_site,
             task_card_plan=task_card_plan,
+            task_capability_profile=task_capability_profile,
         )
 
     save_state(
@@ -239,6 +253,7 @@ async def run(args: argparse.Namespace) -> int:
         sites=sites_filter_raw,
         novel_tasks_per_site=novel_tasks_per_site,
         task_card_plan_path=str(task_card_plan_path) if task_card_plan_path else None,
+        task_capability_profile=task_capability_profile,
         task_card_plan_digest=task_card_digest,
     )
     cost_tracker.log_phase_summary("phase_1")
@@ -327,6 +342,7 @@ def _save_phase_1_running_state(
     sites: str | None = None,
     novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
     task_card_plan_path: Path | None = None,
+    task_capability_profile: str | None = None,
     task_card_plan_digest_value: str | None = None,
 ) -> None:
     """Persist the start of Phase 1 for resume support."""
@@ -341,6 +357,7 @@ def _save_phase_1_running_state(
         sites=sites,
         novel_tasks_per_site=novel_tasks_per_site,
         task_card_plan_path=str(task_card_plan_path) if task_card_plan_path else None,
+        task_capability_profile=task_capability_profile,
         task_card_plan_digest=task_card_plan_digest_value,
     )
 
@@ -355,6 +372,7 @@ def _save_phase_1_failure_state(
     sites: str | None = None,
     novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
     task_card_plan_path: Path | None = None,
+    task_capability_profile: str | None = None,
     task_card_plan_digest_value: str | None = None,
     existing_task_count: int | None = None,
     error: str | None = None,
@@ -368,6 +386,7 @@ def _save_phase_1_failure_state(
         "sandbox_model": sandbox_model,
         "novel_tasks_per_site": novel_tasks_per_site,
         "task_card_plan_path": str(task_card_plan_path) if task_card_plan_path else None,
+        "task_capability_profile": task_capability_profile,
         "task_card_plan_digest": task_card_plan_digest_value,
     }
     if sites is not None:
@@ -524,6 +543,7 @@ def _write_generate_new_tasks_resume_metadata(
     site_filter: set[str] | None,
     novel_tasks_per_site: int,
     task_card_plan: dict[str, Any] | None,
+    task_capability_profile: str | None = None,
 ) -> None:
     eligible_sites = _load_generate_new_tasks_eligible_sites(
         profiles_dir=get_state_dir() / "phase_0c",
@@ -547,6 +567,7 @@ def _write_generate_new_tasks_resume_metadata(
         "sandbox_model": sandbox_model,
         "novel_tasks_per_site": novel_tasks_per_site,
         "task_card_plan_digest": task_card_plan_digest(task_card_plan),
+        "task_capability_profile": task_capability_profile,
     }
     metadata_path.write_text(json.dumps(payload, indent=2))
 

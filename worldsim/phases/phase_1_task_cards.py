@@ -16,10 +16,38 @@ from worldsim.adversarial_actions.capability_contracts import (
     capability_family_from_task_card,
     compatibility_reason_for_task_card,
 )
+from worldsim.adversarial_actions.capability_task_cards import (
+    available_capability_task_card_profiles,
+    compile_capability_task_card_plan,
+)
 
 
 class TaskCardPlanError(ValueError):
     """Raised when a task-card plan is malformed."""
+
+
+def load_or_compile_task_card_plan(
+    *,
+    path: Path | None = None,
+    task_capability_profile: str | None = None,
+    sites: set[str] | None = None,
+) -> dict[str, Any] | None:
+    """Return a validated task-card plan from JSON or a compiled profile."""
+    if path is not None and task_capability_profile:
+        raise TaskCardPlanError(
+            "--task-card-plan and --task-capability-profile are mutually exclusive"
+        )
+    if task_capability_profile:
+        try:
+            plan = compile_capability_task_card_plan(
+                task_capability_profile,
+                sites=sites,
+            )
+        except ValueError as exc:
+            raise TaskCardPlanError(str(exc)) from exc
+        validate_task_card_plan(plan)
+        return plan
+    return load_task_card_plan(path)
 
 
 def load_task_card_plan(path: Path | None) -> dict[str, Any] | None:
@@ -147,6 +175,11 @@ def task_card_plan_digest(plan: dict[str, Any] | None) -> str | None:
         return None
     encoded = json.dumps(plan, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def task_capability_profile_choices() -> tuple[str, ...]:
+    """Return CLI-supported compiled task capability profile names."""
+    return available_capability_task_card_profiles()
 
 
 def task_card_plan_for_site(plan: dict[str, Any] | None, site_name: str) -> dict[str, Any] | None:

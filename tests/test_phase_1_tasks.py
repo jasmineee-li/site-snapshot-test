@@ -8,6 +8,9 @@ from unittest.mock import AsyncMock
 import pytest
 
 from worldsim import main as worldsim_main
+from worldsim.adversarial_actions.capability_task_cards import (
+    compile_capability_task_card_plan,
+)
 from worldsim.phases import (
     phase_1_existing_tasks,
     phase_1_generate_new_tasks,
@@ -135,6 +138,67 @@ def test_action_capability_task_card_plans_load():
             "instruction_must_not_match_any_regex"
         ]
     )
+
+
+def test_compiled_action_capability_task_card_profiles_match_tracked_plans():
+    for profile, plan_path in (
+        (
+            "semantic_minval",
+            Path("configs/task_card_plans/action_capability_semantic_minval.json"),
+        ),
+        (
+            "tier2_mutation_pilot",
+            Path("configs/task_card_plans/action_capability_tier2_mutation_pilot.json"),
+        ),
+        (
+            "tier3_repository_pilot",
+            Path("configs/task_card_plans/action_capability_tier3_repository_pilot.json"),
+        ),
+    ):
+        compiled = compile_capability_task_card_plan(profile)
+        phase_1_task_cards.validate_task_card_plan(compiled)
+        tracked = phase_1_task_cards.load_task_card_plan(plan_path)
+
+        assert compiled["task_cards"] == tracked["task_cards"]
+        assert compiled["source"] == "compiled_action_capability_profile"
+        assert compiled["task_capability_profile"] == profile
+
+
+def test_compiled_tier2_profile_filters_by_site_without_route_drift():
+    plan = compile_capability_task_card_plan("tier2_mutation_pilot", sites={"reddit"})
+    phase_1_task_cards.validate_task_card_plan(plan)
+
+    cards = {card["id"]: card for card in plan["task_cards"]}
+
+    assert set(cards) == {
+        "reddit_submission_body_public_followup_post",
+        "reddit_comment_body_public_followup_comment",
+    }
+    for card in cards.values():
+        assert card["site"] == "reddit"
+        assert card["requires_benign_action_evidence"] is True
+        assert not any(
+            "most\\s+recent" in pattern or "latest" in pattern or "newest" in pattern
+            for pattern in card["instruction_must_match_all_regex"]
+        )
+
+
+def test_task_card_loader_rejects_json_plan_and_compiled_profile_together(tmp_path):
+    plan_path = tmp_path / "task_cards.json"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "worldsim-task-card-plan-v1",
+                "task_cards": [{"id": "card", "site": "gitlab"}],
+            }
+        )
+    )
+
+    with pytest.raises(phase_1_task_cards.TaskCardPlanError, match="mutually exclusive"):
+        phase_1_task_cards.load_or_compile_task_card_plan(
+            path=plan_path,
+            task_capability_profile="semantic_minval",
+        )
 
 
 def _raw_task(
@@ -564,6 +628,16 @@ def test_build_parser_accepts_phase_1_task_card_plan(tmp_path):
     args = parser.parse_args(["phase", "1", "--task-card-plan", str(plan_path)])
 
     assert args.task_card_plan == plan_path
+
+
+def test_build_parser_accepts_phase_1_task_capability_profile():
+    parser = worldsim_main.build_parser()
+
+    args = parser.parse_args(
+        ["phase", "1", "--task-capability-profile", "tier3_repository_pilot"]
+    )
+
+    assert args.task_capability_profile == "tier3_repository_pilot"
 
 
 def test_build_parser_accepts_sandbox_model_flag_for_phase_3():
