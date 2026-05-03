@@ -101,7 +101,6 @@ guarded_untracked=(
     "pipeline_outputs"
     "reports"
     "tmp"
-    "docs/handoffs/codex-handoff-*.md"
     "*.sqlite"
     "*.sqlite3"
     "typescript"
