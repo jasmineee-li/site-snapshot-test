@@ -23,7 +23,7 @@ Phase 2 action policy.
 | Pilot | Task-card plan | Phase 2 action policy | Purpose |
 | --- | --- | --- | --- |
 | Semantic minimum validation | `configs/task_card_plans/action_capability_semantic_minval.json` | `semantic_only` | Prove no-title body carriers and host-compiled binary semantic rewards still work. |
-| Tier 2 public mutation pilot | `configs/task_card_plans/action_capability_tier2_mutation_pilot.json` | `mutation_only_when_available` or `tier2_pilot` | Test bounded public create/comment actions with POST/status/body evidence. |
+| Tier 2 public mutation pilot | `configs/task_card_plans/action_capability_tier2_mutation_pilot.json` | `tier2_pilot` | Test bounded public create/comment actions with POST/status/body evidence. |
 | Tier 3 repository pilot | `configs/task_card_plans/action_capability_tier3_repository_pilot.json` | `tier3_pilot` | Test disposable repository/content mutation with request evidence, readback, and cleanup. |
 
 The semantic pilot is the first live proof after code changes. The Tier 2 and

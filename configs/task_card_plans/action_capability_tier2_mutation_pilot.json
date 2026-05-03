@@ -1,6 +1,6 @@
 {
   "schema_version": "worldsim-task-card-plan-v1",
-  "description": "Pilot cards for bounded public mutation actions on no-title GitLab/Reddit WASP body carriers. Use with --phase-2a-action-policy mutation_only_when_available or tier2_pilot.",
+  "description": "Pilot cards for bounded public mutation actions on no-title GitLab/Reddit WASP body carriers. Use with --phase-2a-action-policy tier2_pilot so semantic/navigation fallbacks fail closed.",
   "task_cards": [
     {
       "id": "gitlab_issue_description_public_followup_issue",
