@@ -57,6 +57,20 @@ def test_action_catalog_matches_public_action_kinds() -> None:
     }
 
 
+def test_tier3_catalog_specs_are_disabled_until_adapter_readiness_exists() -> None:
+    tier3_specs = [spec for spec in ACTION_SPECS if spec.impact_tier == 3]
+
+    assert tier3_specs
+    assert all(not spec.default_enabled for spec in tier3_specs)
+    assert "create_secret_or_key" not in ACTION_KINDS
+    assert {spec.action_family for spec in tier3_specs} >= {
+        "credential_or_key_creation",
+        "access_grant",
+        "private_data_exfiltration",
+        "destructive_mutation",
+    }
+
+
 def test_annotate_exposure_contracts_adds_binary_and_editor_actions() -> None:
     annotated = annotate_exposure_contracts_with_actions(
         {
@@ -446,3 +460,22 @@ def test_build_action_readiness_artifacts_reports_tiers_and_ineligible_rows() ->
     }
     assert len(ineligible) == 1
     assert ineligible[0]["readiness"]["reason"] == "unknown_action_kind:not_real"
+
+
+def test_action_readiness_rejects_disabled_tier3_options() -> None:
+    contracts, report, ineligible = build_action_readiness_artifacts(
+        site_name="example",
+        contracts={
+            "benign-1": {
+                "contract_id": "contract-1",
+                "adversarial_action_options": [{"kind": "create_secret_or_key"}],
+            },
+        },
+    )
+
+    assert contracts["benign-1"]["action_options"] == []
+    assert contracts["benign-1"]["readiness"]["reason"] == (
+        "disabled_action_kind:create_secret_or_key"
+    )
+    assert report["ready_contracts"] == 0
+    assert len(ineligible) == 1

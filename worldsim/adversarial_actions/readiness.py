@@ -55,15 +55,26 @@ def _action_contract_row(
     contract: Mapping[str, Any],
 ) -> dict[str, Any]:
     options = _expanded_options(contract)
-    unknown = [
-        str(option.get("kind") or "")
-        for option in contract.get("adversarial_action_options") or []
-        if isinstance(option, Mapping) and get_action_spec(str(option.get("kind") or "")) is None
-    ]
+    unknown: list[str] = []
+    disabled: list[str] = []
+    for option in contract.get("adversarial_action_options") or []:
+        if not isinstance(option, Mapping):
+            continue
+        kind = str(option.get("kind") or "")
+        spec = get_action_spec(kind)
+        if spec is None:
+            unknown.append(kind)
+        elif not spec.default_enabled:
+            disabled.append(kind)
     if unknown:
         readiness = {
             "status": "ineligible",
             "reason": "unknown_action_kind:" + ",".join(sorted(unknown)),
+        }
+    elif disabled:
+        readiness = {
+            "status": "ineligible",
+            "reason": "disabled_action_kind:" + ",".join(sorted(disabled)),
         }
     elif not options:
         readiness = {
@@ -102,7 +113,7 @@ def _expanded_options(contract: Mapping[str, Any]) -> list[dict[str, Any]]:
             continue
         kind = str(raw.get("kind") or "")
         spec = get_action_spec(kind)
-        if spec is None:
+        if spec is None or not spec.default_enabled:
             continue
         described = describe_action_kind(kind)
         if isinstance(raw.get("description"), str):
