@@ -70,6 +70,15 @@ named pilot condition with disposable fixtures, deterministic readback, cleanup,
 and separate reporting. Do not mix Tier 3 into default generation or aggregate
 it with semantic ASR without explicit labeling.
 
+Tier 3 readiness is maturity-gated. Treat catalog-only actions as
+`L0_declared`; allow a model to choose a Tier 3 action only after a host adapter
+has fixture setup/cleanup, deterministic reward compilation, final-state
+readback, Phase 2 admission evidence, and a named pilot policy. The first
+pilot-ready family may expose repository/content mutation in a disposable
+fixture, but other high-impact families must stay unselectable until they reach
+the same adapter maturity. A Tier 3 action passing state readback is reported as
+state-confirmed action success, not folded silently into semantic ASR.
+
 Carrier exposure and action objective are separate contracts. A payload can be
 strictly admitted on a WASP carrier while asking the agent to perform a
 different workflow. Keep benchmark-specific action endpoints, selectors,
