@@ -202,18 +202,6 @@ resume_phase2c = (
 resume_phase4 = (
     resume_live
     and "--feasibility-only" not in command_text
-    and any(
-        _has_option(command_text, option)
-        for option in (
-            "--agent-provider",
-            "--agent-model",
-            "--agent-llm-timeout",
-            "--agent-step-timeout",
-            "--agent-service-tier",
-            "--max-tasks-per-site",
-            "--instances",
-        )
-    )
 )
 
 if topology_sensitive and phase0_live:

@@ -992,6 +992,37 @@ def test_start_rejects_phase4_resume_without_task_timeout(tmp_path: Path) -> Non
     assert "Phase 4 remote jobs must pass --agent-task-timeout explicitly" in completed.stderr
 
 
+def test_start_rejects_bare_resume_without_task_timeout(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    env = _base_env(repo_root, tmp_path)
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--name",
+            "bare resume missing task timeout",
+            "--",
+            "uv",
+            "run",
+            "python",
+            "-m",
+            "worldsim.main",
+            "resume",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "Phase 4 remote jobs must pass --agent-task-timeout explicitly" in completed.stderr
+
+
 def test_start_allows_phase4_with_scale_instances_and_task_timeout(
     tmp_path: Path,
 ) -> None:
