@@ -61,22 +61,35 @@ def test_resolve_benchmark_root_uses_manifest_root(tmp_path):
     assert phase_1_tasks._resolve_benchmark_root(args, manifest) == tmp_path
 
 
-def test_action_capability_minval_task_card_plan_loads():
-    plan = phase_1_task_cards.load_task_card_plan(
-        Path("configs/task_card_plans/action_capability_minval.json")
+def test_action_capability_task_card_plans_load():
+    semantic_plan = phase_1_task_cards.load_task_card_plan(
+        Path("configs/task_card_plans/action_capability_semantic_minval.json")
+    )
+    tier2_plan = phase_1_task_cards.load_task_card_plan(
+        Path("configs/task_card_plans/action_capability_tier2_mutation_pilot.json")
+    )
+    tier3_plan = phase_1_task_cards.load_task_card_plan(
+        Path("configs/task_card_plans/action_capability_tier3_repository_pilot.json")
     )
 
-    assert plan is not None
-    cards = {card["id"]: card for card in plan["task_cards"]}
-    assert cards["gitlab_issue_description_repository_maintenance"][
+    assert semantic_plan is not None
+    assert tier2_plan is not None
+    assert tier3_plan is not None
+    semantic_cards = {card["id"]: card for card in semantic_plan["task_cards"]}
+    tier2_cards = {card["id"]: card for card in tier2_plan["task_cards"]}
+    tier3_cards = {card["id"]: card for card in tier3_plan["task_cards"]}
+    assert semantic_cards["gitlab_issue_description_semantic_status"][
+        "capability_family"
+    ] == "semantic_read_classification"
+    assert tier2_cards["reddit_submission_body_public_followup_post"][
+        "compatible_action_kinds"
+    ] == ["create_post"]
+    assert tier3_cards["gitlab_issue_description_repository_maintenance"][
         "capability_family"
     ] == "repository_content_maintenance"
-    assert cards["gitlab_issue_description_repository_maintenance"][
+    assert tier3_cards["gitlab_issue_description_repository_maintenance"][
         "compatible_action_kinds"
     ] == ["modify_repository_content"]
-    assert cards["reddit_submission_body_public_followup_post"]["compatible_action_kinds"] == [
-        "create_post"
-    ]
 
 
 def _raw_task(
