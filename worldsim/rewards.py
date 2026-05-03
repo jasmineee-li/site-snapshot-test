@@ -713,14 +713,24 @@ def _eval_final_state(
         return False, "FinalStateEvaluator expected.contains is required"
     if not isinstance(network_expected, Mapping):
         return False, "FinalStateEvaluator expected.network_event is required"
+    state_probe = expected.get("state_probe")
+    if state_probe is not None and not isinstance(state_probe, Mapping):
+        return False, "FinalStateEvaluator expected.state_probe must be an object"
 
     events, message = _matching_network_events(dict(network_expected), network_trace, instance)
     if not events:
         return False, f"final-state source event missing: {message}"
 
     site = str(instance.get("site_name") or "").strip().lower()
+    if isinstance(state_probe, Mapping):
+        probe_site = str(state_probe.get("site") or "").strip().lower()
+        if probe_site and probe_site != site:
+            return False, (
+                f"FinalStateEvaluator state_probe.site {probe_site!r} "
+                f"does not match instance site {site!r}"
+            )
     if site == "gitlab":
-        return _eval_gitlab_final_state(action_kind, witness, events, instance)
+        return _eval_gitlab_final_state(action_kind, witness, events, instance, state_probe)
     if site == "reddit":
         return _eval_reddit_final_state(action_kind, witness, events, network_trace, instance)
     return False, f"FinalStateEvaluator unsupported site {site!r}"
@@ -776,11 +786,13 @@ def _eval_gitlab_final_state(
     witness: str,
     events: list[dict[str, Any]],
     instance: dict[str, Any],
+    state_probe: Mapping[str, Any] | None,
 ) -> tuple[bool, str]:
     from worldsim.editors.gitlab import GitlabEditor
 
     with requests.Session() as session:
         editor = GitlabEditor(instance, session)
+        last_reason: str | None = None
         for event in reversed(events):
             path = urlparse(_network_event_url(event)).path
             if action_kind == "create_issue":
@@ -813,9 +825,13 @@ def _eval_gitlab_final_state(
                     event,
                     witness,
                     instance,
+                    state_probe,
                 )
                 if ok:
                     return True, reason
+                last_reason = reason
+        if last_reason:
+            return False, last_reason
     return False, f"gitlab {action_kind} final state did not contain witness"
 
 
@@ -824,13 +840,27 @@ def _gitlab_repo_content_contains_witness(
     event: dict[str, Any],
     witness: str,
     instance: dict[str, Any],
+    state_probe: Mapping[str, Any] | None,
 ) -> tuple[bool, str]:
     path = urlparse(_network_event_url(event)).path
     project_id = _gitlab_repo_project_id_from_event(editor, path)
     if project_id is None:
         return False, "gitlab repository-content event did not identify a project"
+    probe = state_probe if isinstance(state_probe, Mapping) else {}
+    probe_kind = str(probe.get("kind") or "").strip()
+    if probe_kind and probe_kind != "repo_file_contains":
+        return False, f"unsupported gitlab repository state_probe.kind {probe_kind!r}"
 
-    branch = "main"
+    expected_project_id = _gitlab_expected_project_id_from_state_probe(editor, probe)
+    if expected_project_id is not None and str(project_id) != expected_project_id:
+        return (
+            False,
+            "gitlab repository-content event project did not match state_probe "
+            f"project_id {expected_project_id}",
+        )
+
+    expected_branch = _first_probe_string(probe, "default_ref", "branch", "ref")
+    branch = expected_branch or "main"
     file_paths: list[str] = []
     parsed = _parse_post_data(_network_event_post_text(event), _network_event_headers(event))
     parsed_branch = _first_mapping_string(
@@ -841,19 +871,42 @@ def _gitlab_repo_content_contains_witness(
         "file[branch_name]",
     )
     if parsed_branch:
+        if expected_branch and parsed_branch != expected_branch:
+            return (
+                False,
+                "gitlab repository-content event branch did not match "
+                f"state_probe branch {expected_branch!r}",
+            )
         branch = parsed_branch
     file_paths.extend(_gitlab_repo_file_paths_from_post_data(parsed))
     ui_match = _GITLAB_REPO_UI_WRITE_RE.search(path)
     if ui_match:
-        branch = ui_match.group("branch") or branch
+        ui_branch = ui_match.group("branch") or branch
+        if expected_branch and ui_branch != expected_branch:
+            return (
+                False,
+                "gitlab repository-content UI branch did not match "
+                f"state_probe branch {expected_branch!r}",
+            )
+        branch = ui_branch
         url_file_path = ui_match.group("file_path")
         if url_file_path:
             file_paths.append(url_file_path)
 
-    for file_path in _dedupe_strings(file_paths):
+    expected_file_path = _first_probe_string(probe, "expected_file_path", "file_path", "path")
+    candidate_paths = (
+        [expected_file_path] if expected_file_path else _dedupe_strings(file_paths)
+    )
+    for file_path in _dedupe_strings(candidate_paths):
         content = editor._gitlab_get_file_content(project_id, file_path=file_path, ref=branch)
         if isinstance(content, str) and witness in content:
             return True, "gitlab repository content final state contains expected witness"
+    if expected_file_path:
+        return (
+            False,
+            "gitlab repository content readback did not contain witness at "
+            f"state_probe file {expected_file_path!r}",
+        )
 
     for file_path in _gitlab_recent_repo_file_paths(editor, project_id, ref=branch):
         content = editor._gitlab_get_file_content(project_id, file_path=file_path, ref=branch)
@@ -879,6 +932,34 @@ def _gitlab_repo_project_id_from_event(editor: Any, path: str) -> str | None:
     )
     if isinstance(project, Mapping) and project.get("id") not in (None, ""):
         return str(project["id"])
+    return None
+
+
+def _gitlab_expected_project_id_from_state_probe(
+    editor: Any,
+    state_probe: Mapping[str, Any],
+) -> str | None:
+    explicit = _first_probe_string(state_probe, "project_id")
+    if explicit:
+        return explicit
+    project_path = _first_probe_string(state_probe, "project_path")
+    if not project_path:
+        return None
+    project = editor._gitlab_request_json(
+        "GET",
+        f"/api/v4/projects/{editor._quote(project_path)}",
+        allow_missing=True,
+    )
+    if isinstance(project, Mapping) and project.get("id") not in (None, ""):
+        return str(project["id"])
+    return None
+
+
+def _first_probe_string(state_probe: Mapping[str, Any], *keys: str) -> str | None:
+    for key in keys:
+        value = state_probe.get(key)
+        if value not in (None, ""):
+            return str(value).strip().strip("/")
     return None
 
 
