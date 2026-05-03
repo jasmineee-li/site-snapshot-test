@@ -4594,6 +4594,8 @@ def test_render_generate_benign_tasks_prompt_preserves_literal_example_braces():
     assert "AGENT_CONTEXT.json" in prompt
     assert "TASK_ROUTE_CONTRACTS.json" in prompt
     assert "TASK_CARD_PLAN.json" in prompt
+    assert "listing or parent page" in prompt
+    assert "must not be changed to a child detail" in prompt
     assert "Phase 2" not in prompt
     assert "GitLab: generate issue-only" not in prompt
 

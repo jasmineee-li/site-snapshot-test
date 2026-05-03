@@ -242,6 +242,10 @@ exactly. Do not invent `/f/{forum}/{submission_id}` URLs.
 For forum/list carrier routes, copy one `anchor_examples[].start_url`
 exactly. Do not invent forum, project, item, issue, submission, or thread names;
 use only concrete anchors present in the route contract examples.
+If a copied route starts on a listing or parent page, keep `start_urls` on that
+listing or parent page. The instruction may require opening the first visible
+or matching child item, but `start_urls` must not be changed to a child detail
+URL from another route family.
 
 Do not use `{{benign_*}}` template tokens in `start_urls`; those tokens belong
 only in editor args.
