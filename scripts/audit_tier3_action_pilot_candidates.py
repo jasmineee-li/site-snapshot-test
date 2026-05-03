@@ -36,7 +36,12 @@ from worldsim.adversarial_actions.tier3 import (
 TIER3_KIND = "modify_repository_content"
 
 
-def analyze_run_dir(run_dir: Path, *, max_samples: int = 50) -> dict[str, Any]:
+def analyze_run_dir(
+    run_dir: Path,
+    *,
+    max_samples: int = 50,
+    require_benign_action_evidence: bool = False,
+) -> dict[str, Any]:
     phase_1_tasks = _read_json_if_exists(run_dir / "phase_1" / "benign_tasks.json")
     phase_2_tasks = _read_json_if_exists(run_dir / "phase_2" / "adversarial_tasks.json")
     exposure_contracts = _read_json_if_exists(run_dir / "phase_2" / "exposure_contracts.json")
@@ -55,6 +60,7 @@ def analyze_run_dir(run_dir: Path, *, max_samples: int = 50) -> dict[str, Any]:
             "adversarial_tasks": str(run_dir / "phase_2" / "adversarial_tasks.json"),
         },
         max_samples=max_samples,
+        require_benign_action_evidence=require_benign_action_evidence,
     )
 
 
@@ -65,6 +71,7 @@ def analyze_artifacts(
     adversarial_tasks: list[Mapping[str, Any]],
     artifact_paths: Mapping[str, str] | None = None,
     max_samples: int = 50,
+    require_benign_action_evidence: bool = False,
 ) -> dict[str, Any]:
     benign_by_id = {str(task.get("id") or ""): task for task in benign_tasks}
     flattened_contracts = _flatten_contracts(exposure_contracts)
@@ -79,6 +86,7 @@ def analyze_artifacts(
         adversarial_tasks,
         benign_by_id=benign_by_id,
         max_samples=max_samples,
+        require_benign_action_evidence=require_benign_action_evidence,
     )
     return {
         "artifact_paths": dict(artifact_paths or {}),
@@ -159,6 +167,7 @@ def _analyze_selected_tasks(
     *,
     benign_by_id: Mapping[str, Mapping[str, Any]],
     max_samples: int,
+    require_benign_action_evidence: bool,
 ) -> dict[str, Any]:
     selected: list[dict[str, Any]] = []
     failures: list[dict[str, Any]] = []
@@ -177,7 +186,16 @@ def _analyze_selected_tasks(
         compiled_reward, reward_error = _compile_task_reward(task, benign_task)
         final_state, final_state_error = _compile_task_final_state(task)
         evidence = _network_reward_evidence(compiled_reward)
-        risks = _task_risks(task, evidence, final_state, reward_error, final_state_error)
+        benign_evidence = _benign_action_evidence(task, benign_task)
+        risks = _task_risks(
+            task,
+            evidence,
+            final_state,
+            reward_error,
+            final_state_error,
+            benign_action_evidence=benign_evidence,
+            require_benign_action_evidence=require_benign_action_evidence,
+        )
         ok = reward_error is None and final_state_error is None and not risks
         row = {
             "index": index,
@@ -192,6 +210,8 @@ def _analyze_selected_tasks(
             "feasibility_status": _mapping(task.get("feasibility")).get("status"),
             "selected_action_kind": kind,
             "compiled_reward_evidence": evidence,
+            "benign_action_evidence": benign_evidence,
+            "benign_action_evidence_required": require_benign_action_evidence,
             "final_state_check": _final_state_evidence(final_state),
             "ok": ok,
             "risks": risks,
@@ -217,6 +237,10 @@ def _analyze_selected_tasks(
         "selected_tier3_tasks": len(selected),
         "compile_ready_tasks": sum(1 for row in selected if row["ok"]),
         "failed_selected_tasks": len(failures),
+        "benign_action_evidence_required": require_benign_action_evidence,
+        "benign_action_evidence": sum(
+            1 for row in selected if row["benign_action_evidence"].get("ok") is True
+        ),
         "non_selected_reasons": dict(sorted(non_selected_reasons.items())),
         "risk_counts": dict(sorted(risk_counts.items())),
         "by_site": _counter_map_to_dict(by_site),
@@ -260,7 +284,7 @@ def _network_reward_evidence(reward: Mapping[str, Any] | None) -> dict[str, Any]
         }
     patterns = _as_list(expected.get("url"))
     return {
-        "type": reward.get("type"),
+        "type": reward.get("type") or reward.get("evaluator"),
         "http_method": expected.get("http_method"),
         "has_post": str(expected.get("http_method") or "").upper() == "POST",
         "response_status": expected.get("response_status"),
@@ -276,6 +300,53 @@ def _network_reward_evidence(reward: Mapping[str, Any] | None) -> dict[str, Any]
         "post_data": expected.get("post_data"),
         "post_data_contains": expected.get("post_data_contains"),
     }
+
+
+def _benign_action_evidence(
+    task: Mapping[str, Any],
+    benign_task: Mapping[str, Any],
+) -> dict[str, Any]:
+    reward = _mapping(task.get("reward_function"))
+    benign_reward = _mapping(reward.get("benign_reward")) or _mapping(
+        benign_task.get("reward_function")
+    )
+    evidences = [
+        _network_reward_evidence(config)
+        for config in _network_reward_configs(benign_reward)
+    ]
+    ok = any(_network_evidence_is_action_specific(evidence) for evidence in evidences)
+    return {
+        "ok": ok,
+        "network_reward_count": len(evidences),
+        "evidence": evidences,
+    }
+
+
+def _network_reward_configs(reward: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    evals = reward.get("eval")
+    if isinstance(evals, list):
+        return [
+            item
+            for item in evals
+            if isinstance(item, Mapping)
+            and str(item.get("evaluator") or item.get("type") or "")
+            in {"NetworkEventEvaluator", "network_event"}
+        ]
+    if str(reward.get("evaluator") or reward.get("type") or "") in {
+        "NetworkEventEvaluator",
+        "network_event",
+    }:
+        return [reward]
+    return []
+
+
+def _network_evidence_is_action_specific(evidence: Mapping[str, Any]) -> bool:
+    return (
+        evidence.get("has_post") is True
+        and evidence.get("has_response_status") is True
+        and evidence.get("has_body_evidence") is True
+        and evidence.get("has_path_specific_url_pattern") is True
+    )
 
 
 def _final_state_evidence(check: Mapping[str, Any] | None) -> dict[str, Any]:
@@ -307,6 +378,9 @@ def _task_risks(
     final_state: Mapping[str, Any] | None,
     reward_error: str | None,
     final_state_error: str | None,
+    *,
+    benign_action_evidence: Mapping[str, Any],
+    require_benign_action_evidence: bool,
 ) -> list[str]:
     risks: list[str] = []
     if reward_error is not None:
@@ -333,6 +407,8 @@ def _task_risks(
     feasibility_status = _mapping(task.get("feasibility")).get("status")
     if feasibility_status not in {None, "valid", "verified", "passed", "feasible"}:
         risks.append("non_verified_feasibility_status")
+    if require_benign_action_evidence and benign_action_evidence.get("ok") is not True:
+        risks.append("missing_benign_action_network_reward")
     return sorted(set(risks))
 
 
@@ -525,6 +601,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--output", type=Path, help="Optional JSON report path.")
     parser.add_argument("--json", action="store_true", help="Print full JSON report.")
+    parser.add_argument(
+        "--require-benign-action-evidence",
+        action="store_true",
+        help=(
+            "Fail selected Tier 3 tasks whose benign reward lacks a host-owned "
+            "POST/status/body/path-specific action witness."
+        ),
+    )
     args = parser.parse_args(argv)
 
     missing = [path for path in _default_run_artifact_paths(args.run_dir) if not path.exists()]
@@ -533,7 +617,11 @@ def main(argv: list[str] | None = None) -> int:
             print(f"ERROR: required artifact missing: {path}", file=sys.stderr)
         return 2
 
-    report = analyze_run_dir(args.run_dir, max_samples=args.max_samples)
+    report = analyze_run_dir(
+        args.run_dir,
+        max_samples=args.max_samples,
+        require_benign_action_evidence=args.require_benign_action_evidence,
+    )
     _write_output(report, args.output)
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
