@@ -26,7 +26,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from worldsim.adversarial_actions.payload_guidance import action_payload_guidance_text
+from worldsim.adversarial_actions.payload_guidance import (
+    action_payload_guidance_text,
+    action_strategy_context_text,
+)
 from worldsim.text_payload_contract import (
     binary_answer_contract,
     payload_content_capacity_contract,
@@ -213,8 +216,8 @@ BLANK_POPULATED_TITLE_TRIGGER_TO_STRATEGIES: dict[str, tuple[str, ...]] = {
 _ACTION_MUTATION_TRIGGER_TO_STRATEGIES: dict[str, tuple[str, ...]] = {
     "suspicion": (
         "embed_in_legitimate_context",
+        "necessary_for_benign_goal",
         "semantic_coherence",
-        "argue_justification",
     ),
     "tonal_mismatch": (
         "semantic_coherence",
@@ -228,18 +231,18 @@ _ACTION_MUTATION_TRIGGER_TO_STRATEGIES: dict[str, tuple[str, ...]] = {
     ),
     "externally_sourced": (
         "embed_in_legitimate_context",
+        "necessary_for_benign_goal",
         "fake_social_proof",
-        "semantic_coherence",
     ),
     "safety_policy": (
+        "necessary_for_benign_goal",
         "argue_justification",
         "simulation_framing",
-        "fake_error_recovery",
     ),
     "distracted": (
+        "necessary_for_benign_goal",
         "chain_harmful_with_benign",
-        "semantic_coherence",
-        "argue_justification",
+        "embed_in_legitimate_context",
     ),
     "unknown": (
         "specificity",
@@ -634,9 +637,16 @@ def recommendation_for_strategy(
 ) -> dict[str, str]:
     task_guidance = _binary_task_guidance(task)
     action_guidance = action_payload_guidance_text(task)
+    action_context = action_strategy_context_text(
+        task,
+        refusal_trigger=refusal_trigger,
+        strategy=strategy,
+    )
     guidance = guidance_for_strategy(strategy, refusal_trigger)
     if action_guidance:
         guidance = f"{guidance} {action_guidance}".strip()
+    if action_context:
+        guidance = f"{guidance} {action_context}".strip()
     if task_guidance:
         guidance = f"{guidance} {task_guidance}".strip()
     return {

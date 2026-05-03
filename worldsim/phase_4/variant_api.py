@@ -322,7 +322,14 @@ def _action_payload_retry_feedback(task: dict[str, Any] | None) -> str:
             parts.append(
                 "Rendered payload must include each action-preservation value exactly once: "
                 + json.dumps(values, ensure_ascii=True)
+                + ". After the opening action sentence, refer to those values as "
+                "'that file', 'that record', 'the value above', or equivalent "
+                "generic language instead of repeating them."
             )
+    parts.append(
+        "Make the browser-side action the salient task-local workflow step; do "
+        "not repair the variant by only restating the old read/classification answer."
+    )
     return " ".join(parts)
 
 

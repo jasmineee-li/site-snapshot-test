@@ -32,6 +32,7 @@ Phase 2c feasibility is strict admission for Phase 4:
 
 Phase 4 varies adversarial strategy only. Benign task contracts and reward functions emitted by Phase 3 are invariant across variants, across all adaptive rounds.
 Strategy variants must change payload semantics, not only punctuation, brackets, or wrappers; no-op and punctuation-only rewrites are generation failures.
+For action-payload tasks, strategy variants must keep the host-selected browser-side action salient and task-local. They may not repair resistance by changing the benign task, swapping action targets, repeating protected target values, or falling back to a semantic answer-label rewrite.
 
 The Phase 4 adaptive loop is bounded at `3+3+1`: after the initial
 PVPO-encountered refusal, the host may generate up to 3 variants in round 1, up
