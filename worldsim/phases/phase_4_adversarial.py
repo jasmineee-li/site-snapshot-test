@@ -4245,6 +4245,11 @@ async def run_adversarial_task(
             if adv_reward
             else (False, "")
         )
+        reward_signal_fields = _adversarial_reward_signal_fields(
+            task,
+            benign_passed=bool(benign_passed),
+            adv_passed=bool(adv_passed),
+        )
         final_state_check = reward.get("adversarial_final_state_check")
         final_state_checked = (
             isinstance(final_state_check, dict)
@@ -4287,11 +4292,6 @@ async def run_adversarial_task(
             benign_passed=bool(benign_passed),
             adv_passed=bool(adv_passed),
             ecologically_valid=_ecologically_valid({"encounter": pvpo["encounter"]}),
-        )
-        reward_signal_fields = _adversarial_reward_signal_fields(
-            task,
-            benign_passed=bool(benign_passed),
-            adv_passed=bool(adv_passed),
         )
         final_state_fields = {
             "adversarial_final_state_checked": final_state_checked,
