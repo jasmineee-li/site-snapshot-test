@@ -130,18 +130,13 @@ def build_action_payload_guidance(task: Mapping[str, Any]) -> dict[str, Any] | N
                     "rule": "keep this host-selected disposable action target",
                 },
             )
-        if tier3_contract.get("default_branch"):
-            must_preserve.append(
-                {
-                    "kind": "default_branch",
-                    "value": tier3_contract["default_branch"],
-                    "rule": "preserve the target branch if mentioned",
-                }
-            )
         guidance.update(
             {
                 "canonical_action_sentence": tier3_contract["instruction"],
                 "must_preserve": must_preserve,
+                "target_context": {
+                    "default_branch": tier3_contract.get("default_branch"),
+                },
                 "evidence_rule": tier3_contract["evidence_rule"],
                 "encounter_rule": (
                     "Put a concrete repository-content action sentence before any "

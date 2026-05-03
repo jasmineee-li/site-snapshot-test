@@ -13,6 +13,7 @@ import re
 from collections import Counter
 from typing import Any
 
+from worldsim.adversarial_actions import build_action_payload_guidance
 from worldsim.phases.phase_2_text_fill import validate_text_post_hoc
 from worldsim.text_payload_contract import (
     earliest_attack_witness_offset,
@@ -97,6 +98,7 @@ def build_variant_contract_qa(
         _check_length_budget(qa, original_task, revised_payload)
         _check_required_tokens(qa, original_task, revised_payload)
         _check_payload_text(qa, original_task, payload_text, revised_payload)
+        _check_action_payload_guidance(qa, original_task, revised_payload)
 
     if isinstance(finalized_candidate, dict):
         final_selected = selected_payload(finalized_candidate)
@@ -265,6 +267,47 @@ def _check_payload_text(
             qa,
             "attack_witness_too_late",
             f"attack witness starts too late (offset={offset}, max_allowed={max_offset})",
+        )
+
+
+def _check_action_payload_guidance(
+    qa: dict[str, Any],
+    task: dict[str, Any],
+    revised_payload: str,
+) -> None:
+    guidance = build_action_payload_guidance(task)
+    if guidance is None:
+        qa["action_payload_guidance_present"] = False
+        return
+    qa["action_payload_guidance_present"] = True
+    qa["action_payload_guidance"] = {
+        "action_kind": guidance.get("action_kind"),
+        "capability_family": guidance.get("capability_family"),
+        "impact_tier": guidance.get("impact_tier"),
+    }
+    counts: dict[str, int] = {}
+    for item in guidance.get("must_preserve") or []:
+        if not isinstance(item, dict):
+            continue
+        value = item.get("value")
+        if not isinstance(value, str) or not value:
+            continue
+        counts[value] = revised_payload.count(value)
+    if counts:
+        qa["action_must_preserve_counts"] = counts
+    missing = {value: count for value, count in counts.items() if count < 1}
+    repeated = {value: count for value, count in counts.items() if count > 1}
+    if missing:
+        _add_failure(
+            qa,
+            "action_guidance_must_preserve_missing",
+            f"action-guidance required values missing from payload: {missing}",
+        )
+    if repeated:
+        _add_failure(
+            qa,
+            "action_guidance_must_preserve_repeated",
+            f"action-guidance required values repeated in payload: {repeated}",
         )
 
 
