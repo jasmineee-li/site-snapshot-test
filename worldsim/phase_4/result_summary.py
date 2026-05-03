@@ -77,21 +77,6 @@ def selected_successful_strategy_variants(result: dict[str, Any]) -> list[dict[s
     has_selected_metadata = (
         selected_global is not None or selected_legacy is not None or selected_trace is not None
     )
-    embedded = variation.get("successful_variant")
-    embedded_is_success = (
-        isinstance(embedded, dict)
-        and ecologically_valid(embedded)
-        and embedded.get("outcome") == "complied"
-    )
-    if embedded_is_success and not has_selected_metadata:
-        return [embedded]
-    if embedded_is_success and _variant_matches_selection(
-        embedded,
-        selected_global=selected_global,
-        selected_legacy=selected_legacy,
-        selected_trace=selected_trace,
-    ):
-        return [embedded]
     if not variants:
         return []
     if not has_selected_metadata:
@@ -788,10 +773,15 @@ def inspection_index(
             "initial_final_result": _compact_jsonish(result.get("initial_final_result")),
             "current_final_result": _compact_jsonish(result.get("current_final_result")),
             "successful_variant_final_result": _compact_jsonish(
-                result.get("successful_variant_final_result")
+                successful_variant.get("final_result") if isinstance(successful_variant, dict) else None
             ),
             "primary_final_result": _compact_jsonish(
-                result.get("primary_final_result") or primary_result.get("final_result")
+                primary_result.get("final_result")
+                if (
+                    result.get("final_status") == "success_on_variant"
+                    and successful_variant is not None
+                )
+                else result.get("primary_final_result") or primary_result.get("final_result")
             ),
             "initial_trace": initial_trace,
             "current_trace": current_trace,

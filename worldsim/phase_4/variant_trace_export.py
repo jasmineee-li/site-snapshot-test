@@ -167,6 +167,35 @@ def _build_task_row(
     }
 
 
+def _variant_result_records(result: dict[str, Any]) -> list[dict[str, Any]]:
+    variation = result.get("strategy_variation")
+    if not isinstance(variation, dict):
+        return []
+    raw_records = variation.get("variant_results")
+    if not isinstance(raw_records, list):
+        return []
+    return [record for record in raw_records if isinstance(record, dict)]
+
+
+def _variant_result_by_index(
+    result: dict[str, Any],
+    index: int,
+) -> dict[str, Any] | None:
+    for record in _variant_result_records(result):
+        for key in ("global_variant_index", "variant_index"):
+            if _int_or_none(record.get(key)) == index:
+                return record
+    return None
+
+
+def _variant_result_is_success(record: dict[str, Any] | None) -> bool:
+    if not isinstance(record, dict):
+        return False
+    if record.get("adversarial_passed") is True:
+        return True
+    return record.get("outcome") == "complied"
+
+
 def _build_variant_row(
     *,
     task_id: str,
@@ -186,6 +215,10 @@ def _build_variant_row(
     if not host_rejected:
         variant_trace = _variant_trace_path(task_id, join_index, phase4_dir, result)
         variant_result = _load_result_json(variant_trace)
+        if not variant_result:
+            embedded_variant_result = _variant_result_by_index(result, join_index)
+            if embedded_variant_result is not None:
+                variant_result = embedded_variant_result
     adversarial_passed = variant_result.get("adversarial_passed")
     worked = (
         bool(adversarial_passed)
@@ -198,6 +231,7 @@ def _build_variant_row(
             index=join_index,
             variant_trace=variant_trace,
         )
+        and _variant_result_is_success(variant_result)
     )
     delta = _payload_delta(attempt)
     return {
@@ -311,6 +345,24 @@ def _strategy_records(result: dict[str, Any], checkpoint: dict[str, Any]) -> lis
     raw = result.get("strategies_attempted")
     if isinstance(raw, list) and raw:
         return [item for item in raw if isinstance(item, dict)]
+    variant_results = _variant_result_records(result)
+    if variant_results:
+        return [
+            {
+                "index": item.get("variant_index"),
+                "round_index": item.get("round_index"),
+                "round_variant_index": item.get("round_variant_index"),
+                "global_variant_index": item.get("global_variant_index"),
+                "parent_global_variant_index": item.get("parent_global_variant_index"),
+                "root_attempt_id": item.get("root_attempt_id"),
+                "parent_attempt_id": item.get("parent_attempt_id"),
+                "generation_status": "generated",
+                "strategy": _nested_get(item, "strategy", "strategy")
+                or _nested_get(item, "strategy")
+                or "unknown",
+            }
+            for item in variant_results
+        ]
     return []
 
 
@@ -599,7 +651,7 @@ def _trace_path(raw: Any, *, phase4_dir: Path, task_id: str) -> Path | None:
     if path is not None and path.exists():
         return path
     matches = sorted(phase4_dir.glob(f"*/{task_id}"))
-    return matches[0] if matches else path
+    return matches[0] if matches else None
 
 
 def _task_warnings(
