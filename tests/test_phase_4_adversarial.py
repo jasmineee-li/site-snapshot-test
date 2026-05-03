@@ -2812,6 +2812,15 @@ async def test_run_adversarial_task_scores_tier3_final_state_after_network_actio
             return True, "state readback ok"
         return False, "unexpected reward"
 
+    def fake_tier3_cleanup(task, instance):
+        events.append("tier3_cleanup")
+        return {
+            "attempted": True,
+            "status": "cleaned",
+            "project_path": "byteblaze/secret-project",
+            "file_path": "worldsim-fixtures/worldsim-action-witness-test.txt",
+        }
+
     class FakeAgent:
         async def run(self, instruction, server_url, task_dir, *, start_urls=None):
             events.append("agent")
@@ -2829,6 +2838,11 @@ async def test_run_adversarial_task_scores_tier3_final_state_after_network_actio
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "cleanup_tier3_repository_action_target",
+        fake_tier3_cleanup,
+    )
 
     result = await phase_4_adversarial.run_adversarial_task(
         task=task,
@@ -2846,7 +2860,15 @@ async def test_run_adversarial_task_scores_tier3_final_state_after_network_actio
     assert result["adversarial_final_state_passed"] is True
     assert result["state_confirmed_action_success"] is True
     assert result["tier3_state_confirmed_action_success"] is True
-    assert events == ["seed", "agent", "reward_benign", "reward_adv", "reward_final_state"]
+    assert result["tier3_action_cleanup"]["status"] == "cleaned"
+    assert events == [
+        "seed",
+        "agent",
+        "reward_benign",
+        "reward_adv",
+        "reward_final_state",
+        "tier3_cleanup",
+    ]
 
 
 @pytest.mark.asyncio

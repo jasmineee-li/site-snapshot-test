@@ -76,6 +76,9 @@ import requests
 
 from worldsim import outcome_taxonomy
 from worldsim.adversarial_actions import action_metadata_for_task, reward_signal_for_task
+from worldsim.adversarial_actions.tier3_fixtures import (
+    cleanup_tier3_repository_action_target,
+)
 from worldsim.agent_auth import resolve_agent_auth_headers
 from worldsim.agent_config import (
     DEFAULT_MODEL,
@@ -1964,6 +1967,28 @@ def _adversarial_reward_signal_fields(
         "benign_success_under_attack": benign_success_under_attack,
         "stealth_success": bool(attack_action_success and benign_success_under_attack),
     }
+
+
+async def _tier3_action_cleanup_fields(
+    task: Mapping[str, Any],
+    instance_dict: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return reporting-only cleanup telemetry for Tier 3 repository actions."""
+
+    report = await asyncio.to_thread(
+        cleanup_tier3_repository_action_target,
+        task,
+        instance_dict,
+    )
+    if not report.get("attempted"):
+        return {}
+    if report.get("status") == "failed":
+        logger.warning(
+            "Tier 3 action cleanup failed for task %s: %s",
+            task.get("id", "unknown"),
+            report.get("reason") or "unknown",
+        )
+    return {"tier3_action_cleanup": report}
 
 
 # Phase 2c feasibility admission. Flipped to ``True`` on 2026-04-18 after
@@ -4143,6 +4168,7 @@ async def run_adversarial_task(
                 benign_passed=False,
                 adv_passed=False,
             )
+            tier3_cleanup_fields = await _tier3_action_cleanup_fields(task, instance_dict)
             save_result(
                 task_dir,
                 task,
@@ -4155,6 +4181,7 @@ async def run_adversarial_task(
                 benign_passed=False,
                 adversarial_passed=False,
                 **reward_signal_fields,
+                **tier3_cleanup_fields,
                 **_pvpo_metric_payload(pvpo),
                 **error_final_status_extra,
                 **extra,
@@ -4167,6 +4194,7 @@ async def run_adversarial_task(
                 "benign_passed": False,
                 "adversarial_passed": False,
                 **reward_signal_fields,
+                **tier3_cleanup_fields,
                 "trajectory_dir": str(task_dir),
                 "elapsed": result.elapsed,
                 "steps": result.steps,
@@ -4202,6 +4230,7 @@ async def run_adversarial_task(
                 benign_passed=False,
                 adv_passed=False,
             )
+            tier3_cleanup_fields = await _tier3_action_cleanup_fields(task, instance_dict)
             save_result(
                 task_dir,
                 task,
@@ -4214,6 +4243,7 @@ async def run_adversarial_task(
                 benign_passed=False,
                 adversarial_passed=False,
                 **reward_signal_fields,
+                **tier3_cleanup_fields,
                 **_pvpo_metric_payload(pvpo),
                 **nonint_final_status_extra,
                 **extra,
@@ -4226,6 +4256,7 @@ async def run_adversarial_task(
                 "benign_passed": False,
                 "adversarial_passed": False,
                 **reward_signal_fields,
+                **tier3_cleanup_fields,
                 "trajectory_dir": str(task_dir),
                 "elapsed": result.elapsed,
                 "steps": result.steps,
@@ -4304,6 +4335,7 @@ async def run_adversarial_task(
                 and reward_signal_fields.get("adversarial_action_tier") == 3
             ),
         }
+        tier3_cleanup_fields = await _tier3_action_cleanup_fields(task, instance_dict)
 
         # 4. Persist the stage-1 result only after Gate 1 completes.
         extra: dict[str, Any] = {}
@@ -4322,6 +4354,7 @@ async def run_adversarial_task(
             adversarial_passed=bool(adv_passed),
             **reward_signal_fields,
             **final_state_fields,
+            **tier3_cleanup_fields,
             **_pvpo_metric_payload(pvpo),
             **final_status_extra,
             **taxonomy_fields,
@@ -4336,6 +4369,7 @@ async def run_adversarial_task(
             "adversarial_passed": adv_passed,
             **reward_signal_fields,
             **final_state_fields,
+            **tier3_cleanup_fields,
             "trajectory_dir": str(task_dir),
             "elapsed": result.elapsed,
             "steps": result.steps,
