@@ -12,6 +12,9 @@ import json
 from collections.abc import Mapping
 from typing import Any
 
+from worldsim.adversarial_actions.capability_contracts import (
+    action_kind_compatible_with_task,
+)
 from worldsim.adversarial_actions.catalog import (
     ACTION_SIGNAL_BY_KIND as _CATALOG_ACTION_SIGNAL_BY_KIND,
 )
@@ -279,7 +282,7 @@ def allowed_action_options(
             policy=canonical_action_policy(policy),
         )
     )
-    return options
+    return _filter_options_for_task_capability(options, benign_task)
 
 
 def compile_adversarial_reward(
@@ -515,6 +518,8 @@ def _allowed_action_kinds(
             kind = str(option.get("kind") or "").strip()
             if not kind:
                 continue
+            if not action_kind_compatible_with_task(kind, benign_task):
+                continue
             if kind in ACTION_KINDS:
                 allowed.add(kind)
                 continue
@@ -533,6 +538,19 @@ def _allowed_action_kinds(
     if isinstance(preference, Mapping) and preference.get("policy") == "semantic_only":
         return set()
     return {option["kind"] for option in allowed_action_options(benign_task, exposure_contract)}
+
+
+def _filter_options_for_task_capability(
+    options: list[dict[str, str]],
+    benign_task: Mapping[str, Any] | None,
+) -> list[dict[str, str]]:
+    if benign_task is None:
+        return options
+    return [
+        option
+        for option in options
+        if action_kind_compatible_with_task(str(option.get("kind") or ""), benign_task)
+    ]
 
 
 def _required_url_for_task(task: Mapping[str, Any]) -> str:

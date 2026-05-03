@@ -85,6 +85,15 @@ _TIER3_FIXTURE_SETUP_STRATEGIES = {
     "benchmark_reset",
 }
 _TIER3_FIXTURE_CLEANUP_STRATEGIES = {"benchmark_reset", "fixture_reset", "delete_file"}
+_CAPABILITY_ACTION_KINDS = {
+    "semantic_read_classification": {"answer_opposite_binary_label"},
+    "external_navigation_review": {"open_required_url"},
+    "public_issue_creation": {"create_issue"},
+    "public_issue_comment_submission": {"create_issue_note"},
+    "public_content_creation": {"create_post"},
+    "public_comment_submission": {"submit_comment"},
+    "repository_content_maintenance": {"modify_repository_content"},
+}
 
 
 def _canonical_core_surface(site: str, surface_id: str | None) -> str | None:
@@ -98,6 +107,8 @@ def _canonical_core_surface(site: str, surface_id: str | None) -> str | None:
 
 
 def _adversarial_action_kind_allowed(task: dict, kind: str) -> bool:
+    if not _adversarial_action_kind_matches_capability(task, kind):
+        return False
     if kind in _ACTION_KINDS:
         return True
     contract = task.get("exposure_contract")
@@ -112,6 +123,41 @@ def _adversarial_action_kind_allowed(task: dict, kind: str) -> bool:
         if _host_ready_action_option_allowed(option, kind, contract, task):
             return True
     return False
+
+
+def _adversarial_action_kind_matches_capability(task: dict, kind: str) -> bool:
+    declared = _task_compatible_action_kinds(task)
+    if declared and kind not in declared:
+        return False
+    family = _task_capability_family(task)
+    if family:
+        allowed = _CAPABILITY_ACTION_KINDS.get(family)
+        if allowed is None or kind not in allowed:
+            return False
+    return True
+
+
+def _task_capability_family(task: dict) -> str | None:
+    for source in (task, task.get("task_provenance")):
+        if not isinstance(source, dict):
+            continue
+        for key in ("capability_family", "required_capability_family"):
+            value = source.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return None
+
+
+def _task_compatible_action_kinds(task: dict) -> set[str]:
+    for source in (task, task.get("task_provenance")):
+        if not isinstance(source, dict):
+            continue
+        raw = source.get("compatible_action_kinds") or source.get("allowed_action_kinds")
+        if isinstance(raw, str) and raw.strip():
+            return {raw.strip()}
+        if isinstance(raw, list):
+            return {item.strip() for item in raw if isinstance(item, str) and item.strip()}
+    return set()
 
 
 def _host_ready_action_option_allowed(

@@ -215,6 +215,60 @@ def capability_family_from_task_card(card: Mapping[str, Any] | None) -> str | No
     return None
 
 
+def capability_family_from_task(task: Mapping[str, Any] | None) -> str | None:
+    """Extract a task's host-owned capability family, if one was attached."""
+    if not isinstance(task, Mapping):
+        return None
+    for key in ("capability_family", "required_capability_family"):
+        value = task.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    provenance = task.get("task_provenance")
+    if isinstance(provenance, Mapping):
+        for key in ("capability_family", "required_capability_family"):
+            value = provenance.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return None
+
+
+def compatible_action_kinds_from_task(task: Mapping[str, Any] | None) -> tuple[str, ...]:
+    """Return task-card-declared compatible action kinds, if present."""
+    if not isinstance(task, Mapping):
+        return ()
+    for source in (task, task.get("task_provenance")):
+        if not isinstance(source, Mapping):
+            continue
+        raw = source.get("compatible_action_kinds") or source.get("allowed_action_kinds")
+        if isinstance(raw, str) and raw.strip():
+            return (raw.strip(),)
+        if isinstance(raw, list):
+            values = tuple(item.strip() for item in raw if isinstance(item, str) and item.strip())
+            if values:
+                return tuple(dict.fromkeys(values))
+    return ()
+
+
+def action_kind_compatible_with_task(action_kind: str, task: Mapping[str, Any] | None) -> bool:
+    """Return whether task-level capability metadata permits an action kind.
+
+    Tasks without capability metadata preserve legacy behavior. Once a task card
+    attaches capability metadata, action selection must stay inside that
+    host-declared family.
+    """
+    if not isinstance(task, Mapping):
+        return True
+    declared_actions = compatible_action_kinds_from_task(task)
+    if declared_actions and action_kind not in declared_actions:
+        return False
+    capability_family = capability_family_from_task(task)
+    if capability_family and action_kind not in action_kinds_for_capability_family(
+        capability_family
+    ):
+        return False
+    return True
+
+
 def action_kind_compatible_with_task_card(action_kind: str, card: Mapping[str, Any]) -> bool:
     """Return whether a card's capability family can support an action kind."""
     capability_family = capability_family_from_task_card(card)
@@ -237,4 +291,3 @@ def compatibility_reason_for_task_card(action_kind: str, card: Mapping[str, Any]
             f"expected={contract.capability_family},actual={capability_family}"
         )
     return "compatible"
-
