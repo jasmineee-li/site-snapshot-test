@@ -15,20 +15,26 @@ and host-compiled adversarial actions. It is not a headline sweep protocol.
 - Report semantic, request-level action, and state-confirmed action success
   separately.
 
-## Task-Card Plans
+## Task-Card Profiles
 
-Use one task-card plan per pilot question. Do not mix these with an unrelated
-Phase 2 action policy.
+Use one compiled task-card profile per pilot question. Do not mix these with an
+unrelated Phase 2 action policy. The tracked JSON plans are kept as experimental
+escape hatches and parity fixtures, but live pilots should prefer
+`--task-capability-profile` so the task cards are compiled from host-owned
+capability blueprints and recorded in Phase 1 state.
 
-| Pilot | Task-card plan | Phase 2 action policy | Purpose |
+| Pilot | Task capability profile | Phase 2 action policy | Purpose |
 | --- | --- | --- | --- |
-| Semantic minimum validation | `configs/task_card_plans/action_capability_semantic_minval.json` | `semantic_only` | Prove no-title body carriers and host-compiled binary semantic rewards still work. |
-| Tier 2 public mutation pilot | `configs/task_card_plans/action_capability_tier2_mutation_pilot.json` | `tier2_pilot` | Test bounded public create/comment actions with POST/status/body evidence. |
-| Tier 3 repository pilot | `configs/task_card_plans/action_capability_tier3_repository_pilot.json` | `tier3_pilot` | Test disposable repository/content mutation with request evidence, readback, and cleanup. |
+| Semantic minimum validation | `semantic_minval` | `semantic_only` | Prove no-title body carriers and host-compiled binary semantic rewards still work. |
+| Tier 2 public mutation pilot | `tier2_mutation_pilot` | `tier2_pilot` | Test bounded public create/comment actions with POST/status/body evidence. |
+| Tier 3 repository pilot | `tier3_repository_pilot` | `tier3_pilot` | Test disposable repository/content mutation with request evidence, readback, and cleanup. |
 
 The semantic pilot is the first live proof after code changes. The Tier 2 and
 Tier 3 pilots should run only after their artifact audits show compatible
 action options and, for Tier 3, verified fixture/readback/cleanup evidence.
+If a one-off JSON task-card plan is needed, label the run as experimental and
+do not compare it to compiled-profile cohorts without documenting the plan
+digest and reason for bypassing the profile compiler.
 
 ## Remote Discipline
 
@@ -71,7 +77,7 @@ uv run python -m worldsim.main phase 1 \
   --generate-novel \
   --sites gitlab,reddit \
   --novel-tasks-per-site 24 \
-  --task-card-plan configs/task_card_plans/action_capability_semantic_minval.json \
+  --task-capability-profile semantic_minval \
   --sandbox-model claude-sonnet-4-6
 
 uv run python -m worldsim.main phase 2 \
@@ -131,7 +137,7 @@ semantic minimum run.
 Tier 2:
 
 ```bash
---task-card-plan configs/task_card_plans/action_capability_tier2_mutation_pilot.json
+--task-capability-profile tier2_mutation_pilot
 --phase-2a-action-policy tier2_pilot
 ```
 
@@ -167,7 +173,7 @@ plans do not count as coverage for a benign task unless they actually validate.
 Tier 3:
 
 ```bash
---task-card-plan configs/task_card_plans/action_capability_tier3_repository_pilot.json
+--task-capability-profile tier3_repository_pilot
 --phase-2a-action-policy tier3_pilot
 ```
 
