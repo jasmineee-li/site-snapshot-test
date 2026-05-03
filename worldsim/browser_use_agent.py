@@ -38,6 +38,23 @@ from worldsim.pvpo_endpoint import validate_pvpo_cdp_url
 
 logger = logging.getLogger(__name__)
 
+
+def _ensure_browser_use_runtime_env() -> None:
+    """Default Browser Use to local-only runtime behavior.
+
+    WorldSim runs Browser Use as an embedded evaluator component. Cloud sync
+    and anonymous telemetry are not part of the benchmark contract, and in live
+    r5 runs the telemetry client can leave a non-daemon worker thread behind
+    after Phase 4 has already written complete artifacts. Keep these defaults
+    local-only unless a caller explicitly opts back in through the environment.
+    """
+    os.environ.setdefault("ANONYMIZED_TELEMETRY", "false")
+    os.environ.setdefault("BROWSER_USE_CLOUD_SYNC", "false")
+    os.environ.setdefault("POSTHOG_DISABLED", "true")
+
+
+_ensure_browser_use_runtime_env()
+
 _SENSITIVE_HEADER_NAMES = {
     "authorization",
     "cookie",

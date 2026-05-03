@@ -32,13 +32,106 @@ from worldsim.config import BenchmarkConfig, has_configured_agent_auth
 
 load_dotenv(override=True)  # override=True: .env values win over empty-string shell vars.
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_AGENT_MODEL = "claude-sonnet-4-6"
 DEFAULT_SANDBOX_MODEL = "claude-sonnet-4-6"
 AGENT_PROVIDER_CHOICES = ("google", "openai", "anthropic", "openrouter")
+_PHASE4_ASYNC_SHUTDOWN_TIMEOUT_ENV = "WORLDSIM_PHASE4_ASYNC_SHUTDOWN_TIMEOUT_S"
+_PHASE4_ASYNC_SHUTDOWN_TIMEOUT_DEFAULT_S = 10.0
 
 
 class Phase4AlreadyRunning(RuntimeError):
     """Raised when the per-state-dir Phase 4 run lock is held."""
+
+
+def _phase4_async_shutdown_timeout() -> float:
+    raw = os.environ.get(_PHASE4_ASYNC_SHUTDOWN_TIMEOUT_ENV, "").strip()
+    if not raw:
+        return _PHASE4_ASYNC_SHUTDOWN_TIMEOUT_DEFAULT_S
+    try:
+        value = float(raw)
+    except ValueError:
+        logger.warning(
+            "Invalid %s=%r; using %.1fs",
+            _PHASE4_ASYNC_SHUTDOWN_TIMEOUT_ENV,
+            raw,
+            _PHASE4_ASYNC_SHUTDOWN_TIMEOUT_DEFAULT_S,
+        )
+        return _PHASE4_ASYNC_SHUTDOWN_TIMEOUT_DEFAULT_S
+    if value <= 0:
+        logger.warning(
+            "Invalid %s=%r; using %.1fs",
+            _PHASE4_ASYNC_SHUTDOWN_TIMEOUT_ENV,
+            raw,
+            _PHASE4_ASYNC_SHUTDOWN_TIMEOUT_DEFAULT_S,
+        )
+        return _PHASE4_ASYNC_SHUTDOWN_TIMEOUT_DEFAULT_S
+    return value
+
+
+def _run_phase4_with_bounded_async_shutdown(coro: Any, *, shutdown_timeout_s: float) -> Any:
+    """Run Phase 4 without letting third-party background tasks hang process exit.
+
+    Browser Use can leave storage-state/watchdog tasks alive after WorldSim has
+    written complete Phase 4 artifacts. ``asyncio.run`` waits indefinitely for
+    cancellation during shutdown, which keeps registered r5 jobs marked
+    ``running`` and prevents post-run exporters from executing. Phase 4 owns
+    browser-agent lifecycle boundaries, so it gets a bounded shutdown wrapper
+    while the rest of the CLI keeps standard ``asyncio.run`` behavior.
+    """
+
+    loop = asyncio.new_event_loop()
+    try:
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            raise RuntimeError("bounded Phase 4 runner cannot be called from a running event loop")
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(coro)
+    finally:
+        pending = [task for task in asyncio.all_tasks(loop) if not task.done()]
+        if pending:
+            for task in pending:
+                task.cancel()
+            done, still_pending = loop.run_until_complete(
+                asyncio.wait(pending, timeout=shutdown_timeout_s)
+            )
+            for task in done:
+                with contextlib.suppress(asyncio.CancelledError):
+                    task.result()
+            if still_pending:
+                for task in still_pending:
+                    with contextlib.suppress(Exception):
+                        task._log_destroy_pending = False  # type: ignore[attr-defined]
+                logger.warning(
+                    "Phase 4 async shutdown timed out after %.1fs with %d pending task(s); "
+                    "closing loop after completed artifacts were returned",
+                    shutdown_timeout_s,
+                    len(still_pending),
+                )
+        loop.run_until_complete(loop.shutdown_asyncgens())
+        try:
+            loop.run_until_complete(loop.shutdown_default_executor(timeout=shutdown_timeout_s))
+        except TypeError:
+            try:
+                loop.run_until_complete(
+                    asyncio.wait_for(loop.shutdown_default_executor(), timeout=shutdown_timeout_s)
+                )
+            except TimeoutError:
+                logger.warning(
+                    "Phase 4 default executor shutdown timed out after %.1fs",
+                    shutdown_timeout_s,
+                )
+        except TimeoutError:
+            logger.warning(
+                "Phase 4 default executor shutdown timed out after %.1fs",
+                shutdown_timeout_s,
+            )
+        asyncio.set_event_loop(None)
+        loop.close()
 
 
 def _is_loopback_hostname(hostname: str | None) -> bool:
@@ -1419,7 +1512,10 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
             return 2
         try:
             with _phase4_run_lock(get_state_dir()):
-                rc = asyncio.run(phase_4_adversarial.run(args))
+                rc = _run_phase4_with_bounded_async_shutdown(
+                    phase_4_adversarial.run(args),
+                    shutdown_timeout_s=_phase4_async_shutdown_timeout(),
+                )
         except Phase4AlreadyRunning as exc:
             print(
                 f"Phase 4 refused to start because another run is active: {exc}",
