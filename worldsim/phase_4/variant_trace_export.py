@@ -548,10 +548,19 @@ def _variant_matches_selected_success(
     index: int,
     variant_trace: Path | None,
 ) -> bool:
-    selected_index = _selected_success_index(result)
+    selected_global = _int_or_none(result.get("successful_variant_global_index"))
+    selected_legacy = _int_or_none(result.get("successful_variant_index"))
     selected_trace = _path_or_none(result.get("successful_variant_trace"))
-    if selected_index is not None:
-        if selected_index != index:
+    if selected_global is not None:
+        if selected_global != index:
+            return False
+        if selected_legacy is not None and selected_legacy != index:
+            return False
+        if selected_trace is not None:
+            return variant_trace is not None and _same_path(selected_trace, variant_trace)
+        return True
+    if selected_legacy is not None:
+        if selected_legacy != index:
             return False
         if selected_trace is not None:
             return variant_trace is not None and _same_path(selected_trace, variant_trace)
@@ -617,8 +626,12 @@ def _selected_success_metadata_conflict(
     result: dict[str, Any],
     variants: list[dict[str, Any]],
 ) -> bool:
-    selected_index = _selected_success_index(result)
+    selected_global = _int_or_none(result.get("successful_variant_global_index"))
+    selected_legacy = _int_or_none(result.get("successful_variant_index"))
     selected_trace = _path_or_none(result.get("successful_variant_trace"))
+    if selected_global is not None and selected_legacy is not None and selected_global != selected_legacy:
+        return True
+    selected_index = selected_global if selected_global is not None else selected_legacy
     if selected_index is None or selected_trace is None:
         return False
     for variant in variants:

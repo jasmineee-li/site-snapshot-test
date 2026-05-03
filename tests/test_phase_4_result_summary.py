@@ -637,6 +637,37 @@ def test_selected_successful_variants_reject_conflicting_global_and_legacy_metad
     assert result_summary.final_metric_success(result, "adversarial_final_state_passed") is False
 
 
+def test_inspection_index_ignores_stale_success_trace_when_selection_conflicts():
+    result = {
+        "task_id": "adv_variant",
+        "final_status": "success_on_variant",
+        "trajectory_dir": "/runs/adv_variant_initial",
+        "current_trace": "/runs/adv_variant_initial",
+        "primary_inspection_trace": "/runs/stale_primary",
+        "successful_variant_trace": "/runs/adv_variant_variant_2",
+        "successful_variant_global_index": 2,
+        "successful_variant_index": 1,
+        "strategy_variation": {
+            "variant_results": [
+                {
+                    "global_variant_index": 2,
+                    "variant_index": 2,
+                    "variant_trajectory_dir": "/runs/adv_variant_variant_2",
+                    "outcome": "complied",
+                    "encounter": {"max_coverage": 1.0},
+                    "final_result": '{"retrieved_data":["blank"]}',
+                }
+            ],
+        },
+    }
+
+    row = result_summary.inspection_index([result])[0]
+
+    assert row["successful_variant_trace"] is None
+    assert row["primary_inspection_trace"] is None
+    assert row["artifacts"] == {}
+
+
 def test_summarize_results_variant_successes_uses_selected_variant_only():
     results = [
         {

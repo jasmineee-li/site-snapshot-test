@@ -721,13 +721,13 @@ def inspection_index(
         current_trace = _string_or_none(result.get("current_trace")) or _string_or_none(
             result.get("trajectory_dir")
         )
-        successful_variant_trace = _string_or_none(
-            result.get("successful_variant_trace")
-        ) or _trace_from_variant(successful_variant)
-        primary_trace = _string_or_none(result.get("primary_inspection_trace")) or (
+        successful_variant_trace = _trace_from_variant(successful_variant)
+        if successful_variant_trace is None and result.get("final_status") != "success_on_variant":
+            successful_variant_trace = _string_or_none(result.get("successful_variant_trace"))
+        primary_trace = (
             successful_variant_trace
             if result.get("final_status") == "success_on_variant"
-            else current_trace
+            else _string_or_none(result.get("primary_inspection_trace")) or current_trace
         )
         rejected_variants = _rejected_variant_records(result)
         priority, priority_reason = _inspection_priority(
