@@ -154,6 +154,14 @@ POST/status/body-witness evidence. A route/editor method that could support
 some mutation is not enough for a Tier 2 pilot if the selected action or task
 capability family does not match.
 
+Phase 2a may deterministically backfill missing strategy plans for action
+pilots only when the exposure contract already carries a host-owned preferred
+action from the selected policy, for example `tier2_pilot`. This repairs model
+under-generation without giving the model new reward authority: placement,
+action kind, reward compilation, request-body evidence, and feasibility remain
+host-owned. If the preferred action is missing from the contract's allowed
+options, backfill fails closed rather than falling back to semantic scoring.
+
 Tier 3:
 
 ```bash
