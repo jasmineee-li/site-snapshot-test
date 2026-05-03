@@ -2590,6 +2590,15 @@ async def _generate_injections_for_site(
             label,
         )
 
+    adv_tasks, planner_private_errors = _drop_planner_private_provenance_echoes(adv_tasks)
+    if planner_private_errors:
+        logger.warning(
+            "Phase 2a: rejected %d planner-authored private/provenance field echo(es) "
+            "for shard %r",
+            len(planner_private_errors),
+            label,
+        )
+
     # Programmatically copy immutable fields from benign tasks instead of
     # relying on the LLM to reproduce them byte-for-byte.
     _merge_immutable_fields(
@@ -2603,7 +2612,9 @@ async def _generate_injections_for_site(
         adv_tasks,
         all_site_tasks,
         site_profile,
+        allow_host_task_provenance=True,
     )
+    errors = planner_private_errors + errors
     errors.extend(backfill_errors)
     try:
         enriched = _materialize_validated_shard_tasks(validated, site_profile)
@@ -3769,6 +3780,36 @@ def _private_provenance_fields_present(task: Mapping[str, Any]) -> list[str]:
     )
 
 
+def _drop_planner_private_provenance_echoes(
+    adv_tasks: Iterable[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Drop raw Phase 2a plans that try to author private provenance fields.
+
+    Phase 2 reattaches host-owned task provenance after model planning, but
+    planner outputs themselves must not carry task-bank/card/private metadata.
+    This keeps the model boundary fail-closed without losing host artifact
+    observability after ``_merge_immutable_fields``.
+    """
+    clean: list[dict[str, Any]] = []
+    errors: list[str] = []
+    for task_index, task in enumerate(adv_tasks):
+        if not isinstance(task, dict):
+            clean.append(task)
+            continue
+        if "seed_template" not in task:
+            clean.append(task)
+            continue
+        private_fields = _private_provenance_fields_present(task)
+        if private_fields:
+            errors.append(
+                f"task {task_index} ({task.get('id', '?')}) must not include "
+                f"private/provenance fields {private_fields}"
+            )
+            continue
+        clean.append(task)
+    return clean, errors
+
+
 def _effective_task_site(task: dict[str, Any]) -> str:
     delivery_channel = task.get("delivery_channel")
     if isinstance(delivery_channel, dict):
@@ -4668,13 +4709,21 @@ def _validate_generated_adversarial_tasks(
     adv_tasks: list[dict],
     benign_tasks: list[dict],
     site_profile: dict[str, Any],
+    *,
+    allow_host_task_provenance: bool = False,
 ) -> tuple[list[dict], list[str]]:
     """Validate sandbox-generated adversarial tasks against their benign parents."""
     benign_by_id = {str(task.get("id", "")): task for task in benign_tasks}
     validated: list[dict] = []
     errors: list[str] = []
     for i, task in enumerate(adv_tasks):
-        problem = _validate_generated_adversarial_task(task, i, benign_by_id, site_profile)
+        problem = _validate_generated_adversarial_task(
+            task,
+            i,
+            benign_by_id,
+            site_profile,
+            allow_host_task_provenance=allow_host_task_provenance,
+        )
         if problem is not None:
             errors.append(problem)
             continue
@@ -4691,6 +4740,8 @@ def _validate_generated_adversarial_task(
     task_index: int,
     benign_by_id: dict[str, dict],
     site_profile: dict[str, Any],
+    *,
+    allow_host_task_provenance: bool = False,
 ) -> str | None:
     """Return a validation error for one sandbox-generated adversarial task."""
     if not isinstance(task, dict):
@@ -4713,6 +4764,8 @@ def _validate_generated_adversarial_task(
         if forbidden_fields:
             return f"{task_name} must not include Phase 2b/final-task fields {forbidden_fields}"
         private_fields = _private_provenance_fields_present(task)
+        if allow_host_task_provenance:
+            private_fields = [field for field in private_fields if field != "task_provenance"]
         if private_fields:
             return f"{task_name} must not include private/provenance fields {private_fields}"
 

@@ -1913,6 +1913,60 @@ def test_validate_generated_adversarial_tasks_rejects_planner_private_provenance
     assert any("must not include private/provenance fields" in error for error in errors)
 
 
+def test_drop_planner_private_provenance_echoes_before_host_merge():
+    clean_task = {**_plan_task(), "id": "adv-clean"}
+    echoed_task = {
+        **_plan_task(),
+        "id": "adv-echo",
+        "task_provenance": {"task_card_id": "card-1"},
+    }
+
+    clean, errors = phase_2_injections._drop_planner_private_provenance_echoes(
+        [clean_task, echoed_task],
+    )
+
+    assert clean == [clean_task]
+    assert errors == [
+        "task 1 (adv-echo) must not include private/provenance fields ['task_provenance']"
+    ]
+
+
+def test_validate_generated_adversarial_tasks_allows_host_reattached_task_provenance():
+    benign = _benign_task()
+    benign["task_provenance"] = {"task_card_id": "card-1"}
+    task = _plan_task()
+    phase_2_injections._merge_immutable_fields([task], [benign])
+
+    validated, errors = phase_2_injections._validate_generated_adversarial_tasks(
+        [task],
+        [benign],
+        _single_surface_profile(),
+        allow_host_task_provenance=True,
+    )
+
+    assert errors == []
+    assert validated == [task]
+    assert validated[0]["task_provenance"] == {"task_card_id": "card-1"}
+
+
+def test_validate_generated_adversarial_tasks_still_rejects_other_private_fields_after_host_merge():
+    task = {
+        **_plan_task(),
+        "task_provenance": {"task_card_id": "card-1"},
+        "task_bank_metadata": {"line": 7},
+    }
+
+    validated, errors = phase_2_injections._validate_generated_adversarial_tasks(
+        [task],
+        [_benign_task()],
+        _single_surface_profile(),
+        allow_host_task_provenance=True,
+    )
+
+    assert validated == []
+    assert any("['task_bank_metadata']" in error for error in errors)
+
+
 def test_validate_generated_adversarial_tasks_rejects_legacy_shaped_task_with_payload_texts():
     task = {
         "id": "adv-1",
