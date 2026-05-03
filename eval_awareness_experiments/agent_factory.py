@@ -21,6 +21,69 @@ from eval_awareness_experiments.system_prompt_frame import (
 )
 
 
+def build_agent(
+    model_name: str,
+    extra_instructions: str | None = None,
+    system_prompt_frame: SystemPromptFrame = "none",
+    max_total_tokens: int = 131072,
+    max_input_tokens: int = 100000,
+    max_new_tokens: int = 8192,
+    temperature: float = 0.1,
+    vision_support: bool = False,
+) -> object:
+    """Dispatcher: route `local/<short-id>` to local vLLM, everything else
+    to OpenRouter. Returns an AgentLab agent ready to be passed into
+    `bgym.Study(...)`.
+    """
+    if model_name.startswith("local/"):
+        return build_local_agent(
+            model_name=model_name,
+            extra_instructions=extra_instructions,
+            system_prompt_frame=system_prompt_frame,
+            temperature=temperature,
+        )
+    return build_openrouter_agent(
+        model_name=model_name,
+        extra_instructions=extra_instructions,
+        system_prompt_frame=system_prompt_frame,
+        max_total_tokens=max_total_tokens,
+        max_input_tokens=max_input_tokens,
+        max_new_tokens=max_new_tokens,
+        temperature=temperature,
+        vision_support=vision_support,
+    )
+
+
+def build_local_agent(
+    model_name: str,
+    extra_instructions: str | None = None,
+    system_prompt_frame: SystemPromptFrame = "none",
+    temperature: float = 0.1,
+) -> object:
+    """Clone the GenericAgent template and swap its LLM for a local vLLM
+    server (registered in `models/common/registry.py`).
+
+    Used for the browser-track benchmarks (DoomArena, WASP) when running
+    locally-served CUA models. Token budgets come from the LocalModelSpec;
+    vision_support is also taken from the spec.
+    """
+    from models.common import resolve_local_model
+    from models.common.vllm_client import make_agentlab_chat_model_args
+
+    spec = resolve_local_model(model_name)
+    agent = copy.deepcopy(AGENT_CLAUDE_SONNET_35)
+    agent.chat_model_args = make_agentlab_chat_model_args(spec, temperature=temperature)
+    # Use the spec's served name so the agent_name reflects what actually ran.
+    agent.agent_name = f"GenericAgent-{spec.short_id}"
+
+    framed_extra = _build_framed_extra_instructions(
+        extra_instructions, system_prompt_frame
+    )
+    if framed_extra:
+        agent.flags.extra_instructions = framed_extra
+    return agent
+
+
 def build_openrouter_agent(
     model_name: str,
     extra_instructions: str | None = None,
