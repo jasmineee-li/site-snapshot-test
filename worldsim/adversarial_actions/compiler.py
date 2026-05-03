@@ -18,6 +18,7 @@ from worldsim.adversarial_actions.catalog import (
     EDITOR_METHODS_BY_MUTATION_ACTION,
     MUTATION_ACTION_BY_EDITOR_METHOD,
     MUTATION_ACTION_KINDS,
+    get_action_spec,
     option_for_kind,
 )
 from worldsim.placeholders import placeholder_for_site
@@ -27,6 +28,13 @@ ACTION_POLICIES: tuple[str, ...] = (
     "default",
     "semantic_only",
     "mutation_when_available",
+    "mutation_only_when_available",
+    "tier1_only",
+    "tier2_pilot",
+    "tier3_pilot",
+    "wasp_tier1_only",
+    "wasp_tier2_pilot",
+    "wasp_tier3_pilot",
 )
 
 _BINARY_LABEL_FAMILIES: tuple[frozenset[str], ...] = (
@@ -75,6 +83,16 @@ def annotate_exposure_contracts_with_action_policy(
     if policy == "mutation_when_available":
         for contract in annotated.values():
             _prefer_first_mutation_action(contract)
+        return annotated
+    if policy == "mutation_only_when_available":
+        for contract in annotated.values():
+            _keep_mutation_actions_when_available(contract, policy=policy)
+        return annotated
+    normalized_policy = _normalized_tier_policy(policy)
+    if normalized_policy is not None:
+        tier, canonical_policy = normalized_policy
+        for contract in annotated.values():
+            _keep_tier_actions(contract, tier=tier, policy=canonical_policy)
         return annotated
     raise ValueError(f"unsupported action policy {policy!r}")
 
@@ -137,6 +155,76 @@ def _prefer_first_mutation_action(contract: dict[str, Any]) -> None:
             "when this exposure contract supports one."
         ),
     }
+
+
+def _keep_mutation_actions_when_available(contract: dict[str, Any], *, policy: str) -> None:
+    options = contract.get("adversarial_action_options")
+    if not isinstance(options, list):
+        return
+    mutation_options = [
+        option
+        for option in options
+        if isinstance(option, Mapping) and option.get("kind") in _MUTATION_ACTIONS
+    ]
+    if not mutation_options:
+        return
+    contract["adversarial_action_options"] = mutation_options
+    contract["adversarial_action_preference"] = {
+        "kind": mutation_options[0]["kind"],
+        "policy": policy,
+        "reason": (
+            "Strict mutation pilot: this contract supports a concrete browser-side "
+            "POST action, so semantic and navigation alternatives are suppressed."
+        ),
+    }
+
+
+def _keep_tier_actions(contract: dict[str, Any], *, tier: int, policy: str) -> None:
+    options = contract.get("adversarial_action_options")
+    if not isinstance(options, list):
+        return
+    tier_options = [
+        option
+        for option in options
+        if isinstance(option, Mapping) and _action_tier(str(option.get("kind") or "")) == tier
+    ]
+    if tier_options:
+        contract["adversarial_action_options"] = tier_options
+        contract["adversarial_action_preference"] = {
+            "kind": tier_options[0]["kind"],
+            "policy": policy,
+            "reason": (
+                f"Tier {tier} pilot: restrict this contract to host-owned action "
+                "options in the selected impact tier."
+            ),
+        }
+        return
+    if tier == 3:
+        contract["adversarial_action_options"] = []
+        contract["adversarial_action_preference"] = {
+            "policy": policy,
+            "reason": (
+                "Tier 3 pilot requested, but this contract has no host-ready "
+                "high-impact action option."
+            ),
+        }
+
+
+def _action_tier(kind: str) -> int | None:
+    spec = get_action_spec(kind)
+    return spec.impact_tier if spec is not None else None
+
+
+def _normalized_tier_policy(policy: str) -> tuple[int, str] | None:
+    aliases = {
+        "tier1_only": (1, "tier1_only"),
+        "tier2_pilot": (2, "tier2_pilot"),
+        "tier3_pilot": (3, "tier3_pilot"),
+        "wasp_tier1_only": (1, "tier1_only"),
+        "wasp_tier2_pilot": (2, "tier2_pilot"),
+        "wasp_tier3_pilot": (3, "tier3_pilot"),
+    }
+    return aliases.get(policy)
 
 
 def allowed_action_options(

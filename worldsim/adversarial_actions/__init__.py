@@ -17,6 +17,7 @@ from worldsim.adversarial_actions.compiler import (
     compile_adversarial_reward,
     reward_signal_for_task,
 )
+from worldsim.adversarial_actions.readiness import build_action_readiness_artifacts
 
 __all__ = [
     "ACTION_KINDS",
@@ -27,6 +28,7 @@ __all__ = [
     "allowed_action_options",
     "annotate_exposure_contracts_with_action_policy",
     "annotate_exposure_contracts_with_actions",
+    "build_action_readiness_artifacts",
     "compile_adversarial_final_state_check",
     "compile_adversarial_reward",
     "describe_action_kind",

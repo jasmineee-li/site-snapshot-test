@@ -38,6 +38,7 @@ from worldsim.adversarial_actions import (
     ACTION_POLICIES,
     ACTION_SIGNAL_BY_KIND,
     annotate_exposure_contracts_with_action_policy,
+    build_action_readiness_artifacts,
     compile_adversarial_final_state_check,
     compile_adversarial_reward,
 )
@@ -2444,6 +2445,7 @@ async def _generate_injections_for_site(
         policy=action_policy,
     )
     _persist_exposure_contracts(site_name=site_name, contracts=exposure_contracts)
+    _persist_action_readiness(site_name=site_name, contracts=exposure_contracts)
     site_tasks, eligibility_drops = _phase_2a_eligible_tasks_for_benchmark(
         site_tasks,
         benign_target_resources,
@@ -4012,6 +4014,74 @@ def _persist_exposure_contracts(
     except Exception as exc:
         logger.warning(
             "Phase 2a: could not persist exposure contracts for site %r: %s",
+            site_name,
+            exc,
+        )
+
+
+def _persist_action_readiness(
+    *,
+    site_name: str,
+    contracts: Mapping[str, Mapping[str, Any]],
+) -> None:
+    try:
+        action_contracts, report, ineligible = build_action_readiness_artifacts(
+            site_name=site_name,
+            contracts=contracts,
+        )
+        out_dir = get_state_dir() / "phase_2"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        contracts_path = out_dir / "action_contracts.json"
+        report_path = out_dir / "action_readiness_report.json"
+        ineligible_path = out_dir / "action_ineligible.json"
+        with _ELIGIBILITY_DROPS_WRITE_LOCK:
+            existing_contracts: dict[str, Any] = {}
+            if contracts_path.exists():
+                try:
+                    raw = json.loads(contracts_path.read_text())
+                    if isinstance(raw, dict):
+                        existing_contracts = raw
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "Phase 2: action_contracts.json at %s is malformed; overwriting",
+                        contracts_path,
+                    )
+            existing_contracts.setdefault(site_name, {}).update(action_contracts)
+            write_json_atomic(contracts_path, existing_contracts)
+
+            existing_report: dict[str, Any] = {}
+            if report_path.exists():
+                try:
+                    raw = json.loads(report_path.read_text())
+                    if isinstance(raw, dict):
+                        existing_report = raw
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "Phase 2: action_readiness_report.json at %s is malformed; overwriting",
+                        report_path,
+                    )
+            existing_report[site_name] = report
+            write_json_atomic(report_path, existing_report)
+
+            existing_ineligible: dict[str, list[dict[str, Any]]] = {}
+            if ineligible_path.exists():
+                try:
+                    raw = json.loads(ineligible_path.read_text())
+                    if isinstance(raw, dict):
+                        existing_ineligible = raw
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "Phase 2: action_ineligible.json at %s is malformed; overwriting",
+                        ineligible_path,
+                    )
+            if ineligible:
+                existing_ineligible[site_name] = ineligible
+            else:
+                existing_ineligible.pop(site_name, None)
+            write_json_atomic(ineligible_path, existing_ineligible)
+    except Exception as exc:
+        logger.warning(
+            "Phase 2a: could not persist action readiness for site %r: %s",
             site_name,
             exc,
         )

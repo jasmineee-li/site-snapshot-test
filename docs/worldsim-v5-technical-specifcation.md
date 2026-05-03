@@ -305,7 +305,7 @@ On crash, `--resume` reads this file and applies two-branch logic:
 
 **Phase 2**:
 
-- `--phase-2a-action-policy default|semantic_only|mutation_when_available|mutation_only_when_available|wasp_tier1_only|wasp_tier2_pilot|wasp_tier3_pilot`
+- `--phase-2a-action-policy default|semantic_only|mutation_when_available|mutation_only_when_available|tier1_only|tier2_pilot|tier3_pilot`
   (default `default`):
   opt-in strategy-planning policy. `default` preserves planner choice among
   compatible action options. `semantic_only` restricts compatible contracts to
@@ -316,9 +316,11 @@ On crash, `--resume` reads this file and applies two-branch logic:
   defaults. `mutation_only_when_available` is the stricter pilot mode: when a
   verified contract has a compatible mutation action, semantic and navigation
   options are removed for that contract; contracts without a compatible mutation
-  remain unchanged rather than becoming invalid. `wasp_tier*_pilot` policies are
-  opt-in action-objective strata for WASP-style security-impact studies and
-  must not be used as headline defaults.
+  remain unchanged rather than becoming invalid. `tier*_pilot` policies are
+  opt-in action-objective strata for controlled security-impact studies and
+  must not be used as headline defaults. Historical `wasp_tier*_pilot` aliases
+  may be accepted by the CLI for compatibility, but model-facing prompts should
+  receive the neutral `tier*_pilot` policy labels.
 - `--phase-2b-texts-per-plan <N>` (default 1): number of payload-text variants Phase 2b generates per validated 2a plan. The first variant is selected by default; additional variants survive on disk for offline comparison.
 - `--phase-2-text-fill-concurrency <N>`: cap on concurrent host-side text-fill API calls during Phase 2b.
 - `--phase-2-text-model <name>`: host-side text-fill model, independent of `--sandbox-model`.

@@ -388,7 +388,10 @@ def build_parser() -> argparse.ArgumentParser:
             "semantic_only restricts compatible contracts to host-compiled binary "
             "answer hijack for minimum validation; "
             "mutation_when_available marks compatible exposure contracts with a "
-            "host-owned mutation preference for a controlled pilot."
+            "host-owned mutation preference for a controlled pilot; "
+            "mutation_only_when_available suppresses semantic/navigation options "
+            "where a mutation action is host-ready; tier*_pilot policies restrict "
+            "contracts to one impact tier for controlled action-objective pilots."
         ),
     )
     phase_cmd.add_argument(
