@@ -106,9 +106,9 @@ Failure recovery:
 
 | check | failure remediation |
 |---|---|
-| every configured `pvpo_cdp_url` reachable and unique | rerun setup step 3 |
-| each loopback `pvpo-chrome-<port>` has restart policy `unless-stopped` | rerun setup step 3 |
-| `logs/phase_0d/gitlab/storage_state.json` has cookies | rerun `login_gitlab_r5.py` (setup step 5) |
+| every configured `pvpo_cdp_url` reachable and unique | rerun setup step 4 |
+| each loopback `pvpo-chrome-<port>` has restart policy `unless-stopped` | rerun setup step 4 |
+| `logs/phase_0d/gitlab/storage_state.json` has cookies | rerun `login_gitlab_r5.py` or setup step 6 |
 | evaluator venv imports `webarena_verified` | rerun setup step 1 |
 
 If preflight fails, the bash orchestrator exits non-zero and nothing is

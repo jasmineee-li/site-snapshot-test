@@ -22,6 +22,10 @@ benchmark artifacts, or docs that mention credentials.
   benchmark setup and test contracts.
 - Do not commit real proxy/API tokens. `verification_proxy` should reference an
   external source such as `token_env` or `token_file` when the config is tracked.
+- Some historical/generated instance configs may predate this rule and contain a
+  literal `verification_proxy.token`. Treat those as remediation debt: do not
+  copy the pattern into new configs, rotate/migrate before external sharing, and
+  prefer token indirection when regenerating tracked host snapshots.
 - Secret scanning should allow documented fixture credentials while still
   flagging high-entropy token fields and live bearer/API/proxy tokens.
 - If a value is ambiguous, classify it in the PR or handoff before editing it.

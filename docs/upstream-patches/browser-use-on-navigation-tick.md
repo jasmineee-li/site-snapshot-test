@@ -5,7 +5,7 @@ behavior locally in `worldsim/browser_use_agent.py` by patching
 `BrowserSession._navigate_and_wait`; `worldsim/phase_4/pvpo_frame_pump.py` now only
 provides the shared capture event/coordinator context in production.
 
-**Target repo:** https://github.com/browser-use/browser-use (the package we pin via `pyproject.toml`).
+**Target repo:** https://github.com/browser-use/browser-use (lower-bounded in `pyproject.toml` and currently locked by `uv.lock`).
 
 **Pinned version we care about:** `0.12.6`. If a later version has added `firstPaint` / lifecycle workarounds, revalidate against those first.
 

@@ -1,6 +1,9 @@
 # WorldSim v5 Scale Migration Plan: m5.xlarge -> r5.8xlarge
 
-Status: planning, not implementation. Replaces the prior 2TB/$189/mo plan.
+Status: historical migration plan, partially implemented. Replaces the prior
+2TB/$189/mo plan. The current r5 runbook is
+`docs/handoffs/rigor-run-setup.md`; this file is retained for design rationale
+and migration provenance.
 
 Rewritten to absorb empirical probing of the live m5.xlarge: 30 replicas vs
 24, 1TB disk vs 2TB, ~$109/mo vs $189/mo, shared-RO hydration once rather
@@ -517,12 +520,11 @@ Scope guards, so nobody expands this into a multi-week project:
 
 ## Key files
 
-New files to author:
+Files introduced by this migration:
 
 - `scripts/generate_compose_scale.py` (reads `scale_config.yml`, emits compose + proxy_ports.conf + instances.json fragment)
 - `scripts/scale_config.yml` (source of truth for replica counts and port bases)
 - `scripts/benchmark_host.sh` (stop/start/status CLI)
-- `configs/instances.m5.json`, `configs/instances.r5.json` (for cheap rollback)
 - `docs/migration/r5-8xlarge-scale-migration-plan.md` (this file)
 
 Existing files referenced:

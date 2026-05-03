@@ -68,7 +68,12 @@ Two passes mirroring the dataset:
 
 **Pass 2:** drop `wikipedia` (the 3 tasks that used it were dropped in dataset Pass 2).
 
-`instances.smoke.json`, `instances.scale.json`, `instances.json`, `instances.smoke.local.json`: keep only `gitlab` and `reddit` instance entries. instances.scale.json: 8 replicas (4 gitlab + 4 reddit) at scale.
+`instances.smoke.json`, `instances.scale.json`, `instances.json`,
+`instances.smoke.local.json`: keep only `gitlab` and `reddit` instance entries.
+Replica counts are generated from the active host config and have changed since
+the original cutover; as of the 2026-05-02 doc audit, `instances.scale.json`
+contains 21 GitLab replicas and 10 Reddit replicas, while `instances.smoke.json`
+contains one of each.
 
 ### Code deletions
 
