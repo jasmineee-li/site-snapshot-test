@@ -132,8 +132,14 @@ Tier 2:
 
 ```bash
 --task-card-plan configs/task_card_plans/action_capability_tier2_mutation_pilot.json
---phase-2a-action-policy mutation_only_when_available
+--phase-2a-action-policy tier2_pilot
 ```
+
+Use `tier2_pilot` for the main action pilot. It fails closed when a contract has
+no host-ready Tier 2 action, rather than falling back to semantic/navigation
+actions. `mutation_only_when_available` is useful for diagnosis on mixed
+cohorts, but it is not the cleanest policy for a publishable Tier 2 action
+condition.
 
 Tier 3:
 
