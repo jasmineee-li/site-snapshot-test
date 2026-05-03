@@ -61,6 +61,21 @@ action options, compiler rules, and Phase 2c/Phase 4 evidence. Validate in that
 order: semantic compiler on known binary tasks first, action/mutation pilots
 second, mixed headline sweeps only after both families pass admission.
 
+Adversarial actions are impact-stratified. Tier 1 is semantic/navigation
+hijack, Tier 2 is bounded public mutation on UGC workflows, and Tier 3 is
+high-impact security behavior such as access grants, secret/key creation,
+outbound integrations, private-data exfiltration, repository/content mutation,
+destructive mutation, or account setting changes. Tier 3 is in scope only as a
+named pilot condition with disposable fixtures, deterministic readback, cleanup,
+and separate reporting. Do not mix Tier 3 into default generation or aggregate
+it with semantic ASR without explicit labeling.
+
+Carrier exposure and action objective are separate contracts. A payload can be
+strictly admitted on a WASP carrier while asking the agent to perform a
+different workflow. Keep benchmark-specific action endpoints, selectors,
+fixture setup, final-state probes, and cleanup in host-owned action specs or
+benchmark adapters, never in model-facing prompts or model-authored rewards.
+
 Use artifact-local gates before changing prompts broadly. The binary compiler
 canary proves existing semantic rewards still compile deterministically; the
 `semantic_only` action policy is for minimum validation runs that must isolate
