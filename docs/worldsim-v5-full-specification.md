@@ -1,5 +1,10 @@
 # **WorldSim Pipeline Spec v5**
 
+> **HISTORICAL PLANNING DRAFT.** This was an early research-framing memo and
+> is not implementation authority. Current pipeline scope, phases, gates, and
+> host contracts live in `docs/worldsim-v5-technical-specifcation.md`; current
+> operational status lives in `docs/current_progress.md` and `agent_docs/`.
+
 **Success of call with Eliot:**
 
 1. Redteam the paper’s conceptual contributions  

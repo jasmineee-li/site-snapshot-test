@@ -1,6 +1,6 @@
 # codex-handoff — Phase 1 Mode B end-to-end implementation + Phase 1 semantic rename
 
-**Status:** Open. As of HEAD `3559aad2` on `feat/worldsim-v5`, Mode B has working code on disk and zero output anywhere downstream. The entire 84-task adversarial dataset rides on Mode A WebArena wraps that do not traverse the seeded surfaces.
+**Status:** Historical implementation handoff. Mode B / novel-task generation is now an established opt-in path in the technical spec; use current spec and runbooks for active work. The original open status below is preserved as implementation provenance from HEAD `3559aad2` on `feat/worldsim-v5`.
 
 **Branch:** Land all work as sequential commits on `feat/worldsim-v5`. Per repo convention (memory: *Commits Not PRs*) do not split into multiple PRs.
 

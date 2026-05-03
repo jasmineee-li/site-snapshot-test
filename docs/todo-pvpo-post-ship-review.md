@@ -1,5 +1,9 @@
 # PVPO Post-Ship Bug Review
 
+> **ARCHIVED COMPLETED REVIEW.** The findings below were fixed or deliberately
+> deferred during the PVPO cutover. This is not a live TODO list; use current
+> tests and `docs/worldsim-v5-technical-specifcation.md` for active PVPO work.
+
 Working log of bugs found in the Paint-Verified Payload Oracle series
 (commits `1d45587f..90d335bf`). Each finding follows the format below; an
 "Edge cases" list precedes the fix so the fix is grounded in the failure

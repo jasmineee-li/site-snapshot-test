@@ -1,5 +1,11 @@
 # GPT Deep Research: IPI Benchmark Integration Patterns
 
+> **ARCHIVED EXTERNAL RESEARCH MEMO.** This memo was generated for the
+> pre-WASP/pre-PVPO planning window. Use it only as external-reference
+> provenance; revalidate any integration idea against
+> `docs/worldsim-v5-technical-specifcation.md` and current code before turning
+> it into work.
+
 **Generated**: 2026-04-14
 **Source**: ChatGPT Deep Research
 **Prompt context**: see `docs/TODO-adversarial-rigor-mvp.md` and `docs/TODO-2-paper-experiments.md`

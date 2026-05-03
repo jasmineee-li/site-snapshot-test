@@ -1,6 +1,11 @@
 # C1 Read-Surface Migration — Reclassification Diff
 
-**Historical:** snapshot of the C1 migration reclassification run. `c1a_canary` rows in the tables below are no longer produced — C1a was removed when PVPO shipped as the authoritative encounter signal.
+**Historical / archived:** snapshot of the C1 migration reclassification run.
+`c1a_canary` rows and C1a/C1b terminology in the tables below are no longer
+produced — C1a was removed when PVPO shipped as the authoritative encounter
+signal. Keep this file only as migration provenance; use current
+`worldsim/phase_4/encounter_detection.py` and the PVPO spec for active
+encounter semantics.
 
 **Scope:** every `logs/phase_4/*` run on `feat/c1-read-surface` at the close of
 commit 5. Reclassifier invoked as `uv run python

@@ -1,5 +1,9 @@
 # WebArena-Infinity
 
+> **PAPER SUMMARY ONLY.** This is not an active WorldSim adapter, provisioned
+> runtime, or instruction to generate/serve web apps from this repo. Current
+> WorldSim mainline remains WebArena Verified GitLab/Reddit WASP carriers.
+
 **Source:** https://webarena.dev/webarena-infinity/  
 **GitHub:** https://github.com/web-arena-x/webarena-infinity
 **Title:** *WebArena-Infinity: Generating Browser Environments with Verifiable Tasks at Scale*  
@@ -233,6 +237,8 @@ Not just longer action chains, but:
 
 ### Browser-use agent
 - **Gemini-3-Flash** with the **Browser Use** harness
+  - Paper-reported configuration, not WorldSim's Phase 4 default or provider
+    matrix.
 
 ### Additional evaluated agents
 - **Kimi-K2.5**

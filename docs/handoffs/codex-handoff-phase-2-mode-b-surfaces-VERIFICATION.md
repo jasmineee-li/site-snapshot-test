@@ -41,7 +41,7 @@ when you're ready to ship.
 ```
 uv run python -m worldsim.main phase 0c \
     --benchmark vendors/webarena-verified \
-    --instances configs/instances.smoke.json \
+    --instances instances.smoke.json \
     --sites gitlab
 ```
 
@@ -80,7 +80,7 @@ task carries `agent_context.gitlab.user_handles` / `group_handles`.
 uv run python -m worldsim.main phase 2 \
     --benchmark vendors/webarena-verified \
     --sites gitlab,reddit \
-    --feasibility-instances configs/instances.smoke.json
+    --feasibility-instances instances.smoke.json
 ```
 
 Acceptance gates:

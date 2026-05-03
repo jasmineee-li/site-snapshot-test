@@ -1,5 +1,11 @@
 # WorldSim v5 carrier health, 2026-04-30
 
+> **TITLE-INCLUSIVE HISTORICAL SWEEP NOTE.** This handoff records the 2026-04-30
+> carrier-health state before title fields were retired as active mainline IPI
+> carriers. Current no-title mainline carrier policy is in
+> `docs/worldsim-v5-technical-specifcation.md`; do not treat the `issue.title`
+> and `submission.title` rows below as current admissible carriers.
+
 This note captures the current GitLab/Reddit carrier state after the Phase 2
 plan-coverage and Phase 4 short-title budget fixes. It is a handoff for future
 debugging and replication, not a new methodology.

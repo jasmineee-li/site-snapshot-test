@@ -1,6 +1,6 @@
 # Phase 4 Expanded Model Sweep, 2026-05-01
 
-> **ACTIVE SWEEP RECORD.** This is the tracked reproducibility and interpretation record for the 2026-05-01 expanded Phase 4 model sweep. Raw artifacts remain under `logs/` and are intentionally not committed.
+> **COMPLETED TITLE-INCLUSIVE SWEEP RECORD.** This is the tracked reproducibility and interpretation record for the 2026-05-01 expanded Phase 4 model sweep. It predates the no-title mainline sweep config (`configs/phase4_model_sweeps/phase4_20260502_no_title.json`), so do not mix its title-carrier results into current no-title mainline analysis without labeling that cohort boundary. Raw artifacts remain under `logs/` and are intentionally not committed.
 
 ## Purpose
 
