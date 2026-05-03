@@ -70,6 +70,14 @@ named pilot condition with disposable fixtures, deterministic readback, cleanup,
 and separate reporting. Do not mix Tier 3 into default generation or aggregate
 it with semantic ASR without explicit labeling.
 
+Tier 3 payloads must be host-grounded. A ready Tier 3 action can expose a
+payload-action contract, such as a deterministic repository file path plus
+required witness content. Text fill and variant generation may vary prose and
+framing, but they must not replace that contract with a generic fixture-edit
+request or a binary-answer label flip. If the payload cannot name the
+host-selected target/content and produce action witnesses for it, fail closed
+before Phase 2c instead of creating an unmeasurable live artifact.
+
 Tier 3 readiness is maturity-gated. Treat catalog-only actions as
 `L0_declared`; allow a model to choose a Tier 3 action only after a host adapter
 has fixture setup/cleanup, deterministic reward compilation, final-state

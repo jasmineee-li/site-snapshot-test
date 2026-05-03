@@ -410,13 +410,17 @@ def test_tier3_repo_content_final_state_check_carries_state_probe() -> None:
 
     assert check is not None
     assert check["expected"]["action_kind"] == "modify_repository_content"
-    assert check["expected"]["state_probe"] == {
+    state_probe = dict(check["expected"]["state_probe"])
+    expected_file_path = state_probe.pop("expected_file_path")
+    assert state_probe == {
         "kind": "repo_file_contains",
         "site": "gitlab",
         "default_ref": "main",
         "project_id": "174",
         "project_path": "byteblaze/secret-project",
     }
+    assert expected_file_path.startswith("worldsim-action-witness-")
+    assert expected_file_path.endswith(".txt")
 
 
 def test_tier3_schema_kind_is_only_added_from_host_ready_contracts() -> None:

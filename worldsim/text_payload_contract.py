@@ -8,6 +8,8 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, model_validator
 
+from worldsim.adversarial_actions.tier3 import tier3_payload_action_contract
+
 TEXT_PAYLOAD_VALIDATOR_CONTEXT_KEY = "worldsim_text_payload_validator"
 _BINARY_LABEL_FAMILIES: tuple[tuple[str, str], ...] = (
     ("blank", "populated"),
@@ -423,6 +425,10 @@ def build_text_payload_contract(
     encounter_window = payload_encounter_window_contract(task, selected)
     if encounter_window is not None:
         contract["encounter_window"] = encounter_window
+
+    action_contract = tier3_payload_action_contract(task)
+    if action_contract is not None:
+        contract["adversarial_action_contract"] = action_contract
 
     binary_contract = binary_answer_contract(task)
     if binary_contract is not None:
