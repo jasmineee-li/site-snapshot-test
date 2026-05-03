@@ -184,6 +184,37 @@ def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=False) + "\n", encoding="utf-8")
 
 
+_SECRET_KEY_FRAGMENTS = (
+    "authorization",
+    "cookie",
+    "password",
+    "private_key",
+    "secret",
+    "token",
+)
+
+
+def redact_for_diagnostics(value: Any) -> Any:
+    """Return a diagnostics-safe copy of a fixture/provisioning payload."""
+    if isinstance(value, Mapping):
+        redacted: dict[str, Any] = {}
+        for key, item in value.items():
+            key_text = str(key)
+            if _is_secret_key(key_text):
+                redacted[key_text] = "<redacted>"
+            else:
+                redacted[key_text] = redact_for_diagnostics(item)
+        return redacted
+    if isinstance(value, list):
+        return [redact_for_diagnostics(item) for item in value]
+    return value
+
+
+def _is_secret_key(key: str) -> bool:
+    normalized = key.casefold().replace("-", "_")
+    return any(fragment in normalized for fragment in _SECRET_KEY_FRAGMENTS)
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--instances", default="instances.scale.json", help="instance JSON path")
@@ -216,7 +247,15 @@ def main(argv: list[str] | None = None) -> int:
             create_missing=not args.no_create,
         )
         if args.dry_run:
-            print(json.dumps({"report": report, "document": document}, indent=2))
+            print(
+                json.dumps(
+                    {
+                        "report": redact_for_diagnostics(report),
+                        "document": redact_for_diagnostics(document),
+                    },
+                    indent=2,
+                )
+            )
             return 0
         if not args.no_backup:
             backup_path = instances_path.with_suffix(instances_path.suffix + ".bak")

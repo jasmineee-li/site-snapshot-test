@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from scripts.provision_tier3_gitlab_fixtures import redact_for_diagnostics
 from worldsim.adversarial_actions import annotate_exposure_contracts_with_action_policy
 from worldsim.adversarial_actions.tier3_fixtures import (
     attach_verified_tier3_fixtures,
@@ -266,3 +267,25 @@ def test_cleanup_tier3_repository_action_target_prefers_project_path(monkeypatch
     assert report["status"] == "cleaned"
     assert deleted
     assert deleted[0][0] == "991"
+
+
+def test_tier3_fixture_dry_run_redacts_secret_like_fields() -> None:
+    payload = {
+        "verification_proxy": {"token": "live-token"},
+        "agent_auth": {
+            "authentication": {
+                "credentials": {
+                    "username": "byteblaze",
+                    "password": "test1234",
+                }
+            }
+        },
+        "nested": [{"Authorization": "Bearer secret"}, {"project_path": "byteblaze/demo"}],
+    }
+
+    redacted = redact_for_diagnostics(payload)
+
+    assert redacted["verification_proxy"]["token"] == "<redacted>"
+    assert redacted["agent_auth"]["authentication"]["credentials"]["password"] == "<redacted>"
+    assert redacted["nested"][0]["Authorization"] == "<redacted>"
+    assert redacted["nested"][1]["project_path"] == "byteblaze/demo"
