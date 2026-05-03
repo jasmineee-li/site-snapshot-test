@@ -820,6 +820,14 @@ async def run(args: argparse.Namespace) -> int:
     else:
         filled_tasks = reusable_final_tasks
 
+    filled_tasks, host_compile_diagnostics = _refresh_host_compiled_action_rewards_after_text_fill(
+        filled_tasks,
+        benign_by_id=benign_by_id,
+    )
+    if host_compile_diagnostics:
+        text_fill_diagnostics.extend(host_compile_diagnostics)
+        write_json_atomic(diagnostics_path, text_fill_diagnostics)
+
     if not filled_tasks:
         logger.error("Phase 2 text fill produced zero adversarial tasks")
         save_state(
@@ -2974,6 +2982,77 @@ def _merge_immutable_fields(
             final_state_check = compile_adversarial_final_state_check(adv_task)
             if final_state_check is not None:
                 reward["adversarial_final_state_check"] = final_state_check
+
+
+def _refresh_host_compiled_action_reward_after_text_fill(
+    adv_task: dict[str, Any],
+    *,
+    benign_by_id: Mapping[str, dict[str, Any]],
+) -> str | None:
+    """Recompile host-owned action rewards after Phase 2b concretizes tokens.
+
+    Phase 2a materializes the reward before text fill has finalized every
+    payload/action witness. Tier 3 repository actions need the post-materialized
+    required token to derive the exact file path used by final-state readback,
+    so the final task artifact must refresh host-owned reward fields here.
+    """
+    action = adv_task.get("adversarial_action")
+    if not isinstance(action, Mapping):
+        return None
+    benign_id = str(adv_task.get("benign_task_id", ""))
+    benign_task = benign_by_id.get(benign_id)
+    if benign_task is None:
+        return f"unknown benign_task_id {benign_id!r}"
+
+    try:
+        adversarial_reward = compile_adversarial_reward(adv_task, benign_task)
+    except ValueError as exc:
+        adv_task.pop("reward_function", None)
+        adv_task.setdefault("strategy_adjustments", []).append(
+            {
+                "field": "adversarial_action",
+                "reason": "host_compile_failed_after_text_fill",
+                "error": str(exc),
+            }
+        )
+        return str(exc)
+
+    reward: dict[str, Any] = {
+        "benign_reward": json.loads(json.dumps(benign_task.get("reward_function", {}))),
+        "adversarial_reward": adversarial_reward,
+    }
+    final_state_check = compile_adversarial_final_state_check(adv_task)
+    if final_state_check is not None:
+        reward["adversarial_final_state_check"] = final_state_check
+    adv_task["reward_function"] = reward
+    return None
+
+
+def _refresh_host_compiled_action_rewards_after_text_fill(
+    adv_tasks: list[dict[str, Any]],
+    *,
+    benign_by_id: Mapping[str, dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    refreshed: list[dict[str, Any]] = []
+    diagnostics: list[dict[str, Any]] = []
+    for task in adv_tasks:
+        reason = _refresh_host_compiled_action_reward_after_text_fill(
+            task,
+            benign_by_id=benign_by_id,
+        )
+        if reason is None:
+            refreshed.append(task)
+            continue
+        diagnostics.append(
+            {
+                "task_id": task.get("id"),
+                "site": task.get("site"),
+                "status": "host_compile_failed_after_text_fill",
+                "stage": "post_text_fill_reward_compile",
+                "reason": reason,
+            }
+        )
+    return refreshed, diagnostics
 
 
 def _first_nonempty_string(*values: Any) -> str | None:
