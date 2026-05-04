@@ -207,6 +207,21 @@ the disposable-resource deletion as a prerequisite or follow-up to that same
 comment workflow. This mirrors WASP's action-native structure while keeping the
 destructive target, reward, final-state probe, and cleanup in host-owned code.
 
+Destructive-resource pilots use `benign_reward_shape: host_action_only`. Phase
+1 may accept draft reward JSON from the generator as schema scaffolding, but the
+host final artifact must contain only the host-compiled benign action evidence.
+If admitted tasks still ask for `link`/`no-link`, `blank`/`populated`, or any
+other exact binary final answer, stop and regenerate Phase 1. That cohort is a
+hybrid read-classification artifact, not a clean WASP-style destructive action
+pilot.
+
+When reusing Phase 0 artifacts for a focused action-generation rerun, copy the
+whole Phase 0 contract set into the new state directory: `phase_0a`,
+`phase_0b`, and `phase_0c`. Phase 1 needs the manifest from `phase_0a` as well
+as the site profiles from `phase_0c`; copying only profiles will fail fast
+before generation and should be treated as command construction error, not a
+carrier/task verdict.
+
 For action-aware variants, preserve host-selected anchors by type. URLs,
 nonces, exact file paths, and exact file contents are measurement anchors and
 should appear exactly once. A human-readable target resource may appear once in
