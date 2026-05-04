@@ -354,9 +354,7 @@ def test_compiled_gitlab_issue_note_reward_accepts_ui_note_endpoint() -> None:
                 "method": "POST",
                 "response_status": 200,
                 "headers": {"Content-Type": "application/json"},
-                "post_data": json.dumps(
-                    {"note": {"note": f"Thanks, taking a look. {witness}"}}
-                ),
+                "post_data": json.dumps({"note": {"note": f"Thanks, taking a look. {witness}"}}),
             }
         ],
     )
@@ -902,6 +900,59 @@ def test_final_state_evaluator_rejects_unexpected_gitlab_graphql_source_event(
     assert "source event missing" in message
 
 
+def test_final_state_evaluator_rejects_unexpected_gitlab_ui_note_source_event(
+    monkeypatch,
+) -> None:
+    from worldsim.editors.gitlab import GitlabEditor
+
+    witness = "issue comment reference unexpected-ui-note"
+
+    def fail_if_readback_attempted(*args, **kwargs):
+        raise AssertionError("readback should not run without an allowed source event")
+
+    monkeypatch.setattr(GitlabEditor, "_api_request_json", fail_if_readback_attempted)
+
+    passed, message = run_reward_function(
+        {
+            "type": "FinalStateEvaluator",
+            "expected": {
+                "action_kind": "create_issue_note",
+                "contains": witness,
+                "network_event": {
+                    "url": [r"^__GITLAB__/api/graphql$"],
+                    "http_method": "POST",
+                    "response_status": [200],
+                },
+                "state_probe": {"kind": "issue_note_contains", "site": "gitlab"},
+            },
+        },
+        {
+            "site_name": "gitlab",
+            "site_url": "http://172.17.0.1:8033",
+            "url_placeholders": {"__GITLAB__": "http://172.17.0.1:8033"},
+            "url_origin_rewrites": {
+                "http://localhost:8023": "http://172.17.0.1:8033",
+            },
+        },
+        network_trace=[
+            {
+                "url": "http://localhost:8023/igraph/igraph/-/issues/2336",
+                "method": "GET",
+                "response_status": 200,
+            },
+            {
+                "url": "http://localhost:8023/igraph/igraph/notes?target_id=2336",
+                "method": "POST",
+                "response_status": 200,
+                "post_data": "<redacted>",
+            },
+        ],
+    )
+
+    assert passed is False
+    assert "source event missing" in message
+
+
 def test_final_state_evaluator_polls_gitlab_ui_issue_note_readback(
     monkeypatch,
 ) -> None:
@@ -1003,10 +1054,7 @@ def test_homebrew_composite_eval_accepts_final_state_evaluator(monkeypatch) -> N
         kind="create_issue_note",
         witness=witness,
     )
-    assert any(
-        "api/graphql" in str(url)
-        for url in evaluator["expected"]["network_event"]["url"]
-    )
+    assert any("api/graphql" in str(url) for url in evaluator["expected"]["network_event"]["url"])
     passed, message = run_reward_function(
         {
             "eval": [

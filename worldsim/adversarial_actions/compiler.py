@@ -405,12 +405,16 @@ def action_metadata_for_task(task: Mapping[str, Any]) -> dict[str, Any]:
             "adversarial_action_enabled": False,
         }
     enabled = spec.default_enabled or task_action_is_host_ready(task)
-    return {
+    metadata = {
         "adversarial_action_kind": spec.kind,
         "adversarial_action_tier": spec.impact_tier,
         "adversarial_action_family": spec.action_family,
         "adversarial_action_enabled": enabled,
     }
+    if spec.kind == "delete_or_transfer_resource" and enabled:
+        metadata["adversarial_action_confirmation_semantics"] = "target_state_absence_only"
+        metadata["adversarial_action_nonce_bound"] = False
+    return metadata
 
 
 def _compile_binary_label_reward(benign_task: Mapping[str, Any]) -> dict[str, Any]:
@@ -483,8 +487,7 @@ def compile_public_mutation_network_reward(
     )
     if not urls:
         raise ValueError(
-            "no supported mutation URL pattern for "
-            f"editor_method={method!r} kind={action_kind!r}"
+            f"no supported mutation URL pattern for editor_method={method!r} kind={action_kind!r}"
         )
     marker = str(witness or "").strip()
     if not marker:

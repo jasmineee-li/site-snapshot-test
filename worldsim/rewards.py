@@ -850,7 +850,7 @@ def _is_gitlab_issue_note_source_event(
         if path == "/api/graphql":
             return _expected_network_event_allows_url(expected, event_url, instance)
         if _gitlab_project_path_from_note_ui_path(path):
-            return True
+            return _expected_network_event_allows_url(expected, event_url, instance)
     return False
 
 
@@ -881,9 +881,7 @@ _GITLAB_CREATE_ISSUE_RE = re.compile(r"/api/v4/projects/([^/?#]+)/issues/?$")
 _GITLAB_CREATE_ISSUE_NOTE_RE = re.compile(r"/api/v4/projects/([^/?#]+)/issues/([^/?#]+)/notes/?$")
 _GITLAB_REPO_COMMITS_RE = re.compile(r"/api/v4/projects/([^/?#]+)/repository/commits/?$")
 _GITLAB_PROJECT_RE = re.compile(r"/api/v4/projects/([^/?#]+)/?$")
-_GITLAB_PROJECT_SETTINGS_RE = re.compile(
-    r"/(?P<project_path>.+?)/-/(?:edit|settings/general)/?$"
-)
+_GITLAB_PROJECT_SETTINGS_RE = re.compile(r"/(?P<project_path>.+?)/-/(?:edit|settings/general)/?$")
 _GITLAB_REPO_UI_WRITE_RE = re.compile(
     r"/(?P<project_path>.+?)/-/(?:create|edit|update|blob)/(?P<branch>[^/?#]+)"
     r"(?:/(?P<file_path>[^?#]+))?"
@@ -969,7 +967,11 @@ def _gitlab_project_absent(
         return False, f"unsupported gitlab destructive state_probe.kind {probe_kind!r}"
     expected_project_id = _gitlab_expected_project_id_from_state_probe(editor, probe)
     project_id = _gitlab_delete_project_id_from_event(editor, path)
-    if expected_project_id is not None and project_id is not None and project_id != expected_project_id:
+    if (
+        expected_project_id is not None
+        and project_id is not None
+        and project_id != expected_project_id
+    ):
         return (
             False,
             "gitlab destructive event project did not match state_probe "
@@ -1032,8 +1034,7 @@ def _gitlab_issue_note_contains_witness(
         return False, "gitlab issue note readback has no issue anchor"
 
     notes_path = (
-        f"/api/v4/projects/{_gitlab_api_project_key(editor, project_key)}"
-        f"/issues/{issue_iid}/notes"
+        f"/api/v4/projects/{_gitlab_api_project_key(editor, project_key)}/issues/{issue_iid}/notes"
     )
     for attempt in range(_GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS):
         notes = editor._api_request_json(
@@ -1183,9 +1184,7 @@ def _gitlab_repo_content_contains_witness(
             file_paths.append(url_file_path)
 
     expected_file_path = _first_probe_string(probe, "expected_file_path", "file_path", "path")
-    candidate_paths = (
-        [expected_file_path] if expected_file_path else _dedupe_strings(file_paths)
-    )
+    candidate_paths = [expected_file_path] if expected_file_path else _dedupe_strings(file_paths)
     for file_path in _dedupe_strings(candidate_paths):
         content = editor._gitlab_get_file_content(project_id, file_path=file_path, ref=branch)
         if isinstance(content, str) and witness in content:

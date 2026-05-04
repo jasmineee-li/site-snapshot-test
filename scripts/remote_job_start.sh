@@ -219,6 +219,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -287,7 +288,15 @@ def is_smoke_instances(value):
 
 def command_runs_resume():
     joined = " ".join(argv)
-    return "worldsim.main" in joined and "resume" in argv
+    return "worldsim.main" in joined and re.search(r"(^|\s)resume(\s|$)", joined) is not None
+
+def command_sets_inline_worldsim_state_dir():
+    joined = " ".join(argv)
+    return "WORLDSIM_STATE_DIR" in joined
+
+def command_runs_phase4():
+    joined = " ".join(argv)
+    return re.search(r"\bworldsim\.main\s+phase\s+4(?:\s|$)", joined) is not None
 
 def saved_pipeline_state_path():
     if state_dir_mode == "set":
@@ -327,6 +336,21 @@ if (
                 "Pass --instances instances.scale.json for Phase 4 resume or "
                 "--feasibility-instances instances.scale.json for Phase 2c resume."
             )
+
+if command_runs_phase4() and state_dir_mode != "set" and not expected_outputs:
+    if command_sets_inline_worldsim_state_dir():
+        raise SystemExit(
+            "remote job phase4 observability guard blocked this command: "
+            "WORLDSIM_STATE_DIR is set inside the shell command, but metadata cannot "
+            "reliably discover that path. Pass --state-dir <path> or register "
+            "--expected-output <run>/phase_4/results.json so remote_job_status.sh "
+            "can report fresh progress/results."
+        )
+    raise SystemExit(
+        "remote job phase4 observability guard blocked this command: Phase 4 jobs "
+        "must pass --state-dir <path> or --expected-output <run>/phase_4/results.json "
+        "so remote_job_status.sh can report fresh progress/results."
+    )
 
 metadata = {
     "job_id": job_id,

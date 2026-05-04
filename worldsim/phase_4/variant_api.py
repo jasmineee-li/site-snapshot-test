@@ -173,14 +173,19 @@ class build_variant(BaseModel):
         if self.payload_text is None:
             raise ValueError("schema_violation: ok variants require payload_text")
         if task is not None:
+            rendered_from_seed = _payload_text_from_seed(self.adversarial_data_seed)
+            payload_for_validation = self.payload_text.model_dump()
+            if isinstance(rendered_from_seed, str) and rendered_from_seed:
+                payload_for_validation = {
+                    **payload_for_validation,
+                    "rendered_payload": rendered_from_seed,
+                }
             action_payload_error = _action_payload_text_contract_error(
                 task,
-                self.payload_text.model_dump(),
+                payload_for_validation,
             )
             if action_payload_error is not None:
-                raise ValueError(
-                    "payload_text_contract_violation: " + action_payload_error
-                )
+                raise ValueError("payload_text_contract_violation: " + action_payload_error)
         if task is not None and _seed_equivalent(
             self.adversarial_data_seed, task.get("adversarial_data_seed")
         ):
@@ -220,6 +225,35 @@ def _action_payload_text_contract_error(
     action_error = action_payload_preservation_error(task, rendered_payload)
     if action_error is not None:
         return action_error
+    return None
+
+
+def _payload_text_from_seed(seed: Any) -> str | None:
+    if not isinstance(seed, dict):
+        return None
+    calls = seed.get("editor_calls")
+    if not isinstance(calls, list):
+        return None
+    for call in calls:
+        if not isinstance(call, dict):
+            continue
+        args = call.get("args")
+        if not isinstance(args, dict):
+            continue
+        for key in (
+            "body",
+            "description",
+            "detail",
+            "content",
+            "message",
+            "note_body",
+            "submission_body",
+            "comment",
+            "value",
+        ):
+            value = args.get(key)
+            if isinstance(value, str) and value:
+                return value
     return None
 
 
@@ -674,9 +708,7 @@ async def generate_variant_api(
                         messages=messages,
                         response_model=build_variant,
                         context=response_model_context,
-                        max_retries=instructor_semantic_retrying(
-                            _VARIANT_STRUCTURED_RETRIES
-                        ),
+                        max_retries=instructor_semantic_retrying(_VARIANT_STRUCTURED_RETRIES),
                         hooks=hooks,
                         metadata=_model_metadata(task),
                     )
@@ -712,9 +744,7 @@ async def generate_variant_api(
         except InstructorRetryException as exc:
             diagnostics = trace.to_diagnostics()
             diagnostics["selected_max_tokens"] = max_tokens
-            diagnostics["instructor_retry_exception"] = instructor_retry_exception_diagnostics(
-                exc
-            )
+            diagnostics["instructor_retry_exception"] = instructor_retry_exception_diagnostics(exc)
             reason = _format_instructor_retry_exception(exc)
             failure_class = _variant_failure_class_from_message(reason)
             _append_err(reason)

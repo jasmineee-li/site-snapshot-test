@@ -301,6 +301,7 @@ def recent_health_warnings(lines: list[str]) -> list[str]:
         ("storage_state_host_mismatch", re.compile(r"storage[-_ ]state.*host.*mismatch|host-bound storage", re.I)),
         ("validation_retry", re.compile(r"failed validation, retrying|repair prompt|self[-_ ]verification failed", re.I)),
         ("phase0_unreachable", re.compile(r"instance is confirmed unreachable|instance was unreachable|unreachable", re.I)),
+        ("phase4_variant_quality", re.compile(r"Quality flags:\s*(?!none\b).*|generated_contract_qa_failed|terminal_failures=(?!none\b)", re.I)),
     ]
     warnings: list[str] = []
     seen: set[str] = set()

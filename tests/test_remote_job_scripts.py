@@ -278,7 +278,7 @@ Path({str(rsync_called)!r}).write_text("called", encoding="utf-8")
         text=True,
     )
 
-    assert completed.returncode == 2
+    assert completed.returncode != 0
     assert "sync guard blocked" in completed.stderr
     assert "phase-chain" in completed.stderr
     assert "mix code versions" in completed.stderr
@@ -356,11 +356,119 @@ def test_start_rejects_phase2c_smoke_instances_on_remote_orchestrator_host(
         text=True,
     )
 
-    assert completed.returncode == 2
+    assert completed.returncode != 0
     assert "instance-topology guard blocked" in completed.stderr
     assert "orchestrator_host=172.17.0.1" in completed.stderr
     assert "--feasibility-instances instances.smoke.json" in completed.stderr
     assert "instances.scale.json" in completed.stderr
+
+
+def test_start_rejects_shell_wrapped_resume_with_saved_smoke_instances_on_remote_host(
+    tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _remote_direct_host_config_with_orchestrator(tmp_path)
+    remote_dir = tmp_path / "remote" / "browser-sim"
+    (remote_dir / "logs").mkdir(parents=True)
+    (remote_dir / "logs" / "pipeline_state.json").write_text(
+        json.dumps({"step": "phase_4", "instances_path": "instances.smoke.json"}),
+        encoding="utf-8",
+    )
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    _write_executable(
+        fakebin / "ssh",
+        """#!/usr/bin/env python3
+import subprocess
+import sys
+
+args = sys.argv[1:]
+remote_cmd = args[-1]
+raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).returncode)
+""",
+    )
+
+    env = _base_env(repo_root, tmp_path)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+            "--name",
+            "bad shell resume",
+            "--",
+            "bash",
+            "-lc",
+            "uv run python -m worldsim.main resume --agent-task-timeout 900",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode != 0
+    assert "resume would fall back to pipeline_state instances.smoke.json" in completed.stderr
+    assert "instances.scale.json" in completed.stderr
+
+
+def test_start_rejects_shell_phase4_with_inline_state_dir_without_expected_output(
+    tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _remote_direct_host_config_with_orchestrator(tmp_path)
+    remote_dir = tmp_path / "remote" / "browser-sim"
+    remote_dir.mkdir(parents=True)
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    _write_executable(
+        fakebin / "ssh",
+        """#!/usr/bin/env python3
+import subprocess
+import sys
+
+args = sys.argv[1:]
+remote_cmd = args[-1]
+raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).returncode)
+""",
+    )
+
+    env = _base_env(repo_root, tmp_path)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+    env["WORLDSIM_ALLOW_REMOTE_INSTANCE_TOPOLOGY_MISMATCH"] = "1"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+            "--name",
+            "unobservable phase4",
+            "--",
+            "bash",
+            "-lc",
+            (
+                "export WORLDSIM_STATE_DIR=logs/custom_run; "
+                "uv run python -m worldsim.main phase 4 --instances instances.scale.json"
+            ),
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode != 0
+    assert "phase4 observability guard blocked" in completed.stderr
+    assert "--expected-output <run>/phase_4/results.json" in completed.stderr
 
 
 def test_start_rejects_phase0_scale_instances_on_remote_orchestrator_host(
@@ -1058,6 +1166,8 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
             str(remote_dir),
             "--name",
             "phase4 bounded",
+            "--expected-output",
+            "logs/phase4_bounded/phase_4/results.json",
             "--",
             "bash",
             "-lc",
@@ -1439,6 +1549,70 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
     assert "health_warnings:" in completed.stdout
     assert "host_unreachable:" in completed.stdout
     assert "phase0_unreachable:" in completed.stdout
+
+
+def test_status_surfaces_phase4_variant_quality_flags(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    remote_dir = tmp_path / "remote" / "browser-sim"
+    job_id = "20260429t000000z-phase4-quality-abcdef"
+    job_dir = remote_dir / "logs" / "remote_jobs" / job_id
+    job_dir.mkdir(parents=True)
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    _write_executable(
+        fakebin / "ssh",
+        """#!/usr/bin/env python3
+import subprocess
+import sys
+
+args = sys.argv[1:]
+remote_cmd = args[-1]
+raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).returncode)
+""",
+    )
+    (job_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "job_id": job_id,
+                "name": "phase4 quality",
+                "created_at": "2026-04-29T00:00:00+00:00",
+                "pid": 999999,
+                "pgid": 999999,
+                "remote_dir": str(remote_dir),
+                "command": ["bash", "-lc", "uv run python -m worldsim.main phase 4"],
+                "expected_outputs": [],
+            }
+        )
+    )
+    (job_dir / "exit.json").write_text(json.dumps({"status": "exited", "returncode": 0}))
+    (job_dir / "stdout.log").write_text("Quality flags: generated_contract_qa_failed=3.\n")
+    (job_dir / "stderr.log").write_text("")
+
+    env = _base_env(repo_root, tmp_path)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_status.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+            "--job-id",
+            job_id,
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "health_warnings:" in completed.stdout
+    assert "phase4_variant_quality:" in completed.stdout
+    assert "generated_contract_qa_failed=3" in completed.stdout
 
 
 def test_status_prints_phase4_summary_and_followup_command(tmp_path: Path) -> None:

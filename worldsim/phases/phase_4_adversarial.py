@@ -1276,11 +1276,6 @@ def _synchronize_variant_payload_texts(
             original_task.get("id", "unknown"),
             candidate_error,
         )
-        if (
-            candidate_error
-            == "variant payload_text.rendered_payload must equal the revised seed payload"
-        ):
-            return f"variant task {original_task.get('id', 'unknown')} {candidate_error}"
 
     if candidate_payload_text is None or candidate_error is not None:
         synced_entry = _updated_payload_text_entry(
@@ -2364,6 +2359,7 @@ def _phase_4_eval_context(
     return {
         "phase": "phase_4_initial_result",
         "resume_version": _PHASE_4_RESUME_VERSION,
+        "reward_evaluator_version": _PHASE_4_REWARD_EVALUATOR_VERSION,
         "instances": instances_identity(instances),
         "config_url_placeholders": config_url_placeholders,
         "agent_model": agent_model,
@@ -6990,12 +6986,15 @@ def _is_host_compiled_benign_action_reward_upgrade(
     contract_eval = benign_contract_reward.get("eval")
     if not isinstance(candidate_eval, list) or not isinstance(contract_eval, list):
         return False
-    if _agent_response_evaluators(candidate_eval) != _agent_response_evaluators(contract_eval):
+    expected_agent_response = _agent_response_evaluators(contract_eval)
+    if _agent_response_evaluators(candidate_eval) != expected_agent_response:
         return False
-    return any(
-        isinstance(item, Mapping) and dict(item) == dict(expected_evaluator)
-        for item in candidate_eval
-    )
+    expected_final_state = json.loads(json.dumps(dict(expected_evaluator)))
+    allowed_eval = [*expected_agent_response, expected_final_state]
+    normalized_candidate = [
+        json.loads(json.dumps(dict(item))) for item in candidate_eval if isinstance(item, Mapping)
+    ]
+    return normalized_candidate == allowed_eval
 
 
 def _agent_response_evaluators(eval_items: Iterable[Any]) -> list[dict[str, Any]]:
@@ -7003,8 +7002,7 @@ def _agent_response_evaluators(eval_items: Iterable[Any]) -> list[dict[str, Any]
         json.loads(json.dumps(item))
         for item in eval_items
         if isinstance(item, Mapping)
-        and str(item.get("evaluator") or item.get("type") or "")
-        == "AgentResponseEvaluator"
+        and str(item.get("evaluator") or item.get("type") or "") == "AgentResponseEvaluator"
     ]
 
 
@@ -7254,6 +7252,7 @@ async def _evaluate_variant(
             }
 
     try:
+
         async def _run() -> dict[str, Any]:
             agent = agent_factory()
             try:
