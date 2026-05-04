@@ -274,12 +274,59 @@ def read_json(path):
     except Exception:
         return None
 
+def option_value(option):
+    for index, value in enumerate(argv):
+        if value == option and index + 1 < len(argv):
+            return argv[index + 1]
+        if value.startswith(option + "="):
+            return value.split("=", 1)[1]
+    return None
+
+def is_smoke_instances(value):
+    return isinstance(value, str) and Path(value).name == "instances.smoke.json"
+
+def command_runs_resume():
+    joined = " ".join(argv)
+    return "worldsim.main" in joined and "resume" in argv
+
+def saved_pipeline_state_path():
+    if state_dir_mode == "set":
+        value = state_dir if state_dir is not None else state_dir_value
+        root = Path(value)
+        if not root.is_absolute():
+            root = remote_dir / root
+    else:
+        root = remote_dir / "logs"
+    return root / "pipeline_state.json"
+
 state_dir = None
 if state_dir_mode == "set":
     if state_dir_value == "auto":
         state_dir = f"logs/remote_jobs/{job_id}/state"
     else:
         state_dir = state_dir_value
+
+if (
+    advertise_host
+    and orchestrator_host
+    and advertise_host != orchestrator_host
+    and command_runs_resume()
+    and option_value("--instances") is None
+):
+    state = read_json(saved_pipeline_state_path())
+    if isinstance(state, dict):
+        saved_instances = state.get("instances_path")
+        last_step = str(state.get("last_step") or state.get("step") or "")
+        if is_smoke_instances(saved_instances) and (
+            "phase_4" in last_step or "phase_2c" in last_step or "feasibility" in last_step
+        ):
+            raise SystemExit(
+                "remote job instance-topology guard blocked this command: "
+                "resume would fall back to pipeline_state instances.smoke.json "
+                "on a host whose runtime traffic must use orchestrator_host. "
+                "Pass --instances instances.scale.json for Phase 4 resume or "
+                "--feasibility-instances instances.scale.json for Phase 2c resume."
+            )
 
 metadata = {
     "job_id": job_id,

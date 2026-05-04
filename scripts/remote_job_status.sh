@@ -70,6 +70,12 @@ if not metadata_path.exists():
     raise SystemExit(f"metadata not found: {metadata_path}")
 
 metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+try:
+    job_created_ts = datetime.fromisoformat(
+        str(metadata.get("created_at", "")).replace("Z", "+00:00")
+    ).timestamp()
+except Exception:
+    job_created_ts = None
 pid = int(metadata.get("pid") or (job_dir / "pid").read_text().strip())
 start_ticks = str(metadata.get("process_start_ticks") or "").strip()
 proc = Path("/proc") / str(pid)
@@ -135,6 +141,9 @@ def rel(path: Path) -> str:
 
 def mtime_iso(path: Path) -> str:
     return datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).isoformat()
+
+def predates_job(path: Path) -> bool:
+    return job_created_ts is not None and path.stat().st_mtime < job_created_ts
 
 def count_map_text(counter: Counter[str]) -> str:
     if not counter:
@@ -376,7 +385,8 @@ if expected:
         path = Path(rel_path)
         path = path if path.is_absolute() else remote_dir / path
         if path.exists():
-            print(f"  present {rel_path} size={path.stat().st_size} mtime={mtime_iso(path)}")
+            freshness = "stale" if predates_job(path) else "present"
+            print(f"  {freshness} {rel_path} size={path.stat().st_size} mtime={mtime_iso(path)}")
         else:
             print(f"  missing {rel_path}")
 
@@ -400,6 +410,9 @@ for candidate in phase4_progress_candidates():
     break
 
 for candidate in phase4_results_candidates():
+    if candidate.exists() and predates_job(candidate):
+        print(f"phase4_results: stale {rel(candidate)} mtime={mtime_iso(candidate)}")
+        continue
     summary = summarize_phase4_results(candidate)
     if summary is None:
         continue

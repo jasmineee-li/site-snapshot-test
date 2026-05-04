@@ -470,6 +470,8 @@ def parse_status_output(stdout: str) -> dict[str, Any]:
         elif line.startswith("returncode:"):
             value = line.split(":", 1)[1].strip()
             parsed["returncode"] = int(value) if value.lstrip("-").isdigit() else value
+        elif line.startswith("phase4_results: stale"):
+            parsed["phase4_results_stale"] = line.strip()
         elif line.startswith("phase4_results:"):
             parsed["phase4_results"] = line.strip()
             parsed.update(parse_phase4_results_line(line.strip()))
