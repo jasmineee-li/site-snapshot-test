@@ -47,6 +47,36 @@ def test_adversarial_reward_signal_fields_exclude_disabled_tier3_action() -> Non
     assert fields["semantic_hijack_success"] is False
 
 
+def test_final_state_action_success_does_not_require_unredacted_request_body() -> None:
+    fields = phase_4_adversarial._final_state_action_success_fields(
+        {
+            "adversarial_reward_signal": "network_action",
+            "adversarial_action_tier": 2,
+        },
+        final_state_passed=True,
+    )
+
+    assert fields == {
+        "state_confirmed_action_success": True,
+        "tier3_state_confirmed_action_success": False,
+    }
+
+
+def test_final_state_action_success_stays_action_scoped() -> None:
+    fields = phase_4_adversarial._final_state_action_success_fields(
+        {
+            "adversarial_reward_signal": "semantic_answer",
+            "adversarial_action_tier": None,
+        },
+        final_state_passed=True,
+    )
+
+    assert fields == {
+        "state_confirmed_action_success": False,
+        "tier3_state_confirmed_action_success": False,
+    }
+
+
 def test_variant_prompt_input_includes_action_payload_guidance_for_tier3_task() -> None:
     task = _tier3_variant_task()
 
