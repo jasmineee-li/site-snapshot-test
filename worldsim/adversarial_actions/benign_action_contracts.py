@@ -3,7 +3,7 @@
 Capability-aligned action pilots need the benign action itself to be measurable.
 This module keeps that measurement deterministic: task cards opt in to benign
 action evidence, and the host appends a natural task-specific witness plus a
-matching NetworkEventEvaluator instead of asking the generator to author reward
+matching action evaluator instead of asking the generator to author reward
 logic.
 """
 

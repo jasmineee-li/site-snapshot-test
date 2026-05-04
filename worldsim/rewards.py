@@ -880,6 +880,17 @@ def _eval_final_state(
     if (
         not events
         and site == "gitlab"
+        and action_kind == "create_issue"
+        and _state_probe_kind(state_probe) in {"", "issue_contains"}
+    ):
+        events, message = _matching_gitlab_issue_source_events(
+            dict(network_expected),
+            network_trace,
+            instance,
+        )
+    if (
+        not events
+        and site == "gitlab"
         and action_kind == "create_issue_note"
         and _state_probe_kind(state_probe) in {"", "issue_note_contains"}
     ):
@@ -985,6 +996,53 @@ def _matching_gitlab_issue_note_source_events(
     return matched, f"found {len(matched)} gitlab issue-note source event(s)"
 
 
+def _matching_gitlab_issue_source_events(
+    expected: dict[str, Any],
+    network_trace: list[dict[str, Any]],
+    instance: dict[str, Any],
+) -> tuple[list[dict[str, Any]], str]:
+    """Match GitLab public issue-creation source actions across UI transports.
+
+    GitLab's browser UI commonly creates issues through GraphQL, and Browser
+    Use may redact that request body. The source event proves same-site write
+    intent; the final-state probe proves the exact unique witness text.
+    """
+
+    expected_methods = _expected_http_methods(expected.get("http_method", "POST"))
+    if "POST" not in expected_methods:
+        return [], "gitlab issue source requires POST"
+
+    matched: list[dict[str, Any]] = []
+    for event in network_trace:
+        if _network_event_method(event) != "POST":
+            continue
+        if not _is_gitlab_issue_source_event(event, expected, instance):
+            continue
+        status = _network_event_status(event)
+        if "response_status" in expected and not _status_matches(
+            status, expected.get("response_status")
+        ):
+            continue
+        matched.append(event)
+    if not matched:
+        return [], "no gitlab issue UI or GraphQL source event found"
+    return matched, f"found {len(matched)} gitlab issue source event(s)"
+
+
+def _is_gitlab_issue_source_event(
+    event: dict[str, Any],
+    expected: dict[str, Any],
+    instance: dict[str, Any],
+) -> bool:
+    for event_url in _network_event_url_candidates(event, instance):
+        path = urlparse(event_url).path.rstrip("/")
+        if path == "/api/graphql":
+            return _expected_network_event_allows_url(expected, event_url, instance)
+        if _gitlab_project_path_from_issue_create_ui_path(path):
+            return _expected_network_event_allows_url(expected, event_url, instance)
+    return False
+
+
 def _is_gitlab_issue_note_source_event(
     event: dict[str, Any],
     expected: dict[str, Any],
@@ -1049,19 +1107,18 @@ def _eval_gitlab_final_state(
         editor = GitlabEditor(instance, session)
         last_reason: str | None = None
         for event in reversed(events):
-            path = urlparse(_network_event_url(event)).path
             if action_kind == "create_issue":
-                match = _GITLAB_CREATE_ISSUE_RE.search(path)
-                if not match:
-                    continue
-                project_id = match.group(1)
-                issues = editor._api_request_json(
-                    "GET",
-                    f"/api/v4/projects/{project_id}/issues",
-                    params={"state": "all", "per_page": 100},
+                ok, reason = _gitlab_issue_contains_witness(
+                    editor,
+                    event,
+                    witness,
+                    network_trace,
+                    instance,
+                    state_probe,
                 )
-                if _records_contain_witness(issues, witness, fields=("title", "description")):
-                    return True, "gitlab issue final state contains expected witness"
+                if ok:
+                    return True, reason
+                last_reason = reason
             if action_kind == "create_issue_note":
                 ok, reason = _gitlab_issue_note_contains_witness(
                     editor,
@@ -1094,8 +1151,8 @@ def _eval_gitlab_final_state(
                 if ok:
                     return True, reason
                 last_reason = reason
-        if last_reason:
-            return False, last_reason
+    if last_reason:
+        return False, last_reason
     return False, f"gitlab {action_kind} final state did not contain witness"
 
 
@@ -1194,6 +1251,58 @@ def _gitlab_issue_note_contains_witness(
     return False, "gitlab issue note final state did not contain witness"
 
 
+def _gitlab_issue_contains_witness(
+    editor: Any,
+    event: dict[str, Any],
+    witness: str,
+    network_trace: list[dict[str, Any]],
+    instance: Mapping[str, Any],
+    state_probe: Mapping[str, Any] | None,
+) -> tuple[bool, str]:
+    probe = state_probe if isinstance(state_probe, Mapping) else {}
+    probe_kind = _state_probe_kind(probe)
+    if probe_kind and probe_kind != "issue_contains":
+        return False, f"unsupported gitlab issue state_probe.kind {probe_kind!r}"
+
+    candidate_keys: list[str] = []
+    path = urlparse(_network_event_url(event)).path
+    api_match = _GITLAB_CREATE_ISSUE_RE.search(path)
+    if api_match:
+        candidate_keys.append(api_match.group(1))
+    readback_attempts = 1 if api_match else _GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS
+
+    probe_project_id = _first_probe_string(probe, "project_id")
+    probe_project_path = _first_probe_string(probe, "project_path")
+    if probe_project_id:
+        candidate_keys.append(probe_project_id)
+    if probe_project_path:
+        candidate_keys.append(probe_project_path)
+    candidate_keys.extend(_gitlab_project_paths_from_network_trace(network_trace, instance))
+
+    deduped = [key for key in dict.fromkeys(candidate_keys) if key]
+    if not deduped:
+        return False, "gitlab issue readback has no project anchor"
+
+    last_reason = "gitlab issue final state did not contain witness"
+    for project_key in deduped:
+        api_project_key = _gitlab_api_project_key(editor, project_key)
+        for attempt in range(readback_attempts):
+            issues = editor._api_request_json(
+                "GET",
+                f"/api/v4/projects/{api_project_key}/issues",
+                params={"state": "all", "per_page": 100},
+            )
+            if _records_contain_witness(issues, witness, fields=("title", "description")):
+                return True, "gitlab issue final state contains expected witness"
+            last_reason = (
+                "gitlab issue final state did not contain witness "
+                f"for project {project_key!r}"
+            )
+            if attempt < readback_attempts - 1:
+                time.sleep(_GITLAB_ISSUE_NOTE_READBACK_SLEEP_SECONDS)
+    return False, last_reason
+
+
 def _gitlab_issue_note_anchor_from_event(
     event: dict[str, Any],
 ) -> tuple[str | None, str | None]:
@@ -1216,6 +1325,14 @@ def _gitlab_project_path_from_note_ui_path(path: str) -> str | None:
     return project_path or None
 
 
+def _gitlab_project_path_from_issue_create_ui_path(path: str) -> str | None:
+    match = re.match(r"^/(?P<project_path>.+)/-/issues/?$", path)
+    if not match:
+        return None
+    project_path = unquote(str(match.group("project_path") or "")).strip("/")
+    return project_path or None
+
+
 def _gitlab_issue_anchor_from_network_trace(
     network_trace: list[dict[str, Any]],
 ) -> tuple[str, str] | None:
@@ -1229,6 +1346,26 @@ def _gitlab_issue_anchor_from_network_trace(
         if project_path and issue_iid:
             return project_path, issue_iid
     return None
+
+
+def _gitlab_project_paths_from_network_trace(
+    network_trace: list[dict[str, Any]],
+    instance: Mapping[str, Any] | None = None,
+) -> list[str]:
+    paths: list[str] = []
+    for event in reversed(network_trace):
+        for event_url in _network_event_url_candidates(event, dict(instance or {})):
+            path = urlparse(event_url).path
+            issue_match = re.search(r"/(?P<project_path>.+)/-/issues(?:/\d+)?/?$", path)
+            if issue_match:
+                project_path = unquote(str(issue_match.group("project_path") or "")).strip("/")
+                if project_path and project_path not in paths:
+                    paths.append(project_path)
+                continue
+            create_path = _gitlab_project_path_from_issue_create_ui_path(path)
+            if create_path and create_path not in paths:
+                paths.append(create_path)
+    return paths
 
 
 def _gitlab_api_project_key(editor: Any, project_key: str) -> str:

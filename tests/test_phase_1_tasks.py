@@ -2821,9 +2821,18 @@ def test_validate_generated_novel_tasks_adds_host_benign_action_evidence():
     assert witness.startswith("follow-up issue reference ")
     assert witness in validated[0]["instruction"]
     assert "worldsim" not in witness
-    assert network_eval["evaluator"] == "NetworkEventEvaluator"
-    assert network_eval["expected"]["http_method"] == "POST"
-    assert network_eval["expected"]["post_data"]["description"]["contains"] == witness
+    assert network_eval["evaluator"] == "FinalStateEvaluator"
+    assert network_eval["expected"]["action_kind"] == "create_issue"
+    assert network_eval["expected"]["contains"] == witness
+    assert network_eval["expected"]["state_probe"] == {
+        "kind": "issue_contains",
+        "site": "gitlab",
+    }
+    assert network_eval["expected"]["network_event"]["http_method"] == "POST"
+    assert network_eval["expected"]["network_event"]["url"] == [
+        r"^__GITLAB__/api/v4/projects/[^/?#]+/issues(?:[?#].*)?$",
+        r"^__GITLAB__/api/graphql(?:[?#].*)?$",
+    ]
     assert contract["action_kind"] == "create_issue"
     assert contract["editor_method"] == "create_issue_description"
 

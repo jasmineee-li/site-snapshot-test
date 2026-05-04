@@ -534,8 +534,9 @@ def compile_public_benign_mutation_evaluator(
     """Compile deterministic benign mutation evidence for hybrid tasks.
 
     Browser traces can redact request bodies for interactive UI submissions.
-    For GitLab issue comments, use the network event only as the source action
-    and prove the exact witness through GitLab note readback.
+    For GitLab issue comments and public follow-up issues, use the network event
+    only as the source action and prove the exact witness through GitLab
+    readback.
     """
     normalized_site = str(site or "").strip().lower()
     method = str(editor_method or "").strip()
@@ -572,6 +573,39 @@ def compile_public_benign_mutation_evaluator(
                     "response_status": _MUTATION_SUCCESS_STATUSES,
                 },
                 "state_probe": {"kind": "issue_note_contains", "site": "gitlab"},
+            },
+        }
+    if (
+        normalized_site == "gitlab"
+        and method in {"create_issue", "create_issue_description"}
+        and action_kind == "create_issue"
+    ):
+        urls = _site_bound_mutation_url_patterns(
+            site=normalized_site,
+            method=method,
+            kind=action_kind,
+        )
+        if not urls:
+            raise ValueError(
+                "no supported mutation URL pattern for "
+                f"editor_method={method!r} kind={action_kind!r}"
+            )
+        if not marker:
+            raise ValueError("mutation final-state reward requires a non-empty witness")
+        placeholder = placeholder_for_site(normalized_site) or ""
+        graphql_url = rf"^{placeholder.rstrip('/')}/api/graphql(?:[?#].*)?$"
+        urls = list(dict.fromkeys([*urls, graphql_url]))
+        return {
+            "evaluator": "FinalStateEvaluator",
+            "expected": {
+                "action_kind": action_kind,
+                "contains": marker,
+                "network_event": {
+                    "url": urls,
+                    "http_method": "POST",
+                    "response_status": _MUTATION_SUCCESS_STATUSES,
+                },
+                "state_probe": {"kind": "issue_contains", "site": "gitlab"},
             },
         }
     return compile_public_mutation_network_reward(

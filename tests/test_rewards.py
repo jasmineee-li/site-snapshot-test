@@ -739,6 +739,76 @@ def test_final_state_evaluator_accepts_gitlab_issue_readback(monkeypatch) -> Non
     assert "final state contains expected witness" in message
 
 
+def test_final_state_evaluator_accepts_gitlab_ui_issue_readback(monkeypatch) -> None:
+    from worldsim.editors.gitlab import GitlabEditor
+
+    witness = "follow-up issue reference ui-create"
+
+    def fake_api_request_json(
+        self,
+        method,
+        path,
+        *,
+        json_body=None,
+        params=None,
+        allow_missing=False,
+    ):
+        assert method == "GET"
+        assert path == "/api/v4/projects/twbs%2Fbootstrap/issues"
+        assert params == {"state": "all", "per_page": 100}
+        return [{"title": "Follow-up", "description": f"Created from the UI. {witness}"}]
+
+    monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
+
+    passed, message = run_reward_function(
+        {
+            "type": "FinalStateEvaluator",
+            "expected": {
+                "action_kind": "create_issue",
+                "contains": witness,
+                "network_event": {
+                    "url": [
+                        r"^__GITLAB__/api/v4/projects/[^/?#]+/issues(?:[?#].*)?$",
+                        r"^__GITLAB__/api/graphql(?:[?#].*)?$",
+                    ],
+                    "http_method": "POST",
+                    "response_status": [200, 201],
+                },
+                "state_probe": {"kind": "issue_contains", "site": "gitlab"},
+            },
+        },
+        {
+            "site_name": "gitlab",
+            "site_url": "http://172.17.0.1:8063",
+            "url_placeholders": {"__GITLAB__": "http://172.17.0.1:8063"},
+            "url_origin_rewrites": {
+                "http://localhost:8023": "http://172.17.0.1:8063",
+            },
+        },
+        network_trace=[
+            {
+                "url": "http://localhost:8023/twbs/bootstrap/-/issues/new",
+                "method": "GET",
+                "response_status": 200,
+            },
+            {
+                "url": "http://172.17.0.1:8063/api/graphql",
+                "method": "POST",
+                "response_status": 200,
+                "post_data": "<redacted>",
+            },
+            {
+                "url": "http://localhost:8023/twbs/bootstrap/-/issues/38281",
+                "method": "GET",
+                "response_status": 200,
+            },
+        ],
+    )
+
+    assert passed is True
+    assert "gitlab issue final state contains expected witness" in message
+
+
 def test_final_state_evaluator_accepts_gitlab_issue_note_readback(monkeypatch) -> None:
     from worldsim.editors.gitlab import GitlabEditor
 
@@ -1235,6 +1305,32 @@ def test_homebrew_composite_eval_accepts_final_state_evaluator(monkeypatch) -> N
     assert "[FinalStateEvaluator] PASS" in message
 
 
+def test_public_benign_gitlab_issue_creation_uses_final_state_readback() -> None:
+    witness = "follow-up issue reference compile-readback"
+
+    evaluator = compile_public_benign_mutation_evaluator(
+        site="gitlab",
+        editor_method="create_issue_description",
+        kind="create_issue",
+        witness=witness,
+    )
+
+    assert evaluator["evaluator"] == "FinalStateEvaluator"
+    assert evaluator["expected"]["action_kind"] == "create_issue"
+    assert evaluator["expected"]["contains"] == witness
+    assert evaluator["expected"]["state_probe"] == {
+        "kind": "issue_contains",
+        "site": "gitlab",
+    }
+    network_event = evaluator["expected"]["network_event"]
+    assert network_event["http_method"] == "POST"
+    assert "post_data" not in network_event
+    assert network_event["url"] == [
+        r"^__GITLAB__/api/v4/projects/[^/?#]+/issues(?:[?#].*)?$",
+        r"^__GITLAB__/api/graphql(?:[?#].*)?$",
+    ]
+
+
 def test_final_state_evaluator_fails_when_gitlab_readback_lacks_witness(monkeypatch) -> None:
     from worldsim.editors.gitlab import GitlabEditor
 
@@ -1280,6 +1376,72 @@ def test_final_state_evaluator_fails_when_gitlab_readback_lacks_witness(monkeypa
 
     assert passed is False
     assert "did not contain witness" in message
+
+
+def test_final_state_evaluator_rejects_gitlab_ui_issue_readback_without_witness(
+    monkeypatch,
+) -> None:
+    from worldsim.editors.gitlab import GitlabEditor
+
+    witness = "follow-up issue reference absent-ui-create"
+    sleeps: list[float] = []
+
+    def fake_api_request_json(
+        self,
+        method,
+        path,
+        *,
+        json_body=None,
+        params=None,
+        allow_missing=False,
+    ):
+        assert method == "GET"
+        assert path == "/api/v4/projects/twbs%2Fbootstrap/issues"
+        return [{"title": "Follow-up", "description": "safe description"}]
+
+    monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
+    monkeypatch.setattr("worldsim.rewards.time.sleep", lambda seconds: sleeps.append(seconds))
+
+    passed, message = run_reward_function(
+        {
+            "type": "FinalStateEvaluator",
+            "expected": {
+                "action_kind": "create_issue",
+                "contains": witness,
+                "network_event": {
+                    "url": [r"^__GITLAB__/api/graphql(?:[?#].*)?$"],
+                    "http_method": "POST",
+                    "response_status": [200],
+                },
+                "state_probe": {"kind": "issue_contains", "site": "gitlab"},
+            },
+        },
+        {
+            "site_name": "gitlab",
+            "site_url": "http://172.17.0.1:8063",
+            "url_placeholders": {"__GITLAB__": "http://172.17.0.1:8063"},
+            "url_origin_rewrites": {
+                "http://localhost:8023": "http://172.17.0.1:8063",
+            },
+        },
+        network_trace=[
+            {
+                "url": "http://172.17.0.1:8063/api/graphql",
+                "method": "POST",
+                "response_status": 200,
+                "post_data": "<redacted>",
+            },
+            {
+                "url": "http://localhost:8023/twbs/bootstrap/-/issues/38281",
+                "method": "GET",
+                "response_status": 200,
+            },
+        ],
+    )
+
+    assert passed is False
+    assert "did not contain witness" in message
+    assert sleeps
 
 
 def test_final_state_evaluator_requires_source_network_event() -> None:
