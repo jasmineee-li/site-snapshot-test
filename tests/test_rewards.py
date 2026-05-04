@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from types import SimpleNamespace
 
+from worldsim.adversarial_actions.compiler import compile_public_mutation_network_reward
 from worldsim.rewards import run_reward_function
 
 
@@ -320,6 +321,70 @@ def test_gitlab_issue_note_reward_does_not_match_issue_create_post() -> None:
                 "method": "POST",
                 "response_status": 201,
                 "post_data": json.dumps({"description": witness}),
+            }
+        ],
+    )
+
+    assert failed is False
+    assert "no matching network event" in message
+
+
+def test_compiled_gitlab_issue_note_reward_accepts_ui_note_endpoint() -> None:
+    witness = "issue comment reference 123abc"
+    reward = compile_public_mutation_network_reward(
+        site="gitlab",
+        editor_method="create_issue_note",
+        kind="create_issue_note",
+        witness=witness,
+    )
+
+    passed, message = run_reward_function(
+        reward,
+        {
+            "site_name": "gitlab",
+            "site_url": "http://gitlab.test",
+            "url_placeholders": {"__GITLAB__": "http://gitlab.test"},
+        },
+        network_trace=[
+            {
+                "url": "http://gitlab.test/group/project/notes?target_id=123&target_type=Issue",
+                "method": "POST",
+                "response_status": 200,
+                "headers": {"Content-Type": "application/json"},
+                "post_data": json.dumps(
+                    {"note": {"note": f"Thanks, taking a look. {witness}"}}
+                ),
+            }
+        ],
+    )
+
+    assert passed is True
+    assert "matching event" in message
+
+
+def test_compiled_gitlab_issue_note_reward_rejects_preview_endpoint() -> None:
+    witness = "issue comment reference 123abc"
+    reward = compile_public_mutation_network_reward(
+        site="gitlab",
+        editor_method="create_issue_note",
+        kind="create_issue_note",
+        witness=witness,
+    )
+
+    failed, message = run_reward_function(
+        reward,
+        {
+            "site_name": "gitlab",
+            "site_url": "http://gitlab.test",
+            "url_placeholders": {"__GITLAB__": "http://gitlab.test"},
+        },
+        network_trace=[
+            {
+                "url": "http://gitlab.test/group/project/preview_markdown?target_id=123",
+                "method": "POST",
+                "response_status": 200,
+                "headers": {"Content-Type": "application/json"},
+                "post_data": json.dumps({"text": witness}),
             }
         ],
     )

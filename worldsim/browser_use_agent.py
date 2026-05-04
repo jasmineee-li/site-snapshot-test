@@ -1063,14 +1063,22 @@ class _ScopedHeaderAuthInjector:
             params["url"] = rewritten_url
         effective_url = rewritten_url or str(request_url or "")
         headers_for_origin = self.headers_by_origin.get(_origin_from_url(effective_url))
+        existing = request.get("headers") if isinstance(request, dict) else {}
+        existing_headers = (
+            {str(k): str(v) for k, v in existing.items()} if isinstance(existing, dict) else {}
+        )
+        headers, headers_changed = _headers_for_rewritten_request(
+            existing_headers,
+            original_url=str(request_url or ""),
+            rewritten_url=effective_url,
+        )
         if headers_for_origin:
-            existing = request.get("headers") if isinstance(request, dict) else {}
-            existing_headers = (
-                {str(k): str(v) for k, v in existing.items()} if isinstance(existing, dict) else {}
-            )
+            headers.update(headers_for_origin)
+            headers_changed = True
+        if headers_changed:
             params["headers"] = [
                 {"name": name, "value": value}
-                for name, value in {**existing_headers, **headers_for_origin}.items()
+                for name, value in headers.items()
             ]
         try:
             await self._browser_session.cdp_client.send.Fetch.continueRequest(
@@ -1151,6 +1159,40 @@ def _rewrite_url_origin(url: str, origin_rewrites: dict[str, str]) -> str:
             parsed.fragment,
         )
     )
+
+
+def _headers_for_rewritten_request(
+    headers: dict[str, str],
+    *,
+    original_url: str,
+    rewritten_url: str,
+) -> tuple[dict[str, str], bool]:
+    """Return request headers consistent with a CDP URL-origin rewrite."""
+
+    if not headers:
+        return {}, False
+    old_origin = _origin_from_url(original_url)
+    new_origin = _origin_from_url(rewritten_url)
+    if not old_origin or not new_origin or old_origin == new_origin:
+        return dict(headers), False
+
+    rewritten_headers = dict(headers)
+    changed = False
+    rewritten_parts = urlsplit(rewritten_url)
+    for name, value in list(rewritten_headers.items()):
+        lower = name.lower()
+        if lower == "origin" and _origin_from_url(value) == old_origin:
+            rewritten_headers[name] = new_origin
+            changed = True
+        elif lower in _URL_VALUE_HEADER_NAMES and _origin_from_url(value) == old_origin:
+            rewritten_value = _rewrite_url_origin(value, {old_origin: new_origin})
+            if rewritten_value != value:
+                rewritten_headers[name] = rewritten_value
+                changed = True
+        elif lower == "host" and rewritten_parts.netloc and value != rewritten_parts.netloc:
+            rewritten_headers[name] = rewritten_parts.netloc
+            changed = True
+    return rewritten_headers, changed
 
 
 def _auth_sensitive_header_names(auth_mechanism: dict[str, Any] | None) -> set[str]:
@@ -1252,6 +1294,124 @@ def _storage_state_context_value(path: Path, *, runtime_dir: Path | None = None)
         target = runtime_dir / "storage_state.json"
     write_json_atomic(target, storage_state)
     return str(target.resolve())
+
+
+def _augment_storage_state_origin_aliases(
+    path: str | Path,
+    url_origin_rewrites: dict[str, str] | None,
+) -> dict[str, Any]:
+    """Copy target-origin auth state to same-site aliases used by browser links.
+
+    GitLab replicas can emit absolute links for their baked-in canonical origin
+    (for example ``localhost:8023``) even when WorldSim binds a task to
+    ``172.17.0.1:<replica-port>``. CDP request rewriting keeps the network on
+    the bound replica, but Chromium chooses cookies/localStorage before that
+    rewrite. Mirroring the already validated storage state to alias origins
+    keeps browser state consistent without changing the task or reward.
+    """
+
+    rewrites = _normalize_origin_rewrites(url_origin_rewrites)
+    if not rewrites:
+        return {"aliases": [], "cookies_added": 0, "origins_added": 0}
+
+    payload, error = read_storage_state_payload(Path(path))
+    if error is not None:
+        raise AuthArtifactMissingError(error)
+    if not isinstance(payload, dict):
+        return {"aliases": [], "cookies_added": 0, "origins_added": 0}
+
+    cookies = payload.get("cookies")
+    if not isinstance(cookies, list):
+        cookies = []
+        payload["cookies"] = cookies
+    origins = payload.get("origins")
+    if not isinstance(origins, list):
+        origins = []
+        payload["origins"] = origins
+
+    cookie_keys = {
+        (
+            str(cookie.get("name") or ""),
+            str(cookie.get("domain") or ""),
+            str(cookie.get("path") or "/"),
+        )
+        for cookie in cookies
+        if isinstance(cookie, dict)
+    }
+    origin_values = {
+        str(origin.get("origin") or "")
+        for origin in origins
+        if isinstance(origin, dict) and origin.get("origin")
+    }
+
+    aliases: list[dict[str, str]] = []
+    cookies_added = 0
+    origins_added = 0
+
+    for alias_origin, target_origin in sorted(rewrites.items()):
+        alias = urlsplit(alias_origin)
+        target = urlsplit(target_origin)
+        if not alias.hostname or not target.hostname:
+            continue
+        aliases.append({"alias": alias_origin, "target": target_origin})
+
+        target_host = target.hostname
+        alias_host = alias.hostname
+        for cookie in list(cookies):
+            if not isinstance(cookie, dict):
+                continue
+            domain = str(cookie.get("domain") or "")
+            if not _storage_cookie_domain_matches_host(domain, target_host):
+                continue
+            cloned = dict(cookie)
+            cloned["domain"] = _rewrite_storage_cookie_domain(domain, alias_host)
+            key = (
+                str(cloned.get("name") or ""),
+                str(cloned.get("domain") or ""),
+                str(cloned.get("path") or "/"),
+            )
+            if key in cookie_keys:
+                continue
+            cookies.append(cloned)
+            cookie_keys.add(key)
+            cookies_added += 1
+
+        for origin in list(origins):
+            if not isinstance(origin, dict):
+                continue
+            if str(origin.get("origin") or "") != target_origin:
+                continue
+            if alias_origin in origin_values:
+                continue
+            cloned_origin = dict(origin)
+            cloned_origin["origin"] = alias_origin
+            origins.append(cloned_origin)
+            origin_values.add(alias_origin)
+            origins_added += 1
+
+    if cookies_added or origins_added:
+        write_json_atomic(Path(path), payload)
+    return {
+        "aliases": aliases,
+        "cookies_added": cookies_added,
+        "origins_added": origins_added,
+    }
+
+
+def _storage_cookie_domain_matches_host(domain: str, host: str) -> bool:
+    normalized_domain = domain.lstrip(".").lower()
+    normalized_host = host.lower()
+    return bool(
+        normalized_domain
+        and (
+            normalized_domain == normalized_host
+            or normalized_host.endswith(f".{normalized_domain}")
+        )
+    )
+
+
+def _rewrite_storage_cookie_domain(domain: str, alias_host: str) -> str:
+    return f".{alias_host}" if domain.startswith(".") else alias_host
 
 
 def _storage_state_cdp_cookie_params(path: str | Path) -> list[dict[str, Any]]:
@@ -2430,6 +2590,13 @@ class BrowserUseAgent:
             storage_state_runtime_dir=task_dir / "auth",
             instance_id=instance_id,
         )
+        if url_origin_rewrites and isinstance(session_auth_kwargs.get("storage_state"), str):
+            alias_summary = _augment_storage_state_origin_aliases(
+                session_auth_kwargs["storage_state"],
+                url_origin_rewrites,
+            )
+            if alias_summary.get("aliases"):
+                self._browser_runtime["storage_state_origin_aliases"] = alias_summary
         auth_sensitive_header_names = _auth_sensitive_header_names(auth_mechanism)
         if deferred_auth_actions and len(start_urls or []) > 1:
             raise AuthArtifactMissingError(

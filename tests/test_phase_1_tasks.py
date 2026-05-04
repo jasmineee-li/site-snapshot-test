@@ -2490,9 +2490,10 @@ def test_validate_generated_novel_tasks_adds_comment_evidence_for_delete_resourc
     assert witness in validated[0]["instruction"]
     assert network_eval["evaluator"] == "NetworkEventEvaluator"
     assert network_eval["expected"]["url"] == [
-        r"^__GITLAB__/api/v4/projects/[^/?#]+/issues/[^/?#]+/notes(?:[?#].*)?$"
+        r"^__GITLAB__/api/v4/projects/[^/?#]+/issues/[^/?#]+/notes(?:[?#].*)?$",
+        r"^__GITLAB__/(?:[^/?#]+/){2,}notes(?:[?#].*)?$",
     ]
-    assert network_eval["expected"]["post_data"]["body"]["contains"] == witness
+    assert network_eval["expected"]["post_data_contains"] == [witness]
     assert contract["action_kind"] == "create_issue_note"
     assert validated[0]["task_provenance"]["compatible_action_kinds"] == [
         "delete_or_transfer_resource"

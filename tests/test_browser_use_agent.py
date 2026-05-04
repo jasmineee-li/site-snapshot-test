@@ -378,6 +378,55 @@ def test_rewrite_url_origin_preserves_path_query_and_fragment():
     )
 
 
+def test_storage_state_origin_aliases_clone_target_auth_state(tmp_path):
+    storage_state = tmp_path / "storage_state.json"
+    storage_state.write_text(
+        json.dumps(
+            {
+                "cookies": [
+                    {
+                        "name": "_gitlab_session",
+                        "value": "session-1",
+                        "domain": "172.17.0.1",
+                        "path": "/",
+                        "httpOnly": True,
+                        "secure": False,
+                    }
+                ],
+                "origins": [
+                    {
+                        "origin": "http://172.17.0.1:8073",
+                        "localStorage": [{"name": "sidebar", "value": "collapsed"}],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    summary = browser_use_agent._augment_storage_state_origin_aliases(
+        storage_state,
+        {"http://localhost:8023": "http://172.17.0.1:8073"},
+    )
+    second_summary = browser_use_agent._augment_storage_state_origin_aliases(
+        storage_state,
+        {"http://localhost:8023": "http://172.17.0.1:8073"},
+    )
+
+    payload = json.loads(storage_state.read_text(encoding="utf-8"))
+    cookie_domains = sorted((cookie["name"], cookie["domain"]) for cookie in payload["cookies"])
+    origins = sorted(origin["origin"] for origin in payload["origins"])
+    assert summary["cookies_added"] == 1
+    assert summary["origins_added"] == 1
+    assert second_summary["cookies_added"] == 0
+    assert second_summary["origins_added"] == 0
+    assert cookie_domains == [
+        ("_gitlab_session", "172.17.0.1"),
+        ("_gitlab_session", "localhost"),
+    ]
+    assert origins == ["http://172.17.0.1:8073", "http://localhost:8023"]
+
+
 @pytest.mark.asyncio
 async def test_request_mutator_rewrites_alias_before_applying_bound_origin_headers():
     continue_request = AsyncMock()
@@ -414,6 +463,45 @@ async def test_request_mutator_rewrites_alias_before_applying_bound_origin_heade
         {"name": "X-GitLab-Auto-Login", "value": "alice:pw"},
     ]
     assert continue_request.await_args.kwargs == {"session_id": "session-1"}
+
+
+@pytest.mark.asyncio
+async def test_request_mutator_rewrites_origin_headers_for_alias_requests():
+    continue_request = AsyncMock()
+    browser_session = SimpleNamespace(
+        cdp_client=SimpleNamespace(
+            send=SimpleNamespace(Fetch=SimpleNamespace(continueRequest=continue_request))
+        )
+    )
+    injector = browser_use_agent._ScopedHeaderAuthInjector(
+        url_origin_rewrites={"http://localhost:8023": "http://172.17.0.1:8073"},
+    )
+    injector._browser_session = browser_session
+
+    await injector._continue_request(
+        {
+            "requestId": "xhr-1",
+            "request": {
+                "url": "http://localhost:8023/group/project/notes?target_id=1",
+                "headers": {
+                    "Accept": "application/json",
+                    "Host": "localhost:8023",
+                    "Origin": "http://localhost:8023",
+                    "Referer": "http://localhost:8023/group/project/-/issues/5",
+                },
+            },
+        },
+        "session-1",
+    )
+
+    continue_request.assert_awaited_once()
+    params = continue_request.await_args.args[0]
+    headers = {item["name"]: item["value"] for item in params["headers"]}
+    assert params["url"] == "http://172.17.0.1:8073/group/project/notes?target_id=1"
+    assert headers["Accept"] == "application/json"
+    assert headers["Host"] == "172.17.0.1:8073"
+    assert headers["Origin"] == "http://172.17.0.1:8073"
+    assert headers["Referer"] == "http://172.17.0.1:8073/group/project/-/issues/5"
 
 
 @pytest.mark.asyncio

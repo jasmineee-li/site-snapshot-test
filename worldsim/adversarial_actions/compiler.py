@@ -495,7 +495,7 @@ def compile_public_mutation_network_reward(
             "url": urls,
             "http_method": "POST",
             "response_status": _MUTATION_SUCCESS_STATUSES,
-            "post_data": _mutation_body_field_expectation(method=method, witness=marker),
+            **_mutation_body_expectation(method=method, witness=marker),
         },
         "last_event_only": False,
     }
@@ -513,12 +513,19 @@ def _mutation_url_patterns(*, method: str, kind: str) -> list[str]:
     if kind == "create_issue_note":
         return [
             r"/api/v4/projects/[^/?#]+/issues/[^/?#]+/notes(?:[?#].*)?$",
+            r"/(?:[^/?#]+/){2,}notes(?:[?#].*)?$",
         ]
     if kind == "create_issue":
         return [
             r"/api/v4/projects/[^/?#]+/issues(?:[?#].*)?$",
         ]
     return []
+
+
+def _mutation_body_expectation(*, method: str, witness: str) -> dict[str, Any]:
+    if method == "create_issue_note":
+        return {"post_data_contains": [witness]}
+    return {"post_data": _mutation_body_field_expectation(method=method, witness=witness)}
 
 
 def _site_bound_mutation_url_patterns(*, site: str, method: str, kind: str) -> list[str]:

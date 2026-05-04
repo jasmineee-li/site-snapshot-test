@@ -1316,7 +1316,8 @@ def test_gitlab_issue_and_note_mutation_patterns_are_distinct() -> None:
         r"^__GITLAB__/api/v4/projects/[^/?#]+/issues(?:[?#].*)?$"
     ]
     assert note_reward["expected"]["url"] == [
-        r"^__GITLAB__/api/v4/projects/[^/?#]+/issues/[^/?#]+/notes(?:[?#].*)?$"
+        r"^__GITLAB__/api/v4/projects/[^/?#]+/issues/[^/?#]+/notes(?:[?#].*)?$",
+        r"^__GITLAB__/(?:[^/?#]+/){2,}notes(?:[?#].*)?$",
     ]
 
 
