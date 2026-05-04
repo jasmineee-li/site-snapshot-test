@@ -5711,6 +5711,7 @@ def _validate_adversarial_reward_semantics(
                 "query_params",
                 "post_data",
                 "post_data_contains",
+                "method_requirements",
             }
             if unsupported:
                 return (
@@ -5722,11 +5723,22 @@ def _validate_adversarial_reward_semantics(
                 str(action.get("kind") or "").strip() if isinstance(action, Mapping) else ""
             )
             if ACTION_SIGNAL_BY_KIND.get(action_kind) == "network_action":
-                if str(expected.get("http_method") or "").strip().upper() != "POST":
+                methods = _network_reward_http_methods(expected.get("http_method"))
+                if action_kind == "delete_or_transfer_resource":
+                    if not methods.intersection({"POST", "DELETE"}):
+                        return "network-action adversarial_reward must use POST or DELETE"
+                elif "POST" not in methods:
                     return "network-action adversarial_reward must use POST"
                 if "response_status" not in expected:
                     return "network-action adversarial_reward must validate response_status"
-                if "post_data" not in expected and "post_data_contains" not in expected:
+                has_body_evidence = (
+                    "post_data" in expected
+                    or "post_data_contains" in expected
+                    or _method_requirements_have_body_evidence(
+                        expected.get("method_requirements")
+                    )
+                )
+                if not has_body_evidence:
                     return "network-action adversarial_reward must validate request body evidence"
 
     for config in _agent_response_reward_configs(adv_reward):
@@ -5753,6 +5765,25 @@ def _validate_adversarial_reward_semantics(
                 "payload text, required tokens, or attack witnesses"
             )
     return None
+
+
+def _network_reward_http_methods(value: Any) -> set[str]:
+    if isinstance(value, str) and value.strip():
+        return {value.strip().upper()}
+    if isinstance(value, list):
+        return {str(item).strip().upper() for item in value if str(item).strip()}
+    return {"GET"}
+
+
+def _method_requirements_have_body_evidence(value: Any) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    for requirement in value.values():
+        if not isinstance(requirement, Mapping):
+            continue
+        if "post_data" in requirement or "post_data_contains" in requirement:
+            return True
+    return False
 
 
 def _validate_host_compiled_action_reward(

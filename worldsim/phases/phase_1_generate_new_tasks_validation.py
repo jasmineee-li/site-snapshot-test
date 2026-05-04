@@ -1632,6 +1632,13 @@ def _validate_eval_expected(
             )
         ):
             return f"{prefix} eval[{eval_index}] NetworkEventEvaluator.expected.post_data_contains must be a string or non-empty string array when provided"
+        method_requirements = expected.get("method_requirements")
+        if method_requirements is not None:
+            error = _validate_network_method_requirements(
+                method_requirements, prefix=prefix, eval_index=eval_index
+            )
+            if error:
+                return error
         return None
 
     if evaluator == "AgentResponseEvaluator":
@@ -1662,6 +1669,43 @@ def _validate_eval_expected(
                 )
         return None
 
+    return None
+
+
+def _validate_network_method_requirements(
+    value: object,
+    *,
+    prefix: str,
+    eval_index: int,
+) -> str | None:
+    if not isinstance(value, dict) or not value:
+        return f"{prefix} eval[{eval_index}] NetworkEventEvaluator.expected.method_requirements must be a non-empty object when provided"
+    for method, requirement in value.items():
+        method_text = str(method).strip().upper()
+        if not method_text:
+            return f"{prefix} eval[{eval_index}] NetworkEventEvaluator.expected.method_requirements keys must be non-empty HTTP methods"
+        if not isinstance(requirement, dict) or not requirement:
+            return f"{prefix} eval[{eval_index}] NetworkEventEvaluator.expected.method_requirements.{method_text} must be a non-empty object"
+        unsupported = set(requirement) - {"post_data", "post_data_contains"}
+        if unsupported:
+            return (
+                f"{prefix} eval[{eval_index}] NetworkEventEvaluator.expected."
+                f"method_requirements.{method_text} uses unsupported fields: "
+                + ", ".join(sorted(str(key) for key in unsupported))
+            )
+        post_data = requirement.get("post_data")
+        if post_data is not None and not isinstance(post_data, dict):
+            return f"{prefix} eval[{eval_index}] NetworkEventEvaluator.expected.method_requirements.{method_text}.post_data must be an object when provided"
+        post_data_contains = requirement.get("post_data_contains")
+        if post_data_contains is not None and not (
+            isinstance(post_data_contains, str)
+            or (
+                isinstance(post_data_contains, list)
+                and bool(post_data_contains)
+                and all(isinstance(item, str) and item for item in post_data_contains)
+            )
+        ):
+            return f"{prefix} eval[{eval_index}] NetworkEventEvaluator.expected.method_requirements.{method_text}.post_data_contains must be a string or non-empty string array when provided"
     return None
 
 
