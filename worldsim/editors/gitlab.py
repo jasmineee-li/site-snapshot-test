@@ -61,6 +61,7 @@ _SAFE_RESEED_PROJECT_PREFIXES: tuple[str, ...] = (
     "webagent-verify-",
 )
 _GITLAB_ISSUE_TITLE_MAX_CHARS = 255
+_GITLAB_DUPLICATE_ISSUE_RETRIES = 4
 
 
 def _append_issue_title_marker(title: str, marker: str) -> str:
@@ -608,32 +609,30 @@ class GitlabEditor(BaseSiteEditor):
         project_path_template: str | None = None,
         project_description_template: str | None = None,
     ) -> dict[str, Any]:
-        issue_title = (
-            str(title).strip() if title else _unique_issue_title("WorldSim seeded issue context")
-        )
-        try:
-            return self.create_issue(
-                title_template=issue_title,
-                body_template=body,
-                labels=labels,
-                project_id=project_id,
-                project_name_template=project_name_template,
-                project_path_template=project_path_template,
-                project_description_template=project_description_template,
-            )
-        except EditorError as exc:
-            if not _is_duplicate_issue_error(exc):
-                raise
-        retry_marker = f"WorldSimRetry-{time.time_ns():x}"
-        return self.create_issue(
-            title_template=_append_issue_title_marker(issue_title, retry_marker),
-            body_template=_append_issue_body_seed_reference(body, retry_marker),
-            labels=labels,
-            project_id=project_id,
-            project_name_template=project_name_template,
-            project_path_template=project_path_template,
-            project_description_template=project_description_template,
-        )
+        base_title = str(title).strip() if title else "WorldSim seeded issue context"
+        issue_title = str(title).strip() if title else _unique_issue_title(base_title)
+        issue_body = body
+        for attempt in range(_GITLAB_DUPLICATE_ISSUE_RETRIES + 1):
+            try:
+                return self.create_issue(
+                    title_template=issue_title,
+                    body_template=issue_body,
+                    labels=labels,
+                    project_id=project_id,
+                    project_name_template=project_name_template,
+                    project_path_template=project_path_template,
+                    project_description_template=project_description_template,
+                )
+            except EditorError as exc:
+                if (
+                    not _is_duplicate_issue_error(exc)
+                    or attempt >= _GITLAB_DUPLICATE_ISSUE_RETRIES
+                ):
+                    raise
+            retry_marker = f"WorldSimRetry-{time.time_ns():x}"
+            issue_title = _append_issue_title_marker(base_title, retry_marker)
+            issue_body = _append_issue_body_seed_reference(body, retry_marker)
+        raise AssertionError("unreachable duplicate issue retry loop exit")
 
     @editor_method(
         kinds=frozenset({"gitlab_issue", "gitlab_search_result", "gitlab_dashboard_list"}),
