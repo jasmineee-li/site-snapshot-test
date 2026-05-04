@@ -249,9 +249,7 @@ def capability_family_from_task_card(card: Mapping[str, Any] | None) -> str | No
             return value.strip()
     metadata = card.get("attack_affordance")
     if isinstance(metadata, Mapping):
-        value = metadata.get("capability_family") or metadata.get(
-            "required_capability_family"
-        )
+        value = metadata.get("capability_family") or metadata.get("required_capability_family")
         if isinstance(value, str) and value.strip():
             return value.strip()
     return None
@@ -311,7 +309,7 @@ def compatible_action_kinds_from_task(task: Mapping[str, Any] | None) -> tuple[s
     for source in (task, task.get("task_provenance")):
         if not isinstance(source, Mapping):
             continue
-        raw = source.get("compatible_action_kinds") or source.get("allowed_action_kinds")
+        raw = source.get("compatible_action_kinds")
         if isinstance(raw, str) and raw.strip():
             return (raw.strip(),)
         if isinstance(raw, list):

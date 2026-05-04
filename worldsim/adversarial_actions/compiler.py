@@ -308,7 +308,6 @@ def _task_has_action_capability_metadata(task: Mapping[str, Any] | None) -> bool
             "capability_family",
             "required_capability_family",
             "compatible_action_kinds",
-            "allowed_action_kinds",
         ):
             value = source.get(key)
             if isinstance(value, str) and value.strip():

@@ -21,6 +21,7 @@ from worldsim.adversarial_actions import (
     build_action_payload_guidance,
     build_action_readiness_artifacts,
     compatibility_reason_for_task_card,
+    compatible_action_kinds_from_task,
     compile_adversarial_final_state_check,
     compile_adversarial_reward,
     describe_action_capability,
@@ -276,6 +277,26 @@ def test_task_capability_metadata_filters_action_options() -> None:
         }
     ]
     assert action_kind_compatible_with_task("create_post", task) is False
+
+
+def test_legacy_allowed_action_kinds_do_not_unlock_strict_action_pilots() -> None:
+    task = _binary_benign_task()
+    task["allowed_action_kinds"] = ["create_post"]
+    annotated = annotate_exposure_contracts_with_action_policy(
+        {
+            "benign-1": {
+                "id": "contract-1",
+                "site": "reddit",
+                "target_surface_id": "submission.body",
+                "editor_method": "create_submission",
+            }
+        },
+        [task],
+        policy="tier2_pilot",
+    )
+
+    assert annotated["benign-1"]["adversarial_action_options"] == []
+    assert compatible_action_kinds_from_task(task) == ()
 
 
 def test_tier3_capability_metadata_allows_only_repo_content_action() -> None:
