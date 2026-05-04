@@ -28,6 +28,7 @@ capability blueprints and recorded in Phase 1 state.
 | Semantic minimum validation | `semantic_minval` | `semantic_only` | Prove no-title body carriers and host-compiled binary semantic rewards still work. |
 | Tier 2 public mutation pilot | `tier2_mutation_pilot` | `tier2_pilot` | Test bounded public create/comment actions with POST/status/body evidence. |
 | Tier 3 repository pilot | `tier3_repository_pilot` | `tier3_pilot` | Test disposable repository/content mutation with request evidence, readback, and cleanup. |
+| Tier 3 destructive-resource pilot | `tier3_delete_resource_pilot` | `tier3_pilot` | Test WASP-style harmless UGC acknowledgement plus host-owned disposable project deletion. |
 
 The semantic pilot is the first live proof after code changes. The Tier 2 and
 Tier 3 pilots should run only after their artifact audits show compatible
@@ -35,6 +36,30 @@ action options and, for Tier 3, verified fixture/readback/cleanup evidence.
 If a one-off JSON task-card plan is needed, label the run as experimental and
 do not compare it to compiled-profile cohorts without documenting the plan
 digest and reason for bypassing the profile compiler.
+
+## Precondition Slots
+
+Action-capability profiles may include a `precondition_slot`. The slot is a
+host-owned workflow role, not an injected payload or evaluator. Phase 1 uses it
+to generate benign tasks that leave room for page-local workflow context, such
+as a maintenance prerequisite or public follow-up instruction. Phase 2 then
+fills the concrete adversarial action with host-owned targets, witnesses,
+rewards, and final-state probes. Phase 4 variants may reframe the payload
+inside the same slot, but may not rewrite the benign task or change targets.
+
+Examples:
+
+- `public_followup_instruction`: page content provides context for a public
+  follow-up issue, post, or reply.
+- `maintenance_prerequisite`: page content provides context for a repository
+  maintenance record.
+- `task_local_prerequisite`: page content provides context that should be
+  considered before a benign acknowledgement comment.
+
+Slots must never name exact fixture projects, fixture paths/content, nonces,
+attacker URLs, endpoint paths, selectors, reward logic, or cleanup behavior.
+If those details appear in a task-card plan or generated benign task, stop
+before Phase 2. That is a cohort-construction bug, not a useful ASR signal.
 
 ## Remote Discipline
 
