@@ -4,7 +4,10 @@
 This is a host-ops helper for r5-style execution-local instance files. It does
 not touch Phase 1/2 artifacts. It makes the host-local ``instances.scale.json``
 declare a fixture pool only after every GitLab replica can prove a canary
-write/read/delete round trip against the configured repository path.
+write/read/delete round trip against the configured repository path. Destructive
+delete-resource fixtures are opt-in and require an explicit reset proof flag so
+the instance file cannot accidentally advertise L4 readiness without a reset
+story.
 """
 
 from __future__ import annotations
@@ -19,10 +22,14 @@ from typing import Any
 
 import requests
 
-from worldsim.adversarial_actions.tier3_fixtures import verify_gitlab_repository_fixture_pool
+from worldsim.adversarial_actions.tier3_fixtures import (
+    verify_gitlab_delete_project_fixture_pool,
+    verify_gitlab_repository_fixture_pool,
+)
 from worldsim.editors.gitlab import GitlabEditor
 
 DEFAULT_PROJECT = "byteblaze/worldsim-tier3-fixture-01"
+DEFAULT_DELETE_PROJECT = "byteblaze/worldsim-tier3-delete-fixture-01"
 DEFAULT_PREFIX = "worldsim-fixtures"
 DEFAULT_SCOPE = "worldsim_disposable"
 
@@ -36,15 +43,28 @@ def build_fixture_config(
     project_paths: list[str],
     file_path_prefix: str = DEFAULT_PREFIX,
     scope: str = DEFAULT_SCOPE,
+    delete_project_paths: list[str] | None = None,
+    delete_cleanup_strategy: str = "fixture_reset",
+    delete_reset_verified: bool = False,
 ) -> dict[str, Any]:
     projects = [{"project_path": path} for path in project_paths]
+    gitlab_config: dict[str, Any] = {
+        "repository_content": {
+            "scope": scope,
+            "file_path_prefix": file_path_prefix,
+            "projects": projects,
+        }
+    }
+    if delete_project_paths:
+        gitlab_config["delete_project"] = {
+            "scope": scope,
+            "cleanup_strategy": delete_cleanup_strategy,
+            "reset_verified": delete_reset_verified,
+            "projects": [{"project_path": path} for path in delete_project_paths],
+        }
     return {
         "gitlab": {
-            "repository_content": {
-                "scope": scope,
-                "file_path_prefix": file_path_prefix,
-                "projects": projects,
-            }
+            **gitlab_config,
         }
     }
 
@@ -66,6 +86,9 @@ def provision_document(
     file_path_prefix: str = DEFAULT_PREFIX,
     scope: str = DEFAULT_SCOPE,
     create_missing: bool = True,
+    delete_project_paths: list[str] | None = None,
+    delete_cleanup_strategy: str = "fixture_reset",
+    delete_reset_verified: bool = False,
 ) -> dict[str, Any]:
     instances = _instances(document)
     gitlab_instances = [
@@ -78,12 +101,18 @@ def provision_document(
         project_paths=project_paths,
         file_path_prefix=file_path_prefix,
         scope=scope,
+        delete_project_paths=delete_project_paths,
+        delete_cleanup_strategy=delete_cleanup_strategy,
+        delete_reset_verified=delete_reset_verified,
     )
     reports: list[dict[str, Any]] = []
     for index, instance in enumerate(gitlab_instances):
         _ensure_projects_on_instance(
             instance,
-            project_paths=project_paths,
+            project_paths=[
+                *project_paths,
+                *(delete_project_paths or []),
+            ],
             create_missing=create_missing,
         )
         probe_instance = dict(instance)
@@ -98,14 +127,35 @@ def provision_document(
                 "fixture canary verification failed for "
                 f"{instance.get('site_url')}: {json.dumps(report, sort_keys=True)}"
             )
+        if delete_project_paths:
+            delete_fixtures, delete_report = verify_gitlab_delete_project_fixture_pool(
+                probe_instance
+            )
+            delete_report = dict(delete_report)
+            delete_report["replica_index"] = instance.get("replica_index", index)
+            delete_report["site_url"] = instance.get("site_url")
+            report["delete_project"] = delete_report
+            if not delete_fixtures:
+                raise ProvisionError(
+                    "delete fixture verification failed for "
+                    f"{instance.get('site_url')}: "
+                    f"{json.dumps(delete_report, sort_keys=True)}"
+                )
 
     apply_fixture_config(document, fixture_config)
     return {
         "status": "ready",
         "gitlab_replicas": len(gitlab_instances),
         "project_paths": project_paths,
+        "delete_project_paths": delete_project_paths or [],
         "file_path_prefix": file_path_prefix,
         "scope": scope,
+        "delete_cleanup_strategy": (
+            delete_cleanup_strategy if delete_project_paths else None
+        ),
+        "delete_reset_verified": (
+            delete_reset_verified if delete_project_paths else None
+        ),
         "replica_reports": reports,
     }
 
@@ -224,6 +274,34 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=[],
         help=f"namespace-qualified fixture repo path (default: {DEFAULT_PROJECT})",
     )
+    parser.add_argument(
+        "--delete-project-path",
+        action="append",
+        default=[],
+        help=(
+            "namespace-qualified disposable project path for delete-resource "
+            f"pilots (default when --include-delete-project is used: {DEFAULT_DELETE_PROJECT})"
+        ),
+    )
+    parser.add_argument(
+        "--include-delete-project",
+        action="store_true",
+        help="also declare and verify delete-resource fixture projects",
+    )
+    parser.add_argument(
+        "--delete-cleanup-strategy",
+        choices=("fixture_reset", "benchmark_reset"),
+        default="fixture_reset",
+        help="reset mechanism that restores deleted fixture projects",
+    )
+    parser.add_argument(
+        "--delete-reset-verified",
+        action="store_true",
+        help=(
+            "assert the selected cleanup/reset mechanism restores the disposable "
+            "delete project between tasks"
+        ),
+    )
     parser.add_argument("--file-path-prefix", default=DEFAULT_PREFIX)
     parser.add_argument("--scope", default=DEFAULT_SCOPE)
     parser.add_argument("--no-create", action="store_true", help="fail if a fixture repo is missing")
@@ -239,12 +317,23 @@ def main(argv: list[str] | None = None) -> int:
         document = json.loads(instances_path.read_text(encoding="utf-8"))
         if not isinstance(document, dict):
             raise ProvisionError("instances file must be a JSON object")
+        delete_project_paths = list(args.delete_project_path)
+        if args.include_delete_project and not delete_project_paths:
+            delete_project_paths = [DEFAULT_DELETE_PROJECT]
+        if delete_project_paths and not args.delete_reset_verified:
+            raise ProvisionError(
+                "delete-resource fixtures require --delete-reset-verified; "
+                "do not declare destructive L4 readiness without reset proof"
+            )
         report = provision_document(
             document,
             project_paths=args.project_path or [DEFAULT_PROJECT],
             file_path_prefix=args.file_path_prefix,
             scope=args.scope,
             create_missing=not args.no_create,
+            delete_project_paths=delete_project_paths,
+            delete_cleanup_strategy=args.delete_cleanup_strategy,
+            delete_reset_verified=args.delete_reset_verified,
         )
         if args.dry_run:
             print(
