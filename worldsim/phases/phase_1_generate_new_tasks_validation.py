@@ -44,6 +44,18 @@ _NOVEL_TASK_REQUIRED_FIELDS = (
     "reward_function",
 )
 _ALLOWED_GENERATE_NEW_TASKS_EVALUATORS = {"NetworkEventEvaluator", "AgentResponseEvaluator"}
+_MODEL_AUTHORED_HOST_METADATA_FIELDS = (
+    "allowed_action_kinds",
+    "benign_reward_shape",
+    "compatible_action_kinds",
+    "precondition_slot",
+    "scenario_context",
+    "scenario_template",
+    "scenario_template_id",
+    "task_archetype",
+    "task_card",
+    "task_provenance",
+)
 _DEFAULT_EXPECTED_TASK_COUNT = 30
 _DISALLOWED_SAMPLE_EDITOR_VALUES = frozenset({"Seeded title", "Seeded body"})
 _ANSWER_DELIVERABLE_RE = re.compile(
@@ -418,6 +430,7 @@ def validate_generated_novel_task(
                 expected=placeholder,
                 actual=sorted(tokens),
             )
+    _strip_model_authored_host_metadata(task)
     if route_index is not None:
         route_problem = _validate_route_contract_alignment(
             task,
@@ -1082,27 +1095,25 @@ def _validate_task_card_alignment(
             expected="object",
             actual=type(provenance).__name__,
         )
-    task.setdefault("task_provenance", {})
-    if isinstance(task["task_provenance"], dict):
-        provenance = task["task_provenance"]
-        provenance["task_card_id"] = card_id
-        if isinstance(archetype_id, str):
-            provenance["archetype_id"] = archetype_id
-        if isinstance(card.get("task_archetype"), dict):
-            provenance["task_archetype"] = copy.deepcopy(card["task_archetype"])
-        if isinstance(card.get("precondition_slot"), dict):
-            provenance["precondition_slot"] = copy.deepcopy(card["precondition_slot"])
-        if isinstance(card.get("scenario_template"), dict):
-            provenance["scenario_template"] = copy.deepcopy(card["scenario_template"])
-        capability_family = card_capability_family(card)
-        if capability_family:
-            provenance["capability_family"] = capability_family
-        benign_family = _task_benign_task_family_id(task)
-        if benign_family:
-            provenance["benign_task_family_id"] = benign_family
-        reward_shape = card_benign_reward_shape(card)
-        if reward_shape:
-            provenance["benign_reward_shape"] = reward_shape
+    provenance: dict[str, Any] = {"task_card_id": card_id}
+    if isinstance(archetype_id, str):
+        provenance["archetype_id"] = archetype_id
+    if isinstance(card.get("task_archetype"), dict):
+        provenance["task_archetype"] = copy.deepcopy(card["task_archetype"])
+    if isinstance(card.get("precondition_slot"), dict):
+        provenance["precondition_slot"] = copy.deepcopy(card["precondition_slot"])
+    if isinstance(card.get("scenario_template"), dict):
+        provenance["scenario_template"] = copy.deepcopy(card["scenario_template"])
+    capability_family = card_capability_family(card)
+    if capability_family:
+        provenance["capability_family"] = capability_family
+    benign_family = _task_benign_task_family_id(task)
+    if benign_family:
+        provenance["benign_task_family_id"] = benign_family
+    reward_shape = card_benign_reward_shape(card)
+    if reward_shape:
+        provenance["benign_reward_shape"] = reward_shape
+    task["task_provenance"] = provenance
     action_kinds = card_action_kinds(card)
     capability_family = card_capability_family(card)
     if capability_family:
@@ -1161,6 +1172,19 @@ def _validate_task_card_alignment(
                 ),
             )
     return None
+
+
+def _strip_model_authored_host_metadata(task: dict[str, Any]) -> None:
+    """Drop metadata that is authoritative only after host validation.
+
+    Phase 1 generators may draft natural task prose and stable identifiers such
+    as ``task_card_id``. Scenario templates, precondition slots, benign action
+    contracts, compatible actions, and provenance are host-owned and must be
+    rebuilt from the active card/adapter instead of merged with model output.
+    """
+
+    for key in _MODEL_AUTHORED_HOST_METADATA_FIELDS:
+        task.pop(key, None)
 
 
 def _validate_task_card_capability_alignment(

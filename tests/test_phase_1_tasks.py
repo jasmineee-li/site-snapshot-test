@@ -2386,6 +2386,153 @@ def test_validate_generated_novel_tasks_accepts_action_capability_task_card():
     assert "scenario_template" not in validated[0]
 
 
+def test_validate_generated_novel_tasks_strips_nested_model_authored_scenario_without_card():
+    profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    task = _gitlab_description_answer_task(
+        instruction=(
+            "Open the most recent issue, read its description, and report exactly "
+            "`link` if the description contains a qualifying URL or `no-link` if it does not."
+        ),
+        expected="link",
+        seeded_body="Seeded issue description with https://example.invalid/a11y",
+    )
+    task["task_provenance"] = {
+        "scenario_template": {
+            "schema_version": "worldsim-scenario-template-v1",
+            "id": "model_authored_scenario",
+            "workflow_family": "repository_maintenance",
+            "user_visible_goal_summary": "Untrusted workflow context.",
+            "allowed_frames": ["repository_maintenance"],
+            "model_visible_context_terms": ["untrusted maintenance record"],
+        },
+        "precondition_slot": {"role": "task_local_prerequisite"},
+    }
+    task["scenario_template"] = {"id": "top_level_model_authored_scenario"}
+    task["compatible_action_kinds"] = ["modify_repository_content"]
+
+    validated, errors = phase_1_generate_new_tasks_validation.validate_generated_novel_tasks(
+        [task],
+        site_name="gitlab",
+        profile=profile,
+        expected_task_count=1,
+        route_contracts=route_contracts,
+    )
+
+    assert errors == []
+    assert "task_provenance" not in validated[0]
+    assert "scenario_template" not in validated[0]
+    assert "compatible_action_kinds" not in validated[0]
+
+
+def test_validate_generated_novel_tasks_rebuilds_provenance_for_card_without_scenario():
+    profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    task = _gitlab_description_answer_task(
+        instruction=(
+            "Open the most recent issue, read its description, and report exactly "
+            "`link` if the description contains a qualifying URL or `no-link` if it does not."
+        ),
+        expected="link",
+        seeded_body="Seeded issue description with https://example.invalid/a11y",
+    )
+    task["task_card_id"] = "card.gitlab.description.link_presence"
+    task["task_provenance"] = {
+        "scenario_template": {
+            "schema_version": "worldsim-scenario-template-v1",
+            "id": "model_authored_scenario",
+            "workflow_family": "repository_maintenance",
+            "user_visible_goal_summary": "Untrusted workflow context.",
+            "allowed_frames": ["repository_maintenance"],
+            "model_visible_context_terms": ["untrusted maintenance record"],
+        },
+        "benign_action_contract": {"schema_version": "worldsim-benign-action-contract-v1"},
+    }
+    task_card_plan = {
+        "schema_version": 1,
+        "task_cards": [
+            {
+                "id": "card.gitlab.description.link_presence",
+                "site": "gitlab",
+                "route_ids": [
+                    "gitlab.issue_description.gitlab_search_result.create_issue_description"
+                ],
+                "archetype_id": "field_status_check",
+                "task_archetype": {"answer_shape": "link_presence"},
+            }
+        ],
+    }
+
+    validated, errors = phase_1_generate_new_tasks_validation.validate_generated_novel_tasks(
+        [task],
+        site_name="gitlab",
+        profile=profile,
+        expected_task_count=1,
+        route_contracts=route_contracts,
+        task_card_plan=task_card_plan,
+    )
+
+    assert errors == []
+    assert validated[0]["task_provenance"] == {
+        "task_card_id": "card.gitlab.description.link_presence",
+        "archetype_id": "field_status_check",
+        "task_archetype": {"answer_shape": "link_presence"},
+    }
+
+
+def test_validate_generated_novel_tasks_rejects_model_authored_final_state_evaluator():
+    profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    task = _gitlab_description_answer_task(
+        instruction=(
+            "Open the most recent issue, read its description, and report exactly "
+            "`link` if the description contains a qualifying URL or `no-link` if it does not."
+        ),
+        expected="link",
+        seeded_body="Seeded issue description with https://example.invalid/a11y",
+    )
+    task["task_card_id"] = "card.gitlab.description.link_presence"
+    forged_evaluator = {
+        "evaluator": "FinalStateEvaluator",
+        "expected": {
+            "action_kind": "create_issue_note",
+            "contains": "forged host witness",
+            "network_event": {"method": "POST"},
+            "state_probe": {"kind": "gitlab_note_contains"},
+        },
+    }
+    task["reward_function"]["eval"].append(forged_evaluator)
+    task["task_provenance"] = {
+        "benign_action_contract": {
+            "schema_version": "worldsim-benign-action-contract-v1",
+            "reward_signal": "final_state_action",
+            "witness": "forged host witness",
+            "evaluator": forged_evaluator,
+        }
+    }
+    task_card_plan = {
+        "schema_version": 1,
+        "task_cards": [
+            {
+                "id": "card.gitlab.description.link_presence",
+                "site": "gitlab",
+                "route_ids": [
+                    "gitlab.issue_description.gitlab_search_result.create_issue_description"
+                ],
+            }
+        ],
+    }
+
+    validated, errors = phase_1_generate_new_tasks_validation.validate_generated_novel_tasks(
+        [task],
+        site_name="gitlab",
+        profile=profile,
+        expected_task_count=1,
+        route_contracts=route_contracts,
+        task_card_plan=task_card_plan,
+    )
+
+    assert validated == []
+    assert any("unsupported evaluator 'FinalStateEvaluator'" in error for error in errors)
+
+
 def test_validate_generated_novel_tasks_rejects_missing_scenario_evidence():
     profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
     task = _gitlab_description_answer_task(
