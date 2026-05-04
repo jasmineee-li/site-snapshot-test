@@ -88,14 +88,18 @@ class HookedTransformerShim:
         if dtype is not None:
             load_kwargs["torch_dtype"] = dtype
 
-        try:
-            model_hf = AutoModelForCausalLM.from_pretrained(model_path, **load_kwargs)
-        except (ValueError, KeyError) as e:
-            logger.info(
-                f"AutoModelForCausalLM failed for {model_path} ({e}); "
-                f"falling back to architecture-specific loader."
-            )
-            model_hf = _load_qwen2_5_vl(model_path, load_kwargs)
+        model_type = getattr(cfg_hf, "model_type", "")
+        if model_type in {"qwen2_5_vl", "qwen3_vl"}:
+            model_hf = _load_vl(model_path, load_kwargs, model_type)
+        else:
+            try:
+                model_hf = AutoModelForCausalLM.from_pretrained(model_path, **load_kwargs)
+            except (ValueError, KeyError) as e:
+                logger.info(
+                    f"AutoModelForCausalLM failed for {model_path} ({e}); "
+                    f"falling back to architecture-specific loader."
+                )
+                model_hf = _load_vl(model_path, load_kwargs, model_type)
 
         if device == "cpu":
             model_hf.to("cpu")
@@ -268,17 +272,21 @@ class HookedTransformerShim:
         )
 
 
-def _load_qwen2_5_vl(model_path: str, load_kwargs: dict) -> Any:
-    """Architecture-specific loader for Qwen2.5-VL based models.
+def _load_vl(model_path: str, load_kwargs: dict, model_type: str = "") -> Any:
+    """Architecture-specific loader for Qwen-VL based models.
 
-    Tries `Qwen2_5_VLForConditionalGeneration` (transformers >=4.49), then
-    falls back to `AutoModelForVision2Seq` / `AutoModel`.
+    Dispatches on `model_type` from the HF config:
+      - `qwen3_vl`   → Qwen3VLForConditionalGeneration (GUI-Owl-1.5)
+      - `qwen2_5_vl` → Qwen2_5_VLForConditionalGeneration (OpenCUA)
+    Falls back to `AutoModelForVision2Seq` / `AutoModel` for unknown types.
     """
-    try:
+    if model_type == "qwen3_vl":
+        from transformers import Qwen3VLForConditionalGeneration  # type: ignore
+        return Qwen3VLForConditionalGeneration.from_pretrained(model_path, **load_kwargs)
+
+    if model_type == "qwen2_5_vl":
         from transformers import Qwen2_5_VLForConditionalGeneration  # type: ignore
         return Qwen2_5_VLForConditionalGeneration.from_pretrained(model_path, **load_kwargs)
-    except ImportError:
-        pass
 
     try:
         from transformers import AutoModelForVision2Seq  # type: ignore

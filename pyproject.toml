@@ -117,6 +117,9 @@ dev = [
     "ipykernel>=6.29",
 ]
 
+[tool.setuptools]
+packages = ["probes", "models", "eval_awareness", "eval_awareness_experiments"]
+
 [tool.uv.sources]
 agentlab = { path = "AgentLab", editable = true }
 
