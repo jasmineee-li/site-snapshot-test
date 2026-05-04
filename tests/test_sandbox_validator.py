@@ -313,6 +313,18 @@ class TestValidateAdversarialTasks:
 
         assert any("adversarial_action.kind must be one of" in error for error in errors)
 
+    def test_legacy_allowed_action_kinds_do_not_count_as_compatible_actions(self):
+        assert (
+            validator._task_compatible_action_kinds(
+                {
+                    "task_provenance": {
+                        "allowed_action_kinds": ["delete_or_transfer_resource"],
+                    }
+                }
+            )
+            == set()
+        )
+
     def test_rejects_unknown_or_disabled_strategy_action_kind(self):
         base_task = {
             "id": "adv_strategy_1",
@@ -378,7 +390,7 @@ class TestValidateAdversarialTasks:
                     "cleanup_strategy": "benchmark_reset",
                     "readback_kind": "repo_file_contains",
                 }
-            ]
+            ],
         }
         benign_tasks = [
             {

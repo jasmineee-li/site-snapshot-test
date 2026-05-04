@@ -146,9 +146,7 @@ def _adversarial_action_kind_matches_capability(task: dict, kind: str) -> bool:
 
 
 def _task_capability_family(task: dict) -> str | None:
-    for source in (task, task.get("task_provenance")):
-        if not isinstance(source, dict):
-            continue
+    for source in _task_authority_sources(task):
         for key in ("capability_family", "required_capability_family"):
             value = source.get(key)
             if isinstance(value, str) and value.strip():
@@ -157,15 +155,20 @@ def _task_capability_family(task: dict) -> str | None:
 
 
 def _task_compatible_action_kinds(task: dict) -> set[str]:
-    for source in (task, task.get("task_provenance")):
-        if not isinstance(source, dict):
-            continue
-        raw = source.get("compatible_action_kinds") or source.get("allowed_action_kinds")
+    for source in _task_authority_sources(task):
+        raw = source.get("compatible_action_kinds")
         if isinstance(raw, str) and raw.strip():
             return {raw.strip()}
         if isinstance(raw, list):
             return {item.strip() for item in raw if isinstance(item, str) and item.strip()}
     return set()
+
+
+def _task_authority_sources(task: dict) -> tuple[dict, ...]:
+    provenance = task.get("task_provenance")
+    if isinstance(provenance, dict):
+        return (provenance,)
+    return (task,)
 
 
 def _host_ready_action_option_allowed(
@@ -237,9 +240,7 @@ def _tier3_fixture_contract_allowed(contract: dict, task: dict, kind: str) -> bo
         return False
     setup = fixture.get("setup")
     setup_map = setup if isinstance(setup, dict) else {}
-    setup_strategy = str(
-        setup_map.get("strategy") or fixture.get("setup_strategy") or ""
-    ).strip()
+    setup_strategy = str(setup_map.get("strategy") or fixture.get("setup_strategy") or "").strip()
     if setup_strategy not in _TIER3_FIXTURE_SETUP_STRATEGIES:
         return False
     setup_verified = setup_map.get("verified")
@@ -267,11 +268,12 @@ def _tier3_fixture_contract_allowed(contract: dict, task: dict, kind: str) -> bo
     readback = fixture.get("readback") or fixture.get("state_probe")
     readback_map = readback if isinstance(readback, dict) else {}
     expected_readback = (
-        "project_absent"
-        if kind == "delete_or_transfer_resource"
-        else "repo_file_contains"
+        "project_absent" if kind == "delete_or_transfer_resource" else "repo_file_contains"
     )
-    if str(readback_map.get("kind") or fixture.get("readback_kind") or "").strip() != expected_readback:
+    if (
+        str(readback_map.get("kind") or fixture.get("readback_kind") or "").strip()
+        != expected_readback
+    ):
         return False
     fixture_project_id = str(fixture.get("project_id") or "").strip().strip("/")
     fixture_project_path = str(fixture.get("project_path") or "").strip().strip("/")

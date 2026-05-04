@@ -69,6 +69,7 @@ from worldsim.adversarial_actions.precondition_slots import (
     PreconditionSlot,
     precondition_slot_from_mapping,
     precondition_slot_from_task,
+    precondition_slot_model_projection_from_task,
     validate_precondition_slot,
 )
 from worldsim.adversarial_actions.readiness import build_action_readiness_artifacts
@@ -136,6 +137,7 @@ __all__ = [
     "get_action_spec",
     "precondition_slot_from_mapping",
     "precondition_slot_from_task",
+    "precondition_slot_model_projection_from_task",
     "refresh_public_benign_action_contract",
     "reward_signal_for_task",
     "validate_benign_action_evidence_stage",

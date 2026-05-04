@@ -93,6 +93,17 @@ class PreconditionSlot:
             "forbidden_exact_fields": list(self.forbidden_exact_fields),
         }
 
+    def to_model_dict(self) -> dict[str, Any]:
+        """Return the prompt-safe slot projection."""
+
+        return {
+            "schema_version": PRECONDITION_SLOT_SCHEMA_VERSION,
+            "role": self.role,
+            "allowed_frames": list(self.allowed_frames),
+            "model_visible_summary": self.model_visible_summary,
+            "required_benign_bridge_terms": list(self.required_benign_bridge_terms),
+        }
+
 
 def precondition_slot_from_mapping(value: Mapping[str, Any]) -> PreconditionSlot:
     """Parse and validate a precondition slot mapping."""
@@ -137,6 +148,9 @@ def validate_precondition_slot(value: Any) -> str | None:
     frames = _string_tuple(value.get("allowed_frames"))
     if not frames:
         return "precondition_slot.allowed_frames must be a non-empty array of strings"
+    duplicate_frames = _duplicate_folded_values(frames)
+    if duplicate_frames:
+        return f"precondition_slot.allowed_frames contains duplicate frame(s): {duplicate_frames}"
     unknown_frames = sorted(set(frames) - PRECONDITION_SLOT_FRAMES)
     if unknown_frames:
         return f"precondition_slot.allowed_frames contains unsupported frame(s): {unknown_frames}"
@@ -153,12 +167,17 @@ def validate_precondition_slot(value: Any) -> str | None:
     terms_problem = _validate_string_array_field(
         value,
         "required_benign_bridge_terms",
+        allow_empty=True,
     )
     if terms_problem is not None:
         return f"precondition_slot.{terms_problem}"
     terms = _string_tuple(value.get("required_benign_bridge_terms"))
-    if value.get("required_benign_bridge_terms") is not None and not terms:
-        return "precondition_slot.required_benign_bridge_terms must be an array of strings"
+    duplicate_terms = _duplicate_folded_values(terms)
+    if duplicate_terms:
+        return (
+            "precondition_slot.required_benign_bridge_terms contains duplicate "
+            f"term(s): {duplicate_terms}"
+        )
     for term in terms:
         term_folded = term.casefold()
         for forbidden in _MODEL_VISIBLE_FORBIDDEN_SUBSTRINGS:
@@ -167,12 +186,20 @@ def validate_precondition_slot(value: Any) -> str | None:
                     "precondition_slot.required_benign_bridge_terms contains forbidden "
                     f"benchmark/evaluator detail {forbidden!r}"
                 )
-    fields_problem = _validate_string_array_field(value, "forbidden_exact_fields")
+    fields_problem = _validate_string_array_field(
+        value,
+        "forbidden_exact_fields",
+        allow_empty=True,
+    )
     if fields_problem is not None:
         return f"precondition_slot.{fields_problem}"
     forbidden_fields = _string_tuple(value.get("forbidden_exact_fields"))
-    if value.get("forbidden_exact_fields") is not None and not forbidden_fields:
-        return "precondition_slot.forbidden_exact_fields must be an array of strings"
+    duplicate_forbidden_fields = _duplicate_folded_values(forbidden_fields)
+    if duplicate_forbidden_fields:
+        return (
+            "precondition_slot.forbidden_exact_fields contains duplicate field(s): "
+            f"{duplicate_forbidden_fields}"
+        )
     unknown_fields = sorted(set(forbidden_fields) - PRECONDITION_FORBIDDEN_EXACT_FIELDS)
     if unknown_fields:
         return (
@@ -192,19 +219,38 @@ def precondition_slot_from_task(task: Mapping[str, Any] | None) -> Mapping[str, 
         slot = provenance.get("precondition_slot")
         if isinstance(slot, Mapping):
             return slot
-    slot = task.get("precondition_slot")
-    if isinstance(slot, Mapping):
-        return slot
     return None
 
 
-def _validate_string_array_field(value: Mapping[str, Any], key: str) -> str | None:
+def precondition_slot_model_projection_from_task(
+    task: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Return validated prompt-safe precondition slot metadata.
+
+    Top-level slot fields are intentionally ignored: once slots influence prompt
+    text, the only trusted source is host-owned task provenance.
+    """
+
+    slot = precondition_slot_from_task(task)
+    if slot is None:
+        return None
+    return precondition_slot_from_mapping(slot).to_model_dict()
+
+
+def _validate_string_array_field(
+    value: Mapping[str, Any],
+    key: str,
+    *,
+    allow_empty: bool = False,
+) -> str | None:
     raw = value.get(key)
     if raw is None:
         return None
     if not isinstance(raw, list):
         return f"{key} must be an array of strings"
-    if not raw or not all(isinstance(item, str) and item.strip() for item in raw):
+    if (not raw and not allow_empty) or not all(
+        isinstance(item, str) and item.strip() for item in raw
+    ):
         return f"{key} must be an array of strings"
     return None
 
@@ -217,3 +263,14 @@ def _string_tuple(value: Any) -> tuple[str, ...]:
     if isinstance(value, tuple):
         return tuple(item.strip() for item in value if isinstance(item, str) and item.strip())
     return ()
+
+
+def _duplicate_folded_values(values: tuple[str, ...]) -> list[str]:
+    seen: set[str] = set()
+    duplicates: list[str] = []
+    for value in values:
+        folded = value.casefold()
+        if folded in seen and value not in duplicates:
+            duplicates.append(value)
+        seen.add(folded)
+    return duplicates

@@ -14,6 +14,8 @@ from typing import Any
 
 from worldsim.adversarial_actions.capability_contracts import (
     action_kind_compatible_with_task,
+    capability_family_from_task,
+    compatible_action_kinds_from_task,
 )
 from worldsim.adversarial_actions.catalog import (
     ACTION_SIGNAL_BY_KIND as _CATALOG_ACTION_SIGNAL_BY_KIND,
@@ -299,24 +301,7 @@ def _policy_requires_capability_metadata(policy: str) -> bool:
 def _task_has_action_capability_metadata(task: Mapping[str, Any] | None) -> bool:
     if not isinstance(task, Mapping):
         return False
-    if action_kind_compatible_with_task("answer_opposite_binary_label", task) is False:
-        return True
-    for source in (task, task.get("task_provenance")):
-        if not isinstance(source, Mapping):
-            continue
-        for key in (
-            "capability_family",
-            "required_capability_family",
-            "compatible_action_kinds",
-        ):
-            value = source.get(key)
-            if isinstance(value, str) and value.strip():
-                return True
-            if isinstance(value, list) and any(
-                isinstance(item, str) and item.strip() for item in value
-            ):
-                return True
-    return False
+    return bool(capability_family_from_task(task) or compatible_action_kinds_from_task(task))
 
 
 def compile_adversarial_reward(

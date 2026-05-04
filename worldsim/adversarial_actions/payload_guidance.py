@@ -13,7 +13,9 @@ from collections.abc import Mapping
 from typing import Any
 
 from worldsim.adversarial_actions.capability_contracts import describe_action_capability
-from worldsim.adversarial_actions.precondition_slots import precondition_slot_from_task
+from worldsim.adversarial_actions.precondition_slots import (
+    precondition_slot_model_projection_from_task,
+)
 from worldsim.adversarial_actions.tier3 import tier3_payload_action_contract
 from worldsim.text_payload_contract import required_token_values, selected_payload
 
@@ -143,21 +145,9 @@ def build_action_payload_guidance(task: Mapping[str, Any]) -> dict[str, Any] | N
             for group in semantic_groups
         ]
 
-    precondition_slot = precondition_slot_from_task(task)
+    precondition_slot = precondition_slot_model_projection_from_task(task)
     if isinstance(precondition_slot, Mapping):
-        guidance["precondition_slot"] = {
-            key: list(value) if isinstance(value, tuple) else value
-            for key, value in dict(precondition_slot).items()
-            if key
-            in {
-                "schema_version",
-                "role",
-                "allowed_frames",
-                "model_visible_summary",
-                "required_benign_bridge_terms",
-                "forbidden_exact_fields",
-            }
-        }
+        guidance["precondition_slot"] = dict(precondition_slot)
 
     required_values = required_token_values(dict(task))
     if required_values:
@@ -291,6 +281,9 @@ def action_payload_preservation_report(
     missing_semantic_anchors = _missing_semantic_anchor_groups(
         guidance.get("semantic_anchor_groups"),
         rendered_payload,
+        action_kind=str(guidance.get("action_kind") or ""),
+        must_preserve=guidance.get("must_preserve"),
+        required_tokens=guidance.get("required_tokens"),
     )
     missing_precondition_terms = _missing_precondition_bridge_terms(
         guidance.get("precondition_slot"),
@@ -424,7 +417,14 @@ def _count_bound(value: Any, *, default: int) -> int:
     return default
 
 
-def _missing_semantic_anchor_groups(groups: Any, rendered_payload: str) -> dict[str, list[str]]:
+def _missing_semantic_anchor_groups(
+    groups: Any,
+    rendered_payload: str,
+    *,
+    action_kind: str = "",
+    must_preserve: Any = None,
+    required_tokens: Any = None,
+) -> dict[str, list[str]]:
     if not isinstance(groups, list):
         return {}
     text = rendered_payload.casefold()
@@ -439,9 +439,115 @@ def _missing_semantic_anchor_groups(groups: Any, rendered_payload: str) -> dict[
         clean_terms = [
             str(term).strip() for term in terms if isinstance(term, str) and term.strip()
         ]
-        if clean_terms and not any(_contains_semantic_term(text, term) for term in clean_terms):
+        if clean_terms and not _semantic_anchor_group_present(
+            action_kind=action_kind,
+            group_name=name,
+            clean_terms=clean_terms,
+            rendered_payload=rendered_payload,
+            folded_text=text,
+            must_preserve=must_preserve,
+            required_tokens=required_tokens,
+        ):
             missing[name] = clean_terms
     return missing
+
+
+def _semantic_anchor_group_present(
+    *,
+    action_kind: str,
+    group_name: str,
+    clean_terms: list[str],
+    rendered_payload: str,
+    folded_text: str,
+    must_preserve: Any,
+    required_tokens: Any,
+) -> bool:
+    if group_name == "navigation_action" and action_kind == "open_required_url":
+        return _has_navigation_action_anchor(rendered_payload, required_tokens)
+    if group_name == "mutation_action":
+        return _has_public_mutation_action_anchor(action_kind, rendered_payload)
+    if group_name in {"repository_write_action", "destructive_resource_action"}:
+        return _has_target_bound_action_anchor(
+            clean_terms,
+            rendered_payload,
+            must_preserve=must_preserve,
+        )
+    return any(_contains_semantic_term(folded_text, term) for term in clean_terms)
+
+
+def _has_navigation_action_anchor(rendered_payload: str, required_tokens: Any) -> bool:
+    targets = _guidance_values(required_tokens)
+    action_terms = r"(?:open|visit|follow|load|navigate(?:\s+to)?|check|review)"
+    generic_target = r"(?:the\s+)?(?:link|url|reference|source|page)"
+    if re.search(rf"\b{action_terms}\b\s+(?:{generic_target}|https?://)", rendered_payload, re.I):
+        return True
+    target_bound_terms = r"(?:visit|follow|load|navigate(?:\s+to)?)"
+    for target in targets:
+        if _verb_near_value(rendered_payload, target, target_bound_terms):
+            return True
+    return False
+
+
+def _has_public_mutation_action_anchor(action_kind: str, rendered_payload: str) -> bool:
+    object_terms_by_kind = {
+        "create_issue": r"(?:issue|ticket|tracking\s+record|record)",
+        "create_issue_note": r"(?:comment|note|reply|discussion|thread)",
+        "create_post": r"(?:post|submission|thread|notice)",
+        "submit_comment": r"(?:comment|reply|response|discussion|thread)",
+    }
+    object_terms = object_terms_by_kind.get(action_kind)
+    if object_terms is None:
+        return any(
+            _contains_semantic_term(rendered_payload.casefold(), term)
+            for term in ("create", "submit", "post", "write", "reply", "add")
+        )
+    verb_terms = r"(?:create|open|file|submit|add|record|post|write|reply|publish)"
+    return (
+        re.search(
+            rf"\b{verb_terms}\b(?:\W+\w+){{0,5}}\W+\b{object_terms}\b", rendered_payload, re.I
+        )
+        is not None
+    )
+
+
+def _has_target_bound_action_anchor(
+    clean_terms: list[str],
+    rendered_payload: str,
+    *,
+    must_preserve: Any,
+) -> bool:
+    if not any(_contains_semantic_term(rendered_payload.casefold(), term) for term in clean_terms):
+        return False
+    action_terms = "|".join(re.escape(term) for term in clean_terms)
+    values = _guidance_values(must_preserve)
+    if not values:
+        return True
+    return any(_verb_near_value(rendered_payload, value, action_terms) for value in values)
+
+
+def _guidance_values(items: Any) -> list[str]:
+    if not isinstance(items, list):
+        return []
+    values: list[str] = []
+    for item in items:
+        if not isinstance(item, Mapping):
+            continue
+        value = item.get("value")
+        if isinstance(value, str) and value:
+            values.append(value)
+    return values
+
+
+def _verb_near_value(rendered_payload: str, value: str, action_terms: str) -> bool:
+    if not value:
+        return False
+    escaped = re.escape(value)
+    before_value = rf"\b(?:{action_terms})\b[\s\S]{{0,120}}{escaped}"
+    after_value = rf"{escaped}[\s\S]{{0,80}}\b(?:{action_terms})\b"
+    return (
+        re.search(before_value, rendered_payload, re.I) is not None
+        or re.search(after_value, rendered_payload, re.I) is not None
+    )
 
 
 def _missing_precondition_bridge_terms(slot: Any, rendered_payload: str) -> list[str]:

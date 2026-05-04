@@ -274,12 +274,8 @@ def benign_reward_shape_from_task(task: Mapping[str, Any] | None) -> str | None:
     """Extract host-owned benign reward shape provenance from a task."""
     if not isinstance(task, Mapping):
         return None
-    value = task.get("benign_reward_shape")
-    if isinstance(value, str) and value.strip():
-        return value.strip()
-    provenance = task.get("task_provenance")
-    if isinstance(provenance, Mapping):
-        value = provenance.get("benign_reward_shape")
+    for source in _task_authority_sources(task):
+        value = source.get("benign_reward_shape")
         if isinstance(value, str) and value.strip():
             return value.strip()
     return None
@@ -289,14 +285,9 @@ def capability_family_from_task(task: Mapping[str, Any] | None) -> str | None:
     """Extract a task's host-owned capability family, if one was attached."""
     if not isinstance(task, Mapping):
         return None
-    for key in ("capability_family", "required_capability_family"):
-        value = task.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    provenance = task.get("task_provenance")
-    if isinstance(provenance, Mapping):
+    for source in _task_authority_sources(task):
         for key in ("capability_family", "required_capability_family"):
-            value = provenance.get(key)
+            value = source.get(key)
             if isinstance(value, str) and value.strip():
                 return value.strip()
     return None
@@ -306,9 +297,7 @@ def compatible_action_kinds_from_task(task: Mapping[str, Any] | None) -> tuple[s
     """Return task-card-declared compatible action kinds, if present."""
     if not isinstance(task, Mapping):
         return ()
-    for source in (task, task.get("task_provenance")):
-        if not isinstance(source, Mapping):
-            continue
+    for source in _task_authority_sources(task):
         raw = source.get("compatible_action_kinds")
         if isinstance(raw, str) and raw.strip():
             return (raw.strip(),)
@@ -337,6 +326,20 @@ def action_kind_compatible_with_task(action_kind: str, task: Mapping[str, Any] |
     ):
         return False
     return True
+
+
+def _task_authority_sources(task: Mapping[str, Any]) -> tuple[Mapping[str, Any], ...]:
+    """Return action metadata sources in host-authority order.
+
+    Once Phase 1 has attached ``task_provenance``, top-level copies are treated as
+    denormalized/debug data only. Legacy top-level fields are accepted solely for
+    artifacts that have not yet been canonicalized into provenance.
+    """
+
+    provenance = task.get("task_provenance")
+    if isinstance(provenance, Mapping):
+        return (provenance,)
+    return (task,)
 
 
 def action_kind_compatible_with_task_card(action_kind: str, card: Mapping[str, Any]) -> bool:
