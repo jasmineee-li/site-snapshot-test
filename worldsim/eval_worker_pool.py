@@ -50,6 +50,8 @@ _OUTCOME_RESULT_EXTRA_KEYS: tuple[str, ...] = (
     "adversarial_final_state_checked",
     "adversarial_final_state_passed",
     "adversarial_final_state_message",
+    "benign_reward_message",
+    "adversarial_reward_message",
     "seed_preflight_mismatches",
     "seed_preflight_mismatch_records",
     "pvpo_status",

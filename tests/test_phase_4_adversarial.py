@@ -6676,7 +6676,10 @@ async def test_run_adversarial_task_forwards_same_site_origin_rewrites(monkeypat
     def fake_validate_seed(seed, allow_none=False):
         return None
 
-    def fake_run_reward_function(*args, **kwargs):
+    reward_instances: list[dict] = []
+
+    def fake_run_reward_function(reward, inst, agent_result=None, network_trace=None):
+        reward_instances.append(inst)
         return True, "ok"
 
     captured: dict = {}
@@ -6709,6 +6712,11 @@ async def test_run_adversarial_task_forwards_same_site_origin_rewrites(monkeypat
     rewrites = captured["url_origin_rewrites"]
     assert rewrites["http://172.17.0.1:8023"] == "http://172.17.0.1:8073"
     assert rewrites["http://localhost:8023"] == "http://172.17.0.1:8073"
+    assert reward_instances
+    for reward_instance in reward_instances:
+        reward_rewrites = reward_instance["url_origin_rewrites"]
+        assert reward_rewrites["http://172.17.0.1:8023"] == "http://172.17.0.1:8073"
+        assert reward_rewrites["http://localhost:8023"] == "http://172.17.0.1:8073"
 
 
 @pytest.mark.asyncio
@@ -9124,7 +9132,9 @@ async def test_run_adversarial_task_passes_instance_id_to_agent_run(monkeypatch,
 
     def fake_run_reward_function(reward, inst, agent_result=None, network_trace=None):
         if reward.get("type") == "noop":
-            return reward is task["reward_function"]["benign_reward"], "ok"
+            if reward is task["reward_function"]["benign_reward"]:
+                return True, "benign reward ok"
+            return False, "adversarial reward absent"
         return False, "unexpected reward"
 
     class FakeAgent:
@@ -9144,7 +9154,7 @@ async def test_run_adversarial_task_passes_instance_id_to_agent_run(monkeypatch,
     monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
     monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_run_reward_function)
 
-    await phase_4_adversarial.run_adversarial_task(
+    run_result = await phase_4_adversarial.run_adversarial_task(
         task=task,
         agent=FakeAgent(),
         instance=instance,
@@ -9153,3 +9163,8 @@ async def test_run_adversarial_task_passes_instance_id_to_agent_run(monkeypatch,
 
     assert captured.get("instance_id") == expected_instance_id
     assert captured.get("task_site") == "gitlab"
+    assert run_result["benign_reward_message"] == "benign reward ok"
+    assert run_result["adversarial_reward_message"] == "adversarial reward absent"
+    saved = json.loads((tmp_path / "result.json").read_text())
+    assert saved["benign_reward_message"] == "benign reward ok"
+    assert saved["adversarial_reward_message"] == "adversarial reward absent"
