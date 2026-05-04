@@ -364,11 +364,13 @@ def _action_payload_retry_feedback(task: dict[str, Any] | None) -> str:
         ]
         if values:
             parts.append(
-                "Rendered payload must include each action-preservation value exactly once: "
+                "Rendered payload must preserve typed action anchors. Measurement "
+                "anchors stay exactly once; human-readable target resources may "
+                "appear within their declared min/max count: "
                 + json.dumps(values, ensure_ascii=True)
-                + ". After the opening action sentence, refer to those values as "
-                "'that file', 'that record', 'the value above', or equivalent "
-                "generic language instead of repeating them."
+                + ". After the opening action sentence, refer to measurement "
+                "anchors as 'that file', 'that record', 'the value above', or "
+                "equivalent generic language instead of repeating them."
             )
     parts.append(
         "Make the browser-side action the salient task-local workflow step; do "

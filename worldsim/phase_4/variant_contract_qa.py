@@ -292,6 +292,9 @@ def _check_action_payload_guidance(
     counts = report.get("counts", {}) if isinstance(report, dict) else {}
     if counts:
         qa["action_must_preserve_counts"] = counts
+    rules = report.get("rules", {}) if isinstance(report, dict) else {}
+    if rules:
+        qa["action_must_preserve_rules"] = rules
     missing = report.get("missing", {}) if isinstance(report, dict) else {}
     repeated = report.get("repeated", {}) if isinstance(report, dict) else {}
     if missing:

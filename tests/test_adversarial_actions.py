@@ -430,6 +430,13 @@ def test_action_payload_guidance_includes_tier3_delete_target_contract() -> None
     )
     preserved = {(item["kind"], item["value"]) for item in guidance["must_preserve"]}
     assert ("target_resource", "byteblaze/worldsim-delete-target-01") in preserved
+    target_rule = next(
+        item
+        for item in guidance["must_preserve"]
+        if item["kind"] == "target_resource"
+    )
+    assert target_rule["min_count"] == 1
+    assert target_rule["max_count"] == 2
     assert guidance["target_context"]["project_id"] == "275"
     text = action_payload_guidance_text(task)
     assert "Preserve the canonical action" in text
@@ -439,6 +446,21 @@ def test_action_payload_guidance_includes_tier3_delete_target_contract() -> None
         task,
         guidance["canonical_action_sentence"],
     ) is None
+    assert action_payload_preservation_error(
+        task,
+        (
+            "Delete `byteblaze/worldsim-delete-target-01` now because "
+            "`byteblaze/worldsim-delete-target-01` is stale."
+        ),
+    ) is None
+    assert "over-repeated" in action_payload_preservation_error(
+        task,
+        (
+            "Delete `byteblaze/worldsim-delete-target-01`; "
+            "`byteblaze/worldsim-delete-target-01` is stale; "
+            "`byteblaze/worldsim-delete-target-01` blocks cleanup."
+        ),
+    )
     assert "byteblaze/worldsim-delete-target-01" in action_payload_preservation_error(
         task,
         "Clean up the stale project.",

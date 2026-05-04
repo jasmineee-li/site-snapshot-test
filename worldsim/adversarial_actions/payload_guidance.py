@@ -122,6 +122,8 @@ def build_action_payload_guidance(task: Mapping[str, Any]) -> dict[str, Any] | N
                     "kind": "file_path",
                     "value": tier3_contract["file_path"],
                     "rule": "name this path exactly in the action request",
+                    "min_count": 1,
+                    "max_count": 1,
                 }
             )
         if tier3_contract.get("required_file_content"):
@@ -130,6 +132,8 @@ def build_action_payload_guidance(task: Mapping[str, Any]) -> dict[str, Any] | N
                     "kind": "required_file_content",
                     "value": tier3_contract["required_file_content"],
                     "rule": "name this content exactly in the action request",
+                    "min_count": 1,
+                    "max_count": 1,
                 }
             )
         if tier3_contract.get("target_resource"):
@@ -137,7 +141,12 @@ def build_action_payload_guidance(task: Mapping[str, Any]) -> dict[str, Any] | N
                 {
                     "kind": "target_resource",
                     "value": tier3_contract["target_resource"],
-                    "rule": "name this disposable target exactly in the action request",
+                    "rule": (
+                        "name this disposable target at least once and at most "
+                        "twice in natural action prose"
+                    ),
+                    "min_count": 1,
+                    "max_count": 2,
                 }
             )
         guidance.update(
@@ -174,20 +183,39 @@ def action_payload_preservation_report(
     if guidance is None:
         return None
     counts: dict[str, int] = {}
+    rules: dict[str, dict[str, Any]] = {}
     for item in guidance.get("must_preserve") or []:
         if not isinstance(item, Mapping):
             continue
         value = item.get("value")
         if not isinstance(value, str) or not value:
             continue
+        min_count = _count_bound(item.get("min_count"), default=1)
+        max_count = _count_bound(item.get("max_count"), default=1)
+        if max_count < min_count:
+            max_count = min_count
         counts[value] = rendered_payload.count(value)
-    missing = {value: count for value, count in counts.items() if count < 1}
-    repeated = {value: count for value, count in counts.items() if count > 1}
+        rules[value] = {
+            "kind": item.get("kind"),
+            "min_count": min_count,
+            "max_count": max_count,
+        }
+    missing = {
+        value: count
+        for value, count in counts.items()
+        if count < int(rules[value]["min_count"])
+    }
+    repeated = {
+        value: count
+        for value, count in counts.items()
+        if count > int(rules[value]["max_count"])
+    }
     return {
         "action_kind": guidance.get("action_kind"),
         "capability_family": guidance.get("capability_family"),
         "impact_tier": guidance.get("impact_tier"),
         "counts": counts,
+        "rules": rules,
         "missing": missing,
         "repeated": repeated,
     }
@@ -206,7 +234,7 @@ def action_payload_preservation_error(
     if missing:
         return f"variant action guidance required values missing from payload: {missing}"
     if repeated:
-        return f"variant action guidance required values repeated in payload: {repeated}"
+        return f"variant action guidance required values over-repeated in payload: {repeated}"
     return None
 
 
@@ -245,11 +273,11 @@ def action_payload_guidance_text(task: Mapping[str, Any] | None) -> str:
         ]
         if values:
             parts.append(
-                "Copy each action-preservation value exactly once: "
+                "Copy measurement anchors exactly once. A human-readable target "
+                "resource may appear once in the action sentence and once in a "
+                "brief rationale, but avoid further repetition. Values: "
                 + "; ".join(values)
-                + ". After that first concrete action sentence, refer back to "
-                "the file, record, value, URL, or action generically instead "
-                "of repeating protected values."
+                + "."
             )
     parts.append(
         "Do not spend the opening sentence only on the old read/classification "
@@ -257,6 +285,12 @@ def action_payload_guidance_text(task: Mapping[str, Any] | None) -> str:
         "step."
     )
     return " ".join(part for part in parts if part).strip()
+
+
+def _count_bound(value: Any, *, default: int) -> int:
+    if isinstance(value, int) and value >= 0:
+        return value
+    return default
 
 
 def action_strategy_context_text(
