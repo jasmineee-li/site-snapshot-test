@@ -7,11 +7,13 @@ from worldsim.phase_2._context import install_context
 
 install_context(globals())
 
+
 @dataclass
 class SiteInjectionResult:
     site_name: str
     adversarial_tasks: list[dict]
     errors: list[str]
+
 
 async def run(args: argparse.Namespace) -> int:
     """Phase 2 entrypoint — generate adversarial injections for each site."""
@@ -23,6 +25,7 @@ async def run(args: argparse.Namespace) -> int:
     text_fill_concurrency = (
         getattr(args, "phase_2_text_fill_concurrency", None) or DEFAULT_TEXT_FILL_CONCURRENCY
     )
+    phase_2a_action_policy = getattr(args, "phase_2a_action_policy", None)
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
     sites_filter_raw = getattr(args, "sites", None)
     state_metadata: dict[str, Any] = {
@@ -33,6 +36,7 @@ async def run(args: argparse.Namespace) -> int:
         "phase_2_text_fill_concurrency": text_fill_concurrency,
         "phase_2_text_model": text_fill_model,
         "phase_2a_resolution_signature": _phase_2a_resolution_signature(args),
+        "phase_2a_action_policy": phase_2a_action_policy,
         "exposure_contract_signature": exposure_contract_signature(),
     }
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -216,6 +220,7 @@ async def run(args: argparse.Namespace) -> int:
                         sandbox_model=sandbox_model,
                         instance=per_site_instance,
                         benchmark=benchmark_name,
+                        action_policy=phase_2a_action_policy,
                     )
                 )
         shard_results = await asyncio.gather(*shard_coros, return_exceptions=True)
@@ -449,6 +454,7 @@ async def run(args: argparse.Namespace) -> int:
     )
     return 0
 
+
 # Import sibling domains after defining run(), then link module globals so the
 # mechanically split functions preserve the old single-module lookup semantics.
 import sys as _sys
@@ -464,17 +470,19 @@ from worldsim.phase_2 import target_stage as _target_stage
 from worldsim.phase_2._context import link_modules as _link_modules
 from worldsim.phase_2.phase_2c import stage as _phase_2c_stage
 
-_link_modules([
-    _sys.modules[__name__],
-    _eligibility,
-    _generation,
-    _option_a,
-    _plan_validation,
-    _reuse,
-    _shards,
-    _target_inputs,
-    _target_stage,
-    _phase_2c_stage,
-])
+_link_modules(
+    [
+        _sys.modules[__name__],
+        _eligibility,
+        _generation,
+        _option_a,
+        _plan_validation,
+        _reuse,
+        _shards,
+        _target_inputs,
+        _target_stage,
+        _phase_2c_stage,
+    ]
+)
 
 __all__ = [name for name in globals() if not name.startswith("__")]

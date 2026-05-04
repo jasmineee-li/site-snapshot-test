@@ -1,4 +1,5 @@
 """Shared import and constant context for the split Phase 2 modules."""
+
 # ruff: noqa: F401,I001
 from __future__ import annotations
 
@@ -27,6 +28,11 @@ from worldsim.benchmark_capabilities import (
     normalize_benchmark_name,
 )
 from worldsim.cost_tracker import tracker as cost_tracker
+from worldsim.adversarial_actions import (
+    annotate_exposure_contracts_with_action_policy,
+    compile_adversarial_final_state_check,
+    compile_adversarial_reward,
+)
 from worldsim.editors._method_spec import BindingSpec
 from worldsim.editors._registry import (
     ContractRenderContext,
@@ -116,6 +122,7 @@ from worldsim.profile_validation import load_and_validate_profile
 from worldsim.prompt_loading import load_prompt
 from worldsim.seeding import self_contained_adversarial_seed_error, validate_data_seed
 from worldsim.state import get_state_dir, load_state, save_state
+
 logger = logging.getLogger(__name__)
 TASKS_PER_SHARD = 20
 DEFAULT_PHASE_2A_SHARD_CONCURRENCY = 250

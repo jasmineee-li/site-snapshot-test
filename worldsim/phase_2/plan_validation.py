@@ -7,6 +7,7 @@ from worldsim.phase_2._context import install_context
 
 install_context(globals())
 
+
 def _validate_generated_adversarial_tasks(
     adv_tasks: list[dict],
     benign_tasks: list[dict],
@@ -27,6 +28,7 @@ def _validate_generated_adversarial_tasks(
         errors.append("sandbox produced no adversarial tasks")
 
     return validated, errors
+
 
 def _validate_generated_adversarial_task(
     task: object,
@@ -83,10 +85,12 @@ def _validate_generated_adversarial_task(
 
     return None
 
+
 def _phase_2c_only_fields_present(task: Mapping[str, Any]) -> list[str]:
     return sorted(
         {"feasibility", "read_surface_urls", "read_surface_provenance"}.intersection(task.keys())
     )
+
 
 def _validate_reward_function_shape(task: dict, task_name: str) -> str | None:
     """Return a validation error when reward_function is missing expected keys."""
@@ -100,6 +104,7 @@ def _validate_reward_function_shape(task: dict, task_name: str) -> str | None:
     if "adversarial_reward" not in reward_function:
         return f"{task_name} reward_function missing adversarial_reward"
     return None
+
 
 def _validate_adversarial_task_contract(
     adversarial_task: dict,
@@ -128,6 +133,9 @@ def _validate_adversarial_task_contract(
     adv_reward = reward.get("adversarial_reward")
     if not isinstance(adv_reward, dict) or not adv_reward:
         return "adversarial_reward must be a non-empty object"
+    action_only_error = _validate_host_action_only_utility_evidence(adversarial_task)
+    if action_only_error is not None:
+        return action_only_error
     binary_label_error = _validate_binary_label_adversarial_contract(
         adversarial_task,
         benign_task,
@@ -156,10 +164,12 @@ def _validate_adversarial_task_contract(
 
     return _validate_legacy_adversarial_task_contract(adversarial_task, benign_task, site_profile)
 
+
 _BINARY_LABEL_FAMILIES: tuple[frozenset[str], ...] = (
     frozenset({"blank", "populated"}),
     frozenset({"link", "no-link"}),
 )
+
 
 def _reward_agent_response_expected_strings(reward: Any) -> list[str]:
     if not isinstance(reward, Mapping):
@@ -171,6 +181,7 @@ def _reward_agent_response_expected_strings(reward: Any) -> list[str]:
             continue
         out.extend(_flatten_reward_strings(expected.get("retrieved_data")))
     return out
+
 
 def _single_binary_label_expected(reward: Any) -> tuple[str, frozenset[str]] | None:
     strings = [
@@ -186,6 +197,7 @@ def _single_binary_label_expected(reward: Any) -> tuple[str, frozenset[str]] | N
             return label, family
     return None
 
+
 def _validate_binary_label_adversarial_contract(
     adversarial_task: Mapping[str, Any],
     benign_task: Mapping[str, Any],
@@ -193,6 +205,9 @@ def _validate_binary_label_adversarial_contract(
 ) -> str | None:
     benign_binary = _single_binary_label_expected(benign_task.get("reward_function"))
     if benign_binary is None:
+        return None
+    action_kind = _adversarial_action_kind(adversarial_task)
+    if action_kind and action_kind != "answer_opposite_binary_label":
         return None
     benign_label, benign_family = benign_binary
     adversarial_binary = _single_binary_label_expected(adv_reward)
@@ -225,6 +240,7 @@ def _validate_binary_label_adversarial_contract(
             )
     return None
 
+
 def _validate_adversarial_reward_semantics(
     adversarial_task: Mapping[str, Any],
     adv_reward: Mapping[str, Any],
@@ -232,7 +248,13 @@ def _validate_adversarial_reward_semantics(
     if _is_network_event_reward(adv_reward):
         expected = adv_reward.get("expected")
         if isinstance(expected, Mapping):
-            unsupported = set(expected) - {"url", "reference_url", "http_method"}
+            unsupported = set(expected) - {
+                "url",
+                "reference_url",
+                "http_method",
+                "response_status",
+                "post_data",
+            }
             if unsupported:
                 return (
                     "adversarial_reward NetworkEventEvaluator uses unsupported expected fields: "
@@ -264,9 +286,68 @@ def _validate_adversarial_reward_semantics(
             )
     return None
 
+
+def _validate_host_action_only_utility_evidence(task: Mapping[str, Any]) -> str | None:
+    reward_shape = _benign_reward_shape(task)
+    if reward_shape != "host_action_only":
+        return None
+    provenance = task.get("task_provenance")
+    contract = provenance.get("benign_action_contract") if isinstance(provenance, Mapping) else None
+    if not isinstance(contract, Mapping):
+        return "host_action_only benign tasks require a compiled benign_action_contract"
+    reward_function = task.get("reward_function")
+    benign_reward = (
+        reward_function.get("benign_reward") if isinstance(reward_function, Mapping) else None
+    )
+    if not _reward_contains_network_event(benign_reward):
+        return "host_action_only benign tasks require NetworkEventEvaluator benign utility evidence"
+    return None
+
+
+def _benign_reward_shape(task: Mapping[str, Any]) -> str | None:
+    for container in (
+        task,
+        task.get("task_archetype") if isinstance(task.get("task_archetype"), Mapping) else None,
+        task.get("task_provenance") if isinstance(task.get("task_provenance"), Mapping) else None,
+    ):
+        if not isinstance(container, Mapping):
+            continue
+        value = container.get("benign_reward_shape")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        archetype = container.get("task_archetype")
+        if isinstance(archetype, Mapping):
+            value = archetype.get("benign_reward_shape")
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return None
+
+
+def _adversarial_action_kind(task: Mapping[str, Any]) -> str | None:
+    action = task.get("adversarial_action")
+    if not isinstance(action, Mapping):
+        return None
+    kind = action.get("kind")
+    if isinstance(kind, str) and kind.strip():
+        return kind.strip()
+    return None
+
+
 def _is_network_event_reward(reward: Mapping[str, Any]) -> bool:
     reward_type = str(reward.get("type") or reward.get("evaluator") or "")
     return "NetworkEventEvaluator" in reward_type
+
+
+def _reward_contains_network_event(reward: Any) -> bool:
+    if not isinstance(reward, Mapping):
+        return False
+    if _is_network_event_reward(reward):
+        return True
+    evals = reward.get("eval")
+    return isinstance(evals, list) and any(
+        isinstance(item, Mapping) and _is_network_event_reward(item) for item in evals
+    )
+
 
 def _agent_response_reward_configs(reward: Mapping[str, Any]) -> list[Mapping[str, Any]]:
     reward_type = str(reward.get("type") or reward.get("evaluator") or "")
@@ -280,6 +361,7 @@ def _agent_response_reward_configs(reward: Mapping[str, Any]) -> list[Mapping[st
         for item in evals
         if isinstance(item, Mapping) and item.get("evaluator") == "AgentResponseEvaluator"
     ]
+
 
 def _flatten_reward_strings(value: Any) -> list[str]:
     if isinstance(value, str):
@@ -297,6 +379,7 @@ def _flatten_reward_strings(value: Any) -> list[str]:
         return out
     return []
 
+
 def _looks_like_placeholder_reward_value(value: str) -> bool:
     stripped = value.strip()
     normalized = stripped.upper()
@@ -309,6 +392,7 @@ def _looks_like_placeholder_reward_value(value: str) -> bool:
         or re.search(r"(?:SENTINEL|PLACEHOLDER).*?(?:INJECTED|PAYLOAD)", normalized)
         or normalized in {"TODO", "TBD"}
     )
+
 
 def _reward_evidence_strings(task: Mapping[str, Any]) -> list[str]:
     evidence: list[str] = []
@@ -330,9 +414,11 @@ def _reward_evidence_strings(task: Mapping[str, Any]) -> list[str]:
                 evidence.extend(_flatten_reward_strings(payload.get(key)))
     return [item for item in evidence if item]
 
+
 def _string_is_supported_by_evidence(value: str, evidence: list[str]) -> bool:
     needle = value.casefold()
     return any(needle in item.casefold() or item.casefold() in needle for item in evidence)
+
 
 def _validate_adversarial_plan_contract(
     adversarial_task: dict[str, Any],
@@ -370,6 +456,7 @@ def _validate_adversarial_plan_contract(
         discriminate_against_benign=False,
         benign_seed=benign_task.get("data_seed"),
     )
+
 
 def _validate_legacy_adversarial_task_contract(
     adversarial_task: dict[str, Any],
@@ -457,6 +544,7 @@ def _validate_legacy_adversarial_task_contract(
         return concrete_seed_error
 
     return None
+
 
 def _validate_common_surface_contract(
     adversarial_task: dict[str, Any],

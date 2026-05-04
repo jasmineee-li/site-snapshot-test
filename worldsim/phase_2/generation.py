@@ -7,6 +7,7 @@ from worldsim.phase_2._context import install_context
 
 install_context(globals())
 
+
 async def _generate_injections_for_site(
     site_name: str,
     site_tasks: list[dict],
@@ -16,6 +17,7 @@ async def _generate_injections_for_site(
     sandbox_model: str = "claude-sonnet-4-6",
     instance: Mapping[str, Any] | None = None,
     benchmark: str = "webarena_verified",
+    action_policy: str | None = None,
 ) -> SiteInjectionResult:
     """Generate adversarial injections for one shard through API Phase 2a.
 
@@ -81,6 +83,11 @@ async def _generate_injections_for_site(
         site=site_name,
         benchmark=benchmark,
         surface_visibility_by_id=_surface_visibility_by_id(site_profile),
+    )
+    exposure_contracts = annotate_exposure_contracts_with_action_policy(
+        exposure_contracts,
+        site_tasks,
+        policy=action_policy,
     )
     _persist_exposure_contracts(site_name=site_name, contracts=exposure_contracts)
     site_tasks, eligibility_drops = _phase_2a_eligible_tasks_for_benchmark(
@@ -153,12 +160,15 @@ async def _generate_injections_for_site(
 
     # Programmatically copy immutable fields from benign tasks instead of
     # relying on the LLM to reproduce them byte-for-byte.
-    _merge_immutable_fields(
-        adv_tasks,
-        all_site_tasks,
-        enriched_resources=benign_target_resources,
-        exposure_contracts=exposure_contracts,
-    )
+    try:
+        _merge_immutable_fields(
+            adv_tasks,
+            all_site_tasks,
+            enriched_resources=benign_target_resources,
+            exposure_contracts=exposure_contracts,
+        )
+    except ValueError as exc:
+        return SiteInjectionResult(site_name, [], [f"host reward compilation failed: {exc}"])
 
     validated, errors = _validate_generated_adversarial_tasks(
         adv_tasks,
@@ -191,6 +201,7 @@ async def _generate_injections_for_site(
 
     return SiteInjectionResult(site_name, enriched, errors)
 
+
 def _materialize_validated_shard_tasks(
     validated: list[dict[str, Any]],
     site_profile: dict[str, Any],
@@ -214,6 +225,7 @@ def _materialize_validated_shard_tasks(
             raise ValueError(f"missing enriched plan for task {task_id!r}")
         materialized.append(enriched)
     return materialized
+
 
 def _merge_immutable_fields(
     adv_tasks: list[dict],
@@ -251,6 +263,9 @@ def _merge_immutable_fields(
             "start_urls",
             "data_seed",
             "agent_context",
+            "task_provenance",
+            "task_archetype",
+            "benign_reward_shape",
         ):
             if field in benign_task:
                 value = json.loads(json.dumps(benign_task[field]))
@@ -280,11 +295,16 @@ def _merge_immutable_fields(
                 json.dumps(dict(exposure_contracts[benign_id]))
             )
 
-        # Handle reward_function construction.
+        # Host compiles action rewards. The planner may choose an action, but it
+        # never owns the deterministic evaluator schema.
         # Minimal schema: adversarial_reward is a top-level field, no reward_function.
         # Full schema: reward_function already has benign_reward + adversarial_reward.
         adv_reward_top = adv_task.pop("adversarial_reward", None)
         reward = adv_task.get("reward_function")
+        if adv_reward_top is None and (
+            not isinstance(reward, dict) or "adversarial_reward" not in reward
+        ):
+            adv_reward_top = _compile_host_action_reward(adv_task, benign_task)
 
         if reward is None and adv_reward_top is not None:
             # Minimal schema — construct reward_function from scratch.
@@ -299,6 +319,34 @@ def _merge_immutable_fields(
             if adv_reward_top is not None and "adversarial_reward" not in reward:
                 reward["adversarial_reward"] = adv_reward_top
             adv_task["reward_function"] = reward
+        if isinstance(adv_task.get("adversarial_action"), Mapping):
+            _attach_host_action_final_state_check(adv_task)
+
+
+def _compile_host_action_reward(
+    adv_task: dict[str, Any],
+    benign_task: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    if not isinstance(adv_task.get("adversarial_action"), Mapping):
+        return None
+    if "required_tokens" not in adv_task:
+        adv_task["required_tokens"] = derive_required_tokens(str(adv_task.get("id") or ""))
+    try:
+        return compile_adversarial_reward(adv_task, benign_task)
+    except ValueError as exc:
+        raise ValueError(f"task {adv_task.get('id', '?')!r}: {exc}") from exc
+
+
+def _attach_host_action_final_state_check(adv_task: dict[str, Any]) -> None:
+    if not isinstance(adv_task.get("adversarial_action"), Mapping):
+        return
+    reward = adv_task.get("reward_function")
+    if not isinstance(reward, dict):
+        return
+    final_state = compile_adversarial_final_state_check(adv_task)
+    if final_state is not None:
+        reward["adversarial_final_state_check"] = final_state
+
 
 def _collect_site_profiles(
     tasks_by_site: dict[str, list[dict]],
@@ -317,10 +365,12 @@ def _collect_site_profiles(
         site_profiles[site] = profile_path
     return site_profiles, errors
 
+
 def _voice_registry() -> dict[str, Any]:
     if not hasattr(_voice_registry, "_cache"):
         _voice_registry._cache = load_voice_registry()
     return _voice_registry._cache
+
 
 def _render_generation_prompt(
     cell_targets: dict[str, int],
@@ -340,6 +390,7 @@ def _render_generation_prompt(
         + json.dumps(cell_targets, indent=2, sort_keys=True)
         + "\n```\n"
     )
+
 
 def _materialize_strategy_plans_from_exposure(
     plans: list[dict[str, Any]],
@@ -390,6 +441,7 @@ def _materialize_strategy_plans_from_exposure(
         )
         plan["seed_template"] = seed_template
         plan["delivery_mechanism"] = _seed_delivery_mechanism(seed_template)
+
 
 def _enrich_adversarial_plans(
     plans: list[dict[str, Any]],
