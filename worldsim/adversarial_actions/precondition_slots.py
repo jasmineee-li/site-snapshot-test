@@ -71,9 +71,16 @@ _MODEL_VISIBLE_FORBIDDEN_SUBSTRINGS = (
     "selector",
     "evaluator",
     "reward",
+    "graphql",
 )
 _MODEL_VISIBLE_FORBIDDEN_PATH_RE = re.compile(
     r"(?i)(?:^|[\s`'\"])(?:/[A-Za-z0-9_.~:@!$&'()*+,;=-]+){1,}(?:[/?#][^\s`'\"]*)?"
+)
+_MODEL_VISIBLE_FORBIDDEN_ENDPOINT_RE = re.compile(
+    r"(?i)\b(?:api|rest)/[A-Za-z0-9_.~:@!$&'()*+,;=/?#-]+"
+)
+_MODEL_VISIBLE_FORBIDDEN_SELECTOR_RE = re.compile(
+    r"(?:^|[\s`'\"])(?:#[A-Za-z][\w-]*|\.[A-Za-z][\w-]*|\[[A-Za-z_][\w-]*(?:[*^$|~]?=)[^\]]+\])"
 )
 
 
@@ -160,15 +167,9 @@ def validate_precondition_slot(value: Any) -> str | None:
     summary = str(value.get("model_visible_summary") or "").strip()
     if not summary:
         return "precondition_slot.model_visible_summary must be a non-empty string"
-    summary_folded = summary.casefold()
-    for forbidden in _MODEL_VISIBLE_FORBIDDEN_SUBSTRINGS:
-        if forbidden in summary_folded:
-            return (
-                "precondition_slot.model_visible_summary contains forbidden "
-                f"benchmark/evaluator detail {forbidden!r}"
-            )
-    if _MODEL_VISIBLE_FORBIDDEN_PATH_RE.search(summary):
-        return "precondition_slot.model_visible_summary contains forbidden endpoint/path detail"
+    summary_problem = _prompt_visible_text_problem("model_visible_summary", summary)
+    if summary_problem is not None:
+        return summary_problem
     terms_problem = _validate_string_array_field(
         value,
         "required_benign_bridge_terms",
@@ -184,18 +185,9 @@ def validate_precondition_slot(value: Any) -> str | None:
             f"term(s): {duplicate_terms}"
         )
     for term in terms:
-        term_folded = term.casefold()
-        for forbidden in _MODEL_VISIBLE_FORBIDDEN_SUBSTRINGS:
-            if forbidden in term_folded:
-                return (
-                    "precondition_slot.required_benign_bridge_terms contains forbidden "
-                    f"benchmark/evaluator detail {forbidden!r}"
-                )
-        if _MODEL_VISIBLE_FORBIDDEN_PATH_RE.search(term):
-            return (
-                "precondition_slot.required_benign_bridge_terms contains forbidden "
-                "endpoint/path detail"
-            )
+        term_problem = _prompt_visible_text_problem("required_benign_bridge_terms", term)
+        if term_problem is not None:
+            return term_problem
     fields_problem = _validate_string_array_field(
         value,
         "forbidden_exact_fields",
@@ -262,6 +254,23 @@ def _validate_string_array_field(
         isinstance(item, str) and item.strip() for item in raw
     ):
         return f"{key} must be an array of strings"
+    return None
+
+
+def _prompt_visible_text_problem(field: str, text: str) -> str | None:
+    folded = text.casefold()
+    if _MODEL_VISIBLE_FORBIDDEN_PATH_RE.search(text) or _MODEL_VISIBLE_FORBIDDEN_ENDPOINT_RE.search(
+        text
+    ):
+        return f"precondition_slot.{field} contains forbidden endpoint/path detail"
+    if _MODEL_VISIBLE_FORBIDDEN_SELECTOR_RE.search(text):
+        return f"precondition_slot.{field} contains forbidden selector detail"
+    for forbidden in _MODEL_VISIBLE_FORBIDDEN_SUBSTRINGS:
+        if forbidden in folded:
+            return (
+                f"precondition_slot.{field} contains forbidden "
+                f"benchmark/evaluator detail {forbidden!r}"
+            )
     return None
 
 

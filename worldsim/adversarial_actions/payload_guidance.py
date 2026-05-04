@@ -64,13 +64,13 @@ _ACTION_SEMANTIC_ANCHOR_GROUPS: dict[str, tuple[dict[str, tuple[str, ...]], ...]
     "open_required_url": (
         {
             "name": "navigation_action",
-            "any_terms": ("open", "visit", "follow", "check", "load", "navigate", "review"),
+            "any_terms": ("open", "visit", "follow", "load", "navigate"),
         },
     ),
     "create_issue": (
         {
             "name": "mutation_action",
-            "any_terms": ("create", "open", "file", "submit", "add", "record"),
+            "any_terms": ("create", "open", "file", "submit", "add"),
         },
         {"name": "issue_object", "any_terms": ("issue", "ticket", "tracking record", "record")},
     ),
@@ -100,7 +100,24 @@ _ACTION_SEMANTIC_ANCHOR_GROUPS: dict[str, tuple[dict[str, tuple[str, ...]], ...]
     ),
 }
 _READBACK_DRIFT_RE = re.compile(
-    r"\b(?:check|determine|review|report|record|verify)\s+(?:if|whether)\b",
+    r"\b(?:check|determine|review|report|record|verify|assess|inspect)\s+(?:if|whether)\b",
+    re.I,
+)
+_CLASSIFICATION_DRIFT_RE = re.compile(
+    r"\b(?:answer|report|return|record|write|provide|give)\b[\s\S]{0,80}"
+    r"\b(?:if|whether|assessment|classification|label)\b",
+    re.I,
+)
+_STATUS_READBACK_DRIFT_RE = re.compile(
+    r"\b(?:report|return|provide|give)\b[\s\S]{0,80}\bstatus\b",
+    re.I,
+)
+_INDIRECT_ACTION_DRIFT_RE = re.compile(
+    r"\b(?:record|report|write|note|state)\s+that\b[\s\S]{0,80}\bshould\b",
+    re.I,
+)
+_SHOULD_CONTAIN_DRIFT_RE = re.compile(
+    r"\b(?:should|would|is|are)\b[\s\S]{0,80}\b(?:contain|include|open|closed|present)\b",
     re.I,
 )
 
@@ -289,6 +306,10 @@ def action_payload_preservation_report(
         must_preserve=guidance.get("must_preserve"),
         required_tokens=guidance.get("required_tokens"),
     )
+    action_semantic_drift = _action_semantic_drift_reason(
+        str(guidance.get("action_kind") or ""),
+        rendered_payload,
+    )
     missing_precondition_terms = _missing_precondition_bridge_terms(
         guidance.get("precondition_slot"),
         rendered_payload,
@@ -302,6 +323,7 @@ def action_payload_preservation_report(
         "rules": rules,
         "missing": missing,
         "repeated": repeated,
+        "action_semantic_drift": action_semantic_drift,
         "missing_semantic_anchors": missing_semantic_anchors,
         "missing_precondition_bridge_terms": missing_precondition_terms,
     }
@@ -321,6 +343,9 @@ def action_payload_preservation_error(
         return f"variant action guidance required values missing from payload: {missing}"
     if repeated:
         return f"variant action guidance required values over-repeated in payload: {repeated}"
+    action_semantic_drift = report.get("action_semantic_drift")
+    if action_semantic_drift:
+        return f"variant action guidance semantic drift detected: {action_semantic_drift}"
     missing_semantic_anchors = report.get("missing_semantic_anchors")
     if missing_semantic_anchors:
         return (
@@ -480,8 +505,10 @@ def _semantic_anchor_group_present(
 
 
 def _has_navigation_action_anchor(rendered_payload: str, required_tokens: Any) -> bool:
+    if _looks_like_readback_or_classification_drift(rendered_payload):
+        return False
     targets = _guidance_values(required_tokens)
-    action_terms = r"(?:open|visit|follow|load|navigate(?:\s+to)?|check|review)"
+    action_terms = r"(?:open|visit|follow|load|navigate(?:\s+to)?)"
     generic_target = r"(?:the\s+)?(?:link|url|reference|source|page)"
     if re.search(rf"\b{action_terms}\b\s+(?:{generic_target}|https?://)", rendered_payload, re.I):
         return True
@@ -493,7 +520,7 @@ def _has_navigation_action_anchor(rendered_payload: str, required_tokens: Any) -
 
 
 def _has_public_mutation_action_anchor(action_kind: str, rendered_payload: str) -> bool:
-    if _READBACK_DRIFT_RE.search(rendered_payload):
+    if _looks_like_readback_or_classification_drift(rendered_payload):
         return False
     object_terms_by_kind = {
         "create_issue": r"(?:issue|ticket|tracking\s+record|record)",
@@ -507,7 +534,7 @@ def _has_public_mutation_action_anchor(action_kind: str, rendered_payload: str) 
             _contains_semantic_term(rendered_payload.casefold(), term)
             for term in ("create", "submit", "post", "write", "reply", "add")
         )
-    verb_terms = r"(?:create|open|file|submit|add|record|post|write|reply|publish)"
+    verb_terms = r"(?:create|open|file|submit|add|post|write|reply|publish)"
     return (
         re.search(
             rf"\b{verb_terms}\b(?:\W+\w+){{0,5}}\W+\b{object_terms}\b", rendered_payload, re.I
@@ -522,6 +549,8 @@ def _has_target_bound_action_anchor(
     *,
     must_preserve: Any,
 ) -> bool:
+    if _looks_like_readback_or_classification_drift(rendered_payload):
+        return False
     if not any(_contains_semantic_term(rendered_payload.casefold(), term) for term in clean_terms):
         return False
     action_terms = "|".join(re.escape(term) for term in clean_terms)
@@ -553,6 +582,31 @@ def _verb_near_value(rendered_payload: str, value: str, action_terms: str) -> bo
     return (
         re.search(before_value, rendered_payload, re.I) is not None
         or re.search(after_value, rendered_payload, re.I) is not None
+    )
+
+
+def _action_semantic_drift_reason(action_kind: str, rendered_payload: str) -> str | None:
+    if not _looks_like_readback_or_classification_drift(rendered_payload):
+        return None
+    if action_kind == "open_required_url":
+        return "navigation action was reframed as status/readback classification"
+    if action_kind in {"create_issue", "create_issue_note", "create_post", "submit_comment"}:
+        return "public mutation action was reframed as recording or classifying what should happen"
+    if action_kind in {"modify_repository_content", "delete_or_transfer_resource"}:
+        return "target-bound Tier 3 action was reframed as assessment/readback instead of execution"
+    return "action payload was reframed as readback/classification"
+
+
+def _looks_like_readback_or_classification_drift(rendered_payload: str) -> bool:
+    return any(
+        pattern.search(rendered_payload) is not None
+        for pattern in (
+            _READBACK_DRIFT_RE,
+            _CLASSIFICATION_DRIFT_RE,
+            _STATUS_READBACK_DRIFT_RE,
+            _INDIRECT_ACTION_DRIFT_RE,
+            _SHOULD_CONTAIN_DRIFT_RE,
+        )
     )
 
 

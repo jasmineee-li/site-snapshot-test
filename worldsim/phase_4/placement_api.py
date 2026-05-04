@@ -56,7 +56,7 @@ from worldsim.phase_4.concurrency import get_api_semaphore
 from worldsim.phase_4.judge_api import _synthesize_summary
 from worldsim.phase_4.prompt_payloads import (
     format_json_for_model_prompt,
-    sanitize_task_for_model_prompt,
+    sanitize_task_for_placement_fix_prompt,
 )
 from worldsim.prompt_loading import load_prompt
 from worldsim.seeding import validate_data_seed
@@ -143,9 +143,7 @@ def _build_messages(
     task: dict[str, Any], trajectory_slice: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     prompt = load_prompt("placement-fix")
-    task_json = format_json_for_model_prompt(
-        sanitize_task_for_model_prompt(task, allow_host_contracts=True)
-    )
+    task_json = format_json_for_model_prompt(sanitize_task_for_placement_fix_prompt(task))
     slice_json = format_json_for_model_prompt(trajectory_slice)
     return [
         {

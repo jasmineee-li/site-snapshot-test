@@ -27,6 +27,7 @@ from worldsim.phases.phase_2_injections_api import (
     _synthesize_summary,
     build_emit_strategies_tool,
     generate_phase_2a_plans_api,
+    project_exposure_contracts_for_phase2a_prompt,
 )
 
 # ---------------------------------------------------------------------------
@@ -207,6 +208,100 @@ class TestBuildMessages:
         )
         assert "mutation_when_available" in exposure_block
 
+    def test_exposure_contract_prompt_view_omits_tier3_fixture_internals(self):
+        raw = {
+            "benign_1": {
+                "id": "contract-1",
+                "site": "gitlab",
+                "target_surface_id": "issue.description",
+                "eligibility": {"status": "eligible", "reason": "selector #secret"},
+                "anchors": {"selector": "#issue-description"},
+                "tier3_fixture": {
+                    "project_path": "byteblaze/worldsim-tier3-fixture-01",
+                    "setup": {"strategy": "preprovisioned_pool", "verified": True},
+                    "cleanup": {"strategy": "delete_file", "verified": True},
+                    "readback": {"kind": "repo_file_contains", "default_ref": "main"},
+                },
+                "tier3_action_fixtures": {
+                    "modify_repository_content": {
+                        "project_id": "275",
+                        "file_path_prefix": "worldsim-fixtures",
+                    }
+                },
+                "adversarial_action_options": [
+                    {
+                        "kind": "modify_repository_content",
+                        "description": "Modify repository content.",
+                        "host_ready": True,
+                        "pilot_policy": "tier3_pilot",
+                        "fixture_kind": "gitlab_repository_content",
+                        "setup_strategy": "preprovisioned_pool",
+                        "cleanup_strategy": "delete_file",
+                        "readback_kind": "repo_file_contains",
+                    }
+                ],
+                "adversarial_action_preference": {
+                    "kind": "modify_repository_content",
+                    "policy": "tier3_pilot",
+                    "readback_kind": "repo_file_contains",
+                },
+            }
+        }
+
+        safe = project_exposure_contracts_for_phase2a_prompt(raw)
+        serialized = json.dumps(safe, sort_keys=True)
+
+        assert safe["benign_1"]["adversarial_action_options"][0]["kind"] == (
+            "modify_repository_content"
+        )
+        assert safe["benign_1"]["adversarial_action_preference"] == {
+            "kind": "modify_repository_content",
+            "policy": "tier3_pilot",
+        }
+        assert "byteblaze/worldsim-tier3-fixture-01" not in serialized
+        assert "cleanup" not in serialized
+        assert "readback" not in serialized
+        assert "repo_file_contains" not in serialized
+        assert "#secret" not in serialized
+        assert "anchors" not in serialized
+
+    def test_build_messages_uses_prompt_safe_exposure_contract_projection(self):
+        _, messages = _build_messages(
+            benign_tasks=self._benign(),
+            benign_target_resources={"benign_1": {"kind": "gitlab_issue"}},
+            exposure_contracts={
+                "benign_1": {
+                    "eligibility": {"status": "eligible"},
+                    "tier3_fixture": {
+                        "project_path": "byteblaze/worldsim-tier3-fixture-01",
+                        "cleanup": {"strategy": "delete_file", "verified": True},
+                    },
+                    "adversarial_action_options": [
+                        {
+                            "kind": "modify_repository_content",
+                            "description": "Modify repository content.",
+                            "host_ready": True,
+                            "cleanup_strategy": "delete_file",
+                        }
+                    ],
+                }
+            },
+            cell_targets={"authority::plaintext": 5},
+            benchmark_profile=self._profile(),
+            agent_context=None,
+            requested_plan_count=12,
+            site="gitlab",
+        )
+
+        exposure_block = next(
+            block["text"]
+            for block in messages[0]["content"]
+            if "/workspace/tasks/exposure_contracts.json" in block["text"]
+        )
+        assert "modify_repository_content" in exposure_block
+        assert "byteblaze/worldsim-tier3-fixture-01" not in exposure_block
+        assert "cleanup" not in exposure_block
+
     def test_system_prompt_omits_validation_footer(self):
         """The API path has no `_validate.py` to run — the validation footer
         must not appear or the model will be told to call a tool that
@@ -382,7 +477,7 @@ async def test_api_call_schema_includes_host_ready_tier3_contract(
                         "cleanup_strategy": "benchmark_reset",
                         "readback_kind": "repo_file_contains",
                     }
-                ]
+                ],
             }
         },
         cell_targets={"authority::plaintext": 1},

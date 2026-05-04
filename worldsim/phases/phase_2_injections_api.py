@@ -90,6 +90,31 @@ _PLAN_CONCEALMENTS = ("plaintext", "markdown_fenced_system")
 # Option A pass rate is measured.
 _OVERGENERATION_MULTIPLIER = 2.5
 
+_PHASE2A_EXPOSURE_CONTRACT_FIELDS = frozenset(
+    {
+        "id",
+        "site",
+        "kind",
+        "target_surface_id",
+        "target_surface",
+        "eligibility",
+        "adversarial_action_options",
+        "adversarial_action_preference",
+    }
+)
+_PHASE2A_ACTION_OPTION_FIELDS = frozenset(
+    {
+        "kind",
+        "description",
+        "impact_tier",
+        "action_family",
+        "capability_family",
+        "host_ready",
+        "pilot_policy",
+    }
+)
+_PHASE2A_ACTION_PREFERENCE_FIELDS = frozenset({"kind", "policy"})
+
 
 # Strategy-only schema. The host owns all placement fields:
 # target_surface_id, delivery_mechanism, seed_template, editor method,
@@ -148,6 +173,58 @@ def build_emit_strategies_tool(action_kinds: tuple[str, ...] = ACTION_KINDS) -> 
             "additionalProperties": False,
         },
     }
+
+
+def _project_action_options_for_prompt(raw_options: Any) -> list[dict[str, Any]]:
+    if not isinstance(raw_options, list):
+        return []
+    projected: list[dict[str, Any]] = []
+    for option in raw_options:
+        if not isinstance(option, dict):
+            continue
+        safe = {key: option[key] for key in _PHASE2A_ACTION_OPTION_FIELDS if key in option}
+        if safe:
+            projected.append(safe)
+    return projected
+
+
+def _project_exposure_contract_for_phase2a_prompt(
+    contract_id: str,
+    contract: Any,
+) -> dict[str, Any] | None:
+    if not isinstance(contract, dict):
+        return None
+    safe = {key: contract[key] for key in _PHASE2A_EXPOSURE_CONTRACT_FIELDS if key in contract}
+    safe.setdefault("id", contract_id)
+    eligibility = contract.get("eligibility")
+    if isinstance(eligibility, dict):
+        safe["eligibility"] = {"status": eligibility.get("status")}
+    options = _project_action_options_for_prompt(contract.get("adversarial_action_options"))
+    if options:
+        safe["adversarial_action_options"] = options
+    preference = contract.get("adversarial_action_preference")
+    if isinstance(preference, dict):
+        safe_preference = {
+            key: preference[key] for key in _PHASE2A_ACTION_PREFERENCE_FIELDS if key in preference
+        }
+        if safe_preference:
+            safe["adversarial_action_preference"] = safe_preference
+    return safe
+
+
+def project_exposure_contracts_for_phase2a_prompt(
+    exposure_contracts: dict[str, Any] | None,
+) -> dict[str, dict[str, Any]]:
+    """Return the allowlisted Phase 2a planner view of exposure contracts."""
+
+    if not isinstance(exposure_contracts, dict):
+        return {}
+    projected: dict[str, dict[str, Any]] = {}
+    for contract_id, contract in exposure_contracts.items():
+        safe = _project_exposure_contract_for_phase2a_prompt(str(contract_id), contract)
+        if safe is not None:
+            projected[str(contract_id)] = safe
+    return projected
 
 
 _EMIT_STRATEGIES_TOOL: dict[str, Any] = build_emit_strategies_tool()
@@ -304,7 +381,11 @@ def _build_messages(
             "type": "text",
             "text": (
                 "## /workspace/tasks/exposure_contracts.json\n```json\n"
-                + json.dumps(exposure_contracts or {}, indent=2, sort_keys=True)
+                + json.dumps(
+                    project_exposure_contracts_for_phase2a_prompt(exposure_contracts),
+                    indent=2,
+                    sort_keys=True,
+                )
                 + "\n```"
             ),
         }

@@ -51,6 +51,26 @@ _RECURSIVE_PROMPT_PRIVATE_KEYS: frozenset[str] = frozenset(
     }
 )
 
+_PLACEMENT_FIX_TASK_KEYS: frozenset[str] = frozenset(
+    {
+        "id",
+        "site",
+        "sites",
+        "instruction",
+        "start_urls",
+        "adversarial_action",
+        "adversarial_data_seed",
+        "required_tokens",
+        "delivery_channel",
+        "payload_texts",
+        "selected_payload_index",
+        "length_budget",
+        "attack_objective",
+        "framing",
+        "concealment",
+    }
+)
+
 _RECURSIVE_SECRET_KEYS: frozenset[str] = frozenset(
     {
         "authentication",
@@ -128,15 +148,24 @@ def _sanitize_node(value: Any, *, secrets: set[str]) -> Any:
     return value
 
 
-def _drop_prompt_private_nodes(value: Any) -> Any:
+def _drop_prompt_private_nodes(value: Any, *, allow_host_contracts: bool = False) -> Any:
+    private_keys = set(_RECURSIVE_PROMPT_PRIVATE_KEYS) | set(_PROMPT_PRIVATE_KEYS)
+    if not allow_host_contracts:
+        private_keys.update(_HOST_CONTRACT_KEYS)
     if isinstance(value, dict):
         return {
-            str(key): _drop_prompt_private_nodes(item)
+            str(key): _drop_prompt_private_nodes(
+                item,
+                allow_host_contracts=allow_host_contracts,
+            )
             for key, item in value.items()
-            if str(key) not in _RECURSIVE_PROMPT_PRIVATE_KEYS
+            if str(key) not in private_keys
         }
     if isinstance(value, list):
-        return [_drop_prompt_private_nodes(item) for item in value]
+        return [
+            _drop_prompt_private_nodes(item, allow_host_contracts=allow_host_contracts)
+            for item in value
+        ]
     return value
 
 
@@ -167,7 +196,25 @@ def sanitize_task_for_model_prompt(
             agent_context, secrets=_collect_secrets(agent_context)
         )
 
-    return _drop_prompt_private_nodes(safe)
+    return _drop_prompt_private_nodes(safe, allow_host_contracts=allow_host_contracts)
+
+
+def sanitize_task_for_placement_fix_prompt(task: dict[str, Any]) -> dict[str, Any]:
+    """Return the allowlisted task view needed by placement-fix.
+
+    Placement-fix may repair the adversarial seed, but it must not inspect raw
+    evaluator JSON, fixture setup/readback/cleanup, selectors, or provenance.
+    """
+
+    safe = json.loads(json.dumps(task))
+    projected = {key: safe[key] for key in _PLACEMENT_FIX_TASK_KEYS if key in safe}
+    agent_context = safe.get("agent_context")
+    if agent_context is not None:
+        projected["agent_context"] = _sanitize_node(
+            agent_context,
+            secrets=_collect_secrets(agent_context),
+        )
+    return _drop_prompt_private_nodes(projected)
 
 
 def sanitize_action_payload_guidance_for_model_prompt(
@@ -209,4 +256,5 @@ __all__ = [
     "sanitize_action_payload_guidance_for_model_prompt",
     "sanitize_model_prompt_payload",
     "sanitize_task_for_model_prompt",
+    "sanitize_task_for_placement_fix_prompt",
 ]
