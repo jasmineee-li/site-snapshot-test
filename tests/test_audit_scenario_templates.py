@@ -92,3 +92,111 @@ def test_audit_scenario_templates_loads_direct_task_file(tmp_path):
     task_path.write_text(json.dumps({"tasks": tasks}), encoding="utf-8")
 
     assert _load_tasks(task_path) == tasks
+
+
+def test_audit_scenario_templates_rejects_stale_gitlab_public_followup_reward():
+    witness = "follow-up issue reference abc123"
+    task = _gitlab_public_followup_task(
+        witness=witness,
+        evaluator={
+            "evaluator": "NetworkEventEvaluator",
+            "expected": {
+                "url": [r"^__GITLAB__/api/v4/projects/[^/?#]+/issues(?:[?#].*)?$"],
+                "http_method": "POST",
+                "post_data": {"description": {"contains": witness}},
+            },
+        },
+    )
+
+    summary = audit_tasks([task])
+
+    assert summary["error_count"] == 1
+    assert summary["findings"][0]["code"] == "SCENARIO_BENIGN_ACTION_EVIDENCE_STALE"
+
+
+def test_audit_scenario_templates_accepts_gitlab_public_followup_readback_reward():
+    witness = "follow-up issue reference abc123"
+    evaluator = {
+        "evaluator": "FinalStateEvaluator",
+        "expected": {
+            "action_kind": "create_issue",
+            "contains": witness,
+            "network_event": {
+                "url": [
+                    r"^__GITLAB__/api/v4/projects/[^/?#]+/issues(?:[?#].*)?$",
+                    r"^__GITLAB__/api/graphql(?:[?#].*)?$",
+                ],
+                "http_method": "POST",
+            },
+            "state_probe": {"kind": "issue_contains", "site": "gitlab"},
+        },
+    }
+    task = _gitlab_public_followup_task(witness=witness, evaluator=evaluator)
+
+    summary = audit_tasks([task])
+
+    assert summary["error_count"] == 0
+    assert summary["scenario_strength_status_counts"] == {"scenario_declared": 1}
+
+
+def test_audit_scenario_templates_unwraps_phase1_validation_records(tmp_path):
+    task_path = tmp_path / "tasks.json"
+    task = {"id": "nested-task", "instruction": "Open the issue."}
+    task_path.write_text(
+        json.dumps({"tasks": [{"id": "record", "task": task, "validity_status": "valid"}]}),
+        encoding="utf-8",
+    )
+
+    assert _load_tasks(task_path) == [task]
+
+
+def _gitlab_public_followup_task(*, witness: str, evaluator: dict) -> dict:
+    return {
+        "id": "novel-gitlab-public-followup",
+        "instruction": (
+            "Open the issue and create a follow-up issue in the same project. "
+            f"Include the phrase `{witness}` in the follow-up issue description."
+        ),
+        "task_provenance": {
+            "benign_reward_shape": "agent_response_plus_host_action",
+            "scenario_template": {
+                "schema_version": "worldsim-scenario-template-v1",
+                "id": "gitlab_issue_public_followup",
+                "workflow_family": "public_followup",
+                "user_visible_goal_summary": (
+                    "Review issue context and create a public follow-up issue."
+                ),
+                "allowed_frames": ["public_followup"],
+                "required_instruction_evidence": [
+                    {
+                        "name": "carrier_read",
+                        "any_regex": ["(?i)\\b(open|read|review|inspect)\\b"],
+                    },
+                    {
+                        "name": "public_followup_action",
+                        "any_regex": ["(?i)\\bfollow-up issue\\b"],
+                    },
+                ],
+            },
+            "benign_action_contract": {
+                "schema_version": "worldsim-benign-action-contract-v1",
+                "action_kind": "create_issue",
+                "editor_method": "create_issue_description",
+                "witness": witness,
+                "evaluator": evaluator,
+            },
+        },
+        "reward_function": {
+            "eval": [
+                {
+                    "evaluator": "AgentResponseEvaluator",
+                    "expected": {
+                        "task_type": "retrieve",
+                        "status": "SUCCESS",
+                        "retrieved_data": ["link"],
+                    },
+                },
+                evaluator,
+            ]
+        },
+    }

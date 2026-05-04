@@ -36,7 +36,8 @@ def audit_tasks(tasks: list[dict[str, Any]]) -> dict[str, Any]:
     status_counts: Counter[str] = Counter()
     findings: list[dict[str, Any]] = []
 
-    for task in tasks:
+    for raw_task in tasks:
+        task = _task_payload(raw_task)
         task_id = str(task.get("id") or task.get("task_id") or "unknown")
         instruction = str(task.get("instruction") or "")
         template = _task_scenario_template(task)
@@ -99,6 +100,7 @@ def audit_tasks(tasks: list[dict[str, Any]]) -> dict[str, Any]:
                     }
                 )
 
+        findings.extend(_audit_benign_action_evidence(task, scenario.id))
         status_counts[_scenario_strength_status(task, scenario.id)] += 1
 
     error_count = sum(1 for finding in findings if finding["severity"] == "error")
@@ -113,6 +115,11 @@ def audit_tasks(tasks: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _task_payload(task: dict[str, Any]) -> dict[str, Any]:
+    nested = task.get("task")
+    return nested if isinstance(nested, dict) else task
+
+
 def _task_scenario_template(task: dict[str, Any]) -> dict[str, Any] | None:
     provenance = task.get("task_provenance")
     if isinstance(provenance, dict) and isinstance(provenance.get("scenario_template"), dict):
@@ -121,6 +128,138 @@ def _task_scenario_template(task: dict[str, Any]) -> dict[str, Any] | None:
     if isinstance(card, dict) and isinstance(card.get("scenario_template"), dict):
         return card["scenario_template"]
     return None
+
+
+def _audit_benign_action_evidence(
+    task: dict[str, Any],
+    scenario_id: str,
+) -> list[dict[str, Any]]:
+    if scenario_id != "gitlab_issue_public_followup":
+        return []
+    task_id = str(task.get("id") or task.get("task_id") or "unknown")
+    reward_shape = str(
+        task.get("benign_reward_shape")
+        or (task.get("task_provenance") or {}).get("benign_reward_shape")
+        or ""
+    )
+    if reward_shape != "agent_response_plus_host_action":
+        return [
+            {
+                "severity": "error",
+                "task_id": task_id,
+                "scenario_template": scenario_id,
+                "code": "SCENARIO_BENIGN_REWARD_SHAPE_MISMATCH",
+                "message": (
+                    "GitLab public follow-up tasks must use "
+                    "agent_response_plus_host_action benign rewards"
+                ),
+                "actual": reward_shape or "missing",
+            }
+        ]
+
+    provenance = task.get("task_provenance")
+    contract = (
+        provenance.get("benign_action_contract")
+        if isinstance(provenance, dict)
+        else None
+    )
+    if not isinstance(contract, dict):
+        return [
+            {
+                "severity": "error",
+                "task_id": task_id,
+                "scenario_template": scenario_id,
+                "code": "SCENARIO_BENIGN_ACTION_CONTRACT_MISSING",
+                "message": "public follow-up task has no host-owned benign_action_contract",
+            }
+        ]
+    action_kind = str(contract.get("action_kind") or "")
+    editor_method = str(contract.get("editor_method") or "")
+    witness = str(contract.get("witness") or "")
+    if action_kind != "create_issue" or editor_method not in {
+        "create_issue",
+        "create_issue_description",
+    }:
+        return []
+    if not witness:
+        return [
+            {
+                "severity": "error",
+                "task_id": task_id,
+                "scenario_template": scenario_id,
+                "code": "SCENARIO_BENIGN_ACTION_WITNESS_MISSING",
+                "message": "GitLab public follow-up create_issue contract has no witness",
+            }
+        ]
+
+    evaluator = contract.get("evaluator")
+    if not _is_gitlab_issue_final_state_evaluator(evaluator, witness):
+        return [
+            {
+                "severity": "error",
+                "task_id": task_id,
+                "scenario_template": scenario_id,
+                "code": "SCENARIO_BENIGN_ACTION_EVIDENCE_STALE",
+                "message": (
+                    "GitLab public follow-up create_issue evidence must use "
+                    "FinalStateEvaluator readback; REST-only NetworkEventEvaluator "
+                    "cannot observe normal UI/GraphQL issue creation reliably"
+                ),
+            }
+        ]
+
+    if not any(
+        _is_gitlab_issue_final_state_evaluator(item, witness)
+        for item in _benign_reward_evals(task)
+    ):
+        return [
+            {
+                "severity": "error",
+                "task_id": task_id,
+                "scenario_template": scenario_id,
+                "code": "SCENARIO_BENIGN_ACTION_REWARD_STALE",
+                "message": (
+                    "reward_function does not include the host-owned GitLab "
+                    "issue final-state readback evaluator"
+                ),
+            }
+        ]
+    return []
+
+
+def _benign_reward_evals(task: dict[str, Any]) -> list[dict[str, Any]]:
+    reward = task.get("reward_function")
+    if not isinstance(reward, dict):
+        return []
+    benign_reward = reward.get("benign_reward")
+    if isinstance(benign_reward, dict):
+        reward = benign_reward
+    evals = reward.get("eval")
+    if not isinstance(evals, list):
+        return []
+    return [item for item in evals if isinstance(item, dict)]
+
+
+def _is_gitlab_issue_final_state_evaluator(value: Any, witness: str) -> bool:
+    if not isinstance(value, dict):
+        return False
+    evaluator = str(value.get("evaluator") or value.get("type") or "")
+    if evaluator != "FinalStateEvaluator":
+        return False
+    expected = value.get("expected")
+    if not isinstance(expected, dict):
+        return False
+    if str(expected.get("action_kind") or "") != "create_issue":
+        return False
+    if str(expected.get("contains") or "") != witness:
+        return False
+    state_probe = expected.get("state_probe")
+    if not isinstance(state_probe, dict):
+        return False
+    return (
+        state_probe.get("kind") == "issue_contains"
+        and state_probe.get("site") == "gitlab"
+    )
 
 
 def _scenario_strength_status(task: dict[str, Any], scenario_id: str) -> str:
@@ -170,12 +309,12 @@ def _load_tasks(run_dir: Path) -> list[dict[str, Any]]:
 
 def _coerce_tasks(data: Any) -> list[dict[str, Any]]:
     if isinstance(data, list):
-        return [item for item in data if isinstance(item, dict)]
+        return [_task_payload(item) for item in data if isinstance(item, dict)]
     if isinstance(data, dict):
         for key in ("tasks", "adversarial_tasks", "benign_tasks"):
             value = data.get(key)
             if isinstance(value, list):
-                return [item for item in value if isinstance(item, dict)]
+                return [_task_payload(item) for item in value if isinstance(item, dict)]
     raise SystemExit("task file must be a list or object containing a task array")
 
 
