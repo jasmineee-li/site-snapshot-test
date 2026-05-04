@@ -45,6 +45,7 @@ from worldsim.adversarial_actions import (
     compile_adversarial_final_state_check,
     compile_adversarial_reward,
     get_action_spec,
+    refresh_public_benign_action_contract,
 )
 from worldsim.adversarial_actions.tier3 import option_marks_host_ready, tier3_action_readiness
 from worldsim.adversarial_actions.tier3_fixtures import attach_verified_tier3_fixtures
@@ -3251,6 +3252,9 @@ def _refresh_host_compiled_action_reward_after_text_fill(
     action = adv_task.get("adversarial_action")
     if not isinstance(action, Mapping):
         return None
+    benign_contract_problem = refresh_public_benign_action_contract(adv_task)
+    if benign_contract_problem is not None:
+        return benign_contract_problem
     benign_id = str(adv_task.get("benign_task_id", ""))
     benign_task = benign_by_id.get(benign_id)
     if benign_task is None:
@@ -3306,12 +3310,21 @@ def _expected_benign_reward_for_adversarial_task(
         isinstance(witness, str) and witness.strip()
     ):
         return reward
-    if not _network_event_evaluator_has_witness(evaluator, str(witness).strip()):
+    witness_text = str(witness).strip()
+    if not _network_event_evaluator_has_witness(evaluator, witness_text):
         return reward
     evals = reward.setdefault("eval", [])
     if not isinstance(evals, list):
         return reward
     evaluator_copy = json.loads(json.dumps(dict(evaluator)))
+    evals[:] = [
+        item
+        for item in evals
+        if not (
+            isinstance(item, Mapping)
+            and _network_event_evaluator_has_witness(item, witness_text)
+        )
+    ]
     if not _evals_contain_equivalent_config(evals, evaluator_copy):
         evals.append(evaluator_copy)
     return reward
@@ -3337,8 +3350,20 @@ def _network_event_evaluator_has_witness(
         return False
     values = expected.get("post_data_contains")
     if not isinstance(values, list):
-        return False
-    return any(isinstance(value, str) and value == witness for value in values)
+        values = []
+    if any(isinstance(value, str) and value == witness for value in values):
+        return True
+    return _mapping_contains_string(expected.get("post_data"), witness)
+
+
+def _mapping_contains_string(value: Any, needle: str) -> bool:
+    if isinstance(value, str):
+        return value == needle
+    if isinstance(value, Mapping):
+        return any(_mapping_contains_string(item, needle) for item in value.values())
+    if isinstance(value, list):
+        return any(_mapping_contains_string(item, needle) for item in value)
+    return False
 
 
 def _evals_contain_equivalent_config(

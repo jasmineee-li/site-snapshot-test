@@ -2427,6 +2427,7 @@ def test_validate_generated_novel_tasks_adds_host_benign_action_evidence():
     assert network_eval["expected"]["http_method"] == "POST"
     assert network_eval["expected"]["post_data"]["description"]["contains"] == witness
     assert contract["action_kind"] == "create_issue"
+    assert contract["editor_method"] == "create_issue_description"
 
 
 def test_validate_generated_novel_tasks_adds_comment_evidence_for_delete_resource_card():
@@ -2495,6 +2496,7 @@ def test_validate_generated_novel_tasks_adds_comment_evidence_for_delete_resourc
     ]
     assert network_eval["expected"]["post_data_contains"] == [witness]
     assert contract["action_kind"] == "create_issue_note"
+    assert contract["editor_method"] == "create_issue_note"
     assert validated[0]["task_provenance"]["compatible_action_kinds"] == [
         "delete_or_transfer_resource"
     ]

@@ -14,7 +14,10 @@ import hashlib
 from collections.abc import Mapping
 from typing import Any
 
-from worldsim.adversarial_actions.catalog import MUTATION_ACTION_KINDS
+from worldsim.adversarial_actions.catalog import (
+    EDITOR_METHODS_BY_MUTATION_ACTION,
+    MUTATION_ACTION_KINDS,
+)
 from worldsim.adversarial_actions.compiler import compile_public_mutation_network_reward
 from worldsim.adversarial_actions.tier3 import (
     compile_tier3_benign_repository_network_reward,
@@ -149,10 +152,53 @@ def apply_benign_action_contract(
         provenance["benign_action_contract"] = {
             "schema_version": _BENIGN_ACTION_CONTRACT_VERSION,
             "action_kind": action_kind,
+            "editor_method": editor_method,
             "reward_signal": "network_action",
             "witness": witness,
             "evaluator": copy.deepcopy(eval_config),
         }
+    return None
+
+
+def refresh_public_benign_action_contract(task: dict[str, Any]) -> str | None:
+    """Recompile Phase 1 public benign action evidence from semantic metadata.
+
+    Generated tasks may be reused across host-code improvements. The provenance
+    stores the host-owned action intent and witness, so Phase 2 can refresh the
+    concrete evaluator instead of trusting an older endpoint/body shape baked
+    into ``reward_function.eval``.
+    """
+    provenance = task.get("task_provenance")
+    if not isinstance(provenance, dict):
+        return None
+    contract = provenance.get("benign_action_contract")
+    if not isinstance(contract, dict):
+        return None
+    stage = str(contract.get("stage") or _PHASE1_BENIGN_ACTION_STAGE).strip()
+    if stage != _PHASE1_BENIGN_ACTION_STAGE:
+        return None
+    action_kind = str(contract.get("action_kind") or "").strip()
+    witness = str(contract.get("witness") or "").strip()
+    if not action_kind or not witness:
+        return "public benign action contract requires action_kind and witness"
+    editor_method, editor_error = _public_benign_contract_editor_method(contract)
+    if editor_error is not None:
+        return editor_error
+    site = str(task.get("site") or "").strip().lower()
+    try:
+        evaluator = compile_public_mutation_network_reward(
+            site=site,
+            editor_method=editor_method,
+            kind=action_kind,
+            witness=witness,
+            reward_key="evaluator",
+        )
+    except ValueError as exc:
+        return str(exc)
+    contract["editor_method"] = editor_method
+    contract["evaluator"] = copy.deepcopy(evaluator)
+    contract["schema_version"] = _BENIGN_ACTION_CONTRACT_VERSION
+    contract["reward_signal"] = "network_action"
     return None
 
 
@@ -244,6 +290,22 @@ def _benign_public_mutation_editor_method(card: Mapping[str, Any]) -> str:
         if isinstance(method, str) and method.strip():
             return method.strip()
     return ""
+
+
+def _public_benign_contract_editor_method(
+    contract: Mapping[str, Any],
+) -> tuple[str, str | None]:
+    method = contract.get("editor_method")
+    if isinstance(method, str) and method.strip():
+        return method.strip(), None
+    action_kind = str(contract.get("action_kind") or "").strip()
+    methods = sorted(EDITOR_METHODS_BY_MUTATION_ACTION.get(action_kind, ()))
+    if len(methods) == 1:
+        return methods[0], None
+    return "", (
+        "public benign action contract requires editor_method when action_kind "
+        f"{action_kind!r} has {len(methods)} compatible editor methods"
+    )
 
 
 def _single_public_mutation_action_kind(card: Mapping[str, Any]) -> tuple[str, str | None]:

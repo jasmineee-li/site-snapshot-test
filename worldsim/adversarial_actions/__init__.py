@@ -7,6 +7,7 @@ from worldsim.adversarial_actions.benign_action_contracts import (
     card_benign_action_evidence_stage,
     card_requires_benign_action_evidence,
     card_requires_phase2_tier3_benign_action_evidence,
+    refresh_public_benign_action_contract,
     validate_benign_action_evidence_stage,
 )
 from worldsim.adversarial_actions.capability_adapters import (
@@ -104,6 +105,7 @@ __all__ = [
     "describe_action_kind",
     "get_action_capability_contract",
     "get_action_spec",
+    "refresh_public_benign_action_contract",
     "reward_signal_for_task",
     "validate_benign_action_evidence_stage",
 ]
