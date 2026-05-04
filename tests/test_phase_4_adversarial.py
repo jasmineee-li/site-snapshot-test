@@ -5828,6 +5828,8 @@ async def test_phase_4_sites_filter_limits_token_acquisition(monkeypatch, tmp_pa
     assert progress["total_tasks"] == 1
     assert progress["completed_initial_tasks"] == 1
     assert progress["postprocessed_tasks"] == 1
+    assert progress["postprocess_attempted_tasks"] == 1
+    assert progress["postprocess_failed_tasks"] == 0
     assert progress["phase_4_max_workers"] == 3
     assert progress["final_status_counts"] == {"complied": 1}
 

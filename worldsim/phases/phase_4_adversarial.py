@@ -2309,6 +2309,8 @@ def _write_phase_4_progress(
     total_tasks: int,
     completed_initial_tasks: int = 0,
     postprocessed_tasks: int = 0,
+    postprocess_attempted_tasks: int = 0,
+    postprocess_failed_tasks: int = 0,
     results_path: Path | None = None,
     final_status_counts: dict[str, int] | None = None,
     phase_4_max_workers: int | None = None,
@@ -2323,6 +2325,8 @@ def _write_phase_4_progress(
         "total_tasks": total_tasks,
         "completed_initial_tasks": completed_initial_tasks,
         "postprocessed_tasks": postprocessed_tasks,
+        "postprocess_attempted_tasks": postprocess_attempted_tasks,
+        "postprocess_failed_tasks": postprocess_failed_tasks,
     }
     if phase_4_max_workers is not None:
         payload["phase_4_max_workers"] = phase_4_max_workers
@@ -3550,9 +3554,34 @@ async def run(args: argparse.Namespace) -> int:
         phase_4_max_workers=phase_4_max_workers,
     )
 
-    raw_postprocessed = await asyncio.gather(
-        *[
-            _postprocess_one_task(
+    postprocessed_task_ids: set[str] = set()
+    postprocess_failed_task_ids: set[str] = set()
+
+    async def _record_postprocess_result(task_id: str, *, failed: bool = False) -> None:
+        normalized_id = str(task_id or "unknown").strip() or "unknown"
+        async with progress_lock:
+            if failed:
+                postprocess_failed_task_ids.add(normalized_id)
+            else:
+                postprocessed_task_ids.add(normalized_id)
+            _write_phase_4_progress(
+                state_dir,
+                status="running",
+                stage="postprocessing",
+                task_dir_root=task_dir_root,
+                total_tasks=len(tasks),
+                completed_initial_tasks=len(results),
+                postprocessed_tasks=len(postprocessed_task_ids),
+                postprocess_attempted_tasks=len(postprocessed_task_ids)
+                + len(postprocess_failed_task_ids),
+                postprocess_failed_tasks=len(postprocess_failed_task_ids),
+                phase_4_max_workers=phase_4_max_workers,
+            )
+
+    async def _postprocess_one_task_with_progress(result: dict[str, Any]) -> dict[str, Any]:
+        task_id = str(result.get("task_id", "unknown"))
+        try:
+            processed = await _postprocess_one_task(
                 result=result,
                 task_by_id=task_by_id,
                 config=config,
@@ -3567,8 +3596,14 @@ async def run(args: argparse.Namespace) -> int:
                 ),
                 browser_worker_semaphore=browser_worker_semaphore,
             )
-            for result in results
-        ],
+        except Exception:
+            await _record_postprocess_result(task_id, failed=True)
+            raise
+        await _record_postprocess_result(task_id)
+        return processed
+
+    raw_postprocessed = await asyncio.gather(
+        *[_postprocess_one_task_with_progress(result) for result in results],
         return_exceptions=True,
     )
 
@@ -3590,6 +3625,8 @@ async def run(args: argparse.Namespace) -> int:
         total_tasks=len(tasks),
         completed_initial_tasks=len(results),
         postprocessed_tasks=len(final_results),
+        postprocess_attempted_tasks=len(final_results) + len(postprocess_failures),
+        postprocess_failed_tasks=len(postprocess_failures),
         phase_4_max_workers=phase_4_max_workers,
     )
 
@@ -3602,6 +3639,8 @@ async def run(args: argparse.Namespace) -> int:
             total_tasks=len(tasks),
             completed_initial_tasks=len(results),
             postprocessed_tasks=len(final_results),
+            postprocess_attempted_tasks=len(final_results) + len(postprocess_failures),
+            postprocess_failed_tasks=len(postprocess_failures),
             phase_4_max_workers=phase_4_max_workers,
         )
         save_state(
@@ -3833,6 +3872,8 @@ async def run(args: argparse.Namespace) -> int:
         total_tasks=len(tasks),
         completed_initial_tasks=len(results),
         postprocessed_tasks=len(final_results),
+        postprocess_attempted_tasks=len(final_results),
+        postprocess_failed_tasks=0,
         results_path=output_dir / "results.json",
         final_status_counts=dict(
             Counter(str(r.get("final_status", "missing")) for r in final_results)

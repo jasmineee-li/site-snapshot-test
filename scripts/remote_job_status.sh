@@ -292,6 +292,8 @@ def summarize_phase4_progress(path: Path) -> dict[str, object] | None:
         "total_tasks": total,
         "completed_initial_tasks": int_value("completed_initial_tasks"),
         "postprocessed_tasks": int_value("postprocessed_tasks"),
+        "postprocess_attempted_tasks": int_value("postprocess_attempted_tasks"),
+        "postprocess_failed_tasks": int_value("postprocess_failed_tasks"),
         "age_seconds": age_seconds,
     }
 
@@ -405,6 +407,8 @@ for candidate in phase4_progress_candidates():
         f"stage={summary['stage']} "
         f"initial={summary['completed_initial_tasks']}/{summary['total_tasks']} "
         f"postprocessed={summary['postprocessed_tasks']}/{summary['total_tasks']} "
+        f"postprocess_attempted={summary['postprocess_attempted_tasks']}/{summary['total_tasks']} "
+        f"postprocess_failed={summary['postprocess_failed_tasks']} "
         f"age_seconds={summary['age_seconds']} "
         f"updated_at={summary['updated_at']}"
     )

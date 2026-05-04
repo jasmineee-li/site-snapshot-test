@@ -336,7 +336,10 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
             f"initial={progress.get('completed_initial_tasks', 0)}/"
             f"{progress.get('total_tasks', 0)} "
             f"postprocessed={progress.get('postprocessed_tasks', 0)}/"
-            f"{progress.get('total_tasks', 0)}"
+            f"{progress.get('total_tasks', 0)} "
+            f"postprocess_attempted={progress.get('postprocess_attempted_tasks', 0)}/"
+            f"{progress.get('total_tasks', 0)} "
+            f"postprocess_failed={progress.get('postprocess_failed_tasks', 0)}"
         )
 
     manifest = payload.get("artifact_manifest")
