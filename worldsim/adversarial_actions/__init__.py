@@ -9,6 +9,12 @@ from worldsim.adversarial_actions.benign_action_contracts import (
     card_requires_phase2_tier3_benign_action_evidence,
     validate_benign_action_evidence_stage,
 )
+from worldsim.adversarial_actions.capability_adapters import (
+    CAPABILITY_ADAPTER_VERSION,
+    CapabilityTaskAdapter,
+    available_capability_adapter_profiles,
+    capability_adapters_for_profile,
+)
 from worldsim.adversarial_actions.capability_contracts import (
     ACTION_CAPABILITY_CONTRACTS,
     ActionCapabilityContract,
@@ -60,10 +66,12 @@ __all__ = [
     "ACTION_POLICIES",
     "ACTION_SIGNAL_BY_KIND",
     "ACTION_SPECS",
+    "CAPABILITY_ADAPTER_VERSION",
     "TIER3_ADAPTER_SPECS",
     "TIER3_MATURITY_LEVELS",
     "ActionCapabilityContract",
     "ActionSpec",
+    "CapabilityTaskAdapter",
     "action_kind_compatible_with_task",
     "action_kind_compatible_with_task_card",
     "action_kinds_for_capability_family",
@@ -77,10 +85,12 @@ __all__ = [
     "annotate_exposure_contracts_with_actions",
     "apply_benign_action_contract",
     "apply_phase2_tier3_benign_action_contract",
+    "available_capability_adapter_profiles",
     "benign_action_witness",
     "build_action_payload_guidance",
     "build_action_readiness_artifacts",
     "canonical_action_policy",
+    "capability_adapters_for_profile",
     "capability_family_from_task",
     "capability_family_from_task_card",
     "card_benign_action_evidence_stage",

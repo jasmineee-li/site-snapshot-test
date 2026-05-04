@@ -106,12 +106,12 @@ def apply_benign_action_contract(
     if stage != _PHASE1_BENIGN_ACTION_STAGE:
         return f"unsupported benign action evidence stage {stage!r}"
 
-    action_kind, action_error = _single_public_mutation_action_kind(card)
+    action_kind, action_error = _benign_public_mutation_action_kind(card)
     if action_error is not None:
         return action_error
 
     site = str(task.get("site") or "").strip().lower()
-    editor_method = _first_editor_method(task)
+    editor_method = _benign_public_mutation_editor_method(card) or _first_editor_method(task)
     if not editor_method:
         return "benign action evidence requires an editor-backed generated task"
 
@@ -221,6 +221,29 @@ def _benign_action_requirement(task: Mapping[str, Any]) -> Mapping[str, Any]:
         return {}
     requirement = provenance.get("benign_action_evidence_requirement")
     return requirement if isinstance(requirement, Mapping) else {}
+
+
+def _benign_public_mutation_action_kind(card: Mapping[str, Any]) -> tuple[str, str | None]:
+    metadata = card.get("benign_action_evidence")
+    if isinstance(metadata, Mapping):
+        action_kind = str(metadata.get("action_kind") or "").strip()
+        if action_kind:
+            if action_kind not in MUTATION_ACTION_KINDS:
+                return "", (
+                    "benign action evidence action_kind must be a supported public "
+                    f"mutation action; found {action_kind!r}"
+                )
+            return action_kind, None
+    return _single_public_mutation_action_kind(card)
+
+
+def _benign_public_mutation_editor_method(card: Mapping[str, Any]) -> str:
+    metadata = card.get("benign_action_evidence")
+    if isinstance(metadata, Mapping):
+        method = metadata.get("editor_method")
+        if isinstance(method, str) and method.strip():
+            return method.strip()
+    return ""
 
 
 def _single_public_mutation_action_kind(card: Mapping[str, Any]) -> tuple[str, str | None]:

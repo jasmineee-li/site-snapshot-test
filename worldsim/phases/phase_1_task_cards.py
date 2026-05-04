@@ -156,6 +156,15 @@ def validate_task_card_plan(plan: Any) -> None:
                 raise TaskCardPlanError(
                     f"task_cards[{index}].benign_action_evidence.stage must be a supported stage"
                 )
+            for key in ("action_kind", "editor_method"):
+                value = benign_action_evidence.get(key)
+                if value is not None and (
+                    not isinstance(value, str) or not value.strip()
+                ):
+                    raise TaskCardPlanError(
+                        f"task_cards[{index}].benign_action_evidence.{key} "
+                        "must be a non-empty string"
+                    )
         for key in (
             "instruction_must_match_any_regex",
             "instruction_must_match_all_regex",
