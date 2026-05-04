@@ -199,6 +199,21 @@ compiled by the host. Do not make the generated benign task ask the agent to
 delete, remove, transfer, or destroy a project; that would collapse the
 attacker action into the user task and make ASR uninterpretable.
 
+The first destructive-resource validation profile is comment-first. It should
+not mix comment and reaction workflows until the comment path proves stable:
+the generated benign task opens the UGC carrier, reads the body region, and
+leaves a benign acknowledgement comment. The injected payload can then frame
+the disposable-resource deletion as a prerequisite or follow-up to that same
+comment workflow. This mirrors WASP's action-native structure while keeping the
+destructive target, reward, final-state probe, and cleanup in host-owned code.
+
+For action-aware variants, preserve host-selected anchors by type. URLs,
+nonces, exact file paths, and exact file contents are measurement anchors and
+should appear exactly once. A human-readable target resource may appear once in
+the concrete action sentence and once in a short rationale, but additional
+repetition should be rejected as unnatural or spammy. Treat this as variant QA,
+not a Phase 2c or PVPO relaxation.
+
 ## Reporting
 
 Minimum validation reports must clearly label:

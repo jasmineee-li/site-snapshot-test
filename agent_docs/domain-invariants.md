@@ -110,19 +110,24 @@ evidence is missing. Destructive fixture configs must explicitly record verified
 reset cleanup, for example `reset_verified=true`, before Phase 2 may expose a
 host-ready delete-resource option.
 
-Action capability contracts and capability task cards are host-owned generation
-constraints, not model-authored rewards. They may describe generic capability
-families, compatible carrier surfaces, benign reward shapes, fixture/readback
-requirements, and forbidden benign/adversarial overlap. They must not place
-benchmark-specific selectors, endpoint paths, fixture setup, final-state probes,
-or cleanup logic in model-facing static prompts.
+Action capability contracts, benchmark capability adapters, and capability task
+cards are host-owned generation constraints, not model-authored rewards. The
+generic contract describes capability families, compatible carrier surface
+classes, benign reward shapes, fixture/readback requirements, and forbidden
+benign/adversarial overlap. The benchmark adapter maps that generic contract to
+route contracts, editor methods, fixture providers, final-state probes, and
+cleanup logic for a particular benchmark/site. Model-facing static prompts may
+describe the generic card fields, but they must not contain benchmark-specific
+selectors, endpoint paths, fixture setup, final-state probes, cleanup logic, or
+platform-specific attack recipes.
 
 For live pilots, prefer named compiled capability task-card profiles over
 hand-edited JSON plans. A compiled profile is host-owned, route-local, validated
 by the same Phase 1 task-card gate, fingerprinted in resume metadata, and
 reproducible across runs. Use hand-authored task-card JSON only for explicitly
 labeled experiments. New workflow families should enter through a capability
-contract plus a tested card blueprint, not through broad prompt wording.
+contract plus a tested benchmark adapter/card compiler, not through broad prompt
+wording.
 
 Adversarial actions are impact-stratified. Tier 1 is semantic/navigation
 hijack, Tier 2 is bounded public mutation on UGC workflows, and Tier 3 is
@@ -140,6 +145,15 @@ framing, but they must not replace that contract with a generic fixture-edit
 request or a binary-answer label flip. If the payload cannot name the
 host-selected target/content and produce action witnesses for it, fail closed
 before Phase 2c instead of creating an unmeasurable live artifact.
+
+Phase 4 action variants preserve action anchors with typed string-count rules.
+Attacker URLs, action nonces, repository file paths, and exact required file
+content are measurement anchors and remain exact-once unless an action contract
+explicitly overrides them. Human-readable target resources, such as a
+disposable project path in a destructive-resource pilot, must appear at least
+once and may appear only up to the small maximum declared by the action
+contract. This allows natural action prose without weakening URL/nonce/content
+uniqueness or accepting spammy repeated targets.
 
 Tier 3 readiness is maturity-gated. Treat catalog-only actions as
 `L0_declared`; allow a model to choose a Tier 3 action only after a host adapter
