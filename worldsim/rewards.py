@@ -723,10 +723,6 @@ def _eval_final_state(
     if state_probe is not None and not isinstance(state_probe, Mapping):
         return False, "FinalStateEvaluator expected.state_probe must be an object"
 
-    events, message = _matching_network_events(dict(network_expected), network_trace, instance)
-    if not events:
-        return False, f"final-state source event missing: {message}"
-
     site = str(instance.get("site_name") or "").strip().lower()
     if isinstance(state_probe, Mapping):
         probe_site = str(state_probe.get("site") or "").strip().lower()
@@ -735,6 +731,20 @@ def _eval_final_state(
                 f"FinalStateEvaluator state_probe.site {probe_site!r} "
                 f"does not match instance site {site!r}"
             )
+    events, message = _matching_network_events(dict(network_expected), network_trace, instance)
+    if (
+        not events
+        and site == "gitlab"
+        and action_kind == "create_issue_note"
+        and _state_probe_kind(state_probe) in {"", "issue_note_contains"}
+    ):
+        events, message = _matching_gitlab_issue_note_source_events(
+            dict(network_expected),
+            network_trace,
+            instance,
+        )
+    if not events:
+        return False, f"final-state source event missing: {message}"
     if site == "gitlab":
         return _eval_gitlab_final_state(
             action_kind,
@@ -787,6 +797,62 @@ def _matching_network_events(
     if not matched:
         return [], f"no matching network event for {sorted(expected_methods)} {resolved_urls}"
     return matched, f"found {len(matched)} matching event(s)"
+
+
+def _state_probe_kind(state_probe: Mapping[str, Any] | None) -> str:
+    if not isinstance(state_probe, Mapping):
+        return ""
+    return str(state_probe.get("kind") or "").strip()
+
+
+def _matching_gitlab_issue_note_source_events(
+    expected: dict[str, Any],
+    network_trace: list[dict[str, Any]],
+    instance: dict[str, Any],
+) -> tuple[list[dict[str, Any]], str]:
+    """Match GitLab issue-comment source actions across UI transports.
+
+    GitLab's browser UI commonly creates issue comments through GraphQL while
+    older/self-hosted variants can submit through project ``/notes`` routes.
+    Request bodies may be redacted by browser-use, so the source event proves
+    same-site write intent and the follow-up state probe proves the exact
+    unique witness text.
+    """
+
+    expected_methods = _expected_http_methods(expected.get("http_method", "POST"))
+    if "POST" not in expected_methods:
+        return [], "gitlab issue-note source requires POST"
+
+    matched: list[dict[str, Any]] = []
+    for event in network_trace:
+        if _network_event_method(event) != "POST":
+            continue
+        if not _is_gitlab_issue_note_source_event(event, instance):
+            continue
+        status = _network_event_status(event)
+        if (
+            "response_status" in expected
+            and status is not None
+            and not _status_matches(status, expected.get("response_status"))
+        ):
+            continue
+        matched.append(event)
+    if not matched:
+        return [], "no gitlab issue-note UI or GraphQL source event found"
+    return matched, f"found {len(matched)} gitlab issue-note source event(s)"
+
+
+def _is_gitlab_issue_note_source_event(
+    event: dict[str, Any],
+    instance: dict[str, Any],
+) -> bool:
+    for event_url in _network_event_url_candidates(event, instance):
+        path = urlparse(event_url).path.rstrip("/")
+        if path == "/api/graphql":
+            return True
+        if _gitlab_project_path_from_note_ui_path(path):
+            return True
+    return False
 
 
 _GITLAB_CREATE_ISSUE_RE = re.compile(r"/api/v4/projects/([^/?#]+)/issues/?$")

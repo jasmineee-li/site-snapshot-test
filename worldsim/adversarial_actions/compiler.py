@@ -536,6 +536,9 @@ def compile_public_benign_mutation_evaluator(
             )
         if not marker:
             raise ValueError("mutation final-state reward requires a non-empty witness")
+        placeholder = placeholder_for_site(normalized_site) or ""
+        graphql_url = rf"^{placeholder.rstrip('/')}/api/graphql(?:[?#].*)?$"
+        urls = [*urls, graphql_url]
         return {
             "evaluator": "FinalStateEvaluator",
             "expected": {
