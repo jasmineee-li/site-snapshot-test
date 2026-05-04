@@ -97,30 +97,23 @@ def validate_task_card_plan(plan: Any) -> None:
         if archetype_id is not None and (
             not isinstance(archetype_id, str) or not archetype_id.strip()
         ):
-            raise TaskCardPlanError(
-                f"task_cards[{index}].archetype_id must be a non-empty string"
-            )
+            raise TaskCardPlanError(f"task_cards[{index}].archetype_id must be a non-empty string")
         task_archetype = card.get("task_archetype")
         if task_archetype is not None and not isinstance(task_archetype, dict):
-            raise TaskCardPlanError(
-                f"task_cards[{index}].task_archetype must be an object"
-            )
-        precondition_slot_problem = validate_precondition_slot(
-            card.get("precondition_slot")
-        )
+            raise TaskCardPlanError(f"task_cards[{index}].task_archetype must be an object")
+        precondition_slot_problem = validate_precondition_slot(card.get("precondition_slot"))
         if precondition_slot_problem is not None:
-            raise TaskCardPlanError(
-                f"task_cards[{index}].{precondition_slot_problem}"
-            )
+            raise TaskCardPlanError(f"task_cards[{index}].{precondition_slot_problem}")
         capability_family = capability_family_from_task_card(card)
         for key in ("capability_family", "required_capability_family"):
-            if key in card and (
-                not isinstance(card[key], str) or not str(card[key]).strip()
-            ):
-                raise TaskCardPlanError(
-                    f"task_cards[{index}].{key} must be a non-empty string"
-                )
+            if key in card and (not isinstance(card[key], str) or not str(card[key]).strip()):
+                raise TaskCardPlanError(f"task_cards[{index}].{key} must be a non-empty string")
         action_kinds = card_action_kinds(card)
+        if "allowed_action_kinds" in card:
+            raise TaskCardPlanError(
+                f"task_cards[{index}].allowed_action_kinds is legacy metadata; "
+                "use compatible_action_kinds"
+            )
         if action_kinds and not capability_family:
             raise TaskCardPlanError(
                 f"task_cards[{index}].compatible_action_kinds requires capability_family"
@@ -155,16 +148,11 @@ def validate_task_card_plan(plan: Any) -> None:
             card["requires_benign_action_evidence"], bool
         ):
             raise TaskCardPlanError(
-                "task_cards["
-                f"{index}].requires_benign_action_evidence must be a boolean"
+                f"task_cards[{index}].requires_benign_action_evidence must be a boolean"
             )
         benign_action_evidence = card.get("benign_action_evidence")
-        if benign_action_evidence is not None and not isinstance(
-            benign_action_evidence, dict
-        ):
-            raise TaskCardPlanError(
-                f"task_cards[{index}].benign_action_evidence must be an object"
-            )
+        if benign_action_evidence is not None and not isinstance(benign_action_evidence, dict):
+            raise TaskCardPlanError(f"task_cards[{index}].benign_action_evidence must be an object")
         if isinstance(benign_action_evidence, dict):
             required = benign_action_evidence.get("required")
             if required is not None and not isinstance(required, bool):
@@ -180,9 +168,7 @@ def validate_task_card_plan(plan: Any) -> None:
                 )
             for key in ("action_kind", "editor_method"):
                 value = benign_action_evidence.get(key)
-                if value is not None and (
-                    not isinstance(value, str) or not value.strip()
-                ):
+                if value is not None and (not isinstance(value, str) or not value.strip()):
                     raise TaskCardPlanError(
                         f"task_cards[{index}].benign_action_evidence.{key} "
                         "must be a non-empty string"
@@ -247,7 +233,8 @@ def task_card_index(plan: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
     return {
         str(card["id"]): card
         for card in plan.get("task_cards", [])
-        if isinstance(card, dict) and isinstance(card.get("id"), str)
+        if isinstance(card, dict)
+        and isinstance(card.get("id"), str)
         and str(card.get("status", "active")) == "active"
     }
 

@@ -1084,6 +1084,10 @@ _PUBLIC_MUTATION_VERBS_RE = re.compile(
     r"\b(add|comment|create|include|post|publish|reply|submit|write)\b",
     re.IGNORECASE,
 )
+_PUBLIC_MUTATION_READBACK_DRIFT_RE = re.compile(
+    r"\b(?:check|determine|review|report|record|verify)\s+(?:if|whether)\b",
+    re.IGNORECASE,
+)
 
 
 def _public_mutation_action_witness_errors(
@@ -1103,6 +1107,11 @@ def _public_mutation_action_witness_errors(
         for witness in attack_action_witnesses:
             if not isinstance(witness, str) or token not in witness:
                 continue
+            if _PUBLIC_MUTATION_READBACK_DRIFT_RE.search(witness):
+                return [
+                    "public mutation attack_action_witnesses must request a submitted "
+                    f"action, not read back whether the reward witness {token!r} applies"
+                ]
             if _PUBLIC_MUTATION_VERBS_RE.search(witness):
                 break
         else:

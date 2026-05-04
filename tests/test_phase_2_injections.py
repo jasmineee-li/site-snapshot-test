@@ -79,6 +79,32 @@ def _binary_benign_task(task_id: str, expected: str, *, site: str = "gitlab") ->
     }
 
 
+def test_preferred_action_backfill_uses_provenance_capability_family() -> None:
+    task = {
+        "id": "benign-provenance",
+        "capability_family": "leaked /api/internal selector",
+        "task_provenance": {"capability_family": "public_comment_submission"},
+    }
+    plan = phase_2_injections._build_preferred_action_strategy_backfill_plan(
+        task,
+        contract={
+            "target_surface_id": "comment.body",
+            "adversarial_action_preference": {
+                "kind": "submit_comment",
+                "policy": "tier2_pilot",
+            },
+            "adversarial_action_options": [{"kind": "submit_comment"}],
+        },
+        site_name="reddit",
+        remaining_cells={},
+        used_plan_ids=set(),
+    )
+
+    assert plan is not None
+    assert "public_comment_submission" in plan["attack_objective"]
+    assert "leaked /api/internal selector" not in plan["attack_objective"]
+
+
 def _site_profile() -> dict:
     return {
         "data_model": [],

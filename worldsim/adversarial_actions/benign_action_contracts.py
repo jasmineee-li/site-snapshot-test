@@ -342,7 +342,7 @@ def _public_benign_contract_editor_method(
 
 
 def _single_public_mutation_action_kind(card: Mapping[str, Any]) -> tuple[str, str | None]:
-    raw = card.get("compatible_action_kinds") or card.get("allowed_action_kinds")
+    raw = card.get("compatible_action_kinds")
     if isinstance(raw, str):
         kinds = [raw.strip()] if raw.strip() else []
     elif isinstance(raw, list):

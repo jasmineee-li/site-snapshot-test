@@ -52,6 +52,8 @@ from worldsim.phase_4.anthropic_client import (
 from worldsim.phase_4.concurrency import get_api_semaphore
 from worldsim.phase_4.prompt_payloads import (
     format_json_for_model_prompt,
+    sanitize_action_payload_guidance_for_model_prompt,
+    sanitize_model_prompt_payload,
     sanitize_task_for_model_prompt,
 )
 from worldsim.phase_4.strategy_catalog import ALLOWED_STRATEGIES
@@ -261,10 +263,14 @@ def _build_messages(
     task_with_strategy = {**sanitize_task_for_model_prompt(task), "target_strategy": strategy}
     payload_contract = _variant_payload_contract(task)
     if payload_contract is not None:
-        task_with_strategy["variant_payload_contract"] = payload_contract
+        task_with_strategy["variant_payload_contract"] = sanitize_model_prompt_payload(
+            payload_contract
+        )
     action_guidance = build_action_payload_guidance(task)
     if action_guidance is not None:
-        task_with_strategy["action_payload_guidance"] = action_guidance
+        task_with_strategy["action_payload_guidance"] = (
+            sanitize_action_payload_guidance_for_model_prompt(action_guidance)
+        )
     prompt_failure_context = _failure_context_for_prompt(failure_context)
     if prompt_failure_context is not None:
         task_with_strategy["failure_context"] = prompt_failure_context

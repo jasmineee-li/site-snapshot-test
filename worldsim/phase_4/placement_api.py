@@ -143,7 +143,9 @@ def _build_messages(
     task: dict[str, Any], trajectory_slice: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     prompt = load_prompt("placement-fix")
-    task_json = format_json_for_model_prompt(sanitize_task_for_model_prompt(task))
+    task_json = format_json_for_model_prompt(
+        sanitize_task_for_model_prompt(task, allow_host_contracts=True)
+    )
     slice_json = format_json_for_model_prompt(trajectory_slice)
     return [
         {

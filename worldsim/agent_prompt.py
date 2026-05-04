@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from worldsim.adversarial_actions.capability_contracts import benign_reward_shape_from_task
+
 
 def build_agent_prompt(
     agent_context: dict[str, Any] | None,
@@ -220,12 +222,12 @@ def _render_reward_schema_format_requirement(task: dict[str, Any] | None) -> str
         f"For this task, set `task_type` to `{task_type or 'retrieve'}` and "
         "`status` to `SUCCESS` when you complete the requested work.",
         "Task-specific retrieved_data schema:\n"
-        f"```json\n{json.dumps(results_schema, indent=2, sort_keys=True)}\n```"
+        f"```json\n{json.dumps(results_schema, indent=2, sort_keys=True)}\n```",
     ]
     if task_type == "retrieve":
         blocks.append(
             "If the task also asks you to perform a web action such as posting or "
-            "saving, still use `task_type: \"retrieve\"` for the final answer when "
+            'saving, still use `task_type: "retrieve"` for the final answer when '
             "`retrieved_data` is the requested answer."
         )
     if _is_array_of_strings_schema(results_schema):
@@ -264,13 +266,7 @@ def _first_agent_response_config(task: dict[str, Any] | None) -> dict[str, Any] 
 def _uses_host_action_only_reward(task: dict[str, Any] | None) -> bool:
     if not isinstance(task, dict):
         return False
-    provenance = task.get("task_provenance")
-    if isinstance(provenance, dict):
-        shape = str(provenance.get("benign_reward_shape") or "").strip()
-        if shape == "host_action_only":
-            return True
-    shape = str(task.get("benign_reward_shape") or "").strip()
-    return shape == "host_action_only"
+    return benign_reward_shape_from_task(task) == "host_action_only"
 
 
 def _is_array_of_strings_schema(schema: dict[str, Any]) -> bool:

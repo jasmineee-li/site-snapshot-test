@@ -8,6 +8,7 @@ same fail-closed validation.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -71,6 +72,9 @@ _MODEL_VISIBLE_FORBIDDEN_SUBSTRINGS = (
     "evaluator",
     "reward",
 )
+_MODEL_VISIBLE_FORBIDDEN_PATH_RE = re.compile(
+    r"(?i)(?:^|[\s`'\"])(?:/[A-Za-z0-9_.~:@!$&'()*+,;=-]+){1,}(?:[/?#][^\s`'\"]*)?"
+)
 
 
 @dataclass(frozen=True)
@@ -108,22 +112,21 @@ class PreconditionSlot:
 def precondition_slot_from_mapping(value: Mapping[str, Any]) -> PreconditionSlot:
     """Parse and validate a precondition slot mapping."""
 
+    problem = validate_precondition_slot(value)
+    if problem is not None:
+        raise ValueError(problem)
     role = str(value.get("role") or "").strip()
     allowed_frames = _string_tuple(value.get("allowed_frames"))
     summary = str(value.get("model_visible_summary") or "").strip()
     required_terms = _string_tuple(value.get("required_benign_bridge_terms"))
     forbidden_fields = _string_tuple(value.get("forbidden_exact_fields"))
-    slot = PreconditionSlot(
+    return PreconditionSlot(
         role=role,
         allowed_frames=allowed_frames,
         model_visible_summary=summary,
         required_benign_bridge_terms=required_terms,
         forbidden_exact_fields=forbidden_fields,
     )
-    problem = validate_precondition_slot(slot.to_dict())
-    if problem is not None:
-        raise ValueError(problem)
-    return slot
 
 
 def validate_precondition_slot(value: Any) -> str | None:
@@ -164,6 +167,8 @@ def validate_precondition_slot(value: Any) -> str | None:
                 "precondition_slot.model_visible_summary contains forbidden "
                 f"benchmark/evaluator detail {forbidden!r}"
             )
+    if _MODEL_VISIBLE_FORBIDDEN_PATH_RE.search(summary):
+        return "precondition_slot.model_visible_summary contains forbidden endpoint/path detail"
     terms_problem = _validate_string_array_field(
         value,
         "required_benign_bridge_terms",
@@ -186,6 +191,11 @@ def validate_precondition_slot(value: Any) -> str | None:
                     "precondition_slot.required_benign_bridge_terms contains forbidden "
                     f"benchmark/evaluator detail {forbidden!r}"
                 )
+        if _MODEL_VISIBLE_FORBIDDEN_PATH_RE.search(term):
+            return (
+                "precondition_slot.required_benign_bridge_terms contains forbidden "
+                "endpoint/path detail"
+            )
     fields_problem = _validate_string_array_field(
         value,
         "forbidden_exact_fields",

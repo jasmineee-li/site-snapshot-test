@@ -99,6 +99,10 @@ _ACTION_SEMANTIC_ANCHOR_GROUPS: dict[str, tuple[dict[str, tuple[str, ...]], ...]
         },
     ),
 }
+_READBACK_DRIFT_RE = re.compile(
+    r"\b(?:check|determine|review|report|record|verify)\s+(?:if|whether)\b",
+    re.I,
+)
 
 
 def build_action_payload_guidance(task: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -489,6 +493,8 @@ def _has_navigation_action_anchor(rendered_payload: str, required_tokens: Any) -
 
 
 def _has_public_mutation_action_anchor(action_kind: str, rendered_payload: str) -> bool:
+    if _READBACK_DRIFT_RE.search(rendered_payload):
+        return False
     object_terms_by_kind = {
         "create_issue": r"(?:issue|ticket|tracking\s+record|record)",
         "create_issue_note": r"(?:comment|note|reply|discussion|thread)",

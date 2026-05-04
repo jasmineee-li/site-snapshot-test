@@ -1809,9 +1809,35 @@ def validate_adversarial_tasks(
         benign_task = benign_by_id.get(benign_task_id) if benign_by_id else None
         merged = dict(task)
         if benign_task is not None:
+            for field in (
+                "task_provenance",
+                "capability_family",
+                "required_capability_family",
+                "compatible_action_kinds",
+                "allowed_action_kinds",
+                "benign_reward_shape",
+                "precondition_slot",
+            ):
+                merged.pop(field, None)
             for field in ("instruction", "site", "sites", "start_urls", "data_seed"):
                 if field in benign_task:
                     merged[field] = benign_task[field]
+            provenance = benign_task.get("task_provenance")
+            if isinstance(provenance, dict):
+                merged["task_provenance"] = json.loads(json.dumps(provenance))
+            else:
+                fallback_provenance = {}
+                for field in (
+                    "capability_family",
+                    "required_capability_family",
+                    "compatible_action_kinds",
+                    "benign_reward_shape",
+                    "precondition_slot",
+                ):
+                    if field in benign_task:
+                        fallback_provenance[field] = json.loads(json.dumps(benign_task[field]))
+                if fallback_provenance:
+                    merged["task_provenance"] = fallback_provenance
 
         # Validate adversarial action/reward — new plans carry
         # adversarial_action, while legacy artifacts may still carry
@@ -1833,7 +1859,7 @@ def validate_adversarial_tasks(
                 errors.append(f"{prefix} adversarial_action must be a non-empty object")
             elif not isinstance(adv_action.get("kind"), str) or not adv_action["kind"].strip():
                 errors.append(f"{prefix} adversarial_action.kind must be a non-empty string")
-            elif not _adversarial_action_kind_allowed(task, adv_action["kind"].strip()):
+            elif not _adversarial_action_kind_allowed(merged, adv_action["kind"].strip()):
                 errors.append(
                     f"{prefix} adversarial_action.kind must be one of "
                     f"{sorted(_ACTION_KINDS)} or a host-ready pilot action"

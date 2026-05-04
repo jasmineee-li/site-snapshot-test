@@ -50,6 +50,7 @@ from worldsim.adversarial_actions import (
 from worldsim.adversarial_actions.capability_contracts import (
     BENIGN_REWARD_HOST_ACTION_ONLY,
     benign_reward_shape_from_task,
+    capability_family_from_task,
 )
 from worldsim.adversarial_actions.tier3 import option_marks_host_ready, tier3_action_readiness
 from worldsim.adversarial_actions.tier3_fixtures import attach_verified_tier3_fixtures
@@ -2873,16 +2874,7 @@ def _build_preferred_action_strategy_backfill_plan(
         used_plan_ids=used_plan_ids,
     )
     surface = str(contract.get("target_surface_id") or task.get("target_surface_id") or "field")
-    provenance = task.get("task_provenance")
-    provenance_family = (
-        provenance.get("capability_family") if isinstance(provenance, Mapping) else None
-    )
-    family = str(
-        task.get("capability_family")
-        or task.get("required_capability_family")
-        or provenance_family
-        or "action"
-    )
+    family = str(capability_family_from_task(task) or "action")
     objective = _preferred_action_backfill_objective(
         kind=kind,
         surface=surface,

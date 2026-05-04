@@ -157,4 +157,36 @@ def test_build_agent_prompt_uses_host_action_only_response_copy():
     assert "AgentResponseEvaluator" not in prompt
     assert "Host-owned evaluators verify the browser-side action" in prompt
     assert "completion record" in prompt
-    assert "retrieved_data to null" in prompt
+
+
+def test_build_agent_prompt_prefers_provenance_reward_shape_over_stale_top_level():
+    context = _agent_context()
+    context["response_format"]["description"] = (
+        "Evaluation uses AgentResponseEvaluator which parses agent text output as JSON."
+    )
+    task = {
+        "instruction": "Read the issue description and return the requested label.",
+        "benign_reward_shape": "host_action_only",
+        "task_provenance": {"benign_reward_shape": "agent_response_plus_host_action"},
+        "reward_function": {
+            "benign_reward": {
+                "eval": [
+                    {
+                        "evaluator": "FinalStateEvaluator",
+                        "expected": {"kind": "gitlab_issue_note_contains"},
+                    }
+                ]
+            }
+        },
+    }
+
+    prompt = build_agent_prompt(
+        context,
+        task["instruction"],
+        ["__GITLAB__/group/project/-/issues"],
+        task=task,
+    )
+
+    assert prompt is not None
+    assert "Host-owned evaluators verify the browser-side action" not in prompt
+    assert "AgentResponseEvaluator" in prompt
