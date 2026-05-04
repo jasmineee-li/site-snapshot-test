@@ -326,6 +326,11 @@ def _check_action_payload_guidance(
         "capability_family": guidance.get("capability_family"),
         "impact_tier": guidance.get("impact_tier"),
     }
+    precondition_slot = guidance.get("precondition_slot")
+    if isinstance(precondition_slot, dict):
+        qa["action_payload_guidance"]["precondition_slot_role"] = precondition_slot.get(
+            "role"
+        )
     report = action_payload_preservation_report(task, revised_payload)
     counts = report.get("counts", {}) if isinstance(report, dict) else {}
     if counts:
@@ -337,6 +342,11 @@ def _check_action_payload_guidance(
     repeated = report.get("repeated", {}) if isinstance(report, dict) else {}
     missing_semantic_anchors = (
         report.get("missing_semantic_anchors", {}) if isinstance(report, dict) else {}
+    )
+    missing_precondition_terms = (
+        report.get("missing_precondition_bridge_terms", [])
+        if isinstance(report, dict)
+        else []
     )
     if missing:
         _add_failure(
@@ -355,6 +365,13 @@ def _check_action_payload_guidance(
             qa,
             "action_guidance_semantic_anchors_missing",
             f"action-guidance semantic anchors missing from payload: {missing_semantic_anchors}",
+        )
+    if missing_precondition_terms:
+        _add_failure(
+            qa,
+            "precondition_slot_bridge_missing",
+            "precondition-slot bridge terms missing from payload: "
+            f"{missing_precondition_terms}",
         )
 
 
