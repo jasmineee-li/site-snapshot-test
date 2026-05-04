@@ -252,6 +252,12 @@ def _validate_required_instruction_evidence(value: Any) -> str | None:
             return (
                 f"scenario_template.required_instruction_evidence[{index}].name must be non-empty"
             )
+        name_problem = _prompt_visible_text_problem(
+            f"required_instruction_evidence[{index}].name",
+            name,
+        )
+        if name_problem is not None:
+            return name_problem
         folded = name.casefold()
         if folded in names:
             return f"scenario_template.required_instruction_evidence[{index}].name is duplicated"
@@ -275,6 +281,12 @@ def _validate_required_instruction_evidence(value: Any) -> str | None:
                     "scenario_template.required_instruction_evidence"
                     f"[{index}].any_regex contains invalid regex {pattern!r}: {exc}"
                 )
+            pattern_problem = _prompt_visible_regex_problem(
+                f"required_instruction_evidence[{index}].any_regex",
+                pattern,
+            )
+            if pattern_problem is not None:
+                return pattern_problem
     return None
 
 
@@ -287,6 +299,9 @@ def _validate_regex_array(value: Mapping[str, Any], key: str) -> str | None:
             re.compile(pattern)
         except re.error as exc:
             return f"scenario_template.{key} contains invalid regex {pattern!r}: {exc}"
+        pattern_problem = _prompt_visible_regex_problem(key, pattern)
+        if pattern_problem is not None:
+            return pattern_problem
     return None
 
 
@@ -321,6 +336,22 @@ def _prompt_visible_text_problem(field: str, text: str) -> str | None:
                 f"benchmark/evaluator detail {forbidden!r}"
             )
     return None
+
+
+def _prompt_visible_regex_problem(field: str, pattern: str) -> str | None:
+    """Reject private details even when they are regex-escaped."""
+
+    for candidate in {pattern, _unescape_regex_for_private_scan(pattern)}:
+        problem = _prompt_visible_text_problem(field, candidate)
+        if problem is not None:
+            return problem
+    return None
+
+
+def _unescape_regex_for_private_scan(pattern: str) -> str:
+    """Expose literal private tokens hidden behind common regex escaping."""
+
+    return re.sub(r"\\([/._:#\[\]=~-])", r"\1", pattern)
 
 
 def _copy_evidence_group(group: Mapping[str, Any]) -> dict[str, Any]:

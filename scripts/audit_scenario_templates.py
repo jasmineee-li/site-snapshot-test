@@ -147,9 +147,14 @@ def _scenario_strength_status(task: dict[str, Any], scenario_id: str) -> str:
 def _load_tasks(run_dir: Path) -> list[dict[str, Any]]:
     if not run_dir.exists():
         raise SystemExit(f"run dir does not exist: {run_dir}")
+    if run_dir.is_file():
+        data = json.loads(run_dir.read_text(encoding="utf-8"))
+        return _coerce_tasks(data)
     candidates = (
         run_dir / "adversarial_tasks.json",
+        run_dir / "phase_2" / "adversarial_tasks.json",
         run_dir / "benign_tasks.json",
+        run_dir / "phase_1" / "benign_tasks.json",
         run_dir / "tasks.json",
     )
     for path in candidates:
@@ -157,7 +162,9 @@ def _load_tasks(run_dir: Path) -> list[dict[str, Any]]:
             data = json.loads(path.read_text(encoding="utf-8"))
             return _coerce_tasks(data)
     raise SystemExit(
-        f"could not find adversarial_tasks.json, benign_tasks.json, or tasks.json under {run_dir}"
+        "could not find a task artifact under "
+        f"{run_dir}: expected adversarial_tasks.json, phase_2/adversarial_tasks.json, "
+        "benign_tasks.json, phase_1/benign_tasks.json, or tasks.json"
     )
 
 
