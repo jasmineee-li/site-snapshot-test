@@ -64,6 +64,7 @@ from worldsim.text_payload_contract import (
     payload_length_budget_contract,
     required_token_values,
     selected_payload,
+    selected_seed_payload_text,
 )
 
 logger = logging.getLogger(__name__)
@@ -173,7 +174,7 @@ class build_variant(BaseModel):
         if self.payload_text is None:
             raise ValueError("schema_violation: ok variants require payload_text")
         if task is not None:
-            rendered_from_seed = _payload_text_from_seed(self.adversarial_data_seed)
+            rendered_from_seed = selected_seed_payload_text(task, self.adversarial_data_seed)
             payload_for_validation = self.payload_text.model_dump()
             if isinstance(rendered_from_seed, str) and rendered_from_seed:
                 payload_for_validation = {
@@ -225,35 +226,6 @@ def _action_payload_text_contract_error(
     action_error = action_payload_preservation_error(task, rendered_payload)
     if action_error is not None:
         return action_error
-    return None
-
-
-def _payload_text_from_seed(seed: Any) -> str | None:
-    if not isinstance(seed, dict):
-        return None
-    calls = seed.get("editor_calls")
-    if not isinstance(calls, list):
-        return None
-    for call in calls:
-        if not isinstance(call, dict):
-            continue
-        args = call.get("args")
-        if not isinstance(args, dict):
-            continue
-        for key in (
-            "body",
-            "description",
-            "detail",
-            "content",
-            "message",
-            "note_body",
-            "submission_body",
-            "comment",
-            "value",
-        ):
-            value = args.get(key)
-            if isinstance(value, str) and value:
-                return value
     return None
 
 

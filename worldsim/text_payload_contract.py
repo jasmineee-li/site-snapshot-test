@@ -66,6 +66,108 @@ def selected_payload(task: dict[str, Any]) -> dict[str, Any] | None:
     return selected if isinstance(selected, dict) else None
 
 
+def selected_seed_payload_text(
+    task: dict[str, Any],
+    seed: dict[str, Any] | None = None,
+) -> str | None:
+    """Return the seed text for the host-selected payload carrier.
+
+    Some seeds include benign setup calls plus the attacker-controlled carrier
+    call using the same editor method and payload argument. Generic "first text
+    field" extraction is wrong for those tasks because it reads benign setup
+    text and then falsely reports missing attacker tokens. Prefer the exposure
+    contract and original selected payload to preserve the Phase 2 placement
+    identity.
+    """
+
+    seed = seed if seed is not None else task.get("adversarial_data_seed")
+    calls = seed.get("editor_calls") if isinstance(seed, dict) else None
+    if not isinstance(calls, list):
+        return None
+
+    selected = selected_payload(task)
+    selected_rendered = selected.get("rendered_payload") if isinstance(selected, dict) else None
+    contract = task.get("exposure_contract")
+    expected_method = (
+        str(contract.get("editor_method") or "").strip() if isinstance(contract, dict) else ""
+    )
+    payload_arg = (
+        str(contract.get("payload_arg") or "").strip() if isinstance(contract, dict) else ""
+    )
+
+    if expected_method and payload_arg:
+        base_seed = task.get("adversarial_data_seed")
+        base_calls = base_seed.get("editor_calls") if isinstance(base_seed, dict) else None
+        payload_indexes: list[int] = []
+        if isinstance(base_calls, list) and isinstance(selected_rendered, str):
+            payload_indexes = [
+                index
+                for index, call in enumerate(base_calls)
+                if _editor_call_payload(call, expected_method, payload_arg) == selected_rendered
+            ]
+        if len(payload_indexes) == 1:
+            index = payload_indexes[0]
+            if 0 <= index < len(calls):
+                return _editor_call_payload(calls[index], expected_method, payload_arg)
+            return None
+
+        matching_indexes = [
+            index
+            for index, call in enumerate(calls)
+            if _editor_call_payload(call, expected_method, payload_arg) is not None
+        ]
+        if len(matching_indexes) == 1:
+            return _editor_call_payload(calls[matching_indexes[0]], expected_method, payload_arg)
+        return None
+
+    if isinstance(selected_rendered, str) and selected_rendered:
+        for call in calls:
+            for value in _editor_call_text_values(call):
+                if value == selected_rendered:
+                    return value
+
+    text_values = [
+        value for call in calls for value in _editor_call_text_values(call) if isinstance(value, str)
+    ]
+    if len(text_values) == 1:
+        return text_values[0]
+    return None
+
+
+def _editor_call_payload(call: Any, expected_method: str, payload_arg: str) -> str | None:
+    if not isinstance(call, dict) or call.get("method") != expected_method:
+        return None
+    args = call.get("args")
+    if not isinstance(args, dict):
+        return None
+    value = args.get(payload_arg)
+    return value if isinstance(value, str) and value else None
+
+
+def _editor_call_text_values(call: Any) -> list[str]:
+    if not isinstance(call, dict):
+        return []
+    args = call.get("args")
+    if not isinstance(args, dict):
+        return []
+    values: list[str] = []
+    for key in (
+        "body",
+        "description",
+        "detail",
+        "content",
+        "message",
+        "note_body",
+        "submission_body",
+        "comment",
+        "value",
+    ):
+        value = args.get(key)
+        if isinstance(value, str) and value:
+            values.append(value)
+    return values
+
+
 def payload_length_budget_contract(
     task: dict[str, Any],
     selected: dict[str, Any] | None = None,
