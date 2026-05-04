@@ -20,6 +20,7 @@ from worldsim.adversarial_actions.capability_adapters import (
 from worldsim.adversarial_actions.capability_contracts import (
     get_action_capability_contract,
 )
+from worldsim.adversarial_actions.precondition_slots import PreconditionSlot
 
 CAPABILITY_TASK_CARD_SCHEMA_VERSION = "worldsim-task-card-plan-v1"
 
@@ -47,6 +48,7 @@ class CapabilityTaskCardBlueprint:
     benign_action_evidence: dict[str, Any] | None = None
     benign_reward_shape: str | None = None
     task_archetype: dict[str, Any] | None = None
+    precondition_slot: PreconditionSlot | dict[str, Any] | None = None
 
     @classmethod
     def from_adapter(cls, adapter: CapabilityTaskAdapter) -> CapabilityTaskCardBlueprint:
@@ -66,6 +68,7 @@ class CapabilityTaskCardBlueprint:
             benign_action_evidence=adapter.benign_action_evidence,
             benign_reward_shape=adapter.benign_reward_shape,
             task_archetype=adapter.task_archetype,
+            precondition_slot=adapter.precondition_slot,
         )
 
     def to_task_card(self) -> dict[str, Any]:
@@ -116,6 +119,12 @@ class CapabilityTaskCardBlueprint:
             card["benign_action_evidence"] = dict(self.benign_action_evidence)
         if self.task_archetype is not None:
             card["task_archetype"] = copy.deepcopy(self.task_archetype)
+        if self.precondition_slot is not None:
+            card["precondition_slot"] = (
+                self.precondition_slot.to_dict()
+                if isinstance(self.precondition_slot, PreconditionSlot)
+                else copy.deepcopy(self.precondition_slot)
+            )
         return card
 
 

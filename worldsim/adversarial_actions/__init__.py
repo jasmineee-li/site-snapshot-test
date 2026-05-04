@@ -61,6 +61,16 @@ from worldsim.adversarial_actions.payload_guidance import (
     action_payload_preservation_report,
     build_action_payload_guidance,
 )
+from worldsim.adversarial_actions.precondition_slots import (
+    PRECONDITION_FORBIDDEN_EXACT_FIELDS,
+    PRECONDITION_SLOT_FRAMES,
+    PRECONDITION_SLOT_ROLES,
+    PRECONDITION_SLOT_SCHEMA_VERSION,
+    PreconditionSlot,
+    precondition_slot_from_mapping,
+    precondition_slot_from_task,
+    validate_precondition_slot,
+)
 from worldsim.adversarial_actions.readiness import build_action_readiness_artifacts
 from worldsim.adversarial_actions.tier3 import (
     TIER3_ADAPTER_SPECS,
@@ -79,11 +89,16 @@ __all__ = [
     "BENIGN_REWARD_HOST_ACTION_ONLY",
     "BENIGN_REWARD_SHAPES",
     "CAPABILITY_ADAPTER_VERSION",
+    "PRECONDITION_FORBIDDEN_EXACT_FIELDS",
+    "PRECONDITION_SLOT_FRAMES",
+    "PRECONDITION_SLOT_ROLES",
+    "PRECONDITION_SLOT_SCHEMA_VERSION",
     "TIER3_ADAPTER_SPECS",
     "TIER3_MATURITY_LEVELS",
     "ActionCapabilityContract",
     "ActionSpec",
     "CapabilityTaskAdapter",
+    "PreconditionSlot",
     "action_kind_compatible_with_task",
     "action_kind_compatible_with_task_card",
     "action_kinds_for_capability_family",
@@ -119,7 +134,10 @@ __all__ = [
     "finalize_host_action_only_benign_reward",
     "get_action_capability_contract",
     "get_action_spec",
+    "precondition_slot_from_mapping",
+    "precondition_slot_from_task",
     "refresh_public_benign_action_contract",
     "reward_signal_for_task",
     "validate_benign_action_evidence_stage",
+    "validate_precondition_slot",
 ]

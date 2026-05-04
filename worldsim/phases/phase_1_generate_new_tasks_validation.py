@@ -1084,6 +1084,8 @@ def _validate_task_card_alignment(
             provenance["archetype_id"] = archetype_id
         if isinstance(card.get("task_archetype"), dict):
             provenance["task_archetype"] = copy.deepcopy(card["task_archetype"])
+        if isinstance(card.get("precondition_slot"), dict):
+            provenance["precondition_slot"] = copy.deepcopy(card["precondition_slot"])
         capability_family = card_capability_family(card)
         if capability_family:
             provenance["capability_family"] = capability_family

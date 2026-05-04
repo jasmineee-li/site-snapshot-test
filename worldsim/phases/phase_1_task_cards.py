@@ -23,6 +23,7 @@ from worldsim.adversarial_actions.capability_task_cards import (
     available_capability_task_card_profiles,
     compile_capability_task_card_plan,
 )
+from worldsim.adversarial_actions.precondition_slots import validate_precondition_slot
 
 
 class TaskCardPlanError(ValueError):
@@ -103,6 +104,13 @@ def validate_task_card_plan(plan: Any) -> None:
         if task_archetype is not None and not isinstance(task_archetype, dict):
             raise TaskCardPlanError(
                 f"task_cards[{index}].task_archetype must be an object"
+            )
+        precondition_slot_problem = validate_precondition_slot(
+            card.get("precondition_slot")
+        )
+        if precondition_slot_problem is not None:
+            raise TaskCardPlanError(
+                f"task_cards[{index}].{precondition_slot_problem}"
             )
         capability_family = capability_family_from_task_card(card)
         for key in ("capability_family", "required_capability_family"):
