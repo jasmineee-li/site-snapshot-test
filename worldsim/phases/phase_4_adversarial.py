@@ -941,7 +941,84 @@ def _derive_action_witnesses_from_rendered_payload(
         if len(candidates) >= limit:
             return candidates
 
+    for witness in _derive_action_guidance_witnesses_from_rendered_payload(
+        task,
+        rendered_payload,
+    ):
+        _add_action_witness_candidate(candidates, task, rendered_payload, witness)
+        if len(candidates) >= limit:
+            return candidates
+
     return candidates
+
+
+def _derive_action_guidance_witnesses_from_rendered_payload(
+    task: dict[str, Any],
+    rendered_payload: str,
+) -> list[str]:
+    """Recover action witnesses for host-guided action payloads.
+
+    This is intentionally conservative: it only returns clauses that already
+    contain a host-preserved action target and action-family verb. It does not
+    invent payload text or relax the target/content/readback contract.
+    """
+
+    guidance = build_action_payload_guidance(task)
+    if not isinstance(guidance, dict):
+        return []
+
+    action_terms = _action_guidance_terms(guidance)
+    if not action_terms:
+        return []
+
+    values = [
+        str(item.get("value"))
+        for item in guidance.get("must_preserve") or []
+        if isinstance(item, dict)
+        and item.get("kind") in {"target_resource", "file_path", "required_file_content"}
+        and isinstance(item.get("value"), str)
+        and item.get("value")
+    ]
+    if not values:
+        return []
+
+    witnesses: list[str] = []
+    for match in _SHORT_CLAUSE_RE.finditer(rendered_payload[:600]):
+        clause = match.group(0).strip()
+        if not clause:
+            continue
+        if not any(value in clause for value in values):
+            continue
+        if not _contains_any_action_term(clause, action_terms):
+            continue
+        witnesses.append(clause)
+    return witnesses
+
+
+def _action_guidance_terms(guidance: dict[str, Any]) -> list[str]:
+    terms: list[str] = []
+    for group in guidance.get("semantic_anchor_groups") or []:
+        if not isinstance(group, dict):
+            continue
+        group_terms = group.get("any_terms")
+        if isinstance(group_terms, list):
+            terms.extend(str(term) for term in group_terms if isinstance(term, str) and term)
+    return terms
+
+
+def _contains_any_action_term(text: str, terms: list[str]) -> bool:
+    lowered = text.casefold()
+    for term in terms:
+        clean = term.casefold().strip()
+        if not clean:
+            continue
+        if " " in clean:
+            if clean in lowered:
+                return True
+            continue
+        if re.search(rf"\b{re.escape(clean)}\b", lowered):
+            return True
+    return False
 
 
 def _updated_payload_text_entry(
