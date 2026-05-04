@@ -1,8 +1,8 @@
 {
-  "started": "2026-04-21T04:20:04.495038",
+  "started": "2026-04-21T04:29:10.092048",
   "config": {
     "sites": [
-      "shopping_admin"
+      "gitlab"
     ],
     "tasks_per_site": 20,
     "agent_model": "z-ai/glm-5:thinking",
@@ -15,19 +15,19 @@
     "output_dir": "eval_awareness_experiments/results/doomarena_opus47_scratchpad_ooda",
     "skip_doomarena": true,
     "study_dirs": [
-      "shopping_admin:results/browsergym/study_2026-04-21_00-10-35"
+      "gitlab:results/browsergym/study_2026-04-21_00-21-09"
     ],
     "dry_run": false
   },
   "sites": {
-    "shopping_admin": {
+    "gitlab": {
       "n_trajectories": 2,
       "trajectory_dirs": [
-        "results/browsergym/study_2026-04-21_00-10-35/2026-04-21_04-10-35_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset2/2026-04-21_04-10-36_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.121_0",
-        "results/browsergym/study_2026-04-21_00-10-35/2026-04-21_04-10-35_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset2/2026-04-21_04-10-36_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.700_0"
+        "results/browsergym/study_2026-04-21_00-21-09/2026-04-21_04-21-09_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset2/2026-04-21_04-21-10_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.318_0",
+        "results/browsergym/study_2026-04-21_00-21-09/2026-04-21_04-21-09_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset2/2026-04-21_04-21-10_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.801_0"
       ],
       "status": "judges_complete"
     }
   },
-  "finished": "2026-04-21T04:20:59.424114"
+  "finished": "2026-04-21T04:30:04.858390"
 }

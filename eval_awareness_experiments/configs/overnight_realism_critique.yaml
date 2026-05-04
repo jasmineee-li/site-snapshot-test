@@ -1,0 +1,7 @@
+# Realism critique uses its own CLI, not run.py
+# Run with:
+#   python -m eval_awareness_experiments.experiments.realism_critique \
+#     --models "anthropic/claude-opus-4.6:thinking" "openai/gpt-5.4-mini:thinking" \
+#     --formats screenshot html axtree \
+#     --prompts lightly_primed \
+#     --max-samples 50 --seed 42
