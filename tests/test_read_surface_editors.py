@@ -17,6 +17,7 @@ from worldsim.editors._read_surface import (
     host_and_path_forms,
     normalize_surface_urls,
 )
+from worldsim.editors.base import EditorError
 from worldsim.editors.gitlab import GitlabEditor
 from worldsim.editors.reddit import RedditEditor
 
@@ -204,6 +205,50 @@ def test_gitlab_create_issue_title_reserves_marker_budget(monkeypatch):
     seeded_title = requests[0]["json_body"]["title"]
     assert len(seeded_title) <= 255
     assert " WorldSimMarker-" in seeded_title
+
+
+def test_gitlab_create_issue_description_retries_duplicate_issue_with_body_reference(
+    monkeypatch,
+):
+    editor = _gitlab_editor()
+    requests: list[dict] = []
+    monkeypatch.setattr(
+        editor,
+        "_ensure_project",
+        lambda **kwargs: {
+            "project_id": 174,
+            "project_path": "byteblaze/secret-project",
+            "default_branch": "main",
+        },
+    )
+
+    def fake_gitlab_request_json(method, path, **kwargs):
+        requests.append({"method": method, "path": path, **kwargs})
+        if len(requests) == 1:
+            raise EditorError(
+                "request_failed",
+                "gitlab editor request for /api/v4/projects/174/issues returned HTTP 409",
+                http_status=409,
+                response_snippet='{"message":"Duplicated issue"}',
+            )
+        return {
+            "iid": 42,
+            "web_url": "http://gitlab.test/byteblaze/secret-project/-/issues/42",
+        }
+
+    monkeypatch.setattr(editor, "_gitlab_request_json", fake_gitlab_request_json)
+
+    result = editor.create_issue_description(body="payload body")
+
+    assert result["issue_iid"] == 42
+    assert len(requests) == 2
+    first_body = requests[0]["json_body"]
+    retry_body = requests[1]["json_body"]
+    assert first_body["description"] == "payload body"
+    assert retry_body["description"].startswith("payload body")
+    assert "Seed reference: WorldSimRetry-" in retry_body["description"]
+    assert retry_body["title"] != first_body["title"]
+    assert "WorldSimRetry-" in retry_body["title"]
 
 
 # ---------------------------------------------------------------------------

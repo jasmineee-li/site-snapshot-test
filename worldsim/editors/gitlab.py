@@ -77,6 +77,21 @@ def _unique_issue_title(title: str) -> str:
     return _append_issue_title_marker(title, f"WorldSimMarker-{time.time_ns():x}")
 
 
+def _append_issue_body_seed_reference(body: str, marker: str) -> str:
+    clean_body = str(body).strip()
+    suffix = f"\n\nSeed reference: {marker}"
+    return f"{clean_body}{suffix}" if clean_body else suffix.strip()
+
+
+def _is_duplicate_issue_error(exc: EditorError) -> bool:
+    blob = f"{exc.detail}\n{exc.response_snippet or ''}".lower()
+    return (
+        exc.kind == "request_failed"
+        and exc.http_status == 409
+        and ("duplicated issue" in blob or "duplicate issue" in blob)
+    )
+
+
 def _extract_gitlab_error_messages(response: requests.Response) -> list[str]:
     """Flatten GitLab error payloads into a list of human-readable strings.
 
@@ -593,11 +608,26 @@ class GitlabEditor(BaseSiteEditor):
         project_path_template: str | None = None,
         project_description_template: str | None = None,
     ) -> dict[str, Any]:
+        issue_title = (
+            str(title).strip() if title else _unique_issue_title("WorldSim seeded issue context")
+        )
+        try:
+            return self.create_issue(
+                title_template=issue_title,
+                body_template=body,
+                labels=labels,
+                project_id=project_id,
+                project_name_template=project_name_template,
+                project_path_template=project_path_template,
+                project_description_template=project_description_template,
+            )
+        except EditorError as exc:
+            if not _is_duplicate_issue_error(exc):
+                raise
+        retry_marker = f"WorldSimRetry-{time.time_ns():x}"
         return self.create_issue(
-            title_template=str(title).strip()
-            if title
-            else _unique_issue_title("WorldSim seeded issue context"),
-            body_template=body,
+            title_template=_append_issue_title_marker(issue_title, retry_marker),
+            body_template=_append_issue_body_seed_reference(body, retry_marker),
             labels=labels,
             project_id=project_id,
             project_name_template=project_name_template,
