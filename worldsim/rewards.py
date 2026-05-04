@@ -142,6 +142,151 @@ def run_reward_function(
     return checker(reward, instance)
 
 
+def extract_network_action_attempt(
+    reward: dict[str, Any],
+    instance: dict[str, Any],
+    network_trace: list[dict] | None,
+) -> dict[str, Any]:
+    """Return non-scoring network-action attempt evidence for a reward spec.
+
+    This intentionally stops at URL/method target matching. Response status,
+    request body requirements, and final-state checks remain stricter success
+    signals evaluated by ``run_reward_function``.
+    """
+
+    base = {
+        "attempted": False,
+        "attempt_count": 0,
+        "attempt_status": "not_applicable",
+        "attempt_last_status": None,
+        "attempt_failed_reason": "no_network_action_evaluator",
+        "attempt_evidence": [],
+    }
+    configs = _network_event_attempt_configs(reward)
+    if not configs:
+        return base
+    if network_trace is None:
+        return {
+            **base,
+            "attempt_status": "trace_missing",
+            "attempt_failed_reason": "no_network_trace",
+        }
+
+    all_evidence: list[dict[str, Any]] = []
+    config_errors: list[str] = []
+    field_failures: list[str] = []
+    for index, config in configs:
+        evidence, error = _network_action_attempt_evidence_for_config(
+            config,
+            network_trace,
+            instance,
+            evaluator_index=index,
+        )
+        if error:
+            config_errors.append(error)
+        all_evidence.extend(evidence)
+        field_failures.extend(
+            str(item["field_mismatch_reason"])
+            for item in evidence
+            if item.get("field_mismatch_reason")
+        )
+
+    if all_evidence:
+        last = all_evidence[-1]
+        return {
+            **base,
+            "attempted": True,
+            "attempt_count": len(all_evidence),
+            "attempt_status": "attempted",
+            "attempt_last_status": last.get("status"),
+            "attempt_failed_reason": field_failures[-1] if field_failures else None,
+            "attempt_evidence": all_evidence[-3:],
+        }
+    reason = config_errors[-1] if config_errors else "no_matching_network_event"
+    return {
+        **base,
+        "attempt_status": "not_attempted",
+        "attempt_failed_reason": reason,
+    }
+
+
+def _network_event_attempt_configs(reward: dict[str, Any]) -> list[tuple[int | None, dict[str, Any]]]:
+    if not isinstance(reward, dict):
+        return []
+    if "eval" in reward and isinstance(reward["eval"], list):
+        return [
+            (index, config)
+            for index, config in enumerate(reward["eval"])
+            if isinstance(config, dict)
+            and _is_network_event_evaluator_name(config.get("evaluator") or config.get("type"))
+        ]
+    eval_type = reward.get("type") or reward.get("evaluator")
+    if eval_type in _NETWORK_EVENT_REWARD_TYPES:
+        return [(None, reward)]
+    return []
+
+
+def _network_action_attempt_evidence_for_config(
+    config: dict[str, Any],
+    network_trace: list[dict],
+    instance: dict[str, Any],
+    *,
+    evaluator_index: int | None,
+) -> tuple[list[dict[str, Any]], str | None]:
+    expected = config.get("expected", {})
+    if not isinstance(expected, dict):
+        return [], "network_event_expected_not_object"
+    expected_url = expected.get("url", "")
+    expected_methods = _expected_http_methods(expected.get("http_method", "GET"))
+    try:
+        expected_urls = expected_url if isinstance(expected_url, list) else [expected_url]
+        resolved_urls = [
+            _resolve_url_placeholders(str(url), instance)
+            for url in expected_urls
+            if isinstance(url, (str, int, float))
+        ]
+    except ValueError as exc:
+        return [], str(exc)
+    if not resolved_urls:
+        return [], "expected.url must contain at least one URL"
+
+    evidence: list[dict[str, Any]] = []
+    for event in network_trace:
+        event_method = _network_event_method(event)
+        if event_method not in expected_methods:
+            continue
+        event_urls = _network_event_url_candidates(event, instance)
+        matched_expected_url = next(
+            (
+                resolved_url
+                for event_url in event_urls
+                for resolved_url in resolved_urls
+                if _url_matches(resolved_url, event_url)
+            ),
+            None,
+        )
+        if matched_expected_url is None:
+            continue
+        fields_ok, field_reason = _network_event_expected_fields_match(event, expected)
+        post_text = _network_event_post_text(event)
+        evidence.append(
+            {
+                "evaluator_index": evaluator_index,
+                "method": event_method,
+                "url": _network_event_url(event),
+                "status": _network_event_status(event),
+                "matched_expected_url": matched_expected_url,
+                "matched_expected_fields": fields_ok,
+                "field_mismatch_reason": None if fields_ok else field_reason,
+                "post_data_present": bool(post_text),
+                "post_data_redacted": post_text == "<redacted>",
+            }
+        )
+    if not evidence:
+        return [], f"no matching network event for {sorted(expected_methods)} {resolved_urls}"
+    return evidence, None
+
+
 def _apply_webarena_vendor_shims(eval_configs: list[dict]) -> list[dict]:
     """Work around three upstream bugs in ServiceNow/webarena-verified v1.2.3.
 

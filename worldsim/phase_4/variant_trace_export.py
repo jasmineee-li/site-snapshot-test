@@ -13,6 +13,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from worldsim.phase_4 import result_summary
 from worldsim.phase_4.artifact_audit import (
     default_task_paths,
     load_json,
@@ -130,6 +131,7 @@ def _build_task_row(
         "initial": {
             "trace": str(initial_trace) if initial_trace else None,
             "outcome": initial_result.get("outcome") or result.get("initial_outcome"),
+            "action_metrics": _raw_action_metrics_view(initial_result or result),
             "answer_label": answer_label(
                 initial_result.get("final_result") or result.get("initial_final_result")
             ),
@@ -138,6 +140,7 @@ def _build_task_row(
         },
         "current": {
             "trace": str(current_trace) if current_trace else None,
+            "action_metrics": _final_action_metrics_view(result),
             "answer_label": answer_label(
                 result.get("primary_final_result") or result.get("current_final_result")
             ),
@@ -163,6 +166,7 @@ def _build_task_row(
             ],
         },
         "variant_loop": variant_loop,
+        "action_metrics": _final_action_metrics_view(result),
         "successful_variant_index": result.get("successful_variant_index"),
         "successful_strategy": result.get("successful_strategy"),
         "variants": variants,
@@ -274,6 +278,7 @@ def _build_variant_row(
         "gate1_valid": _ecologically_valid(variant_result),
         "adversarial_passed": adversarial_passed,
         "benign_passed": variant_result.get("benign_passed"),
+        "action_metrics": _raw_action_metrics_view(variant_result),
         "pvpo_observation": encounter.get("observation"),
         "answer_label": answer_label(variant_result.get("final_result")),
         "final_answer_excerpt": compact_text(variant_result.get("final_result"), limit=160),
@@ -298,6 +303,60 @@ def _build_variant_row(
             variant_trace,
             variant_result,
             host_rejected=host_rejected,
+        ),
+    }
+
+
+def _raw_action_metrics_view(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "attempted": payload.get("adversarial_action_attempted")
+        if "adversarial_action_attempted" in payload
+        else payload.get("attack_action_attempted"),
+        "attempt_count": payload.get("adversarial_action_attempt_count"),
+        "attempt_status": payload.get("adversarial_action_attempt_status"),
+        "attempt_last_status": payload.get("adversarial_action_attempt_last_status"),
+        "attempt_failed_reason": payload.get("adversarial_action_attempt_failed_reason"),
+        "attempt_evidence": payload.get("adversarial_action_attempt_evidence") or [],
+        "attack_action_success": payload.get("attack_action_success"),
+        "state_confirmed_action_success": payload.get("state_confirmed_action_success"),
+    }
+
+
+def _final_action_metrics_view(result: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "attempted": result_summary.final_metric_value(
+            result,
+            "adversarial_action_attempted",
+            result_summary.final_metric_success(result, "attack_action_attempted"),
+        ),
+        "attempt_count": result_summary.final_metric_value(
+            result,
+            "adversarial_action_attempt_count",
+        ),
+        "attempt_status": result_summary.final_metric_value(
+            result,
+            "adversarial_action_attempt_status",
+        ),
+        "attempt_last_status": result_summary.final_metric_value(
+            result,
+            "adversarial_action_attempt_last_status",
+        ),
+        "attempt_failed_reason": result_summary.final_metric_value(
+            result,
+            "adversarial_action_attempt_failed_reason",
+        ),
+        "attempt_evidence": result_summary.final_metric_value(
+            result,
+            "adversarial_action_attempt_evidence",
+            [],
+        ),
+        "attack_action_success": result_summary.final_metric_success(
+            result,
+            "attack_action_success",
+        ),
+        "state_confirmed_action_success": result_summary.final_metric_success(
+            result,
+            "state_confirmed_action_success",
         ),
     }
 

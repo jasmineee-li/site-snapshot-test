@@ -30,6 +30,13 @@ def write_variant_trace_csv(export: dict[str, Any], path: Path) -> None:
         "post_resistance_variants_entered",
         "variant_loop_reason",
         "initial_answer_label",
+        "final_action_attempted",
+        "final_action_attempt_status",
+        "final_action_attempt_count",
+        "final_action_attempt_last_status",
+        "final_action_attempt_failed_reason",
+        "final_attack_action_success",
+        "final_state_confirmed_action_success",
         "variant_index",
         "global_variant_index",
         "round_index",
@@ -47,6 +54,13 @@ def write_variant_trace_csv(export: dict[str, Any], path: Path) -> None:
         "attack_witness_offset",
         "variant_outcome",
         "variant_answer_label",
+        "variant_action_attempted",
+        "variant_action_attempt_status",
+        "variant_action_attempt_count",
+        "variant_action_attempt_last_status",
+        "variant_action_attempt_failed_reason",
+        "variant_attack_action_success",
+        "variant_state_confirmed_action_success",
         "worked",
         "selected_success",
         "warnings",
@@ -72,6 +86,9 @@ def _csv_row(row: dict[str, Any], variant: dict[str, Any] | None) -> dict[str, A
     generation = variant.get("generation", {}) if isinstance(variant, dict) else {}
     delta = variant.get("delta", {}) if isinstance(variant, dict) else {}
     evaluation = variant.get("evaluation", {}) if isinstance(variant, dict) else {}
+    final_action = row.get("action_metrics")
+    final_action = final_action if isinstance(final_action, dict) else {}
+    variant_action = variant.get("action_metrics", {}) if isinstance(variant, dict) else {}
     warnings = [
         *row.get("warnings", []),
         *(variant.get("warnings", []) if isinstance(variant, dict) else []),
@@ -92,6 +109,15 @@ def _csv_row(row: dict[str, Any], variant: dict[str, Any] | None) -> dict[str, A
         ),
         "variant_loop_reason": variant_loop.get("reason"),
         "initial_answer_label": _nested_get(row, "initial", "answer_label"),
+        "final_action_attempted": final_action.get("attempted"),
+        "final_action_attempt_status": final_action.get("attempt_status"),
+        "final_action_attempt_count": final_action.get("attempt_count"),
+        "final_action_attempt_last_status": final_action.get("attempt_last_status"),
+        "final_action_attempt_failed_reason": final_action.get("attempt_failed_reason"),
+        "final_attack_action_success": final_action.get("attack_action_success"),
+        "final_state_confirmed_action_success": final_action.get(
+            "state_confirmed_action_success"
+        ),
         "variant_index": variant.get("variant_index") if isinstance(variant, dict) else None,
         "global_variant_index": (
             variant.get("global_variant_index") if isinstance(variant, dict) else None
@@ -117,6 +143,15 @@ def _csv_row(row: dict[str, Any], variant: dict[str, Any] | None) -> dict[str, A
         "attack_witness_offset": delta.get("attack_witness_offset"),
         "variant_outcome": evaluation.get("outcome"),
         "variant_answer_label": evaluation.get("answer_label"),
+        "variant_action_attempted": variant_action.get("attempted"),
+        "variant_action_attempt_status": variant_action.get("attempt_status"),
+        "variant_action_attempt_count": variant_action.get("attempt_count"),
+        "variant_action_attempt_last_status": variant_action.get("attempt_last_status"),
+        "variant_action_attempt_failed_reason": variant_action.get("attempt_failed_reason"),
+        "variant_attack_action_success": variant_action.get("attack_action_success"),
+        "variant_state_confirmed_action_success": variant_action.get(
+            "state_confirmed_action_success"
+        ),
         "worked": evaluation.get("worked"),
         "selected_success": variant.get("selected_success") if isinstance(variant, dict) else None,
         "warnings": ";".join(warnings),
@@ -208,10 +243,11 @@ def _render_task_row(row: dict[str, Any]) -> str:
     )
     warnings = "<br>".join(html.escape(warning) for warning in row.get("warnings", []))
     loop_note = _variant_loop_note(row)
+    action_note = _action_note(row.get("action_metrics"))
     return f"""
           <tr>
             <td class="mono">{html.escape(str(row.get("result_index")))}</td>
-            <td><div class="mono">{html.escape(str(row.get("task_id")))}</div><div>{html.escape(str(row.get("instruction") or ""))}</div><div class="muted">{html.escape(str(row.get("final_status") or ""))} / {html.escape(str(row.get("outcome_fine") or ""))}</div><div class="stage">{html.escape(loop_note)}</div></td>
+            <td><div class="mono">{html.escape(str(row.get("task_id")))}</div><div>{html.escape(str(row.get("instruction") or ""))}</div><div class="muted">{html.escape(str(row.get("final_status") or ""))} / {html.escape(str(row.get("outcome_fine") or ""))}</div><div class="stage">{html.escape(loop_note)}</div><div class="stage">{html.escape(action_note)}</div></td>
             <td><span class="answer mono">{html.escape(str(_nested_get(row, "initial", "answer_label") or ""))}</span><div class="payload">{html.escape(str(compact_text(_nested_get(row, "initial", "final_result"), limit=220) or ""))}</div></td>
             {variant_cell}
             <td class="warnings">{warnings}</td>
@@ -222,6 +258,7 @@ def _render_variant_card(variant: dict[str, Any]) -> str:
     evaluation = variant.get("evaluation", {})
     delta = variant.get("delta", {})
     generation = variant.get("generation", {})
+    action = variant.get("action_metrics")
     css = "worked" if evaluation.get("worked") else "missed"
     if variant.get("selected_success"):
         css = "worked"
@@ -239,10 +276,34 @@ def _render_variant_card(variant: dict[str, Any]) -> str:
       <div class="muted mono">{html.escape(lineage)}</div>
       <span class="answer mono">{html.escape(str(evaluation.get("answer_label") or ""))}</span>
       <div class="muted">{html.escape(str(evaluation.get("outcome") or ""))} | gen={html.escape(str(generation.get("status") or ""))} host={html.escape(str(generation.get("host_status") or ""))}</div>
+      <div class="stage">{html.escape(_action_note(action))}</div>
       <div class="payload">{html.escape(str(compact_text(delta.get("revised_payload"), limit=260) or ""))}</div>
       <div class="delta">chars {html.escape(str(delta.get("original_chars")))} → {html.escape(str(delta.get("revised_chars")))}; witness {html.escape(str(delta.get("attack_witness_offset")))}/{html.escape(str(delta.get("max_attack_witness_offset")))}</div>
       <div class="warnings">{html.escape(warnings)}</div>
     </div>"""
+
+
+def _action_note(action: Any) -> str:
+    if not isinstance(action, dict) or not action:
+        return "action attempt: unknown"
+    attempted = action.get("attempted")
+    status = action.get("attempt_status") or "unknown"
+    count = action.get("attempt_count")
+    last_status = action.get("attempt_last_status")
+    success = action.get("attack_action_success")
+    state_success = action.get("state_confirmed_action_success")
+    reason = action.get("attempt_failed_reason")
+    parts = [
+        f"action attempt: {attempted}",
+        f"status={status}",
+        f"count={count}",
+        f"http={last_status}",
+        f"request_success={success}",
+        f"state_success={state_success}",
+    ]
+    if reason:
+        parts.append(f"reason={reason}")
+    return "; ".join(parts)
 
 
 def _nested_get(payload: Any, *keys: str, default: Any = None) -> Any:

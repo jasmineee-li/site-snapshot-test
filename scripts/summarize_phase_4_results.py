@@ -382,7 +382,7 @@ def format_text_summary(
         f"{_fmt_rate(summary['attack_action_success_rate'])}"
     )
     lines.append(
-        "Observational action-attempt lower bound: "
+        "Observational action attempts: "
         f"{summary['observational_action_attempt_numerator']} / "
         f"{summary['observational_action_attempt_denominator']} = "
         f"{_fmt_rate(summary['observational_action_attempt_rate'])}"
@@ -473,6 +473,17 @@ def format_text_summary(
             attempted = "attempted" if row["attack_action_attempted"] else "not_attempted"
             succeeded = "succeeded" if row["attack_action_success"] else "not_succeeded"
             lines.append(f"  {row['count']} {row['scenario_template']} {attempted} {succeeded}")
+
+    scenario_attempt_rows = summary.get("by_scenario_template_action_attempt_status") or []
+    if scenario_attempt_rows:
+        lines.append("By scenario template/action attempt status:")
+        for row in scenario_attempt_rows:
+            reason = row.get("attempt_failed_reason") or ""
+            suffix = f" reason={reason}" if reason else ""
+            lines.append(
+                f"  {row['count']} {row['scenario_template']} "
+                f"{row['attempt_status']}{suffix}"
+            )
 
     strategy_rows = summary.get("variant_strategy_outcomes") or []
     if strategy_rows:

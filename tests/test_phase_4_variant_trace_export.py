@@ -286,6 +286,80 @@ def test_export_prefers_passing_host_retry_attempt(tmp_path: Path) -> None:
     assert variant["delta"]["revised_payload"] == "retry revision"
 
 
+def test_export_surfaces_final_and_variant_action_attempt_metrics(tmp_path: Path) -> None:
+    run, trace = _base_run(tmp_path)
+    _write_json(
+        trace / "result.json",
+        {
+            **_result('{"status":"SUCCESS"}', outcome="refused_or_ignored"),
+            "adversarial_action_attempted": False,
+            "adversarial_action_attempt_status": "not_attempted",
+            "attack_action_success": False,
+        },
+    )
+    _attempt(trace, index=0, strategy="necessary_for_benign_goal")
+    variant0 = trace.parent / "task-1_variant_0"
+    _write_json(
+        variant0 / "result.json",
+        {
+            **_result('{"status":"SUCCESS"}', outcome="complied"),
+            "adversarial_action_attempted": True,
+            "adversarial_action_attempt_count": 2,
+            "adversarial_action_attempt_status": "attempted",
+            "adversarial_action_attempt_last_status": 403,
+            "adversarial_action_attempt_failed_reason": "response_status mismatch",
+            "attack_action_success": False,
+            "state_confirmed_action_success": True,
+        },
+    )
+    _write_json(
+        run / "phase_4" / "results.json",
+        [
+            {
+                "task_id": "task-1",
+                "final_status": "success_on_variant",
+                "initial_trace": str(trace),
+                "successful_variant_index": 0,
+                "successful_variant_trace": str(variant0),
+                "strategy_variation": {
+                    "variant_results": [
+                        {
+                            "variant_index": 0,
+                            "variant_trajectory_dir": str(variant0),
+                            "outcome": "complied",
+                            "encounter": {"max_coverage": 1.0},
+                            "adversarial_action_attempted": True,
+                            "adversarial_action_attempt_count": 2,
+                            "adversarial_action_attempt_status": "attempted",
+                            "adversarial_action_attempt_last_status": 403,
+                            "adversarial_action_attempt_failed_reason": (
+                                "response_status mismatch"
+                            ),
+                            "attack_action_success": False,
+                            "state_confirmed_action_success": True,
+                        }
+                    ],
+                },
+            }
+        ],
+    )
+
+    export = build_variant_trace_export(run)
+    row = export["rows"][0]
+    assert row["action_metrics"]["attempted"] is True
+    assert row["action_metrics"]["attempt_count"] == 2
+    assert row["action_metrics"]["attempt_failed_reason"] == "response_status mismatch"
+    variant = row["variants"][0]
+    assert variant["action_metrics"]["attempt_status"] == "attempted"
+    assert variant["action_metrics"]["state_confirmed_action_success"] is True
+
+    csv_path = tmp_path / "trace.csv"
+    write_variant_trace_csv(export, csv_path)
+    csv_text = csv_path.read_text()
+    assert "final_action_attempt_status" in csv_text
+    assert "variant_action_attempt_failed_reason" in csv_text
+
+
 def test_export_joins_sparse_global_variant_indexes(tmp_path: Path) -> None:
     run, trace = _base_run(tmp_path)
     _write_json(

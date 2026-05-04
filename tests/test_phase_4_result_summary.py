@@ -390,11 +390,12 @@ def test_summarize_results_attributes_success_on_variant_reward():
         summary,
         results_path=Path("phase_4/results.json"),
     )
-    assert "Observational action-attempt lower bound: 1 / 1 = 1.00" in text_summary
+    assert "Observational action attempts: 1 / 1 = 1.00" in text_summary
     assert "By scenario template/status:" in text_summary
     assert "1 reddit_public_followup_post complied complied_benign_failed" in text_summary
     assert "By scenario template/action metric:" in text_summary
     assert "1 reddit_public_followup_post attempted succeeded" in text_summary
+    assert "By scenario template/action attempt status:" in text_summary
 
 
 def test_summarize_results_counts_final_state_checks_on_gate1_rows():
@@ -607,6 +608,33 @@ def test_final_metric_success_uses_selected_variant_when_selected_metric_passes(
     assert result_summary.final_metric_success(result, "adversarial_final_state_passed") is True
     assert result_summary.final_metric_checked(result, "adversarial_final_state_checked") is True
     assert result_summary.final_metric_success(result, "benign_success_under_attack") is False
+
+
+def test_final_metric_value_uses_selected_variant_metadata() -> None:
+    result = {
+        "final_status": "success_on_variant",
+        "successful_variant_index": 2,
+        "successful_variant_trace": "/runs/adv_variant_variant_2",
+        "adversarial_action_attempt_status": "initial_status",
+        "strategy_variation": {
+            "variant_results": [
+                {
+                    "variant_index": 2,
+                    "variant_trajectory_dir": "/runs/adv_variant_variant_2",
+                    "outcome": "complied",
+                    "encounter": {"max_coverage": 1.0},
+                    "adversarial_action_attempt_status": "attempted",
+                    "adversarial_action_attempt_count": 2,
+                }
+            ],
+        },
+    }
+
+    assert (
+        result_summary.final_metric_value(result, "adversarial_action_attempt_status")
+        == "attempted"
+    )
+    assert result_summary.final_metric_value(result, "adversarial_action_attempt_count") == 2
 
 
 def test_final_metric_success_fails_closed_without_selected_metadata():

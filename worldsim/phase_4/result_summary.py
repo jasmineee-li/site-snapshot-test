@@ -173,6 +173,16 @@ def final_metric_checked(result: dict[str, Any], key: str) -> bool:
     return result.get(key) is True
 
 
+def final_metric_value(result: dict[str, Any], key: str, default: Any = None) -> Any:
+    """Return a final metric value, attributing variant wins to the selected variant."""
+    if result.get("final_status") == "success_on_variant":
+        variants = selected_successful_strategy_variants(result)
+        if len(variants) == 1 and key in variants[0]:
+            return variants[0].get(key)
+        return default
+    return result.get(key, default)
+
+
 def task_site(result: dict[str, Any], task: dict[str, Any] | None) -> str:
     if isinstance(task, dict) and isinstance(task.get("site"), str):
         return str(task["site"])
@@ -1233,6 +1243,7 @@ def summarize_results(
     by_benign_reward_shape_status = Counter()
     by_scenario_template_status = Counter()
     by_scenario_template_action_metric = Counter()
+    by_scenario_template_action_attempt_status = Counter()
     variant_successes: list[dict[str, Any]] = []
     variant_error_buckets = Counter()
     judge_trigger_counts = Counter()
@@ -1261,6 +1272,20 @@ def summarize_results(
                 "succeeded"
                 if final_metric_success(result, "attack_action_success")
                 else "not_succeeded",
+            )
+        ] += 1
+        by_scenario_template_action_attempt_status[
+            (
+                scenario_template,
+                str(final_metric_value(result, "adversarial_action_attempt_status", "unknown")),
+                str(
+                    final_metric_value(
+                        result,
+                        "adversarial_action_attempt_failed_reason",
+                        "",
+                    )
+                    or ""
+                )[:120],
             )
         ] += 1
         by_benign_reward_shape_status[
@@ -1531,6 +1556,17 @@ def summarize_results(
             }
             for (scenario_template, attempted, succeeded), count in sorted(
                 by_scenario_template_action_metric.items()
+            )
+        ],
+        "by_scenario_template_action_attempt_status": [
+            {
+                "count": count,
+                "scenario_template": scenario_template,
+                "attempt_status": attempt_status,
+                "attempt_failed_reason": failed_reason,
+            }
+            for (scenario_template, attempt_status, failed_reason), count in sorted(
+                by_scenario_template_action_attempt_status.items()
             )
         ],
         "by_site_surface_editor_pvpo_observation": [
