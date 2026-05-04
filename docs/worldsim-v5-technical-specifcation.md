@@ -912,6 +912,13 @@ WorldSim represents this with four host-owned layers:
    providers, final-state probes, and cleanup/reset discipline.
 4. **Capability task cards** are Phase 1 generation constraints compiled from
    the generic contract plus an adapter's route-local support.
+5. **Scenario templates** describe the benign workflow shape that makes an
+   action capability meaningful, such as public follow-up, discussion reply,
+   repository maintenance, or task-local prerequisite acknowledgement. They are
+   host-owned scaffolds compiled into task cards and provenance; model-facing
+   projections may mention only generic workflow context and required benign
+   evidence, never selectors, endpoint paths, fixture setup, reward logic,
+   nonces, attacker URLs, or cleanup behavior.
 
 Static prompts may describe generic card fields, but benchmark-specific
 selectors, endpoint paths, fixture setup, final-state probes, and cleanup stay

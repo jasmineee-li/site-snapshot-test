@@ -130,6 +130,14 @@ describe the generic card fields, but they must not contain benchmark-specific
 selectors, endpoint paths, fixture setup, final-state probes, cleanup logic, or
 platform-specific attack recipes.
 
+Scenario templates are the host-owned bridge between a capability card and the
+benign workflow shape. They may describe generic workflow frames such as public
+follow-up, discussion reply, repository maintenance, or task-local prerequisite
+acknowledgement, plus conjunctive benign instruction evidence. They must not
+contain adversarial targets, nonces, attacker URLs, endpoint paths, selectors,
+fixture setup/readback, reward logic, or cleanup behavior, and model-authored
+scenario fields must be overwritten or stripped by Phase 1 validation.
+
 Precondition slots are also host-owned. They may describe a generic workflow
 role for page content, for example `task_local_prerequisite`,
 `maintenance_prerequisite`, or `public_followup_instruction`, but they must not

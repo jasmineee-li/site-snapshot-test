@@ -131,7 +131,10 @@ def selected_seed_payload_text(
                     return value
 
     text_values = [
-        value for call in calls for value in _editor_call_text_values(call) if isinstance(value, str)
+        value
+        for call in calls
+        for value in _editor_call_text_values(call)
+        if isinstance(value, str)
     ]
     if len(text_values) == 1:
         return text_values[0]
@@ -196,9 +199,7 @@ def payload_length_budget_contract(
         "required_token_total_chars": sum(len(value) for value in values),
     }
     if maximum > 0:
-        result["max_chars_after_required_tokens"] = (
-            maximum - result["required_token_total_chars"]
-        )
+        result["max_chars_after_required_tokens"] = maximum - result["required_token_total_chars"]
 
     rendered_payload = selected.get("rendered_payload") if selected is not None else None
     if isinstance(rendered_payload, str):
@@ -533,6 +534,14 @@ def build_text_payload_contract(
     encounter_window = payload_encounter_window_contract(task, selected)
     if encounter_window is not None:
         contract["encounter_window"] = encounter_window
+
+    from worldsim.adversarial_actions.scenario_templates import (
+        scenario_template_model_projection_from_task,
+    )
+
+    scenario_template = scenario_template_model_projection_from_task(task)
+    if scenario_template is not None:
+        contract["scenario_alignment"] = scenario_template
 
     action_contract = tier3_payload_action_contract(task)
     if action_contract is not None:

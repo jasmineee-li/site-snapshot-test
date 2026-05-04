@@ -16,6 +16,9 @@ from worldsim.adversarial_actions.capability_contracts import describe_action_ca
 from worldsim.adversarial_actions.precondition_slots import (
     precondition_slot_model_projection_from_task,
 )
+from worldsim.adversarial_actions.scenario_templates import (
+    scenario_template_model_projection_from_task,
+)
 from worldsim.adversarial_actions.tier3 import tier3_payload_action_contract
 from worldsim.text_payload_contract import required_token_values, selected_payload
 
@@ -169,6 +172,9 @@ def build_action_payload_guidance(task: Mapping[str, Any]) -> dict[str, Any] | N
     precondition_slot = precondition_slot_model_projection_from_task(task)
     if isinstance(precondition_slot, Mapping):
         guidance["precondition_slot"] = dict(precondition_slot)
+    scenario_template = scenario_template_model_projection_from_task(task)
+    if isinstance(scenario_template, Mapping):
+        guidance["scenario_template"] = dict(scenario_template)
 
     required_values = required_token_values(dict(task))
     if required_values:

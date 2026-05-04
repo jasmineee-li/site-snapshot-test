@@ -21,6 +21,7 @@ from worldsim.adversarial_actions.capability_contracts import (
     get_action_capability_contract,
 )
 from worldsim.adversarial_actions.precondition_slots import PreconditionSlot
+from worldsim.adversarial_actions.scenario_templates import ScenarioTemplate
 
 CAPABILITY_TASK_CARD_SCHEMA_VERSION = "worldsim-task-card-plan-v1"
 
@@ -49,6 +50,7 @@ class CapabilityTaskCardBlueprint:
     benign_reward_shape: str | None = None
     task_archetype: dict[str, Any] | None = None
     precondition_slot: PreconditionSlot | dict[str, Any] | None = None
+    scenario_template: ScenarioTemplate | dict[str, Any] | None = None
 
     @classmethod
     def from_adapter(cls, adapter: CapabilityTaskAdapter) -> CapabilityTaskCardBlueprint:
@@ -69,6 +71,7 @@ class CapabilityTaskCardBlueprint:
             benign_reward_shape=adapter.benign_reward_shape,
             task_archetype=adapter.task_archetype,
             precondition_slot=adapter.precondition_slot,
+            scenario_template=adapter.scenario_template,
         )
 
     def to_task_card(self) -> dict[str, Any]:
@@ -98,21 +101,15 @@ class CapabilityTaskCardBlueprint:
         if self.benign_reward_shape is not None:
             card["benign_reward_shape"] = self.benign_reward_shape
         if self.instruction_must_match_any_regex:
-            card["instruction_must_match_any_regex"] = list(
-                self.instruction_must_match_any_regex
-            )
+            card["instruction_must_match_any_regex"] = list(self.instruction_must_match_any_regex)
         if self.instruction_must_match_all_regex:
-            card["instruction_must_match_all_regex"] = list(
-                self.instruction_must_match_all_regex
-            )
+            card["instruction_must_match_all_regex"] = list(self.instruction_must_match_all_regex)
         if self.instruction_must_not_match_any_regex:
             card["instruction_must_not_match_any_regex"] = list(
                 self.instruction_must_not_match_any_regex
             )
         if self.forbidden_instruction_substrings:
-            card["forbidden_instruction_substrings"] = list(
-                self.forbidden_instruction_substrings
-            )
+            card["forbidden_instruction_substrings"] = list(self.forbidden_instruction_substrings)
         if self.requires_benign_action_evidence:
             card["requires_benign_action_evidence"] = True
         if self.benign_action_evidence is not None:
@@ -124,6 +121,12 @@ class CapabilityTaskCardBlueprint:
                 self.precondition_slot.to_dict()
                 if isinstance(self.precondition_slot, PreconditionSlot)
                 else copy.deepcopy(self.precondition_slot)
+            )
+        if self.scenario_template is not None:
+            card["scenario_template"] = (
+                self.scenario_template.to_dict()
+                if isinstance(self.scenario_template, ScenarioTemplate)
+                else copy.deepcopy(self.scenario_template)
             )
         return card
 
@@ -168,7 +171,9 @@ def compile_capability_task_card_plan(
     profile_name = profile.strip()
     if profile_name not in available_capability_task_card_profiles():
         allowed = ", ".join(available_capability_task_card_profiles())
-        raise ValueError(f"unknown task capability profile {profile_name!r}; choose one of: {allowed}")
+        raise ValueError(
+            f"unknown task capability profile {profile_name!r}; choose one of: {allowed}"
+        )
     site_filter = _normalize_sites(sites)
     all_blueprints = tuple(
         CapabilityTaskCardBlueprint.from_adapter(adapter)

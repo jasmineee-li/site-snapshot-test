@@ -73,6 +73,15 @@ from worldsim.adversarial_actions.precondition_slots import (
     validate_precondition_slot,
 )
 from worldsim.adversarial_actions.readiness import build_action_readiness_artifacts
+from worldsim.adversarial_actions.scenario_templates import (
+    SCENARIO_TEMPLATE_ALLOWED_FRAMES,
+    SCENARIO_TEMPLATE_SCHEMA_VERSION,
+    ScenarioTemplate,
+    scenario_template_from_mapping,
+    scenario_template_from_task,
+    scenario_template_model_projection_from_task,
+    validate_scenario_template,
+)
 from worldsim.adversarial_actions.tier3 import (
     TIER3_ADAPTER_SPECS,
     TIER3_MATURITY_LEVELS,
@@ -94,12 +103,15 @@ __all__ = [
     "PRECONDITION_SLOT_FRAMES",
     "PRECONDITION_SLOT_ROLES",
     "PRECONDITION_SLOT_SCHEMA_VERSION",
+    "SCENARIO_TEMPLATE_ALLOWED_FRAMES",
+    "SCENARIO_TEMPLATE_SCHEMA_VERSION",
     "TIER3_ADAPTER_SPECS",
     "TIER3_MATURITY_LEVELS",
     "ActionCapabilityContract",
     "ActionSpec",
     "CapabilityTaskAdapter",
     "PreconditionSlot",
+    "ScenarioTemplate",
     "action_kind_compatible_with_task",
     "action_kind_compatible_with_task_card",
     "action_kinds_for_capability_family",
@@ -140,6 +152,10 @@ __all__ = [
     "precondition_slot_model_projection_from_task",
     "refresh_public_benign_action_contract",
     "reward_signal_for_task",
+    "scenario_template_from_mapping",
+    "scenario_template_from_task",
+    "scenario_template_model_projection_from_task",
     "validate_benign_action_evidence_stage",
     "validate_precondition_slot",
+    "validate_scenario_template",
 ]

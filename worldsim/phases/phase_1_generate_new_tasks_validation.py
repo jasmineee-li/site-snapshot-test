@@ -16,6 +16,9 @@ from worldsim.adversarial_actions.benign_action_contracts import (
 from worldsim.adversarial_actions.capability_contracts import (
     BENIGN_REWARD_HOST_ACTION_ONLY,
 )
+from worldsim.adversarial_actions.scenario_templates import (
+    scenario_template_from_mapping,
+)
 from worldsim.phases.phase_1_task_cards import (
     card_action_kinds,
     card_benign_reward_shape,
@@ -1089,6 +1092,8 @@ def _validate_task_card_alignment(
             provenance["task_archetype"] = copy.deepcopy(card["task_archetype"])
         if isinstance(card.get("precondition_slot"), dict):
             provenance["precondition_slot"] = copy.deepcopy(card["precondition_slot"])
+        if isinstance(card.get("scenario_template"), dict):
+            provenance["scenario_template"] = copy.deepcopy(card["scenario_template"])
         capability_family = card_capability_family(card)
         if capability_family:
             provenance["capability_family"] = capability_family
@@ -1106,6 +1111,8 @@ def _validate_task_card_alignment(
     if benign_family:
         task["benign_task_family_id"] = benign_family
     task.pop("allowed_action_kinds", None)
+    for scenario_key in ("scenario_template", "scenario_template_id", "scenario_context"):
+        task.pop(scenario_key, None)
     if action_kinds:
         task["compatible_action_kinds"] = list(action_kinds)
         task["task_provenance"]["compatible_action_kinds"] = list(action_kinds)
@@ -1239,6 +1246,67 @@ def _validate_task_card_capability_alignment(
                 "instruction",
                 "instruction contains a task-card forbidden benign/adversarial overlap term",
                 expected=f"omit {forbidden!r}",
+                actual=instruction,
+            )
+    scenario_problem = _validate_scenario_instruction_alignment(
+        instruction,
+        card=card,
+        index=index,
+    )
+    if scenario_problem is not None:
+        return scenario_problem
+    return None
+
+
+def _validate_scenario_instruction_alignment(
+    instruction: str,
+    *,
+    card: Mapping[str, Any],
+    index: int,
+) -> GeneratedTaskValidationError | None:
+    template_raw = card.get("scenario_template")
+    if not isinstance(template_raw, Mapping):
+        return None
+    try:
+        template = scenario_template_from_mapping(template_raw)
+    except ValueError as exc:
+        return _field_error(
+            index,
+            "TASK_CARD_SCENARIO_TEMPLATE_INVALID",
+            "scenario_template",
+            str(exc),
+            actual=template_raw,
+        )
+    missing_groups: list[dict[str, Any]] = []
+    for group in template.required_instruction_evidence:
+        regexes = [
+            pattern
+            for pattern in group.get("any_regex") or []
+            if isinstance(pattern, str) and pattern.strip()
+        ]
+        if regexes and not any(re.search(pattern, instruction) for pattern in regexes):
+            missing_groups.append({"name": group.get("name"), "any_regex": regexes})
+    if missing_groups:
+        return _field_error(
+            index,
+            "TASK_CARD_SCENARIO_EVIDENCE_MISSING",
+            "instruction",
+            "instruction does not satisfy scenario-template workflow evidence",
+            expected=missing_groups,
+            actual=instruction,
+            repair_hint=(
+                "Rewrite the benign instruction so it naturally exercises every "
+                "required scenario step without naming adversarial targets or host fixtures."
+            ),
+        )
+    for pattern in template.forbidden_instruction_evidence:
+        if re.search(pattern, instruction):
+            return _field_error(
+                index,
+                "TASK_CARD_SCENARIO_FORBIDDEN_EVIDENCE",
+                "instruction",
+                "instruction matches a scenario-template forbidden workflow pattern",
+                expected=f"not {pattern!r}",
                 actual=instruction,
             )
     return None

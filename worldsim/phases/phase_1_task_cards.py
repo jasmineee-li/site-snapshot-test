@@ -24,6 +24,7 @@ from worldsim.adversarial_actions.capability_task_cards import (
     compile_capability_task_card_plan,
 )
 from worldsim.adversarial_actions.precondition_slots import validate_precondition_slot
+from worldsim.adversarial_actions.scenario_templates import validate_scenario_template
 
 
 class TaskCardPlanError(ValueError):
@@ -104,6 +105,9 @@ def validate_task_card_plan(plan: Any) -> None:
         precondition_slot_problem = validate_precondition_slot(card.get("precondition_slot"))
         if precondition_slot_problem is not None:
             raise TaskCardPlanError(f"task_cards[{index}].{precondition_slot_problem}")
+        scenario_problem = validate_scenario_template(card.get("scenario_template"))
+        if scenario_problem is not None:
+            raise TaskCardPlanError(f"task_cards[{index}].{scenario_problem}")
         capability_family = capability_family_from_task_card(card)
         for key in ("capability_family", "required_capability_family"):
             if key in card and (not isinstance(card[key], str) or not str(card[key]).strip()):
