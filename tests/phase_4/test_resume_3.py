@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 @pytest.mark.asyncio
 async def test_run_strategy_variation_resume_continues_partial_generation_checkpoint(
     monkeypatch, tmp_path
@@ -106,6 +107,7 @@ async def test_run_strategy_variation_resume_continues_partial_generation_checkp
     saved_checkpoint = json.loads(checkpoint_path.read_text())
     assert len(saved_checkpoint[phase_4_adversarial._VARIANT_GENERATION_RECORDS_KEY]) == 2
 
+
 @pytest.mark.asyncio
 async def test_run_strategy_variation_resume_reruns_when_generation_records_missing(
     monkeypatch, tmp_path
@@ -190,6 +192,7 @@ async def test_run_strategy_variation_resume_reruns_when_generation_records_miss
     assert calls["generated"] == 1
     assert result["status"] == "varied"
 
+
 @pytest.mark.asyncio
 async def test_run_strategy_variation_resume_ignores_stale_checkpoint(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
@@ -258,6 +261,7 @@ async def test_run_strategy_variation_resume_ignores_stale_checkpoint(monkeypatc
     assert result["status"] == "varied"
     assert result["judge_diagnosis"]["diagnosis"] == "fresh"
 
+
 @pytest.mark.asyncio
 async def test_run_strategy_variation_resume_ignores_malformed_checkpoint(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
@@ -316,6 +320,7 @@ async def test_run_strategy_variation_resume_ignores_malformed_checkpoint(monkey
     assert result["status"] == "varied"
     assert result["judge_diagnosis"]["diagnosis"] == "fresh"
 
+
 def test_sweep_orphan_inflight_sentinels_removes_legacy(tmp_path):
     """The Phase 4 entry sweep must unlink the legacy ``.aer_inflight``
     sentinel so re-runs of older trajectories don't leave empty marker
@@ -333,10 +338,12 @@ def test_sweep_orphan_inflight_sentinels_removes_legacy(tmp_path):
     assert removed == 1
     assert not legacy.exists()
 
+
 def test_sweep_orphan_inflight_sentinels_on_missing_dir(tmp_path):
     """No-op when the task-dir root hasn't been created yet."""
     missing = tmp_path / "nope"
     assert phase_4_adversarial._sweep_orphan_inflight_sentinels(missing) == 0
+
 
 @pytest.mark.asyncio
 async def test_placement_fix_resume_reuses_pending_iteration_result(monkeypatch, tmp_path):
@@ -345,7 +352,11 @@ async def test_placement_fix_resume_reuses_pending_iteration_result(monkeypatch,
         "site": "shopping",
         "adversarial_data_seed": {"mechanism": "api", "actions": []},
     }
-    initial_result = {"outcome": "task_broke", "trajectory_dir": str(tmp_path / "orig")}
+    initial_result = {
+        "outcome": "complied",
+        "final_status": "injection_not_encountered",
+        "trajectory_dir": str(tmp_path / "orig"),
+    }
     source_fingerprint = "placement-source"
     revised_task = {
         **task,
@@ -421,6 +432,7 @@ async def test_placement_fix_resume_reuses_pending_iteration_result(monkeypatch,
     assert result["status"] == "fixed"
     assert result["final_result"]["outcome"] == "complied"
 
+
 @pytest.mark.asyncio
 async def test_placement_fix_resume_reuses_completed_checkpoint(monkeypatch, tmp_path):
     task = {
@@ -428,7 +440,11 @@ async def test_placement_fix_resume_reuses_completed_checkpoint(monkeypatch, tmp
         "site": "shopping",
         "adversarial_data_seed": {"mechanism": "api", "actions": []},
     }
-    initial_result = {"outcome": "task_broke", "trajectory_dir": str(tmp_path / "orig")}
+    initial_result = {
+        "outcome": "complied",
+        "final_status": "injection_not_encountered",
+        "trajectory_dir": str(tmp_path / "orig"),
+    }
     source_fingerprint = "placement-source"
     completed = {
         "status": "fixed",

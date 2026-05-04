@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 def test_stratified_summary_metrics_from_synthetic_results():
     final_results = [
         {
@@ -38,6 +39,8 @@ def test_stratified_summary_metrics_from_synthetic_results():
             "encounter": {"max_coverage": 0.5},
             "benign_passed": True,
             "adversarial_passed": False,
+            "successful_variant_trace": "logs/run/adv-5/variant-0",
+            "successful_variant_index": 0,
             "strategy_variation": {
                 "variant_results": [
                     {
@@ -45,6 +48,8 @@ def test_stratified_summary_metrics_from_synthetic_results():
                         "adversarial_passed": True,
                         "encounter": {"max_coverage": 0.5},
                         "strategy": "specificity",
+                        "variant_index": 0,
+                        "variant_trajectory_dir": "logs/run/adv-5/variant-0",
                     }
                 ]
             },

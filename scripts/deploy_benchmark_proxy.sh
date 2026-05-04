@@ -323,7 +323,8 @@ load_port_map() {
     while IFS= read -r line; do
         # Skip comments and blanks.
         line="${line%%#*}"
-        line="$(echo "$line" | xargs)"  # trim whitespace
+        line="${line#"${line%%[![:space:]]*}"}"
+        line="${line%"${line##*[![:space:]]}"}"
         [[ -z "$line" ]] && continue
 
         local name real_port proxy_port

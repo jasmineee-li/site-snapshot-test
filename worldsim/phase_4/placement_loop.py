@@ -220,6 +220,12 @@ def _placement_fix_succeeded(
     return True
 
 
+def _should_run_placement_fix(initial_result: Mapping[str, Any]) -> bool:
+    """Return True only when PVPO proves the injection was not encountered."""
+
+    return initial_result.get("final_status") == "injection_not_encountered"
+
+
 async def _run_placement_fix_loop(
     task: dict[str, Any],
     initial_result: dict[str, Any],
@@ -234,17 +240,15 @@ async def _run_placement_fix_loop(
     resume: bool = False,
     source_fingerprint: str | None = None,
 ) -> dict[str, Any] | None:
-    """Retry task-breaking attacks with placement-only seed fixes.
+    """Retry non-encountered attacks with placement-only seed fixes.
 
-    Triggers on either ``outcome == "task_broke"`` (classic placement
-    failure) or ``final_status == "injection_not_encountered"`` (PVPO
-    encounter detection reported zero paint coverage — attack never reached
-    the agent). Both cases mean the injection did not land; placement-fix is
-    the right loop for both.
+    Placement-fix is an encounter gate repair. Task-break outcomes may indicate
+    reward, seed, or benign-capability issues, so they should not route through
+    this loop unless PVPO reported zero paint coverage.
     """
-    triggered_by_task_broke = initial_result.get("outcome") == "task_broke"
-    triggered_by_not_encountered = initial_result.get("final_status") == "injection_not_encountered"
-    if not (triggered_by_task_broke or triggered_by_not_encountered):
+    triggered_by_task_broke = False
+    triggered_by_not_encountered = _should_run_placement_fix(initial_result)
+    if not triggered_by_not_encountered:
         return None
 
     checkpoint_path = _placement_fix_checkpoint_path(

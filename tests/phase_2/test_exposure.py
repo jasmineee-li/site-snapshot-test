@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 def test_materialized_reddit_strategy_uses_form_delivery_mechanism():
     contract = build_exposure_contract(
         benign_task_id="reddit-1",
@@ -35,6 +36,7 @@ def test_materialized_reddit_strategy_uses_form_delivery_mechanism():
     assert plans[0]["target_surface_id"] == "comment.body"
     assert plans[0]["delivery_mechanism"] == "form"
     assert plans[0]["seed_template"]["editor_calls"][0]["method"] == "create_comment"
+
 
 def test_validated_reddit_comment_plan_resolves_dynamic_form_delivery_channel():
     contract = build_exposure_contract(
@@ -95,7 +97,8 @@ def test_validated_reddit_comment_plan_resolves_dynamic_form_delivery_channel():
     assert len(validated) == 1
     assert validated[0]["delivery_mechanism"] == "form"
 
-def test_validated_reddit_title_plan_resolves_profile_alias_surface():
+
+def test_reddit_forum_created_child_prefers_body_after_title_retirement():
     contract = build_exposure_contract(
         benign_task_id="reddit-forum-1",
         site="reddit",
@@ -107,8 +110,16 @@ def test_validated_reddit_title_plan_resolves_profile_alias_surface():
             "encounter_requirements": {"must_appear_on_list": True},
         },
     )
-    assert contract["eligibility"]["status"] == "eligible"
-    assert contract["target_surface_id"] == "submission.title"
+    assert contract["eligibility"] == {
+        "status": "ineligible",
+        "reason": "phase4_exposure:unforced_transitive_child_surface",
+    }
+    assert contract["target_surface_id"] == "submission.body"
+    assert any(
+        candidate["target_surface_id"] == "submission.title"
+        and candidate["eligibility"]["reason"] == "phase4_exposure:retired_title_carrier_surface"
+        for candidate in contract["surface_candidates"]
+    )
 
     plans = [
         {
@@ -122,32 +133,13 @@ def test_validated_reddit_title_plan_resolves_profile_alias_surface():
             "adversarial_reward": {"type": "noop"},
         }
     ]
-    phase_2_injections._materialize_strategy_plans_from_exposure(
-        plans,
-        exposure_contracts={"reddit-forum-1": contract},
-        benchmark="webarena_verified",
-    )
-    phase_2_injections._merge_immutable_fields(
-        plans,
-        [_reddit_benign_task("reddit-forum-1")],
-        enriched_resources={
-            "reddit-forum-1": {
-                "kind": "reddit_forum",
-                "anchors": {"forum_name": "books"},
-            }
-        },
-        exposure_contracts={"reddit-forum-1": contract},
-    )
+    with pytest.raises(ValueError, match="ineligible exposure_contract"):
+        phase_2_injections._materialize_strategy_plans_from_exposure(
+            plans,
+            exposure_contracts={"reddit-forum-1": contract},
+            benchmark="webarena_verified",
+        )
 
-    validated, errors = phase_2_injections._validate_generated_adversarial_tasks(
-        plans,
-        [_reddit_benign_task("reddit-forum-1")],
-        _reddit_profile(),
-    )
-
-    assert errors == []
-    assert len(validated) == 1
-    assert validated[0]["target_surface_id"] == "submission.title"
 
 def test_reddit_forum_created_child_contract_is_not_materialized_for_phase4():
     contract = build_exposure_contract(
@@ -192,6 +184,7 @@ def test_reddit_forum_created_child_contract_is_not_materialized_for_phase4():
             exposure_contracts={"reddit-forum-1": contract},
             benchmark="webarena_verified",
         )
+
 
 def test_materialize_strategy_plans_passes_benign_seed_into_template():
     contract = build_exposure_contract(
@@ -242,6 +235,7 @@ def test_materialize_strategy_plans_passes_benign_seed_into_template():
     assert len(seed["api_calls"]) == 2
     assert seed["api_calls"][0] == benign_tasks[0]["data_seed"]["api_calls"][0]
     assert plans[0]["delivery_mechanism"] == "api"
+
 
 class TestMergeImmutableFieldsEnrichedResources:
     def test_prefers_enriched_resource_over_l1_l2_rederive(self):
