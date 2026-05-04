@@ -24,7 +24,10 @@ import instructor
 import requests
 from instructor.core.exceptions import IncompleteOutputException, InstructorRetryException
 
-from worldsim.adversarial_actions.payload_guidance import action_payload_preservation_error
+from worldsim.adversarial_actions.payload_guidance import (
+    action_payload_guidance_text,
+    action_payload_preservation_error,
+)
 from worldsim.adversarial_actions.tier3 import tier3_payload_action_contract
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.host_api_observability import (
@@ -647,6 +650,10 @@ def _adversarial_action_summary(task: dict[str, Any]) -> str:
                     f"  - Rule: {action_contract['evidence_rule']}",
                 ]
             )
+    guidance = action_payload_guidance_text(task)
+    if guidance:
+        lines.append("- Host action framing guidance:")
+        lines.append(f"  - {guidance}")
     return "\n".join(lines)
 
 
