@@ -1094,7 +1094,15 @@ def _validate_task_card_alignment(
         if reward_shape:
             provenance["benign_reward_shape"] = reward_shape
     action_kinds = card_action_kinds(card)
+    capability_family = card_capability_family(card)
+    if capability_family:
+        task["capability_family"] = capability_family
+    benign_family = _task_benign_task_family_id(task)
+    if benign_family:
+        task["benign_task_family_id"] = benign_family
+    task.pop("allowed_action_kinds", None)
     if action_kinds:
+        task["compatible_action_kinds"] = list(action_kinds)
         task["task_provenance"]["compatible_action_kinds"] = list(action_kinds)
     reward_shape = card_benign_reward_shape(card)
     if reward_shape == BENIGN_REWARD_HOST_ACTION_ONLY:

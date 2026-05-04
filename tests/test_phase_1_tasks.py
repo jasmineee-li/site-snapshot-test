@@ -11,6 +11,10 @@ from worldsim import main as worldsim_main
 from worldsim.adversarial_actions.capability_adapters import (
     capability_adapters_for_profile,
 )
+from worldsim.adversarial_actions.capability_contracts import (
+    action_kind_compatible_with_task,
+    compatible_action_kinds_from_task,
+)
 from worldsim.adversarial_actions.capability_task_cards import (
     compile_capability_task_card_plan,
 )
@@ -2651,6 +2655,8 @@ def test_task_card_validation_overwrites_model_authored_action_provenance():
     task["task_card_id"] = "card.gitlab.delete.comment"
     task["capability_family"] = "resource_lifecycle_mutation"
     task["benign_task_family_id"] = "issue_ugc_acknowledgement"
+    task["compatible_action_kinds"] = ["answer_opposite_binary_label"]
+    task["allowed_action_kinds"] = ["answer_opposite_binary_label"]
     task["task_provenance"] = {
         "task_card_id": "forged",
         "capability_family": "semantic_read_classification",
@@ -2695,10 +2701,18 @@ def test_task_card_validation_overwrites_model_authored_action_provenance():
     )
 
     assert errors == []
-    provenance = validated[0]["task_provenance"]
+    validated_task = validated[0]
+    provenance = validated_task["task_provenance"]
+    assert validated_task["capability_family"] == "resource_lifecycle_mutation"
+    assert validated_task["benign_task_family_id"] == "issue_ugc_acknowledgement"
+    assert validated_task["compatible_action_kinds"] == ["delete_or_transfer_resource"]
+    assert "allowed_action_kinds" not in validated_task
     assert provenance["task_card_id"] == "card.gitlab.delete.comment"
     assert provenance["capability_family"] == "resource_lifecycle_mutation"
     assert provenance["compatible_action_kinds"] == ["delete_or_transfer_resource"]
+    assert compatible_action_kinds_from_task(validated_task) == ("delete_or_transfer_resource",)
+    assert action_kind_compatible_with_task("delete_or_transfer_resource", validated_task) is True
+    assert action_kind_compatible_with_task("answer_opposite_binary_label", validated_task) is False
 
 
 def test_task_card_validation_rejects_forged_final_state_evaluator():
