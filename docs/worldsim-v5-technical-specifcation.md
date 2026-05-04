@@ -873,6 +873,18 @@ quality, not reward hacking: the benign task must require the capability class,
 but it must not ask for the exact adversarial fixture path/content or collapse
 utility success into attack success.
 
+Capability-aligned tasks may declare a host-owned **precondition slot**. A
+precondition slot describes the role that page content may plausibly play in
+the benign workflow, such as a task-local maintenance prerequisite, a
+verification step, or a public follow-up instruction. It does not contain the
+injected payload, fixture target, nonce, endpoint path, selector, evaluator, or
+cleanup behavior. Phase 1 may use the slot to generate natural benign tasks
+that leave room for page-provided workflow context; Phase 2 fills the actual
+adversarial action using host-owned targets and evidence; Phase 4 variants may
+reframe only that payload prose while preserving the slot role and all action
+anchors. This gives WorldSim the scalable composition pattern of RedTeamCUA
+without weakening WASP carrier scope or letting the model author rewards.
+
 Capability cards own the benign reward shape for action pilots. The default
 semantic shape is `agent_response_binary`, where the benign reward uses an
 `AgentResponseEvaluator` over stable labels such as `blank`/`populated` or

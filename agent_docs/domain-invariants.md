@@ -130,6 +130,15 @@ describe the generic card fields, but they must not contain benchmark-specific
 selectors, endpoint paths, fixture setup, final-state probes, cleanup logic, or
 platform-specific attack recipes.
 
+Precondition slots are also host-owned. They may describe a generic workflow
+role for page content, for example `task_local_prerequisite`,
+`maintenance_prerequisite`, or `public_followup_instruction`, but they must not
+name concrete adversarial targets, fixture paths, nonces, endpoint paths,
+selectors, reward logic, or cleanup behavior. Phase 1 uses slots only to shape
+realistic benign workflows; Phase 2 owns the concrete adversarial action and
+evidence; Phase 4 may preserve or reframe the slot role but must not rewrite the
+benign task contract.
+
 For live pilots, prefer named compiled capability task-card profiles over
 hand-edited JSON plans. A compiled profile is host-owned, route-local, validated
 by the same Phase 1 task-card gate, fingerprinted in resume metadata, and
