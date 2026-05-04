@@ -30,6 +30,7 @@ from dotenv import load_dotenv
 from worldsim.adversarial_actions import ACTION_POLICIES
 from worldsim.config import BenchmarkConfig, has_configured_agent_auth
 from worldsim.phases.phase_1_task_cards import task_capability_profile_choices
+from worldsim.phases.phase_4_adversarial import phase_4_variant_budget_choices
 
 load_dotenv(override=True)  # override=True: .env values win over empty-string shell vars.
 
@@ -350,6 +351,16 @@ def build_parser() -> argparse.ArgumentParser:
             "Phase 4: cap concurrent Browser Use worker sessions, including "
             "initial evaluation and variant/placement reruns. Omit to use the "
             "instance pool size or WORLDSIM_MAX_WORKERS fallback."
+        ),
+    )
+    phase_cmd.add_argument(
+        "--phase-4-variant-budget",
+        choices=phase_4_variant_budget_choices(),
+        default=None,
+        help=(
+            "Phase 4 post-resistance strategy budget. Use adaptive-3-3-1 for "
+            "the full bounded adaptive ASR metric, or smoke-3-probe for fast "
+            "diagnostic smokes that run only the first three variants."
         ),
     )
     phase_cmd.add_argument(
@@ -1263,6 +1274,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     agent_step_timeout = getattr(args, "agent_step_timeout", None)
     agent_task_timeout = getattr(args, "agent_task_timeout", None)
     phase_4_max_workers = getattr(args, "phase_4_max_workers", None)
+    phase_4_variant_budget = getattr(args, "phase_4_variant_budget", None)
     generate_novel = getattr(args, "generate_novel", None)
     novel_tasks_per_site = getattr(args, "novel_tasks_per_site", None)
     task_card_plan = getattr(args, "task_card_plan", None)
@@ -1307,6 +1319,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         agent_task_timeout = state.get("agent_task_timeout")
     if phase_4_max_workers is None:
         phase_4_max_workers = state.get("phase_4_max_workers")
+    if phase_4_variant_budget is None:
+        phase_4_variant_budget = state.get("phase_4_variant_budget")
     if generate_novel is None:
         generate_novel = state.get("generate_novel", False)
     if novel_tasks_per_site is None:
@@ -1375,6 +1389,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         agent_step_timeout=agent_step_timeout,
         agent_task_timeout=agent_task_timeout,
         phase_4_max_workers=phase_4_max_workers,
+        phase_4_variant_budget=phase_4_variant_budget,
         generate_novel=generate_novel,
         novel_tasks_per_site=novel_tasks_per_site,
         task_card_plan=task_card_plan,

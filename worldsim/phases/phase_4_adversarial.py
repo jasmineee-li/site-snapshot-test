@@ -207,6 +207,11 @@ _PLACEMENT_FIX_CHECKPOINT = "placement_fix_checkpoint.json"
 _VARIANT_GENERATION_RECORDS_KEY = "variant_generation_records"
 _VARIANT_ROUNDS_KEY = "variant_rounds"
 _ADAPTIVE_VARIANT_BUDGET = (3, 3, 1)
+_PHASE_4_VARIANT_BUDGET_PRESETS: dict[str, tuple[int, ...]] = {
+    "adaptive-3-3-1": _ADAPTIVE_VARIANT_BUDGET,
+    "smoke-3-probe": (3,),
+}
+_DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET = "adaptive-3-3-1"
 _VARIANT_RESULT_METADATA = "resume_metadata.json"
 _VARIANT_PAYLOAD_AUDIT_PREVIEW_CHARS = 500
 _PHASE_4_RESUME_VERSION = "2026-04-20b"
@@ -2276,6 +2281,18 @@ def _resume_fingerprint_result(result: dict[str, Any]) -> dict[str, Any]:
     return {k: result[k] for k in _FINGERPRINT_RESULT_KEYS if k in result}
 
 
+def phase_4_variant_budget_choices() -> tuple[str, ...]:
+    return tuple(_PHASE_4_VARIANT_BUDGET_PRESETS)
+
+
+def _phase_4_variant_budget_shape(preset: str | None) -> tuple[int, ...]:
+    normalized = (preset or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET).strip()
+    return _PHASE_4_VARIANT_BUDGET_PRESETS.get(
+        normalized,
+        _PHASE_4_VARIANT_BUDGET_PRESETS[_DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET],
+    )
+
+
 def _phase_4_state_metadata(
     *,
     task_dir_root: Path,
@@ -2288,6 +2305,7 @@ def _phase_4_state_metadata(
     agent_step_timeout: int | None,
     agent_task_timeout: int | None,
     phase_4_max_workers: int | None,
+    phase_4_variant_budget: str | None,
     max_tasks_per_site: int | None,
     task_origin: str | None,
     sites: str | None,
@@ -2306,6 +2324,7 @@ def _phase_4_state_metadata(
         "agent_step_timeout": agent_step_timeout,
         "agent_task_timeout": agent_task_timeout,
         "phase_4_max_workers": phase_4_max_workers,
+        "phase_4_variant_budget": phase_4_variant_budget,
         "max_tasks_per_site": max_tasks_per_site,
         "task_origin": task_origin,
         "allow_unknown_auth": allow_unknown_auth,
@@ -2708,6 +2727,7 @@ def _phase_4_postprocess_fingerprint(
     benchmark_root: Path | None,
     sandbox_model: str,
     site_profile: dict[str, Any] | None,
+    variant_budget_preset: str | None = None,
 ) -> str:
     return _fingerprint_payload(
         task,
@@ -2721,6 +2741,9 @@ def _phase_4_postprocess_fingerprint(
             "config_url_placeholders": _task_reachable_placeholders(task, config_url_placeholders),
             "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
             "sandbox_model": sandbox_model,
+            "variant_budget_preset": variant_budget_preset
+            or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET,
+            "variant_budget_shape": list(_phase_4_variant_budget_shape(variant_budget_preset)),
             "site_profile": site_profile,
         },
     )
@@ -2821,6 +2844,10 @@ async def run(args: argparse.Namespace) -> int:
     agent_step_timeout = getattr(args, "agent_step_timeout", None)
     agent_task_timeout = getattr(args, "agent_task_timeout", None)
     phase_4_max_workers = getattr(args, "phase_4_max_workers", None)
+    phase_4_variant_budget = (
+        getattr(args, "phase_4_variant_budget", None)
+        or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET
+    )
 
     benchmark_root = getattr(args, "benchmark", None)
     allow_unknown_auth = bool(getattr(args, "allow_unknown_auth", False))
@@ -2851,6 +2878,7 @@ async def run(args: argparse.Namespace) -> int:
         agent_step_timeout=agent_step_timeout,
         agent_task_timeout=agent_task_timeout,
         phase_4_max_workers=phase_4_max_workers,
+        phase_4_variant_budget=phase_4_variant_budget,
         max_tasks_per_site=max_tasks_per_site,
         task_origin=task_origin_filter,
         sites=sites_filter_raw,
@@ -3634,6 +3662,7 @@ async def run(args: argparse.Namespace) -> int:
                     str(task_by_id.get(str(result.get("task_id", "")), {}).get("site", ""))
                 ),
                 browser_worker_semaphore=browser_worker_semaphore,
+                variant_budget_preset=phase_4_variant_budget,
             )
         except Exception:
             await _record_postprocess_result(task_id, failed=True)
@@ -3991,6 +4020,7 @@ async def _postprocess_one_task(
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
+    variant_budget_preset: str | None = None,
 ) -> dict[str, Any]:
     """Post-process a single adversarial task result through the Phase 4 decision tree."""
     task_id = str(result.get("task_id", "unknown"))
@@ -4016,6 +4046,7 @@ async def _postprocess_one_task(
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
         site_profile=site_profile,
+        variant_budget_preset=variant_budget_preset,
     )
     if resume and processed_file.exists():
         try:
@@ -4059,6 +4090,7 @@ async def _postprocess_one_task(
         site_profile=site_profile,
         source_fingerprint=source_fingerprint,
         browser_worker_semaphore=browser_worker_semaphore,
+        variant_budget_preset=variant_budget_preset,
     )
 
     # Persist processed result for resume (Stage 2 checkpoint).
@@ -4663,6 +4695,7 @@ async def _process_adversarial_result(
     site_profile: dict[str, Any] | None = None,
     source_fingerprint: str | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
+    variant_budget_preset: str | None = None,
 ) -> dict[str, Any]:
     """Apply the full Phase 4 decision tree to one task result."""
     if initial_result.get("outcome") == "seed_preflight_mismatch":
@@ -4764,6 +4797,7 @@ async def _process_adversarial_result(
         sandbox_model=sandbox_model,
         site_profile=site_profile,
         browser_worker_semaphore=browser_worker_semaphore,
+        variant_budget_preset=variant_budget_preset,
     )
     variation_status = variation.get("status")
     if variation_status in {
@@ -5931,6 +5965,7 @@ async def run_strategy_variation(
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
+    variant_budget_preset: str | None = None,
 ) -> dict[str, Any]:
     """Adaptive strategy variation: judge -> bounded 3+3+1 variant loop.
 
@@ -5942,6 +5977,8 @@ async def run_strategy_variation(
     ``adversarial_data_seed`` may change.
     """
     task_id = str(task.get("id", "unknown"))
+    budget_shape = _phase_4_variant_budget_shape(variant_budget_preset)
+    budget_preset = variant_budget_preset or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET
     checkpoint_path = _strategy_variation_checkpoint_path(task_dir_root, task_id)
     source_fingerprint = _phase_4_postprocess_fingerprint(
         task,
@@ -5952,6 +5989,7 @@ async def run_strategy_variation(
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
         site_profile=site_profile,
+        variant_budget_preset=variant_budget_preset,
     )
     checkpoint = _load_json_dict(checkpoint_path) if resume else None
     if checkpoint is not None and checkpoint.get(_CHECKPOINT_FINGERPRINT_KEY) != source_fingerprint:
@@ -6108,7 +6146,7 @@ async def run_strategy_variation(
     def _round_kind(round_index: int) -> str:
         if round_index == 1:
             return "initial_fanout"
-        if round_index == len(_ADAPTIVE_VARIANT_BUDGET):
+        if round_index == len(budget_shape):
             return "terminal_probe"
         return "adaptive_fanout"
 
@@ -6219,7 +6257,7 @@ async def run_strategy_variation(
     def _adaptive_budget_report(stop_reason: str) -> dict[str, Any]:
         round_reports: list[dict[str, Any]] = []
         total_generated = 0
-        for round_index, budget in enumerate(_ADAPTIVE_VARIANT_BUDGET, start=1):
+        for round_index, budget in enumerate(budget_shape, start=1):
             round_record = next(
                 (
                     item
@@ -6255,10 +6293,11 @@ async def run_strategy_variation(
                 }
             )
         return {
-            "shape": list(_ADAPTIVE_VARIANT_BUDGET),
-            "max_browser_variants": sum(_ADAPTIVE_VARIANT_BUDGET),
+            "preset": budget_preset,
+            "shape": list(budget_shape),
+            "max_browser_variants": sum(budget_shape),
             "generated": total_generated,
-            "remaining_budget": max(0, sum(_ADAPTIVE_VARIANT_BUDGET) - total_generated),
+            "remaining_budget": max(0, sum(budget_shape) - total_generated),
             "stop_reason": stop_reason,
             "rounds": round_reports,
         }
@@ -6292,7 +6331,8 @@ async def run_strategy_variation(
             )
         context["adaptive_loop"] = {
             "schema_version": "phase4_adaptive_strategy_loop_v1",
-            "budget_shape": list(_ADAPTIVE_VARIANT_BUDGET),
+            "budget_preset": budget_preset,
+            "budget_shape": list(budget_shape),
             "current_round_index": round_index,
             "prior_rounds": _jsonable_payload(prior_rounds),
             "prior_strategies": [
@@ -6756,7 +6796,7 @@ async def run_strategy_variation(
         + 1
     )
     terminal_stop_reason = "budget_exhausted"
-    for round_index, budget in enumerate(_ADAPTIVE_VARIANT_BUDGET, start=1):
+    for round_index, budget in enumerate(budget_shape, start=1):
         existing_round = next(
             (
                 item
@@ -6804,7 +6844,7 @@ async def run_strategy_variation(
         logger.info(
             "Adaptive strategy round %d/%d for task %s: kind=%s selected_strategies=%s",
             round_index,
-            len(_ADAPTIVE_VARIANT_BUDGET),
+            len(budget_shape),
             task_id,
             round_kind,
             [
