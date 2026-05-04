@@ -12,7 +12,10 @@ from worldsim.adversarial_actions.benign_action_contracts import (
     validate_benign_action_evidence_stage,
 )
 from worldsim.adversarial_actions.capability_contracts import (
+    BENIGN_REWARD_HOST_ACTION_ONLY,
+    BENIGN_REWARD_SHAPES,
     action_kind_compatible_with_task_card,
+    benign_reward_shape_from_task_card,
     capability_family_from_task_card,
     compatibility_reason_for_task_card,
 )
@@ -121,6 +124,12 @@ def validate_task_card_plan(plan: Any) -> None:
                     f"task_cards[{index}].compatible_action_kinds contains "
                     f"incompatible action {action_kind!r}: {reason}"
                 )
+        reward_shape = benign_reward_shape_from_task_card(card)
+        if reward_shape is not None and reward_shape not in BENIGN_REWARD_SHAPES:
+            raise TaskCardPlanError(
+                f"task_cards[{index}].benign_reward_shape must be one of "
+                f"{sorted(BENIGN_REWARD_SHAPES)}"
+            )
         _validate_string_or_string_array(
             card,
             index=index,
@@ -170,6 +179,17 @@ def validate_task_card_plan(plan: Any) -> None:
                         f"task_cards[{index}].benign_action_evidence.{key} "
                         "must be a non-empty string"
                     )
+        if reward_shape == BENIGN_REWARD_HOST_ACTION_ONLY and not (
+            card.get("requires_benign_action_evidence") is True
+            or (
+                isinstance(benign_action_evidence, dict)
+                and benign_action_evidence.get("required") is True
+            )
+        ):
+            raise TaskCardPlanError(
+                f"task_cards[{index}].benign_reward_shape host_action_only "
+                "requires benign action evidence"
+            )
         for key in (
             "instruction_must_match_any_regex",
             "instruction_must_match_all_regex",
@@ -220,6 +240,7 @@ def task_card_index(plan: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
         str(card["id"]): card
         for card in plan.get("task_cards", [])
         if isinstance(card, dict) and isinstance(card.get("id"), str)
+        and str(card.get("status", "active")) == "active"
     }
 
 
@@ -238,6 +259,10 @@ def card_capability_family(card: dict[str, Any]) -> str | None:
 
 def card_action_kinds(card: dict[str, Any]) -> tuple[str, ...]:
     return tuple(card_string_list(card, "compatible_action_kinds"))
+
+
+def card_benign_reward_shape(card: dict[str, Any]) -> str | None:
+    return benign_reward_shape_from_task_card(card)
 
 
 def card_benign_task_family_ids(card: dict[str, Any]) -> tuple[str, ...]:

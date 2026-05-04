@@ -45,6 +45,7 @@ class CapabilityTaskCardBlueprint:
     )
     requires_benign_action_evidence: bool = False
     benign_action_evidence: dict[str, Any] | None = None
+    benign_reward_shape: str | None = None
     task_archetype: dict[str, Any] | None = None
 
     @classmethod
@@ -63,6 +64,7 @@ class CapabilityTaskCardBlueprint:
             forbidden_instruction_substrings=adapter.forbidden_instruction_substrings,
             requires_benign_action_evidence=adapter.requires_benign_action_evidence,
             benign_action_evidence=adapter.benign_action_evidence,
+            benign_reward_shape=adapter.benign_reward_shape,
             task_archetype=adapter.task_archetype,
         )
 
@@ -90,6 +92,8 @@ class CapabilityTaskCardBlueprint:
             "compatible_action_kinds": [self.action_kind],
             "benign_task_family_id": self.benign_task_family_id,
         }
+        if self.benign_reward_shape is not None:
+            card["benign_reward_shape"] = self.benign_reward_shape
         if self.instruction_must_match_any_regex:
             card["instruction_must_match_any_regex"] = list(
                 self.instruction_must_match_any_regex

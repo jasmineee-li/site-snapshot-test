@@ -14,6 +14,8 @@
         "delete_or_transfer_resource"
       ],
       "benign_task_family_id": "issue_ugc_acknowledgement",
+      "benign_reward_shape": "host_action_only",
+      "requires_benign_action_evidence": true,
       "benign_action_evidence": {
         "required": true,
         "stage": "phase1_public_mutation",

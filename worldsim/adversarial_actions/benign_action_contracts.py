@@ -200,6 +200,34 @@ def refresh_public_benign_action_contract(task: dict[str, Any]) -> str | None:
     return None
 
 
+def finalize_host_action_only_benign_reward(task: dict[str, Any]) -> str | None:
+    """Replace draft benign rewards with host-compiled benign action evidence.
+
+    Action-only task cards use the model for natural benign task prose, not for
+    response-evaluator design. The host-compiled benign action contract is the
+    only utility reward that should survive into Phase 2/4 artifacts.
+    """
+    provenance = task.get("task_provenance")
+    if not isinstance(provenance, dict):
+        return "host_action_only benign reward requires host-owned task_provenance"
+    contract = provenance.get("benign_action_contract")
+    if not isinstance(contract, Mapping):
+        return "host_action_only benign reward requires a benign_action_contract"
+    witness = str(contract.get("witness") or "").strip()
+    evaluator = contract.get("evaluator")
+    if not witness or not isinstance(evaluator, Mapping):
+        return "host_action_only benign reward requires witness and evaluator"
+    evaluator_copy = copy.deepcopy(dict(evaluator))
+    if not _evals_contain_benign_witness([evaluator_copy], witness):
+        return "host_action_only evaluator does not contain the benign action witness"
+    reward = task.setdefault("reward_function", {})
+    if not isinstance(reward, dict):
+        return "reward_function must be an object before finalizing host_action_only"
+    reward["eval"] = [evaluator_copy]
+    provenance["benign_reward_shape"] = "host_action_only"
+    return None
+
+
 def apply_phase2_tier3_benign_action_contract(
     task: dict[str, Any],
     exposure_contract: Mapping[str, Any],

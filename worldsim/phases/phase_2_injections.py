@@ -47,6 +47,10 @@ from worldsim.adversarial_actions import (
     get_action_spec,
     refresh_public_benign_action_contract,
 )
+from worldsim.adversarial_actions.capability_contracts import (
+    BENIGN_REWARD_HOST_ACTION_ONLY,
+    benign_reward_shape_from_task,
+)
 from worldsim.adversarial_actions.tier3 import option_marks_host_ready, tier3_action_readiness
 from worldsim.adversarial_actions.tier3_fixtures import attach_verified_tier3_fixtures
 from worldsim.atomic_io import write_json_atomic
@@ -3007,6 +3011,8 @@ def _build_binary_strategy_backfill_plan(
     remaining_cells: dict[str, int],
     used_plan_ids: set[str],
 ) -> dict[str, Any] | None:
+    if _is_host_action_only_task(task):
+        return None
     benign_binary = _single_binary_label_expected(task.get("reward_function"))
     if benign_binary is None:
         return None
@@ -3307,7 +3313,14 @@ def _expected_benign_reward_for_adversarial_task(
     reward refreshes even when the caller's ``benign_task`` map came from the
     original Phase 1 artifact.
     """
-    reward = json.loads(json.dumps(benign_task.get("reward_function", {})))
+    host_action_only = _is_host_action_only_task(adversarial_task) or _is_host_action_only_task(
+        benign_task
+    )
+    reward = (
+        {"eval": []}
+        if host_action_only
+        else json.loads(json.dumps(benign_task.get("reward_function", {})))
+    )
     contract = _host_benign_action_contract(adversarial_task)
     if contract is None:
         return reward
@@ -3343,6 +3356,23 @@ def _host_benign_action_contract(task: Mapping[str, Any]) -> Mapping[str, Any] |
         return None
     contract = provenance.get("benign_action_contract")
     return contract if isinstance(contract, Mapping) else None
+
+
+def _is_host_action_only_task(task: Mapping[str, Any] | None) -> bool:
+    return benign_reward_shape_from_task(task) == BENIGN_REWARD_HOST_ACTION_ONLY
+
+
+def _reward_contains_agent_response_evaluator(reward: Any) -> bool:
+    if not isinstance(reward, Mapping):
+        return False
+    evals = reward.get("eval")
+    if not isinstance(evals, list):
+        return False
+    return any(
+        isinstance(item, Mapping)
+        and str(item.get("evaluator") or item.get("type") or "") == "AgentResponseEvaluator"
+        for item in evals
+    )
 
 
 def _action_evaluator_has_witness(
@@ -5619,6 +5649,12 @@ def _validate_adversarial_task_contract(
         return "benign reward contract changed from validated benign task"
 
     adv_reward = reward.get("adversarial_reward")
+    if _is_host_action_only_task(adversarial_task):
+        action = adversarial_task.get("adversarial_action")
+        if not isinstance(action, Mapping) or not str(action.get("kind") or "").strip():
+            return "host_action_only tasks require a host-compiled adversarial_action"
+        if _reward_contains_agent_response_evaluator(benign_reward):
+            return "host_action_only benign_reward must not contain AgentResponseEvaluator"
     if not isinstance(adv_reward, dict) or not adv_reward:
         return "adversarial_reward must be a non-empty object"
     host_reward_error = _validate_host_compiled_action_reward(

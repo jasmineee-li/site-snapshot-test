@@ -809,6 +809,31 @@ def test_refresh_host_compiled_action_rewards_preserves_tier3_benign_action_evid
     assert task["reward_function"]["benign_reward"]["eval"].count(evaluator) == 1
 
 
+def test_refresh_host_compiled_action_rewards_filters_binary_for_action_only_tasks():
+    benign, task = _tier3_repo_action_task(include_required_tokens=True)
+    evaluator = _attach_tier3_benign_action_contract(task)
+    task["task_provenance"]["benign_reward_shape"] = "host_action_only"
+    task["reward_function"] = {
+        "benign_reward": benign["reward_function"],
+        "adversarial_reward": {"type": "model_supplied_stale_reward"},
+    }
+
+    refreshed, diagnostics = phase_2_injections._refresh_host_compiled_action_rewards_after_text_fill(
+        [task],
+        benign_by_id={benign["id"]: benign},
+    )
+
+    assert diagnostics == []
+    assert refreshed == [task]
+    benign_reward = task["reward_function"]["benign_reward"]
+    assert benign_reward["eval"] == [evaluator]
+    assert not any(
+        item.get("evaluator") == "AgentResponseEvaluator"
+        for item in benign_reward["eval"]
+        if isinstance(item, dict)
+    )
+
+
 def test_refresh_host_compiled_action_rewards_recompiles_public_benign_action_evidence():
     witness = "issue comment reference abc123"
     stale_evaluator = {
@@ -3952,6 +3977,30 @@ def test_backfill_missing_binary_strategy_plan_uses_opposite_label_and_open_cell
             "benign_label": "populated",
             "adversarial_label": "blank",
         }
+    ]
+
+
+def test_backfill_missing_binary_strategy_plan_skips_action_only_tasks():
+    task = _binary_benign_task("novel_gitlab_1", "populated")
+    task["task_provenance"] = {"benign_reward_shape": "host_action_only"}
+
+    backfilled, errors = phase_2_injections._backfill_missing_binary_strategy_plans(
+        [],
+        site_tasks=[task],
+        exposure_contracts={
+            "novel_gitlab_1": {
+                "contract_id": "contract-1",
+                "target_surface_id": "issue.description",
+                "eligibility": {"status": "eligible"},
+            }
+        },
+        cell_targets={"authority::plaintext": 1},
+        site_name="gitlab",
+    )
+
+    assert backfilled == []
+    assert errors == [
+        "novel_gitlab_1: missing non-binary/action or ambiguous strategy plan"
     ]
 
 

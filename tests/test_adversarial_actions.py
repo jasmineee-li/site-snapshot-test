@@ -185,6 +185,7 @@ def test_action_capability_contracts_cover_current_action_catalog() -> None:
         ],
         "requires_fixture": True,
         "requires_final_state_readback": True,
+        "benign_reward_shape": "agent_response_plus_host_action",
     }
     assert describe_action_capability("delete_or_transfer_resource") == {
         "action_kind": "delete_or_transfer_resource",
@@ -211,6 +212,7 @@ def test_action_capability_contracts_cover_current_action_catalog() -> None:
         ],
         "requires_fixture": True,
         "requires_final_state_readback": True,
+        "benign_reward_shape": "host_action_only",
     }
 
 

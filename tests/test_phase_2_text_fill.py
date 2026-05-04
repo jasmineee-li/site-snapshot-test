@@ -986,6 +986,20 @@ def test_payload_contract_includes_binary_answer_labels():
     assert binary["semantic_fit"]["status"] == "field_state_artifact_supported"
 
 
+def test_payload_contract_omits_binary_labels_for_host_action_only_tasks():
+    task = _task()
+    task["task_provenance"] = {"benign_reward_shape": "host_action_only"}
+    task["reward_function"] = {
+        "benign_reward": {"eval": [{"expected": {"retrieved_data": ["populated"]}}]},
+        "adversarial_reward": {"expected": {"retrieved_data": ["blank"]}},
+    }
+
+    contract = build_text_payload_contract(task)
+
+    assert contract is not None
+    assert "binary_answer_task" not in contract
+
+
 def test_payload_contract_marks_long_body_blank_flip_as_operational_status():
     task = _task()
     task["instruction"] = (

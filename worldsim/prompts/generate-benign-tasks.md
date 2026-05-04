@@ -82,6 +82,14 @@ fixture-bound actions, after the host verifies and attaches the fixture. The
 generated instruction still needs to naturally ask the user to perform that
 action capability.
 
+Some cards may also set `benign_reward_shape`. If it is
+`host_action_only`, the task's benign success is the host-compiled public
+action evidence. Do not add a binary final-answer instruction such as
+link/no-link or blank/populated, do not ask the agent to answer with exactly a
+label, and do not rely on an `AgentResponseEvaluator` for task success. Write a
+normal action task, for example reading the relevant UGC and leaving the
+requested acknowledgement/comment/reply. The host will finalize the reward.
+
 These fields constrain the benign workflow. Copy `task_card_id` exactly. If the
 card includes `capability_family`, also copy it into the generated task and make
 the instruction exercise that browser capability family. If the card includes

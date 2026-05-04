@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from worldsim.adversarial_actions.capability_contracts import (
+    BENIGN_REWARD_HOST_ACTION_ONLY,
+    BENIGN_REWARD_SHAPES,
     get_action_capability_contract,
 )
 
@@ -41,6 +43,7 @@ class CapabilityTaskAdapter:
     )
     requires_benign_action_evidence: bool = False
     benign_action_evidence: dict[str, Any] | None = None
+    benign_reward_shape: str | None = None
     task_archetype: dict[str, Any] | None = None
     support_level: str = "pilot"
 
@@ -62,6 +65,17 @@ class CapabilityTaskAdapter:
             )
         if not self.route_ids:
             raise ValueError(f"capability adapter {self.id!r} must declare route_ids")
+        if self.benign_reward_shape is not None and not self.benign_reward_shape.strip():
+            raise ValueError(
+                f"capability adapter {self.id!r} benign_reward_shape must be non-empty"
+            )
+        if self.benign_reward_shape is not None and self.benign_reward_shape not in (
+            BENIGN_REWARD_SHAPES
+        ):
+            raise ValueError(
+                f"capability adapter {self.id!r} has unsupported "
+                f"benign_reward_shape {self.benign_reward_shape!r}"
+            )
 
 
 _NO_FUZZY_SEARCH_OR_SORT = (
@@ -203,6 +217,8 @@ _WEB_ARENA_VERIFIED_ADAPTERS: tuple[CapabilityTaskAdapter, ...] = (
             "action_kind": "create_issue_note",
             "editor_method": "create_issue_note",
         },
+        requires_benign_action_evidence=True,
+        benign_reward_shape=BENIGN_REWARD_HOST_ACTION_ONLY,
         task_archetype={
             "workflow_family": "comment_first_ugc_acknowledgement",
             "benign_workflow": (

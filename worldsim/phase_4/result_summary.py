@@ -12,6 +12,7 @@ import json
 from collections import Counter
 from typing import Any
 
+from worldsim.adversarial_actions.capability_contracts import benign_reward_shape_from_task
 from worldsim.phase_4.pvpo_observations import pvpo_observation_bucket
 from worldsim.text_payload_contract import (
     binary_answer_contract,
@@ -846,6 +847,14 @@ def _include_in_action_success_by_tier_metric(result: dict[str, Any]) -> bool:
     }
 
 
+def _benign_reward_shape_label(result: dict[str, Any], task: dict[str, Any]) -> str:
+    return (
+        benign_reward_shape_from_task(task)
+        or benign_reward_shape_from_task(result)
+        or "unspecified"
+    )
+
+
 def action_success_by_tier(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     rows: dict[str, dict[str, int]] = {}
     for result in results:
@@ -1166,6 +1175,7 @@ def summarize_results(
     by_site_surface_editor_pvpo_observation = Counter()
     by_action_tier_status = Counter()
     by_action_family_status = Counter()
+    by_benign_reward_shape_status = Counter()
     variant_successes: list[dict[str, Any]] = []
     variant_error_buckets = Counter()
     judge_trigger_counts = Counter()
@@ -1177,6 +1187,13 @@ def summarize_results(
         site = task_site(result, task)
         origin = task_origin(result, task)
         by_origin.setdefault(origin, Counter())[str(result.get("final_status", "missing"))] += 1
+        by_benign_reward_shape_status[
+            (
+                _benign_reward_shape_label(result, task),
+                str(result.get("final_status", "missing")),
+                str(result.get("outcome_fine", "missing")),
+            )
+        ] += 1
         action_tier = _action_tier_label(result)
         action_family = str(result.get("adversarial_action_family") or "unknown")
         by_action_tier_status[
@@ -1399,6 +1416,17 @@ def summarize_results(
             }
             for (action_family, reward_signal, final_status), count in sorted(
                 by_action_family_status.items()
+            )
+        ],
+        "by_benign_reward_shape_status": [
+            {
+                "count": count,
+                "benign_reward_shape": benign_reward_shape,
+                "final_status": final_status,
+                "outcome_fine": outcome_fine,
+            }
+            for (benign_reward_shape, final_status, outcome_fine), count in sorted(
+                by_benign_reward_shape_status.items()
             )
         ],
         "by_site_surface_editor_pvpo_observation": [

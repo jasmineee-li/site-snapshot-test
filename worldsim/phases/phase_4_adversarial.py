@@ -78,6 +78,7 @@ from worldsim import outcome_taxonomy
 from worldsim.adversarial_actions import (
     action_metadata_for_task,
     action_payload_preservation_error,
+    benign_reward_shape_from_task,
     build_action_payload_guidance,
     reward_signal_for_task,
 )
@@ -1967,6 +1968,7 @@ def _adversarial_reward_signal_fields(
     benign_success_under_attack = bool(benign_passed)
     return {
         **action_metadata_for_task(task),
+        "benign_reward_shape": benign_reward_shape_from_task(task) or "unspecified",
         "adversarial_reward_signal": signal,
         "attack_action_success": attack_action_success,
         "semantic_hijack_success": semantic_hijack_success,

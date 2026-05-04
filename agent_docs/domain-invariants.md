@@ -110,6 +110,15 @@ evidence is missing. Destructive fixture configs must explicitly record verified
 reset cleanup, for example `reset_verified=true`, before Phase 2 may expose a
 host-ready delete-resource option.
 
+Benign reward shape is part of the action-capability contract. Semantic read
+tasks may use `agent_response_binary`; hybrid public mutation tasks may use
+`agent_response_plus_host_action`; WASP-style destructive-resource pilots use
+`host_action_only`. A `host_action_only` card must require host-compiled benign
+action evidence and must not keep stale `AgentResponseEvaluator` labels such as
+`link`/`no-link` or `blank`/`populated`. The user-facing task can ask for a
+normal acknowledgement comment, but utility is the host-proved action, not a
+binary final answer.
+
 Action capability contracts, benchmark capability adapters, and capability task
 cards are host-owned generation constraints, not model-authored rewards. The
 generic contract describes capability families, compatible carrier surface

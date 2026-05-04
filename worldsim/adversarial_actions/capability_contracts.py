@@ -14,6 +14,17 @@ from typing import Any
 
 from worldsim.adversarial_actions.catalog import get_action_spec
 
+BENIGN_REWARD_AGENT_RESPONSE_BINARY = "agent_response_binary"
+BENIGN_REWARD_AGENT_RESPONSE_PLUS_HOST_ACTION = "agent_response_plus_host_action"
+BENIGN_REWARD_HOST_ACTION_ONLY = "host_action_only"
+BENIGN_REWARD_SHAPES = frozenset(
+    {
+        BENIGN_REWARD_AGENT_RESPONSE_BINARY,
+        BENIGN_REWARD_AGENT_RESPONSE_PLUS_HOST_ACTION,
+        BENIGN_REWARD_HOST_ACTION_ONLY,
+    }
+)
+
 
 @dataclass(frozen=True)
 class ActionCapabilityContract:
@@ -30,6 +41,7 @@ class ActionCapabilityContract:
     forbidden_benign_overlap: tuple[str, ...] = ()
     requires_fixture: bool = False
     requires_final_state_readback: bool = False
+    benign_reward_shape: str = BENIGN_REWARD_AGENT_RESPONSE_BINARY
 
 
 _BODY_LIKE_WASP_SURFACES = (
@@ -88,6 +100,7 @@ ACTION_CAPABILITY_CONTRACTS: tuple[ActionCapabilityContract, ...] = (
         benign_task_family_ids=("issue_triage_public_followup",),
         required_host_evidence=("post_status", "post_body_witness"),
         requires_final_state_readback=True,
+        benign_reward_shape=BENIGN_REWARD_AGENT_RESPONSE_PLUS_HOST_ACTION,
     ),
     ActionCapabilityContract(
         action_kind="create_issue_note",
@@ -99,6 +112,7 @@ ACTION_CAPABILITY_CONTRACTS: tuple[ActionCapabilityContract, ...] = (
         benign_task_family_ids=("issue_discussion_followup",),
         required_host_evidence=("post_status", "post_body_witness"),
         requires_final_state_readback=True,
+        benign_reward_shape=BENIGN_REWARD_AGENT_RESPONSE_PLUS_HOST_ACTION,
     ),
     ActionCapabilityContract(
         action_kind="create_post",
@@ -110,6 +124,7 @@ ACTION_CAPABILITY_CONTRACTS: tuple[ActionCapabilityContract, ...] = (
         benign_task_family_ids=("forum_public_followup_post",),
         required_host_evidence=("post_status", "post_body_witness"),
         requires_final_state_readback=True,
+        benign_reward_shape=BENIGN_REWARD_AGENT_RESPONSE_PLUS_HOST_ACTION,
     ),
     ActionCapabilityContract(
         action_kind="submit_comment",
@@ -121,6 +136,7 @@ ACTION_CAPABILITY_CONTRACTS: tuple[ActionCapabilityContract, ...] = (
         benign_task_family_ids=("submission_discussion_followup",),
         required_host_evidence=("post_status", "post_body_witness"),
         requires_final_state_readback=True,
+        benign_reward_shape=BENIGN_REWARD_AGENT_RESPONSE_PLUS_HOST_ACTION,
     ),
     ActionCapabilityContract(
         action_kind="modify_repository_content",
@@ -145,6 +161,7 @@ ACTION_CAPABILITY_CONTRACTS: tuple[ActionCapabilityContract, ...] = (
         ),
         requires_fixture=True,
         requires_final_state_readback=True,
+        benign_reward_shape=BENIGN_REWARD_AGENT_RESPONSE_PLUS_HOST_ACTION,
     ),
     ActionCapabilityContract(
         action_kind="delete_or_transfer_resource",
@@ -168,6 +185,7 @@ ACTION_CAPABILITY_CONTRACTS: tuple[ActionCapabilityContract, ...] = (
         ),
         requires_fixture=True,
         requires_final_state_readback=True,
+        benign_reward_shape=BENIGN_REWARD_HOST_ACTION_ONLY,
     ),
 )
 
@@ -209,6 +227,7 @@ def describe_action_capability(action_kind: str) -> dict[str, Any]:
         "forbidden_benign_overlap": list(contract.forbidden_benign_overlap),
         "requires_fixture": contract.requires_fixture,
         "requires_final_state_readback": contract.requires_final_state_readback,
+        "benign_reward_shape": contract.benign_reward_shape,
     }
 
 
@@ -233,6 +252,36 @@ def capability_family_from_task_card(card: Mapping[str, Any] | None) -> str | No
         value = metadata.get("capability_family") or metadata.get(
             "required_capability_family"
         )
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def benign_reward_shape_from_task_card(card: Mapping[str, Any] | None) -> str | None:
+    """Extract a host-owned benign reward shape from a task-card-like object."""
+    if not isinstance(card, Mapping):
+        return None
+    value = card.get("benign_reward_shape")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    metadata = card.get("benign_reward_contract")
+    if isinstance(metadata, Mapping):
+        value = metadata.get("shape") or metadata.get("mode")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def benign_reward_shape_from_task(task: Mapping[str, Any] | None) -> str | None:
+    """Extract host-owned benign reward shape provenance from a task."""
+    if not isinstance(task, Mapping):
+        return None
+    value = task.get("benign_reward_shape")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    provenance = task.get("task_provenance")
+    if isinstance(provenance, Mapping):
+        value = provenance.get("benign_reward_shape")
         if isinstance(value, str) and value.strip():
             return value.strip()
     return None

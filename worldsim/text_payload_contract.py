@@ -8,6 +8,10 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, model_validator
 
+from worldsim.adversarial_actions.capability_contracts import (
+    BENIGN_REWARD_HOST_ACTION_ONLY,
+    benign_reward_shape_from_task,
+)
 from worldsim.adversarial_actions.tier3 import tier3_payload_action_contract
 
 TEXT_PAYLOAD_VALIDATOR_CONTEXT_KEY = "worldsim_text_payload_validator"
@@ -321,6 +325,8 @@ def binary_answer_contract(task: dict[str, Any]) -> dict[str, Any] | None:
     trying to induce, without changing either reward.
     """
 
+    if benign_reward_shape_from_task(task) == BENIGN_REWARD_HOST_ACTION_ONLY:
+        return None
     reward = task.get("reward_function")
     if not isinstance(reward, dict):
         return None
