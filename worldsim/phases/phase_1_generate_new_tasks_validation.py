@@ -1082,6 +1082,7 @@ def _validate_task_card_alignment(
             expected=archetype_id,
             actual=task_archetype_id,
         )
+    _canonicalize_task_card_action_provenance(task, card=card, card_id=card_id)
     capability_problem = _validate_task_card_capability_alignment(
         task,
         card=card,
@@ -1113,7 +1114,7 @@ def _validate_task_card_alignment(
     capability_family = card_capability_family(card)
     if capability_family:
         provenance["capability_family"] = capability_family
-    benign_family = _task_benign_task_family_id(task)
+    benign_family = _card_benign_task_family_id(card) or _task_benign_task_family_id(task)
     if benign_family:
         provenance["benign_task_family_id"] = benign_family
     reward_shape = card_benign_reward_shape(card)
@@ -1125,9 +1126,10 @@ def _validate_task_card_alignment(
     capability_family = card_capability_family(card)
     if capability_family:
         task["capability_family"] = capability_family
-    benign_family = _task_benign_task_family_id(task)
+        task.pop("required_capability_family", None)
     if benign_family:
         task["benign_task_family_id"] = benign_family
+        task.pop("task_family_id", None)
     task.pop("allowed_action_kinds", None)
     for scenario_key in ("scenario_template", "scenario_template_id", "scenario_context"):
         task.pop(scenario_key, None)
@@ -1202,6 +1204,45 @@ def _strip_model_authored_host_metadata(task: dict[str, Any]) -> None:
 
     for key in _MODEL_AUTHORED_HOST_METADATA_FIELDS:
         task.pop(key, None)
+
+
+def _canonicalize_task_card_action_provenance(
+    task: dict[str, Any],
+    *,
+    card: dict[str, Any],
+    card_id: str,
+) -> None:
+    """Make host-owned task-card metadata authoritative over model drafts."""
+    provenance = task.setdefault("task_provenance", {})
+    if not isinstance(provenance, dict):
+        return
+
+    provenance["task_card_id"] = card_id
+    archetype_id = card.get("archetype_id")
+    if isinstance(archetype_id, str) and archetype_id.strip():
+        provenance["archetype_id"] = archetype_id
+    if isinstance(card.get("task_archetype"), dict):
+        provenance["task_archetype"] = copy.deepcopy(card["task_archetype"])
+
+    capability_family = card_capability_family(card)
+    if capability_family:
+        task["capability_family"] = capability_family
+        task.pop("required_capability_family", None)
+        provenance["capability_family"] = capability_family
+        provenance.pop("required_capability_family", None)
+
+    benign_family = _card_benign_task_family_id(card)
+    if benign_family:
+        task["benign_task_family_id"] = benign_family
+        task.pop("task_family_id", None)
+        provenance["benign_task_family_id"] = benign_family
+        provenance.pop("task_family_id", None)
+
+    action_kinds = list(card_action_kinds(card))
+    task["compatible_action_kinds"] = action_kinds
+    task.pop("allowed_action_kinds", None)
+    provenance["compatible_action_kinds"] = action_kinds
+    provenance.pop("allowed_action_kinds", None)
 
 
 def _validate_task_card_capability_alignment(
@@ -1423,6 +1464,16 @@ def _task_benign_task_family_id(task: Mapping[str, Any]) -> str | None:
         value = provenance.get("benign_task_family_id") or provenance.get("task_family_id")
         if isinstance(value, str) and value.strip():
             return value.strip()
+    return None
+
+
+def _card_benign_task_family_id(card: Mapping[str, Any]) -> str | None:
+    value = card.get("benign_task_family_id")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    values = card_benign_task_family_ids(dict(card))
+    if len(values) == 1:
+        return next(iter(values))
     return None
 
 

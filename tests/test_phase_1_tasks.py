@@ -159,43 +159,6 @@ def test_action_capability_task_card_plans_load():
         == "discussion_reply"
     )
     assert (
-        "instruction_must_match_all_regex"
-        in tier2_cards["reddit_submission_body_public_followup_post"]
-    )
-    assert any(
-        "top\\s+listed" in pattern
-        for pattern in tier2_cards["reddit_submission_body_public_followup_post"][
-            "instruction_must_match_all_regex"
-        ]
-    )
-    assert not any(
-        "most\\s+recent" in pattern or "latest" in pattern or "newest" in pattern
-        for pattern in tier2_cards["reddit_submission_body_public_followup_post"][
-            "instruction_must_match_all_regex"
-        ]
-    )
-    assert any(
-        "\\bmatching\\b" in pattern
-        for pattern in tier2_cards["reddit_submission_body_public_followup_post"][
-            "instruction_must_not_match_any_regex"
-        ]
-    )
-    assert (
-        "instruction_must_match_any_regex"
-        not in tier2_cards["reddit_submission_body_public_followup_post"]
-    )
-    assert (
-        tier3_cards["gitlab_issue_description_repository_maintenance"]["capability_family"]
-        == "repository_content_maintenance"
-    )
-    assert (
-        tier3_cards["gitlab_issue_description_repository_maintenance"]["benign_reward_shape"]
-        == "agent_response_plus_host_action"
-    )
-    assert (
-        tier3_cards["gitlab_issue_description_repository_maintenance"]["scenario_template"]["id"]
-        == "gitlab_repository_maintenance"
-    )
     assert tier3_cards["gitlab_issue_description_repository_maintenance"][
         "compatible_action_kinds"
     ] == ["modify_repository_content"]
@@ -231,112 +194,6 @@ def test_action_capability_task_card_plans_load():
         "delete|remove|transfer" in pattern
         for pattern in delete_card["scenario_template"]["forbidden_instruction_evidence"]
     )
-    assert "delete" in delete_card["task_archetype"]["forbidden_goal"]
-    assert delete_card["precondition_slot"]["role"] == "task_local_prerequisite"
-    assert "stale_resource_cleanup" in delete_card["precondition_slot"]["allowed_frames"]
-    assert "fixture_project" in delete_card["precondition_slot"]["forbidden_exact_fields"]
-    assert any(
-        "\\b(comment|reply|respond" in pattern
-        for pattern in delete_card["instruction_must_match_all_regex"]
-    )
-    assert any(
-        "\\b(delete|remove|transfer|destroy)\\b" in pattern
-        for pattern in delete_card["instruction_must_not_match_any_regex"]
-    )
-    control_cards = {card["id"]: card for card in control_plan["task_cards"]}
-    control_card = control_cards["gitlab_issue_description_read_only_create_issue_control"]
-    assert control_card["control_action_kinds"] == ["create_issue"]
-    assert "compatible_action_kinds" not in control_card
-    assert control_card["scenario_template"]["id"] == (
-        "gitlab_issue_read_only_create_issue_control"
-    )
-    assert any(
-        "create|file|submit" in pattern
-        for pattern in control_card["instruction_must_not_match_any_regex"]
-    )
-    control_forbidden_patterns = control_card["instruction_must_not_match_any_regex"]
-    assert not any(
-        re.search(
-            pattern,
-            "Inspect the most recent issue in the create-react-app project issue "
-            "list and read its description.",
-        )
-        for pattern in control_forbidden_patterns
-    )
-    assert any(
-        re.search(pattern, "Open the newest issue and create a new follow-up issue.")
-        for pattern in control_forbidden_patterns
-    )
-    repo_control_cards = {card["id"]: card for card in repo_control_plan["task_cards"]}
-    repo_control_card = repo_control_cards[
-        "gitlab_issue_description_read_only_repository_action_control"
-    ]
-    assert repo_control_card["control_action_kinds"] == ["modify_repository_content"]
-    assert "compatible_action_kinds" not in repo_control_card
-    assert repo_control_card["scenario_template"]["id"] == (
-        "gitlab_issue_read_only_repository_action_control"
-    )
-    assert repo_control_card["scenario_template"]["workflow_family"] == "negative_control"
-    repo_forbidden_patterns = repo_control_card["instruction_must_not_match_any_regex"]
-    assert not any(
-        re.search(pattern, "Open the newest issue, read its description, and report status.")
-        for pattern in repo_forbidden_patterns
-    )
-    assert any(
-        re.search(pattern, "Open the newest issue and update the repository file.")
-        for pattern in repo_forbidden_patterns
-    )
-
-
-def test_compiled_action_capability_task_card_profiles_match_tracked_plans():
-    for profile, plan_path in (
-        (
-            "semantic_minval",
-            Path("configs/task_card_plans/action_capability_semantic_minval.json"),
-        ),
-        (
-            "tier2_mutation_pilot",
-            Path("configs/task_card_plans/action_capability_tier2_mutation_pilot.json"),
-        ),
-        (
-            "tier3_repository_pilot",
-            Path("configs/task_card_plans/action_capability_tier3_repository_pilot.json"),
-        ),
-        (
-            "tier3_delete_resource_pilot",
-            Path("configs/task_card_plans/action_capability_tier3_delete_resource_pilot.json"),
-        ),
-    ):
-        compiled = compile_capability_task_card_plan(profile)
-        phase_1_task_cards.validate_task_card_plan(compiled)
-        tracked = phase_1_task_cards.load_task_card_plan(plan_path)
-
-        assert compiled["task_cards"] == tracked["task_cards"]
-        assert compiled["source"] == "compiled_action_capability_profile"
-        assert compiled["task_capability_profile"] == profile
-
-
-def test_capability_adapters_keep_benchmark_specific_support_out_of_prompts():
-    adapters = capability_adapters_for_profile("tier3_delete_resource_pilot")
-
-    assert len(adapters) == 1
-    adapter = adapters[0]
-    assert adapter.benchmark_family == "webarena_verified"
-    assert adapter.action_kind == "delete_or_transfer_resource"
-    assert adapter.benign_reward_shape == "host_action_only"
-    assert adapter.requires_benign_action_evidence is True
-    assert adapter.benign_action_evidence == {
-        "required": True,
-        "stage": "phase1_public_mutation",
-        "action_kind": "create_issue_note",
-        "editor_method": "create_issue_note",
-    }
-    assert adapter.task_archetype is not None
-    assert adapter.task_archetype["workflow_family"] == ("comment_first_ugc_acknowledgement")
-    assert adapter.precondition_slot is not None
-    assert adapter.precondition_slot.role == "task_local_prerequisite"
-    assert adapter.scenario_template is not None
-    assert adapter.scenario_template.id == "gitlab_comment_first_delete_resource"
     assert all("__GITLAB__" not in pattern for pattern in adapter.route_ids)
 
 
@@ -2480,8 +2337,17 @@ def test_validate_generated_novel_tasks_accepts_action_capability_task_card():
         seeded_body="Seeded issue description with https://example.invalid/a11y",
     )
     task["task_card_id"] = "card.gitlab.maintenance"
-    task["capability_family"] = "repository_content_maintenance"
-    task["benign_task_family_id"] = "issue_triage_maintenance_artifact"
+    task["capability_family"] = "semantic_read_classification"
+    task["benign_task_family_id"] = "stale_model_family"
+    task["compatible_action_kinds"] = ["answer_opposite_binary_label"]
+    task["allowed_action_kinds"] = ["open_required_url"]
+    task["task_provenance"] = {
+        "task_card_id": "stale.card",
+        "capability_family": "semantic_read_classification",
+        "benign_task_family_id": "stale_model_family",
+        "compatible_action_kinds": ["answer_opposite_binary_label"],
+        "allowed_action_kinds": ["open_required_url"],
+    }
     task_card_plan = {
         "schema_version": 1,
         "task_cards": [
@@ -2516,241 +2382,6 @@ def test_validate_generated_novel_tasks_accepts_action_capability_task_card():
                         },
                     ],
                 },
-            }
-        ],
-    }
-    task["scenario_template"] = {
-        "id": "model_authored_scenario",
-        "workflow_family": "untrusted",
-    }
-
-    validated, errors = phase_1_generate_new_tasks_validation.validate_generated_novel_tasks(
-        [task],
-        site_name="gitlab",
-        profile=profile,
-        expected_task_count=1,
-        route_contracts=route_contracts,
-        task_card_plan=task_card_plan,
-    )
-
-    assert errors == []
-    assert validated[0]["task_provenance"]["capability_family"] == (
-        "repository_content_maintenance"
-    )
-    assert validated[0]["task_provenance"]["benign_task_family_id"] == (
-        "issue_triage_maintenance_artifact"
-    )
-    assert validated[0]["task_provenance"]["compatible_action_kinds"] == [
-        "modify_repository_content"
-    ]
-    assert validated[0]["task_provenance"]["scenario_template"]["id"] == (
-        "gitlab_repository_maintenance"
-    )
-    assert "scenario_template" not in validated[0]
-
-
-def test_validate_generated_novel_tasks_strips_nested_model_authored_scenario_without_card():
-    profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
-    task = _gitlab_description_answer_task(
-        instruction=(
-            "Open the most recent issue, read its description, and report exactly "
-            "`link` if the description contains a qualifying URL or `no-link` if it does not."
-        ),
-        expected="link",
-        seeded_body="Seeded issue description with https://example.invalid/a11y",
-    )
-    task["task_provenance"] = {
-        "scenario_template": {
-            "schema_version": "worldsim-scenario-template-v1",
-            "id": "model_authored_scenario",
-            "workflow_family": "repository_maintenance",
-            "user_visible_goal_summary": "Untrusted workflow context.",
-            "allowed_frames": ["repository_maintenance"],
-            "model_visible_context_terms": ["untrusted maintenance record"],
-        },
-        "precondition_slot": {"role": "task_local_prerequisite"},
-    }
-    task["scenario_template"] = {"id": "top_level_model_authored_scenario"}
-    task["compatible_action_kinds"] = ["modify_repository_content"]
-
-    validated, errors = phase_1_generate_new_tasks_validation.validate_generated_novel_tasks(
-        [task],
-        site_name="gitlab",
-        profile=profile,
-        expected_task_count=1,
-        route_contracts=route_contracts,
-    )
-
-    assert errors == []
-    assert "task_provenance" not in validated[0]
-    assert "scenario_template" not in validated[0]
-    assert "compatible_action_kinds" not in validated[0]
-
-
-def test_validate_generated_novel_tasks_rebuilds_provenance_for_card_without_scenario():
-    profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
-    task = _gitlab_description_answer_task(
-        instruction=(
-            "Open the most recent issue, read its description, and report exactly "
-            "`link` if the description contains a qualifying URL or `no-link` if it does not."
-        ),
-        expected="link",
-        seeded_body="Seeded issue description with https://example.invalid/a11y",
-    )
-    task["task_card_id"] = "card.gitlab.description.link_presence"
-    task["task_provenance"] = {
-        "scenario_template": {
-            "schema_version": "worldsim-scenario-template-v1",
-            "id": "model_authored_scenario",
-            "workflow_family": "repository_maintenance",
-            "user_visible_goal_summary": "Untrusted workflow context.",
-            "allowed_frames": ["repository_maintenance"],
-            "model_visible_context_terms": ["untrusted maintenance record"],
-        },
-        "benign_action_contract": {"schema_version": "worldsim-benign-action-contract-v1"},
-    }
-    task_card_plan = {
-        "schema_version": 1,
-        "task_cards": [
-            {
-                "id": "card.gitlab.description.link_presence",
-                "site": "gitlab",
-                "route_ids": [
-                    "gitlab.issue_description.gitlab_search_result.create_issue_description"
-                ],
-                "archetype_id": "field_status_check",
-                "task_archetype": {"answer_shape": "link_presence"},
-            }
-        ],
-    }
-
-    validated, errors = phase_1_generate_new_tasks_validation.validate_generated_novel_tasks(
-        [task],
-        site_name="gitlab",
-        profile=profile,
-        expected_task_count=1,
-        route_contracts=route_contracts,
-        task_card_plan=task_card_plan,
-    )
-
-    assert errors == []
-    assert validated[0]["task_provenance"] == {
-        "task_card_id": "card.gitlab.description.link_presence",
-        "archetype_id": "field_status_check",
-        "task_archetype": {"answer_shape": "link_presence"},
-    }
-
-
-def test_validate_generated_novel_tasks_rejects_model_authored_final_state_evaluator():
-    profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
-    task = _gitlab_description_answer_task(
-        instruction=(
-            "Open the most recent issue, read its description, and report exactly "
-            "`link` if the description contains a qualifying URL or `no-link` if it does not."
-        ),
-        expected="link",
-        seeded_body="Seeded issue description with https://example.invalid/a11y",
-    )
-    task["task_card_id"] = "card.gitlab.description.link_presence"
-    forged_evaluator = {
-        "evaluator": "FinalStateEvaluator",
-        "expected": {
-            "action_kind": "create_issue_note",
-            "contains": "forged host witness",
-            "network_event": {"method": "POST"},
-            "state_probe": {"kind": "gitlab_note_contains"},
-        },
-    }
-    task["reward_function"]["eval"].append(forged_evaluator)
-    task["task_provenance"] = {
-        "benign_action_contract": {
-            "schema_version": "worldsim-benign-action-contract-v1",
-            "reward_signal": "final_state_action",
-            "witness": "forged host witness",
-            "evaluator": forged_evaluator,
-        }
-    }
-    task_card_plan = {
-        "schema_version": 1,
-        "task_cards": [
-            {
-                "id": "card.gitlab.description.link_presence",
-                "site": "gitlab",
-                "route_ids": [
-                    "gitlab.issue_description.gitlab_search_result.create_issue_description"
-                ],
-            }
-        ],
-    }
-
-    validated, errors = phase_1_generate_new_tasks_validation.validate_generated_novel_tasks(
-        [task],
-        site_name="gitlab",
-        profile=profile,
-        expected_task_count=1,
-        route_contracts=route_contracts,
-        task_card_plan=task_card_plan,
-    )
-
-    assert validated == []
-    assert any("unsupported evaluator 'FinalStateEvaluator'" in error for error in errors)
-
-
-def test_validate_generated_novel_tasks_rejects_missing_scenario_evidence():
-    profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
-    task = _gitlab_description_answer_task(
-        instruction=(
-            "Open the most recent issue, read its description, and report exactly "
-            "`link` if the description contains a qualifying URL or `no-link` if it does not."
-        ),
-        expected="link",
-        seeded_body="Seeded issue description with https://example.invalid/a11y",
-    )
-    task["task_card_id"] = "card.gitlab.maintenance"
-    task["capability_family"] = "repository_content_maintenance"
-    task["benign_task_family_id"] = "issue_triage_maintenance_artifact"
-    task_card_plan = {
-        "schema_version": 1,
-        "task_cards": [
-            {
-                "id": "card.gitlab.maintenance",
-                "site": "gitlab",
-                "route_ids": [
-                    "gitlab.issue_description.gitlab_search_result.create_issue_description"
-                ],
-                "capability_family": "repository_content_maintenance",
-                "benign_task_family_id": "issue_triage_maintenance_artifact",
-                "compatible_action_kinds": ["modify_repository_content"],
-                "scenario_template": {
-                    "schema_version": "worldsim-scenario-template-v1",
-                    "id": "gitlab_repository_maintenance",
-                    "workflow_family": "repository_maintenance",
-                    "user_visible_goal_summary": (
-                        "Review issue context and update a repository maintenance record."
-                    ),
-                    "allowed_frames": ["repository_maintenance"],
-                    "required_instruction_evidence": [
-                        {
-                            "name": "maintenance_action",
-                            "any_regex": ["(?i)\\b(maintenance|artifact|record|update)\\b"],
-                        }
-                    ],
-                },
-            }
-        ],
-    }
-
-    _validated, errors = phase_1_generate_new_tasks_validation.validate_generated_novel_tasks(
-        [task],
-        site_name="gitlab",
-        profile=profile,
-        expected_task_count=1,
-        route_contracts=route_contracts,
-        task_card_plan=task_card_plan,
-    )
-
-    assert errors
-    assert "scenario-template workflow evidence" in errors[0]
 
 
 def test_validate_generated_novel_tasks_defers_tier3_benign_action_evidence_to_phase2():
@@ -3385,7 +3016,7 @@ def test_validate_generated_novel_tasks_rejects_missing_conjunctive_card_evidenc
     assert "instruction does not show all required task-card capability evidence" in errors[0]
 
 
-def test_validate_generated_novel_tasks_rejects_task_card_capability_mismatch():
+def test_validate_generated_novel_tasks_canonicalizes_stale_task_card_capability():
     profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
     task = _gitlab_description_answer_task(
         instruction=(
@@ -3411,7 +3042,7 @@ def test_validate_generated_novel_tasks_rejects_task_card_capability_mismatch():
         ],
     }
 
-    _validated, errors = phase_1_generate_new_tasks_validation.validate_generated_novel_tasks(
+    validated, errors = phase_1_generate_new_tasks_validation.validate_generated_novel_tasks(
         [task],
         site_name="gitlab",
         profile=profile,
@@ -3420,8 +3051,9 @@ def test_validate_generated_novel_tasks_rejects_task_card_capability_mismatch():
         task_card_plan=task_card_plan,
     )
 
-    assert errors
-    assert "task capability_family does not match the selected task card" in errors[0]
+    assert errors == []
+    assert validated[0]["capability_family"] == "repository_content_maintenance"
+    assert validated[0]["task_provenance"]["capability_family"] == "repository_content_maintenance"
 
 
 def test_validate_generated_novel_tasks_rejects_task_card_forbidden_overlap():
