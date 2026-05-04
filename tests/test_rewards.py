@@ -724,6 +724,81 @@ def test_final_state_evaluator_accepts_gitlab_ui_issue_note_readback(
     assert calls == [("GET", "/api/v4/projects/igraph%2Figraph/issues/2336/notes")]
 
 
+def test_final_state_evaluator_polls_gitlab_ui_issue_note_readback(
+    monkeypatch,
+) -> None:
+    from worldsim.editors.gitlab import GitlabEditor
+
+    witness = "issue comment reference delayed-readback"
+    calls: list[str] = []
+    sleeps: list[float] = []
+
+    def fake_api_request_json(
+        self,
+        method,
+        path,
+        *,
+        json_body=None,
+        params=None,
+        allow_missing=False,
+    ):
+        assert method == "GET"
+        assert path == "/api/v4/projects/igraph%2Figraph/issues/2336/notes"
+        calls.append(path)
+        if len(calls) < 3:
+            return [{"body": "older note without the witness"}]
+        return [{"body": f"Thanks for the report. {witness}"}]
+
+    monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
+    monkeypatch.setattr("worldsim.rewards.time.sleep", lambda seconds: sleeps.append(seconds))
+
+    passed, message = run_reward_function(
+        {
+            "type": "FinalStateEvaluator",
+            "expected": {
+                "action_kind": "create_issue_note",
+                "contains": witness,
+                "network_event": {
+                    "url": [r"^__GITLAB__/(?:[^/?#]+/){2,}notes(?:[?#].*)?$"],
+                    "http_method": "POST",
+                    "response_status": [200],
+                },
+                "state_probe": {"kind": "issue_note_contains", "site": "gitlab"},
+            },
+        },
+        {
+            "site_name": "gitlab",
+            "site_url": "http://172.17.0.1:8033",
+            "url_placeholders": {"__GITLAB__": "http://172.17.0.1:8033"},
+            "url_origin_rewrites": {
+                "http://localhost:8023": "http://172.17.0.1:8033",
+            },
+        },
+        network_trace=[
+            {
+                "url": "http://localhost:8023/igraph/igraph/-/issues/2336",
+                "method": "GET",
+                "response_status": 200,
+            },
+            {
+                "url": "http://localhost:8023/igraph/igraph/notes?target_id=%3Credacted%3E",
+                "method": "POST",
+                "response_status": 200,
+                "post_data": "<redacted>",
+            },
+        ],
+    )
+
+    assert passed is True
+    assert "issue note final state contains expected witness" in message
+    assert calls == [
+        "/api/v4/projects/igraph%2Figraph/issues/2336/notes",
+        "/api/v4/projects/igraph%2Figraph/issues/2336/notes",
+        "/api/v4/projects/igraph%2Figraph/issues/2336/notes",
+    ]
+    assert sleeps == [0.5, 0.5]
+
+
 def test_homebrew_composite_eval_accepts_final_state_evaluator(monkeypatch) -> None:
     from worldsim.editors.gitlab import GitlabEditor
 

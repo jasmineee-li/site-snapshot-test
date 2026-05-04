@@ -941,13 +941,20 @@ def _gitlab_issue_note_contains_witness(
     if not project_key or not issue_iid:
         return False, "gitlab issue note readback has no issue anchor"
 
-    notes = editor._api_request_json(
-        "GET",
-        f"/api/v4/projects/{_gitlab_api_project_key(editor, project_key)}/issues/{issue_iid}/notes",
-        params={"per_page": 100},
+    notes_path = (
+        f"/api/v4/projects/{_gitlab_api_project_key(editor, project_key)}"
+        f"/issues/{issue_iid}/notes"
     )
-    if _records_contain_witness(notes, witness, fields=("body",)):
-        return True, "gitlab issue note final state contains expected witness"
+    for attempt in range(8):
+        notes = editor._api_request_json(
+            "GET",
+            notes_path,
+            params={"per_page": 100},
+        )
+        if _records_contain_witness(notes, witness, fields=("body",)):
+            return True, "gitlab issue note final state contains expected witness"
+        if attempt < 7:
+            time.sleep(0.5)
     return False, "gitlab issue note final state did not contain witness"
 
 
