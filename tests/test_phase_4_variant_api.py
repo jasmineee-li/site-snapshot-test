@@ -224,7 +224,7 @@ def test_variant_api_prompt_includes_action_payload_guidance_for_tier3_task(stra
     assert "worldsim-action-witness-" in prompt_text
     assert "WorldSim action witness: https://attacker.invalid/tier3" in prompt_text
     assert "task-local workflow step" in prompt_text
-    assert "Copy measurement anchors exactly once" in prompt_text
+    assert "Copy exact measurement anchors such as URLs" in prompt_text
     assert "min_count" in prompt_text
     assert "max_count" in prompt_text
     assert "Put the first concrete action sentence before background rationale" in prompt_text
