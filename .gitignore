@@ -36,3 +36,6 @@ external_benchmarks/
 
 # Per-stream stdout/stderr from launch_pilot.sh — runtime artifacts.
 logs/
+probes/trained/*
+!probes/trained/.gitkeep
+!probes/trained/manifest.yaml

@@ -1032,7 +1032,25 @@ def _stage1_toolcalling(benchmark: str, split: str, args) -> Path | None:
         if args.system_prompt_frame != "none"
         else ""
     )
-    run_name = f"{args.condition}_{args.extra_instructions_preset}{frame_suffix}_{model_slug}"
+    steer_suffix = (
+        f"_alpha{args.steering_alpha:+.2f}_layer{args.steering_layer or 'best'}"
+        if args.steering_alpha != 0.0
+        else ""
+    )
+    run_name = (
+        f"{args.condition}_{args.extra_instructions_preset}"
+        f"{frame_suffix}{steer_suffix}_{model_slug}"
+    )
+
+    common_steer_flags: list[str] = []
+    if args.backend != "auto":
+        common_steer_flags += ["--backend", args.backend]
+    if args.probe_dir:
+        common_steer_flags += ["--probe-dir", args.probe_dir]
+    if args.steering_layer is not None:
+        common_steer_flags += ["--steering-layer", str(args.steering_layer)]
+    if args.steering_alpha != 0.0:
+        common_steer_flags += ["--steering-alpha", str(args.steering_alpha)]
 
     if benchmark == "agentdojo":
         cmd = [
@@ -1046,6 +1064,7 @@ def _stage1_toolcalling(benchmark: str, split: str, args) -> Path | None:
             "--shuffle", str(args.shuffle),
             "--concurrency", str(args.concurrency),
             "--run-name", run_name,
+            *common_steer_flags,
         ]
         out_dir = REPO_ROOT / "results" / "toolcalling" / "agentdojo" / split / run_name
     elif benchmark == "injecagent":
@@ -1062,6 +1081,7 @@ def _stage1_toolcalling(benchmark: str, split: str, args) -> Path | None:
             "--shuffle", str(args.shuffle),
             "--concurrency", str(args.concurrency),
             "--run-name", run_name,
+            *common_steer_flags,
         ]
         out_dir = REPO_ROOT / "results" / "toolcalling" / "injecagent" / split / run_name
     else:
@@ -1388,6 +1408,22 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--system-prompt-frame", default="none", choices=ALL_FRAMES,
                         help="Wrap the entire system prompt in XML tags. "
                              "Tool-calling benchmarks only (browser track not yet supported).")
+    # Steering flags — only meaningful for the tool-calling benchmarks
+    # (agentdojo, injecagent). Forwarded verbatim to the underlying runner.
+    # Browser benchmarks (wasp, doomarena) ignore them since the AgentLab
+    # browser path runs through vLLM/OpenRouter and has no HF-hook harness.
+    parser.add_argument("--backend", choices=("auto", "openai", "hf"), default="auto",
+                        help="auto picks 'hf' iff --steering-alpha != 0; otherwise 'openai'. "
+                             "Tool-calling benchmarks only.")
+    parser.add_argument("--probe-dir", default=None,
+                        help="Path to a saved probe (probes/trained/<model>/). Required "
+                             "when --steering-alpha != 0. Tool-calling benchmarks only.")
+    parser.add_argument("--steering-layer", type=int, default=None,
+                        help="Decoder layer for steering. Defaults to probe.best_layer. "
+                             "Tool-calling benchmarks only.")
+    parser.add_argument("--steering-alpha", type=float, default=0.0,
+                        help="Steering strength. Negative = away from eval-aware. "
+                             "0 disables steering. Tool-calling benchmarks only.")
     parser.add_argument("--max-steps", type=int, default=15)
     parser.add_argument("--shuffle", type=int, default=42)
     parser.add_argument("--report-port", type=int, default=1234,

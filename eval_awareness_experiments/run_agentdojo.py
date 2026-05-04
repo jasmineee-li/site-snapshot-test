@@ -42,6 +42,7 @@ from eval_awareness_experiments.injection_modifier import (
     wrap_injection,
 )
 from eval_awareness_experiments.system_prompt_frame import ALL_FRAMES
+from eval_awareness_experiments.runner_factory import build_tool_calling_runner
 from eval_awareness_experiments.tool_calling_runner import ToolCallingRunner
 
 logger = logging.getLogger(__name__)
@@ -276,6 +277,32 @@ def _parse_args() -> argparse.Namespace:
                         default=Path(REPO_ROOT) / "results" / "toolcalling" / "agentdojo")
     parser.add_argument("--run-name", default=None,
                         help="Subdir name under --output-dir. Default: condition_preset_model")
+    parser.add_argument(
+        "--backend",
+        choices=("auto", "openai", "hf"),
+        default="auto",
+        help="auto picks 'hf' iff --steering-alpha != 0; otherwise 'openai' "
+             "(OpenRouter for foreign ids, local vLLM for `local/<id>`).",
+    )
+    parser.add_argument(
+        "--probe-dir",
+        default=None,
+        help="Path to a saved probe (probes/trained/<model>/). Required "
+             "for --steering-alpha != 0.",
+    )
+    parser.add_argument(
+        "--steering-layer",
+        type=int,
+        default=None,
+        help="Decoder layer to steer at. Defaults to probe.best_layer.",
+    )
+    parser.add_argument(
+        "--steering-alpha",
+        type=float,
+        default=0.0,
+        help="Steering strength. Negative = away from eval-aware. "
+             "0 disables steering and routes through the OpenAI-protocol path.",
+    )
     return parser.parse_args()
 
 
@@ -302,7 +329,7 @@ async def _main_async(args: argparse.Namespace) -> None:
     extra_instr = args.extra_instructions or EXTRA_INSTRUCTION_PRESETS.get(
         args.extra_instructions_preset
     )
-    runner = ToolCallingRunner(
+    runner = build_tool_calling_runner(
         model_name=args.model_name,
         condition=args.condition,
         extra_instructions=extra_instr,
@@ -310,6 +337,10 @@ async def _main_async(args: argparse.Namespace) -> None:
         system_prompt_frame=args.system_prompt_frame,
         max_turns=args.max_turns,
         concurrency=args.concurrency,
+        backend=args.backend,
+        probe_dir=args.probe_dir,
+        steering_layer=args.steering_layer,
+        steering_alpha=args.steering_alpha,
     )
 
     # Include the frame in the default run_name so different frames don't
@@ -320,8 +351,13 @@ async def _main_async(args: argparse.Namespace) -> None:
         if args.system_prompt_frame != "none"
         else ""
     )
+    steer_suffix = (
+        f"_alpha{args.steering_alpha:+.2f}_layer{args.steering_layer or 'best'}"
+        if args.steering_alpha != 0.0
+        else ""
+    )
     run_name = args.run_name or (
-        f"{args.condition}_{args.extra_instructions_preset}{frame_suffix}_"
+        f"{args.condition}_{args.extra_instructions_preset}{frame_suffix}{steer_suffix}_"
         f"{args.model_name.replace('/', '_').replace(':', '_')}"
     )
     out_dir = args.output_dir / args.suite / run_name

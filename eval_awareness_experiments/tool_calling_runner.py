@@ -28,6 +28,11 @@ from eval_awareness_experiments.system_prompt_frame import (
     wrap_system_prompt,
 )
 
+# Local-model registry: when model_name starts with `local/<short-id>`, route
+# through the vLLM server registered in models/common/registry.py instead of
+# OpenRouter. Imported lazily inside __init__ so this module still imports
+# cleanly in environments without the models/ package on path.
+
 logger = logging.getLogger(__name__)
 
 # .env loader — matches llm.py behavior so OPENROUTER_API_KEY picks up from .env.
@@ -136,16 +141,28 @@ class ToolCallingRunner:
         self.temperature = temperature
         self.retries = retries
         self._semaphore = asyncio.Semaphore(concurrency)
-        api_key = os.getenv("OPENROUTER_API_KEY")
-        if not api_key:
-            raise RuntimeError("OPENROUTER_API_KEY not set (check .env or environment)")
-        self._client = AsyncOpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=api_key,
-            # SDK retries off — call_with_retry owns the policy and needs to
-            # release the semaphore between attempts.
-            max_retries=0,
-        )
+        # Route `local/<short-id>` to the vLLM server registered in
+        # models/common/registry.py; everything else to OpenRouter.
+        if self.model_name.startswith("local/"):
+            from models.common import resolve_local_model
+            from models.common.vllm_client import make_async_openai_client
+            spec = resolve_local_model(self.model_name)
+            self.model_name = spec.resolve_served_name()
+            # Local servers don't speak OpenRouter's reasoning-effort knob;
+            # `:thinking` was stripped above but disable extra_kwargs too.
+            self.thinking = False
+            self._client = make_async_openai_client(spec)
+        else:
+            api_key = os.getenv("OPENROUTER_API_KEY")
+            if not api_key:
+                raise RuntimeError("OPENROUTER_API_KEY not set (check .env or environment)")
+            self._client = AsyncOpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=api_key,
+                # SDK retries off — call_with_retry owns the policy and needs to
+                # release the semaphore between attempts.
+                max_retries=0,
+            )
 
     async def run_task(
         self,
