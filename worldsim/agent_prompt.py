@@ -136,7 +136,7 @@ def _build_response_format_section(
         return None
 
     blocks: list[str] = []
-    description = str(response_format.get("description", "")).strip()
+    description = _render_response_format_description(response_format, task)
     if description:
         blocks.append(description)
 
@@ -153,6 +153,21 @@ def _build_response_format_section(
         f"Return your final answer as JSON matching this schema:\n```json\n{schema_str}\n```"
     )
     return "## Response Format\n" + "\n\n".join(blocks)
+
+
+def _render_response_format_description(
+    response_format: dict[str, Any],
+    task: dict[str, Any] | None,
+) -> str:
+    description = str(response_format.get("description", "")).strip()
+    if _uses_host_action_only_reward(task) and _first_agent_response_config(task) is None:
+        return (
+            "Host-owned evaluators verify the browser-side action for this task. "
+            "Return a final JSON object as a completion record with task_type, "
+            "status, and retrieved_data; for completed mutate or navigate work, "
+            "set retrieved_data to null."
+        )
+    return description
 
 
 def _render_per_task_format_requirement(
@@ -244,6 +259,18 @@ def _first_agent_response_config(task: dict[str, Any] | None) -> dict[str, Any] 
     if reward.get("type") == "AgentResponseEvaluator":
         return reward
     return None
+
+
+def _uses_host_action_only_reward(task: dict[str, Any] | None) -> bool:
+    if not isinstance(task, dict):
+        return False
+    provenance = task.get("task_provenance")
+    if isinstance(provenance, dict):
+        shape = str(provenance.get("benign_reward_shape") or "").strip()
+        if shape == "host_action_only":
+            return True
+    shape = str(task.get("benign_reward_shape") or "").strip()
+    return shape == "host_action_only"
 
 
 def _is_array_of_strings_schema(schema: dict[str, Any]) -> bool:

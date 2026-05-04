@@ -121,3 +121,40 @@ def test_build_agent_prompt_renders_retrieve_type_for_hybrid_action_tasks():
     assert 'task_type: "retrieve"' in prompt
     assert "also asks you to perform a web action" in prompt
     assert "populated" not in prompt
+
+
+def test_build_agent_prompt_uses_host_action_only_response_copy():
+    context = _agent_context()
+    context["response_format"]["description"] = (
+        "Evaluation uses AgentResponseEvaluator which parses agent text output as JSON."
+    )
+    task = {
+        "instruction": "Read the issue description and leave an acknowledgement comment.",
+        "task_provenance": {"benign_reward_shape": "host_action_only"},
+        "reward_function": {
+            "benign_reward": {
+                "eval": [
+                    {
+                        "evaluator": "FinalStateEvaluator",
+                        "expected": {
+                            "kind": "gitlab_issue_note_contains",
+                            "body_contains": ["issue comment reference abc123"],
+                        },
+                    }
+                ]
+            }
+        },
+    }
+
+    prompt = build_agent_prompt(
+        context,
+        task["instruction"],
+        ["__GITLAB__/group/project/-/issues"],
+        task=task,
+    )
+
+    assert prompt is not None
+    assert "AgentResponseEvaluator" not in prompt
+    assert "Host-owned evaluators verify the browser-side action" in prompt
+    assert "completion record" in prompt
+    assert "retrieved_data to null" in prompt
