@@ -25,7 +25,7 @@ import time
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from typing import Any
-from urllib.parse import parse_qs, unquote, unquote_plus, urlparse, urlunparse
+from urllib.parse import parse_qs, unquote, unquote_plus, urlencode, urlparse, urlunparse
 
 import requests
 
@@ -827,13 +827,11 @@ def _matching_gitlab_issue_note_source_events(
     for event in network_trace:
         if _network_event_method(event) != "POST":
             continue
-        if not _is_gitlab_issue_note_source_event(event, instance):
+        if not _is_gitlab_issue_note_source_event(event, expected, instance):
             continue
         status = _network_event_status(event)
-        if (
-            "response_status" in expected
-            and status is not None
-            and not _status_matches(status, expected.get("response_status"))
+        if "response_status" in expected and not _status_matches(
+            status, expected.get("response_status")
         ):
             continue
         matched.append(event)
@@ -844,15 +842,39 @@ def _matching_gitlab_issue_note_source_events(
 
 def _is_gitlab_issue_note_source_event(
     event: dict[str, Any],
+    expected: dict[str, Any],
     instance: dict[str, Any],
 ) -> bool:
     for event_url in _network_event_url_candidates(event, instance):
         path = urlparse(event_url).path.rstrip("/")
         if path == "/api/graphql":
-            return True
+            return _expected_network_event_allows_url(expected, event_url, instance)
         if _gitlab_project_path_from_note_ui_path(path):
             return True
     return False
+
+
+def _expected_network_event_allows_url(
+    expected: dict[str, Any],
+    event_url: str,
+    instance: dict[str, Any],
+) -> bool:
+    expected_url = expected.get("url", "")
+    try:
+        expected_urls = expected_url if isinstance(expected_url, list) else [expected_url]
+        resolved_urls = [
+            _resolve_url_placeholders(str(url), instance)
+            for url in expected_urls
+            if isinstance(url, (str, int, float))
+        ]
+    except ValueError:
+        return False
+    event = {"url": event_url}
+    return any(
+        _url_matches(resolved_url, candidate_url)
+        for candidate_url in _network_event_url_candidates(event, instance)
+        for resolved_url in resolved_urls
+    )
 
 
 _GITLAB_CREATE_ISSUE_RE = re.compile(r"/api/v4/projects/([^/?#]+)/issues/?$")
@@ -1494,7 +1516,22 @@ def _network_event_post_text(event: dict[str, Any]) -> str:
         post_data = request.get("postData")
         if isinstance(post_data, dict):
             text = post_data.get("text")
-            return text if isinstance(text, str) else ""
+            if isinstance(text, str):
+                return text
+            params = post_data.get("params")
+            if isinstance(params, list):
+                pairs: list[tuple[str, str]] = []
+                for item in params:
+                    if not isinstance(item, Mapping):
+                        continue
+                    name = item.get("name")
+                    if not isinstance(name, str):
+                        continue
+                    value = item.get("value", "")
+                    pairs.append((name, str(value)))
+                if pairs:
+                    return urlencode(pairs)
+            return ""
         if post_data is not None:
             return str(post_data)
     return ""

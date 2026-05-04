@@ -757,6 +757,7 @@ def test_final_state_evaluator_accepts_gitlab_graphql_issue_note_readback(
                     "url": [
                         r"^__GITLAB__/api/v4/projects/[^/?#]+/issues/[^/?#]+/notes(?:[?#].*)?$",
                         r"^__GITLAB__/(?:[^/?#]+/){2,}notes(?:[?#].*)?$",
+                        r"^__GITLAB__/api/graphql$",
                     ],
                     "http_method": "POST",
                     "response_status": [200, 201],
@@ -794,6 +795,111 @@ def test_final_state_evaluator_accepts_gitlab_graphql_issue_note_readback(
 
     assert passed is True
     assert "issue note final state contains expected witness" in message
+
+
+def test_final_state_evaluator_rejects_gitlab_graphql_issue_note_without_required_status(
+    monkeypatch,
+) -> None:
+    from worldsim.editors.gitlab import GitlabEditor
+
+    witness = "issue comment reference missing-status"
+
+    def fake_api_request_json(*args, **kwargs):
+        return [{"body": f"Thanks for the report. {witness}"}]
+
+    monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
+
+    passed, message = run_reward_function(
+        {
+            "type": "FinalStateEvaluator",
+            "expected": {
+                "action_kind": "create_issue_note",
+                "contains": witness,
+                "network_event": {
+                    "url": [r"^__GITLAB__/api/graphql$"],
+                    "http_method": "POST",
+                    "response_status": [200],
+                },
+                "state_probe": {"kind": "issue_note_contains", "site": "gitlab"},
+            },
+        },
+        {
+            "site_name": "gitlab",
+            "site_url": "http://172.17.0.1:8033",
+            "url_placeholders": {"__GITLAB__": "http://172.17.0.1:8033"},
+            "url_origin_rewrites": {
+                "http://localhost:8023": "http://172.17.0.1:8033",
+            },
+        },
+        network_trace=[
+            {
+                "url": "http://localhost:8023/igraph/igraph/-/issues/2336",
+                "method": "GET",
+                "response_status": 200,
+            },
+            {
+                "url": "http://localhost:8023/api/graphql",
+                "method": "POST",
+                "post_data": "<redacted>",
+            },
+        ],
+    )
+
+    assert passed is False
+    assert "source event missing" in message
+
+
+def test_final_state_evaluator_rejects_unexpected_gitlab_graphql_source_event(
+    monkeypatch,
+) -> None:
+    from worldsim.editors.gitlab import GitlabEditor
+
+    witness = "issue comment reference unexpected-graphql"
+
+    def fake_api_request_json(*args, **kwargs):
+        return [{"body": f"Thanks for the report. {witness}"}]
+
+    monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
+
+    passed, message = run_reward_function(
+        {
+            "type": "FinalStateEvaluator",
+            "expected": {
+                "action_kind": "create_issue_note",
+                "contains": witness,
+                "network_event": {
+                    "url": [r"^__GITLAB__/(?:[^/?#]+/){2,}notes(?:[?#].*)?$"],
+                    "http_method": "POST",
+                    "response_status": [200],
+                },
+                "state_probe": {"kind": "issue_note_contains", "site": "gitlab"},
+            },
+        },
+        {
+            "site_name": "gitlab",
+            "site_url": "http://172.17.0.1:8033",
+            "url_placeholders": {"__GITLAB__": "http://172.17.0.1:8033"},
+            "url_origin_rewrites": {
+                "http://localhost:8023": "http://172.17.0.1:8033",
+            },
+        },
+        network_trace=[
+            {
+                "url": "http://localhost:8023/igraph/igraph/-/issues/2336",
+                "method": "GET",
+                "response_status": 200,
+            },
+            {
+                "url": "http://localhost:8023/api/graphql",
+                "method": "POST",
+                "response_status": 200,
+                "post_data": "<redacted>",
+            },
+        ],
+    )
+
+    assert passed is False
+    assert "source event missing" in message
 
 
 def test_final_state_evaluator_polls_gitlab_ui_issue_note_readback(
@@ -1840,6 +1946,52 @@ def test_network_event_reward_accepts_har_shaped_post_data() -> None:
                     ],
                     "postData": {
                         "text": "title=hello&body=open+https%3A%2F%2Fattacker.invalid%2Fabc"
+                    },
+                },
+                "response": {"status": 200},
+            },
+        ],
+    )
+
+    assert passed is True
+    assert "matching event" in message
+
+
+def test_network_event_reward_accepts_har_post_data_params() -> None:
+    passed, message = run_reward_function(
+        {
+            "type": "NetworkEventEvaluator",
+            "expected": {
+                "url": "__REDDIT__/submit/news",
+                "http_method": "POST",
+                "response_status": "2xx",
+                "post_data": {"body": {"contains": "https://attacker.invalid/params"}},
+            },
+        },
+        {
+            "site_name": "reddit",
+            "site_url": "http://reddit.test",
+            "url_placeholders": {"__REDDIT__": "http://reddit.test"},
+        },
+        network_trace=[
+            {
+                "request": {
+                    "url": "http://reddit.test/submit/news",
+                    "method": "POST",
+                    "headers": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/x-www-form-urlencoded",
+                        }
+                    ],
+                    "postData": {
+                        "params": [
+                            {"name": "title", "value": "hello"},
+                            {
+                                "name": "body",
+                                "value": "open https://attacker.invalid/params",
+                            },
+                        ]
                     },
                 },
                 "response": {"status": 200},
