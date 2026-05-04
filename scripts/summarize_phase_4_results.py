@@ -148,7 +148,9 @@ def _resolve_browser_runtime_path(trace_dir: str, *, results_path: Path) -> Path
     )
 
 
-def summarize_browser_runtime(results: list[dict[str, Any]], *, results_path: Path) -> dict[str, Any]:
+def summarize_browser_runtime(
+    results: list[dict[str, Any]], *, results_path: Path
+) -> dict[str, Any]:
     """Aggregate per-trajectory Browser Use runtime counters when artifacts exist."""
 
     seen_paths: set[Path] = set()
@@ -210,8 +212,7 @@ def summarize_browser_runtime(results: list[dict[str, Any]], *, results_path: Pa
                 browser_use_empty_step_errors += sum(
                     1
                     for error in normalized_errors
-                    if isinstance(error, str)
-                    and error in ("", "<empty browser-use step error>")
+                    if isinstance(error, str) and error in ("", "<empty browser-use step error>")
                 )
     return {
         "traces_scanned": traces_scanned,
@@ -310,9 +311,7 @@ def format_inspection_index(summary: dict[str, Any], *, limit: int = 8) -> list[
         priority_reason = row.get("priority_reason") or "inspect"
         why = row.get("why") or ""
         lines.append(
-            "  "
-            f"{idx}. [{priority_reason}] {task_id} {site} {surface} "
-            f"{final_status}: {why}"
+            f"  {idx}. [{priority_reason}] {task_id} {site} {surface} {final_status}: {why}"
         )
         final_result = row.get("primary_final_result")
         if isinstance(final_result, str) and final_result:
@@ -338,10 +337,7 @@ def format_inspection_index(summary: dict[str, Any], *, limit: int = 8) -> list[
             screenshot = artifacts.get("reference_screenshot")
             pvpo_step = artifacts.get("pvpo_step")
             if screenshot or pvpo_step:
-                lines.append(
-                    "     pvpo="
-                    f"{pvpo_step or 'n/a'} screenshot={screenshot or 'n/a'}"
-                )
+                lines.append(f"     pvpo={pvpo_step or 'n/a'} screenshot={screenshot or 'n/a'}")
         rejected = row.get("rejected_variants")
         if isinstance(rejected, list) and rejected:
             first = rejected[0]
@@ -380,6 +376,18 @@ def format_text_summary(
         f"{_fmt_rate(summary['initial_adversarial_reward_success_rate'])}"
     )
     lines.append(
+        "Attack action success: "
+        f"{summary['attack_action_success_numerator']} / "
+        f"{summary['attack_action_success_denominator']} = "
+        f"{_fmt_rate(summary['attack_action_success_rate'])}"
+    )
+    lines.append(
+        "Observational action-attempt lower bound: "
+        f"{summary['observational_action_attempt_numerator']} / "
+        f"{summary['observational_action_attempt_denominator']} = "
+        f"{_fmt_rate(summary['observational_action_attempt_rate'])}"
+    )
+    lines.append(
         "Benign capability under attack (B1 ∧ D1): "
         f"{summary['benign_capability_numerator']} / "
         f"{summary['benign_capability_denominator']} = "
@@ -409,8 +417,7 @@ def format_text_summary(
         lines.append(f"Judge trigger counts: {summary['judge_trigger_counts']}")
     browser_runtime = summary.get("browser_runtime")
     if isinstance(browser_runtime, dict) and (
-        browser_runtime.get("runtime_artifacts")
-        or browser_runtime.get("browser_use_step_errors")
+        browser_runtime.get("runtime_artifacts") or browser_runtime.get("browser_use_step_errors")
     ):
         lines.append(
             "Browser runtime counters: "
@@ -448,6 +455,24 @@ def format_text_summary(
                 f"{row['count']} {row['site']} {row['surface']} {row['editor_method']} "
                 f"route={row['route_variant']} {row['final_status']} {row['outcome_fine']}"
             )
+
+    scenario_rows = summary.get("by_scenario_template_status") or []
+    if scenario_rows:
+        lines.append("By scenario template/status:")
+        for row in scenario_rows:
+            lines.append(
+                "  "
+                f"{row['count']} {row['scenario_template']} "
+                f"{row['final_status']} {row['outcome_fine']}"
+            )
+
+    scenario_action_rows = summary.get("by_scenario_template_action_metric") or []
+    if scenario_action_rows:
+        lines.append("By scenario template/action metric:")
+        for row in scenario_action_rows:
+            attempted = "attempted" if row["attack_action_attempted"] else "not_attempted"
+            succeeded = "succeeded" if row["attack_action_success"] else "not_succeeded"
+            lines.append(f"  {row['count']} {row['scenario_template']} {attempted} {succeeded}")
 
     strategy_rows = summary.get("variant_strategy_outcomes") or []
     if strategy_rows:
