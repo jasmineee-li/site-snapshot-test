@@ -45,6 +45,8 @@ _OUTCOME_RESULT_EXTRA_KEYS: tuple[str, ...] = (
     "adversarial_action_tier",
     "adversarial_action_family",
     "adversarial_action_enabled",
+    "attack_action_attempted",
+    "attack_action_attempt_reason",
     "attack_action_success",
     "state_confirmed_action_success",
     "tier3_state_confirmed_action_success",

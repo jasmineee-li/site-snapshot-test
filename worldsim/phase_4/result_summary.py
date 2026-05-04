@@ -194,6 +194,19 @@ def task_origin(result: dict[str, Any], task: dict[str, Any] | None) -> str:
     return "unknown"
 
 
+def task_scenario_template(task: dict[str, Any] | None) -> str:
+    if not isinstance(task, dict):
+        return "unknown"
+    provenance = task.get("task_provenance")
+    if isinstance(provenance, dict):
+        template = provenance.get("scenario_template")
+        if isinstance(template, dict):
+            template_id = template.get("id")
+            if isinstance(template_id, str) and template_id.strip():
+                return template_id.strip()
+    return "unknown"
+
+
 def task_surface(task: dict[str, Any] | None) -> str:
     contract = task.get("exposure_contract") if isinstance(task, dict) else None
     if not isinstance(contract, dict):
@@ -1182,6 +1195,9 @@ def summarize_results(
     attack_action_gate1 = [
         r for r in headline_action_gate1 if final_metric_success(r, "attack_action_success")
     ]
+    attack_action_attempted_gate1 = [
+        r for r in headline_action_gate1 if final_metric_success(r, "attack_action_attempted")
+    ]
     semantic_hijack_gate1 = [
         r for r in gate1_valid if final_metric_success(r, "semantic_hijack_success")
     ]
@@ -1215,6 +1231,8 @@ def summarize_results(
     by_action_tier_status = Counter()
     by_action_family_status = Counter()
     by_benign_reward_shape_status = Counter()
+    by_scenario_template_status = Counter()
+    by_scenario_template_action_metric = Counter()
     variant_successes: list[dict[str, Any]] = []
     variant_error_buckets = Counter()
     judge_trigger_counts = Counter()
@@ -1226,6 +1244,25 @@ def summarize_results(
         site = task_site(result, task)
         origin = task_origin(result, task)
         by_origin.setdefault(origin, Counter())[str(result.get("final_status", "missing"))] += 1
+        scenario_template = task_scenario_template(task)
+        by_scenario_template_status[
+            (
+                scenario_template,
+                str(result.get("final_status", "missing")),
+                str(result.get("outcome_fine", "missing")),
+            )
+        ] += 1
+        by_scenario_template_action_metric[
+            (
+                scenario_template,
+                "attempted"
+                if final_metric_success(result, "attack_action_attempted")
+                else "not_attempted",
+                "succeeded"
+                if final_metric_success(result, "attack_action_success")
+                else "not_succeeded",
+            )
+        ] += 1
         by_benign_reward_shape_status[
             (
                 _benign_reward_shape_label(result, task),
@@ -1378,6 +1415,12 @@ def summarize_results(
         "attack_action_success_numerator": len(attack_action_gate1),
         "attack_action_success_denominator": len(headline_action_gate1),
         "attack_action_success_rate": ratio(len(attack_action_gate1), len(headline_action_gate1)),
+        "observational_action_attempt_numerator": len(attack_action_attempted_gate1),
+        "observational_action_attempt_denominator": len(headline_action_gate1),
+        "observational_action_attempt_rate": ratio(
+            len(attack_action_attempted_gate1),
+            len(headline_action_gate1),
+        ),
         "attack_action_success_by_tier": action_success_by_tier(gate1_valid),
         "semantic_hijack_success_numerator": len(semantic_hijack_gate1),
         "semantic_hijack_success_denominator": len(gate1_valid),
@@ -1466,6 +1509,28 @@ def summarize_results(
             }
             for (benign_reward_shape, final_status, outcome_fine), count in sorted(
                 by_benign_reward_shape_status.items()
+            )
+        ],
+        "by_scenario_template_status": [
+            {
+                "count": count,
+                "scenario_template": scenario_template,
+                "final_status": final_status,
+                "outcome_fine": outcome_fine,
+            }
+            for (scenario_template, final_status, outcome_fine), count in sorted(
+                by_scenario_template_status.items()
+            )
+        ],
+        "by_scenario_template_action_metric": [
+            {
+                "count": count,
+                "scenario_template": scenario_template,
+                "attack_action_attempted": attempted == "attempted",
+                "attack_action_success": succeeded == "succeeded",
+            }
+            for (scenario_template, attempted, succeeded), count in sorted(
+                by_scenario_template_action_metric.items()
             )
         ],
         "by_site_surface_editor_pvpo_observation": [

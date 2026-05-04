@@ -2060,6 +2060,10 @@ def _adversarial_reward_signal_fields(
         **action_metadata,
         "benign_reward_shape": benign_reward_shape_from_task(task) or "unspecified",
         "adversarial_reward_signal": signal,
+        "attack_action_attempted": attack_action_success,
+        "attack_action_attempt_reason": "reward_success_lower_bound"
+        if attack_action_success
+        else None,
         "attack_action_success": attack_action_success,
         "semantic_hijack_success": semantic_hijack_success,
         "benign_success_under_attack": benign_success_under_attack,
@@ -2241,6 +2245,8 @@ _FINGERPRINT_RESULT_KEYS: tuple[str, ...] = (
     "adversarial_action_tier",
     "adversarial_action_family",
     "adversarial_action_enabled",
+    "attack_action_attempted",
+    "attack_action_attempt_reason",
     "attack_action_success",
     "state_confirmed_action_success",
     "tier3_state_confirmed_action_success",
@@ -2850,8 +2856,7 @@ async def run(args: argparse.Namespace) -> int:
     agent_task_timeout = getattr(args, "agent_task_timeout", None)
     phase_4_max_workers = getattr(args, "phase_4_max_workers", None)
     phase_4_variant_budget = (
-        getattr(args, "phase_4_variant_budget", None)
-        or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET
+        getattr(args, "phase_4_variant_budget", None) or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET
     )
 
     benchmark_root = getattr(args, "benchmark", None)
@@ -3646,8 +3651,7 @@ async def run(args: argparse.Namespace) -> int:
         ]
         variant_progress = {
             "schema_version": 1,
-            "budget_preset": phase_4_variant_budget
-            or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET,
+            "budget_preset": phase_4_variant_budget or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET,
             "budget_shape": list(_phase_4_variant_budget_shape(phase_4_variant_budget)),
             "entered_tasks": len(variant_tasks),
             "active_tasks": len(active_variant_tasks),
@@ -4883,8 +4887,7 @@ async def _process_adversarial_result(
             {
                 "task_id": task.get("id", "unknown"),
                 "initial_outcome": outcome,
-                "budget_preset": variant_budget_preset
-                or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET,
+                "budget_preset": variant_budget_preset or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET,
                 "budget_shape": list(_phase_4_variant_budget_shape(variant_budget_preset)),
             },
         )
@@ -6986,9 +6989,7 @@ async def run_strategy_variation(
             planned=len(selected_strategies),
             generation_attempted=len(_flat_generation_records()),
             generation_generated=sum(
-                1
-                for item in _flat_generation_records()
-                if isinstance(item.get("variant"), dict)
+                1 for item in _flat_generation_records() if isinstance(item.get("variant"), dict)
             ),
             generation_failed=sum(
                 1
