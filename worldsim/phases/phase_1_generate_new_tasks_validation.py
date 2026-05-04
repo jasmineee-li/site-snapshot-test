@@ -521,7 +521,10 @@ def validate_generated_novel_task(
             )
         evaluator = config.get("evaluator")
         host_compiled_final_state = _is_host_compiled_final_state_evaluator(task, config)
-        if evaluator not in _ALLOWED_GENERATE_NEW_TASKS_EVALUATORS and not host_compiled_final_state:
+        if (
+            evaluator not in _ALLOWED_GENERATE_NEW_TASKS_EVALUATORS
+            and not host_compiled_final_state
+        ):
             return _field_error(
                 index,
                 "UNSUPPORTED_EVALUATOR",
@@ -1106,6 +1109,7 @@ def _validate_task_card_alignment(
     if action_kinds:
         task["compatible_action_kinds"] = list(action_kinds)
         task["task_provenance"]["compatible_action_kinds"] = list(action_kinds)
+    task.pop("precondition_slot", None)
     reward_shape = card_benign_reward_shape(card)
     if reward_shape == BENIGN_REWARD_HOST_ACTION_ONLY:
         instruction_problem = _validate_host_action_only_instruction(task)
@@ -1188,7 +1192,9 @@ def _validate_task_card_capability_alignment(
         )
     instruction = str(task.get("instruction") or "")
     required_patterns = card_string_list(card, "instruction_must_match_any_regex")
-    if required_patterns and not any(re.search(pattern, instruction) for pattern in required_patterns):
+    if required_patterns and not any(
+        re.search(pattern, instruction) for pattern in required_patterns
+    ):
         return _field_error(
             index,
             "TASK_CARD_INSTRUCTION_CAPABILITY_EVIDENCE_MISSING",
@@ -1256,10 +1262,7 @@ def _task_uses_host_action_only_card(
 def _validate_host_action_only_instruction(task: Mapping[str, Any]) -> str | None:
     instruction = str(task.get("instruction") or "")
     if _EXACT_BINARY_LABEL_VERB_RE.search(instruction) is not None:
-        return (
-            "host_action_only tasks must not ask the agent to answer with an "
-            "exact binary label"
-        )
+        return "host_action_only tasks must not ask the agent to answer with an exact binary label"
     forbidden_labels = (
         "link/no-link",
         "no-link/link",
@@ -1282,12 +1285,9 @@ def _validate_host_action_only_instruction(task: Mapping[str, Any]) -> str | Non
                 value.casefold().strip()
                 for value in _flatten_string_values(expected.get("retrieved_data"))
             }
-            if values and (
-                values <= {"blank", "populated"} or values <= {"link", "no-link"}
-            ):
+            if values and (values <= {"blank", "populated"} or values <= {"link", "no-link"}):
                 return (
-                    "host_action_only tasks must not carry a binary "
-                    "AgentResponseEvaluator reward"
+                    "host_action_only tasks must not carry a binary AgentResponseEvaluator reward"
                 )
     return None
 
@@ -1299,9 +1299,7 @@ def _task_capability_family(task: Mapping[str, Any]) -> str | None:
             return value.strip()
     provenance = task.get("task_provenance")
     if isinstance(provenance, Mapping):
-        value = provenance.get("capability_family") or provenance.get(
-            "required_capability_family"
-        )
+        value = provenance.get("capability_family") or provenance.get("required_capability_family")
         if isinstance(value, str) and value.strip():
             return value.strip()
     return None
@@ -1351,8 +1349,7 @@ def _has_exact_binary_label_instruction(instruction: str, *, labels: tuple[str, 
     if _EXACT_BINARY_LABEL_VERB_RE.search(instruction) is None:
         return False
     return all(
-        re.search(rf"(?<![\w-]){re.escape(label)}(?![\w-])", instruction, re.IGNORECASE)
-        is not None
+        re.search(rf"(?<![\w-]){re.escape(label)}(?![\w-])", instruction, re.IGNORECASE) is not None
         for label in labels
     )
 
@@ -1371,14 +1368,17 @@ def _validate_binary_status_reward_shape(task: dict[str, Any]) -> str | None:
         retrieved = expected.get("retrieved_data")
         expected_values = {value.casefold().strip() for value in _flatten_string_values(retrieved)}
         if not expected_values or not (
-            expected_values <= {"blank", "populated"}
-            or expected_values <= {"link", "no-link"}
+            expected_values <= {"blank", "populated"} or expected_values <= {"link", "no-link"}
         ):
             continue
-        allowed_values = {"blank", "populated"} if expected_values <= {"blank", "populated"} else {
-            "link",
-            "no-link",
-        }
+        allowed_values = (
+            {"blank", "populated"}
+            if expected_values <= {"blank", "populated"}
+            else {
+                "link",
+                "no-link",
+            }
+        )
         if not (
             isinstance(retrieved, list)
             and len(retrieved) == 1
@@ -1844,11 +1844,9 @@ def _is_host_compiled_final_state_evaluator(
     compiled = contract.get("evaluator")
     if not isinstance(compiled, Mapping):
         return False
-    return (
-        str(expected.get("contains") or "").strip() == witness
-        and json.loads(json.dumps(dict(config), sort_keys=True))
-        == json.loads(json.dumps(dict(compiled), sort_keys=True))
-    )
+    return str(expected.get("contains") or "").strip() == witness and json.loads(
+        json.dumps(dict(config), sort_keys=True)
+    ) == json.loads(json.dumps(dict(compiled), sort_keys=True))
 
 
 def _validate_network_method_requirements(
