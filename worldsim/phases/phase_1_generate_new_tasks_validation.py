@@ -510,7 +510,8 @@ def validate_generated_novel_task(
                 actual=type(config).__name__,
             )
         evaluator = config.get("evaluator")
-        if evaluator not in _ALLOWED_GENERATE_NEW_TASKS_EVALUATORS:
+        host_compiled_final_state = _is_host_compiled_final_state_evaluator(task, config)
+        if evaluator not in _ALLOWED_GENERATE_NEW_TASKS_EVALUATORS and not host_compiled_final_state:
             return _field_error(
                 index,
                 "UNSUPPORTED_EVALUATOR",
@@ -519,7 +520,7 @@ def validate_generated_novel_task(
                 expected=sorted(_ALLOWED_GENERATE_NEW_TASKS_EVALUATORS),
                 actual=evaluator,
             )
-        if evaluator not in allowed_eval_types:
+        if evaluator not in allowed_eval_types and not host_compiled_final_state:
             return _field_error(
                 index,
                 "EVALUATOR_NOT_IN_PROFILE",
@@ -1669,7 +1670,63 @@ def _validate_eval_expected(
                 )
         return None
 
+    if evaluator == "FinalStateEvaluator":
+        action_kind = str(expected.get("action_kind") or "").strip()
+        contains = str(expected.get("contains") or "").strip()
+        network_event = expected.get("network_event")
+        state_probe = expected.get("state_probe")
+        if not action_kind:
+            return (
+                f"{prefix} eval[{eval_index}] FinalStateEvaluator.expected.action_kind "
+                "must be a non-empty string"
+            )
+        if not contains:
+            return (
+                f"{prefix} eval[{eval_index}] FinalStateEvaluator.expected.contains "
+                "must be a non-empty string"
+            )
+        if not isinstance(network_event, dict) or not network_event:
+            return (
+                f"{prefix} eval[{eval_index}] FinalStateEvaluator.expected.network_event "
+                "must be a non-empty object"
+            )
+        if not isinstance(state_probe, dict) or not state_probe:
+            return (
+                f"{prefix} eval[{eval_index}] FinalStateEvaluator.expected.state_probe "
+                "must be a non-empty object"
+            )
+        return None
+
     return None
+
+
+def _is_host_compiled_final_state_evaluator(
+    task: Mapping[str, Any],
+    config: Mapping[str, Any],
+) -> bool:
+    """Return whether ``config`` is a host-owned benign action readback reward.
+
+    Phase 1 model outputs must not author arbitrary final-state probes. The
+    only accepted final-state evaluator at this stage is one compiled by the
+    host from a task-card benign action contract and recorded in provenance.
+    """
+    if config.get("evaluator") != "FinalStateEvaluator":
+        return False
+    provenance = task.get("task_provenance")
+    if not isinstance(provenance, Mapping):
+        return False
+    contract = provenance.get("benign_action_contract")
+    if not isinstance(contract, Mapping):
+        return False
+    if contract.get("reward_signal") != "final_state_action":
+        return False
+    witness = str(contract.get("witness") or "").strip()
+    if not witness:
+        return False
+    expected = config.get("expected")
+    if not isinstance(expected, Mapping):
+        return False
+    return str(expected.get("contains") or "").strip() == witness
 
 
 def _validate_network_method_requirements(

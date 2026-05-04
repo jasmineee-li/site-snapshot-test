@@ -342,6 +342,17 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     phase_cmd.add_argument(
+        "--phase-4-max-workers",
+        type=_positive_int,
+        default=None,
+        metavar="N",
+        help=(
+            "Phase 4: cap concurrent Browser Use worker sessions, including "
+            "initial evaluation and variant/placement reruns. Omit to use the "
+            "instance pool size or WORLDSIM_MAX_WORKERS fallback."
+        ),
+    )
+    phase_cmd.add_argument(
         "--max-tasks-per-site",
         type=_positive_int,
         default=None,
@@ -556,6 +567,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=argparse.SUPPRESS,
         metavar="SECONDS",
         help="Override the saved Phase 4 Browser Use task wall-clock timeout.",
+    )
+    resume_cmd.add_argument(
+        "--phase-4-max-workers",
+        type=_positive_int,
+        default=argparse.SUPPRESS,
+        metavar="N",
+        help="Override the saved Phase 4 Browser Use worker concurrency cap.",
     )
     resume_cmd.add_argument(
         "--generate-novel",
@@ -1244,6 +1262,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     agent_llm_timeout = getattr(args, "agent_llm_timeout", None)
     agent_step_timeout = getattr(args, "agent_step_timeout", None)
     agent_task_timeout = getattr(args, "agent_task_timeout", None)
+    phase_4_max_workers = getattr(args, "phase_4_max_workers", None)
     generate_novel = getattr(args, "generate_novel", None)
     novel_tasks_per_site = getattr(args, "novel_tasks_per_site", None)
     task_card_plan = getattr(args, "task_card_plan", None)
@@ -1286,6 +1305,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         agent_step_timeout = state.get("agent_step_timeout")
     if agent_task_timeout is None:
         agent_task_timeout = state.get("agent_task_timeout")
+    if phase_4_max_workers is None:
+        phase_4_max_workers = state.get("phase_4_max_workers")
     if generate_novel is None:
         generate_novel = state.get("generate_novel", False)
     if novel_tasks_per_site is None:
@@ -1353,6 +1374,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         agent_llm_timeout=agent_llm_timeout,
         agent_step_timeout=agent_step_timeout,
         agent_task_timeout=agent_task_timeout,
+        phase_4_max_workers=phase_4_max_workers,
         generate_novel=generate_novel,
         novel_tasks_per_site=novel_tasks_per_site,
         task_card_plan=task_card_plan,

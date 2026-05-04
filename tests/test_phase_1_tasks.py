@@ -819,20 +819,26 @@ def test_build_parser_accepts_resume_phase_4_timeout_overrides():
             "300",
             "--agent-task-timeout",
             "900",
+            "--phase-4-max-workers",
+            "5",
         ]
     )
 
     assert args.agent_llm_timeout == 240
     assert args.agent_step_timeout == 300
     assert args.agent_task_timeout == 900
+    assert args.phase_4_max_workers == 5
 
 
 def test_build_parser_accepts_phase_4_task_timeout_override():
     parser = worldsim_main.build_parser()
 
-    args = parser.parse_args(["phase", "4", "--agent-task-timeout", "900"])
+    args = parser.parse_args(
+        ["phase", "4", "--agent-task-timeout", "900", "--phase-4-max-workers", "5"]
+    )
 
     assert args.agent_task_timeout == 900
+    assert args.phase_4_max_workers == 5
 
 
 def test_dispatch_resume_preserves_saved_phase_2_l1_l2_mode(monkeypatch, tmp_path):
@@ -2484,17 +2490,25 @@ def test_validate_generated_novel_tasks_adds_comment_evidence_for_delete_resourc
 
     assert errors == []
     reward_evals = validated[0]["reward_function"]["eval"]
-    network_eval = reward_evals[1]
+    final_state_eval = reward_evals[1]
     contract = validated[0]["task_provenance"]["benign_action_contract"]
     witness = contract["witness"]
     assert witness.startswith("issue comment reference ")
     assert witness in validated[0]["instruction"]
-    assert network_eval["evaluator"] == "NetworkEventEvaluator"
-    assert network_eval["expected"]["url"] == [
+    assert final_state_eval["evaluator"] == "FinalStateEvaluator"
+    assert final_state_eval["expected"]["action_kind"] == "create_issue_note"
+    assert final_state_eval["expected"]["contains"] == witness
+    network_event = final_state_eval["expected"]["network_event"]
+    assert network_event["url"] == [
         r"^__GITLAB__/api/v4/projects/[^/?#]+/issues/[^/?#]+/notes(?:[?#].*)?$",
         r"^__GITLAB__/(?:[^/?#]+/){2,}notes(?:[?#].*)?$",
+        r"^__GITLAB__/api/graphql(?:[?#].*)?$",
     ]
-    assert network_eval["expected"]["post_data_contains"] == [witness]
+    assert network_event["http_method"] == "POST"
+    assert final_state_eval["expected"]["state_probe"] == {
+        "kind": "issue_note_contains",
+        "site": "gitlab",
+    }
     assert contract["action_kind"] == "create_issue_note"
     assert contract["editor_method"] == "create_issue_note"
     assert validated[0]["task_provenance"]["compatible_action_kinds"] == [

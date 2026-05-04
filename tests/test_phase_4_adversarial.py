@@ -882,6 +882,36 @@ def test_phase_4_variant_fingerprint_changes_when_secondary_instances_change():
     )
 
 
+def test_phase_4_variant_fingerprint_changes_when_base_source_changes():
+    task, instances = _prepared_adv_task()
+    variant = json.loads(json.dumps(task))
+    strategy = {"strategy": "specificity"}
+
+    assert phase_4_adversarial._phase_4_variant_fingerprint(
+        task,
+        variant,
+        strategy,
+        instance=instances[0],
+        all_instances=instances,
+        config_url_placeholders=None,
+        benchmark_root=None,
+        sandbox_model="claude-sonnet-4-6",
+        site_profile=None,
+        base_source_fingerprint="initial-gpt52",
+    ) != phase_4_adversarial._phase_4_variant_fingerprint(
+        task,
+        variant,
+        strategy,
+        instance=instances[0],
+        all_instances=instances,
+        config_url_placeholders=None,
+        benchmark_root=None,
+        sandbox_model="claude-sonnet-4-6",
+        site_profile=None,
+        base_source_fingerprint="initial-other-model",
+    )
+
+
 def test_phase_4_result_fingerprint_ignores_unrelated_site_instances_and_placeholders():
     task, instances = _prepared_adv_task()
     unrelated = BenchmarkInstance(
@@ -3454,6 +3484,88 @@ async def test_evaluate_variant_runs_in_parallel_on_distinct_instance_footprints
 
 
 @pytest.mark.asyncio
+async def test_evaluate_variant_honors_browser_worker_semaphore(monkeypatch, tmp_path):
+    instances = [
+        BenchmarkInstance(
+            site_name="shopping",
+            site_url="http://shopping-1.test",
+            reset_endpoint="http://shopping-1.test/init",
+        ),
+        BenchmarkInstance(
+            site_name="shopping",
+            site_url="http://shopping-2.test",
+            reset_endpoint="http://shopping-2.test/init",
+        ),
+    ]
+    task, missing = prepare_task_for_execution(
+        {
+            "id": "adv-capped",
+            "benign_task_id": "benign-capped",
+            "site": "shopping",
+            "sites": ["shopping"],
+            "instruction": "Find the order",
+            "start_urls": ["__SHOPPING__/orders"],
+            "data_seed": {"mechanism": "none"},
+            "reward_function": {
+                "benign_reward": {"type": "noop"},
+                "adversarial_reward": {"type": "noop"},
+            },
+            "adversarial_data_seed": {"mechanism": "none"},
+        },
+        instances,
+    )
+    assert missing == []
+    variant = json.loads(json.dumps(task))
+    active = 0
+    peak_active = 0
+
+    async def fake_run_adversarial_task(task, agent, instance, task_dir, **kwargs):
+        nonlocal active, peak_active
+        active += 1
+        peak_active = max(peak_active, active)
+        await asyncio.sleep(0.02)
+        active -= 1
+        return {"task_id": task["id"], "outcome": "complied", "ecologically_valid": True}
+
+    class FakeAgent:
+        async def setup(self, server_url):
+            return None
+
+        async def teardown(self):
+            return None
+
+    monkeypatch.setattr(phase_4_adversarial, "run_adversarial_task", fake_run_adversarial_task)
+    semaphore = asyncio.Semaphore(1)
+
+    await asyncio.gather(
+        phase_4_adversarial._evaluate_variant(
+            task=task,
+            variant=json.loads(json.dumps(variant)),
+            instance=instances[0],
+            all_instances=instances,
+            strategy={"strategy": "specificity"},
+            index=0,
+            agent_factory=FakeAgent,
+            task_dir_root=tmp_path,
+            browser_worker_semaphore=semaphore,
+        ),
+        phase_4_adversarial._evaluate_variant(
+            task=task,
+            variant=json.loads(json.dumps(variant)),
+            instance=instances[1],
+            all_instances=instances,
+            strategy={"strategy": "verbosity_adjustment"},
+            index=1,
+            agent_factory=FakeAgent,
+            task_dir_root=tmp_path,
+            browser_worker_semaphore=semaphore,
+        ),
+    )
+
+    assert peak_active == 1
+
+
+@pytest.mark.asyncio
 async def test_run_strategy_variation_records_unchanged_seed_variants(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
 
@@ -3921,6 +4033,7 @@ async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeyp
                         benchmark_root=None,
                         sandbox_model="claude-sonnet-4-6",
                         site_profile=None,
+                        base_source_fingerprint=checkpoint_fingerprint,
                     )
                 )
             }
@@ -4116,6 +4229,16 @@ async def test_run_strategy_variation_resume_reuses_variant_result_fingerprint_w
         ],
     }
     initial_result = {"trajectory_dir": str(tmp_path / "traj")}
+    postprocess_fingerprint = phase_4_adversarial._phase_4_postprocess_fingerprint(
+        task,
+        initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        config_url_placeholders=None,
+        benchmark_root=None,
+        sandbox_model="claude-sonnet-4-6",
+        site_profile=None,
+    )
     source_fingerprint = phase_4_adversarial._phase_4_variant_fingerprint(
         task,
         variant,
@@ -4126,24 +4249,14 @@ async def test_run_strategy_variation_resume_reuses_variant_result_fingerprint_w
         benchmark_root=None,
         sandbox_model="claude-sonnet-4-6",
         site_profile=None,
+        base_source_fingerprint=postprocess_fingerprint,
     )
     checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
     checkpoint_path.write_text(
         json.dumps(
             {
-                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: (
-                    phase_4_adversarial._phase_4_postprocess_fingerprint(
-                        task,
-                        initial_result,
-                        primary_instances=[instances[0]],
-                        all_instances=instances,
-                        config_url_placeholders=None,
-                        benchmark_root=None,
-                        sandbox_model="claude-sonnet-4-6",
-                        site_profile=None,
-                    )
-                ),
+                    phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: postprocess_fingerprint,
                 "judge_diagnosis": {
                     "diagnosis": "needs more specificity",
                     "recommended_strategies": [{"strategy": "specificity"}],
@@ -5378,12 +5491,14 @@ async def test_phase_4_sites_filter_limits_token_acquisition(monkeypatch, tmp_pa
         )
     )
     captured_sites: list[str] = []
+    captured_max_workers: list[int | None] = []
 
     def fake_acquire_tokens(instances):
         captured_sites.extend(instance.site_name for instance in instances)
         return []
 
     async def fake_run_tasks_by_site(**kwargs):
+        captured_max_workers.append(kwargs.get("max_workers"))
         result = {
             "task_id": "adv-gitlab",
             "outcome": "complied",
@@ -5441,18 +5556,21 @@ async def test_phase_4_sites_filter_limits_token_acquisition(monkeypatch, tmp_pa
             agent_provider="anthropic",
             sandbox_model="claude-sonnet-4-6",
             sites="gitlab",
+            phase_4_max_workers=3,
             resume=False,
         )
     )
 
     assert rc == 0
     assert captured_sites == ["gitlab"]
+    assert captured_max_workers == [3]
     progress = json.loads((tmp_path / "phase_4" / "progress.json").read_text())
     assert progress["status"] == "complete"
     assert progress["stage"] == "complete"
     assert progress["total_tasks"] == 1
     assert progress["completed_initial_tasks"] == 1
     assert progress["postprocessed_tasks"] == 1
+    assert progress["phase_4_max_workers"] == 3
     assert progress["final_status_counts"] == {"complied": 1}
 
 

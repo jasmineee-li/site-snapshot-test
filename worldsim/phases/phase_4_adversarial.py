@@ -205,6 +205,7 @@ _ADAPTIVE_VARIANT_BUDGET = (3, 3, 1)
 _VARIANT_RESULT_METADATA = "resume_metadata.json"
 _VARIANT_PAYLOAD_AUDIT_PREVIEW_CHARS = 500
 _PHASE_4_RESUME_VERSION = "2026-04-20b"
+_PHASE_4_REWARD_EVALUATOR_VERSION = "2026-05-04a"
 # 22-strategy pool from paper Table 6, filtered for editor-text injection
 # (Dziemian et al., 2026, arXiv:2603.15714). Authoritative source is
 # `worldsim.phase_4.strategy_catalog.ALLOWED_STRATEGIES`. Re-exported here
@@ -2173,6 +2174,7 @@ def _phase_4_state_metadata(
     agent_llm_timeout: int | None,
     agent_step_timeout: int | None,
     agent_task_timeout: int | None,
+    phase_4_max_workers: int | None,
     max_tasks_per_site: int | None,
     task_origin: str | None,
     sites: str | None,
@@ -2190,6 +2192,7 @@ def _phase_4_state_metadata(
         "agent_llm_timeout": agent_llm_timeout,
         "agent_step_timeout": agent_step_timeout,
         "agent_task_timeout": agent_task_timeout,
+        "phase_4_max_workers": phase_4_max_workers,
         "max_tasks_per_site": max_tasks_per_site,
         "task_origin": task_origin,
         "allow_unknown_auth": allow_unknown_auth,
@@ -2234,6 +2237,7 @@ def _write_phase_4_progress(
     postprocessed_tasks: int = 0,
     results_path: Path | None = None,
     final_status_counts: dict[str, int] | None = None,
+    phase_4_max_workers: int | None = None,
 ) -> None:
     payload: dict[str, Any] = {
         "schema_version": 1,
@@ -2246,6 +2250,8 @@ def _write_phase_4_progress(
         "completed_initial_tasks": completed_initial_tasks,
         "postprocessed_tasks": postprocessed_tasks,
     }
+    if phase_4_max_workers is not None:
+        payload["phase_4_max_workers"] = phase_4_max_workers
     if results_path is not None:
         payload["results_path"] = str(results_path)
     if final_status_counts is not None:
@@ -2591,6 +2597,7 @@ def _phase_4_postprocess_fingerprint(
         {
             "phase": "phase_4_postprocess",
             "resume_version": _PHASE_4_RESUME_VERSION,
+            "reward_evaluator_version": _PHASE_4_REWARD_EVALUATOR_VERSION,
             "primary_instances": instances_identity(primary_instances),
             "all_instances": instances_identity(_task_reachable_instances(task, all_instances)),
             "config_url_placeholders": _task_reachable_placeholders(task, config_url_placeholders),
@@ -2612,6 +2619,7 @@ def _phase_4_variant_fingerprint(
     benchmark_root: Path | None,
     sandbox_model: str,
     site_profile: dict[str, Any] | None,
+    base_source_fingerprint: str | None = None,
 ) -> str:
     return _fingerprint_payload(
         task,
@@ -2620,6 +2628,8 @@ def _phase_4_variant_fingerprint(
         {
             "phase": "phase_4_variant",
             "resume_version": _PHASE_4_RESUME_VERSION,
+            "reward_evaluator_version": _PHASE_4_REWARD_EVALUATOR_VERSION,
+            "base_source_fingerprint": base_source_fingerprint,
             "instance": instance_identity(instance),
             "all_instances": instances_identity(_task_reachable_instances(task, all_instances)),
             "config_url_placeholders": _task_reachable_placeholders(task, config_url_placeholders),
@@ -2692,6 +2702,7 @@ async def run(args: argparse.Namespace) -> int:
     agent_llm_timeout = getattr(args, "agent_llm_timeout", None)
     agent_step_timeout = getattr(args, "agent_step_timeout", None)
     agent_task_timeout = getattr(args, "agent_task_timeout", None)
+    phase_4_max_workers = getattr(args, "phase_4_max_workers", None)
 
     benchmark_root = getattr(args, "benchmark", None)
     allow_unknown_auth = bool(getattr(args, "allow_unknown_auth", False))
@@ -2721,6 +2732,7 @@ async def run(args: argparse.Namespace) -> int:
         agent_llm_timeout=agent_llm_timeout,
         agent_step_timeout=agent_step_timeout,
         agent_task_timeout=agent_task_timeout,
+        phase_4_max_workers=phase_4_max_workers,
         max_tasks_per_site=max_tasks_per_site,
         task_origin=task_origin_filter,
         sites=sites_filter_raw,
@@ -3338,6 +3350,11 @@ async def run(args: argparse.Namespace) -> int:
         step_timeout=agent_step_timeout,
         task_timeout=agent_task_timeout,
     )
+    browser_worker_semaphore = (
+        asyncio.Semaphore(phase_4_max_workers) if phase_4_max_workers is not None else None
+    )
+    if phase_4_max_workers is not None:
+        logger.info("Phase 4 Browser Use worker concurrency cap: %d", phase_4_max_workers)
     reset_cache = TaskResetCache()
     save_state("phase_4", status="running", **state_metadata)
     completed_initial_task_ids = _completed_task_ids_from_task_dir_root(task_dir_root)
@@ -3349,6 +3366,7 @@ async def run(args: argparse.Namespace) -> int:
         task_dir_root=task_dir_root,
         total_tasks=len(tasks),
         completed_initial_tasks=len(completed_initial_task_ids),
+        phase_4_max_workers=phase_4_max_workers,
     )
 
     async def _record_initial_result(result: dict[str, Any]) -> None:
@@ -3364,6 +3382,7 @@ async def run(args: argparse.Namespace) -> int:
                 task_dir_root=task_dir_root,
                 total_tasks=len(tasks),
                 completed_initial_tasks=len(completed_initial_task_ids),
+                phase_4_max_workers=phase_4_max_workers,
             )
 
     # Thread the benchmark codebase root through so BrowserUseAgent can validate
@@ -3442,6 +3461,7 @@ async def run(args: argparse.Namespace) -> int:
             site_profile=site_profiles.get(str(task.get("site", ""))),
         ),
         result_callback=_record_initial_result,
+        max_workers=phase_4_max_workers,
     )
 
     task_by_id = {str(task.get("id", "unknown")): task for task in tasks}
@@ -3452,6 +3472,7 @@ async def run(args: argparse.Namespace) -> int:
         task_dir_root=task_dir_root,
         total_tasks=len(tasks),
         completed_initial_tasks=len(results),
+        phase_4_max_workers=phase_4_max_workers,
     )
 
     raw_postprocessed = await asyncio.gather(
@@ -3469,6 +3490,7 @@ async def run(args: argparse.Namespace) -> int:
                 site_profile=site_profiles.get(
                     str(task_by_id.get(str(result.get("task_id", "")), {}).get("site", ""))
                 ),
+                browser_worker_semaphore=browser_worker_semaphore,
             )
             for result in results
         ],
@@ -3493,6 +3515,7 @@ async def run(args: argparse.Namespace) -> int:
         total_tasks=len(tasks),
         completed_initial_tasks=len(results),
         postprocessed_tasks=len(final_results),
+        phase_4_max_workers=phase_4_max_workers,
     )
 
     if postprocess_failures:
@@ -3504,6 +3527,7 @@ async def run(args: argparse.Namespace) -> int:
             total_tasks=len(tasks),
             completed_initial_tasks=len(results),
             postprocessed_tasks=len(final_results),
+            phase_4_max_workers=phase_4_max_workers,
         )
         save_state(
             "phase_4",
@@ -3738,6 +3762,7 @@ async def run(args: argparse.Namespace) -> int:
         final_status_counts=dict(
             Counter(str(r.get("final_status", "missing")) for r in final_results)
         ),
+        phase_4_max_workers=phase_4_max_workers,
     )
     cost_tracker.log_phase_summary("phase_4")
     cost_tracker.save(state_dir / "cost_report.json")
@@ -3804,6 +3829,7 @@ async def _postprocess_one_task(
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
+    browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
     """Post-process a single adversarial task result through the Phase 4 decision tree."""
     task_id = str(result.get("task_id", "unknown"))
@@ -3871,6 +3897,7 @@ async def _postprocess_one_task(
         sandbox_model=sandbox_model,
         site_profile=site_profile,
         source_fingerprint=source_fingerprint,
+        browser_worker_semaphore=browser_worker_semaphore,
     )
 
     # Persist processed result for resume (Stage 2 checkpoint).
@@ -4476,6 +4503,7 @@ async def _process_adversarial_result(
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
     source_fingerprint: str | None = None,
+    browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
     """Apply the full Phase 4 decision tree to one task result."""
     if initial_result.get("outcome") == "seed_preflight_mismatch":
@@ -4514,6 +4542,7 @@ async def _process_adversarial_result(
         site_profile=site_profile,
         resume=resume,
         source_fingerprint=source_fingerprint,
+        browser_worker_semaphore=browser_worker_semaphore,
     )
     if placement_fix is not None:
         annotations["placement_fix"] = placement_fix
@@ -4575,6 +4604,7 @@ async def _process_adversarial_result(
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
         site_profile=site_profile,
+        browser_worker_semaphore=browser_worker_semaphore,
     )
     variation_status = variation.get("status")
     if variation_status in {
@@ -4728,6 +4758,7 @@ async def _run_placement_fix_loop(
     site_profile: dict[str, Any] | None = None,
     resume: bool = False,
     source_fingerprint: str | None = None,
+    browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any] | None:
     """Retry PVPO non-encounters with placement-only seed fixes.
 
@@ -4828,6 +4859,7 @@ async def _run_placement_fix_loop(
                     benchmark_root=benchmark_root,
                     sandbox_model=sandbox_model,
                     site_profile=site_profile,
+                    browser_worker_semaphore=browser_worker_semaphore,
                 )
             attempts.append(current_result)
             pending_iteration = None
@@ -4923,6 +4955,7 @@ async def _run_placement_fix_loop(
                 task_dir=iteration_dir,
                 resume=resume,
                 resume_fingerprint=iteration_fingerprint,
+                browser_worker_semaphore=browser_worker_semaphore,
             )
 
         attempts.append(current_result)
@@ -5736,6 +5769,7 @@ async def run_strategy_variation(
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
+    browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
     """Adaptive strategy variation: judge -> bounded 3+3+1 variant loop.
 
@@ -6516,10 +6550,12 @@ async def run_strategy_variation(
                         benchmark_root=benchmark_root,
                         sandbox_model=sandbox_model,
                         site_profile=site_profile,
+                        browser_worker_semaphore=browser_worker_semaphore,
                         round_index=round_index,
                         round_kind=round_kind,
                         round_variant_index=int(metadata["round_variant_index"]),
                         parent_global_variant_index=metadata.get("parent_global_variant_index"),
+                        base_source_fingerprint=source_fingerprint,
                         root_attempt_id=str(
                             metadata.get("root_attempt_id") or f"{task_id}:initial"
                         ),
@@ -7096,6 +7132,7 @@ async def _rerun_adversarial_task(
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
+    browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
     """Run one revised adversarial task against a live benchmark instance."""
     if resume and resume_fingerprint is not None:
@@ -7111,24 +7148,32 @@ async def _rerun_adversarial_task(
             )
             return prior_result
 
-    agent = agent_factory()
-    bound_task = (
-        task if task_reset_endpoints(task) else bind_task_to_instance(task, instance, all_instances)
-    )
-    try:
-        await agent.setup(instance.site_url)
-        return await run_adversarial_task(
-            bound_task,
-            agent,
-            instance,
-            task_dir,
-            benchmark_root=benchmark_root,
-            sandbox_model=sandbox_model,
-            site_profile=site_profile,
-            resume_fingerprint=resume_fingerprint,
+    async def _run() -> dict[str, Any]:
+        agent = agent_factory()
+        bound_task = (
+            task
+            if task_reset_endpoints(task)
+            else bind_task_to_instance(task, instance, all_instances)
         )
-    finally:
-        await agent.teardown()
+        try:
+            await agent.setup(instance.site_url)
+            return await run_adversarial_task(
+                bound_task,
+                agent,
+                instance,
+                task_dir,
+                benchmark_root=benchmark_root,
+                sandbox_model=sandbox_model,
+                site_profile=site_profile,
+                resume_fingerprint=resume_fingerprint,
+            )
+        finally:
+            await agent.teardown()
+
+    if browser_worker_semaphore is None:
+        return await _run()
+    async with browser_worker_semaphore:
+        return await _run()
 
 
 def _tasks_equivalent(left: dict[str, Any], right: dict[str, Any]) -> bool:
@@ -7156,6 +7201,8 @@ async def _evaluate_variant(
     parent_global_variant_index: int | None = None,
     root_attempt_id: str | None = None,
     parent_attempt_id: str | None = None,
+    base_source_fingerprint: str | None = None,
+    browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
     variant_dir = task_dir_root / safe_task_path_component(
         f"{task.get('id', 'unknown')}_variant_{index}"
@@ -7171,6 +7218,7 @@ async def _evaluate_variant(
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
         site_profile=site_profile,
+        base_source_fingerprint=base_source_fingerprint,
     )
 
     if resume:
@@ -7205,21 +7253,31 @@ async def _evaluate_variant(
                 ),
             }
 
-    agent = agent_factory()
     try:
-        await agent.setup(instance.site_url)
-        bound_variant = bind_task_to_instance(variant, instance, all_instances)
-        async with task_lock(bound_variant):
-            result = await run_adversarial_task(
-                bound_variant,
-                agent,
-                instance,
-                variant_dir,
-                benchmark_root=benchmark_root,
-                sandbox_model=sandbox_model,
-                site_profile=site_profile,
-                resume_fingerprint=source_fingerprint,
-            )
+        async def _run() -> dict[str, Any]:
+            agent = agent_factory()
+            try:
+                await agent.setup(instance.site_url)
+                bound_variant = bind_task_to_instance(variant, instance, all_instances)
+                async with task_lock(bound_variant):
+                    return await run_adversarial_task(
+                        bound_variant,
+                        agent,
+                        instance,
+                        variant_dir,
+                        benchmark_root=benchmark_root,
+                        sandbox_model=sandbox_model,
+                        site_profile=site_profile,
+                        resume_fingerprint=source_fingerprint,
+                    )
+            finally:
+                await agent.teardown()
+
+        if browser_worker_semaphore is None:
+            result = await _run()
+        else:
+            async with browser_worker_semaphore:
+                result = await _run()
         _write_json_atomic(
             _variant_result_metadata_path(task_dir_root, str(task.get("id", "unknown")), index),
             {_CHECKPOINT_FINGERPRINT_KEY: source_fingerprint},
@@ -7260,8 +7318,6 @@ async def _evaluate_variant(
             "trajectory_dir": str(variant_dir),
             **({"variant_payload": payload_audit} if payload_audit is not None else {}),
         }
-    finally:
-        await agent.teardown()
 
 
 def _build_phase_4_result(

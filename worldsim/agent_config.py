@@ -404,6 +404,7 @@ async def run_tasks_by_site(
     resume: bool = False,
     resume_fingerprint_builder: Callable[[dict[str, Any]], str] | None = None,
     result_callback: Callable[[dict[str, Any]], Any] | None = None,
+    max_workers: int | None = None,
 ) -> list[dict[str, Any]]:
     """Run tasks only against instances for the same site.
 
@@ -458,6 +459,7 @@ async def run_tasks_by_site(
                     else None
                 ),
                 result_callback=result_callback,
+                max_workers=max_workers,
             )
         )
 
