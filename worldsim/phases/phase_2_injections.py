@@ -4572,14 +4572,14 @@ def _profile_surface_resolution_errors(
             method=str(contract.get("editor_method") or "") or None,
             editor_surface_id=str(contract.get("editor_surface_id") or "") or None,
         )
-        if resolution is None and not _editor_contract_resolves_generated_child_surface(
+        if resolution is None and _generated_child_surface_from_editor_contract(
             benchmark=benchmark,
             site=site,
             target_surface_id=target_surface_id,
             kind=str(contract.get("kind") or "") or None,
             editor_method=str(contract.get("editor_method") or "") or None,
             editor_surface_id=str(contract.get("editor_surface_id") or "") or None,
-        ):
+        ) is None:
             errors.append(
                 f"task {task_id} has eligible exposure contract for "
                 f"target_surface_id {target_surface_id!r}, but the surface does not resolve "
@@ -4607,7 +4607,7 @@ _GENERATED_CHILD_SURFACE_FALLBACKS: frozenset[tuple[str, str, str, str, str]] = 
 )
 
 
-def _editor_contract_resolves_generated_child_surface(
+def _generated_child_surface_from_editor_contract(
     *,
     benchmark: str,
     site: str,
@@ -4615,8 +4615,8 @@ def _editor_contract_resolves_generated_child_surface(
     kind: str | None,
     editor_method: str | None,
     editor_surface_id: str | None,
-) -> bool:
-    """Return whether an editor contract proves a generated child carrier.
+) -> dict[str, Any] | None:
+    """Return a synthetic generated-child surface when the editor proves it.
 
     Phase 0c profiles can omit non-appended created-child body surfaces, even
     when the editor registry and route contract can seed them deterministically.
@@ -4630,24 +4630,52 @@ def _editor_contract_resolves_generated_child_surface(
     method_key = str(editor_method or "").strip()
     target = canonical_core_surface(site_key, target_surface_id)
     if not target:
-        return False
+        return None
     fallback_key = (benchmark_key, site_key, kind_key, method_key, target)
     if fallback_key not in _GENERATED_CHILD_SURFACE_FALLBACKS:
-        return False
+        return None
     if not is_active_carrier_surface(site_key, target, kind=kind_key, method=method_key):
-        return False
+        return None
     try:
         spec = method_spec(site_key, method_key, benchmark=benchmark_key)
     except KeyError:
-        return False
+        return None
     if kind_key not in spec.kinds:
-        return False
+        return None
     spec_surface = spec.surface_id_per_kind.get(kind_key, spec.method)
     if canonical_core_surface(site_key, spec_surface) != target:
-        return False
+        return None
     if editor_surface_id and canonical_core_surface(site_key, editor_surface_id) != target:
-        return False
-    return True
+        return None
+    if fallback_key == (
+        "webarena_verified",
+        "gitlab",
+        "gitlab_search_result",
+        "create_issue_description",
+        "issue.description",
+    ):
+        method, path = spec.http
+        return {
+            "id": "issue_description",
+            "source_field": "Issue.description",
+            "rendering_format": "markdown",
+            "controllable_by_tier": "authed_user",
+            "controllability_justification": (
+                "Host editor contract creates a new GitLab issue description on an "
+                "inventory-backed project; Phase 2c must still verify rendered exposure."
+            ),
+            "compatible_concealments": list(_CONCEALMENTS),
+            "delivery_channels": [
+                {
+                    "mechanism": "api",
+                    "privileged_seed": False,
+                    "path_template": path,
+                    "method": method,
+                    "body_field": "body",
+                }
+            ],
+        }
+    return None
 
 
 def _surface_visibility_by_id(site_profile: Mapping[str, Any]) -> dict[str, str]:
@@ -6613,6 +6641,16 @@ def _find_surface_by_id(
         if resolution is not None and isinstance(resolution.profile_surface, dict):
             return resolution.profile_surface
         if has_surface_mapping(benchmark=benchmark, site=site):
+            generated_child_surface = _generated_child_surface_from_editor_contract(
+                benchmark=benchmark,
+                site=site,
+                target_surface_id=target_surface_id,
+                kind=kind,
+                editor_method=method,
+                editor_surface_id=editor_surface_id,
+            )
+            if generated_child_surface is not None:
+                return generated_child_surface
             return None
 
     # Legacy fallback for callers that supply minimal synthetic profiles with
