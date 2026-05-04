@@ -105,7 +105,36 @@ def build_variant_contract_qa(
 
     if isinstance(finalized_candidate, dict):
         final_selected = selected_payload(finalized_candidate)
+        if not isinstance(final_selected, dict):
+            finalized_payload_text = finalized_candidate.get("payload_text")
+            final_selected = finalized_payload_text if isinstance(finalized_payload_text, dict) else None
         final_payload = _selected_rendered_payload(finalized_candidate)
+        if not isinstance(final_payload, str) and isinstance(final_selected, dict):
+            rendered = final_selected.get("rendered_payload")
+            final_payload = rendered if isinstance(rendered, str) and rendered else None
+        raw_failure_classes = list(qa.get("failure_classes", []))
+        raw_failure_reasons = dict(qa.get("failure_reasons", {}))
+        if raw_failure_classes:
+            qa["raw_candidate_status"] = "fail"
+            qa["raw_failure_classes"] = raw_failure_classes
+            qa["raw_failure_reasons"] = raw_failure_reasons
+
+        final_qa: dict[str, Any] = {
+            "failure_classes": [],
+            "required_token_counts": _required_token_counts(original_task, final_payload),
+        }
+        if isinstance(final_payload, str) and final_payload:
+            _check_length_budget(final_qa, original_task, final_payload)
+            _check_required_tokens(final_qa, original_task, final_payload)
+            _check_payload_text(final_qa, original_task, final_selected, final_payload)
+            _check_action_payload_guidance(final_qa, original_task, final_payload)
+        else:
+            _add_failure(
+                final_qa,
+                "payload_missing",
+                "finalized candidate does not expose a recoverable payload body",
+            )
+
         final_offset = (
             earliest_attack_witness_offset(original_task, final_selected, final_payload)
             if isinstance(final_selected, dict) and isinstance(final_payload, str)
@@ -115,6 +144,15 @@ def build_variant_contract_qa(
             final_selected
         )
         qa["final_attack_witness_offset"] = final_offset
+        qa["final_failure_classes"] = list(final_qa.get("failure_classes", []))
+        if final_qa.get("failure_reasons"):
+            qa["final_failure_reasons"] = dict(final_qa["failure_reasons"])
+        if qa["final_failure_classes"]:
+            qa["failure_classes"] = qa["final_failure_classes"]
+            qa["failure_reasons"] = dict(final_qa.get("failure_reasons", {}))
+        else:
+            qa["failure_classes"] = []
+            qa.pop("failure_reasons", None)
 
     if qa["failure_classes"]:
         qa["status"] = "fail"
