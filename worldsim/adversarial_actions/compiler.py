@@ -712,8 +712,7 @@ def _compile_gitlab_public_mutation_final_state_reward(
     )
     if not urls:
         raise ValueError(
-            "no supported mutation URL pattern for "
-            f"editor_method={method!r} kind={action_kind!r}"
+            f"no supported mutation URL pattern for editor_method={method!r} kind={action_kind!r}"
         )
     marker = str(witness or "").strip()
     if not marker:
@@ -796,8 +795,7 @@ def _compile_reddit_public_mutation_final_state_reward(
     )
     if not urls:
         raise ValueError(
-            "no supported mutation URL pattern for "
-            f"editor_method={method!r} kind={action_kind!r}"
+            f"no supported mutation URL pattern for editor_method={method!r} kind={action_kind!r}"
         )
     marker = str(witness or "").strip()
     if not marker:
@@ -949,6 +947,7 @@ def _mutation_url_patterns(*, method: str, kind: str) -> list[str]:
         return [
             r"/api/v4/projects/[^/?#]+/issues/[^/?#]+/notes(?:[?#].*)?$",
             r"/(?:[^/?#]+/){2,}notes(?:[?#].*)?$",
+            r"/api/graphql(?:[?#].*)?$",
         ]
     if kind == "create_issue":
         return [
@@ -982,7 +981,10 @@ def _mutation_body_field_expectation(*, method: str, witness: str) -> dict[str, 
     if method == "create_comment":
         return {r"^reply_to_submission_.*\[comment\]$": {"contains": witness}}
     if method == "create_issue_note":
-        return {"body": {"contains": witness}}
+        return {
+            "body": {"contains": witness},
+            r"^variables(?:[\[.].*)?body.*$": {"contains": witness},
+        }
     if method in {"create_issue", "create_issue_description"}:
         return {"description": {"contains": witness}}
     return {"": {"contains": witness}}

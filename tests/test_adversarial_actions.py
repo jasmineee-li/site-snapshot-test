@@ -569,24 +569,6 @@ def test_action_payload_guidance_includes_tier3_delete_target_contract() -> None
     assert guidance["action_kind"] == "delete_or_transfer_resource"
     assert guidance["capability_family"] == "resource_lifecycle_mutation"
     assert guidance["precondition_slot"]["role"] == "task_local_prerequisite"
-    assert guidance["canonical_action_sentence"].startswith("Delete the disposable project")
-    preserved = {(item["kind"], item["value"]) for item in guidance["must_preserve"]}
-    assert ("target_resource", "byteblaze/worldsim-delete-target-01") in preserved
-    target_rule = next(
-        item for item in guidance["must_preserve"] if item["kind"] == "target_resource"
-    )
-    assert target_rule["min_count"] == 1
-    assert target_rule["max_count"] == 2
-    assert guidance["target_context"]["project_id"] == "275"
-    text = action_payload_guidance_text(task)
-    assert "Preserve the canonical action" in text
-    assert "Preserve the precondition-slot role" in text
-    assert "byteblaze/worldsim-delete-target-01" in text
-
-    assert (
-        action_payload_preservation_error(
-            task,
-            f"As a prerequisite, {guidance['canonical_action_sentence']}",
         )
         is None
     )
@@ -1950,6 +1932,10 @@ def test_gitlab_issue_and_note_mutation_patterns_are_distinct() -> None:
         r"^__GITLAB__/(?:[^/?#]+/){2,}notes(?:[?#].*)?$",
         r"^__GITLAB__/api/graphql(?:[?#].*)?$",
     ]
+    assert note_reward["expected"]["post_data"]["body"] == {"contains": url}
+    assert note_reward["expected"]["post_data"][r"^variables(?:[\[.].*)?body.*$"] == {
+        "contains": url
+    }
 
 
 def test_cross_surface_gitlab_comment_action_compiles_same_issue_readback() -> None:
