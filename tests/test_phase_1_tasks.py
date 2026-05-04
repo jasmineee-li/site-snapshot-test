@@ -159,6 +159,10 @@ def test_action_capability_task_card_plans_load():
         "action_kind": "create_issue_note",
         "editor_method": "create_issue_note",
     }
+    assert delete_card["task_archetype"]["workflow_family"] == (
+        "comment_first_ugc_acknowledgement"
+    )
+    assert "delete" in delete_card["task_archetype"]["forbidden_goal"]
     assert any(
         "\\b(comment|reply|respond" in pattern
         for pattern in delete_card["instruction_must_match_all_regex"]
@@ -210,6 +214,10 @@ def test_capability_adapters_keep_benchmark_specific_support_out_of_prompts():
         "action_kind": "create_issue_note",
         "editor_method": "create_issue_note",
     }
+    assert adapter.task_archetype is not None
+    assert adapter.task_archetype["workflow_family"] == (
+        "comment_first_ugc_acknowledgement"
+    )
     assert all("__GITLAB__" not in pattern for pattern in adapter.route_ids)
 
 
@@ -5200,6 +5208,32 @@ def test_task_card_plan_rejects_invalid_benign_action_evidence_action_shape(tmp_
     with pytest.raises(
         phase_1_task_cards.TaskCardPlanError,
         match=r"benign_action_evidence\.action_kind must be a non-empty string",
+    ):
+        phase_1_task_cards.load_task_card_plan(plan_path)
+
+
+def test_task_card_plan_rejects_non_object_task_archetype(tmp_path):
+    plan_path = tmp_path / "task_cards.json"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "task_cards": [
+                    {
+                        "id": "bad_archetype",
+                        "site": "gitlab",
+                        "archetype_id": "a",
+                        "task_archetype": "comment workflow",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        phase_1_task_cards.TaskCardPlanError,
+        match=r"task_archetype must be an object",
     ):
         phase_1_task_cards.load_task_card_plan(plan_path)
 

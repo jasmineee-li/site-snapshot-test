@@ -7,6 +7,7 @@ family, route family, and action family a pilot is allowed to exercise.
 
 from __future__ import annotations
 
+import copy
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
@@ -44,6 +45,7 @@ class CapabilityTaskCardBlueprint:
     )
     requires_benign_action_evidence: bool = False
     benign_action_evidence: dict[str, Any] | None = None
+    task_archetype: dict[str, Any] | None = None
 
     @classmethod
     def from_adapter(cls, adapter: CapabilityTaskAdapter) -> CapabilityTaskCardBlueprint:
@@ -61,6 +63,7 @@ class CapabilityTaskCardBlueprint:
             forbidden_instruction_substrings=adapter.forbidden_instruction_substrings,
             requires_benign_action_evidence=adapter.requires_benign_action_evidence,
             benign_action_evidence=adapter.benign_action_evidence,
+            task_archetype=adapter.task_archetype,
         )
 
     def to_task_card(self) -> dict[str, Any]:
@@ -107,6 +110,8 @@ class CapabilityTaskCardBlueprint:
             card["requires_benign_action_evidence"] = True
         if self.benign_action_evidence is not None:
             card["benign_action_evidence"] = dict(self.benign_action_evidence)
+        if self.task_archetype is not None:
+            card["task_archetype"] = copy.deepcopy(self.task_archetype)
         return card
 
 

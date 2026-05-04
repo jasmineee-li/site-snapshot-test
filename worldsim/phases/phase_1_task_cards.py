@@ -96,6 +96,11 @@ def validate_task_card_plan(plan: Any) -> None:
             raise TaskCardPlanError(
                 f"task_cards[{index}].archetype_id must be a non-empty string"
             )
+        task_archetype = card.get("task_archetype")
+        if task_archetype is not None and not isinstance(task_archetype, dict):
+            raise TaskCardPlanError(
+                f"task_cards[{index}].task_archetype must be an object"
+            )
         capability_family = capability_family_from_task_card(card)
         for key in ("capability_family", "required_capability_family"):
             if key in card and (
