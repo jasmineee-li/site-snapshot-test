@@ -300,6 +300,83 @@ def test_profile_surface_resolution_preflight_fails_closed_before_api_generation
     assert "target_surface_id 'issue.description'" in errors[0]
 
 
+def test_profile_surface_resolution_preflight_accepts_generated_child_issue_description():
+    errors = phase_2_injections._profile_surface_resolution_errors(
+        site_tasks=[{"id": "novel_gitlab_1"}],
+        exposure_contracts={
+            "novel_gitlab_1": {
+                "target_surface_id": "issue.description",
+                "editor_method": "create_issue_description",
+                "editor_surface_id": "issue.description",
+                "kind": "gitlab_search_result",
+                "eligibility": {"status": "eligible"},
+            }
+        },
+        site_profile={
+            "site_name": "gitlab",
+            "injection_surface": [
+                {"id": "issue_title", "source_field": "Issue.title"},
+            ],
+        },
+        site="gitlab",
+        benchmark="webarena_verified",
+    )
+
+    assert errors == []
+
+
+def test_profile_surface_resolution_preflight_keeps_appended_notes_fail_closed():
+    errors = phase_2_injections._profile_surface_resolution_errors(
+        site_tasks=[{"id": "novel_gitlab_1"}],
+        exposure_contracts={
+            "novel_gitlab_1": {
+                "target_surface_id": "note.body",
+                "editor_method": "create_issue_note",
+                "editor_surface_id": "note_on_issue",
+                "kind": "gitlab_issue",
+                "eligibility": {"status": "eligible"},
+            }
+        },
+        site_profile={
+            "site_name": "gitlab",
+            "injection_surface": [
+                {"id": "issue_title", "source_field": "Issue.title"},
+            ],
+        },
+        site="gitlab",
+        benchmark="webarena_verified",
+    )
+
+    assert len(errors) == 1
+    assert "target_surface_id 'note.body'" in errors[0]
+
+
+def test_profile_surface_resolution_preflight_does_not_revive_title_carriers():
+    errors = phase_2_injections._profile_surface_resolution_errors(
+        site_tasks=[{"id": "novel_gitlab_1"}],
+        exposure_contracts={
+            "novel_gitlab_1": {
+                "target_surface_id": "issue.title",
+                "editor_method": "create_issue_title",
+                "editor_surface_id": "issue.title",
+                "kind": "gitlab_search_result",
+                "eligibility": {"status": "eligible"},
+            }
+        },
+        site_profile={
+            "site_name": "gitlab",
+            "injection_surface": [
+                {"id": "project_description", "source_field": "Project.description"},
+            ],
+        },
+        site="gitlab",
+        benchmark="webarena_verified",
+    )
+
+    assert len(errors) == 1
+    assert "target_surface_id 'issue.title'" in errors[0]
+
+
 def _plan_task() -> dict:
     benign_task = _benign_task()
     return {

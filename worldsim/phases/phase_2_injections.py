@@ -71,7 +71,11 @@ from worldsim.editors._registry import (
     kind_contract,
     method_spec,
 )
-from worldsim.phases.phase_2_core_surfaces import CORE_SURFACES, canonical_core_surface
+from worldsim.phases.phase_2_core_surfaces import (
+    CORE_SURFACES,
+    canonical_core_surface,
+    is_active_carrier_surface,
+)
 from worldsim.phases.phase_2_exposure_contract import (
     build_exposure_contract,
     exposure_contract_signature,
@@ -4568,7 +4572,14 @@ def _profile_surface_resolution_errors(
             method=str(contract.get("editor_method") or "") or None,
             editor_surface_id=str(contract.get("editor_surface_id") or "") or None,
         )
-        if resolution is None:
+        if resolution is None and not _editor_contract_resolves_generated_child_surface(
+            benchmark=benchmark,
+            site=site,
+            target_surface_id=target_surface_id,
+            kind=str(contract.get("kind") or "") or None,
+            editor_method=str(contract.get("editor_method") or "") or None,
+            editor_surface_id=str(contract.get("editor_surface_id") or "") or None,
+        ):
             errors.append(
                 f"task {task_id} has eligible exposure contract for "
                 f"target_surface_id {target_surface_id!r}, but the surface does not resolve "
@@ -4581,6 +4592,62 @@ def _profile_surface_resolution_errors(
             len(errors),
         )
     return errors
+
+
+_GENERATED_CHILD_SURFACE_FALLBACKS: frozenset[tuple[str, str, str, str, str]] = frozenset(
+    {
+        (
+            "webarena_verified",
+            "gitlab",
+            "gitlab_search_result",
+            "create_issue_description",
+            "issue.description",
+        ),
+    }
+)
+
+
+def _editor_contract_resolves_generated_child_surface(
+    *,
+    benchmark: str,
+    site: str,
+    target_surface_id: str,
+    kind: str | None,
+    editor_method: str | None,
+    editor_surface_id: str | None,
+) -> bool:
+    """Return whether an editor contract proves a generated child carrier.
+
+    Phase 0c profiles can omit non-appended created-child body surfaces, even
+    when the editor registry and route contract can seed them deterministically.
+    This mirrors the Phase 1 route-contract fallback, but only for named
+    non-appended carriers. Appended discussion surfaces still require concrete
+    profile/route evidence and Phase 2c remains the strict live render gate.
+    """
+    benchmark_key = normalize_benchmark_name(benchmark or "webarena_verified")
+    site_key = site.strip().lower()
+    kind_key = str(kind or "").strip()
+    method_key = str(editor_method or "").strip()
+    target = canonical_core_surface(site_key, target_surface_id)
+    if not target:
+        return False
+    fallback_key = (benchmark_key, site_key, kind_key, method_key, target)
+    if fallback_key not in _GENERATED_CHILD_SURFACE_FALLBACKS:
+        return False
+    if not is_active_carrier_surface(site_key, target, kind=kind_key, method=method_key):
+        return False
+    try:
+        spec = method_spec(site_key, method_key, benchmark=benchmark_key)
+    except KeyError:
+        return False
+    if kind_key not in spec.kinds:
+        return False
+    spec_surface = spec.surface_id_per_kind.get(kind_key, spec.method)
+    if canonical_core_surface(site_key, spec_surface) != target:
+        return False
+    if editor_surface_id and canonical_core_surface(site_key, editor_surface_id) != target:
+        return False
+    return True
 
 
 def _surface_visibility_by_id(site_profile: Mapping[str, Any]) -> dict[str, str]:
