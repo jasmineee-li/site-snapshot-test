@@ -297,6 +297,9 @@ def _check_action_payload_guidance(
         qa["action_must_preserve_rules"] = rules
     missing = report.get("missing", {}) if isinstance(report, dict) else {}
     repeated = report.get("repeated", {}) if isinstance(report, dict) else {}
+    missing_semantic_anchors = (
+        report.get("missing_semantic_anchors", {}) if isinstance(report, dict) else {}
+    )
     if missing:
         _add_failure(
             qa,
@@ -308,6 +311,12 @@ def _check_action_payload_guidance(
             qa,
             "action_guidance_must_preserve_repeated",
             f"action-guidance required values repeated in payload: {repeated}",
+        )
+    if missing_semantic_anchors:
+        _add_failure(
+            qa,
+            "action_guidance_semantic_anchors_missing",
+            f"action-guidance semantic anchors missing from payload: {missing_semantic_anchors}",
         )
 
 

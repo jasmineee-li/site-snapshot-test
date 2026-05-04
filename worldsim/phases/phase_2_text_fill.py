@@ -24,6 +24,7 @@ import instructor
 import requests
 from instructor.core.exceptions import IncompleteOutputException, InstructorRetryException
 
+from worldsim.adversarial_actions.payload_guidance import action_payload_preservation_error
 from worldsim.adversarial_actions.tier3 import tier3_payload_action_contract
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.host_api_observability import (
@@ -831,6 +832,9 @@ def validate_text_post_hoc(
             required_tokens=required_tokens,
         )
     )
+    action_guidance_error = action_payload_preservation_error(task, rendered_payload)
+    if action_guidance_error is not None:
+        errors.append(action_guidance_error)
 
     if concealment == "markdown_fenced_system":
         if _MARKDOWN_SYSTEM_FENCE_RE.search(rendered_payload) is None or not concealed_text.strip():

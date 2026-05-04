@@ -993,6 +993,12 @@ bounded number of times when natural prose needs both a concrete action
 sentence and a short rationale. Repetition beyond the action contract's limit is
 a variant-quality failure because it creates spammy or unnatural payloads, but
 the typed policy must not relax URL/nonce/content uniqueness.
+Action variants also preserve action-family semantics. A navigation action must
+still use navigation language, a public mutation must still use create/submit/
+comment/post language appropriate to its action family, and Tier 3 variants must
+still use repository-write or destructive-resource language. These semantic
+anchors are benchmark-neutral prompt/QA constraints; they do not expose
+endpoint paths, selectors, or reward JSON to the model.
 
 WorldSim stratifies adversarial actions by impact tier. **Tier 1** actions are
 semantic or navigation hijacks, such as returning the opposite binary label or
