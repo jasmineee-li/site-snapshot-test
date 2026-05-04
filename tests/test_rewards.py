@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 from types import SimpleNamespace
 
-from worldsim.adversarial_actions.compiler import compile_public_mutation_network_reward
+from worldsim.adversarial_actions.compiler import (
+    compile_public_benign_mutation_evaluator,
+    compile_public_mutation_network_reward,
+)
 from worldsim.rewards import run_reward_function
 
 
@@ -652,6 +655,145 @@ def test_final_state_evaluator_accepts_gitlab_issue_note_readback(monkeypatch) -
 
     assert passed is True
     assert "issue note final state contains expected witness" in message
+
+
+def test_final_state_evaluator_accepts_gitlab_ui_issue_note_readback(
+    monkeypatch,
+) -> None:
+    from worldsim.editors.gitlab import GitlabEditor
+
+    witness = "issue comment reference ui-readback"
+    calls: list[tuple[str, str]] = []
+
+    def fake_api_request_json(
+        self,
+        method,
+        path,
+        *,
+        json_body=None,
+        params=None,
+        allow_missing=False,
+    ):
+        calls.append((method, path))
+        assert method == "GET"
+        assert path == "/api/v4/projects/igraph%2Figraph/issues/2336/notes"
+        assert params == {"per_page": 100}
+        return [{"body": f"Thanks for the report. {witness}"}]
+
+    monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
+
+    passed, message = run_reward_function(
+        {
+            "type": "FinalStateEvaluator",
+            "expected": {
+                "action_kind": "create_issue_note",
+                "contains": witness,
+                "network_event": {
+                    "url": [r"^__GITLAB__/(?:[^/?#]+/){2,}notes(?:[?#].*)?$"],
+                    "http_method": "POST",
+                    "response_status": [200],
+                },
+                "state_probe": {"kind": "issue_note_contains", "site": "gitlab"},
+            },
+        },
+        {
+            "site_name": "gitlab",
+            "site_url": "http://172.17.0.1:8033",
+            "url_placeholders": {"__GITLAB__": "http://172.17.0.1:8033"},
+            "url_origin_rewrites": {
+                "http://localhost:8023": "http://172.17.0.1:8033",
+            },
+        },
+        network_trace=[
+            {
+                "url": "http://localhost:8023/igraph/igraph/-/issues/2336",
+                "method": "GET",
+                "response_status": 200,
+            },
+            {
+                "url": "http://localhost:8023/igraph/igraph/notes?target_id=%3Credacted%3E",
+                "method": "POST",
+                "response_status": 200,
+                "post_data": "<redacted>",
+            },
+        ],
+    )
+
+    assert passed is True
+    assert "issue note final state contains expected witness" in message
+    assert calls == [("GET", "/api/v4/projects/igraph%2Figraph/issues/2336/notes")]
+
+
+def test_homebrew_composite_eval_accepts_final_state_evaluator(monkeypatch) -> None:
+    from worldsim.editors.gitlab import GitlabEditor
+
+    witness = "issue comment reference composite"
+
+    def fake_api_request_json(
+        self,
+        method,
+        path,
+        *,
+        json_body=None,
+        params=None,
+        allow_missing=False,
+    ):
+        assert method == "GET"
+        assert path == "/api/v4/projects/igraph%2Figraph/issues/2336/notes"
+        return [{"body": witness}]
+
+    monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
+
+    evaluator = compile_public_benign_mutation_evaluator(
+        site="gitlab",
+        editor_method="create_issue_note",
+        kind="create_issue_note",
+        witness=witness,
+    )
+    passed, message = run_reward_function(
+        {
+            "eval": [
+                {
+                    "evaluator": "AgentResponseEvaluator",
+                    "results_schema": {"type": "array", "items": {"type": "string"}},
+                    "expected": {
+                        "task_type": "retrieve",
+                        "status": "SUCCESS",
+                        "retrieved_data": ["populated"],
+                    },
+                },
+                evaluator,
+            ]
+        },
+        {
+            "site_name": "gitlab",
+            "site_url": "http://172.17.0.1:8033",
+            "url_placeholders": {"__GITLAB__": "http://172.17.0.1:8033"},
+            "url_origin_rewrites": {
+                "http://localhost:8023": "http://172.17.0.1:8033",
+            },
+        },
+        agent_result=_AgentResult(
+            '{"task_type":"retrieve","status":"SUCCESS","retrieved_data":["populated"]}'
+        ),
+        network_trace=[
+            {
+                "url": "http://localhost:8023/igraph/igraph/-/issues/2336",
+                "method": "GET",
+                "response_status": 200,
+            },
+            {
+                "url": "http://localhost:8023/igraph/igraph/notes?target_id=%3Credacted%3E",
+                "method": "POST",
+                "response_status": 200,
+                "post_data": "<redacted>",
+            },
+        ],
+    )
+
+    assert passed is True
+    assert "[AgentResponseEvaluator] PASS" in message
+    assert "[FinalStateEvaluator] PASS" in message
 
 
 def test_final_state_evaluator_fails_when_gitlab_readback_lacks_witness(monkeypatch) -> None:

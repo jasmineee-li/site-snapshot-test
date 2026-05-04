@@ -413,6 +413,8 @@ def _run_homebrew_eval(
             passed, msg = _eval_agent_response(config, agent_response)
         elif _is_network_event_evaluator_name(evaluator_type):
             passed, msg = _eval_network_event(config, network_trace, instance)
+        elif evaluator_type in _FINAL_STATE_REWARD_TYPES:
+            passed, msg = _eval_final_state(config, network_trace, instance)
         else:
             passed, msg = False, f"Unknown evaluator type: {evaluator_type}"
 
@@ -734,7 +736,14 @@ def _eval_final_state(
                 f"does not match instance site {site!r}"
             )
     if site == "gitlab":
-        return _eval_gitlab_final_state(action_kind, witness, events, instance, state_probe)
+        return _eval_gitlab_final_state(
+            action_kind,
+            witness,
+            events,
+            network_trace,
+            instance,
+            state_probe,
+        )
     if site == "reddit":
         return _eval_reddit_final_state(action_kind, witness, events, network_trace, instance)
     return False, f"FinalStateEvaluator unsupported site {site!r}"
@@ -797,6 +806,7 @@ def _eval_gitlab_final_state(
     action_kind: str,
     witness: str,
     events: list[dict[str, Any]],
+    network_trace: list[dict[str, Any]],
     instance: dict[str, Any],
     state_probe: Mapping[str, Any] | None,
 ) -> tuple[bool, str]:
@@ -820,17 +830,16 @@ def _eval_gitlab_final_state(
                 if _records_contain_witness(issues, witness, fields=("title", "description")):
                     return True, "gitlab issue final state contains expected witness"
             if action_kind == "create_issue_note":
-                match = _GITLAB_CREATE_ISSUE_NOTE_RE.search(path)
-                if not match:
-                    continue
-                project_id, issue_iid = match.groups()
-                notes = editor._api_request_json(
-                    "GET",
-                    f"/api/v4/projects/{project_id}/issues/{issue_iid}/notes",
-                    params={"per_page": 100},
+                ok, reason = _gitlab_issue_note_contains_witness(
+                    editor,
+                    event,
+                    witness,
+                    network_trace,
+                    state_probe,
                 )
-                if _records_contain_witness(notes, witness, fields=("body",)):
-                    return True, "gitlab issue note final state contains expected witness"
+                if ok:
+                    return True, reason
+                last_reason = reason
             if action_kind == "modify_repository_content":
                 ok, reason = _gitlab_repo_content_contains_witness(
                     editor,
@@ -902,6 +911,88 @@ def _gitlab_project_absent(
         if attempt < 7:
             time.sleep(0.5)
     return False, "gitlab disposable project still exists"
+
+
+def _gitlab_issue_note_contains_witness(
+    editor: Any,
+    event: dict[str, Any],
+    witness: str,
+    network_trace: list[dict[str, Any]],
+    state_probe: Mapping[str, Any] | None,
+) -> tuple[bool, str]:
+    project_key, issue_iid = _gitlab_issue_note_anchor_from_event(event)
+    probe = state_probe if isinstance(state_probe, Mapping) else {}
+    probe_kind = str(probe.get("kind") or "").strip()
+    if probe_kind and probe_kind != "issue_note_contains":
+        return False, f"unsupported gitlab issue-note state_probe.kind {probe_kind!r}"
+
+    probe_project = _first_probe_string(probe, "project_id", "project_path")
+    probe_issue = _first_probe_string(probe, "issue_iid", "iid")
+    project_key = probe_project or project_key
+    issue_iid = probe_issue or issue_iid
+
+    if not project_key or not issue_iid:
+        inferred = _gitlab_issue_anchor_from_network_trace(network_trace)
+        if inferred is not None:
+            inferred_project, inferred_issue = inferred
+            project_key = project_key or inferred_project
+            issue_iid = issue_iid or inferred_issue
+
+    if not project_key or not issue_iid:
+        return False, "gitlab issue note readback has no issue anchor"
+
+    notes = editor._api_request_json(
+        "GET",
+        f"/api/v4/projects/{_gitlab_api_project_key(editor, project_key)}/issues/{issue_iid}/notes",
+        params={"per_page": 100},
+    )
+    if _records_contain_witness(notes, witness, fields=("body",)):
+        return True, "gitlab issue note final state contains expected witness"
+    return False, "gitlab issue note final state did not contain witness"
+
+
+def _gitlab_issue_note_anchor_from_event(
+    event: dict[str, Any],
+) -> tuple[str | None, str | None]:
+    path = urlparse(_network_event_url(event)).path
+    api_match = _GITLAB_CREATE_ISSUE_NOTE_RE.search(path)
+    if api_match:
+        project_key, issue_iid = api_match.groups()
+        return project_key, issue_iid
+    ui_project = _gitlab_project_path_from_note_ui_path(path)
+    if ui_project:
+        return ui_project, None
+    return None, None
+
+
+def _gitlab_project_path_from_note_ui_path(path: str) -> str | None:
+    match = re.match(r"^/(?P<project_path>.+)/notes/?$", path)
+    if not match:
+        return None
+    project_path = unquote(str(match.group("project_path") or "")).strip("/")
+    return project_path or None
+
+
+def _gitlab_issue_anchor_from_network_trace(
+    network_trace: list[dict[str, Any]],
+) -> tuple[str, str] | None:
+    for event in reversed(network_trace):
+        path = urlparse(_network_event_url(event)).path
+        match = re.search(r"/(?P<project_path>.+)/-/issues/(?P<issue_iid>\d+)/?$", path)
+        if not match:
+            continue
+        project_path = unquote(str(match.group("project_path") or "")).strip("/")
+        issue_iid = str(match.group("issue_iid") or "").strip()
+        if project_path and issue_iid:
+            return project_path, issue_iid
+    return None
+
+
+def _gitlab_api_project_key(editor: Any, project_key: str) -> str:
+    cleaned = str(project_key).strip("/")
+    if cleaned.isdigit() or "%2F" in cleaned:
+        return cleaned
+    return editor._quote(cleaned)
 
 
 def _gitlab_delete_project_id_from_event(editor: Any, path: str) -> str | None:

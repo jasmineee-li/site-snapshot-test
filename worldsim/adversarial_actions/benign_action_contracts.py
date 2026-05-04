@@ -18,7 +18,7 @@ from worldsim.adversarial_actions.catalog import (
     EDITOR_METHODS_BY_MUTATION_ACTION,
     MUTATION_ACTION_KINDS,
 )
-from worldsim.adversarial_actions.compiler import compile_public_mutation_network_reward
+from worldsim.adversarial_actions.compiler import compile_public_benign_mutation_evaluator
 from worldsim.adversarial_actions.tier3 import (
     compile_tier3_benign_repository_network_reward,
     tier3_benign_repository_action_contract,
@@ -120,12 +120,11 @@ def apply_benign_action_contract(
 
     witness = benign_action_witness(task, action_kind)
     try:
-        eval_config = compile_public_mutation_network_reward(
+        eval_config = compile_public_benign_mutation_evaluator(
             site=site,
             editor_method=editor_method,
             kind=action_kind,
             witness=witness,
-            reward_key="evaluator",
         )
     except ValueError as exc:
         return str(exc)
@@ -153,7 +152,7 @@ def apply_benign_action_contract(
             "schema_version": _BENIGN_ACTION_CONTRACT_VERSION,
             "action_kind": action_kind,
             "editor_method": editor_method,
-            "reward_signal": "network_action",
+            "reward_signal": _benign_evaluator_reward_signal(eval_config),
             "witness": witness,
             "evaluator": copy.deepcopy(eval_config),
         }
@@ -186,19 +185,18 @@ def refresh_public_benign_action_contract(task: dict[str, Any]) -> str | None:
         return editor_error
     site = str(task.get("site") or "").strip().lower()
     try:
-        evaluator = compile_public_mutation_network_reward(
+        evaluator = compile_public_benign_mutation_evaluator(
             site=site,
             editor_method=editor_method,
             kind=action_kind,
             witness=witness,
-            reward_key="evaluator",
         )
     except ValueError as exc:
         return str(exc)
     contract["editor_method"] = editor_method
     contract["evaluator"] = copy.deepcopy(evaluator)
     contract["schema_version"] = _BENIGN_ACTION_CONTRACT_VERSION
-    contract["reward_signal"] = "network_action"
+    contract["reward_signal"] = _benign_evaluator_reward_signal(evaluator)
     return None
 
 
@@ -259,6 +257,13 @@ def benign_action_witness(task: Mapping[str, Any], action_kind: str) -> str:
     digest = hashlib.sha256(f"{task_id}:{action_kind}".encode()).hexdigest()[:10]
     prefix = _WITNESS_PREFIX_BY_ACTION_KIND.get(action_kind, "follow-up reference")
     return f"{prefix} {digest}"
+
+
+def _benign_evaluator_reward_signal(evaluator: Mapping[str, Any]) -> str:
+    evaluator_type = str(evaluator.get("evaluator") or evaluator.get("type") or "")
+    if evaluator_type == "FinalStateEvaluator":
+        return "final_state_action"
+    return "network_action"
 
 
 def _benign_action_requirement(task: Mapping[str, Any]) -> Mapping[str, Any]:

@@ -896,11 +896,16 @@ def test_refresh_host_compiled_action_rewards_recompiles_public_benign_action_ev
     contract = task["task_provenance"]["benign_action_contract"]
     assert contract["editor_method"] == "create_issue_note"
     evaluator = contract["evaluator"]
-    assert evaluator["expected"]["url"] == [
+    assert evaluator["evaluator"] == "FinalStateEvaluator"
+    assert evaluator["expected"]["network_event"]["url"] == [
         r"^__GITLAB__/api/v4/projects/[^/?#]+/issues/[^/?#]+/notes(?:[?#].*)?$",
         r"^__GITLAB__/(?:[^/?#]+/){2,}notes(?:[?#].*)?$",
     ]
-    assert evaluator["expected"]["post_data_contains"] == [witness]
+    assert evaluator["expected"]["contains"] == witness
+    assert evaluator["expected"]["state_probe"] == {
+        "kind": "issue_note_contains",
+        "site": "gitlab",
+    }
     benign_reward = task["reward_function"]["benign_reward"]
     assert stale_evaluator not in benign_reward["eval"]
     assert benign_reward["eval"] == [benign["reward_function"]["eval"][0], evaluator]

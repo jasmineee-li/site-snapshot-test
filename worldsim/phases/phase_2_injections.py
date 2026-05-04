@@ -3311,7 +3311,7 @@ def _expected_benign_reward_for_adversarial_task(
     ):
         return reward
     witness_text = str(witness).strip()
-    if not _network_event_evaluator_has_witness(evaluator, witness_text):
+    if not _action_evaluator_has_witness(evaluator, witness_text):
         return reward
     evals = reward.setdefault("eval", [])
     if not isinstance(evals, list):
@@ -3322,7 +3322,7 @@ def _expected_benign_reward_for_adversarial_task(
         for item in evals
         if not (
             isinstance(item, Mapping)
-            and _network_event_evaluator_has_witness(item, witness_text)
+            and _action_evaluator_has_witness(item, witness_text)
         )
     ]
     if not _evals_contain_equivalent_config(evals, evaluator_copy):
@@ -3338,11 +3338,14 @@ def _host_benign_action_contract(task: Mapping[str, Any]) -> Mapping[str, Any] |
     return contract if isinstance(contract, Mapping) else None
 
 
-def _network_event_evaluator_has_witness(
+def _action_evaluator_has_witness(
     evaluator: Mapping[str, Any],
     witness: str,
 ) -> bool:
     evaluator_type = str(evaluator.get("evaluator") or evaluator.get("type") or "")
+    if evaluator_type == "FinalStateEvaluator":
+        expected = evaluator.get("expected")
+        return isinstance(expected, Mapping) and expected.get("contains") == witness
     if evaluator_type not in {"NetworkEventEvaluator", "network_event"}:
         return False
     expected = evaluator.get("expected")

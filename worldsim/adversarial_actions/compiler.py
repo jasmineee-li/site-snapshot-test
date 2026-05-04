@@ -502,6 +502,62 @@ def compile_public_mutation_network_reward(
     return reward
 
 
+def compile_public_benign_mutation_evaluator(
+    *,
+    site: str,
+    editor_method: str,
+    kind: str,
+    witness: str,
+) -> dict[str, Any]:
+    """Compile deterministic benign mutation evidence for hybrid tasks.
+
+    Browser traces can redact request bodies for interactive UI submissions.
+    For GitLab issue comments, use the network event only as the source action
+    and prove the exact witness through GitLab note readback.
+    """
+    normalized_site = str(site or "").strip().lower()
+    method = str(editor_method or "").strip()
+    action_kind = str(kind or "").strip()
+    marker = str(witness or "").strip()
+    if (
+        normalized_site == "gitlab"
+        and method == "create_issue_note"
+        and action_kind == "create_issue_note"
+    ):
+        urls = _site_bound_mutation_url_patterns(
+            site=normalized_site,
+            method=method,
+            kind=action_kind,
+        )
+        if not urls:
+            raise ValueError(
+                "no supported mutation URL pattern for "
+                f"editor_method={method!r} kind={action_kind!r}"
+            )
+        if not marker:
+            raise ValueError("mutation final-state reward requires a non-empty witness")
+        return {
+            "evaluator": "FinalStateEvaluator",
+            "expected": {
+                "action_kind": action_kind,
+                "contains": marker,
+                "network_event": {
+                    "url": urls,
+                    "http_method": "POST",
+                    "response_status": _MUTATION_SUCCESS_STATUSES,
+                },
+                "state_probe": {"kind": "issue_note_contains", "site": "gitlab"},
+            },
+        }
+    return compile_public_mutation_network_reward(
+        site=normalized_site,
+        editor_method=method,
+        kind=action_kind,
+        witness=marker,
+        reward_key="evaluator",
+    )
+
+
 def _mutation_url_patterns(*, method: str, kind: str) -> list[str]:
     supported_methods = _METHODS_BY_MUTATION_ACTION.get(kind)
     if supported_methods is None or method not in supported_methods:
