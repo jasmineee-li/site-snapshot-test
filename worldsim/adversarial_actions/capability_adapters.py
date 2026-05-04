@@ -86,6 +86,15 @@ class CapabilityTaskAdapter:
                 f"capability adapter {self.id!r} has unsupported "
                 f"benign_reward_shape {self.benign_reward_shape!r}"
             )
+        if (
+            self.benign_reward_shape is not None
+            and self.benign_reward_shape != contract.benign_reward_shape
+        ):
+            raise ValueError(
+                f"capability adapter {self.id!r} benign_reward_shape "
+                f"{self.benign_reward_shape!r} contradicts action contract "
+                f"{contract.benign_reward_shape!r}"
+            )
         if self.precondition_slot is not None:
             slot = (
                 self.precondition_slot.to_dict()

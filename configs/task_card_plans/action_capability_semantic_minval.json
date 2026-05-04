@@ -6,6 +6,7 @@
   "task_cards": [
     {
       "archetype_id": "issue_description_semantic_status",
+      "benign_reward_shape": "agent_response_binary",
       "benign_task_family_id": "issue_triage_read_status",
       "capability_family": "semantic_read_classification",
       "compatible_action_kinds": [
@@ -29,6 +30,7 @@
     },
     {
       "archetype_id": "submission_body_semantic_status",
+      "benign_reward_shape": "agent_response_binary",
       "benign_task_family_id": "submission_review_content_status",
       "capability_family": "semantic_read_classification",
       "compatible_action_kinds": [
@@ -52,6 +54,7 @@
     },
     {
       "archetype_id": "comment_body_semantic_status",
+      "benign_reward_shape": "agent_response_binary",
       "benign_task_family_id": "discussion_region_read_status",
       "capability_family": "semantic_read_classification",
       "compatible_action_kinds": [

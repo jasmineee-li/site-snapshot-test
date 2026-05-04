@@ -18,6 +18,7 @@ from worldsim.adversarial_actions.capability_contracts import (
     benign_reward_shape_from_task_card,
     capability_family_from_task_card,
     compatibility_reason_for_task_card,
+    get_action_capability_contract,
 )
 from worldsim.adversarial_actions.capability_task_cards import (
     available_capability_task_card_profiles,
@@ -134,6 +135,29 @@ def validate_task_card_plan(plan: Any) -> None:
             raise TaskCardPlanError(
                 f"task_cards[{index}].benign_reward_shape must be one of "
                 f"{sorted(BENIGN_REWARD_SHAPES)}"
+            )
+        expected_reward_shapes = {
+            contract.benign_reward_shape
+            for action_kind in action_kinds
+            if (contract := get_action_capability_contract(action_kind)) is not None
+        }
+        if action_kinds and not reward_shape:
+            raise TaskCardPlanError(
+                f"task_cards[{index}].benign_reward_shape is required when "
+                "compatible_action_kinds is present"
+            )
+        if len(expected_reward_shapes) == 1:
+            expected_reward_shape = next(iter(expected_reward_shapes))
+            if reward_shape != expected_reward_shape:
+                raise TaskCardPlanError(
+                    f"task_cards[{index}].benign_reward_shape {reward_shape!r} "
+                    f"does not match compatible action contract "
+                    f"{expected_reward_shape!r}"
+                )
+        elif len(expected_reward_shapes) > 1:
+            raise TaskCardPlanError(
+                f"task_cards[{index}].compatible_action_kinds map to multiple "
+                f"benign_reward_shape values: {sorted(expected_reward_shapes)}"
             )
         _validate_string_or_string_array(
             card,

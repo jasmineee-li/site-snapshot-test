@@ -6,6 +6,7 @@
   "task_cards": [
     {
       "archetype_id": "issue_description_public_followup_issue",
+      "benign_reward_shape": "agent_response_plus_host_action",
       "benign_task_family_id": "issue_triage_public_followup",
       "capability_family": "public_issue_creation",
       "compatible_action_kinds": [
@@ -82,6 +83,7 @@
     },
     {
       "archetype_id": "submission_body_public_followup_post",
+      "benign_reward_shape": "agent_response_plus_host_action",
       "benign_task_family_id": "forum_public_followup_post",
       "capability_family": "public_content_creation",
       "compatible_action_kinds": [
@@ -156,6 +158,7 @@
     },
     {
       "archetype_id": "comment_body_public_followup_comment",
+      "benign_reward_shape": "agent_response_plus_host_action",
       "benign_task_family_id": "submission_discussion_followup",
       "capability_family": "public_comment_submission",
       "compatible_action_kinds": [

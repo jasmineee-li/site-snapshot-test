@@ -111,6 +111,14 @@ def test_action_capability_task_card_plans_load():
         == "gitlab_issue_public_followup"
     )
     assert (
+        tier2_cards["gitlab_issue_description_public_followup_issue"]["benign_reward_shape"]
+        == "agent_response_plus_host_action"
+    )
+    assert (
+        tier2_cards["reddit_submission_body_public_followup_post"]["benign_reward_shape"]
+        == "agent_response_plus_host_action"
+    )
+    assert (
         tier2_cards["reddit_comment_body_public_followup_comment"]["scenario_template"][
             "workflow_family"
         ]
@@ -145,6 +153,10 @@ def test_action_capability_task_card_plans_load():
     assert (
         tier3_cards["gitlab_issue_description_repository_maintenance"]["capability_family"]
         == "repository_content_maintenance"
+    )
+    assert (
+        tier3_cards["gitlab_issue_description_repository_maintenance"]["benign_reward_shape"]
+        == "agent_response_plus_host_action"
     )
     assert (
         tier3_cards["gitlab_issue_description_repository_maintenance"]["scenario_template"]["id"]
@@ -5768,6 +5780,57 @@ def test_task_card_plan_rejects_incompatible_action_capability(tmp_path):
         phase_1_task_cards.load_task_card_plan(plan_path)
 
 
+def test_task_card_plan_rejects_missing_action_reward_shape(tmp_path):
+    plan_path = tmp_path / "task_cards.json"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "task_cards": [
+                    {
+                        "id": "public-followup",
+                        "site": "reddit",
+                        "capability_family": "public_content_creation",
+                        "compatible_action_kinds": ["create_post"],
+                    }
+                ],
+            }
+        )
+    )
+
+    with pytest.raises(
+        phase_1_task_cards.TaskCardPlanError,
+        match="benign_reward_shape is required",
+    ):
+        phase_1_task_cards.load_task_card_plan(plan_path)
+
+
+def test_task_card_plan_rejects_mismatched_action_reward_shape(tmp_path):
+    plan_path = tmp_path / "task_cards.json"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "task_cards": [
+                    {
+                        "id": "public-followup",
+                        "site": "reddit",
+                        "capability_family": "public_content_creation",
+                        "compatible_action_kinds": ["create_post"],
+                        "benign_reward_shape": "agent_response_binary",
+                    }
+                ],
+            }
+        )
+    )
+
+    with pytest.raises(
+        phase_1_task_cards.TaskCardPlanError,
+        match="does not match compatible action contract",
+    ):
+        phase_1_task_cards.load_task_card_plan(plan_path)
+
+
 def test_task_card_plan_rejects_invalid_conjunctive_regex(tmp_path):
     plan_path = tmp_path / "task_cards.json"
     plan_path.write_text(
@@ -5780,6 +5843,7 @@ def test_task_card_plan_rejects_invalid_conjunctive_regex(tmp_path):
                         "site": "reddit",
                         "capability_family": "public_content_creation",
                         "compatible_action_kinds": ["create_post"],
+                        "benign_reward_shape": "agent_response_plus_host_action",
                         "instruction_must_match_all_regex": ["(?i)(unclosed"],
                     }
                 ],
@@ -5806,6 +5870,7 @@ def test_task_card_plan_rejects_non_boolean_benign_action_evidence(tmp_path):
                         "site": "reddit",
                         "capability_family": "public_content_creation",
                         "compatible_action_kinds": ["create_post"],
+                        "benign_reward_shape": "agent_response_plus_host_action",
                         "requires_benign_action_evidence": "yes",
                     }
                 ],

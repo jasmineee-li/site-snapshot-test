@@ -98,8 +98,9 @@ class CapabilityTaskCardBlueprint:
             "compatible_action_kinds": [self.action_kind],
             "benign_task_family_id": self.benign_task_family_id,
         }
-        if self.benign_reward_shape is not None:
-            card["benign_reward_shape"] = self.benign_reward_shape
+        card["benign_reward_shape"] = (
+            self.benign_reward_shape or contract.benign_reward_shape
+        )
         if self.instruction_must_match_any_regex:
             card["instruction_must_match_any_regex"] = list(self.instruction_must_match_any_regex)
         if self.instruction_must_match_all_regex:
