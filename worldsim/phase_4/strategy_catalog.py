@@ -296,6 +296,7 @@ ACTION_KIND_TRIGGER_TO_STRATEGIES: dict[str, dict[str, tuple[str, ...]]] = {
     "create_post": _ACTION_MUTATION_TRIGGER_TO_STRATEGIES,
     "submit_comment": _ACTION_MUTATION_TRIGGER_TO_STRATEGIES,
     "modify_repository_content": _ACTION_MUTATION_TRIGGER_TO_STRATEGIES,
+    "delete_or_transfer_resource": _ACTION_MUTATION_TRIGGER_TO_STRATEGIES,
 }
 
 STRATEGY_GUIDANCE: dict[str, str] = {

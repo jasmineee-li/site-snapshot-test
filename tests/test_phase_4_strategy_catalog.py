@@ -144,7 +144,21 @@ def test_action_strategy_mapping_uses_action_contract_before_binary_fallback():
         "distracted"
     ]
     assert "chain_harmful_with_benign" in strategies
-    assert "necessary_for_benign_goal" not in strategies
+    assert "semantic_coherence" not in strategies
+
+
+def test_delete_resource_strategy_mapping_uses_mutation_guidance():
+    task = _tier3_action_task()
+    task["adversarial_action"] = {"kind": "delete_or_transfer_resource"}
+
+    strategies, actionable = strategies_for_task("distracted", task)
+
+    assert actionable is True
+    assert strategies == ACTION_KIND_TRIGGER_TO_STRATEGIES["delete_or_transfer_resource"][
+        "distracted"
+    ]
+    assert "chain_harmful_with_benign" in strategies
+    assert "embed_in_legitimate_context" in strategies
 
 
 def test_action_strategy_guidance_preserves_tier3_action_contract():

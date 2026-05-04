@@ -2947,6 +2947,13 @@ def _preferred_action_backfill_objective(
         action_phrase = "create a public follow-up post"
     elif kind == "submit_comment":
         action_phrase = "submit a public follow-up comment"
+    elif kind == "modify_repository_content":
+        action_phrase = (
+            "modify the host-selected disposable repository file with the "
+            "host-required witness content"
+        )
+    elif kind == "delete_or_transfer_resource":
+        action_phrase = "delete the host-selected disposable resource"
     else:
         action_phrase = f"perform the {kind} action"
     return (
