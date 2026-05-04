@@ -64,7 +64,7 @@ import re
 import shutil
 import time
 from collections import Counter
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from html.parser import HTMLParser
@@ -6866,7 +6866,7 @@ def _rebase_adversarial_task(
     rebuilt["adversarial_data_seed"] = json.loads(json.dumps(adversarial_data_seed))
     rebuilt["sites"] = _merged_task_sites(benign_task, adversarial_task)
     rebuilt_reward = {
-        "benign_reward": json.loads(json.dumps(benign_task.get("reward_function", {}))),
+        "benign_reward": _rebased_benign_reward(adversarial_task, benign_task),
         "adversarial_reward": json.loads(json.dumps(adversarial_reward)),
     }
     final_state_check = reward.get("adversarial_final_state_check")
@@ -6891,6 +6891,85 @@ def _rebase_adversarial_task(
             continue
         rebuilt[key] = json.loads(json.dumps(value))
     return rebuilt
+
+
+def _rebased_benign_reward(
+    adversarial_task: Mapping[str, Any],
+    benign_task: Mapping[str, Any],
+) -> dict[str, Any]:
+    benign_contract_reward = benign_task.get("reward_function", {})
+    if not isinstance(benign_contract_reward, Mapping):
+        return {}
+
+    adversarial_reward = adversarial_task.get("reward_function")
+    if not isinstance(adversarial_reward, Mapping):
+        return json.loads(json.dumps(benign_contract_reward))
+    candidate = adversarial_reward.get("benign_reward")
+    if not isinstance(candidate, Mapping):
+        return json.loads(json.dumps(benign_contract_reward))
+    if candidate == benign_contract_reward:
+        return json.loads(json.dumps(benign_contract_reward))
+    if _is_host_compiled_benign_action_reward_upgrade(
+        candidate,
+        benign_contract_reward,
+        adversarial_task,
+    ):
+        return json.loads(json.dumps(candidate))
+    return json.loads(json.dumps(benign_contract_reward))
+
+
+def _is_host_compiled_benign_action_reward_upgrade(
+    candidate: Mapping[str, Any],
+    benign_contract_reward: Mapping[str, Any],
+    adversarial_task: Mapping[str, Any],
+) -> bool:
+    """Allow Phase 2's host-compiled benign action proof through Phase 4 rebase.
+
+    The benign task contract still owns the user instruction, start URL, data
+    seed, and answer expectation. Phase 2 may replace fragile request-only
+    public-action evidence with a host-compiled final-state witness evaluator
+    after action tokens/nonces are known. This predicate accepts only that
+    narrow upgrade: the AgentResponse contract must be unchanged, and the
+    additional action evaluator must match the host provenance.
+    """
+
+    provenance = adversarial_task.get("task_provenance")
+    action_contract = (
+        provenance.get("benign_action_contract") if isinstance(provenance, Mapping) else None
+    )
+    if not isinstance(action_contract, Mapping):
+        return False
+    if str(action_contract.get("reward_signal") or "").strip() != "final_state_action":
+        return False
+    expected_evaluator = action_contract.get("evaluator")
+    if not isinstance(expected_evaluator, Mapping):
+        return False
+    if str(expected_evaluator.get("evaluator") or expected_evaluator.get("type") or "") not in {
+        "FinalStateEvaluator",
+        "final_state",
+    }:
+        return False
+
+    candidate_eval = candidate.get("eval")
+    contract_eval = benign_contract_reward.get("eval")
+    if not isinstance(candidate_eval, list) or not isinstance(contract_eval, list):
+        return False
+    if _agent_response_evaluators(candidate_eval) != _agent_response_evaluators(contract_eval):
+        return False
+    return any(
+        isinstance(item, Mapping) and dict(item) == dict(expected_evaluator)
+        for item in candidate_eval
+    )
+
+
+def _agent_response_evaluators(eval_items: Iterable[Any]) -> list[dict[str, Any]]:
+    return [
+        json.loads(json.dumps(item))
+        for item in eval_items
+        if isinstance(item, Mapping)
+        and str(item.get("evaluator") or item.get("type") or "")
+        == "AgentResponseEvaluator"
+    ]
 
 
 def _merged_task_sites(*tasks: dict[str, Any]) -> list[str]:

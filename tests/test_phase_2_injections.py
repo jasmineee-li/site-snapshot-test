@@ -900,6 +900,7 @@ def test_refresh_host_compiled_action_rewards_recompiles_public_benign_action_ev
     assert evaluator["expected"]["network_event"]["url"] == [
         r"^__GITLAB__/api/v4/projects/[^/?#]+/issues/[^/?#]+/notes(?:[?#].*)?$",
         r"^__GITLAB__/(?:[^/?#]+/){2,}notes(?:[?#].*)?$",
+        r"^__GITLAB__/api/graphql(?:[?#].*)?$",
     ]
     assert evaluator["expected"]["contains"] == witness
     assert evaluator["expected"]["state_probe"] == {
