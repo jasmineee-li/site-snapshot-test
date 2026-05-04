@@ -25,7 +25,7 @@ import time
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from typing import Any
-from urllib.parse import parse_qs, unquote, unquote_plus, urlparse
+from urllib.parse import parse_qs, unquote, unquote_plus, urlparse, urlunparse
 
 import requests
 
@@ -649,11 +649,13 @@ def _eval_network_event(
     matching_events = []
 
     for event in network_trace:
-        event_url = _network_event_url(event)
+        event_urls = _network_event_url_candidates(event, instance)
         event_method = _network_event_method(event)
 
         if event_method in expected_methods and any(
-            _url_matches(resolved_url, event_url) for resolved_url in resolved_urls
+            _url_matches(resolved_url, event_url)
+            for event_url in event_urls
+            for resolved_url in resolved_urls
         ):
             matching_events.append(event)
 
@@ -761,8 +763,12 @@ def _matching_network_events(
     for event in network_trace:
         if _network_event_method(event) not in expected_methods:
             continue
-        event_url = _network_event_url(event)
-        if not any(_url_matches(resolved_url, event_url) for resolved_url in resolved_urls):
+        event_urls = _network_event_url_candidates(event, instance)
+        if not any(
+            _url_matches(resolved_url, event_url)
+            for event_url in event_urls
+            for resolved_url in resolved_urls
+        ):
             continue
         ok, reason = _network_event_expected_fields_match(event, expected)
         if ok:
@@ -1221,6 +1227,49 @@ def _network_event_url(event: dict[str, Any]) -> str:
     if isinstance(request, dict) and isinstance(request.get("url"), str):
         return str(request["url"])
     return ""
+
+
+def _network_event_url_candidates(event: dict[str, Any], instance: dict[str, Any]) -> list[str]:
+    raw_url = _network_event_url(event)
+    if not raw_url:
+        return []
+    candidates = [raw_url]
+    canonical_url = _canonicalize_network_event_origin(raw_url, instance)
+    if canonical_url and canonical_url not in candidates:
+        candidates.append(canonical_url)
+    return candidates
+
+
+def _canonicalize_network_event_origin(url: str, instance: dict[str, Any]) -> str:
+    """Map captured browser origins through host-declared same-site rewrites.
+
+    r5 browser traffic can be rewritten from benchmark-canonical origins to
+    bound container origins. Rewards are compiled against the bound origin, so
+    matching accepts the declared alias while preserving path/query/body checks.
+    """
+    rewrites = instance.get("url_origin_rewrites")
+    if not isinstance(rewrites, Mapping):
+        return url
+    parsed = urlparse(url)
+    if not parsed.scheme or not parsed.netloc:
+        return url
+    origin = f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
+    target = rewrites.get(origin)
+    if not isinstance(target, str) or not target.strip():
+        return url
+    target_parsed = urlparse(target.strip().rstrip("/"))
+    if not target_parsed.scheme or not target_parsed.netloc:
+        return url
+    return urlunparse(
+        (
+            target_parsed.scheme,
+            target_parsed.netloc,
+            parsed.path,
+            parsed.params,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
 
 
 def _network_event_method(event: dict[str, Any]) -> str:
