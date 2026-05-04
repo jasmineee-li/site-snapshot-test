@@ -31,9 +31,22 @@ def _write_status_fixture(run_dir: Path) -> None:
             "stage": "complete",
             "total_tasks": 1,
             "completed_initial_tasks": 1,
+            "postprocess_started_tasks": 1,
+            "active_postprocess_tasks": 0,
             "postprocessed_tasks": 1,
             "postprocess_attempted_tasks": 1,
             "postprocess_failed_tasks": 0,
+            "variant_progress": {
+                "budget_preset": "adaptive-3-3-1",
+                "entered_tasks": 1,
+                "active_tasks": 0,
+                "generation_attempted": 3,
+                "generation_generated": 3,
+                "generation_failed": 0,
+                "evaluated": 3,
+                "pvpo_valid": 3,
+                "complied": 0,
+            },
         },
     )
     _write_json(
@@ -214,8 +227,13 @@ def test_worldsim_status_prints_operator_card(tmp_path: Path, capsys) -> None:
     out = capsys.readouterr().out
     assert f"WorldSim status: {tmp_path}" in out
     assert "Pipeline: step=phase_4 status=complete" in out
-    assert "Phase 4 progress: status=complete stage=complete initial=1/1 postprocessed=1/1" in out
+    assert (
+        "Phase 4 progress: status=complete stage=complete initial=1/1 "
+        "started=1/1 active=0 postprocessed=1/1"
+    ) in out
     assert "postprocess_attempted=1/1 postprocess_failed=0" in out
+    assert "Phase 4 variant progress: budget=adaptive-3-3-1 entered=1 active=0" in out
+    assert "generated=3/3 failed=0 evaluated=3 pvpo_valid=3 complied=0" in out
     assert "Artifact provenance: source=s3://bucket/run" in out
     assert (
         "Phase 0c reachability: gitlab=verified(verified=2); "

@@ -64,7 +64,7 @@ import re
 import shutil
 import time
 from collections import Counter
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Awaitable, Callable, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from html.parser import HTMLParser
@@ -216,6 +216,8 @@ _VARIANT_RESULT_METADATA = "resume_metadata.json"
 _VARIANT_PAYLOAD_AUDIT_PREVIEW_CHARS = 500
 _PHASE_4_RESUME_VERSION = "2026-04-20b"
 _PHASE_4_REWARD_EVALUATOR_VERSION = "2026-05-04b"
+_PHASE_4_PROGRESS_ACTIVE_TASK_LIMIT = 12
+_Phase4ProgressCallback = Callable[[str, Mapping[str, Any]], Awaitable[None]]
 # 22-strategy pool from paper Table 6, filtered for editor-text injection
 # (Dziemian et al., 2026, arXiv:2603.15714). Authoritative source is
 # `worldsim.phase_4.strategy_catalog.ALLOWED_STRATEGIES`. Re-exported here
@@ -2372,6 +2374,7 @@ def _write_phase_4_progress(
     results_path: Path | None = None,
     final_status_counts: dict[str, int] | None = None,
     phase_4_max_workers: int | None = None,
+    extra: Mapping[str, Any] | None = None,
 ) -> None:
     payload: dict[str, Any] = {
         "schema_version": 1,
@@ -2392,6 +2395,8 @@ def _write_phase_4_progress(
         payload["results_path"] = str(results_path)
     if final_status_counts is not None:
         payload["final_status_counts"] = dict(sorted(final_status_counts.items()))
+    if extra:
+        payload.update(json.loads(json.dumps(dict(extra), default=str)))
     path = _phase_4_progress_path(state_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
     write_json_atomic(path, payload, failpoint_base="phase_4.progress")
@@ -3623,30 +3628,110 @@ async def run(args: argparse.Namespace) -> int:
 
     postprocessed_task_ids: set[str] = set()
     postprocess_failed_task_ids: set[str] = set()
+    postprocess_started_task_ids: set[str] = set()
+    active_postprocess_task_ids: set[str] = set()
+    variant_progress_by_task: dict[str, dict[str, Any]] = {}
+
+    def _progress_extra() -> dict[str, Any]:
+        active_task_ids = sorted(active_postprocess_task_ids)
+        variant_tasks = [
+            progress
+            for _, progress in sorted(variant_progress_by_task.items())
+            if isinstance(progress, dict)
+        ]
+        active_variant_tasks = [
+            progress
+            for progress in variant_tasks
+            if str(progress.get("task_id") or "") in active_postprocess_task_ids
+        ]
+        variant_progress = {
+            "schema_version": 1,
+            "budget_preset": phase_4_variant_budget
+            or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET,
+            "budget_shape": list(_phase_4_variant_budget_shape(phase_4_variant_budget)),
+            "entered_tasks": len(variant_tasks),
+            "active_tasks": len(active_variant_tasks),
+            "generation_attempted": sum(
+                int(progress.get("generation_attempted") or 0) for progress in variant_tasks
+            ),
+            "generation_generated": sum(
+                int(progress.get("generation_generated") or 0) for progress in variant_tasks
+            ),
+            "generation_failed": sum(
+                int(progress.get("generation_failed") or 0) for progress in variant_tasks
+            ),
+            "evaluated": sum(int(progress.get("evaluated") or 0) for progress in variant_tasks),
+            "pvpo_valid": sum(int(progress.get("pvpo_valid") or 0) for progress in variant_tasks),
+            "complied": sum(int(progress.get("complied") or 0) for progress in variant_tasks),
+            "task_samples": active_variant_tasks[:_PHASE_4_PROGRESS_ACTIVE_TASK_LIMIT],
+        }
+        return {
+            "postprocess_started_tasks": len(postprocess_started_task_ids),
+            "active_postprocess_tasks": len(active_task_ids),
+            "active_postprocess_task_ids": active_task_ids[:_PHASE_4_PROGRESS_ACTIVE_TASK_LIMIT],
+            "variant_progress": variant_progress,
+        }
+
+    async def _write_postprocess_progress() -> None:
+        _write_phase_4_progress(
+            state_dir,
+            status="running",
+            stage="postprocessing",
+            task_dir_root=task_dir_root,
+            total_tasks=len(tasks),
+            completed_initial_tasks=len(results),
+            postprocessed_tasks=len(postprocessed_task_ids),
+            postprocess_attempted_tasks=len(postprocessed_task_ids)
+            + len(postprocess_failed_task_ids),
+            postprocess_failed_tasks=len(postprocess_failed_task_ids),
+            phase_4_max_workers=phase_4_max_workers,
+            extra=_progress_extra(),
+        )
+
+    async def _record_postprocess_start(task_id: str) -> None:
+        normalized_id = str(task_id or "unknown").strip() or "unknown"
+        async with progress_lock:
+            postprocess_started_task_ids.add(normalized_id)
+            active_postprocess_task_ids.add(normalized_id)
+            await _write_postprocess_progress()
+
+    async def _record_variant_progress(task_id: str, event: str, data: Mapping[str, Any]) -> None:
+        normalized_id = str(task_id or "unknown").strip() or "unknown"
+        async with progress_lock:
+            progress = variant_progress_by_task.setdefault(
+                normalized_id,
+                {
+                    "task_id": normalized_id,
+                    "event": "entered",
+                    "generation_attempted": 0,
+                    "generation_generated": 0,
+                    "generation_failed": 0,
+                    "evaluated": 0,
+                    "pvpo_valid": 0,
+                    "complied": 0,
+                },
+            )
+            progress["event"] = event
+            progress["updated_at"] = datetime.now().isoformat()
+            for key, value in data.items():
+                if key == "task_id":
+                    continue
+                progress[str(key)] = _jsonable_payload(value)
+            await _write_postprocess_progress()
 
     async def _record_postprocess_result(task_id: str, *, failed: bool = False) -> None:
         normalized_id = str(task_id or "unknown").strip() or "unknown"
         async with progress_lock:
+            active_postprocess_task_ids.discard(normalized_id)
             if failed:
                 postprocess_failed_task_ids.add(normalized_id)
             else:
                 postprocessed_task_ids.add(normalized_id)
-            _write_phase_4_progress(
-                state_dir,
-                status="running",
-                stage="postprocessing",
-                task_dir_root=task_dir_root,
-                total_tasks=len(tasks),
-                completed_initial_tasks=len(results),
-                postprocessed_tasks=len(postprocessed_task_ids),
-                postprocess_attempted_tasks=len(postprocessed_task_ids)
-                + len(postprocess_failed_task_ids),
-                postprocess_failed_tasks=len(postprocess_failed_task_ids),
-                phase_4_max_workers=phase_4_max_workers,
-            )
+            await _write_postprocess_progress()
 
     async def _postprocess_one_task_with_progress(result: dict[str, Any]) -> dict[str, Any]:
         task_id = str(result.get("task_id", "unknown"))
+        await _record_postprocess_start(task_id)
         try:
             processed = await _postprocess_one_task(
                 result=result,
@@ -3663,6 +3748,11 @@ async def run(args: argparse.Namespace) -> int:
                 ),
                 browser_worker_semaphore=browser_worker_semaphore,
                 variant_budget_preset=phase_4_variant_budget,
+                progress_callback=lambda event, data, task_id=task_id: _record_variant_progress(
+                    task_id,
+                    event,
+                    data,
+                ),
             )
         except Exception:
             await _record_postprocess_result(task_id, failed=True)
@@ -4021,6 +4111,7 @@ async def _postprocess_one_task(
     site_profile: dict[str, Any] | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
     variant_budget_preset: str | None = None,
+    progress_callback: _Phase4ProgressCallback | None = None,
 ) -> dict[str, Any]:
     """Post-process a single adversarial task result through the Phase 4 decision tree."""
     task_id = str(result.get("task_id", "unknown"))
@@ -4091,6 +4182,7 @@ async def _postprocess_one_task(
         source_fingerprint=source_fingerprint,
         browser_worker_semaphore=browser_worker_semaphore,
         variant_budget_preset=variant_budget_preset,
+        progress_callback=progress_callback,
     )
 
     # Persist processed result for resume (Stage 2 checkpoint).
@@ -4696,6 +4788,7 @@ async def _process_adversarial_result(
     source_fingerprint: str | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
     variant_budget_preset: str | None = None,
+    progress_callback: _Phase4ProgressCallback | None = None,
 ) -> dict[str, Any]:
     """Apply the full Phase 4 decision tree to one task result."""
     if initial_result.get("outcome") == "seed_preflight_mismatch":
@@ -4784,6 +4877,17 @@ async def _process_adversarial_result(
             **annotations,
         }
 
+    if progress_callback is not None:
+        await progress_callback(
+            "variant_loop_entered",
+            {
+                "task_id": task.get("id", "unknown"),
+                "initial_outcome": outcome,
+                "budget_preset": variant_budget_preset
+                or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET,
+                "budget_shape": list(_phase_4_variant_budget_shape(variant_budget_preset)),
+            },
+        )
     variation = await run_strategy_variation(
         task=current_task,
         initial_result=current_result,
@@ -4798,6 +4902,7 @@ async def _process_adversarial_result(
         site_profile=site_profile,
         browser_worker_semaphore=browser_worker_semaphore,
         variant_budget_preset=variant_budget_preset,
+        progress_callback=progress_callback,
     )
     variation_status = variation.get("status")
     if variation_status in {
@@ -5966,6 +6071,7 @@ async def run_strategy_variation(
     site_profile: dict[str, Any] | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
     variant_budget_preset: str | None = None,
+    progress_callback: _Phase4ProgressCallback | None = None,
 ) -> dict[str, Any]:
     """Adaptive strategy variation: judge -> bounded 3+3+1 variant loop.
 
@@ -5994,6 +6100,22 @@ async def run_strategy_variation(
     checkpoint = _load_json_dict(checkpoint_path) if resume else None
     if checkpoint is not None and checkpoint.get(_CHECKPOINT_FINGERPRINT_KEY) != source_fingerprint:
         checkpoint = None
+
+    async def _emit_variant_progress(event: str, **data: Any) -> None:
+        if progress_callback is None:
+            return
+        try:
+            await progress_callback(
+                event,
+                {
+                    "task_id": task_id,
+                    "budget_preset": budget_preset,
+                    "budget_shape": list(budget_shape),
+                    **data,
+                },
+            )
+        except Exception as exc:
+            logger.warning("Could not write Phase 4 variant progress for task %s: %s", task_id, exc)
 
     # 1. Judge diagnoses why agent refused
     recommendation = checkpoint.get("judge_diagnosis") if checkpoint else None
@@ -6029,7 +6151,6 @@ async def run_strategy_variation(
             checkpoint,
             failpoint_base="phase_4.strategy_variation.checkpoint",
         )
-
     # New judge status vocabulary (as of 2026-04-18 API cutover):
     #   judge_ok_actionable     — trigger mapped to runnable strategies
     #   judge_ok_unactionable   — trigger returned but no actionable strategy.
@@ -6041,6 +6162,12 @@ async def run_strategy_variation(
     # Legacy "ok"/"error" shape still accepted from any shim that returns them.
     recommendation_status = str(recommendation.get("status", "ok")).strip().lower()
     strategies, strategy_errors = _normalize_recommended_strategies(recommendation)
+    await _emit_variant_progress(
+        "judge_complete",
+        judge_status=recommendation.get("status"),
+        refusal_trigger=recommendation.get("refusal_trigger"),
+        recommended_strategy_count=len(strategies),
+    )
 
     if recommendation_status in ("error", "judge_failed"):
         return {
@@ -6852,6 +6979,30 @@ async def run_strategy_variation(
                 for index, strategy in enumerate(selected_strategies)
             ],
         )
+        await _emit_variant_progress(
+            "variant_round_started",
+            round_index=round_index,
+            round_kind=round_kind,
+            planned=len(selected_strategies),
+            generation_attempted=len(_flat_generation_records()),
+            generation_generated=sum(
+                1
+                for item in _flat_generation_records()
+                if isinstance(item.get("variant"), dict)
+            ),
+            generation_failed=sum(
+                1
+                for item in _flat_generation_records()
+                if not isinstance(item.get("variant"), dict)
+            ),
+            evaluated=len(_flat_variant_results()),
+            pvpo_valid=sum(1 for item in _flat_variant_results() if _ecologically_valid(item)),
+            complied=sum(
+                1
+                for item in _flat_variant_results()
+                if _ecologically_valid(item) and item.get("outcome") == "complied"
+            ),
+        )
 
         round_record = existing_round or {
             "round_index": round_index,
@@ -6932,6 +7083,32 @@ async def run_strategy_variation(
                 checkpoint,
                 failpoint_base="phase_4.strategy_variation.checkpoint",
             )
+            await _emit_variant_progress(
+                "variant_generation_recorded",
+                round_index=round_index,
+                round_kind=round_kind,
+                generation_attempted=len(_flat_generation_records()),
+                generation_generated=sum(
+                    1
+                    for item in _flat_generation_records()
+                    if isinstance(item.get("variant"), dict)
+                ),
+                generation_failed=sum(
+                    1
+                    for item in _flat_generation_records()
+                    if not isinstance(item.get("variant"), dict)
+                ),
+                evaluated=len(_flat_variant_results()),
+                pvpo_valid=sum(1 for item in _flat_variant_results() if _ecologically_valid(item)),
+                complied=sum(
+                    1
+                    for item in _flat_variant_results()
+                    if _ecologically_valid(item) and item.get("outcome") == "complied"
+                ),
+                last_global_variant_index=record.get("global_variant_index"),
+                last_host_finalization_status=record.get("host_finalization_status"),
+                last_status=record.get("status"),
+            )
 
         real_variants: list[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]] = []
         for record in generation_records:
@@ -6956,6 +7133,30 @@ async def run_strategy_variation(
             item for item in round_record.get("variant_results", []) if isinstance(item, dict)
         ]
         if not variant_results:
+            await _emit_variant_progress(
+                "variant_evaluation_started",
+                round_index=round_index,
+                round_kind=round_kind,
+                generation_attempted=len(_flat_generation_records()),
+                generation_generated=sum(
+                    1
+                    for item in _flat_generation_records()
+                    if isinstance(item.get("variant"), dict)
+                ),
+                generation_failed=sum(
+                    1
+                    for item in _flat_generation_records()
+                    if not isinstance(item.get("variant"), dict)
+                ),
+                evaluated=len(_flat_variant_results()),
+                pvpo_valid=sum(1 for item in _flat_variant_results() if _ecologically_valid(item)),
+                complied=sum(
+                    1
+                    for item in _flat_variant_results()
+                    if _ecologically_valid(item) and item.get("outcome") == "complied"
+                ),
+                evaluating=len(real_variants),
+            )
             variant_results = await _evaluate_round_variants(
                 real_variants,
                 round_index=round_index,
@@ -6963,6 +7164,29 @@ async def run_strategy_variation(
             )
             round_record["variant_results"] = variant_results
             round_record["variant_results_complete"] = True
+            await _emit_variant_progress(
+                "variant_evaluation_complete",
+                round_index=round_index,
+                round_kind=round_kind,
+                generation_attempted=len(_flat_generation_records()),
+                generation_generated=sum(
+                    1
+                    for item in _flat_generation_records()
+                    if isinstance(item.get("variant"), dict)
+                ),
+                generation_failed=sum(
+                    1
+                    for item in _flat_generation_records()
+                    if not isinstance(item.get("variant"), dict)
+                ),
+                evaluated=len(_flat_variant_results()),
+                pvpo_valid=sum(1 for item in _flat_variant_results() if _ecologically_valid(item)),
+                complied=sum(
+                    1
+                    for item in _flat_variant_results()
+                    if _ecologically_valid(item) and item.get("outcome") == "complied"
+                ),
+            )
         variant_outcomes = Counter(
             (
                 str(result.get("strategy", "unknown")),

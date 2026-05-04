@@ -4065,6 +4065,53 @@ async def test_run_strategy_variation_records_unchanged_seed_variants(monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_run_strategy_variation_reports_progress_heartbeats(monkeypatch, tmp_path):
+    task, instances = _prepared_adv_task()
+    events: list[tuple[str, dict[str, object]]] = []
+
+    async def fake_run_judge(*args, **kwargs):
+        return {
+            "diagnosis": "needs more specificity",
+            "recommended_strategies": [{"strategy": "specificity"}],
+        }
+
+    async def fake_generate_variant(*args, **kwargs):
+        clone = json.loads(json.dumps(task))
+        clone["applied_strategy"] = {"strategy": "specificity"}
+        return clone
+
+    async def progress_callback(event, data):
+        events.append((event, dict(data)))
+
+    monkeypatch.setattr(phase_4_adversarial, "run_judge", fake_run_judge)
+    monkeypatch.setattr(phase_4_adversarial, "generate_variant", fake_generate_variant)
+
+    result = await phase_4_adversarial.run_strategy_variation(
+        task=task,
+        initial_result={"trajectory_dir": str(tmp_path / "traj")},
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        variant_budget_preset="smoke-3-probe",
+        progress_callback=progress_callback,
+    )
+
+    assert result["status"] == "variant_generation_failed"
+    event_names = [name for name, _ in events]
+    assert "judge_complete" in event_names
+    assert "variant_round_started" in event_names
+    assert "variant_generation_recorded" in event_names
+    generation_event = next(data for name, data in events if name == "variant_generation_recorded")
+    assert generation_event["task_id"] == task["id"]
+    assert generation_event["budget_preset"] == "smoke-3-probe"
+    assert generation_event["generation_attempted"] == 1
+    assert generation_event["generation_generated"] == 0
+    assert generation_event["generation_failed"] == 1
+
+
+@pytest.mark.asyncio
 async def test_run_strategy_variation_retries_host_rejected_variant(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
 

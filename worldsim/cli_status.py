@@ -335,12 +335,29 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
             f"stage={progress.get('stage', 'unknown')} "
             f"initial={progress.get('completed_initial_tasks', 0)}/"
             f"{progress.get('total_tasks', 0)} "
+            f"started={progress.get('postprocess_started_tasks', 0)}/"
+            f"{progress.get('total_tasks', 0)} "
+            f"active={progress.get('active_postprocess_tasks', 0)} "
             f"postprocessed={progress.get('postprocessed_tasks', 0)}/"
             f"{progress.get('total_tasks', 0)} "
             f"postprocess_attempted={progress.get('postprocess_attempted_tasks', 0)}/"
             f"{progress.get('total_tasks', 0)} "
             f"postprocess_failed={progress.get('postprocess_failed_tasks', 0)}"
         )
+        variant_progress = progress.get("variant_progress")
+        if isinstance(variant_progress, dict) and variant_progress:
+            lines.append(
+                "Phase 4 variant progress: "
+                f"budget={variant_progress.get('budget_preset', 'unknown')} "
+                f"entered={variant_progress.get('entered_tasks', 0)} "
+                f"active={variant_progress.get('active_tasks', 0)} "
+                f"generated={variant_progress.get('generation_generated', 0)}/"
+                f"{variant_progress.get('generation_attempted', 0)} "
+                f"failed={variant_progress.get('generation_failed', 0)} "
+                f"evaluated={variant_progress.get('evaluated', 0)} "
+                f"pvpo_valid={variant_progress.get('pvpo_valid', 0)} "
+                f"complied={variant_progress.get('complied', 0)}"
+            )
 
     manifest = payload.get("artifact_manifest")
     if isinstance(manifest, dict):

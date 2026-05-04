@@ -291,9 +291,12 @@ def summarize_phase4_progress(path: Path) -> dict[str, object] | None:
         "updated_at": str(data.get("updated_at") or "unknown"),
         "total_tasks": total,
         "completed_initial_tasks": int_value("completed_initial_tasks"),
+        "postprocess_started_tasks": int_value("postprocess_started_tasks"),
+        "active_postprocess_tasks": int_value("active_postprocess_tasks"),
         "postprocessed_tasks": int_value("postprocessed_tasks"),
         "postprocess_attempted_tasks": int_value("postprocess_attempted_tasks"),
         "postprocess_failed_tasks": int_value("postprocess_failed_tasks"),
+        "variant_progress": data.get("variant_progress") if isinstance(data.get("variant_progress"), dict) else {},
         "age_seconds": age_seconds,
     }
 
@@ -406,12 +409,43 @@ for candidate in phase4_progress_candidates():
         f"status={summary['status']} "
         f"stage={summary['stage']} "
         f"initial={summary['completed_initial_tasks']}/{summary['total_tasks']} "
+        f"started={summary['postprocess_started_tasks']}/{summary['total_tasks']} "
+        f"active={summary['active_postprocess_tasks']} "
         f"postprocessed={summary['postprocessed_tasks']}/{summary['total_tasks']} "
         f"postprocess_attempted={summary['postprocess_attempted_tasks']}/{summary['total_tasks']} "
         f"postprocess_failed={summary['postprocess_failed_tasks']} "
         f"age_seconds={summary['age_seconds']} "
         f"updated_at={summary['updated_at']}"
     )
+    variant_progress = summary.get("variant_progress")
+    if isinstance(variant_progress, dict) and variant_progress:
+        print(
+            "phase4_variant_progress: "
+            f"budget={variant_progress.get('budget_preset') or 'unknown'} "
+            f"entered={variant_progress.get('entered_tasks') or 0} "
+            f"active={variant_progress.get('active_tasks') or 0} "
+            f"generated={variant_progress.get('generation_generated') or 0}/"
+            f"{variant_progress.get('generation_attempted') or 0} "
+            f"generation_failed={variant_progress.get('generation_failed') or 0} "
+            f"evaluated={variant_progress.get('evaluated') or 0} "
+            f"pvpo_valid={variant_progress.get('pvpo_valid') or 0} "
+            f"complied={variant_progress.get('complied') or 0}"
+        )
+        samples = variant_progress.get("task_samples")
+        if isinstance(samples, list) and samples:
+            rendered = []
+            for sample in samples[:5]:
+                if not isinstance(sample, dict):
+                    continue
+                task_id = str(sample.get("task_id") or "unknown")
+                event = str(sample.get("event") or "unknown")
+                round_index = sample.get("round_index")
+                if round_index is not None:
+                    rendered.append(f"{task_id}:{event}:round{round_index}")
+                else:
+                    rendered.append(f"{task_id}:{event}")
+            if rendered:
+                print("phase4_variant_active: " + ", ".join(rendered))
     break
 
 for candidate in phase4_results_candidates():

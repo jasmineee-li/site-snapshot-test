@@ -1839,9 +1839,29 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
                 "updated_at": "2026-05-02T12:00:22.308663",
                 "total_tasks": 32,
                 "completed_initial_tasks": 30,
+                "postprocess_started_tasks": 4,
+                "active_postprocess_tasks": 2,
                 "postprocessed_tasks": 0,
                 "postprocess_attempted_tasks": 3,
                 "postprocess_failed_tasks": 1,
+                "variant_progress": {
+                    "budget_preset": "smoke-3-probe",
+                    "entered_tasks": 2,
+                    "active_tasks": 2,
+                    "generation_attempted": 6,
+                    "generation_generated": 5,
+                    "generation_failed": 1,
+                    "evaluated": 3,
+                    "pvpo_valid": 3,
+                    "complied": 0,
+                    "task_samples": [
+                        {
+                            "task_id": "adv-1",
+                            "event": "variant_evaluation_started",
+                            "round_index": 1,
+                        }
+                    ],
+                },
             }
         )
     )
@@ -1869,8 +1889,11 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
     assert completed.returncode == 0, completed.stderr
     assert "phase4_progress: present logs/custom_run/phase_4/progress.json" in completed.stdout
     assert "status=running stage=initial_evaluation" in completed.stdout
-    assert "initial=30/32 postprocessed=0/32" in completed.stdout
+    assert "initial=30/32 started=4/32 active=2 postprocessed=0/32" in completed.stdout
     assert "postprocess_attempted=3/32 postprocess_failed=1" in completed.stdout
+    assert "phase4_variant_progress: budget=smoke-3-probe entered=2 active=2" in completed.stdout
+    assert "generated=5/6 generation_failed=1 evaluated=3 pvpo_valid=3 complied=0" in completed.stdout
+    assert "phase4_variant_active: adv-1:variant_evaluation_started:round1" in completed.stdout
     assert "age_seconds=" in completed.stdout
     assert "updated_at=2026-05-02T12:00:22.308663" in completed.stdout
 
