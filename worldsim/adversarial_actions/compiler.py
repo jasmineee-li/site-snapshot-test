@@ -576,7 +576,7 @@ def compile_public_benign_mutation_evaluator(
             raise ValueError("mutation final-state reward requires a non-empty witness")
         placeholder = placeholder_for_site(normalized_site) or ""
         graphql_url = rf"^{placeholder.rstrip('/')}/api/graphql(?:[?#].*)?$"
-        urls = [*urls, graphql_url]
+        urls = list(dict.fromkeys([*urls, graphql_url]))
         return {
             "evaluator": "FinalStateEvaluator",
             "expected": {
@@ -629,10 +629,13 @@ def _site_bound_mutation_url_patterns(*, site: str, method: str, kind: str) -> l
     placeholder = placeholder_for_site(site)
     if not placeholder:
         return []
-    return [
+    patterns = [
         rf"^{placeholder.rstrip('/')}{pattern}"
         for pattern in _mutation_url_patterns(method=method, kind=kind)
     ]
+    if site == "gitlab" and method == "create_issue_note" and kind == "create_issue_note":
+        patterns.append(rf"^{placeholder.rstrip('/')}/api/graphql(?:[?#].*)?$")
+    return list(dict.fromkeys(patterns))
 
 
 def _mutation_body_field_expectation(*, method: str, witness: str) -> dict[str, dict[str, str]]:

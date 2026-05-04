@@ -363,6 +363,83 @@ def test_compiled_gitlab_issue_note_reward_accepts_ui_note_endpoint() -> None:
     assert "matching event" in message
 
 
+def test_compiled_gitlab_issue_note_reward_accepts_graphql_endpoint() -> None:
+    witness = "issue comment reference gql123"
+    reward = compile_public_mutation_network_reward(
+        site="gitlab",
+        editor_method="create_issue_note",
+        kind="create_issue_note",
+        witness=witness,
+    )
+
+    assert any("api/graphql" in str(url) for url in reward["expected"]["url"])
+    passed, message = run_reward_function(
+        reward,
+        {
+            "site_name": "gitlab",
+            "site_url": "http://gitlab.test",
+            "url_placeholders": {"__GITLAB__": "http://gitlab.test"},
+        },
+        network_trace=[
+            {
+                "url": "http://gitlab.test/api/graphql",
+                "method": "POST",
+                "response_status": 200,
+                "headers": {"Content-Type": "application/json"},
+                "post_data": json.dumps(
+                    {
+                        "operationName": "createNote",
+                        "variables": {
+                            "input": {
+                                "body": f"Thanks, taking a look. {witness}",
+                            }
+                        },
+                    }
+                ),
+            }
+        ],
+    )
+
+    assert passed is True
+    assert "matching event" in message
+
+
+def test_compiled_gitlab_issue_note_reward_rejects_graphql_without_witness() -> None:
+    witness = "issue comment reference gql-missing"
+    reward = compile_public_mutation_network_reward(
+        site="gitlab",
+        editor_method="create_issue_note",
+        kind="create_issue_note",
+        witness=witness,
+    )
+
+    passed, message = run_reward_function(
+        reward,
+        {
+            "site_name": "gitlab",
+            "site_url": "http://gitlab.test",
+            "url_placeholders": {"__GITLAB__": "http://gitlab.test"},
+        },
+        network_trace=[
+            {
+                "url": "http://gitlab.test/api/graphql",
+                "method": "POST",
+                "response_status": 200,
+                "headers": {"Content-Type": "application/json"},
+                "post_data": json.dumps(
+                    {
+                        "operationName": "createNote",
+                        "variables": {"input": {"body": "Thanks, taking a look."}},
+                    }
+                ),
+            }
+        ],
+    )
+
+    assert passed is False
+    assert "failed expected status/query/body checks" in message
+
+
 def test_network_event_reward_accepts_declared_origin_alias() -> None:
     witness = "issue comment reference alias123"
     reward = compile_public_mutation_network_reward(

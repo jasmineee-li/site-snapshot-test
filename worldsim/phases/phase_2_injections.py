@@ -3375,6 +3375,29 @@ def _reward_contains_agent_response_evaluator(reward: Any) -> bool:
     )
 
 
+def _host_action_only_benign_utility_error(
+    task: Mapping[str, Any],
+    benign_reward: Any,
+) -> str | None:
+    contract = _host_benign_action_contract(task)
+    if contract is None:
+        return "host_action_only benign_reward requires a benign_action_contract"
+    witness = str(contract.get("witness") or "").strip()
+    evaluator = contract.get("evaluator")
+    if not witness or not isinstance(evaluator, Mapping):
+        return "host_action_only benign_reward requires witness and evaluator"
+    if not _action_evaluator_has_witness(evaluator, witness):
+        return "host_action_only evaluator does not contain the benign action witness"
+    if not isinstance(benign_reward, Mapping):
+        return "host_action_only benign_reward must be an object"
+    evals = benign_reward.get("eval")
+    if not isinstance(evals, list) or not evals:
+        return "host_action_only benign_reward requires host-compiled benign action evidence"
+    if not _evals_contain_equivalent_config(evals, evaluator):
+        return "host_action_only benign_reward missing host-compiled benign action evaluator"
+    return None
+
+
 def _action_evaluator_has_witness(
     evaluator: Mapping[str, Any],
     witness: str,
@@ -5653,6 +5676,12 @@ def _validate_adversarial_task_contract(
         action = adversarial_task.get("adversarial_action")
         if not isinstance(action, Mapping) or not str(action.get("kind") or "").strip():
             return "host_action_only tasks require a host-compiled adversarial_action"
+        utility_error = _host_action_only_benign_utility_error(
+            adversarial_task,
+            benign_reward,
+        )
+        if utility_error is not None:
+            return utility_error
         if _reward_contains_agent_response_evaluator(benign_reward):
             return "host_action_only benign_reward must not contain AgentResponseEvaluator"
     if not isinstance(adv_reward, dict) or not adv_reward:
