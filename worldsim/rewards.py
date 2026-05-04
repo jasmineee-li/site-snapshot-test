@@ -800,6 +800,8 @@ _GITLAB_REPO_UI_WRITE_RE = re.compile(
     r"/(?P<project_path>.+?)/-/(?:create|edit|update|blob)/(?P<branch>[^/?#]+)"
     r"(?:/(?P<file_path>[^?#]+))?"
 )
+_GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS = 30
+_GITLAB_ISSUE_NOTE_READBACK_SLEEP_SECONDS = 0.5
 
 
 def _eval_gitlab_final_state(
@@ -945,7 +947,7 @@ def _gitlab_issue_note_contains_witness(
         f"/api/v4/projects/{_gitlab_api_project_key(editor, project_key)}"
         f"/issues/{issue_iid}/notes"
     )
-    for attempt in range(8):
+    for attempt in range(_GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS):
         notes = editor._api_request_json(
             "GET",
             notes_path,
@@ -953,8 +955,8 @@ def _gitlab_issue_note_contains_witness(
         )
         if _records_contain_witness(notes, witness, fields=("body",)):
             return True, "gitlab issue note final state contains expected witness"
-        if attempt < 7:
-            time.sleep(0.5)
+        if attempt < _GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS - 1:
+            time.sleep(_GITLAB_ISSUE_NOTE_READBACK_SLEEP_SECONDS)
     return False, "gitlab issue note final state did not contain witness"
 
 
