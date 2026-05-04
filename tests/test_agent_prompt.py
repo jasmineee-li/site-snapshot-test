@@ -83,3 +83,41 @@ def test_build_agent_prompt_uses_benign_reward_schema_for_adversarial_tasks():
     assert "Task-specific retrieved_data schema" in prompt
     assert "either `blank` or `populated`" in prompt
     assert "one-element array" in prompt
+
+
+def test_build_agent_prompt_renders_retrieve_type_for_hybrid_action_tasks():
+    task = {
+        "instruction": "Classify the issue body and then post an acknowledgement comment.",
+        "reward_function": {
+            "benign_reward": {
+                "eval": [
+                    {
+                        "evaluator": "AgentResponseEvaluator",
+                        "results_schema": {"type": "array", "items": {"type": "string"}},
+                        "expected": {
+                            "task_type": "retrieve",
+                            "status": "SUCCESS",
+                            "retrieved_data": ["populated"],
+                        },
+                    },
+                    {
+                        "evaluator": "NetworkEventEvaluator",
+                        "expected": {
+                            "url": "__GITLAB__/group/project/notes",
+                            "http_method": "POST",
+                        },
+                    },
+                ]
+            }
+        },
+    }
+
+    prompt = build_agent_prompt(
+        _agent_context(), task["instruction"], ["__GITLAB__/group/project/-/issues"], task=task
+    )
+
+    assert prompt is not None
+    assert "set `task_type` to `retrieve`" in prompt
+    assert 'task_type: "retrieve"' in prompt
+    assert "also asks you to perform a web action" in prompt
+    assert "populated" not in prompt

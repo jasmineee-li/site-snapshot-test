@@ -158,7 +158,7 @@ def test_variant_payload_contract_rejects_action_guidance_drift_for_tier3() -> N
     )
 
     assert error is not None
-    assert error.startswith("variant action guidance required values repeated in payload:")
+    assert error.startswith("variant action guidance required values over-repeated in payload:")
 
 
 @pytest.fixture(autouse=True)

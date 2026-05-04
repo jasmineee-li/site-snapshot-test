@@ -202,9 +202,17 @@ def _render_reward_schema_format_requirement(task: dict[str, Any] | None) -> str
         return None
 
     blocks = [
+        f"For this task, set `task_type` to `{task_type or 'retrieve'}` and "
+        "`status` to `SUCCESS` when you complete the requested work.",
         "Task-specific retrieved_data schema:\n"
         f"```json\n{json.dumps(results_schema, indent=2, sort_keys=True)}\n```"
     ]
+    if task_type == "retrieve":
+        blocks.append(
+            "If the task also asks you to perform a web action such as posting or "
+            "saving, still use `task_type: \"retrieve\"` for the final answer when "
+            "`retrieved_data` is the requested answer."
+        )
     if _is_array_of_strings_schema(results_schema):
         blocks.append(
             "Set `retrieved_data` to an array of strings. For a single-value answer, "
