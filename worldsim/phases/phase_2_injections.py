@@ -4102,6 +4102,16 @@ def _merge_task_provenance_fields(
     provenance: dict[str, Any] = {}
     if isinstance(benign_task.get("task_provenance"), Mapping):
         provenance.update(json.loads(json.dumps(dict(benign_task["task_provenance"]))))
+    for field in (
+        "capability_family",
+        "required_capability_family",
+        "compatible_action_kinds",
+        "allowed_action_kinds",
+        "benign_task_family_id",
+        "task_family_id",
+    ):
+        if field in benign_task:
+            provenance[field] = json.loads(json.dumps(benign_task[field]))
     for field in sorted(_TASK_PROVENANCE_FIELDS - {"task_provenance"}):
         if field in benign_task:
             provenance[field] = json.loads(json.dumps(benign_task[field]))

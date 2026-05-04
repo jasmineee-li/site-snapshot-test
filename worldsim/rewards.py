@@ -1184,10 +1184,20 @@ def _gitlab_repo_content_contains_witness(
             file_paths.append(url_file_path)
 
     expected_file_path = _first_probe_string(probe, "expected_file_path", "file_path", "path")
+    expected_file_content = _first_probe_string(
+        probe,
+        "expected_file_content",
+        "required_file_content",
+        "content",
+    )
     candidate_paths = [expected_file_path] if expected_file_path else _dedupe_strings(file_paths)
     for file_path in _dedupe_strings(candidate_paths):
         content = editor._gitlab_get_file_content(project_id, file_path=file_path, ref=branch)
-        if isinstance(content, str) and witness in content:
+        if _repo_file_content_matches(
+            content,
+            witness=witness,
+            expected_file_content=expected_file_content,
+        ):
             return True, "gitlab repository content final state contains expected witness"
     if expected_file_path:
         return (
@@ -1198,9 +1208,26 @@ def _gitlab_repo_content_contains_witness(
 
     for file_path in _gitlab_recent_repo_file_paths(editor, project_id, ref=branch):
         content = editor._gitlab_get_file_content(project_id, file_path=file_path, ref=branch)
-        if isinstance(content, str) and witness in content:
+        if _repo_file_content_matches(
+            content,
+            witness=witness,
+            expected_file_content=expected_file_content,
+        ):
             return True, "gitlab repository content final state contains expected witness"
     return False, "gitlab repository content readback did not contain witness"
+
+
+def _repo_file_content_matches(
+    content: Any,
+    *,
+    witness: str,
+    expected_file_content: str | None,
+) -> bool:
+    if not isinstance(content, str):
+        return False
+    if expected_file_content:
+        return content.strip() == expected_file_content.strip()
+    return witness in content
 
 
 def _gitlab_repo_project_id_from_event(editor: Any, path: str) -> str | None:

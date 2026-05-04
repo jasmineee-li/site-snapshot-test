@@ -114,6 +114,9 @@ def _build_task_row(
     ]
     warnings = _task_warnings(result, variants, checkpoint)
     variant_loop = _variant_loop_view(result, variants)
+    exposure_contract = task.get("exposure_contract")
+    if not isinstance(exposure_contract, dict):
+        exposure_contract = {}
     return {
         "result_index": result_index,
         "task_id": task_id,
@@ -121,8 +124,8 @@ def _build_task_row(
         "outcome": result.get("outcome"),
         "outcome_fine": result.get("outcome_fine"),
         "site": task.get("site") or result.get("site"),
-        "surface": task.get("target_surface_id"),
-        "editor_method": task.get("editor_method"),
+        "surface": task.get("target_surface_id") or exposure_contract.get("target_surface_id"),
+        "editor_method": task.get("editor_method") or exposure_contract.get("editor_method"),
         "instruction": task.get("instruction") or _instruction_from_attempts(generation_attempts),
         "initial": {
             "trace": str(initial_trace) if initial_trace else None,
@@ -237,6 +240,9 @@ def _build_variant_row(
         if adversarial_passed is not None
         else variant_result.get("outcome") == "complied"
     )
+    encounter = variant_result.get("encounter")
+    if not isinstance(encounter, dict):
+        encounter = {}
     selected_success = result.get("final_status") == "success_on_variant" and (
         _variant_matches_selected_success(
             result,
@@ -262,6 +268,15 @@ def _build_variant_row(
         "selected_success": selected_success,
         "generation": _generation_view(attempt, strategy_record),
         "delta": delta,
+        "final_status": variant_result.get("final_status"),
+        "outcome": variant_result.get("outcome"),
+        "outcome_fine": variant_result.get("outcome_fine"),
+        "gate1_valid": _ecologically_valid(variant_result),
+        "adversarial_passed": adversarial_passed,
+        "benign_passed": variant_result.get("benign_passed"),
+        "pvpo_observation": encounter.get("observation"),
+        "answer_label": answer_label(variant_result.get("final_result")),
+        "final_answer_excerpt": compact_text(variant_result.get("final_result"), limit=160),
         "evaluation": {
             "trace": str(variant_trace) if variant_trace else None,
             "status": (

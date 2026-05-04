@@ -294,10 +294,7 @@ def action_kind_compatible_with_task(action_kind: str, task: Mapping[str, Any] |
 
 def action_kind_compatible_with_task_card(action_kind: str, card: Mapping[str, Any]) -> bool:
     """Return whether a card's capability family can support an action kind."""
-    capability_family = capability_family_from_task_card(card)
-    if not capability_family:
-        return False
-    return action_kind in action_kinds_for_capability_family(capability_family)
+    return compatibility_reason_for_task_card(action_kind, card) == "compatible"
 
 
 def compatibility_reason_for_task_card(action_kind: str, card: Mapping[str, Any]) -> str:
@@ -313,4 +310,51 @@ def compatibility_reason_for_task_card(action_kind: str, card: Mapping[str, Any]
             "capability_family_mismatch:"
             f"expected={contract.capability_family},actual={capability_family}"
         )
+    site = card.get("site")
+    if isinstance(site, str) and site.strip() and site.strip() not in contract.compatible_sites:
+        return (
+            "site_mismatch:"
+            f"expected_one_of={','.join(contract.compatible_sites)},actual={site.strip()}"
+        )
+    benign_families: list[str] = []
+    raw_benign = card.get("benign_task_family_id") or card.get("task_family_id")
+    if isinstance(raw_benign, str) and raw_benign.strip():
+        benign_families.append(raw_benign.strip())
+    raw_benign_many = card.get("benign_task_family_ids")
+    if isinstance(raw_benign_many, str) and raw_benign_many.strip():
+        benign_families.append(raw_benign_many.strip())
+    elif isinstance(raw_benign_many, list):
+        benign_families.extend(
+            item.strip() for item in raw_benign_many if isinstance(item, str) and item.strip()
+        )
+    incompatible_benign = [
+        family for family in benign_families if family not in contract.benign_task_family_ids
+    ]
+    if incompatible_benign:
+        return (
+            "benign_task_family_mismatch:"
+            f"expected_one_of={','.join(contract.benign_task_family_ids)},"
+            f"actual={','.join(incompatible_benign)}"
+        )
+    route_ids = card.get("route_ids", card.get("route_id"))
+    route_values: list[str] = []
+    if isinstance(route_ids, str) and route_ids.strip():
+        route_values.append(route_ids.strip())
+    elif isinstance(route_ids, list):
+        route_values.extend(
+            route_id.strip()
+            for route_id in route_ids
+            if isinstance(route_id, str) and route_id.strip()
+        )
+    if route_values and contract.compatible_editor_methods:
+        if not any(
+            route_id.endswith(f".{method}") or f".{method}." in route_id
+            for route_id in route_values
+            for method in contract.compatible_editor_methods
+        ):
+            return (
+                "route_editor_mismatch:"
+                f"expected_one_of={','.join(contract.compatible_editor_methods)},"
+                f"actual={','.join(route_values)}"
+            )
     return "compatible"

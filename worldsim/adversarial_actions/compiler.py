@@ -265,6 +265,7 @@ def allowed_action_options(
     *,
     policy: str = "default",
 ) -> list[dict[str, str]]:
+    policy = canonical_action_policy(policy)
     options: list[dict[str, str]] = [option_for_kind("open_required_url")]
     if benign_task is not None and _single_binary_label_expected(
         benign_task.get("reward_function")
@@ -273,7 +274,11 @@ def allowed_action_options(
 
     method = str(exposure_contract.get("editor_method") or "").strip()
     action = _EDITOR_ACTION_BY_METHOD.get(method)
-    if action:
+    if action and (
+        policy == "default"
+        or not _policy_requires_capability_metadata(policy)
+        or _task_has_action_capability_metadata(benign_task)
+    ):
         options.append(option_for_kind(action))
     options.extend(
         tier3_action_options(
@@ -283,6 +288,36 @@ def allowed_action_options(
         )
     )
     return _filter_options_for_task_capability(options, benign_task)
+
+
+def _policy_requires_capability_metadata(policy: str) -> bool:
+    if policy in {"mutation_when_available", "mutation_only_when_available"}:
+        return True
+    return _normalized_tier_policy(policy) is not None
+
+
+def _task_has_action_capability_metadata(task: Mapping[str, Any] | None) -> bool:
+    if not isinstance(task, Mapping):
+        return False
+    if action_kind_compatible_with_task("answer_opposite_binary_label", task) is False:
+        return True
+    for source in (task, task.get("task_provenance")):
+        if not isinstance(source, Mapping):
+            continue
+        for key in (
+            "capability_family",
+            "required_capability_family",
+            "compatible_action_kinds",
+            "allowed_action_kinds",
+        ):
+            value = source.get(key)
+            if isinstance(value, str) and value.strip():
+                return True
+            if isinstance(value, list) and any(
+                isinstance(item, str) and item.strip() for item in value
+            ):
+                return True
+    return False
 
 
 def compile_adversarial_reward(

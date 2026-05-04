@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -1061,22 +1062,21 @@ def _validate_task_card_alignment(
         )
     task.setdefault("task_provenance", {})
     if isinstance(task["task_provenance"], dict):
-        task["task_provenance"].setdefault("task_card_id", card_id)
+        provenance = task["task_provenance"]
+        provenance["task_card_id"] = card_id
         if isinstance(archetype_id, str):
-            task["task_provenance"].setdefault("archetype_id", archetype_id)
+            provenance["archetype_id"] = archetype_id
         if isinstance(card.get("task_archetype"), dict):
-            task["task_provenance"].setdefault(
-                "task_archetype", copy.deepcopy(card["task_archetype"])
-            )
+            provenance["task_archetype"] = copy.deepcopy(card["task_archetype"])
         capability_family = card_capability_family(card)
         if capability_family:
-            task["task_provenance"].setdefault("capability_family", capability_family)
+            provenance["capability_family"] = capability_family
         benign_family = _task_benign_task_family_id(task)
         if benign_family:
-            task["task_provenance"].setdefault("benign_task_family_id", benign_family)
+            provenance["benign_task_family_id"] = benign_family
     action_kinds = card_action_kinds(card)
     if action_kinds:
-        task["task_provenance"].setdefault("compatible_action_kinds", list(action_kinds))
+        task["task_provenance"]["compatible_action_kinds"] = list(action_kinds)
     benign_action_problem = apply_benign_action_contract(task, card)
     if benign_action_problem is not None:
         return _field_error(
@@ -1720,13 +1720,22 @@ def _is_host_compiled_final_state_evaluator(
         return False
     if contract.get("reward_signal") != "final_state_action":
         return False
+    if contract.get("schema_version") != "worldsim-benign-action-contract-v1":
+        return False
     witness = str(contract.get("witness") or "").strip()
     if not witness:
         return False
     expected = config.get("expected")
     if not isinstance(expected, Mapping):
         return False
-    return str(expected.get("contains") or "").strip() == witness
+    compiled = contract.get("evaluator")
+    if not isinstance(compiled, Mapping):
+        return False
+    return (
+        str(expected.get("contains") or "").strip() == witness
+        and json.loads(json.dumps(dict(config), sort_keys=True))
+        == json.loads(json.dumps(dict(compiled), sort_keys=True))
+    )
 
 
 def _validate_network_method_requirements(

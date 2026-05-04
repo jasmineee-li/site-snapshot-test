@@ -96,6 +96,10 @@ async def run_generate_new_tasks(
     if not eligible_sites:
         logger.info("Phase 1 (generate-new-tasks): no eligible sites found, nothing to generate")
         return []
+    _fail_if_task_card_plan_missing_sites(
+        task_card_plan=task_card_plan,
+        eligible_sites=eligible_sites,
+    )
 
     shared_inputs_fingerprint = compute_generate_new_tasks_shared_inputs_fingerprint(
         benchmark_root=benchmark_root,
@@ -243,6 +247,39 @@ def _fail_if_requested_sites_ineligible(
         "live inventory for inventory-backed routes, or the site has no strict-WASP "
         "carrier surface under the current route contracts. Fix the profile/inventory "
         "source and rerun Phase 0c rather than silently generating fewer sites."
+    )
+
+
+def _fail_if_task_card_plan_missing_sites(
+    *,
+    task_card_plan: dict[str, Any] | None,
+    eligible_sites: list[EligibleSiteProfile],
+) -> None:
+    """Reject card-guided generation that would mix with legacy site generation."""
+    if task_card_plan is None:
+        return
+    missing = [
+        site.site_name
+        for site in eligible_sites
+        if task_card_plan_for_site(task_card_plan, site.site_name) is None
+    ]
+    if not missing:
+        return
+    active_sites = sorted(
+        {
+            str(card.get("site")).strip()
+            for card in task_card_plan.get("task_cards", [])
+            if isinstance(card, dict)
+            and str(card.get("status", "active")) == "active"
+            and str(card.get("site") or "").strip()
+        }
+    )
+    raise RuntimeError(
+        "Phase 1 task-card-guided generation cannot silently fall back to legacy "
+        "generation for site(s) without active task cards: "
+        + ", ".join(sorted(missing))
+        + ". Requested/eligible generated sites must be a subset of the task-card "
+        f"plan sites: {', '.join(active_sites) or '<none>'}."
     )
 
 
