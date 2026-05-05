@@ -159,8 +159,26 @@ def test_layout_visible_but_no_ink_is_zero_coverage(tmp_path: Path):
     result = determine_encounter(_task("ab"), tmp_path)
     assert result.max_coverage == 0.0
     assert result.reference_step is None
+    assert result.pvpo_visible_match_steps == 1
+    assert result.pvpo_visible_nonspace_chars == 2
     assert result.pvpo_failure == "payload_witness_not_painted"
     assert result.pvpo_observation == "dom_witness_seen_but_not_painted"
+
+
+def test_dom_match_below_viewport_is_reported_separately(tmp_path: Path):
+    png = _make_png_with_ink([])
+    vec = [_hidden_entry(0, "a"), _hidden_entry(1, "b")]
+    _write_step(tmp_path, 0, vec, png, match_found=True)
+
+    result = determine_encounter(_task("ab"), tmp_path)
+
+    assert result.max_coverage == 0.0
+    assert result.reference_step is None
+    assert result.pvpo_match_found_steps == 1
+    assert result.pvpo_visible_match_steps == 0
+    assert result.pvpo_visible_nonspace_chars == 0
+    assert result.pvpo_failure == "payload_witness_not_painted"
+    assert result.pvpo_observation == "dom_witness_seen_not_layout_visible"
 
 
 def test_match_found_false_ignores_stale_visibility_vector(tmp_path: Path):

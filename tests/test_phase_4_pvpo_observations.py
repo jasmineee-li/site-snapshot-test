@@ -15,8 +15,18 @@ from worldsim.phase_4.pvpo_observations import classify_pvpo_observation
                 "max_coverage": 0.0,
                 "pvpo_failure": "payload_witness_not_painted",
                 "match_found_steps": 1,
+                "visible_match_steps": 1,
             },
             "dom_witness_seen_but_not_painted",
+        ),
+        (
+            {
+                "max_coverage": 0.0,
+                "pvpo_failure": "payload_witness_not_painted",
+                "match_found_steps": 1,
+                "visible_match_steps": 0,
+            },
+            "dom_witness_seen_not_layout_visible",
         ),
         (
             {"max_coverage": 0.0, "pvpo_failure": "payload_witness_not_matched"},

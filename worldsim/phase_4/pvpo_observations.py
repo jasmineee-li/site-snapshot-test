@@ -18,6 +18,7 @@ def classify_pvpo_observation(
     artifact_steps: Any = None,
     skipped_steps: Any = None,
     match_found_steps: Any = None,
+    visible_match_steps: Any = None,
     off_surface_match_steps: Any = None,
 ) -> str:
     """Classify PVPO telemetry into a stable operator-facing bucket."""
@@ -28,6 +29,7 @@ def classify_pvpo_observation(
     artifacts = _int_or_zero(artifact_steps)
     skipped = _int_or_zero(skipped_steps)
     matches = _int_or_zero(match_found_steps)
+    visible_matches = _int_or_zero(visible_match_steps)
     off_surface_matches = _int_or_zero(off_surface_match_steps)
 
     if coverage is not None and coverage > 0.0:
@@ -46,6 +48,8 @@ def classify_pvpo_observation(
     if failure == "payload_witness_off_surface" or off_surface_matches > 0:
         return "dom_witness_matched_off_surface"
     if failure == "payload_witness_not_painted" or matches > 0:
+        if matches > 0 and visible_matches == 0:
+            return "dom_witness_seen_not_layout_visible"
         return "dom_witness_seen_but_not_painted"
     if failure == "payload_witness_not_matched" or (
         artifacts > 0 and matches == 0 and status == "ok"
@@ -79,6 +83,7 @@ def pvpo_observation_bucket(result: dict[str, Any]) -> str:
         artifact_steps=encounter.get("pvpo_artifact_steps"),
         skipped_steps=encounter.get("pvpo_skipped_steps"),
         match_found_steps=encounter.get("pvpo_match_found_steps"),
+        visible_match_steps=encounter.get("pvpo_visible_match_steps"),
         off_surface_match_steps=encounter.get("pvpo_off_surface_match_steps"),
     )
 

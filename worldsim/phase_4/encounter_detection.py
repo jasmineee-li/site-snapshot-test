@@ -74,6 +74,8 @@ class EncounterResult:
     pvpo_artifact_steps: int = 0
     pvpo_skipped_steps: int = 0
     pvpo_match_found_steps: int = 0
+    pvpo_visible_match_steps: int = 0
+    pvpo_visible_nonspace_chars: int = 0
     pvpo_off_surface_match_steps: int = 0
     pvpo_matched_witness_ids: list[str] = field(default_factory=list)
     pvpo_observation: str = "zero_coverage_unknown"
@@ -87,6 +89,7 @@ class EncounterResult:
                 artifact_steps=self.pvpo_artifact_steps,
                 skipped_steps=self.pvpo_skipped_steps,
                 match_found_steps=self.pvpo_match_found_steps,
+                visible_match_steps=self.pvpo_visible_match_steps,
                 off_surface_match_steps=self.pvpo_off_surface_match_steps,
             )
 
@@ -109,6 +112,8 @@ class EncounterResult:
             "pvpo_artifact_steps": self.pvpo_artifact_steps,
             "pvpo_skipped_steps": self.pvpo_skipped_steps,
             "pvpo_match_found_steps": self.pvpo_match_found_steps,
+            "pvpo_visible_match_steps": self.pvpo_visible_match_steps,
+            "pvpo_visible_nonspace_chars": self.pvpo_visible_nonspace_chars,
             "pvpo_off_surface_match_steps": self.pvpo_off_surface_match_steps,
             "pvpo_matched_witness_ids": list(self.pvpo_matched_witness_ids),
             "pvpo_observation": self.pvpo_observation,
@@ -170,6 +175,8 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
     kept_step_files: list[tuple[int, Path]] = []
     skipped_steps = 0
     match_found_steps = 0
+    visible_match_steps = 0
+    visible_nonspace_chars = 0
     matched_witness_ids: list[str] = []
     off_surface_match_steps = 0
 
@@ -201,6 +208,10 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
             off_surface_match_steps += 1
         if match_found:
             match_found_steps += 1
+            visible_chars = _visible_nonspace_count(visibility_vec)
+            if visible_chars > 0:
+                visible_match_steps += 1
+                visible_nonspace_chars += visible_chars
         witness_id = pvpo_json.get("matched_witness_id")
         if isinstance(witness_id, str) and witness_id and witness_id not in matched_witness_ids:
             matched_witness_ids.append(witness_id)
@@ -266,6 +277,8 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
             pvpo_artifact_steps=len(step_files),
             pvpo_skipped_steps=skipped_steps,
             pvpo_match_found_steps=match_found_steps,
+            pvpo_visible_match_steps=visible_match_steps,
+            pvpo_visible_nonspace_chars=visible_nonspace_chars,
             pvpo_off_surface_match_steps=off_surface_match_steps,
             pvpo_matched_witness_ids=matched_witness_ids,
             pvpo_observation=classify_pvpo_observation(
@@ -275,6 +288,7 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
                 artifact_steps=len(step_files),
                 skipped_steps=skipped_steps,
                 match_found_steps=match_found_steps,
+                visible_match_steps=visible_match_steps,
                 off_surface_match_steps=off_surface_match_steps,
             ),
         )
@@ -388,6 +402,8 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
         pvpo_artifact_steps=len(step_files),
         pvpo_skipped_steps=skipped_steps,
         pvpo_match_found_steps=match_found_steps,
+        pvpo_visible_match_steps=visible_match_steps,
+        pvpo_visible_nonspace_chars=visible_nonspace_chars,
         pvpo_off_surface_match_steps=off_surface_match_steps,
         pvpo_matched_witness_ids=matched_witness_ids,
         pvpo_observation=classify_pvpo_observation(
@@ -397,8 +413,21 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
             artifact_steps=len(step_files),
             skipped_steps=skipped_steps,
             match_found_steps=match_found_steps,
+            visible_match_steps=visible_match_steps,
             off_surface_match_steps=off_surface_match_steps,
         ),
+    )
+
+
+def _visible_nonspace_count(visibility_vec: Any) -> int:
+    if not isinstance(visibility_vec, list):
+        return 0
+    return sum(
+        1
+        for entry in visibility_vec
+        if isinstance(entry, dict)
+        and not bool(entry.get("isSpace"))
+        and bool(entry.get("layoutVisible"))
     )
 
 
