@@ -2,7 +2,7 @@
 
 Status: closed (Gap 4 + Gap 13 resolved 2026-05-05; rebased onto `feat/worldsim-v5@446ff6cc`)
 Owner: unassigned
-Worktree: `/Users/ashtonchew/projects/browser-sim/.codex-worktrees/agent-readiness-standardized` (branch `feat/agent-readiness-standardized`, head `f08f3aa5`, base `feat/worldsim-v5@446ff6cc`)
+Worktree: `/Users/ashtonchew/projects/browser-sim/.codex-worktrees/agent-readiness-standardized` (branch `feat/agent-readiness-standardized`, current pushed head after this handoff refresh, base `feat/worldsim-v5@446ff6cc`)
 Backup branches (do not delete): `backup/pr-10-before-446ff6cc-rebase-20260505-145710`, `backup/pr-10-pre-rerebase-20260505-132359`, `backup/pr-10-before-rebase-20260505-124459`, plus three earlier dated `backup/pr-10-before-*` branches.
 
 ## What this is
@@ -529,7 +529,7 @@ rg -n "attack_action_attempted|state_confirmed_action_success" worldsim/phase_4/
 
 ## Gap 13: `variant_progress_by_task` heartbeat wiring missing from Phase 4 runner
 
-**Status: resolved 2026-05-05 by `1e8f99ba` (helpers) + `144dc7e0` (signature plumbing) + `d24722dd` (runner wiring) + `f08f3aa5` (tests).** New module `worldsim/phase_4/postprocess_progress.py` contains `Phase4ProgressState`, `Phase4ProgressCallback`, `_PHASE_4_PROGRESS_ACTIVE_TASK_LIMIT`, `_jsonable_payload`, `_phase_4_progress_path`, `compute_progress_extra`, `write_postprocess_progress`, `record_postprocess_start`, `record_variant_progress`, `record_postprocess_result`. `worldsim/phase_4/postprocess.py::_postprocess_one_task` and `_process_adversarial_result` plus `worldsim/phase_4/strategy_variation.py::run_strategy_variation` accept an optional `progress_callback` kwarg (default `None`); `run_strategy_variation` defines a local `_emit_variant_progress` closure that emits `judge_complete`, `variant_round_started`, `variant_generation_recorded`, `variant_evaluation_started`, and `variant_evaluation_complete` events. `worldsim/phase_4/runner.py::run` now constructs a `Phase4ProgressState` near the postprocess gather and wraps each `_postprocess_one_task` call with a local `_postprocess_one_task_with_progress` wrapper that records start, supplies the variant callback, and records result on success or failure. Schema is preserved verbatim at `schema_version: 1` so `worldsim/cli_status.py` and `scripts/remote_job_status.sh` continue to read successfully; `tests/phase_4/test_postprocess_progress.py` adds 11 cases covering the schema shape, lifecycle counters, callback chain, concurrent-record correctness, and `_jsonable_payload` coercion. Heartbeats remain observational only per CLAUDE.md; nothing in Phase 4 routing branches on this state.
+**Status: resolved 2026-05-05 by `1e8f99ba` (helpers) + `144dc7e0` (signature plumbing) + `d24722dd` (runner wiring) + `f08f3aa5` (tests) + `35e63174` (observational hardening and adaptive parity).** New module `worldsim/phase_4/postprocess_progress.py` contains `Phase4ProgressState`, `Phase4ProgressCallback`, `_PHASE_4_PROGRESS_ACTIVE_TASK_LIMIT`, `_jsonable_payload`, `_phase_4_progress_path`, `compute_progress_extra`, `write_postprocess_progress`, `record_postprocess_start`, `record_variant_progress`, `record_postprocess_result`, and `completed_task_ids_from_task_dir_root`. `worldsim/phase_4/postprocess.py::_postprocess_one_task` and `_process_adversarial_result` plus `worldsim/phase_4/strategy_variation.py::run_strategy_variation` accept an optional `progress_callback` kwarg (default `None`); `run_strategy_variation` defines a local `_emit_variant_progress` closure that emits `judge_complete`, `variant_round_started`, `variant_generation_recorded`, `variant_evaluation_started`, and `variant_evaluation_complete` events. `worldsim/phase_4/runner.py::run` now writes best-effort initial-evaluation and postprocess heartbeats, constructs a `Phase4ProgressState` near the postprocess gather, and wraps each `_postprocess_one_task` call with a local `_postprocess_one_task_with_progress` wrapper that records start, supplies the variant callback, and records result on success or failure. Schema is preserved verbatim at `schema_version: 1` so `worldsim/cli_status.py` and `scripts/remote_job_status.sh` continue to read successfully; `tests/phase_4/test_postprocess_progress.py` plus strategy/runner tests cover schema shape, lifecycle counters, callback chain, concurrent-record correctness, ecological-validity progress counting, adaptive budget rounds, semaphore enforcement, legacy checkpoint migration, and `_jsonable_payload` coercion. Heartbeats remain observational only per CLAUDE.md; progress write failures are logged and cannot fail postprocess or strategy variation.
 
 **What.** Upstream `8fcf0602 feat(phase4): report variant progress heartbeats` added a `variant_progress_by_task` dict, an async `_record_variant_progress()` helper, and `progress_callback=lambda event, data, task_id=task_id: _record_variant_progress(...)` wiring inside the main `run()` body at `phase_4_adversarial.py:3829, 3893, 3946`.
 
@@ -556,7 +556,7 @@ git show 38aa2f3095:worldsim/phases/phase_4_adversarial.py | rg -n "variant_prog
 
 `worldsim/editors/reddit.py` and `worldsim/rewards.py` (the substantive reddit comment attribution hardening) flowed through three-way merge cleanly because PR HEAD never touched them. The 491 new lines in `tests/test_rewards.py` and 105 in `tests/test_adversarial_actions.py` plus 91 in `tests/test_phase_2_feasibility.py` also landed cleanly.
 
-Verification: `tests/test_rewards.py -k reddit_comment` (and the broader local validation block) passes after rebase. `git log --oneline origin/feat/worldsim-v5..HEAD` shows 42 commits on top of `446ff6cc`, matching the PR's pre-rebase 36 + 6 new (1 rebase port + 1 Gap 4 fix + 4 Gap 13 commits).
+Verification: `tests/test_rewards.py -k reddit_comment` (and the broader local validation block) passes after rebase. `git log --oneline origin/feat/worldsim-v5..HEAD` shows 47 commits on top of `446ff6cc`, matching the PR's pre-rebase 36 + 11 new (1 rebase port + 1 Gap 4 fix + 4 initial Gap 13 commits + 2 latest hardening fixes + 1 adaptive/progress follow-up + 1 handoff refresh + this head refresh).
 
 ## Gap 14: Stale `tests/test_phase_4_adversarial.py` reference in `agent_docs/verification.md`
 
@@ -605,6 +605,6 @@ A green block is necessary, not sufficient. The live r5 wrapper remains the only
 
 - Gaps 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15: closed.
 - PR body lists exactly which gaps were closed and which were intentionally accepted.
-- Local validation block green on the final HEAD (verified 2026-05-05 on `f08f3aa5`).
+- Local validation block green on the final code HEAD (verified 2026-05-05 on `35e63174`; the final handoff refresh is doc-only).
 - `gh pr checks 10` either green or "no checks" with documented justification (the fork has no `.github/workflows/`, so "no checks" is expected).
 - Live r5 gate still pending; that is the operator's call and is the final merge blocker.
