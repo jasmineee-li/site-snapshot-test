@@ -1,11 +1,49 @@
 """Phase 2 target resolution l3."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_2.target_resolution._context import install_context
+import contextvars
+import json as _json
+import logging
+from collections.abc import Mapping
+from typing import Any, Literal
+from urllib.parse import urlsplit
 
-install_context(globals())
+from worldsim.editors._registry import kind_contract as _registry_kind_contract
+from worldsim.phase_2.target_resolution.constants import (
+    _DETAIL_FORCING_OBJECTS_RE,
+    _DETAIL_FORCING_POST_ACTION_RE,
+    _DETAIL_FORCING_VERBS_RE,
+    _L3_FEW_SHOT_EXAMPLES,
+    _L3_LISTING_SOURCE_FOR_API,
+    _L3_PROBE_KINDS_FOR_API,
+    L3_MAX_TOKENS,
+    L3_MODEL_DEFAULT,
+    L3_SYSTEM_PROMPT,
+    L3_TOOL_SCHEMA,
+    OUT_OF_SCOPE_KIND,
+)
+from worldsim.phase_2.target_resolution.encounter import (
+    _attach_surfaces_for,
+    _benign_user_handle,
+    _encounter_requirements,
+    _route_evidence_flags,
+)
+from worldsim.phase_2.target_resolution.http_probes import _default_probe
+from worldsim.phase_2.target_resolution.reconstruction import _reconstruct_start_url_from_anchors
+from worldsim.phase_2.target_resolution.types import ClassifierFn, ProbeFn, ResourceKind
+from worldsim.phase_2.target_resolution.url_matching import (
+    _canonicalize_project_path,
+    _empty_record,
+    _iter_start_urls,
+    _normalise_url,
+    _site_kind_for_task,
+)
+
+logger = logging.getLogger(__name__)
+_l3_failure_class_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "phase2_l3_failure_class", default=None
+)
 
 
 def _l3_probe_coherence_error(kind: str, probe_query: Mapping[str, Any]) -> str | None:
@@ -34,44 +72,6 @@ def _l3_probe_coherence_error(kind: str, probe_query: Mapping[str, Any]) -> str 
 def _l3_listing_source_kind(kind: str, probe_query: Mapping[str, Any]) -> str | None:
     api = str(probe_query.get("api") or "").strip()
     return _L3_LISTING_SOURCE_FOR_API.get(api, {}).get(kind)
-
-
-def _route_evidence_flags(kind: ResourceKind | str, task: Mapping[str, Any]) -> dict[str, bool]:
-    instruction = str(task.get("instruction") or "")
-    if not instruction.strip():
-        return {}
-    flags: dict[str, bool] = {}
-    if _title_surface_forced_by_instruction(instruction):
-        flags["title_surface_forced_by_task"] = True
-    if kind in {"reddit_forum", "gitlab_search_result", "gitlab_dashboard_list"}:
-        if _LISTING_DETAIL_FORCING_RE.search(instruction):
-            flags["transition_forced_by_task"] = True
-        if _EXACT_DISCUSSION_REGION_RE.search(instruction) or _LATEST_DISCUSSION_REGION_RE.search(
-            instruction
-        ):
-            flags["transition_forced_by_task"] = True
-            flags["exact_comment_region_forced_by_task"] = True
-    if kind in {"reddit_submission", "gitlab_issue", "gitlab_mr"}:
-        if _EXACT_DISCUSSION_REGION_RE.search(instruction) or _LATEST_DISCUSSION_REGION_RE.search(
-            instruction
-        ):
-            flags["transition_forced_by_task"] = True
-            flags["exact_comment_region_forced_by_task"] = True
-    if kind in {"reddit_submission", "reddit_dashboard_list"}:
-        if _REDDIT_COMMENT_VISUAL_REGION_RE.search(instruction):
-            flags["transition_forced_by_task"] = True
-            flags["exact_comment_region_forced_by_task"] = True
-            flags["visual_comment_region_forced_by_task"] = True
-    return flags
-
-
-def _title_surface_forced_by_instruction(instruction: str) -> bool:
-    """Return True when a title row is part of the benign task's goal."""
-    if _TITLE_CONTENT_FORCING_RE.search(instruction):
-        return True
-    if _LISTING_PAGE_ONLY_RE.search(instruction):
-        return False
-    return _LISTING_ROW_ACTION_RE.search(instruction) is not None
 
 
 def _transition_forced_by_l3_task(task: Mapping[str, Any], *, kind: str) -> bool:
@@ -116,7 +116,7 @@ def _transition_forced_by_l3_task(task: Mapping[str, Any], *, kind: str) -> bool
 
 def _l3_listing_entry_url(
     *,
-    site_kind: Literal[gitlab, reddit],
+    site_kind: Literal["gitlab", "reddit"],
     kind: str,
     source_listing_kind: str,
     probe_query: Mapping[str, Any],
@@ -147,7 +147,7 @@ def _l3_listing_entry_url(
 
 
 def _origin_from_resolved_start_or_placeholders(
-    site_kind: Literal[gitlab, reddit],
+    site_kind: Literal["gitlab", "reddit"],
     resolved_start: str | None,
     placeholders: Mapping[str, str],
 ) -> str | None:
@@ -168,7 +168,7 @@ def _preserve_l3_listing_provenance(
     record: dict[str, Any],
     *,
     task: Mapping[str, Any],
-    site_kind: Literal[gitlab, reddit],
+    site_kind: Literal["gitlab", "reddit"],
     kind: str,
     probe_query: Mapping[str, Any],
     resolved_start: str | None,
@@ -221,6 +221,54 @@ def _build_l3_user_prompt(task: Mapping[str, Any]) -> str:
         "edit, or commit-history / blob-view / settings-edit tasks), set "
         'kind="out_of_scope_for_option_a" with a short note explaining why.'
     )
+
+
+async def _call_anthropic_classifier(
+    task: Mapping[str, Any],
+    placeholders: Mapping[str, str],
+    *,
+    model: str = L3_MODEL_DEFAULT,
+) -> dict[str, Any] | None:
+    """Classify a target resource with Anthropic Messages API tool-use."""
+    # Lazy import so L1/L2 tests don't need the anthropic SDK installed.
+    from worldsim.phase_4.anthropic_client import (
+        call_with_retry,
+        get_client,
+        normalize_model_for_auth,
+    )
+
+    _l3_failure_class_var.set(None)
+    client = get_client()
+    resolved_model = normalize_model_for_auth(model)
+    user_prompt = _build_l3_user_prompt(task)
+
+    def _send() -> Any:
+        return client.messages.create(
+            model=resolved_model,
+            max_tokens=L3_MAX_TOKENS,
+            temperature=0,
+            system=L3_SYSTEM_PROMPT,
+            tools=[L3_TOOL_SCHEMA],
+            tool_choice={"type": "tool", "name": "emit_target"},
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+
+    try:
+        response = await call_with_retry(_send, retries=3, label="phase2-l3")
+    except Exception as exc:
+        _l3_failure_class_var.set(type(exc).__name__)
+        logger.exception("L3 classifier call failed (%s)", type(exc).__name__)
+        return None
+
+    for block in getattr(response, "content", []) or []:
+        if (
+            getattr(block, "type", None) == "tool_use"
+            and getattr(block, "name", "") == "emit_target"
+        ):
+            raw = getattr(block, "input", None)
+            if isinstance(raw, dict):
+                return raw
+    return None
 
 
 def _consume_l3_failure_class() -> str | None:

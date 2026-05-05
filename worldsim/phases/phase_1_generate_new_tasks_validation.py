@@ -19,7 +19,7 @@ from worldsim.adversarial_actions.capability_contracts import (
 from worldsim.adversarial_actions.scenario_templates import (
     scenario_template_from_mapping,
 )
-from worldsim.phase_2.target_resolution._context import _REDDIT_COMMENT_VISUAL_REGION_RE
+from worldsim.phase_2.target_resolution.constants import _REDDIT_COMMENT_VISUAL_REGION_RE
 from worldsim.phase_2.target_resolution.runner import derive_benign_target_resource
 from worldsim.phases.phase_1_task_cards import (
     card_action_kinds,

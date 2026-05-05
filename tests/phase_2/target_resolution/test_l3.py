@@ -442,7 +442,7 @@ def test_l3_coherence_blocks_none_api_with_concrete_kind():
 def test_l3_classifier_failure_records_exception_class_name():
     """When the classifier returns None, resolve_l3 reads the contextvar
     and includes the exception class name in the reason for triage."""
-    from worldsim.phases.phase_2_target_resolver import _l3_failure_class_var
+    from worldsim.phase_2.target_resolution.l3 import _l3_failure_class_var
 
     task = _gitlab_task(eval_url=None, start_urls=["__GITLAB__"], instruction="anything")
 

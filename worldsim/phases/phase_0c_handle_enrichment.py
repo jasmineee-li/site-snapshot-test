@@ -21,7 +21,7 @@ seeding-time credentials, it enumerates ``/api/v4/users`` and
     }
 
 The Phase 2 resolver consumes this block via ``agent_context.gitlab`` —
-see :mod:`worldsim.phases.phase_2_target_resolver._disambiguate_root_segment`.
+see :mod:`worldsim.phase_2.target_resolution.url_matching._disambiguate_root_segment`.
 
 Enrichment is best-effort. When credentials are missing or the live
 instance is unreachable, the function logs a warning and returns the

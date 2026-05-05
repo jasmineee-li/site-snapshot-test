@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from worldsim.phases.phase_2_target_resolver import (
+from worldsim.phase_2.target_resolution.resolver import derive_benign_target_resource
+from worldsim.phase_2.target_resolution.url_matching import (
     _disambiguate_root_segment,
-    derive_benign_target_resource,
 )
 from worldsim.placeholders import placeholders_for_site_urls
 

@@ -1,11 +1,19 @@
 """Phase 2 target resolution l4."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_2.target_resolution._context import install_context
+import logging
+import os
+from collections.abc import Mapping
+from typing import Any
 
-install_context(globals())
+from worldsim.phase_2.target_resolution.constants import _LISTING_KINDS, DEFAULT_L4_TOP_N
+from worldsim.phase_2.target_resolution.listing_probes import _default_listing_probe
+from worldsim.phase_2.target_resolution.reconstruction import _project_item_to_record
+from worldsim.phase_2.target_resolution.types import ListingProbeFn
+from worldsim.phase_2.target_resolution.url_matching import _empty_record
+
+logger = logging.getLogger(__name__)
 
 
 def _l4_top_n_default() -> int:

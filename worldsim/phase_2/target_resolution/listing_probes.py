@@ -1,11 +1,39 @@
 """Phase 2 target resolution listing probes."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_2.target_resolution._context import install_context
+import asyncio
+import html
+import logging
+import os
+import re
+from collections.abc import Mapping
+from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
-install_context(globals())
+from worldsim.phase_2.target_resolution.constants import DEFAULT_L4_TOP_N
+from worldsim.phase_2.target_resolution.encounter import _benign_user_handle
+from worldsim.phase_2.target_resolution.http_probes import (
+    _benign_probe_instance,
+    _fetch_forum_submissions,
+    _probe_http_json,
+)
+from worldsim.phase_2.target_resolution.url_matching import (
+    _iter_eval_urls,
+    _iter_start_urls,
+    _literalize_regex_value,
+    _strip_regex_anchors,
+)
+
+logger = logging.getLogger(__name__)
+
+
+def _l4_top_n_default() -> int:
+    raw = os.environ.get("WORLDSIM_L4_TOP_N", "").strip()
+    if raw.isdigit() and int(raw) > 0:
+        return int(raw)
+    return DEFAULT_L4_TOP_N
+
 
 async def _list_gitlab_search(
     resource: Mapping[str, Any],
@@ -40,12 +68,14 @@ async def _list_gitlab_search(
     item_kind = "gitlab_mr" if scope == "merge_requests" else "gitlab_issue"
     return [{"_item_kind": item_kind, **item} for item in data if isinstance(item, dict)]
 
+
 def _first_query_value(query: Mapping[str, list[str]], key: str) -> str | None:
     values = query.get(key)
     if not values:
         return None
     value = str(values[0]).strip()
     return value or None
+
 
 def _dashboard_query(resource: Mapping[str, Any], task: Mapping[str, Any]) -> dict[str, str]:
     query: dict[str, list[str]] = {}
@@ -84,6 +114,7 @@ def _dashboard_query(resource: Mapping[str, Any], task: Mapping[str, Any]) -> di
         out[key] = literal
     return out
 
+
 def _gitlab_item_url(item: Mapping[str, Any]) -> str | None:
     for key in ("web_url", "target_url", "url"):
         value = item.get(key)
@@ -93,6 +124,7 @@ def _gitlab_item_url(item: Mapping[str, Any]) -> str | None:
     if isinstance(target, Mapping):
         return _gitlab_item_url(target)
     return None
+
 
 def _normalize_href_path(
     href: str, site_url: str, *, require_same_origin: bool = True
@@ -113,6 +145,7 @@ def _normalize_href_path(
             return None
     path = parsed.path or "/"
     return path.rstrip("/") or "/"
+
 
 async def _gitlab_visible_dashboard_hrefs(
     instance: Mapping[str, Any],
@@ -147,6 +180,7 @@ async def _gitlab_visible_dashboard_hrefs(
             hrefs.add(normalized)
     return hrefs
 
+
 def _filter_visible_gitlab_dashboard_items(
     items: list[dict[str, Any]],
     *,
@@ -165,6 +199,7 @@ def _filter_visible_gitlab_dashboard_items(
         if item_path in visible_hrefs:
             visible.append({**item, "_entry_visible_href": item_path})
     return visible
+
 
 async def _list_gitlab_dashboard(
     resource: Mapping[str, Any],
@@ -211,6 +246,7 @@ async def _list_gitlab_dashboard(
         instance=instance,
     )
 
+
 async def _list_reddit_forum(
     resource: Mapping[str, Any],
     task: Mapping[str, Any],
@@ -227,6 +263,7 @@ async def _list_reddit_forum(
     if not submissions:
         return []
     return [{"_item_kind": "reddit_submission", **entry} for entry in submissions]
+
 
 async def _default_listing_probe(
     resource: Mapping[str, Any],

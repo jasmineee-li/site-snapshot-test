@@ -1,11 +1,151 @@
 """Phase 2 target resolution runner."""
-# ruff: noqa: F821,E402
 
 from __future__ import annotations
 
-from worldsim.phase_2.target_resolution._context import install_context
+import asyncio
+import logging
+import os
+from collections.abc import Mapping
+from typing import Any, Literal
 
-install_context(globals())
+from worldsim.phase_2.target_resolution.constants import (
+    _LISTING_KINDS,
+    DEFAULT_L3_CONCURRENCY,
+    DEFAULT_L4_CONCURRENCY,
+)
+from worldsim.phase_2.target_resolution.encounter import (
+    _assert_anchor_contract_conformance,
+    _attach_surfaces_for,
+    _benign_user_handle,
+    _encounter_requirements,
+    _reddit_forum_choice_is_ambiguous,
+    _route_evidence_flags,
+    _title_surface_forced_by_instruction,
+)
+from worldsim.phase_2.target_resolution.http_probes import (
+    _admission_filter_resolved_record,
+    _benign_probe_instance,
+    _default_probe,
+    _normalise_sort_direction,
+    _postmill_submission_comment_count_from_html,
+    _probe_http_json,
+)
+from worldsim.phase_2.target_resolution.l3 import resolve_l3
+from worldsim.phase_2.target_resolution.l4 import resolve_l4
+from worldsim.phase_2.target_resolution.listing_intent import (
+    _gitlab_issue_listing_intent,
+    _label_names_from_gitlab_issue_listing_instruction,
+    _project_path_from_gitlab_listing_task,
+)
+from worldsim.phase_2.target_resolution.listing_probes import (
+    _dashboard_query,
+    _default_listing_probe,
+    _filter_visible_gitlab_dashboard_items,
+    _first_query_value,
+    _gitlab_item_url,
+    _gitlab_visible_dashboard_hrefs,
+    _list_gitlab_dashboard,
+    _list_gitlab_search,
+    _list_reddit_forum,
+    _normalize_href_path,
+)
+from worldsim.phase_2.target_resolution.reconstruction import (
+    _anchors_from_gitlab_item,
+    _anchors_from_reddit_submission,
+    _clean_project_path,
+    _project_item_to_record,
+    _reconstruct_start_url_from_anchors,
+)
+from worldsim.phase_2.target_resolution.resolver import derive_benign_target_resource
+from worldsim.phase_2.target_resolution.types import (
+    ClassifierFn,
+    ListingProbeFn,
+    ProbeFn,
+    RedditCommentCountFn,
+)
+from worldsim.phase_2.target_resolution.url_matching import (
+    _canonicalize_project_path,
+    _disambiguate_root_segment,
+    _empty_record,
+    _is_listing_kind,
+    _iter_eval_urls,
+    _iter_start_urls,
+    _listing_start_url,
+    _literalize_regex_value,
+    _match_gitlab,
+    _match_reddit,
+    _normalise_url,
+    _path_and_query,
+    _site_kind_for_task,
+    _strip_json_suffix,
+    _strip_regex_anchors,
+    _url_with_expected_query_params,
+)
+
+logger = logging.getLogger(__name__)
+_SHARED_L3_SEM: asyncio.Semaphore | None = None
+_SHARED_L3_SEM_KEY: tuple[int, asyncio.AbstractEventLoop | None] | None = None
+_SHARED_L4_SEM: asyncio.Semaphore | None = None
+_SHARED_L4_SEM_KEY: tuple[int, asyncio.AbstractEventLoop | None] | None = None
+
+__all__ = [
+    "ClassifierFn",
+    "ListingProbeFn",
+    "ProbeFn",
+    "RedditCommentCountFn",
+    "_admission_filter_resolved_record",
+    "_anchors_from_gitlab_item",
+    "_anchors_from_reddit_submission",
+    "_assert_anchor_contract_conformance",
+    "_attach_surfaces_for",
+    "_benign_probe_instance",
+    "_benign_user_handle",
+    "_canonicalize_project_path",
+    "_clean_project_path",
+    "_dashboard_query",
+    "_default_listing_probe",
+    "_default_probe",
+    "_disambiguate_root_segment",
+    "_empty_record",
+    "_encounter_requirements",
+    "_filter_visible_gitlab_dashboard_items",
+    "_first_query_value",
+    "_gitlab_issue_listing_intent",
+    "_gitlab_item_url",
+    "_gitlab_visible_dashboard_hrefs",
+    "_is_listing_kind",
+    "_iter_eval_urls",
+    "_iter_start_urls",
+    "_label_names_from_gitlab_issue_listing_instruction",
+    "_list_gitlab_dashboard",
+    "_list_gitlab_search",
+    "_list_reddit_forum",
+    "_listing_start_url",
+    "_literalize_regex_value",
+    "_match_gitlab",
+    "_match_reddit",
+    "_normalise_sort_direction",
+    "_normalise_url",
+    "_normalize_href_path",
+    "_path_and_query",
+    "_postmill_submission_comment_count_from_html",
+    "_probe_http_json",
+    "_project_item_to_record",
+    "_project_path_from_gitlab_listing_task",
+    "_reconstruct_start_url_from_anchors",
+    "_reddit_forum_choice_is_ambiguous",
+    "_route_evidence_flags",
+    "_site_kind_for_task",
+    "_strip_json_suffix",
+    "_strip_regex_anchors",
+    "_title_surface_forced_by_instruction",
+    "_url_with_expected_query_params",
+    "derive_benign_target_resource",
+    "resolve_l3",
+    "resolve_l4",
+    "resolve_tasks",
+]
+
 
 def _l3_concurrency_default() -> int:
     raw = os.environ.get("WORLDSIM_L3_CONCURRENCY", "").strip()
@@ -13,11 +153,13 @@ def _l3_concurrency_default() -> int:
         return int(raw)
     return DEFAULT_L3_CONCURRENCY
 
+
 def _l4_concurrency_default() -> int:
     raw = os.environ.get("WORLDSIM_L4_CONCURRENCY", "").strip()
     if raw.isdigit() and int(raw) > 0:
         return int(raw)
     return DEFAULT_L4_CONCURRENCY
+
 
 def _shared_l3_sem(limit: int) -> asyncio.Semaphore:
     global _SHARED_L3_SEM, _SHARED_L3_SEM_KEY
@@ -28,6 +170,7 @@ def _shared_l3_sem(limit: int) -> asyncio.Semaphore:
         _SHARED_L3_SEM_KEY = key
     return _SHARED_L3_SEM
 
+
 def _shared_l4_sem(limit: int) -> asyncio.Semaphore:
     global _SHARED_L4_SEM, _SHARED_L4_SEM_KEY
     loop = asyncio.get_event_loop()
@@ -37,12 +180,13 @@ def _shared_l4_sem(limit: int) -> asyncio.Semaphore:
         _SHARED_L4_SEM_KEY = key
     return _SHARED_L4_SEM
 
+
 async def resolve_tasks(
     tasks: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...],
     placeholders: Mapping[str, str],
     instance: Mapping[str, Any] | None,
     *,
-    allow_layers: tuple[Literal[L1, L2, L3, L4], ...] = ("L1", "L2", "L3", "L4"),
+    allow_layers: tuple[Literal["L1", "L2", "L3", "L4"], ...] = ("L1", "L2", "L3", "L4"),
     l3_concurrency: int | None = None,
     l4_concurrency: int | None = None,
     top_n: int | None = None,
@@ -89,7 +233,7 @@ async def resolve_tasks(
     l3_sem = _shared_l3_sem(l3_concurrency or _l3_concurrency_default())
     l4_sem = _shared_l4_sem(l4_concurrency or _l4_concurrency_default())
 
-    l1_l2_layers: tuple[Literal[L1, L2], ...] = tuple(
+    l1_l2_layers: tuple[Literal["L1", "L2"], ...] = tuple(
         layer for layer in allow_layers if layer in ("L1", "L2")
     )  # type: ignore[assignment]
     if not l1_l2_layers:
@@ -167,28 +311,5 @@ async def resolve_tasks(
             out[task_id] = records
     return out
 
-import sys as _sys
-
-from worldsim.phase_2.target_resolution import http_probes as _http_probes
-from worldsim.phase_2.target_resolution import l3 as _l3
-from worldsim.phase_2.target_resolution import l4 as _l4
-from worldsim.phase_2.target_resolution import listing_probes as _listing_probes
-from worldsim.phase_2.target_resolution import reconstruction as _reconstruction
-from worldsim.phase_2.target_resolution import resolver as _resolver
-from worldsim.phase_2.target_resolution import types as _types
-from worldsim.phase_2.target_resolution import url_matching as _url_matching
-from worldsim.phase_2.target_resolution._context import link_modules as _link_modules
-
-_link_modules([
-    _sys.modules[__name__],
-    _http_probes,
-    _l3,
-    _l4,
-    _listing_probes,
-    _reconstruction,
-    _resolver,
-    _types,
-    _url_matching,
-])
 
 __all__ = [name for name in globals() if not name.startswith("__")]

@@ -3,8 +3,9 @@ Phase 2 tasks from anchors, so Phase 2c probes navigate to the concrete
 entity where the seed was planted (not the benign task's stale
 ``start_urls[0]`` template).
 
-Mirrors the logic added to ``phase_2_target_resolver.
-_reconstruct_start_url_from_anchors`` but runs against already-emitted
+Mirrors the logic in
+``worldsim.phase_2.target_resolution.reconstruction._reconstruct_start_url_from_anchors``
+but runs against already-emitted
 ``adversarial_tasks.json`` records so we do not have to re-run the
 expensive Phase 2a sandbox pass. Idempotent: rerunning leaves already-
 reconstructed URLs unchanged.
@@ -24,7 +25,7 @@ import sys
 from pathlib import Path
 
 from worldsim.phase_2.runner import _PHASE_2A_SYNTHETIC_PLACEHOLDERS
-from worldsim.phase_2.target_resolution.runner import _reconstruct_start_url_from_anchors
+from worldsim.phase_2.target_resolution.reconstruction import _reconstruct_start_url_from_anchors
 
 
 def _site_kind(task: dict) -> str | None:

@@ -71,6 +71,46 @@ def test_reddit_forum_most_appropriate_instruction_is_not_forced_listing():
     assert result["encounter_requirements"]["forum_choice_ambiguous"] is True
     assert "must_appear_on_list" not in result["encounter_requirements"]
 
+
+def test_reddit_visual_comment_instruction_marks_seeded_comment_visibility_forced():
+    task = _reddit_task(
+        eval_url=None,
+        start_urls=["__REDDIT__/f/news/1"],
+        instruction="Open the post, scroll to the comments, and read the first visible comment.",
+    )
+
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+
+    assert result["kind"] == "reddit_submission"
+    assert result["transition_forced_by_task"] is True
+    assert result["exact_comment_region_forced_by_task"] is True
+    assert result["visual_comment_region_forced_by_task"] is True
+    assert result["seeded_comment_visible_forced_by_task"] is True
+
+
+def test_reddit_visual_comment_instruction_does_not_attest_preseeded_comment_visibility():
+    task = _reddit_task(
+        eval_url=None,
+        start_urls=["__REDDIT__/f/news/1"],
+        instruction="Open the post, scroll to the comments, and read the first visible comment.",
+    )
+    task["data_seed"] = {
+        "editor_calls": [
+            {
+                "site": "reddit",
+                "method": "create_comment",
+                "args": {"forum_name": "news", "submission_id": "1", "body": "seed"},
+            }
+        ]
+    }
+
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+
+    assert result["kind"] == "reddit_submission"
+    assert result["visual_comment_region_forced_by_task"] is True
+    assert "seeded_comment_visible_forced_by_task" not in result
+
+
 def test_l4_identity_for_non_listing_kind():
     # gitlab_issue / gitlab_mr / reddit_submission already reference a
     # concrete item; L4 is a no-op that returns [resource] unchanged.
@@ -168,7 +208,7 @@ def test_l4_mr_search_projects_to_mr_records():
     ],
 )
 def test_literalize_regex_value(value, expected):
-    assert resolver._literalize_regex_value(value) == expected
+    assert _literalize_regex_value(value) == expected
 
 def test_l4_reddit_forum_stays_forum_for_created_child_exposure():
     resource = {
@@ -264,7 +304,7 @@ def test_l4_threads_explicit_top_n_into_default_probe(monkeypatch):
         ]
 
     monkeypatch.setattr(
-        "worldsim.phases.phase_2_target_resolver._default_listing_probe",
+        "worldsim.phase_2.target_resolution.l4._default_listing_probe",
         fake_default_listing_probe,
     )
 
@@ -299,7 +339,7 @@ def test_l4_item_record_without_placeholders_preserves_base_url():
     # Backwards compat: old callers that haven't been updated to pass
     # placeholders through continue to produce the pre-fix listing-URL
     # behavior.
-    from worldsim.phases.phase_2_target_resolver import _project_item_to_record
+    from worldsim.phase_2.target_resolution.reconstruction import _project_item_to_record
 
     base = {
         "kind": "gitlab_search_result",
