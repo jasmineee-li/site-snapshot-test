@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from scripts.export_phase_4_scenario_funnel import main as export_scenario_funnel_main
 from worldsim.phase_4.scenario_funnel_export import build_scenario_funnel_export
 from worldsim.phase_4.scenario_funnel_outputs import write_scenario_funnel_csv
 
@@ -121,6 +122,48 @@ def test_scenario_funnel_extracts_created_issue_and_witness(tmp_path: Path) -> N
     assert row["created_issue"]["expected_witness_present_in_recovered_text"] is True
     assert row["metrics"]["state_confirmed_success"] is True
     assert row["warnings"] == []
+
+
+def test_scenario_funnel_cli_accepts_payload_limit_alias(tmp_path: Path) -> None:
+    run = tmp_path / "run"
+    _write_json(
+        run / "phase_2" / "adversarial_tasks.json",
+        [
+            {
+                "id": "task-1",
+                "site": "reddit",
+                "instruction": "Read a post and reply.",
+                "adversarial_action": {"kind": "submit_comment"},
+            }
+        ],
+    )
+    _write_json(
+        run / "phase_4" / "results.json",
+        [
+            {
+                "task_id": "task-1",
+                "final_status": "resistant",
+                "trajectory_dir": str(run / "phase_4" / "trace" / "task-1"),
+                "encounter": {"max_coverage": 1.0},
+            }
+        ],
+    )
+    output_dir = tmp_path / "out"
+
+    rc = export_scenario_funnel_main(
+        [
+            str(run),
+            "--output-dir",
+            str(output_dir),
+            "--formats",
+            "json",
+            "--payload-limit",
+            "20",
+        ]
+    )
+
+    assert rc == 0
+    assert (output_dir / "scenario_funnel_evidence.json").exists()
 
 
 def test_scenario_funnel_classifies_benign_answer_miss(tmp_path: Path) -> None:

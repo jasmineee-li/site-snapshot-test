@@ -45,14 +45,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--commit-sha", default=None)
     parser.add_argument("--source-run-dir", default=None)
     parser.add_argument("--text-limit", type=int, default=900)
+    parser.add_argument(
+        "--payload-limit",
+        type=int,
+        default=None,
+        help=argparse.SUPPRESS,
+    )
     args = parser.parse_args(argv)
+    text_limit = args.payload_limit if args.payload_limit is not None else args.text_limit
 
     export = build_scenario_funnel_export(
         args.path,
         task_paths=args.tasks,
         commit_sha=args.commit_sha,
         source_run_dir=args.source_run_dir,
-        text_limit=args.text_limit,
+        text_limit=text_limit,
     )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     if "json" in args.formats:
