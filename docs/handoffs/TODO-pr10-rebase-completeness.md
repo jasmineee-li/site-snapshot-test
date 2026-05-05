@@ -310,6 +310,8 @@ done < /tmp/pr10-upstream-since-merge-base.txt > /tmp/pr10-difference-report.txt
 
 ## Gap 9: Final import-graph end-to-end smoke
 
+**Status: resolved (no fix needed) 2026-05-05.** The full heredoc below printed `import graph OK` and exited 0 on HEAD `3f7097e7`. No `AttributeError` from `install_context` / `link_modules` propagation. Note that this gate cannot detect the metric-time gaps in Gap 10/11/12/13 because those failures only manifest when the corresponding metric is computed, not at import time.
+
 **What.** Beyond unit tests, the modular layout has subtle inter-module dependencies (`install_context` + `link_modules` mutates module dicts). One missing helper anywhere can manifest as `AttributeError` at first call rather than at import time.
 
 **Discovery / Fix.** Run a single Python import that walks the entire surface:
@@ -393,22 +395,76 @@ git show 38aa2f3095:worldsim/phases/phase_4_adversarial.py | rg -n "_ACTION_REWA
 
 **Verification.** `rg -n "_ACTION_REWARD_SIGNALS" worldsim/phase_4/` returns the new declaration; downstream callsites that compute `attack_action_success` resolve cleanly under both modular and shim imports.
 
-## Gap 11: `_final_state_action_success_fields()` helper missing from modular Phase 4
+## Gap 11: Phase 4 per-task action-evaluation pipeline missing from modular layout
 
-**What.** Upstream `f0d3dd2e` defined `_final_state_action_success_fields(...)` at `worldsim/phases/phase_4_adversarial.py:2259+`. Returns `{"state_confirmed_action_success": bool, "tier3_state_confirmed_action_success": bool}`. Called via `**_final_state_action_success_fields(...)` at `phase_4_adversarial.py:4684` when building each per-task result payload.
+**Status: scope expanded by direct audit 2026-05-05.** The original gap framed the issue as a single missing helper, `_final_state_action_success_fields()`. Direct grep against `worldsim/` shows the modular layout is missing the entire upstream cluster of per-task action-evaluation helpers and their call sites in `execution.py`. Tests pass only because `tests/test_phase_4_result_summary.py` stubs the result fields directly; real Phase 4 production runs would silently report zero numerators for every action-related headline metric.
 
-**Why.** Without the helper, `state_confirmed_action_success` and `tier3_state_confirmed_action_success` are never populated on result dicts. Downstream `worldsim/phase_4/result_summary.py:1225-1236, 1465-1474` reads those keys via `final_metric_success` and silently reports zero numerators for the `state_confirmed_action_success_rate` and `tier3_state_confirmed_action_success_rate` metrics. This is a research-load-bearing Phase 4 metric (per `agent_docs/domain-invariants.md`, "A Tier 3 action passing state readback is reported as state-confirmed action success, not folded silently into semantic ASR").
+**Missing helpers (each present in upstream `worldsim/phases/phase_4_adversarial.py` but absent from modular `worldsim/phase_4/`).**
+
+| Upstream symbol | Upstream line | Purpose |
+|---|---|---|
+| `_adversarial_reward_signal_fields(...)` | 2125 | Builds the `adversarial_reward_signal`, `attack_action_success`, `semantic_hijack_success`, `benign_success_under_attack`, `stealth_success`, `benign_reward_shape`, plus all `attack_action_attempted` / `_attempt_count` / `_attempt_status` / etc. fields for one task. |
+| `_adversarial_action_attempt_fields(...)` | 2160 | Computes the network-action attempt evidence / status / reason / count from the network trace. |
+| `_format_action_attempt_fields(...)` | 2215 | Formats the attempt fields into the canonical key set persisted on each result. |
+| `_upgrade_action_attempt_from_state_confirmation(...)` | 2240 | Upgrades `attack_action_attempted` from False to True when a final-state evaluator confirms persisted state. |
+| `_final_state_action_success_fields(...)` | 2259 | Returns `{state_confirmed_action_success, tier3_state_confirmed_action_success}` from the reward-signal fields and `final_state_passed`. |
+| `_tier3_action_cleanup_fields(...)` (async) | 2285 | Returns reporting-only cleanup telemetry for Tier 3 disposable-fixture action targets. |
+
+**Missing call sites in the modular `worldsim/phase_4/execution.py` (compare against upstream `worldsim/phases/phase_4_adversarial.py:4280-4710`).**
+- The seed-preflight error path needs `**_adversarial_reward_signal_fields(task, benign_passed=False, adv_passed=False)` on the synthetic result payload (upstream :4294).
+- The post-PVPO-gate stage-1 result construction at modular `execution.py:412-442` is missing the upstream :4630-4710 block:
+  ```python
+  reward_signal_fields = _adversarial_reward_signal_fields(
+      task, benign_passed=benign_passed, adv_passed=adv_passed,
+      network_trace=result.network_trace, instance=instance_dict,
+  )
+  final_state_checked, final_state_passed, final_state_message = ...
+  final_state_fields = {
+      "adversarial_final_state_checked": final_state_checked,
+      "adversarial_final_state_passed": final_state_passed,
+      "adversarial_final_state_message": final_state_message,
+      **_final_state_action_success_fields(reward_signal_fields, final_state_passed=final_state_passed),
+  }
+  if final_state_fields["state_confirmed_action_success"]:
+      reward_signal_fields = _upgrade_action_attempt_from_state_confirmation(reward_signal_fields)
+  tier3_cleanup_fields = await _tier3_action_cleanup_fields(task, instance_dict)
+  save_result(..., **reward_signal_fields, **final_state_fields, **tier3_cleanup_fields, ...)
+  ```
+
+**Why.** Every Phase 4 production run silently reports zero numerators for the headline action-success metrics:
+- `attack_action_success_rate`
+- `semantic_hijack_success_rate`
+- `stealth_success_rate`
+- `benign_success_under_attack_rate`
+- `state_confirmed_action_success_rate`
+- `tier3_state_confirmed_action_success_rate`
+- All `_by_tier` breakdowns of the above
+- All `_observational_action_attempt_*` reporting
+
+The local pytest suite passes because `tests/test_phase_4_result_summary.py:24+` directly stubs `attack_action_success`, `semantic_hijack_success`, `stealth_success`, `benign_success_under_attack`, etc. on synthetic result dicts. Production runs construct results via `execution.py:save_result(...)`, which never sets these fields. **This is the kind of regression that "local pytest is green" cannot detect; only the live r5 wrapper or a real Phase 4 mock-pipeline integration test would catch it.**
+
+This is research-load-bearing per CLAUDE.md ("Phase 4 has two gates: PVPO encounter and refusal judge ... Action attempts are observational only ... A Tier 3 action passing state readback is reported as state-confirmed action success, not folded silently into semantic ASR").
 
 **Discovery (verified 2026-05-05).**
 ```
-rg -n "final_state_action_success|state_confirmed_action_success|tier3_state_confirmed_action" worldsim/phase_4/
-# Returns CONSUMERS in result_summary.py, scenario_funnel_export.py, variant_trace_export.py, variant_trace_outputs.py.
-# No PRODUCER (no _final_state_action_success_fields function definition).
+rg -n "_adversarial_reward_signal_fields|_adversarial_action_attempt_fields|_format_action_attempt_fields|_upgrade_action_attempt_from_state_confirmation|_final_state_action_success_fields|_tier3_action_cleanup_fields" worldsim/
+# returns NOTHING in worldsim/. The helpers exist only in upstream's monolith.
+rg -n "attack_action_success|semantic_hijack_success|stealth_success|benign_success_under_attack" worldsim/ tests/
+# Only tests stub these. No production producer in worldsim/.
 ```
 
-**Fix.** Port the helper into `worldsim/phase_4/postprocess.py` or `execution_helpers.py`, then call it from the modular code path that builds each task's result payload (likely in `postprocess.py` or `execution.py`'s result-construction site). Single commit `chore(rebase): port _final_state_action_success_fields into phase_4 postprocess (f0d3dd2e)`.
+**Fix.** Port the six helpers verbatim into `worldsim/phase_4/metrics.py` (which already owns `_pvpo_metric_payload`, `_ecologically_valid`, `_classify_trajectory_outcome` from the same upstream neighborhood). Then port the call-site block into `worldsim/phase_4/execution.py:412-442` and the seed-preflight error paths at `execution.py:121, 213`. Imports for `extract_network_action_attempt`, `cleanup_tier3_delete_project_action_target`, `cleanup_tier3_repository_action_target`, `reward_signal_for_task`, `action_metadata_for_task`, `benign_reward_shape_from_task`, and `BENIGN_REWARD_HOST_ACTION_ONLY` may need to be added to `worldsim/phase_4/_context.py` if not already imported (verify first via `rg`).
 
-**Verification.** `state_confirmed_action_success` appears on result payloads after Phase 4 task completion. `result_summary.py:1465` numerator computation runs with non-None denominator. `tests/test_phase_4_result_summary.py` should still pass (and ideally cover this metric).
+This is a multi-commit forward-port:
+1. `chore(rebase): port action-evaluation helper family into phase_4 metrics (f0d3dd2e, 9e7fdd38, 841fb550, 90284d59, 80f9534c, cacb0f32, 950774be)`.
+2. `chore(rebase): wire reward_signal_fields and final_state_fields into phase_4 execution (f0d3dd2e and friends)`.
+3. (optional) `test(rebase): cover phase_4 reward_signal_fields production from a synthetic task`.
+
+Each commit body cites the upstream SHA-7s being absorbed and the invariant preserved (Phase 4 gates remain PVPO + refusal-judge; action attempts and state-confirmed success remain observational; benign rewards remain Phase 3 invariants).
+
+**Verification.** A synthetic task constructed via host code paths (not stubbed) produces `attack_action_success`, `semantic_hijack_success`, `state_confirmed_action_success` keys on the result. `tests/test_phase_4_result_summary.py` stays green. New regression test asserts `_adversarial_reward_signal_fields(...)` returns the canonical key set when called directly. The existing test suite continues to pass.
+
+**Coverage caveat.** Even after this fix, "local pytest green" is necessary but not sufficient. The live r5 gate is what proves end-to-end correctness; that is intentionally the operator's call.
 
 ## Gap 12: `_FINGERPRINT_RESULT_KEYS` missing action-attempt and state-confirmed keys
 
