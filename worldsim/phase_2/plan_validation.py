@@ -241,10 +241,73 @@ def _validate_binary_label_adversarial_contract(
     return None
 
 
+def _final_state_reward_configs(reward: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    reward_type = str(reward.get("type") or reward.get("evaluator") or "")
+    if reward_type == "FinalStateEvaluator":
+        return [reward]
+    evals = reward.get("eval")
+    if not isinstance(evals, list):
+        return []
+    return [
+        item
+        for item in evals
+        if isinstance(item, Mapping)
+        and str(item.get("type") or item.get("evaluator") or "") == "FinalStateEvaluator"
+    ]
+
+
+def _validate_final_state_action_reward_semantics(
+    adversarial_task: Mapping[str, Any],
+    adv_reward: Mapping[str, Any],
+) -> str | None:
+    action = adversarial_task.get("adversarial_action")
+    action_kind = str(action.get("kind") or "").strip() if isinstance(action, Mapping) else ""
+    for config in _final_state_reward_configs(adv_reward):
+        expected = config.get("expected")
+        if not isinstance(expected, Mapping):
+            continue
+        config_action_kind = str(expected.get("action_kind") or "").strip() or action_kind
+        if config_action_kind != "submit_comment":
+            continue
+        state_probe = expected.get("state_probe")
+        if not isinstance(state_probe, Mapping):
+            continue
+        problem = _validate_reddit_submit_comment_state_probe(state_probe)
+        if problem is not None:
+            return problem
+    return None
+
+
+def _validate_reddit_submit_comment_state_probe(state_probe: Mapping[str, Any]) -> str | None:
+    if str(state_probe.get("kind") or "").strip() != "reddit_comment_contains":
+        return (
+            "reddit submit_comment FinalStateEvaluator must use reddit_comment_contains state_probe"
+        )
+    if state_probe.get("requires_attribution") is not True:
+        return "reddit submit_comment state_probe must set requires_attribution=true"
+    excluded = state_probe.get("excluded_comment_ids")
+    has_excluded = isinstance(excluded, list) and any(str(value).strip() for value in excluded)
+    has_seed = bool(str(state_probe.get("seed_comment_id") or "").strip())
+    has_deferred = str(state_probe.get("attribution_source") or "") == "phase2c_seed_metadata"
+    if not (has_excluded or has_seed or has_deferred):
+        return (
+            "reddit submit_comment state_probe must include seeded carrier comment exclusion "
+            "or phase2c_seed_metadata deferred binding"
+        )
+    return None
+
+
 def _validate_adversarial_reward_semantics(
     adversarial_task: Mapping[str, Any],
     adv_reward: Mapping[str, Any],
 ) -> str | None:
+    final_state_error = _validate_final_state_action_reward_semantics(
+        adversarial_task,
+        adv_reward,
+    )
+    if final_state_error is not None:
+        return final_state_error
+
     if _is_network_event_reward(adv_reward):
         expected = adv_reward.get("expected")
         if isinstance(expected, Mapping):
