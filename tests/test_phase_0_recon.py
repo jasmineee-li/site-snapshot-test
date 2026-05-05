@@ -519,6 +519,26 @@ def test_phase_0a_repairs_webarena_verified_site_source_paths(tmp_path):
     assert unsafe == []
 
 
+def test_phase_0a_does_not_crash_on_bare_site_container_source_path(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    manifest = {
+        "sites": [
+            {"name": "reddit", "source_path": "docker"},
+        ],
+        "evaluation": {"harness_paths": [], "task_definition_paths": []},
+    }
+
+    phase_0_recon._repair_manifest_paths(manifest, benchmark_root)
+
+    assert manifest["sites"] == [
+        {"name": "reddit", "source_path": "docker"},
+    ]
+    missing, unsafe = phase_0_recon._validate_manifest_paths(manifest, benchmark_root)
+    assert missing == ["sites[reddit].source_path: docker"]
+    assert unsafe == []
+
+
 def test_phase_0a_repairs_empty_webarena_verified_task_definition_paths(tmp_path):
     benchmark_root = tmp_path / "benchmark"
     dataset = benchmark_root / "assets/dataset/webarena-verified.json"

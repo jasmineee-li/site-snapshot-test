@@ -1017,8 +1017,8 @@ def _repair_site_source_path(source_path: str, site_name: str, root: Path) -> st
         f"{raw}/site/{site_name}",
     ]
     for prefix in ("docker", "environments"):
-        marker = f"/{prefix}/"
-        if marker in f"/{raw}/":
+        marker = f"{prefix}/"
+        if marker in raw:
             before, after = raw.split(f"{prefix}/", 1)
             if after and not after.startswith("sites/"):
                 candidates.append(f"{before}{prefix}/sites/{after}")
