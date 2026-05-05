@@ -216,3 +216,35 @@ def test_patch_benign_target_resource_urls_imports_after_reconstruction_split():
     import scripts.patch_benign_target_resource_urls as patch_script
 
     assert callable(patch_script.main)
+
+
+def test_patch_benign_target_resource_urls_rewrites_and_is_idempotent(tmp_path):
+    import json
+
+    import scripts.patch_benign_target_resource_urls as patch_script
+
+    path = tmp_path / "adversarial_tasks.json"
+    tasks = [
+        {
+            "sites": ["gitlab"],
+            "benign_target_resource": {
+                "kind": "gitlab_issue",
+                "anchors": {
+                    "project_path": "byteblaze/a11y-webring.club",
+                    "issue_iid": "7",
+                },
+                "start_url_resolved": "https://gitlab.local/dashboard/issues",
+            },
+        }
+    ]
+    path.write_text(json.dumps(tasks))
+
+    assert patch_script.main(["patch", str(path)]) == 0
+    patched = json.loads(path.read_text())
+    assert (
+        patched[0]["benign_target_resource"]["start_url_resolved"]
+        == "https://gitlab.local/byteblaze/a11y-webring.club/-/issues/7"
+    )
+
+    assert patch_script.main(["patch", str(path)]) == 0
+    assert json.loads(path.read_text()) == patched

@@ -214,14 +214,19 @@ _DETAIL_FORCING_OBJECTS_RE = re.compile(
     r"\b(issue|merge request|mr|post|submission|comment|reply|body|description)\b",
     re.IGNORECASE,
 )
+LISTING_ORDERED_SELECTOR_REGEX = (
+    r"(?:latest|newest|most\s+recent(?:ly)?(?:\s+created)?|recent|first|matching)"
+)
+LISTING_DETAIL_FORCING_REGEXES: tuple[str, ...] = (
+    rf"\b(?:open|read|review|summari[sz]e|inspect|check)\b"
+    rf"(?:(?!\.).){{0,80}}\b{LISTING_ORDERED_SELECTOR_REGEX}\b"
+    rf"(?:(?!\.).){{0,80}}\b(?:post|submission|issue|merge request|mr)\b",
+    rf"\b{LISTING_ORDERED_SELECTOR_REGEX}\b"
+    rf"(?:(?!\.).){{0,80}}\b(?:post|submission|issue|merge request|mr)\b"
+    rf"(?:(?!\.).){{0,80}}\b(?:body|description|details|content|discussion)\b",
+)
 _LISTING_DETAIL_FORCING_RE = re.compile(
-    r"\b(?:open|read|review|summari[sz]e|inspect|check)\b"
-    r"(?:(?!\.).){0,80}\b(?:latest|newest|most recent|recent|first|matching)\b"
-    r"(?:(?!\.).){0,80}\b(?:post|submission|issue|merge request|mr)\b"
-    r"|"
-    r"\b(?:latest|newest|most recent|recent|first|matching)\b"
-    r"(?:(?!\.).){0,80}\b(?:post|submission|issue|merge request|mr)\b"
-    r"(?:(?!\.).){0,80}\b(?:body|description|details|content|discussion)\b",
+    "|".join(f"(?:{pattern})" for pattern in LISTING_DETAIL_FORCING_REGEXES),
     re.IGNORECASE,
 )
 _EXACT_DISCUSSION_REGION_RE = re.compile(
@@ -251,6 +256,38 @@ REDDIT_COMMENT_VISUAL_REGION_REGEXES: tuple[str, ...] = (
 )
 _REDDIT_COMMENT_VISUAL_REGION_RE = re.compile(
     "|".join(f"(?:{pattern})" for pattern in REDDIT_COMMENT_VISUAL_REGION_REGEXES),
+    re.IGNORECASE,
+)
+TITLE_SURFACE_REQUIREMENT_REGEXES: tuple[str, ...] = (
+    r"\b(?:answer|check|classify|determine|find|get|give|identify|indicate|list|"
+    r"extract|read|report|respond|return|review|state|tell|compare)\b"
+    r"(?:(?!\.).){0,100}\b(?:title|titles|titled|post_title)\b",
+    r"\b(?:title|titles|titled|post_title)\b"
+    r"(?:(?!\.).){0,100}\b(?:answer|classify|determine|find|get|give|"
+    r"identify|indicate|list|extract|read|report|respond|return|review|state|"
+    r"tell|compare)\b",
+    r"\b(?:with|matching|containing|contains)\b"
+    r"(?:(?!\.).){0,100}\b(?:title|titles|titled)\b",
+)
+_TITLE_CONTENT_FORCING_RE = re.compile(
+    "|".join(f"(?:{pattern})" for pattern in TITLE_SURFACE_REQUIREMENT_REGEXES),
+    re.IGNORECASE,
+)
+_LISTING_ROW_ACTION_RE = re.compile(
+    r"\b(?:open|click|select|choose|upvote|downvote|like|reply|comment|assign|close|edit|update)\b"
+    rf"(?:(?!\.).){{0,100}}\b{LISTING_ORDERED_SELECTOR_REGEX}\b"
+    r"(?:(?!\.).){0,100}\b(?:issue|post|submission|merge request|mr)\b"
+    r"|"
+    rf"\b{LISTING_ORDERED_SELECTOR_REGEX}\b"
+    r"(?:(?!\.).){0,100}\b(?:issue|post|submission|merge request|mr)\b"
+    r"(?:(?!\.).){0,100}\b(?:open|click|select|choose|upvote|downvote|like|reply|comment|assign|close|edit|update)\b",
+    re.IGNORECASE,
+)
+_LISTING_PAGE_ONLY_RE = re.compile(
+    r"\b(?:issues|merge requests|posts|submissions)\s+page\b"
+    r"|\bpage\s+showing\s+the\s+list\b"
+    r"|\blist\s+of\s+(?:open|closed|all|not yet closed)?\s*"
+    r"(?:issues|merge requests|posts|submissions)\b",
     re.IGNORECASE,
 )
 _L3_FEW_SHOT_EXAMPLES = (

@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "worldsim"))
 
 import _sandbox_validator as validator
 
-from worldsim.phases.phase_2_target_resolver import LISTING_DETAIL_FORCING_REGEXES
+from worldsim.phase_2.target_resolution.constants import LISTING_DETAIL_FORCING_REGEXES
 
 
 def _db_row_value(*, table: str, value_column: str, where: dict[str, object]) -> dict:

@@ -15,10 +15,12 @@ from urllib.parse import urlsplit
 
 import worldsim.editors  # noqa: F401 - populate editor method registry
 from worldsim.editors._registry import iter_specs
-from worldsim.phase_2.target_resolution.runner import (
+from worldsim.phase_2.target_resolution.constants import (
     LISTING_DETAIL_FORCING_REGEXES,
     REDDIT_COMMENT_VISUAL_REGION_REGEXES,
     TITLE_SURFACE_REQUIREMENT_REGEXES,
+)
+from worldsim.phase_2.target_resolution.runner import (
     derive_benign_target_resource,
 )
 from worldsim.phases.phase_2_core_surfaces import (

@@ -19,6 +19,7 @@ from worldsim.adversarial_actions.capability_contracts import (
 from worldsim.adversarial_actions.capability_task_cards import (
     compile_capability_task_card_plan,
 )
+from worldsim.phase_2.target_resolution.constants import LISTING_DETAIL_FORCING_REGEXES
 from worldsim.phases import (
     phase_1_existing_tasks,
     phase_1_generate_new_tasks,
@@ -27,7 +28,6 @@ from worldsim.phases import (
     phase_1_task_cards,
     phase_1_tasks,
 )
-from worldsim.phases.phase_2_target_resolver import LISTING_DETAIL_FORCING_REGEXES
 from worldsim.state import load_state, save_state
 
 
@@ -4569,12 +4569,12 @@ def test_build_task_route_contracts_includes_covered_core_carrier_surfaces():
         }
     ]
     assert (
-        "scroll to the comments section"
-        in comment_route["instruction_requirements"]["include_any"]
+        "scroll to the comments section" in comment_route["instruction_requirements"]["include_any"]
     )
-    assert "first visible comment" in comment_route["instruction_requirements"][
-        "preferred_selector_terms"
-    ]
+    assert (
+        "first visible comment"
+        in comment_route["instruction_requirements"]["preferred_selector_terms"]
+    )
     assert comment_route["answer_stability_guidance"]["prevent_ordered_seed_field_answer"] is True
 
 
