@@ -91,7 +91,7 @@ def editor_method(
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Attach contract metadata to an editor method. Zero side effects.
 
-    ``kinds`` is the set of :data:`worldsim.phases.phase_2_target_resolver.ResourceKind`
+    ``kinds`` is the set of :data:`worldsim.phase_2.target_resolution.types.ResourceKind`
     values this method can attach to. Pass ``frozenset()`` to declare the
     method exists but is never a valid Option A target (replaces the old
     ``_OPTION_A_DANGLING_METHODS`` frozenset).

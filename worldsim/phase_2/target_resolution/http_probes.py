@@ -1,66 +1,31 @@
 """Phase 2 target resolution http probes."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_2.target_resolution._context import install_context
+import asyncio
+import logging
+import os
+from collections.abc import Mapping
+from typing import Any
+from urllib.parse import quote as urlquote
 
-install_context(globals())
+from worldsim.phase_2.target_resolution.constants import (
+    _POSTMILL_COMMENT_ID_RE,
+    _POSTMILL_STRONG_COUNT_RE,
+    DEFAULT_REDDIT_MAX_EXISTING_COMMENTS,
+)
+from worldsim.phase_2.target_resolution.encounter import _benign_user_handle
+from worldsim.phase_2.target_resolution.reconstruction import (
+    _anchors_from_gitlab_item,
+    _anchors_from_reddit_submission,
+)
+from worldsim.phase_2.target_resolution.types import RedditCommentCountFn
+from worldsim.phase_2.target_resolution.url_matching import (
+    _canonicalize_project_path,
+    _empty_record,
+)
 
-
-async def _call_anthropic_classifier(
-    task: Mapping[str, Any],
-    placeholders: Mapping[str, str],
-    *,
-    model: str = L3_MODEL_DEFAULT,
-) -> dict[str, Any] | None:
-    """Default classifier: call Anthropic Messages API with tool-use.
-
-    Returns the parsed tool-use ``input`` dict or None if the call
-    failed, timed out, or the model refused to emit the tool. On
-    failure, stashes the exception class name on
-    ``_l3_failure_class_var`` so ``resolve_l3`` can include it in the
-    drop record for triage.
-    """
-    # Lazy import so L1/L2 tests don't need the anthropic SDK installed.
-    from worldsim.phase_4.anthropic_client import (
-        call_with_retry,
-        get_client,
-        normalize_model_for_auth,
-    )
-
-    _l3_failure_class_var.set(None)
-    client = get_client()
-    resolved_model = normalize_model_for_auth(model)
-    user_prompt = _build_l3_user_prompt(task)
-
-    def _send() -> Any:
-        return client.messages.create(
-            model=resolved_model,
-            max_tokens=L3_MAX_TOKENS,
-            temperature=0,
-            system=L3_SYSTEM_PROMPT,
-            tools=[L3_TOOL_SCHEMA],
-            tool_choice={"type": "tool", "name": "emit_target"},
-            messages=[{"role": "user", "content": user_prompt}],
-        )
-
-    try:
-        response = await call_with_retry(_send, retries=3, label="phase2-l3")
-    except Exception as exc:
-        _l3_failure_class_var.set(type(exc).__name__)
-        logger.exception("L3 classifier call failed (%s)", type(exc).__name__)
-        return None
-
-    for block in getattr(response, "content", []) or []:
-        if (
-            getattr(block, "type", None) == "tool_use"
-            and getattr(block, "name", "") == "emit_target"
-        ):
-            raw = getattr(block, "input", None)
-            if isinstance(raw, dict):
-                return raw
-    return None
+logger = logging.getLogger(__name__)
 
 
 async def _probe_http_json(
@@ -118,6 +83,22 @@ def _benign_probe_instance(instance: Mapping[str, Any]) -> dict[str, Any]:
         raise RuntimeError("instance has api_auth but no benign auth for L3/L4 probe")
     probe_instance.pop("api_auth", None)
     return probe_instance
+
+
+def _normalise_sort_direction(raw: Any) -> str:
+    """Map an LLM-emitted sort hint onto GitLab's ``asc|desc`` contract."""
+    value = str(raw or "").strip().lower()
+    if not value:
+        return "desc"
+    if value in ("asc", "ascending", "ascend"):
+        return "asc"
+    if value in ("desc", "descending", "descend"):
+        return "desc"
+    if value.endswith("_asc") or value.startswith("asc_"):
+        return "asc"
+    if value.endswith("_desc") or value.startswith("desc_"):
+        return "desc"
+    return "desc"
 
 
 async def _default_probe(

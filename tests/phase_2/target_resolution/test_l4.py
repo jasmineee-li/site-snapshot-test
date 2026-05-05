@@ -168,7 +168,7 @@ def test_l4_mr_search_projects_to_mr_records():
     ],
 )
 def test_literalize_regex_value(value, expected):
-    assert resolver._literalize_regex_value(value) == expected
+    assert _literalize_regex_value(value) == expected
 
 def test_l4_reddit_forum_stays_forum_for_created_child_exposure():
     resource = {
@@ -264,7 +264,7 @@ def test_l4_threads_explicit_top_n_into_default_probe(monkeypatch):
         ]
 
     monkeypatch.setattr(
-        "worldsim.phases.phase_2_target_resolver._default_listing_probe",
+        "worldsim.phase_2.target_resolution.l4._default_listing_probe",
         fake_default_listing_probe,
     )
 
@@ -299,7 +299,7 @@ def test_l4_item_record_without_placeholders_preserves_base_url():
     # Backwards compat: old callers that haven't been updated to pass
     # placeholders through continue to produce the pre-fix listing-URL
     # behavior.
-    from worldsim.phases.phase_2_target_resolver import _project_item_to_record
+    from worldsim.phase_2.target_resolution.reconstruction import _project_item_to_record
 
     base = {
         "kind": "gitlab_search_result",

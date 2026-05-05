@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_2_target_resolver.py; shared helpers live in tests/phase_2/target_resolution/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 def test_l1_issue_reconstructs_start_url_from_anchors_over_stale_template():
     task = _gitlab_task(
         eval_url="__GITLAB__/byteblaze/a11y-webring.club/-/issues/30",
@@ -15,6 +16,7 @@ def test_l1_issue_reconstructs_start_url_from_anchors_over_stale_template():
         == "https://gitlab.local/byteblaze/a11y-webring.club/-/issues/30"
     )
 
+
 def test_l1_issue_reconstructs_from_bare_host_start_url():
     task = _gitlab_task(
         eval_url="__GITLAB__/a11yproject/a11yproject.com/-/issues/1064",
@@ -26,6 +28,7 @@ def test_l1_issue_reconstructs_from_bare_host_start_url():
         == "https://gitlab.local/a11yproject/a11yproject.com/-/issues/1064"
     )
 
+
 def test_l1_mr_reconstructs_start_url():
     task = _gitlab_task(
         eval_url="__GITLAB__/org/repo/-/merge_requests/42",
@@ -34,6 +37,7 @@ def test_l1_mr_reconstructs_start_url():
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["kind"] == "gitlab_mr"
     assert result["start_url_resolved"] == "https://gitlab.local/org/repo/-/merge_requests/42"
+
 
 def test_l1_search_result_reconstructs_with_url_encoded_query():
     task = _gitlab_task(
@@ -49,6 +53,7 @@ def test_l1_search_result_reconstructs_with_url_encoded_query():
         == "https://gitlab.local/search?search=theme+editor&scope=issues"
     )
 
+
 def test_l1_dashboard_list_reconstructs_start_url():
     task = _gitlab_task(
         eval_url="__GITLAB__/dashboard/todos",
@@ -57,6 +62,7 @@ def test_l1_dashboard_list_reconstructs_start_url():
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["kind"] == "gitlab_dashboard_list"
     assert result["start_url_resolved"] == "https://gitlab.local/dashboard/todos"
+
 
 def test_l2_fallback_reconstructs_when_start_url_matches():
     # L2 picks the benign task's start_urls; if they're already a concrete
@@ -69,6 +75,7 @@ def test_l2_fallback_reconstructs_when_start_url_matches():
     assert result["layer"] == "L2"
     assert result["start_url_resolved"] == "https://gitlab.local/byteblaze/dotfiles/-/issues/7"
 
+
 def test_l1_reddit_submission_reconstructs():
     task = _reddit_task(
         eval_url="__REDDIT__/f/pittsburgh/89821/some-title",
@@ -77,6 +84,7 @@ def test_l1_reddit_submission_reconstructs():
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["kind"] == "reddit_submission"
     assert result["start_url_resolved"] == "https://reddit.local/f/pittsburgh/89821"
+
 
 def test_l1_reddit_forum_reconstructs():
     task = _reddit_task(
@@ -87,6 +95,7 @@ def test_l1_reddit_forum_reconstructs():
     assert result["kind"] == "reddit_forum"
     assert result["start_url_resolved"] == "https://reddit.local/f/books"
 
+
 def test_l1_reddit_dashboard_list_reconstructs():
     task = _reddit_task(
         eval_url="__REDDIT__/user/MarvelsGrantMan136/submitted",
@@ -96,13 +105,14 @@ def test_l1_reddit_dashboard_list_reconstructs():
     assert result["kind"] == "reddit_dashboard_list"
     assert result["start_url_resolved"] == "https://reddit.local/user/MarvelsGrantMan136/submitted"
 
+
 def test_l4_item_record_reconstructs_start_url_strips_localhost_prefix():
     # L4 probe returns items whose project_path comes from `web_url`
     # parsing at :line 1234 — that produces bare "byteblaze/dotfiles".
     # But resource.anchors.project_path can also carry an authority
     # prefix like "localhost:8023/byteblaze/a11y-webring.club" (observed
     # in the 0/107 feasibility report). _clean_project_path strips it.
-    from worldsim.phases.phase_2_target_resolver import _project_item_to_record
+    from worldsim.phase_2.target_resolution.reconstruction import _project_item_to_record
 
     base = {
         "kind": "gitlab_search_result",
@@ -129,16 +139,22 @@ def test_l4_item_record_reconstructs_start_url_strips_localhost_prefix():
         == "https://gitlab.local/byteblaze/a11y-webring.club/-/issues/30"
     )
 
+
 def test_reconstruction_helper_handles_unknown_kind():
-    from worldsim.phases.phase_2_target_resolver import _reconstruct_start_url_from_anchors
+    from worldsim.phase_2.target_resolution.reconstruction import (
+        _reconstruct_start_url_from_anchors,
+    )
 
     assert (
         _reconstruct_start_url_from_anchors("gitlab", "not_a_kind", {"foo": "bar"}, PLACEHOLDERS)
         is None
     )
 
+
 def test_reconstruction_helper_returns_none_when_anchors_insufficient():
-    from worldsim.phases.phase_2_target_resolver import _reconstruct_start_url_from_anchors
+    from worldsim.phase_2.target_resolution.reconstruction import (
+        _reconstruct_start_url_from_anchors,
+    )
 
     assert (
         _reconstruct_start_url_from_anchors(
@@ -147,43 +163,56 @@ def test_reconstruction_helper_returns_none_when_anchors_insufficient():
         is None
     )
 
+
 def test_canonicalize_strips_localhost_authority():
-    from worldsim.phases.phase_2_target_resolver import _canonicalize_project_path
+    from worldsim.phase_2.target_resolution.url_matching import _canonicalize_project_path
 
     assert (
         _canonicalize_project_path("localhost:8023/a11yproject/a11yproject.com")
         == "a11yproject/a11yproject.com"
     )
 
+
 def test_canonicalize_strips_full_https_url():
-    from worldsim.phases.phase_2_target_resolver import _canonicalize_project_path
+    from worldsim.phase_2.target_resolution.url_matching import _canonicalize_project_path
 
     assert _canonicalize_project_path("https://gitlab.local/primer/design") == "primer/design"
 
+
 def test_canonicalize_strips_bare_gitlab_local():
-    from worldsim.phases.phase_2_target_resolver import _canonicalize_project_path
+    from worldsim.phase_2.target_resolution.url_matching import _canonicalize_project_path
 
     assert _canonicalize_project_path("gitlab.local/foo/bar") == "foo/bar"
 
+
 def test_canonicalize_preserves_subgroup_paths():
-    from worldsim.phases.phase_2_target_resolver import _canonicalize_project_path
+    from worldsim.phase_2.target_resolution.url_matching import _canonicalize_project_path
 
     assert _canonicalize_project_path("namespace/subgroup/project") == "namespace/subgroup/project"
 
+
 def test_canonicalize_idempotent_on_clean_path():
-    from worldsim.phases.phase_2_target_resolver import _canonicalize_project_path
+    from worldsim.phase_2.target_resolution.url_matching import _canonicalize_project_path
 
     canonical = "primer/design"
     assert _canonicalize_project_path(canonical) == canonical
     assert _canonicalize_project_path(_canonicalize_project_path(canonical)) == canonical
 
+
 def test_canonicalize_handles_empty_input():
-    from worldsim.phases.phase_2_target_resolver import _canonicalize_project_path
+    from worldsim.phase_2.target_resolution.url_matching import _canonicalize_project_path
 
     assert _canonicalize_project_path("") == ""
     assert _canonicalize_project_path("   ") == ""
 
+
 def test_canonicalize_strips_leading_and_trailing_slashes():
-    from worldsim.phases.phase_2_target_resolver import _canonicalize_project_path
+    from worldsim.phase_2.target_resolution.url_matching import _canonicalize_project_path
 
     assert _canonicalize_project_path("/primer/design/") == "primer/design"
+
+
+def test_patch_benign_target_resource_urls_imports_after_reconstruction_split():
+    import scripts.patch_benign_target_resource_urls as patch_script
+
+    assert callable(patch_script.main)

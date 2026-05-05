@@ -7,6 +7,7 @@ from worldsim.phase_2._context import install_context
 
 install_context(globals())
 
+
 def _report_summary_dict(
     report: FeasibilityReport,
     *,
@@ -36,9 +37,11 @@ def _report_summary_dict(
         "source_data_dropped_by_kind": source_data_dropped_by_kind,
     }
 
+
 def _utcnow_iso() -> str:
 
     return datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
 
 def _canonical_benign_task_id(
     task: Mapping[str, Any],
@@ -72,6 +75,7 @@ def _canonical_benign_task_id(
         return source
     return raw
 
+
 def _normalize_l4_benign_task_ids_in_place(
     tasks: list[dict[str, Any]],
     *,
@@ -83,6 +87,7 @@ def _normalize_l4_benign_task_ids_in_place(
         canonical = _canonical_benign_task_id(task, expected_ids=expected_ids)
         if canonical:
             task["benign_task_id"] = canonical
+
 
 def _l1_l2_resources_dict(
     site_tasks: list[dict],
@@ -97,6 +102,7 @@ def _l1_l2_resources_dict(
         )
         for task in site_tasks
     }
+
 
 async def _resolve_benign_target_resources_for_shard(
     *,
@@ -268,6 +274,7 @@ async def _resolve_benign_target_resources_for_shard(
     _persist_target_resolution(site_name=site_name, resources=resources)
     return expanded_tasks, resources
 
+
 def _is_route_contracted_new_task(task: Mapping[str, Any]) -> bool:
     route_id = task.get("route_id")
     return (
@@ -275,6 +282,7 @@ def _is_route_contracted_new_task(task: Mapping[str, Any]) -> bool:
         and isinstance(route_id, str)
         and bool(route_id.strip())
     )
+
 
 def _route_contract_editor_methods(task: Mapping[str, Any]) -> list[str]:
     data_seed = task.get("data_seed")
@@ -292,6 +300,7 @@ def _route_contract_editor_methods(task: Mapping[str, Any]) -> list[str]:
             methods.append(method.strip())
     return methods
 
+
 def _merge_route_contract_l4_anchors(
     resource: Mapping[str, Any],
     l4_record: Mapping[str, Any],
@@ -308,6 +317,7 @@ def _merge_route_contract_l4_anchors(
             merged.setdefault(key, value)
     merged["l4_anchor_source"] = "route_contract_top_result"
     return merged
+
 
 def _persist_target_resolution(
     *,
@@ -343,6 +353,7 @@ def _persist_target_resolution(
             exc,
         )
 
+
 def _reconstruct_orphan_start_urls(orphans: list[dict[str, Any]]) -> None:
     """Apply anchor-based URL reconstruction to recovered orphan tasks.
 
@@ -361,7 +372,7 @@ def _reconstruct_orphan_start_urls(orphans: list[dict[str, Any]]) -> None:
     """
     # Late import avoids a module-level cycle with target resolution,
     # which imports from this module for enrichment helpers.
-    from worldsim.phase_2.target_resolution.runner import (
+    from worldsim.phase_2.target_resolution.reconstruction import (
         _reconstruct_start_url_from_anchors,
     )
 

@@ -1,5 +1,5 @@
 # ruff: noqa
-"""L1/L2 fixtures for :mod:`worldsim.phases.phase_2_target_resolver`.
+"""L1/L2 fixtures for :mod:`worldsim.phase_2.target_resolution`.
 
 Every fixture builds a minimal benign task record inline — no dependency
 on ``logs/phase_1/benign_tasks.json``. Covers every ResourceKind plus
@@ -13,14 +13,20 @@ from typing import Any
 
 import pytest
 
-from worldsim.phases import phase_2_target_resolver as resolver
-from worldsim.phases.phase_2_target_resolver import (
-    VIEWPORT_BUDGET_CHARS,
+from worldsim.phase_2.target_resolution import listing_probes
+from worldsim.phase_2.target_resolution import runner as resolver
+from worldsim.phase_2.target_resolution.constants import VIEWPORT_BUDGET_CHARS
+from worldsim.phase_2.target_resolution.encounter import _assert_anchor_contract_conformance
+from worldsim.phase_2.target_resolution.http_probes import (
     _benign_probe_instance,
     _postmill_submission_comment_count_from_html,
-    derive_benign_target_resource,
-    resolve_tasks,
 )
+from worldsim.phase_2.target_resolution.l3 import resolve_l3
+from worldsim.phase_2.target_resolution.l4 import resolve_l4
+from worldsim.phase_2.target_resolution.runner import resolve_tasks
+from worldsim.phase_2.target_resolution.resolver import derive_benign_target_resource
+from worldsim.phase_2.target_resolution.types import ResolverContractDriftError
+from worldsim.phase_2.target_resolution.url_matching import _literalize_regex_value
 from worldsim.placeholders import placeholders_for_site_urls
 
 PLACEHOLDERS = placeholders_for_site_urls(
@@ -29,6 +35,7 @@ PLACEHOLDERS = placeholders_for_site_urls(
         ("reddit", "https://reddit.local"),
     ]
 )
+
 
 def _gitlab_task(
     *,
@@ -51,6 +58,7 @@ def _gitlab_task(
         task["reward_function"]["eval"] = [{"evaluator": evaluator, "expected": {"url": eval_url}}]
     return task
 
+
 def _reddit_task(
     *,
     task_id: str = "t",
@@ -72,6 +80,7 @@ def _reddit_task(
         task["reward_function"]["eval"] = [{"evaluator": evaluator, "expected": {"url": eval_url}}]
     return task
 
+
 # --- gitlab_issue --------------------------------------------------------
 
 # --- gitlab_mr -----------------------------------------------------------
@@ -92,7 +101,6 @@ def _reddit_task(
 
 import asyncio  # noqa: E402
 
-from worldsim.phases.phase_2_target_resolver import resolve_l3  # noqa: E402
 
 def _make_classifier(parsed):
     async def _stub(task, placeholders):
@@ -100,15 +108,16 @@ def _make_classifier(parsed):
 
     return _stub
 
+
 def _make_probe(anchors):
     async def _stub(probe_query, task, instance, placeholders):
         return anchors
 
     return _stub
 
+
 # --- L4 dynamic listing expansion ----------------------------------------
 
-from worldsim.phases.phase_2_target_resolver import resolve_l4  # noqa: E402
 
 def _make_listing_probe(items):
     async def _stub(resource, task, instance):
@@ -116,17 +125,13 @@ def _make_listing_probe(items):
 
     return _stub
 
+
 # Real live tests live in tests/integration/test_phase_2_target_resolver_live.py
 # behind pytest.mark.live_l3 (skipped by default; run with -m live_l3).
 
 # ---------------------------------------------------------------------
 # Anchor / contract conformance self-check (commit 3 of the registry work)
 # ---------------------------------------------------------------------
-
-from worldsim.phases.phase_2_target_resolver import (  # noqa: E402
-    ResolverContractDriftError,
-    _assert_anchor_contract_conformance,
-)
 
 # -----------------------------------------------------------------------
 # start_url_resolved reconstruction (Bug A) — Phase 2c anchor-vs-probe

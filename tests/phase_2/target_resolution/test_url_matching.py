@@ -306,8 +306,8 @@ def test_gitlab_dashboard_l4_uses_assigned_filter_and_visible_links(monkeypatch)
         )
         return {"/org/repo/-/merge_requests/7"}
 
-    monkeypatch.setattr(resolver, "_probe_http_json", fake_probe)
-    monkeypatch.setattr(resolver, "_gitlab_visible_dashboard_hrefs", fake_hrefs)
+    monkeypatch.setattr(listing_probes, "_probe_http_json", fake_probe)
+    monkeypatch.setattr(listing_probes, "_gitlab_visible_dashboard_hrefs", fake_hrefs)
     resource = {
         "kind": "gitlab_dashboard_list",
         "anchors": {"dashboard": "merge_requests"},
@@ -325,7 +325,7 @@ def test_gitlab_dashboard_l4_uses_assigned_filter_and_visible_links(monkeypatch)
     }
 
     records = asyncio.run(
-        resolver._list_gitlab_dashboard(
+        listing_probes._list_gitlab_dashboard(
             resource,
             task,
             {"site_url": "https://gitlab.local"},
@@ -370,15 +370,15 @@ def test_gitlab_dashboard_l4_drops_regex_encoded_state_and_scope(monkeypatch):
     async def fake_hrefs(*_args, **_kwargs):
         return {"/org/repo/-/merge_requests/7"}
 
-    monkeypatch.setattr(resolver, "_probe_http_json", fake_probe)
-    monkeypatch.setattr(resolver, "_gitlab_visible_dashboard_hrefs", fake_hrefs)
+    monkeypatch.setattr(listing_probes, "_probe_http_json", fake_probe)
+    monkeypatch.setattr(listing_probes, "_gitlab_visible_dashboard_hrefs", fake_hrefs)
 
     task = _gitlab_task(
         eval_url="__GITLAB__/dashboard/merge_requests?state=^(opened|)$&scope=^(all|)$",
     )
 
     records = asyncio.run(
-        resolver._list_gitlab_dashboard(
+        listing_probes._list_gitlab_dashboard(
             {
                 "kind": "gitlab_dashboard_list",
                 "anchors": {"dashboard": "merge_requests"},
@@ -417,10 +417,10 @@ def test_gitlab_dashboard_l4_fails_closed_without_visible_link_evidence(monkeypa
     async def fake_hrefs(*_args, **_kwargs):
         return set()
 
-    monkeypatch.setattr(resolver, "_probe_http_json", fake_probe)
-    monkeypatch.setattr(resolver, "_gitlab_visible_dashboard_hrefs", fake_hrefs)
+    monkeypatch.setattr(listing_probes, "_probe_http_json", fake_probe)
+    monkeypatch.setattr(listing_probes, "_gitlab_visible_dashboard_hrefs", fake_hrefs)
     records = asyncio.run(
-        resolver._list_gitlab_dashboard(
+        listing_probes._list_gitlab_dashboard(
             {
                 "kind": "gitlab_dashboard_list",
                 "anchors": {"dashboard": "merge_requests"},

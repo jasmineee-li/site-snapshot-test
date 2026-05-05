@@ -1,40 +1,12 @@
-"""Shared import and constant context for target resolution modules."""
+"""Shared constants and regex patterns for Phase 2 target resolution."""
 
-# ruff: noqa: F401,I001
 from __future__ import annotations
 
-import asyncio
-import contextvars
-import html
-import json as _json
-import logging
-import os
 import re
-import types
-from collections.abc import Awaitable, Callable, Mapping
-from typing import Any, Literal
-from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
-from urllib.parse import quote as urlquote
-from worldsim.editors._registry import attach_surfaces_for_kind as _registry_attach_surfaces
-from worldsim.editors._registry import kind_contract as _registry_kind_contract
-from worldsim.placeholders import apply_placeholders
+from typing import Any
 
-logger = logging.getLogger(__name__)
-ResourceKind = Literal[
-    "gitlab_issue",
-    "gitlab_mr",
-    "gitlab_search_result",
-    "gitlab_dashboard_list",
-    "gitlab_user_profile",
-    "gitlab_snippet",
-    "gitlab_snippets_index",
-    "gitlab_project_milestone",
-    "gitlab_project_labels",
-    "gitlab_group",
-    "reddit_submission",
-    "reddit_forum",
-    "reddit_dashboard_list",
-]
+from worldsim.phase_2.target_resolution.types import ResourceKind
+
 VIEWPORT_BUDGET_CHARS = 600
 DEFAULT_L4_TOP_N = 3
 DEFAULT_REDDIT_MAX_EXISTING_COMMENTS = 20
@@ -242,19 +214,14 @@ _DETAIL_FORCING_OBJECTS_RE = re.compile(
     r"\b(issue|merge request|mr|post|submission|comment|reply|body|description)\b",
     re.IGNORECASE,
 )
-LISTING_ORDERED_SELECTOR_REGEX = (
-    r"(?:latest|newest|most\s+recent(?:ly)?(?:\s+created)?|recent|first|matching)"
-)
-LISTING_DETAIL_FORCING_REGEXES: tuple[str, ...] = (
-    rf"\b(?:open|read|review|summari[sz]e|inspect|check)\b"
-    rf"(?:(?!\.).){{0,80}}\b{LISTING_ORDERED_SELECTOR_REGEX}\b"
-    rf"(?:(?!\.).){{0,80}}\b(?:post|submission|issue|merge request|mr)\b",
-    rf"\b{LISTING_ORDERED_SELECTOR_REGEX}\b"
-    rf"(?:(?!\.).){{0,80}}\b(?:post|submission|issue|merge request|mr)\b"
-    rf"(?:(?!\.).){{0,80}}\b(?:body|description|details|content|discussion)\b",
-)
 _LISTING_DETAIL_FORCING_RE = re.compile(
-    "|".join(f"(?:{pattern})" for pattern in LISTING_DETAIL_FORCING_REGEXES),
+    r"\b(?:open|read|review|summari[sz]e|inspect|check)\b"
+    r"(?:(?!\.).){0,80}\b(?:latest|newest|most recent|recent|first|matching)\b"
+    r"(?:(?!\.).){0,80}\b(?:post|submission|issue|merge request|mr)\b"
+    r"|"
+    r"\b(?:latest|newest|most recent|recent|first|matching)\b"
+    r"(?:(?!\.).){0,80}\b(?:post|submission|issue|merge request|mr)\b"
+    r"(?:(?!\.).){0,80}\b(?:body|description|details|content|discussion)\b",
     re.IGNORECASE,
 )
 _EXACT_DISCUSSION_REGION_RE = re.compile(
@@ -286,38 +253,6 @@ _REDDIT_COMMENT_VISUAL_REGION_RE = re.compile(
     "|".join(f"(?:{pattern})" for pattern in REDDIT_COMMENT_VISUAL_REGION_REGEXES),
     re.IGNORECASE,
 )
-TITLE_SURFACE_REQUIREMENT_REGEXES: tuple[str, ...] = (
-    r"\b(?:answer|check|classify|determine|find|get|give|identify|indicate|list|"
-    r"extract|read|report|respond|return|review|state|tell|compare)\b"
-    r"(?:(?!\.).){0,100}\b(?:title|titles|titled|post_title)\b",
-    r"\b(?:title|titles|titled|post_title)\b"
-    r"(?:(?!\.).){0,100}\b(?:answer|classify|determine|find|get|give|"
-    r"identify|indicate|list|extract|read|report|respond|return|review|state|"
-    r"tell|compare)\b",
-    r"\b(?:with|matching|containing|contains)\b"
-    r"(?:(?!\.).){0,100}\b(?:title|titles|titled)\b",
-)
-_TITLE_CONTENT_FORCING_RE = re.compile(
-    "|".join(f"(?:{pattern})" for pattern in TITLE_SURFACE_REQUIREMENT_REGEXES),
-    re.IGNORECASE,
-)
-_LISTING_ROW_ACTION_RE = re.compile(
-    r"\b(?:open|click|select|choose|upvote|downvote|like|reply|comment|assign|close|edit|update)\b"
-    rf"(?:(?!\.).){{0,100}}\b{LISTING_ORDERED_SELECTOR_REGEX}\b"
-    r"(?:(?!\.).){0,100}\b(?:issue|post|submission|merge request|mr)\b"
-    r"|"
-    rf"\b{LISTING_ORDERED_SELECTOR_REGEX}\b"
-    r"(?:(?!\.).){0,100}\b(?:issue|post|submission|merge request|mr)\b"
-    r"(?:(?!\.).){0,100}\b(?:open|click|select|choose|upvote|downvote|like|reply|comment|assign|close|edit|update)\b",
-    re.IGNORECASE,
-)
-_LISTING_PAGE_ONLY_RE = re.compile(
-    r"\b(?:issues|merge requests|posts|submissions)\s+page\b"
-    r"|\bpage\s+showing\s+the\s+list\b"
-    r"|\blist\s+of\s+(?:open|closed|all|not yet closed)?\s*"
-    r"(?:issues|merge requests|posts|submissions)\b",
-    re.IGNORECASE,
-)
 _L3_FEW_SHOT_EXAMPLES = (
     "Examples (calibration only — your task may differ):\n"
     '- "How many commits did kilian make to a11yproject/a11yproject.com '
@@ -337,21 +272,6 @@ _L3_FEW_SHOT_EXAMPLES = (
     '"project_path":"primer/design","query":"state=opened&order_by='
     'created_at&sort=desc"}.\n'
 )
-ProbeFn = Callable[
-    [Mapping[str, Any], Mapping[str, Any], Mapping[str, Any], Mapping[str, str]],
-    Awaitable[dict[str, Any] | None],
-]
-RedditCommentCountFn = Callable[
-    [Mapping[str, Any], str, str],
-    Awaitable[int | None],
-]
-ClassifierFn = Callable[
-    [Mapping[str, Any], Mapping[str, str]],
-    Awaitable[dict[str, Any] | None],
-]
-_l3_failure_class_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    "phase2_l3_failure_class", default=None
-)
 _POSTMILL_COMMENT_ID_RE = re.compile(r"""id=["']comment[_-]\d+""")
 _POSTMILL_STRONG_COUNT_RE = re.compile(
     r"<strong>[\s\n]*(\d+)[\s\n]+comments?[\s\n]*</strong>",
@@ -360,40 +280,5 @@ _POSTMILL_STRONG_COUNT_RE = re.compile(
 _LISTING_KINDS: frozenset[ResourceKind] = frozenset(
     {"gitlab_search_result", "gitlab_dashboard_list"}
 )
-ListingProbeFn = Callable[
-    [Mapping[str, Any], Mapping[str, Any], Mapping[str, Any]],
-    Awaitable[list[dict[str, Any]]],
-]
 DEFAULT_L3_CONCURRENCY = 8
 DEFAULT_L4_CONCURRENCY = 16
-_SHARED_L3_SEM: asyncio.Semaphore | None = None
-_SHARED_L3_SEM_KEY: tuple[int, asyncio.AbstractEventLoop | None] | None = None
-_SHARED_L4_SEM: asyncio.Semaphore | None = None
-_SHARED_L4_SEM_KEY: tuple[int, asyncio.AbstractEventLoop | None] | None = None
-
-
-def install_context(namespace: dict[str, object]) -> None:
-    for name, value in globals().items():
-        if name.startswith("__") or name == "install_context" or name == "link_modules":
-            continue
-        namespace.setdefault(name, value)
-
-
-def link_modules(modules: list[object]) -> None:
-    class _LinkedModule(types.ModuleType):
-        def __setattr__(self, name: str, value: object) -> None:
-            types.ModuleType.__setattr__(self, name, value)
-            for module in getattr(self, "_linked_modules", []):
-                vars(module)[name] = value
-
-    combined: dict[str, object] = {}
-    for module in modules:
-        for name, value in vars(module).items():
-            if name.startswith("__") or name in {"install_context", "link_modules"}:
-                continue
-            combined[name] = value
-    for module in modules:
-        vars(module).update(combined)
-        vars(module)["_linked_modules"] = modules
-        if isinstance(module, types.ModuleType):
-            module.__class__ = _LinkedModule

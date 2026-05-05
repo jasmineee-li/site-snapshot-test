@@ -1,122 +1,36 @@
 """Phase 2 target resolution public L1/L2 resolver."""
-# ruff: noqa: F821
 
 from __future__ import annotations
 
-from worldsim.phase_2.target_resolution._context import install_context
+from collections.abc import Mapping
+from typing import Any, Literal
 
-install_context(globals())
+from worldsim.phase_2.target_resolution.encounter import (
+    _assert_anchor_contract_conformance,
+    _attach_surfaces_for,
+    _encounter_requirements,
+    _route_evidence_flags,
+)
+from worldsim.phase_2.target_resolution.listing_intent import _gitlab_issue_listing_intent
+from worldsim.phase_2.target_resolution.reconstruction import _reconstruct_start_url_from_anchors
+from worldsim.phase_2.target_resolution.url_matching import (
+    _empty_record,
+    _is_listing_kind,
+    _iter_eval_urls,
+    _iter_start_urls,
+    _listing_start_url,
+    _match_gitlab,
+    _match_reddit,
+    _normalise_url,
+    _site_kind_for_task,
+)
 
-def _reconstruct_start_url_from_anchors(
-    site_kind: Literal[gitlab, reddit],
-    kind: str,
-    anchors: Mapping[str, Any],
-    placeholders: Mapping[str, str],
-) -> str | None:
-    """Build a synthetic-host URL pointing at the concrete resource.
-
-    Returns the canonical URL (on the synthetic ``https://gitlab.local``
-    / ``https://reddit.local`` origin drawn from ``placeholders``) when
-    the anchors carry enough to address a single entity. Returns ``None``
-    when they do not — caller falls back to the raw benign ``start_urls[0]``.
-
-    Added to close the Phase 2c anchor-vs-probe mismatch: the benign
-    task's raw ``start_urls`` often points at a project root or bare
-    host, but the seed attaches to a concrete issue / MR / submission.
-    Without reconstruction the 2c reachability probe navigates to the
-    wrong page and the seed witnesses never appear.
-    """
-    if site_kind == "gitlab":
-        origin = placeholders.get("__GITLAB__")
-    elif site_kind == "reddit":
-        origin = placeholders.get("__REDDIT__")
-    else:
-        return None
-    if not origin:
-        return None
-    base = origin.rstrip("/")
-
-    if kind == "gitlab_issue":
-        project_path = anchors.get("project_path")
-        iid = anchors.get("issue_iid")
-        if project_path and iid:
-            return f"{base}/{_clean_project_path(str(project_path))}/-/issues/{iid}"
-        return None
-    if kind == "gitlab_mr":
-        project_path = anchors.get("project_path")
-        iid = anchors.get("mr_iid")
-        if project_path and iid:
-            return f"{base}/{_clean_project_path(str(project_path))}/-/merge_requests/{iid}"
-        return None
-    if kind == "gitlab_search_result":
-        query = anchors.get("query")
-        scope = anchors.get("scope") or "issues"
-        project_path = anchors.get("project_path")
-        if project_path:
-            return f"{base}/{_clean_project_path(str(project_path))}/-/{scope}"
-        if query:
-            # GitLab accepts either `+` or `%20` for spaces; keep `+` to
-            # match the raw eval URLs we parse (``...?search=foo+bar``).
-            encoded = urlquote(str(query), safe="+")
-            return f"{base}/search?search={encoded}&scope={scope}"
-        return None
-    if kind == "gitlab_dashboard_list":
-        dashboard = anchors.get("dashboard")
-        if dashboard:
-            return f"{base}/dashboard/{dashboard}"
-        return None
-    if kind == "gitlab_user_profile":
-        username = anchors.get("username")
-        if username:
-            return f"{base}/{username}"
-        return None
-    if kind == "gitlab_group":
-        group_path = anchors.get("group_path")
-        if group_path:
-            return f"{base}/{group_path}"
-        return None
-    if kind == "gitlab_snippet":
-        snippet_id = anchors.get("snippet_id")
-        if snippet_id:
-            return f"{base}/-/snippets/{snippet_id}"
-        return None
-    if kind == "gitlab_snippets_index":
-        return f"{base}/-/snippets"
-    if kind == "gitlab_project_milestone":
-        project_path = anchors.get("project_path")
-        iid = anchors.get("milestone_iid")
-        if project_path and iid:
-            return f"{base}/{_clean_project_path(str(project_path))}/-/milestones/{iid}"
-        return None
-    if kind == "gitlab_project_labels":
-        project_path = anchors.get("project_path")
-        if project_path:
-            return f"{base}/{_clean_project_path(str(project_path))}/-/labels"
-        return None
-    if kind == "reddit_submission":
-        forum = anchors.get("forum_name")
-        submission_id = anchors.get("submission_id")
-        if forum and submission_id:
-            return f"{base}/f/{forum}/{submission_id}"
-        return None
-    if kind == "reddit_forum":
-        forum = anchors.get("forum_name")
-        if forum:
-            return f"{base}/f/{forum}"
-        return None
-    if kind == "reddit_dashboard_list":
-        user = anchors.get("user") or anchors.get("username")
-        dashboard = anchors.get("dashboard")
-        if user and dashboard:
-            return f"{base}/user/{user}/{dashboard}"
-        return None
-    return None
 
 def derive_benign_target_resource(
     task: Mapping[str, Any],
     placeholders: Mapping[str, str],
     *,
-    allow_layers: tuple[Literal[L1, L2, L3, L4], ...] = ("L1", "L2"),
+    allow_layers: tuple[Literal["L1", "L2", "L3", "L4"], ...] = ("L1", "L2"),
     benchmark: str = "webarena_verified",
 ) -> dict[str, Any]:
     """Resolve the benign target resource for a Phase 1 task (L1/L2 only).

@@ -22,13 +22,10 @@ import os
 
 import pytest
 
-from worldsim.phases.phase_2_target_resolver import (
-    _benign_probe_instance,
-    _call_anthropic_classifier,
-    _default_listing_probe,
-    resolve_l3,
-    resolve_l4,
-)
+from worldsim.phase_2.target_resolution.http_probes import _benign_probe_instance
+from worldsim.phase_2.target_resolution.l3 import _call_anthropic_classifier, resolve_l3
+from worldsim.phase_2.target_resolution.l4 import resolve_l4
+from worldsim.phase_2.target_resolution.listing_probes import _default_listing_probe
 from worldsim.placeholders import placeholders_for_site_urls
 
 pytestmark = [pytest.mark.integration, pytest.mark.live_l3]
