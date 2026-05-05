@@ -169,12 +169,18 @@ def _build_row(
 
 
 def _summary(run_dir: Path, rows: list[dict[str, Any]]) -> dict[str, Any]:
+    admitted_tasks = len(_load_list(run_dir / "phase_2" / "adversarial_tasks.json"))
+    infeasible_tasks = len(
+        _load_list(run_dir / "phase_2" / "adversarial_tasks.infeasible.json")
+    )
+    phase2_candidate_tasks = admitted_tasks + infeasible_tasks
+    phase1_generated_tasks = _phase1_generated_count(run_dir)
     return {
-        "generated_tasks": _generated_count(run_dir),
-        "admitted_tasks": len(_load_list(run_dir / "phase_2" / "adversarial_tasks.json")),
-        "infeasible_tasks": len(
-            _load_list(run_dir / "phase_2" / "adversarial_tasks.infeasible.json")
-        ),
+        "generated_tasks": phase2_candidate_tasks or phase1_generated_tasks,
+        "phase1_generated_tasks": phase1_generated_tasks,
+        "phase2_candidate_tasks": phase2_candidate_tasks or None,
+        "admitted_tasks": admitted_tasks,
+        "infeasible_tasks": infeasible_tasks,
         "result_rows": len(rows),
         "final_status_counts": _count(row["metrics"].get("final_status") for row in rows),
         "scenario_template_counts": _count(row.get("scenario_template_id") for row in rows),
@@ -456,7 +462,7 @@ def _compact_attempt_evidence(value: Any) -> list[dict[str, Any]]:
     return rows
 
 
-def _generated_count(run_dir: Path) -> int | None:
+def _phase1_generated_count(run_dir: Path) -> int | None:
     path = run_dir / "phase_1" / "benign_tasks.json"
     items = _load_list(path)
     if not items:

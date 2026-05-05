@@ -155,6 +155,36 @@ def test_scenario_funnel_classifies_benign_answer_miss(tmp_path: Path) -> None:
     assert row["metrics"]["benign_utility_miss"] == "final_answer_mismatch"
 
 
+def test_scenario_funnel_reports_phase2_candidate_count_for_filtered_cells(
+    tmp_path: Path,
+) -> None:
+    run = tmp_path / "run"
+    trace = run / "phase_4" / "ts" / "task-1"
+    _write_json(
+        run / "phase_1" / "benign_tasks.json",
+        [{"id": f"pool-{index}"} for index in range(100)],
+    )
+    _write_json(
+        run / "phase_2" / "adversarial_tasks.json",
+        [{"id": "task-1"}, {"id": "task-2"}],
+    )
+    _write_json(
+        run / "phase_2" / "adversarial_tasks.infeasible.json",
+        [{"id": "task-3"}],
+    )
+    _write_json(trace / "history.json", {"history": []})
+    _write_json(
+        run / "phase_4" / "results.json",
+        [{"task_id": "task-1", "trajectory_dir": str(trace), "benign_passed": True}],
+    )
+
+    summary = build_scenario_funnel_export(run)["summary"]
+
+    assert summary["generated_tasks"] == 3
+    assert summary["phase1_generated_tasks"] == 100
+    assert summary["phase2_candidate_tasks"] == 3
+
+
 def test_scenario_funnel_csv_writer(tmp_path: Path) -> None:
     export = {
         "commit_sha": "abc123",
