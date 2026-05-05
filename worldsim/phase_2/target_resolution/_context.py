@@ -1,4 +1,5 @@
 """Shared import and constant context for target resolution modules."""
+
 # ruff: noqa: F401,I001
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ from urllib.parse import quote as urlquote
 from worldsim.editors._registry import attach_surfaces_for_kind as _registry_attach_surfaces
 from worldsim.editors._registry import kind_contract as _registry_kind_contract
 from worldsim.placeholders import apply_placeholders
+
 logger = logging.getLogger(__name__)
 ResourceKind = Literal[
     "gitlab_issue",
@@ -268,6 +270,20 @@ _EXACT_DISCUSSION_REGION_RE = re.compile(
 _LATEST_DISCUSSION_REGION_RE = re.compile(
     r"\b(?:latest|newest|most recent(?:ly)?|last)\b"
     r"(?:(?!\.).){0,80}\b(?:comment|commented|reply|replies|note|message)\b",
+    re.IGNORECASE,
+)
+REDDIT_COMMENT_VISUAL_REGION_REGEXES: tuple[str, ...] = (
+    r"\b(?:scroll|go|navigate|move|jump)\b"
+    r"(?:(?!\.).){0,100}\b(?:comments?|replies|discussion)\b"
+    r"(?:(?!\.).){0,120}\b(?:first|top|visible|shown|latest|newest|last|most\s+recent)\b"
+    r"(?:(?!\.).){0,100}\b(?:comments?|reply|replies|response)\b",
+    r"\b(?:first|top|visible|shown|latest|newest|last|most\s+recent)\b"
+    r"(?:(?!\.).){0,100}\b(?:comments?|reply|replies|response)\b"
+    r"(?:(?!\.).){0,120}\b(?:scroll|go|navigate|move|jump)\b"
+    r"(?:(?!\.).){0,100}\b(?:comments?|replies|discussion)\b",
+)
+_REDDIT_COMMENT_VISUAL_REGION_RE = re.compile(
+    "|".join(f"(?:{pattern})" for pattern in REDDIT_COMMENT_VISUAL_REGION_REGEXES),
     re.IGNORECASE,
 )
 TITLE_SURFACE_REQUIREMENT_REGEXES: tuple[str, ...] = (

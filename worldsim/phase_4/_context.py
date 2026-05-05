@@ -1,4 +1,5 @@
 """Shared import and constant context for split Phase 4 modules."""
+
 # ruff: noqa: F401,I001
 from __future__ import annotations
 
@@ -124,6 +125,7 @@ from worldsim.task_reset_cache import (
     result_likely_mutated_state,
 )
 from worldsim.trajectory import save_result
+
 logger = logging.getLogger(__name__)
 _CHECKPOINT_FINGERPRINT_KEY = "_source_fingerprint"
 _PLACEMENT_FIX_CHECKPOINT = "placement_fix_checkpoint.json"
@@ -218,6 +220,26 @@ _FINGERPRINT_RESULT_KEYS: tuple[str, ...] = (
 _RESET_TIMEOUT = 300
 _RESET_MAX_RETRIES = 2
 _RESET_RETRY_DELAY = 10
+
+_VARIANT_ROUNDS_KEY = "variant_rounds"
+_ADAPTIVE_VARIANT_BUDGET = (3, 3, 1)
+_PHASE_4_VARIANT_BUDGET_PRESETS: dict[str, tuple[int, ...]] = {
+    "adaptive-3-3-1": _ADAPTIVE_VARIANT_BUDGET,
+    "smoke-3-probe": (3,),
+}
+_DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET = "adaptive-3-3-1"
+
+
+def phase_4_variant_budget_choices() -> tuple[str, ...]:
+    return tuple(_PHASE_4_VARIANT_BUDGET_PRESETS)
+
+
+def _phase_4_variant_budget_shape(preset: str | None) -> tuple[int, ...]:
+    normalized = (preset or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET).strip()
+    return _PHASE_4_VARIANT_BUDGET_PRESETS.get(
+        normalized,
+        _PHASE_4_VARIANT_BUDGET_PRESETS[_DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET],
+    )
 
 
 def install_context(namespace: dict[str, object]) -> None:
