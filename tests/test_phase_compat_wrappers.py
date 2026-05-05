@@ -40,3 +40,22 @@ def test_legacy_phase_helper_imports_delegate_to_canonical_functions() -> None:
     assert legacy_output._sanitize_task_for_output is output._sanitize_task_for_output
     assert legacy_artifacts._write_phase_2c_artifacts is artifacts._write_phase_2c_artifacts
     assert legacy_config._extract_instances_list is config._extract_instances_list
+
+
+def test_legacy_target_resolver_private_helpers_remain_reexported() -> None:
+    legacy = importlib.import_module("worldsim.phases.phase_2_target_resolver")
+
+    helper_modules = {
+        "_literalize_regex_value": "worldsim.phase_2.target_resolution.url_matching",
+        "_project_item_to_record": "worldsim.phase_2.target_resolution.reconstruction",
+        "_reconstruct_start_url_from_anchors": "worldsim.phase_2.target_resolution.reconstruction",
+        "_canonicalize_project_path": "worldsim.phase_2.target_resolution.url_matching",
+        "_normalise_sort_direction": "worldsim.phase_2.target_resolution.http_probes",
+        "_default_listing_probe": "worldsim.phase_2.target_resolution.listing_probes",
+        "_gitlab_issue_listing_intent": "worldsim.phase_2.target_resolution.listing_intent",
+        "_route_evidence_flags": "worldsim.phase_2.target_resolution.encounter",
+    }
+
+    for helper_name, canonical_module_name in helper_modules.items():
+        canonical_module = importlib.import_module(canonical_module_name)
+        assert getattr(legacy, helper_name) is getattr(canonical_module, helper_name)

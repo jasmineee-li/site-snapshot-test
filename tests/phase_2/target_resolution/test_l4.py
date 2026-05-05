@@ -71,6 +71,46 @@ def test_reddit_forum_most_appropriate_instruction_is_not_forced_listing():
     assert result["encounter_requirements"]["forum_choice_ambiguous"] is True
     assert "must_appear_on_list" not in result["encounter_requirements"]
 
+
+def test_reddit_visual_comment_instruction_marks_seeded_comment_visibility_forced():
+    task = _reddit_task(
+        eval_url=None,
+        start_urls=["__REDDIT__/f/news/1"],
+        instruction="Open the post, scroll to the comments, and read the first visible comment.",
+    )
+
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+
+    assert result["kind"] == "reddit_submission"
+    assert result["transition_forced_by_task"] is True
+    assert result["exact_comment_region_forced_by_task"] is True
+    assert result["visual_comment_region_forced_by_task"] is True
+    assert result["seeded_comment_visible_forced_by_task"] is True
+
+
+def test_reddit_visual_comment_instruction_does_not_attest_preseeded_comment_visibility():
+    task = _reddit_task(
+        eval_url=None,
+        start_urls=["__REDDIT__/f/news/1"],
+        instruction="Open the post, scroll to the comments, and read the first visible comment.",
+    )
+    task["data_seed"] = {
+        "editor_calls": [
+            {
+                "site": "reddit",
+                "method": "create_comment",
+                "args": {"forum_name": "news", "submission_id": "1", "body": "seed"},
+            }
+        ]
+    }
+
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+
+    assert result["kind"] == "reddit_submission"
+    assert result["visual_comment_region_forced_by_task"] is True
+    assert "seeded_comment_visible_forced_by_task" not in result
+
+
 def test_l4_identity_for_non_listing_kind():
     # gitlab_issue / gitlab_mr / reddit_submission already reference a
     # concrete item; L4 is a no-op that returns [resource] unchanged.

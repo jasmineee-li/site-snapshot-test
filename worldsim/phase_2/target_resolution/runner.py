@@ -13,9 +13,49 @@ from worldsim.phase_2.target_resolution.constants import (
     DEFAULT_L3_CONCURRENCY,
     DEFAULT_L4_CONCURRENCY,
 )
-from worldsim.phase_2.target_resolution.http_probes import _admission_filter_resolved_record
+from worldsim.phase_2.target_resolution.encounter import (
+    _assert_anchor_contract_conformance,
+    _attach_surfaces_for,
+    _benign_user_handle,
+    _encounter_requirements,
+    _reddit_forum_choice_is_ambiguous,
+    _route_evidence_flags,
+    _title_surface_forced_by_instruction,
+)
+from worldsim.phase_2.target_resolution.http_probes import (
+    _admission_filter_resolved_record,
+    _benign_probe_instance,
+    _default_probe,
+    _normalise_sort_direction,
+    _postmill_submission_comment_count_from_html,
+    _probe_http_json,
+)
 from worldsim.phase_2.target_resolution.l3 import resolve_l3
 from worldsim.phase_2.target_resolution.l4 import resolve_l4
+from worldsim.phase_2.target_resolution.listing_intent import (
+    _gitlab_issue_listing_intent,
+    _label_names_from_gitlab_issue_listing_instruction,
+    _project_path_from_gitlab_listing_task,
+)
+from worldsim.phase_2.target_resolution.listing_probes import (
+    _dashboard_query,
+    _default_listing_probe,
+    _filter_visible_gitlab_dashboard_items,
+    _first_query_value,
+    _gitlab_item_url,
+    _gitlab_visible_dashboard_hrefs,
+    _list_gitlab_dashboard,
+    _list_gitlab_search,
+    _list_reddit_forum,
+    _normalize_href_path,
+)
+from worldsim.phase_2.target_resolution.reconstruction import (
+    _anchors_from_gitlab_item,
+    _anchors_from_reddit_submission,
+    _clean_project_path,
+    _project_item_to_record,
+    _reconstruct_start_url_from_anchors,
+)
 from worldsim.phase_2.target_resolution.resolver import derive_benign_target_resource
 from worldsim.phase_2.target_resolution.types import (
     ClassifierFn,
@@ -23,13 +63,88 @@ from worldsim.phase_2.target_resolution.types import (
     ProbeFn,
     RedditCommentCountFn,
 )
-from worldsim.phase_2.target_resolution.url_matching import _empty_record
+from worldsim.phase_2.target_resolution.url_matching import (
+    _canonicalize_project_path,
+    _disambiguate_root_segment,
+    _empty_record,
+    _is_listing_kind,
+    _iter_eval_urls,
+    _iter_start_urls,
+    _listing_start_url,
+    _literalize_regex_value,
+    _match_gitlab,
+    _match_reddit,
+    _normalise_url,
+    _path_and_query,
+    _site_kind_for_task,
+    _strip_json_suffix,
+    _strip_regex_anchors,
+    _url_with_expected_query_params,
+)
 
 logger = logging.getLogger(__name__)
 _SHARED_L3_SEM: asyncio.Semaphore | None = None
 _SHARED_L3_SEM_KEY: tuple[int, asyncio.AbstractEventLoop | None] | None = None
 _SHARED_L4_SEM: asyncio.Semaphore | None = None
 _SHARED_L4_SEM_KEY: tuple[int, asyncio.AbstractEventLoop | None] | None = None
+
+__all__ = [
+    "ClassifierFn",
+    "ListingProbeFn",
+    "ProbeFn",
+    "RedditCommentCountFn",
+    "_admission_filter_resolved_record",
+    "_anchors_from_gitlab_item",
+    "_anchors_from_reddit_submission",
+    "_assert_anchor_contract_conformance",
+    "_attach_surfaces_for",
+    "_benign_probe_instance",
+    "_benign_user_handle",
+    "_canonicalize_project_path",
+    "_clean_project_path",
+    "_dashboard_query",
+    "_default_listing_probe",
+    "_default_probe",
+    "_disambiguate_root_segment",
+    "_empty_record",
+    "_encounter_requirements",
+    "_filter_visible_gitlab_dashboard_items",
+    "_first_query_value",
+    "_gitlab_issue_listing_intent",
+    "_gitlab_item_url",
+    "_gitlab_visible_dashboard_hrefs",
+    "_is_listing_kind",
+    "_iter_eval_urls",
+    "_iter_start_urls",
+    "_label_names_from_gitlab_issue_listing_instruction",
+    "_list_gitlab_dashboard",
+    "_list_gitlab_search",
+    "_list_reddit_forum",
+    "_listing_start_url",
+    "_literalize_regex_value",
+    "_match_gitlab",
+    "_match_reddit",
+    "_normalise_sort_direction",
+    "_normalise_url",
+    "_normalize_href_path",
+    "_path_and_query",
+    "_postmill_submission_comment_count_from_html",
+    "_probe_http_json",
+    "_project_item_to_record",
+    "_project_path_from_gitlab_listing_task",
+    "_reconstruct_start_url_from_anchors",
+    "_reddit_forum_choice_is_ambiguous",
+    "_route_evidence_flags",
+    "_site_kind_for_task",
+    "_strip_json_suffix",
+    "_strip_regex_anchors",
+    "_title_surface_forced_by_instruction",
+    "_url_with_expected_query_params",
+    "derive_benign_target_resource",
+    "resolve_l3",
+    "resolve_l4",
+    "resolve_tasks",
+]
 
 
 def _l3_concurrency_default() -> int:

@@ -78,7 +78,28 @@ def _route_evidence_flags(kind: ResourceKind | str, task: Mapping[str, Any]) -> 
             flags["transition_forced_by_task"] = True
             flags["exact_comment_region_forced_by_task"] = True
             flags["visual_comment_region_forced_by_task"] = True
+            if not _task_already_seeds_reddit_comment_body(task):
+                flags["seeded_comment_visible_forced_by_task"] = True
     return flags
+
+
+def _task_already_seeds_reddit_comment_body(task: Mapping[str, Any]) -> bool:
+    data_seed = task.get("data_seed")
+    if not isinstance(data_seed, Mapping):
+        return False
+    raw_calls = data_seed.get("editor_calls")
+    if raw_calls is None:
+        raw_calls = data_seed.get("calls")
+    if not isinstance(raw_calls, list):
+        return False
+    for call in raw_calls:
+        if not isinstance(call, Mapping):
+            continue
+        if str(call.get("site") or "").strip().lower() != "reddit":
+            continue
+        if str(call.get("method") or "").strip() == "create_comment":
+            return True
+    return False
 
 
 def _title_surface_forced_by_instruction(instruction: str) -> bool:
