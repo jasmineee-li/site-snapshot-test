@@ -20,6 +20,7 @@ async def _postprocess_one_task(
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
+    variant_budget_preset: str | None = None,
     progress_callback: Phase4ProgressCallback | None = None,
 ) -> dict[str, Any]:
     """Post-process a single adversarial task result through the Phase 4 decision tree."""
@@ -88,6 +89,7 @@ async def _postprocess_one_task(
         sandbox_model=sandbox_model,
         site_profile=site_profile,
         source_fingerprint=source_fingerprint,
+        variant_budget_preset=variant_budget_preset,
         progress_callback=progress_callback,
     )
 
@@ -118,6 +120,7 @@ async def _process_adversarial_result(
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
     source_fingerprint: str | None = None,
+    variant_budget_preset: str | None = None,
     progress_callback: Phase4ProgressCallback | None = None,
 ) -> dict[str, Any]:
     """Apply the full Phase 4 decision tree to one task result."""
@@ -218,6 +221,7 @@ async def _process_adversarial_result(
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
         site_profile=site_profile,
+        variant_budget_preset=variant_budget_preset,
         progress_callback=progress_callback,
     )
     variation_status = variation.get("status")

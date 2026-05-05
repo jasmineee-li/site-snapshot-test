@@ -88,6 +88,7 @@ async def run_strategy_variation(
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
+    variant_budget_preset: str | None = None,
     progress_callback: Phase4ProgressCallback | None = None,
 ) -> dict[str, Any]:
     """Adaptive strategy variation: judge -> generate variants -> evaluate.
@@ -96,11 +97,24 @@ async def run_strategy_variation(
     recommended strategies.
     """
     task_id = str(task.get("id", "unknown"))
+    budget_preset = variant_budget_preset or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET
+    budget_shape = _phase_4_variant_budget_shape(variant_budget_preset)
 
     async def _emit_variant_progress(event: str, data: Mapping[str, Any]) -> None:
         if progress_callback is None:
             return
-        await progress_callback(event, data)
+        try:
+            await progress_callback(
+                event,
+                {
+                    "task_id": task_id,
+                    "budget_preset": budget_preset,
+                    "budget_shape": list(budget_shape),
+                    **dict(data),
+                },
+            )
+        except Exception as exc:
+            logger.warning("Could not write Phase 4 variant progress for task %s: %s", task_id, exc)
 
     checkpoint_path = _strategy_variation_checkpoint_path(task_dir_root, task_id)
     source_fingerprint = _phase_4_postprocess_fingerprint(

@@ -44,6 +44,8 @@ async def run(args: argparse.Namespace) -> int:
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
     sites_filter_raw = getattr(args, "sites", None)
     instances_path = getattr(args, "instances", None)
+    phase_4_max_workers = getattr(args, "phase_4_max_workers", None)
+    phase_4_variant_budget = getattr(args, "phase_4_variant_budget", None)
 
     _sweep_orphan_inflight_sentinels(task_dir_root)
 
@@ -59,6 +61,8 @@ async def run(args: argparse.Namespace) -> int:
         benchmark_root=benchmark_root,
         allow_unknown_auth=allow_unknown_auth,
         skip_host_bound_storage_state_auth=skip_host_bound_storage_state_auth,
+        phase_4_max_workers=phase_4_max_workers,
+        phase_4_variant_budget=phase_4_variant_budget,
     )
 
     admission = _load_admitted_phase_4_tasks(
@@ -383,6 +387,8 @@ async def run(args: argparse.Namespace) -> int:
         provider=agent_provider,
         service_tier=agent_service_tier,
     )
+    if phase_4_max_workers is not None:
+        logger.info("Phase 4 Browser Use worker concurrency cap: %d", phase_4_max_workers)
     reset_cache = TaskResetCache()
     save_state("phase_4", status="running", **state_metadata)
     # Thread the benchmark codebase root through so BrowserUseAgent can validate
@@ -432,6 +438,7 @@ async def run(args: argparse.Namespace) -> int:
         task_dir_root=task_dir_root,
         config_url_placeholders=config.url_placeholders,
         resume=resume,
+        max_workers=phase_4_max_workers,
         resume_fingerprint_builder=lambda task: _phase_4_result_fingerprint(
             task,
             eval_context=_phase_4_eval_context_for_task(
@@ -454,6 +461,8 @@ async def run(args: argparse.Namespace) -> int:
         task_dir_root=task_dir_root,
         total_tasks=len(tasks),
         completed_initial_tasks=len(results),
+        phase_4_max_workers=phase_4_max_workers,
+        phase_4_variant_budget=phase_4_variant_budget,
     )
 
     async def _postprocess_one_task_with_progress(result: dict[str, Any]) -> dict[str, Any]:
@@ -477,6 +486,7 @@ async def run(args: argparse.Namespace) -> int:
                 site_profile=site_profiles.get(
                     str(task_by_id.get(str(result.get("task_id", "")), {}).get("site", ""))
                 ),
+                variant_budget_preset=phase_4_variant_budget,
                 progress_callback=_record_progress,
             )
         except Exception:

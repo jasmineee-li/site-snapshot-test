@@ -63,6 +63,8 @@ def _phase_4_state_metadata(
     benchmark_root: Path | None,
     allow_unknown_auth: bool,
     skip_host_bound_storage_state_auth: bool,
+    phase_4_max_workers: int | None = None,
+    phase_4_variant_budget: str | None = None,
 ) -> dict[str, Any]:
     metadata: dict[str, Any] = {
         "task_dir_root": str(task_dir_root),
@@ -79,6 +81,10 @@ def _phase_4_state_metadata(
         metadata["sites"] = sites
     if benchmark_root is not None:
         metadata["benchmark_path"] = str(benchmark_root)
+    if phase_4_max_workers is not None:
+        metadata["phase_4_max_workers"] = phase_4_max_workers
+    if phase_4_variant_budget is not None:
+        metadata["phase_4_variant_budget"] = phase_4_variant_budget
     return metadata
 
 

@@ -340,6 +340,7 @@ async def test_phase_4_run_filters_tasks_by_sites_before_rebase(monkeypatch, tmp
 
     async def fake_run_tasks_by_site(**kwargs):
         captured["tasks"] = kwargs["tasks"]
+        captured["max_workers"] = kwargs.get("max_workers")
         return []
 
     monkeypatch.setattr(phase_4_adversarial, "preflight_auth_check", lambda: None)
@@ -355,6 +356,8 @@ async def test_phase_4_run_filters_tasks_by_sites_before_rebase(monkeypatch, tmp
             max_tasks_per_site=1,
             sites="gitlab",
             allow_unknown_auth=True,
+            phase_4_max_workers=2,
+            phase_4_variant_budget="smoke-3-probe",
             resume=False,
         )
     )
@@ -364,6 +367,7 @@ async def test_phase_4_run_filters_tasks_by_sites_before_rebase(monkeypatch, tmp
     assert isinstance(tasks, list)
     assert len(tasks) == 1
     assert tasks[0]["site"] == "gitlab"
+    assert captured["max_workers"] == 2
 
 @pytest.mark.asyncio
 async def test_phase_4_run_rejects_unknown_sites_filter(monkeypatch, tmp_path):

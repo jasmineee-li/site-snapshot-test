@@ -74,6 +74,43 @@ async def test_run_strategy_variation_handles_variant_generation_exceptions(monk
         }
     ]
 
+
+@pytest.mark.asyncio
+async def test_run_strategy_variation_treats_progress_callback_as_observational(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+
+    async def fake_run_judge(*args, **kwargs):
+        return {
+            "status": "ok",
+            "diagnosis": "no strategies",
+            "recommended_strategies": [],
+        }
+
+    async def failing_progress_callback(*args, **kwargs):
+        raise RuntimeError("progress disk full")
+
+    monkeypatch.setattr(phase_4_adversarial, "run_judge", fake_run_judge)
+
+    result = await phase_4_adversarial.run_strategy_variation(
+        task=task,
+        initial_result={"trajectory_dir": str(tmp_path / "traj")},
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        progress_callback=failing_progress_callback,
+    )
+
+    assert result["status"] == "judge_failed"
+    assert result["variant_results"] == []
+    assert result["judge_diagnosis"]["validation_errors"] == [
+        "judge returned no recommended strategies"
+    ]
+
+
 @pytest.mark.asyncio
 async def test_run_strategy_variation_marks_partial_capacity(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
