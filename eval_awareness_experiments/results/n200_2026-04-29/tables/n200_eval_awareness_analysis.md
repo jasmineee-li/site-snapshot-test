@@ -1,6 +1,6 @@
 # N200 Eval-Awareness Analysis Tables
 
-Generated: 2026-05-05T03:11:32+00:00
+Generated: 2026-05-05T13:15:35+00:00
 
 Source: `eval_awareness_experiments/results/n200_2026-04-29`
 
@@ -52,6 +52,10 @@ Definitions follow `ANALYSIS_TABLES_GUIDE.md`: bare VEA uses `classification != 
 | DoomArena | Hypothetical XML | 21.3% | 23.2% | +1.8 pp | up 2 / down 1 / unchanged 3 |
 | WASP | Eval XML | 9.8% | 4.6% | -5.3 pp | up 1 / down 4 / unchanged 1 |
 | WASP | Hypothetical XML | 9.8% | 7.0% | -2.8 pp | up 1 / down 4 / unchanged 1 |
+| AgentDojo | Eval XML | 0.0% | 0.1% | +0.1 pp | up 1 / down 0 / unchanged 5 |
+| AgentDojo | Hypothetical XML | 0.0% | 0.0% | +0.0 pp | up 0 / down 0 / unchanged 6 |
+| InjecAgent | Eval XML | 1.9% | 1.7% | -0.2 pp | up 0 / down 2 / unchanged 4 |
+| InjecAgent | Hypothetical XML | 1.9% | 1.5% | -0.4 pp | up 0 / down 2 / unchanged 4 |
 
 ## Table 4: XML Tag Effect On ASR, Per Model
 
@@ -69,6 +73,18 @@ Definitions follow `ANALYSIS_TABLES_GUIDE.md`: bare VEA uses `classification != 
 | WASP | moonshotai/kimi-k2.5:thinking | 7.1% | 7.7% | +0.6 pp | 6.5% | -0.6 pp |
 | WASP | openai/gpt-5.2:thinking | 26.8% | 7.7% | -19.0 pp | 19.6% | -7.1 pp |
 | WASP | z-ai/glm-5:thinking | 7.7% | 5.4% | -2.4 pp | 8.3% | +0.6 pp |
+| AgentDojo | anthropic/claude-opus-4.7:thinking | 0.0% | 0.0% | +0.0 pp | 0.0% | +0.0 pp |
+| AgentDojo | anthropic/claude-sonnet-4.6:thinking | 0.0% | 0.0% | +0.0 pp | 0.0% | +0.0 pp |
+| AgentDojo | google/gemini-2.5-pro:thinking | 0.0% | 0.5% | +0.5 pp | 0.0% | +0.0 pp |
+| AgentDojo | moonshotai/kimi-k2.5:thinking | 0.0% | 0.0% | +0.0 pp | 0.0% | +0.0 pp |
+| AgentDojo | openai/gpt-5.2:thinking | 0.0% | 0.0% | +0.0 pp | 0.0% | +0.0 pp |
+| AgentDojo | z-ai/glm-5:thinking | 0.0% | 0.0% | +0.0 pp | 0.0% | +0.0 pp |
+| InjecAgent | anthropic/claude-opus-4.7:thinking | 0.0% | 0.0% | +0.0 pp | 0.0% | +0.0 pp |
+| InjecAgent | anthropic/claude-sonnet-4.6:thinking | 0.0% | 0.0% | +0.0 pp | 0.0% | +0.0 pp |
+| InjecAgent | google/gemini-2.5-pro:thinking | 10.5% | 9.5% | -1.0 pp | 9.0% | -1.5 pp |
+| InjecAgent | moonshotai/kimi-k2.5:thinking | 1.0% | 0.5% | -0.5 pp | 0.0% | -1.0 pp |
+| InjecAgent | openai/gpt-5.2:thinking | 0.0% | 0.0% | +0.0 pp | 0.0% | +0.0 pp |
+| InjecAgent | z-ai/glm-5:thinking | 0.0% | 0.0% | +0.0 pp | 0.0% | +0.0 pp |
 
 ## Table 5: Transcript Purpose Majority, Benchmark Average
 

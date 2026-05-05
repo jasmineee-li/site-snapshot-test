@@ -16,7 +16,6 @@ from typing import Any
 
 
 BENCHMARKS = ("doomarena", "wasp", "agentdojo", "injecagent")
-BROWSER_BENCHMARKS = ("doomarena", "wasp")
 ARMS = ("bare", "xml_safety", "xml_scenario")
 
 EVAL_CLASSES = {
@@ -366,7 +365,7 @@ def _xml_asr_tables(rows: list[JudgeRow]) -> tuple[str, str]:
 
     average_rows = []
     per_model_rows = []
-    for benchmark in BROWSER_BENCHMARKS:
+    for benchmark in BENCHMARKS:
         model_slugs = sorted(
             {
                 model_slug
