@@ -66,6 +66,12 @@ For any new forward-port commit, run the local validation block at the end of th
 
 ## Gap 2: Verify the three behavioral forward-port commits are correct
 
+**Status: resolved (no fix needed) 2026-05-05.** Direct audit of each behavioral forward-port confirmed correctness:
+
+- `05a17161` (validate-then-canonicalize): `worldsim/phases/phase_1_generate_new_tasks_validation.py:1085, 1092` shows the correct order; `tests/test_phase_1_tasks.py::test_validate_generated_novel_tasks_rejects_task_card_capability_mismatch` passes.
+- `8b9850d5` (action_policy=action_policy or "default"): `worldsim/phase_2/generation.py:20, 90` matches; `tests/phase_2/test_output.py::test_generate_injections_for_site_api_path_sanitizes_prompt_inputs` passes.
+- `d6d5c0f3` (adopt upstream test files verbatim): source-side preservation confirmed. GraphQL URL pattern `r"/api/graphql(?:[?#].*)?$"` exists at `worldsim/adversarial_actions/compiler.py:721, 907, 931`; post-data field expectation `r"^variables(?:[\[.].*)?body.*$"` exists at `:943`. Helpers `_canonicalize_task_card_action_provenance` and `_card_benign_task_family_id` exist at `phase_1_generate_new_tasks_validation.py:1209, 1470`. `tests/test_adversarial_actions.py` runs clean. The 7 failures in `tests/test_phase_1_tasks.py` are exactly the pre-existing Gap 4 set and are out-of-scope.
+
 The five trailing forward-port commits are the only commits in this PR that are not 1-1 with the original PR's intent. Three are behavioral. They need spot-review.
 
 **Commit `cb9c2e9a chore(rebase): validate phase_1 capability alignment before canonicalizing card provenance`.**
@@ -213,6 +219,8 @@ These failures are NOT regressions introduced by PR #10 (confirmed: they reprodu
 
 ## Gap 5: External callsites of the compatibility wrappers
 
+**Status: resolved (no fix needed) 2026-05-05.** Direct audit smoked every unique import that crosses a compat shim boundary (eight private helpers from `phase_2_target_resolver`, four from `phase_2_injections`, two from `phase_4_adversarial`, eight from `phase_2_injections_api`, plus the integration-test imports under `tests/integration/`). Every symbol resolves through the shim. The compat layer is `sys.modules[__name__] = <runner>` plus `install_context` + `link_modules` propagation, so any symbol on a sibling module reachable from the runner is reachable from the shim. No `chore(scripts):` migration is needed in this PR; PR #11 adds `tests/test_phase_compat_wrappers.py` for ongoing CI coverage of the same surface.
+
 **What.** The PR retains `worldsim/phases/phase_2_injections.py`, `worldsim/phases/phase_2_target_resolver.py`, `worldsim/phases/phase_4_adversarial.py` as compat shims. Any code in `scripts/`, in vendored references, in agent harnesses, or in notebooks that imports those paths must still work.
 
 **Why.** Silent import-time failures or partial re-exports would manifest only at runtime in live r5 runs, exactly the path we did not exercise. The "Preserve Auth Boundary" memory and the "v5 Pivot Absences" memory both warn against silent failures at boundaries.
@@ -281,6 +289,12 @@ done < /tmp/pr10-upstream-since-merge-base.txt > /tmp/pr10-difference-report.txt
 
 ## Gap 7: Documentation drift
 
+**Status: resolved 2026-05-05.** Active doc references to the deleted monoliths updated:
+- `README.md:308` directory listing now shows `worldsim/phase_2/`, `worldsim/phase_4/`, and `worldsim/phases/` (legacy + compat shims) explicitly.
+- `docs/worldsim-v5-technical-specifcation.md:1755` updated to point at `worldsim.phase_4.metrics._ecologically_valid` with a note that the `phase_4_adversarial` compat shim re-exports it for one migration cycle.
+
+Historical TODO/handoff docs (`docs/TODO-adversarial-rigor-mvp.md`, `docs/todo-pvpo-post-ship-review.md`, `docs/TODO-2-paper-experiments.md`, `docs/handoffs/codex-handoff-*.md`, `docs/handoffs/wasp-aligned-scoping-decision.md`, `docs/handoffs/researcher-handoff-project-status.md`, `docs/handoffs/pvpo-placement-fix-r5-integration-2026-04-19.md`, `docs/handoffs/phase-2-placement-systemic-gap.md`, `docs/handoffs/archive/*.md`) keep their original phrasing because they are point-in-time records, not active executable docs. Their line-number references were already stale before the rebase.
+
 **What.** The PR updates `agent_docs/code-organization.md`, `agent_docs/artifacts.md`, `agent_docs/remote-runs.md`, `agent_docs/secrets.md`, `README.md`, `docs/handoffs/orchestrator-handoff-r5-migration.md`, `docs/worldsim-v5-technical-specifcation.md`. The base added new `docs/results/*`, `docs/actions/*`, and `docs/runbook/*` content. After the rebase, agent docs should describe the modular layout AND the upstream-only doc additions should still be present.
 
 **Why.** The spec is authoritative. CLAUDE.md says: if code and spec diverge, update the spec first. After this rebase the modularized layout exists in code and the spec text should match.
@@ -294,6 +308,8 @@ done < /tmp/pr10-upstream-since-merge-base.txt > /tmp/pr10-difference-report.txt
 **Verification.** No agent doc references `phase_2_injections.py` or `phase_4_adversarial.py` as live code paths; all such references are either inside compatibility-wrapper notes or removed.
 
 ## Gap 8: Generated artifact policy preservation
+
+**Status: resolved (no fix needed) 2026-05-05.** `git ls-files logs/` returns empty. `.gitignore` diff against `origin/feat/worldsim-v5` shows only the intended PR additions (`instances.smoke.json`, `instances.smoke.json.fragment`, `scripts/docker-compose.smoke.yml`). No regenerated logs were re-tracked by the rebase. Readiness audit `tracked_generated` field was already verified as `[]` after the rebase and remains so after the Gap 10/11/12/14 closing commits.
 
 **What.** PR #10 deleted ~775,000 lines of tracked `logs/phase_1/*.json` and `logs/phase_2/*.json`. The PR adds artifact policy text in `agent_docs/artifacts.md`. Verify that nothing in the rebase reintroduced any tracked `logs/` artifact, and that `.gitignore` still ignores them.
 

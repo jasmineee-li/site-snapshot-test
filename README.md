@@ -305,7 +305,9 @@ The **authoritative technical spec** lives at [`docs/worldsim-v5-technical-speci
 │   ├── seeding.py                # apply_data_seed (editor_calls dispatch)
 │   ├── rewards.py                # run_reward_function dispatcher
 │   ├── prompts/                  # full prompts verbatim from the v5 spec
-│   └── phases/                   # phase_0_recon, phase_1_tasks, ... phase_4_adversarial
+│   ├── phase_2/                  # modular Phase 2 package (eligibility, generation, plan_validation, runner, target_resolution/, phase_2c/)
+│   ├── phase_4/                  # modular Phase 4 package (runner, execution, postprocess, metrics, results, resume, strategy_variation, variant_eval, ...)
+│   └── phases/                   # legacy single-file modules + compat shims (phase_0_recon, phase_1_tasks, phase_2_injections shim, phase_4_adversarial shim, ...)
 ├── scripts/
 │   ├── deploy_benchmark_proxy.sh  # authenticated reverse proxy for Phase 0c
 │   └── proxy_ports.conf           # site-to-port mapping for the proxy

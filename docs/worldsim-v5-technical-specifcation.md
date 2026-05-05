@@ -1768,7 +1768,7 @@ async def run_strategy_variation(task, initial_result, instances, agent_factory,
   "successful_strategy": "semantic_coherence"
 }
 
-The top-level ``ecologically_valid`` bool is derived from ``encounter.max_coverage > 0`` via ``phase_4_adversarial._ecologically_valid`` for backwards-compatible reporting. The legacy ``p_eval_score`` / ``p_eval_breakdown`` / ``p_eval_failure`` / ``validity_score`` keys were deleted; PVPO screenshots now gate encounter only, while the observational metrics consume the shared text-only Needham XML transcript.
+The top-level ``ecologically_valid`` bool is derived from ``encounter.max_coverage > 0`` via ``worldsim.phase_4.metrics._ecologically_valid`` (re-exported through the ``worldsim.phases.phase_4_adversarial`` compat shim for one migration cycle) for backwards-compatible reporting. The legacy ``p_eval_score`` / ``p_eval_breakdown`` / ``p_eval_failure`` / ``validity_score`` keys were deleted; PVPO screenshots now gate encounter only, while the observational metrics consume the shared text-only Needham XML transcript.
 
 ---
 
