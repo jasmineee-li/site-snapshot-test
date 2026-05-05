@@ -32,10 +32,52 @@ argv/PATH behavior; launch failures are written as `exit.status=launch_failed`
 and surfaced by `remote_job_status.sh`.
 
 Use `--expected-output <path>` for the artifact that proves the job did real
-work. Use `--state-dir auto` only for isolated experiments; normal Phase
-1/2/3/4 chains should write canonical `logs/phase_*` artifacts. Push required
-remote environment variables with `scripts/remote_env_push.sh`; do not paste
-secrets into job commands or hand-written shell history.
+work. For named Phase 1/2/3/4 runs, pass an explicit
+`--state-dir logs/<run_name>` to `remote_job_start.sh`; that sets
+`WORLDSIM_STATE_DIR` for the detached process and is how `worldsim.main` chooses
+where `phase_*` artifacts are written. Do not pass `--output-dir` to
+`worldsim.main phase`; the phase CLI is state-dir based. Use `--state-dir auto`
+only for isolated experiments. Push required remote environment variables with
+`scripts/remote_env_push.sh`; do not paste secrets into job commands or
+hand-written shell history.
+
+Canonical r5 Phase 4 launch shape:
+
+```bash
+RUN=logs/<phase4_run_name>
+SOURCE=logs/<verified_phase2_phase3_source>
+
+scripts/remote_job_start.sh \
+  --host-config configs/benchmark_hosts/r5.yaml \
+  --remote-dir /home/ubuntu/browser-sim \
+  --name <short-job-name> \
+  --state-dir "$RUN" \
+  --expected-output "$RUN/phase_4/results.json" -- \
+  bash -lc '
+    set -euo pipefail
+    cd /home/ubuntu/browser-sim
+    RUN="'"$RUN"'"
+    SOURCE="'"$SOURCE"'"
+    rm -rf "$RUN"
+    mkdir -p "$RUN"
+    for d in phase_0c phase_1 phase_2 phase_3; do
+      cp -a "$SOURCE/$d" "$RUN/$d"
+    done
+    uv run python -m worldsim.main phase \
+      --instances instances.scale.json \
+      --sites reddit \
+      --task-origin new_task \
+      --max-tasks-per-site 16 \
+      --agent-provider openai \
+      --agent-model gpt-5.2 \
+      --agent-service-tier priority \
+      --agent-llm-timeout 240 \
+      --agent-step-timeout 300 \
+      --agent-task-timeout 900 \
+      --sandbox-model claude-sonnet-4-6 \
+      4
+  '
+```
 
 `remote_job_status.sh` is the first status surface. It reports process liveness,
 heartbeat age, expected-output presence, and Phase 4 progress when available.
