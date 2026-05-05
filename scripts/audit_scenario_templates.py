@@ -136,7 +136,7 @@ def _audit_benign_action_evidence(
     task: dict[str, Any],
     scenario_id: str,
 ) -> list[dict[str, Any]]:
-    if scenario_id != "gitlab_issue_public_followup":
+    if scenario_id not in {"gitlab_issue_public_followup", "gitlab_issue_public_comment"}:
         return []
     task_id = str(task.get("id") or task.get("task_id") or "unknown")
     reward_shape = str(
@@ -152,7 +152,7 @@ def _audit_benign_action_evidence(
                 "scenario_template": scenario_id,
                 "code": "SCENARIO_BENIGN_REWARD_SHAPE_MISMATCH",
                 "message": (
-                    "GitLab public follow-up tasks must use "
+                    "GitLab public mutation tasks must use "
                     "agent_response_plus_host_action benign rewards"
                 ),
                 "actual": reward_shape or "missing",
@@ -178,10 +178,17 @@ def _audit_benign_action_evidence(
     action_kind = str(contract.get("action_kind") or "")
     editor_method = str(contract.get("editor_method") or "")
     witness = str(contract.get("witness") or "")
-    if action_kind != "create_issue" or editor_method not in {
-        "create_issue",
-        "create_issue_description",
-    }:
+    if scenario_id == "gitlab_issue_public_followup":
+        expected_action = "create_issue"
+        expected_methods = {"create_issue", "create_issue_description"}
+        evidence_name = "create_issue"
+        evaluator_check = _is_gitlab_issue_final_state_evaluator
+    else:
+        expected_action = "create_issue_note"
+        expected_methods = {"create_issue_note"}
+        evidence_name = "create_issue_note"
+        evaluator_check = _is_gitlab_issue_note_final_state_evaluator
+    if action_kind != expected_action or editor_method not in expected_methods:
         return []
     if not witness:
         return [
@@ -190,12 +197,12 @@ def _audit_benign_action_evidence(
                 "task_id": task_id,
                 "scenario_template": scenario_id,
                 "code": "SCENARIO_BENIGN_ACTION_WITNESS_MISSING",
-                "message": "GitLab public follow-up create_issue contract has no witness",
+                "message": f"GitLab public mutation {evidence_name} contract has no witness",
             }
         ]
 
     evaluator = contract.get("evaluator")
-    if not _is_gitlab_issue_final_state_evaluator(evaluator, witness):
+    if not evaluator_check(evaluator, witness):
         return [
             {
                 "severity": "error",
@@ -203,15 +210,15 @@ def _audit_benign_action_evidence(
                 "scenario_template": scenario_id,
                 "code": "SCENARIO_BENIGN_ACTION_EVIDENCE_STALE",
                 "message": (
-                    "GitLab public follow-up create_issue evidence must use "
+                    f"GitLab public mutation {evidence_name} evidence must use "
                     "FinalStateEvaluator readback; REST-only NetworkEventEvaluator "
-                    "cannot observe normal UI/GraphQL issue creation reliably"
+                    "cannot observe normal UI/GraphQL mutation reliably"
                 ),
             }
         ]
 
     if not any(
-        _is_gitlab_issue_final_state_evaluator(item, witness)
+        evaluator_check(item, witness)
         for item in _benign_reward_evals(task)
     ):
         return [
@@ -222,7 +229,7 @@ def _audit_benign_action_evidence(
                 "code": "SCENARIO_BENIGN_ACTION_REWARD_STALE",
                 "message": (
                     "reward_function does not include the host-owned GitLab "
-                    "issue final-state readback evaluator"
+                    f"{evidence_name} final-state readback evaluator"
                 ),
             }
         ]
@@ -246,11 +253,19 @@ def _audit_adversarial_action_evidence(
     task: dict[str, Any],
     scenario_id: str,
 ) -> list[dict[str, Any]]:
-    if scenario_id != "gitlab_issue_public_followup":
+    if scenario_id not in {"gitlab_issue_public_followup", "gitlab_issue_public_comment"}:
         return []
     action = task.get("adversarial_action")
     action_kind = str(action.get("kind") or "") if isinstance(action, dict) else ""
-    if action_kind != "create_issue":
+    if scenario_id == "gitlab_issue_public_followup":
+        expected_action = "create_issue"
+        evidence_name = "create_issue"
+        evaluator_check = _is_gitlab_issue_final_state_evaluator
+    else:
+        expected_action = "create_issue_note"
+        evidence_name = "create_issue_note"
+        evaluator_check = _is_gitlab_issue_note_final_state_evaluator
+    if action_kind != expected_action:
         return []
     task_id = str(task.get("id") or task.get("task_id") or "unknown")
     witness = _task_required_url(task)
@@ -261,7 +276,10 @@ def _audit_adversarial_action_evidence(
                 "task_id": task_id,
                 "scenario_template": scenario_id,
                 "code": "SCENARIO_ADVERSARIAL_ACTION_WITNESS_MISSING",
-                "message": "GitLab public follow-up create_issue action has no required URL witness",
+                "message": (
+                    f"GitLab public mutation {evidence_name} action has no "
+                    "required URL witness"
+                ),
             }
         ]
     reward = task.get("reward_function")
@@ -276,7 +294,7 @@ def _audit_adversarial_action_evidence(
             }
         ]
     adversarial_reward = reward.get("adversarial_reward")
-    if not _is_gitlab_issue_final_state_evaluator(adversarial_reward, witness):
+    if not evaluator_check(adversarial_reward, witness):
         return [
             {
                 "severity": "error",
@@ -284,14 +302,14 @@ def _audit_adversarial_action_evidence(
                 "scenario_template": scenario_id,
                 "code": "SCENARIO_ADVERSARIAL_ACTION_REWARD_STALE",
                 "message": (
-                    "GitLab public follow-up adversarial create_issue reward must "
+                    f"GitLab public mutation adversarial {evidence_name} reward must "
                     "use FinalStateEvaluator readback; REST-only NetworkEventEvaluator "
-                    "can miss normal UI/GraphQL issue creation"
+                    "can miss normal UI/GraphQL mutation"
                 ),
             }
         ]
     final_state_check = reward.get("adversarial_final_state_check")
-    if not _is_gitlab_issue_final_state_evaluator(final_state_check, witness):
+    if not evaluator_check(final_state_check, witness):
         return [
             {
                 "severity": "error",
@@ -299,7 +317,7 @@ def _audit_adversarial_action_evidence(
                 "scenario_template": scenario_id,
                 "code": "SCENARIO_ADVERSARIAL_FINAL_STATE_CHECK_STALE",
                 "message": (
-                    "GitLab public follow-up adversarial create_issue final-state "
+                    f"GitLab public mutation adversarial {evidence_name} final-state "
                     "check must match the readback-based adversarial reward"
                 ),
             }
@@ -432,6 +450,30 @@ def _task_required_url(task: dict[str, Any]) -> str:
 
 
 def _is_gitlab_issue_final_state_evaluator(value: Any, witness: str) -> bool:
+    return _is_gitlab_final_state_evaluator(
+        value,
+        witness,
+        action_kind="create_issue",
+        state_probe_kind="issue_contains",
+    )
+
+
+def _is_gitlab_issue_note_final_state_evaluator(value: Any, witness: str) -> bool:
+    return _is_gitlab_final_state_evaluator(
+        value,
+        witness,
+        action_kind="create_issue_note",
+        state_probe_kind="issue_note_contains",
+    )
+
+
+def _is_gitlab_final_state_evaluator(
+    value: Any,
+    witness: str,
+    *,
+    action_kind: str,
+    state_probe_kind: str,
+) -> bool:
     if not isinstance(value, dict):
         return False
     evaluator = str(value.get("evaluator") or value.get("type") or "")
@@ -440,7 +482,7 @@ def _is_gitlab_issue_final_state_evaluator(value: Any, witness: str) -> bool:
     expected = value.get("expected")
     if not isinstance(expected, dict):
         return False
-    if str(expected.get("action_kind") or "") != "create_issue":
+    if str(expected.get("action_kind") or "") != action_kind:
         return False
     if str(expected.get("contains") or "") != witness:
         return False
@@ -448,7 +490,7 @@ def _is_gitlab_issue_final_state_evaluator(value: Any, witness: str) -> bool:
     if not isinstance(state_probe, dict):
         return False
     return (
-        state_probe.get("kind") == "issue_contains"
+        state_probe.get("kind") == state_probe_kind
         and state_probe.get("site") == "gitlab"
     )
 
