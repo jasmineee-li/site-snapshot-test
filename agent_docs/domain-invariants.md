@@ -234,6 +234,15 @@ different workflow. Keep benchmark-specific action endpoints, selectors,
 fixture setup, final-state probes, and cleanup in host-owned action specs or
 benchmark adapters, never in model-facing prompts or model-authored rewards.
 
+Tier 2 public-mutation pilots may target a page-native action different from
+the carrier editor method only through a host-owned action target contract. For
+example, GitLab issue-description UGC can carry an injected instruction that
+tries to make the agent add a public same-issue comment. The carrier remains
+`issue.description`; the target action is `create_issue_note`; the host owns
+the `same_issue` binding and readback probe. Do not emulate this by pretending
+the carrier editor method is the action method or by letting model-authored
+metadata name issue IDs, endpoints, selectors, rewards, or readback behavior.
+
 Use artifact-local gates before changing prompts broadly. The binary compiler
 canary proves existing semantic rewards still compile deterministically; the
 `semantic_only` action policy is for minimum validation runs that must isolate
