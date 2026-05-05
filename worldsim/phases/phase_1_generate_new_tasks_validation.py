@@ -1082,7 +1082,6 @@ def _validate_task_card_alignment(
             expected=archetype_id,
             actual=task_archetype_id,
         )
-    _canonicalize_task_card_action_provenance(task, card=card, card_id=card_id)
     capability_problem = _validate_task_card_capability_alignment(
         task,
         card=card,
@@ -1090,6 +1089,7 @@ def _validate_task_card_alignment(
     )
     if capability_problem is not None:
         return capability_problem
+    _canonicalize_task_card_action_provenance(task, card=card, card_id=card_id)
     provenance = task.get("task_provenance")
     if provenance is not None and not isinstance(provenance, dict):
         return _field_error(
