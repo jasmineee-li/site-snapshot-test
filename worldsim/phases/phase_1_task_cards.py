@@ -8,6 +8,11 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
+from worldsim.adversarial_actions.action_targets import (
+    action_target_contracts_from_card,
+    validate_action_target_contract,
+    validate_action_target_contracts_field,
+)
 from worldsim.adversarial_actions.benign_action_contracts import (
     validate_benign_action_evidence_stage,
 )
@@ -110,6 +115,17 @@ def validate_task_card_plan(plan: Any) -> None:
         scenario_problem = validate_scenario_template(card.get("scenario_template"))
         if scenario_problem is not None:
             raise TaskCardPlanError(f"task_cards[{index}].{scenario_problem}")
+        target_contract_problem = validate_action_target_contract(
+            card.get("action_target_contract")
+        )
+        if target_contract_problem is not None:
+            raise TaskCardPlanError(f"task_cards[{index}].{target_contract_problem}")
+        target_contracts_problem = validate_action_target_contracts_field(
+            card.get("action_target_contracts")
+        )
+        if target_contracts_problem is not None:
+            raise TaskCardPlanError(f"task_cards[{index}].{target_contracts_problem}")
+        target_contracts = action_target_contracts_from_card(card)
         capability_family = capability_family_from_task_card(card)
         for key in ("capability_family", "required_capability_family"):
             if key in card and (not isinstance(card[key], str) or not str(card[key]).strip()):
@@ -130,6 +146,14 @@ def validate_task_card_plan(plan: Any) -> None:
                 raise TaskCardPlanError(
                     f"task_cards[{index}].compatible_action_kinds contains "
                     f"incompatible action {action_kind!r}: {reason}"
+                )
+            if target_contracts and not any(
+                str(contract.get("action_kind") or "").strip() == action_kind
+                for contract in target_contracts
+            ):
+                raise TaskCardPlanError(
+                    f"task_cards[{index}].compatible_action_kinds contains "
+                    f"{action_kind!r} but no matching action_target_contract"
                 )
         control_action_kinds = card_control_action_kinds(card)
         if control_action_kinds and action_kinds:

@@ -12,6 +12,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
+from worldsim.adversarial_actions.action_targets import ActionTargetContract
 from worldsim.adversarial_actions.capability_adapters import (
     CapabilityTaskAdapter,
     available_capability_adapter_profiles,
@@ -51,6 +52,7 @@ class CapabilityTaskCardBlueprint:
     task_archetype: dict[str, Any] | None = None
     precondition_slot: PreconditionSlot | dict[str, Any] | None = None
     scenario_template: ScenarioTemplate | dict[str, Any] | None = None
+    action_target_contract: ActionTargetContract | dict[str, Any] | None = None
 
     @classmethod
     def from_adapter(cls, adapter: CapabilityTaskAdapter) -> CapabilityTaskCardBlueprint:
@@ -72,6 +74,7 @@ class CapabilityTaskCardBlueprint:
             task_archetype=adapter.task_archetype,
             precondition_slot=adapter.precondition_slot,
             scenario_template=adapter.scenario_template,
+            action_target_contract=adapter.action_target_contract,
         )
 
     def to_task_card(self) -> dict[str, Any]:
@@ -129,6 +132,12 @@ class CapabilityTaskCardBlueprint:
                 if isinstance(self.scenario_template, ScenarioTemplate)
                 else copy.deepcopy(self.scenario_template)
             )
+        if self.action_target_contract is not None:
+            card["action_target_contract"] = (
+                self.action_target_contract.to_dict()
+                if isinstance(self.action_target_contract, ActionTargetContract)
+                else copy.deepcopy(self.action_target_contract)
+            )
         return card
 
 
@@ -141,6 +150,11 @@ _PROFILE_DESCRIPTIONS: dict[str, str] = {
         "Pilot cards for bounded public mutation actions on no-title GitLab/Reddit "
         "WASP body carriers. Use with --phase-2a-action-policy tier2_pilot so "
         "semantic/navigation fallbacks fail closed."
+    ),
+    "tier2_gitlab_public_comment_pilot": (
+        "Pilot card for GitLab issue-description carriers that target a same-issue "
+        "public comment through a host-owned action target contract. Use with "
+        "--phase-2a-action-policy tier2_pilot."
     ),
     "tier3_repository_pilot": (
         "Tier 3 repository/content maintenance pilot cards. Use only with "

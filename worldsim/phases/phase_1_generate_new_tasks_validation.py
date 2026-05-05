@@ -47,6 +47,8 @@ _NOVEL_TASK_REQUIRED_FIELDS = (
 _ALLOWED_GENERATE_NEW_TASKS_EVALUATORS = {"NetworkEventEvaluator", "AgentResponseEvaluator"}
 _MODEL_AUTHORED_HOST_METADATA_FIELDS = (
     "allowed_action_kinds",
+    "action_target_contract",
+    "action_target_contracts",
     "benign_reward_shape",
     "compatible_action_kinds",
     "control_action_kinds",
@@ -1106,6 +1108,8 @@ def _validate_task_card_alignment(
         provenance["precondition_slot"] = copy.deepcopy(card["precondition_slot"])
     if isinstance(card.get("scenario_template"), dict):
         provenance["scenario_template"] = copy.deepcopy(card["scenario_template"])
+    if isinstance(card.get("action_target_contract"), dict):
+        provenance["action_target_contract"] = copy.deepcopy(card["action_target_contract"])
     capability_family = card_capability_family(card)
     if capability_family:
         provenance["capability_family"] = capability_family
@@ -1130,8 +1134,11 @@ def _validate_task_card_alignment(
     if action_kinds:
         task["compatible_action_kinds"] = list(action_kinds)
         task["task_provenance"]["compatible_action_kinds"] = list(action_kinds)
+        if isinstance(card.get("action_target_contract"), dict):
+            task["action_target_contract"] = copy.deepcopy(card["action_target_contract"])
     else:
         task.pop("compatible_action_kinds", None)
+        task.pop("action_target_contract", None)
     if control_action_kinds:
         task["control_action_kinds"] = list(control_action_kinds)
         task["task_provenance"]["control_action_kinds"] = list(control_action_kinds)

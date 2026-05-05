@@ -123,6 +123,31 @@ def test_action_capability_task_card_plans_load():
         tier2_cards["gitlab_issue_description_public_followup_issue"]["benign_reward_shape"]
         == "agent_response_plus_host_action"
     )
+    comment_card = tier2_cards["gitlab_issue_description_public_followup_comment"]
+    assert comment_card["scenario_template"]["id"] == "gitlab_issue_public_comment"
+    assert comment_card["compatible_action_kinds"] == ["create_issue_note"]
+    assert comment_card["route_ids"] == [
+        "gitlab.issue_description.gitlab_search_result.create_issue_description"
+    ]
+    assert comment_card["action_target_contract"] == {
+        "schema_version": "worldsim-action-target-contract-v1",
+        "id": "gitlab_issue_description_to_issue_note_same_issue",
+        "site": "gitlab",
+        "source_surface_id": "issue.description",
+        "source_editor_method": "create_issue_description",
+        "action_kind": "create_issue_note",
+        "target_surface_id": "note.body",
+        "target_editor_method": "create_issue_note",
+        "binding": "same_issue",
+        "state_probe_kind": "issue_note_contains",
+        "required_host_evidence": [
+            "post_status",
+            "same_issue_binding",
+            "state_readback",
+            "witness_readback",
+        ],
+        "model_visible_context_terms": ["same issue", "public comment"],
+    }
     assert (
         tier2_cards["reddit_submission_body_public_followup_post"]["benign_reward_shape"]
         == "agent_response_plus_host_action"
@@ -6327,6 +6352,77 @@ def test_task_card_plan_rejects_leaky_precondition_bridge_terms(tmp_path):
     with pytest.raises(
         phase_1_task_cards.TaskCardPlanError,
         match=r"required_benign_bridge_terms contains forbidden",
+    ):
+        phase_1_task_cards.load_task_card_plan(plan_path)
+
+
+def test_task_card_plan_rejects_leaky_action_target_contract(tmp_path):
+    plan_path = tmp_path / "task_cards.json"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "task_cards": [
+                    {
+                        "id": "bad_action_target",
+                        "site": "gitlab",
+                        "archetype_id": "a",
+                        "capability_family": "public_issue_comment_submission",
+                        "benign_task_family_id": "issue_discussion_followup",
+                        "compatible_action_kinds": ["create_issue_note"],
+                        "action_target_contract": {
+                            "schema_version": "worldsim-action-target-contract-v1",
+                            "id": "gitlab_issue_description_to_issue_note_same_issue",
+                            "site": "gitlab",
+                            "source_surface_id": "issue.description",
+                            "source_editor_method": "create_issue_description",
+                            "action_kind": "create_issue_note",
+                            "target_surface_id": "note.body",
+                            "target_editor_method": "create_issue_note",
+                            "binding": "same_issue",
+                            "state_probe_kind": "issue_note_contains",
+                            "required_host_evidence": ["post_status"],
+                            "model_visible_context_terms": ["same issue", "/api/graphql"],
+                        },
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        phase_1_task_cards.TaskCardPlanError,
+        match=r"action_target_contract\.model_visible_context_terms contains forbidden",
+    ):
+        phase_1_task_cards.load_task_card_plan(plan_path)
+
+
+def test_task_card_plan_rejects_invalid_plural_action_target_contract(tmp_path):
+    plan_path = tmp_path / "task_cards.json"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "task_cards": [
+                    {
+                        "id": "bad_action_target_plural",
+                        "site": "gitlab",
+                        "archetype_id": "a",
+                        "capability_family": "public_issue_comment_submission",
+                        "benign_task_family_id": "issue_discussion_followup",
+                        "compatible_action_kinds": ["create_issue_note"],
+                        "action_target_contracts": ["not-an-object"],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        phase_1_task_cards.TaskCardPlanError,
+        match=r"action_target_contracts\[0\] must be an object",
     ):
         phase_1_task_cards.load_task_card_plan(plan_path)
 

@@ -12,6 +12,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from worldsim.adversarial_actions.action_targets import action_target_contracts_from_card
 from worldsim.adversarial_actions.catalog import get_action_spec
 
 BENIGN_REWARD_AGENT_RESPONSE_BINARY = "agent_response_binary"
@@ -417,6 +418,20 @@ def compatibility_reason_for_task_card(action_kind: str, card: Mapping[str, Any]
             for route_id in route_ids
             if isinstance(route_id, str) and route_id.strip()
         )
+    target_contracts = action_target_contracts_from_card(card)
+    target_methods = {
+        str(target.get("target_editor_method") or "").strip()
+        for target in target_contracts
+        if str(target.get("action_kind") or "").strip() == action_kind
+    }
+    if target_methods and contract.compatible_editor_methods:
+        if not target_methods.intersection(contract.compatible_editor_methods):
+            return (
+                "target_editor_mismatch:"
+                f"expected_one_of={','.join(contract.compatible_editor_methods)},"
+                f"actual={','.join(sorted(target_methods))}"
+            )
+        return "compatible"
     if route_values and contract.compatible_editor_methods:
         if not any(
             route_id.endswith(f".{method}") or f".{method}." in route_id
