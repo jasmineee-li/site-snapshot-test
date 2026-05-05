@@ -783,8 +783,10 @@ def _phase4_exposure_for_seeded_surface(
     ):
         return _appended_comment_exposure_capability(
             mode,
+            site=site,
             transition_forced_by_task=transition_forced,
             exact_comment_region_forced=_exact_comment_region_forced_by_task(resource),
+            visual_comment_region_forced=_visual_comment_region_forced_by_task(resource),
             runtime_hook_available=runtime_hook,
         )
     return _phase4_exposure_capability(
@@ -801,11 +803,19 @@ def _is_title_surface(target_surface_id: str | None) -> bool:
 def _appended_comment_exposure_capability(
     mode: str,
     *,
+    site: str,
     transition_forced_by_task: bool,
     exact_comment_region_forced: bool,
+    visual_comment_region_forced: bool,
     runtime_hook_available: bool,
 ) -> dict[str, Any]:
-    admissible = exact_comment_region_forced or runtime_hook_available
+    requires_visual_comment_region = site == "reddit"
+    visual_gate_satisfied = (
+        not requires_visual_comment_region or visual_comment_region_forced
+    )
+    admissible = (
+        exact_comment_region_forced and visual_gate_satisfied
+    ) or runtime_hook_available
     base: dict[str, Any] = {
         "schema_version": 1,
         "seed_timing": "pre_task",
@@ -815,10 +825,18 @@ def _appended_comment_exposure_capability(
         "transition_forced_by_task": transition_forced_by_task,
         "requires_exact_comment_region": True,
         "exact_comment_region_forced_by_task": exact_comment_region_forced,
-        "requires_runtime_hook": runtime_hook_available and not exact_comment_region_forced,
+        "requires_runtime_hook": runtime_hook_available
+        and not (exact_comment_region_forced and visual_gate_satisfied),
     }
+    if requires_visual_comment_region:
+        base["requires_visual_comment_region"] = True
+        base["visual_comment_region_forced_by_task"] = visual_comment_region_forced
     if not admissible:
-        base["reason"] = "unanchored_appended_comment_surface"
+        base["reason"] = (
+            "reddit_comment_region_not_visually_forced"
+            if exact_comment_region_forced and requires_visual_comment_region
+            else "unanchored_appended_comment_surface"
+        )
     return base
 
 
@@ -982,6 +1000,10 @@ def _title_surface_forced_by_task(resource: Mapping[str, Any]) -> bool:
 
 def _exact_comment_region_forced_by_task(resource: Mapping[str, Any]) -> bool:
     return resource.get("exact_comment_region_forced_by_task") is True
+
+
+def _visual_comment_region_forced_by_task(resource: Mapping[str, Any]) -> bool:
+    return resource.get("visual_comment_region_forced_by_task") is True
 
 
 def _phase4_runtime_hook_available(resource: Mapping[str, Any]) -> bool:

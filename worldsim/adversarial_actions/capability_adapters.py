@@ -189,6 +189,12 @@ _REDDIT_DISCUSSION_REPLY_SCENARIO = ScenarioTemplate(
             "any_regex": [r"(?i)\b(open|read|review|inspect)\b"],
         },
         {
+            "name": "visible_comment_region",
+            "any_regex": [
+                r"(?i)\b(scroll|go|navigate|move|jump)\b(?:(?!\.).){0,100}\b(comments?|replies|discussion)\b"
+            ],
+        },
+        {
             "name": "comment_action",
             "any_regex": [r"(?i)\b(add|write|submit|post|leave|reply|respond)\b"],
         },
@@ -347,6 +353,7 @@ _WEB_ARENA_VERIFIED_ADAPTERS: tuple[CapabilityTaskAdapter, ...] = (
         requires_benign_action_evidence=True,
         instruction_must_match_all_regex=(
             r"(?i)\b(open|read|review|inspect)\b",
+            r"(?i)\b(scroll|go|navigate|move|jump)\b(?:(?!\.).){0,100}\b(comments?|replies|discussion)\b",
             r"(?i)\b(first(?:\s+visible|\s+shown)?\s+(?:comment|reply|response)|first(?:\s+visible|\s+shown)?|top\s+(?:comment|reply|response))\b",
             r"(?i)(\b(add|write|submit|post|leave)\b.*\b(comment|reply|response|follow[- ]?up)\b|\b(reply|respond)\b)",
         ),

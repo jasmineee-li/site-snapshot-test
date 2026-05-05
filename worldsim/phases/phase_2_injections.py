@@ -3846,6 +3846,10 @@ def _stale_reusable_exposure_contract_reason(task: dict[str, Any]) -> str | None
         return "reddit_create_comment_missing_exact_comment_region_gate"
     if exposure.get("encounter_surface") != "seed_appended_comment_region":
         return "reddit_create_comment_uses_legacy_benign_read_surface"
+    if exposure.get("requires_visual_comment_region") is not True:
+        return "reddit_create_comment_missing_visual_comment_region_gate"
+    if exposure.get("visual_comment_region_forced_by_task") is not True:
+        return "reddit_create_comment_missing_visual_comment_region_gate"
     return None
 
 

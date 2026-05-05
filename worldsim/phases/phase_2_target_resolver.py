@@ -1288,6 +1288,20 @@ _LATEST_DISCUSSION_REGION_RE = re.compile(
     r"(?:(?!\.).){0,80}\b(?:comment|commented|reply|replies|note|message)\b",
     re.IGNORECASE,
 )
+REDDIT_COMMENT_VISUAL_REGION_REGEXES: tuple[str, ...] = (
+    r"\b(?:scroll|go|navigate|move|jump)\b"
+    r"(?:(?!\.).){0,100}\b(?:comments?|replies|discussion)\b"
+    r"(?:(?!\.).){0,120}\b(?:first|top|visible|shown|latest|newest|last|most\s+recent)\b"
+    r"(?:(?!\.).){0,100}\b(?:comments?|reply|replies|response)\b",
+    r"\b(?:first|top|visible|shown|latest|newest|last|most\s+recent)\b"
+    r"(?:(?!\.).){0,100}\b(?:comments?|reply|replies|response)\b"
+    r"(?:(?!\.).){0,120}\b(?:scroll|go|navigate|move|jump)\b"
+    r"(?:(?!\.).){0,100}\b(?:comments?|replies|discussion)\b",
+)
+_REDDIT_COMMENT_VISUAL_REGION_RE = re.compile(
+    "|".join(f"(?:{pattern})" for pattern in REDDIT_COMMENT_VISUAL_REGION_REGEXES),
+    re.IGNORECASE,
+)
 TITLE_SURFACE_REQUIREMENT_REGEXES: tuple[str, ...] = (
     r"\b(?:answer|check|classify|determine|find|get|give|identify|indicate|list|"
     r"extract|read|report|respond|return|review|state|tell|compare)\b"
@@ -1327,23 +1341,38 @@ def _route_evidence_flags(kind: ResourceKind | str, task: Mapping[str, Any]) -> 
     if not instruction.strip():
         return {}
     flags: dict[str, bool] = {}
+    discussion_region_forced = _EXACT_DISCUSSION_REGION_RE.search(
+        instruction
+    ) or _LATEST_DISCUSSION_REGION_RE.search(instruction)
     if _title_surface_forced_by_instruction(instruction):
         flags["title_surface_forced_by_task"] = True
     if kind in {"reddit_forum", "gitlab_search_result", "gitlab_dashboard_list"}:
         if _LISTING_DETAIL_FORCING_RE.search(instruction):
             flags["transition_forced_by_task"] = True
-        if _EXACT_DISCUSSION_REGION_RE.search(instruction) or _LATEST_DISCUSSION_REGION_RE.search(
-            instruction
-        ):
+        if kind == "reddit_forum" and _reddit_comment_region_visually_forced(instruction):
+            flags["transition_forced_by_task"] = True
+            flags["exact_comment_region_forced_by_task"] = True
+            flags["visual_comment_region_forced_by_task"] = True
+        elif kind == "reddit_forum" and discussion_region_forced:
+            flags["transition_forced_by_task"] = True
+        elif discussion_region_forced:
             flags["transition_forced_by_task"] = True
             flags["exact_comment_region_forced_by_task"] = True
     if kind in {"reddit_submission", "gitlab_issue", "gitlab_mr"}:
-        if _EXACT_DISCUSSION_REGION_RE.search(instruction) or _LATEST_DISCUSSION_REGION_RE.search(
-            instruction
-        ):
+        if kind == "reddit_submission" and _reddit_comment_region_visually_forced(instruction):
+            flags["transition_forced_by_task"] = True
+            flags["exact_comment_region_forced_by_task"] = True
+            flags["visual_comment_region_forced_by_task"] = True
+        elif kind == "reddit_submission" and discussion_region_forced:
+            flags["transition_forced_by_task"] = True
+        elif discussion_region_forced:
             flags["transition_forced_by_task"] = True
             flags["exact_comment_region_forced_by_task"] = True
     return flags
+
+
+def _reddit_comment_region_visually_forced(instruction: str) -> bool:
+    return bool(_REDDIT_COMMENT_VISUAL_REGION_RE.search(instruction))
 
 
 def _title_surface_forced_by_instruction(instruction: str) -> bool:

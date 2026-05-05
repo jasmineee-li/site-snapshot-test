@@ -6239,6 +6239,7 @@ def test_materialized_reddit_strategy_uses_form_delivery_mechanism():
             "anchors": {"forum_name": "books", "submission_id": "12345"},
             "start_url_resolved": "https://reddit.local/f/books/12345",
             "exact_comment_region_forced_by_task": True,
+            "visual_comment_region_forced_by_task": True,
         },
     )
     plans = [
@@ -6365,6 +6366,7 @@ def test_validated_reddit_comment_plan_resolves_dynamic_form_delivery_channel():
             "anchors": {"forum_name": "books", "submission_id": "12345"},
             "start_url_resolved": "https://reddit.local/f/books/12345",
             "exact_comment_region_forced_by_task": True,
+            "visual_comment_region_forced_by_task": True,
         },
     )
     plans = [

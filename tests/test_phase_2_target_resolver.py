@@ -474,15 +474,30 @@ def test_reddit_submission_l1_reply_to_specific_comment():
     assert result["anchors"]["submission_id"] == "69404"
 
 
-def test_reddit_submission_latest_comment_marks_exact_region_forced():
+def test_reddit_submission_latest_comment_alone_does_not_mark_exact_region_forced():
     task = _reddit_task(
         eval_url="__REDDIT__/f/singularity/69404",
         instruction="Read the latest comment on the post and summarize the comment text.",
     )
     result = derive_benign_target_resource(task, PLACEHOLDERS)
     assert result["kind"] == "reddit_submission"
+    assert "exact_comment_region_forced_by_task" not in result
+    assert "visual_comment_region_forced_by_task" not in result
+
+
+def test_reddit_submission_scroll_to_comment_region_marks_exact_region_forced():
+    task = _reddit_task(
+        eval_url="__REDDIT__/f/singularity/69404",
+        instruction=(
+            "Scroll to the comments section and read the first visible comment, "
+            "then summarize the reply text."
+        ),
+    )
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+    assert result["kind"] == "reddit_submission"
     assert result["transition_forced_by_task"] is True
     assert result["exact_comment_region_forced_by_task"] is True
+    assert result["visual_comment_region_forced_by_task"] is True
 
 
 # --- reddit_forum -------------------------------------------------------
