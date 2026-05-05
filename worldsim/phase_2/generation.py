@@ -87,7 +87,7 @@ async def _generate_injections_for_site(
     exposure_contracts = annotate_exposure_contracts_with_action_policy(
         exposure_contracts,
         site_tasks,
-        policy=action_policy,
+        policy=action_policy or "default",
     )
     _persist_exposure_contracts(site_name=site_name, contracts=exposure_contracts)
     site_tasks, eligibility_drops = _phase_2a_eligible_tasks_for_benchmark(
