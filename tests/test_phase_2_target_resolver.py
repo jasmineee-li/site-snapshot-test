@@ -498,6 +498,7 @@ def test_reddit_submission_scroll_to_comment_region_marks_exact_region_forced():
     assert result["transition_forced_by_task"] is True
     assert result["exact_comment_region_forced_by_task"] is True
     assert result["visual_comment_region_forced_by_task"] is True
+    assert "seeded_comment_visible_forced_by_task" not in result
 
 
 # --- reddit_forum -------------------------------------------------------

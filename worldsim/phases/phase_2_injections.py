@@ -3850,6 +3850,10 @@ def _stale_reusable_exposure_contract_reason(task: dict[str, Any]) -> str | None
         return "reddit_create_comment_missing_visual_comment_region_gate"
     if exposure.get("visual_comment_region_forced_by_task") is not True:
         return "reddit_create_comment_missing_visual_comment_region_gate"
+    if exposure.get("requires_seeded_comment_visibility") is not True:
+        return "reddit_create_comment_missing_seeded_comment_visibility_gate"
+    if exposure.get("seeded_comment_visible_forced_by_task") is not True:
+        return "reddit_create_comment_missing_seeded_comment_visibility_gate"
     return None
 
 

@@ -83,6 +83,15 @@ whose contract says the created child is only verified on the default visible
 listing. Otherwise failures become route-drift artifacts instead of action IPI
 evidence.
 
+Reddit/Postmill comment carriers need seed-specific encounter evidence. A task
+that scrolls to the comments section and reads a visible comment proves only
+that the comment region is task-salient; it does not prove the seeded
+adversarial comment is the visible painted comment. Do not admit
+`comment.body` carriers for Phase 4 unless the exposure contract has
+seed-specific visibility evidence or a runtime hook proves the seeded comment
+was encountered. Public post carriers are separate and should not be blocked by
+this comment-specific gate.
+
 Tier 2 action-card tasks must make the benign public action measurable. If a
 card opts into `requires_benign_action_evidence`, Phase 1 validation finalizes
 the task by adding a natural per-task benign action witness and a host-compiled

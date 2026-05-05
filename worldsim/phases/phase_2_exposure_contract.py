@@ -75,7 +75,7 @@ ORDERED_CREATED_CHILD_PRE_CALL_DELAY_S = 1.25
 def exposure_contract_signature() -> dict[str, Any]:
     """Fingerprint knobs whose change invalidates persisted Phase 2 plans."""
     return {
-        "version": 17,
+        "version": 18,
         "modes": [
             "direct_detail",
             "inline_listing",
@@ -91,7 +91,7 @@ def exposure_contract_signature() -> dict[str, Any]:
         "surface_visibility_preference": ["always_shown", "conditional"],
         "core_surface_policy": "path_a_canonical_core_ugc",
         "created_child_target_source": "seed_metadata.created_resource.url",
-        "appended_comment_exposure_policy": "gitlab_and_reddit_require_exact_comment_region_or_runtime_hook",
+        "appended_comment_exposure_policy": "gitlab_exact_region_reddit_seed_specific_visibility_or_runtime_hook",
         "visible_listing_title_preference": "prefer_payload_in_created_child_title_rows_when_rich_route_unproven",
         "surface_route_metadata": "entry_seed_transition_capacity_v2",
         "surface_candidate_policy": "enumerate_then_select_best_eligible_route",
@@ -787,6 +787,7 @@ def _phase4_exposure_for_seeded_surface(
             transition_forced_by_task=transition_forced,
             exact_comment_region_forced=_exact_comment_region_forced_by_task(resource),
             visual_comment_region_forced=_visual_comment_region_forced_by_task(resource),
+            seeded_comment_visible_forced=_seeded_comment_visible_forced_by_task(resource),
             runtime_hook_available=runtime_hook,
         )
     return _phase4_exposure_capability(
@@ -807,15 +808,23 @@ def _appended_comment_exposure_capability(
     transition_forced_by_task: bool,
     exact_comment_region_forced: bool,
     visual_comment_region_forced: bool,
+    seeded_comment_visible_forced: bool,
     runtime_hook_available: bool,
 ) -> dict[str, Any]:
     requires_visual_comment_region = site == "reddit"
+    requires_seeded_comment_visibility = site == "reddit"
     visual_gate_satisfied = (
         not requires_visual_comment_region or visual_comment_region_forced
     )
-    admissible = (
-        exact_comment_region_forced and visual_gate_satisfied
-    ) or runtime_hook_available
+    seeded_visibility_gate_satisfied = (
+        not requires_seeded_comment_visibility or seeded_comment_visible_forced
+    )
+    task_forces_required_comment_exposure = (
+        exact_comment_region_forced
+        and visual_gate_satisfied
+        and seeded_visibility_gate_satisfied
+    )
+    admissible = task_forces_required_comment_exposure or runtime_hook_available
     base: dict[str, Any] = {
         "schema_version": 1,
         "seed_timing": "pre_task",
@@ -826,17 +835,26 @@ def _appended_comment_exposure_capability(
         "requires_exact_comment_region": True,
         "exact_comment_region_forced_by_task": exact_comment_region_forced,
         "requires_runtime_hook": runtime_hook_available
-        and not (exact_comment_region_forced and visual_gate_satisfied),
+        and not task_forces_required_comment_exposure,
     }
     if requires_visual_comment_region:
         base["requires_visual_comment_region"] = True
         base["visual_comment_region_forced_by_task"] = visual_comment_region_forced
+    if requires_seeded_comment_visibility:
+        base["requires_seeded_comment_visibility"] = True
+        base["seeded_comment_visible_forced_by_task"] = seeded_comment_visible_forced
     if not admissible:
-        base["reason"] = (
-            "reddit_comment_region_not_visually_forced"
-            if exact_comment_region_forced and requires_visual_comment_region
-            else "unanchored_appended_comment_surface"
-        )
+        if exact_comment_region_forced and requires_visual_comment_region and not visual_gate_satisfied:
+            base["reason"] = "reddit_comment_region_not_visually_forced"
+        elif (
+            exact_comment_region_forced
+            and visual_gate_satisfied
+            and requires_seeded_comment_visibility
+            and not seeded_visibility_gate_satisfied
+        ):
+            base["reason"] = "reddit_seeded_comment_not_visibility_forced"
+        else:
+            base["reason"] = "unanchored_appended_comment_surface"
     return base
 
 
@@ -901,6 +919,9 @@ def _surface_route_metadata(
     requires_transition = phase4_exposure.get("requires_transition") is True
     transition_forced = phase4_exposure.get("transition_forced_by_task") is True
     exact_comment_forced = phase4_exposure.get("exact_comment_region_forced_by_task") is True
+    seeded_comment_visible = (
+        phase4_exposure.get("seeded_comment_visible_forced_by_task") is True
+    )
     runtime_hook = phase4_exposure.get("requires_runtime_hook") is True
     route: dict[str, Any] = {
         "schema_version": 1,
@@ -910,12 +931,14 @@ def _surface_route_metadata(
         "requires_transition": requires_transition,
         "transition_forced_by_task": transition_forced,
         "exact_comment_region_forced_by_task": exact_comment_forced,
+        "seeded_comment_visible_forced_by_task": seeded_comment_visible,
         "runtime_hook_required": runtime_hook,
         "route_evidence": _route_evidence_label(
             phase4_exposure,
             requires_transition=requires_transition,
             transition_forced=transition_forced,
             exact_comment_forced=exact_comment_forced,
+            seeded_comment_visible=seeded_comment_visible,
         ),
         "content_capacity": _content_capacity_for_surface(target_surface_id),
         "attack_fit": _attack_fit_for_surface(
@@ -949,11 +972,14 @@ def _route_evidence_label(
     requires_transition: bool,
     transition_forced: bool,
     exact_comment_forced: bool,
+    seeded_comment_visible: bool,
 ) -> str:
     encounter_surface = str(phase4_exposure.get("encounter_surface") or "unknown")
     if phase4_exposure.get("admissible") is not True:
         reason = str(phase4_exposure.get("reason") or "inadmissible")
         return f"{encounter_surface}: {reason}"
+    if seeded_comment_visible:
+        return f"{encounter_surface}: seeded comment visibility forced by task"
     if exact_comment_forced:
         return f"{encounter_surface}: exact discussion region forced by task"
     if requires_transition:
@@ -1004,6 +1030,10 @@ def _exact_comment_region_forced_by_task(resource: Mapping[str, Any]) -> bool:
 
 def _visual_comment_region_forced_by_task(resource: Mapping[str, Any]) -> bool:
     return resource.get("visual_comment_region_forced_by_task") is True
+
+
+def _seeded_comment_visible_forced_by_task(resource: Mapping[str, Any]) -> bool:
+    return resource.get("seeded_comment_visible_forced_by_task") is True
 
 
 def _phase4_runtime_hook_available(resource: Mapping[str, Any]) -> bool:
