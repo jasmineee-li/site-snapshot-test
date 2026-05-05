@@ -62,7 +62,6 @@ def _route_evidence_flags(kind: ResourceKind | str, task: Mapping[str, Any]) -> 
             flags["transition_forced_by_task"] = True
             flags["exact_comment_region_forced_by_task"] = True
             flags["visual_comment_region_forced_by_task"] = True
-            flags["seeded_comment_visible_forced_by_task"] = True
     return flags
 
 

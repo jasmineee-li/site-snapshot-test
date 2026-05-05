@@ -5193,7 +5193,7 @@ def test_build_task_route_contracts_includes_inventory_backed_reddit_comment_car
     assert route["answer_stability_guidance"]["seed_value_fields"] == ["body"]
 
 
-def test_validate_generated_novel_tasks_accepts_visually_forced_reddit_comment_route():
+def test_validate_generated_novel_tasks_rejects_reddit_comment_route_without_seed_visibility():
     profile = _profile(uncovered=[])
     profile["site_name"] = "reddit"
     _add_reddit_submission_sample(profile)
@@ -5249,8 +5249,9 @@ def test_validate_generated_novel_tasks_accepts_visually_forced_reddit_comment_r
         )
     )
 
-    assert len(validated) == 1
-    assert errors == []
+    assert validated == []
+    assert [error.code for error in errors] == ["INELIGIBLE_START_URL"]
+    assert "reddit_seeded_comment_not_visibility_forced" in errors[0].message
 
 
 def test_validate_generated_novel_tasks_rejects_reddit_comment_route_without_visual_region():

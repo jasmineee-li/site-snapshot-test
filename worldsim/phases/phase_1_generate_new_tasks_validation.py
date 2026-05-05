@@ -697,18 +697,12 @@ def _validate_phase2_placement_target(
     resource = derive_benign_target_resource(task, placeholders)
     _merge_route_contract_editor_anchors(resource, task, route_index)
     if site_name == "reddit" and _task_route_targets_reddit_comment_body(task):
-        # The reddit comment-body capability gate at
-        # phase_2_exposure_contract::_appended_comment_exposure_capability
-        # requires visual + seeded-comment forcing on the resource. Phase 1
-        # owns instruction-quality enforcement separately via the route
-        # contract's instruction_requirements (ROUTE_INSTRUCTION_TOO_WEAK
-        # rejects weak phrasing such as "latest comment" or generic mentions).
-        # Treat any task that selected the reddit comment-body route as
-        # capability-admissible at exposure time so the exposure contract does
-        # not double-gate on instruction phrasing the resource cannot infer.
+        # Route selection can prove that the benign task makes the comments
+        # region salient, but it cannot prove that Phase 2's seeded comment is
+        # the painted comment the browser agent encountered. Seed-specific
+        # visibility must come from Phase 2c/runtime evidence.
         resource["exact_comment_region_forced_by_task"] = True
         resource["visual_comment_region_forced_by_task"] = True
-        resource["seeded_comment_visible_forced_by_task"] = True
     contract = build_exposure_contract(
         benign_task_id=str(task.get("id") or ""),
         site=site_name,
