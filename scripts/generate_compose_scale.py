@@ -383,6 +383,8 @@ def _clone_instance(
 def build_instances_config(
     *,
     base_config: dict[str, Any],
+    base_config_path: pathlib.Path | None = None,
+    final_config_dir: pathlib.Path | None = None,
     records: list[dict[str, Any]],
     host_access: dict[str, Any],
     orchestrator_host: str,
@@ -434,6 +436,8 @@ def build_instances_config(
             verification_proxy = {}
         if proxy_token is not None:
             verification_proxy["token"] = proxy_token
+            verification_proxy.pop("token_env", None)
+            verification_proxy.pop("token_file", None)
         verification_proxy["port_offset"] = proxy_port_offset
         if proxy_scheme is not None:
             verification_proxy["scheme"] = proxy_scheme
@@ -451,7 +455,93 @@ def build_instances_config(
     output["instances"] = instances
 
     validated = BenchmarkConfig.model_validate(output)
-    return validated.model_dump(mode="json")
+    dumped = validated.model_dump(mode="json", exclude_none=True)
+    if emit_verification_proxy:
+        verification_proxy = _dump_verification_proxy_without_resolved_secret(
+            output.get("verification_proxy"),
+            validated_proxy=dumped.get("verification_proxy"),
+            proxy_token_supplied=proxy_token is not None,
+            proxy_port_offset=proxy_port_offset,
+            proxy_scheme=proxy_scheme,
+            base_config_path=base_config_path,
+            final_config_dir=final_config_dir,
+        )
+        if verification_proxy:
+            dumped["verification_proxy"] = verification_proxy
+        else:
+            dumped.pop("verification_proxy", None)
+    return dumped
+
+
+def _dump_verification_proxy_without_resolved_secret(
+    source_proxy: Any,
+    *,
+    validated_proxy: Any,
+    proxy_token_supplied: bool,
+    proxy_port_offset: int,
+    proxy_scheme: str | None,
+    base_config_path: pathlib.Path | None,
+    final_config_dir: pathlib.Path | None,
+) -> dict[str, Any]:
+    """Return a serializable proxy block without materializing external tokens.
+
+    ``BenchmarkConfig`` resolves ``token_env`` / ``token_file`` into ``token`` for
+    runtime callers. Generated configs are source artifacts, so they must retain
+    external references unless the operator explicitly passed ``--proxy-token``.
+    """
+    if proxy_token_supplied:
+        return dict(validated_proxy) if isinstance(validated_proxy, dict) else {}
+
+    if isinstance(source_proxy, dict):
+        serialized = {
+            key: value
+            for key, value in source_proxy.items()
+            if value is not None and not (key == "token" and not str(value).strip())
+        }
+    else:
+        serialized = {}
+
+    has_external_token_source = any(
+        isinstance(serialized.get(key), str) and serialized[key].strip()
+        for key in ("token_env", "token_file")
+    )
+    if has_external_token_source:
+        serialized.pop("token", None)
+
+    serialized = _normalize_proxy_token_file_reference(
+        serialized,
+        base_config_path=base_config_path,
+        final_config_dir=final_config_dir,
+    )
+    serialized["port_offset"] = proxy_port_offset
+    if proxy_scheme is not None:
+        serialized["scheme"] = proxy_scheme
+    else:
+        serialized.setdefault("scheme", "http")
+    return serialized
+
+
+def _normalize_proxy_token_file_reference(
+    proxy: dict[str, Any],
+    *,
+    base_config_path: pathlib.Path | None,
+    final_config_dir: pathlib.Path | None,
+) -> dict[str, Any]:
+    token_file = proxy.get("token_file")
+    if not isinstance(token_file, str) or not token_file.strip():
+        return proxy
+    token_path = pathlib.Path(token_file)
+    if token_path.is_absolute() or base_config_path is None or final_config_dir is None:
+        return proxy
+
+    source_dir = base_config_path.resolve().parent
+    destination_dir = final_config_dir.resolve()
+    if destination_dir == source_dir:
+        return proxy
+
+    normalized = dict(proxy)
+    normalized["token_file"] = str((source_dir / token_path).resolve())
+    return normalized
 
 
 # ---------------------------------------------------------------------------
@@ -582,6 +672,16 @@ def main() -> int:
         default="/tmp",
         help="directory to write compose + proxy_ports + instances config",
     )
+    ap.add_argument(
+        "--final-config-dir",
+        default=None,
+        help=(
+            "directory where the generated instances.json will ultimately live. "
+            "Relative verification_proxy.token_file entries are preserved only "
+            "when they resolve from this directory; otherwise they are emitted "
+            "as absolute paths."
+        ),
+    )
     args = ap.parse_args()
 
     cfg_path = pathlib.Path(args.config)
@@ -621,6 +721,11 @@ def main() -> int:
 
     out_dir = pathlib.Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    final_config_dir = (
+        pathlib.Path(args.final_config_dir).resolve()
+        if args.final_config_dir is not None
+        else out_dir.resolve()
+    )
 
     network_name = config.get("network", {}).get("name", "worldsim-bench")
     subnet = config.get("network", {}).get("subnet", "172.20.0.0/20")
@@ -684,6 +789,8 @@ def main() -> int:
     compose_doc = build_compose(config, records, network_name, subnet)
     instances_config = build_instances_config(
         base_config=base_config,
+        base_config_path=base_config_path,
+        final_config_dir=final_config_dir,
         records=records,
         host_access={
             "source": str(args.host_config or "cli"),

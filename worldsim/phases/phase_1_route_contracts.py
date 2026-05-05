@@ -15,18 +15,18 @@ from urllib.parse import urlsplit
 
 import worldsim.editors  # noqa: F401 - populate editor method registry
 from worldsim.editors._registry import iter_specs
+from worldsim.phase_2.target_resolution.runner import (
+    LISTING_DETAIL_FORCING_REGEXES,
+    REDDIT_COMMENT_VISUAL_REGION_REGEXES,
+    TITLE_SURFACE_REQUIREMENT_REGEXES,
+    derive_benign_target_resource,
+)
 from worldsim.phases.phase_2_core_surfaces import (
     canonical_core_surface,
     is_active_carrier_surface,
     is_core_surface,
 )
 from worldsim.phases.phase_2_exposure_contract import build_exposure_contract
-from worldsim.phases.phase_2_target_resolver import (
-    LISTING_DETAIL_FORCING_REGEXES,
-    REDDIT_COMMENT_VISUAL_REGION_REGEXES,
-    TITLE_SURFACE_REQUIREMENT_REGEXES,
-    derive_benign_target_resource,
-)
 from worldsim.placeholders import placeholder_for_site
 from worldsim.surface_identity import (
     canonicalize_surface_id,
@@ -39,6 +39,7 @@ ROUTE_CONTRACTS_SCHEMA_VERSION = 1
 REDDIT_FORUM_SORT_DRIFT_REGEXES: tuple[str, ...] = (
     r"\b(?:latest|newest|most\s+recent(?:ly)?|recent)\b",
 )
+
 
 def build_task_route_contracts(
     *,
@@ -732,6 +733,20 @@ def _pattern_has_admissible_exposure(
     resource = derive_benign_target_resource(task, {placeholder: f"https://{site}.local"})
     _merge_sample_editor_anchors(resource, editor_args)
     resource["allowed_editor_methods"] = [method]
+    if site == "reddit" and method == "create_comment":
+        # Phase 1 asks whether a route is reachable in principle by some
+        # admissible task; Phase 2c asks whether a specific generated task
+        # forces the appended-comment region. The reddit comment-body capability
+        # gate at phase_2_exposure_contract::_appended_comment_exposure_capability
+        # requires visual + seeded-comment forcing on the resource, which a
+        # generic probe cannot supply. Simulate maximum task-side forcing here
+        # so the structural admissibility check does not collapse on flags only
+        # a real task instruction can satisfy. Phase 2c task validation in
+        # phase_1_generate_new_tasks_validation continues to enforce the visual
+        # and seeded-comment gates on real tasks.
+        resource["exact_comment_region_forced_by_task"] = True
+        resource["visual_comment_region_forced_by_task"] = True
+        resource["seeded_comment_visible_forced_by_task"] = True
     contract = build_exposure_contract(
         benign_task_id=str(task["id"]),
         site=site,

@@ -152,6 +152,10 @@ Remote metadata and logs live under:
 <remote-dir>/logs/remote_jobs/<job_id>/
 ```
 
+Live hosts often contain the freshest Phase task artifacts under `logs/`.
+Before relying on checked-in task JSON, audit the host or run archive and follow
+`agent_docs/artifacts.md` for manifest, hash, and fixture-promotion rules.
+
 ## Fresh Host Gate
 
 Run this on any fresh host before Phase 4:
@@ -202,3 +206,23 @@ Use `--quiet` for agent sessions. It prints a one-line pass summary or full fail
 On a laptop/public-proxy run, pass a public/proxy `--instances` file. On r5,
 use the host-local/orchestrator topology (`--host-view orchestrator` or the
 auto-selected equivalent) and do not reuse public smoke inputs for Phase 2c/4.
+
+**Topology-mismatch symptom and fix.** If the wrapper fails reddit-side tests
+with `Connection refused` on a legacy smoke proxy port (typically `19999`,
+i.e. `9999 + 10000`), r5 is in scale topology and only proxies the per-replica
+ports `19900..19990` and `18023..18223`. Reddit is not down. Regenerate the
+scale fixture and re-run the wrapper against it:
+
+```bash
+bash scripts/generate_scale_r5.sh    # writes instances.scale.json (gitignored)
+bash scripts/run_integration_tests.sh \
+    --host-config configs/benchmark_hosts/r5.yaml \
+    --instances instances.scale.json \
+    --quiet
+```
+
+The default-installed proxy adapter in `tests/integration/conftest.py`
+(`_DEFAULT_SITE_PORTS`) already covers both legacy `9999` and the scale band
+`9900..9990`, so picking replica 0 (`reddit:9900`, `gitlab:8023`) flows through
+the existing nginx listens automatically. The corrective action is the
+fixture, not the proxy.

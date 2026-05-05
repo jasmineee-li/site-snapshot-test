@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from worldsim.auth_tokens import clear_run_token_cache
-from worldsim.config import BenchmarkConfig
+from worldsim.config import BenchmarkConfig, load_benchmark_config
 from worldsim.http_proxy import install_proxy
 
 
@@ -130,7 +130,7 @@ def _install_verification_proxy(request: pytest.FixtureRequest):
         yield
         return
     try:
-        config = BenchmarkConfig.model_validate_json(path.read_text())
+        config = load_benchmark_config(path)
     except Exception:
         yield
         return
@@ -170,7 +170,7 @@ def live_config() -> BenchmarkConfig:
     path = Path(instances_file)
     if not path.exists():
         pytest.skip(f"LIVE_INSTANCES_FILE does not exist: {path}")
-    config = BenchmarkConfig.model_validate_json(path.read_text())
+    config = load_benchmark_config(path)
     host = os.getenv("LIVE_HOST_IP", "").strip()
     payload = config.model_dump()
     payload["instances"] = [

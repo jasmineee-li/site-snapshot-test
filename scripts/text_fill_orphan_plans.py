@@ -41,7 +41,7 @@ from dotenv import load_dotenv
 # Anthropic credentials is imported.
 load_dotenv(override=True)
 
-from worldsim.phases.phase_2_injections import (
+from worldsim.phase_2.runner import (
     DEFAULT_TEXT_FILL_CONCURRENCY,
     DEFAULT_TEXT_FILL_MODEL,
     DEFAULT_TEXTS_PER_PLAN,

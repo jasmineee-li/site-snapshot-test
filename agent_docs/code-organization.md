@@ -9,25 +9,25 @@ answer "what behavior owns this?" before it answers "what kind of code is this?"
 
 Current and target ownership should stay explicit:
 
-- Phase 2 behavior includes injection generation, target resolution, exposure
-  contracts, text fill, and Phase 2c admission. A package split may move this
-  toward `worldsim.phase_2`, but route/exposure/admission semantics still belong
-  to the Phase 2 domain.
-- Phase 4 behavior includes adversarial execution, PVPO placement, postprocess
-  judges, strategy variation, resume, and results. A package split may move this
-  toward `worldsim.phase_4`, but Phase 4 must not own benign task eligibility.
+- `worldsim.phase_2`: injection generation, target resolution, exposure
+  contracts, text fill, and Phase 2c admission. Route/exposure/admission
+  semantics still belong to the Phase 2 domain.
+- `worldsim.phase_4`: adversarial execution, PVPO placement, postprocess judges,
+  strategy variation, resume, and results. Phase 4 must not own benign task
+  eligibility.
 - Phase 0c profile rigor is split by behavior: `phase_0_recon.py` remains the
   compatibility runner, `phase_0_evidence_index.py` owns neutral source indexes,
   `phase_0c_artifacts.py` owns provenance/reuse/trace artifacts, and
   `phase_0c_audit.py` owns deterministic host audits. Do not move these
   concerns into Modal sandbox setup; `modal_sandbox.py` stays an
   infrastructure-only runner.
-- Seed/editor-call contracts are a shared domain used by Phase 2, Phase 4,
-  seeding, and sandbox validation. If extracted, the shared package must preserve
+- `worldsim.seed_contracts`: shared seed/editor-call contract behavior used by
+  Phase 2, Phase 4, seeding, and sandbox validation. This package must preserve
   sandbox packaging constraints and parity tests.
-- Browser Use runtime concerns belong together when that runner is split.
-- Sandbox/profile/task validation has a stricter Modal runtime contract than
-  ordinary host modules and should not be mechanically extracted.
+- `worldsim.browser_use`: Browser Use runtime concerns when that runner is split.
+- `worldsim.sandbox_validator`: sandbox/profile/task validation when that module
+  is split. This domain has a stricter Modal runtime contract than ordinary host
+  modules and should not be mechanically extracted.
 
 Avoid `utils.py`, `helpers.py`, and global shared `types.py`. If a helper is
 shared, name the domain it belongs to. Keep types next to the behavior that owns
@@ -78,21 +78,35 @@ touches research-critical paths because they separate behavior migration from
 import-path cutover. They should have tests that prove legacy imports delegate,
 and a follow-up PR should remove them when the migration window closes.
 
-## Follow-Up Debt
+## Current Follow-Up Debt
 
-Do not treat all readiness debt as equally urgent or equally safe to fold into
-one PR. Good sequencing reduces review risk:
+The Phase 2 and Phase 4 modularization PR intentionally leaves a small amount of
+transition debt so the main behavior split remains reviewable. Do not treat all
+readiness debt as equally urgent or equally safe to fold into the same PR. Good
+sequencing reduces review risk:
 
 - First split behavior into domain-owned modules while preserving external
   import compatibility.
-- Then remove compatibility wrappers after downstream imports are moved and one
-  validation cycle has had a chance to reveal hidden consumers.
-- Unwind linked-context or monkeypatch-preservation mechanisms only after the
-  canonical modules are stable.
-- Split sandbox validation as a separate design task because it runs inside
-  Modal with stdlib-only and no-project-import constraints.
-- Keep other large files visible as debt instead of allowlisting them without a
-  reason.
+- Then remove compatibility wrappers in a follow-up after downstream imports are
+  moved and one validation cycle has had a chance to reveal hidden consumers.
+  This is a narrow follow-up: update remaining internal and downstream imports
+  to canonical `worldsim.phase_2.*`, `worldsim.phase_4.*`, and
+  `worldsim.seed_contracts.*` paths, then delete the thin `worldsim.phases.*`
+  wrappers.
+- Unwind linked-context modules after wrapper removal. The `_context.py`
+  `install_context` / `link_modules` pattern is a transition mechanism that
+  preserves old monolith global lookup and monkeypatch behavior during the
+  split. Replace it with explicit imports domain by domain, starting with target
+  resolution because it is smaller and has focused tests.
+- Split sandbox validation as a separate design task.
+  `worldsim/_sandbox_validator.py` is urgent by size, but it runs inside Modal
+  with stdlib-only and no-`worldsim` import constraints. Sharing seed-contract
+  behavior there needs either a generated standalone validator or a deliberately
+  shipped sandbox validation package, plus parity tests against
+  `worldsim.seed_contracts`.
+- Keep other large files visible as debt instead of allowlisting them. Examples
+  include the Browser Use runner, seeding, GitLab editor, Phase 2 feasibility,
+  Phase 2 exposure contracts, the main CLI, and outcome taxonomy.
 
-Only fold a follow-up into an active PR when it reduces review risk for that PR.
-If it expands the behavioral surface under review, keep it separate.
+Only fold one of these follow-ups into an active PR when it reduces review risk
+for that PR. If it expands the behavioral surface under review, keep it separate.

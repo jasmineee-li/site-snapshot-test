@@ -234,13 +234,12 @@ aws ec2 authorize-security-group-ingress \
 
 ```bash
 ./scripts/deploy_benchmark_proxy.sh --host 3.12.221.9
-# writes .proxy_token in repo; copy into instances.scale.json:
-#   "verification_proxy": { "token": "<new>", "scheme": "http", "port_offset": 10000 }
+# writes .proxy_token in repo; reference it from instances.scale.json:
+#   "verification_proxy": { "token_file": ".proxy_token", "token_env": "WORLDSIM_VERIFICATION_PROXY_TOKEN", "scheme": "http", "port_offset": 10000 }
 ```
 
-(Current token in committed `instances.json` is
-`f1649af22901ede64cd980176f00a92ec558b26c34468bc0efc81670ad8ef161` for the
-m5 IP. Mint a new one on r5 to keep blast radius tight.)
+The previous m5 proxy token was removed from checked-in docs/configs. Mint a
+new one on r5 to keep blast radius tight.
 
 ### 4e. Sanity check all replicas
 

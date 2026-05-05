@@ -2,7 +2,8 @@
   "benchmark_name": "WebArena Verified",
   "benchmark_codebase": "vendors/webarena-verified",
   "verification_proxy": {
-    "token": "f1649af22901ede64cd980176f00a92ec558b26c34468bc0efc81670ad8ef161",
+    "token_env": "WORLDSIM_VERIFICATION_PROXY_TOKEN",
+    "token_file": ".proxy_token",
     "port_offset": 10000
   },
   "url_placeholders": {

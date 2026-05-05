@@ -44,9 +44,12 @@ vendors/
 # leads to drift and hand-edit bandaids.
 instances.scale.json
 instances.scale.json.fragment
+instances.smoke.json
+instances.smoke.json.fragment
 compose.scale.yml
 compose.smoke.yml
 scripts/docker-compose.scale.yml
+scripts/docker-compose.smoke.yml
 scripts/proxy_ports.conf
 
 # OS / IDE

@@ -8,7 +8,7 @@ Prefer repo wrappers that print one success line and full failure output. Do not
 
 ```bash
 scripts/lib/run_silent.sh "phase 4 unit tests" \
-  "uv run pytest -x tests/test_phase_4_adversarial.py tests/test_phase_4_pvpo_capture.py -q"
+  "uv run pytest -x tests/phase_4 tests/test_phase_4_judge_api.py tests/test_phase_4_variant_api.py tests/test_phase_4_pvpo_capture.py -q"
 ```
 
 You can also source it inside a longer shell session:

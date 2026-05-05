@@ -23,8 +23,8 @@ import json
 import sys
 from pathlib import Path
 
-from worldsim.phases.phase_2_injections import _PHASE_2A_SYNTHETIC_PLACEHOLDERS
-from worldsim.phases.phase_2_target_resolver import _reconstruct_start_url_from_anchors
+from worldsim.phase_2.runner import _PHASE_2A_SYNTHETIC_PLACEHOLDERS
+from worldsim.phase_2.target_resolution.runner import _reconstruct_start_url_from_anchors
 
 
 def _site_kind(task: dict) -> str | None:

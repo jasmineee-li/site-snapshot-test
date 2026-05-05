@@ -16,6 +16,37 @@ AGENT_CONTEXT_OUTPUT = "/workspace/output/AGENT_CONTEXT.json"
 INJECTION_OUTPUT = "/workspace/output/INJECTION_SURFACE.json"
 
 
+def test_load_phase_0c_config_resolves_relative_proxy_token_file(tmp_path):
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    (config_dir / ".proxy_token").write_text("phase0-token\n")
+    instances_path = config_dir / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "WebArena Verified",
+                "benchmark_codebase": str(tmp_path),
+                "verification_proxy": {
+                    "token_file": ".proxy_token",
+                    "port_offset": 10000,
+                },
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "http://gitlab.test:8023",
+                        "agent_auth": {"type": "none"},
+                    }
+                ],
+            }
+        )
+    )
+
+    _instances, proxy = phase_0_recon._load_phase_0c_config(instances_path)
+
+    assert proxy is not None
+    assert proxy.token == "phase0-token"
+
+
 class _FakeVolume:
     def __init__(self, name: str = "fake-volume") -> None:
         self.name = name

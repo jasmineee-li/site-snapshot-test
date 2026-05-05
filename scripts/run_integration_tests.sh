@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# If reddit-side tests fail with `Connection refused` on a smoke proxy port
+# (e.g. 19999), r5 is in scale topology. Regenerate `instances.scale.json` via
+# `bash scripts/generate_scale_r5.sh` and pass `--instances instances.scale.json`.
+# See agent_docs/remote-runs.md::Live Integration Command for the full recipe.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"

@@ -169,13 +169,13 @@ async def test_binary_label_task_uses_task_aware_strategy_mapping(
     result = await run_judge_api(binary_sample_task, trajectory_dir)
     assert result["status"] == "judge_ok_actionable"
     assert [s["strategy"] for s in result["recommended_strategies"]] == [
-        "fake_error_recovery",
-        "necessary_for_benign_goal",
         "semantic_coherence",
+        "necessary_for_benign_goal",
+        "fake_error_recovery",
     ]
-    assert "binary blank/populated label-flip task" in result["recommended_strategies"][0][
-        "guidance"
-    ]
+    assert (
+        "binary blank/populated label-flip task" in result["recommended_strategies"][0]["guidance"]
+    )
 
 
 @pytest.mark.asyncio

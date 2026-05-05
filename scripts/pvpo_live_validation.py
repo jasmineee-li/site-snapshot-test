@@ -34,7 +34,8 @@ Prerequisites (operator-enforced):
   - .env sourced (Anthropic + WORLDSIM_* credentials).
 
 Usage:
-  (set -a; source ./.env; set +a; uv run python scripts/pvpo_live_validation.py)
+  (set -a; source ./.env; set +a; uv run python scripts/pvpo_live_validation.py \
+    --tasks /path/to/adversarial_tasks.json)
 
 The script resets each site via its ``reset_endpoint`` BEFORE seeding so
 no stale state from prior runs pollutes the test. It does NOT reset after
@@ -44,19 +45,20 @@ between tasks as part of normal operation).
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import sys
 import time
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import requests
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from worldsim.config import BenchmarkConfig
+from worldsim.config import BenchmarkConfig, load_benchmark_config
 from worldsim.phase_4.encounter_detection import determine_encounter
 from worldsim.phase_4.pvpo_browser_config import inject_animation_killer
 from worldsim.phase_4.pvpo_capture import (
@@ -68,6 +70,7 @@ from worldsim.phases.phase_2_text_fill import materialize_adversarial_seed
 from worldsim.seeding import apply_data_seed_async
 
 CDP_URL = "http://127.0.0.1:9222"
+WASP_SITES = frozenset({"gitlab", "reddit"})
 
 
 def first_task_for_site(tasks: list[dict], site: str) -> dict | None:
@@ -75,6 +78,56 @@ def first_task_for_site(tasks: list[dict], site: str) -> dict | None:
         if t.get("site") == site and t.get("seed_template") and t.get("payload_texts"):
             return t
     return None
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--tasks",
+        required=True,
+        type=Path,
+        help=(
+            "Path to the Phase 2 adversarial_tasks.json artifact to validate. "
+            "This is explicit because logs/phase_2 artifacts are runtime output "
+            "and are no longer tracked in fresh worktrees."
+        ),
+    )
+    parser.add_argument(
+        "--instances",
+        type=Path,
+        default=ROOT / "instances.smoke.json",
+        help="Instances config for the live stack, defaults to instances.smoke.json.",
+    )
+    return parser
+
+
+def load_json_array(path: Path, *, label: str) -> list[dict]:
+    try:
+        payload = json.loads(path.read_text())
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(
+            f"{label} not found: {path}. Pass an explicit artifact path."
+        ) from exc
+    if not isinstance(payload, list):
+        raise ValueError(f"{label} must contain a JSON array: {path}")
+    return [item for item in payload if isinstance(item, dict)]
+
+
+def sites_to_validate(tasks: list[dict], config: BenchmarkConfig) -> list[str]:
+    configured_sites = {instance.site_name for instance in config.instances}
+    sites: set[str] = set()
+    for task in tasks:
+        site = str(task.get("site") or "").strip()
+        delivery_channel = task.get("delivery_channel")
+        delivery_site = (
+            str(delivery_channel.get("delivery_site") or "").strip()
+            if isinstance(delivery_channel, dict)
+            else ""
+        )
+        for candidate in (site, delivery_site):
+            if candidate in WASP_SITES and candidate in configured_sites:
+                sites.add(candidate)
+    return sorted(sites)
 
 
 def reset_instance(reset_endpoint: str, label: str) -> None:
@@ -86,10 +139,9 @@ def reset_instance(reset_endpoint: str, label: str) -> None:
 def delivery_url_for(task: dict, instance_site_url: str) -> str | None:
     """Derive the agent-visible delivery URL.
 
-    For ``create_product_review`` on shopping with ``entity_pk_value=1``:
-    ``<site_url>/catalog/product/view/id/1``.
-    For other editor methods, extend this as needed — most tasks in the
-    current corpus are product reviews so we focus there.
+    Prefer ``delivery_url_from_seed_metadata`` after seed execution. This
+    fallback exists for old artifacts or editor methods that do not emit
+    read-surface metadata yet.
     """
     seed_template = task.get("seed_template") or {}
     calls = seed_template.get("editor_calls") or []
@@ -102,19 +154,113 @@ def delivery_url_for(task: dict, instance_site_url: str) -> str | None:
         pk = args.get("entity_pk_value")
         if pk is not None:
             return urljoin(instance_site_url + "/", f"catalog/product/view/id/{pk}")
-    if method == "create_subreddit_post":
-        forum = args.get("subreddit") or args.get("forum")
+    if method in {"create_subreddit_post", "create_submission", "create_submission_title"}:
+        forum = args.get("forum_name") or args.get("subreddit") or args.get("forum")
+        if forum:
+            submission_id = args.get("submission_id")
+            if submission_id not in (None, ""):
+                return urljoin(instance_site_url + "/", f"f/{forum}/{submission_id}")
+            return urljoin(instance_site_url + "/", f"f/{forum}")
+    if method == "create_comment":
+        forum = args.get("forum_name") or args.get("subreddit") or args.get("forum")
+        submission_id = args.get("submission_id")
+        if forum and submission_id not in (None, ""):
+            return urljoin(instance_site_url + "/", f"f/{forum}/{submission_id}")
         if forum:
             return urljoin(instance_site_url + "/", f"f/{forum}")
     if method == "create_forum":
         name = args.get("name_template") or args.get("name")
         if name:
             return urljoin(instance_site_url + "/", f"f/{name}")
-    if method == "create_issue_comment" or method == "create_issue":
-        project = args.get("project_path") or args.get("project")
+    if method in {
+        "create_issue_comment",
+        "create_issue",
+        "create_issue_description",
+        "create_issue_title",
+        "create_issue_note",
+    }:
+        project = (
+            args.get("project_path_template") or args.get("project_path") or args.get("project")
+        )
         if project:
+            issue_iid = args.get("issue_iid")
+            if issue_iid not in (None, ""):
+                return urljoin(instance_site_url + "/", f"{project}/-/issues/{issue_iid}")
             return urljoin(instance_site_url + "/", f"{project}/-/issues")
+    if method in {"create_mr", "create_mr_note"}:
+        project = (
+            args.get("project_path_template") or args.get("project_path") or args.get("project")
+        )
+        if project:
+            mr_iid = args.get("mr_iid")
+            if mr_iid not in (None, ""):
+                return urljoin(instance_site_url + "/", f"{project}/-/merge_requests/{mr_iid}")
+            return urljoin(instance_site_url + "/", f"{project}/-/merge_requests")
     return None
+
+
+def delivery_url_from_seed_metadata(metadata: dict | None, instance_site_url: str) -> str | None:
+    if not isinstance(metadata, dict):
+        return None
+    urls = metadata.get("read_surface_urls")
+    if not isinstance(urls, list):
+        return None
+    for raw_url in urls:
+        if not isinstance(raw_url, str) or not raw_url.strip():
+            continue
+        url = raw_url.strip()
+        if url.startswith(("http://", "https://")):
+            if _same_origin(url, instance_site_url):
+                return url
+            continue
+        if url.startswith("//"):
+            continue
+        return urljoin(instance_site_url + "/", url.lstrip("/"))
+    return None
+
+
+def _same_origin(candidate_url: str, instance_site_url: str) -> bool:
+    candidate_origin = _origin_tuple(candidate_url)
+    instance_origin = _origin_tuple(instance_site_url)
+    return candidate_origin is not None and candidate_origin == instance_origin
+
+
+def _origin_tuple(raw_url: str) -> tuple[str, str, int | None] | None:
+    try:
+        parts = urlsplit(raw_url)
+        port = parts.port
+    except ValueError:
+        return None
+    scheme = parts.scheme.strip().lower()
+    host = (parts.hostname or "").strip().lower()
+    if scheme not in {"http", "https"} or not host:
+        return None
+    if port is None:
+        port = 443 if scheme == "https" else 80
+    return scheme, host, port
+
+
+def validation_failures(results: dict[str, dict], expected_sites: list[str]) -> list[str]:
+    failures: list[str] = []
+    for site in expected_sites:
+        result = results.get(site)
+        if not isinstance(result, dict):
+            failures.append(f"{site}: missing result")
+            continue
+        status = result.get("status")
+        if status != "ok":
+            failures.append(f"{site}: status={status or 'missing'}")
+            continue
+        if not result.get("html_has_attr"):
+            failures.append(f"{site}: rendered payload text was not found in DOM text")
+            continue
+        try:
+            max_coverage = float(result.get("max_coverage"))
+        except (TypeError, ValueError):
+            max_coverage = 0.0
+        if max_coverage <= 0:
+            failures.append(f"{site}: max_coverage={result.get('max_coverage')!r}")
+    return failures
 
 
 async def run_pvpo_on_page(url: str, payload: str, site: str, out_dir: Path) -> dict:
@@ -200,14 +346,22 @@ async def run_pvpo_on_page(url: str, payload: str, site: str, out_dir: Path) -> 
     }
 
 
-async def main() -> int:
-    tasks = json.loads((ROOT / "logs/phase_2/adversarial_tasks.json").read_text())
-    config = BenchmarkConfig.model_validate_json((ROOT / "instances.smoke.json").read_text())
-    sites_to_test = ["shopping", "shopping_admin", "reddit", "gitlab"]
+async def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    try:
+        tasks = load_json_array(args.tasks, label="Phase 2 tasks artifact")
+        config = load_benchmark_config(args.instances)
+    except Exception as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+    sites_to_test = sites_to_validate(tasks, config)
+    if not sites_to_test:
+        print(
+            "ERROR: no GitLab or Reddit tasks in the artifact match configured instances",
+            file=sys.stderr,
+        )
+        return 2
 
-    # All current adversarial_tasks.json tasks site onto `shopping_admin` but
-    # deliver via the `shopping` editor (create_product_review). So we cover
-    # the "payload renders on shopping PDP" case. Track per-site results.
     results: dict[str, dict] = {}
 
     for site in sites_to_test:
@@ -250,8 +404,9 @@ async def main() -> int:
 
         instance_dict = instance.model_dump()
         cleanup = None
+        seed_metadata: dict = {}
         try:
-            cleanup, _extra = await apply_data_seed_async(seed, instance_dict)
+            cleanup, seed_metadata = await apply_data_seed_async(seed, instance_dict)
         except Exception as exc:
             results[site] = {
                 "status": "seed_failed",
@@ -263,7 +418,9 @@ async def main() -> int:
         time.sleep(2)
 
         try:
-            url = delivery_url_for(task, instance.site_url)
+            url = delivery_url_from_seed_metadata(
+                seed_metadata, instance.site_url
+            ) or delivery_url_for(task, instance.site_url)
             if url is None:
                 results[site] = {
                     "status": "no_delivery_url",
@@ -285,11 +442,13 @@ async def main() -> int:
 
     print("\n\n=== SUMMARY ===")
     print(json.dumps(results, indent=2))
-    # Exit non-zero if any site we actually exercised produced zero coverage.
-    any_real_failure = any(
-        r.get("status") == "ok" and not r.get("html_has_attr") for r in results.values()
-    )
-    return 1 if any_real_failure else 0
+    failures = validation_failures(results, sites_to_test)
+    if failures:
+        print("\nPVPO validation failures:", file=sys.stderr)
+        for failure in failures:
+            print(f"  - {failure}", file=sys.stderr)
+        return 1
+    return 0
 
 
 def _sample_body_from_seed(seed: dict) -> str:

@@ -37,7 +37,7 @@ from worldsim._sandbox_validator import (
     validate_injection_surface,
     validate_verification_capabilities,
 )
-from worldsim.config import BenchmarkConfig, BenchmarkInstance, VerificationProxy
+from worldsim.config import BenchmarkInstance, VerificationProxy, load_benchmark_config
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.modal_sandbox import (
     preflight_sandbox_environment,
@@ -137,8 +137,8 @@ def _load_phase_0c_config(
 
     path = Path(instances_path)
     try:
-        config = BenchmarkConfig.model_validate_json(path.read_text())
-    except (OSError, ValidationError) as exc:
+        config = load_benchmark_config(path)
+    except (OSError, ValueError, ValidationError) as exc:
         raise RuntimeError(f"invalid instances config at {path}: {exc}") from exc
     proxy = config.verification_proxy
     # Treat empty token as "proxy not configured".

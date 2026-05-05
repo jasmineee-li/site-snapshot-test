@@ -1843,6 +1843,24 @@ def _eval_reddit_final_state_from_probe(
     if action_kind == "create_post":
         candidate_paths = _reddit_created_post_paths_from_trace(network_trace, forum)
     elif action_kind == "submit_comment":
+        if _reddit_comment_probe_requires_attribution(state_probe, instance):
+            if not forum or not submission_id:
+                return (
+                    False,
+                    "reddit comment parent readback requires forum_name and submission_id",
+                )
+            from worldsim.editors.reddit import RedditEditor
+
+            with requests.Session() as session:
+                editor = RedditEditor(instance, session)
+                return _reddit_parent_comment_contains_attributed_witness(
+                    editor,
+                    forum,
+                    submission_id,
+                    witness,
+                    state_probe,
+                    instance,
+                )
         candidate_paths = _reddit_comment_detail_paths_from_trace(
             network_trace,
             forum=forum,

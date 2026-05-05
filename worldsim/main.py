@@ -28,7 +28,7 @@ from typing import Any
 from dotenv import load_dotenv
 
 from worldsim.adversarial_actions import ACTION_POLICIES
-from worldsim.config import BenchmarkConfig, has_configured_agent_auth
+from worldsim.config import has_configured_agent_auth, load_benchmark_config
 from worldsim.phases.phase_1_task_cards import task_capability_profile_choices
 from worldsim.phases.phase_4_adversarial import phase_4_variant_budget_choices
 
@@ -910,15 +910,7 @@ def _install_verification_proxy_from_args(args: argparse.Namespace) -> None:
         raise RuntimeError(
             f"verification_proxy_invalid: verification_proxy in {path} must be an object"
         )
-    token = proxy_data.get("token")
-    if token is None:
-        raise RuntimeError(
-            f"verification_proxy_invalid: verification_proxy.token missing in {path}"
-        )
-    if not isinstance(token, str):
-        raise RuntimeError(
-            f"verification_proxy_invalid: verification_proxy.token in {path} must be a string"
-        )
+    token = _resolve_verification_proxy_token(proxy_data, config_path=path)
     if not token.strip():
         return
     scheme = proxy_data.get("scheme", "http")
@@ -971,6 +963,41 @@ def _install_verification_proxy_from_args(args: argparse.Namespace) -> None:
         port_offset=port_offset,
         site_ports=site_ports,
     )
+
+
+def _resolve_verification_proxy_token(proxy_data: dict[str, object], *, config_path: Path) -> str:
+    token = proxy_data.get("token", "")
+    if token is not None and not isinstance(token, str):
+        raise RuntimeError(
+            f"verification_proxy_invalid: verification_proxy.token in {config_path} must be a string"
+        )
+    if isinstance(token, str) and token.strip():
+        return token.strip()
+    token_env = proxy_data.get("token_env")
+    if token_env is not None and not isinstance(token_env, str):
+        raise RuntimeError(
+            f"verification_proxy_invalid: verification_proxy.token_env in {config_path} must be a string"
+        )
+    if isinstance(token_env, str) and token_env.strip():
+        import os
+
+        env_value = os.environ.get(token_env.strip(), "").strip()
+        if env_value:
+            return env_value
+    token_file = proxy_data.get("token_file")
+    if token_file is not None and not isinstance(token_file, str):
+        raise RuntimeError(
+            f"verification_proxy_invalid: verification_proxy.token_file in {config_path} must be a string"
+        )
+    if isinstance(token_file, str) and token_file.strip():
+        candidate = Path(token_file)
+        if not candidate.is_absolute():
+            candidate = config_path.parent / candidate
+        try:
+            return candidate.read_text(encoding="utf-8").strip()
+        except OSError:
+            return ""
+    return ""
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1498,13 +1525,13 @@ def _unknown_auth_sites(
 def _dispatch_phase(args: argparse.Namespace) -> int:
     """Dispatch to the requested phase module."""
     from worldsim.cost_tracker import tracker as cost_tracker
+    from worldsim.phase_2 import runner as phase_2_injections
+    from worldsim.phase_4 import runner as phase_4_adversarial
     from worldsim.phases import (
         phase_0_recon,
         phase_0d_auth_bootstrap,
         phase_1_tasks,
-        phase_2_injections,
         phase_3_benign,
-        phase_4_adversarial,
     )
     from worldsim.state import get_state_dir
 
@@ -1555,7 +1582,7 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
         instances_path = getattr(args, "instances", None)
         if instances_path is not None and Path(instances_path).exists():
             try:
-                config = BenchmarkConfig.model_validate_json(Path(instances_path).read_text())
+                config = load_benchmark_config(instances_path)
                 instances_for_gate = [instance.model_dump() for instance in config.instances]
             except ValueError as exc:
                 print(f"Failed to parse instances config {instances_path}: {exc}", file=sys.stderr)

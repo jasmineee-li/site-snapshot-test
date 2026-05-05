@@ -8,6 +8,8 @@ DBs, and reset endpoints supplied here.
 
 from __future__ import annotations
 
+import json
+import os
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -25,6 +27,45 @@ from worldsim.pvpo_endpoint import validate_pvpo_cdp_url
 
 _SEEDING_AUTH_TYPES = frozenset({"none", "http_headers", "bearer_token", "web_login"})
 _AGENT_AUTH_TYPES = frozenset({"none", "unknown", "storage_state", "http_basic", "http_headers"})
+
+
+def load_benchmark_config(path: str | Path) -> BenchmarkConfig:
+    """Load a BenchmarkConfig, resolving relative proxy token files from the config dir."""
+    config_path = Path(path)
+    payload = json.loads(config_path.read_text())
+    payload = _resolve_config_relative_proxy_paths(payload, config_path=config_path)
+    return BenchmarkConfig.model_validate(payload)
+
+
+def dump_verification_proxy_config(proxy: VerificationProxy) -> dict[str, Any]:
+    """Serialize a proxy block without persisting externally-resolved tokens."""
+    payload = proxy.model_dump(mode="json", exclude_none=True)
+    has_external_source = any(
+        isinstance(payload.get(key), str) and str(payload[key]).strip()
+        for key in ("token_env", "token_file")
+    )
+    if has_external_source:
+        payload.pop("token", None)
+    return payload
+
+
+def _resolve_config_relative_proxy_paths(payload: Any, *, config_path: Path) -> Any:
+    if not isinstance(payload, dict):
+        return payload
+    proxy = payload.get("verification_proxy")
+    if not isinstance(proxy, dict):
+        return payload
+    token_file = proxy.get("token_file")
+    if not isinstance(token_file, str) or not token_file.strip():
+        return payload
+    candidate = Path(token_file)
+    if candidate.is_absolute():
+        return payload
+    normalized = dict(payload)
+    normalized_proxy = dict(proxy)
+    normalized_proxy["token_file"] = str(config_path.parent / candidate)
+    normalized["verification_proxy"] = normalized_proxy
+    return normalized
 
 
 def _require_string_map(value: Any, *, field_name: str) -> dict[str, str]:
@@ -358,6 +399,14 @@ class VerificationProxy(BaseModel):
         "",
         description="Shared secret for X-Worldsim-Token header. Empty string disables proxy auth.",
     )
+    token_env: str | None = Field(
+        None,
+        description="Optional environment variable that contains the proxy token.",
+    )
+    token_file: Path | None = Field(
+        None,
+        description="Optional file path that contains the proxy token.",
+    )
     scheme: str = Field(
         "http",
         description="Proxy URL scheme used by Phase 0c when rewriting site URLs.",
@@ -375,6 +424,25 @@ class VerificationProxy(BaseModel):
         if normalized not in {"http", "https"}:
             raise ValueError("VerificationProxy.scheme must be 'http' or 'https'")
         return normalized
+
+    @model_validator(mode="after")
+    def _resolve_external_token(self) -> VerificationProxy:
+        if self.token.strip():
+            self.token = self.token.strip()
+            return self
+        if self.token_env:
+            env_value = os.environ.get(self.token_env.strip(), "").strip()
+            if env_value:
+                self.token = env_value
+                return self
+        if self.token_file is not None:
+            try:
+                file_value = self.token_file.read_text(encoding="utf-8").strip()
+            except OSError:
+                file_value = ""
+            if file_value:
+                self.token = file_value
+        return self
 
 
 class BenchmarkConfig(BaseModel):

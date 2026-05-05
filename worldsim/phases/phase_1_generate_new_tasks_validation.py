@@ -19,6 +19,8 @@ from worldsim.adversarial_actions.capability_contracts import (
 from worldsim.adversarial_actions.scenario_templates import (
     scenario_template_from_mapping,
 )
+from worldsim.phase_2.target_resolution._context import _REDDIT_COMMENT_VISUAL_REGION_RE
+from worldsim.phase_2.target_resolution.runner import derive_benign_target_resource
 from worldsim.phases.phase_1_task_cards import (
     card_action_kinds,
     card_benign_reward_shape,
@@ -30,7 +32,6 @@ from worldsim.phases.phase_1_task_cards import (
     task_card_index,
 )
 from worldsim.phases.phase_2_exposure_contract import build_exposure_contract
-from worldsim.phases.phase_2_target_resolver import derive_benign_target_resource
 from worldsim.placeholders import extract_placeholders, placeholder_for_site
 from worldsim.seeding import validate_data_seed
 
@@ -656,6 +657,24 @@ def _validate_agent_response_instruction_deliverable(
     )
 
 
+def _task_route_targets_reddit_comment_body(task: Mapping[str, Any]) -> bool:
+    route_id = task.get("route_id")
+    if isinstance(route_id, str) and route_id.startswith("reddit.comment_body."):
+        return True
+    seed = task.get("data_seed")
+    if isinstance(seed, Mapping) and seed.get("mechanism") == "editor":
+        calls = seed.get("editor_calls")
+        if isinstance(calls, list):
+            for call in calls:
+                if not isinstance(call, Mapping):
+                    continue
+                if str(call.get("site") or "").strip().lower() != "reddit":
+                    continue
+                if str(call.get("method") or "").strip() == "create_comment":
+                    return True
+    return False
+
+
 def _validate_phase2_placement_target(
     task: dict[str, Any],
     *,
@@ -678,6 +697,24 @@ def _validate_phase2_placement_target(
     placeholders = {placeholder: f"https://{site_name}.local"}
     resource = derive_benign_target_resource(task, placeholders)
     _merge_route_contract_editor_anchors(resource, task, route_index)
+    if site_name == "reddit" and _task_route_targets_reddit_comment_body(task):
+        # Route selection can prove that the benign task makes the comments
+        # region salient, but it cannot prove that Phase 2's seeded comment is
+        # the painted comment the browser agent encountered. Seed-specific
+        # visibility must come from Phase 2c/runtime evidence.
+        resource["exact_comment_region_forced_by_task"] = True
+        resource["visual_comment_region_forced_by_task"] = True
+    elif (
+        site_name == "reddit"
+        and resource.get("kind") in {"reddit_submission", "reddit_dashboard_list"}
+        and _REDDIT_COMMENT_VISUAL_REGION_RE.search(str(task.get("instruction") or ""))
+    ):
+        # Phase 1 admission for novel benign read tasks without a comment-body
+        # data_seed: the instruction forces the agent into the visual comment
+        # region, so Phase 2's future seed placement is structurally admissible.
+        # Phase 2c remains the runtime authority for verifying that the actual
+        # seeded comment is in the painted region during the agent trajectory.
+        resource["seeded_comment_visible_forced_by_task"] = True
     contract = build_exposure_contract(
         benign_task_id=str(task.get("id") or ""),
         site=site_name,
@@ -1089,6 +1126,7 @@ def _validate_task_card_alignment(
     )
     if capability_problem is not None:
         return capability_problem
+    _canonicalize_task_card_action_provenance(task, card=card, card_id=card_id)
     provenance = task.get("task_provenance")
     if provenance is not None and not isinstance(provenance, dict):
         return _field_error(
@@ -1113,7 +1151,7 @@ def _validate_task_card_alignment(
     capability_family = card_capability_family(card)
     if capability_family:
         provenance["capability_family"] = capability_family
-    benign_family = _task_benign_task_family_id(task)
+    benign_family = _card_benign_task_family_id(card) or _task_benign_task_family_id(task)
     if benign_family:
         provenance["benign_task_family_id"] = benign_family
     reward_shape = card_benign_reward_shape(card)
@@ -1125,9 +1163,10 @@ def _validate_task_card_alignment(
     capability_family = card_capability_family(card)
     if capability_family:
         task["capability_family"] = capability_family
-    benign_family = _task_benign_task_family_id(task)
+        task.pop("required_capability_family", None)
     if benign_family:
         task["benign_task_family_id"] = benign_family
+        task.pop("task_family_id", None)
     task.pop("allowed_action_kinds", None)
     for scenario_key in ("scenario_template", "scenario_template_id", "scenario_context"):
         task.pop(scenario_key, None)
@@ -1202,6 +1241,45 @@ def _strip_model_authored_host_metadata(task: dict[str, Any]) -> None:
 
     for key in _MODEL_AUTHORED_HOST_METADATA_FIELDS:
         task.pop(key, None)
+
+
+def _canonicalize_task_card_action_provenance(
+    task: dict[str, Any],
+    *,
+    card: dict[str, Any],
+    card_id: str,
+) -> None:
+    """Make host-owned task-card metadata authoritative over model drafts."""
+    provenance = task.setdefault("task_provenance", {})
+    if not isinstance(provenance, dict):
+        return
+
+    provenance["task_card_id"] = card_id
+    archetype_id = card.get("archetype_id")
+    if isinstance(archetype_id, str) and archetype_id.strip():
+        provenance["archetype_id"] = archetype_id
+    if isinstance(card.get("task_archetype"), dict):
+        provenance["task_archetype"] = copy.deepcopy(card["task_archetype"])
+
+    capability_family = card_capability_family(card)
+    if capability_family:
+        task["capability_family"] = capability_family
+        task.pop("required_capability_family", None)
+        provenance["capability_family"] = capability_family
+        provenance.pop("required_capability_family", None)
+
+    benign_family = _card_benign_task_family_id(card)
+    if benign_family:
+        task["benign_task_family_id"] = benign_family
+        task.pop("task_family_id", None)
+        provenance["benign_task_family_id"] = benign_family
+        provenance.pop("task_family_id", None)
+
+    action_kinds = list(card_action_kinds(card))
+    task["compatible_action_kinds"] = action_kinds
+    task.pop("allowed_action_kinds", None)
+    provenance["compatible_action_kinds"] = action_kinds
+    provenance.pop("allowed_action_kinds", None)
 
 
 def _validate_task_card_capability_alignment(
@@ -1423,6 +1501,16 @@ def _task_benign_task_family_id(task: Mapping[str, Any]) -> str | None:
         value = provenance.get("benign_task_family_id") or provenance.get("task_family_id")
         if isinstance(value, str) and value.strip():
             return value.strip()
+    return None
+
+
+def _card_benign_task_family_id(card: Mapping[str, Any]) -> str | None:
+    value = card.get("benign_task_family_id")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    values = card_benign_task_family_ids(dict(card))
+    if len(values) == 1:
+        return next(iter(values))
     return None
 
 

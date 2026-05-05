@@ -21,7 +21,8 @@ benchmark artifacts, or docs that mention credentials.
 - Do not blanket-remove fixture credentials. They are part of reproducible
   benchmark setup and test contracts.
 - Do not commit real proxy/API tokens. `verification_proxy` should reference an
-  external source such as `token_env` or `token_file` when the config is tracked.
+  external source such as `token_env` or `token_file` when the config is tracked;
+  the default local file is `.proxy_token`, which is gitignored.
 - Some historical/generated instance configs may predate this rule and contain a
   literal `verification_proxy.token`. Treat those as remediation debt: do not
   copy the pattern into new configs, rotate/migrate before external sharing, and
