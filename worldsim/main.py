@@ -29,8 +29,8 @@ from dotenv import load_dotenv
 
 from worldsim.adversarial_actions import ACTION_POLICIES
 from worldsim.config import has_configured_agent_auth, load_benchmark_config
+from worldsim.phase_4._context import phase_4_variant_budget_choices
 from worldsim.phases.phase_1_task_cards import task_capability_profile_choices
-from worldsim.phases.phase_4_adversarial import phase_4_variant_budget_choices
 
 load_dotenv(override=True)  # override=True: .env values win over empty-string shell vars.
 

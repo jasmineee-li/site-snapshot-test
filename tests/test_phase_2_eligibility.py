@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.phases.phase_2_injections import (
+from worldsim.phase_2.runner import (
     _phase_2a_eligible_tasks,
     _write_eligibility_drops,
 )

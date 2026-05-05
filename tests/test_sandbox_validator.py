@@ -2997,7 +2997,7 @@ class TestMergeSimulationParity:
         # --- Orchestrator merge (from _merge_immutable_fields) ---
         # Import the orchestrator function
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-        from worldsim.phases.phase_2_injections import _merge_immutable_fields
+        from worldsim.phase_2.runner import _merge_immutable_fields
 
         orchestrator_adv = json.loads(json.dumps(adv_minimal))  # deep copy
         _merge_immutable_fields([orchestrator_adv], [benign])
@@ -3014,7 +3014,7 @@ class TestMergeSimulationParity:
         adv_minimal = self._make_adversarial_task_minimal()
 
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-        from worldsim.phases.phase_2_injections import _merge_immutable_fields
+        from worldsim.phase_2.runner import _merge_immutable_fields
 
         merged = json.loads(json.dumps(adv_minimal))
         _merge_immutable_fields([merged], [benign])
@@ -3061,7 +3061,7 @@ class TestMergeSimulationParity:
 
         # Orchestrator: deep copy
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-        from worldsim.phases.phase_2_injections import _merge_immutable_fields
+        from worldsim.phase_2.runner import _merge_immutable_fields
 
         orch_adv = json.loads(json.dumps(adv_minimal))
         benign_copy = json.loads(json.dumps(benign))

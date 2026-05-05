@@ -67,13 +67,22 @@ def test_model_facing_prompt_sources_are_not_platform_hardcoded() -> None:
 
 def test_phase_2_prompt_action_kind_list_matches_default_action_kinds() -> None:
     text = Path("worldsim/prompts/generate-injections.md").read_text(encoding="utf-8")
-    match = re.search(r'"kind": "([^"]+)"', text)
-    assert match is not None
+    match = re.search(r'"kind": "(<one of[^"]+)"', text)
+    assert match is not None, (
+        "expected the adversarial_action.kind field to describe host-injected "
+        "options; commit a391337f replaced the pipe-separated enum with a "
+        "natural-language placeholder that lists representative kinds."
+    )
 
-    prompt_kinds = tuple(part.strip() for part in match.group(1).split("|"))
+    description = match.group(1)
+    for kind in ACTION_KINDS:
+        assert kind in description, (
+            f"adversarial_action.kind description in generate-injections.md "
+            f"must mention canonical action kind {kind!r} so the model can "
+            f"emit it; got: {description!r}"
+        )
 
-    assert prompt_kinds == ACTION_KINDS
-    assert "create_secret_or_key" not in prompt_kinds
+    assert "create_secret_or_key" not in description
     assert "WebArena" not in text
     assert "wasp_tier" not in text
 
@@ -272,7 +281,8 @@ class TestSandboxApiPathParity:
     between the two paths for the same shard input."""
 
     def test_byte_identical_prompts(self) -> None:
-        from worldsim.phases import phase_2_injections, phase_2_injections_api
+        from worldsim.phase_2 import runner as phase_2_injections
+        from worldsim.phases import phase_2_injections_api
 
         benign_target_resources = {
             "t1": {

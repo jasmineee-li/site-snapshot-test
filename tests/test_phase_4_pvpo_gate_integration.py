@@ -18,8 +18,8 @@ from typing import Any
 
 import pytest
 
+from worldsim.phase_4 import runner as phase_4_adversarial
 from worldsim.phase_4.encounter_detection import EncounterResult
-from worldsim.phases import phase_4_adversarial
 
 
 def _encounter(
