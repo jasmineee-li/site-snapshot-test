@@ -9,7 +9,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 import numpy as np
-from sklearn.metrics import roc_curve, auc
 
 
 @dataclass
@@ -44,6 +43,8 @@ def calculate_auroc(
     scores: list[float] | np.ndarray,
 ) -> AUROCResult:
     """Calculate AUROC and optimal threshold using Youden's J statistic."""
+    from sklearn.metrics import auc, roc_curve
+
     labels = np.asarray(labels)
     scores = np.asarray(scores)
 

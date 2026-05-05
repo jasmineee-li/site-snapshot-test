@@ -31,6 +31,8 @@ from __future__ import annotations
 
 import logging
 from contextlib import contextmanager
+from dataclasses import dataclass
+from typing import Any, Sequence
 
 import torch
 
@@ -145,9 +147,10 @@ def _make_pre_hook(vector: torch.Tensor, alpha: float):
     addition (returning a new tuple of args).
     """
     def hook(module, args, kwargs):
-        if not args:
-            return None  # nothing to modify
-        hidden_states = args[0]
+        if args:
+            hidden_states = args[0]
+        else:
+            hidden_states = kwargs.get("hidden_states")
         if not isinstance(hidden_states, torch.Tensor):
             return None
         if alpha == 0.0:
@@ -155,6 +158,343 @@ def _make_pre_hook(vector: torch.Tensor, alpha: float):
         v = vector.to(device=hidden_states.device, dtype=hidden_states.dtype)
         # Broadcast across batch and seq dims.
         new_hidden = hidden_states + alpha * v
-        return (new_hidden, *args[1:]), kwargs
+        if args:
+            return (new_hidden, *args[1:]), kwargs
+        kwargs = dict(kwargs)
+        kwargs["hidden_states"] = new_hidden
+        return args, kwargs
 
     return hook
+
+
+@dataclass
+class TokenGatedSteeringState:
+    """Mutable state shared between token-gated steering hooks.
+
+    `prompt_positions` are token indices in the rendered prompt that should be
+    steered during the prefill pass. During generation, hooks only steer the
+    one-token cached forward passes after `generation_enabled` is set by the
+    outer decoding loop.
+    """
+
+    prompt_len: int
+    prompt_positions: set[int]
+    generation_enabled: bool = False
+
+
+@contextmanager
+def token_gated_steering_hook(
+    model,
+    probe,
+    *,
+    state: TokenGatedSteeringState,
+    layers: Sequence[int],
+    alpha_per_layer: float = 0.6,
+    use_normalized: bool = True,
+):
+    """Install multi-layer steering with prompt/generation token gates.
+
+    This matches the intervention pattern used in the Hazra/Goodfire-style
+    setup we are testing:
+      - prefill: steer only user-message content tokens;
+      - generation: steer cached generation-token forwards only after the
+        caller flips `state.generation_enabled`;
+      - never steer system prompt or chat-template scaffolding tokens.
+    """
+    if not layers:
+        raise ValueError("At least one layer is required for token-gated steering.")
+
+    vec_dict = probe.normalized_vectors if use_normalized else probe.vectors
+    decoder_layers = model.get_decoder_layers()
+    n_layers_total = len(decoder_layers)
+
+    handles: list[Any] = []
+    installed: list[tuple[int, float, float]] = []
+    try:
+        for tgt_layer in layers:
+            if tgt_layer not in vec_dict:
+                raise ValueError(f"No probe vector for layer {tgt_layer}")
+            if not (0 <= tgt_layer < n_layers_total):
+                raise IndexError(
+                    f"Layer {tgt_layer} out of range for model with "
+                    f"{n_layers_total} layers"
+                )
+            vec = vec_dict[tgt_layer]
+            if vec.dim() > 1:
+                vec = vec.squeeze(0)
+            handle = decoder_layers[tgt_layer].register_forward_pre_hook(
+                _make_token_gated_pre_hook(vec, alpha_per_layer, state),
+                with_kwargs=True,
+            )
+            handles.append(handle)
+            installed.append((tgt_layer, alpha_per_layer, vec.norm().item()))
+        logger.info(
+            "Installed token-gated steering on layers=%s alpha_per_layer=%s "
+            "prompt_positions=%s",
+            [layer for layer, _, _ in installed],
+            alpha_per_layer,
+            len(state.prompt_positions),
+        )
+        yield state
+    finally:
+        for handle in handles:
+            handle.remove()
+
+
+def _make_token_gated_pre_hook(
+    vector: torch.Tensor,
+    alpha: float,
+    state: TokenGatedSteeringState,
+):
+    def hook(module, args, kwargs):
+        if alpha == 0.0:
+            return None
+        if args:
+            hidden_states = args[0]
+        else:
+            hidden_states = kwargs.get("hidden_states")
+        if not isinstance(hidden_states, torch.Tensor) or hidden_states.ndim != 3:
+            return None
+
+        seq_len = int(hidden_states.shape[1])
+        if seq_len == state.prompt_len:
+            positions = [
+                pos for pos in sorted(state.prompt_positions)
+                if 0 <= pos < seq_len
+            ]
+            if not positions:
+                return None
+            v = vector.to(device=hidden_states.device, dtype=hidden_states.dtype)
+            new_hidden = hidden_states.clone()
+            new_hidden[:, positions, :] = new_hidden[:, positions, :] + alpha * v
+        elif seq_len == 1 and state.generation_enabled:
+            v = vector.to(device=hidden_states.device, dtype=hidden_states.dtype)
+            new_hidden = hidden_states + alpha * v
+        else:
+            return None
+
+        if args:
+            return (new_hidden, *args[1:]), kwargs
+        kwargs = dict(kwargs)
+        kwargs["hidden_states"] = new_hidden
+        return args, kwargs
+
+    return hook
+
+
+def chat_role_content_token_positions(
+    tokenizer,
+    rendered_prompt: str,
+    messages: list[dict[str, Any]],
+    *,
+    roles: set[str] | None = None,
+) -> list[int]:
+    """Return content-token positions for selected chat roles.
+
+    The positions are computed against the fully rendered chat template, but
+    only content substrings from the requested roles are selected. Role markers,
+    special tokens, whitespace-only tokens, system content, and other template
+    scaffolding are omitted.
+    """
+    roles = roles or {"user"}
+    ids = tokenizer.encode(rendered_prompt, add_special_tokens=False)
+    special_ids = set(getattr(tokenizer, "all_special_ids", []) or [])
+    positions: set[int] = set()
+    search_from = 0
+    for message in messages:
+        role = str(message.get("role", ""))
+        content = _flatten_content(message.get("content", ""))
+        if role not in roles or not content:
+            continue
+        start = rendered_prompt.find(content, search_from)
+        if start == -1:
+            start = rendered_prompt.find(content)
+        if start == -1:
+            continue
+        end = start + len(content)
+        prefix_ids = tokenizer.encode(rendered_prompt[:start], add_special_tokens=False)
+        through_ids = tokenizer.encode(rendered_prompt[:end], add_special_tokens=False)
+        for pos in range(len(prefix_ids), len(through_ids)):
+            if pos < 0 or pos >= len(ids):
+                continue
+            token_id = ids[pos]
+            token_text = tokenizer.decode([token_id])
+            if token_id in special_ids:
+                continue
+            if not token_text.strip():
+                continue
+            if token_text.startswith("<|") or token_text in {"<s>", "</s>"}:
+                continue
+            positions.add(pos)
+        search_from = end
+    return sorted(positions)
+
+
+def generate_with_token_gated_steering(
+    model,
+    tokenizer,
+    messages: list[dict[str, Any]],
+    probe,
+    *,
+    layers: Sequence[int],
+    alpha_per_layer: float = 0.6,
+    max_new_tokens: int = 128,
+    temperature: float = 0.0,
+    eos_token_id: int | None = None,
+    stop_token_ids: Sequence[int] | None = None,
+    rendered_prompt: str | None = None,
+    input_ids_list: Sequence[int] | None = None,
+) -> dict[str, Any]:
+    """Greedy/sampled generation with user-token + post-first-sentence steering.
+
+    This helper is intentionally simple and primarily meant for smoke tests and
+    local HF-backed runs. It uses a manual cached decoding loop so we can turn
+    generation-token steering on only after the first sentence has appeared.
+    """
+    rendered = rendered_prompt
+    if rendered is None:
+        rendered = tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+    if input_ids_list is None:
+        input_ids_list = tokenizer.encode(rendered, add_special_tokens=False)
+    input_ids_list = list(input_ids_list)
+    if not input_ids_list:
+        raise ValueError("Rendered prompt tokenized to zero tokens.")
+
+    input_device = _model_input_device(model.model)
+    input_ids = torch.tensor([input_ids_list], device=input_device)
+    prompt_positions = set(
+        chat_role_content_token_positions(
+            tokenizer,
+            rendered,
+            messages,
+            roles={"user"},
+        )
+    )
+    state = TokenGatedSteeringState(
+        prompt_len=int(input_ids.shape[1]),
+        prompt_positions=prompt_positions,
+        generation_enabled=False,
+    )
+    stop_ids: set[int] = set(int(x) for x in (stop_token_ids or []) if x is not None)
+    if eos_token_id is not None:
+        stop_ids.add(int(eos_token_id))
+    tok_eos = getattr(tokenizer, "eos_token_id", None)
+    if tok_eos is not None:
+        stop_ids.add(int(tok_eos))
+    for marker in ("<|im_end|>", "<|endoftext|>", "[EOS]"):
+        try:
+            marker_id = tokenizer.convert_tokens_to_ids(marker)
+        except Exception:
+            marker_id = None
+        if isinstance(marker_id, int) and marker_id >= 0:
+            stop_ids.add(marker_id)
+
+    generated_ids: list[int] = []
+    first_sentence_end_token_index: int | None = None
+
+    with token_gated_steering_hook(
+        model,
+        probe,
+        state=state,
+        layers=layers,
+        alpha_per_layer=alpha_per_layer,
+    ):
+        with torch.no_grad():
+            outputs = model.model(input_ids=input_ids, use_cache=True)
+            past_key_values = outputs.past_key_values
+            logits = outputs.logits[:, -1, :]
+
+            for _ in range(max_new_tokens):
+                next_id = _sample_next_token(logits, temperature=temperature)
+                token_id = int(next_id.item())
+                generated_ids.append(token_id)
+
+                generated_text = tokenizer.decode(
+                    generated_ids,
+                    skip_special_tokens=False,
+                    clean_up_tokenization_spaces=False,
+                )
+                if (
+                    first_sentence_end_token_index is None
+                    and _has_first_sentence(generated_text)
+                ):
+                    first_sentence_end_token_index = len(generated_ids) - 1
+                    state.generation_enabled = True
+
+                if token_id in stop_ids:
+                    break
+
+                outputs = model.model(
+                    input_ids=next_id.reshape(1, 1),
+                    past_key_values=past_key_values,
+                    use_cache=True,
+                )
+                past_key_values = outputs.past_key_values
+                logits = outputs.logits[:, -1, :]
+
+    text = tokenizer.decode(
+        generated_ids,
+        skip_special_tokens=False,
+        clean_up_tokenization_spaces=False,
+    )
+    return {
+        "text": text,
+        "generated_ids": generated_ids,
+        "prompt_len": state.prompt_len,
+        "n_user_prompt_positions": len(prompt_positions),
+        "first_sentence_end_token_index": first_sentence_end_token_index,
+        "generation_steering_enabled": state.generation_enabled,
+        "layers": list(layers),
+        "alpha_per_layer": alpha_per_layer,
+        "stop_token_ids": sorted(stop_ids),
+    }
+
+
+def _sample_next_token(logits: torch.Tensor, *, temperature: float) -> torch.Tensor:
+    if temperature and temperature > 0:
+        probs = torch.softmax(logits / max(float(temperature), 1e-5), dim=-1)
+        return torch.multinomial(probs, num_samples=1).squeeze(-1)
+    return torch.argmax(logits, dim=-1)
+
+
+def _has_first_sentence(text: str) -> bool:
+    stripped = text.strip()
+    if not stripped:
+        return False
+    return bool(
+        # Keep this conservative: terminal punctuation followed by whitespace,
+        # a quote/bracket, or end-of-string.
+        __import__("re").search(r"[.!?](?:[\"')\]]+)?(?:\s|$)", stripped)
+    )
+
+
+def _flatten_content(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if isinstance(item, dict):
+                if item.get("type") == "text":
+                    parts.append(str(item.get("text", "")))
+                elif "text" in item:
+                    parts.append(str(item["text"]))
+                else:
+                    parts.append(str(item))
+            else:
+                parts.append(str(item))
+        return "".join(parts)
+    if content is None:
+        return ""
+    return str(content)
+
+
+def _model_input_device(hf_model) -> torch.device:
+    try:
+        return hf_model.get_input_embeddings().weight.device
+    except Exception:
+        return next(hf_model.parameters()).device

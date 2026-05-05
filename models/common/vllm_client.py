@@ -61,9 +61,12 @@ def make_agentlab_chat_model_args(
         ) from e
 
     base_url = spec.resolve_url()
+    # AgentLab's VLLMChatModel reads its endpoint from VLLM_API_URL rather
+    # than the SelfHostedModelArgs.model_url field, so keep the env in sync
+    # for local OpenAI-compatible servers.
+    os.environ["VLLM_API_URL"] = base_url
     return SelfHostedModelArgs(
         model_name=spec.resolve_served_name(),
-        base_model_name=spec.hf_repo,
         model_url=base_url,
         max_total_tokens=spec.max_total_tokens,
         max_input_tokens=spec.max_input_tokens,

@@ -89,17 +89,14 @@ class HookedTransformerShim:
             load_kwargs["torch_dtype"] = dtype
 
         model_type = getattr(cfg_hf, "model_type", "")
-        if model_type in {"qwen2_5_vl", "qwen3_vl"}:
+        try:
+            model_hf = AutoModelForCausalLM.from_pretrained(model_path, **load_kwargs)
+        except (ValueError, KeyError) as e:
+            logger.info(
+                f"AutoModelForCausalLM failed for {model_path} ({e}); "
+                f"falling back to architecture-specific loader."
+            )
             model_hf = _load_vl(model_path, load_kwargs, model_type)
-        else:
-            try:
-                model_hf = AutoModelForCausalLM.from_pretrained(model_path, **load_kwargs)
-            except (ValueError, KeyError) as e:
-                logger.info(
-                    f"AutoModelForCausalLM failed for {model_path} ({e}); "
-                    f"falling back to architecture-specific loader."
-                )
-                model_hf = _load_vl(model_path, load_kwargs, model_type)
 
         if device == "cpu":
             model_hf.to("cpu")
