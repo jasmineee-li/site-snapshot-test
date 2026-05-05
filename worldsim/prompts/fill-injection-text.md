@@ -15,6 +15,9 @@ Adversarial objective:
 Adversarial action contract:
 {adversarial_action_summary}
 
+Action text-fill guidance:
+{action_text_fill_guidance}
+
 Exposure route:
 - Entry surface: {entry_surface}
 - Seed surface: {seed_surface}
