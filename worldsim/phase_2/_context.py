@@ -29,6 +29,7 @@ from worldsim.benchmark_capabilities import (
 )
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.adversarial_actions import (
+    ACTION_SIGNAL_BY_KIND,
     annotate_exposure_contracts_with_action_policy,
     compile_adversarial_final_state_check,
     compile_adversarial_reward,

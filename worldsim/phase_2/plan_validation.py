@@ -265,16 +265,37 @@ def _validate_final_state_action_reward_semantics(
     for config in _final_state_reward_configs(adv_reward):
         expected = config.get("expected")
         if not isinstance(expected, Mapping):
+            return "adversarial_reward FinalStateEvaluator missing expected object"
+        unsupported = set(expected) - {"action_kind", "contains", "network_event", "state_probe"}
+        if unsupported:
+            return (
+                "adversarial_reward FinalStateEvaluator uses unsupported expected fields: "
+                + ", ".join(sorted(str(key) for key in unsupported))
+            )
+        if ACTION_SIGNAL_BY_KIND.get(action_kind) != "network_action":
             continue
-        config_action_kind = str(expected.get("action_kind") or "").strip() or action_kind
-        if config_action_kind != "submit_comment":
-            continue
+        if str(expected.get("action_kind") or "").strip() != action_kind:
+            return "network-action FinalStateEvaluator action_kind must match adversarial_action"
+        if not str(expected.get("contains") or "").strip():
+            return "network-action FinalStateEvaluator must validate persisted witness text"
+        network_event = expected.get("network_event")
+        if not isinstance(network_event, Mapping):
+            return "network-action FinalStateEvaluator must bind to a source network event"
+        methods = _network_reward_http_methods(network_event.get("http_method"))
+        if action_kind == "delete_or_transfer_resource":
+            if not methods.intersection({"POST", "DELETE"}):
+                return "network-action FinalStateEvaluator source event must use POST or DELETE"
+        elif "POST" not in methods:
+            return "network-action FinalStateEvaluator source event must use POST"
+        if "response_status" not in network_event:
+            return "network-action FinalStateEvaluator source event must validate response_status"
         state_probe = expected.get("state_probe")
         if not isinstance(state_probe, Mapping):
-            continue
-        problem = _validate_reddit_submit_comment_state_probe(state_probe)
-        if problem is not None:
-            return problem
+            return "network-action FinalStateEvaluator must include a state_probe"
+        if action_kind == "submit_comment":
+            problem = _validate_reddit_submit_comment_state_probe(state_probe)
+            if problem is not None:
+                return problem
     return None
 
 
@@ -295,6 +316,14 @@ def _validate_reddit_submit_comment_state_probe(state_probe: Mapping[str, Any]) 
             "or phase2c_seed_metadata deferred binding"
         )
     return None
+
+
+def _network_reward_http_methods(value: Any) -> set[str]:
+    if isinstance(value, str) and value.strip():
+        return {value.strip().upper()}
+    if isinstance(value, list):
+        return {str(item).strip().upper() for item in value if str(item).strip()}
+    return {"GET"}
 
 
 def _validate_adversarial_reward_semantics(
