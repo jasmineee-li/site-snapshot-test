@@ -1,13 +1,13 @@
 # TODO: Prove PR #10 rebase completeness (everything except live r5)
 
-Status: closed (Gap 4 + Gap 13 resolved 2026-05-05; rebased onto `feat/worldsim-v5@446ff6cc`)
+Status: closed (Gap 4 + Gap 13 + Gap 15 resolved 2026-05-05; rebased onto `feat/worldsim-v5@446ff6cc`)
 Owner: unassigned
-Worktree: `/Users/ashtonchew/projects/browser-sim/.codex-worktrees/agent-readiness-standardized` (branch `feat/agent-readiness-standardized`, current pushed head after this handoff refresh, base `feat/worldsim-v5@446ff6cc`)
+Worktree: `/Users/ashtonchew/projects/browser-sim/.codex-worktrees/agent-readiness-standardized` (branch `feat/agent-readiness-standardized`, bug-hunt baseline head `dab75522`, base `origin/feat/worldsim-v5@446ff6cc`)
 Backup branches (do not delete): `backup/pr-10-before-446ff6cc-rebase-20260505-145710`, `backup/pr-10-pre-rerebase-20260505-132359`, `backup/pr-10-before-rebase-20260505-124459`, plus three earlier dated `backup/pr-10-before-*` branches.
 
 ## What this is
 
-PR #10 (`https://github.com/jasmineee-li/browser-sim/pull/10`, "Agent readiness: modularize Phase 2 and Phase 4 domains") was rebased from `df71d96a` to `38aa2f30` in two passes: first onto `8ef4f5db`, then a clean fast-forward onto `38aa2f30`. The rebase produced 26 commits on top of base: 21 original PR commits, 3 user-authored local commits (`fix(phase1): canonicalize action capability provenance`, `fix(phase2): compile host action rewards`, `fix(gitlab): recognize graphql note actions`), and 5 trailing forward-port commits (2 `chore(rebase):`, 2 `test(rebase):`, plus the `chore(rebase): port reddit visual-region regex into phase_2 modular layout` that bundles the reddit gate + smoke-variant-budget ports).
+PR #10 (`https://github.com/jasmineee-li/browser-sim/pull/10`, "Agent readiness: modularize Phase 2 and Phase 4 domains") now sits on `origin/feat/worldsim-v5@446ff6cc`. The original modularization/rebase work was followed by the Gap 4, Gap 13, and Gap 15 hardening commits, plus later bug-hunt fixes after `398bc38d`, `4baa1a82`, and `60933632` (`872ef27a`, `42637149`, `dab75522`). At the bug-hunt baseline head `dab75522`, `git log --oneline origin/feat/worldsim-v5..HEAD | wc -l` reported 50 commits on top of `446ff6cc`; subsequent fix or docs commits should be counted as `50 + N`.
 
 Local validation is green: `tests/seed_contracts tests/phase_2 tests/phase_4 tests/test_readiness_audit.py tests/test_rewards.py` (`493 passed`), Phase 4 host-API + adjacent surfaces (`412 passed`), `worldsim.main --help`, `scripts/readiness_audit.py --json`, `ruff check`, `bash scripts/verify_fast.sh`. Git considers the PR `MERGEABLE` with `mergeStateStatus: CLEAN`.
 
@@ -40,7 +40,7 @@ Research, then plan, then implement, then validate. Keep each step small. Update
 cd /Users/ashtonchew/projects/browser-sim/.codex-worktrees/agent-readiness-standardized
 git fetch origin
 git status                                    # confirm clean tree
-git log --oneline origin/feat/worldsim-v5..HEAD | wc -l   # expect 26 (or +N as forward-port commits land)
+git log --oneline origin/feat/worldsim-v5..HEAD | wc -l   # bug-hunt baseline dab75522 was 50; expect 50 + N follow-up commits
 ```
 
 For any new forward-port commit, run the local validation block at the end of this file before pushing. After every push, refresh `gh pr checks 10`.
@@ -556,7 +556,7 @@ git show 38aa2f3095:worldsim/phases/phase_4_adversarial.py | rg -n "variant_prog
 
 `worldsim/editors/reddit.py` and `worldsim/rewards.py` (the substantive reddit comment attribution hardening) flowed through three-way merge cleanly because PR HEAD never touched them. The 491 new lines in `tests/test_rewards.py` and 105 in `tests/test_adversarial_actions.py` plus 91 in `tests/test_phase_2_feasibility.py` also landed cleanly.
 
-Verification: `tests/test_rewards.py -k reddit_comment` (and the broader local validation block) passes after rebase. `git log --oneline origin/feat/worldsim-v5..HEAD` shows 47 commits on top of `446ff6cc`, matching the PR's pre-rebase 36 + 11 new (1 rebase port + 1 Gap 4 fix + 4 initial Gap 13 commits + 2 latest hardening fixes + 1 adaptive/progress follow-up + 1 handoff refresh + this head refresh).
+Verification: `tests/test_rewards.py -k reddit_comment` (and the broader local validation block) passes after rebase. At bug-hunt baseline head `dab75522`, `git log --oneline origin/feat/worldsim-v5..HEAD` showed 50 commits on top of `446ff6cc`, including the Gap 15 rebase port, Gap 4 fix, Gap 13 heartbeat/adaptive/progress fixes, the Reddit attribution hardening follow-up, and the latest Phase 4 runtime-knob/progress follow-ups.
 
 ## Gap 14: Stale `tests/test_phase_4_adversarial.py` reference in `agent_docs/verification.md`
 
@@ -605,6 +605,6 @@ A green block is necessary, not sufficient. The live r5 wrapper remains the only
 
 - Gaps 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15: closed.
 - PR body lists exactly which gaps were closed and which were intentionally accepted.
-- Local validation block green on the final code HEAD (verified 2026-05-05 on `35e63174`; the final handoff refresh is doc-only).
+- Local validation block green on the final code HEAD from the closeout sequence (verified 2026-05-05 on `35e63174`; later bug-hunt follow-ups should rerun the focused local validation listed in their handoff or PR notes).
 - `gh pr checks 10` either green or "no checks" with documented justification (the fork has no `.github/workflows/`, so "no checks" is expected).
 - Live r5 gate still pending; that is the operator's call and is the final merge blocker.
