@@ -112,11 +112,17 @@ async def run_adversarial_task(
             "error": "data seed must be an object",
             "benign_passed": False,
             "adversarial_passed": False,
+            **_adversarial_reward_signal_fields(
+                task,
+                benign_passed=False,
+                adv_passed=False,
+            ),
             "seed_preflight_mismatches": ["data seed must be an object"],
             "seed_preflight_mismatch_records": mismatch_records,
             "trajectory_dir": str(task_dir),
             "elapsed": 0.0,
             "steps": 0,
+            "final_result": None,
         }
         _save_seed_preflight_result(
             task_dir=task_dir,
@@ -204,11 +210,17 @@ async def run_adversarial_task(
                         "error": "; ".join(mismatch_lines),
                         "benign_passed": False,
                         "adversarial_passed": False,
+                        **_adversarial_reward_signal_fields(
+                            task,
+                            benign_passed=False,
+                            adv_passed=False,
+                        ),
                         "seed_preflight_mismatches": mismatch_lines,
                         "seed_preflight_mismatch_records": mismatch_records,
                         "trajectory_dir": str(task_dir),
                         "elapsed": 0.0,
                         "steps": 0,
+                        "final_result": None,
                     }
                     _save_seed_preflight_result(
                         task_dir=task_dir,
@@ -313,6 +325,14 @@ async def run_adversarial_task(
             error_final_status_extra: dict[str, Any] = {}
             if pvpo["injection_not_encountered"]:
                 error_final_status_extra["final_status"] = "injection_not_encountered"
+            reward_signal_fields = _adversarial_reward_signal_fields(
+                task,
+                benign_passed=False,
+                adv_passed=False,
+                network_trace=result.network_trace,
+                instance=instance_dict,
+            )
+            tier3_cleanup_fields = await _tier3_action_cleanup_fields(task, instance_dict)
             save_result(
                 task_dir,
                 task,
@@ -322,6 +342,8 @@ async def run_adversarial_task(
                 outcome="error",
                 encounter=pvpo["encounter"],
                 trajectory_dir=str(task_dir),
+                **reward_signal_fields,
+                **tier3_cleanup_fields,
                 **_pvpo_metric_payload(pvpo),
                 **error_final_status_extra,
                 **extra,
@@ -333,6 +355,8 @@ async def run_adversarial_task(
                 "encounter": pvpo["encounter"],
                 "benign_passed": False,
                 "adversarial_passed": False,
+                **reward_signal_fields,
+                **tier3_cleanup_fields,
                 "trajectory_dir": str(task_dir),
                 "elapsed": result.elapsed,
                 "steps": result.steps,
@@ -362,6 +386,14 @@ async def run_adversarial_task(
             nonint_final_status_extra: dict[str, Any] = {}
             if pvpo["injection_not_encountered"]:
                 nonint_final_status_extra["final_status"] = "injection_not_encountered"
+            reward_signal_fields = _adversarial_reward_signal_fields(
+                task,
+                benign_passed=False,
+                adv_passed=False,
+                network_trace=result.network_trace,
+                instance=instance_dict,
+            )
+            tier3_cleanup_fields = await _tier3_action_cleanup_fields(task, instance_dict)
             save_result(
                 task_dir,
                 task,
@@ -371,6 +403,8 @@ async def run_adversarial_task(
                 outcome="error",
                 encounter=pvpo["encounter"],
                 trajectory_dir=str(task_dir),
+                **reward_signal_fields,
+                **tier3_cleanup_fields,
                 **_pvpo_metric_payload(pvpo),
                 **nonint_final_status_extra,
                 **extra,
@@ -382,13 +416,15 @@ async def run_adversarial_task(
                 "encounter": pvpo["encounter"],
                 "benign_passed": False,
                 "adversarial_passed": False,
+                **reward_signal_fields,
+                **tier3_cleanup_fields,
                 "trajectory_dir": str(task_dir),
                 "elapsed": result.elapsed,
                 "steps": result.steps,
                 **_pvpo_metric_payload(pvpo),
                 **nonint_final_status_extra,
             }
-        adv_passed, _ = (
+        adv_passed, adv_message = (
             await _run_reward_function_safely(
                 adv_reward,
                 instance_dict,
@@ -400,6 +436,35 @@ async def run_adversarial_task(
             if adv_reward
             else (False, "")
         )
+        reward_signal_fields = _adversarial_reward_signal_fields(
+            task,
+            benign_passed=bool(benign_passed),
+            adv_passed=bool(adv_passed),
+            network_trace=result.network_trace,
+            instance=instance_dict,
+        )
+        final_state_check = reward.get("adversarial_final_state_check")
+        final_state_checked = (
+            isinstance(final_state_check, dict)
+            and bool(final_state_check)
+            and final_state_check.get("type") == "FinalStateEvaluator"
+            and reward_signal_fields.get("adversarial_action_enabled") is True
+            and reward_signal_fields.get("adversarial_reward_signal") == "network_action"
+        )
+        final_state_passed: bool | None = None
+        final_state_message = ""
+        # Final-state readback is confirmatory evidence for mutation actions.
+        # It does not gate adversarial_passed yet; adversarial_passed remains
+        # the immediate adversarial reward result.
+        if final_state_checked:
+            final_state_passed, final_state_message = await _run_reward_function_safely(
+                final_state_check,
+                instance_dict,
+                result,
+                network_trace=result.network_trace,
+                task_id=task_id,
+                reward_label="adversarial_final_state",
+            )
 
         # 2. Classify outcome (always)
         if adv_passed:
@@ -421,6 +486,20 @@ async def run_adversarial_task(
             adv_passed=bool(adv_passed),
             ecologically_valid=_ecologically_valid({"encounter": pvpo["encounter"]}),
         )
+        final_state_fields = {
+            "adversarial_final_state_checked": final_state_checked,
+            "adversarial_final_state_passed": final_state_passed,
+            "adversarial_final_state_message": final_state_message,
+            **_final_state_action_success_fields(
+                reward_signal_fields,
+                final_state_passed=final_state_passed,
+            ),
+        }
+        if final_state_fields["state_confirmed_action_success"]:
+            reward_signal_fields = _upgrade_action_attempt_from_state_confirmation(
+                reward_signal_fields
+            )
+        tier3_cleanup_fields = await _tier3_action_cleanup_fields(task, instance_dict)
 
         # 4. Persist the stage-1 result only after Gate 1 completes.
         extra: dict[str, Any] = {}
@@ -435,6 +514,13 @@ async def run_adversarial_task(
             outcome=outcome,
             encounter=pvpo["encounter"],
             trajectory_dir=str(task_dir),
+            benign_passed=bool(benign_passed),
+            benign_reward_message=benign_message,
+            adversarial_passed=bool(adv_passed),
+            adversarial_reward_message=adv_message,
+            **reward_signal_fields,
+            **final_state_fields,
+            **tier3_cleanup_fields,
             **_pvpo_metric_payload(pvpo),
             **final_status_extra,
             **taxonomy_fields,
@@ -446,7 +532,12 @@ async def run_adversarial_task(
             "outcome": outcome,
             "encounter": pvpo["encounter"],
             "benign_passed": benign_passed,
+            "benign_reward_message": benign_message,
             "adversarial_passed": adv_passed,
+            "adversarial_reward_message": adv_message,
+            **reward_signal_fields,
+            **final_state_fields,
+            **tier3_cleanup_fields,
             "trajectory_dir": str(task_dir),
             "elapsed": result.elapsed,
             "steps": result.steps,
