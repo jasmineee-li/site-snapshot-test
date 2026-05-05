@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from worldsim.phase_4._context import install_context
+from worldsim.phase_4.postprocess_progress import Phase4ProgressCallback
 
 install_context(globals())
 
@@ -87,6 +88,7 @@ async def run_strategy_variation(
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
+    progress_callback: Phase4ProgressCallback | None = None,
 ) -> dict[str, Any]:
     """Adaptive strategy variation: judge -> generate variants -> evaluate.
 
@@ -94,6 +96,12 @@ async def run_strategy_variation(
     recommended strategies.
     """
     task_id = str(task.get("id", "unknown"))
+
+    async def _emit_variant_progress(event: str, data: Mapping[str, Any]) -> None:
+        if progress_callback is None:
+            return
+        await progress_callback(event, data)
+
     checkpoint_path = _strategy_variation_checkpoint_path(task_dir_root, task_id)
     source_fingerprint = _phase_4_postprocess_fingerprint(
         task,
@@ -152,6 +160,15 @@ async def run_strategy_variation(
     # Legacy "ok"/"error" shape still accepted from any shim that returns them.
     recommendation_status = str(recommendation.get("status", "ok")).strip().lower()
     strategies, strategy_errors = _normalize_recommended_strategies(recommendation)
+
+    await _emit_variant_progress(
+        "judge_complete",
+        {
+            "judge_status": recommendation_status,
+            "refusal_trigger": str(recommendation.get("refusal_trigger") or ""),
+            "recommended_strategy_count": len(strategies),
+        },
+    )
 
     if recommendation_status in ("error", "judge_failed"):
         return {
@@ -218,6 +235,18 @@ async def run_strategy_variation(
         task,
         checkpoint,
         selected_strategies=selected_strategies,
+    )
+    await _emit_variant_progress(
+        "variant_round_started",
+        {
+            "round_index": 1,
+            "round_kind": "initial",
+            "planned": len(selected_strategies),
+            "generation_attempted": len(generation_records),
+            "generation_generated": len(
+                [item for item in variant_candidates if isinstance(item.get("variant"), dict)]
+            ),
+        },
     )
     pending_strategies = [
         (index, strategy)
@@ -320,6 +349,16 @@ async def run_strategy_variation(
         and isinstance(item.get("variant"), dict)
         and isinstance(item.get("strategy"), dict)
     ]
+    await _emit_variant_progress(
+        "variant_generation_recorded",
+        {
+            "round_index": 1,
+            "round_kind": "initial",
+            "generation_attempted": len(generation_records),
+            "generation_generated": len(real_variants),
+            "generation_failed": len(generation_records) - len(real_variants),
+        },
+    )
     if not real_variants:
         return {
             "status": "variant_generation_failed",
@@ -340,6 +379,15 @@ async def run_strategy_variation(
             task.get("id", "?"),
             len(primary_instances),
         )
+    await _emit_variant_progress(
+        "variant_evaluation_started",
+        {
+            "round_index": 1,
+            "round_kind": "initial",
+            "evaluating": len(limited_variants),
+            "partial_capacity": partial_capacity,
+        },
+    )
     variant_results = await asyncio.gather(
         *[
             _evaluate_variant(
@@ -359,6 +407,27 @@ async def run_strategy_variation(
             )
             for i, (variant, strategy) in enumerate(limited_variants)
         ]
+    )
+    pvpo_valid = sum(
+        1
+        for variant_result in variant_results
+        if isinstance(variant_result, Mapping)
+        and variant_result.get("final_status") not in {"injection_not_encountered", "error"}
+    )
+    complied = sum(
+        1
+        for variant_result in variant_results
+        if isinstance(variant_result, Mapping) and variant_result.get("final_status") == "complied"
+    )
+    await _emit_variant_progress(
+        "variant_evaluation_complete",
+        {
+            "round_index": 1,
+            "round_kind": "initial",
+            "evaluated": len(variant_results),
+            "pvpo_valid": pvpo_valid,
+            "complied": complied,
+        },
     )
     result = {
         "status": "partial_capacity" if partial_capacity else "varied",

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from worldsim.phase_4._context import install_context
+from worldsim.phase_4.postprocess_progress import Phase4ProgressCallback
 
 install_context(globals())
 
@@ -19,6 +20,7 @@ async def _postprocess_one_task(
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
+    progress_callback: Phase4ProgressCallback | None = None,
 ) -> dict[str, Any]:
     """Post-process a single adversarial task result through the Phase 4 decision tree."""
     task_id = str(result.get("task_id", "unknown"))
@@ -86,6 +88,7 @@ async def _postprocess_one_task(
         sandbox_model=sandbox_model,
         site_profile=site_profile,
         source_fingerprint=source_fingerprint,
+        progress_callback=progress_callback,
     )
 
     # Persist processed result for resume (Stage 2 checkpoint).
@@ -115,6 +118,7 @@ async def _process_adversarial_result(
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
     source_fingerprint: str | None = None,
+    progress_callback: Phase4ProgressCallback | None = None,
 ) -> dict[str, Any]:
     """Apply the full Phase 4 decision tree to one task result."""
     if initial_result.get("outcome") == "seed_preflight_mismatch":
@@ -214,6 +218,7 @@ async def _process_adversarial_result(
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
         site_profile=site_profile,
+        progress_callback=progress_callback,
     )
     variation_status = variation.get("status")
     if variation_status in {
