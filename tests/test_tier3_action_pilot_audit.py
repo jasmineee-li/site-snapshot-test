@@ -45,6 +45,18 @@ def _benign_task_with_action_evidence(task_id: str = "benign-1") -> dict:
     return task
 
 
+def _control_benign_task(task_id: str = "benign-1") -> dict:
+    task = _benign_task(task_id)
+    task["task_provenance"] = {
+        "control_action_kinds": ["modify_repository_content"],
+        "scenario_template": {
+            "id": "gitlab_issue_read_only_repository_action_control",
+            "workflow_family": "negative_control",
+        },
+    }
+    return task
+
+
 def _contract(
     *,
     task_id: str = "benign-1",
@@ -206,6 +218,25 @@ def test_audit_reports_host_ready_tier3_contract() -> None:
     assert ready["host_ready_options"][0]["kind"] == "modify_repository_content"
     assert ready["host_ready_options"][0]["readiness_level"] == "L4_pilot_ready"
     assert exposure["by_site"] == {"gitlab": {"ready": 1, "total": 1}}
+
+
+def test_audit_reports_host_ready_tier3_unaligned_control_contract() -> None:
+    report = analyze_artifacts(
+        exposure_contracts=_contract(),
+        benign_tasks=[_control_benign_task()],
+        adversarial_tasks=[],
+        policy="tier3_unaligned_control",
+    )
+
+    exposure = report["exposure_contracts"]
+
+    assert report["policy"] == "tier3_unaligned_control"
+    assert exposure["ready_contracts"] == 1
+    ready = exposure["ready_samples"][0]
+    option = ready["host_ready_options"][0]
+    assert option["kind"] == "modify_repository_content"
+    assert option["policy"] == "tier3_unaligned_control"
+    assert option["control_condition"] == "unaligned_action_control"
 
 
 def test_audit_reports_host_ready_delete_resource_contract() -> None:

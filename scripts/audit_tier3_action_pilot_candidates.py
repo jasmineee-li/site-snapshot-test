@@ -29,6 +29,7 @@ from worldsim.adversarial_actions import (
 )
 from worldsim.adversarial_actions.tier3 import (
     TIER3_PILOT_POLICY,
+    TIER3_UNALIGNED_CONTROL_POLICY,
     option_marks_host_ready,
     tier3_action_readiness,
 )
@@ -40,6 +41,7 @@ def analyze_run_dir(
     run_dir: Path,
     *,
     action_kind: str = TIER3_KIND,
+    policy: str = TIER3_PILOT_POLICY,
     max_samples: int = 50,
     require_benign_action_evidence: bool = False,
 ) -> dict[str, Any]:
@@ -61,6 +63,7 @@ def analyze_run_dir(
             "adversarial_tasks": str(run_dir / "phase_2" / "adversarial_tasks.json"),
         },
         action_kind=action_kind,
+        policy=policy,
         max_samples=max_samples,
         require_benign_action_evidence=require_benign_action_evidence,
     )
@@ -73,12 +76,17 @@ def analyze_artifacts(
     adversarial_tasks: list[Mapping[str, Any]],
     artifact_paths: Mapping[str, str] | None = None,
     action_kind: str = TIER3_KIND,
+    policy: str = TIER3_PILOT_POLICY,
     max_samples: int = 50,
     require_benign_action_evidence: bool = False,
 ) -> dict[str, Any]:
     benign_by_id = {str(task.get("id") or ""): task for task in benign_tasks}
     flattened_contracts = _flatten_contracts(exposure_contracts)
-    annotated_contracts = _annotate_contracts_for_tier3(flattened_contracts, benign_tasks)
+    annotated_contracts = _annotate_contracts_for_tier3(
+        flattened_contracts,
+        benign_tasks,
+        policy=policy,
+    )
     exposure_report = _analyze_exposure_contracts(
         flattened_contracts,
         annotated_contracts=annotated_contracts,
@@ -95,7 +103,7 @@ def analyze_artifacts(
     )
     return {
         "artifact_paths": dict(artifact_paths or {}),
-        "policy": TIER3_PILOT_POLICY,
+        "policy": policy,
         "tier3_kind": action_kind,
         "exposure_contracts": exposure_report,
         "selected_tasks": selected_report,
@@ -463,12 +471,14 @@ def _task_risks(
 def _annotate_contracts_for_tier3(
     rows: list[dict[str, Any]],
     benign_tasks: list[Mapping[str, Any]],
+    *,
+    policy: str,
 ) -> dict[str, dict[str, Any]]:
     contracts = {str(row.get("task_id") or ""): row["contract"] for row in rows}
     return annotate_exposure_contracts_with_action_policy(
         contracts,
         benign_tasks,
-        policy=TIER3_PILOT_POLICY,
+        policy=policy,
     )
 
 
@@ -659,6 +669,15 @@ def main(argv: list[str] | None = None) -> int:
         choices=("modify_repository_content", "delete_or_transfer_resource"),
         help="Tier 3 action kind to audit.",
     )
+    parser.add_argument(
+        "--policy",
+        default=TIER3_PILOT_POLICY,
+        choices=(TIER3_PILOT_POLICY, TIER3_UNALIGNED_CONTROL_POLICY),
+        help=(
+            "Action policy used to re-annotate exposure contracts. Use "
+            "tier3_unaligned_control for host-owned negative-control probes."
+        ),
+    )
     parser.add_argument("--output", type=Path, help="Optional JSON report path.")
     parser.add_argument("--json", action="store_true", help="Print full JSON report.")
     parser.add_argument(
@@ -680,6 +699,7 @@ def main(argv: list[str] | None = None) -> int:
     report = analyze_run_dir(
         args.run_dir,
         action_kind=args.action_kind,
+        policy=args.policy,
         max_samples=args.max_samples,
         require_benign_action_evidence=args.require_benign_action_evidence,
     )
