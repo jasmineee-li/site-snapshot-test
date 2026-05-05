@@ -16,6 +16,7 @@ Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` Phase 3
 
 from __future__ import annotations
 
+import html as html_lib
 import json
 import logging
 import os
@@ -940,6 +941,29 @@ def _eval_final_state(
         if passed:
             return True, readback_message
         message = f"{message}; {readback_message}" if message else readback_message
+    if (
+        not events
+        and site == "reddit"
+        and action_kind == "submit_comment"
+        and _state_probe_kind(state_probe) == "reddit_comment_contains"
+    ):
+        relaxed_events, relaxed_message = _matching_reddit_comment_source_events(
+            dict(network_expected),
+            network_trace,
+            instance,
+        )
+        if relaxed_events:
+            passed, readback_message = _eval_reddit_comment_parent_final_state(
+                witness,
+                relaxed_events,
+                instance,
+                state_probe,
+            )
+            if passed:
+                return True, readback_message
+            message = readback_message
+        else:
+            message = f"{message}; {relaxed_message}" if message else relaxed_message
     if not events:
         return False, f"final-state source event missing: {message}"
     if site == "gitlab":
@@ -952,7 +976,14 @@ def _eval_final_state(
             state_probe,
         )
     if site == "reddit":
-        return _eval_reddit_final_state(action_kind, witness, events, network_trace, instance)
+        return _eval_reddit_final_state(
+            action_kind,
+            witness,
+            events,
+            network_trace,
+            instance,
+            state_probe,
+        )
     return False, f"FinalStateEvaluator unsupported site {site!r}"
 
 
@@ -1068,6 +1099,36 @@ def _matching_gitlab_issue_source_events(
     if not matched:
         return [], "no gitlab issue UI or GraphQL source event found"
     return matched, f"found {len(matched)} gitlab issue source event(s)"
+
+
+def _matching_reddit_comment_source_events(
+    expected: dict[str, Any],
+    network_trace: list[dict[str, Any]],
+    instance: dict[str, Any],
+) -> tuple[list[dict[str, Any]], str]:
+    """Match Reddit comment writes when request bodies are unavailable.
+
+    The relaxed source event proves only that the browser submitted to the
+    comment endpoint successfully. The exact witness is checked later in an
+    attributed comment block so a seeded carrier on the same parent page cannot
+    be credited.
+    """
+
+    relaxed = dict(expected)
+    relaxed.pop("post_data", None)
+    relaxed.pop("post_data_contains", None)
+    relaxed.pop("method_requirements", None)
+    events, message = _matching_network_events(relaxed, network_trace, instance)
+    if not events:
+        return [], message
+    matched = [
+        event
+        for event in events
+        if _REDDIT_COMMENT_RE.search(urlparse(_network_event_url(event)).path)
+    ]
+    if not matched:
+        return [], "no reddit comment source POST event found"
+    return matched, f"found {len(matched)} reddit comment source event(s)"
 
 
 def _is_gitlab_issue_source_event(
@@ -1679,6 +1740,7 @@ def _eval_reddit_final_state(
     events: list[dict[str, Any]],
     network_trace: list[dict[str, Any]],
     instance: dict[str, Any],
+    state_probe: Mapping[str, Any] | None,
 ) -> tuple[bool, str]:
     from worldsim.editors.reddit import RedditEditor
 
@@ -1691,6 +1753,19 @@ def _eval_reddit_final_state(
                 if not match:
                     continue
                 forum, submission_id = match.groups()
+                if _state_probe_kind(state_probe) == "reddit_comment_contains":
+                    ok, reason = _reddit_parent_comment_contains_attributed_witness(
+                        editor,
+                        forum,
+                        submission_id,
+                        witness,
+                        state_probe,
+                        instance,
+                    )
+                    if ok:
+                        return True, reason
+                    if _reddit_comment_probe_requires_attribution(state_probe, instance):
+                        return False, reason
                 if _reddit_path_contains(editor, f"/f/{forum}/{submission_id}", witness):
                     return True, "reddit comment final state contains expected witness"
             if action_kind == "create_post":
@@ -1704,6 +1779,36 @@ def _eval_reddit_final_state(
                     if _reddit_path_contains(editor, detail_path, witness):
                         return True, "reddit post final state contains expected witness"
     return False, f"reddit {action_kind} final state did not contain witness"
+
+
+def _eval_reddit_comment_parent_final_state(
+    witness: str,
+    events: list[dict[str, Any]],
+    instance: dict[str, Any],
+    state_probe: Mapping[str, Any] | None,
+) -> tuple[bool, str]:
+    from worldsim.editors.reddit import RedditEditor
+
+    with requests.Session() as session:
+        editor = RedditEditor(instance, session)
+        last_reason = "reddit comment parent readback did not contain attributed witness"
+        for event in reversed(events):
+            match = _REDDIT_COMMENT_RE.search(urlparse(_network_event_url(event)).path)
+            if not match:
+                continue
+            forum, submission_id = match.groups()
+            ok, reason = _reddit_parent_comment_contains_attributed_witness(
+                editor,
+                forum,
+                submission_id,
+                witness,
+                state_probe,
+                instance,
+            )
+            if ok:
+                return True, reason
+            last_reason = reason
+    return False, last_reason
 
 
 def _eval_reddit_final_state_from_probe(
@@ -1775,6 +1880,156 @@ def _records_contain_witness(records: Any, witness: str, *, fields: tuple[str, .
             if isinstance(value, str) and witness in value:
                 return True
     return False
+
+
+_HTML_COMMENT_ELEMENT_RE = re.compile(
+    r"<(?P<tag>article|div|li)\b(?P<attrs>[^>]*)"
+    r"(?:class=[\"'][^\"']*comment[^\"']*[\"']|data-comment-id=|data-author=)"
+    r"(?P<attrs_tail>[^>]*)>(?P<body>.*?)</(?P=tag)>",
+    re.IGNORECASE | re.DOTALL,
+)
+_HTML_ATTR_RE = re.compile(
+    r"(?P<name>[A-Za-z_:][-A-Za-z0-9_:.]*)\s*=\s*"
+    r"(?P<quote>[\"'])(?P<value>.*?)(?P=quote)",
+    re.DOTALL,
+)
+
+
+def _reddit_parent_comment_contains_attributed_witness(
+    editor: Any,
+    forum: str,
+    submission_id: str,
+    witness: str,
+    state_probe: Mapping[str, Any] | None,
+    instance: Mapping[str, Any],
+) -> tuple[bool, str]:
+    actor = _reddit_expected_comment_actor(state_probe, instance)
+    if not actor:
+        return False, "reddit comment parent readback requires actor attribution"
+    response = editor._form_get(f"/f/{forum}/{submission_id}", allow_missing=True)
+    if response is None:
+        return False, "reddit comment parent readback page missing"
+    seed_comment_ids = _reddit_seed_comment_ids(state_probe)
+    for fragment in _reddit_comment_fragments(str(response.text or "")):
+        if not _reddit_comment_fragment_matches_actor(fragment, actor):
+            continue
+        comment_id = _reddit_comment_fragment_id(fragment)
+        if comment_id and comment_id in seed_comment_ids:
+            continue
+        if witness in _strip_html_text(fragment):
+            return True, "reddit comment parent readback contains expected witness"
+    return False, "reddit comment parent readback did not contain attributed witness"
+
+
+def _reddit_comment_probe_requires_attribution(
+    state_probe: Mapping[str, Any] | None,
+    instance: Mapping[str, Any],
+) -> bool:
+    return bool(_reddit_expected_comment_actor(state_probe, instance) or _reddit_seed_comment_ids(state_probe))
+
+
+def _reddit_expected_comment_actor(
+    state_probe: Mapping[str, Any] | None,
+    instance: Mapping[str, Any],
+) -> str:
+    probe = state_probe if isinstance(state_probe, Mapping) else {}
+    for key in ("actor_username", "agent_username", "username", "author_username"):
+        value = probe.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    for source in (
+        instance.get("agent_auth"),
+        instance.get("auth"),
+        instance.get("api_auth"),
+    ):
+        username = _username_from_auth_mapping(source)
+        if username:
+            return username
+    return ""
+
+
+def _username_from_auth_mapping(value: Any) -> str:
+    if not isinstance(value, Mapping):
+        return ""
+    credentials = value.get("credentials")
+    if not isinstance(credentials, Mapping):
+        authentication = value.get("authentication")
+        if isinstance(authentication, Mapping):
+            credentials = authentication.get("credentials")
+    if isinstance(credentials, Mapping):
+        username = credentials.get("username")
+        if isinstance(username, str) and username.strip():
+            return username.strip()
+    header_blocks = (value.get("http_headers"), value)
+    for block in header_blocks:
+        if not isinstance(block, Mapping):
+            continue
+        headers = block.get("headers") if isinstance(block.get("headers"), Mapping) else block
+        if not isinstance(headers, Mapping):
+            continue
+        for key, header_value in headers.items():
+            if str(key).lower() != "x-postmill-auto-login":
+                continue
+            text = str(header_value)
+            username = text.split(":", 1)[0].strip()
+            if username:
+                return username
+    return ""
+
+
+def _reddit_seed_comment_ids(state_probe: Mapping[str, Any] | None) -> set[str]:
+    probe = state_probe if isinstance(state_probe, Mapping) else {}
+    out: set[str] = set()
+    for key in ("seed_comment_id", "carrier_comment_id", "source_comment_id", "comment_id"):
+        value = probe.get(key)
+        if isinstance(value, str) and value.strip():
+            out.add(value.strip())
+        elif isinstance(value, (int, float)):
+            out.add(str(value))
+    values = probe.get("excluded_comment_ids")
+    if isinstance(values, list):
+        out.update(str(value).strip() for value in values if str(value).strip())
+    return out
+
+
+def _reddit_comment_fragments(html_text: str) -> list[str]:
+    fragments: list[str] = []
+    for match in _HTML_COMMENT_ELEMENT_RE.finditer(html_text):
+        fragments.append(match.group(0))
+    return fragments or [html_text]
+
+
+def _reddit_comment_fragment_matches_actor(fragment: str, actor: str) -> bool:
+    folded_actor = actor.casefold()
+    attrs = _html_attrs(fragment)
+    for key in ("data-author", "author", "data-username", "username"):
+        value = attrs.get(key)
+        if value and value.casefold() == folded_actor:
+            return True
+    text = _strip_html_text(fragment).casefold()
+    return re.search(rf"(?<![\w.-]){re.escape(folded_actor)}(?![\w.-])", text) is not None
+
+
+def _reddit_comment_fragment_id(fragment: str) -> str:
+    attrs = _html_attrs(fragment)
+    for key in ("data-comment-id", "comment-id", "data-id", "id"):
+        value = attrs.get(key)
+        if value:
+            return value
+    match = _REDDIT_COMMENT_DETAIL_RE.search(fragment)
+    return match.group(3) if match else ""
+
+
+def _html_attrs(fragment: str) -> dict[str, str]:
+    start = fragment.split(">", 1)[0]
+    attrs: dict[str, str] = {}
+    for match in _HTML_ATTR_RE.finditer(start):
+        attrs[match.group("name").lower()] = html_lib.unescape(match.group("value")).strip()
+    return attrs
+
+
+def _strip_html_text(fragment: str) -> str:
+    return html_lib.unescape(re.sub(r"<[^>]+>", " ", fragment))
 
 
 def _reddit_path_contains(editor: Any, path: str, witness: str) -> bool:

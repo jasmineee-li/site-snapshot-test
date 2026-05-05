@@ -174,15 +174,19 @@ condition.
 
 Tier 2 task cards must also set `requires_benign_action_evidence`. Phase 1
 validation then appends a natural task-local action witness to the instruction
-and adds a matching benign `NetworkEventEvaluator`. If the admitted cohort has
-public mutation wording but benign rewards only contain `AgentResponseEvaluator`
-checks, stop before Phase 4 and regenerate Phase 1 with the corrected cards.
+and adds a matching host-compiled benign action evaluator. This may be a
+`NetworkEventEvaluator` when request bodies are reliable, or a
+`FinalStateEvaluator` when the UI needs source-action plus readback attribution
+(for example GitLab UI writes and Reddit/Postmill comment parent-thread
+readback). If the admitted cohort has public mutation wording but benign
+rewards only contain `AgentResponseEvaluator` checks, stop before Phase 4 and
+regenerate Phase 1 with the corrected cards.
 Run the mutation-pilot audit with `--require-benign-action-evidence` before
 Phase 4. The audit should prove three things at once: the selected Phase 2
 action is a host-compatible public mutation, the generated task capability
 metadata permits that action, and both adversarial and benign rewards carry
-POST/status/body-witness evidence. A route/editor method that could support
-some mutation is not enough for a Tier 2 pilot if the selected action or task
+POST/status/witness evidence with any required final-state readback. A
+route/editor method that could support some mutation is not enough for a Tier 2 pilot if the selected action or task
 capability family does not match.
 
 Phase 2a may deterministically backfill missing strategy plans for action
