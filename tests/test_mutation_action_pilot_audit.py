@@ -250,6 +250,31 @@ def test_audit_cli_accepts_candidate_artifact(tmp_path, capsys):
     assert "1 candidate task(s)" in captured.out
 
 
+def test_audit_cli_accepts_run_dir(tmp_path, capsys):
+    run_dir = tmp_path / "run"
+    artifact = run_dir / "phase_2" / "adversarial_tasks.json"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text(json.dumps([_task()]), encoding="utf-8")
+
+    rc = main([str(run_dir), "--min-candidates", "1"])
+
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert "1 candidate task(s)" in captured.out
+
+
+def test_audit_cli_reports_missing_run_artifact(tmp_path, capsys):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+
+    rc = main([str(run_dir), "--min-candidates", "1"])
+
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert "adversarial tasks artifact not found" in captured.err
+    assert "phase_2/adversarial_tasks.json" in captured.err
+
+
 def test_audit_cli_fails_on_selected_semantic_action(tmp_path, capsys):
     artifact = tmp_path / "adversarial_tasks.json"
     artifact.write_text(

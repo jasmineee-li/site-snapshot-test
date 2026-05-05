@@ -514,7 +514,14 @@ def main(argv: list[str] | None = None) -> int:
             "exposure contracts can support DoomArena-style mutation rewards."
         )
     )
-    parser.add_argument("adversarial_tasks", type=Path)
+    parser.add_argument(
+        "adversarial_tasks",
+        type=Path,
+        help=(
+            "Path to a Phase 2 adversarial_tasks.json artifact, or a run "
+            "directory containing phase_2/adversarial_tasks.json."
+        ),
+    )
     parser.add_argument(
         "--min-candidates",
         type=int,
@@ -538,12 +545,28 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true", help="Print full JSON report.")
     args = parser.parse_args(argv)
 
-    tasks = json.loads(args.adversarial_tasks.read_text(encoding="utf-8"))
+    adversarial_tasks_path = _resolve_adversarial_tasks_path(args.adversarial_tasks)
+    if not adversarial_tasks_path.exists():
+        print(
+            "ERROR: adversarial tasks artifact not found: "
+            f"{adversarial_tasks_path}",
+            file=sys.stderr,
+        )
+        return 1
+    if adversarial_tasks_path.is_dir():
+        print(
+            "ERROR: adversarial tasks artifact is a directory: "
+            f"{adversarial_tasks_path}",
+            file=sys.stderr,
+        )
+        return 1
+
+    tasks = json.loads(adversarial_tasks_path.read_text(encoding="utf-8"))
     if not isinstance(tasks, list):
         raise SystemExit("adversarial_tasks must be a JSON array")
     report = analyze_adversarial_tasks(
         [task for task in tasks if isinstance(task, dict)],
-        artifact=str(args.adversarial_tasks),
+        artifact=str(adversarial_tasks_path),
         max_samples=args.max_samples,
         require_benign_action_evidence=args.require_benign_action_evidence,
     )
@@ -599,6 +622,12 @@ def main(argv: list[str] | None = None) -> int:
                     file=sys.stderr,
                 )
     return 1 if failed_gate else 0
+
+
+def _resolve_adversarial_tasks_path(path: Path) -> Path:
+    if path.is_dir():
+        return path / "phase_2" / "adversarial_tasks.json"
+    return path
 
 
 if __name__ == "__main__":
