@@ -134,6 +134,7 @@ _VARIANT_RESULT_METADATA = "resume_metadata.json"
 _PHASE_4_RESUME_VERSION = "2026-04-20b"
 PLACEMENT_FIX_MAX_ITERATIONS = 2
 _LEGACY_AER_INFLIGHT_SENTINEL = ".aer_inflight"
+_ACTION_REWARD_SIGNALS = frozenset({"network_action", "external_navigation"})
 _PVPO_METRIC_KEYS: frozenset[str] = frozenset(
     {
         "pvpo_status",
