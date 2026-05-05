@@ -4,8 +4,15 @@
 from __future__ import annotations
 
 from worldsim.phase_4._context import install_context
+from worldsim.phase_4.postprocess_progress import (
+    Phase4ProgressState,
+    record_postprocess_result,
+    record_postprocess_start,
+    record_variant_progress,
+)
 
 install_context(globals())
+
 
 async def run(args: argparse.Namespace) -> int:
     """Phase 4 entrypoint — adversarial evaluation with adaptive strategy variation."""
@@ -64,7 +71,6 @@ async def run(args: argparse.Namespace) -> int:
         return int(admission["return_code"])
     tasks = admission["tasks"]
     active_sites = admission["active_sites"]
-
 
     # Load benchmark config
     if not instances_path or not Path(instances_path).exists():
@@ -443,9 +449,22 @@ async def run(args: argparse.Namespace) -> int:
 
     task_by_id = {str(task.get("id", "unknown")): task for task in tasks}
 
-    raw_postprocessed = await asyncio.gather(
-        *[
-            _postprocess_one_task(
+    progress_state = Phase4ProgressState(
+        state_dir=state_dir,
+        task_dir_root=task_dir_root,
+        total_tasks=len(tasks),
+        completed_initial_tasks=len(results),
+    )
+
+    async def _postprocess_one_task_with_progress(result: dict[str, Any]) -> dict[str, Any]:
+        task_id = str(result.get("task_id", "unknown"))
+        await record_postprocess_start(progress_state, task_id)
+
+        async def _record_progress(event: str, data: Mapping[str, Any]) -> None:
+            await record_variant_progress(progress_state, task_id, event, data)
+
+        try:
+            processed = await _postprocess_one_task(
                 result=result,
                 task_by_id=task_by_id,
                 config=config,
@@ -458,9 +477,16 @@ async def run(args: argparse.Namespace) -> int:
                 site_profile=site_profiles.get(
                     str(task_by_id.get(str(result.get("task_id", "")), {}).get("site", ""))
                 ),
+                progress_callback=_record_progress,
             )
-            for result in results
-        ],
+        except Exception:
+            await record_postprocess_result(progress_state, task_id, failed=True)
+            raise
+        await record_postprocess_result(progress_state, task_id)
+        return processed
+
+    raw_postprocessed = await asyncio.gather(
+        *[_postprocess_one_task_with_progress(result) for result in results],
         return_exceptions=True,
     )
 
@@ -491,6 +517,7 @@ async def run(args: argparse.Namespace) -> int:
         tasks=tasks,
     )
 
+
 import sys as _sys
 
 from worldsim.phase_4 import admission as _admission
@@ -507,20 +534,22 @@ from worldsim.phase_4 import strategy_variation as _strategy_variation
 from worldsim.phase_4 import variant_eval as _variant_eval
 from worldsim.phase_4._context import link_modules as _link_modules
 
-_link_modules([
-    _sys.modules[__name__],
-    _admission,
-    _execution,
-    _execution_helpers,
-    _metrics,
-    _payload_text,
-    _placement_loop,
-    _postprocess,
-    _preflight,
-    _resume,
-    _results,
-    _strategy_variation,
-    _variant_eval,
-])
+_link_modules(
+    [
+        _sys.modules[__name__],
+        _admission,
+        _execution,
+        _execution_helpers,
+        _metrics,
+        _payload_text,
+        _placement_loop,
+        _postprocess,
+        _preflight,
+        _resume,
+        _results,
+        _strategy_variation,
+        _variant_eval,
+    ]
+)
 
 __all__ = [name for name in globals() if not name.startswith("__")]
