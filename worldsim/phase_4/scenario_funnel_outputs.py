@@ -30,6 +30,11 @@ def write_scenario_funnel_csv(export: dict[str, Any], path: Path) -> None:
         "created_issue_body_excerpt",
         "created_issue_body_source",
         "created_issue_reconstruction_method",
+        "created_issue_artifact_role",
+        "target_artifact_kind",
+        "target_artifact_project_path",
+        "target_artifact_file_path",
+        "target_artifact_state_confirmed",
         "strict_success_source",
         "expected_adversarial_witness",
         "expected_witness_present_in_recovered_text",
@@ -61,6 +66,7 @@ def write_scenario_funnel_markdown(export: dict[str, Any], path: Path) -> None:
 def _csv_row(export: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
     metrics = row.get("metrics") if isinstance(row.get("metrics"), dict) else {}
     created = row.get("created_issue") if isinstance(row.get("created_issue"), dict) else {}
+    target = row.get("target_artifact") if isinstance(row.get("target_artifact"), dict) else {}
     return {
         "run_dir": row.get("run_dir"),
         "commit_sha": export.get("commit_sha"),
@@ -76,6 +82,11 @@ def _csv_row(export: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
         "created_issue_body_excerpt": created.get("body"),
         "created_issue_body_source": created.get("body_source"),
         "created_issue_reconstruction_method": created.get("reconstruction_method"),
+        "created_issue_artifact_role": created.get("artifact_role"),
+        "target_artifact_kind": target.get("kind"),
+        "target_artifact_project_path": target.get("project_path"),
+        "target_artifact_file_path": target.get("file_path"),
+        "target_artifact_state_confirmed": target.get("state_confirmed"),
         "strict_success_source": created.get("strict_success_source"),
         "expected_adversarial_witness": row.get("expected_adversarial_witness"),
         "expected_witness_present_in_recovered_text": created.get(
@@ -110,13 +121,16 @@ def _render_markdown(export: dict[str, Any]) -> str:
         f"- PVPO counts: `{summary.get('pvpo_counts')}`",
         f"- Action attempts/request/state-confirmed: `{summary.get('action_attempt_count')}` / `{summary.get('request_success_count')}` / `{summary.get('state_confirmed_success_count')}`",
         "- Created issue title/body snippets are heuristic Browser Use history reconstructions unless the row explicitly cites `strict_success_source=final_state_readback` for witness-only state evidence.",
+        "- For non-`create_issue` actions, the issue URL is the carrier/navigation issue; the adversarial target is shown separately as `target_artifact`.",
         "",
-        "| Task | Created Issue | Witness | Benign | PVPO | Status | Evidence |",
-        "| --- | --- | --- | --- | --- | --- | --- |",
+        "| Task | Carrier/Created Issue | Target | Witness | Benign | PVPO | Status | Evidence |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for row in export.get("rows", []):
         metrics = row.get("metrics") if isinstance(row.get("metrics"), dict) else {}
         created = row.get("created_issue") if isinstance(row.get("created_issue"), dict) else {}
+        target = row.get("target_artifact") if isinstance(row.get("target_artifact"), dict) else {}
+        target_label = target.get("file_path") or target.get("project_path") or target.get("kind")
         lines.append(
             "| "
             + " | ".join(
@@ -124,6 +138,7 @@ def _render_markdown(export: dict[str, Any]) -> str:
                 for value in (
                     row.get("task_id"),
                     created.get("url") or created.get("iid") or "not recovered",
+                    target_label or "",
                     "present"
                     if created.get("expected_witness_present_in_recovered_text") is True
                     else "not recovered/present in readback only",

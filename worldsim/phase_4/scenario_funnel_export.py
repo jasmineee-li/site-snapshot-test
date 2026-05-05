@@ -93,11 +93,13 @@ def _build_row(
     task = task_lookup.get(task_id, {})
     trace_path = _resolve_trace_path(result, run_dir=run_dir, phase4_dir=phase4_dir)
     history = _load_history(trace_path)
+    action_kind = _action_kind(task, result)
     created_issue = _created_issue_evidence(
         history,
         expected_witness=_expected_adversarial_witness(task),
         text_limit=text_limit,
     )
+    target_artifact = _target_artifact_evidence(task, result, text_limit=text_limit)
     expected_witness = _expected_adversarial_witness(task)
     created_text = "\n".join(
         value
@@ -110,10 +112,11 @@ def _build_row(
     warnings: list[str] = []
     if trace_path is None:
         warnings.append("missing_trace_path")
-    if not created_issue.get("url"):
-        warnings.append("created_issue_url_not_recovered")
-    if created_issue.get("body") is None:
-        warnings.append("created_issue_body_not_recovered")
+    if action_kind == "create_issue":
+        if not created_issue.get("url"):
+            warnings.append("created_issue_url_not_recovered")
+        if created_issue.get("body") is None:
+            warnings.append("created_issue_body_not_recovered")
     return {
         "row_index": index,
         "task_id": task_id,
@@ -125,12 +128,17 @@ def _build_row(
         "editor_method": task.get("editor_method"),
         "scenario_template_id": _scenario_template_id(task),
         "benign_reward_shape": _task_provenance(task).get("benign_reward_shape"),
-        "action_kind": _action_kind(task, result),
+        "action_kind": action_kind,
         "benign_instruction": _compact(task.get("instruction"), text_limit),
         "payload_excerpt": _compact(_selected_payload_text(task), text_limit),
         "expected_adversarial_witness": expected_witness,
         "created_issue": {
             **created_issue,
+            "artifact_role": (
+                "created_action_issue"
+                if action_kind == "create_issue"
+                else "carrier_issue_navigation"
+            ),
             "reconstruction_method": (
                 "heuristic_browser_history"
                 if created_issue.get("body_source") == "heuristic_browser_history_input"
@@ -145,6 +153,7 @@ def _build_row(
                 expected_witness in created_text if expected_witness else None
             ),
         },
+        "target_artifact": target_artifact,
         "metrics": {
             "final_status": result.get("final_status"),
             "outcome_fine": result.get("outcome_fine"),
@@ -152,7 +161,11 @@ def _build_row(
             "pvpo_max_coverage": _nested_float(result, "encounter", "max_coverage"),
             "benign_passed": result.get("benign_passed"),
             "adversarial_passed": result.get("adversarial_passed"),
-            "action_attempted": result.get("attack_action_attempted"),
+            "action_attempted": _first_present(
+                result,
+                "attack_action_attempted",
+                "adversarial_action_attempted",
+            ),
             "action_attempt_count": result.get("adversarial_action_attempt_count"),
             "action_attempt_status": result.get("adversarial_action_attempt_status"),
             "action_attempt_last_status": result.get(
@@ -245,6 +258,52 @@ def _created_issue_evidence(
         "title": _compact(title, text_limit),
         "body": _compact(body, text_limit),
         "body_source": "heuristic_browser_history_input" if body else "not_recovered",
+    }
+
+
+def _target_artifact_evidence(
+    task: Mapping[str, Any],
+    result: Mapping[str, Any],
+    *,
+    text_limit: int,
+) -> dict[str, Any]:
+    reward_function = task.get("reward_function")
+    final_state = (
+        reward_function.get("adversarial_final_state_check")
+        if isinstance(reward_function, Mapping)
+        else None
+    )
+    expected = final_state.get("expected") if isinstance(final_state, Mapping) else None
+    if not isinstance(expected, Mapping):
+        return {
+            "kind": None,
+            "strict_success_source": None,
+            "state_confirmed": result.get("state_confirmed_action_success"),
+        }
+    state_probe = expected.get("state_probe")
+    if not isinstance(state_probe, Mapping):
+        state_probe = {}
+    return {
+        "kind": expected.get("action_kind") or state_probe.get("kind"),
+        "project_id": state_probe.get("project_id"),
+        "project_path": state_probe.get("project_path"),
+        "file_path": state_probe.get("expected_file_path")
+        or state_probe.get("file_path")
+        or state_probe.get("path"),
+        "expected_content": _compact(
+            state_probe.get("expected_file_content") or expected.get("contains"),
+            text_limit,
+        ),
+        "strict_success_source": (
+            "final_state_readback"
+            if result.get("state_confirmed_action_success") is True
+            else None
+        ),
+        "state_confirmed": result.get("state_confirmed_action_success"),
+        "final_state_message": _compact(
+            result.get("adversarial_final_state_message"),
+            text_limit,
+        ),
     }
 
 
@@ -477,6 +536,13 @@ def _phase1_generated_count(run_dir: Path) -> int | None:
     items = _load_list(path)
     if not items:
         return None
+    new_items = [
+        item
+        for item in items
+        if isinstance(item, Mapping) and item.get("origin") == "new_task"
+    ]
+    if new_items:
+        return len(new_items)
     return len(items)
 
 
@@ -505,6 +571,13 @@ def _nested_float(value: Mapping[str, Any], *keys: str) -> float | None:
         return float(current)
     except (TypeError, ValueError):
         return None
+
+
+def _first_present(mapping: Mapping[str, Any], *keys: str) -> Any:
+    for key in keys:
+        if key in mapping:
+            return mapping.get(key)
+    return None
 
 
 def _compact(value: Any, limit: int) -> str | None:
