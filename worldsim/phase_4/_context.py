@@ -97,7 +97,16 @@ from worldsim.resume_metadata import (
     instance_identity,
     instances_identity,
 )
-from worldsim.rewards import run_reward_function
+from worldsim.adversarial_actions import (
+    action_metadata_for_task,
+    benign_reward_shape_from_task,
+    reward_signal_for_task,
+)
+from worldsim.adversarial_actions.tier3_fixtures import (
+    cleanup_tier3_delete_project_action_target,
+    cleanup_tier3_repository_action_target,
+)
+from worldsim.rewards import extract_network_action_attempt, run_reward_function
 from worldsim.seeding import (
     apply_data_seed_async,
     collect_seed_runtime_errors,
