@@ -101,6 +101,14 @@ a created comment permalink is unavailable, the reward must read the parent
 thread only after filtering to an attributed agent-authored comment block and
 excluding the seeded carrier comment IDs. Never repair `submit_comment` by
 adding an unqualified parent-page substring scan.
+New host-compiled Reddit/Postmill `submit_comment` probes must carry strict
+attribution intent (`requires_attribution=true`) plus seeded carrier comment IDs
+(`excluded_comment_ids` and/or `seed_comment_id`) when the parent-thread
+fallback may be used. If those IDs are unavailable at compile time, the probe
+must declare deferred Phase 2c binding via `attribution_source`; if Phase 2c
+cannot bind the IDs, parent-thread fallback fails closed. Legacy unqualified
+parent scans are historical compatibility only; they are not acceptable
+evidence for new Tier 2 cohorts.
 
 Tier 2 action-card tasks must make the benign public action measurable. If a
 card opts into `requires_benign_action_evidence`, Phase 1 validation finalizes

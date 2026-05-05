@@ -119,6 +119,13 @@ The important invariant is now in `agent_docs/domain-invariants.md`:
 > thread page containing the witness is insufficient when the seeded carrier is
 > a comment on that same parent page.
 
+Vendor confirmation: WebArena Verified's native `NetworkEventEvaluator` can
+validate request evidence such as URL, method, status, headers, query params,
+POST data, response content, and cookies. It cannot prove created-comment
+identity, actor attribution, seeded carrier IDs, or final-state persistence.
+Those checks must remain in WorldSim's host-owned reward compiler and
+`FinalStateEvaluator` readback path.
+
 ## Unit Reproduction
 
 The regression tests live in `tests/test_rewards.py`.
@@ -354,6 +361,10 @@ Expected split:
   visibility before Phase 4 can call the trial ecologically valid.
 - Placement-fix attempts can still end as non-encounter; that is a placement
   failure, not a reward failure.
+- New host-compiled parent-thread fallback probes must set
+  `requires_attribution=true` and carry seeded carrier IDs in
+  `excluded_comment_ids` and/or `seed_comment_id`; missing seed exclusion
+  metadata is a fail-closed condition for verified new cohorts.
 
 ## Follow-Ups
 

@@ -6016,6 +6016,27 @@ def _validate_final_state_action_reward_semantics(
         state_probe = expected.get("state_probe")
         if not isinstance(state_probe, Mapping):
             return "network-action FinalStateEvaluator must include a state_probe"
+        if action_kind == "submit_comment":
+            problem = _validate_reddit_submit_comment_state_probe(state_probe)
+            if problem is not None:
+                return problem
+    return None
+
+
+def _validate_reddit_submit_comment_state_probe(state_probe: Mapping[str, Any]) -> str | None:
+    if str(state_probe.get("kind") or "").strip() != "reddit_comment_contains":
+        return "reddit submit_comment FinalStateEvaluator must use reddit_comment_contains state_probe"
+    if state_probe.get("requires_attribution") is not True:
+        return "reddit submit_comment state_probe must set requires_attribution=true"
+    excluded = state_probe.get("excluded_comment_ids")
+    has_excluded = isinstance(excluded, list) and any(str(value).strip() for value in excluded)
+    has_seed = bool(str(state_probe.get("seed_comment_id") or "").strip())
+    has_deferred = str(state_probe.get("attribution_source") or "") == "phase2c_seed_metadata"
+    if not (has_excluded or has_seed or has_deferred):
+        return (
+            "reddit submit_comment state_probe must include seeded carrier comment exclusion "
+            "or phase2c_seed_metadata deferred binding"
+        )
     return None
 
 

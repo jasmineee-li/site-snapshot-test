@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import re
+from html.parser import HTMLParser
 from typing import Any
 
 import requests
@@ -77,6 +78,93 @@ def _extract_postmill_error_messages(response: requests.Response) -> list[str]:
 
 
 _TAG_RE = re.compile(r"<[^>]+>")
+
+
+class _PostmillCommentBlockParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.blocks: list[dict[str, Any]] = []
+        self._current: dict[str, Any] | None = None
+        self._depth = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attr_map = {name.lower(): value or "" for name, value in attrs}
+        if self._current is None and tag.lower() in {"article", "div", "li"}:
+            if _attrs_look_like_comment(attr_map):
+                self._current = {"attrs": dict(attr_map), "text_parts": [], "hrefs": []}
+                self._depth = 1
+                return
+        if self._current is None:
+            return
+        self._depth += 1
+        href = attr_map.get("href")
+        if href:
+            self._current["hrefs"].append(href)
+
+    def handle_endtag(self, tag: str) -> None:
+        if self._current is None:
+            return
+        self._depth -= 1
+        if self._depth <= 0:
+            self.blocks.append(self._current)
+            self._current = None
+            self._depth = 0
+
+    def handle_data(self, data: str) -> None:
+        if self._current is not None and data:
+            self._current["text_parts"].append(data)
+
+
+def _attrs_look_like_comment(attrs: dict[str, str]) -> bool:
+    class_name = attrs.get("class", "")
+    return bool(
+        re.search(r"(?<![\w-])comment(?![\w-])", class_name, re.IGNORECASE)
+        or attrs.get("data-comment-id")
+        or attrs.get("data-author")
+    )
+
+
+def postmill_comment_blocks_from_html(html_text: str) -> list[dict[str, str]]:
+    parser = _PostmillCommentBlockParser()
+    parser.feed(html_text or "")
+    blocks = parser.blocks or [{"attrs": {}, "text_parts": [html_text or ""], "hrefs": []}]
+    return [_normalize_postmill_comment_block(block) for block in blocks]
+
+
+def _normalize_postmill_comment_block(block: dict[str, Any]) -> dict[str, str]:
+    attrs = block.get("attrs") if isinstance(block.get("attrs"), dict) else {}
+    text = html.unescape(" ".join(str(part) for part in block.get("text_parts", [])))
+    hrefs = [str(href) for href in block.get("hrefs", []) if str(href)]
+    return {
+        "id": _postmill_comment_block_id(attrs, hrefs),
+        "author": _postmill_comment_block_author(attrs, text),
+        "text": text,
+    }
+
+
+def _postmill_comment_block_id(attrs: dict[str, str], hrefs: list[str]) -> str:
+    for key in ("data-comment-id", "comment-id", "data-id"):
+        value = attrs.get(key)
+        if value:
+            return value
+    for href in hrefs:
+        match = re.search(r"/comment/([^/?#]+)(?:[/?#]|$)", href)
+        if match:
+            return match.group(1)
+    value = attrs.get("id", "")
+    if value.startswith("comment-"):
+        return value.removeprefix("comment-")
+    if value:
+        return value
+    return ""
+
+
+def _postmill_comment_block_author(attrs: dict[str, str], text: str) -> str:
+    for key in ("data-author", "author", "data-username", "username"):
+        value = attrs.get(key)
+        if value:
+            return value
+    return ""
 
 
 def _strip_tags(fragment: str) -> str:
@@ -369,6 +457,17 @@ class RedditEditor(BaseSiteEditor):
             ),
             "read_surface_provenance_source": "editor_constructed",
         }
+
+    def read_submission_comment_blocks(
+        self,
+        *,
+        forum_name: str,
+        submission_id: str,
+    ) -> list[dict[str, str]]:
+        response = self._form_get(f"/f/{forum_name}/{submission_id}", allow_missing=True)
+        if response is None:
+            return []
+        return postmill_comment_blocks_from_html(str(response.text or ""))
 
     @editor_method(
         kinds=frozenset(),  # acts on current user — not an Option A attach

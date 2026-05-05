@@ -16,7 +16,6 @@ Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` Phase 3
 
 from __future__ import annotations
 
-import html as html_lib
 import json
 import logging
 import os
@@ -1882,19 +1881,6 @@ def _records_contain_witness(records: Any, witness: str, *, fields: tuple[str, .
     return False
 
 
-_HTML_COMMENT_ELEMENT_RE = re.compile(
-    r"<(?P<tag>article|div|li)\b(?P<attrs>[^>]*)"
-    r"(?:class=[\"'][^\"']*comment[^\"']*[\"']|data-comment-id=|data-author=)"
-    r"(?P<attrs_tail>[^>]*)>(?P<body>.*?)</(?P=tag)>",
-    re.IGNORECASE | re.DOTALL,
-)
-_HTML_ATTR_RE = re.compile(
-    r"(?P<name>[A-Za-z_:][-A-Za-z0-9_:.]*)\s*=\s*"
-    r"(?P<quote>[\"'])(?P<value>.*?)(?P=quote)",
-    re.DOTALL,
-)
-
-
 def _reddit_parent_comment_contains_attributed_witness(
     editor: Any,
     forum: str,
@@ -1906,17 +1892,22 @@ def _reddit_parent_comment_contains_attributed_witness(
     actor = _reddit_expected_comment_actor(state_probe, instance)
     if not actor:
         return False, "reddit comment parent readback requires actor attribution"
-    response = editor._form_get(f"/f/{forum}/{submission_id}", allow_missing=True)
-    if response is None:
+    blocks = editor.read_submission_comment_blocks(
+        forum_name=forum,
+        submission_id=submission_id,
+    )
+    if not blocks:
         return False, "reddit comment parent readback page missing"
     seed_comment_ids = _reddit_seed_comment_ids(state_probe)
-    for fragment in _reddit_comment_fragments(str(response.text or "")):
-        if not _reddit_comment_fragment_matches_actor(fragment, actor):
+    if _reddit_comment_probe_requires_seed_exclusion(state_probe) and not seed_comment_ids:
+        return False, "reddit comment parent readback requires seeded comment exclusion"
+    for block in blocks:
+        if not _reddit_comment_block_matches_actor(block, actor):
             continue
-        comment_id = _reddit_comment_fragment_id(fragment)
+        comment_id = str(block.get("id") or "")
         if comment_id and comment_id in seed_comment_ids:
             continue
-        if witness in _strip_html_text(fragment):
+        if witness in str(block.get("text") or ""):
             return True, "reddit comment parent readback contains expected witness"
     return False, "reddit comment parent readback did not contain attributed witness"
 
@@ -1925,7 +1916,18 @@ def _reddit_comment_probe_requires_attribution(
     state_probe: Mapping[str, Any] | None,
     instance: Mapping[str, Any],
 ) -> bool:
-    return bool(_reddit_expected_comment_actor(state_probe, instance) or _reddit_seed_comment_ids(state_probe))
+    return bool(
+        _reddit_comment_probe_requires_seed_exclusion(state_probe)
+        or _reddit_expected_comment_actor(state_probe, instance)
+        or _reddit_seed_comment_ids(state_probe)
+    )
+
+
+def _reddit_comment_probe_requires_seed_exclusion(
+    state_probe: Mapping[str, Any] | None,
+) -> bool:
+    probe = state_probe if isinstance(state_probe, Mapping) else {}
+    return probe.get("requires_attribution") is True
 
 
 def _reddit_expected_comment_actor(
@@ -1992,44 +1994,13 @@ def _reddit_seed_comment_ids(state_probe: Mapping[str, Any] | None) -> set[str]:
     return out
 
 
-def _reddit_comment_fragments(html_text: str) -> list[str]:
-    fragments: list[str] = []
-    for match in _HTML_COMMENT_ELEMENT_RE.finditer(html_text):
-        fragments.append(match.group(0))
-    return fragments or [html_text]
-
-
-def _reddit_comment_fragment_matches_actor(fragment: str, actor: str) -> bool:
+def _reddit_comment_block_matches_actor(block: Mapping[str, str], actor: str) -> bool:
     folded_actor = actor.casefold()
-    attrs = _html_attrs(fragment)
-    for key in ("data-author", "author", "data-username", "username"):
-        value = attrs.get(key)
-        if value and value.casefold() == folded_actor:
-            return True
-    text = _strip_html_text(fragment).casefold()
+    author = str(block.get("author") or "").casefold()
+    if author == folded_actor:
+        return True
+    text = str(block.get("text") or "").casefold()
     return re.search(rf"(?<![\w.-]){re.escape(folded_actor)}(?![\w.-])", text) is not None
-
-
-def _reddit_comment_fragment_id(fragment: str) -> str:
-    attrs = _html_attrs(fragment)
-    for key in ("data-comment-id", "comment-id", "data-id", "id"):
-        value = attrs.get(key)
-        if value:
-            return value
-    match = _REDDIT_COMMENT_DETAIL_RE.search(fragment)
-    return match.group(3) if match else ""
-
-
-def _html_attrs(fragment: str) -> dict[str, str]:
-    start = fragment.split(">", 1)[0]
-    attrs: dict[str, str] = {}
-    for match in _HTML_ATTR_RE.finditer(start):
-        attrs[match.group("name").lower()] = html_lib.unescape(match.group("value")).strip()
-    return attrs
-
-
-def _strip_html_text(fragment: str) -> str:
-    return html_lib.unescape(re.sub(r"<[^>]+>", " ", fragment))
 
 
 def _reddit_path_contains(editor: Any, path: str, witness: str) -> bool:
