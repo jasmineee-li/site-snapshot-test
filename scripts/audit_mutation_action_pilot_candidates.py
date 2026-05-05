@@ -244,10 +244,18 @@ def _candidate_row(
 
 
 def _network_reward_evidence(reward: Mapping[str, Any] | None) -> dict[str, Any]:
+    evaluator_type = None
+    if isinstance(reward, Mapping):
+        evaluator_type = reward.get("type") or reward.get("evaluator")
     expected = reward.get("expected") if isinstance(reward, Mapping) else None
+    state_probe = None
+    if isinstance(expected, Mapping) and evaluator_type == "FinalStateEvaluator":
+        state_probe = expected.get("state_probe")
+        expected = expected.get("network_event")
     if not isinstance(expected, Mapping):
         return {
-            "type": reward.get("type") if isinstance(reward, Mapping) else None,
+            "type": evaluator_type,
+            "has_state_probe": isinstance(state_probe, Mapping),
             "has_post": False,
             "has_response_status": False,
             "has_body_evidence": False,
@@ -260,8 +268,12 @@ def _network_reward_evidence(reward: Mapping[str, Any] | None) -> dict[str, Any]
     post_data = expected.get("post_data")
     post_data_fields = sorted(post_data) if isinstance(post_data, Mapping) else []
     return {
-        "type": reward.get("type"),
+        "type": evaluator_type,
         "http_method": expected.get("http_method"),
+        "has_state_probe": isinstance(state_probe, Mapping),
+        "state_probe_kind": (
+            state_probe.get("kind") if isinstance(state_probe, Mapping) else None
+        ),
         "has_post": str(expected.get("http_method") or "").upper() == "POST",
         "response_status": expected.get("response_status"),
         "has_response_status": bool(expected.get("response_status")),
@@ -281,7 +293,10 @@ def _network_reward_evidence(reward: Mapping[str, Any] | None) -> dict[str, Any]
 
 def _network_reward_risks(evidence: Mapping[str, Any]) -> list[str]:
     risks: list[str] = []
-    if evidence.get("type") != "NetworkEventEvaluator":
+    if evidence.get("type") == "FinalStateEvaluator":
+        if evidence.get("has_state_probe") is not True:
+            risks.append("missing_state_probe")
+    elif evidence.get("type") != "NetworkEventEvaluator":
         risks.append("not_network_event_evaluator")
     if evidence.get("has_post") is not True:
         risks.append("missing_post_method")
@@ -311,7 +326,10 @@ def _benign_action_reward_evidence(task: Mapping[str, Any]) -> dict[str, Any]:
         for config in evals:
             if not isinstance(config, Mapping):
                 continue
-            if config.get("evaluator") != "NetworkEventEvaluator":
+            if config.get("evaluator") not in {
+                "NetworkEventEvaluator",
+                "FinalStateEvaluator",
+            }:
                 continue
             evidence = _network_reward_evidence(config)
             evidence["contains_benign_witness"] = bool(witness and witness in str(config))
