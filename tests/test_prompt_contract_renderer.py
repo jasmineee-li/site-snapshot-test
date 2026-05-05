@@ -272,7 +272,8 @@ class TestSandboxApiPathParity:
     between the two paths for the same shard input."""
 
     def test_byte_identical_prompts(self) -> None:
-        from worldsim.phases import phase_2_injections, phase_2_injections_api
+        from worldsim.phase_2 import runner as phase_2_injections
+        from worldsim.phases import phase_2_injections_api
 
         benign_target_resources = {
             "t1": {

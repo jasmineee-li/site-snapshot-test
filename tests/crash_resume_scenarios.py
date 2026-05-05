@@ -262,7 +262,7 @@ def _configure_phase_4(state_dir: Path) -> Path:
 
 
 async def _run_phase_2(mode: str, state_dir: Path) -> int:
-    from worldsim.phases import phase_2_injections
+    from worldsim.phase_2 import runner as phase_2_injections
     from worldsim.phases.phase_2_text_fill import materialize_adversarial_seed
 
     _configure_phase_2(state_dir)
@@ -589,7 +589,7 @@ async def _run_phase_4(
     *,
     real_variant_eval: bool = False,
 ) -> int:
-    from worldsim.phases import phase_4_adversarial
+    from worldsim.phase_4 import runner as phase_4_adversarial
 
     instances_path = (
         state_dir / "instances.json" if mode == "resume" else _configure_phase_4(state_dir)

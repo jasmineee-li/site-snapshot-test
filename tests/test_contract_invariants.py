@@ -36,7 +36,7 @@ from worldsim.editors._registry import (
     kind_contract,
     serialize_registry,
 )
-from worldsim.phases.phase_2_injections import (
+from worldsim.phase_2.runner import (
     _validate_option_a_placement_registry,
 )
 from worldsim.seeding import UnboundTokenError, _assert_benign_tokens_bound

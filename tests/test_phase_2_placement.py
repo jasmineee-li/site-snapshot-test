@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from worldsim.phases import phase_2_injections
+from worldsim.phase_2 import runner as phase_2_injections
 
 
 def _base_gitlab_plan() -> dict:

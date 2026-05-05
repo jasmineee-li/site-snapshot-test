@@ -9,9 +9,10 @@ from typing import Any
 
 import pytest
 
-from worldsim.phases import phase_2_injections
+from worldsim.phase_2 import runner as phase_2_injections
 from worldsim.phases.phase_2_exposure_contract import build_exposure_contract
 from worldsim.state import save_state
+
 
 def _strip_feasibility(tasks: list[dict]) -> list[dict]:
     """Drop the Phase 2c feasibility stanza so pre-2c tests still compare cleanly.
@@ -27,6 +28,7 @@ def _strip_feasibility(tasks: list[dict]) -> list[dict]:
         stripped.append(copy)
     return stripped
 
+
 def _db_row_value(*, table: str, value_column: str, where: dict[str, object]) -> dict:
     return {
         "type": "db_row_value",
@@ -34,6 +36,7 @@ def _db_row_value(*, table: str, value_column: str, where: dict[str, object]) ->
         "value_column": value_column,
         "where": where,
     }
+
 
 def _benign_task() -> dict:
     return {
@@ -46,6 +49,7 @@ def _benign_task() -> dict:
         "data_seed": {"mechanism": "none"},
         "reward_function": {"eval": [{"expected": {"retrieved_data": ["ok"]}}]},
     }
+
 
 def _site_profile() -> dict:
     return {
@@ -103,10 +107,12 @@ def _site_profile() -> dict:
         ],
     }
 
+
 def _single_surface_profile() -> dict:
     profile = _site_profile()
     profile["injection_surface"] = [profile["injection_surface"][0]]
     return profile
+
 
 def _plan_task() -> dict:
     benign_task = _benign_task()
@@ -145,6 +151,7 @@ def _plan_task() -> dict:
             "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
         },
     }
+
 
 def _finalized_plan_task(*, payload_count: int = 1) -> dict:
     plan = _plan_task()
@@ -195,10 +202,12 @@ def _finalized_plan_task(*, payload_count: int = 1) -> dict:
     }
     return task
 
+
 def _with_feasibility_status(task: dict, status: str) -> dict:
     cloned = json.loads(json.dumps(task))
     cloned["feasibility"] = {"status": status}
     return cloned
+
 
 # ---------------------------------------------------------------------------
 # Mode B (new_task) seed-preservation coverage.
@@ -211,6 +220,7 @@ def _with_feasibility_status(task: dict, status: str) -> dict:
 # self_contained_adversarial_seed_error (worldsim/seeding.py).
 # ---------------------------------------------------------------------------
 
+
 def _gitlab_user_profile_benign_seed() -> dict:
     return {
         "mechanism": "api",
@@ -222,6 +232,7 @@ def _gitlab_user_profile_benign_seed() -> dict:
             }
         ],
     }
+
 
 def _gitlab_milestone_benign_seed() -> dict:
     return {
@@ -237,6 +248,7 @@ def _gitlab_milestone_benign_seed() -> dict:
             }
         ],
     }
+
 
 def _reddit_multi_editor_benign_seed() -> dict:
     return {
@@ -262,6 +274,7 @@ def _reddit_multi_editor_benign_seed() -> dict:
             },
         ],
     }
+
 
 def _reddit_profile() -> dict[str, Any]:
     return {
@@ -340,6 +353,7 @@ def _reddit_profile() -> dict[str, Any]:
         ],
     }
 
+
 def _reddit_benign_task(task_id: str = "reddit-1") -> dict[str, Any]:
     return {
         "id": task_id,
@@ -351,6 +365,7 @@ def _reddit_benign_task(task_id: str = "reddit-1") -> dict[str, Any]:
         "data_seed": {"mechanism": "none"},
         "reward_function": {"eval": [{"expected": {"retrieved_data": ["ok"]}}]},
     }
+
 
 # ---------------------------------------------------------------------
 # L3/L4 enrichment + suffixed-ID fan-out (Merge B)

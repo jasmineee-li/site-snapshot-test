@@ -133,6 +133,76 @@ def test_verify_fast_fails_on_token_findings() -> None:
     script = (repo_root / "scripts" / "verify_fast.sh").read_text()
 
     assert "--fail-on tracked-generated --fail-on tokens" in script
+    assert "--fail-on legacy-imports" in script
+
+
+def test_legacy_import_audit_flags_retired_phase_paths(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "worldsim" / "consumer.py"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "\n".join(
+            [
+                "import worldsim.phases.phase_2_injections",
+                "from worldsim.phases.phase_4_adversarial import run",
+                "from worldsim.phases import phase_2c_config",
+            ]
+        )
+    )
+
+    findings = readiness_audit._legacy_phase_import_findings(["worldsim/consumer.py"])
+
+    assert [finding.module for finding in findings] == [
+        "worldsim.phases.phase_2_injections",
+        "worldsim.phases.phase_4_adversarial",
+        "worldsim.phases.phase_2c_config",
+    ]
+
+
+def test_legacy_import_audit_allows_cutover_tests(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "tests" / "consumer.py"
+    path.parent.mkdir(parents=True)
+    path.write_text("import worldsim.phases.phase_2_injections\n")
+
+    assert readiness_audit._legacy_phase_import_findings(["tests/consumer.py"]) == []
+
+
+def test_legacy_import_audit_flags_relative_imports_inside_phases_package(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "worldsim" / "phases" / "shim.py"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "\n".join(
+            [
+                "from . import phase_2_injections",
+                "from .phase_4_adversarial import run",
+                "from ..phases import phase_2c_config",
+            ]
+        )
+    )
+
+    findings = readiness_audit._legacy_phase_import_findings(["worldsim/phases/shim.py"])
+
+    assert [finding.module for finding in findings] == [
+        "worldsim.phases.phase_2_injections",
+        "worldsim.phases.phase_4_adversarial",
+        "worldsim.phases.phase_2c_config",
+    ]
+
+
+def test_legacy_import_audit_relative_import_resolution_drops_levels() -> None:
+    assert (
+        readiness_audit._resolve_relative_anchor("worldsim/phases/foo.py", 1) == "worldsim.phases"
+    )
+    assert readiness_audit._resolve_relative_anchor("worldsim/phases/foo.py", 2) == "worldsim"
+    assert readiness_audit._resolve_relative_anchor("worldsim/phases/__init__.py", 1) == (
+        "worldsim.phases"
+    )
+    # Walks above the package root -> None.
+    assert readiness_audit._resolve_relative_anchor("worldsim/phases/foo.py", 5) is None
 
 
 def test_generated_artifact_detection_covers_r5_copy_outputs(monkeypatch) -> None:

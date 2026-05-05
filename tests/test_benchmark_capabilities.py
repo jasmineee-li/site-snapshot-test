@@ -5,7 +5,7 @@ from worldsim.benchmark_capabilities import (
     infer_benchmark_name,
     normalize_benchmark_name,
 )
-from worldsim.phases import phase_2_injections
+from worldsim.phase_2 import runner as phase_2_injections
 
 
 def test_normalize_benchmark_aliases():

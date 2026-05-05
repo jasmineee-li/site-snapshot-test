@@ -5,7 +5,7 @@ from typing import ClassVar
 from worldsim.config import BenchmarkInstance
 from worldsim.editors.base import EditorError
 from worldsim.instance_selection import select_task_site_instance
-from worldsim.phases import phase_4_adversarial
+from worldsim.phase_4 import runner as phase_4_adversarial
 
 
 class _ProbeEditor:

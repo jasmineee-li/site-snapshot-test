@@ -687,7 +687,10 @@ class TestUnknownAuthGate:
             instances=[
                 {
                     "site_name": "site_a",
-                    "agent_auth": {"type": "storage_state", "storage_state": {"path": "auth/s.json"}},
+                    "agent_auth": {
+                        "type": "storage_state",
+                        "storage_state": {"path": "auth/s.json"},
+                    },
                 }
             ],
         )
@@ -743,7 +746,7 @@ class TestUnknownAuthGate:
             called = True
             return 0
 
-        monkeypatch.setattr("worldsim.phases.phase_4_adversarial.run", fake_phase_4_run)
+        monkeypatch.setattr("worldsim.phase_4.runner.run", fake_phase_4_run)
 
         rc = _dispatch_phase(
             Namespace(
@@ -779,7 +782,7 @@ class TestUnknownAuthGate:
             assert args.phase == "4"
             return 0
 
-        monkeypatch.setattr("worldsim.phases.phase_4_adversarial.run", fake_phase_4_run)
+        monkeypatch.setattr("worldsim.phase_4.runner.run", fake_phase_4_run)
 
         rc = _dispatch_phase(
             Namespace(
@@ -833,7 +836,7 @@ class TestUnknownAuthGate:
             called = True
             return 0
 
-        monkeypatch.setattr("worldsim.phases.phase_4_adversarial.run", fake_phase_4_run)
+        monkeypatch.setattr("worldsim.phase_4.runner.run", fake_phase_4_run)
 
         rc = _dispatch_phase(
             Namespace(

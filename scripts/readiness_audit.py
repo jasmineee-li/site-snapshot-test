@@ -9,6 +9,7 @@ not part of the repository contract.
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import re
 import subprocess
@@ -97,6 +98,13 @@ class TokenFinding:
 
 
 @dataclass(frozen=True)
+class LegacyImportFinding:
+    path: str
+    line: int
+    module: str
+
+
+@dataclass(frozen=True)
 class Audit:
     tracked_files: int
     code_files: int
@@ -106,6 +114,29 @@ class Audit:
     tracked_generated: list[str]
     deferred_tracked_generated: list[str]
     token_findings: list[TokenFinding]
+    legacy_phase_imports: list[LegacyImportFinding]
+
+
+LEGACY_PHASE_IMPORT_MODULES = frozenset(
+    {
+        "worldsim.phases.phase_2_injections",
+        "worldsim.phases.phase_2_output",
+        "worldsim.phases.phase_2_target_resolver",
+        "worldsim.phases.phase_2c_artifacts",
+        "worldsim.phases.phase_2c_config",
+        "worldsim.phases.phase_4_adversarial",
+    }
+)
+# `worldsim.phases.phase_2_injections_api` is intentionally omitted: on
+# `feat/worldsim-v5` it is the canonical Shape-C streaming L3 implementation,
+# not a temporary compat wrapper. The PR #11 rename to
+# `worldsim.phase_2.runner_api` was deferred to a later migration cycle, so
+# this cutover narrows scope to the six wrappers that are pure shims.
+
+LEGACY_PHASE_IMPORT_ALLOWED_PREFIXES = (
+    "docs/",
+    "tests/",
+)
 
 
 def _git_ls_files() -> list[str]:
@@ -171,6 +202,79 @@ def _token_findings(paths: list[str]) -> list[TokenFinding]:
             if quoted_match and _looks_like_secret_value(quoted_match.group(1)):
                 findings.append(TokenFinding(path, index, "high_entropy"))
     return findings
+
+
+def _legacy_phase_import_findings(paths: list[str]) -> list[LegacyImportFinding]:
+    findings: list[LegacyImportFinding] = []
+    for path in paths:
+        if not path.endswith(".py") or path.startswith(LEGACY_PHASE_IMPORT_ALLOWED_PREFIXES):
+            continue
+        try:
+            source = Path(path).read_text(encoding="utf-8", errors="ignore")
+            tree = ast.parse(source, filename=path)
+        except (OSError, SyntaxError):
+            continue
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if _is_legacy_phase_module(alias.name):
+                        findings.append(LegacyImportFinding(path, node.lineno, alias.name))
+            elif isinstance(node, ast.ImportFrom):
+                level = node.level or 0
+                if level > 0:
+                    base = _resolve_relative_anchor(path, level)
+                    if base is None:
+                        continue
+                    if node.module:
+                        resolved = f"{base}.{node.module}"
+                        if _is_legacy_phase_module(resolved):
+                            findings.append(LegacyImportFinding(path, node.lineno, resolved))
+                            continue
+                        for alias in node.names:
+                            child = f"{resolved}.{alias.name}"
+                            if _is_legacy_phase_module(child):
+                                findings.append(LegacyImportFinding(path, node.lineno, child))
+                    else:
+                        for alias in node.names:
+                            child = f"{base}.{alias.name}"
+                            if _is_legacy_phase_module(child):
+                                findings.append(LegacyImportFinding(path, node.lineno, child))
+                    continue
+                module = node.module or ""
+                if _is_legacy_phase_module(module):
+                    findings.append(LegacyImportFinding(path, node.lineno, module))
+                elif module == "worldsim.phases":
+                    for alias in node.names:
+                        imported = f"{module}.{alias.name}"
+                        if _is_legacy_phase_module(imported):
+                            findings.append(LegacyImportFinding(path, node.lineno, imported))
+    return findings
+
+
+def _resolve_relative_anchor(path: str, level: int) -> str | None:
+    """Return the absolute dotted package a `level`-level relative import resolves to.
+
+    For module `worldsim/phases/foo.py`, level=1 resolves to `worldsim.phases`,
+    level=2 resolves to `worldsim`. For `worldsim/phases/__init__.py` the answer
+    is the same. Returns None if `level` walks above the package root.
+    """
+    parts = path.split("/")
+    anchor_parts = parts[:-1]
+    drop = level - 1
+    if drop > len(anchor_parts):
+        return None
+    base_parts = anchor_parts[: len(anchor_parts) - drop] if drop else anchor_parts
+    if not base_parts:
+        return None
+    return ".".join(base_parts)
+
+
+def _is_legacy_phase_module(module: str) -> bool:
+    return any(
+        module == legacy_module or module.startswith(f"{legacy_module}.")
+        for legacy_module in LEGACY_PHASE_IMPORT_MODULES
+    )
 
 
 def _looks_like_secret_value(value: str) -> bool:
@@ -263,9 +367,7 @@ def build_audit() -> Audit:
         for item in large
         if item.loc > REVIEW_LOC and (reason := _large_file_exemption_reason(item.path)) is not None
     ]
-    non_exempt_large = [
-        item for item in large if _large_file_exemption_reason(item.path) is None
-    ]
+    non_exempt_large = [item for item in large if _large_file_exemption_reason(item.path) is None]
     return Audit(
         tracked_files=len(files),
         code_files=len(code),
@@ -275,6 +377,7 @@ def build_audit() -> Audit:
         tracked_generated=blocking_generated,
         deferred_tracked_generated=deferred,
         token_findings=_token_findings(files),
+        legacy_phase_imports=_legacy_phase_import_findings(files),
     )
 
 
@@ -287,6 +390,7 @@ def _print_text(audit: Audit) -> None:
     print(f"tracked_generated={len(audit.tracked_generated)}")
     print(f"deferred_tracked_generated={len(audit.deferred_tracked_generated)}")
     print(f"token_findings={len(audit.token_findings)}")
+    print(f"legacy_phase_imports={len(audit.legacy_phase_imports)}")
     if audit.files_over_1200_loc:
         print("largest_files:")
         for item in audit.files_over_1200_loc[:10]:
@@ -309,10 +413,16 @@ def _print_text(audit: Audit) -> None:
             print(f"  {finding.path}:{finding.line} {finding.kind}")
         if len(audit.token_findings) > 25:
             print(f"  ... {len(audit.token_findings) - 25} more")
+    if audit.legacy_phase_imports:
+        print("legacy_phase_imports:")
+        for finding in audit.legacy_phase_imports[:25]:
+            print(f"  {finding.path}:{finding.line} {finding.module}")
+        if len(audit.legacy_phase_imports) > 25:
+            print(f"  ... {len(audit.legacy_phase_imports) - 25} more")
 
 
 def _json_default(value: Any) -> Any:
-    if isinstance(value, LargeFile | LargeFileExemption | TokenFinding):
+    if isinstance(value, LargeFile | LargeFileExemption | TokenFinding | LegacyImportFinding):
         return asdict(value)
     raise TypeError(f"cannot serialize {type(value)!r}")
 
@@ -323,7 +433,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--fail-on",
         action="append",
-        choices=("tracked-generated", "tokens"),
+        choices=("legacy-imports", "tracked-generated", "tokens"),
         default=[],
         help="fail when the selected finding class is present",
     )
@@ -339,6 +449,8 @@ def main(argv: list[str] | None = None) -> int:
     if "tracked-generated" in args.fail_on and audit.tracked_generated:
         failed = True
     if "tokens" in args.fail_on and audit.token_findings:
+        failed = True
+    if "legacy-imports" in args.fail_on and audit.legacy_phase_imports:
         failed = True
     return 1 if failed else 0
 

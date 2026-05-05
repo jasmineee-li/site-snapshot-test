@@ -19,9 +19,11 @@ from worldsim.browser_use_agent import AgentResult
 from worldsim.config import BenchmarkInstance
 from worldsim.instance_selection import select_task_site_instance
 from worldsim.phase_4.exposure_admission import exposure_admission_error
-from worldsim.phases import phase_2_text_fill, phase_4_adversarial
+from worldsim.phase_4 import runner as phase_4_adversarial
+from worldsim.phases import phase_2_text_fill
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.task_paths import safe_task_path_component
+
 
 @pytest.fixture(autouse=True)
 def _relax_feasibility_admission(monkeypatch):
@@ -33,6 +35,7 @@ def _relax_feasibility_admission(monkeypatch):
     monkeypatch.setenv("WORLDSIM_STRICT_FEASIBILITY", "false")
     yield
 
+
 @pytest.fixture(autouse=True)
 def _skip_host_api_preflight(monkeypatch):
     async def _ok_preflight(*, sandbox_model: str):
@@ -42,6 +45,7 @@ def _skip_host_api_preflight(monkeypatch):
     # Magento base_url probe was removed 2026-04-21 with the WASP-aligned
     # scoping decision; no DNS short-circuit needed for synthetic test hosts.
     yield
+
 
 def _as_contracts(tasks: list[dict], *, origin: str = "existing_task") -> list[dict]:
     return [
@@ -54,6 +58,7 @@ def _as_contracts(tasks: list[dict], *, origin: str = "existing_task") -> list[d
         }
         for task in tasks
     ]
+
 
 def _phase4_exposure_fields(
     *,
@@ -103,6 +108,7 @@ def _phase4_exposure_fields(
         },
     }
 
+
 def _prepared_adv_task() -> tuple[dict, list[BenchmarkInstance]]:
     instances = [
         BenchmarkInstance(
@@ -147,6 +153,7 @@ def _prepared_adv_task() -> tuple[dict, list[BenchmarkInstance]]:
     assert missing == []
     return task, instances
 
+
 @pytest.fixture(autouse=True)
 def _bypass_editor_preflight(monkeypatch):
     """Phase 4's preflight_editor_seed_calls instantiates the live editor and
@@ -165,6 +172,7 @@ def _bypass_editor_preflight(monkeypatch):
         ),
     )
 
+
 def _v2_payload_contract_fields(*, task_id: str = "adv-1") -> dict[str, object]:
     tokens = phase_2_text_fill.derive_required_tokens(task_id)
     url = tokens[0]["value"]
@@ -174,12 +182,14 @@ def _v2_payload_contract_fields(*, task_id: str = "adv-1") -> dict[str, object]:
         "url": url,
     }
 
+
 # Legacy sandbox-based ecological-validity probe was deleted in the PVPO
 # cutover (see docs/handoffs/codex-handoff-paint-verified-oracle.md §1, §4).
 # The current replacement is Apollo's transcript-purpose classifier,
 # exercised by tests/test_phase_4_transcript_purpose_api.py.
 
 # ── benchmark_root / task_site plumbing ──────────────────────────────────
+
 
 def _prepare_malformed_contracts_fixture(tmp_path, contracts_payload):
     (tmp_path / "phase_2").mkdir(parents=True)
@@ -203,6 +213,7 @@ def _prepare_malformed_contracts_fixture(tmp_path, contracts_payload):
         )
     )
     return instances_path
+
 
 # ---------------------------------------------------------------------------
 # _placement_fix_succeeded: trigger-aware success predicate (BUG-1 fix)

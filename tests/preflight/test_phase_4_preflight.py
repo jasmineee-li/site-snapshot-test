@@ -49,7 +49,7 @@ def test_pvpo_cdp_endpoints_reachable_and_unique() -> None:
         pytest.skip("WORLDSIM_PREFLIGHT_INSTANCES unset or missing")
     try:
         from worldsim.config import BenchmarkConfig
-        from worldsim.phases.phase_4_adversarial import _pvpo_endpoint_preflight_errors
+        from worldsim.phase_4.runner import _pvpo_endpoint_preflight_errors
     except ImportError as exc:
         pytest.skip(f"worldsim modules unavailable: {exc}")
 
@@ -120,8 +120,7 @@ def test_pvpo_cdp_containers_are_restart_supervised() -> None:
         except FileNotFoundError:
             pytest.fail("docker is not installed; rerun setup_phase4_on_host.sh step 3")
         assert completed.returncode == 0, (
-            f"PVPO container {container_name} is missing. "
-            "Rerun setup_phase4_on_host.sh step 3."
+            f"PVPO container {container_name} is missing. Rerun setup_phase4_on_host.sh step 3."
         )
         assert completed.stdout.strip() == "unless-stopped", (
             f"PVPO container {container_name} has restart policy "
