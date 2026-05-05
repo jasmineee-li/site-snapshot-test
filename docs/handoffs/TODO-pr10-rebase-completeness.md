@@ -47,6 +47,8 @@ For any new forward-port commit, run the local validation block at the end of th
 
 ## Gap 1: GitHub CI green on `d6d5c0f3`
 
+**Status: resolved (no CI configured) 2026-05-05.** `gh pr checks 10` returns `no checks reported on the 'feat/agent-readiness-standardized' branch`. There is no `.github/workflows/` directory in the fork, so no GitHub Actions workflow is wired. `gh run list --repo jasmineee-li/browser-sim --branch feat/agent-readiness-standardized` returns empty. The local validation block at the end of this TODO is the authoritative gate for PR #10 until CI is set up. This is documented in the PR body.
+
 **What.** When the rebase pushed, no CI checks were reporting on `feat/agent-readiness-standardized`. CI may not be wired to this fork, may be running, or may have failed silently.
 
 **Why.** Even if CI is informational rather than blocking, an unsignaled or red CI is a merge-blocker for review. We need a definitive answer.
@@ -253,6 +255,17 @@ uv run python -c "from worldsim.phases.phase_2_injections import <symbol>; print
 - No `ImportError` from `uv run python -m worldsim.main --help` or `uv run python -m worldsim.main preflight --help`.
 
 ## Gap 6: Forward-port completeness across unmoved files
+
+**Status: resolved (no fix needed) 2026-05-05.** Tree-diff between HEAD and the rebase target `38aa2f30` shows the unmoved files either match upstream verbatim (`worldsim/rewards.py`, `worldsim/editors/reddit.py`, `worldsim/phases/phase_2_feasibility.py` all 0+ 0-) or differ only by intentional PR changes:
+
+- `worldsim/main.py` (37+ 13-): verification proxy token resolver migration (`e5fea6f0 security: externalize verification proxy token`).
+- `worldsim/config.py` (61+ 0-): `load_benchmark_config` and `dump_verification_proxy_config` helpers for `token_env`/`token_file` indirection.
+- `worldsim/adversarial_actions/compiler.py` (7+ 5-): GraphQL note URL pattern `r"/api/graphql(?:[?#].*)?$"` and the `r"^variables(?:[\[.].*)?body.*$"` post-data field expectation (`5e43e6cd fix(gitlab): recognize graphql note actions`).
+- `worldsim/phases/phase_1_route_contracts.py` (6+ 6-): import path migration from `phase_2_target_resolver` to `phase_2.target_resolution.runner`.
+- `worldsim/phases/phase_1_generate_new_tasks_validation.py` (46+ 3-): validate-then-canonicalize fix (`05a17161`) plus the canonicalize helper, both already verified under Gap 2.
+- Other small files (phase_0_recon.py, phase_0d_auth_bootstrap.py, phase_2_exposure_contract.py, phase_2_text_fill.py, phase_2_output.py, phase_2c_artifacts.py, phase_2c_config.py, payload_guidance.py): each diff is single-digit lines and matches PR-intent module-path migrations or readiness-audit cleanup.
+
+Upstream advanced from `38aa2f30` to `446ff6cc` while this work was in progress (three commits: `446ff6cc fix: harden reddit comment attribution`, `4479a962 docs: record reddit comment attribution rca`, `6f4f0019 docs: clarify phase4 remote run state dir`). Those changes are out of scope for this audit; PR #10 will need a fresh rebase onto the new tip after these gaps close.
 
 **What.** The 51 upstream commits since `df71d96a` touched many files outside the monolith trio: `worldsim/rewards.py`, `worldsim/main.py`, `worldsim/config.py`, `worldsim/phases/phase_0_recon.py`, `worldsim/phases/phase_1_generate_new_tasks_validation.py`, `worldsim/adversarial_actions/*`, `scripts/*`, `docs/*`. Three-way merge most likely brought their changes through cleanly, but "most likely" is not "verified".
 
