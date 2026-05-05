@@ -56,7 +56,21 @@ produced worse behavior in steering smoke tests.
 
 ## Smoke Test Results
 
-The helper exercises the intended token gates, but generation is currently bad.
+Update: the original bad generation issue is now fixed in
+`probes/steering.py` by adding a `model.generate(...)`-based helper:
+
+```python
+generate_with_token_gated_steering_generate(...)
+```
+
+This helper keeps OpenCUA's normal HF generation stack, attaches token-gated
+residual pre-hooks to the raw HF model, and uses a `StoppingCriteria` callback
+to turn generation-token steering on after the first generated sentence.
+
+The previous bad helper, `generate_with_token_gated_steering(...)`, still exists
+for debugging but should not be used for OpenCUA steering experiments.
+
+### Original Broken Path
 
 With a real saved WASP prompt from `webarena.1095`, using the OpenCUA remote-code
 class and the processor-rendered chat template:
@@ -87,6 +101,49 @@ generation path.
 Synthetic prompts had a similar issue, usually generating only `I<|im_end|>`,
 `No<|im_end|>`, or `<th<|im_end|>`.
 
+### Working Generate-Based Smoke
+
+The corrected smoke used the transcript row `webarena.1095:step_0`, but fed only
+the prompt prefix (`messages[:-1]`) rather than the saved assistant transcript.
+
+Setup:
+
+```text
+model: OpenCUAForConditionalGeneration
+prompt_len: 4497
+user content positions: 3668
+layers: [13, 9, 11, 17, 19, 20]
+max_new_tokens: 80
+```
+
+Results:
+
+```text
+alpha=0.0:
+  first_sentence_end_token_index=35
+  generation_steering_enabled=True
+  coherent <think> output matching the WASP-style baseline
+
+alpha=+0.6:
+  first_sentence_end_token_index=24
+  generation_steering_enabled=True
+  coherent <think> output, still selecting the thumbs-up interaction
+
+alpha=-0.6:
+  first_sentence_end_token_index=17
+  generation_steering_enabled=True
+  coherent <think> output, changed the proposed interaction path
+```
+
+The smoke needed explicit HF `max_memory` caps:
+
+```python
+{0: "45GiB", 1: "45GiB", 2: "45GiB", 3: "45GiB", "cpu": "300GiB"}
+```
+
+Without this, `device_map="auto"` packed too much onto one GPU and the hook path
+OOMed during prompt prefill.
+
 ## Important Observation
 
 The baseline WASP transcripts from the real no-steering server run do contain
@@ -116,53 +173,36 @@ For each model call:
 - repeat the same rule for retry/correction prompts if the agent makes another
   LLM call.
 
-## Likely Cause
+## Resolved Cause
 
-The current broken path is likely caused by a mismatch between the manual cached
-decoding loop and the exact generation stack used by OpenCUA in normal server
-inference.
+The bad `<th<|im_end|>` output came from bypassing OpenCUA's normal generation
+stack with a manual cached decoding loop. Server-style local generation with
+`AutoProcessor.apply_chat_template(...)`, `processor(text=...)`, and
+`model.generate(...)` produces normal WASP-style text.
 
-Possibilities to check:
-
-- OpenCUA may require processor/model kwargs beyond `input_ids` for correct
-  text-only generation.
-- The manual loop may be bypassing model-specific generation setup that
-  `model.generate(...)` performs.
-- The prompt may need the exact `AutoProcessor.apply_chat_template(...)`
-  encoding path, not tokenizer-only rendering/encoding. The latest smoke used
-  processor-rendered prompt and input IDs, but still used manual forwards.
-- The model may expect particular stopping/eos handling or generation config.
-- Hooks may be fine, but the unhooked manual generation baseline is already
-  broken, which should be fixed before judging steering.
+One additional gotcha: exported transcript rows include the assistant response
+after generation. For reproducing a model call, use the prompt prefix up to the
+last user message, not the full transcript row.
 
 ## Recommended Next Steps
 
-1. Reproduce normal output using the same locally loaded model without hooks.
-   Start with `model.generate(...)` using the exact `AutoProcessor` output.
-
-2. Once `model.generate(...)` produces normal WASP-style text, attach hooks
-   without any token gating or with `alpha=0.0` and confirm output is still
-   normal.
-
-3. Move from the manual cached loop to a `generate(...)`-compatible steering
-   path if possible. A practical route is:
-
-   - use hooks during `model.generate(...)`;
-   - steer selected prefill tokens by detecting the full prompt sequence length;
-   - steer generation token forwards after a state flag is enabled;
-   - implement first-sentence skipping using either a streamer/logits processor
-     or a custom generation loop that exactly mirrors `generate(...)`.
-
-4. If `generate(...)` cannot expose enough control, move steering into
-   `models/common/hf_openai_server.py` so the same server path used by WASP can
-   be instrumented directly.
-
-5. Keep the first validation tiny:
+1. Keep the first validation tiny:
 
    - one saved real WASP prompt;
    - unsteered, `alpha=+0.6`, `alpha=-0.6`;
    - layers `[13, 9, 11, 17, 19, 20]`;
    - confirm output is coherent before measuring probe/ASR.
+
+2. Next step is to wire `generate_with_token_gated_steering_generate(...)` into
+   the HF OpenAI server path so BrowserGym/WASP can run the same intervention
+   during every LLM call.
+
+3. For a full WASP steering run, apply the intervention every turn:
+
+   - steer current user-message content tokens during prefill;
+   - skip system/template tokens;
+   - skip the first generated sentence;
+   - steer generated token forwards after the first sentence.
 
 ## Overnight No-Steering WASP Run
 

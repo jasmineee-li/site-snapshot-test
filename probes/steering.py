@@ -35,6 +35,7 @@ from dataclasses import dataclass
 from typing import Any, Sequence
 
 import torch
+from transformers import StoppingCriteria, StoppingCriteriaList
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +97,7 @@ def steering_hook(
         target_alphas = [alpha]
 
     vec_dict = probe.normalized_vectors if use_normalized else probe.vectors
-    decoder_layers = model.get_decoder_layers()
+    decoder_layers = _decoder_layers(model)
     n_layers_total = len(decoder_layers)
 
     handles: list = []
@@ -180,6 +181,7 @@ class TokenGatedSteeringState:
     prompt_len: int
     prompt_positions: set[int]
     generation_enabled: bool = False
+    first_sentence_end_token_index: int | None = None
 
 
 @contextmanager
@@ -205,7 +207,7 @@ def token_gated_steering_hook(
         raise ValueError("At least one layer is required for token-gated steering.")
 
     vec_dict = probe.normalized_vectors if use_normalized else probe.vectors
-    decoder_layers = model.get_decoder_layers()
+    decoder_layers = _decoder_layers(model)
     n_layers_total = len(decoder_layers)
 
     handles: list[Any] = []
@@ -330,6 +332,117 @@ def chat_role_content_token_positions(
     return sorted(positions)
 
 
+def generate_with_token_gated_steering_generate(
+    model,
+    processor,
+    messages: list[dict[str, Any]],
+    probe,
+    *,
+    layers: Sequence[int],
+    alpha_per_layer: float = 0.6,
+    max_new_tokens: int = 128,
+    temperature: float = 0.0,
+    eos_token_id: int | Sequence[int] | None = None,
+    pad_token_id: int | None = None,
+    stop_token_ids: Sequence[int] | None = None,
+    rendered_prompt: str | None = None,
+) -> dict[str, Any]:
+    """Generate via HF `model.generate` with token-gated steering.
+
+    This is the preferred helper for OpenCUA. It keeps the model's own
+    generation stack and uses a stopping-criteria callback to enable
+    generation-token steering after the first generated sentence has appeared.
+    """
+    tokenizer = getattr(processor, "tokenizer", processor)
+    hf_model = _hf_model(model)
+    rendered = rendered_prompt
+    if rendered is None:
+        rendered = processor.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+
+    if callable(processor):
+        inputs = processor(text=rendered, return_tensors="pt")
+    else:
+        inputs = tokenizer(rendered, return_tensors="pt", add_special_tokens=False)
+    prompt_len = int(inputs["input_ids"].shape[-1])
+    input_device = _model_input_device(hf_model)
+    inputs = {
+        key: value.to(input_device) if isinstance(value, torch.Tensor) else value
+        for key, value in inputs.items()
+    }
+
+    prompt_positions = set(
+        chat_role_content_token_positions(
+            tokenizer,
+            rendered,
+            messages,
+            roles={"user"},
+        )
+    )
+    state = TokenGatedSteeringState(
+        prompt_len=prompt_len,
+        prompt_positions=prompt_positions,
+        generation_enabled=False,
+    )
+
+    stop_ids = _collect_stop_token_ids(
+        tokenizer,
+        eos_token_id=eos_token_id,
+        stop_token_ids=stop_token_ids,
+    )
+    if pad_token_id is None:
+        pad_token_id = getattr(tokenizer, "pad_token_id", None)
+    if eos_token_id is None and stop_ids:
+        eos_token_id = sorted(stop_ids)
+
+    do_sample = bool(temperature and temperature > 0)
+    generation_kwargs: dict[str, Any] = {
+        "max_new_tokens": max_new_tokens,
+        "do_sample": do_sample,
+        "use_cache": True,
+        "stopping_criteria": StoppingCriteriaList([
+            _EnableAfterFirstSentenceCriteria(tokenizer, state),
+        ]),
+    }
+    if do_sample:
+        generation_kwargs["temperature"] = max(float(temperature), 1e-5)
+    if pad_token_id is not None:
+        generation_kwargs["pad_token_id"] = pad_token_id
+    if eos_token_id is not None:
+        generation_kwargs["eos_token_id"] = eos_token_id
+
+    with token_gated_steering_hook(
+        model,
+        probe,
+        state=state,
+        layers=layers,
+        alpha_per_layer=alpha_per_layer,
+    ):
+        with torch.inference_mode():
+            output_ids = hf_model.generate(**inputs, **generation_kwargs)
+
+    generated_ids = output_ids[0, prompt_len:].detach().cpu().tolist()
+    text = tokenizer.decode(
+        generated_ids,
+        skip_special_tokens=False,
+        clean_up_tokenization_spaces=False,
+    )
+    return {
+        "text": text,
+        "generated_ids": generated_ids,
+        "prompt_len": state.prompt_len,
+        "n_user_prompt_positions": len(prompt_positions),
+        "first_sentence_end_token_index": state.first_sentence_end_token_index,
+        "generation_steering_enabled": state.generation_enabled,
+        "layers": list(layers),
+        "alpha_per_layer": alpha_per_layer,
+        "stop_token_ids": sorted(stop_ids),
+    }
+
+
 def generate_with_token_gated_steering(
     model,
     tokenizer,
@@ -364,7 +477,7 @@ def generate_with_token_gated_steering(
     if not input_ids_list:
         raise ValueError("Rendered prompt tokenized to zero tokens.")
 
-    input_device = _model_input_device(model.model)
+    input_device = _model_input_device(model)
     input_ids = torch.tensor([input_ids_list], device=input_device)
     prompt_positions = set(
         chat_role_content_token_positions(
@@ -493,7 +606,87 @@ def _flatten_content(content: Any) -> str:
     return str(content)
 
 
+class _EnableAfterFirstSentenceCriteria(StoppingCriteria):
+    def __init__(self, tokenizer, state: TokenGatedSteeringState) -> None:
+        self.tokenizer = tokenizer
+        self.state = state
+
+    def __call__(
+        self,
+        input_ids: torch.LongTensor,
+        scores: torch.FloatTensor,
+        **kwargs,
+    ) -> bool:
+        if self.state.generation_enabled:
+            return False
+        generated = input_ids[0, self.state.prompt_len:].detach().cpu().tolist()
+        if not generated:
+            return False
+        text = self.tokenizer.decode(
+            generated,
+            skip_special_tokens=False,
+            clean_up_tokenization_spaces=False,
+        )
+        if _has_first_sentence(text):
+            self.state.generation_enabled = True
+            self.state.first_sentence_end_token_index = len(generated) - 1
+        return False
+
+
+def _collect_stop_token_ids(
+    tokenizer,
+    *,
+    eos_token_id: int | Sequence[int] | None = None,
+    stop_token_ids: Sequence[int] | None = None,
+) -> set[int]:
+    stop_ids: set[int] = set(int(x) for x in (stop_token_ids or []) if x is not None)
+    if eos_token_id is not None:
+        if isinstance(eos_token_id, Sequence) and not isinstance(eos_token_id, (str, bytes)):
+            stop_ids.update(int(x) for x in eos_token_id if x is not None)
+        else:
+            stop_ids.add(int(eos_token_id))
+    tok_eos = getattr(tokenizer, "eos_token_id", None)
+    if tok_eos is not None:
+        stop_ids.add(int(tok_eos))
+    for marker in ("<|im_end|>", "<|endoftext|>", "[EOS]"):
+        try:
+            marker_id = tokenizer.convert_tokens_to_ids(marker)
+        except Exception:
+            marker_id = None
+        if isinstance(marker_id, int) and marker_id >= 0:
+            stop_ids.add(marker_id)
+    return stop_ids
+
+
+def _hf_model(model):
+    if hasattr(model, "get_decoder_layers") and hasattr(model, "model"):
+        return model.model
+    return model
+
+
+def _decoder_layers(model):
+    if hasattr(model, "get_decoder_layers"):
+        return model.get_decoder_layers()
+    m = _hf_model(model)
+    if hasattr(m, "layers"):
+        return m.layers
+    if hasattr(m, "model") and hasattr(m.model, "layers"):
+        return m.model.layers
+    if hasattr(m, "language_model") and hasattr(m.language_model, "layers"):
+        return m.language_model.layers
+    if (
+        hasattr(m, "language_model")
+        and hasattr(m.language_model, "model")
+        and hasattr(m.language_model.model, "layers")
+    ):
+        return m.language_model.model.layers
+    raise AttributeError(
+        f"Could not locate decoder layers on {type(m).__name__}."
+    )
+
+
 def _model_input_device(hf_model) -> torch.device:
+    hf_model = _hf_model(hf_model)
     try:
         return hf_model.get_input_embeddings().weight.device
     except Exception:
