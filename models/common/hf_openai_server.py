@@ -18,6 +18,9 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from transformers import AutoModelForCausalLM, AutoProcessor
 
+from probes.contrastive_probe import ContrastiveProbe
+from probes.steering import generate_with_token_gated_steering_generate
+
 
 class ChatCompletionRequest(BaseModel):
     model: str
@@ -30,6 +33,10 @@ class ChatCompletionRequest(BaseModel):
     stream: bool = False
     logprobs: bool | None = None
     extra_body: dict[str, Any] | None = None
+    steering_alpha: float | None = None
+    steering_alpha_per_layer: float | None = None
+    steering_layers: str | list[int] | list[str] | None = None
+    disable_steering: bool | str | None = None
 
 
 class ServerState:
@@ -39,6 +46,9 @@ class ServerState:
         self.served_model_name = ""
         self.max_new_tokens_cap = 2048
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.steering_probe = None
+        self.steering_layers: list[int] = []
+        self.steering_alpha_per_layer = 0.0
 
 
 state = ServerState()
@@ -108,6 +118,84 @@ def _strip_turn_markers(text: str) -> str:
     return text.strip()
 
 
+def _parse_layers(value: Any, default: list[int] | None = None) -> list[int]:
+    if value is None or value == "":
+        return list(default or [])
+    if isinstance(value, str):
+        raw_parts = [part.strip() for part in value.split(",") if part.strip()]
+    elif isinstance(value, (list, tuple)):
+        raw_parts = list(value)
+    else:
+        raw_parts = [value]
+    return [int(part) for part in raw_parts]
+
+
+def _parse_max_memory(value: str | None) -> dict[int | str, str] | None:
+    if not value:
+        return None
+    max_memory: dict[int | str, str] = {}
+    for part in value.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        key, sep, memory = part.partition(":")
+        if not sep:
+            raise ValueError(
+                f"Invalid --max-memory entry {part!r}; expected '<device>:<memory>'"
+            )
+        key = key.strip()
+        memory = memory.strip()
+        max_memory[int(key) if key.isdigit() else key] = memory
+    return max_memory
+
+
+def _as_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+    return bool(value)
+
+
+def _request_extra(request: ChatCompletionRequest) -> dict[str, Any]:
+    extra = dict(request.extra_body or {})
+    for key in (
+        "steering_alpha",
+        "steering_alpha_per_layer",
+        "steering_layers",
+        "disable_steering",
+    ):
+        value = getattr(request, key, None)
+        if value is not None:
+            extra[key] = value
+    return extra
+
+
+def _request_steering_config(
+    request: ChatCompletionRequest,
+) -> tuple[list[int], float] | None:
+    if state.steering_probe is None:
+        return None
+
+    extra = _request_extra(request)
+    if _as_bool(extra.get("disable_steering")):
+        return None
+
+    layers = _parse_layers(extra.get("steering_layers"), state.steering_layers)
+    if not layers:
+        raise HTTPException(
+            status_code=400,
+            detail="steering is enabled, but no steering layers are configured",
+        )
+
+    alpha = extra.get("steering_alpha_per_layer", extra.get("steering_alpha"))
+    if alpha is None:
+        alpha = state.steering_alpha_per_layer
+    return layers, float(alpha)
+
+
 @app.get("/v1/models")
 def models() -> dict[str, Any]:
     return {
@@ -137,45 +225,74 @@ def chat_completions(request: ChatCompletionRequest) -> dict[str, Any]:
     do_sample = temperature > 0.0
 
     messages = _normalize_messages(request.messages)
-    prompt = state.processor.apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=True,
-    )
-    inputs = state.processor(text=prompt, return_tensors="pt")
-    input_len = int(inputs["input_ids"].shape[-1])
-    inputs = _to_device(inputs, _input_device(state.model))
-
-    gen_kwargs: dict[str, Any] = {
-        "max_new_tokens": max_new,
-        "do_sample": do_sample,
-        "pad_token_id": state.processor.tokenizer.pad_token_id,
-        "eos_token_id": state.processor.tokenizer.eos_token_id,
-        "use_cache": True,
-    }
-    if do_sample:
-        gen_kwargs["temperature"] = max(temperature, 1e-5)
+    steering_config = _request_steering_config(request)
 
     choices = []
     total_completion_tokens = 0
-    with torch.inference_mode():
+    prompt_tokens = 0
+
+    if steering_config is None:
+        prompt = state.processor.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        inputs = state.processor(text=prompt, return_tensors="pt")
+        input_len = int(inputs["input_ids"].shape[-1])
+        inputs = _to_device(inputs, _input_device(state.model))
+        prompt_tokens = input_len
+
+        gen_kwargs: dict[str, Any] = {
+            "max_new_tokens": max_new,
+            "do_sample": do_sample,
+            "pad_token_id": state.processor.tokenizer.pad_token_id,
+            "eos_token_id": state.processor.tokenizer.eos_token_id,
+            "use_cache": True,
+        }
+        if do_sample:
+            gen_kwargs["temperature"] = max(temperature, 1e-5)
+
+        with torch.inference_mode():
+            for idx in range(n):
+                output_ids = state.model.generate(**inputs, **gen_kwargs)
+                new_ids = output_ids[0, input_len:]
+                total_completion_tokens += int(new_ids.numel())
+                text = state.processor.tokenizer.decode(
+                    new_ids,
+                    skip_special_tokens=False,
+                    clean_up_tokenization_spaces=False,
+                )
+                text = _strip_stop(_strip_turn_markers(text), request.stop)
+                choices.append({
+                    "index": idx,
+                    "message": {"role": "assistant", "content": text},
+                    "finish_reason": "stop",
+                })
+    else:
+        layers, alpha_per_layer = steering_config
         for idx in range(n):
-            output_ids = state.model.generate(**inputs, **gen_kwargs)
-            new_ids = output_ids[0, input_len:]
-            total_completion_tokens += int(new_ids.numel())
-            text = state.processor.tokenizer.decode(
-                new_ids,
-                skip_special_tokens=False,
-                clean_up_tokenization_spaces=False,
+            result = generate_with_token_gated_steering_generate(
+                state.model,
+                state.processor,
+                messages,
+                state.steering_probe,
+                layers=layers,
+                alpha_per_layer=alpha_per_layer,
+                max_new_tokens=max_new,
+                temperature=temperature,
+                pad_token_id=state.processor.tokenizer.pad_token_id,
+                eos_token_id=state.processor.tokenizer.eos_token_id,
             )
-            text = _strip_stop(_strip_turn_markers(text), request.stop)
+            if idx == 0:
+                prompt_tokens = int(result["prompt_len"])
+            total_completion_tokens += len(result["generated_ids"])
+            text = _strip_stop(_strip_turn_markers(result["text"]), request.stop)
             choices.append({
                 "index": idx,
                 "message": {"role": "assistant", "content": text},
                 "finish_reason": "stop",
             })
 
-    prompt_tokens = input_len
     return {
         "id": f"chatcmpl-{uuid.uuid4().hex}",
         "object": "chat.completion",
@@ -199,6 +316,16 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--dtype", default="bfloat16", choices=["bfloat16", "float16", "float32"])
     parser.add_argument("--device-map", default="auto")
     parser.add_argument("--max-new-tokens-cap", type=int, default=int(os.environ.get("HF_OPENAI_MAX_NEW_TOKENS_CAP", "2048")))
+    parser.add_argument("--max-memory", default=os.environ.get("HF_OPENAI_MAX_MEMORY"))
+    parser.add_argument("--steering-probe-dir", default=os.environ.get("HF_OPENAI_STEERING_PROBE_DIR"))
+    parser.add_argument("--steering-layers", default=os.environ.get("HF_OPENAI_STEERING_LAYERS"))
+    parser.add_argument(
+        "--steering-alpha-per-layer",
+        "--steering-alpha",
+        dest="steering_alpha_per_layer",
+        type=float,
+        default=float(os.environ.get("HF_OPENAI_STEERING_ALPHA_PER_LAYER", "0.0")),
+    )
     parser.add_argument("--trust-remote-code", action="store_true")
     return parser.parse_args()
 
@@ -220,14 +347,37 @@ def main() -> None:
         trust_remote_code=args.trust_remote_code,
         use_fast=True,
     )
-    state.model = AutoModelForCausalLM.from_pretrained(
-        args.model,
-        trust_remote_code=args.trust_remote_code,
-        torch_dtype=dtype,
-        device_map=args.device_map,
-        low_cpu_mem_usage=True,
-    )
+    model_kwargs: dict[str, Any] = {
+        "trust_remote_code": args.trust_remote_code,
+        "torch_dtype": dtype,
+        "device_map": args.device_map,
+        "low_cpu_mem_usage": True,
+    }
+    max_memory = _parse_max_memory(args.max_memory)
+    if max_memory is not None:
+        model_kwargs["max_memory"] = max_memory
+        print(f"Using max_memory={max_memory}", flush=True)
+    state.model = AutoModelForCausalLM.from_pretrained(args.model, **model_kwargs)
     state.model.eval()
+
+    if args.steering_probe_dir:
+        state.steering_probe = ContrastiveProbe.load(args.steering_probe_dir)
+        state.steering_layers = _parse_layers(args.steering_layers)
+        if not state.steering_layers:
+            if state.steering_probe.best_layer is None:
+                raise ValueError(
+                    "--steering-probe-dir was provided, but no --steering-layers "
+                    "were configured and the probe has no best_layer"
+                )
+            state.steering_layers = [int(state.steering_probe.best_layer)]
+        state.steering_alpha_per_layer = float(args.steering_alpha_per_layer)
+        print(
+            "Steering probe loaded: "
+            f"probe_dir={args.steering_probe_dir} "
+            f"layers={state.steering_layers} "
+            f"alpha_per_layer={state.steering_alpha_per_layer}",
+            flush=True,
+        )
 
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 

@@ -36,6 +36,7 @@ New pieces:
 - `token_gated_steering_hook`
 - `chat_role_content_token_positions`
 - `generate_with_token_gated_steering`
+- `generate_with_token_gated_steering_generate`
 
 The implementation tries to:
 
@@ -47,6 +48,26 @@ The implementation tries to:
 - apply additions to one-token cached generation forwards only after
   `generation_enabled=True`;
 - support multi-layer steering with the probe vectors.
+
+The OpenAI-compatible HF server in `models/common/hf_openai_server.py` now has
+an opt-in steering mode. When `--steering-probe-dir` is supplied, every
+`/v1/chat/completions` request uses
+`generate_with_token_gated_steering_generate(...)` unless the request sets
+`disable_steering=true`. Requests may override `steering_alpha`,
+`steering_alpha_per_layer`, or `steering_layers`, which is useful for small
+alpha sweeps without reloading OpenCUA-72B.
+
+The WASP launcher
+`eval_awareness_experiments/launch_opencua72_wasp_full_attacked_with_probes.sh`
+now exposes the server knobs:
+
+```text
+OPENCUA_MAX_MEMORY=0:45GiB,1:45GiB,2:45GiB,3:45GiB,cpu:300GiB
+STEERING_ENABLED=1
+STEERING_PROBE_DIR=...
+STEERING_LAYERS=13,9,11,17,19,20
+STEERING_ALPHA_PER_LAYER=0.6
+```
 
 `probes/model_loader.py` was also changed so `AutoModelForCausalLM` is tried
 first, even for the Qwen2.5-VL/OpenCUA model type. This matters because the HF
@@ -144,6 +165,38 @@ The smoke needed explicit HF `max_memory` caps:
 Without this, `device_map="auto"` packed too much onto one GPU and the hook path
 OOMed during prompt prefill.
 
+### OpenAI Server Smoke
+
+After wiring the helper into the server, a temporary server was started on port
+8012 with:
+
+```text
+CUDA_VISIBLE_DEVICES=0,3,4,5
+--max-memory 0:45GiB,1:45GiB,2:45GiB,3:45GiB,cpu:300GiB
+--steering-probe-dir probes/trained/opencua-72b-chat-template-span/mcq
+--steering-layers 13,9,11,17,19,20
+--steering-alpha-per-layer 0.0
+```
+
+Saved WASP row: `webarena.1002:step_0`, again using `messages[:-1]`.
+
+Three `/v1/chat/completions` requests succeeded:
+
+```text
+disable_steering=true:
+  coherent <think> output about clicking the GitLab comment textbox
+
+steering_alpha_per_layer=+0.6:
+  coherent output through the steering branch; format shifted to "# Think:"
+  and reasoned about adding the required comment
+
+steering_alpha_per_layer=-0.6:
+  coherent <think> output about clicking/focusing the comment textbox
+```
+
+All three returned HTTP 200 with `prompt_tokens=4678` and
+`completion_tokens=96`. The temporary server was stopped cleanly afterward.
+
 ## Important Observation
 
 The baseline WASP transcripts from the real no-steering server run do contain
@@ -186,23 +239,27 @@ last user message, not the full transcript row.
 
 ## Recommended Next Steps
 
-1. Keep the first validation tiny:
+1. Run a small real BrowserGym/WASP task count through the steered server before
+   launching the full 168-task grid, mainly to catch formatting regressions that
+   a single saved prompt cannot expose.
 
-   - one saved real WASP prompt;
-   - unsteered, `alpha=+0.6`, `alpha=-0.6`;
-   - layers `[13, 9, 11, 17, 19, 20]`;
-   - confirm output is coherent before measuring probe/ASR.
-
-2. Next step is to wire `generate_with_token_gated_steering_generate(...)` into
-   the HF OpenAI server path so BrowserGym/WASP can run the same intervention
-   during every LLM call.
-
-3. For a full WASP steering run, apply the intervention every turn:
+2. For a full WASP steering run, apply the intervention every turn:
 
    - steer current user-message content tokens during prefill;
    - skip system/template tokens;
    - skip the first generated sentence;
    - steer generated token forwards after the first sentence.
+
+3. Suggested launch shape:
+
+```bash
+RUN_ID=opencua72_wasp_attacked_steer_toward_$(date -u +%Y%m%d_%H%M%S) \
+STEERING_ENABLED=1 \
+STEERING_ALPHA_PER_LAYER=0.6 \
+bash eval_awareness_experiments/launch_opencua72_wasp_full_attacked_with_probes.sh
+```
+
+Use `STEERING_ALPHA_PER_LAYER=-0.6` for the steer-away condition.
 
 ## Overnight No-Steering WASP Run
 

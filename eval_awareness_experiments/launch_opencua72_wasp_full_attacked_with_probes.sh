@@ -24,10 +24,15 @@ AVG_STEP_TIMEOUT="${AVG_STEP_TIMEOUT:-120}"
 SHUFFLE="${SHUFFLE:-42}"
 OPENCUA_PORT="${OPENCUA_PORT:-8002}"
 CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0,3,4,5}"
+OPENCUA_MAX_MEMORY="${OPENCUA_MAX_MEMORY:-0:45GiB,1:45GiB,2:45GiB,3:45GiB,cpu:300GiB}"
 RELAUNCH_INCOMPLETE="${RELAUNCH_INCOMPLETE:-0}"
 WASP_ASR_CLASSIFIER_MODEL="${WASP_ASR_CLASSIFIER_MODEL:-anthropic/claude-sonnet-4.6}"
 WASP_ASR_CONCURRENCY="${WASP_ASR_CONCURRENCY:-32}"
 WASP_ASR_MAX_STEPS_PER_TASK="${WASP_ASR_MAX_STEPS_PER_TASK:-10}"
+STEERING_ENABLED="${STEERING_ENABLED:-0}"
+STEERING_PROBE_DIR="${STEERING_PROBE_DIR:-$PROBE_DIR}"
+STEERING_LAYERS="${STEERING_LAYERS:-13,9,11,17,19,20}"
+STEERING_ALPHA_PER_LAYER="${STEERING_ALPHA_PER_LAYER:-0.0}"
 
 export HF_HOME="${HF_HOME:-/local_data/group_dir/huggingface}"
 export HF_HUB_CACHE="${HF_HUB_CACHE:-/local_data/group_dir/huggingface/hub}"
@@ -75,10 +80,31 @@ echo "n_tasks=$N_TASKS"
 echo "max_steps=$MAX_STEPS"
 echo "avg_step_timeout=$AVG_STEP_TIMEOUT"
 echo "cuda_visible_devices=$CUDA_VISIBLE_DEVICES"
+echo "opencua_max_memory=${OPENCUA_MAX_MEMORY:-<none>}"
 echo "relaunch_incomplete=$RELAUNCH_INCOMPLETE"
 echo "probe_dir=$PROBE_DIR"
 echo "sad_eval=$SAD_EVAL"
 echo "asr_classifier=$WASP_ASR_CLASSIFIER_MODEL"
+echo "steering_enabled=$STEERING_ENABLED"
+if [[ "$STEERING_ENABLED" = "1" || "$STEERING_ENABLED" = "true" ]]; then
+    echo "steering_probe_dir=$STEERING_PROBE_DIR"
+    echo "steering_layers=$STEERING_LAYERS"
+    echo "steering_alpha_per_layer=$STEERING_ALPHA_PER_LAYER"
+fi
+
+SERVER_MAX_MEMORY_ARGS=()
+if [[ -n "${OPENCUA_MAX_MEMORY:-}" ]]; then
+    SERVER_MAX_MEMORY_ARGS+=(--max-memory "$OPENCUA_MAX_MEMORY")
+fi
+
+SERVER_STEERING_ARGS=()
+if [[ "$STEERING_ENABLED" = "1" || "$STEERING_ENABLED" = "true" ]]; then
+    SERVER_STEERING_ARGS+=(
+        --steering-probe-dir "$STEERING_PROBE_DIR"
+        --steering-layers "$STEERING_LAYERS"
+        --steering-alpha-per-layer "$STEERING_ALPHA_PER_LAYER"
+    )
+fi
 
 if curl -fsS "http://127.0.0.1:${OPENCUA_PORT}/v1/models" >/dev/null 2>&1; then
     echo "[$(date -u --iso-8601=seconds)] reusing existing OpenCUA server on port $OPENCUA_PORT"
@@ -94,6 +120,8 @@ else
             --device-map auto \
             --max-new-tokens-cap 1024 \
             --trust-remote-code \
+            "${SERVER_MAX_MEMORY_ARGS[@]}" \
+            "${SERVER_STEERING_ARGS[@]}" \
             > "$LOG_DIR/hf_openai_server.log" 2>&1 &
     SERVER_PID="$!"
     echo "server_pid=$SERVER_PID"
