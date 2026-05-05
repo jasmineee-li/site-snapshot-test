@@ -285,6 +285,10 @@ def _target_artifact_evidence(
         state_probe = {}
     return {
         "kind": expected.get("action_kind") or state_probe.get("kind"),
+        "state_probe_kind": state_probe.get("kind"),
+        "site": state_probe.get("site"),
+        "forum_name": state_probe.get("forum_name"),
+        "submission_id": state_probe.get("submission_id"),
         "project_id": state_probe.get("project_id"),
         "project_path": state_probe.get("project_path"),
         "file_path": state_probe.get("expected_file_path")

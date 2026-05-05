@@ -32,6 +32,10 @@ def write_scenario_funnel_csv(export: dict[str, Any], path: Path) -> None:
         "created_issue_reconstruction_method",
         "created_issue_artifact_role",
         "target_artifact_kind",
+        "target_artifact_state_probe_kind",
+        "target_artifact_site",
+        "target_artifact_forum_name",
+        "target_artifact_submission_id",
         "target_artifact_project_path",
         "target_artifact_file_path",
         "target_artifact_state_confirmed",
@@ -84,6 +88,10 @@ def _csv_row(export: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
         "created_issue_reconstruction_method": created.get("reconstruction_method"),
         "created_issue_artifact_role": created.get("artifact_role"),
         "target_artifact_kind": target.get("kind"),
+        "target_artifact_state_probe_kind": target.get("state_probe_kind"),
+        "target_artifact_site": target.get("site"),
+        "target_artifact_forum_name": target.get("forum_name"),
+        "target_artifact_submission_id": target.get("submission_id"),
         "target_artifact_project_path": target.get("project_path"),
         "target_artifact_file_path": target.get("file_path"),
         "target_artifact_state_confirmed": target.get("state_confirmed"),
@@ -130,7 +138,12 @@ def _render_markdown(export: dict[str, Any]) -> str:
         metrics = row.get("metrics") if isinstance(row.get("metrics"), dict) else {}
         created = row.get("created_issue") if isinstance(row.get("created_issue"), dict) else {}
         target = row.get("target_artifact") if isinstance(row.get("target_artifact"), dict) else {}
-        target_label = target.get("file_path") or target.get("project_path") or target.get("kind")
+        target_label = (
+            target.get("file_path")
+            or target.get("project_path")
+            or _reddit_target_label(target)
+            or target.get("kind")
+        )
         lines.append(
             "| "
             + " | ".join(
@@ -157,3 +170,14 @@ def _render_markdown(export: dict[str, Any]) -> str:
 def _md_cell(value: Any) -> str:
     text = str(value if value is not None else "")
     return text.replace("|", "\\|").replace("\n", " ")
+
+
+def _reddit_target_label(target: dict[str, Any]) -> str | None:
+    site = target.get("site")
+    forum = target.get("forum_name")
+    submission = target.get("submission_id")
+    if site != "reddit" or not forum:
+        return None
+    if submission:
+        return f"reddit:{forum}/{submission}"
+    return f"reddit:{forum}"
