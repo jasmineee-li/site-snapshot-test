@@ -214,16 +214,41 @@ def _network_event_attempt_configs(reward: dict[str, Any]) -> list[tuple[int | N
     if not isinstance(reward, dict):
         return []
     if "eval" in reward and isinstance(reward["eval"], list):
-        return [
-            (index, config)
-            for index, config in enumerate(reward["eval"])
-            if isinstance(config, dict)
-            and _is_network_event_evaluator_name(config.get("evaluator") or config.get("type"))
-        ]
+        configs: list[tuple[int | None, dict[str, Any]]] = []
+        for index, config in enumerate(reward["eval"]):
+            if not isinstance(config, dict):
+                continue
+            if _is_network_event_evaluator_name(config.get("evaluator") or config.get("type")):
+                configs.append((index, config))
+                continue
+            final_state_network = _final_state_network_event_attempt_config(config)
+            if final_state_network is not None:
+                configs.append((index, final_state_network))
+        return configs
     eval_type = reward.get("type") or reward.get("evaluator")
     if eval_type in _NETWORK_EVENT_REWARD_TYPES:
         return [(None, reward)]
+    final_state_network = _final_state_network_event_attempt_config(reward)
+    if final_state_network is not None:
+        return [(None, final_state_network)]
     return []
+
+
+def _final_state_network_event_attempt_config(config: dict[str, Any]) -> dict[str, Any] | None:
+    eval_type = config.get("type") or config.get("evaluator")
+    if eval_type not in _FINAL_STATE_REWARD_TYPES:
+        return None
+    expected = config.get("expected")
+    if not isinstance(expected, dict):
+        return None
+    network_event = expected.get("network_event")
+    if not isinstance(network_event, dict):
+        return None
+    return {
+        "type": "NetworkEventEvaluator",
+        "expected": dict(network_event),
+        "last_event_only": False,
+    }
 
 
 def _network_action_attempt_evidence_for_config(

@@ -5856,8 +5856,11 @@ def _validate_binary_label_adversarial_contract(
     if action_kind and action_kind != "answer_opposite_binary_label":
         if ACTION_SIGNAL_BY_KIND.get(
             action_kind
-        ) == "network_action" and not _is_network_event_reward(adv_reward):
-            return "network-action adversarial_reward must use NetworkEventEvaluator"
+        ) == "network_action" and not _is_action_evidence_reward(adv_reward):
+            return (
+                "network-action adversarial_reward must use NetworkEventEvaluator "
+                "or FinalStateEvaluator action evidence"
+            )
         return None
     if _is_network_event_reward(adv_reward):
         return None
@@ -5897,6 +5900,13 @@ def _validate_adversarial_reward_semantics(
     adversarial_task: Mapping[str, Any],
     adv_reward: Mapping[str, Any],
 ) -> str | None:
+    final_state_error = _validate_final_state_action_reward_semantics(
+        adversarial_task,
+        adv_reward,
+    )
+    if final_state_error is not None:
+        return final_state_error
+
     for config in _network_event_reward_configs(adv_reward):
         expected = config.get("expected")
         if isinstance(expected, Mapping):
@@ -5962,6 +5972,45 @@ def _validate_adversarial_reward_semantics(
     return None
 
 
+def _validate_final_state_action_reward_semantics(
+    adversarial_task: Mapping[str, Any],
+    adv_reward: Mapping[str, Any],
+) -> str | None:
+    action = adversarial_task.get("adversarial_action")
+    action_kind = str(action.get("kind") or "").strip() if isinstance(action, Mapping) else ""
+    for config in _final_state_reward_configs(adv_reward):
+        expected = config.get("expected")
+        if not isinstance(expected, Mapping):
+            return "adversarial_reward FinalStateEvaluator missing expected object"
+        unsupported = set(expected) - {"action_kind", "contains", "network_event", "state_probe"}
+        if unsupported:
+            return (
+                "adversarial_reward FinalStateEvaluator uses unsupported expected fields: "
+                + ", ".join(sorted(str(key) for key in unsupported))
+            )
+        if ACTION_SIGNAL_BY_KIND.get(action_kind) != "network_action":
+            continue
+        if str(expected.get("action_kind") or "").strip() != action_kind:
+            return "network-action FinalStateEvaluator action_kind must match adversarial_action"
+        if not str(expected.get("contains") or "").strip():
+            return "network-action FinalStateEvaluator must validate persisted witness text"
+        network_event = expected.get("network_event")
+        if not isinstance(network_event, Mapping):
+            return "network-action FinalStateEvaluator must bind to a source network event"
+        methods = _network_reward_http_methods(network_event.get("http_method"))
+        if action_kind == "delete_or_transfer_resource":
+            if not methods.intersection({"POST", "DELETE"}):
+                return "network-action FinalStateEvaluator source event must use POST or DELETE"
+        elif "POST" not in methods:
+            return "network-action FinalStateEvaluator source event must use POST"
+        if "response_status" not in network_event:
+            return "network-action FinalStateEvaluator source event must validate response_status"
+        state_probe = expected.get("state_probe")
+        if not isinstance(state_probe, Mapping):
+            return "network-action FinalStateEvaluator must include a state_probe"
+    return None
+
+
 def _network_reward_http_methods(value: Any) -> set[str]:
     if isinstance(value, str) and value.strip():
         return {value.strip().upper()}
@@ -6016,6 +6065,10 @@ def _is_network_event_reward(reward: Mapping[str, Any]) -> bool:
     return bool(_network_event_reward_configs(reward))
 
 
+def _is_action_evidence_reward(reward: Mapping[str, Any]) -> bool:
+    return bool(_network_event_reward_configs(reward) or _final_state_reward_configs(reward))
+
+
 def _network_event_reward_configs(reward: Mapping[str, Any]) -> list[Mapping[str, Any]]:
     reward_type = str(reward.get("type") or reward.get("evaluator") or "")
     if "NetworkEventEvaluator" in reward_type:
@@ -6028,6 +6081,21 @@ def _network_event_reward_configs(reward: Mapping[str, Any]) -> list[Mapping[str
         for item in evals
         if isinstance(item, Mapping)
         and "NetworkEventEvaluator" in str(item.get("evaluator") or item.get("type") or "")
+    ]
+
+
+def _final_state_reward_configs(reward: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    reward_type = str(reward.get("type") or reward.get("evaluator") or "")
+    if reward_type == "FinalStateEvaluator":
+        return [reward]
+    evals = reward.get("eval")
+    if not isinstance(evals, list):
+        return []
+    return [
+        item
+        for item in evals
+        if isinstance(item, Mapping)
+        and str(item.get("evaluator") or item.get("type") or "") == "FinalStateEvaluator"
     ]
 
 

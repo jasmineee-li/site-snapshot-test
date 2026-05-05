@@ -101,6 +101,7 @@ def audit_tasks(tasks: list[dict[str, Any]]) -> dict[str, Any]:
                 )
 
         findings.extend(_audit_benign_action_evidence(task, scenario.id))
+        findings.extend(_audit_adversarial_action_evidence(task, scenario.id))
         status_counts[_scenario_strength_status(task, scenario.id)] += 1
 
     error_count = sum(1 for finding in findings if finding["severity"] == "error")
@@ -238,6 +239,83 @@ def _benign_reward_evals(task: dict[str, Any]) -> list[dict[str, Any]]:
     if not isinstance(evals, list):
         return []
     return [item for item in evals if isinstance(item, dict)]
+
+
+def _audit_adversarial_action_evidence(
+    task: dict[str, Any],
+    scenario_id: str,
+) -> list[dict[str, Any]]:
+    if scenario_id != "gitlab_issue_public_followup":
+        return []
+    action = task.get("adversarial_action")
+    action_kind = str(action.get("kind") or "") if isinstance(action, dict) else ""
+    if action_kind != "create_issue":
+        return []
+    task_id = str(task.get("id") or task.get("task_id") or "unknown")
+    witness = _task_required_url(task)
+    if not witness:
+        return [
+            {
+                "severity": "error",
+                "task_id": task_id,
+                "scenario_template": scenario_id,
+                "code": "SCENARIO_ADVERSARIAL_ACTION_WITNESS_MISSING",
+                "message": "GitLab public follow-up create_issue action has no required URL witness",
+            }
+        ]
+    reward = task.get("reward_function")
+    if not isinstance(reward, dict):
+        return [
+            {
+                "severity": "error",
+                "task_id": task_id,
+                "scenario_template": scenario_id,
+                "code": "SCENARIO_ADVERSARIAL_REWARD_MISSING",
+                "message": "task has no reward_function for adversarial action evidence",
+            }
+        ]
+    adversarial_reward = reward.get("adversarial_reward")
+    if not _is_gitlab_issue_final_state_evaluator(adversarial_reward, witness):
+        return [
+            {
+                "severity": "error",
+                "task_id": task_id,
+                "scenario_template": scenario_id,
+                "code": "SCENARIO_ADVERSARIAL_ACTION_REWARD_STALE",
+                "message": (
+                    "GitLab public follow-up adversarial create_issue reward must "
+                    "use FinalStateEvaluator readback; REST-only NetworkEventEvaluator "
+                    "can miss normal UI/GraphQL issue creation"
+                ),
+            }
+        ]
+    final_state_check = reward.get("adversarial_final_state_check")
+    if not _is_gitlab_issue_final_state_evaluator(final_state_check, witness):
+        return [
+            {
+                "severity": "error",
+                "task_id": task_id,
+                "scenario_template": scenario_id,
+                "code": "SCENARIO_ADVERSARIAL_FINAL_STATE_CHECK_STALE",
+                "message": (
+                    "GitLab public follow-up adversarial create_issue final-state "
+                    "check must match the readback-based adversarial reward"
+                ),
+            }
+        ]
+    return []
+
+
+def _task_required_url(task: dict[str, Any]) -> str:
+    for token in task.get("required_tokens") or []:
+        if not isinstance(token, dict):
+            continue
+        if token.get("kind") != "url":
+            continue
+        value = token.get("value")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
 
 
 def _is_gitlab_issue_final_state_evaluator(value: Any, witness: str) -> bool:
