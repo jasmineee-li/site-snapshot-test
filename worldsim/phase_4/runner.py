@@ -37,6 +37,9 @@ async def run(args: argparse.Namespace) -> int:
     sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
     agent_provider = getattr(args, "agent_provider", None)
     agent_service_tier = getattr(args, "agent_service_tier", None)
+    agent_llm_timeout = getattr(args, "agent_llm_timeout", None)
+    agent_step_timeout = getattr(args, "agent_step_timeout", None)
+    agent_task_timeout = getattr(args, "agent_task_timeout", None)
 
     benchmark_root = getattr(args, "benchmark", None)
     allow_unknown_auth = bool(getattr(args, "allow_unknown_auth", False))
@@ -58,6 +61,9 @@ async def run(args: argparse.Namespace) -> int:
         sandbox_model=sandbox_model,
         agent_provider=agent_provider,
         agent_service_tier=agent_service_tier,
+        agent_llm_timeout=agent_llm_timeout,
+        agent_step_timeout=agent_step_timeout,
+        agent_task_timeout=agent_task_timeout,
         max_tasks_per_site=max_tasks_per_site,
         sites=sites_filter_raw,
         benchmark_root=benchmark_root,
@@ -388,6 +394,9 @@ async def run(args: argparse.Namespace) -> int:
         model=agent_model,
         provider=agent_provider,
         service_tier=agent_service_tier,
+        llm_timeout=agent_llm_timeout,
+        step_timeout=agent_step_timeout,
+        task_timeout=agent_task_timeout,
     )
     if phase_4_max_workers is not None:
         logger.info("Phase 4 Browser Use worker concurrency cap: %d", phase_4_max_workers)
@@ -447,6 +456,9 @@ async def run(args: argparse.Namespace) -> int:
                     config_url_placeholders=config.url_placeholders,
                     agent_model=agent_model,
                     agent_provider=agent_provider,
+                    agent_llm_timeout=agent_llm_timeout,
+                    agent_step_timeout=agent_step_timeout,
+                    agent_task_timeout=agent_task_timeout,
                     sandbox_model=sandbox_model,
                     benchmark_root=benchmark_root,
                 ),
@@ -485,6 +497,9 @@ async def run(args: argparse.Namespace) -> int:
                 config_url_placeholders=config.url_placeholders,
                 agent_model=agent_model,
                 agent_provider=agent_provider,
+                agent_llm_timeout=agent_llm_timeout,
+                agent_step_timeout=agent_step_timeout,
+                agent_task_timeout=agent_task_timeout,
                 sandbox_model=sandbox_model,
                 benchmark_root=benchmark_root,
             ),

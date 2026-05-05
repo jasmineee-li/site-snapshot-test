@@ -65,6 +65,9 @@ def _phase_4_state_metadata(
     skip_host_bound_storage_state_auth: bool,
     phase_4_max_workers: int | None = None,
     phase_4_variant_budget: str | None = None,
+    agent_llm_timeout: float | None = None,
+    agent_step_timeout: float | None = None,
+    agent_task_timeout: float | None = None,
 ) -> dict[str, Any]:
     metadata: dict[str, Any] = {
         "task_dir_root": str(task_dir_root),
@@ -73,6 +76,9 @@ def _phase_4_state_metadata(
         "sandbox_model": sandbox_model,
         "agent_provider": agent_provider,
         "agent_service_tier": agent_service_tier,
+        "agent_llm_timeout": agent_llm_timeout,
+        "agent_step_timeout": agent_step_timeout,
+        "agent_task_timeout": agent_task_timeout,
         "max_tasks_per_site": max_tasks_per_site,
         "allow_unknown_auth": allow_unknown_auth,
         "skip_host_bound_storage_state_auth": skip_host_bound_storage_state_auth,
@@ -109,6 +115,9 @@ def _phase_4_eval_context(
     agent_provider: str | None,
     sandbox_model: str,
     benchmark_root: Path | None,
+    agent_llm_timeout: float | None = None,
+    agent_step_timeout: float | None = None,
+    agent_task_timeout: float | None = None,
 ) -> dict[str, Any]:
     return {
         "phase": "phase_4_initial_result",
@@ -117,6 +126,9 @@ def _phase_4_eval_context(
         "config_url_placeholders": config_url_placeholders,
         "agent_model": agent_model,
         "agent_provider": agent_provider,
+        "agent_llm_timeout": agent_llm_timeout,
+        "agent_step_timeout": agent_step_timeout,
+        "agent_task_timeout": agent_task_timeout,
         "sandbox_model": sandbox_model,
         "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
     }
@@ -171,12 +183,18 @@ def _phase_4_eval_context_for_task(
     agent_provider: str,
     sandbox_model: str,
     benchmark_root: Path | None,
+    agent_llm_timeout: float | None = None,
+    agent_step_timeout: float | None = None,
+    agent_task_timeout: float | None = None,
 ) -> dict[str, Any]:
     return _phase_4_eval_context(
         instances=_task_reachable_instances(task, instances),
         config_url_placeholders=_task_reachable_placeholders(task, config_url_placeholders),
         agent_model=agent_model,
         agent_provider=agent_provider,
+        agent_llm_timeout=agent_llm_timeout,
+        agent_step_timeout=agent_step_timeout,
+        agent_task_timeout=agent_task_timeout,
         sandbox_model=sandbox_model,
         benchmark_root=benchmark_root,
     )

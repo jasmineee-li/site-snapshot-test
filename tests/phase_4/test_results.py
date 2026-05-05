@@ -1,5 +1,7 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
+from typing import Any
+
 from ._fixtures import *  # noqa: F403,F401
 
 def test_layout_telemetry_records_geometry_bucket():
@@ -14,6 +16,58 @@ def test_layout_telemetry_records_geometry_bucket():
         "requires_expand": True,
         "layout_bucket": "deep",
     }
+
+
+def test_write_phase_4_results_finalizes_progress_json(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    monkeypatch.setattr(phase_4_adversarial.cost_tracker, "log_phase_summary", lambda *_: None)
+    monkeypatch.setattr(phase_4_adversarial.cost_tracker, "save", lambda *_: None)
+
+    rc = phase_4_adversarial._write_phase_4_results(
+        state_dir=tmp_path,
+        state_metadata={
+            "task_dir_root": str(tmp_path / "phase_4" / "run"),
+            "phase_4_max_workers": 2,
+        },
+        final_results=[
+            {"task_id": "task-1", "final_status": "complied", "pvpo_status": "valid"},
+            {"task_id": "task-2", "final_status": "resistant", "pvpo_status": "valid"},
+        ],
+        tasks=[
+            {"id": "task-1", "origin": "new_task"},
+            {"id": "task-2", "origin": "existing_task"},
+        ],
+    )
+
+    assert rc == 0
+    progress = json.loads((tmp_path / "phase_4" / "progress.json").read_text())
+    assert progress["schema_version"] == 1
+    assert progress["status"] == "complete"
+    assert progress["stage"] == "complete"
+    assert progress["results_path"] == str(tmp_path / "phase_4" / "results.json")
+    assert progress["final_status_counts"] == {"complied": 1, "resistant": 1}
+    assert progress["phase_4_max_workers"] == 2
+
+
+def test_write_phase_4_results_ignores_terminal_progress_write_failure(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    monkeypatch.setattr(phase_4_adversarial.cost_tracker, "log_phase_summary", lambda *_: None)
+    monkeypatch.setattr(phase_4_adversarial.cost_tracker, "save", lambda *_: None)
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "write_phase_4_progress",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("disk full")),
+    )
+
+    rc = phase_4_adversarial._write_phase_4_results(
+        state_dir=tmp_path,
+        state_metadata={"task_dir_root": str(tmp_path / "phase_4" / "run")},
+        final_results=[{"task_id": "task-1", "final_status": "error"}],
+        tasks=[{"id": "task-1", "origin": "new_task"}],
+    )
+
+    assert rc == 1
+    assert (tmp_path / "phase_4" / "results.json").exists()
 
 @pytest.mark.asyncio
 async def test_phase_4_requires_contracts_file(monkeypatch, tmp_path):
@@ -162,6 +216,7 @@ async def test_phase_4_sites_filter_limits_token_acquisition(monkeypatch, tmp_pa
         )
     )
     captured_sites: list[str] = []
+    captured_agent_factory_kwargs: dict[str, Any] = {}
 
     def fake_acquire_tokens(instances):
         captured_sites.extend(instance.site_name for instance in instances)
@@ -192,7 +247,11 @@ async def test_phase_4_sites_filter_limits_token_acquisition(monkeypatch, tmp_pa
         "_preflight_host_messages_api",
         lambda **kwargs: asyncio.sleep(0, result=(True, None)),
     )
-    monkeypatch.setattr(phase_4_adversarial, "make_agent_factory", lambda **kwargs: lambda: None)
+    def fake_make_agent_factory(**kwargs):
+        captured_agent_factory_kwargs.update(kwargs)
+        return lambda: None
+
+    monkeypatch.setattr(phase_4_adversarial, "make_agent_factory", fake_make_agent_factory)
     monkeypatch.setattr(phase_4_adversarial, "_load_site_profiles", lambda *args, **kwargs: {})
     monkeypatch.setattr(
         phase_4_adversarial,
@@ -213,6 +272,9 @@ async def test_phase_4_sites_filter_limits_token_acquisition(monkeypatch, tmp_pa
             agent_model="claude-sonnet-4-6",
             agent_provider="anthropic",
             sandbox_model="claude-sonnet-4-6",
+            agent_llm_timeout=30,
+            agent_step_timeout=120,
+            agent_task_timeout=900,
             sites="gitlab",
             resume=False,
         )
@@ -220,3 +282,6 @@ async def test_phase_4_sites_filter_limits_token_acquisition(monkeypatch, tmp_pa
 
     assert rc == 0
     assert captured_sites == ["gitlab"]
+    assert captured_agent_factory_kwargs["llm_timeout"] == 30
+    assert captured_agent_factory_kwargs["step_timeout"] == 120
+    assert captured_agent_factory_kwargs["task_timeout"] == 900

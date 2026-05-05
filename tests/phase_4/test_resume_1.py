@@ -166,6 +166,44 @@ def test_phase_4_result_fingerprint_changes_when_resume_version_changes(monkeypa
 
     assert base != changed
 
+
+def test_phase_4_result_fingerprint_changes_when_agent_timeout_changes():
+    task, instances = _prepared_adv_task()
+    base = phase_4_adversarial._phase_4_result_fingerprint(
+        task,
+        eval_context=phase_4_adversarial._phase_4_eval_context_for_task(
+            task,
+            instances=instances,
+            config_url_placeholders=None,
+            agent_model="claude-sonnet-4-6",
+            agent_provider="anthropic",
+            sandbox_model="claude-sonnet-4-6",
+            benchmark_root=None,
+            agent_llm_timeout=30,
+            agent_step_timeout=120,
+            agent_task_timeout=900,
+        ),
+        site_profile=None,
+    )
+    changed = phase_4_adversarial._phase_4_result_fingerprint(
+        task,
+        eval_context=phase_4_adversarial._phase_4_eval_context_for_task(
+            task,
+            instances=instances,
+            config_url_placeholders=None,
+            agent_model="claude-sonnet-4-6",
+            agent_provider="anthropic",
+            sandbox_model="claude-sonnet-4-6",
+            benchmark_root=None,
+            agent_llm_timeout=45,
+            agent_step_timeout=120,
+            agent_task_timeout=900,
+        ),
+        site_profile=None,
+    )
+
+    assert base != changed
+
 def test_phase_4_variant_fingerprint_changes_when_agent_or_api_auth_changes():
     task, instances = _prepared_adv_task()
     variant = json.loads(json.dumps(task))

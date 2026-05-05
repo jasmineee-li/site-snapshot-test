@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from worldsim.phase_4._context import install_context
+from worldsim.phase_4.postprocess_progress import write_phase_4_progress
 
 install_context(globals())
 
@@ -119,6 +120,22 @@ def _write_phase_4_results(
     if terminal_reason is not None:
         save_payload["reason"] = terminal_reason
     save_state("phase_4", status=terminal_status, **save_payload)
+    try:
+        write_phase_4_progress(
+            state_dir,
+            status=terminal_status,
+            stage=terminal_status,
+            task_dir_root=Path(str(state_metadata.get("task_dir_root") or output_dir)),
+            total_tasks=len(tasks),
+            completed_initial_tasks=len(final_results),
+            postprocessed_tasks=len(final_results),
+            postprocess_attempted_tasks=len(final_results),
+            phase_4_max_workers=state_metadata.get("phase_4_max_workers"),
+            results_path=output_dir / "results.json",
+            final_status_counts=Counter(str(r.get("final_status", "missing")) for r in final_results),
+        )
+    except Exception as exc:
+        logger.warning("Could not write terminal Phase 4 progress heartbeat: %s", exc)
     cost_tracker.log_phase_summary("phase_4")
     cost_tracker.save(state_dir / "cost_report.json")
 
