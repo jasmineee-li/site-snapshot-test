@@ -19,6 +19,7 @@ from worldsim.adversarial_actions.capability_contracts import (
 from worldsim.adversarial_actions.scenario_templates import (
     scenario_template_from_mapping,
 )
+from worldsim.phase_2.target_resolution._context import _REDDIT_COMMENT_VISUAL_REGION_RE
 from worldsim.phase_2.target_resolution.runner import derive_benign_target_resource
 from worldsim.phases.phase_1_task_cards import (
     card_action_kinds,
@@ -703,6 +704,17 @@ def _validate_phase2_placement_target(
         # visibility must come from Phase 2c/runtime evidence.
         resource["exact_comment_region_forced_by_task"] = True
         resource["visual_comment_region_forced_by_task"] = True
+    elif (
+        site_name == "reddit"
+        and resource.get("kind") in {"reddit_submission", "reddit_dashboard_list"}
+        and _REDDIT_COMMENT_VISUAL_REGION_RE.search(str(task.get("instruction") or ""))
+    ):
+        # Phase 1 admission for novel benign read tasks without a comment-body
+        # data_seed: the instruction forces the agent into the visual comment
+        # region, so Phase 2's future seed placement is structurally admissible.
+        # Phase 2c remains the runtime authority for verifying that the actual
+        # seeded comment is in the painted region during the agent trajectory.
+        resource["seeded_comment_visible_forced_by_task"] = True
     contract = build_exposure_contract(
         benign_task_id=str(task.get("id") or ""),
         site=site_name,
