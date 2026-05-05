@@ -8,8 +8,9 @@ Move the browser-sim probe/benchmark working environment to `node3` under:
 - Docker data root: `/local_data/docker`
 - Hugging Face cache: `/local_data/group_dir/huggingface/hub`
 
-Work is currently paused because local GPUs may be free again. Do not start new
-training, vLLM serving, or benchmark runs unless explicitly resumed.
+As of the latest update, the node3 repo/env, model caches, Docker stacks, and
+WASP planted task pools are ready for benchmark work. Do not start new training,
+vLLM serving, or benchmark runs unless explicitly resumed.
 
 ## Current node3 state
 
@@ -21,8 +22,9 @@ training, vLLM serving, or benchmark runs unless explicitly resumed.
 - Existing Docker config preserved the NVIDIA runtime.
 - Old Docker root was moved aside, not deleted:
   - `/var/lib/docker.migrated.20260505011236`
-- Latest observed disk:
-  - `/`: `893G` free
+- Latest observed disk after copying the Python environment, Playwright browsers,
+  models, and Docker state:
+  - `/`: `891G` free
   - `/local_data`: `4.8T` free
 
 Verification:
@@ -48,8 +50,21 @@ Repo is present on node3:
 It was copied from local with large result outputs excluded:
 
 - excluded `eval_awareness_experiments/results/`
-- excluded `.venv/`
 - excluded Python/tool caches
+
+The repo-local Python environment was copied afterwards:
+
+```text
+/local_data/temp/max/browser-sim/.venv  8.3G
+```
+
+Verified on node3:
+
+```text
+Python 3.12.7
+/local_data/temp/max/browser-sim/.venv/bin/python
+agentlab/browsergym/browsergym.webarena imports ok
+```
 
 Observed repo ref:
 
@@ -86,6 +101,27 @@ postmill-populated-exposed-withimg:latest     53.3GB
 shopping_final_0712:latest                    64GB
 shopping_admin_final_0719:latest              9.45GB
 ```
+
+Latest Docker footprint observed with `docker system df`:
+
+```text
+Images          237.2GB
+Containers      223.2GB
+```
+
+There are active containers for the WASP and DoomArena stacks; the container
+size is not all reclaimable without removing those active stacks.
+
+### Playwright Browser Cache
+
+Copied local Playwright browser binaries to node3 so the WASP prompt injector
+can run browser automation without downloading browsers:
+
+```text
+/home/max/.cache/ms-playwright  1.7G
+```
+
+Verified Chromium launch through the repo `.venv`.
 
 ### Model Cache
 
@@ -133,9 +169,9 @@ Health returned HTTP 200 for every GitLab/forum pair:
 | gemini25 | 9241 | 8241 |
 | kimi25 | 9251 | 8251 |
 
-Important: WASP task planting has not been run yet in this node3 setup.
+WASP task planting has been run successfully on all six stacks.
 
-Remaining WASP setup:
+Commands used:
 
 ```bash
 ssh node3
@@ -144,11 +180,24 @@ cd /local_data/temp/max/browser-sim
 PARALLEL=1 ./scripts/wasp_plant_per_model_dockers.sh
 ```
 
-After planting, logs should be in:
+Logs are in:
 
 ```text
 logs/wasp_plant_per_model/
 ```
+
+Final planted task pools:
+
+| stack | final task dir | task JSONs |
+|---|---|---:|
+| glm | `/tmp/wasp_full_glm/webarena_tasks/` | 168 |
+| sonnet | `/tmp/wasp_full_sonnet/webarena_tasks/` | 168 |
+| opus | `/tmp/wasp_full_opus/webarena_tasks/` | 168 |
+| gpt | `/tmp/wasp_full_gpt/webarena_tasks/` | 168 |
+| gemini25 | `/tmp/wasp_full_gemini25/webarena_tasks/` | 168 |
+| kimi25 | `/tmp/wasp_full_kimi25/webarena_tasks/` | 168 |
+
+No WASP planting processes were left running after completion.
 
 ## DoomArena State
 
@@ -194,34 +243,9 @@ is idempotent but will also try to configure existing containers again.
 
 ## Not Done Yet
 
-Do these only if we decide to continue on node3:
+Do these only if we continue on node3:
 
-1. Create or verify Python environment on node3.
-
-   `.venv/` was intentionally not copied. Check what package manager path the
-   repo expects on node3. Likely starting point:
-
-   ```bash
-   cd /local_data/temp/max/browser-sim
-   python -m venv .venv
-   . .venv/bin/activate
-   pip install -e '.[cua]'
-   uv pip install -e external_benchmarks/DoomArena/doomarena/core \
-                  -e external_benchmarks/DoomArena/doomarena/browsergym
-   ```
-
-   Prefer matching the existing local environment if possible before installing
-   from the network.
-
-2. Plant WASP task pools.
-
-   ```bash
-   cd /local_data/temp/max/browser-sim
-   ./scripts/setup_wasp_per_model_dockers.sh health
-   PARALLEL=1 ./scripts/wasp_plant_per_model_dockers.sh
-   ```
-
-3. Start vLLM only if node3 is needed.
+1. Start vLLM only if node3 is needed.
 
    For OpenCUA-72B:
 
@@ -246,7 +270,7 @@ Do these only if we decide to continue on node3:
 
    The wrapper defaults to `PORT=8003`, `TENSOR_PARALLEL_SIZE=1`.
 
-4. Verify benchmark launchers against node3 ports before scaling.
+2. Verify benchmark launchers against node3 ports before scaling.
 
    Useful files:
 
@@ -255,14 +279,14 @@ Do these only if we decide to continue on node3:
    - `scripts/wasp_plant_per_model_dockers.sh`
    - `scripts/run_cua_eval_awareness_matrix.sh`
 
-5. Probe/steering caveat.
+3. Probe/steering caveat.
 
    vLLM is fine for unsteered benchmark runs. Steering/probe intervention in
    browser benchmarks still needs an HF-hook generation path; the existing
    matrix script previously skipped steered WASP/DoomArena cells where that
    harness is absent.
 
-6. Optional cleanup if node3 is not needed soon.
+4. Optional cleanup if node3 is not needed soon.
 
    Stop containers without deleting their writable layers:
 
