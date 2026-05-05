@@ -376,6 +376,8 @@ EOF
 
 ## Gap 10: `_ACTION_REWARD_SIGNALS` constant missing from modular Phase 4
 
+**Status: resolved 2026-05-05 by `5ac93e2e`.** Constant added to `worldsim/phase_4/_context.py`; install_context propagates it to runner.py and the compat shim resolves it transparently.
+
 **What.** Upstream commit `f0d3dd2e fix(phase4): count state-confirmed action readback` defined `_ACTION_REWARD_SIGNALS = frozenset({"network_action", "external_navigation"})` at `worldsim/phases/phase_4_adversarial.py:236`. The constant gates the binary `attack_action_success` computation and the `_final_state_action_success_fields` helper (Gap 11).
 
 **Why.** Without the constant, any callsite that dereferences it raises NameError. Even if the modular layout never reaches the dereference because the helper is also missing (Gap 11), the constant is still needed once Gap 11 is closed.
@@ -396,6 +398,8 @@ git show 38aa2f3095:worldsim/phases/phase_4_adversarial.py | rg -n "_ACTION_REWA
 **Verification.** `rg -n "_ACTION_REWARD_SIGNALS" worldsim/phase_4/` returns the new declaration; downstream callsites that compute `attack_action_success` resolve cleanly under both modular and shim imports.
 
 ## Gap 11: Phase 4 per-task action-evaluation pipeline missing from modular layout
+
+**Status: resolved 2026-05-05 by `270a3a93` (helpers) + `a2e0986b` (call-site wiring).** The six helper functions are now in `worldsim/phase_4/metrics.py` and propagate through `install_context` + the `phase_4_adversarial` compat shim. All five execution.py paths (two seed-preflight error sites, agent-error path, non-interpretable benign-eval error path, main scoreable path) now compute and persist the reward_signal_fields, final_state_fields (where applicable), and tier3_cleanup_fields per upstream behavior. Local pytest 905 green; ruff clean; verify_fast.sh green.
 
 **Status: scope expanded by direct audit 2026-05-05.** The original gap framed the issue as a single missing helper, `_final_state_action_success_fields()`. Direct grep against `worldsim/` shows the modular layout is missing the entire upstream cluster of per-task action-evaluation helpers and their call sites in `execution.py`. Tests pass only because `tests/test_phase_4_result_summary.py` stubs the result fields directly; real Phase 4 production runs would silently report zero numerators for every action-related headline metric.
 
@@ -468,6 +472,8 @@ Each commit body cites the upstream SHA-7s being absorbed and the invariant pres
 
 ## Gap 12: `_FINGERPRINT_RESULT_KEYS` missing action-attempt and state-confirmed keys
 
+**Status: resolved 2026-05-05 by `8370f29a`.** The modular tuple now matches upstream's tuple with the addition of all action-evaluation, final-state, message, pvpo_observation, and infrastructure_retry keys. resume.py crash-resume preserves these fields across restarts. Local pytest 636 green; ruff clean.
+
 **What.** Upstream `_FINGERPRINT_RESULT_KEYS` tuple at `worldsim/phases/phase_4_adversarial.py:2414+` includes:
 - `attack_action_attempted` (added by `9e7fdd38 feat(phase4): report scenario strength metrics`)
 - `attack_action_attempt_reason` (same commit)
@@ -513,6 +519,8 @@ git show 38aa2f3095:worldsim/phases/phase_4_adversarial.py | rg -n "variant_prog
 **Verification.** `rg -n "variant_progress_by_task" worldsim/phase_4/` returns the new wiring. Long-running Phase 4 runs emit per-task variant progress events.
 
 ## Gap 14: Stale `tests/test_phase_4_adversarial.py` reference in `agent_docs/verification.md`
+
+**Status: resolved 2026-05-05 by `1634dab7`.** verification.md:11 now points to existing post-rebase test paths (tests/phase_4 plus the focused tests/test_phase_4_judge_api.py, tests/test_phase_4_variant_api.py, tests/test_phase_4_pvpo_capture.py).
 
 **What.** `agent_docs/verification.md:11` contains an executable code block: `"uv run pytest -x tests/test_phase_4_adversarial.py tests/test_phase_4_pvpo_capture.py -q"`. The file `tests/test_phase_4_adversarial.py` was deleted by PR #10 (verified via `ls` and `git ls-files`).
 
