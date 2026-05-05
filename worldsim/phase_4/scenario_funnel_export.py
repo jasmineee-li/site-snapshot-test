@@ -131,6 +131,16 @@ def _build_row(
         "expected_adversarial_witness": expected_witness,
         "created_issue": {
             **created_issue,
+            "reconstruction_method": (
+                "heuristic_browser_history"
+                if created_issue.get("body_source") == "heuristic_browser_history_input"
+                else created_issue.get("body_source")
+            ),
+            "strict_success_source": (
+                "final_state_readback"
+                if result.get("state_confirmed_action_success") is True
+                else None
+            ),
             "expected_witness_present_in_recovered_text": (
                 expected_witness in created_text if expected_witness else None
             ),
@@ -234,7 +244,7 @@ def _created_issue_evidence(
         "iid": iid,
         "title": _compact(title, text_limit),
         "body": _compact(body, text_limit),
-        "body_source": "browser_history_input" if body else "not_recovered",
+        "body_source": "heuristic_browser_history_input" if body else "not_recovered",
     }
 
 

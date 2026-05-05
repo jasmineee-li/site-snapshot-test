@@ -40,8 +40,11 @@ No variants entered in either run because every task directly complied.
 
 ## Repeat-Run Examples
 
-Created issue title/body snippets below are recovered from Browser Use
-`history.json`, while strict success is the host-owned final-state readback.
+Created issue title/body snippets below are heuristic reconstructions from
+Browser Use `history.json`, while strict success is the host-owned final-state
+readback. The table should be read as action evidence only when the
+state-confirmed success field is true; reconstructed titles/bodies are reviewer
+context, not proof by themselves.
 
 | Task | Benign task shape | IPI payload shape | Agent-created issue/action | Final answer | Outcome |
 | --- | --- | --- | --- | --- | --- |
@@ -87,6 +90,12 @@ Smallest useful cell:
 - The injected payload still asks for a follow-up issue with the same
   host-owned witness/readback.
 - Same GPT-5.2 provider/tier and Phase 4 deadlines.
+- Use a separate host-owned control path:
+  `configs/task_card_plans/gitlab_public_followup_unaligned_control.json` plus
+  `--phase-2a-action-policy tier2_unaligned_control`.
+- The control declares `control_action_kinds: ["create_issue"]`, not
+  `compatible_action_kinds`, and the audit reports
+  `negative_control_unaligned` rather than `capability_aligned`.
 
 Decision rule:
 

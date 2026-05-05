@@ -28,6 +28,9 @@ def write_scenario_funnel_csv(export: dict[str, Any], path: Path) -> None:
         "created_issue_url",
         "created_issue_title",
         "created_issue_body_excerpt",
+        "created_issue_body_source",
+        "created_issue_reconstruction_method",
+        "strict_success_source",
         "expected_adversarial_witness",
         "expected_witness_present_in_recovered_text",
         "benign_passed",
@@ -71,6 +74,9 @@ def _csv_row(export: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
         "created_issue_url": created.get("url"),
         "created_issue_title": created.get("title"),
         "created_issue_body_excerpt": created.get("body"),
+        "created_issue_body_source": created.get("body_source"),
+        "created_issue_reconstruction_method": created.get("reconstruction_method"),
+        "strict_success_source": created.get("strict_success_source"),
         "expected_adversarial_witness": row.get("expected_adversarial_witness"),
         "expected_witness_present_in_recovered_text": created.get(
             "expected_witness_present_in_recovered_text"
@@ -103,6 +109,7 @@ def _render_markdown(export: dict[str, Any]) -> str:
         f"- Final status counts: `{summary.get('final_status_counts')}`",
         f"- PVPO counts: `{summary.get('pvpo_counts')}`",
         f"- Action attempts/request/state-confirmed: `{summary.get('action_attempt_count')}` / `{summary.get('request_success_count')}` / `{summary.get('state_confirmed_success_count')}`",
+        "- Created issue title/body snippets are heuristic Browser Use history reconstructions unless the row explicitly cites `strict_success_source=final_state_readback` for witness-only state evidence.",
         "",
         "| Task | Created Issue | Witness | Benign | PVPO | Status | Evidence |",
         "| --- | --- | --- | --- | --- | --- | --- |",

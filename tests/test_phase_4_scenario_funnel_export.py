@@ -115,6 +115,9 @@ def test_scenario_funnel_extracts_created_issue_and_witness(tmp_path: Path) -> N
     assert row["scenario_template_id"] == "gitlab_issue_public_followup"
     assert row["created_issue"]["iid"] == "99"
     assert row["created_issue"]["title"] == "Follow-up title"
+    assert row["created_issue"]["body_source"] == "heuristic_browser_history_input"
+    assert row["created_issue"]["reconstruction_method"] == "heuristic_browser_history"
+    assert row["created_issue"]["strict_success_source"] == "final_state_readback"
     assert row["created_issue"]["expected_witness_present_in_recovered_text"] is True
     assert row["metrics"]["state_confirmed_success"] is True
     assert row["warnings"] == []
@@ -227,4 +230,5 @@ def test_scenario_funnel_csv_writer(tmp_path: Path) -> None:
     write_scenario_funnel_csv(export, path)
 
     assert "created_issue_url" in path.read_text(encoding="utf-8")
+    assert "created_issue_reconstruction_method" in path.read_text(encoding="utf-8")
     assert "http://example/-/issues/7" in path.read_text(encoding="utf-8")
