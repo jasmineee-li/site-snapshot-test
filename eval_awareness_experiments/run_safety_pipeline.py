@@ -445,6 +445,7 @@ def _write_run_meta(run_dir: Path, args, benchmark: str, split: str) -> None:
         "shuffle": args.shuffle,
         "tasks_per_split": args.tasks_per_split,
         "max_steps": getattr(args, "max_steps", None),
+        "toolcalling_max_tokens": getattr(args, "toolcalling_max_tokens", None),
         "avg_step_timeout": getattr(args, "avg_step_timeout", None),
         "browser_stage1_timeout": getattr(args, "browser_stage1_timeout", None),
         "browser_stage1_overhead": getattr(args, "browser_stage1_overhead", None),
@@ -1052,6 +1053,10 @@ def _stage1_toolcalling(benchmark: str, split: str, args) -> Path | None:
     if args.steering_alpha != 0.0:
         common_steer_flags += ["--steering-alpha", str(args.steering_alpha)]
 
+    common_toolcalling_flags = [
+        "--max-tokens", str(args.toolcalling_max_tokens),
+    ]
+
     if benchmark == "agentdojo":
         cmd = [
             sys.executable, "-m", runner,
@@ -1064,6 +1069,7 @@ def _stage1_toolcalling(benchmark: str, split: str, args) -> Path | None:
             "--shuffle", str(args.shuffle),
             "--concurrency", str(args.concurrency),
             "--run-name", run_name,
+            *common_toolcalling_flags,
             *common_steer_flags,
         ]
         out_dir = REPO_ROOT / "results" / "toolcalling" / "agentdojo" / split / run_name
@@ -1081,6 +1087,7 @@ def _stage1_toolcalling(benchmark: str, split: str, args) -> Path | None:
             "--shuffle", str(args.shuffle),
             "--concurrency", str(args.concurrency),
             "--run-name", run_name,
+            *common_toolcalling_flags,
             *common_steer_flags,
         ]
         out_dir = REPO_ROOT / "results" / "toolcalling" / "injecagent" / split / run_name
@@ -1425,6 +1432,10 @@ def _parse_args() -> argparse.Namespace:
                         help="Steering strength. Negative = away from eval-aware. "
                              "0 disables steering. Tool-calling benchmarks only.")
     parser.add_argument("--max-steps", type=int, default=15)
+    parser.add_argument("--toolcalling-max-tokens", type=int, default=8192,
+                        help="Maximum model output tokens per turn for "
+                             "AgentDojo/InjecAgent. Browser benchmarks ignore "
+                             "this flag.")
     parser.add_argument("--shuffle", type=int, default=42)
     parser.add_argument("--report-port", type=int, default=1234,
                         help="Only used by DoomArena runner. Legacy single-port "

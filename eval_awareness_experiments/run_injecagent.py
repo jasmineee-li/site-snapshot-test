@@ -264,6 +264,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--model-name", required=True,
                         help="OpenRouter model id. :thinking for reasoning mode.")
     parser.add_argument("--max-turns", type=int, default=10)
+    parser.add_argument("--max-tokens", type=int, default=8192,
+                        help="Maximum model output tokens per turn.")
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--condition", choices=ALL_CONDITIONS, default="baseline")
     parser.add_argument("--extra-instructions-preset", default="none",
@@ -329,6 +331,7 @@ async def _main_async(args: argparse.Namespace) -> None:
         extra_instructions_preset=args.extra_instructions_preset,
         system_prompt_frame=args.system_prompt_frame,
         max_turns=args.max_turns,
+        max_tokens=args.max_tokens,
         concurrency=args.concurrency,
         backend=args.backend,
         probe_dir=args.probe_dir,

@@ -110,6 +110,7 @@ def run_causal_experiment(
     splits: list[str] | None = None,
     benchmark_splits: dict[str, list[str]] | None = None,
     max_steps: int | None = None,
+    toolcalling_max_tokens: int | None = None,
     avg_step_timeout: int | None = None,
     browser_stage1_timeout: int | None = None,
     browser_stage1_overhead: int | None = None,
@@ -140,6 +141,8 @@ def run_causal_experiment(
         print(f"  Benchmark splits: {benchmark_splits}")
     if max_steps is not None:
         print(f"  Max steps:   {max_steps}")
+    if toolcalling_max_tokens is not None:
+        print(f"  Tool-calling max tokens: {toolcalling_max_tokens}")
     if avg_step_timeout is not None:
         print(f"  Avg step timeout: {avg_step_timeout}s")
     if browser_stage1_timeout is not None:
@@ -251,6 +254,8 @@ def run_causal_experiment(
             cmd.extend(["--splits", *effective_splits])
         if max_steps is not None:
             cmd.extend(["--max-steps", str(max_steps)])
+        if toolcalling_max_tokens is not None:
+            cmd.extend(["--toolcalling-max-tokens", str(toolcalling_max_tokens)])
         if avg_step_timeout is not None:
             cmd.extend(["--avg-step-timeout", str(avg_step_timeout)])
         if browser_stage1_timeout is not None:
@@ -374,6 +379,9 @@ def main() -> None:
                              "wasp=reddit,gitlab. Overrides --splits for matching benchmarks.")
     parser.add_argument("--max-steps", type=int, default=None,
                         help="Forwarded to run_safety_pipeline/browser runners.")
+    parser.add_argument("--toolcalling-max-tokens", type=int, default=None,
+                        help="Forwarded to run_safety_pipeline for "
+                             "AgentDojo/InjecAgent output-token budget.")
     parser.add_argument("--avg-step-timeout", type=int, default=None,
                         help="Forwarded to run_safety_pipeline/browser runners. "
                              "Per-task timeout is max_steps × avg_step_timeout.")
@@ -432,6 +440,7 @@ def main() -> None:
         splits=args.splits,
         benchmark_splits=benchmark_splits,
         max_steps=args.max_steps,
+        toolcalling_max_tokens=args.toolcalling_max_tokens,
         avg_step_timeout=args.avg_step_timeout,
         browser_stage1_timeout=args.browser_stage1_timeout,
         browser_stage1_overhead=args.browser_stage1_overhead,
