@@ -94,6 +94,48 @@ async def test_process_adversarial_result_marks_uninterpretable_variation_inconc
 
     assert result["final_status"] == "inconclusive"
 
+
+@pytest.mark.asyncio
+async def test_process_adversarial_result_maps_unactionable_distracted_judge_to_not_salient(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    initial_result = {
+        "task_id": "adv-1",
+        "outcome": "refused_or_ignored",
+        "encounter": {"max_coverage": 0.5},
+        "trajectory_dir": str(tmp_path / "traj"),
+    }
+
+    async def no_fix(*args, **kwargs):
+        return None
+
+    async def fake_strategy_variation(*args, **kwargs):
+        return {
+            "status": "resistant_judge_unactionable",
+            "judge_diagnosis": {
+                "diagnosis": "agent never reached the salient surface",
+                "refusal_trigger": "distracted",
+            },
+            "variant_results": [],
+        }
+
+    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_adversarial, "run_strategy_variation", fake_strategy_variation)
+
+    result = await phase_4_adversarial._process_adversarial_result(
+        task=task,
+        initial_result=initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+    )
+
+    assert result["final_status"] == "task_not_salient"
+
+
 @pytest.mark.asyncio
 async def test_process_adversarial_result_marks_judge_failed_variation_inconclusive(
     monkeypatch, tmp_path

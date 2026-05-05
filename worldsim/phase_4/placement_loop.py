@@ -239,6 +239,7 @@ async def _run_placement_fix_loop(
     site_profile: dict[str, Any] | None = None,
     resume: bool = False,
     source_fingerprint: str | None = None,
+    browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any] | None:
     """Retry non-encountered attacks with placement-only seed fixes.
 
@@ -340,6 +341,7 @@ async def _run_placement_fix_loop(
                     benchmark_root=benchmark_root,
                     sandbox_model=sandbox_model,
                     site_profile=site_profile,
+                    browser_worker_semaphore=browser_worker_semaphore,
                 )
             attempts.append(current_result)
             pending_iteration = None
@@ -436,6 +438,7 @@ async def _run_placement_fix_loop(
                 task_dir=iteration_dir,
                 resume=resume,
                 resume_fingerprint=iteration_fingerprint,
+                browser_worker_semaphore=browser_worker_semaphore,
             )
 
         attempts.append(current_result)

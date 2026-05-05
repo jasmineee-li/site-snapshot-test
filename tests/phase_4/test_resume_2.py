@@ -109,15 +109,11 @@ async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeyp
     )
 
     assert result["status"] == "varied"
-    assert result["variant_results"] == [
-        {
-            "task_id": "adv-1",
-            "outcome": "complied",
-            "encounter": {"max_coverage": 0.5},
-            "trajectory_dir": str(variant_dir),
-            "strategy": "specificity",
-        }
-    ]
+    assert result["variant_results"][0]["task_id"] == "adv-1"
+    assert result["variant_results"][0]["outcome"] == "complied"
+    assert result["variant_results"][0]["encounter"] == {"max_coverage": 0.5}
+    assert result["variant_results"][0]["trajectory_dir"] == str(variant_dir)
+    assert result["variant_results"][0]["strategy"] == "specificity"
 
 @pytest.mark.asyncio
 async def test_run_strategy_variation_resume_ignores_saved_variant_result_from_different_instance(

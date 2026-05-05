@@ -102,10 +102,9 @@ async def test_run_strategy_variation_resume_continues_partial_generation_checkp
     )
 
     assert generate_calls == ["authority_framing"]
-    assert result["status"] == "partial_capacity"
-    assert result["skipped_strategies"] == ["authority_framing"]
+    assert result["status"] == "varied"
     saved_checkpoint = json.loads(checkpoint_path.read_text())
-    assert len(saved_checkpoint[phase_4_adversarial._VARIANT_GENERATION_RECORDS_KEY]) == 2
+    assert len(saved_checkpoint[phase_4_adversarial._VARIANT_ROUNDS_KEY][0]["variant_generation_records"]) == 2
 
 
 @pytest.mark.asyncio

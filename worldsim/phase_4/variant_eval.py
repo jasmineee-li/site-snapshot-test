@@ -144,6 +144,7 @@ async def _rerun_adversarial_task(
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
+    browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
     """Run one revised adversarial task against a live benchmark instance."""
     if resume and resume_fingerprint is not None:
@@ -159,24 +160,32 @@ async def _rerun_adversarial_task(
             )
             return prior_result
 
-    agent = agent_factory()
-    bound_task = (
-        task if task_reset_endpoints(task) else bind_task_to_instance(task, instance, all_instances)
-    )
-    try:
-        await agent.setup(instance.site_url)
-        return await run_adversarial_task(
-            bound_task,
-            agent,
-            instance,
-            task_dir,
-            benchmark_root=benchmark_root,
-            sandbox_model=sandbox_model,
-            site_profile=site_profile,
-            resume_fingerprint=resume_fingerprint,
+    async def _run() -> dict[str, Any]:
+        agent = agent_factory()
+        bound_task = (
+            task
+            if task_reset_endpoints(task)
+            else bind_task_to_instance(task, instance, all_instances)
         )
-    finally:
-        await agent.teardown()
+        try:
+            await agent.setup(instance.site_url)
+            return await run_adversarial_task(
+                bound_task,
+                agent,
+                instance,
+                task_dir,
+                benchmark_root=benchmark_root,
+                sandbox_model=sandbox_model,
+                site_profile=site_profile,
+                resume_fingerprint=resume_fingerprint,
+            )
+        finally:
+            await agent.teardown()
+
+    if browser_worker_semaphore is None:
+        return await _run()
+    async with browser_worker_semaphore:
+        return await _run()
 
 async def _evaluate_variant(
     task: dict[str, Any],
@@ -192,6 +201,7 @@ async def _evaluate_variant(
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
+    browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
     variant_dir = task_dir_root / safe_task_path_component(
         f"{task.get('id', 'unknown')}_variant_{index}"
@@ -227,21 +237,31 @@ async def _evaluate_variant(
                 "strategy": strategy.get("strategy"),
             }
 
-    agent = agent_factory()
     try:
-        await agent.setup(instance.site_url)
-        bound_variant = bind_task_to_instance(variant, instance, all_instances)
-        async with task_lock(bound_variant):
-            result = await run_adversarial_task(
-                bound_variant,
-                agent,
-                instance,
-                variant_dir,
-                benchmark_root=benchmark_root,
-                sandbox_model=sandbox_model,
-                site_profile=site_profile,
-                resume_fingerprint=source_fingerprint,
-            )
+        async def _run() -> dict[str, Any]:
+            agent = agent_factory()
+            try:
+                await agent.setup(instance.site_url)
+                bound_variant = bind_task_to_instance(variant, instance, all_instances)
+                async with task_lock(bound_variant):
+                    return await run_adversarial_task(
+                        bound_variant,
+                        agent,
+                        instance,
+                        variant_dir,
+                        benchmark_root=benchmark_root,
+                        sandbox_model=sandbox_model,
+                        site_profile=site_profile,
+                        resume_fingerprint=source_fingerprint,
+                    )
+            finally:
+                await agent.teardown()
+
+        if browser_worker_semaphore is None:
+            result = await _run()
+        else:
+            async with browser_worker_semaphore:
+                result = await _run()
         _write_json_atomic(
             _variant_result_metadata_path(task_dir_root, str(task.get("id", "unknown")), index),
             {_CHECKPOINT_FINGERPRINT_KEY: source_fingerprint},
@@ -259,5 +279,3 @@ async def _evaluate_variant(
             "error": repr(e),
             "strategy": strategy.get("strategy", f"strategy_{index}"),
         }
-    finally:
-        await agent.teardown()

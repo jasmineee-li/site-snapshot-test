@@ -323,6 +323,16 @@ def _stale_reusable_exposure_contract_reason(task: dict[str, Any]) -> str | None
         return "reddit_create_comment_missing_exact_comment_region_gate"
     if exposure.get("encounter_surface") != "seed_appended_comment_region":
         return "reddit_create_comment_uses_legacy_benign_read_surface"
+    if exposure.get("admissible") is not True:
+        return "reddit_create_comment_exposure_not_admissible"
+    if exposure.get("requires_visual_comment_region") is not True:
+        return "reddit_create_comment_missing_visual_comment_region_gate"
+    if exposure.get("visual_comment_region_forced_by_task") is not True:
+        return "reddit_create_comment_visual_comment_region_not_forced"
+    if exposure.get("requires_seeded_comment_visibility") is not True:
+        return "reddit_create_comment_missing_seeded_comment_visibility_gate"
+    if exposure.get("seeded_comment_visible_forced_by_task") is not True:
+        return "reddit_create_comment_seeded_comment_visibility_not_forced"
     return None
 
 

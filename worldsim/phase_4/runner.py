@@ -6,9 +6,11 @@ from __future__ import annotations
 from worldsim.phase_4._context import install_context
 from worldsim.phase_4.postprocess_progress import (
     Phase4ProgressState,
+    completed_task_ids_from_task_dir_root,
     record_postprocess_result,
     record_postprocess_start,
     record_variant_progress,
+    write_phase_4_progress,
 )
 
 install_context(globals())
@@ -389,8 +391,43 @@ async def run(args: argparse.Namespace) -> int:
     )
     if phase_4_max_workers is not None:
         logger.info("Phase 4 Browser Use worker concurrency cap: %d", phase_4_max_workers)
+    browser_worker_semaphore = (
+        asyncio.Semaphore(phase_4_max_workers) if phase_4_max_workers is not None else None
+    )
     reset_cache = TaskResetCache()
     save_state("phase_4", status="running", **state_metadata)
+    completed_initial_task_ids = completed_task_ids_from_task_dir_root(task_dir_root)
+
+    def _write_progress_safely(stage: str, **kwargs: Any) -> None:
+        try:
+            write_phase_4_progress(
+                state_dir,
+                status="running",
+                stage=stage,
+                task_dir_root=task_dir_root,
+                total_tasks=len(tasks),
+                phase_4_max_workers=phase_4_max_workers,
+                **kwargs,
+            )
+        except Exception as exc:
+            logger.warning("Could not write Phase 4 progress heartbeat: %s", exc)
+
+    progress_lock = asyncio.Lock()
+    _write_progress_safely(
+        "initial_evaluation",
+        completed_initial_tasks=len(completed_initial_task_ids),
+    )
+
+    async def _record_initial_result(result: dict[str, Any]) -> None:
+        task_id = result.get("task_id")
+        if not isinstance(task_id, str) or not task_id.strip():
+            return
+        async with progress_lock:
+            completed_initial_task_ids.add(task_id.strip())
+            _write_progress_safely(
+                "initial_evaluation",
+                completed_initial_tasks=len(completed_initial_task_ids),
+            )
     # Thread the benchmark codebase root through so BrowserUseAgent can validate
     # absolute auth_mechanism.storage_state.path values for containment. Relative
     # paths anchor to the WorldSim state dir (where Phase 0d writes), not to
@@ -439,6 +476,7 @@ async def run(args: argparse.Namespace) -> int:
         config_url_placeholders=config.url_placeholders,
         resume=resume,
         max_workers=phase_4_max_workers,
+        result_callback=_record_initial_result,
         resume_fingerprint_builder=lambda task: _phase_4_result_fingerprint(
             task,
             eval_context=_phase_4_eval_context_for_task(
@@ -464,13 +502,23 @@ async def run(args: argparse.Namespace) -> int:
         phase_4_max_workers=phase_4_max_workers,
         phase_4_variant_budget=phase_4_variant_budget,
     )
+    _write_progress_safely(
+        "postprocessing",
+        completed_initial_tasks=len(results),
+    )
 
     async def _postprocess_one_task_with_progress(result: dict[str, Any]) -> dict[str, Any]:
         task_id = str(result.get("task_id", "unknown"))
-        await record_postprocess_start(progress_state, task_id)
+        try:
+            await record_postprocess_start(progress_state, task_id)
+        except Exception as exc:
+            logger.warning("Could not write Phase 4 postprocess-start heartbeat: %s", exc)
 
         async def _record_progress(event: str, data: Mapping[str, Any]) -> None:
-            await record_variant_progress(progress_state, task_id, event, data)
+            try:
+                await record_variant_progress(progress_state, task_id, event, data)
+            except Exception as exc:
+                logger.warning("Could not write Phase 4 variant heartbeat: %s", exc)
 
         try:
             processed = await _postprocess_one_task(
@@ -488,11 +536,18 @@ async def run(args: argparse.Namespace) -> int:
                 ),
                 variant_budget_preset=phase_4_variant_budget,
                 progress_callback=_record_progress,
+                browser_worker_semaphore=browser_worker_semaphore,
             )
         except Exception:
-            await record_postprocess_result(progress_state, task_id, failed=True)
+            try:
+                await record_postprocess_result(progress_state, task_id, failed=True)
+            except Exception as exc:
+                logger.warning("Could not write Phase 4 postprocess-failure heartbeat: %s", exc)
             raise
-        await record_postprocess_result(progress_state, task_id)
+        try:
+            await record_postprocess_result(progress_state, task_id)
+        except Exception as exc:
+            logger.warning("Could not write Phase 4 postprocess-complete heartbeat: %s", exc)
         return processed
 
     raw_postprocessed = await asyncio.gather(

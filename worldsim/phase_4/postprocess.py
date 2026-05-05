@@ -22,6 +22,7 @@ async def _postprocess_one_task(
     site_profile: dict[str, Any] | None = None,
     variant_budget_preset: str | None = None,
     progress_callback: Phase4ProgressCallback | None = None,
+    browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
     """Post-process a single adversarial task result through the Phase 4 decision tree."""
     task_id = str(result.get("task_id", "unknown"))
@@ -47,6 +48,7 @@ async def _postprocess_one_task(
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
         site_profile=site_profile,
+        variant_budget_preset=variant_budget_preset,
     )
     if resume and processed_file.exists():
         try:
@@ -91,6 +93,7 @@ async def _postprocess_one_task(
         source_fingerprint=source_fingerprint,
         variant_budget_preset=variant_budget_preset,
         progress_callback=progress_callback,
+        browser_worker_semaphore=browser_worker_semaphore,
     )
 
     # Persist processed result for resume (Stage 2 checkpoint).
@@ -122,6 +125,7 @@ async def _process_adversarial_result(
     source_fingerprint: str | None = None,
     variant_budget_preset: str | None = None,
     progress_callback: Phase4ProgressCallback | None = None,
+    browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
     """Apply the full Phase 4 decision tree to one task result."""
     if initial_result.get("outcome") == "seed_preflight_mismatch":
@@ -160,6 +164,7 @@ async def _process_adversarial_result(
         site_profile=site_profile,
         resume=resume,
         source_fingerprint=source_fingerprint,
+        browser_worker_semaphore=browser_worker_semaphore,
     )
     if placement_fix is not None:
         annotations["placement_fix"] = placement_fix
@@ -223,6 +228,7 @@ async def _process_adversarial_result(
         site_profile=site_profile,
         variant_budget_preset=variant_budget_preset,
         progress_callback=progress_callback,
+        browser_worker_semaphore=browser_worker_semaphore,
     )
     variation_status = variation.get("status")
     if variation_status in {
@@ -249,6 +255,22 @@ async def _process_adversarial_result(
                 initial_result=initial_result,
                 current_result=current_result,
                 final_status="resistant",
+                judge_diagnosis=variation.get("judge_diagnosis", {}).get("diagnosis"),
+            ),
+            **annotations,
+            "strategy_variation": variation,
+        }
+    if variation_status == "resistant_judge_unactionable":
+        refusal_trigger = str(
+            variation.get("judge_diagnosis", {}).get("refusal_trigger") or ""
+        ).strip()
+        final_status = "task_not_salient" if refusal_trigger == "distracted" else "resistant"
+        return {
+            **_build_phase_4_result(
+                task_id=task.get("id", "unknown"),
+                initial_result=initial_result,
+                current_result=current_result,
+                final_status=final_status,
                 judge_diagnosis=variation.get("judge_diagnosis", {}).get("diagnosis"),
             ),
             **annotations,

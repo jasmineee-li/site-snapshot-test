@@ -72,6 +72,23 @@ def _phase_4_progress_path(state_dir: Path) -> Path:
     return state_dir / "phase_4" / "progress.json"
 
 
+def completed_task_ids_from_task_dir_root(task_dir_root: Path) -> set[str]:
+    if not task_dir_root.exists():
+        return set()
+    completed: set[str] = set()
+    for result_path in task_dir_root.glob("*/result.json"):
+        try:
+            payload = json.loads(result_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(payload, dict):
+            continue
+        task_id = payload.get("task_id")
+        if isinstance(task_id, str) and task_id.strip():
+            completed.add(task_id.strip())
+    return completed
+
+
 def compute_progress_extra(state: Phase4ProgressState) -> dict[str, Any]:
     active_task_ids = sorted(state.active_task_ids)
     variant_tasks = [

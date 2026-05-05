@@ -275,6 +275,7 @@ def _phase_4_postprocess_fingerprint(
     benchmark_root: Path | None,
     sandbox_model: str,
     site_profile: dict[str, Any] | None,
+    variant_budget_preset: str | None = None,
 ) -> str:
     return _fingerprint_payload(
         task,
@@ -288,6 +289,7 @@ def _phase_4_postprocess_fingerprint(
             "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
             "sandbox_model": sandbox_model,
             "site_profile": site_profile,
+            "variant_budget_preset": variant_budget_preset,
         },
     )
 
