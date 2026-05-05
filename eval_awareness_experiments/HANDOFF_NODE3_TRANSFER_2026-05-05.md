@@ -73,6 +73,17 @@ branch: data-import
 HEAD: 430ed62001b46ad3ecdd594aef9d3f7d0b1f840f
 ```
 
+Important repo caveat for the node3 Codex agent:
+
+- The node3 working tree was created by rsync, not by a clean clone.
+- It is intentionally dirty because large tracked result outputs were excluded
+  from the copy and now appear as deleted in `git status`.
+- The current handoff doc was copied directly onto node3, and the doc update
+  was also pushed to `origin/data-import` as commit `01369989`.
+- Do not use `git reset --hard` in this checkout unless the user explicitly
+  decides to discard the rsynced working tree state. If a clean Git checkout is
+  needed, prefer making a separate fresh clone under a new directory.
+
 The rsync included local code/probe files that were untracked locally at the
 time, including:
 
@@ -149,6 +160,8 @@ export HF_HUB_CACHE=/local_data/group_dir/huggingface/hub
 ## WASP State
 
 The six WASP per-model Docker stacks were created and health-checked.
+These are six independent duplicate WASP GitLab/forum site pairs, one pair per
+model stack. They are expected to be up concurrently.
 
 Script used:
 
