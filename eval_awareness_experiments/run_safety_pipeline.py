@@ -1696,7 +1696,21 @@ def main() -> None:
                     f"  WASP ASR annotations → {annotation.get('updated_rows')} rows "
                     f"in {annotation.get('path')}"
                 )
-            manifest["splits"][split]["status"] = "judges_complete"
+            expected_total = int(getattr(args, "tasks_per_split", 0) or 0)
+            if (
+                args.benchmark in TOOLCALLING_BENCHMARKS
+                and expected_total
+                and len(trajectories) < expected_total
+            ):
+                manifest["splits"][split]["status"] = (
+                    f"partial_judges_complete ({len(trajectories)}/{expected_total})"
+                )
+                logger.warning(
+                    f"  {args.benchmark}/{split} judged only "
+                    f"{len(trajectories)}/{expected_total} trajectories"
+                )
+            else:
+                manifest["splits"][split]["status"] = "judges_complete"
 
     asyncio.run(judge_all())
     _write_manifest(manifest, args.output_dir)

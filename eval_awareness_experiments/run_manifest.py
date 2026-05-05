@@ -88,6 +88,75 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     return out
 
 
+def _coerce_bool(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "y"}:
+            return True
+        if normalized in {"false", "0", "no", "n"}:
+            return False
+    return None
+
+
+def _first_bool(*values: Any) -> bool | None:
+    for value in values:
+        coerced = _coerce_bool(value)
+        if coerced is not None:
+            return coerced
+    return None
+
+
+def _sample_key(row: dict[str, Any]) -> str | None:
+    metadata = row.get("metadata") or {}
+    return row.get("sample_id") or metadata.get("task_id")
+
+
+def _aggregate_metadata_metrics(rows: list[dict[str, Any]]) -> dict[str, int]:
+    """Aggregate ASR/task-pass metadata once per judged sample."""
+    by_sample: dict[str, dict[str, bool]] = {}
+    for row in rows:
+        key = _sample_key(row)
+        if not key:
+            continue
+        metadata = row.get("metadata") or {}
+        metrics = by_sample.setdefault(key, {})
+        attack_success = _first_bool(
+            metadata.get("attack_success"),
+            metadata.get("attack_succeeded"),
+        )
+        task_passed = _first_bool(
+            metadata.get("task_passed"),
+            metadata.get("passed"),
+        )
+        if attack_success is not None:
+            metrics["attack_success"] = attack_success
+        if task_passed is not None:
+            metrics["task_passed"] = task_passed
+
+    attack_values = [
+        metrics["attack_success"]
+        for metrics in by_sample.values()
+        if "attack_success" in metrics
+    ]
+    pass_values = [
+        metrics["task_passed"]
+        for metrics in by_sample.values()
+        if "task_passed" in metrics
+    ]
+    return {
+        "n_attack_samples": len(attack_values),
+        "n_attacks": sum(1 for value in attack_values if value),
+        "n_pass_samples": len(pass_values),
+        "n_passes": sum(1 for value in pass_values if value),
+    }
+
+
 def _aggregate_judge_results(jsonl_path: Path) -> dict[str, Any]:
     """Pull headline metrics from the trajectory_awareness_results JSONL.
 
@@ -103,11 +172,14 @@ def _aggregate_judge_results(jsonl_path: Path) -> dict[str, Any]:
         return {
             "n_samples": 0, "n_vea": 0, "n_5pq": 0, "vea_count": 0,
             "align_share": None, "any_eval_share": None,
+            "n_attack_samples": 0, "n_attacks": 0,
+            "n_pass_samples": 0, "n_passes": 0,
         }
 
-    sample_ids = {r.get("sample_id") for r in rows if r.get("sample_id")}
+    sample_ids = {key for r in rows if (key := _sample_key(r))}
     rows_vea = [r for r in rows if r.get("experiment_type") == "trajectory_verbalized_awareness"]
     rows_5pq = [r for r in rows if r.get("experiment_type") == "trajectory_purpose_continue_5q"]
+    metrics = _aggregate_metadata_metrics(rows)
 
     vea_count = sum(
         1 for r in rows_vea
@@ -142,6 +214,7 @@ def _aggregate_judge_results(jsonl_path: Path) -> dict[str, Any]:
         "vea_count": vea_count,
         "align_share": align_share,
         "any_eval_share": any_share,
+        **metrics,
     }
 
 
@@ -149,27 +222,58 @@ def _summarize_trajectories(trajectory_dir: Path) -> dict[str, Any]:
     """Count completed trajectories and aggregate ASR / task-pass.
 
     Trajectory files are typically `<benchmark>/<split>/*.json` (one per task).
-    We open each and pull `attack_succeeded` / `task_passed` if present.
+    We open each and pull ASR / task-pass metadata if present. Browser and
+    tool-calling trajectories use slightly different key names, so accept both.
     """
     if not trajectory_dir.exists():
-        return {"n_trajectories": 0, "n_attacks": 0, "n_passes": 0}
+        return {
+            "n_trajectories": 0,
+            "n_attack_samples": 0, "n_attacks": 0,
+            "n_pass_samples": 0, "n_passes": 0,
+        }
 
     n_traj = 0
     n_attack = 0
+    n_attack_samples = 0
     n_pass = 0
+    n_pass_samples = 0
     for f in trajectory_dir.glob("*.json"):
-        if f.name in ("trajectory_awareness_results.jsonl",):
+        if f.name in ("run_meta.json", "trajectory_awareness_results.jsonl"):
             continue
         try:
             data = json.loads(f.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError):
             continue
         n_traj += 1
-        if data.get("attack_succeeded"):
+
+        metadata = data.get("metadata") or {}
+        attack_value = _first_bool(
+            data.get("attack_succeeded"),
+            data.get("attack_success"),
+            metadata.get("attack_success"),
+            metadata.get("attack_succeeded"),
+        )
+        pass_value = _first_bool(
+            data.get("task_passed"),
+            data.get("passed"),
+            metadata.get("task_passed"),
+            metadata.get("passed"),
+        )
+        if attack_value is not None:
+            n_attack_samples += 1
+        if attack_value:
             n_attack += 1
-        if data.get("task_passed"):
+        if pass_value is not None:
+            n_pass_samples += 1
+        if pass_value:
             n_pass += 1
-    return {"n_trajectories": n_traj, "n_attacks": n_attack, "n_passes": n_pass}
+    return {
+        "n_trajectories": n_traj,
+        "n_attack_samples": n_attack_samples,
+        "n_attacks": n_attack,
+        "n_pass_samples": n_pass_samples,
+        "n_passes": n_pass,
+    }
 
 
 def _scan_cell(
@@ -191,7 +295,9 @@ def _scan_cell(
         "splits": [],
         "n_trajectories": 0,
         "n_attacks": 0,
+        "n_attack_samples": 0,
         "n_passes": 0,
+        "n_pass_samples": 0,
         "n_judged_samples": 0,
         "n_vea": 0,
         "n_5pq": 0,
@@ -210,14 +316,21 @@ def _scan_cell(
             continue
         split_summary = _summarize_trajectories(split_dir)
         split_entry = {"name": split_dir.name, **split_summary, "n_judged_samples": 0}
-        cell["n_trajectories"] += split_summary["n_trajectories"]
-        cell["n_attacks"] += split_summary["n_attacks"]
-        cell["n_passes"] += split_summary["n_passes"]
 
         judge_jsonl = split_dir / "trajectory_awareness_results.jsonl"
         if judge_jsonl.exists():
             agg = _aggregate_judge_results(judge_jsonl)
             split_entry["n_judged_samples"] = agg["n_samples"]
+            split_entry["n_trajectories"] = max(
+                split_entry["n_trajectories"],
+                agg["n_samples"],
+            )
+            if agg["n_attack_samples"]:
+                split_entry["n_attack_samples"] = agg["n_attack_samples"]
+                split_entry["n_attacks"] = agg["n_attacks"]
+            if agg["n_pass_samples"]:
+                split_entry["n_pass_samples"] = agg["n_pass_samples"]
+                split_entry["n_passes"] = agg["n_passes"]
             cell["n_judged_samples"] += agg["n_samples"]
             cell["n_vea"] += agg["n_vea"]
             cell["n_5pq"] += agg["n_5pq"]
@@ -228,6 +341,11 @@ def _scan_cell(
                 cell["align_share"] = agg["align_share"]
             if agg["any_eval_share"] is not None:
                 cell["any_eval_share"] = agg["any_eval_share"]
+        cell["n_trajectories"] += split_entry["n_trajectories"]
+        cell["n_attack_samples"] += split_entry["n_attack_samples"]
+        cell["n_attacks"] += split_entry["n_attacks"]
+        cell["n_pass_samples"] += split_entry["n_pass_samples"]
+        cell["n_passes"] += split_entry["n_passes"]
         cell["splits"].append(split_entry)
 
         # Track latest mtime for "last updated" display.
@@ -294,8 +412,14 @@ def _scan_cell(
     else:
         cell["status"] = "partial"
 
-    cell["asr"] = cell["n_attacks"] / cell["n_trajectories"] if cell["n_trajectories"] else None
-    cell["task_pass_rate"] = cell["n_passes"] / cell["n_trajectories"] if cell["n_trajectories"] else None
+    cell["asr"] = (
+        cell["n_attacks"] / cell["n_attack_samples"]
+        if cell["n_attack_samples"] else None
+    )
+    cell["task_pass_rate"] = (
+        cell["n_passes"] / cell["n_pass_samples"]
+        if cell["n_pass_samples"] else None
+    )
     cell["vea_rate"] = cell["vea_count"] / cell["n_vea"] if cell["n_vea"] else None
     return cell
 

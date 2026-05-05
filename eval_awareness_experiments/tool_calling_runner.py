@@ -59,6 +59,37 @@ AttackEvaluator = Callable[
 ]
 
 
+def _sanitize_openai_schema(schema: Any) -> Any:
+    """Return a provider-compatible copy of an OpenAI tool JSON schema.
+
+    Some benchmark schemas, notably InjecAgent, specify array parameters
+    without `items`. OpenAI/Azure-style providers reject those schemas before
+    the model can run, so fill in a conservative default while preserving the
+    rest of the schema.
+    """
+    if isinstance(schema, list):
+        return [_sanitize_openai_schema(item) for item in schema]
+    if not isinstance(schema, dict):
+        return schema
+
+    sanitized = {
+        key: _sanitize_openai_schema(value)
+        for key, value in schema.items()
+    }
+    schema_type = sanitized.get("type")
+    is_array = (
+        schema_type == "array"
+        or (isinstance(schema_type, list) and "array" in schema_type)
+    )
+    if is_array and "items" not in sanitized:
+        sanitized["items"] = {"type": "string"}
+    return sanitized
+
+
+def _sanitize_openai_tools(tools: list[dict]) -> list[dict]:
+    return [_sanitize_openai_schema(tool) for tool in tools]
+
+
 @dataclass
 class TurnRecord:
     """One model turn: reasoning + either tool_calls or final text.
@@ -215,6 +246,7 @@ class ToolCallingRunner:
         turns: list[TurnRecord] = []
         final_answer = ""
         hit_max_turns = False
+        safe_tools = _sanitize_openai_tools(tools) if tools else []
 
         for turn_idx in range(self.max_turns):
             async def _do_turn():
@@ -222,7 +254,7 @@ class ToolCallingRunner:
                     return await self._client.chat.completions.create(
                         model=self.model_name,
                         messages=messages,
-                        tools=tools if tools else None,
+                        tools=safe_tools if safe_tools else None,
                         max_tokens=self.max_tokens,
                         temperature=self.temperature,
                         **self._extra_kwargs(),
