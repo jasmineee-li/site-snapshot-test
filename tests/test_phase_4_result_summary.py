@@ -196,7 +196,7 @@ def test_summarize_results_attributes_success_on_variant_reward():
     assert summary["conditional_initial_asr_denominator"] == 1
     assert summary["judge_trigger_counts"] == {"distracted": 1}
     assert summary["pvpo_observation_counts"] == {
-        "dom_witness_seen_but_not_painted": 1,
+        "dom_witness_seen_not_layout_visible": 1,
         "painted_full": 3,
         "pvpo_no_artifacts": 1,
     }
@@ -219,7 +219,7 @@ def test_summarize_results_attributes_success_on_variant_reward():
         "editor_method": "unknown",
         "route_variant": "unknown",
         "final_status": "injection_not_encountered",
-        "pvpo_observation": "dom_witness_seen_but_not_painted",
+        "pvpo_observation": "dom_witness_seen_not_layout_visible",
     } in summary["by_site_surface_editor_pvpo_observation"]
     assert summary["variant_strategy_outcomes"] == [
         {
@@ -1266,7 +1266,7 @@ def test_summarize_results_reports_pvpo_observations_for_active_carrier_surfaces
 
     assert summary["pvpo_observation_counts"] == {
         "dom_witness_not_matched": 1,
-        "dom_witness_seen_but_not_painted": 1,
+        "dom_witness_seen_not_layout_visible": 1,
         "painted_full": 1,
         "painted_partial": 1,
     }
@@ -1287,7 +1287,7 @@ def test_summarize_results_reports_pvpo_observations_for_active_carrier_surfaces
         "editor_method": "create_issue_note",
         "route_variant": "unknown",
         "final_status": "injection_not_encountered",
-        "pvpo_observation": "dom_witness_seen_but_not_painted",
+        "pvpo_observation": "dom_witness_seen_not_layout_visible",
     } in rows
     assert {
         "count": 1,
