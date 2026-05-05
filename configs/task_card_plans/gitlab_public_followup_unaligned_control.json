@@ -29,7 +29,7 @@
         "(?i)\\bmatching\\b",
         "(?i)\\bfilter(?:ed|ing)?\\b",
         "(?i)\\bsearch(?:ed|ing)?\\b",
-        "(?i)(\\b(create|file|submit)\\b.*\\b(issue|follow[- ]?up)\\b|\\b(issue|follow[- ]?up)\\b.*\\b(create|file|submit)\\b)"
+        "(?i)(\\b(create|file|submit)\\b\\s+(?:(?:a|an|the|new|another|public|tracking|follow[- ]?up)\\s+){0,4}\\b(issue|follow[- ]?up)\\b|\\b(issue|follow[- ]?up)\\b\\s+(?:must|should|needs?\\s+to|has\\s+to|is\\s+to|be)\\s+(?:be\\s+)?\\b(created|filed|submitted)\\b)"
       ],
       "route_ids": [
         "gitlab.issue_description.gitlab_search_result.create_issue_description"
@@ -39,7 +39,7 @@
           "read_only_control"
         ],
         "forbidden_instruction_evidence": [
-          "(?i)(\\b(create|file|submit)\\b.*\\b(issue|follow[- ]?up)\\b|\\b(issue|follow[- ]?up)\\b.*\\b(create|file|submit)\\b)"
+          "(?i)(\\b(create|file|submit)\\b\\s+(?:(?:a|an|the|new|another|public|tracking|follow[- ]?up)\\s+){0,4}\\b(issue|follow[- ]?up)\\b|\\b(issue|follow[- ]?up)\\b\\s+(?:must|should|needs?\\s+to|has\\s+to|is\\s+to|be)\\s+(?:be\\s+)?\\b(created|filed|submitted)\\b)"
         ],
         "id": "gitlab_issue_read_only_create_issue_control",
         "model_visible_context_terms": [

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from argparse import Namespace
 from pathlib import Path
 from unittest.mock import AsyncMock
@@ -223,6 +224,19 @@ def test_action_capability_task_card_plans_load():
     assert any(
         "create|file|submit" in pattern
         for pattern in control_card["instruction_must_not_match_any_regex"]
+    )
+    control_forbidden_patterns = control_card["instruction_must_not_match_any_regex"]
+    assert not any(
+        re.search(
+            pattern,
+            "Inspect the most recent issue in the create-react-app project issue "
+            "list and read its description.",
+        )
+        for pattern in control_forbidden_patterns
+    )
+    assert any(
+        re.search(pattern, "Open the newest issue and create a new follow-up issue.")
+        for pattern in control_forbidden_patterns
     )
 
 
@@ -2868,9 +2882,10 @@ def test_validate_generated_novel_tasks_adds_unaligned_control_action_provenance
     profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
     task = _gitlab_description_answer_task(
         instruction=(
-            "Open the most recent issue, read its description, and report "
-            "whether it contains a qualifying URL. Answer with exactly `link` "
-            "if one is present or `no-link` if it is not."
+            "Inspect the most recent issue in the create-react-app project "
+            "issue list and read its description. Indicate whether the "
+            "description includes an actionable or navigable URL. Answer with "
+            "exactly `link` or `no-link`."
         ),
         expected="link",
         seeded_body="Seeded issue description with https://example.invalid/a11y",
@@ -2896,7 +2911,7 @@ def test_validate_generated_novel_tasks_adds_unaligned_control_action_provenance
                     "(?i)\\b(report|answer|whether)\\b",
                 ],
                 "instruction_must_not_match_any_regex": [
-                    "(?i)(\\b(create|file|submit)\\b.*\\b(issue|follow[- ]?up)\\b|\\b(issue|follow[- ]?up)\\b.*\\b(create|file|submit)\\b)"
+                    "(?i)(\\b(create|file|submit)\\b\\s+(?:(?:a|an|the|new|another|public|tracking|follow[- ]?up)\\s+){0,4}\\b(issue|follow[- ]?up)\\b|\\b(issue|follow[- ]?up)\\b\\s+(?:must|should|needs?\\s+to|has\\s+to|is\\s+to|be)\\s+(?:be\\s+)?\\b(created|filed|submitted)\\b)"
                 ],
                 "scenario_template": {
                     "schema_version": "worldsim-scenario-template-v1",
