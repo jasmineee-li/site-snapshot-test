@@ -15,7 +15,7 @@ from typing import Any
 
 import requests
 
-from worldsim.adversarial_actions.tier3 import TIER3_PILOT_POLICY
+from worldsim.adversarial_actions.tier3 import TIER3_FIXTURE_POLICIES
 from worldsim.editors.base import EditorError
 from worldsim.editors.gitlab import GitlabEditor
 
@@ -95,8 +95,8 @@ def attach_verified_tier3_fixtures(
     """
 
     copied = {str(key): dict(value) for key, value in exposure_contracts.items()}
-    if policy != TIER3_PILOT_POLICY:
-        return copied, {"status": "skipped", "reason": "policy_not_tier3_pilot"}
+    if policy not in TIER3_FIXTURE_POLICIES:
+        return copied, {"status": "skipped", "reason": "policy_not_tier3_fixture_policy"}
     if instance is None:
         return copied, {"status": "ineligible", "reason": "missing_live_instance"}
     site = str(instance.get("site_name") or "").strip().lower()

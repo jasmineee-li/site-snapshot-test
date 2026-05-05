@@ -305,7 +305,7 @@ On crash, `--resume` reads this file and applies two-branch logic:
 
 **Phase 2**:
 
-- `--phase-2a-action-policy default|semantic_only|mutation_when_available|mutation_only_when_available|tier1_only|tier2_pilot|tier2_unaligned_control|tier3_pilot`
+- `--phase-2a-action-policy default|semantic_only|mutation_when_available|mutation_only_when_available|tier1_only|tier1_unaligned_control|tier2_pilot|tier2_unaligned_control|tier3_pilot|tier3_unaligned_control`
   (default `default`):
   opt-in strategy-planning policy. `default` preserves planner choice among
   compatible action options. `semantic_only` restricts compatible contracts to
@@ -319,9 +319,12 @@ On crash, `--resume` reads this file and applies two-branch logic:
   remain unchanged rather than becoming invalid. `tier2_unaligned_control` is a
   negative-control policy: it exposes a host-declared Tier 2 action through
   `control_action_kinds` while intentionally refusing to mark that action as a
-  compatible benign capability. Control cohorts must be reported separately from
-  `capability_aligned` cohorts and must preserve the same carrier style,
-  adversarial action, PVPO, and readback evidence as the aligned cell they test.
+  compatible benign capability. `tier3_unaligned_control` applies the same
+  control semantics to host-ready Tier 3 fixture-backed actions such as
+  repository-content modification; it is for mechanism probes, not headline
+  sweeps. Control cohorts must be reported separately from `capability_aligned`
+  cohorts and must preserve the same carrier style, adversarial action, PVPO,
+  and readback evidence as the aligned cell they test.
   `tier*_pilot` policies are
   opt-in action-objective strata for controlled security-impact studies and
   must not be used as headline defaults. Historical `wasp_tier*_pilot` aliases
@@ -1024,13 +1027,13 @@ Negative controls use a separate host-owned probe path. A task-card may declare
 `control_action_kinds` to ask whether a model follows an injected action when
 the benign task does not naturally require that capability, but it must not also
 declare `compatible_action_kinds`. Phase 2 can expose these actions only under a
-named control policy such as `tier2_unaligned_control`, and audits must label
-the cohort as `negative_control_unaligned`, not `capability_aligned`. The
-control should keep the adversarial action/readback target, carrier style,
-payload budget, PVPO reporting, and Phase 4 model settings as close as possible
-to the aligned cell. If control ASR remains high, the interpretation changes to
-a broader public-UGC vulnerability rather than evidence that capability
-alignment caused the result.
+named control policy such as `tier2_unaligned_control` or
+`tier3_unaligned_control`, and audits must label the cohort as
+`negative_control_unaligned`, not `capability_aligned`. The control should keep
+the adversarial action/readback target, carrier style, payload budget, PVPO
+reporting, and Phase 4 model settings as close as possible to the aligned cell.
+If control ASR remains high, the interpretation changes to a broader public-UGC
+vulnerability rather than evidence that capability alignment caused the result.
 
 Capability alignment is separate from Phase 4 strategy variation. Phase 4 may
 make a resisted payload more action-contract aware, but it may not repair a

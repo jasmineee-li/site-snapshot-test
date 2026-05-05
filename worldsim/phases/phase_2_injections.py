@@ -2957,7 +2957,7 @@ def _preferred_action_backfill_objective(
 
 
 def _action_policy_requires_ready_options(policy: str) -> bool:
-    return policy in {"tier1_only", "tier2_pilot", "tier3_pilot"}
+    return policy in {"tier1_only", "tier2_pilot", "tier3_pilot", "tier3_unaligned_control"}
 
 
 def _has_ready_action_option(

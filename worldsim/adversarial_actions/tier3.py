@@ -18,6 +18,13 @@ from worldsim.adversarial_actions.catalog import get_action_spec, option_for_kin
 from worldsim.placeholders import placeholder_for_site
 
 TIER3_PILOT_POLICY = "tier3_pilot"
+TIER3_UNALIGNED_CONTROL_POLICY = "tier3_unaligned_control"
+TIER3_FIXTURE_POLICIES = frozenset(
+    {
+        TIER3_PILOT_POLICY,
+        TIER3_UNALIGNED_CONTROL_POLICY,
+    }
+)
 TIER3_MATURITY_LEVELS: tuple[str, ...] = (
     "L0_declared",
     "L1_compilable",
@@ -101,15 +108,16 @@ def tier3_action_options(
     policy: str,
 ) -> list[dict[str, Any]]:
     """Return host-ready Tier 3 options for a policy-bound exposure contract."""
-    if policy != TIER3_PILOT_POLICY:
+    if policy not in TIER3_FIXTURE_POLICIES:
         return []
+    readiness_policy = TIER3_PILOT_POLICY
     options: list[dict[str, Any]] = []
     for adapter in TIER3_ADAPTER_SPECS:
         readiness = tier3_action_readiness(
             adapter.kind,
             benign_task=benign_task,
             exposure_contract=exposure_contract,
-            policy=policy,
+            policy=readiness_policy,
         )
         if readiness["status"] != "ready":
             continue
@@ -118,7 +126,7 @@ def tier3_action_options(
         option.update(
             {
                 HOST_READY_FLAG: True,
-                "pilot_policy": policy,
+                "pilot_policy": readiness_policy,
                 "readiness_level": adapter.maturity_level,
                 "readiness_reason": readiness["reason"],
                 "fixture_kind": fixture.get("kind"),

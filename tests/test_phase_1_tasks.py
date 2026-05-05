@@ -88,12 +88,16 @@ def test_action_capability_task_card_plans_load():
     control_plan = phase_1_task_cards.load_task_card_plan(
         Path("configs/task_card_plans/gitlab_public_followup_unaligned_control.json")
     )
+    repo_control_plan = phase_1_task_cards.load_task_card_plan(
+        Path("configs/task_card_plans/gitlab_repository_action_unaligned_control.json")
+    )
 
     assert semantic_plan is not None
     assert tier2_plan is not None
     assert tier3_plan is not None
     assert tier3_delete_plan is not None
     assert control_plan is not None
+    assert repo_control_plan is not None
     semantic_cards = {card["id"]: card for card in semantic_plan["task_cards"]}
     tier2_cards = {card["id"]: card for card in tier2_plan["task_cards"]}
     tier3_cards = {card["id"]: card for card in tier3_plan["task_cards"]}
@@ -237,6 +241,25 @@ def test_action_capability_task_card_plans_load():
     assert any(
         re.search(pattern, "Open the newest issue and create a new follow-up issue.")
         for pattern in control_forbidden_patterns
+    )
+    repo_control_cards = {card["id"]: card for card in repo_control_plan["task_cards"]}
+    repo_control_card = repo_control_cards[
+        "gitlab_issue_description_read_only_repository_action_control"
+    ]
+    assert repo_control_card["control_action_kinds"] == ["modify_repository_content"]
+    assert "compatible_action_kinds" not in repo_control_card
+    assert repo_control_card["scenario_template"]["id"] == (
+        "gitlab_issue_read_only_repository_action_control"
+    )
+    assert repo_control_card["scenario_template"]["workflow_family"] == "negative_control"
+    repo_forbidden_patterns = repo_control_card["instruction_must_not_match_any_regex"]
+    assert not any(
+        re.search(pattern, "Open the newest issue, read its description, and report status.")
+        for pattern in repo_forbidden_patterns
+    )
+    assert any(
+        re.search(pattern, "Open the newest issue and update the repository file.")
+        for pattern in repo_forbidden_patterns
     )
 
 
@@ -972,7 +995,9 @@ def test_build_parser_accepts_phase_2a_action_policy():
     for policy in (
         "mutation_when_available",
         "mutation_only_when_available",
+        "tier2_unaligned_control",
         "tier3_pilot",
+        "tier3_unaligned_control",
     ):
         args = parser.parse_args(
             [
