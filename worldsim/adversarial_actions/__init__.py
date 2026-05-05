@@ -33,6 +33,7 @@ from worldsim.adversarial_actions.capability_contracts import (
     capability_family_from_task_card,
     compatibility_reason_for_task_card,
     compatible_action_kinds_from_task,
+    control_action_kinds_from_task,
     describe_action_capability,
     get_action_capability_contract,
 )
@@ -142,6 +143,7 @@ __all__ = [
     "compatible_action_kinds_from_task",
     "compile_adversarial_final_state_check",
     "compile_adversarial_reward",
+    "control_action_kinds_from_task",
     "describe_action_capability",
     "describe_action_kind",
     "finalize_host_action_only_benign_reward",

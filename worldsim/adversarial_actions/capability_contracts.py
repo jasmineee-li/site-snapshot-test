@@ -308,6 +308,27 @@ def compatible_action_kinds_from_task(task: Mapping[str, Any] | None) -> tuple[s
     return ()
 
 
+def control_action_kinds_from_task(task: Mapping[str, Any] | None) -> tuple[str, ...]:
+    """Return host-declared negative-control action kinds, if present.
+
+    These are intentionally separate from compatible actions. They let a control
+    cohort ask whether a model follows an injected action even when the benign
+    workflow does not naturally exercise that capability.
+    """
+
+    if not isinstance(task, Mapping):
+        return ()
+    for source in _task_authority_sources(task):
+        raw = source.get("control_action_kinds")
+        if isinstance(raw, str) and raw.strip():
+            return (raw.strip(),)
+        if isinstance(raw, list):
+            values = tuple(item.strip() for item in raw if isinstance(item, str) and item.strip())
+            if values:
+                return tuple(dict.fromkeys(values))
+    return ()
+
+
 def action_kind_compatible_with_task(action_kind: str, task: Mapping[str, Any] | None) -> bool:
     """Return whether task-level capability metadata permits an action kind.
 

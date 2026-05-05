@@ -16,6 +16,7 @@ from worldsim.adversarial_actions.capability_contracts import (
     action_kind_compatible_with_task,
     capability_family_from_task,
     compatible_action_kinds_from_task,
+    control_action_kinds_from_task,
 )
 from worldsim.adversarial_actions.catalog import (
     ACTION_SIGNAL_BY_KIND as _CATALOG_ACTION_SIGNAL_BY_KIND,
@@ -48,6 +49,7 @@ ACTION_POLICIES: tuple[str, ...] = (
     "mutation_only_when_available",
     "tier1_only",
     "tier2_pilot",
+    "tier2_unaligned_control",
     "tier3_pilot",
     "wasp_tier1_only",
     "wasp_tier2_pilot",
@@ -100,6 +102,7 @@ def annotate_exposure_contracts_with_action_policy(
         benign_tasks,
         policy=policy,
     )
+    benign_by_id = {str(task.get("id") or ""): task for task in benign_tasks}
     if policy == "default":
         return annotated
     if policy == "semantic_only":
@@ -113,6 +116,15 @@ def annotate_exposure_contracts_with_action_policy(
     if policy == "mutation_only_when_available":
         for contract in annotated.values():
             _keep_mutation_actions_when_available(contract, policy=policy)
+        return annotated
+    if policy == "tier2_unaligned_control":
+        for task_id, contract in annotated.items():
+            _keep_control_tier_actions(
+                contract,
+                benign_task=benign_by_id.get(str(task_id)),
+                tier=2,
+                policy=policy,
+            )
         return annotated
     normalized_policy = _normalized_tier_policy(policy)
     if normalized_policy is not None:
@@ -244,6 +256,56 @@ def _keep_tier_actions(contract: dict[str, Any], *, tier: int, policy: str) -> N
     }
 
 
+def _keep_control_tier_actions(
+    contract: dict[str, Any],
+    *,
+    benign_task: Mapping[str, Any] | None,
+    tier: int,
+    policy: str,
+) -> None:
+    control_kinds = set(control_action_kinds_from_task(benign_task))
+    options = contract.get("adversarial_action_options")
+    if not control_kinds or not isinstance(options, list):
+        contract["adversarial_action_options"] = []
+        contract["adversarial_action_preference"] = {
+            "policy": policy,
+            "reason": (
+                "Negative-control policy requested, but this task has no "
+                "host-owned control_action_kinds."
+            ),
+        }
+        return
+    control_options = [
+        option
+        for option in options
+        if isinstance(option, Mapping)
+        and str(option.get("kind") or "") in control_kinds
+        and _action_tier(str(option.get("kind") or "")) == tier
+    ]
+    for option in control_options:
+        option["policy"] = policy
+        option["control_condition"] = "unaligned_action_control"
+    if control_options:
+        contract["adversarial_action_options"] = control_options
+        contract["adversarial_action_preference"] = {
+            "kind": control_options[0]["kind"],
+            "policy": policy,
+            "reason": (
+                "Negative-control policy: expose a host-owned Tier 2 action "
+                "that is intentionally not a compatible benign capability."
+            ),
+        }
+        return
+    contract["adversarial_action_options"] = []
+    contract["adversarial_action_preference"] = {
+        "policy": policy,
+        "reason": (
+            f"Negative-control policy requested, but this contract has no Tier {tier} "
+            "editor action matching control_action_kinds."
+        ),
+    }
+
+
 def _action_tier(kind: str) -> int | None:
     spec = get_action_spec(kind)
     return spec.impact_tier if spec is not None else None
@@ -276,8 +338,10 @@ def allowed_action_options(
 
     method = str(exposure_contract.get("editor_method") or "").strip()
     action = _EDITOR_ACTION_BY_METHOD.get(method)
+    control_kinds = set(control_action_kinds_from_task(benign_task))
     if action and (
         policy == "default"
+        or (policy == "tier2_unaligned_control" and action in control_kinds)
         or not _policy_requires_capability_metadata(policy)
         or _task_has_action_capability_metadata(benign_task)
     ):
@@ -289,11 +353,15 @@ def allowed_action_options(
             policy=canonical_action_policy(policy),
         )
     )
-    return _filter_options_for_task_capability(options, benign_task)
+    return _filter_options_for_task_capability(options, benign_task, policy=policy)
 
 
 def _policy_requires_capability_metadata(policy: str) -> bool:
-    if policy in {"mutation_when_available", "mutation_only_when_available"}:
+    if policy in {
+        "mutation_when_available",
+        "mutation_only_when_available",
+        "tier2_unaligned_control",
+    }:
         return True
     return _normalized_tier_policy(policy) is not None
 
@@ -696,7 +764,10 @@ def _allowed_action_kinds(
             kind = str(option.get("kind") or "").strip()
             if not kind:
                 continue
-            if not action_kind_compatible_with_task(kind, benign_task):
+            if option.get("policy") == "tier2_unaligned_control":
+                if kind not in control_action_kinds_from_task(benign_task):
+                    continue
+            elif not action_kind_compatible_with_task(kind, benign_task):
                 continue
             if kind in ACTION_KINDS:
                 allowed.add(kind)
@@ -721,9 +792,18 @@ def _allowed_action_kinds(
 def _filter_options_for_task_capability(
     options: list[dict[str, str]],
     benign_task: Mapping[str, Any] | None,
+    *,
+    policy: str = "default",
 ) -> list[dict[str, str]]:
     if benign_task is None:
         return options
+    if policy == "tier2_unaligned_control":
+        control_kinds = set(control_action_kinds_from_task(benign_task))
+        return [
+            option
+            for option in options
+            if str(option.get("kind") or "") in control_kinds
+        ]
     return [
         option
         for option in options

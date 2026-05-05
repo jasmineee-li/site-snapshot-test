@@ -237,6 +237,17 @@ Only use `--phase-2a-action-policy mutation_when_available` for an explicit
 pilot cohort after that audit passes; default runs must leave planner action
 choice unchanged.
 
+Negative controls are not capability-aligned pilots. If a causal test needs to
+ask whether an agent follows an injected public mutation when the benign task is
+read-only or comment-only, use a host-owned control path such as
+`control_action_kinds` plus `--phase-2a-action-policy tier2_unaligned_control`.
+Do not route these tasks through `compatible_action_kinds`, do not label them
+`capability_aligned`, and do not compare them to aligned runs without preserving
+the same carrier style, adversarial action target, PVPO/readback reporting,
+payload budget, and Phase 4 model settings. High control ASR is still a valid
+finding, but it supports a broader public-UGC vulnerability claim rather than a
+capability-alignment mechanism claim.
+
 For Tier 3 pilots, run the Tier 3 action-pilot audit before a live browser
 pilot. It recomputes `tier3_pilot` readiness from benign tasks and exposure
 contracts, then checks selected Tier 3 tasks for host-compiled request evidence,

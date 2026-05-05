@@ -43,6 +43,7 @@ SCENARIO_TEMPLATE_ALLOWED_FRAMES = frozenset(
         "stale_resource_cleanup",
         "duplicate_resource_cleanup",
         "navigation_reference",
+        "read_only_control",
     }
 )
 

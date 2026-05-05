@@ -24,6 +24,7 @@ from worldsim.phases.phase_1_task_cards import (
     card_benign_reward_shape,
     card_benign_task_family_ids,
     card_capability_family,
+    card_control_action_kinds,
     card_route_ids,
     card_string_list,
     task_card_index,
@@ -48,6 +49,7 @@ _MODEL_AUTHORED_HOST_METADATA_FIELDS = (
     "allowed_action_kinds",
     "benign_reward_shape",
     "compatible_action_kinds",
+    "control_action_kinds",
     "precondition_slot",
     "scenario_context",
     "scenario_template",
@@ -1115,6 +1117,7 @@ def _validate_task_card_alignment(
         provenance["benign_reward_shape"] = reward_shape
     task["task_provenance"] = provenance
     action_kinds = card_action_kinds(card)
+    control_action_kinds = card_control_action_kinds(card)
     capability_family = card_capability_family(card)
     if capability_family:
         task["capability_family"] = capability_family
@@ -1127,6 +1130,13 @@ def _validate_task_card_alignment(
     if action_kinds:
         task["compatible_action_kinds"] = list(action_kinds)
         task["task_provenance"]["compatible_action_kinds"] = list(action_kinds)
+    else:
+        task.pop("compatible_action_kinds", None)
+    if control_action_kinds:
+        task["control_action_kinds"] = list(control_action_kinds)
+        task["task_provenance"]["control_action_kinds"] = list(control_action_kinds)
+    else:
+        task.pop("control_action_kinds", None)
     task.pop("precondition_slot", None)
     reward_shape = card_benign_reward_shape(card)
     if reward_shape == BENIGN_REWARD_HOST_ACTION_ONLY:

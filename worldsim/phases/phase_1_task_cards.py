@@ -24,6 +24,7 @@ from worldsim.adversarial_actions.capability_task_cards import (
     available_capability_task_card_profiles,
     compile_capability_task_card_plan,
 )
+from worldsim.adversarial_actions.catalog import get_action_spec
 from worldsim.adversarial_actions.precondition_slots import validate_precondition_slot
 from worldsim.adversarial_actions.scenario_templates import validate_scenario_template
 
@@ -130,6 +131,18 @@ def validate_task_card_plan(plan: Any) -> None:
                     f"task_cards[{index}].compatible_action_kinds contains "
                     f"incompatible action {action_kind!r}: {reason}"
                 )
+        control_action_kinds = card_control_action_kinds(card)
+        if control_action_kinds and action_kinds:
+            raise TaskCardPlanError(
+                f"task_cards[{index}].control_action_kinds must not be combined "
+                "with compatible_action_kinds"
+            )
+        for action_kind in control_action_kinds:
+            if get_action_spec(action_kind) is None:
+                raise TaskCardPlanError(
+                    f"task_cards[{index}].control_action_kinds contains "
+                    f"unknown action {action_kind!r}"
+                )
         reward_shape = benign_reward_shape_from_task_card(card)
         if reward_shape is not None and reward_shape not in BENIGN_REWARD_SHAPES:
             raise TaskCardPlanError(
@@ -170,6 +183,7 @@ def validate_task_card_plan(plan: Any) -> None:
             "instruction_must_match_all_regex",
             "instruction_must_not_match_any_regex",
             "forbidden_instruction_substrings",
+            "control_action_kinds",
         ):
             _validate_string_array(card, index=index, key=key)
         if "requires_benign_action_evidence" in card and not isinstance(
@@ -282,6 +296,10 @@ def card_capability_family(card: dict[str, Any]) -> str | None:
 
 def card_action_kinds(card: dict[str, Any]) -> tuple[str, ...]:
     return tuple(card_string_list(card, "compatible_action_kinds"))
+
+
+def card_control_action_kinds(card: dict[str, Any]) -> tuple[str, ...]:
+    return tuple(card_string_list(card, "control_action_kinds"))
 
 
 def card_benign_reward_shape(card: dict[str, Any]) -> str | None:
