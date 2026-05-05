@@ -733,6 +733,20 @@ def _pattern_has_admissible_exposure(
     resource = derive_benign_target_resource(task, {placeholder: f"https://{site}.local"})
     _merge_sample_editor_anchors(resource, editor_args)
     resource["allowed_editor_methods"] = [method]
+    if site == "reddit" and method == "create_comment":
+        # Phase 1 asks whether a route is reachable in principle by some
+        # admissible task; Phase 2c asks whether a specific generated task
+        # forces the appended-comment region. The reddit comment-body capability
+        # gate at phase_2_exposure_contract::_appended_comment_exposure_capability
+        # requires visual + seeded-comment forcing on the resource, which a
+        # generic probe cannot supply. Simulate maximum task-side forcing here
+        # so the structural admissibility check does not collapse on flags only
+        # a real task instruction can satisfy. Phase 2c task validation in
+        # phase_1_generate_new_tasks_validation continues to enforce the visual
+        # and seeded-comment gates on real tasks.
+        resource["exact_comment_region_forced_by_task"] = True
+        resource["visual_comment_region_forced_by_task"] = True
+        resource["seeded_comment_visible_forced_by_task"] = True
     contract = build_exposure_contract(
         benign_task_id=str(task["id"]),
         site=site,

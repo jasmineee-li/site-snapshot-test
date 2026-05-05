@@ -656,6 +656,24 @@ def _validate_agent_response_instruction_deliverable(
     )
 
 
+def _task_route_targets_reddit_comment_body(task: Mapping[str, Any]) -> bool:
+    route_id = task.get("route_id")
+    if isinstance(route_id, str) and route_id.startswith("reddit.comment_body."):
+        return True
+    seed = task.get("data_seed")
+    if isinstance(seed, Mapping) and seed.get("mechanism") == "editor":
+        calls = seed.get("editor_calls")
+        if isinstance(calls, list):
+            for call in calls:
+                if not isinstance(call, Mapping):
+                    continue
+                if str(call.get("site") or "").strip().lower() != "reddit":
+                    continue
+                if str(call.get("method") or "").strip() == "create_comment":
+                    return True
+    return False
+
+
 def _validate_phase2_placement_target(
     task: dict[str, Any],
     *,
@@ -678,6 +696,19 @@ def _validate_phase2_placement_target(
     placeholders = {placeholder: f"https://{site_name}.local"}
     resource = derive_benign_target_resource(task, placeholders)
     _merge_route_contract_editor_anchors(resource, task, route_index)
+    if site_name == "reddit" and _task_route_targets_reddit_comment_body(task):
+        # The reddit comment-body capability gate at
+        # phase_2_exposure_contract::_appended_comment_exposure_capability
+        # requires visual + seeded-comment forcing on the resource. Phase 1
+        # owns instruction-quality enforcement separately via the route
+        # contract's instruction_requirements (ROUTE_INSTRUCTION_TOO_WEAK
+        # rejects weak phrasing such as "latest comment" or generic mentions).
+        # Treat any task that selected the reddit comment-body route as
+        # capability-admissible at exposure time so the exposure contract does
+        # not double-gate on instruction phrasing the resource cannot infer.
+        resource["exact_comment_region_forced_by_task"] = True
+        resource["visual_comment_region_forced_by_task"] = True
+        resource["seeded_comment_visible_forced_by_task"] = True
     contract = build_exposure_contract(
         benign_task_id=str(task.get("id") or ""),
         site=site_name,

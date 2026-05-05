@@ -7,6 +7,7 @@ from worldsim.phase_2.target_resolution._context import install_context
 
 install_context(globals())
 
+
 def _l3_probe_coherence_error(kind: str, probe_query: Mapping[str, Any]) -> str | None:
     """Return a human-readable mismatch reason if api/kind are incoherent.
 
@@ -29,9 +30,11 @@ def _l3_probe_coherence_error(kind: str, probe_query: Mapping[str, Any]) -> str 
         )
     return None
 
+
 def _l3_listing_source_kind(kind: str, probe_query: Mapping[str, Any]) -> str | None:
     api = str(probe_query.get("api") or "").strip()
     return _L3_LISTING_SOURCE_FOR_API.get(api, {}).get(kind)
+
 
 def _route_evidence_flags(kind: ResourceKind | str, task: Mapping[str, Any]) -> dict[str, bool]:
     instruction = str(task.get("instruction") or "")
@@ -54,7 +57,14 @@ def _route_evidence_flags(kind: ResourceKind | str, task: Mapping[str, Any]) -> 
         ):
             flags["transition_forced_by_task"] = True
             flags["exact_comment_region_forced_by_task"] = True
+    if kind in {"reddit_submission", "reddit_dashboard_list"}:
+        if _REDDIT_COMMENT_VISUAL_REGION_RE.search(instruction):
+            flags["transition_forced_by_task"] = True
+            flags["exact_comment_region_forced_by_task"] = True
+            flags["visual_comment_region_forced_by_task"] = True
+            flags["seeded_comment_visible_forced_by_task"] = True
     return flags
+
 
 def _title_surface_forced_by_instruction(instruction: str) -> bool:
     """Return True when a title row is part of the benign task's goal."""
@@ -63,6 +73,7 @@ def _title_surface_forced_by_instruction(instruction: str) -> bool:
     if _LISTING_PAGE_ONLY_RE.search(instruction):
         return False
     return _LISTING_ROW_ACTION_RE.search(instruction) is not None
+
 
 def _transition_forced_by_l3_task(task: Mapping[str, Any], *, kind: str) -> bool:
     """Heuristic guard for L3 concrete items selected from listings.
@@ -103,6 +114,7 @@ def _transition_forced_by_l3_task(task: Mapping[str, Any], *, kind: str) -> bool
         )
     return False
 
+
 def _l3_listing_entry_url(
     *,
     site_kind: Literal[gitlab, reddit],
@@ -134,6 +146,7 @@ def _l3_listing_entry_url(
             return f"{origin}/f/{forum_name}"
     return resolved_start
 
+
 def _origin_from_resolved_start_or_placeholders(
     site_kind: Literal[gitlab, reddit],
     resolved_start: str | None,
@@ -150,6 +163,7 @@ def _origin_from_resolved_start_or_placeholders(
         if parsed.scheme and parsed.netloc:
             return f"{parsed.scheme}://{parsed.netloc}"
     return None
+
 
 def _preserve_l3_listing_provenance(
     record: dict[str, Any],
@@ -184,6 +198,7 @@ def _preserve_l3_listing_provenance(
     if _transition_forced_by_l3_task(task, kind=kind):
         record["transition_forced_by_task"] = True
 
+
 def _build_l3_user_prompt(task: Mapping[str, Any]) -> str:
     """Render the task context fed to the L3 classifier."""
     instruction = str(task.get("instruction") or "").strip()
@@ -208,11 +223,13 @@ def _build_l3_user_prompt(task: Mapping[str, Any]) -> str:
         'kind="out_of_scope_for_option_a" with a short note explaining why.'
     )
 
+
 def _consume_l3_failure_class() -> str | None:
     """Read and clear the most recent classifier failure class for this context."""
     value = _l3_failure_class_var.get()
     _l3_failure_class_var.set(None)
     return value
+
 
 async def resolve_l3(
     task: Mapping[str, Any],
