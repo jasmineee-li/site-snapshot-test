@@ -407,11 +407,11 @@ async def run(args: argparse.Namespace) -> int:
     save_state("phase_4", status="running", **state_metadata)
     completed_initial_task_ids = completed_task_ids_from_task_dir_root(task_dir_root)
 
-    def _write_progress_safely(stage: str, **kwargs: Any) -> None:
+    def _write_progress_safely(stage: str, *, status: str = "running", **kwargs: Any) -> None:
         try:
             write_phase_4_progress(
                 state_dir,
-                status="running",
+                status=status,
                 stage=stage,
                 task_dir_root=task_dir_root,
                 total_tasks=len(tasks),
@@ -581,6 +581,14 @@ async def run(args: argparse.Namespace) -> int:
         final_results.append(processed)
 
     if postprocess_failures:
+        _write_progress_safely(
+            "postprocess_exception",
+            status="failed",
+            completed_initial_tasks=len(results),
+            postprocessed_tasks=len(final_results),
+            postprocess_attempted_tasks=len(final_results) + len(postprocess_failures),
+            postprocess_failed_tasks=len(postprocess_failures),
+        )
         save_state(
             "phase_4",
             status="failed",
