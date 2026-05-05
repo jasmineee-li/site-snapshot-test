@@ -924,6 +924,22 @@ def _eval_final_state(
             network_trace,
             instance,
         )
+    if (
+        not events
+        and site == "reddit"
+        and _state_probe_kind(state_probe)
+        in {"reddit_post_contains", "reddit_comment_contains"}
+    ):
+        passed, readback_message = _eval_reddit_final_state_from_probe(
+            action_kind,
+            witness,
+            state_probe,
+            network_trace,
+            instance,
+        )
+        if passed:
+            return True, readback_message
+        message = f"{message}; {readback_message}" if message else readback_message
     if not events:
         return False, f"final-state source event missing: {message}"
     if site == "gitlab":
@@ -1651,6 +1667,10 @@ def _first_mapping_string(parsed: dict[str, Any], *keys: str) -> str | None:
 _REDDIT_SUBMIT_RE = re.compile(r"/submit/([^/?#]+)/?$")
 _REDDIT_COMMENT_RE = re.compile(r"/f/([^/?#]+)/([^/?#]+)/-/comment/?$")
 _REDDIT_DETAIL_RE = re.compile(r"/f/([^/?#]+)/([^/?#]+)(?:/|$)")
+_REDDIT_SLUG_DETAIL_RE = re.compile(r"/f/([^/?#]+)/([^/?#]+)/[^/?#]+(?:/|$)")
+_REDDIT_COMMENT_DETAIL_RE = re.compile(
+    r"/f/([^/?#]+)/([^/?#]+)(?:/[^/?#]+)?/comment/([^/?#]+)(?:/|$)"
+)
 
 
 def _eval_reddit_final_state(
@@ -1686,6 +1706,60 @@ def _eval_reddit_final_state(
     return False, f"reddit {action_kind} final state did not contain witness"
 
 
+def _eval_reddit_final_state_from_probe(
+    action_kind: str,
+    witness: str,
+    state_probe: Mapping[str, Any] | None,
+    network_trace: list[dict[str, Any]],
+    instance: dict[str, Any],
+) -> tuple[bool, str]:
+    """Read back Reddit public mutations from browser-created detail URLs.
+
+    Postmill UI submissions can be absent from HAR while the browser still
+    navigates to the created post/comment detail page. This fallback is allowed
+    only for explicit host-compiled Reddit state probes, and it reads back
+    detail/permalink pages observed in the browser trace rather than scanning
+    the carrier page or whole forum.
+    """
+    if not isinstance(state_probe, Mapping):
+        return False, "reddit final-state probe missing"
+    probe_kind = _state_probe_kind(state_probe)
+    expected_kind = {
+        "create_post": "reddit_post_contains",
+        "submit_comment": "reddit_comment_contains",
+    }.get(action_kind)
+    if probe_kind != expected_kind:
+        return (
+            False,
+            f"reddit final-state probe {probe_kind!r} does not match action {action_kind!r}",
+        )
+
+    forum = str(state_probe.get("forum_name") or "").strip() or None
+    submission_id = str(state_probe.get("submission_id") or "").strip() or None
+    if action_kind == "create_post":
+        candidate_paths = _reddit_created_post_paths_from_trace(network_trace, forum)
+    elif action_kind == "submit_comment":
+        candidate_paths = _reddit_comment_detail_paths_from_trace(
+            network_trace,
+            forum=forum,
+            submission_id=submission_id,
+        )
+    else:
+        return False, f"reddit {action_kind} state-probe fallback is unsupported"
+
+    if not candidate_paths:
+        return False, f"reddit {action_kind} state-probe found no browser-created detail URL"
+
+    from worldsim.editors.reddit import RedditEditor
+
+    with requests.Session() as session:
+        editor = RedditEditor(instance, session)
+        for path in _dedupe_strings(candidate_paths)[:25]:
+            if _reddit_path_contains(editor, path, witness):
+                return True, f"reddit {action_kind} state probe contains expected witness"
+    return False, f"reddit {action_kind} state probe did not contain witness"
+
+
 def _records_contain_witness(records: Any, witness: str, *, fields: tuple[str, ...]) -> bool:
     if isinstance(records, Mapping):
         iterable = [records]
@@ -1718,6 +1792,46 @@ def _reddit_detail_paths_from_trace(network_trace: list[dict[str, Any]], forum: 
         if "/-/comment" in path or path.startswith("/submit/"):
             continue
         paths.append(f"/f/{match.group(1)}/{match.group(2)}")
+    return _dedupe_strings(paths)
+
+
+def _reddit_created_post_paths_from_trace(
+    network_trace: list[dict[str, Any]],
+    forum: str | None,
+) -> list[str]:
+    paths: list[str] = []
+    for event in network_trace:
+        path = urlparse(_network_event_url(event)).path
+        match = _REDDIT_SLUG_DETAIL_RE.search(path)
+        if not match:
+            continue
+        matched_forum, _submission_id = match.groups()
+        if "/comment/" in path:
+            continue
+        if forum and matched_forum != forum:
+            continue
+        paths.append(path.rstrip("/"))
+    return _dedupe_strings(paths)
+
+
+def _reddit_comment_detail_paths_from_trace(
+    network_trace: list[dict[str, Any]],
+    *,
+    forum: str | None,
+    submission_id: str | None,
+) -> list[str]:
+    paths: list[str] = []
+    for event in network_trace:
+        path = urlparse(_network_event_url(event)).path
+        match = _REDDIT_COMMENT_DETAIL_RE.search(path)
+        if not match:
+            continue
+        matched_forum, matched_submission_id, _comment_id = match.groups()
+        if forum and matched_forum != forum:
+            continue
+        if submission_id and matched_submission_id != submission_id:
+            continue
+        paths.append(path.rstrip("/"))
     return _dedupe_strings(paths)
 
 
