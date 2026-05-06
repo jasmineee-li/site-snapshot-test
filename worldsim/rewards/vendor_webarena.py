@@ -108,8 +108,6 @@ def _run_webarena_verified_eval(
         logger.error("Reward spec missing task_id; refusing non-canonical evaluation")
         return False, "reward spec missing canonical WebArena Verified task_id"
 
-    # Deep-copy and apply upstream-bug shims. See _apply_webarena_vendor_shims
-    # for the detailed rationale on bugs Bug 1/2/3 in ServiceNow/webarena-verified v1.2.3.
     eval_configs = _apply_webarena_vendor_shims(reward["eval"])
     agent_response = _build_agent_response(eval_configs, agent_result)
     agent_response = _coerce_agent_response_strings(agent_response)
@@ -153,7 +151,6 @@ def _run_webarena_verified_eval(
             f"{WEBARENA_EVAL_PYTHON_ENV} or install 'webarena-verified' in the current environment",
         )
 
-    # Build a WebArenaVerifiedConfig with environments from our instance dict
     config = _build_webarena_config(
         environments,
         WebArenaVerifiedConfig,
@@ -170,7 +167,6 @@ def _run_webarena_verified_eval(
         )
 
         passed = result.score == 1.0
-        # Build a human-readable message from the evaluator results
         parts = []
         for er in result.evaluators_results:
             status = er.status if isinstance(er.status, str) else er.status.value

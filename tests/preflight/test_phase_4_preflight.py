@@ -153,7 +153,10 @@ def test_gitlab_storage_state_present() -> None:
 def test_eval_venv_reachable() -> None:
     """The worldsim-webarena-verified evaluator venv must resolve + import."""
     try:
-        from worldsim.rewards import WEBARENA_EVAL_PYTHON_ENV, _default_eval_python
+        from worldsim.rewards.vendor_webarena import (
+            WEBARENA_EVAL_PYTHON_ENV,
+            _default_eval_python,
+        )
     except ImportError as exc:
         pytest.skip(f"worldsim.rewards unavailable: {exc}")
     python_exe = os.environ.get(WEBARENA_EVAL_PYTHON_ENV, "").strip() or _default_eval_python()

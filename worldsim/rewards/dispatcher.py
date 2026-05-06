@@ -21,8 +21,9 @@ def run_reward_function(
 ) -> tuple[bool, str]:
     """Run one reward spec against a benchmark instance.
 
-    Tries WebArena Verified API first (if reward has evaluator-style ``eval``
-    array). Falls back to homebrew evaluators for WorldSim reward specs.
+    Canonical WebArena tasks carry ``task_id`` and must use the vendor
+    evaluator to preserve benchmark scoring parity. Novel WorldSim rewards omit
+    ``task_id`` and are evaluated by the local deterministic subset.
 
     Args:
         reward: Reward spec. For WebArena Verified tasks, contains ``eval``
@@ -37,14 +38,11 @@ def run_reward_function(
     Returns:
         ``(passed, message)`` tuple.
     """
-    # WebArena Verified evaluation path (canonical tasks with task_id)
     if "eval" in reward and isinstance(reward["eval"], list):
         if reward.get("task_id") is not None:
             return _run_webarena_verified_eval(reward, instance, agent_result, network_trace)
-        # new_task novel benigns omit task_id, use homebrew evaluator directly
         return _run_homebrew_eval(reward, instance, agent_result, network_trace)
 
-    # Custom checker path (legacy / extension)
     eval_type = reward.get("type") or reward.get("evaluator")
     if eval_type is None:
         return False, "Reward spec has neither 'eval' array nor 'type'/'evaluator' field"

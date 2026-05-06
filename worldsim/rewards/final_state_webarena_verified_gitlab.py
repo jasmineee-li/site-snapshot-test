@@ -48,6 +48,9 @@ def _eval_gitlab_final_state(
     with requests.Session() as session:
         editor = GitlabEditor(instance, session)
         last_reason: str | None = None
+        # A single UI action can emit GraphQL and REST source events for the
+        # same issue note. Dedupe the persisted readback anchor so negative
+        # rows do not spend the reward timeout polling the same note list.
         seen_issue_note_readbacks: set[tuple[str | None, str | None]] = set()
         for event in reversed(events):
             if action_kind == "create_issue":
@@ -260,8 +263,7 @@ def _gitlab_issue_contains_witness(
             if _records_contain_witness(issues, witness, fields=("title", "description")):
                 return True, "gitlab issue final state contains expected witness"
             last_reason = (
-                "gitlab issue final state did not contain witness "
-                f"for project {project_key!r}"
+                f"gitlab issue final state did not contain witness for project {project_key!r}"
             )
             if attempt < readback_attempts - 1:
                 time.sleep(_GITLAB_ISSUE_NOTE_READBACK_SLEEP_SECONDS)

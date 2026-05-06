@@ -4,6 +4,9 @@ from collections.abc import Mapping
 
 from worldsim.placeholders import placeholder_for_site
 
+# The reward adapter intentionally exposes only the WebArena sites with active
+# WorldSim scoring support; unknown placeholders are ignored rather than passed
+# through as accidental full-WebArena support.
 SUPPORTED_WEBARENA_PLACEHOLDER_SITES: Mapping[str, str] = {
     "__GITLAB__": "gitlab",
     "__REDDIT__": "reddit",

@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from worldsim.agent_response_transform import detect_strategy, transform_agent_response
-from worldsim.rewards import WEBARENA_EVAL_MODULE, WEBARENA_EVAL_PYTHON_ENV
+from worldsim.rewards.vendor_webarena import WEBARENA_EVAL_MODULE, WEBARENA_EVAL_PYTHON_ENV
 from worldsim.rewards.webarena_sites import build_supported_webarena_environments
 
 logger = logging.getLogger(__name__)
@@ -84,7 +84,7 @@ def _normalize_environments(
 ) -> dict[str, list[str]]:
     """Translate ``__SITE__`` placeholders to a site-name -> URLs mapping.
 
-    Mirrors :func:`worldsim.rewards._build_webarena_environment_payload` but
+    Mirrors :func:`worldsim.rewards.vendor_webarena._build_webarena_environment_payload` but
     takes the placeholder mapping directly (rescore does not thread through
     a live benchmark instance).
     """
@@ -192,7 +192,7 @@ def _run_subprocess(
 ) -> tuple[bool, str]:
     """Invoke the vendor evaluator in its own Python env and pick out the ARS status.
 
-    Mirrors :func:`worldsim.rewards._run_webarena_verified_subprocess` for the
+    Mirrors :func:`worldsim.rewards.vendor_webarena._run_webarena_verified_subprocess` for the
     payload shape. Passes a minimal HAR-shaped placeholder trace only so the
     vendor's trace parser accepts the input; any NetworkEventEvaluator
     outcome is discarded by :func:`_status_from_evaluators_results`.

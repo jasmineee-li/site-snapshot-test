@@ -88,29 +88,24 @@ def _eval_agent_response(config: dict, agent_response: Any) -> tuple[bool, str]:
 
     expected = config.get("expected", {})
 
-    # Check task type
     expected_type = expected.get("task_type", "").lower()
     actual_type = agent_response.get("task_type", "").lower()
     if expected_type and actual_type != expected_type:
         return False, f"task_type mismatch: expected {expected_type}, got {actual_type}"
 
-    # Check status
     expected_status = expected.get("status", "").upper()
     actual_status = agent_response.get("status", "").upper()
     if expected_status and actual_status != expected_status:
         return False, f"status mismatch: expected {expected_status}, got {actual_status}"
 
-    # Check retrieved_data
     expected_data = expected.get("retrieved_data")
     if expected_data is None:
-        # mutate/navigate tasks don't require retrieved_data
         return True, "status and task_type match"
 
     actual_data = agent_response.get("retrieved_data")
     if actual_data is None:
         return False, "expected retrieved_data but got None"
 
-    # Compare data (case-insensitive, stripped)
     ordered = config.get("ordered", False)
     if _compare_data(expected_data, actual_data, ordered=ordered):
         return True, "retrieved_data matches"

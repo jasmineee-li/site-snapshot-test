@@ -45,7 +45,6 @@ def _eval_network_event(
     expected_url = expected.get("url", "")
     expected_methods = _expected_http_methods(expected.get("http_method", "GET"))
 
-    # Resolve URL placeholders using instance config
     try:
         expected_urls = expected_url if isinstance(expected_url, list) else [expected_url]
         resolved_urls = [
@@ -58,7 +57,6 @@ def _eval_network_event(
     if not resolved_urls:
         return False, "NetworkEventEvaluator expected.url must contain at least one URL"
 
-    # Search network trace for matching events
     last_only = config.get("last_event_only", True)
     matching_events = []
 

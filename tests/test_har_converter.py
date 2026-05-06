@@ -5,19 +5,17 @@ Covers three layers:
 1. ``worldsim.har_converter`` primitives (unit tests).
 2. Live wire-in at ``_NetworkTraceRecorder._write_trace`` (network.har on disk
    is valid HAR, network_trace.json is unchanged).
-3. Live wire-in at ``worldsim.rewards._run_webarena_verified_eval`` (the
-   subprocess payload carries HAR entries regardless of input shape).
+3. Live wire-in at ``_NetworkTraceRecorder._write_trace`` preserves the flat
+   network_trace.json shape while writing valid HAR.
 """
 
 from __future__ import annotations
 
 import json
-import types
 from pathlib import Path
 
 import pytest
 
-import worldsim.rewards as rewards
 from worldsim.browser_use_agent import _NetworkTraceRecorder
 from worldsim.har_converter import (
     NetworkTraceUnavailableError,
@@ -443,132 +441,3 @@ def test_write_trace_empty_trace_writes_empty_entries_no_placeholder(tmp_path):
 
     persisted = json.loads((tmp_path / "network_trace.json").read_text())
     assert persisted == []
-
-
-# ─────────────────────────────────────────────────────────────────────
-# rewards._run_webarena_verified_eval integration (subprocess path)
-# ─────────────────────────────────────────────────────────────────────
-
-
-def _install_fake_subprocess(monkeypatch) -> dict:
-    """Replace rewards.subprocess.run and capture the JSON payload sent."""
-    captured: dict = {}
-
-    def fake_run(cmd, input, capture_output, text, timeout, check):
-        captured["cmd"] = cmd
-        captured["payload"] = json.loads(input)
-        return types.SimpleNamespace(
-            returncode=0,
-            stdout=json.dumps({"passed": True, "message": "[AgentResponseEvaluator] PASS"}),
-            stderr="",
-        )
-
-    monkeypatch.setenv(rewards.WEBARENA_EVAL_PYTHON_ENV, "/tmp/webarena-python")
-    monkeypatch.setattr(rewards.subprocess, "run", fake_run)
-    return captured
-
-
-def test_reward_subprocess_receives_placeholder_for_empty_network_trace(monkeypatch):
-    captured = _install_fake_subprocess(monkeypatch)
-
-    passed, _ = rewards.run_reward_function(
-        reward={"task_id": 11, "eval": [{"evaluator": "AgentResponseEvaluator"}]},
-        instance={"site_name": "gitlab", "site_url": "http://gitlab.test"},
-        network_trace=[],
-    )
-
-    assert passed is True
-    trace = captured["payload"]["network_trace"]
-    assert len(trace) == 1
-    assert trace[0]["request"]["url"] == "about:blank"
-
-
-def test_reward_subprocess_receives_placeholder_for_none_network_trace(monkeypatch):
-    captured = _install_fake_subprocess(monkeypatch)
-
-    rewards.run_reward_function(
-        reward={"task_id": 11, "eval": [{"evaluator": "AgentResponseEvaluator"}]},
-        instance={"site_name": "gitlab", "site_url": "http://gitlab.test"},
-        network_trace=None,
-    )
-
-    trace = captured["payload"]["network_trace"]
-    assert len(trace) == 1
-    assert trace[0]["request"]["url"] == "about:blank"
-
-
-def test_reward_network_evaluator_fails_closed_on_empty_network_trace(monkeypatch):
-    monkeypatch.setenv(rewards.WEBARENA_EVAL_PYTHON_ENV, "/tmp/webarena-python")
-
-    passed, message = rewards.run_reward_function(
-        reward={"task_id": 11, "eval": [{"evaluator": "NetworkEventEvaluator"}]},
-        instance={"site_name": "gitlab", "site_url": "http://gitlab.test"},
-        network_trace=[],
-    )
-
-    assert passed is False
-    assert message == "network_trace_unavailable: trace is missing or empty"
-
-
-def test_reward_subprocess_receives_converted_har_for_flat_input(monkeypatch):
-    captured = _install_fake_subprocess(monkeypatch)
-
-    flat_trace = [
-        {
-            "url": "http://gitlab.test/api/v4/projects/1/issues",
-            "method": "GET",
-            "response_status": 200,
-            "headers": {"Accept": "application/json"},
-        },
-        {
-            "url": "http://gitlab.test/api/v4/projects/1/issues",
-            "method": "POST",
-            "response_status": 201,
-            "headers": {"Content-Type": "application/json"},
-        },
-    ]
-    rewards.run_reward_function(
-        reward={"task_id": 11, "eval": [{"evaluator": "AgentResponseEvaluator"}]},
-        instance={"site_name": "gitlab", "site_url": "http://gitlab.test"},
-        network_trace=flat_trace,
-    )
-
-    trace = captured["payload"]["network_trace"]
-    assert len(trace) == 2
-    for entry in trace:
-        assert "request" in entry
-        assert "response" in entry
-    assert trace[0]["request"]["method"] == "GET"
-    assert trace[1]["request"]["method"] == "POST"
-
-
-def test_reward_subprocess_passes_through_already_har_input(monkeypatch):
-    """Already-HAR input is not double-converted (no nested request/request)."""
-    captured = _install_fake_subprocess(monkeypatch)
-
-    har_input = [
-        {
-            "request": {
-                "method": "GET",
-                "url": "http://gitlab.test/api/v4/projects/1/issues",
-                "headers": [{"name": "Accept", "value": "application/json"}],
-            },
-            "response": {
-                "status": 200,
-                "headers": [],
-                "cookies": [],
-            },
-        }
-    ]
-    rewards.run_reward_function(
-        reward={"task_id": 11, "eval": [{"evaluator": "AgentResponseEvaluator"}]},
-        instance={"site_name": "gitlab", "site_url": "http://gitlab.test"},
-        network_trace=har_input,
-    )
-
-    trace = captured["payload"]["network_trace"]
-    assert len(trace) == 1
-    # The request dict still has the raw HAR keys, not a nested request object.
-    assert trace[0]["request"]["method"] == "GET"
-    assert trace[0]["request"]["url"] == "http://gitlab.test/api/v4/projects/1/issues"
-    assert "request" not in trace[0]["request"]

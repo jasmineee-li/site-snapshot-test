@@ -20,7 +20,6 @@ from worldsim.rewards.shared import _state_probe_kind
 _FINAL_STATE_REWARD_TYPES = frozenset({"FinalStateEvaluator", "final_state"})
 
 
-
 def _eval_final_state(
     config: dict[str, Any],
     network_trace: list[dict] | None,
@@ -67,6 +66,8 @@ def _eval_final_state(
                 f"does not match instance site {site!r}"
             )
     events, message = _matching_network_events(dict(network_expected), network_trace, instance)
+    # Final-state scoring still requires source-action evidence. Site-specific
+    # matchers only broaden transport recognition before persisted readback.
     if (
         not events
         and site == "gitlab"
@@ -92,8 +93,7 @@ def _eval_final_state(
     if (
         not events
         and site == "reddit"
-        and _state_probe_kind(state_probe)
-        in {"reddit_post_contains", "reddit_comment_contains"}
+        and _state_probe_kind(state_probe) in {"reddit_post_contains", "reddit_comment_contains"}
     ):
         passed, readback_message = _eval_reddit_final_state_from_probe(
             action_kind,

@@ -8,9 +8,9 @@ from worldsim.rewards.network_event import _eval_network_event
 
 _FINAL_STATE_REWARD_TYPES = frozenset({"FinalStateEvaluator", "final_state"})
 
+
 def _is_network_event_evaluator_name(name: Any) -> bool:
     return isinstance(name, str) and name in {"NetworkEventEvaluator", "network_event"}
-
 
 
 def _run_homebrew_eval(
@@ -19,14 +19,15 @@ def _run_homebrew_eval(
     agent_result: Any | None,
     network_trace: list[dict] | None,
 ) -> tuple[bool, str]:
-    """Homebrew evaluator — fallback when the vendor package is unavailable.
+    """Evaluate novel, non-canonical rewards emitted by WorldSim compilers.
 
-    Iterates the ``eval`` array manually and applies simplified comparison
-    logic. Does NOT perform full Unicode normalization or type dispatch.
+    Canonical WebArena tasks fail closed through the vendor adapter. This path
+    exists for generated tasks whose reward specs are already in WorldSim's
+    supported deterministic subset.
     """
     eval_configs = reward["eval"]
 
-    # Build agent response in WebArena Verified format
+    # Build once so composite rewards evaluate a single normalized final answer.
     agent_response = _build_agent_response(eval_configs, agent_result)
 
     all_passed = True
