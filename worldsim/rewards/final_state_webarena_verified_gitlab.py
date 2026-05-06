@@ -33,6 +33,7 @@ _GITLAB_REPO_UI_WRITE_RE = re.compile(
 )
 _GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS = 30
 _GITLAB_ISSUE_NOTE_READBACK_SLEEP_SECONDS = 0.5
+_GITLAB_ISSUE_NOTE_READBACK_DEADLINE_SECONDS = 12.0
 
 
 def _eval_gitlab_final_state(
@@ -52,6 +53,12 @@ def _eval_gitlab_final_state(
         # same issue note. Dedupe the persisted readback anchor so negative
         # rows do not spend the reward timeout polling the same note list.
         seen_issue_note_readbacks: set[tuple[str | None, str | None]] = set()
+        issue_note_readback_deadline: float | None = None
+        if action_kind == "create_issue_note":
+            issue_note_readback_deadline = (
+                time.monotonic() + _GITLAB_ISSUE_NOTE_READBACK_DEADLINE_SECONDS
+            )
+            events = _rank_gitlab_issue_note_source_events(events)
         for event in reversed(events):
             if action_kind == "create_issue":
                 ok, reason = _gitlab_issue_contains_witness(
@@ -80,6 +87,7 @@ def _eval_gitlab_final_state(
                     witness,
                     network_trace,
                     state_probe,
+                    deadline=issue_note_readback_deadline,
                 )
                 if ok:
                     return True, reason
@@ -167,6 +175,8 @@ def _gitlab_issue_note_contains_witness(
     witness: str,
     network_trace: list[dict[str, Any]],
     state_probe: Mapping[str, Any] | None,
+    *,
+    deadline: float | None = None,
 ) -> tuple[bool, str]:
     probe = state_probe if isinstance(state_probe, Mapping) else {}
     probe_kind = str(probe.get("kind") or "").strip()
@@ -184,7 +194,13 @@ def _gitlab_issue_note_contains_witness(
     notes_path = (
         f"/api/v4/projects/{_gitlab_api_project_key(editor, project_key)}/issues/{issue_iid}/notes"
     )
+    last_reason = (
+        "gitlab issue note final state did not contain witness "
+        f"for project {project_key!r} issue {issue_iid!r}"
+    )
     for attempt in range(_GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS):
+        if deadline is not None and time.monotonic() >= deadline:
+            return False, last_reason
         notes = editor._api_request_json(
             "GET",
             notes_path,
@@ -193,8 +209,14 @@ def _gitlab_issue_note_contains_witness(
         if _records_contain_witness(notes, witness, fields=("body",)):
             return True, "gitlab issue note final state contains expected witness"
         if attempt < _GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS - 1:
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return False, last_reason
+                time.sleep(min(_GITLAB_ISSUE_NOTE_READBACK_SLEEP_SECONDS, remaining))
+                continue
             time.sleep(_GITLAB_ISSUE_NOTE_READBACK_SLEEP_SECONDS)
-    return False, "gitlab issue note final state did not contain witness"
+    return False, last_reason
 
 
 def _gitlab_issue_note_readback_anchor(
@@ -290,6 +312,25 @@ def _gitlab_project_path_from_note_ui_path(path: str) -> str | None:
         return None
     project_path = unquote(str(match.group("project_path") or "")).strip("/")
     return project_path or None
+
+
+def _rank_gitlab_issue_note_source_events(
+    events: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    # The caller scans in reverse chronological order. Sorting low-to-high
+    # keeps concrete note endpoints ahead of generic GraphQL after reversal.
+    return sorted(events, key=_gitlab_issue_note_source_event_priority)
+
+
+def _gitlab_issue_note_source_event_priority(event: dict[str, Any]) -> int:
+    path = urlparse(_network_event_url(event)).path.rstrip("/")
+    if _GITLAB_CREATE_ISSUE_NOTE_RE.search(path):
+        return 3
+    if _gitlab_project_path_from_note_ui_path(path):
+        return 2
+    if path == "/api/graphql":
+        return 1
+    return 0
 
 
 def _gitlab_project_path_from_issue_create_ui_path(path: str) -> str | None:
