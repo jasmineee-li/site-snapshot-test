@@ -98,8 +98,18 @@ def transcript_to_messages(transcript: Transcript) -> list:
     if transcript.instruction:
         messages.append(ChatMessageUser(content=transcript.instruction))
 
+    skipped_instruction_duplicate = False
     for msg in transcript.messages:
         if msg.role == "tool":
+            continue
+
+        if (
+            not skipped_instruction_duplicate
+            and transcript.instruction
+            and msg.role == "user"
+            and msg.content == transcript.instruction
+        ):
+            skipped_instruction_duplicate = True
             continue
 
         if msg.role == "system":

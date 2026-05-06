@@ -67,6 +67,24 @@ DEFAULT_SPLITS = {
     "eia": ["baseline"],
 }
 
+MODEL_SLUG_TO_NAME = {
+    "anthropic_claude-opus-4.7_thinking": "anthropic/claude-opus-4.7:thinking",
+    "anthropic_claude-sonnet-4.6_thinking": "anthropic/claude-sonnet-4.6:thinking",
+    "google_gemini-2.5-pro_thinking": "google/gemini-2.5-pro:thinking",
+    "moonshotai_kimi-k2.5_thinking": "moonshotai/kimi-k2.5:thinking",
+    "openai_gpt-5.2_thinking": "openai/gpt-5.2:thinking",
+    "z-ai_glm-5_thinking": "z-ai/glm-5:thinking",
+}
+
+
+def _model_name_from_slug(slug: str) -> str | None:
+    if slug in MODEL_SLUG_TO_NAME:
+        return MODEL_SLUG_TO_NAME[slug]
+    if slug.startswith("local_"):
+        return "local/" + slug[len("local_"):]
+    return None
+
+
 # Stable per-split offsets so each parallel split inside one cell gets a
 # unique --report-port. The cell's port-base is unique-per-process (PID-derived
 # unless --report-port-base is set explicitly), and these offsets fan out
@@ -496,6 +514,21 @@ def _load_run_meta(run_dir: Path) -> dict | None:
                     # is lossy — return slug as-is, marked.
                     "model_name": model_slug,
                     "_recovered_from": "run_dir_name",
+                }
+
+    parts = run_dir.parts
+    if "_browser_runs" in parts:
+        idx = parts.index("_browser_runs")
+        if idx > 0:
+            model_name = _model_name_from_slug(parts[idx - 1])
+            if model_name:
+                condition = parts[idx - 2] if idx > 1 else None
+                return {
+                    "model_name": model_name,
+                    "condition": (
+                        condition if condition in _KNOWN_CONDITIONS else None
+                    ),
+                    "_recovered_from": "browser_results_path",
                 }
     return None
 
@@ -1282,6 +1315,11 @@ async def _judge_split(
     extra_instructions_preset: str,
     system_prompt_frame: str,
     output_dir: Path,
+    purpose_continuation_model_source: str,
+    judge_concurrency: int,
+    purpose_continuation_concurrency: int,
+    judge_retries: int,
+    purpose_continuation_retries: int,
 ) -> None:
     from eval_awareness_experiments.llm import LLM
     from eval_awareness_experiments.experiments.trajectory_awareness import TrajectoryAwarenessExperiment
@@ -1319,11 +1357,19 @@ async def _judge_split(
     ]
     logger.info(f"  Judging {len(samples)} {benchmark}/{split} trajectories with {judge_names}")
 
-    model = LLM(judge_model)
+    model = LLM(
+        judge_model,
+        temperature=0.0,
+        concurrency=judge_concurrency,
+        retries=judge_retries,
+    )
     exp = TrajectoryAwarenessExperiment(
         model=model,
         output_dir=output_dir / benchmark / split,
         judge_names=judge_names,
+        purpose_continuation_model_source=purpose_continuation_model_source,
+        purpose_continuation_concurrency=purpose_continuation_concurrency,
+        purpose_continuation_retries=purpose_continuation_retries,
     )
     await exp.run(samples, ["trajectory"])
     logger.info(f"  Judge results saved → {output_dir / benchmark / split}")
@@ -1447,6 +1493,26 @@ def _parse_args() -> argparse.Namespace:
                              "shopping_admin=2, gitlab=3). Default: PID-derived "
                              "(unique per process).")
     parser.add_argument("--judge-model", default="anthropic/claude-opus-4.6:thinking")
+    parser.add_argument("--judge-concurrency", type=int, default=8,
+                        help="Max concurrent classifier/judge model calls during "
+                             "judge-only and judge stages.")
+    parser.add_argument("--judge-retries", type=int, default=3,
+                        help="Transport retries for classifier/judge model calls.")
+    parser.add_argument("--purpose-continuation-model-source",
+                        choices=["agent", "judge"],
+                        default="agent",
+                        help="For purpose_continue(_5q), which model answers "
+                             "the appended follow-up questions. 'agent' uses "
+                             "the original trajectory model and --judge-model "
+                             "only classifies the answers; 'judge' preserves "
+                             "the legacy behavior where the judge model also "
+                             "answers the questions.")
+    parser.add_argument("--purpose-continuation-concurrency", type=int, default=8,
+                        help="Max concurrent original-model calls for "
+                             "purpose_continue(_5q) follow-up answers.")
+    parser.add_argument("--purpose-continuation-retries", type=int, default=3,
+                        help="Transport retries for original-model "
+                             "purpose_continue(_5q) follow-up answers.")
     parser.add_argument("--judges", nargs="+",
                         default=["test_awareness_steering", "verbalized_awareness"])
     parser.add_argument("--output-dir", type=Path,
@@ -1694,6 +1760,11 @@ def main() -> None:
                     meta.get("system_prompt_frame") or args.system_prompt_frame
                 ),
                 output_dir=args.output_dir,
+                purpose_continuation_model_source=args.purpose_continuation_model_source,
+                judge_concurrency=args.judge_concurrency,
+                purpose_continuation_concurrency=args.purpose_continuation_concurrency,
+                judge_retries=args.judge_retries,
+                purpose_continuation_retries=args.purpose_continuation_retries,
             )
             if args.benchmark == "wasp" and wasp_asr_by_task:
                 annotation = _annotate_wasp_judge_results(

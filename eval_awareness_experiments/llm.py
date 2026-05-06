@@ -57,10 +57,12 @@ class LLM:
         retries: int = 3,
     ):
         # Strip :thinking suffix and enable thinking mode
+        original_model = model
         if model.endswith(":thinking"):
             model = model.removesuffix(":thinking")
             thinking = True
         self.model = model
+        self.api_model = model
         self.max_tokens = max_tokens
         self.thinking = thinking
         # When None, fall through to whatever the underlying provider defaults
@@ -68,13 +70,22 @@ class LLM:
         self.temperature = temperature
         self.retries = retries
         self._semaphore = asyncio.Semaphore(concurrency)
-        self._client = AsyncOpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=os.getenv("OPENROUTER_API_KEY"),
-            # Disable SDK-level retry: call_with_retry does the retry policy,
-            # and SDK retries would hold the semaphore through every attempt.
-            max_retries=0,
-        )
+        if model.startswith("local/"):
+            from models.common import resolve_local_model
+            from models.common.vllm_client import make_async_openai_client
+
+            spec = resolve_local_model(original_model)
+            self.api_model = spec.resolve_served_name()
+            self.thinking = False
+            self._client = make_async_openai_client(spec)
+        else:
+            self._client = AsyncOpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=os.getenv("OPENROUTER_API_KEY"),
+                # Disable SDK-level retry: call_with_retry does the retry policy,
+                # and SDK retries would hold the semaphore through every attempt.
+                max_retries=0,
+            )
 
     async def generate(
         self, prompt: str | list, response_format: dict | None = None,
@@ -105,7 +116,7 @@ class LLM:
         async def _do():
             async with self._semaphore:
                 return await self._client.chat.completions.create(
-                    model=self.model,
+                    model=self.api_model,
                     messages=messages,
                     max_tokens=self.max_tokens,
                     **kwargs,
@@ -159,7 +170,7 @@ class LLM:
         async def _do():
             async with self._semaphore:
                 return await self._client.chat.completions.create(
-                    model=self.model,
+                    model=self.api_model,
                     messages=messages,
                     max_tokens=self.max_tokens,
                     **self._extra_kwargs(),

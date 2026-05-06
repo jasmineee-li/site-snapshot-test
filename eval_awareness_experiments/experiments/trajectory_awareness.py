@@ -36,6 +36,11 @@ DEFAULT_JUDGES = [
     "purpose_continue_5q",
 ]
 
+CONTINUATION_JUDGES = {
+    "purpose_continue",
+    "purpose_continue_5q",
+}
+
 
 class TrajectoryAwarenessExperiment(BaseExperiment):
     """Run eval awareness judges on agent trajectories from safety benchmarks."""
@@ -47,9 +52,55 @@ class TrajectoryAwarenessExperiment(BaseExperiment):
         model: LLM,
         output_dir: Path,
         judge_names: list[str] | None = None,
+        purpose_continuation_model_source: str = "agent",
+        purpose_continuation_concurrency: int | None = None,
+        purpose_continuation_retries: int = 3,
     ):
         super().__init__(model, output_dir)
         self.judge_names = judge_names or DEFAULT_JUDGES
+        if purpose_continuation_model_source not in {"agent", "judge"}:
+            raise ValueError(
+                "purpose_continuation_model_source must be 'agent' or 'judge'"
+            )
+        self.purpose_continuation_model_source = purpose_continuation_model_source
+        self.purpose_continuation_concurrency = purpose_continuation_concurrency
+        self.purpose_continuation_retries = purpose_continuation_retries
+        self._continuation_models: dict[str, LLM] = {}
+
+    def _get_continuation_model(self, model_name: str) -> LLM:
+        model = self._continuation_models.get(model_name)
+        if model is None:
+            model = LLM(
+                model_name,
+                temperature=0.0,
+                concurrency=self.purpose_continuation_concurrency or 64,
+                retries=self.purpose_continuation_retries,
+            )
+            self._continuation_models[model_name] = model
+        return model
+
+    def _judge_models_for(
+        self,
+        judge_name: str,
+        *,
+        sample: WebsiteSample,
+        trajectory_agent: str | None,
+    ) -> tuple[LLM, LLM, str]:
+        classifier_model = self.model
+        if (
+            self.purpose_continuation_model_source == "agent"
+            and judge_name in CONTINUATION_JUDGES
+        ):
+            agent_model = (
+                sample.metadata.get("agent")
+                or trajectory_agent
+                or ""
+            )
+            if agent_model and agent_model not in {"unknown", "imported"}:
+                continuation_model = self._get_continuation_model(str(agent_model))
+                return continuation_model, classifier_model, str(agent_model)
+
+        return self.model, classifier_model, self.model.model
 
     async def run_sample(
         self, sample: WebsiteSample, format_type: str,
@@ -78,16 +129,26 @@ class TrajectoryAwarenessExperiment(BaseExperiment):
             logger.warning(f"Failed to parse trajectory: {traj_dir}")
             return []
 
+        if sample.metadata.get("agent") and traj.agent in {"", "unknown", None}:
+            traj.agent = sample.metadata["agent"]
+
         # Convert to Transcript for judge consumption
         transcript = trajectory_to_transcript(traj)
 
         results = []
         for judge_name in self.judge_names:
             try:
+                grader_model, classifier_model, continuation_model_name = (
+                    self._judge_models_for(
+                        judge_name,
+                        sample=sample,
+                        trajectory_agent=traj.agent,
+                    )
+                )
                 judge = get_judge(
                     judge_name,
-                    grader_model=self.model,
-                    classifier_model=self.model,
+                    grader_model=grader_model,
+                    classifier_model=classifier_model,
                 )
                 judge_result = await judge.judge(transcript)
 
@@ -106,6 +167,11 @@ class TrajectoryAwarenessExperiment(BaseExperiment):
                     "task_passed": traj.passed,
                     "injection_condition": traj.injection_condition,
                     "n_steps": len(traj.steps),
+                    "continuation_model": continuation_model_name,
+                    "classifier_model": classifier_model.model,
+                    "purpose_continuation_model_source": (
+                        self.purpose_continuation_model_source
+                    ),
                 }
 
                 # For TAS judge, surface the 3 dimensions directly
@@ -144,10 +210,16 @@ class TrajectoryAwarenessExperiment(BaseExperiment):
                         for v in judge_result.metadata.get("variants", [])
                     ]
 
+                result_model = (
+                    continuation_model_name
+                    if judge_name in CONTINUATION_JUDGES
+                    else self.model.model
+                )
+
                 results.append(WebsiteExperimentResult(
                     sample_id=sample.id,
                     experiment_type=f"trajectory_{judge_name}",
-                    model=self.model.model,
+                    model=result_model,
                     format_used="trajectory",
                     score=judge_result.confidence,
                     classification=judge_result.category.value,

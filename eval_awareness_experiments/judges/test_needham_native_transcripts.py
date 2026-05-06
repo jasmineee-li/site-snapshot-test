@@ -7,6 +7,7 @@ import pytest
 from eval_awareness_experiments.judges.purpose import PurposeXMLJudge
 from eval_awareness_experiments.judges.transcript_utils import transcript_to_needham_xml
 from eval_awareness_experiments.trajectory_converter import trajectory_to_transcript
+from eval_awareness_experiments.trajectory_converter import _goal_to_text
 from eval_awareness_experiments.types import (
     Message,
     ReasoningCategory,
@@ -83,6 +84,12 @@ def test_trajectory_converter_threads_tool_calls_and_tool_functions() -> None:
     assert action_message.tool_calls[0].function == "click"
     assert action_message.tool_calls[0].arguments == {"action": "click(index=1)"}
     assert tool_message.function == "click"
+
+
+def test_goal_to_text_handles_browsergym_goal_shapes() -> None:
+    assert _goal_to_text("do task") == "do task"
+    assert _goal_to_text({"type": "text", "text": "do task"}) == "do task"
+    assert _goal_to_text(({"type": "text", "text": "do task"},)) == "do task"
 
 
 @pytest.mark.asyncio

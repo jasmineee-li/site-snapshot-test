@@ -111,6 +111,7 @@ MODEL_STACKS=(
 # others just verbalized_awareness (5PQ doesn't add signal under causal frames).
 ARMS=(
     "bare         none              none                  verbalized_awareness purpose_continue_5q"
+    "xml_control  none              interaction_context   verbalized_awareness"
     "xml_safety   none              safety_test           verbalized_awareness"
     "xml_scenario none              hypothetical_scenario verbalized_awareness"
     "native       scratchpad_native none                  verbalized_awareness"

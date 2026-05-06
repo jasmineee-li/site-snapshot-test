@@ -123,6 +123,22 @@ def _safe_get(obj: Any, key: str, default: Any = None) -> Any:
     return getattr(obj, key, default)
 
 
+def _goal_to_text(goal: Any) -> str:
+    """Convert BrowserGym goal objects into the user-facing task text."""
+    if not goal:
+        return ""
+    if isinstance(goal, str):
+        return goal
+    if isinstance(goal, dict):
+        text = goal.get("text") or goal.get("goal") or goal.get("instruction")
+        return str(text) if text else str(goal)
+    if isinstance(goal, (list, tuple)):
+        parts = [_goal_to_text(part) for part in goal]
+        return "\n".join(part for part in parts if part)
+    text = _safe_get(goal, "text")
+    return str(text) if text else str(goal)
+
+
 def _parse_step_index(step_path: Path) -> int:
     """Extract the numeric index from step_N.pkl.gz filenames."""
     try:
@@ -179,6 +195,39 @@ def _extract_agentlab_reasoning(agent_info: Any) -> str:
     return "\n\n".join(parts) if parts else ""
 
 
+def _message_content_to_text(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, dict) and item.get("type") == "text":
+                parts.append(str(item.get("text", "")))
+            elif isinstance(item, str):
+                parts.append(item)
+        return "".join(parts)
+    return str(content) if content is not None else ""
+
+
+def _extract_agentlab_system_prompt(agent_info: Any) -> str:
+    """Extract the original AgentLab system prompt from saved chat messages."""
+    chat_messages = _safe_get(agent_info, "chat_messages")
+    messages = _safe_get(chat_messages, "messages", []) or []
+    for message in messages:
+        try:
+            role = message.get("role") if isinstance(message, dict) else _safe_get(message, "role")
+            content = (
+                message.get("content")
+                if isinstance(message, dict)
+                else _safe_get(message, "content")
+            )
+        except Exception:
+            continue
+        if role == "system":
+            return _message_content_to_text(content)
+    return ""
+
+
 def parse_agentlab_trajectory(
     exp_dir: Path,
 ) -> StandardizedTrajectory | None:
@@ -197,6 +246,7 @@ def parse_agentlab_trajectory(
     step_files = sorted(exp_dir.glob("step_*.pkl.gz"), key=_parse_step_index)
     steps = []
     task_instruction = ""
+    system_instructions = ""
 
     for step_path in step_files:
         step_data = _load_step_pickle(step_path)
@@ -206,17 +256,19 @@ def parse_agentlab_trajectory(
         agent_info = step_data.get("agent_info", {})
         obs = step_data.get("obs", {})
 
+        if not system_instructions:
+            system_instructions = _extract_agentlab_system_prompt(agent_info)
+
         thought = _extract_agentlab_reasoning(agent_info)
         action = step_data.get("action", "")
         observation = (_safe_get(obs, "axtree_txt", "") or "")[:5000]  # truncate large axtrees
 
-        # Extract task instruction from first step's goal
-        goal = _safe_get(obs, "goal_object")
+        # Extract task instruction from the first step's goal. Some BrowserGym
+        # runs keep the rendered user task in obs["goal"] while goal_object is
+        # None; falling back straight to env_args.task_name leaks benchmark IDs.
+        goal = _safe_get(obs, "goal_object") or _safe_get(obs, "goal")
         if not task_instruction and goal:
-            if isinstance(goal, str):
-                task_instruction = goal
-            else:
-                task_instruction = _safe_get(goal, "text", str(goal))
+            task_instruction = _goal_to_text(goal)
 
         steps.append(
             TrajectoryStep(
@@ -259,6 +311,7 @@ def parse_agentlab_trajectory(
             "err_msg": summary.get("err_msg"),
             "cost": summary.get("stats.cum_cost"),
             "exp_dir": str(exp_dir),
+            "system_instructions": system_instructions,
         },
     )
 
@@ -581,6 +634,7 @@ def parse_toolcalling_trajectory(
             "task_id": data.get("task_id", ""),
             "extra_instructions_preset": data.get("extra_instructions_preset", "none"),
             "system_prompt_frame": data.get("system_prompt_frame", "none"),
+            "system_instructions": data.get("system_prompt", ""),
             "task_json_path": str(task_json_path),
             **(data.get("metadata") or {}),
         },
@@ -748,6 +802,7 @@ def trajectory_to_transcript(traj: StandardizedTrajectory) -> Transcript:
         messages=messages,
         source_file=traj.metadata.get("exp_dir", ""),
         eval_name=traj.benchmark,
+        system_instructions=traj.metadata.get("system_instructions", ""),
         instruction=traj.task_instruction,
         metadata={
             "trajectory_id": traj.id,

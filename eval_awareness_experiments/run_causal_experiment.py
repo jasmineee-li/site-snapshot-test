@@ -13,14 +13,14 @@ Usage:
         --extra-instructions-presets motive \
         --tasks-per-split 20
 
-    # System-prompt-frame ceiling sweep on tool-calling: wrap the whole
-    # system prompt in <llm_safety_test> / <hypothetical_scenario> tags.
+    # System-prompt-frame ceiling sweep: add a neutral XML control, plus
+    # eval-awareness and scenario-recognition cue tags.
     python -m eval_awareness_experiments.run_causal_experiment \
         --benchmarks agentdojo \
         --models z-ai/glm-5:thinking \
         --conditions baseline \
         --extra-instructions-presets none \
-        --system-prompt-frames none safety_test hypothetical_scenario \
+        --system-prompt-frames none interaction_context safety_test hypothetical_scenario \
         --tasks-per-split 20
 
     # EIA is import-only, condition is always baseline (pipeline enforces).
@@ -52,6 +52,7 @@ def _arm_name(preset: str, frame: str) -> str:
 
     The four canonical arms in the causal eval-awareness experiment:
       bare:         preset=none, frame=none
+      xml_control:  preset=none, frame=interaction_context
       xml_safety:   preset=none, frame=safety_test
       xml_scenario: preset=none, frame=hypothetical_scenario
       native:       preset=scratchpad_native, frame=none
@@ -62,6 +63,7 @@ def _arm_name(preset: str, frame: str) -> str:
     """
     canonical = {
         ("none", "none"): "bare",
+        ("none", "interaction_context"): "xml_control",
         ("none", "safety_test"): "xml_safety",
         ("none", "hypothetical_scenario"): "xml_scenario",
         ("scratchpad_native", "none"): "native",
@@ -351,8 +353,8 @@ def main() -> None:
     parser.add_argument("--system-prompt-frames", nargs="+", default=["none"],
                         choices=ALL_FRAMES, dest="frames",
                         help="Wrap the entire system prompt in XML tags. "
-                             "Tool-calling benchmarks only — browser benchmarks "
-                             "skip non-`none` frames.")
+                             "Browser benchmarks inject framed content through "
+                             "AgentLab extra_instructions.")
     parser.add_argument("--tasks-per-split", type=int, default=None,
                         help="Forwarded to run_safety_pipeline (e.g. WASP has 2 splits, so 20 → 40 tasks/combo).")
     parser.add_argument("--stage", default="all", choices=ALL_STAGES)
