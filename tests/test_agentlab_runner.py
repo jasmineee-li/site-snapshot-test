@@ -3,6 +3,8 @@ from __future__ import annotations
 import importlib.util
 import json
 import pickle
+import shutil
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -27,6 +29,7 @@ from worldsim.runners.agentlab import (
     _persist_result_sentinel,
     _sidecar_command,
 )
+from worldsim.trajectory import load_trajectory_into_sandbox
 
 
 class _FakeInstance(SimpleNamespace):
@@ -399,19 +402,24 @@ def test_build_phase4_sidecar_request_maps_runner_contract(monkeypatch, tmp_path
     assert request["task"] == "Do the task"
     assert request["start_urls"] == ["http://gitlab.test/root"]
     assert request["site_prompt"] == "site prompt"
-    assert request["storage_state"] == str(
-        (tmp_path / "task" / "auth" / "storage_state.json").resolve()
-    )
+    assert not (tmp_path / "task" / "auth" / "storage_state.json").exists()
+    assert request["storage_state_runtime_dir"]
+    assert Path(request["storage_state"]).parent.resolve() == Path(
+        request["storage_state_runtime_dir"]
+    ).resolve()
     runtime_state = json.loads(Path(request["storage_state"]).read_text(encoding="utf-8"))
     assert runtime_state["cookies"][0]["sameSite"] == "None"
     assert any(cookie["domain"] == "canonical.test" for cookie in runtime_state["cookies"])
     assert any(origin["origin"] == "http://canonical.test" for origin in runtime_state["origins"])
+    assert request["storage_state_aliases"]["cookies_added"] == 1
+    assert request["storage_state_aliases"]["origins_added"] == 1
     assert request["payload_text"] == "payload"
     assert request["payload_witnesses"] == [{"id": "w", "text": "payload"}]
     assert request["pvpo_cdp_url"] == "http://127.0.0.1:9222"
     assert request["max_steps"] == 9
     assert request["env_overrides"] == {"WA_GITLAB": "http://gitlab.test"}
     assert request["url_origin_rewrites"] == {"http://canonical.test": "http://gitlab.test"}
+    shutil.rmtree(request["storage_state_runtime_dir"], ignore_errors=True)
 
 
 def test_build_phase4_sidecar_request_filters_cross_scheme_rewrites(tmp_path):
@@ -661,7 +669,6 @@ def test_sidecar_request_controls_rewrite_and_scope_auth():
     controls = _load_sidecar_module("request_controls")
     continued: list[dict[str, object]] = []
     fetched: list[dict[str, object]] = []
-    fulfilled: list[dict[str, object]] = []
 
     class FakeRoute:
         def fetch(self, **kwargs):
@@ -669,7 +676,7 @@ def test_sidecar_request_controls_rewrite_and_scope_auth():
             return {"status": 200}
 
         def fulfill(self, **kwargs):
-            fulfilled.append(kwargs)
+            raise AssertionError("request controls must preserve browser redirect semantics")
 
         def continue_(self, **kwargs):
             continued.append(kwargs)
@@ -703,8 +710,8 @@ def test_sidecar_request_controls_rewrite_and_scope_auth():
         },
     )
 
-    assert continued == []
-    assert fetched == [
+    assert fetched == []
+    assert continued == [
         {
             "url": "http://gitlab.test/path?q=1",
             "headers": {
@@ -713,13 +720,10 @@ def test_sidecar_request_controls_rewrite_and_scope_auth():
                 "Referer": "http://gitlab.test/source",
                 "Authorization": "Basic abc",
             },
-            "max_redirects": 0,
         }
     ]
-    assert fulfilled == [{"response": {"status": 200}}]
     assert telemetry["rewrite_hits"] == 1
     assert telemetry["scoped_auth_hits"] == 1
-    assert telemetry["scoped_auth_redirect_guard_hits"] == 1
 
 
 def test_sidecar_request_controls_preserve_navigation_semantics():
@@ -841,6 +845,15 @@ def test_sidecar_network_trace_includes_evaluator_fields(tmp_path):
         {"name": "sid", "value": "<redacted>"},
         {"name": "theme", "value": "<redacted>"},
     ]
+    evidence = json.loads((tmp_path / "network_evidence.json").read_text(encoding="utf-8"))
+    assert evidence["public_trace"] == "redacted"
+    private_har_path = tmp_path / "reward_private" / "network.har"
+    assert stat.S_IMODE(private_har_path.stat().st_mode) == 0o600
+    private_har = json.loads(private_har_path.read_text(encoding="utf-8"))
+    assert private_har["log"]["entries"][0]["request"]["headers"] == [
+        {"name": "Content-Type", "value": "application/json"},
+        {"name": "Authorization", "value": "secret"},
+    ]
     har = network_trace._as_har(recorder.events, started_at=0)
     entry = har["log"]["entries"][0]
     assert isinstance(entry["startedDateTime"], str)
@@ -922,6 +935,40 @@ def test_phase4_request_copy_redacts_native_pickle(tmp_path):
     assert "c2VjcmV0" not in serialized
     assert "wonder" not in serialized
     assert payload["request"]["scoped_auth"] == "<redacted>"
+    assert payload["request"]["storage_state"] == {"present": True, "runtime_only": True}
+
+
+def test_agentlab_pvpo_capture_uses_latest_open_page():
+    phase4_loop = _load_sidecar_module("phase4_loop")
+
+    first = SimpleNamespace(is_closed=lambda: False, url="http://first.test")
+    closed = SimpleNamespace(is_closed=lambda: True, url="http://closed.test")
+    latest = SimpleNamespace(is_closed=lambda: False, url="http://latest.test")
+    first.context = SimpleNamespace(pages=[first, closed, latest])
+    env = SimpleNamespace(unwrapped=SimpleNamespace(page=first))
+
+    assert phase4_loop._pvpo_capture_page(env) is latest
+
+
+def test_trajectory_staging_skips_runtime_auth_subtree(tmp_path):
+    (tmp_path / "auth").mkdir()
+    (tmp_path / "auth" / "storage_state.json").write_text(
+        '{"cookies":[{"name":"sid","value":"secret"}]}',
+        encoding="utf-8",
+    )
+    (tmp_path / "reward_private").mkdir()
+    (tmp_path / "reward_private" / "network.har").write_text(
+        '{"log":{"entries":[]}}',
+        encoding="utf-8",
+    )
+    (tmp_path / "history.json").write_text("{}", encoding="utf-8")
+    files: dict[str, str] = {}
+
+    load_trajectory_into_sandbox(tmp_path, files)
+
+    assert "/workspace/trajectory/history.json" in files
+    assert all("storage_state" not in path for path in files)
+    assert all("reward_private" not in path for path in files)
 
 
 def test_phase4_timeout_result_redacts_captured_secret_output(monkeypatch, tmp_path):
@@ -956,6 +1003,11 @@ def test_phase4_timeout_result_redacts_captured_secret_output(monkeypatch, tmp_p
     serialized = json.dumps(persisted_result)
 
     assert payload["status"] == "error"
+    assert payload["evidence_status"] == "timeout_placeholder"
+    assert "history" in payload["artifacts"]
+    assert "network_har" in payload["artifacts"]
+    assert "network_evidence" in payload["artifacts"]
+    assert "pvpo_summary" in payload["artifacts"]
     assert persisted_request["scoped_auth"] == "<redacted>"
     assert "c2VjcmV0" not in (tmp_path / "agentlab_phase4_request.json").read_text()
     assert "c2VjcmV0" not in serialized

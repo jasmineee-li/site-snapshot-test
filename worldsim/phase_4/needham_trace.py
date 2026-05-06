@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 TRACE_ARTIFACT_NAME = "needham_trace.json"
 XML_ARTIFACT_NAME = "needham_trace.xml"
 TRACE_FORMAT = "needham-browser-use-v1"
+AGENTLAB_TRACE_FORMAT = "needham-agentlab-v1"
 TRANSCRIPT_FORMAT = "needham-xml-v1"
 
 _TOOL_RESULT_CAP = 3000
@@ -303,7 +304,9 @@ def load_trace_xml(trajectory_dir: Path | str) -> str | None:
         payload = json.loads(trace_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
-    if payload.get("format") != TRACE_FORMAT:
+    if payload.get("format") not in {TRACE_FORMAT, AGENTLAB_TRACE_FORMAT}:
+        return None
+    if payload.get("transcript_format") != TRANSCRIPT_FORMAT:
         return None
     xml = payload.get("xml")
     if isinstance(xml, str):

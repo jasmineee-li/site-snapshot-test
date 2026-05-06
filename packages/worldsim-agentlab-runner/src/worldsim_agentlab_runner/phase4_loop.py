@@ -58,6 +58,7 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
         "runner": "agentlab",
         "mode": "phase4",
         "cdp_url": request.get("pvpo_cdp_url"),
+        "storage_state_aliases": request.get("storage_state_aliases") or {},
     }
     steps_taken = 0
     final_result: str | None = None
@@ -104,7 +105,7 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
                     obs_preprocessor=agent.obs_preprocessor,
                 )
             episode_info.append(step_info)
-            pvpo.capture_step(env.unwrapped.page, step_info.step)
+            pvpo.capture_step(_pvpo_capture_page(env), step_info.step)
 
             while not step_info.is_done and steps_taken < int(request.get("max_steps") or 30):
                 action = step_info.from_action(agent)
@@ -121,7 +122,7 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
                 next_step.from_step(env, action, obs_preprocessor=agent.obs_preprocessor)
                 steps_taken += 1
                 episode_info.append(next_step)
-                pvpo.capture_step(env.unwrapped.page, next_step.step)
+                pvpo.capture_step(_pvpo_capture_page(env), next_step.step)
                 step_info = next_step
 
             final_result = final_result_from_env(env)
@@ -232,7 +233,11 @@ def _redact_sidecar_payload(value: Any) -> Any:
         out: dict[str, Any] = {}
         for key, item in value.items():
             lower = str(key).lower()
-            if lower in {"authorization", "cookie", "set-cookie", "proxy-authorization"} or any(
+            if lower == "storage_state":
+                out[key] = {"present": bool(item), "runtime_only": True}
+            elif lower == "storage_state_runtime_dir":
+                out[key] = "<runtime-only>"
+            elif lower in {"authorization", "cookie", "set-cookie", "proxy-authorization"} or any(
                 marker in lower
                 for marker in ("token", "secret", "password", "auth", "cookie", "csrf", "key")
             ):
@@ -267,6 +272,28 @@ def _final_result_from_episode(episode_info: list[Any]) -> str | None:
         if isinstance(task_info, dict) and isinstance(task_info.get("worldsim_final_result"), str):
             return task_info["worldsim_final_result"]
     return None
+
+
+def _pvpo_capture_page(env: Any) -> Any:
+    unwrapped = getattr(env, "unwrapped", env)
+    page = getattr(unwrapped, "page", None)
+    context = getattr(page, "context", None)
+    pages = getattr(context, "pages", None)
+    if isinstance(pages, (list, tuple)):
+        for candidate in reversed(pages):
+            if _page_is_open(candidate):
+                return candidate
+    return page
+
+
+def _page_is_open(page: Any) -> bool:
+    is_closed = getattr(page, "is_closed", None)
+    if callable(is_closed):
+        try:
+            return not bool(is_closed())
+        except Exception:
+            return True
+    return True
 
 
 def _task_seed(request: dict[str, Any]) -> int:

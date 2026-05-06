@@ -90,6 +90,7 @@ class NetworkTraceRecorder:
 
     def persist(self) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        raw_events = self.events
         events = self.redacted_events
         har = _as_har(events, started_at=self._started_at)
         validate_har_1_2_shape(har, require_real_entry=bool(events))
@@ -99,6 +100,35 @@ class NetworkTraceRecorder:
         )
         (self.output_dir / "network.har").write_text(
             json.dumps(har, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        private_dir = self.output_dir / "reward_private"
+        private_dir.mkdir(parents=True, exist_ok=True)
+        private_events_path = private_dir / "network_trace.json"
+        private_har_path = private_dir / "network.har"
+        raw_har = _as_har(raw_events, started_at=self._started_at)
+        validate_har_1_2_shape(raw_har, require_real_entry=bool(raw_events))
+        private_events_path.write_text(
+            json.dumps(raw_events, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        private_har_path.write_text(
+            json.dumps(raw_har, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        private_events_path.chmod(0o600)
+        private_har_path.chmod(0o600)
+        (self.output_dir / "network_evidence.json").write_text(
+            json.dumps(
+                {
+                    "public_trace": "redacted",
+                    "private_reward_trace": "available",
+                    "private_reward_trace_dir": "reward_private",
+                    "private_reward_trace_mode": "0600",
+                },
+                indent=2,
+                sort_keys=True,
+            ),
             encoding="utf-8",
         )
         navigation = [

@@ -81,12 +81,14 @@ async def _run_pvpo_gate(
 
     task_instruction = extract_task_intent(task)
     try:
-        needham_xml = format_trace_xml(task_instruction=task_instruction, extracted=traj)
-        write_trace_artifacts(
-            task_dir,
-            task_instruction=task_instruction,
-            extracted=traj,
-        )
+        needham_xml = load_trace_xml(task_dir)
+        if needham_xml is None:
+            needham_xml = format_trace_xml(task_instruction=task_instruction, extracted=traj)
+            write_trace_artifacts(
+                task_dir,
+                task_instruction=task_instruction,
+                extracted=traj,
+            )
     except Exception as exc:
         logger.warning(
             "pvpo: Needham trace build failed for %s; skipping Stage 2 judges: %s",

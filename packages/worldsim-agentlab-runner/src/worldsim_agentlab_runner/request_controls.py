@@ -48,49 +48,17 @@ def install_request_controls(context: Any, request: dict[str, Any]) -> dict[str,
             telemetry["scoped_auth_hits"] += 1
             auth_applied = True
         headers = _strip_forbidden_continue_headers(headers)
-        is_navigation = bool(_safe_bool_call(getattr(req, "is_navigation_request", None)))
         if rewritten != url:
             telemetry["rewrite_hits"] += 1
-            if (
-                (not is_navigation)
-                and auth_applied
-                and _fetch_and_fulfill_without_redirects(
-                    route,
-                    url=rewritten,
-                    headers=headers,
-                    telemetry=telemetry,
-                )
-            ):
-                return
             route.continue_(url=rewritten, headers=headers)
             return
         if headers_changed or auth_applied:
-            if (
-                (not is_navigation)
-                and auth_applied
-                and _fetch_and_fulfill_without_redirects(
-                    route,
-                    url=None,
-                    headers=headers,
-                    telemetry=telemetry,
-                )
-            ):
-                return
             route.continue_(headers=headers)
             return
         route.continue_()
 
     context.route("**/*", handler)
     return telemetry
-
-
-def _safe_bool_call(value: Any) -> bool:
-    try:
-        if callable(value):
-            value = value()
-    except Exception:
-        return False
-    return bool(value)
 
 
 def _normalize_scoped_auth(value: Any) -> dict[str, Any]:
@@ -172,31 +140,6 @@ def _strip_forbidden_continue_headers(headers: dict[str, str]) -> dict[str, str]
         for name, value in headers.items()
         if str(name).lower() not in _FORBIDDEN_CONTINUE_HEADER_NAMES
     }
-
-
-def _fetch_and_fulfill_without_redirects(
-    route: Any,
-    *,
-    url: str | None,
-    headers: dict[str, str],
-    telemetry: dict[str, Any],
-) -> bool:
-    fetch = getattr(route, "fetch", None)
-    fulfill = getattr(route, "fulfill", None)
-    if not callable(fetch) or not callable(fulfill):
-        return False
-    try:
-        kwargs: dict[str, Any] = {"headers": headers, "max_redirects": 0}
-        if url:
-            kwargs["url"] = url
-        response = fetch(**kwargs)
-        fulfill(response=response)
-    except TypeError:
-        return False
-    telemetry["scoped_auth_redirect_guard_hits"] = (
-        telemetry.get("scoped_auth_redirect_guard_hits", 0) + 1
-    )
-    return True
 
 
 def _origin_from_url(raw_url: str) -> str:

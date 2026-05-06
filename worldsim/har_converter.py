@@ -17,6 +17,7 @@ compatibility path.
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
 
 class NetworkTraceUnavailableError(RuntimeError):
@@ -104,13 +105,14 @@ def _response_content_to_har(flat: dict[str, Any]) -> dict[str, Any]:
 
 def flat_event_to_har_entry(flat: dict[str, Any]) -> dict[str, Any]:
     """Translate one flat ``_NetworkTraceRecorder`` entry to a HAR entry."""
+    url = str(flat.get("url", ""))
     request = {
         "method": str(flat.get("method", "")),
-        "url": str(flat.get("url", "")),
+        "url": url,
         "httpVersion": "HTTP/1.1",
         "headers": _headers_to_har(flat.get("headers")),
         "cookies": [],
-        "queryString": [],
+        "queryString": _query_string_to_har(flat.get("query_params"), url),
         "headersSize": -1,
         "bodySize": -1,
     }
@@ -140,6 +142,26 @@ def flat_event_to_har_entry(flat: dict[str, Any]) -> dict[str, Any]:
     if pageref:
         entry["pageref"] = str(pageref)
     return entry
+
+
+def _query_string_to_har(query_params: Any, url: str) -> list[dict[str, str]]:
+    if isinstance(query_params, dict):
+        out: list[dict[str, str]] = []
+        for key, values in query_params.items():
+            if isinstance(values, list):
+                out.extend({"name": str(key), "value": str(value)} for value in values)
+            else:
+                out.append({"name": str(key), "value": str(values)})
+        return out
+    try:
+        parsed = parse_qs(urlsplit(url).query, keep_blank_values=True)
+    except Exception:
+        return []
+    return [
+        {"name": str(key), "value": str(value)}
+        for key, values in parsed.items()
+        for value in values
+    ]
 
 
 def flat_events_to_har_entries(events: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
@@ -251,7 +273,32 @@ def strict_runtime_har_trace(
         raise NetworkTraceUnavailableError(
             "network_trace_unavailable: trace did not contain any valid network events"
         )
+    if not _contains_real_http_evidence(converted):
+        raise NetworkTraceUnavailableError(
+            "network_trace_unavailable: trace did not contain real HTTP evidence"
+        )
     return converted
+
+
+def _contains_real_http_evidence(entries: list[dict[str, Any]]) -> bool:
+    for entry in entries:
+        request = entry.get("request") if isinstance(entry, dict) else None
+        response = entry.get("response") if isinstance(entry, dict) else None
+        if not isinstance(request, dict) or not isinstance(response, dict):
+            continue
+        url = request.get("url")
+        method = request.get("method")
+        status = response.get("status")
+        if (
+            isinstance(url, str)
+            and url.startswith(("http://", "https://"))
+            and isinstance(method, str)
+            and bool(method.strip())
+            and isinstance(status, int)
+            and status != 0
+        ):
+            return True
+    return False
 
 
 def ensure_har_trace(

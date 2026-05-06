@@ -323,24 +323,29 @@ def test_strict_runtime_har_trace_har_entries_returned_as_is():
 
 def test_strict_runtime_har_trace_flat_events_are_converted():
     flat = [
-        {"url": "http://a.test", "method": "GET", "response_status": 200},
+        {
+            "url": "http://a.test?ticket=123&ticket=456",
+            "method": "GET",
+            "response_status": 200,
+        },
         {"url": "http://b.test", "method": "POST", "response_status": 201},
     ]
     result = strict_runtime_har_trace(flat)
 
     assert len(result) == 2
-    assert result[0]["request"]["url"] == "http://a.test"
+    assert result[0]["request"]["url"] == "http://a.test?ticket=123&ticket=456"
     assert result[1]["request"]["url"] == "http://b.test"
     assert result[0]["response"]["status"] == 200
     assert result[1]["response"]["status"] == 201
+    assert result[0]["request"]["queryString"] == [
+        {"name": "ticket", "value": "123"},
+        {"name": "ticket", "value": "456"},
+    ]
 
 
-def test_strict_runtime_har_trace_degenerate_flat_events_still_yield_valid_entries():
-    result = strict_runtime_har_trace([{}])
-
-    assert len(result) >= 1
-    assert "request" in result[0]
-    assert "response" in result[0]
+def test_strict_runtime_har_trace_degenerate_flat_events_raise():
+    with pytest.raises(NetworkTraceUnavailableError, match="real HTTP evidence"):
+        strict_runtime_har_trace([{}])
 
 
 # ─────────────────────────────────────────────────────────────────────

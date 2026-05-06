@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -194,7 +195,7 @@ def _resolved_storage_state_for_phase4(
     site_url: str | None,
     runtime_dir: Path,
     url_origin_rewrites: dict[str, str] | None,
-) -> str | None:
+) -> tuple[str, dict[str, Any]] | None:
     if not isinstance(auth, dict) or auth.get("type") != "storage_state":
         return None
     storage = auth.get("storage_state") if isinstance(auth.get("storage_state"), dict) else {}
@@ -215,10 +216,11 @@ def _resolved_storage_state_for_phase4(
         raise RuntimeError(site_error)
     try:
         runtime_path = _storage_state_context_value(path, runtime_dir=runtime_dir)
-        _augment_storage_state_origin_aliases(runtime_path, url_origin_rewrites)
+        alias_summary = _augment_storage_state_origin_aliases(runtime_path, url_origin_rewrites)
     except AuthArtifactMissingError as exc:
         raise RuntimeError(str(exc)) from exc
-    return runtime_path
+    Path(runtime_path).chmod(0o600)
+    return runtime_path, alias_summary
 
 
 def _same_scheme_origin_rewrites(value: Any) -> dict[str, str]:
@@ -359,6 +361,25 @@ def _build_phase4_sidecar_request(
     task_site = run_kwargs.get("task_site")
     instance_id = run_kwargs.get("instance_id")
     url_origin_rewrites = _same_scheme_origin_rewrites(run_kwargs.get("url_origin_rewrites"))
+    storage_state: str | None = None
+    storage_state_aliases: dict[str, Any] = {}
+    storage_runtime_dir: str | None = None
+    if isinstance(auth_mechanism, dict) and auth_mechanism.get("type") == "storage_state":
+        storage_runtime_path = Path(
+            tempfile.mkdtemp(prefix=f"worldsim-agentlab-storage-{task_dir.name}-{uuid.uuid4().hex}-")
+        )
+        storage_runtime_dir = str(storage_runtime_path)
+        resolved_storage = _resolved_storage_state_for_phase4(
+            auth_mechanism,
+            benchmark_root=benchmark_root,
+            task_site=str(task_site) if task_site is not None else None,
+            instance_id=str(instance_id) if instance_id is not None else None,
+            site_url=server_url,
+            runtime_dir=storage_runtime_path,
+            url_origin_rewrites=url_origin_rewrites,
+        )
+        if resolved_storage is not None:
+            storage_state, storage_state_aliases = resolved_storage
     return {
         "schema_version": 1,
         "mode": "phase4",
@@ -388,15 +409,9 @@ def _build_phase4_sidecar_request(
         "max_steps": agent.max_steps,
         "headless": True,
         "vision_support": model_profile.vision_support,
-        "storage_state": _resolved_storage_state_for_phase4(
-            auth_mechanism,
-            benchmark_root=benchmark_root,
-            task_site=str(task_site) if task_site is not None else None,
-            instance_id=str(instance_id) if instance_id is not None else None,
-            site_url=server_url,
-            runtime_dir=task_dir / "auth",
-            url_origin_rewrites=url_origin_rewrites,
-        ),
+        "storage_state": storage_state,
+        "storage_state_runtime_dir": storage_runtime_dir,
+        "storage_state_aliases": storage_state_aliases,
         "scoped_auth": _scoped_auth_for_phase4(auth_mechanism, server_url=server_url),
         "env_overrides": _phase4_env_overrides(server_url, run_kwargs),
         "task_seed": None,
@@ -488,6 +503,10 @@ def _run_sidecar_request(
             )
             return payload
         raise
+    finally:
+        storage_runtime_dir = request.get("storage_state_runtime_dir")
+        if isinstance(storage_runtime_dir, str) and storage_runtime_dir:
+            shutil.rmtree(storage_runtime_dir, ignore_errors=True)
     if proc.returncode != 0:
         detail = proc.stderr.strip() or proc.stdout.strip()
         detail = _redact_sidecar_text(detail, request)
@@ -555,7 +574,8 @@ def _phase4_timeout_result(
             "terminated": False,
             "truncated": True,
         },
-        "artifacts": {},
+        "artifacts": _phase4_artifact_manifest(task_dir),
+        "evidence_status": "timeout_placeholder",
         "browser_runtime": runtime,
         "timeout_stdout": _redact_sidecar_text(
             (timeout_payload.get("stdout") or "")[-1000:],
@@ -602,6 +622,19 @@ def _write_minimal_timeout_artifacts(task_dir: Path, request: dict[str, Any], me
                     "_worldsim_evidence_status": "timeout_placeholder",
                     "entries": [minimal_har_placeholder_entry()],
                 }
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+    )
+    _write_text_if_absent(
+        task_dir / "network_evidence.json",
+        json.dumps(
+            {
+                "public_trace": "timeout_placeholder",
+                "private_reward_trace": "unavailable",
+                "private_reward_trace_dir": None,
             },
             indent=2,
             sort_keys=True,
@@ -658,6 +691,32 @@ def _write_text_if_absent(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def _phase4_artifact_manifest(output_dir: Path) -> dict[str, Any]:
+    files = {
+        "summary_info": output_dir / "summary_info.json",
+        "history": output_dir / "history.json",
+        "final_response": output_dir / "final_response.json",
+        "network_trace": output_dir / "network_trace.json",
+        "network_har": output_dir / "network.har",
+        "network_evidence": output_dir / "network_evidence.json",
+        "navigation_trace": output_dir / "navigation_trace.json",
+        "browser_runtime": output_dir / "browser_runtime.json",
+        "needham_trace": output_dir / "needham_trace.json",
+        "needham_xml": output_dir / "needham_trace.xml",
+        "pvpo_summary": output_dir / "pvpo" / "capture_summary.json",
+    }
+    screenshots = sorted(
+        {str(path) for path in output_dir.glob("screenshot_step_*")}
+        | {str(path) for path in (output_dir / "screenshots").glob("step_*.png")}
+    )
+    pvpo_steps = sorted(str(path) for path in (output_dir / "pvpo").glob("step_*.json"))
+    steps = sorted(str(path) for path in output_dir.glob("step_*.pkl.gz"))
+    videos = sorted(str(path) for path in output_dir.glob("**/*.webm"))
+    return {
+        key: str(path) for key, path in files.items() if path.exists()
+    } | {"screenshots": screenshots, "pvpo_steps": pvpo_steps, "steps": steps, "videos": videos}
+
+
 def _recycle_pvpo_browser_after_parent_timeout(cdp_url: str) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "recycle_enabled": True,
@@ -704,7 +763,11 @@ def _redact_sidecar_payload(value: Any, *, secret_values: set[str] | None = None
         redacted: dict[str, Any] = {}
         for key, item in value.items():
             lower = str(key).lower()
-            if lower == "network_trace" and isinstance(item, list):
+            if lower == "storage_state":
+                redacted[key] = {"present": bool(item), "runtime_only": True}
+            elif lower == "storage_state_runtime_dir":
+                redacted[key] = "<runtime-only>"
+            elif lower == "network_trace" and isinstance(item, list):
                 redacted[key] = [
                     _redact_network_event(event, secret_values=secret_values) for event in item
                 ]

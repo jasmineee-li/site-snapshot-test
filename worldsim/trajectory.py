@@ -104,6 +104,8 @@ def load_trajectory_into_sandbox(
     for f in trajectory_dir.rglob("*"):
         if f.is_file():
             rel = f.relative_to(trajectory_dir)
+            if rel.parts and rel.parts[0] in {"auth", "reward_private"}:
+                continue
             # Intentionally stage all trajectory artifacts, including network.har.
             # The live writer in browser_use_agent redacts trace entries before
             # persisting both network_trace.json and network.har, so this broad

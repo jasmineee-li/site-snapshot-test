@@ -264,6 +264,7 @@ def _artifact_manifest(output_dir: Path) -> dict[str, Any]:
         "final_response": output_dir / "final_response.json",
         "network_trace": output_dir / "network_trace.json",
         "network_har": output_dir / "network.har",
+        "network_evidence": output_dir / "network_evidence.json",
         "navigation_trace": output_dir / "navigation_trace.json",
         "browser_runtime": output_dir / "browser_runtime.json",
         "needham_trace": output_dir / "needham_trace.json",

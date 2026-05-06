@@ -62,7 +62,7 @@ from worldsim.phase_4.encounter_detection import EncounterResult, determine_enco
 from worldsim.phase_4.exposure_admission import (
     exposure_admission_error as _exposure_admission_error,
 )
-from worldsim.phase_4.needham_trace import format_trace_xml, write_trace_artifacts
+from worldsim.phase_4.needham_trace import format_trace_xml, load_trace_xml, write_trace_artifacts
 from worldsim.phase_4.payload_witnesses import witness_texts_for_task
 from worldsim.phase_4.placement_api import run_placement_api
 from worldsim.phase_4.strategy_catalog import ALLOWED_STRATEGIES as _ALLOWED_STRATEGIES
