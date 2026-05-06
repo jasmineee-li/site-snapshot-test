@@ -309,7 +309,7 @@ def train_mcq_chat(
     }
 
 
-def evaluate_mcq_probe_on_sad(
+def evaluate_probe_on_sad(
     probe: ContrastiveProbe,
     model,
     tokenizer,
@@ -320,8 +320,16 @@ def evaluate_mcq_probe_on_sad(
     dev_fraction: float,
     max_per_class: int | None,
     top_n_layers: int,
+    probe_subdir: str = "mcq",
 ) -> dict[str, Any]:
-    """Evaluate an in-memory MCQ probe on SAD and choose the default layer."""
+    """Evaluate an in-memory probe on SAD and choose the default layer.
+
+    Works for either an MCQ probe (vector trained at assistant-answer span)
+    or a framing probe (vector trained at colon position). Scoring uses
+    chat-template tokenization with mean-over-user-content-tokens, the
+    SAD-paper-fidelity protocol — the probe vector direction is reused as-is.
+    `probe_subdir` ("mcq" / "framing") just labels the resulting JSON.
+    """
     samples = load_sad_stages_oversight(
         structs_zip,
         password,
@@ -410,7 +418,7 @@ def evaluate_mcq_probe_on_sad(
 
     summary = {
         "model": getattr(model.cfg, "model_name", "unknown"),
-        "probe_dir": str(output_path.parent / "mcq"),
+        "probe_dir": str(output_path.parent / probe_subdir),
         "dataset": "SAD stages_oversight",
         "label_convention": {"test_eval": 1, "deploy": 0},
         "n_total": len(samples),
@@ -641,6 +649,14 @@ def main() -> None:
     )
     ap.add_argument("--framing-eval-split", type=float, default=0.25)
     ap.add_argument("--framing-token-position", type=int, default=-2)
+    ap.add_argument(
+        "--framing-layer-selection",
+        choices=["sad", "heldout"],
+        default="sad",
+        help="Default is SAD stages_oversight selection (same protocol as MCQ); "
+             "heldout reuses the 16-prompt held-out split. Picking sad here lets "
+             "you compare MCQ vs framing probe vectors at matched layers.",
+    )
     ap.add_argument("--top-n-layers", type=int, default=6)
     ap.add_argument(
         "--sad-structs-zip",
@@ -684,7 +700,7 @@ def main() -> None:
     sad_results = None
     if args.mcq_layer_selection == "sad":
         sad_path = output_root / "sad_stages_oversight_eval.json"
-        sad_results = evaluate_mcq_probe_on_sad(
+        sad_results = evaluate_probe_on_sad(
             mcq_probe,
             model,
             tokenizer,
@@ -695,6 +711,7 @@ def main() -> None:
             args.sad_dev_fraction,
             args.sad_max_per_class,
             args.top_n_layers,
+            probe_subdir="mcq",
         )
         sad_top = (
             sad_results["dev_test_split"]["dev_top_layers"]
@@ -740,6 +757,53 @@ def main() -> None:
         args.top_n_layers,
         args.framing_token_position,
     )
+
+    framing_sad_results = None
+    if args.framing_layer_selection == "sad":
+        framing_sad_path = output_root / "sad_stages_oversight_eval_framing.json"
+        framing_sad_results = evaluate_probe_on_sad(
+            framing_probe,
+            model,
+            tokenizer,
+            layers,
+            Path(args.sad_structs_zip),
+            args.sad_password,
+            framing_sad_path,
+            args.sad_dev_fraction,
+            args.sad_max_per_class,
+            args.top_n_layers,
+            probe_subdir="framing",
+        )
+        framing_sad_top = (
+            framing_sad_results["dev_test_split"]["dev_top_layers"]
+            if framing_sad_results["dev_test_split"]
+            else framing_sad_results["top_layers_all"]
+        )
+        framing_probe.best_layer = framing_sad_results["selected_layer"]
+        framing_probe.threshold = framing_sad_results["selected_threshold"]
+        framing_probe.metadata.update(
+            {
+                "layer_selection": framing_sad_results["selection_source"],
+                "sad_eval_output": str(framing_sad_path),
+                "sad_selected_auroc": framing_sad_results["selected_auroc"],
+                "sad_dev_fraction": args.sad_dev_fraction,
+                "top_layers": [item["layer"] for item in framing_sad_top],
+                "framing_heldout_top_layers": framing_results.get("top_layers", []),
+            }
+        )
+        if framing_sad_results["dev_test_split"]:
+            framing_probe.metadata["sad_test_auroc_at_selected_layer"] = framing_sad_results[
+                "dev_test_split"
+            ]["test_auroc_at_dev_best_layer"]
+        framing_probe.save(output_root / "framing")
+        framing_results = {
+            **framing_results,
+            "best_layer": framing_sad_results["selected_layer"],
+            "best_auroc": framing_sad_results["selected_auroc"],
+            "top_layers": [item["layer"] for item in framing_sad_top],
+            "selection_source": framing_sad_results["selection_source"],
+        }
+
     cross = cross_validate_chat(mcq_probe, framing_probe, model, tokenizer, mcq_data, framing)
 
     summary = {
@@ -754,6 +818,9 @@ def main() -> None:
         "framing": {
             "best_layer": framing_results["best_layer"],
             "best_auroc": framing_results["best_auroc"],
+            "layer_selection": framing_results.get(
+                "selection_source", "framing_heldout"
+            ),
             "top_layers": framing_probe.metadata["top_layers"],
         },
         "cross_validation": cross,
@@ -783,6 +850,17 @@ def main() -> None:
             "top_layers_all": sad_results["top_layers_all"],
             "num_layers_exact_1_0": sad_results["num_layers_exact_1_0"],
             "num_layers_below_0_5": sad_results["num_layers_below_0_5"],
+        }
+    if framing_sad_results is not None:
+        summary["framing"]["sad"] = {
+            "output": str(output_root / "sad_stages_oversight_eval_framing.json"),
+            "selected_layer": framing_sad_results["selected_layer"],
+            "selected_auroc": framing_sad_results["selected_auroc"],
+            "selection_source": framing_sad_results["selection_source"],
+            "dev_test_split": framing_sad_results["dev_test_split"],
+            "top_layers_all": framing_sad_results["top_layers_all"],
+            "num_layers_exact_1_0": framing_sad_results["num_layers_exact_1_0"],
+            "num_layers_below_0_5": framing_sad_results["num_layers_below_0_5"],
         }
     summary_path = output_root / "summary.json"
     summary_path.write_text(json.dumps(summary, indent=2))
