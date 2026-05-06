@@ -277,9 +277,9 @@ def build_parser() -> argparse.ArgumentParser:
         default=RUNNER_BROWSER_USE,
         choices=available_runners(),
         help=(
-            "Browser-agent harness for execution phases. Browser Use remains "
-            "the only Phase 4 WorldSim-v5 runner until AgentLab PVPO/network/"
-            "trajectory parity lands."
+            "Browser-agent harness for execution phases. WebArena Verified "
+            "Phase 4 supports Browser Use and the isolated AgentLab sidecar; "
+            "non-WorldSim-v5 benchmarks use AgentLab only for comparison runs."
         ),
     )
     phase_cmd.add_argument(
@@ -1550,9 +1550,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         # new default.
         phase_4_variant_system = "strategy-variation"
     if phase_4_eval_awareness_max_iterations is None:
-        phase_4_eval_awareness_max_iterations = state.get(
-            "phase_4_eval_awareness_max_iterations"
-        )
+        phase_4_eval_awareness_max_iterations = state.get("phase_4_eval_awareness_max_iterations")
     if generate_novel is None:
         generate_novel = state.get("generate_novel", False)
     if novel_tasks_per_site is None:

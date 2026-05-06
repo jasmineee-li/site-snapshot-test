@@ -5,9 +5,10 @@ depend on ``openai<2`` while Browser Use 0.12.6 depends on ``openai==2.16.0``.
 The comparison runner therefore crosses a JSON subprocess boundary into
 ``packages/worldsim-agentlab-runner``.
 
-The sidecar path is for benchmark-native comparison runs. It is not a
-WorldSim-v5 Phase 4 parity runtime until PVPO, HAR/network reward evidence,
-auth, and trajectory artifact compatibility are implemented.
+The sidecar has two entrypoints: benchmark-native comparison runs and the
+WorldSim-v5 Phase 4 runtime. The Phase 4 path preserves WorldSim-owned
+admission, seeding, rewards, PVPO gates, judges, variants, and summaries while
+delegating only the browser-agent episode to AgentLab/BrowserGym.
 """
 
 from __future__ import annotations
@@ -366,7 +367,9 @@ def _build_phase4_sidecar_request(
     storage_runtime_dir: str | None = None
     if isinstance(auth_mechanism, dict) and auth_mechanism.get("type") == "storage_state":
         storage_runtime_path = Path(
-            tempfile.mkdtemp(prefix=f"worldsim-agentlab-storage-{task_dir.name}-{uuid.uuid4().hex}-")
+            tempfile.mkdtemp(
+                prefix=f"worldsim-agentlab-storage-{task_dir.name}-{uuid.uuid4().hex}-"
+            )
         )
         storage_runtime_dir = str(storage_runtime_path)
         resolved_storage = _resolved_storage_state_for_phase4(
@@ -712,9 +715,12 @@ def _phase4_artifact_manifest(output_dir: Path) -> dict[str, Any]:
     pvpo_steps = sorted(str(path) for path in (output_dir / "pvpo").glob("step_*.json"))
     steps = sorted(str(path) for path in output_dir.glob("step_*.pkl.gz"))
     videos = sorted(str(path) for path in output_dir.glob("**/*.webm"))
-    return {
-        key: str(path) for key, path in files.items() if path.exists()
-    } | {"screenshots": screenshots, "pvpo_steps": pvpo_steps, "steps": steps, "videos": videos}
+    return {key: str(path) for key, path in files.items() if path.exists()} | {
+        "screenshots": screenshots,
+        "pvpo_steps": pvpo_steps,
+        "steps": steps,
+        "videos": videos,
+    }
 
 
 def _recycle_pvpo_browser_after_parent_timeout(cdp_url: str) -> dict[str, Any]:

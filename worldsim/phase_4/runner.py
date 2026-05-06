@@ -129,6 +129,17 @@ async def run(args: argparse.Namespace) -> int:
         )
         return 1
     capabilities = get_benchmark_capabilities(run_benchmark or config.benchmark_name)
+    if capabilities.phase_4_mode != "worldsim_v5":
+        message = f"benchmark {capabilities.canonical_name!r} does not support WorldSim v5 Phase 4"
+        logger.error("Phase 4 benchmark metadata gate failed: %s", message)
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="unsupported_benchmark",
+            error=message,
+            **state_metadata,
+        )
+        return 1
     if agent_runner not in capabilities.supported_runners:
         message = (
             f"runner {agent_runner!r} is not supported for benchmark "
@@ -156,17 +167,6 @@ async def run(args: argparse.Namespace) -> int:
                 **state_metadata,
             )
             return 1
-    if capabilities.phase_4_mode != "worldsim_v5":
-        message = f"benchmark {capabilities.canonical_name!r} does not support WorldSim v5 Phase 4"
-        logger.error("Phase 4 benchmark metadata gate failed: %s", message)
-        save_state(
-            "phase_4",
-            status="failed",
-            reason="unsupported_benchmark",
-            error=message,
-            **state_metadata,
-        )
-        return 1
     pvpo_endpoint_errors = _pvpo_endpoint_preflight_errors(
         active_instances,
         active_sites=active_sites,
@@ -478,6 +478,7 @@ async def run(args: argparse.Namespace) -> int:
                 "initial_evaluation",
                 completed_initial_tasks=len(completed_initial_task_ids),
             )
+
     # Thread the benchmark codebase root through so BrowserUseAgent can validate
     # absolute auth_mechanism.storage_state.path values for containment. Relative
     # paths anchor to the WorldSim state dir (where Phase 0d writes), not to

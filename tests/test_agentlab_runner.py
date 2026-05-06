@@ -404,9 +404,10 @@ def test_build_phase4_sidecar_request_maps_runner_contract(monkeypatch, tmp_path
     assert request["site_prompt"] == "site prompt"
     assert not (tmp_path / "task" / "auth" / "storage_state.json").exists()
     assert request["storage_state_runtime_dir"]
-    assert Path(request["storage_state"]).parent.resolve() == Path(
-        request["storage_state_runtime_dir"]
-    ).resolve()
+    assert (
+        Path(request["storage_state"]).parent.resolve()
+        == Path(request["storage_state_runtime_dir"]).resolve()
+    )
     runtime_state = json.loads(Path(request["storage_state"]).read_text(encoding="utf-8"))
     assert runtime_state["cookies"][0]["sameSite"] == "None"
     assert any(cookie["domain"] == "canonical.test" for cookie in runtime_state["cookies"])
@@ -950,6 +951,80 @@ def test_agentlab_pvpo_capture_uses_latest_open_page():
     assert phase4_loop._pvpo_capture_page(env) is latest
 
 
+def test_agentlab_pvpo_uses_canonical_capture_and_artifact_writer(monkeypatch, tmp_path):
+    sync_pvpo = _load_sidecar_module("sync_pvpo")
+    from worldsim.phase_4 import pvpo_capture
+
+    captured: dict[str, object] = {}
+
+    async def fake_atomic(cdp_session, **kwargs):
+        captured["cdp_session"] = cdp_session
+        captured["kwargs"] = kwargs
+        return pvpo_capture.StepCapture(
+            screenshot_png=b"png",
+            visibility_vec=[{"char": "P", "layoutVisible": True}],
+            background_color=(1, 2, 3),
+            has_damage=True,
+            clip=pvpo_capture.Rect(0, 0, 1440, 900),
+            page_url="http://gitlab.test/issue/1",
+            match_found=True,
+            match_offset=4,
+            matched_witness_id="payload",
+            matched_witness_text="PAYLOAD",
+        )
+
+    monkeypatch.setattr(pvpo_capture, "atomic_capture_with_visibility", fake_atomic)
+
+    class FakeCdp:
+        def __init__(self):
+            self.calls: list[tuple[str, dict[str, object]]] = []
+
+        def send(self, method, params=None):
+            self.calls.append((method, params or {}))
+            if method == "Runtime.evaluate" and "window.innerWidth" in str(
+                (params or {}).get("expression")
+            ):
+                return {"result": {"type": "object", "value": {"w": 1440, "h": 900}}}
+            return {"result": {"type": "object", "value": {}}}
+
+    cdp = FakeCdp()
+
+    class FakeContext:
+        def new_cdp_session(self, page):
+            assert page is fake_page
+            return cdp
+
+    fake_page = SimpleNamespace(context=FakeContext(), url="http://gitlab.test/issue/1")
+    recorder = sync_pvpo.SyncPvpoRecorder(
+        tmp_path,
+        payload_text="PAYLOAD",
+        witness_texts=[{"id": "payload", "kind": "rendered_payload", "text": "PAYLOAD"}],
+        cdp_url="http://127.0.0.1:9222",
+    )
+
+    recorder.capture_step(fake_page, 7)
+    recorder.close()
+
+    assert captured["cdp_session"] is cdp
+    kwargs = captured["kwargs"]
+    assert kwargs["payload_text"] == "PAYLOAD"
+    assert kwargs["witness_texts"] == [
+        {"id": "payload", "kind": "rendered_payload", "text": "PAYLOAD"}
+    ]
+    assert kwargs["scroll_to_match"] is False
+    assert kwargs["cdp_timeout_s"] == 10.0
+    assert kwargs["viewport_rect"] == pvpo_capture.Rect(0, 0, 1440, 900)
+    assert hasattr(kwargs["capturing"], "beginframe_controller")
+    assert (tmp_path / "screenshots" / "step_7.png").read_bytes() == b"png"
+    step = json.loads((tmp_path / "pvpo" / "step_7.json").read_text(encoding="utf-8"))
+    assert step["matched_witness_id"] == "payload"
+    summary = json.loads((tmp_path / "pvpo" / "capture_summary.json").read_text(encoding="utf-8"))
+    assert summary["status"] == "ok"
+    assert summary["steps_seen"] == 1
+    assert summary["steps_captured"] == 1
+    assert "capture_implementation" not in summary
+
+
 def test_trajectory_staging_skips_runtime_auth_subtree(tmp_path):
     (tmp_path / "auth").mkdir()
     (tmp_path / "auth" / "storage_state.json").write_text(
@@ -1084,9 +1159,8 @@ def test_sidecar_result_redacts_request_secrets_echoed_in_logs(monkeypatch, tmp_
     assert persisted_event["response_content"] == '{"access_token":"<redacted>","title":"Secret"}'
 
 
-def test_phase4_sidecar_helpers_normalize_final_message_and_pvpo_payload():
+def test_phase4_sidecar_helpers_normalize_final_message():
     worldsim_task = _load_sidecar_module("worldsim_task")
-    sync_pvpo = _load_sidecar_module("sync_pvpo")
 
     final = worldsim_task.latest_assistant_message(
         [
@@ -1095,26 +1169,8 @@ def test_phase4_sidecar_helpers_normalize_final_message_and_pvpo_payload():
             {"role": "assistant", "message": "Finished"},
         ]
     )
-    payload = sync_pvpo._unwrap_runtime_payload(
-        {
-            "result": {
-                "value": {
-                    "entries": [{"char": "p", "layoutVisible": True}],
-                    "backgroundColor": {"r": 1, "g": 2, "b": 3},
-                    "matchFound": True,
-                    "matchOffset": 0,
-                    "matchedWitnessId": "w",
-                    "matchedWitnessText": "payload",
-                    "pageUrl": "http://example.test",
-                }
-            }
-        }
-    )
 
     assert final == "Finished"
-    assert payload["background_color"] == [1, 2, 3]
-    assert payload["match_found"] is True
-    assert payload["match_offset"] == 0
 
 
 def test_worldsim_task_validate_ignores_agentlab_llm_chat_messages():

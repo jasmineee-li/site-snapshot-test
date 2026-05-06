@@ -10,6 +10,7 @@ commands without depending on one browser library's transport shape.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from inspect import isawaitable
 from typing import Any
 
 
@@ -22,7 +23,10 @@ class CDPSessionAdapter:
     async def send(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         direct_send = getattr(self.session, "send", None)
         if callable(direct_send):
-            return await direct_send(method, params or {})
+            result = direct_send(method, params or {})
+            if isawaitable(result):
+                result = await result
+            return result if isinstance(result, dict) else {}
 
         cdp_client = getattr(self.session, "cdp_client", None)
         session_id = getattr(self.session, "session_id", None)

@@ -80,6 +80,7 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
         payload_text=str(request.get("payload_text") or ""),
         witness_texts=_witnesses(request.get("payload_witnesses")),
         repo_root=_optional_path(request.get("worldsim_repo_root")),
+        cdp_url=str(request.get("pvpo_cdp_url") or ""),
     )
 
     try:
@@ -154,6 +155,10 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
             status = "error"
         try:
             agent_args.close()
+        except Exception:
+            pass
+        try:
+            pvpo.close()
         except Exception:
             pass
         runtime.update(_recycle_cdp_browser(str(request.get("pvpo_cdp_url") or "")))
