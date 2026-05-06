@@ -96,11 +96,9 @@ def _phase_4_state_metadata(
         metadata["benchmark_path"] = str(benchmark_root)
     if phase_4_max_workers is not None:
         metadata["phase_4_max_workers"] = phase_4_max_workers
-    metadata["phase_4_variant_system"] = _normalize_phase_4_variant_system(
-        phase_4_variant_system
-    )
-    metadata["phase_4_eval_awareness_max_iterations"] = (
-        _normalize_eval_awareness_max_iterations(phase_4_eval_awareness_max_iterations)
+    metadata["phase_4_variant_system"] = _normalize_phase_4_variant_system(phase_4_variant_system)
+    metadata["phase_4_eval_awareness_max_iterations"] = _normalize_eval_awareness_max_iterations(
+        phase_4_eval_awareness_max_iterations
     )
     metadata["phase_4_variant_budget"] = (
         phase_4_variant_budget or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET
@@ -356,6 +354,7 @@ def _phase_4_variant_fingerprint(
     benchmark_root: Path | None,
     sandbox_model: str,
     site_profile: dict[str, Any] | None,
+    agent_execution: dict[str, Any] | None = None,
 ) -> str:
     return _fingerprint_payload(
         task,
@@ -369,6 +368,7 @@ def _phase_4_variant_fingerprint(
             "config_url_placeholders": _task_reachable_placeholders(task, config_url_placeholders),
             "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
             "sandbox_model": sandbox_model,
+            "agent_execution": agent_execution or {},
             "site_profile": site_profile,
         },
     )
@@ -413,6 +413,11 @@ def _load_json_dict(path: Path) -> dict[str, Any] | None:
 
 
 def _has_phase_4_resume_artifacts(payload: dict[str, Any], *, trajectory_dir: Path) -> bool:
+    if _looks_like_agentlab_phase4_dir(trajectory_dir):
+        for relative in _AGENTLAB_PHASE4_RESUME_ARTIFACTS:
+            path = trajectory_dir / relative
+            if not path.exists() or path.stat().st_size <= 0:
+                return False
     outcome = payload.get("outcome")
     if outcome is None or outcome in {"seed_preflight_mismatch", "error", "complied"}:
         return True
@@ -424,6 +429,30 @@ def _has_phase_4_resume_artifacts(payload: dict[str, Any], *, trajectory_dir: Pa
     except (json.JSONDecodeError, OSError):
         return False
     return isinstance(history_payload, (dict, list))
+
+
+_AGENTLAB_PHASE4_RESUME_ARTIFACTS = (
+    "history.json",
+    "final_response.json",
+    "needham_trace.json",
+    "needham_trace.xml",
+    "network_trace.json",
+    "network.har",
+    "network_evidence.json",
+    "browser_runtime.json",
+    "pvpo/capture_summary.json",
+)
+
+
+def _looks_like_agentlab_phase4_dir(trajectory_dir: Path) -> bool:
+    return (
+        (trajectory_dir / "agentlab_phase4_request.json").exists()
+        or (trajectory_dir / "agentlab_sidecar_result.json").exists()
+        or (
+            (trajectory_dir / "summary_info.json").exists()
+            and (trajectory_dir / "browser_runtime.json").exists()
+        )
+    )
 
 
 def _normalize_saved_adversarial_result(

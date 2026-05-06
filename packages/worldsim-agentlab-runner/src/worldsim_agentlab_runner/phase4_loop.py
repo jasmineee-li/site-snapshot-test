@@ -1,18 +1,21 @@
 from __future__ import annotations
 
+import asyncio
+import concurrent.futures
 import json
 import logging
 import pickle
-import shutil
-import subprocess
+import signal
+import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
 
 from worldsim_agentlab_runner.cdp_browser import patched_chromium_launch
 from worldsim_agentlab_runner.model_args import model_args_from_request
 from worldsim_agentlab_runner.network_trace import NetworkTraceRecorder
+from worldsim_agentlab_runner.pvpo_screenshot_patch import patched_browsergym_screenshot_for_pvpo
 from worldsim_agentlab_runner.sync_pvpo import SyncPvpoRecorder
 from worldsim_agentlab_runner.trajectory_projection import (
     final_result_from_env,
@@ -62,6 +65,7 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
     }
     steps_taken = 0
     final_result: str | None = None
+    deadline_hit = False
     chat_model_args = model_args_from_request(request)
     agent_args = GenericAgentArgs(
         chat_model_args=chat_model_args,
@@ -86,48 +90,58 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
     try:
         save_package_versions(output_dir)
         with _patched_env(_string_env(request.get("env_overrides"))):
-            benchmark_config = _apply_benchmark_config(agent_args, request)
-            agent_args.prepare()
-            agent = agent_args.make_agent()
-            if hasattr(agent, "set_task_name"):
-                agent.set_task_name("worldsim.phase4")
-            env = make_worldsim_browsergym_env(
-                request,
-                action_mapping=agent.action_set.to_python_code,
-                exp_dir=output_dir,
-                network_recorder=network,
-                runtime=runtime,
-            )
-            with patched_chromium_launch(str(request.get("pvpo_cdp_url") or ""), runtime):
-                step_info = StepInfo(step=0)
-                step_info.from_reset(
-                    env,
-                    seed=_task_seed(request),
-                    obs_preprocessor=agent.obs_preprocessor,
-                )
-            episode_info.append(step_info)
-            pvpo.capture_step(_pvpo_capture_page(env), step_info.step)
+            cdp_url = str(request.get("pvpo_cdp_url") or "")
+            with patched_chromium_launch(cdp_url, runtime):
+                with patched_browsergym_screenshot_for_pvpo(cdp_url, runtime):
+                    with _step_deadline(request, "setup and reset"):
+                        benchmark_config = _apply_benchmark_config(agent_args, request)
+                        agent_args.prepare()
+                        agent = agent_args.make_agent()
+                        if hasattr(agent, "set_task_name"):
+                            agent.set_task_name("worldsim.phase4")
+                        env = make_worldsim_browsergym_env(
+                            request,
+                            action_mapping=agent.action_set.to_python_code,
+                            exp_dir=output_dir,
+                            network_recorder=network,
+                            runtime=runtime,
+                        )
+                        step_info = StepInfo(step=0)
+                        step_info.from_reset(
+                            env,
+                            seed=_task_seed(request),
+                            obs_preprocessor=agent.obs_preprocessor,
+                        )
+                    episode_info.append(step_info)
+                    pvpo.capture_step(_pvpo_capture_page(env), step_info.step)
 
-            while not step_info.is_done and steps_taken < int(request.get("max_steps") or 30):
-                action = step_info.from_action(agent)
-                step_info.save_step_info(
-                    output_dir,
-                    save_screenshot=True,
-                    save_som=False,
-                )
-                if action is None:
-                    step_info.truncated = True
-                    break
+                    while not step_info.is_done and steps_taken < int(
+                        request.get("max_steps") or 30
+                    ):
+                        with _step_deadline(request, f"action step {step_info.step}"):
+                            action = step_info.from_action(agent)
+                        step_info.save_step_info(
+                            output_dir,
+                            save_screenshot=True,
+                            save_som=False,
+                        )
+                        if action is None:
+                            step_info.truncated = True
+                            break
 
-                next_step = StepInfo(step=step_info.step + 1)
-                next_step.from_step(env, action, obs_preprocessor=agent.obs_preprocessor)
-                steps_taken += 1
-                episode_info.append(next_step)
-                pvpo.capture_step(_pvpo_capture_page(env), next_step.step)
-                step_info = next_step
+                        next_step = StepInfo(step=step_info.step + 1)
+                        with _step_deadline(request, f"browser step {next_step.step}"):
+                            next_step.from_step(
+                                env, action, obs_preprocessor=agent.obs_preprocessor
+                            )
+                        steps_taken += 1
+                        episode_info.append(next_step)
+                        pvpo.capture_step(_pvpo_capture_page(env), next_step.step)
+                        step_info = next_step
 
-            final_result = final_result_from_env(env)
+                    final_result = final_result_from_env(env)
     except Exception as exc:
+        deadline_hit = isinstance(exc, TimeoutError)
         status = "error"
         errors.append(f"{type(exc).__name__}: {exc}")
         logger.exception("AgentLab Phase 4 sidecar failed")
@@ -148,8 +162,10 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
             errors.append(f"network trace persist failed: {type(exc).__name__}: {exc}")
             status = "error"
         try:
-            if env is not None:
+            if env is not None and not deadline_hit:
                 env.close()
+            elif env is not None:
+                errors.append("env close skipped after sidecar deadline")
         except Exception as exc:
             errors.append(f"env close failed: {type(exc).__name__}: {exc}")
             status = "error"
@@ -231,6 +247,36 @@ def _write_phase4_request_copy(output_dir: Path, request: dict[str, Any], agent_
             )
     except Exception:
         pass
+
+
+@contextmanager
+def _step_deadline(request: dict[str, Any], label: str):
+    timeout_s = _optional_positive_float(request.get("step_timeout"))
+    if timeout_s is None:
+        yield
+        return
+    previous_handler = signal.getsignal(signal.SIGALRM)
+    previous_timer = signal.setitimer(signal.ITIMER_REAL, 0)
+    started_at = time.monotonic()
+
+    def _raise_timeout(_signum: int, _frame: Any) -> None:
+        raise TimeoutError(f"AgentLab {label} exceeded step timeout {timeout_s:g}s")
+
+    signal.signal(signal.SIGALRM, _raise_timeout)
+    signal.setitimer(signal.ITIMER_REAL, timeout_s)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous_handler)
+        previous_remaining = float(previous_timer[0] or 0)
+        if previous_remaining > 0:
+            elapsed = time.monotonic() - started_at
+            signal.setitimer(
+                signal.ITIMER_REAL,
+                max(0.001, previous_remaining - elapsed),
+                float(previous_timer[1] or 0),
+            )
 
 
 def _redact_sidecar_payload(value: Any) -> Any:
@@ -320,6 +366,16 @@ def _optional_path(value: Any) -> Path | None:
     return Path(value)
 
 
+def _optional_positive_float(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None
+
+
 def _required_str(payload: dict[str, Any], key: str) -> str:
     value = payload.get(key)
     if not isinstance(value, str) or not value.strip():
@@ -328,55 +384,36 @@ def _required_str(payload: dict[str, Any], key: str) -> str:
 
 
 def _recycle_cdp_browser(cdp_url: str) -> dict[str, Any]:
-    payload: dict[str, Any] = {
-        "recycle_enabled": _recycle_enabled(),
-        "recycle_status": "disabled",
-        "recycle_method": None,
-    }
-    if not cdp_url or not payload["recycle_enabled"]:
-        return payload
-    container = _managed_container_name(cdp_url)
-    payload["recycle_container"] = container
-    if not container:
-        payload["recycle_status"] = "unmanaged_endpoint"
-        return payload
-    if shutil.which("docker") is None:
-        payload["recycle_status"] = "docker_unavailable"
-        return payload
     try:
-        proc = subprocess.run(
-            ["docker", "restart", container],
-            text=True,
-            capture_output=True,
-            timeout=20,
-            check=False,
-        )
+        from worldsim.phase_4.pvpo_beginframe import coordinator_for_pvpo_endpoint
+        from worldsim.phase_4.pvpo_browser_lifecycle import recycle_pvpo_browser_after_task
+
+        async def _recycle() -> dict[str, Any]:
+            payload = await recycle_pvpo_browser_after_task(None, cdp_url)
+            if payload.get("recycle_status") == "recycled":
+                coordinator_for_pvpo_endpoint(cdp_url).reset_after_recycle()
+            return payload
+
+        return _run_async_in_thread(_recycle())
     except Exception as exc:
-        payload["recycle_status"] = "failed"
-        payload["recycle_failure"] = f"{type(exc).__name__}: {exc}"
-        payload["recycle_method"] = "docker_restart"
-        return payload
-    payload["recycle_method"] = "docker_restart"
-    payload["recycle_status"] = "recycled" if proc.returncode == 0 else "failed"
-    if proc.returncode != 0:
-        payload["recycle_failure"] = (proc.stderr or proc.stdout).strip()
-    return payload
+        return {
+            "recycle_enabled": bool(cdp_url),
+            "recycle_status": "failed",
+            "recycle_method": "shared_lifecycle",
+            "recycle_failure": f"{type(exc).__name__}: {exc}",
+        }
 
 
-def _recycle_enabled() -> bool:
-    import os
+def _run_async_in_thread(coro: Any) -> Any:
+    result: concurrent.futures.Future[Any] = concurrent.futures.Future()
 
-    return os.environ.get("WORLDSIM_PVPO_BROWSER_RECYCLE", "").lower() not in {
-        "0",
-        "false",
-        "no",
-        "off",
-    }
+    def _worker() -> None:
+        try:
+            result.set_result(asyncio.run(coro))
+        except Exception as exc:
+            result.set_exception(exc)
 
-
-def _managed_container_name(cdp_url: str) -> str | None:
-    parsed = urlparse(cdp_url)
-    host = (parsed.hostname or "").lower()
-    if host not in {"127.0.0.1", "localhost", "::1"} or parsed.port is None:
-        return None
-    return f"pvpo-chrome-{parsed.port}"
+    thread = threading.Thread(target=_worker, name="worldsim-agentlab-async", daemon=True)
+    thread.start()
+    thread.join()
+    return result.result()

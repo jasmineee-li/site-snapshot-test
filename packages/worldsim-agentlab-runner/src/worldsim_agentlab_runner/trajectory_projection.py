@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 import re
 from pathlib import Path
@@ -113,7 +114,46 @@ def _history_entry(step: Any) -> dict[str, Any]:
 def _action_projection(action: Any) -> list[dict[str, Any]]:
     if action is None:
         return []
-    return [{"agentlab_action": {"raw": str(action)}}]
+    parsed = _parse_agentlab_action(action)
+    return [{parsed["name"]: parsed["arguments"]}]
+
+
+def _parse_agentlab_action(action: Any) -> dict[str, Any]:
+    if isinstance(action, dict) and action:
+        name = str(next(iter(action)))
+        raw_args = action.get(name)
+        arguments = raw_args if isinstance(raw_args, dict) else {"value": raw_args}
+        return {"name": name, "arguments": {**arguments, "raw": str(action)}}
+    raw = str(action)
+    try:
+        node = ast.parse(raw, mode="eval").body
+    except SyntaxError:
+        return {"name": "agentlab_action", "arguments": {"raw": raw}}
+    if not isinstance(node, ast.Call):
+        return {"name": "agentlab_action", "arguments": {"raw": raw}}
+    if isinstance(node.func, ast.Name):
+        name = node.func.id
+    elif isinstance(node.func, ast.Attribute):
+        name = node.func.attr
+    else:
+        name = "agentlab_action"
+    arguments: dict[str, Any] = {"raw": raw}
+    positional: list[Any] = []
+    for item in node.args:
+        try:
+            positional.append(ast.literal_eval(item))
+        except Exception:
+            positional.append(ast.unparse(item))
+    if positional:
+        arguments["args"] = positional
+    for keyword in node.keywords:
+        if keyword.arg is None:
+            continue
+        try:
+            arguments[keyword.arg] = ast.literal_eval(keyword.value)
+        except Exception:
+            arguments[keyword.arg] = ast.unparse(keyword.value)
+    return {"name": name or "agentlab_action", "arguments": arguments}
 
 
 def _active_title(obs: dict[str, Any]) -> str | None:
@@ -168,12 +208,16 @@ def _write_needham_trace(
         tool_calls = []
         if isinstance(action_items, list):
             for action in action_items:
-                if isinstance(action, dict) and "agentlab_action" in action:
+                if isinstance(action, dict) and action:
+                    function = str(next(iter(action)))
+                    arguments = action.get(function)
+                    if not isinstance(arguments, dict):
+                        arguments = {"value": arguments}
                     tool_calls.append(
                         {
                             "id": str(next_tool_id),
-                            "function": "agentlab_action",
-                            "arguments": action["agentlab_action"],
+                            "function": function,
+                            "arguments": arguments,
                         }
                     )
                     next_tool_id += 1
@@ -192,7 +236,7 @@ def _write_needham_trace(
                 {
                     "role": "tool",
                     "text": result_text,
-                    "function": "agentlab_action",
+                    "function": tool_calls[0]["function"] if tool_calls else "agentlab_action",
                     "provenance": {"source": "agentlab_history", "source_step": index},
                 }
             )

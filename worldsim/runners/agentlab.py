@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import html
 import json
 import logging
 import os
@@ -68,6 +69,8 @@ class AgentLabAgentWrapper:
     service_tier: str | None = None
     max_steps: int = _DEFAULT_MAX_STEPS
     timeout: int | None = None
+    llm_timeout: int | None = None
+    step_timeout: int | None = None
 
     async def setup(self, server_url: str) -> None:
         return None
@@ -335,6 +338,8 @@ def _build_sidecar_request(
         "model_profile": model_profile.to_sidecar_dict(),
         "model_metadata_path": str(task_dir / "worldsim_model_calls.jsonl"),
         "max_steps": max_steps,
+        "llm_timeout": agent.llm_timeout,
+        "step_timeout": agent.step_timeout,
         "headless": True,
         "vision_support": model_profile.vision_support,
         "storage_state": _storage_state_for_agentlab(instance_dict),
@@ -410,6 +415,8 @@ def _build_phase4_sidecar_request(
         "model_profile": model_profile.to_sidecar_dict(),
         "model_metadata_path": str(task_dir / "worldsim_model_calls.jsonl"),
         "max_steps": agent.max_steps,
+        "llm_timeout": agent.llm_timeout,
+        "step_timeout": agent.step_timeout,
         "headless": True,
         "vision_support": model_profile.vision_support,
         "storage_state": storage_state,
@@ -443,6 +450,9 @@ def _agent_result_from_phase4_sidecar(payload: dict[str, Any]) -> AgentResult:
 def _default_sidecar_command(subcommand: str = "run") -> list[str]:
     repo_root = Path(__file__).resolve().parents[2]
     project_dir = repo_root / "packages" / "worldsim-agentlab-runner"
+    venv_entrypoint = project_dir / ".venv" / "bin" / "worldsim-agentlab-runner"
+    if venv_entrypoint.is_file() and os.access(venv_entrypoint, os.X_OK):
+        return [str(venv_entrypoint), subcommand]
     return [
         "uv",
         "run",
@@ -515,7 +525,7 @@ def _run_sidecar_request(
         detail = _redact_sidecar_text(detail, request)
         raise RuntimeError(f"AgentLab sidecar failed with exit {proc.returncode}: {detail}")
     try:
-        payload = json.loads(proc.stdout)
+        payload = _sidecar_json_payload(proc.stdout)
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"AgentLab sidecar returned invalid JSON: {proc.stdout[:500]}") from exc
     if not isinstance(payload, dict):
@@ -531,6 +541,23 @@ def _run_sidecar_request(
     return payload
 
 
+def _sidecar_json_payload(stdout: str) -> dict[str, Any]:
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        for line in reversed(stdout.splitlines()):
+            candidate = line.strip()
+            if not candidate.startswith("{") or not candidate.endswith("}"):
+                continue
+            payload = json.loads(candidate)
+            break
+        else:
+            raise
+    if not isinstance(payload, dict):
+        raise RuntimeError("AgentLab sidecar returned a non-object JSON payload")
+    return payload
+
+
 def _phase4_timeout_result(
     request: dict[str, Any],
     task_dir: Path,
@@ -540,6 +567,7 @@ def _phase4_timeout_result(
     message = f"AgentLab sidecar exceeded task timeout {timeout}s"
     task_dir.mkdir(parents=True, exist_ok=True)
     _write_minimal_timeout_artifacts(task_dir, request, message)
+    recovered = _recover_phase4_timeout_artifacts(task_dir)
     runtime = {
         "runner": "agentlab",
         "mode": "phase4",
@@ -562,15 +590,15 @@ def _phase4_timeout_result(
         "passed": None,
         "reward": 0.0,
         "agentlab_reward": 0.0,
-        "steps": 0,
+        "steps": recovered["steps"],
         "is_done": False,
-        "final_result": None,
+        "final_result": recovered["final_result"],
         "elapsed": float(timeout or 0),
         "errors": [message],
         "error": message,
-        "network_trace": [],
+        "network_trace": recovered["network_trace"],
         "summary_info": {
-            "n_steps": 0,
+            "n_steps": recovered["steps"],
             "cum_reward": 0.0,
             "cum_raw_reward": 0.0,
             "err_msg": message,
@@ -578,7 +606,7 @@ def _phase4_timeout_result(
             "truncated": True,
         },
         "artifacts": _phase4_artifact_manifest(task_dir),
-        "evidence_status": "timeout_placeholder",
+        "evidence_status": recovered["evidence_status"],
         "browser_runtime": runtime,
         "timeout_stdout": _redact_sidecar_text(
             (timeout_payload.get("stdout") or "")[-1000:],
@@ -588,6 +616,51 @@ def _phase4_timeout_result(
             (timeout_payload.get("stderr") or "")[-1000:],
             request,
         ),
+    }
+
+
+def _recover_phase4_timeout_artifacts(task_dir: Path) -> dict[str, Any]:
+    """Read partial sidecar artifacts preserved after a parent timeout."""
+
+    steps = 0
+    final_result: str | None = None
+    evidence_status = "timeout_placeholder"
+    history_path = task_dir / "history.json"
+    try:
+        history_payload = json.loads(history_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        history_payload = None
+    if isinstance(history_payload, dict):
+        history = history_payload.get("history")
+        if isinstance(history, list):
+            steps = max(0, len([item for item in history if isinstance(item, dict)]) - 1)
+            if history:
+                evidence_status = "timeout_partial_artifacts"
+        for item in reversed(history if isinstance(history, list) else []):
+            if not isinstance(item, dict):
+                continue
+            for result_item in item.get("result") or []:
+                if not isinstance(result_item, dict):
+                    continue
+                text = result_item.get("extracted_content")
+                if isinstance(text, str) and text.strip():
+                    final_result = text.strip()
+                    break
+            if final_result is not None:
+                break
+    try:
+        network_trace = json.loads((task_dir / "network_trace.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        network_trace = []
+    if not isinstance(network_trace, list):
+        network_trace = []
+    if network_trace:
+        evidence_status = "timeout_partial_artifacts"
+    return {
+        "steps": steps,
+        "final_result": final_result,
+        "network_trace": [event for event in network_trace if isinstance(event, dict)],
+        "evidence_status": evidence_status,
     }
 
 
@@ -614,6 +687,41 @@ def _write_minimal_timeout_artifacts(task_dir: Path, request: dict[str, Any], me
         )
         + "\n",
     )
+    needham_messages = [
+        {
+            "role": "user",
+            "text": str(request.get("task") or ""),
+            "provenance": {"source": "agentlab_timeout_request"},
+        },
+        {
+            "role": "assistant",
+            "text": message,
+            "tool_calls": None,
+            "provenance": {"source": "agentlab_timeout"},
+        },
+    ]
+    needham_xml = (
+        '<transcript format="needham-xml-v1">\n'
+        f'<message role="user">{html.escape(needham_messages[0]["text"])}</message>\n'
+        f'<message role="assistant">{html.escape(message)}</message>\n'
+        "</transcript>\n"
+    )
+    _write_text_if_absent(
+        task_dir / "needham_trace.json",
+        json.dumps(
+            {
+                "format": "needham-agentlab-timeout-v1",
+                "transcript_format": "needham-xml-v1",
+                "source": "agentlab_timeout",
+                "messages": needham_messages,
+                "xml": needham_xml,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+    )
+    _write_text_if_absent(task_dir / "needham_trace.xml", needham_xml)
     _write_text_if_absent(task_dir / "network_trace.json", "[]\n")
     _write_text_if_absent(
         task_dir / "network.har",
@@ -724,44 +832,26 @@ def _phase4_artifact_manifest(output_dir: Path) -> dict[str, Any]:
 
 
 def _recycle_pvpo_browser_after_parent_timeout(cdp_url: str) -> dict[str, Any]:
-    payload: dict[str, Any] = {
-        "recycle_enabled": True,
-        "recycle_status": "disabled",
-        "recycle_method": None,
-        "recycle_reason": "parent_timeout",
-    }
-    if not cdp_url:
-        return payload
-    from urllib.parse import urlparse
-
-    parsed = urlparse(cdp_url)
-    host = (parsed.hostname or "").lower()
-    if host not in {"127.0.0.1", "localhost", "::1"} or parsed.port is None:
-        payload["recycle_status"] = "unmanaged_endpoint"
-        return payload
-    container = f"pvpo-chrome-{parsed.port}"
-    payload["recycle_container"] = container
-    if not shutil.which("docker"):
-        payload["recycle_status"] = "docker_unavailable"
-        return payload
     try:
-        proc = subprocess.run(
-            ["docker", "restart", container],
-            text=True,
-            capture_output=True,
-            timeout=20,
-            check=False,
-        )
+        from worldsim.phase_4.pvpo_beginframe import coordinator_for_pvpo_endpoint
+        from worldsim.phase_4.pvpo_browser_lifecycle import recycle_pvpo_browser_after_task
+
+        async def _recycle() -> dict[str, Any]:
+            payload = await recycle_pvpo_browser_after_task(None, cdp_url)
+            payload["recycle_reason"] = "parent_timeout"
+            if payload.get("recycle_status") == "recycled":
+                coordinator_for_pvpo_endpoint(cdp_url).reset_after_recycle()
+            return payload
+
+        return asyncio.run(_recycle())
     except Exception as recycle_exc:
-        payload["recycle_status"] = "failed"
-        payload["recycle_method"] = "docker_restart"
-        payload["recycle_failure"] = f"{type(recycle_exc).__name__}: {recycle_exc}"
-        return payload
-    payload["recycle_method"] = "docker_restart"
-    payload["recycle_status"] = "recycled" if proc.returncode == 0 else "failed"
-    if proc.returncode != 0:
-        payload["recycle_failure"] = (proc.stderr or proc.stdout).strip()
-    return payload
+        return {
+            "recycle_enabled": bool(cdp_url),
+            "recycle_status": "failed",
+            "recycle_method": "shared_lifecycle",
+            "recycle_reason": "parent_timeout",
+            "recycle_failure": f"{type(recycle_exc).__name__}: {recycle_exc}",
+        }
 
 
 def _redact_sidecar_payload(value: Any, *, secret_values: set[str] | None = None) -> Any:
@@ -1202,11 +1292,6 @@ def make_agent_factory(
     **_: Any,
 ) -> Callable[[], AgentLabAgentWrapper]:
     """Return a factory for AgentLab sidecar settings."""
-    if llm_timeout is not None or step_timeout is not None:
-        raise ValueError(
-            "AgentLab runner does not yet support --agent-llm-timeout or --agent-step-timeout; "
-            "omit them or use Browser Use until sidecar step/model deadlines are implemented"
-        )
 
     def factory() -> AgentLabAgentWrapper:
         return AgentLabAgentWrapper(
@@ -1215,6 +1300,8 @@ def make_agent_factory(
             service_tier=service_tier,
             max_steps=max_steps,
             timeout=task_timeout,
+            llm_timeout=llm_timeout,
+            step_timeout=step_timeout,
         )
 
     return factory

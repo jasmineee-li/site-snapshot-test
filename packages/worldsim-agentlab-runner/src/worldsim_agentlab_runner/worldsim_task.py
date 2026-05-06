@@ -48,17 +48,19 @@ class WorldSimOpenEndedTask:
             self.network_recorder.attach(page.context)
         self._install_request_controls(page.context)
         if self.start_urls:
-            page.goto(self.start_urls[0], wait_until="domcontentloaded", timeout=15_000)
+            _goto_start_url(page, self.start_urls[0])
             for url in self.start_urls[1:]:
                 extra_page = page.context.new_page()
-                extra_page.goto(url, wait_until="domcontentloaded", timeout=15_000)
+                _goto_start_url(extra_page, url)
             page.bring_to_front()
         goal = self.goal
         if self.site_prompt:
             goal = self.site_prompt.strip()
         return goal, {"worldsim_start_urls": list(self.start_urls)}
 
-    def validate(self, page: Any, chat_messages: list[dict[str, Any]]) -> tuple[float, bool, str, dict]:
+    def validate(
+        self, page: Any, chat_messages: list[dict[str, Any]]
+    ) -> tuple[float, bool, str, dict]:
         final_message = latest_assistant_message(chat_messages)
         if final_message:
             return 0.0, True, "", {"worldsim_final_result": final_message}
@@ -122,16 +124,41 @@ def latest_assistant_message(chat_messages: Any) -> str | None:
             continue
         if text.startswith(_INITIAL_ASSISTANT_PREFIX):
             continue
+        if _looks_like_agentlab_action_turn(text):
+            continue
         return text.strip()
     return None
 
 
+def _looks_like_agentlab_action_turn(text: str) -> bool:
+    stripped = text.strip()
+    if not stripped:
+        return False
+    lower = stripped.lower()
+    action_markers = (
+        "action:",
+        "thought:",
+        "observation:",
+        "memory:",
+        "next goal:",
+        "python code:",
+    )
+    return any(marker in lower for marker in action_markers)
+
+
 def _context_kwargs_from_request(request: dict[str, Any]) -> dict[str, Any]:
-    kwargs: dict[str, Any] = {"service_workers": "block"}
+    kwargs: dict[str, Any] = {}
     storage_state = request.get("storage_state")
     if storage_state:
         kwargs["storage_state"] = storage_state
     return kwargs
+
+
+def _goto_start_url(page: Any, url: str) -> None:
+    try:
+        page.goto(url, wait_until="commit", timeout=15_000)
+    except Exception:
+        page.goto(url, wait_until="domcontentloaded", timeout=15_000)
 
 
 def _required_str(payload: dict[str, Any], key: str) -> str:

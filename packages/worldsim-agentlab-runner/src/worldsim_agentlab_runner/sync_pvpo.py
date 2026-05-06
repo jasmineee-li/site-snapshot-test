@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+from worldsim_agentlab_runner.sync_cdp import PumpedSyncCdpSession, SyncCdpWorker
+
 logger = logging.getLogger(__name__)
 
 _CDP_VIEWPORT_JS = """
@@ -42,10 +44,13 @@ class SyncPvpoRecorder:
         self.repo_root = repo_root
         self.cdp_url = cdp_url
         self.payload_present = bool(payload_text or witness_texts)
-        self._loop = asyncio.new_event_loop()
         self._controller: Any = None
         self._warned_issue_classes: set[str] = set()
         self._pages_prepared: set[str] = set()
+        self._worker = SyncCdpWorker(
+            timeout_s=_pvpo_cdp_timeout_s(),
+            name="worldsim-agentlab-pvpo",
+        )
 
         from worldsim.phase_4.pvpo_capture import initial_capture_summary, save_capture_summary
 
@@ -81,13 +86,34 @@ class SyncPvpoRecorder:
         self._save_summary()
         if not self.payload_present:
             return
-        self._loop.run_until_complete(self._capture_step(page, step_idx))
+        try:
+            cdp_session = page.context.new_cdp_session(page)
+        except Exception as exc:
+            self._record_issue(
+                "cdp_session_unavailable",
+                step_idx,
+                _pvpo_issue_message(exc, timeout_s=_pvpo_cdp_timeout_s()),
+            )
+            return
+        self._worker.run(
+            lambda pump: self._capture_step(
+                page,
+                step_idx,
+                cdp_session,
+                pump,
+            )
+        )
 
     def close(self) -> None:
-        if not self._loop.is_closed():
-            self._loop.close()
+        self._worker.close()
 
-    async def _capture_step(self, page: Any, step_idx: int) -> None:
+    async def _capture_step(
+        self,
+        page: Any,
+        step_idx: int,
+        cdp_session: Any,
+        pump: Any,
+    ) -> None:
         from worldsim.phase_4.pvpo_browser_config import inject_animation_killer
         from worldsim.phase_4.pvpo_capture import (
             Rect,
@@ -97,16 +123,7 @@ class SyncPvpoRecorder:
         from worldsim.phase_4.pvpo_cdp import runtime_evaluate_value
 
         timeout_s = _pvpo_cdp_timeout_s()
-        cdp_session = None
-        try:
-            cdp_session = page.context.new_cdp_session(page)
-        except Exception as exc:
-            self._record_issue(
-                "cdp_session_unavailable",
-                step_idx,
-                _pvpo_issue_message(exc, timeout_s=timeout_s),
-            )
-            return
+        cdp_session = _timeout_safe_cdp_session(cdp_session, pump=pump)
 
         try:
             page_key = str(getattr(page, "url", "") or id(page))
@@ -261,6 +278,14 @@ def _pvpo_cdp_timeout_s() -> float:
         )
         return _PVPO_CDP_TIMEOUT_DEFAULT_S
     return timeout_s
+
+
+def _timeout_safe_cdp_session(cdp_session: Any, *, pump: Any | None = None) -> Any:
+    from worldsim.phase_4.pvpo_cdp import normalize_cdp_session
+
+    if pump is not None:
+        return PumpedSyncCdpSession(cdp_session, pump)
+    return normalize_cdp_session(cdp_session, thread_sync_send=True)
 
 
 def _pvpo_issue_message(exc: BaseException, *, timeout_s: float) -> str:

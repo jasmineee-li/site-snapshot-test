@@ -210,16 +210,12 @@ class BeginFrameCoordinator:
     ) -> dict[str, Any]:
         async with self.lock:
             if self._dirty_reason is not None:
-                raise BeginFrameTimeout(
-                    f"pvpo beginFrame endpoint is dirty: {self._dirty_reason}"
-                )
+                raise BeginFrameTimeout(f"pvpo beginFrame endpoint is dirty: {self._dirty_reason}")
             await self._drain_prior_inflight(label=label)
             retries = _pending_retries()
             backoff_s = _pending_backoff_s()
             deadline = (
-                asyncio.get_running_loop().time() + timeout_s
-                if timeout_s is not None
-                else None
+                asyncio.get_running_loop().time() + timeout_s if timeout_s is not None else None
             )
             attempt = 0
             while True:
@@ -264,9 +260,7 @@ class BeginFrameCoordinator:
         """Wait for a prior timed-out beginFrame before a new measurement boundary."""
         async with self.lock:
             if self._dirty_reason is not None:
-                raise BeginFrameTimeout(
-                    f"pvpo beginFrame endpoint is dirty: {self._dirty_reason}"
-                )
+                raise BeginFrameTimeout(f"pvpo beginFrame endpoint is dirty: {self._dirty_reason}")
             await self._drain_prior_inflight(label=label, timeout_s=timeout_s)
 
     async def _drain_prior_inflight(
@@ -324,9 +318,10 @@ class BeginFrameCoordinator:
                 result = await asyncio.wait_for(asyncio.shield(task), timeout=timeout_s)
         except TimeoutError as exc:
             self.timeout_count += 1
-            raise BeginFrameTimeout(
-                f"pvpo beginFrame {label} timed out after {timeout_s:.2f}s"
-            ) from exc
+            reason = f"pvpo beginFrame {label} timed out after {timeout_s:.2f}s"
+            if task.done():
+                self.mark_dirty(reason)
+            raise BeginFrameTimeout(reason) from exc
         finally:
             if task.done() and self._inflight is task:
                 self._inflight = None

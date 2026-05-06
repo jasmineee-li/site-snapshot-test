@@ -99,6 +99,26 @@ async def test_beginframe_public_drain_quiesces_prior_inflight():
 
 
 @pytest.mark.asyncio
+async def test_beginframe_sync_timeout_marks_endpoint_dirty():
+    coordinator = BeginFrameCoordinator()
+
+    async def _send(method: str, params: dict):
+        assert method == "HeadlessExperimental.beginFrame"
+        raise TimeoutError("sync CDP send exceeded timeout")
+
+    cdp = AsyncMock()
+    cdp.send = AsyncMock(side_effect=_send)
+
+    with pytest.raises(BeginFrameTimeout, match="pvpo beginFrame browsergym-screenshot"):
+        await coordinator.send(cdp, {}, timeout_s=0.5, label="browsergym-screenshot")
+
+    assert "browsergym-screenshot" in (coordinator.dirty_reason or "")
+    with pytest.raises(BeginFrameTimeout, match="endpoint is dirty"):
+        await coordinator.send(cdp, {}, timeout_s=0.5, label="atomic-capture")
+    assert cdp.send.await_count == 1
+
+
+@pytest.mark.asyncio
 async def test_beginframe_pending_error_retries_within_controller():
     coordinator = BeginFrameCoordinator()
     calls = 0
