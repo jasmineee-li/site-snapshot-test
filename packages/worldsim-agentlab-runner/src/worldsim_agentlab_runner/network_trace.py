@@ -2,11 +2,22 @@ from __future__ import annotations
 
 import json
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
-_SENSITIVE_HEADERS = {"authorization", "cookie", "proxy-authorization", "x-csrf-token"}
+_SENSITIVE_HEADERS = {
+    "authorization",
+    "cookie",
+    "set-cookie",
+    "proxy-authorization",
+    "x-api-key",
+    "x-auth-token",
+    "x-csrf-token",
+    "x-csrftoken",
+}
+_SENSITIVE_HEADER_SUBSTRINGS = ("token", "secret", "session", "auth", "login", "cookie", "csrf", "key")
 
 
 class NetworkTraceRecorder:
@@ -72,12 +83,6 @@ class NetworkTraceRecorder:
             "resource_type": _safe_call(lambda: request.resource_type) or "",
             "is_navigation_request": bool(_safe_call(lambda: request.is_navigation_request())),
             "timestamp": time.time(),
-            "request": {
-                "url": _safe_call(lambda: request.url) or "",
-                "method": str(_safe_call(lambda: request.method) or "GET").upper(),
-                "headers": headers,
-                "postData": post_data or "",
-            },
         }
         self._events_by_request[key] = event
         self._ordered_ids.append(key)
@@ -94,11 +99,6 @@ class NetworkTraceRecorder:
         event["response_status"] = status
         event["response_headers"] = response_headers
         event["response_cookies"] = _cookies_from_headers(response_headers)
-        event["response"] = {
-            "status": status,
-            "headers": response_headers,
-            "cookies": event["response_cookies"],
-        }
 
     def _on_request_failed(self, request: Any) -> None:
         event = self._events_by_request.get(id(request))
@@ -122,7 +122,11 @@ def _redact_headers(headers: Any) -> dict[str, str]:
     out: dict[str, str] = {}
     for key, value in headers.items():
         name = str(key).lower()
-        out[name] = "<redacted>" if name in _SENSITIVE_HEADERS else str(value)
+        out[name] = (
+            "<redacted>"
+            if name in _SENSITIVE_HEADERS or any(marker in name for marker in _SENSITIVE_HEADER_SUBSTRINGS)
+            else str(value)
+        )
     return out
 
 
@@ -145,8 +149,8 @@ def _cookies_from_headers(headers: dict[str, str]) -> list[dict[str, str]]:
     for chunk in raw.split(","):
         first = chunk.split(";", 1)[0]
         if "=" in first:
-            name, value = first.split("=", 1)
-            cookies.append({"name": name.strip(), "value": value.strip()})
+            name, _value = first.split("=", 1)
+            cookies.append({"name": name.strip(), "value": "<redacted>"})
     return cookies
 
 
@@ -155,24 +159,36 @@ def _as_har(events: list[dict[str, Any]], *, started_at: float) -> dict[str, Any
     for event in events:
         entries.append(
             {
-                "startedDateTime": event.get("timestamp", started_at),
+                "startedDateTime": _har_datetime(event.get("timestamp", started_at)),
                 "time": 0,
                 "request": {
                     "method": event.get("method", "GET"),
                     "url": event.get("url", ""),
+                    "httpVersion": "HTTP/1.1",
                     "headers": _har_headers(event.get("request_headers")),
+                    "cookies": [],
                     "queryString": [
                         {"name": key, "value": value}
                         for key, values in (event.get("query_params") or {}).items()
                         for value in values
                     ],
-                    "postData": {"text": event.get("post_data", "")},
+                    "headersSize": -1,
+                    "bodySize": -1,
+                    **_har_post_data(event),
                 },
                 "response": {
                     "status": event.get("response_status") or 0,
+                    "statusText": "",
+                    "httpVersion": "HTTP/1.1",
                     "headers": _har_headers(event.get("response_headers")),
                     "cookies": event.get("response_cookies") or [],
+                    "content": {"size": 0, "mimeType": "", "text": ""},
+                    "redirectURL": "",
+                    "headersSize": -1,
+                    "bodySize": -1,
                 },
+                "cache": {},
+                "timings": {"send": 0, "wait": 0, "receive": 0},
             }
         )
     return {"log": {"version": "1.2", "creator": {"name": "worldsim-agentlab"}, "entries": entries}}
@@ -182,3 +198,24 @@ def _har_headers(headers: Any) -> list[dict[str, str]]:
     if not isinstance(headers, dict):
         return []
     return [{"name": str(key), "value": str(value)} for key, value in headers.items()]
+
+
+def _har_post_data(event: dict[str, Any]) -> dict[str, Any]:
+    text = event.get("post_data")
+    if not isinstance(text, str) or not text or text == "<redacted>":
+        return {}
+    mime = ""
+    headers = event.get("request_headers")
+    if isinstance(headers, dict):
+        for key, value in headers.items():
+            if str(key).lower() == "content-type":
+                mime = str(value)
+                break
+    return {"postData": {"mimeType": mime, "text": text}}
+
+
+def _har_datetime(value: Any) -> str:
+    try:
+        return datetime.fromtimestamp(float(value), tz=UTC).isoformat()
+    except (TypeError, ValueError, OverflowError):
+        return "1970-01-01T00:00:00+00:00"

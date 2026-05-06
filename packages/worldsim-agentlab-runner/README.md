@@ -57,3 +57,20 @@ There are two separate modes. `run` is the benchmark-native comparison runner.
 `phase4-run` is the WorldSim-v5 runtime and must preserve Browser Use-equivalent
 auth, PVPO, network, history, final-response, screenshot, and resume artifacts
 before a live sweep is treated as parity data.
+
+Phase 4 request controls intentionally use scoped interception rather than
+global Playwright headers. Storage-state auth is normalized and host-validated
+by root WorldSim before the sidecar sees it; origin rewrites are same-scheme and
+repair URL-bearing headers before adding scoped auth. The sidecar blocks service
+workers so Playwright routing can observe first-party requests.
+
+`network_trace.json` remains WorldSim's flat evaluator trace. `network.har` is a
+standards-shaped HAR 1.2 artifact with ISO timestamps, request/response
+metadata, `cache`, and `timings` fields for audit tooling. Persisted request
+copies and network artifacts redact auth headers, cookies, and token-like
+headers.
+
+AgentLab Phase 4 currently honors only the whole-task subprocess timeout. Root
+WorldSim fails fast if `--agent-llm-timeout` or `--agent-step-timeout` is passed
+with `--runner agentlab` so run fingerprints cannot imply unsupported deadline
+controls.

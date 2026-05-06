@@ -215,14 +215,46 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
 
 def _write_phase4_request_copy(output_dir: Path, request: dict[str, Any], agent_args: Any) -> None:
     (output_dir / "phase4_sidecar_request.json").write_text(
-        json.dumps(request, indent=2, sort_keys=True, default=str),
+        json.dumps(_redact_sidecar_payload(request), indent=2, sort_keys=True, default=str),
         encoding="utf-8",
     )
     try:
         with (output_dir / "agentlab_native_exp_args.pkl").open("wb") as handle:
             pickle.dump({"request": request, "agent_args": agent_args}, handle)
     except Exception:
-        pass
+            pass
+
+
+def _redact_sidecar_payload(value: Any) -> Any:
+    if isinstance(value, dict):
+        out: dict[str, Any] = {}
+        for key, item in value.items():
+            lower = str(key).lower()
+            if lower in {"authorization", "cookie", "set-cookie", "proxy-authorization"} or any(
+                marker in lower for marker in ("token", "secret", "password", "auth", "cookie", "csrf", "key")
+            ):
+                out[key] = "<redacted>"
+            elif lower == "headers" and isinstance(item, dict):
+                out[key] = _redact_headers(item)
+            else:
+                out[key] = _redact_sidecar_payload(item)
+        return out
+    if isinstance(value, list):
+        return [_redact_sidecar_payload(item) for item in value]
+    return value
+
+
+def _redact_headers(headers: dict[str, Any]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for key, item in headers.items():
+        lower = str(key).lower()
+        if lower in {"authorization", "cookie", "set-cookie", "proxy-authorization"} or any(
+            marker in lower for marker in ("token", "secret", "session", "auth", "cookie", "csrf", "key")
+        ):
+            out[str(key)] = "<redacted>"
+        else:
+            out[str(key)] = item
+    return out
 
 
 def _final_result_from_episode(episode_info: list[Any]) -> str | None:

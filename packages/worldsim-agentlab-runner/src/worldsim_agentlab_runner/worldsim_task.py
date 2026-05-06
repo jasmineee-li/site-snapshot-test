@@ -55,7 +55,7 @@ class WorldSimOpenEndedTask:
             page.bring_to_front()
         goal = self.goal
         if self.site_prompt:
-            goal = f"{self.site_prompt.strip()}\n\n{goal.strip()}"
+            goal = self.site_prompt.strip()
         return goal, {"worldsim_start_urls": list(self.start_urls)}
 
     def validate(self, page: Any, chat_messages: list[dict[str, Any]]) -> tuple[float, bool, str, dict]:
@@ -73,7 +73,7 @@ class WorldSimOpenEndedTask:
         from worldsim_agentlab_runner.request_controls import install_request_controls
 
         telemetry = install_request_controls(context, self.request)
-        self.runtime.setdefault("request_controls", {}).update(telemetry)
+        self.runtime["request_controls"] = telemetry
 
 
 def make_worldsim_browsergym_env(
@@ -127,7 +127,7 @@ def latest_assistant_message(chat_messages: Any) -> str | None:
 
 
 def _context_kwargs_from_request(request: dict[str, Any]) -> dict[str, Any]:
-    kwargs: dict[str, Any] = {}
+    kwargs: dict[str, Any] = {"service_workers": "block"}
     storage_state = request.get("storage_state")
     if storage_state:
         kwargs["storage_state"] = storage_state

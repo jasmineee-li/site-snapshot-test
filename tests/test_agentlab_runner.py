@@ -12,6 +12,7 @@ from worldsim import main as worldsim_main
 from worldsim.agent_models import resolve_agent_model_profile, supported_agentlab_model_profiles
 from worldsim.agentlab_cli import _prepare_single_task, _select_instance, _task_from_args
 from worldsim.config import BenchmarkConfig
+from worldsim.har_converter import strict_runtime_har_trace
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.runners import agentlab as agentlab_runner
 from worldsim.runners import available_runners, get_runner_module
@@ -352,7 +353,23 @@ def test_build_phase4_sidecar_request_maps_runner_contract(monkeypatch, tmp_path
     state_dir = tmp_path / "state"
     auth_path = state_dir / "auth.json"
     auth_path.parent.mkdir(parents=True)
-    auth_path.write_text("{}", encoding="utf-8")
+    auth_path.write_text(
+        json.dumps(
+            {
+                "cookies": [
+                    {
+                        "name": "sid",
+                        "value": "abc",
+                        "domain": "gitlab.test",
+                        "path": "/",
+                        "sameSite": "no_restriction",
+                    }
+                ],
+                "origins": [{"origin": "http://gitlab.test", "localStorage": []}],
+            }
+        ),
+        encoding="utf-8",
+    )
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
 
     request = _build_phase4_sidecar_request(
@@ -380,7 +397,11 @@ def test_build_phase4_sidecar_request_maps_runner_contract(monkeypatch, tmp_path
     assert request["task"] == "Do the task"
     assert request["start_urls"] == ["http://gitlab.test/root"]
     assert request["site_prompt"] == "site prompt"
-    assert request["storage_state"] == str(auth_path)
+    assert request["storage_state"] == str((tmp_path / "task" / "auth" / "storage_state.json").resolve())
+    runtime_state = json.loads(Path(request["storage_state"]).read_text(encoding="utf-8"))
+    assert runtime_state["cookies"][0]["sameSite"] == "None"
+    assert any(cookie["domain"] == "canonical.test" for cookie in runtime_state["cookies"])
+    assert any(origin["origin"] == "http://canonical.test" for origin in runtime_state["origins"])
     assert request["payload_text"] == "payload"
     assert request["payload_witnesses"] == [{"id": "w", "text": "payload"}]
     assert request["pvpo_cdp_url"] == "http://127.0.0.1:9222"
@@ -500,6 +521,7 @@ def test_sidecar_artifact_manifest_includes_phase4_outputs(tmp_path):
         path.write_text("{}", encoding="utf-8")
     (tmp_path / "pvpo").mkdir()
     (tmp_path / "pvpo" / "step_0.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "pvpo" / "capture_summary.json").write_text("{}", encoding="utf-8")
     (tmp_path / "screenshots").mkdir()
     (tmp_path / "screenshots" / "step_0.png").write_bytes(b"png")
     (tmp_path / "step_0.pkl.gz").write_bytes(b"x")
@@ -509,6 +531,7 @@ def test_sidecar_artifact_manifest_includes_phase4_outputs(tmp_path):
     assert manifest["history"] == str(tmp_path / "history.json")
     assert manifest["network_har"] == str(tmp_path / "network.har")
     assert manifest["needham_xml"] == str(tmp_path / "needham_trace.xml")
+    assert manifest["pvpo_summary"] == str(tmp_path / "pvpo" / "capture_summary.json")
     assert manifest["pvpo_steps"] == [str(tmp_path / "pvpo" / "step_0.json")]
     assert manifest["screenshots"] == [str(tmp_path / "screenshots" / "step_0.png")]
     assert manifest["steps"] == [str(tmp_path / "step_0.pkl.gz")]
@@ -525,7 +548,12 @@ def test_sidecar_request_controls_rewrite_and_scope_auth():
     class FakeRequest:
         def __init__(self):
             self.url = "http://canonical.test/path?q=1"
-            self.headers = {"accept": "text/html"}
+            self.headers = {
+                "accept": "text/html",
+                "Host": "canonical.test",
+                "Origin": "http://canonical.test",
+                "Referer": "http://canonical.test/source",
+            }
 
     class FakeContext:
         def route(self, pattern, handler):
@@ -546,7 +574,13 @@ def test_sidecar_request_controls_rewrite_and_scope_auth():
     assert continued == [
         {
             "url": "http://gitlab.test/path?q=1",
-            "headers": {"accept": "text/html", "Authorization": "Basic abc"},
+            "headers": {
+                "accept": "text/html",
+                "Host": "gitlab.test",
+                "Origin": "http://gitlab.test",
+                "Referer": "http://gitlab.test/source",
+                "Authorization": "Basic abc",
+            },
         }
     ]
     assert telemetry["rewrite_hits"] == 1
@@ -584,7 +618,18 @@ def test_sidecar_network_trace_includes_evaluator_fields(tmp_path):
     assert event["query_params"] == {"ticket": ["123"]}
     assert event["request_headers"]["authorization"] == "<redacted>"
     assert event["response_status"] == 201
-    assert event["response_cookies"] == [{"name": "sid", "value": "abc"}]
+    assert event["response_cookies"] == []
+    assert "request" not in event
+    assert "response" not in event
+    har = network_trace._as_har(recorder.events, started_at=0)
+    entry = har["log"]["entries"][0]
+    assert isinstance(entry["startedDateTime"], str)
+    assert entry["request"]["httpVersion"] == "HTTP/1.1"
+    assert entry["response"]["statusText"] == ""
+    assert entry["cache"] == {}
+    assert entry["timings"] == {"send": 0, "wait": 0, "receive": 0}
+    converted = strict_runtime_har_trace(recorder.events)
+    assert converted[0]["request"]["httpVersion"] == "HTTP/1.1"
 
 
 def test_phase4_sidecar_helpers_normalize_final_message_and_pvpo_payload():
@@ -639,6 +684,59 @@ def test_worldsim_task_validate_ignores_agentlab_llm_chat_messages():
     assert done is False
     assert message == ""
     assert info == {}
+
+
+def test_worldsim_task_uses_site_prompt_without_duplicate_goal():
+    worldsim_task = _load_sidecar_module("worldsim_task")
+    task = object.__new__(worldsim_task.WorldSimOpenEndedTask)
+    task.start_urls = []
+    task.goal = "Do X"
+    task.site_prompt = "Prompt already contains Do X"
+    task.network_recorder = None
+    task.runtime = {}
+    task.request = {}
+
+    goal, _ = task.setup(SimpleNamespace(context=SimpleNamespace()))
+
+    assert goal == "Prompt already contains Do X"
+
+
+def test_request_control_telemetry_updates_after_deferred_route():
+    worldsim_task = _load_sidecar_module("worldsim_task")
+    stored: dict[str, object] = {}
+
+    class FakeContext:
+        def route(self, pattern, handler):
+            stored["handler"] = handler
+
+    class FakeRoute:
+        def continue_(self, **kwargs):
+            stored["continued"] = kwargs
+
+    class FakeRequest:
+        def __init__(self):
+            self.url = "http://canonical.test/path"
+            self.headers = {}
+
+    task = object.__new__(worldsim_task.WorldSimOpenEndedTask)
+    task.request = {
+        "url_origin_rewrites": {"http://canonical.test": "http://gitlab.test"},
+        "scoped_auth": {"origin": "http://gitlab.test", "headers": {"Authorization": "Basic abc"}},
+    }
+    task.runtime = {}
+    task._install_request_controls(FakeContext())
+
+    stored["handler"](FakeRoute(), FakeRequest())
+
+    assert task.runtime["request_controls"]["rewrite_hits"] == 1
+    assert task.runtime["request_controls"]["scoped_auth_hits"] == 1
+
+
+def test_agentlab_factory_rejects_unsupported_llm_and_step_timeouts():
+    with pytest.raises(ValueError, match="does not yet support"):
+        agentlab_runner.make_agent_factory(llm_timeout=1)
+    with pytest.raises(ValueError, match="does not yet support"):
+        agentlab_runner.make_agent_factory(step_timeout=1)
 
 
 def test_named_agent_model_profiles_cover_openrouter_matrix():

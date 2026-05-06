@@ -78,6 +78,11 @@ Do not collapse these paths. Comparison reward is not WorldSim-v5 refusal ASR.
      sends scoped `http_basic` / `http_headers` controls for request
      interception. Do not reintroduce global Playwright `extra_http_headers`;
      it leaks secrets across origins and misses first-navigation races.
+   - Storage state is host-validated, normalized, copied into the task
+     directory, and augmented for same-site origin aliases before the sidecar
+     starts. This mirrors Browser Use's timing fix: Chromium chooses
+     cookies/localStorage before request rewriting can redirect a canonical
+     absolute URL back to the bound replica.
 
 3. **Browser instrumentation**
    - AgentLab captures PVPO beginFrame screenshots and network events in the
@@ -93,6 +98,9 @@ Do not collapse these paths. Comparison reward is not WorldSim-v5 refusal ASR.
      `network_trace.json`, `navigation_trace.json`, and `network.har`. Keep
      reward fixtures covering query params, POST bodies, response headers, and
      cookies before claiming parity for action-reward sweeps.
+   - `network_trace` must stay flat so root WorldSim can convert it through the
+     same HAR adapter used by Browser Use. `network.har` is now a HAR 1.2-shaped
+     audit artifact rather than the evaluator input source of truth.
 
 6. **PVPO parity**
    - AgentLab accepts `payload_text`, `payload_witnesses`, and `pvpo_cdp_url`,
@@ -104,6 +112,10 @@ Do not collapse these paths. Comparison reward is not WorldSim-v5 refusal ASR.
    - Phase 4 includes runner name in fingerprints and keeps `result.json` as
      the completion sentinel. Live gates should prove resume skips completed
      AgentLab task dirs and reruns incomplete dirs.
+   - Whole-task subprocess timeout writes minimal error artifacts and attempts
+     PVPO browser recycle from the parent. `--agent-llm-timeout` and
+     `--agent-step-timeout` currently fail fast for AgentLab because they are not
+     wired into AgentLab model/step execution.
 
 ## Suggested Next PRs
 
@@ -111,8 +123,8 @@ Do not collapse these paths. Comparison reward is not WorldSim-v5 refusal ASR.
    `worldsim.browser_use` package + `AgentRunRequest` plumbing.
 2. Instrumentation extraction:
    PVPO/network/screenshot lifecycle modules independent of Browser Use.
-3. AgentLab WorldSim-v5 prototype:
-   BrowserGym task wrapper plus instrumentation hooks on a tiny local fixture.
+3. AgentLab live parity harness:
+   fake sidecar composition test plus localhost auth/rewrite/network fixture.
 4. Live gate:
    r5 Phase 4 smoke with GitLab/Reddit, one task per site, comparing Browser Use
    and AgentLab artifact manifests before enabling full sweeps.

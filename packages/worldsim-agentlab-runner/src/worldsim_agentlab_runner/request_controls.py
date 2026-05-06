@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any
 from urllib.parse import urlparse, urlunparse
 
+_URL_VALUE_HEADER_NAMES = {"referer", "referrer", "location", "content-location"}
+
 
 def install_request_controls(context: Any, request: dict[str, Any]) -> dict[str, Any]:
     """Install origin rewrites and scoped auth before task navigation.
@@ -33,6 +35,11 @@ def install_request_controls(context: Any, request: dict[str, Any]) -> dict[str,
         url = str(getattr(req, "url", "") or "")
         rewritten = _rewrite_url_origin(url, rewrites)
         headers = dict(getattr(req, "headers", {}) or {})
+        headers, headers_changed = _headers_for_rewritten_request(
+            headers,
+            original_url=url,
+            rewritten_url=rewritten,
+        )
         auth_origin = scoped_auth.get("origin") if scoped_auth else ""
         if auth_origin and _origin_from_url(rewritten or url) == auth_origin:
             headers.update(scoped_auth.get("headers") or {})
@@ -41,7 +48,10 @@ def install_request_controls(context: Any, request: dict[str, Any]) -> dict[str,
             telemetry["rewrite_hits"] += 1
             route.continue_(url=rewritten, headers=headers)
             return
-        route.continue_(headers=headers)
+        if headers_changed or auth_origin:
+            route.continue_(headers=headers)
+            return
+        route.continue_()
 
     context.route("**/*", handler)
     return telemetry
@@ -64,7 +74,12 @@ def _normalize_origin_rewrites(value: Any) -> dict[str, str]:
     for source, target in value.items():
         source_origin = _origin_from_url(str(source))
         target_origin = _origin_from_url(str(target))
-        if source_origin and target_origin and source_origin != target_origin:
+        if (
+            source_origin
+            and target_origin
+            and source_origin != target_origin
+            and urlparse(source_origin).scheme == urlparse(target_origin).scheme
+        ):
             rewrites[source_origin] = target_origin
     return rewrites
 
@@ -86,6 +101,37 @@ def _rewrite_url_origin(url: str, rewrites: dict[str, str]) -> str:
             parsed.fragment,
         )
     )
+
+
+def _headers_for_rewritten_request(
+    headers: dict[str, str],
+    *,
+    original_url: str,
+    rewritten_url: str,
+) -> tuple[dict[str, str], bool]:
+    if not headers:
+        return {}, False
+    old_origin = _origin_from_url(original_url)
+    new_origin = _origin_from_url(rewritten_url)
+    if not old_origin or not new_origin or old_origin == new_origin:
+        return dict(headers), False
+    out = dict(headers)
+    changed = False
+    rewritten_parts = urlparse(rewritten_url)
+    for name, value in list(out.items()):
+        lower = name.lower()
+        if lower == "origin" and _origin_from_url(value) == old_origin:
+            out[name] = new_origin
+            changed = True
+        elif lower in _URL_VALUE_HEADER_NAMES and _origin_from_url(value) == old_origin:
+            rewritten_value = _rewrite_url_origin(value, {old_origin: new_origin})
+            if rewritten_value != value:
+                out[name] = rewritten_value
+                changed = True
+        elif lower == "host" and rewritten_parts.netloc and value != rewritten_parts.netloc:
+            out[name] = rewritten_parts.netloc
+            changed = True
+    return out, changed
 
 
 def _origin_from_url(raw_url: str) -> str:

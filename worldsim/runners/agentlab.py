@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import shlex
+import shutil
 import subprocess
 import time
 from collections.abc import Callable
@@ -32,6 +33,13 @@ from worldsim.agent_config import execution_instance_dict, task_reset_endpoints
 from worldsim.agent_models import resolve_agent_model_profile
 from worldsim.agent_runtime import AgentResult
 from worldsim.benchmark_capabilities import get_benchmark_capabilities
+from worldsim.browser_use_agent import (
+    AuthArtifactMissingError,
+    _augment_storage_state_origin_aliases,
+    _storage_state_context_value,
+    _storage_state_site_error,
+)
+from worldsim.har_converter import minimal_har_placeholder_entry
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.seeding import apply_data_seed_async
 from worldsim.trajectory import save_result_payload
@@ -181,6 +189,9 @@ def _resolved_storage_state_for_phase4(
     benchmark_root: Path | None,
     task_site: str | None,
     instance_id: str | None,
+    site_url: str | None,
+    runtime_dir: Path,
+    url_origin_rewrites: dict[str, str] | None,
 ) -> str | None:
     if not isinstance(auth, dict) or auth.get("type") != "storage_state":
         return None
@@ -197,7 +208,15 @@ def _resolved_storage_state_for_phase4(
     )
     if error is not None or path is None:
         raise RuntimeError(error or "storage_state path could not be resolved")
-    return str(path.resolve())
+    site_error = _storage_state_site_error(path, site_url)
+    if site_error is not None:
+        raise RuntimeError(site_error)
+    try:
+        runtime_path = _storage_state_context_value(path, runtime_dir=runtime_dir)
+        _augment_storage_state_origin_aliases(runtime_path, url_origin_rewrites)
+    except AuthArtifactMissingError as exc:
+        raise RuntimeError(str(exc)) from exc
+    return runtime_path
 
 
 def _scoped_auth_for_phase4(
@@ -319,6 +338,7 @@ def _build_phase4_sidecar_request(
     )
     task_site = run_kwargs.get("task_site")
     instance_id = run_kwargs.get("instance_id")
+    url_origin_rewrites = run_kwargs.get("url_origin_rewrites") or {}
     return {
         "schema_version": 1,
         "mode": "phase4",
@@ -336,7 +356,7 @@ def _build_phase4_sidecar_request(
         "payload_text": run_kwargs.get("payload_text"),
         "payload_witnesses": run_kwargs.get("payload_witnesses") or [],
         "pvpo_cdp_url": run_kwargs.get("pvpo_cdp_url"),
-        "url_origin_rewrites": run_kwargs.get("url_origin_rewrites") or {},
+        "url_origin_rewrites": url_origin_rewrites,
         "worldsim_repo_root": str(Path(__file__).resolve().parents[2]),
         "requested_model": agent.model,
         "requested_provider": agent.provider,
@@ -353,6 +373,9 @@ def _build_phase4_sidecar_request(
             benchmark_root=benchmark_root,
             task_site=str(task_site) if task_site is not None else None,
             instance_id=str(instance_id) if instance_id is not None else None,
+            site_url=server_url,
+            runtime_dir=task_dir / "auth",
+            url_origin_rewrites=url_origin_rewrites,
         ),
         "scoped_auth": _scoped_auth_for_phase4(auth_mechanism, server_url=server_url),
         "env_overrides": _phase4_env_overrides(server_url, run_kwargs),
@@ -415,14 +438,29 @@ def _run_sidecar_request(
     response_path = task_dir / "agentlab_sidecar_result.json"
     request_path.write_text(json.dumps(request, indent=2, sort_keys=True), encoding="utf-8")
 
-    proc = subprocess.run(
-        [*_sidecar_command(subcommand), str(request_path)],
-        text=True,
-        capture_output=True,
-        check=False,
-        timeout=timeout,
-    )
+    try:
+        proc = subprocess.run(
+            [*_sidecar_command(subcommand), str(request_path)],
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        request_path.write_text(
+            json.dumps(_redact_sidecar_payload(request), indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        if subcommand == "phase4-run":
+            payload = _phase4_timeout_result(request, task_dir, timeout, exc)
+            response_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+            return payload
+        raise
     if proc.returncode != 0:
+        request_path.write_text(
+            json.dumps(_redact_sidecar_payload(request), indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
         detail = proc.stderr.strip() or proc.stdout.strip()
         raise RuntimeError(f"AgentLab sidecar failed with exit {proc.returncode}: {detail}")
     try:
@@ -431,8 +469,213 @@ def _run_sidecar_request(
         raise RuntimeError(f"AgentLab sidecar returned invalid JSON: {proc.stdout[:500]}") from exc
     if not isinstance(payload, dict):
         raise RuntimeError("AgentLab sidecar returned a non-object JSON payload")
-    response_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    request_path.write_text(
+        json.dumps(_redact_sidecar_payload(request), indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    response_path.write_text(
+        json.dumps(_redact_sidecar_payload(payload), indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
     return payload
+
+
+def _phase4_timeout_result(
+    request: dict[str, Any],
+    task_dir: Path,
+    timeout: int | None,
+    exc: subprocess.TimeoutExpired,
+) -> dict[str, Any]:
+    message = f"AgentLab sidecar exceeded task timeout {timeout}s"
+    task_dir.mkdir(parents=True, exist_ok=True)
+    _write_minimal_timeout_artifacts(task_dir, request, message)
+    runtime = {
+        "runner": "agentlab",
+        "mode": "phase4",
+        "timeout": timeout,
+        "timeout_expired": True,
+        "cdp_url": request.get("pvpo_cdp_url"),
+    }
+    runtime.update(_recycle_pvpo_browser_after_parent_timeout(str(request.get("pvpo_cdp_url") or "")))
+    (task_dir / "browser_runtime.json").write_text(
+        json.dumps(runtime, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    return {
+        "schema_version": 1,
+        "mode": "phase4",
+        "task_id": request.get("task_id"),
+        "status": "error",
+        "passed": None,
+        "reward": 0.0,
+        "agentlab_reward": 0.0,
+        "steps": 0,
+        "is_done": False,
+        "final_result": None,
+        "elapsed": float(timeout or 0),
+        "errors": [message],
+        "error": message,
+        "network_trace": [],
+        "summary_info": {
+            "n_steps": 0,
+            "cum_reward": 0.0,
+            "cum_raw_reward": 0.0,
+            "err_msg": message,
+            "terminated": False,
+            "truncated": True,
+        },
+        "artifacts": {},
+        "browser_runtime": runtime,
+        "timeout_stdout": (exc.stdout or "")[-1000:] if isinstance(exc.stdout, str) else "",
+        "timeout_stderr": (exc.stderr or "")[-1000:] if isinstance(exc.stderr, str) else "",
+    }
+
+
+def _write_minimal_timeout_artifacts(task_dir: Path, request: dict[str, Any], message: str) -> None:
+    (task_dir / "history.json").write_text(
+        json.dumps(
+            {
+                "history": [],
+                "runner": "agentlab",
+                "trajectory_format": "worldsim-agentlab-history-v1",
+                "partial": True,
+                "errors": [message],
+            },
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    (task_dir / "final_response.json").write_text(
+        json.dumps({"status": "error", "final_result": None, "errors": [message], "steps": 0}, indent=2),
+        encoding="utf-8",
+    )
+    (task_dir / "network_trace.json").write_text("[]\n", encoding="utf-8")
+    (task_dir / "network.har").write_text(
+        json.dumps(
+            {
+                "log": {
+                    "version": "1.2",
+                    "creator": {"name": "worldsim-agentlab", "version": "timeout"},
+                    "entries": [minimal_har_placeholder_entry()],
+                }
+            },
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    pvpo_dir = task_dir / "pvpo"
+    pvpo_dir.mkdir(parents=True, exist_ok=True)
+    (pvpo_dir / "capture_summary.json").write_text(
+        json.dumps(
+            {
+                "status": "timeout_no_artifacts",
+                "payload_present": bool(request.get("payload_text") or request.get("payload_witnesses")),
+                "steps_seen": 0,
+                "steps_captured": 0,
+                "issue_steps": 1,
+                "first_issue_class": "sidecar_timeout",
+                "first_issue_step": None,
+                "first_issue_message": message,
+                "last_issue_class": "sidecar_timeout",
+                "last_issue_step": None,
+                "last_issue_message": message,
+                "issue_counts": {"sidecar_timeout": 1},
+            },
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    (task_dir / "summary_info.json").write_text(
+        json.dumps(
+            {
+                "n_steps": 0,
+                "cum_reward": 0.0,
+                "cum_raw_reward": 0.0,
+                "err_msg": message,
+                "terminated": False,
+                "truncated": True,
+            },
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _recycle_pvpo_browser_after_parent_timeout(cdp_url: str) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "recycle_enabled": True,
+        "recycle_status": "disabled",
+        "recycle_method": None,
+        "recycle_reason": "parent_timeout",
+    }
+    if not cdp_url:
+        return payload
+    from urllib.parse import urlparse
+
+    parsed = urlparse(cdp_url)
+    host = (parsed.hostname or "").lower()
+    if host not in {"127.0.0.1", "localhost", "::1"} or parsed.port is None:
+        payload["recycle_status"] = "unmanaged_endpoint"
+        return payload
+    container = f"pvpo-chrome-{parsed.port}"
+    payload["recycle_container"] = container
+    if not shutil.which("docker"):
+        payload["recycle_status"] = "docker_unavailable"
+        return payload
+    try:
+        proc = subprocess.run(
+            ["docker", "restart", container],
+            text=True,
+            capture_output=True,
+            timeout=20,
+            check=False,
+        )
+    except Exception as recycle_exc:
+        payload["recycle_status"] = "failed"
+        payload["recycle_method"] = "docker_restart"
+        payload["recycle_failure"] = f"{type(recycle_exc).__name__}: {recycle_exc}"
+        return payload
+    payload["recycle_method"] = "docker_restart"
+    payload["recycle_status"] = "recycled" if proc.returncode == 0 else "failed"
+    if proc.returncode != 0:
+        payload["recycle_failure"] = (proc.stderr or proc.stdout).strip()
+    return payload
+
+
+def _redact_sidecar_payload(value: Any) -> Any:
+    if isinstance(value, dict):
+        redacted: dict[str, Any] = {}
+        for key, item in value.items():
+            lower = str(key).lower()
+            if lower in {"authorization", "cookie", "set-cookie", "proxy-authorization"} or any(
+                marker in lower for marker in ("token", "secret", "password", "auth", "cookie", "csrf", "key")
+            ):
+                redacted[key] = "<redacted>"
+            elif lower == "headers" and isinstance(item, dict):
+                redacted[key] = _redact_sidecar_headers(item)
+            else:
+                redacted[key] = _redact_sidecar_payload(item)
+        return redacted
+    if isinstance(value, list):
+        return [_redact_sidecar_payload(item) for item in value]
+    return value
+
+
+def _redact_sidecar_headers(headers: dict[str, Any]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for key, item in headers.items():
+        lower = str(key).lower()
+        if lower in {"authorization", "cookie", "set-cookie", "proxy-authorization"} or any(
+            marker in lower for marker in ("token", "secret", "session", "auth", "cookie", "csrf", "key")
+        ):
+            out[str(key)] = "<redacted>"
+        else:
+            out[str(key)] = item
+    return out
 
 
 def _parse_sidecar_result(task_id: str, task_dir: Path, result: dict[str, Any]) -> dict[str, Any]:
@@ -623,9 +866,16 @@ def make_agent_factory(
     service_tier: str | None = None,
     max_steps: int = _DEFAULT_MAX_STEPS,
     task_timeout: int | None = None,
+    llm_timeout: int | None = None,
+    step_timeout: int | None = None,
     **_: Any,
 ) -> Callable[[], AgentLabAgentWrapper]:
     """Return a factory for AgentLab sidecar settings."""
+    if llm_timeout is not None or step_timeout is not None:
+        raise ValueError(
+            "AgentLab runner does not yet support --agent-llm-timeout or --agent-step-timeout; "
+            "omit them or use Browser Use until sidecar step/model deadlines are implemented"
+        )
 
     def factory() -> AgentLabAgentWrapper:
         return AgentLabAgentWrapper(
