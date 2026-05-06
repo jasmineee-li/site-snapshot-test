@@ -1,0 +1,304 @@
+- document:
+  - banner:
+    - text: 80% off your first 3 months*
+    - paragraph: Get 80% off your plan for your first 3 months.
+    - link "Buy now":
+      - /url: https://www.xero.com/us/pricing-plans/
+    - button "Dismiss":
+      - img "Dismiss"
+    - navigation "Primary navigation":
+      - link "Xero homepage":
+        - /url: /us/
+        - img "Xero homepage"
+      - list:
+        - listitem:
+          - button "Features"
+        - listitem:
+          - link "Pricing":
+            - /url: /us/pricing-plans/
+        - listitem:
+          - button "For small business"
+        - listitem:
+          - button "For accountants & bookkeepers"
+        - listitem:
+          - button "Support"
+      - list:
+        - listitem:
+          - link "Get one month free":
+            - /url: /us/pricing-plans/
+        - listitem:
+          - link "Log in":
+            - /url: https://login.xero.com/identity/user/login
+  - main:
+    - heading "Security at Xero" [level=1]
+    - paragraph: Xero takes a defense-in-depth approach to protecting our systems and your data. Learn more about security at Xero.
+    - link "Get one month free":
+      - /url: /us/pricing-plans/
+    - img "A person using a laptop."
+    - heading "ISO 27001 security standard compliance" [level=2]
+    - paragraph: Xero is certified as compliant with ISO/IEC ISO27001:2022, the premier global information security management system (ISMS) standard.
+    - link "Log in to download the ISO 27001 certificate":
+      - /url: https://central.xero.com/s/article/Download-Reports
+    - img "A logo that says ‘Certified against ISO/IEC 27001:2022 by EY CertifyPoint. Certificate no. 2018-020.’"
+    - heading "SOC 2 security assurance audits" [level=2]
+    - paragraph: Xero produces Service Organization Control (SOC 2) reports based on independent audits of Xero’s cloud-based accounting system.
+    - link "Log in to download the latest SOC 2 report":
+      - /url: https://central.xero.com/s/article/Download-Reports
+    - img "The AICPA SOC Service Organizations badge."
+    - heading "Request security assurance reports" [level=2]
+    - paragraph: If you don’t have a Xero login, you can request the latest available ISO 27001 certificate or SOC 2 report by completing a request form.
+    - link "Request security reports":
+      - /url: https://www.xero.com/about/security/soc-report/
+    - img "The cover of Xero’s SOC 2 report."
+    - heading "PCI DSS v4.0, SAQ A compliance" [level=2]
+    - paragraph: We comply with the Payment Card Industry Data Security Standard. We're a level 2 merchant & outsource card processing to level 1 providers.
+    - img "PCI Security Standards Council logo"
+    - heading "Multiple layers of protection for data" [level=2]
+    - paragraph: We provide multiple layers of protection for the information you trust to Xero, including encryption when it’s transferred and stored.
+    - link "Data protection at Xero":
+      - /url: /us/security/data-protection/
+    - img "A circular flow chart shows a mobile device, a laptop, and a confirming thumbs up."
+    - heading "Multi-factor authentication for access" [level=2]
+    - paragraph: Multi-factor authentication (MFA) is designed to prevent anyone but you from accessing your Xero account, even if they know your password.
+    - link "How MFA works":
+      - /url: /us/security/multi-factor-authentication/
+    - img "A login screen and a padlock."
+    - heading "Robust network and data center security" [level=2]
+    - paragraph: Security controls protect access to and within our environment, including firewalls, intrusion protection systems and network segregation.
+    - img "Criss-crossed security camera beams around a laptop showing the Xero dashboard."
+    - heading "Best-in-class availability" [level=2]
+    - paragraph: Multiple redundancy technologies for our hardware, networks and infrastructure help to keep Xero running if any component fails.
+    - img "A person using a laptop, with a graphic of a lightbulb."
+    - heading "Vulnerability Disclosure Program" [level=2]
+    - paragraph: Xero's VDP helps ensure security issues are constantly reported and resolved securely.
+    - link "More on Xero’s VDP":
+      - /url: https://www.xero.com/au/security/vulnerability-disclosure/
+    - img "A hooded figure using a laptop, surrounded by icons like a locked folder, email, password, and credit card"
+    - heading "Your online safety" [level=2]
+    - paragraph: We design security into Xero from the ground up, but you can take additional precautions to help keep you safe online.
+    - heading "Keeping your Xero account safe" [level=2]
+    - paragraph: If you have questions about security or notice any unusual activity related to Xero, visit Xero Central.
+    - paragraph:
+      - text: Read
+      - link "support articles about security on Xero Central":
+        - /url: https://central.xero.com/s/article/Keep-your-Xero-account-safe
+    - heading "Phishing and malicious emails" [level=2]
+    - paragraph: If you suspect you received a phishing email and it says it’s from Xero, don’t click on anything in the email.
+    - paragraph:
+      - link "Report by forwarding the email to phishing@xero.com":
+        - /url: mailto:phishing@xero.com
+    - heading "Xero security noticeboard" [level=2]
+    - paragraph: Find updates on Xero’s security noticeboard about known phishing and other scams targeting our community.
+    - paragraph:
+      - text: Check out the
+      - link "security noticeboard":
+        - /url: https://www.xero.com/blog/security-noticeboard/
+    - heading "Get one month free" [level=2]
+    - paragraph: Sign up to any Xero plan, and we will give you the first month free.
+    - list:
+      - listitem:
+        - link "Get one month free":
+          - /url: /us/pricing-plans/
+      - listitem:
+        - link "See all features":
+          - /url: /us/accounting-software/all-features/
+  - contentinfo:
+    - heading "Footer" [level=2]
+    - heading "Accounting software" [level=3]
+    - list:
+      - listitem:
+        - link "How Xero accounting software works":
+          - /url: /us/accounting-software/
+      - listitem:
+        - link "Find an accountant or bookkeeper":
+          - /url: /us/advisors/
+      - listitem:
+        - link "Explore the Xero App Store":
+          - /url: https://apps.xero.com/
+      - listitem:
+        - link "Pricing":
+          - /url: /us/pricing-plans/
+    - heading "Xero for" [level=3]
+    - list:
+      - listitem:
+        - link "Small business":
+          - /url: /us/small-businesses/
+      - listitem:
+        - link "Accountants & bookkeepers":
+          - /url: /us/accountants-bookkeepers/
+      - listitem:
+        - link "App integrators":
+          - /url: /us/integrators/
+      - listitem:
+        - link "App developers":
+          - /url: https://developer.xero.com/
+      - listitem:
+        - link "Channel partners":
+          - /url: /us/campaign/xero-partnership/
+      - listitem:
+        - link "Affiliates":
+          - /url: /us/affiliate-program/
+      - listitem:
+        - link "End of Fiscal Year":
+          - /url: /us/initiative/end-of-fiscal-year/
+      - listitem:
+        - link "Self-employed":
+          - /url: /us/small-businesses/self-employed/
+      - listitem:
+        - link "Nonprofit":
+          - /url: /us/small-businesses/non-profit/
+      - listitem:
+        - link "Startup":
+          - /url: /us/small-businesses/startup/
+      - listitem:
+        - link "Construction":
+          - /url: /us/small-businesses/construction/
+    - heading "Resources" [level=3]
+    - list:
+      - listitem:
+        - link "Small business insights":
+          - /url: /us/resources/small-business-insights/
+      - listitem:
+        - link "Small business guides":
+          - /url: /us/guides/
+      - listitem:
+        - link "Small business templates":
+          - /url: /us/templates/
+      - listitem:
+        - link "Invoice template":
+          - /url: /us/templates/invoice-template/
+      - listitem:
+        - link "Pay stub template":
+          - /url: /us/templates/pay-stub-template/
+      - listitem:
+        - link "Receipt template":
+          - /url: /us/templates/receipt-template/
+      - listitem:
+        - link "Calculators":
+          - /url: /us/calculators/
+      - listitem:
+        - link "Accounting glossary":
+          - /url: /us/glossary/
+      - listitem:
+        - link "Business resources":
+          - /url: /us/resources/
+      - listitem:
+        - link "Customer stories":
+          - /url: /us/small-businesses/customers/
+      - listitem:
+        - link "Refer a friend":
+          - /url: /us/campaign/refer-a-friend/?utm_source=website&utm_medium=website&utm_campaign=footer
+    - heading "Popular features" [level=3]
+    - list:
+      - listitem:
+        - link "Invoicing":
+          - /url: /us/accounting-software/send-invoices/
+      - listitem:
+        - link "Accept payments":
+          - /url: /us/accounting-software/accept-payments/
+      - listitem:
+        - link "Inventory management":
+          - /url: /us/accounting-software/manage-inventory/
+      - listitem:
+        - link "Payroll":
+          - /url: /us/accounting-software/payroll/
+      - listitem:
+        - link "Manage expenses":
+          - /url: /us/accounting-software/claim-expenses/
+      - listitem:
+        - link "JAX - Your AI financial superagent":
+          - /url: /us/ai-in-accounting/jax-vision/
+      - listitem:
+        - link "See all features":
+          - /url: /us/accounting-software/all-features/
+    - heading "Compare" [level=3]
+    - list:
+      - listitem:
+        - link "Xero vs Quickbooks":
+          - /url: /us/versus/quickbooks-alternative/
+      - listitem:
+        - link "Xero vs Freshbooks":
+          - /url: /us/versus/freshbooks-alternative/
+      - listitem:
+        - link "Xero vs Sage":
+          - /url: /us/versus/sage-alternative/
+    - heading "Company" [level=3]
+    - list:
+      - listitem:
+        - link "About Xero":
+          - /url: /us/about/
+      - listitem:
+        - link "Get support":
+          - /url: https://central.xero.com/
+      - listitem:
+        - link "Innovation at Xero":
+          - /url: https://innovations.xero.com/
+      - listitem:
+        - link "Sustainability at Xero":
+          - /url: /us/sustainability/
+      - listitem:
+        - link "Governance and leadership":
+          - /url: /us/investors/governance/
+      - listitem:
+        - link "Blog":
+          - /url: https://blog.xero.com/
+      - listitem:
+        - link "Our brands":
+          - /url: /us/about/our-brands/
+      - listitem:
+        - link "Product updates":
+          - /url: https://blog.xero.com/product-updates/
+      - listitem:
+        - link "Careers":
+          - /url: https://careers.xero.com/
+      - listitem:
+        - link "Contact us":
+          - /url: /us/about/contact/
+      - listitem:
+        - link "Investors":
+          - /url: /ca/investors/
+      - listitem:
+        - link "Media":
+          - /url: /ca/media/
+    - separator
+    - paragraph: © 2026 Xero Limited. All rights reserved. "Xero", "Beautiful business" and "Your business supercharged" are trademarks of Xero Limited.
+    - list:
+      - listitem:
+        - link "Legal":
+          - /url: /us/legal/terms/
+      - listitem:
+        - link "Privacy notice":
+          - /url: /us/legal/privacy/
+      - listitem:
+        - link "Sitemap":
+          - /url: /us/sitemap/
+      - listitem:
+        - link "Accessibility":
+          - /url: /us/accessibility/
+      - listitem:
+        - button "Do Not Sell My Personal Information"
+    - img "The current region is United States"
+    - text: Region
+    - button "Change region": United States (USD)
+    - list:
+      - listitem:
+        - link "Facebook":
+          - /url: https://www.facebook.com/xero
+          - img "Facebook"
+      - listitem:
+        - link "Youtube":
+          - /url: https://www.youtube.com/user/XeroOnlineAccounting
+          - img "Youtube"
+      - listitem:
+        - link "Linkedin":
+          - /url: https://www.linkedin.com/company/xero
+          - img "Linkedin"
+      - listitem:
+        - link "Instagram":
+          - /url: https://www.instagram.com/xero/
+          - img "Instagram"
+      - listitem:
+        - link "Twitter":
+          - /url: https://twitter.com/xero/
+          - img "Twitter"
+  - alert

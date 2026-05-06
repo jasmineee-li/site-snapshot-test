@@ -1,0 +1,2524 @@
+- document:
+  - article:
+    - text: craigslist
+    - superscript: ®
+    - link "US":
+      - /url: "#US"
+    - link "Canada":
+      - /url: "#CA"
+    - link "Europe":
+      - /url: "#EU"
+    - link "Asia/Pacific/Middle East":
+      - /url: "#ASIA"
+    - link "Oceania":
+      - /url: "#OCEANIA"
+    - link "Latin America":
+      - /url: "#LATAM"
+    - link "Africa":
+      - /url: "#AF"
+    - button
+    - button
+    - button
+    - button
+    - button
+    - button
+    - button
+    - button
+    - button "+"
+    - button "+"
+    - button
+    - button "+"
+    - button "+"
+    - button
+    - button "+"
+    - button "+"
+    - button "+"
+    - button "+"
+    - button "+"
+    - button
+    - button
+    - button
+    - button "+"
+    - button "+"
+    - button "+"
+    - button "+"
+    - button "+"
+    - button "+"
+    - button "+"
+    - button
+    - button
+    - button "+"
+    - button "+"
+    - button "+"
+    - button "+"
+    - button "+"
+    - button "+"
+    - button "+"
+    - button "+"
+    - button "+"
+    - button "+"
+    - button "+"
+    - button
+    - button
+    - button "+"
+    - button "+"
+    - button
+    - button "+"
+    - button
+    - button "+"
+    - button "+"
+    - button "+"
+    - button "+"
+    - button "+"
+    - button "+"
+    - button "Zoom in"
+    - button "Zoom out"
+    - text: © craigslist - Map data
+    - link "Natural Earth":
+      - /url: http://www.naturalearthdata.com/
+    - text: ", ©"
+    - link "OpenStreetMap":
+      - /url: http://www.openstreetmap.org/copyright
+    - heading "craigslist sites worldwide" [level=1]
+    - heading "US" [level=2]
+    - heading "Alabama" [level=4]
+    - list:
+      - listitem:
+        - link "auburn":
+          - /url: https://auburn.craigslist.org/
+      - listitem:
+        - link "birmingham":
+          - /url: https://bham.craigslist.org/
+      - listitem:
+        - link "dothan":
+          - /url: https://dothan.craigslist.org/
+      - listitem:
+        - link "florence / muscle shoals":
+          - /url: https://shoals.craigslist.org/
+      - listitem:
+        - link "gadsden-anniston":
+          - /url: https://gadsden.craigslist.org/
+      - listitem:
+        - link "huntsville / decatur":
+          - /url: https://huntsville.craigslist.org/
+      - listitem:
+        - link "mobile":
+          - /url: https://mobile.craigslist.org/
+      - listitem:
+        - link "montgomery":
+          - /url: https://montgomery.craigslist.org/
+      - listitem:
+        - link "tuscaloosa":
+          - /url: https://tuscaloosa.craigslist.org/
+    - heading "Alaska" [level=4]
+    - list:
+      - listitem:
+        - link "anchorage / mat-su":
+          - /url: https://anchorage.craigslist.org/
+      - listitem:
+        - link "fairbanks":
+          - /url: https://fairbanks.craigslist.org/
+      - listitem:
+        - link "kenai peninsula":
+          - /url: https://kenai.craigslist.org/
+      - listitem:
+        - link "southeast alaska":
+          - /url: https://juneau.craigslist.org/
+    - heading "Arizona" [level=4]
+    - list:
+      - listitem:
+        - link "flagstaff / sedona":
+          - /url: https://flagstaff.craigslist.org/
+      - listitem:
+        - link "mohave county":
+          - /url: https://mohave.craigslist.org/
+      - listitem:
+        - link "phoenix":
+          - /url: https://phoenix.craigslist.org/
+      - listitem:
+        - link "prescott":
+          - /url: https://prescott.craigslist.org/
+      - listitem:
+        - link "show low":
+          - /url: https://showlow.craigslist.org/
+      - listitem:
+        - link "sierra vista":
+          - /url: https://sierravista.craigslist.org/
+      - listitem:
+        - link "tucson":
+          - /url: https://tucson.craigslist.org/
+      - listitem:
+        - link "yuma":
+          - /url: https://yuma.craigslist.org/
+    - heading "Arkansas" [level=4]
+    - list:
+      - listitem:
+        - link "fayetteville":
+          - /url: https://fayar.craigslist.org/
+      - listitem:
+        - link "fort smith":
+          - /url: https://fortsmith.craigslist.org/
+      - listitem:
+        - link "jonesboro":
+          - /url: https://jonesboro.craigslist.org/
+      - listitem:
+        - link "little rock":
+          - /url: https://littlerock.craigslist.org/
+      - listitem:
+        - link "texarkana":
+          - /url: https://texarkana.craigslist.org/
+    - heading "California" [level=4]
+    - list:
+      - listitem:
+        - link "bakersfield":
+          - /url: https://bakersfield.craigslist.org/
+      - listitem:
+        - link "chico":
+          - /url: https://chico.craigslist.org/
+      - listitem:
+        - link "fresno / madera":
+          - /url: https://fresno.craigslist.org/
+      - listitem:
+        - link "gold country":
+          - /url: https://goldcountry.craigslist.org/
+      - listitem:
+        - link "hanford-corcoran":
+          - /url: https://hanford.craigslist.org/
+      - listitem:
+        - link "humboldt county":
+          - /url: https://humboldt.craigslist.org/
+      - listitem:
+        - link "imperial county":
+          - /url: https://imperial.craigslist.org/
+      - listitem:
+        - link "inland empire":
+          - /url: https://inlandempire.craigslist.org/
+      - listitem:
+        - link "los angeles":
+          - /url: https://losangeles.craigslist.org/
+      - listitem:
+        - link "mendocino county":
+          - /url: https://mendocino.craigslist.org/
+      - listitem:
+        - link "merced":
+          - /url: https://merced.craigslist.org/
+      - listitem:
+        - link "modesto":
+          - /url: https://modesto.craigslist.org/
+      - listitem:
+        - link "monterey bay":
+          - /url: https://monterey.craigslist.org/
+      - listitem:
+        - link "orange county":
+          - /url: https://orangecounty.craigslist.org/
+      - listitem:
+        - link "palm springs":
+          - /url: https://palmsprings.craigslist.org/
+      - listitem:
+        - link "redding":
+          - /url: https://redding.craigslist.org/
+      - listitem:
+        - link "sacramento":
+          - /url: https://sacramento.craigslist.org/
+      - listitem:
+        - link "san diego":
+          - /url: https://sandiego.craigslist.org/
+      - listitem:
+        - link "san francisco bay area":
+          - /url: https://sfbay.craigslist.org/
+      - listitem:
+        - link "san luis obispo":
+          - /url: https://slo.craigslist.org/
+      - listitem:
+        - link "santa barbara":
+          - /url: https://santabarbara.craigslist.org/
+      - listitem:
+        - link "santa maria":
+          - /url: https://santamaria.craigslist.org/
+      - listitem:
+        - link "siskiyou county":
+          - /url: https://siskiyou.craigslist.org/
+      - listitem:
+        - link "stockton":
+          - /url: https://stockton.craigslist.org/
+      - listitem:
+        - link "susanville":
+          - /url: https://susanville.craigslist.org/
+      - listitem:
+        - link "ventura county":
+          - /url: https://ventura.craigslist.org/
+      - listitem:
+        - link "visalia-tulare":
+          - /url: https://visalia.craigslist.org/
+      - listitem:
+        - link "yuba-sutter":
+          - /url: https://yubasutter.craigslist.org/
+    - heading "Colorado" [level=4]
+    - list:
+      - listitem:
+        - link "boulder":
+          - /url: https://boulder.craigslist.org/
+      - listitem:
+        - link "colorado springs":
+          - /url: https://cosprings.craigslist.org/
+      - listitem:
+        - link "denver":
+          - /url: https://denver.craigslist.org/
+      - listitem:
+        - link "eastern CO":
+          - /url: https://eastco.craigslist.org/
+      - listitem:
+        - link "fort collins / north CO":
+          - /url: https://fortcollins.craigslist.org/
+      - listitem:
+        - link "high rockies":
+          - /url: https://rockies.craigslist.org/
+      - listitem:
+        - link "pueblo":
+          - /url: https://pueblo.craigslist.org/
+      - listitem:
+        - link "western slope":
+          - /url: https://westslope.craigslist.org/
+    - heading "Connecticut" [level=4]
+    - list:
+      - listitem:
+        - link "eastern CT":
+          - /url: https://newlondon.craigslist.org/
+      - listitem:
+        - link "hartford":
+          - /url: https://hartford.craigslist.org/
+      - listitem:
+        - link "new haven":
+          - /url: https://newhaven.craigslist.org/
+      - listitem:
+        - link "northwest CT":
+          - /url: https://nwct.craigslist.org/
+    - heading "Delaware" [level=4]
+    - list:
+      - listitem:
+        - link "delaware":
+          - /url: https://delaware.craigslist.org/
+    - heading "District of Columbia" [level=4]
+    - list:
+      - listitem:
+        - link "washington":
+          - /url: https://washingtondc.craigslist.org/
+    - heading "Florida" [level=4]
+    - list:
+      - listitem:
+        - link "broward county":
+          - /url: https://miami.craigslist.org/
+      - listitem:
+        - link "daytona beach":
+          - /url: https://daytona.craigslist.org/
+      - listitem:
+        - link "florida keys":
+          - /url: https://keys.craigslist.org/
+      - listitem:
+        - link "fort lauderdale":
+          - /url: https://miami.craigslist.org/
+      - listitem:
+        - link "ft myers / SW florida":
+          - /url: https://fortmyers.craigslist.org/
+      - listitem:
+        - link "gainesville":
+          - /url: https://gainesville.craigslist.org/
+      - listitem:
+        - link "heartland florida":
+          - /url: https://cfl.craigslist.org/
+      - listitem:
+        - link "jacksonville":
+          - /url: https://jacksonville.craigslist.org/
+      - listitem:
+        - link "lakeland":
+          - /url: https://lakeland.craigslist.org/
+      - listitem:
+        - link "miami / dade":
+          - /url: https://miami.craigslist.org/
+      - listitem:
+        - link "north central FL":
+          - /url: https://lakecity.craigslist.org/
+      - listitem:
+        - link "ocala":
+          - /url: https://ocala.craigslist.org/
+      - listitem:
+        - link "okaloosa / walton":
+          - /url: https://okaloosa.craigslist.org/
+      - listitem:
+        - link "orlando":
+          - /url: https://orlando.craigslist.org/
+      - listitem:
+        - link "panama city":
+          - /url: https://panamacity.craigslist.org/
+      - listitem:
+        - link "pensacola":
+          - /url: https://pensacola.craigslist.org/
+      - listitem:
+        - link "sarasota-bradenton":
+          - /url: https://sarasota.craigslist.org/
+      - listitem:
+        - link "south florida":
+          - /url: https://miami.craigslist.org/
+      - listitem:
+        - link "space coast":
+          - /url: https://spacecoast.craigslist.org/
+      - listitem:
+        - link "st augustine":
+          - /url: https://staugustine.craigslist.org/
+      - listitem:
+        - link "tallahassee":
+          - /url: https://tallahassee.craigslist.org/
+      - listitem:
+        - link "tampa bay area":
+          - /url: https://tampa.craigslist.org/
+      - listitem:
+        - link "treasure coast":
+          - /url: https://treasure.craigslist.org/
+      - listitem:
+        - link "palm beach county":
+          - /url: https://miami.craigslist.org/
+    - heading "Georgia" [level=4]
+    - list:
+      - listitem:
+        - link "albany":
+          - /url: https://albanyga.craigslist.org/
+      - listitem:
+        - link "athens":
+          - /url: https://athensga.craigslist.org/
+      - listitem:
+        - link "atlanta":
+          - /url: https://atlanta.craigslist.org/
+      - listitem:
+        - link "augusta":
+          - /url: https://augusta.craigslist.org/
+      - listitem:
+        - link "brunswick":
+          - /url: https://brunswick.craigslist.org/
+      - listitem:
+        - link "columbus":
+          - /url: https://columbusga.craigslist.org/
+      - listitem:
+        - link "macon / warner robins":
+          - /url: https://macon.craigslist.org/
+      - listitem:
+        - link "northwest GA":
+          - /url: https://nwga.craigslist.org/
+      - listitem:
+        - link "savannah / hinesville":
+          - /url: https://savannah.craigslist.org/
+      - listitem:
+        - link "statesboro":
+          - /url: https://statesboro.craigslist.org/
+      - listitem:
+        - link "valdosta":
+          - /url: https://valdosta.craigslist.org/
+    - heading "Hawaii" [level=4]
+    - list:
+      - listitem:
+        - link "hawaii":
+          - /url: https://honolulu.craigslist.org/
+    - heading "Idaho" [level=4]
+    - list:
+      - listitem:
+        - link "boise":
+          - /url: https://boise.craigslist.org/
+      - listitem:
+        - link "east idaho":
+          - /url: https://eastidaho.craigslist.org/
+      - listitem:
+        - link "lewiston / clarkston":
+          - /url: https://lewiston.craigslist.org/
+      - listitem:
+        - link "twin falls":
+          - /url: https://twinfalls.craigslist.org/
+    - heading "Illinois" [level=4]
+    - list:
+      - listitem:
+        - link "bloomington-normal":
+          - /url: https://bn.craigslist.org/
+      - listitem:
+        - link "champaign urbana":
+          - /url: https://chambana.craigslist.org/
+      - listitem:
+        - link "chicago":
+          - /url: https://chicago.craigslist.org/
+      - listitem:
+        - link "decatur":
+          - /url: https://decatur.craigslist.org/
+      - listitem:
+        - link "la salle co":
+          - /url: https://lasalle.craigslist.org/
+      - listitem:
+        - link "mattoon-charleston":
+          - /url: https://mattoon.craigslist.org/
+      - listitem:
+        - link "peoria":
+          - /url: https://peoria.craigslist.org/
+      - listitem:
+        - link "rockford":
+          - /url: https://rockford.craigslist.org/
+      - listitem:
+        - link "southern illinois":
+          - /url: https://carbondale.craigslist.org/
+      - listitem:
+        - link "springfield":
+          - /url: https://springfieldil.craigslist.org/
+      - listitem:
+        - link "western IL":
+          - /url: https://quincy.craigslist.org/
+    - heading "Indiana" [level=4]
+    - list:
+      - listitem:
+        - link "bloomington":
+          - /url: https://bloomington.craigslist.org/
+      - listitem:
+        - link "evansville":
+          - /url: https://evansville.craigslist.org/
+      - listitem:
+        - link "fort wayne":
+          - /url: https://fortwayne.craigslist.org/
+      - listitem:
+        - link "indianapolis":
+          - /url: https://indianapolis.craigslist.org/
+      - listitem:
+        - link "kokomo":
+          - /url: https://kokomo.craigslist.org/
+      - listitem:
+        - link "lafayette / west lafayette":
+          - /url: https://tippecanoe.craigslist.org/
+      - listitem:
+        - link "muncie / anderson":
+          - /url: https://muncie.craigslist.org/
+      - listitem:
+        - link "richmond":
+          - /url: https://richmondin.craigslist.org/
+      - listitem:
+        - link "south bend / michiana":
+          - /url: https://southbend.craigslist.org/
+      - listitem:
+        - link "terre haute":
+          - /url: https://terrehaute.craigslist.org/
+    - heading "Iowa" [level=4]
+    - list:
+      - listitem:
+        - link "ames":
+          - /url: https://ames.craigslist.org/
+      - listitem:
+        - link "cedar rapids":
+          - /url: https://cedarrapids.craigslist.org/
+      - listitem:
+        - link "des moines":
+          - /url: https://desmoines.craigslist.org/
+      - listitem:
+        - link "dubuque":
+          - /url: https://dubuque.craigslist.org/
+      - listitem:
+        - link "fort dodge":
+          - /url: https://fortdodge.craigslist.org/
+      - listitem:
+        - link "iowa city":
+          - /url: https://iowacity.craigslist.org/
+      - listitem:
+        - link "mason city":
+          - /url: https://masoncity.craigslist.org/
+      - listitem:
+        - link "quad cities":
+          - /url: https://quadcities.craigslist.org/
+      - listitem:
+        - link "sioux city":
+          - /url: https://siouxcity.craigslist.org/
+      - listitem:
+        - link "southeast IA":
+          - /url: https://ottumwa.craigslist.org/
+      - listitem:
+        - link "waterloo / cedar falls":
+          - /url: https://waterloo.craigslist.org/
+    - heading "Kansas" [level=4]
+    - list:
+      - listitem:
+        - link "lawrence":
+          - /url: https://lawrence.craigslist.org/
+      - listitem:
+        - link "manhattan":
+          - /url: https://ksu.craigslist.org/
+      - listitem:
+        - link "northwest KS":
+          - /url: https://nwks.craigslist.org/
+      - listitem:
+        - link "salina":
+          - /url: https://salina.craigslist.org/
+      - listitem:
+        - link "southeast KS":
+          - /url: https://seks.craigslist.org/
+      - listitem:
+        - link "southwest KS":
+          - /url: https://swks.craigslist.org/
+      - listitem:
+        - link "topeka":
+          - /url: https://topeka.craigslist.org/
+      - listitem:
+        - link "wichita":
+          - /url: https://wichita.craigslist.org/
+    - heading "Kentucky" [level=4]
+    - list:
+      - listitem:
+        - link "bowling green":
+          - /url: https://bgky.craigslist.org/
+      - listitem:
+        - link "eastern kentucky":
+          - /url: https://eastky.craigslist.org/
+      - listitem:
+        - link "lexington":
+          - /url: https://lexington.craigslist.org/
+      - listitem:
+        - link "louisville":
+          - /url: https://louisville.craigslist.org/
+      - listitem:
+        - link "owensboro":
+          - /url: https://owensboro.craigslist.org/
+      - listitem:
+        - link "western KY":
+          - /url: https://westky.craigslist.org/
+    - heading "Louisiana" [level=4]
+    - list:
+      - listitem:
+        - link "baton rouge":
+          - /url: https://batonrouge.craigslist.org/
+      - listitem:
+        - link "central louisiana":
+          - /url: https://cenla.craigslist.org/
+      - listitem:
+        - link "houma":
+          - /url: https://houma.craigslist.org/
+      - listitem:
+        - link "lafayette":
+          - /url: https://lafayette.craigslist.org/
+      - listitem:
+        - link "lake charles":
+          - /url: https://lakecharles.craigslist.org/
+      - listitem:
+        - link "monroe":
+          - /url: https://monroe.craigslist.org/
+      - listitem:
+        - link "new orleans":
+          - /url: https://neworleans.craigslist.org/
+      - listitem:
+        - link "shreveport":
+          - /url: https://shreveport.craigslist.org/
+    - heading "Maine" [level=4]
+    - list:
+      - listitem:
+        - link "maine":
+          - /url: https://maine.craigslist.org/
+    - heading "Maryland" [level=4]
+    - list:
+      - listitem:
+        - link "annapolis":
+          - /url: https://annapolis.craigslist.org/
+      - listitem:
+        - link "baltimore":
+          - /url: https://baltimore.craigslist.org/
+      - listitem:
+        - link "eastern shore":
+          - /url: https://easternshore.craigslist.org/
+      - listitem:
+        - link "frederick":
+          - /url: https://frederick.craigslist.org/
+      - listitem:
+        - link "southern maryland":
+          - /url: https://smd.craigslist.org/
+      - listitem:
+        - link "western maryland":
+          - /url: https://westmd.craigslist.org/
+    - heading "Massachusetts" [level=4]
+    - list:
+      - listitem:
+        - link "boston":
+          - /url: https://boston.craigslist.org/
+      - listitem:
+        - link "cape cod / islands":
+          - /url: https://capecod.craigslist.org/
+      - listitem:
+        - link "south coast":
+          - /url: https://southcoast.craigslist.org/
+      - listitem:
+        - link "western massachusetts":
+          - /url: https://westernmass.craigslist.org/
+      - listitem:
+        - link "worcester / central MA":
+          - /url: https://worcester.craigslist.org/
+    - heading "Michigan" [level=4]
+    - list:
+      - listitem:
+        - link "ann arbor":
+          - /url: https://annarbor.craigslist.org/
+      - listitem:
+        - link "battle creek":
+          - /url: https://battlecreek.craigslist.org/
+      - listitem:
+        - link "central michigan":
+          - /url: https://centralmich.craigslist.org/
+      - listitem:
+        - link "detroit metro":
+          - /url: https://detroit.craigslist.org/
+      - listitem:
+        - link "flint":
+          - /url: https://flint.craigslist.org/
+      - listitem:
+        - link "grand rapids":
+          - /url: https://grandrapids.craigslist.org/
+      - listitem:
+        - link "holland":
+          - /url: https://holland.craigslist.org/
+      - listitem:
+        - link "jackson":
+          - /url: https://jxn.craigslist.org/
+      - listitem:
+        - link "kalamazoo":
+          - /url: https://kalamazoo.craigslist.org/
+      - listitem:
+        - link "lansing":
+          - /url: https://lansing.craigslist.org/
+      - listitem:
+        - link "monroe":
+          - /url: https://monroemi.craigslist.org/
+      - listitem:
+        - link "muskegon":
+          - /url: https://muskegon.craigslist.org/
+      - listitem:
+        - link "northern michigan":
+          - /url: https://nmi.craigslist.org/
+      - listitem:
+        - link "port huron":
+          - /url: https://porthuron.craigslist.org/
+      - listitem:
+        - link "saginaw-midland-baycity":
+          - /url: https://saginaw.craigslist.org/
+      - listitem:
+        - link "southwest michigan":
+          - /url: https://swmi.craigslist.org/
+      - listitem:
+        - link "the thumb":
+          - /url: https://thumb.craigslist.org/
+      - listitem:
+        - link "upper peninsula":
+          - /url: https://up.craigslist.org/
+    - heading "Minnesota" [level=4]
+    - list:
+      - listitem:
+        - link "bemidji":
+          - /url: https://bemidji.craigslist.org/
+      - listitem:
+        - link "brainerd":
+          - /url: https://brainerd.craigslist.org/
+      - listitem:
+        - link "duluth / superior":
+          - /url: https://duluth.craigslist.org/
+      - listitem:
+        - link "mankato":
+          - /url: https://mankato.craigslist.org/
+      - listitem:
+        - link "minneapolis / st paul":
+          - /url: https://minneapolis.craigslist.org/
+      - listitem:
+        - link "rochester":
+          - /url: https://rmn.craigslist.org/
+      - listitem:
+        - link "southwest MN":
+          - /url: https://marshall.craigslist.org/
+      - listitem:
+        - link "st cloud":
+          - /url: https://stcloud.craigslist.org/
+    - heading "Mississippi" [level=4]
+    - list:
+      - listitem:
+        - link "gulfport / biloxi":
+          - /url: https://gulfport.craigslist.org/
+      - listitem:
+        - link "hattiesburg":
+          - /url: https://hattiesburg.craigslist.org/
+      - listitem:
+        - link "jackson":
+          - /url: https://jackson.craigslist.org/
+      - listitem:
+        - link "meridian":
+          - /url: https://meridian.craigslist.org/
+      - listitem:
+        - link "north mississippi":
+          - /url: https://northmiss.craigslist.org/
+      - listitem:
+        - link "southwest MS":
+          - /url: https://natchez.craigslist.org/
+    - heading "Missouri" [level=4]
+    - list:
+      - listitem:
+        - link "columbia / jeff city":
+          - /url: https://columbiamo.craigslist.org/
+      - listitem:
+        - link "joplin":
+          - /url: https://joplin.craigslist.org/
+      - listitem:
+        - link "kansas city":
+          - /url: https://kansascity.craigslist.org/
+      - listitem:
+        - link "kirksville":
+          - /url: https://kirksville.craigslist.org/
+      - listitem:
+        - link "lake of the ozarks":
+          - /url: https://loz.craigslist.org/
+      - listitem:
+        - link "southeast missouri":
+          - /url: https://semo.craigslist.org/
+      - listitem:
+        - link "springfield":
+          - /url: https://springfield.craigslist.org/
+      - listitem:
+        - link "st joseph":
+          - /url: https://stjoseph.craigslist.org/
+      - listitem:
+        - link "st louis":
+          - /url: https://stlouis.craigslist.org/
+    - heading "Montana" [level=4]
+    - list:
+      - listitem:
+        - link "billings":
+          - /url: https://billings.craigslist.org/
+      - listitem:
+        - link "bozeman":
+          - /url: https://bozeman.craigslist.org/
+      - listitem:
+        - link "butte":
+          - /url: https://butte.craigslist.org/
+      - listitem:
+        - link "great falls":
+          - /url: https://greatfalls.craigslist.org/
+      - listitem:
+        - link "helena":
+          - /url: https://helena.craigslist.org/
+      - listitem:
+        - link "kalispell":
+          - /url: https://kalispell.craigslist.org/
+      - listitem:
+        - link "missoula":
+          - /url: https://missoula.craigslist.org/
+      - listitem:
+        - link "eastern montana":
+          - /url: https://montana.craigslist.org/
+    - heading "Nebraska" [level=4]
+    - list:
+      - listitem:
+        - link "grand island":
+          - /url: https://grandisland.craigslist.org/
+      - listitem:
+        - link "lincoln":
+          - /url: https://lincoln.craigslist.org/
+      - listitem:
+        - link "north platte":
+          - /url: https://northplatte.craigslist.org/
+      - listitem:
+        - link "omaha / council bluffs":
+          - /url: https://omaha.craigslist.org/
+      - listitem:
+        - link "scottsbluff / panhandle":
+          - /url: https://scottsbluff.craigslist.org/
+    - heading "Nevada" [level=4]
+    - list:
+      - listitem:
+        - link "elko":
+          - /url: https://elko.craigslist.org/
+      - listitem:
+        - link "las vegas":
+          - /url: https://lasvegas.craigslist.org/
+      - listitem:
+        - link "reno / tahoe":
+          - /url: https://reno.craigslist.org/
+    - heading "New Hampshire" [level=4]
+    - list:
+      - listitem:
+        - link "new hampshire":
+          - /url: https://nh.craigslist.org/
+    - heading "New Jersey" [level=4]
+    - list:
+      - listitem:
+        - link "central NJ":
+          - /url: https://cnj.craigslist.org/
+      - listitem:
+        - link "jersey shore":
+          - /url: https://jerseyshore.craigslist.org/
+      - listitem:
+        - link "north jersey":
+          - /url: https://newjersey.craigslist.org/
+      - listitem:
+        - link "south jersey":
+          - /url: https://southjersey.craigslist.org/
+    - heading "New Mexico" [level=4]
+    - list:
+      - listitem:
+        - link "albuquerque":
+          - /url: https://albuquerque.craigslist.org/
+      - listitem:
+        - link "clovis / portales":
+          - /url: https://clovis.craigslist.org/
+      - listitem:
+        - link "farmington":
+          - /url: https://farmington.craigslist.org/
+      - listitem:
+        - link "las cruces":
+          - /url: https://lascruces.craigslist.org/
+      - listitem:
+        - link "roswell / carlsbad":
+          - /url: https://roswell.craigslist.org/
+      - listitem:
+        - link "santa fe / taos":
+          - /url: https://santafe.craigslist.org/
+    - heading "New York" [level=4]
+    - list:
+      - listitem:
+        - link "albany":
+          - /url: https://albany.craigslist.org/
+      - listitem:
+        - link "binghamton":
+          - /url: https://binghamton.craigslist.org/
+      - listitem:
+        - link "buffalo":
+          - /url: https://buffalo.craigslist.org/
+      - listitem:
+        - link "catskills":
+          - /url: https://catskills.craigslist.org/
+      - listitem:
+        - link "chautauqua":
+          - /url: https://chautauqua.craigslist.org/
+      - listitem:
+        - link "elmira-corning":
+          - /url: https://elmira.craigslist.org/
+      - listitem:
+        - link "finger lakes":
+          - /url: https://fingerlakes.craigslist.org/
+      - listitem:
+        - link "glens falls":
+          - /url: https://glensfalls.craigslist.org/
+      - listitem:
+        - link "hudson valley":
+          - /url: https://hudsonvalley.craigslist.org/
+      - listitem:
+        - link "ithaca":
+          - /url: https://ithaca.craigslist.org/
+      - listitem:
+        - link "long island":
+          - /url: https://longisland.craigslist.org/
+      - listitem:
+        - link "new york city":
+          - /url: https://newyork.craigslist.org/
+      - listitem:
+        - link "oneonta":
+          - /url: https://oneonta.craigslist.org/
+      - listitem:
+        - link "plattsburgh-adirondacks":
+          - /url: https://plattsburgh.craigslist.org/
+      - listitem:
+        - link "potsdam-canton-massena":
+          - /url: https://potsdam.craigslist.org/
+      - listitem:
+        - link "rochester":
+          - /url: https://rochester.craigslist.org/
+      - listitem:
+        - link "syracuse":
+          - /url: https://syracuse.craigslist.org/
+      - listitem:
+        - link "twin tiers NY/PA":
+          - /url: https://twintiers.craigslist.org/
+      - listitem:
+        - link "utica-rome-oneida":
+          - /url: https://utica.craigslist.org/
+      - listitem:
+        - link "watertown":
+          - /url: https://watertown.craigslist.org/
+    - heading "North Carolina" [level=4]
+    - list:
+      - listitem:
+        - link "asheville":
+          - /url: https://asheville.craigslist.org/
+      - listitem:
+        - link "boone":
+          - /url: https://boone.craigslist.org/
+      - listitem:
+        - link "charlotte":
+          - /url: https://charlotte.craigslist.org/
+      - listitem:
+        - link "eastern NC":
+          - /url: https://eastnc.craigslist.org/
+      - listitem:
+        - link "fayetteville":
+          - /url: https://fayetteville.craigslist.org/
+      - listitem:
+        - link "greensboro":
+          - /url: https://greensboro.craigslist.org/
+      - listitem:
+        - link "hickory / lenoir":
+          - /url: https://hickory.craigslist.org/
+      - listitem:
+        - link "jacksonville":
+          - /url: https://onslow.craigslist.org/
+      - listitem:
+        - link "outer banks":
+          - /url: https://outerbanks.craigslist.org/
+      - listitem:
+        - link "raleigh / durham / CH":
+          - /url: https://raleigh.craigslist.org/
+      - listitem:
+        - link "wilmington":
+          - /url: https://wilmington.craigslist.org/
+      - listitem:
+        - link "winston-salem":
+          - /url: https://winstonsalem.craigslist.org/
+    - heading "North Dakota" [level=4]
+    - list:
+      - listitem:
+        - link "bismarck":
+          - /url: https://bismarck.craigslist.org/
+      - listitem:
+        - link "fargo / moorhead":
+          - /url: https://fargo.craigslist.org/
+      - listitem:
+        - link "grand forks":
+          - /url: https://grandforks.craigslist.org/
+      - listitem:
+        - link "north dakota":
+          - /url: https://nd.craigslist.org/
+    - heading "Ohio" [level=4]
+    - list:
+      - listitem:
+        - link "akron / canton":
+          - /url: https://akroncanton.craigslist.org/
+      - listitem:
+        - link "ashtabula":
+          - /url: https://ashtabula.craigslist.org/
+      - listitem:
+        - link "athens":
+          - /url: https://athensohio.craigslist.org/
+      - listitem:
+        - link "chillicothe":
+          - /url: https://chillicothe.craigslist.org/
+      - listitem:
+        - link "cincinnati":
+          - /url: https://cincinnati.craigslist.org/
+      - listitem:
+        - link "cleveland":
+          - /url: https://cleveland.craigslist.org/
+      - listitem:
+        - link "columbus":
+          - /url: https://columbus.craigslist.org/
+      - listitem:
+        - link "dayton / springfield":
+          - /url: https://dayton.craigslist.org/
+      - listitem:
+        - link "lima / findlay":
+          - /url: https://limaohio.craigslist.org/
+      - listitem:
+        - link "mansfield":
+          - /url: https://mansfield.craigslist.org/
+      - listitem:
+        - link "sandusky":
+          - /url: https://sandusky.craigslist.org/
+      - listitem:
+        - link "toledo":
+          - /url: https://toledo.craigslist.org/
+      - listitem:
+        - link "tuscarawas co":
+          - /url: https://tuscarawas.craigslist.org/
+      - listitem:
+        - link "youngstown":
+          - /url: https://youngstown.craigslist.org/
+      - listitem:
+        - link "zanesville / cambridge":
+          - /url: https://zanesville.craigslist.org/
+    - heading "Oklahoma" [level=4]
+    - list:
+      - listitem:
+        - link "lawton":
+          - /url: https://lawton.craigslist.org/
+      - listitem:
+        - link "northwest OK":
+          - /url: https://enid.craigslist.org/
+      - listitem:
+        - link "oklahoma city":
+          - /url: https://oklahomacity.craigslist.org/
+      - listitem:
+        - link "stillwater":
+          - /url: https://stillwater.craigslist.org/
+      - listitem:
+        - link "tulsa":
+          - /url: https://tulsa.craigslist.org/
+    - heading "Oregon" [level=4]
+    - list:
+      - listitem:
+        - link "bend":
+          - /url: https://bend.craigslist.org/
+      - listitem:
+        - link "corvallis/albany":
+          - /url: https://corvallis.craigslist.org/
+      - listitem:
+        - link "east oregon":
+          - /url: https://eastoregon.craigslist.org/
+      - listitem:
+        - link "eugene":
+          - /url: https://eugene.craigslist.org/
+      - listitem:
+        - link "klamath falls":
+          - /url: https://klamath.craigslist.org/
+      - listitem:
+        - link "medford-ashland":
+          - /url: https://medford.craigslist.org/
+      - listitem:
+        - link "oregon coast":
+          - /url: https://oregoncoast.craigslist.org/
+      - listitem:
+        - link "portland":
+          - /url: https://portland.craigslist.org/
+      - listitem:
+        - link "roseburg":
+          - /url: https://roseburg.craigslist.org/
+      - listitem:
+        - link "salem":
+          - /url: https://salem.craigslist.org/
+    - heading "Pennsylvania" [level=4]
+    - list:
+      - listitem:
+        - link "altoona-johnstown":
+          - /url: https://altoona.craigslist.org/
+      - listitem:
+        - link "cumberland valley":
+          - /url: https://chambersburg.craigslist.org/
+      - listitem:
+        - link "erie":
+          - /url: https://erie.craigslist.org/
+      - listitem:
+        - link "harrisburg":
+          - /url: https://harrisburg.craigslist.org/
+      - listitem:
+        - link "lancaster":
+          - /url: https://lancaster.craigslist.org/
+      - listitem:
+        - link "lehigh valley":
+          - /url: https://allentown.craigslist.org/
+      - listitem:
+        - link "meadville":
+          - /url: https://meadville.craigslist.org/
+      - listitem:
+        - link "philadelphia":
+          - /url: https://philadelphia.craigslist.org/
+      - listitem:
+        - link "pittsburgh":
+          - /url: https://pittsburgh.craigslist.org/
+      - listitem:
+        - link "poconos":
+          - /url: https://poconos.craigslist.org/
+      - listitem:
+        - link "reading":
+          - /url: https://reading.craigslist.org/
+      - listitem:
+        - link "scranton / wilkes-barre":
+          - /url: https://scranton.craigslist.org/
+      - listitem:
+        - link "state college":
+          - /url: https://pennstate.craigslist.org/
+      - listitem:
+        - link "williamsport":
+          - /url: https://williamsport.craigslist.org/
+      - listitem:
+        - link "york":
+          - /url: https://york.craigslist.org/
+    - heading "Rhode Island" [level=4]
+    - list:
+      - listitem:
+        - link "rhode island":
+          - /url: https://providence.craigslist.org/
+    - heading "South Carolina" [level=4]
+    - list:
+      - listitem:
+        - link "charleston":
+          - /url: https://charleston.craigslist.org/
+      - listitem:
+        - link "columbia":
+          - /url: https://columbia.craigslist.org/
+      - listitem:
+        - link "florence":
+          - /url: https://florencesc.craigslist.org/
+      - listitem:
+        - link "greenville / upstate":
+          - /url: https://greenville.craigslist.org/
+      - listitem:
+        - link "hilton head":
+          - /url: https://hiltonhead.craigslist.org/
+      - listitem:
+        - link "myrtle beach":
+          - /url: https://myrtlebeach.craigslist.org/
+    - heading "South Dakota" [level=4]
+    - list:
+      - listitem:
+        - link "northeast SD":
+          - /url: https://nesd.craigslist.org/
+      - listitem:
+        - link "pierre / central SD":
+          - /url: https://csd.craigslist.org/
+      - listitem:
+        - link "rapid city / west SD":
+          - /url: https://rapidcity.craigslist.org/
+      - listitem:
+        - link "sioux falls / SE SD":
+          - /url: https://siouxfalls.craigslist.org/
+      - listitem:
+        - link "south dakota":
+          - /url: https://sd.craigslist.org/
+    - heading "Tennessee" [level=4]
+    - list:
+      - listitem:
+        - link "chattanooga":
+          - /url: https://chattanooga.craigslist.org/
+      - listitem:
+        - link "clarksville":
+          - /url: https://clarksville.craigslist.org/
+      - listitem:
+        - link "cookeville":
+          - /url: https://cookeville.craigslist.org/
+      - listitem:
+        - link "jackson":
+          - /url: https://jacksontn.craigslist.org/
+      - listitem:
+        - link "knoxville":
+          - /url: https://knoxville.craigslist.org/
+      - listitem:
+        - link "memphis":
+          - /url: https://memphis.craigslist.org/
+      - listitem:
+        - link "nashville":
+          - /url: https://nashville.craigslist.org/
+      - listitem:
+        - link "tri-cities":
+          - /url: https://tricities.craigslist.org/
+    - heading "Texas" [level=4]
+    - list:
+      - listitem:
+        - link "abilene":
+          - /url: https://abilene.craigslist.org/
+      - listitem:
+        - link "amarillo":
+          - /url: https://amarillo.craigslist.org/
+      - listitem:
+        - link "austin":
+          - /url: https://austin.craigslist.org/
+      - listitem:
+        - link "beaumont / port arthur":
+          - /url: https://beaumont.craigslist.org/
+      - listitem:
+        - link "brownsville":
+          - /url: https://brownsville.craigslist.org/
+      - listitem:
+        - link "college station":
+          - /url: https://collegestation.craigslist.org/
+      - listitem:
+        - link "corpus christi":
+          - /url: https://corpuschristi.craigslist.org/
+      - listitem:
+        - link "dallas / fort worth":
+          - /url: https://dallas.craigslist.org/
+      - listitem:
+        - link "deep east texas":
+          - /url: https://nacogdoches.craigslist.org/
+      - listitem:
+        - link "del rio / eagle pass":
+          - /url: https://delrio.craigslist.org/
+      - listitem:
+        - link "el paso":
+          - /url: https://elpaso.craigslist.org/
+      - listitem:
+        - link "galveston":
+          - /url: https://galveston.craigslist.org/
+      - listitem:
+        - link "houston":
+          - /url: https://houston.craigslist.org/
+      - listitem:
+        - link "killeen / temple / ft hood":
+          - /url: https://killeen.craigslist.org/
+      - listitem:
+        - link "laredo":
+          - /url: https://laredo.craigslist.org/
+      - listitem:
+        - link "lubbock":
+          - /url: https://lubbock.craigslist.org/
+      - listitem:
+        - link "mcallen / edinburg":
+          - /url: https://mcallen.craigslist.org/
+      - listitem:
+        - link "odessa / midland":
+          - /url: https://odessa.craigslist.org/
+      - listitem:
+        - link "san angelo":
+          - /url: https://sanangelo.craigslist.org/
+      - listitem:
+        - link "san antonio":
+          - /url: https://sanantonio.craigslist.org/
+      - listitem:
+        - link "san marcos":
+          - /url: https://sanmarcos.craigslist.org/
+      - listitem:
+        - link "southwest TX":
+          - /url: https://bigbend.craigslist.org/
+      - listitem:
+        - link "texoma":
+          - /url: https://texoma.craigslist.org/
+      - listitem:
+        - link "tyler / east TX":
+          - /url: https://easttexas.craigslist.org/
+      - listitem:
+        - link "victoria":
+          - /url: https://victoriatx.craigslist.org/
+      - listitem:
+        - link "waco":
+          - /url: https://waco.craigslist.org/
+      - listitem:
+        - link "wichita falls":
+          - /url: https://wichitafalls.craigslist.org/
+    - heading "Utah" [level=4]
+    - list:
+      - listitem:
+        - link "logan":
+          - /url: https://logan.craigslist.org/
+      - listitem:
+        - link "ogden-clearfield":
+          - /url: https://ogden.craigslist.org/
+      - listitem:
+        - link "provo / orem":
+          - /url: https://provo.craigslist.org/
+      - listitem:
+        - link "salt lake city":
+          - /url: https://saltlakecity.craigslist.org/
+      - listitem:
+        - link "st george":
+          - /url: https://stgeorge.craigslist.org/
+    - heading "Vermont" [level=4]
+    - list:
+      - listitem:
+        - link "vermont":
+          - /url: https://vermont.craigslist.org/
+    - heading "Virginia" [level=4]
+    - list:
+      - listitem:
+        - link "charlottesville":
+          - /url: https://charlottesville.craigslist.org/
+      - listitem:
+        - link "danville":
+          - /url: https://danville.craigslist.org/
+      - listitem:
+        - link "fredericksburg":
+          - /url: https://fredericksburg.craigslist.org/
+      - listitem:
+        - link "hampton roads":
+          - /url: https://norfolk.craigslist.org/
+      - listitem:
+        - link "harrisonburg":
+          - /url: https://harrisonburg.craigslist.org/
+      - listitem:
+        - link "lynchburg":
+          - /url: https://lynchburg.craigslist.org/
+      - listitem:
+        - link "new river valley":
+          - /url: https://blacksburg.craigslist.org/
+      - listitem:
+        - link "richmond":
+          - /url: https://richmond.craigslist.org/
+      - listitem:
+        - link "roanoke":
+          - /url: https://roanoke.craigslist.org/
+      - listitem:
+        - link "southwest VA":
+          - /url: https://swva.craigslist.org/
+      - listitem:
+        - link "winchester":
+          - /url: https://winchester.craigslist.org/
+    - heading "Washington" [level=4]
+    - list:
+      - listitem:
+        - link "bellingham":
+          - /url: https://bellingham.craigslist.org/
+      - listitem:
+        - link "kennewick-pasco-richland":
+          - /url: https://kpr.craigslist.org/
+      - listitem:
+        - link "moses lake":
+          - /url: https://moseslake.craigslist.org/
+      - listitem:
+        - link "olympic peninsula":
+          - /url: https://olympic.craigslist.org/
+      - listitem:
+        - link "pullman / moscow":
+          - /url: https://pullman.craigslist.org/
+      - listitem:
+        - link "seattle-tacoma":
+          - /url: https://seattle.craigslist.org/
+      - listitem:
+        - link "skagit / island / SJI":
+          - /url: https://skagit.craigslist.org/
+      - listitem:
+        - link "spokane / coeur d'alene":
+          - /url: https://spokane.craigslist.org/
+      - listitem:
+        - link "wenatchee":
+          - /url: https://wenatchee.craigslist.org/
+      - listitem:
+        - link "yakima":
+          - /url: https://yakima.craigslist.org/
+    - heading "West Virginia" [level=4]
+    - list:
+      - listitem:
+        - link "charleston":
+          - /url: https://charlestonwv.craigslist.org/
+      - listitem:
+        - link "eastern panhandle":
+          - /url: https://martinsburg.craigslist.org/
+      - listitem:
+        - link "huntington-ashland":
+          - /url: https://huntington.craigslist.org/
+      - listitem:
+        - link "morgantown":
+          - /url: https://morgantown.craigslist.org/
+      - listitem:
+        - link "northern panhandle":
+          - /url: https://wheeling.craigslist.org/
+      - listitem:
+        - link "parkersburg-marietta":
+          - /url: https://parkersburg.craigslist.org/
+      - listitem:
+        - link "southern WV":
+          - /url: https://swv.craigslist.org/
+      - listitem:
+        - link "west virginia (old)":
+          - /url: https://wv.craigslist.org/
+    - heading "Wisconsin" [level=4]
+    - list:
+      - listitem:
+        - link "appleton-oshkosh-FDL":
+          - /url: https://appleton.craigslist.org/
+      - listitem:
+        - link "eau claire":
+          - /url: https://eauclaire.craigslist.org/
+      - listitem:
+        - link "green bay":
+          - /url: https://greenbay.craigslist.org/
+      - listitem:
+        - link "janesville":
+          - /url: https://janesville.craigslist.org/
+      - listitem:
+        - link "kenosha-racine":
+          - /url: https://racine.craigslist.org/
+      - listitem:
+        - link "la crosse":
+          - /url: https://lacrosse.craigslist.org/
+      - listitem:
+        - link "madison":
+          - /url: https://madison.craigslist.org/
+      - listitem:
+        - link "milwaukee":
+          - /url: https://milwaukee.craigslist.org/
+      - listitem:
+        - link "northern WI":
+          - /url: https://northernwi.craigslist.org/
+      - listitem:
+        - link "sheboygan":
+          - /url: https://sheboygan.craigslist.org/
+      - listitem:
+        - link "wausau":
+          - /url: https://wausau.craigslist.org/
+    - heading "Wyoming" [level=4]
+    - list:
+      - listitem:
+        - link "wyoming":
+          - /url: https://wyoming.craigslist.org/
+    - heading "Territories" [level=4]
+    - list:
+      - listitem:
+        - link "guam-micronesia":
+          - /url: https://micronesia.craigslist.org/
+      - listitem:
+        - link "puerto rico":
+          - /url: https://puertorico.craigslist.org/
+      - listitem:
+        - link "U.S. virgin islands":
+          - /url: https://virgin.craigslist.org/
+    - heading "Canada" [level=2]
+    - heading "Alberta" [level=4]
+    - list:
+      - listitem:
+        - link "calgary":
+          - /url: https://calgary.craigslist.org/
+      - listitem:
+        - link "edmonton":
+          - /url: https://edmonton.craigslist.org/
+      - listitem:
+        - link "ft mcmurray":
+          - /url: https://ftmcmurray.craigslist.org/
+      - listitem:
+        - link "lethbridge":
+          - /url: https://lethbridge.craigslist.org/
+      - listitem:
+        - link "medicine hat":
+          - /url: https://hat.craigslist.org/
+      - listitem:
+        - link "peace river country":
+          - /url: https://peace.craigslist.org/
+      - listitem:
+        - link "red deer":
+          - /url: https://reddeer.craigslist.org/
+    - heading "British Columbia" [level=4]
+    - list:
+      - listitem:
+        - link "cariboo":
+          - /url: https://cariboo.craigslist.org/
+      - listitem:
+        - link "comox valley":
+          - /url: https://comoxvalley.craigslist.org/
+      - listitem:
+        - link "fraser valley":
+          - /url: https://abbotsford.craigslist.org/
+      - listitem:
+        - link "kamloops":
+          - /url: https://kamloops.craigslist.org/
+      - listitem:
+        - link "kelowna / okanagan":
+          - /url: https://kelowna.craigslist.org/
+      - listitem:
+        - link "kootenays":
+          - /url: https://kootenays.craigslist.org/
+      - listitem:
+        - link "nanaimo":
+          - /url: https://nanaimo.craigslist.org/
+      - listitem:
+        - link "prince george":
+          - /url: https://princegeorge.craigslist.org/
+      - listitem:
+        - link "skeena-bulkley":
+          - /url: https://skeena.craigslist.org/
+      - listitem:
+        - link "sunshine coast":
+          - /url: https://sunshine.craigslist.org/
+      - listitem:
+        - link "vancouver":
+          - /url: https://vancouver.craigslist.org/
+      - listitem:
+        - link "victoria":
+          - /url: https://victoria.craigslist.org/
+      - listitem:
+        - link "whistler":
+          - /url: https://whistler.craigslist.org/
+    - heading "Manitoba" [level=4]
+    - list:
+      - listitem:
+        - link "winnipeg":
+          - /url: https://winnipeg.craigslist.org/
+    - heading "New Brunswick" [level=4]
+    - list:
+      - listitem:
+        - link "new brunswick":
+          - /url: https://newbrunswick.craigslist.org/
+    - heading "Newfoundland and Labrador" [level=4]
+    - list:
+      - listitem:
+        - link "st john's":
+          - /url: https://newfoundland.craigslist.org/
+    - heading "Northwest Territories" [level=4]
+    - list:
+      - listitem:
+        - link "territories":
+          - /url: https://territories.craigslist.org/
+      - listitem:
+        - link "yellowknife":
+          - /url: https://yellowknife.craigslist.org/
+    - heading "Nova Scotia" [level=4]
+    - list:
+      - listitem:
+        - link "halifax":
+          - /url: https://halifax.craigslist.org/
+    - heading "Ontario" [level=4]
+    - list:
+      - listitem:
+        - link "barrie":
+          - /url: https://barrie.craigslist.org/
+      - listitem:
+        - link "belleville":
+          - /url: https://belleville.craigslist.org/
+      - listitem:
+        - link "brantford-woodstock":
+          - /url: https://brantford.craigslist.org/
+      - listitem:
+        - link "chatham-kent":
+          - /url: https://chatham.craigslist.org/
+      - listitem:
+        - link "cornwall":
+          - /url: https://cornwall.craigslist.org/
+      - listitem:
+        - link "guelph":
+          - /url: https://guelph.craigslist.org/
+      - listitem:
+        - link "hamilton-burlington":
+          - /url: https://hamilton.craigslist.org/
+      - listitem:
+        - link "kingston":
+          - /url: https://kingston.craigslist.org/
+      - listitem:
+        - link "kitchener-waterloo-cambridge":
+          - /url: https://kitchener.craigslist.org/
+      - listitem:
+        - link "london":
+          - /url: https://londonon.craigslist.org/
+      - listitem:
+        - link "niagara region":
+          - /url: https://niagara.craigslist.org/
+      - listitem:
+        - link "ottawa-hull-gatineau":
+          - /url: https://ottawa.craigslist.org/
+      - listitem:
+        - link "owen sound":
+          - /url: https://owensound.craigslist.org/
+      - listitem:
+        - link "peterborough":
+          - /url: https://peterborough.craigslist.org/
+      - listitem:
+        - link "sarnia":
+          - /url: https://sarnia.craigslist.org/
+      - listitem:
+        - link "sault ste marie":
+          - /url: https://soo.craigslist.org/
+      - listitem:
+        - link "sudbury":
+          - /url: https://sudbury.craigslist.org/
+      - listitem:
+        - link "thunder bay":
+          - /url: https://thunderbay.craigslist.org/
+      - listitem:
+        - link "toronto":
+          - /url: https://toronto.craigslist.org/
+      - listitem:
+        - link "windsor":
+          - /url: https://windsor.craigslist.org/
+    - heading "Prince Edward Island" [level=4]
+    - list:
+      - listitem:
+        - link "prince edward island":
+          - /url: https://pei.craigslist.org/
+    - heading "Quebec" [level=4]
+    - list:
+      - listitem:
+        - link "montreal":
+          - /url: https://montreal.craigslist.org/
+      - listitem:
+        - link "quebec city":
+          - /url: https://quebec.craigslist.org/
+      - listitem:
+        - link "saguenay":
+          - /url: https://saguenay.craigslist.org/
+      - listitem:
+        - link "sherbrooke":
+          - /url: https://sherbrooke.craigslist.org/
+      - listitem:
+        - link "trois-rivieres":
+          - /url: https://troisrivieres.craigslist.org/
+    - heading "Saskatchewan" [level=4]
+    - list:
+      - listitem:
+        - link "regina":
+          - /url: https://regina.craigslist.org/
+      - listitem:
+        - link "saskatoon":
+          - /url: https://saskatoon.craigslist.org/
+    - heading "Yukon Territory" [level=4]
+    - list:
+      - listitem:
+        - link "whitehorse":
+          - /url: https://whitehorse.craigslist.org/
+    - heading "Europe" [level=2]
+    - heading "Austria" [level=4]
+    - list:
+      - listitem:
+        - link "vienna":
+          - /url: https://vienna.craigslist.org/
+    - heading "Belgium" [level=4]
+    - list:
+      - listitem:
+        - link "belgium":
+          - /url: https://brussels.craigslist.org/
+    - heading "Bulgaria" [level=4]
+    - list:
+      - listitem:
+        - link "bulgaria":
+          - /url: https://bulgaria.craigslist.org/
+    - heading "Croatia" [level=4]
+    - list:
+      - listitem:
+        - link "croatia":
+          - /url: https://zagreb.craigslist.org/
+    - heading "Czech Republic" [level=4]
+    - list:
+      - listitem:
+        - link "prague":
+          - /url: https://prague.craigslist.org/
+    - heading "Denmark" [level=4]
+    - list:
+      - listitem:
+        - link "copenhagen":
+          - /url: https://copenhagen.craigslist.org/
+    - heading "Finland" [level=4]
+    - list:
+      - listitem:
+        - link "finland":
+          - /url: https://helsinki.craigslist.org/
+    - heading "France" [level=4]
+    - list:
+      - listitem:
+        - link "bordeaux":
+          - /url: https://bordeaux.craigslist.org/
+      - listitem:
+        - link "brittany":
+          - /url: https://rennes.craigslist.org/
+      - listitem:
+        - link "grenoble":
+          - /url: https://grenoble.craigslist.org/
+      - listitem:
+        - link "lille":
+          - /url: https://lille.craigslist.org/
+      - listitem:
+        - link "loire valley":
+          - /url: https://loire.craigslist.org/
+      - listitem:
+        - link "lyon":
+          - /url: https://lyon.craigslist.org/
+      - listitem:
+        - link "marseille":
+          - /url: https://marseilles.craigslist.org/
+      - listitem:
+        - link "montpellier":
+          - /url: https://montpellier.craigslist.org/
+      - listitem:
+        - link "nice / cote d'azur":
+          - /url: https://cotedazur.craigslist.org/
+      - listitem:
+        - link "normandy":
+          - /url: https://rouen.craigslist.org/
+      - listitem:
+        - link "paris":
+          - /url: https://paris.craigslist.org/
+      - listitem:
+        - link "strasbourg":
+          - /url: https://strasbourg.craigslist.org/
+      - listitem:
+        - link "toulouse":
+          - /url: https://toulouse.craigslist.org/
+    - heading "Germany" [level=4]
+    - list:
+      - listitem:
+        - link "berlin":
+          - /url: https://berlin.craigslist.org/
+      - listitem:
+        - link "bremen":
+          - /url: https://bremen.craigslist.org/
+      - listitem:
+        - link "cologne":
+          - /url: https://cologne.craigslist.org/
+      - listitem:
+        - link "dresden":
+          - /url: https://dresden.craigslist.org/
+      - listitem:
+        - link "dusseldorf":
+          - /url: https://dusseldorf.craigslist.org/
+      - listitem:
+        - link "essen / ruhr":
+          - /url: https://essen.craigslist.org/
+      - listitem:
+        - link "frankfurt":
+          - /url: https://frankfurt.craigslist.org/
+      - listitem:
+        - link "hamburg":
+          - /url: https://hamburg.craigslist.org/
+      - listitem:
+        - link "hannover":
+          - /url: https://hannover.craigslist.org/
+      - listitem:
+        - link "heidelberg":
+          - /url: https://heidelberg.craigslist.org/
+      - listitem:
+        - link "kaiserslautern":
+          - /url: https://kaiserslautern.craigslist.org/
+      - listitem:
+        - link "leipzig":
+          - /url: https://leipzig.craigslist.org/
+      - listitem:
+        - link "munich":
+          - /url: https://munich.craigslist.org/
+      - listitem:
+        - link "nuremberg":
+          - /url: https://nuremberg.craigslist.org/
+      - listitem:
+        - link "stuttgart":
+          - /url: https://stuttgart.craigslist.org/
+    - heading "Greece" [level=4]
+    - list:
+      - listitem:
+        - link "greece":
+          - /url: https://athens.craigslist.org/
+    - heading "Hungary" [level=4]
+    - list:
+      - listitem:
+        - link "budapest":
+          - /url: https://budapest.craigslist.org/
+    - heading "Iceland" [level=4]
+    - list:
+      - listitem:
+        - link "reykjavik":
+          - /url: https://reykjavik.craigslist.org/
+    - heading "Ireland" [level=4]
+    - list:
+      - listitem:
+        - link "dublin":
+          - /url: https://dublin.craigslist.org/
+    - heading "Italy" [level=4]
+    - list:
+      - listitem:
+        - link "bologna":
+          - /url: https://bologna.craigslist.org/
+      - listitem:
+        - link "florence / tuscany":
+          - /url: https://florence.craigslist.org/
+      - listitem:
+        - link "genoa":
+          - /url: https://genoa.craigslist.org/
+      - listitem:
+        - link "milan":
+          - /url: https://milan.craigslist.org/
+      - listitem:
+        - link "napoli / campania":
+          - /url: https://naples.craigslist.org/
+      - listitem:
+        - link "perugia":
+          - /url: https://perugia.craigslist.org/
+      - listitem:
+        - link "rome":
+          - /url: https://rome.craigslist.org/
+      - listitem:
+        - link "sardinia":
+          - /url: https://sardinia.craigslist.org/
+      - listitem:
+        - link "sicilia":
+          - /url: https://sicily.craigslist.org/
+      - listitem:
+        - link "torino":
+          - /url: https://torino.craigslist.org/
+      - listitem:
+        - link "venice / veneto":
+          - /url: https://venice.craigslist.org/
+    - heading "Luxembourg" [level=4]
+    - list:
+      - listitem:
+        - link "luxembourg":
+          - /url: https://luxembourg.craigslist.org/
+    - heading "Netherlands" [level=4]
+    - list:
+      - listitem:
+        - link "amsterdam / randstad":
+          - /url: https://amsterdam.craigslist.org/
+    - heading "Norway" [level=4]
+    - list:
+      - listitem:
+        - link "norway":
+          - /url: https://oslo.craigslist.org/
+    - heading "Poland" [level=4]
+    - list:
+      - listitem:
+        - link "poland":
+          - /url: https://warsaw.craigslist.org/
+    - heading "Portugal" [level=4]
+    - list:
+      - listitem:
+        - link "faro / algarve":
+          - /url: https://faro.craigslist.org/
+      - listitem:
+        - link "lisbon":
+          - /url: https://lisbon.craigslist.org/
+      - listitem:
+        - link "porto":
+          - /url: https://porto.craigslist.org/
+    - heading "Romania" [level=4]
+    - list:
+      - listitem:
+        - link "romania":
+          - /url: https://bucharest.craigslist.org/
+    - heading "Russian Federation" [level=4]
+    - list:
+      - listitem:
+        - link "moscow":
+          - /url: https://moscow.craigslist.org/
+      - listitem:
+        - link "st petersburg":
+          - /url: https://stpetersburg.craigslist.org/
+    - heading "Spain" [level=4]
+    - list:
+      - listitem:
+        - link "alicante":
+          - /url: https://alicante.craigslist.org/
+      - listitem:
+        - link "baleares":
+          - /url: https://baleares.craigslist.org/
+      - listitem:
+        - link "barcelona":
+          - /url: https://barcelona.craigslist.org/
+      - listitem:
+        - link "bilbao":
+          - /url: https://bilbao.craigslist.org/
+      - listitem:
+        - link "cadiz":
+          - /url: https://cadiz.craigslist.org/
+      - listitem:
+        - link "canarias":
+          - /url: https://canarias.craigslist.org/
+      - listitem:
+        - link "granada":
+          - /url: https://granada.craigslist.org/
+      - listitem:
+        - link "madrid":
+          - /url: https://madrid.craigslist.org/
+      - listitem:
+        - link "malaga":
+          - /url: https://malaga.craigslist.org/
+      - listitem:
+        - link "sevilla":
+          - /url: https://sevilla.craigslist.org/
+      - listitem:
+        - link "valencia":
+          - /url: https://valencia.craigslist.org/
+    - heading "Sweden" [level=4]
+    - list:
+      - listitem:
+        - link "sweden":
+          - /url: https://stockholm.craigslist.org/
+    - heading "Switzerland" [level=4]
+    - list:
+      - listitem:
+        - link "basel":
+          - /url: https://basel.craigslist.org/
+      - listitem:
+        - link "bern":
+          - /url: https://bern.craigslist.org/
+      - listitem:
+        - link "geneva":
+          - /url: https://geneva.craigslist.org/
+      - listitem:
+        - link "lausanne":
+          - /url: https://lausanne.craigslist.org/
+      - listitem:
+        - link "zurich":
+          - /url: https://zurich.craigslist.org/
+    - heading "Turkey" [level=4]
+    - list:
+      - listitem:
+        - link "turkey":
+          - /url: https://istanbul.craigslist.org/
+    - heading "Ukraine" [level=4]
+    - list:
+      - listitem:
+        - link "ukraine":
+          - /url: https://ukraine.craigslist.org/
+    - heading "United Kingdom" [level=4]
+    - list:
+      - listitem:
+        - link "aberdeen":
+          - /url: https://aberdeen.craigslist.org/
+      - listitem:
+        - link "bath":
+          - /url: https://bath.craigslist.org/
+      - listitem:
+        - link "belfast":
+          - /url: https://belfast.craigslist.org/
+      - listitem:
+        - link "birmingham / west mids":
+          - /url: https://birmingham.craigslist.org/
+      - listitem:
+        - link "brighton":
+          - /url: https://brighton.craigslist.org/
+      - listitem:
+        - link "bristol":
+          - /url: https://bristol.craigslist.org/
+      - listitem:
+        - link "cambridge, UK":
+          - /url: https://cambridge.craigslist.org/
+      - listitem:
+        - link "cardiff / wales":
+          - /url: https://cardiff.craigslist.org/
+      - listitem:
+        - link "coventry":
+          - /url: https://coventry.craigslist.org/
+      - listitem:
+        - link "derby":
+          - /url: https://derby.craigslist.org/
+      - listitem:
+        - link "devon & cornwall":
+          - /url: https://devon.craigslist.org/
+      - listitem:
+        - link "dundee":
+          - /url: https://dundee.craigslist.org/
+      - listitem:
+        - link "east anglia":
+          - /url: https://norwich.craigslist.org/
+      - listitem:
+        - link "east midlands":
+          - /url: https://eastmids.craigslist.org/
+      - listitem:
+        - link "edinburgh":
+          - /url: https://edinburgh.craigslist.org/
+      - listitem:
+        - link "essex":
+          - /url: https://essex.craigslist.org/
+      - listitem:
+        - link "glasgow":
+          - /url: https://glasgow.craigslist.org/
+      - listitem:
+        - link "hampshire":
+          - /url: https://hampshire.craigslist.org/
+      - listitem:
+        - link "kent":
+          - /url: https://kent.craigslist.org/
+      - listitem:
+        - link "leeds":
+          - /url: https://leeds.craigslist.org/
+      - listitem:
+        - link "liverpool":
+          - /url: https://liverpool.craigslist.org/
+      - listitem:
+        - link "london":
+          - /url: https://london.craigslist.org/
+      - listitem:
+        - link "manchester":
+          - /url: https://manchester.craigslist.org/
+      - listitem:
+        - link "newcastle / NE england":
+          - /url: https://newcastle.craigslist.org/
+      - listitem:
+        - link "nottingham":
+          - /url: https://nottingham.craigslist.org/
+      - listitem:
+        - link "oxford":
+          - /url: https://oxford.craigslist.org/
+      - listitem:
+        - link "sheffield":
+          - /url: https://sheffield.craigslist.org/
+    - heading "Asia, Pacific and Middle East" [level=2]
+    - heading "Bangladesh" [level=4]
+    - list:
+      - listitem:
+        - link "bangladesh":
+          - /url: https://bangladesh.craigslist.org/
+    - heading "China" [level=4]
+    - list:
+      - listitem:
+        - link "beijing":
+          - /url: https://beijing.craigslist.org/
+      - listitem:
+        - link "chengdu":
+          - /url: https://chengdu.craigslist.org/
+      - listitem:
+        - link "chongqing":
+          - /url: https://chongqing.craigslist.org/
+      - listitem:
+        - link "dalian":
+          - /url: https://dalian.craigslist.org/
+      - listitem:
+        - link "guangzhou":
+          - /url: https://guangzhou.craigslist.org/
+      - listitem:
+        - link "hangzhou":
+          - /url: https://hangzhou.craigslist.org/
+      - listitem:
+        - link "nanjing":
+          - /url: https://nanjing.craigslist.org/
+      - listitem:
+        - link "shanghai":
+          - /url: https://shanghai.craigslist.org/
+      - listitem:
+        - link "shenyang":
+          - /url: https://shenyang.craigslist.org/
+      - listitem:
+        - link "shenzhen":
+          - /url: https://shenzhen.craigslist.org/
+      - listitem:
+        - link "wuhan":
+          - /url: https://wuhan.craigslist.org/
+      - listitem:
+        - link "xi'an":
+          - /url: https://xian.craigslist.org/
+    - heading "Guam / Micronesia" [level=4]
+    - list:
+      - listitem:
+        - link "guam-micronesia":
+          - /url: https://micronesia.craigslist.org/
+    - heading "Hong Kong" [level=4]
+    - list:
+      - listitem:
+        - link "hong kong":
+          - /url: https://hongkong.craigslist.org/
+    - heading "India" [level=4]
+    - list:
+      - listitem:
+        - link "ahmedabad":
+          - /url: https://ahmedabad.craigslist.org/
+      - listitem:
+        - link "bangalore":
+          - /url: https://bangalore.craigslist.org/
+      - listitem:
+        - link "bhubaneswar":
+          - /url: https://bhubaneswar.craigslist.org/
+      - listitem:
+        - link "chandigarh":
+          - /url: https://chandigarh.craigslist.org/
+      - listitem:
+        - link "chennai (madras)":
+          - /url: https://chennai.craigslist.org/
+      - listitem:
+        - link "delhi":
+          - /url: https://delhi.craigslist.org/
+      - listitem:
+        - link "goa":
+          - /url: https://goa.craigslist.org/
+      - listitem:
+        - link "hyderabad":
+          - /url: https://hyderabad.craigslist.org/
+      - listitem:
+        - link "indore":
+          - /url: https://indore.craigslist.org/
+      - listitem:
+        - link "jaipur":
+          - /url: https://jaipur.craigslist.org/
+      - listitem:
+        - link "kerala":
+          - /url: https://kerala.craigslist.org/
+      - listitem:
+        - link "kolkata (calcutta)":
+          - /url: https://kolkata.craigslist.org/
+      - listitem:
+        - link "lucknow":
+          - /url: https://lucknow.craigslist.org/
+      - listitem:
+        - link "mumbai":
+          - /url: https://mumbai.craigslist.org/
+      - listitem:
+        - link "pune":
+          - /url: https://pune.craigslist.org/
+      - listitem:
+        - link "surat surat":
+          - /url: https://surat.craigslist.org/
+    - heading "Indonesia" [level=4]
+    - list:
+      - listitem:
+        - link "indonesia":
+          - /url: https://jakarta.craigslist.org/
+    - heading "Iran" [level=4]
+    - list:
+      - listitem:
+        - link "iran":
+          - /url: https://tehran.craigslist.org/
+    - heading "Iraq" [level=4]
+    - list:
+      - listitem:
+        - link "iraq":
+          - /url: https://baghdad.craigslist.org/
+    - heading "Israel and Palestine" [level=4]
+    - list:
+      - listitem:
+        - link "haifa":
+          - /url: https://haifa.craigslist.org/
+      - listitem:
+        - link "jerusalem":
+          - /url: https://jerusalem.craigslist.org/
+      - listitem:
+        - link "tel aviv":
+          - /url: https://telaviv.craigslist.org/
+      - listitem:
+        - link "west bank":
+          - /url: https://ramallah.craigslist.org/
+    - heading "Japan" [level=4]
+    - list:
+      - listitem:
+        - link "fukuoka":
+          - /url: https://fukuoka.craigslist.org/
+      - listitem:
+        - link "hiroshima":
+          - /url: https://hiroshima.craigslist.org/
+      - listitem:
+        - link "nagoya":
+          - /url: https://nagoya.craigslist.org/
+      - listitem:
+        - link "okinawa":
+          - /url: https://okinawa.craigslist.org/
+      - listitem:
+        - link "osaka-kobe-kyoto":
+          - /url: https://osaka.craigslist.org/
+      - listitem:
+        - link "sapporo":
+          - /url: https://sapporo.craigslist.org/
+      - listitem:
+        - link "sendai":
+          - /url: https://sendai.craigslist.org/
+      - listitem:
+        - link "tokyo":
+          - /url: https://tokyo.craigslist.org/
+    - heading "Korea" [level=4]
+    - list:
+      - listitem:
+        - link "seoul":
+          - /url: https://seoul.craigslist.org/
+    - heading "Kuwait" [level=4]
+    - list:
+      - listitem:
+        - link "kuwait":
+          - /url: https://kuwait.craigslist.org/
+    - heading "Lebanon" [level=4]
+    - list:
+      - listitem:
+        - link "beirut, lebanon":
+          - /url: https://beirut.craigslist.org/
+    - heading "Malaysia" [level=4]
+    - list:
+      - listitem:
+        - link "malaysia":
+          - /url: https://malaysia.craigslist.org/
+    - heading "Pakistan" [level=4]
+    - list:
+      - listitem:
+        - link "pakistan":
+          - /url: https://pakistan.craigslist.org/
+    - heading "Philippines" [level=4]
+    - list:
+      - listitem:
+        - link "bacolod":
+          - /url: https://bacolod.craigslist.org/
+      - listitem:
+        - link "bicol region":
+          - /url: https://naga.craigslist.org/
+      - listitem:
+        - link "cagayan de oro":
+          - /url: https://cdo.craigslist.org/
+      - listitem:
+        - link "cebu":
+          - /url: https://cebu.craigslist.org/
+      - listitem:
+        - link "davao city":
+          - /url: https://davaocity.craigslist.org/
+      - listitem:
+        - link "iloilo":
+          - /url: https://iloilo.craigslist.org/
+      - listitem:
+        - link "manila":
+          - /url: https://manila.craigslist.org/
+      - listitem:
+        - link "pampanga":
+          - /url: https://pampanga.craigslist.org/
+      - listitem:
+        - link "zamboanga":
+          - /url: https://zamboanga.craigslist.org/
+    - heading "Singapore" [level=4]
+    - list:
+      - listitem:
+        - link "singapore":
+          - /url: https://singapore.craigslist.org/
+    - heading "Taiwan" [level=4]
+    - list:
+      - listitem:
+        - link "taiwan":
+          - /url: https://taipei.craigslist.org/
+    - heading "Thailand" [level=4]
+    - list:
+      - listitem:
+        - link "thailand":
+          - /url: https://bangkok.craigslist.org/
+    - heading "United Arab Emirates" [level=4]
+    - list:
+      - listitem:
+        - link "united arab emirates":
+          - /url: https://dubai.craigslist.org/
+    - heading "Vietnam" [level=4]
+    - list:
+      - listitem:
+        - link "vietnam":
+          - /url: https://vietnam.craigslist.org/
+    - heading "Oceania" [level=2]
+    - heading "Australia" [level=4]
+    - list:
+      - listitem:
+        - link "adelaide":
+          - /url: https://adelaide.craigslist.org/
+      - listitem:
+        - link "brisbane":
+          - /url: https://brisbane.craigslist.org/
+      - listitem:
+        - link "cairns":
+          - /url: https://cairns.craigslist.org/
+      - listitem:
+        - link "canberra":
+          - /url: https://canberra.craigslist.org/
+      - listitem:
+        - link "darwin":
+          - /url: https://darwin.craigslist.org/
+      - listitem:
+        - link "gold coast":
+          - /url: https://goldcoast.craigslist.org/
+      - listitem:
+        - link "melbourne":
+          - /url: https://melbourne.craigslist.org/
+      - listitem:
+        - link "newcastle, NSW":
+          - /url: https://ntl.craigslist.org/
+      - listitem:
+        - link "perth":
+          - /url: https://perth.craigslist.org/
+      - listitem:
+        - link "sydney":
+          - /url: https://sydney.craigslist.org/
+      - listitem:
+        - link "tasmania":
+          - /url: https://hobart.craigslist.org/
+      - listitem:
+        - link "wollongong":
+          - /url: https://wollongong.craigslist.org/
+    - heading "New Zealand" [level=4]
+    - list:
+      - listitem:
+        - link "auckland":
+          - /url: https://auckland.craigslist.org/
+      - listitem:
+        - link "christchurch":
+          - /url: https://christchurch.craigslist.org/
+      - listitem:
+        - link "dunedin":
+          - /url: https://dunedin.craigslist.org/
+      - listitem:
+        - link "wellington":
+          - /url: https://wellington.craigslist.org/
+    - heading "Latin America and Caribbean" [level=2]
+    - heading "Argentina" [level=4]
+    - list:
+      - listitem:
+        - link "buenos aires":
+          - /url: https://buenosaires.craigslist.org/
+    - heading "Bolivia" [level=4]
+    - list:
+      - listitem:
+        - link "bolivia":
+          - /url: https://lapaz.craigslist.org/
+    - heading "Brazil" [level=4]
+    - list:
+      - listitem:
+        - link "belo horizonte":
+          - /url: https://belohorizonte.craigslist.org/
+      - listitem:
+        - link "brasilia":
+          - /url: https://brasilia.craigslist.org/
+      - listitem:
+        - link "curitiba":
+          - /url: https://curitiba.craigslist.org/
+      - listitem:
+        - link "fortaleza":
+          - /url: https://fortaleza.craigslist.org/
+      - listitem:
+        - link "porto alegre":
+          - /url: https://portoalegre.craigslist.org/
+      - listitem:
+        - link "recife":
+          - /url: https://recife.craigslist.org/
+      - listitem:
+        - link "rio de janeiro":
+          - /url: https://rio.craigslist.org/
+      - listitem:
+        - link "salvador, bahia":
+          - /url: https://salvador.craigslist.org/
+      - listitem:
+        - link "sao paulo":
+          - /url: https://saopaulo.craigslist.org/
+    - heading "Caribbean Islands" [level=4]
+    - list:
+      - listitem:
+        - link "caribbean islands":
+          - /url: https://caribbean.craigslist.org/
+    - heading "Chile" [level=4]
+    - list:
+      - listitem:
+        - link "chile":
+          - /url: https://santiago.craigslist.org/
+    - heading "Colombia" [level=4]
+    - list:
+      - listitem:
+        - link "colombia":
+          - /url: https://colombia.craigslist.org/
+    - heading "Costa Rica" [level=4]
+    - list:
+      - listitem:
+        - link "costa rica":
+          - /url: https://costarica.craigslist.org/
+    - heading "Dominican Republic" [level=4]
+    - list:
+      - listitem:
+        - link "dominican republic":
+          - /url: https://santodomingo.craigslist.org/
+    - heading "Ecuador" [level=4]
+    - list:
+      - listitem:
+        - link "ecuador":
+          - /url: https://quito.craigslist.org/
+    - heading "El Salvador" [level=4]
+    - list:
+      - listitem:
+        - link "el salvador":
+          - /url: https://elsalvador.craigslist.org/
+    - heading "Guatemala" [level=4]
+    - list:
+      - listitem:
+        - link "guatemala":
+          - /url: https://guatemala.craigslist.org/
+    - heading "Mexico" [level=4]
+    - list:
+      - listitem:
+        - link "acapulco":
+          - /url: https://acapulco.craigslist.org/
+      - listitem:
+        - link "baja california sur":
+          - /url: https://bajasur.craigslist.org/
+      - listitem:
+        - link "chihuahua":
+          - /url: https://chihuahua.craigslist.org/
+      - listitem:
+        - link "ciudad juarez":
+          - /url: https://juarez.craigslist.org/
+      - listitem:
+        - link "guadalajara":
+          - /url: https://guadalajara.craigslist.org/
+      - listitem:
+        - link "guanajuato":
+          - /url: https://guanajuato.craigslist.org/
+      - listitem:
+        - link "hermosillo":
+          - /url: https://hermosillo.craigslist.org/
+      - listitem:
+        - link "mazatlan":
+          - /url: https://mazatlan.craigslist.org/
+      - listitem:
+        - link "mexico city":
+          - /url: https://mexicocity.craigslist.org/
+      - listitem:
+        - link "monterrey":
+          - /url: https://monterrey.craigslist.org/
+      - listitem:
+        - link "oaxaca":
+          - /url: https://oaxaca.craigslist.org/
+      - listitem:
+        - link "puebla":
+          - /url: https://puebla.craigslist.org/
+      - listitem:
+        - link "puerto vallarta":
+          - /url: https://pv.craigslist.org/
+      - listitem:
+        - link "tijuana":
+          - /url: https://tijuana.craigslist.org/
+      - listitem:
+        - link "veracruz":
+          - /url: https://veracruz.craigslist.org/
+      - listitem:
+        - link "yucatan":
+          - /url: https://yucatan.craigslist.org/
+    - heading "Nicaragua" [level=4]
+    - list:
+      - listitem:
+        - link "nicaragua":
+          - /url: https://managua.craigslist.org/
+    - heading "Panama" [level=4]
+    - list:
+      - listitem:
+        - link "panama":
+          - /url: https://panama.craigslist.org/
+    - heading "Peru" [level=4]
+    - list:
+      - listitem:
+        - link "peru":
+          - /url: https://lima.craigslist.org/
+    - heading "Puerto Rico" [level=4]
+    - list:
+      - listitem:
+        - link "puerto rico":
+          - /url: https://puertorico.craigslist.org/
+    - heading "Uruguay" [level=4]
+    - list:
+      - listitem:
+        - link "montevideo":
+          - /url: https://montevideo.craigslist.org/
+    - heading "Venezuela" [level=4]
+    - list:
+      - listitem:
+        - link "venezuela":
+          - /url: https://caracas.craigslist.org/
+    - heading "Virgin Islands, U.S." [level=4]
+    - list:
+      - listitem:
+        - link "virgin islands":
+          - /url: https://virgin.craigslist.org/
+    - heading "Africa" [level=2]
+    - heading "Egypt" [level=4]
+    - list:
+      - listitem:
+        - link "egypt":
+          - /url: https://cairo.craigslist.org/
+    - heading "Ethiopia" [level=4]
+    - list:
+      - listitem:
+        - link "ethiopia":
+          - /url: https://addisababa.craigslist.org/
+    - heading "Ghana" [level=4]
+    - list:
+      - listitem:
+        - link "ghana":
+          - /url: https://accra.craigslist.org/
+    - heading "Kenya" [level=4]
+    - list:
+      - listitem:
+        - link "kenya":
+          - /url: https://kenya.craigslist.org/
+    - heading "Morocco" [level=4]
+    - list:
+      - listitem:
+        - link "morocco":
+          - /url: https://casablanca.craigslist.org/
+    - heading "South Africa" [level=4]
+    - list:
+      - listitem:
+        - link "cape town":
+          - /url: https://capetown.craigslist.org/
+      - listitem:
+        - link "durban":
+          - /url: https://durban.craigslist.org/
+      - listitem:
+        - link "johannesburg":
+          - /url: https://johannesburg.craigslist.org/
+      - listitem:
+        - link "pretoria":
+          - /url: https://pretoria.craigslist.org/
+    - heading "Tunisia" [level=4]
+    - list:
+      - listitem:
+        - link "tunisia":
+          - /url: https://tunis.craigslist.org/
+    - link "help":
+      - /url: https://www.craigslist.org/about/help/
+    - link "safety":
+      - /url: https://www.craigslist.org/about/help/safety
+    - link "privacy":
+      - /url: https://www.craigslist.org/about/privacy.policy
+    - link "terms":
+      - /url: https://www.craigslist.org/about/terms.of.use
+    - link "about":
+      - /url: https://www.craigslist.org/about/
+    - link "app":
+      - /url: https://www.craigslist.org/about/craigslist_app
+    - text: © 2026 craigslist

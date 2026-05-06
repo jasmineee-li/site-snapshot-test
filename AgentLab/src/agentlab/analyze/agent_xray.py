@@ -2,6 +2,7 @@ import base64
 import html
 import json
 import os
+import re
 import traceback
 from copy import deepcopy
 from io import BytesIO
@@ -420,6 +421,15 @@ Click a row to load the benign episode. Use the dropdown to switch to adversaria
             with gr.Tab("Stats") as tab_stats:
                 stats = gr.DataFrame(max_height=500, show_label=False, interactive=False)
 
+            with gr.Tab("🔍 Judge Results") as tab_judge:
+                judge_results_md = gr.Markdown()
+
+            with gr.Tab("💬 Conversation") as tab_conversation:
+                conversation_md = gr.Markdown()
+
+            with gr.Tab("📜 Action History") as tab_action_history:
+                action_history_md = gr.Markdown()
+
             with gr.Tab("Agent Info HTML") as tab_agent_info_html:
                 with gr.Row():
                     screenshot1_agent = gr.Image(
@@ -540,6 +550,9 @@ Click a row to load the benign episode. Use the dropdown to switch to adversaria
         step_id.change(fn=if_active("Task Error")(update_task_error), outputs=task_error)
         step_id.change(fn=if_active("Logs")(update_logs), outputs=logs)
         step_id.change(fn=if_active("Stats")(update_stats), outputs=stats)
+        episode_id.change(fn=if_active("🔍 Judge Results")(update_judge_results), outputs=judge_results_md)
+        episode_id.change(fn=if_active("💬 Conversation")(update_conversation), outputs=conversation_md)
+        episode_id.change(fn=if_active("📜 Action History")(update_action_history), outputs=action_history_md)
         step_id.change(
             fn=if_active("Agent Info HTML", 3)(update_agent_info_html),
             outputs=[agent_info_html, screenshot1_agent, screenshot2_agent],
@@ -570,6 +583,9 @@ Click a row to load the benign episode. Use the dropdown to switch to adversaria
         tab_error.select(fn=update_task_error, outputs=task_error)
         tab_logs.select(fn=update_logs, outputs=logs)
         tab_stats.select(fn=update_stats, outputs=stats)
+        tab_judge.select(fn=update_judge_results, outputs=judge_results_md)
+        tab_conversation.select(fn=update_conversation, outputs=conversation_md)
+        tab_action_history.select(fn=update_action_history, outputs=action_history_md)
         tab_agent_info_html.select(fn=update_agent_info_html, outputs=agent_info_html)
         tab_agent_info_md.select(fn=update_agent_info_md, outputs=agent_info_md)
         tab_prompt_tests.select(
@@ -936,6 +952,249 @@ def update_stats():
         return None
 
 
+def update_judge_results():
+    """Display judge evaluation results for the current episode."""
+    global info
+    if info.exp_result is None:
+        return "No experiment result loaded."
+
+    judge_result = info.exp_result.judge_result
+    if judge_result is None:
+        return "No judge results available for this experiment."
+
+    md_parts = []
+
+    # Overall results
+    overall_success = judge_result.get("overall_success", None)
+    overall_score = judge_result.get("overall_score", None)
+
+    success_icon = "✅" if overall_success else "❌" if overall_success is False else "⚪"
+    md_parts.append(f"## Overall Result: {success_icon}")
+    md_parts.append(f"- **Success:** {overall_success}")
+    md_parts.append(f"- **Score:** {overall_score:.3f}" if overall_score is not None else "- **Score:** N/A")
+    md_parts.append("")
+
+    # Individual judge results
+    individual_results = judge_result.get("individual_results", [])
+    if individual_results:
+        md_parts.append("## Individual Judge Evaluations")
+        for i, result in enumerate(individual_results):
+            judge_id = result.get("judge_id", f"Judge {i}")
+            success = result.get("success", None)
+            score = result.get("score", None)
+            explanation = result.get("explanation", "No explanation provided")
+            details = result.get("details", {})
+
+            icon = "✅" if success else "❌" if success is False else "⚪"
+            md_parts.append(f"### {icon} {judge_id}")
+            md_parts.append(f"- **Success:** {success}")
+            if score is not None:
+                md_parts.append(f"- **Score:** {score:.3f}")
+            md_parts.append(f"\n**Explanation:**\n> {explanation}")
+
+            # Show details if available
+            if details:
+                md_parts.append("\n**Details:**")
+                for key, value in details.items():
+                    if isinstance(value, list):
+                        value_str = ", ".join(str(v) for v in value) if value else "(none)"
+                    else:
+                        value_str = str(value)
+                    md_parts.append(f"- `{key}`: {value_str}")
+            md_parts.append("")
+
+    # HTML state summary
+    html_state = judge_result.get("html_state_summary", {})
+    if html_state:
+        md_parts.append("## HTML State Summary")
+        md_parts.append(f"- **Test Mode:** {html_state.get('test_mode', 'N/A')}")
+        pages = html_state.get("pages_analyzed", [])
+        if pages:
+            md_parts.append(f"- **Pages Analyzed:** {', '.join(pages)}")
+        injections = html_state.get("injection_locations", [])
+        if injections:
+            md_parts.append(f"- **Injection Locations:** {', '.join(injections)}")
+        visited_injected = html_state.get("visited_injected_pages", [])
+        if visited_injected:
+            md_parts.append(f"- **Visited Injected Pages:** {', '.join(visited_injected)}")
+        adv_elements = html_state.get("adversarial_elements_found", 0)
+        md_parts.append(f"- **Adversarial Elements Found:** {adv_elements}")
+
+    return "\n".join(md_parts)
+
+
+def update_conversation():
+    """Display multi-turn conversation history for the episode."""
+    global info
+    if info.exp_result is None:
+        return "No experiment result loaded."
+
+    md_parts = []
+    md_parts.append("## Conversation History")
+    md_parts.append("*Multi-turn conversation between user (world sim) and agent.*\n")
+
+    steps_info = info.exp_result.steps_info
+    if not steps_info:
+        return "No steps available."
+
+    # Track unique messages to avoid duplicates
+    seen_messages = set()
+    conversation_entries = []
+
+    # Track previous step's chat_messages count to detect new messages
+    prev_chat_count = 0
+
+    for step_info in steps_info:
+        step = step_info.step
+
+        # Check for NEW user messages (ones not seen in previous steps)
+        if step_info.obs:
+            chat_msgs = step_info.obs.get("chat_messages", [])
+
+            # Only process messages that are new since last step
+            for i, msg in enumerate(chat_msgs):
+                if i >= prev_chat_count and isinstance(msg, dict):
+                    role = msg.get("role", "")
+                    message = msg.get("message", "")
+                    if message:
+                        # Create a hash to deduplicate
+                        msg_hash = hash((role, message[:100]))
+                        if msg_hash not in seen_messages:
+                            seen_messages.add(msg_hash)
+                            if role == "user":
+                                conversation_entries.append(("user", step, message))
+                            elif role == "assistant":
+                                conversation_entries.append(("agent", step, message))
+
+            prev_chat_count = len(chat_msgs)
+
+        # Check for agent's send_msg_to_user actions
+        action = step_info.action
+        if action and "send_msg_to_user" in str(action):
+            try:
+                match = re.search(r'send_msg_to_user\(["\'](.+?)["\']\s*\)', str(action), re.DOTALL)
+                if match:
+                    agent_msg = match.group(1)
+                    agent_msg = agent_msg.replace("\\n", "\n").replace('\\"', '"')
+                    msg_hash = hash(("agent_action", agent_msg[:100]))
+                    if msg_hash not in seen_messages:
+                        seen_messages.add(msg_hash)
+                        conversation_entries.append(("agent", step, agent_msg))
+            except Exception:
+                pass
+
+        # Check for done() actions
+        if action and "done(" in str(action):
+            try:
+                match = re.search(r'done\(["\'](.+?)["\']\s*\)', str(action), re.DOTALL)
+                if match:
+                    done_msg = match.group(1)
+                    msg_hash = hash(("done", done_msg[:100]))
+                    if msg_hash not in seen_messages:
+                        seen_messages.add(msg_hash)
+                        conversation_entries.append(("agent_done", step, done_msg))
+            except Exception:
+                pass
+
+    # If no messages found from chat_messages, try to get initial goal
+    if not any(e[0] == "user" for e in conversation_entries):
+        try:
+            initial_obs = steps_info[0].obs
+            if initial_obs:
+                goal = initial_obs.get("goal", None)
+                if goal:
+                    conversation_entries.insert(0, ("user", 0, goal))
+        except (IndexError, AttributeError):
+            pass
+
+    if not conversation_entries:
+        return "No conversation messages found in this episode."
+
+    # Render conversation
+    turn_num = 0
+    last_role = None
+    for role, step, message in conversation_entries:
+        if role == "user" and last_role != "user":
+            turn_num += 1
+            md_parts.append(f"---\n### Turn {turn_num}")
+
+        if role == "user":
+            md_parts.append(f"**👤 User** (first seen at step {step}):")
+            md_parts.append(f"> {message[:1500]}{'...' if len(message) > 1500 else ''}")
+        elif role == "agent":
+            md_parts.append(f"**🤖 Agent** (step {step}):")
+            md_parts.append(f"> {message[:1500]}{'...' if len(message) > 1500 else ''}")
+        elif role == "agent_done":
+            md_parts.append(f"**🏁 Agent Done** (step {step}):")
+            md_parts.append(f"> {message[:1500]}{'...' if len(message) > 1500 else ''}")
+        md_parts.append("")
+        last_role = role
+
+    return "\n".join(md_parts)
+
+
+def update_action_history():
+    """Display all actions taken during the episode."""
+    global info
+    if info.exp_result is None:
+        return "No experiment result loaded."
+
+    steps_info = info.exp_result.steps_info
+    if not steps_info:
+        return "No steps available."
+
+    md_parts = []
+    md_parts.append("## Action History")
+    md_parts.append(f"*Total steps: {len(steps_info)}*\n")
+
+    for step_info in steps_info:
+        step = step_info.step
+        action = step_info.action
+        terminated = step_info.terminated
+        truncated = step_info.truncated
+
+        # Determine action display
+        if action is None:
+            action_display = "*(no action / waiting)*"
+        elif "send_msg_to_user" in str(action):
+            action_display = f"💬 `{action[:100]}{'...' if len(str(action)) > 100 else ''}`"
+        elif "done(" in str(action):
+            action_display = f"🏁 `{action}`"
+        elif "click" in str(action):
+            action_display = f"🖱️ `{action}`"
+        elif "fill" in str(action) or "type" in str(action):
+            action_display = f"⌨️ `{action}`"
+        elif "scroll" in str(action):
+            action_display = f"📜 `{action}`"
+        else:
+            action_display = f"`{action}`"
+
+        # Add step status indicators
+        status = ""
+        if terminated:
+            status = " ✅ *terminated*"
+        elif truncated:
+            status = " ⚠️ *truncated*"
+
+        # Highlight current step
+        if step == info.step:
+            md_parts.append(f"**▶ Step {step}:** {action_display}{status}")
+        else:
+            md_parts.append(f"**Step {step}:** {action_display}{status}")
+
+    # Show final action summary
+    if steps_info:
+        last_step = steps_info[-1]
+        md_parts.append("\n---")
+        md_parts.append("## Final State")
+        md_parts.append(f"- **Last Step:** {last_step.step}")
+        md_parts.append(f"- **Final Action:** `{last_step.action}`")
+        md_parts.append(f"- **Terminated:** {last_step.terminated}")
+        md_parts.append(f"- **Truncated:** {last_step.truncated}")
+
+    return "\n".join(md_parts)
+
+
 def update_agent_info_md():
     global info
     if info.exp_result is None:
@@ -1069,38 +1328,60 @@ def code(txt):
     return f"""```\n{txt}\n```"""
 
 
-def get_episode_info(info: Info):
-    if info.exp_result is None:
+def get_episode_info(info_obj: Info):
+    if info_obj.exp_result is None:
         return "No experiment result loaded."
     try:
-        env_args = info.exp_result.exp_args.env_args
-        steps_info = info.exp_result.steps_info
-        if info.step >= len(steps_info):
-            info.step = len(steps_info) - 1
+        env_args = info_obj.exp_result.exp_args.env_args
+        steps_info = info_obj.exp_result.steps_info
+        if info_obj.step >= len(steps_info):
+            info_obj.step = len(steps_info) - 1
         if len(steps_info) == 0:
             return "No steps were taken in this episode."
-        step_info = steps_info[info.step]
+        step_info = steps_info[info_obj.step]
         try:
             goal = step_info.obs["goal_object"]
         except KeyError:
             goal = None
         try:
-            cum_reward = info.exp_result.summary_info["cum_reward"]
+            cum_reward = info_obj.exp_result.summary_info["cum_reward"]
         except FileNotFoundError:
             cum_reward = np.nan
 
-        exp_dir = info.exp_result.exp_dir
+        exp_dir = info_obj.exp_result.exp_dir
         exp_dir_str = f"{exp_dir.parent.name}/{exp_dir.name}"
 
         # Get current URL from observation
         current_url = step_info.obs.get("url", "N/A") if step_info.obs else "N/A"
 
-        info = f"""\
+        # Get final action info (only show on final step)
+        final_action_info = ""
+        if len(steps_info) > 0 and info_obj.step == len(steps_info) - 1:
+            last_step = steps_info[-1]
+            final_action = last_step.action or "(no action)"
+            final_action_info = f"""
+**Final Action:**
+`{final_action}`
+"""
+
+        # Get judge results summary
+        judge_info = ""
+        judge_result = info_obj.exp_result.judge_result
+        if judge_result:
+            overall_success = judge_result.get("overall_success", None)
+            overall_score = judge_result.get("overall_score", None)
+            success_icon = "✅" if overall_success else "❌" if overall_success is False else "⚪"
+            score_str = f"{overall_score:.2f}" if overall_score is not None else "N/A"
+            judge_info = f"""
+**Judge Result:** {success_icon} Score: {score_str}
+"""
+
+        result = f"""\
 ### {env_args.task_name} (seed: {env_args.task_seed})
-### Step {info.step} / {len(steps_info) - 1} (Reward: {cum_reward:.1f})
-
+### Step {info_obj.step} / {len(steps_info) - 1} (Reward: {cum_reward:.1f})
+{judge_info}
 **URL:** `{current_url}`
-
+{final_action_info}
 **Goal:**
 
 {code(str(AgentLabBaseMessage("", goal)))}
@@ -1116,10 +1397,10 @@ def get_episode_info(info: Info):
 
 <small style="line-height: 1; margin: 0; padding: 0;">{code(exp_dir_str)}</small>"""
     except Exception:
-        info = f"""\
+        result = f"""\
 **Error while getting episode info**
 {code(traceback.format_exc())}"""
-    return info
+    return result
 
 
 def get_action_info(info: Info):
@@ -1134,8 +1415,43 @@ def get_action_info(info: Info):
         return f"Step {info.step} is out of bounds. The episode has {len(steps_info)} steps."
 
     step_info = steps_info[info.step]
+
+    # Get the current turn's user message
+    # Compare chat_messages count with previous step to find new messages
+    user_msg_info = ""
+    if step_info.obs:
+        current_chat_msgs = step_info.obs.get("chat_messages", [])
+
+        # Get previous step's chat_messages count to find what's new
+        prev_count = 0
+        if info.step > 0:
+            try:
+                prev_obs = steps_info[info.step - 1].obs
+                if prev_obs:
+                    prev_count = len(prev_obs.get("chat_messages", []))
+            except (IndexError, AttributeError):
+                pass
+
+        # Find the latest user message that's new since previous step
+        # Or if this is step 0, show the first user message
+        latest_user_msg = None
+        for i, msg in enumerate(current_chat_msgs):
+            if isinstance(msg, dict) and msg.get("role") == "user":
+                message = msg.get("message", "")
+                # Show if this message is new (index >= prev_count) or if step 0
+                if i >= prev_count or info.step == 0:
+                    latest_user_msg = message
+
+        if latest_user_msg:
+            display_msg = latest_user_msg[:500] + "..." if len(latest_user_msg) > 500 else latest_user_msg
+            user_msg_info = f"""**👤 Current Turn's User Message:**
+
+> {display_msg}
+
+"""
+
     action_info = f"""\
-**Action:**
+{user_msg_info}**Action:**
 
 {action_str}
 """
@@ -1336,6 +1652,7 @@ def on_select_behavior(evt: gr.SelectData, df: pd.DataFrame, agent_id: list[tupl
         - behavior_data dict for variant switching
         - episode_id for the benign variant (default selection)
     """
+    global info
     if df is None or len(df) == 0:
         return gr.update(), "No data available", None, gr.update()
 
@@ -1359,18 +1676,50 @@ def on_select_behavior(evt: gr.SelectData, df: pd.DataFrame, agent_id: list[tupl
         if col.endswith("_idx") and col != "benign_idx":
             behavior_data_dict[col] = row.get(col)
 
-    # Build comparison info
-    info_parts = [f"**Behavior:** {behavior}"]
+    # Build comparison info with judge details
+    info_parts = [f"## {behavior}"]
+
+    # Helper to get judge explanation from result_df
+    def get_judge_explanation(row_idx):
+        if info.result_df is None or pd.isna(row_idx):
+            return None
+        try:
+            result_df = info.result_df.reset_index(inplace=False)
+            exp_row = result_df[result_df["_row_index"] == int(row_idx)]
+            if len(exp_row) > 0:
+                judge_full = exp_row.iloc[0].get("judge_result_full", None)
+                if judge_full and isinstance(judge_full, dict):
+                    individual = judge_full.get("individual_results", [])
+                    for res in individual:
+                        if res.get("judge_id") == "configuredPromptLlmJudge":
+                            return res.get("explanation", None)
+            return None
+        except Exception:
+            return None
+
+    # Benign results
     benign_status = row.get("benign_success", "-")
-    info_parts.append(f"**Benign:** {benign_status}")
+    benign_idx = row.get("benign_idx")
+    info_parts.append(f"### Benign: {benign_status}")
+    benign_explanation = get_judge_explanation(benign_idx)
+    if benign_explanation:
+        info_parts.append(f"*{benign_explanation[:300]}{'...' if len(benign_explanation) > 300 else ''}*")
+
+    # Adversarial results
     for i in range(3):
         adv_col = f"adv_v{i}"
+        adv_idx_col = f"adv_v{i}_idx"
         if adv_col in row:
-            info_parts.append(f"**Adversarial v{i}:** {row[adv_col]}")
+            adv_status = row[adv_col]
+            info_parts.append(f"### Adversarial v{i}: {adv_status}")
+            adv_idx = row.get(adv_idx_col)
+            adv_explanation = get_judge_explanation(adv_idx)
+            if adv_explanation:
+                info_parts.append(f"*{adv_explanation[:300]}{'...' if len(adv_explanation) > 300 else ''}*")
+
     comparison_info = "\n\n".join(info_parts)
 
     # Create episode_id for benign (default selection)
-    benign_idx = row.get("benign_idx")
     if isinstance(benign_idx, pd.Series):
         benign_idx = benign_idx.iloc[0] if len(benign_idx) > 0 else None
     if pd.notna(benign_idx):

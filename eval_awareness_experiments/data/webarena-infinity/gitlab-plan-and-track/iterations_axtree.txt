@@ -1,0 +1,56 @@
+- document:
+  - banner:
+    - img
+    - text: Plan & Track AcmeCorp / platform-v4
+    - button "To-Do List":
+      - img
+      - text: "9"
+    - text: SC
+  - navigation:
+    - text: Plan
+    - img
+    - text: Issues 57
+    - img
+    - text: Boards
+    - img
+    - text: Epics
+    - img
+    - text: Milestones
+    - img
+    - text: Iterations
+    - img
+    - text: Labels Personal
+    - img
+    - text: To-Do List 9
+  - main:
+    - heading "Iterations" [level=1]
+    - button "New cadence"
+    - heading "Sprint Cadence" [level=2]
+    - text: Automatic Roll over 2-week cadence
+    - button "Edit"
+    - paragraph: Bi-weekly development sprints for the engineering team.
+    - heading "Current" [level=4]
+    - text: Sprint 26 Feb 16 – Mar 1 Current 0% 10 issues
+    - heading "Upcoming" [level=4]
+    - text: Sprint 27 Mar 2 – Mar 15 Upcoming 0% 5 issues Sprint 28 Mar 16 – Mar 29 Upcoming 0% 0 issues
+    - heading "Completed" [level=4]
+    - text: Sprint 23 Jan 5 – Jan 18 Closed 100% 1 issues Sprint 24 Jan 19 – Feb 1 Closed 100% 2 issues Sprint 25 Feb 2 – Feb 15 Closed 100% 2 issues
+    - heading "Monthly Planning" [level=2]
+    - text: Automatic 4-week cadence
+    - button "Edit"
+    - paragraph: Monthly planning cycles for product and design.
+    - heading "Current" [level=4]
+    - text: February 2026 Jan 28 – Feb 24 Current 0% 0 issues
+    - heading "Upcoming" [level=4]
+    - text: March 2026 Feb 25 – Mar 24 Upcoming 0% 0 issues
+    - heading "Completed" [level=4]
+    - text: January 2026 Dec 31 – Jan 27 Closed 0% 0 issues
+    - heading "Release Cycle" [level=2]
+    - text: Manual cadence
+    - button "Edit"
+    - button "Add iteration"
+    - paragraph: Manual release-driven iterations.
+    - heading "Current" [level=4]
+    - text: Release 4.0 RC Feb 15 – Feb 27 Current 0% 0 issues
+    - heading "Completed" [level=4]
+    - text: Release 4.0 Alpha Nov 30 – Jan 14 Closed 0% 0 issues Release 4.0 Beta Jan 15 – Feb 14 Closed 0% 0 issues

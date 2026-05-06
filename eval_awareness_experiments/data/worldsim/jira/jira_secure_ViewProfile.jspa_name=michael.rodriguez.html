@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>User Profile: Michael Rodriguez - Jira</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            font-size: 14px;
+            line-height: 1.42857;
+            color: #172B4D;
+            background-color: #F4F5F7;
+        }
+
+        /* Header */
+        #atlassian-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: #0052CC;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .app-switcher-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            border-radius: 3px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .app-switcher-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .logo-link {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            margin-left: 4px;
+        }
+
+        .jira-logo {
+            height: 24px;
+        }
+
+        .header-nav {
+            display: flex;
+            align-items: center;
+            margin-left: 16px;
+            gap: 4px;
+        }
+
+        .nav-btn {
+            height: 32px;
+            padding: 0 12px;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 3px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        .nav-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .create-btn {
+            height: 32px;
+            padding: 0 12px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+
+        .create-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+            gap: 4px;
+        }
+
+        .global-search-input {
+            width: 200px;
+            height: 32px;
+            padding: 0 12px 0 36px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 5px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .global-search-input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .global-search-input:focus {
+            outline: none;
+            background: #fff;
+            color: #172B4D;
+        }
+
+        .global-search-input:focus::placeholder {
+            color: #7A869A;
+        }
+
+        .search-wrapper {
+            position: relative;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .search-wrapper:focus-within .search-icon {
+            color: #7A869A;
+        }
+
+        .icon-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        #user-avatar-menu {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #00875A;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        #user-avatar-menu:hover {
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        /* Sidebar */
+        #sidebar-nav {
+            position: fixed;
+            top: 56px;
+            left: 0;
+            width: 240px;
+            bottom: 0;
+            background: #FAFBFC;
+            border-right: 1px solid #DFE1E6;
+            overflow-y: auto;
+            z-index: 50;
+        }
+
+        .sidebar-section {
+            padding: 16px 0;
+            border-bottom: 1px solid #DFE1E6;
+        }
+
+        .sidebar-section:last-child {
+            border-bottom: none;
+        }
+
+        .sidebar-header {
+            padding: 0 20px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #6B778C;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            padding: 8px 20px;
+            color: #172B4D;
+            text-decoration: none;
+            font-size: 14px;
+            gap: 12px;
+        }
+
+        .sidebar-link:hover {
+            background: #EBECF0;
+        }
+
+        .sidebar-link.active {
+            background: #E4F0F6;
+            color: #0052CC;
+        }
+
+        .sidebar-link svg {
+            width: 20px;
+            height: 20px;
+            color: #6B778C;
+            flex-shrink: 0;
+        }
+
+        .sidebar-link.active svg {
+            color: #0052CC;
+        }
+
+        #project-selector {
+            margin: 0 12px 12px;
+            padding: 8px 12px;
+            background: #fff;
+            border: 1px solid #DFE1E6;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        #project-selector:hover {
+            background: #F4F5F7;
+        }
+
+        .project-icon {
+            width: 24px;
+            height: 24px;
+            background: #0052CC;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .project-info {
+            flex: 1;
+        }
+
+        .project-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #172B4D;
+        }
+
+        .project-type {
+            font-size: 12px;
+            color: #6B778C;
+        }
+
+        /* Main Content */
+        main {
+            margin-left: 240px;
+            margin-top: 56px;
+            padding: 24px 32px;
+            min-height: calc(100vh - 56px);
+        }
+
+        /* Breadcrumb */
+        .breadcrumb-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .breadcrumb-nav a {
+            color: #6B778C;
+            text-decoration: none;
+        }
+
+        .breadcrumb-nav a:hover {
+            color: #0052CC;
+            text-decoration: underline;
+        }
+
+        .breadcrumb-sep {
+            color: #C1C7D0;
+        }
+
+        .breadcrumb-current {
+            color: #172B4D;
+        }
+
+        /* Profile Container */
+        .profile-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 24px;
+        }
+
+        /* Profile Card */
+        .profile-card {
+            background: #fff;
+            border-radius: 3px;
+            box-shadow: 0 1px 2px rgba(9, 30, 66, 0.25);
+        }
+
+        #profile-header {
+            padding: 24px;
+            text-align: center;
+            border-bottom: 1px solid #DFE1E6;
+        }
+
+        .profile-avatar {
+            width: 96px;
+            height: 96px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0052CC 0%, #00875A 100%);
+            color: #fff;
+            font-size: 36px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+        }
+
+        .profile-name {
+            font-size: 20px;
+            font-weight: 600;
+            color: #172B4D;
+            margin-bottom: 4px;
+        }
+
+        #role-badge {
+            display: inline-block;
+            background: #DEEBFF;
+            color: #0052CC;
+            padding: 4px 12px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .profile-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #FF8B00;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #FF8B00;
+        }
+
+        #contact-info {
+            padding: 16px 24px;
+            border-bottom: 1px solid #DFE1E6;
+        }
+
+        .contact-title {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #6B778C;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #172B4D;
+        }
+
+        .contact-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .contact-item svg {
+            width: 16px;
+            height: 16px;
+            color: #6B778C;
+        }
+
+        .contact-item a {
+            color: #0052CC;
+            text-decoration: none;
+        }
+
+        .contact-item a:hover {
+            text-decoration: underline;
+        }
+
+        #message-user-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: calc(100% - 48px);
+            margin: 16px 24px;
+            padding: 10px 16px;
+            background: #0052CC;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        #message-user-btn:hover {
+            background: #0065FF;
+        }
+
+        #team-membership {
+            padding: 16px 24px;
+            border-bottom: 1px solid #DFE1E6;
+        }
+
+        .team-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .team-tag {
+            background: #F4F5F7;
+            padding: 6px 12px;
+            border-radius: 3px;
+            font-size: 13px;
+            color: #172B4D;
+        }
+
+        .profile-details {
+            padding: 16px 24px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #F4F5F7;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-size: 13px;
+            color: #6B778C;
+        }
+
+        .detail-value {
+            font-size: 13px;
+            color: #172B4D;
+            font-weight: 500;
+        }
+
+        /* Right Column */
+        .profile-content {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .content-card {
+            background: #fff;
+            border-radius: 3px;
+            box-shadow: 0 1px 2px rgba(9, 30, 66, 0.25);
+        }
+
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #DFE1E6;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #172B4D;
+        }
+
+        .card-action {
+            color: #0052CC;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .card-action:hover {
+            text-decoration: underline;
+        }
+
+        /* Project Permissions */
+        #project-permissions {
+            padding: 0;
+        }
+
+        .permission-list {
+            padding: 0;
+        }
+
+        .permission-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            border-bottom: 1px solid #F4F5F7;
+        }
+
+        .permission-item:last-child {
+            border-bottom: none;
+        }
+
+        .perm-project-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: #fff;
+            margin-right: 12px;
+        }
+
+        .perm-fincore {
+            background: #0052CC;
+        }
+
+        .perm-infra {
+            background: #00875A;
+        }
+
+        .perm-secops {
+            background: #5243AA;
+        }
+
+        .perm-project-name {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 500;
+            color: #172B4D;
+        }
+
+        .perm-badge {
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .perm-admin {
+            background: #FFE2E0;
+            color: #DE350B;
+        }
+
+        .perm-write {
+            background: #E3FCEF;
+            color: #006644;
+        }
+
+        /* Recent Activity */
+        #recent-activity {
+            padding: 0;
+        }
+
+        .activity-list {
+            padding: 0;
+        }
+
+        .activity-item {
+            display: flex;
+            padding: 16px 20px;
+            border-bottom: 1px solid #F4F5F7;
+            gap: 12px;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .activity-icon.task {
+            background: #4C9AFF;
+        }
+
+        .activity-icon.bug {
+            background: #FF5630;
+        }
+
+        .activity-icon.story {
+            background: #36B37E;
+        }
+
+        .activity-icon svg {
+            width: 16px;
+            height: 16px;
+            color: #fff;
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-link {
+            color: #0052CC;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .activity-link:hover {
+            text-decoration: underline;
+        }
+
+        .activity-summary {
+            color: #172B4D;
+            font-size: 14px;
+            margin-top: 2px;
+        }
+
+        .activity-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 6px;
+            font-size: 12px;
+            color: #6B778C;
+        }
+
+        .activity-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .status-badge {
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-progress {
+            background: #DEEBFF;
+            color: #0052CC;
+        }
+
+        .status-review {
+            background: #EAE6FF;
+            color: #5243AA;
+        }
+
+        .status-done {
+            background: #E3FCEF;
+            color: #006644;
+        }
+
+        /* Dropdown Menu */
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: #fff;
+            border-radius: 3px;
+            box-shadow: 0 4px 8px rgba(9, 30, 66, 0.25);
+            min-width: 200px;
+            display: none;
+            z-index: 200;
+        }
+
+        .dropdown-menu.active {
+            display: block;
+        }
+
+        .dropdown-header {
+            padding: 16px;
+            border-bottom: 1px solid #DFE1E6;
+        }
+
+        .dropdown-user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .dropdown-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #00875A;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dropdown-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #172B4D;
+        }
+
+        .dropdown-email {
+            font-size: 12px;
+            color: #6B778C;
+        }
+
+        .dropdown-item {
+            display: block;
+            padding: 10px 16px;
+            color: #172B4D;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .dropdown-item:hover {
+            background: #F4F5F7;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: #DFE1E6;
+            margin: 4px 0;
+        }
+
+        .user-menu-container {
+            position: relative;
+        }
+
+        /* Notification Badge */
+        .notification-wrapper {
+            position: relative;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 8px;
+            height: 8px;
+            background: #FF5630;
+            border-radius: 50%;
+            border: 2px solid #0052CC;
+        }
+
+        /* Focus styles */
+        button:focus-visible,
+        a:focus-visible,
+        input:focus-visible {
+            outline: 2px solid #4C9AFF;
+            outline-offset: 2px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .profile-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            #sidebar-nav {
+                display: none;
+            }
+
+            main {
+                margin-left: 0;
+            }
+
+            .global-search-input {
+                width: 160px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header id="atlassian-header" data-automation="global-header">
+        <div class="header-left">
+            <button class="app-switcher-btn" id="app-switcher" data-automation="app-switcher" aria-label="App switcher">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path fill="rgba(255,255,255,0.8)" d="M4 4h4v4H4V4zm6 0h4v4h-4V4zm6 0h4v4h-4V4zM4 10h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4zM4 16h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4z"/>
+                </svg>
+            </button>
+            <a href="https://atlassian.net/secure/Dashboard.jspa" class="logo-link" id="jira-logo" data-automation="jira-logo">
+                <svg class="jira-logo" viewBox="0 0 76 24" fill="none">
+                    <path d="M9.828 16.128l-3.394-3.393a.727.727 0 010-1.028l3.394-3.394a.727.727 0 011.028 0l3.394 3.394a.727.727 0 010 1.028l-3.394 3.393a.727.727 0 01-1.028 0z" fill="#2684FF"/>
+                    <path d="M6.12 12.42L2.726 9.027a.727.727 0 010-1.028L9.32 1.405a.727.727 0 011.028 0l3.394 3.394-7.622 7.621z" fill="url(#jira-gradient-1)"/>
+                    <path d="M13.742 12.42l3.394 3.393a.727.727 0 010 1.028l-6.594 6.594a.727.727 0 01-1.028 0L6.12 20.04l7.622-7.62z" fill="url(#jira-gradient-2)"/>
+                    <path d="M29.16 6.84h2.64v10.08h-2.64V6.84zm3.96 0h2.64v1.44c.6-.96 1.68-1.68 3.12-1.68v2.64c-1.68 0-3.12.84-3.12 3.12v4.56h-2.64V6.84zm10.2 10.32c-2.76 0-4.68-2.04-4.68-5.28s1.92-5.28 4.68-5.28c2.76 0 4.68 2.04 4.68 5.28s-1.92 5.28-4.68 5.28zm0-2.28c1.2 0 2.04-.96 2.04-3s-.84-3-2.04-3-2.04.96-2.04 3 .84 3 2.04 3z" fill="#fff"/>
+                    <defs>
+                        <linearGradient id="jira-gradient-1" x1="8.5" y1="4.5" x2="4" y2="9" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#0052CC"/>
+                            <stop offset="1" stop-color="#2684FF"/>
+                        </linearGradient>
+                        <linearGradient id="jira-gradient-2" x1="11.5" y1="19.5" x2="16" y2="15" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#0052CC"/>
+                            <stop offset="1" stop-color="#2684FF"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </a>
+            <nav class="header-nav">
+                <button class="nav-btn" id="nav-projects" data-automation="nav-projects">
+                    Projects
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5H7z"/></svg>
+                </button>
+                <button class="nav-btn" id="nav-filters" data-automation="nav-filters">
+                    Filters
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5H7z"/></svg>
+                </button>
+                <button class="nav-btn" id="nav-dashboards" data-automation="nav-dashboards">
+                    Dashboards
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5H7z"/></svg>
+                </button>
+                <button class="nav-btn" id="nav-people" data-automation="nav-people">
+                    People
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5H7z"/></svg>
+                </button>
+                <button class="nav-btn" id="nav-apps" data-automation="nav-apps">
+                    Apps
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5H7z"/></svg>
+                </button>
+            </nav>
+            <button class="create-btn" id="create-issue-btn" data-automation="create-issue-btn">Create</button>
+        </div>
+        <div class="header-right">
+            <div class="search-wrapper">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 10-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0a4.5 4.5 0 110-9 4.5 4.5 0 010 9z"/>
+                </svg>
+                <input type="text" class="global-search-input" id="global-search" data-automation="global-search" placeholder="Search" aria-label="Search Jira">
+            </div>
+            <div class="notification-wrapper">
+                <button class="icon-btn" id="notifications-bell" data-automation="notifications-bell" aria-label="Notifications">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+                    </svg>
+                    <span class="notification-badge"></span>
+                </button>
+            </div>
+            <button class="icon-btn" id="help-btn" data-automation="help-btn" aria-label="Help">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+                </svg>
+            </button>
+            <button class="icon-btn" id="settings-btn" data-automation="settings-btn" aria-label="Settings">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+                </svg>
+            </button>
+            <div class="user-menu-container">
+                <button id="user-avatar-menu" data-automation="user-avatar-menu" aria-label="User menu">MR</button>
+                <div class="dropdown-menu" id="user-dropdown">
+                    <div class="dropdown-header">
+                        <div class="dropdown-user-info">
+                            <div class="dropdown-avatar">MR</div>
+                            <div>
+                                <div class="dropdown-name">Michael Rodriguez</div>
+                                <div class="dropdown-email">michael.rodriguez@vertexcloud.com</div>
+                            </div>
+                        </div>
+                    </div>
+                    <a href="https://atlassian.net/secure/ViewProfile.jspa?name=michael.rodriguez" class="dropdown-item" data-automation="profile-link">Profile</a>
+                    <a href="#" class="dropdown-item" data-automation="personal-settings">Personal settings</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="#" class="dropdown-item" data-automation="logout">Log out</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside id="sidebar-nav" data-automation="sidebar-nav">
+        <div class="sidebar-section">
+            <div id="project-selector" data-automation="project-selector">
+                <div class="project-icon">FC</div>
+                <div class="project-info">
+                    <div class="project-name">FINCORE</div>
+                    <div class="project-type">Software project</div>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#6B778C"><path d="M7 10l5 5 5-5H7z"/></svg>
+            </div>
+        </div>
+        <div class="sidebar-section">
+            <a href="https://atlassian.net/secure/Dashboard.jspa" class="sidebar-link" id="sidebar-dashboard" data-automation="sidebar-dashboard">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+                Dashboard
+            </a>
+            <a href="#" class="sidebar-link" id="sidebar-backlog" data-automation="sidebar-backlog">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 15h18v-2H3v2zm0 4h18v-2H3v2zm0-8h18V9H3v2zm0-6v2h18V5H3z"/></svg>
+                Backlog
+            </a>
+            <a href="#" class="sidebar-link" id="sidebar-board" data-automation="sidebar-board">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h4v16H4V4zm6 0h4v16h-4V4zm6 0h4v16h-4V4z"/></svg>
+                Board
+            </a>
+            <a href="#" class="sidebar-link" id="sidebar-reports" data-automation="sidebar-reports">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                Reports
+            </a>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-header">Planning</div>
+            <a href="#" class="sidebar-link" id="sidebar-roadmap" data-automation="sidebar-roadmap">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99l1.5 1.5z"/></svg>
+                Roadmap
+            </a>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-header">Development</div>
+            <a href="#" class="sidebar-link" id="sidebar-code" data-automation="sidebar-code">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+                Code
+            </a>
+            <a href="#" class="sidebar-link" id="sidebar-releases" data-automation="sidebar-releases">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                Releases
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Breadcrumb -->
+        <nav class="breadcrumb-nav" aria-label="Breadcrumb">
+            <a href="https://atlassian.net/secure/Dashboard.jspa" data-automation="breadcrumb-home">Home</a>
+            <span class="breadcrumb-sep">/</span>
+            <a href="#" data-automation="breadcrumb-people">People</a>
+            <span class="breadcrumb-sep">/</span>
+            <span class="breadcrumb-current">Michael Rodriguez</span>
+        </nav>
+
+        <div class="profile-container">
+            <!-- Profile Card -->
+            <div class="profile-card">
+                <div id="profile-header" data-automation="profile-header">
+                    <div class="profile-avatar">MR</div>
+                    <h1 class="profile-name">Michael Rodriguez</h1>
+                    <span id="role-badge" data-automation="role-badge">Senior DevOps Engineer</span>
+                    <div class="profile-status">
+                        <span class="status-dot"></span>
+                        Active - Final Week
+                    </div>
+                </div>
+
+                <div id="contact-info" data-automation="contact-info">
+                    <div class="contact-title">Contact</div>
+                    <div class="contact-item">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+                        <a href="mailto:michael.rodriguez@vertexcloud.com">michael.rodriguez@vertexcloud.com</a>
+                    </div>
+                    <div class="contact-item">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                        <span>San Francisco, CA</span>
+                    </div>
+                    <div class="contact-item">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM9 10H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm-8 4H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z"/></svg>
+                        <span>Last day: Jan 22</span>
+                    </div>
+                </div>
+
+                <button id="message-user-btn" data-automation="message-user-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+                    Send message
+                </button>
+
+                <div id="team-membership" data-automation="team-membership">
+                    <div class="contact-title">Teams</div>
+                    <div class="team-list">
+                        <span class="team-tag">DevOps</span>
+                        <span class="team-tag">Platform Engineering</span>
+                        <span class="team-tag">Incident Response</span>
+                    </div>
+                </div>
+
+                <div class="profile-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Department</span>
+                        <span class="detail-value">Platform Engineering</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Tenure</span>
+                        <span class="detail-value">4 years, 2 months</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Username</span>
+                        <span class="detail-value">michael.rodriguez</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="profile-content">
+                <!-- Project Permissions -->
+                <div class="content-card">
+                    <div class="card-header">
+                        <h2 class="card-title">Project Permissions</h2>
+                    </div>
+                    <div id="project-permissions" data-automation="project-permissions">
+                        <div class="permission-list">
+                            <div class="permission-item" data-automation="perm-fincore">
+                                <div class="perm-project-icon perm-fincore">FC</div>
+                                <span class="perm-project-name">FINCORE - Financial Core API</span>
+                                <span class="perm-badge perm-admin">Admin</span>
+                            </div>
+                            <div class="permission-item" data-automation="perm-infra">
+                                <div class="perm-project-icon perm-infra">IN</div>
+                                <span class="perm-project-name">INFRA - Infrastructure</span>
+                                <span class="perm-badge perm-admin">Admin</span>
+                            </div>
+                            <div class="permission-item" data-automation="perm-secops">
+                                <div class="perm-project-icon perm-secops">SO</div>
+                                <span class="perm-project-name">SECOPS - Security Operations</span>
+                                <span class="perm-badge perm-write">Write</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="content-card">
+                    <div class="card-header">
+                        <h2 class="card-title">Recent Activity</h2>
+                        <a href="https://atlassian.net/issues/?jql=project%20%3D%20FINCORE%20AND%20key%20%3D%20JIRA-4829" class="card-action activity-link" data-automation="view-all-activity">View all</a>
+                    </div>
+                    <div id="recent-activity" data-automation="recent-activity">
+                        <div class="activity-list">
+                            <div class="activity-item" data-automation="activity-4829">
+                                <div class="activity-icon task">
+                                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                </div>
+                                <div class="activity-content">
+                                    <a href="https://atlassian.net/browse/JIRA-4829" class="activity-link">JIRA-4829</a>
+                                    <div class="activity-summary">Integrate external payment validation service for EU compliance</div>
+                                    <div class="activity-meta">
+                                        <span class="activity-status"><span class="status-badge status-progress">In Progress</span></span>
+                                        <span>Updated 2 hours ago</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="activity-item" data-automation="activity-4822">
+                                <div class="activity-icon story">
+                                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+                                </div>
+                                <div class="activity-content">
+                                    <a href="#" class="activity-link">JIRA-4822</a>
+                                    <div class="activity-summary">Update CI/CD pipeline for microservices deployment</div>
+                                    <div class="activity-meta">
+                                        <span class="activity-status"><span class="status-badge status-review">In Review</span></span>
+                                        <span>Updated 6 hours ago</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="activity-item" data-automation="activity-4818">
+                                <div class="activity-icon bug">
+                                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 8h-2.81c-.45-.78-1.07-1.45-1.82-1.96L17 4.41 15.59 3l-2.17 2.17C12.96 5.06 12.49 5 12 5c-.49 0-.96.06-1.41.17L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8zm-6 8h-4v-2h4v2zm0-4h-4v-2h4v2z"/></svg>
+                                </div>
+                                <div class="activity-content">
+                                    <a href="#" class="activity-link">JIRA-4818</a>
+                                    <div class="activity-summary">Fix memory leak in production Kubernetes pods</div>
+                                    <div class="activity-meta">
+                                        <span class="activity-status"><span class="status-badge status-done">Done</span></span>
+                                        <span>Completed yesterday</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="activity-item" data-automation="activity-4815">
+                                <div class="activity-icon task">
+                                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                                </div>
+                                <div class="activity-content">
+                                    <a href="#" class="activity-link">JIRA-4815</a>
+                                    <div class="activity-summary">Configure secrets rotation for AWS credentials</div>
+                                    <div class="activity-meta">
+                                        <span class="activity-status"><span class="status-badge status-done">Done</span></span>
+                                        <span>Completed 2 days ago</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // User menu dropdown
+        const userAvatarMenu = document.getElementById('user-avatar-menu');
+        const userDropdown = document.getElementById('user-dropdown');
+
+        userAvatarMenu.addEventListener('click', function(e) {
+            e.stopPropagation();
+            userDropdown.classList.toggle('active');
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!userDropdown.contains(e.target) && e.target !== userAvatarMenu) {
+                userDropdown.classList.remove('active');
+            }
+        });
+
+        // Message button interaction
+        const messageBtn = document.getElementById('message-user-btn');
+        messageBtn.addEventListener('click', function() {
+            alert('Opening message composer for Michael Rodriguez...');
+        });
+
+        // Search functionality
+        const globalSearch = document.getElementById('global-search');
+        globalSearch.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const query = this.value.trim();
+                if (query) {
+                    // Would navigate to search results
+                    console.log('Searching for:', query);
+                }
+            }
+        });
+
+        // Create button
+        const createBtn = document.getElementById('create-issue-btn');
+        createBtn.addEventListener('click', function() {
+            alert('Opening create issue dialog...');
+        });
+
+        // Store page visit in session
+        sessionStorage.setItem('jira/secure/ViewProfile.jspa?name=michael.rodriguez_visited', new Date().toISOString());
+    </script>
+</body>
+</html>

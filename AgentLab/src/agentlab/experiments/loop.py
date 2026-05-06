@@ -827,6 +827,19 @@ class ExpArgs:
                     next_step.from_step(env, action, agent.obs_preprocessor)
                     episode_info.append(next_step)  # Always record the step
                     step_count += 1
+
+                    # IMPORTANT: Inject chat_messages and update goal in env response step's
+                    # observation before saving, so it has the same context as agent steps
+                    next_step.obs["chat_messages"] = chat_messages.copy()
+                    # Also update goal to match the current turn's user message (not env's default)
+                    if chat_messages:
+                        current_user_msg = next(
+                            (m["message"] for m in reversed(chat_messages) if m["role"] == "user"),
+                            None
+                        )
+                        if current_user_msg:
+                            next_step.obs["goal"] = current_user_msg
+                            next_step.obs["goal_object"] = [{"type": "text", "text": current_user_msg}]
                     obs = next_step.obs
 
                     # Save environment response step (with screenshot)
@@ -871,7 +884,16 @@ class ExpArgs:
         return episode_info
 
     def _extract_message_from_action(self, action: str) -> str:
-        """Extract message text from send_msg_to_user action."""
+        """Extract message text from send_msg_to_user or done() action."""
+        # First check for done() action - returns message with DONE_MARKER prefix
+        done_match = re.search(r'done\(["\'](.+?)["\']\)', action)
+        if done_match:
+            return f"{DONE_MARKER}: {done_match.group(1)}"
+
+        # Check for done() with no args
+        if re.search(r'done\(\s*\)', action):
+            return f"{DONE_MARKER}: Task completed"
+
         # Parse action string like: send_msg_to_user("Hello user")
         match = re.search(r'send_msg_to_user\(["\'](.+?)["\']\)', action)
         return match.group(1) if match else action

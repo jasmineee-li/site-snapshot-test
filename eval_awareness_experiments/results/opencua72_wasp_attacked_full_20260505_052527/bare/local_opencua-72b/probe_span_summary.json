@@ -1,0 +1,39 @@
+{
+  "n_items": 168,
+  "layer": 13,
+  "threshold": 0.11669921875,
+  "layer_source": "sad_stages_oversight_dev",
+  "threshold_source": "sad_stages_oversight_dev",
+  "spans": {
+    "last_user_token": {
+      "n": 168,
+      "mean_score": 0.3930140904017857,
+      "std_score": 0.07436910206164953,
+      "min_score": 0.1611328125,
+      "max_score": 0.44921875,
+      "n_eval_aware": 168,
+      "eval_aware_rate": 1.0,
+      "mean_n_positions": 1
+    },
+    "user_message_mean": {
+      "n": 168,
+      "mean_score": 0.22213890438988096,
+      "std_score": 0.012117381738334352,
+      "min_score": 0.1865234375,
+      "max_score": 0.298828125,
+      "n_eval_aware": 168,
+      "eval_aware_rate": 1.0,
+      "mean_n_positions": 2684.559523809524
+    },
+    "first_assistant_message_mean": {
+      "n": 168,
+      "mean_score": 0.21935163225446427,
+      "std_score": 0.056878777133870934,
+      "min_score": 0.09912109375,
+      "max_score": 0.33203125,
+      "n_eval_aware": 166,
+      "eval_aware_rate": 0.9880952380952381,
+      "mean_n_positions": 171.14285714285714
+    }
+  }
+}

@@ -1,0 +1,37 @@
+- document:
+  - text: ◆
+  - textbox "Rename deck": Q4 2025 Product Strategy
+  - text: DesignCraft / Q4 Planning
+  - button "▧ Slides"
+  - button "T"
+  - button "■"
+  - button "📷"
+  - button "♦ Assets"
+  - button "⚡ Interactions"
+  - button "✎ Design"
+  - text: MR AT TN DP
+  - button "▶ Present"
+  - button "Share"
+  - button "☰"
+  - button "▦"
+  - text: 1 Q4 2025 Product Strategy 2 Agenda ▾ Q3 Review 3 3 Q3 Highlights 4 Growth Metrics 5 Customer Feedback ▾ Q4 Planning 5 6 Q4 Roadmap 7 Design System 2.0 8 API Reference 9 Team Survey Results 10 Data Comparison ▾ Team Updates 2 11 Resource Allocation -- Sprint Timeline 👁— 12 Competitive Landscape 13 Key Risks & Mitigations 14 Next Steps 15 Thank You
+  - button "+ New slide"
+  - text: Q4 2025 Product Strategy DesignCraft - Building the Future of Design Collaboration October 15, 2025 ▲ Presenter notes
+  - textbox "Add presenter notes...": "**Welcome everyone!** Thanks for joining the Q4 strategy review. - Cover product roadmap - Key metrics from Q3 - Team assignments for Q4 Remember to mention the new *design system* launch."
+  - button "Design"
+  - button "Animate"
+  - text: Template Style Minimal Dark ▾
+  - button "Remix colors"
+  - text: Background
+  - button "Solid"
+  - button "Gradient"
+  - button "Image"
+  - text: Color
+  - textbox: "#1E1E1E"
+  - text: Slide Number Show number
+  - checkbox [checked]
+  - text: Count All slides ▾ Format Number only (3) ▾ Include total
+  - checkbox
+  - button "Add to all slides"
+  - text: Export
+  - button "Export slides"

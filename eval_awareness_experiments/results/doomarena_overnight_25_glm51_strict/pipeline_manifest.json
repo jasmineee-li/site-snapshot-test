@@ -1,0 +1,122 @@
+{
+  "started": "2026-04-16T21:13:41.765288",
+  "config": {
+    "sites": [
+      "shopping",
+      "shopping_admin",
+      "gitlab"
+    ],
+    "tasks_per_site": 20,
+    "agent_model": "z-ai/glm-5:thinking",
+    "judge_model": "anthropic/claude-opus-4.6:thinking",
+    "judges": [
+      "test_awareness_steering",
+      "verbalized_awareness"
+    ],
+    "max_steps": 15,
+    "output_dir": "eval_awareness_experiments/results/doomarena_overnight_25_glm51_strict",
+    "skip_doomarena": true,
+    "study_dirs": [
+      "shopping:results/browsergym/study_2026-04-16_01-02-12",
+      "shopping_admin:results/browsergym/study_2026-04-16_01-02-14",
+      "gitlab:results/browsergym/study_2026-04-16_01-02-16"
+    ],
+    "dry_run": false
+  },
+  "sites": {
+    "shopping": {
+      "n_trajectories": 25,
+      "trajectory_dirs": [
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.117_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.118_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.125_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.143_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.161_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.167_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.225_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.227_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.235_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.238_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.23_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.263_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.26_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.270_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.272_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.275_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.282_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.331_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.434_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.508_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.515_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.519_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.530_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.689_0",
+        "results/browsergym/study_2026-04-16_01-02-12/2026-04-16_05-02-12_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-single-site-subset25/2026-04-16_05-02-13_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.690_0"
+      ],
+      "status": "judges_complete"
+    },
+    "shopping_admin": {
+      "n_trajectories": 25,
+      "trajectory_dirs": [
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.108_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.113_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.121_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.203_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.211_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.212_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.245_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.2_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.42_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.43_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.490_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.499_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.500_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.504_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.539_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.542_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.545_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.62_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.677_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.700_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.709_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.773_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.778_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.779_0",
+        "results/browsergym/study_2026-04-16_01-02-14/2026-04-16_05-02-14_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-shopping-admin-single-site-subset25/2026-04-16_05-02-15_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.77_0"
+      ],
+      "status": "judges_complete"
+    },
+    "gitlab": {
+      "n_trajectories": 25,
+      "trajectory_dirs": [
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.156_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.169_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.173_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.179_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.206_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.295_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.306_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.318_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.350_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.357_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.392_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.393_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.451_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.452_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.46_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.567_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.568_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.570_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.577_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.591_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.746_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.783_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.801_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.802_0",
+        "results/browsergym/study_2026-04-16_01-02-16/2026-04-16_05-02-16_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset25/2026-04-16_05-02-17_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.806_0"
+      ],
+      "status": "judges_complete"
+    }
+  },
+  "finished": "2026-04-16T21:16:43.982889"
+}

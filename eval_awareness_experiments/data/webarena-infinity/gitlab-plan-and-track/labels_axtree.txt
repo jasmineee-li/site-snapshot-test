@@ -1,0 +1,122 @@
+- document:
+  - banner:
+    - img
+    - text: Plan & Track AcmeCorp / platform-v4
+    - button "To-Do List":
+      - img
+      - text: "9"
+    - text: SC
+  - navigation:
+    - text: Plan
+    - img
+    - text: Issues 57
+    - img
+    - text: Boards
+    - img
+    - text: Epics
+    - img
+    - text: Milestones
+    - img
+    - text: Iterations
+    - img
+    - text: Labels Personal
+    - img
+    - text: To-Do List 9
+  - main:
+    - heading "Labels" [level=1]
+    - button "New label"
+    - heading "component::" [level=3]
+    - text: component frontend Frontend code 29 issues project
+    - button "Edit"
+    - button "Delete"
+    - text: component backend Backend/server code 21 issues project
+    - button "Edit"
+    - button "Delete"
+    - text: component api API layer 8 issues project
+    - button "Edit"
+    - button "Delete"
+    - text: component database Database layer 8 issues project
+    - button "Edit"
+    - button "Delete"
+    - text: component infrastructure DevOps and infrastructure 9 issues project
+    - button "Edit"
+    - button "Delete"
+    - heading "priority::" [level=3]
+    - text: priority critical Must be fixed immediately 3 issues group
+    - button "Edit"
+    - button "Delete"
+    - text: priority high Important, fix soon 5 issues group
+    - button "Edit"
+    - button "Delete"
+    - text: priority medium Normal priority 2 issues group
+    - button "Edit"
+    - button "Delete"
+    - text: priority low Nice to have 3 issues group
+    - button "Edit"
+    - button "Delete"
+    - heading "type::" [level=3]
+    - text: type bug Software defect 11 issues project
+    - button "Edit"
+    - button "Delete"
+    - text: type feature New feature request 21 issues project
+    - button "Edit"
+    - button "Delete"
+    - text: type improvement Enhancement to existing feature 11 issues project
+    - button "Edit"
+    - button "Delete"
+    - text: type documentation Documentation changes 5 issues project
+    - button "Edit"
+    - button "Delete"
+    - text: type task General task 9 issues project
+    - button "Edit"
+    - button "Delete"
+    - heading "workflow::" [level=3]
+    - text: workflow ready Ready to be worked on 4 issues group
+    - button "Edit"
+    - button "Delete"
+    - text: workflow in-progress Currently being worked on 9 issues group
+    - button "Edit"
+    - button "Delete"
+    - text: workflow review In code review 0 issues group
+    - button "Edit"
+    - button "Delete"
+    - text: workflow done Work completed 9 issues group
+    - button "Edit"
+    - button "Delete"
+    - heading "Other labels" [level=3]
+    - text: needs-discussion Requires team discussion before proceeding 2 issues project
+    - button "Edit"
+    - button "Delete"
+    - text: good-first-issue Good for newcomers 3 issues project
+    - button "Edit"
+    - button "Delete"
+    - text: security Security related 9 issues group
+    - button "Edit"
+    - button "Delete"
+    - text: performance Performance related 7 issues project
+    - button "Edit"
+    - button "Delete"
+    - text: UX User experience improvement 8 issues project
+    - button "Edit"
+    - button "Delete"
+    - text: breaking-change Introduces breaking changes 0 issues group
+    - button "Edit"
+    - button "Delete"
+    - text: regression Previously working feature now broken 0 issues project
+    - button "Edit"
+    - button "Delete"
+    - text: technical-debt Code quality improvement 3 issues project
+    - button "Edit"
+    - button "Delete"
+    - text: blocked Blocked by external dependency 0 issues project
+    - button "Edit"
+    - button "Delete"
+    - text: design-needed Needs design work before implementation 0 issues project
+    - button "Edit"
+    - button "Delete"
+    - text: accessibility Accessibility improvements 2 issues project
+    - button "Edit"
+    - button "Delete"
+    - text: testing Test coverage or testing infrastructure 1 issues project
+    - button "Edit"
+    - button "Delete"

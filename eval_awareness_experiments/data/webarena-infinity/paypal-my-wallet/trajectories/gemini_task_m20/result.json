@@ -1,0 +1,18 @@
+{
+  "task_id": "task_m20",
+  "difficulty": "medium",
+  "instruction": "Transfer $750 into my PayPal from my Chase account.",
+  "passed": true,
+  "verifier_message": "Successfully transferred $750 from Chase into PayPal: USD balance increased to ~3597.63 and transfer_in transaction recorded.",
+  "elapsed": 46.2,
+  "steps": 5,
+  "is_done": true,
+  "final_result": "I have successfully transferred $750 from your Chase account (\u2022\u2022\u2022\u2022 6742) to your PayPal balance. The confirmation message '$750.00 added to your balance' is displayed on the screen.",
+  "errors": [
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

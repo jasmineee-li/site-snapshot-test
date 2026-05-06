@@ -1,0 +1,35 @@
+- document:
+  - banner:
+    - button "Toggle sidebar": ☰
+    - text: E Elation SC Dr. Chen
+  - navigation:
+    - navigation: 🏠 Practice Home 📨 Patient Letters 12 📤 Sent 📝 Drafts 1 🔔 Reminders 9 👥 Patients 📅 Appointments 📧 Bulk Letters ⚙ Settings
+  - main:
+    - heading "Reminders" [level=1]
+    - text: Appointment Aisha Patel - 32-week prenatal checkup tomorrow at 10:00 AM Mar 2, 2026, 3:00 AM
+    - button "Acknowledge"
+    - text: Appointment Martha Reeves-Whitfield - Annual wellness visit follow-up tomorrow at 2:00 PM Mar 2, 2026, 3:00 AM
+    - button "Acknowledge"
+    - text: Appointment Sophia Nguyen - Telehealth thyroid check-up on Mar 4 at 2:00 PM Mar 2, 2026, 3:00 AM
+    - button "Acknowledge"
+    - text: Appointment James Rodriguez - Diabetes follow-up on Mar 5 at 10:00 AM Mar 2, 2026, 3:00 AM
+    - button "Acknowledge"
+    - text: Unread Alert Catherine Morales has read "Thyroid Function Update" - response received Feb 27, 2026, 4:00 AM
+    - button "Resend"
+    - button "Write Message"
+    - button "Acknowledge"
+    - text: Unread Alert Frank DeLuca read "PSA Test Results" but follow-up response pending Feb 26, 2026, 4:00 AM
+    - button "Resend"
+    - button "Write Message"
+    - button "Acknowledge"
+    - text: Unread Alert Maria Gonzalez has not read "Resultados de laboratorio" sent on Feb 22 Feb 24, 2026, 5:00 AM
+    - button "Resend"
+    - button "Write Message"
+    - button "Acknowledge"
+    - text: Passport William Chang invited to Passport on Feb 1 - still not registered Feb 20, 2026, 4:00 AM
+    - button "View Patient"
+    - button "Acknowledge"
+    - text: Passport Marcus Johnson invited to Passport on Jan 15 - still not registered Feb 15, 2026, 6:00 AM
+    - button "View Patient"
+    - button "Acknowledge"
+    - text: Unread Alert Russell Keane has read "Lab Results - Kidney Function" Feb 24, 2026, 5:00 AM Acknowledged

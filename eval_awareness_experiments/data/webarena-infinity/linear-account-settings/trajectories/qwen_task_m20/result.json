@@ -1,0 +1,12 @@
+{
+  "task_id": "task_m20",
+  "difficulty": "medium",
+  "instruction": "Revoke the session coming from the Linux machine.",
+  "passed": true,
+  "verifier_message": "Chrome on Linux session has been revoked",
+  "elapsed": 37.4,
+  "steps": 5,
+  "is_done": true,
+  "final_result": "Action: The task is completed successfully.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nterminate\n</parameter>\n<parameter=status>\nsuccess\n</parameter>\n</function>\n</tool_call>",
+  "errors": []
+}

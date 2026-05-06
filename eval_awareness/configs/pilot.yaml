@@ -1,0 +1,23 @@
+name: pilot_run
+
+data:
+  manifest: data/manifest.jsonl
+
+sampling:
+  per_source:
+    ours: 20
+    real: 20
+  seed: 42
+
+prompts:
+  - yes_no
+  - eval_real
+
+models:
+  - provider: openai
+    model: gpt-4o
+  - provider: anthropic
+    model: claude-sonnet-4-20250514
+
+modality: html
+concurrency: 10

@@ -1,0 +1,154 @@
+- document:
+  - banner:
+    - text: "Elation Rodriguez, James Male | DOB: May 13, 1978 (47y) | MRN: pat_001"
+    - img
+    - text: Dr. Sarah Mitchell
+  - navigation:
+    - img
+    - text: Chart
+    - img
+    - text: Meds Hx
+    - img
+    - text: Rx Requests 8
+    - img
+    - text: Settings
+    - button "Prescribe":
+      - img: Rx
+      - text: Prescribe
+    - button "Document Med":
+      - img
+      - text: Document Med
+  - main:
+    - text: "Patient Info Name: James Rodriguez DOB: May 13, 1978 (47y) Sex: Male Weight: 82.5 kg Phone: (415) 555-0187 Allergies"
+    - button:
+      - img
+    - text: Penicillin Rash, hives Moderate
+    - button:
+      - img
+    - text: Sulfonamides Anaphylaxis Severe
+    - button:
+      - img
+    - text: Codeine Nausea, vomiting Mild
+    - button:
+      - img
+    - text: Latex Contact dermatitis Mild
+    - button:
+      - img
+    - text: "Problem List I10 Essential hypertension E11.9 Type 2 diabetes mellitus without complications E78.5 Hyperlipidemia, unspecified K21.0 Gastroesophageal reflux disease F41.1 Generalized anxiety disorder M54.5 Chronic low back pain E55.9 Vitamin D deficiency E66.9 Obesity, unspecified Insurance Plan: Blue Shield PPO Gold Member ID: BSC-9284710 PBM: Express Scripts Copay (Generic): $10 Copay (Preferred): $35 Preferred Pharmacy CVS Pharmacy #4521 1234 Main St, San Francisco (415) 555-0101"
+    - heading "Permanent Rx Meds" [level=3]
+    - button "Reconcile Meds":
+      - img
+      - text: Reconcile Meds
+    - button "Bulk Refill":
+      - img
+      - text: Bulk Refill
+    - text: "Last Reconciled: Jan 15, 2026 Lisinopril 10mg tablet Take 1 tablet by mouth once daily Qty: 30 tablets Refills: 2 Days: 30"
+    - img
+    - text: "CVS Pharmacy #4521 Last filled: Jan 17, 2026"
+    - button "Actions":
+      - text: Actions
+      - img
+    - text: "Metformin 500mg tablet Take 1 tablet by mouth twice daily with meals Qty: 60 tablets Refills: 3 Days: 30"
+    - img
+    - text: "CVS Pharmacy #4521 Last filled: Jan 21, 2026"
+    - button "Actions":
+      - text: Actions
+      - img
+    - text: "Atorvastatin 20mg tablet Take 1 tablet by mouth at bedtime Qty: 30 tablets Refills: 4 Days: 30"
+    - img
+    - text: "CVS Pharmacy #4521 Last filled: Jan 19, 2026"
+    - button "Actions":
+      - text: Actions
+      - img
+    - text: "Omeprazole 20mg capsule Take 1 capsule by mouth once daily before breakfast Qty: 30 capsules Refills: 1 Days: 30"
+    - img
+    - text: "CVS Pharmacy #4521 Last filled: Jan 9, 2026"
+    - button "Actions":
+      - text: Actions
+      - img
+    - text: "Sertraline 50mg tablet Take 1 tablet by mouth once daily in the morning Qty: 30 tablets Refills: 5 Days: 30"
+    - img
+    - text: "Walgreens #7892 Last filled: Jan 7, 2026"
+    - button "Actions":
+      - text: Actions
+      - img
+    - text: "Amlodipine 5mg tablet Take 1 tablet by mouth once daily Qty: 30 tablets Refills: 3 Days: 30"
+    - img
+    - text: "CVS Pharmacy #4521 Last filled: Jan 17, 2026"
+    - button "Actions":
+      - text: Actions
+      - img
+    - text: "Gabapentin 300mg capsule Take 1 capsule by mouth three times daily Qty: 90 capsules Refills: 0 Days: 30"
+    - img
+    - text: "CVS Pharmacy #4521 Last filled: Dec 19, 2025"
+    - button "Actions":
+      - text: Actions
+      - img
+    - text: "Metoprolol Succinate ER 50mg tablet Take 1 tablet by mouth once daily Qty: 30 tablets Refills: 2 Days: 30"
+    - img
+    - text: "CVS Pharmacy #4521 Last filled: Jan 24, 2026"
+    - button "Actions":
+      - text: Actions
+      - img
+    - text: "Losartan 50mg tablet Take 1 tablet by mouth once daily Qty: 30 tablets Refills: 1 Days: 30"
+    - img
+    - text: "Walgreens #7892 Last filled: Jan 11, 2026"
+    - button "Actions":
+      - text: Actions
+      - img
+    - text: "Alprazolam 0.5mg tablet CIV Take 1 tablet by mouth twice daily as needed for anxiety Qty: 60 tablets Refills: 0 Days: 30"
+    - img
+    - text: "CVS Pharmacy #4521 Last filled: Feb 2, 2026"
+    - button "Actions":
+      - text: Actions
+      - img
+    - text: "Montelukast 10mg tablet Take 1 tablet by mouth at bedtime Qty: 30 tablets Refills: 4 Days: 30"
+    - img
+    - text: "CVS Pharmacy #4521 Last filled: Jan 16, 2026"
+    - button "Actions":
+      - text: Actions
+      - img
+    - heading "Permanent OTC Meds" [level=3]
+    - text: "Vitamin D3 2000 IU tablet Take 1 tablet by mouth once daily Qty: 90 tablets Refills: 0 Days: 90"
+    - button "Actions":
+      - text: Actions
+      - img
+    - text: "Fish Oil 1000mg softgel Take 2 softgels by mouth once daily with food Qty: 120 softgels Refills: 0 Days: 60"
+    - button "Actions":
+      - text: Actions
+      - img
+    - text: "Calcium 600mg + Vitamin D3 400 IU tablet Take 1 tablet by mouth twice daily Qty: 60 tablets Refills: 0 Days: 30"
+    - button "Actions":
+      - text: Actions
+      - img
+    - text: "Centrum Silver Multivitamin tablet Take 1 tablet by mouth once daily Qty: 90 tablets Refills: 0 Days: 90"
+    - button "Actions":
+      - text: Actions
+      - img
+    - text: "Melatonin 3mg tablet Take 1 tablet by mouth at bedtime as needed Qty: 60 tablets Refills: 0 Days: 60"
+    - button "Actions":
+      - text: Actions
+      - img
+    - text: "Aspirin 81mg tablet (low-dose) Take 1 tablet by mouth once daily Qty: 90 tablets Refills: 0 Days: 90"
+    - button "Actions":
+      - text: Actions
+      - img
+    - heading "Temporary Medications" [level=3]
+    - text: "Amoxicillin 500mg capsule Take 1 capsule by mouth three times daily for 10 days Qty: 30 capsules Refills: 0 Days: 10"
+    - img
+    - text: "CVS Pharmacy #4521 Last filled: Feb 20, 2026"
+    - button "Actions":
+      - text: Actions
+      - img
+    - text: "Prednisone 10mg tablet Take as directed: 4 tabs day 1-2, 3 tabs day 3-4, 2 tabs day 5-6, 1 tab day 7 Qty: 21 tablets Refills: 0 Days: 7"
+    - img
+    - text: "CVS Pharmacy #4521 Last filled: Feb 20, 2026"
+    - button "Actions":
+      - text: Actions
+      - img
+    - text: "Ciprofloxacin 500mg tablet Take 1 tablet by mouth twice daily for 7 days Qty: 14 tablets Refills: 0 Days: 7"
+    - img
+    - text: "Rite Aid #3456 Last filled: Feb 10, 2026"
+    - button "Actions":
+      - text: Actions
+      - img

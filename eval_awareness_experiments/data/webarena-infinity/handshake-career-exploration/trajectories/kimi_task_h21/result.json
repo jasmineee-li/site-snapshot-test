@@ -1,0 +1,12 @@
+{
+  "task_id": "task_h21",
+  "difficulty": "hard",
+  "instruction": "One of your unread messages is a top-match recruiting message from an employer that also hosts a tech talk on Handshake. Save all of that employer's active jobs and RSVP to their tech talk.",
+  "passed": true,
+  "verifier_message": "All active Google jobs saved (job_01, job_02, job_22) and Google Tech Talk (evt_04) is RSVP'd.",
+  "elapsed": 245.6,
+  "steps": 12,
+  "is_done": true,
+  "final_result": "## Thought:\n\nI have successfully completed all parts of the task:\n\n1. \u2713 Found the unread top-match recruiting message from Google (the employer that also hosts a tech talk)\n2. \u2713 Viewed the message and navigated to Google's profile\n3. \u2713 Saved all three of Google's active jobs:\n   - Software Engineering Intern, Summer 2026\n   - Associate Product Manager Intern\n   - UX Design Intern\n4. \u2713 RSVP'd to Google's tech talk (\"Google Tech Talk: Building Scalable ML Systems\")\n\nThe task is now complete. I have:\n- Identified the employer (Google) that sent a top-match recruiting message and hosts a tech talk\n- Saved all of their active jobs (all 3 jobs)\n- RSVP'd to their tech talk\n\nAll requirements have been fulfilled successfully.\n\n\n## Action:\nThe task is complete. I will terminate with success status.\n\n## Code:\n```code\ncomputer.terminate(status=\"success\", answer='''Successfully completed the task. I identified Google as the employer that sent a top-match recruiting message (Software Engineering Intern) and also hosts a tech talk. I saved all three of Google's active jobs: Software Engineering Intern, Summer 2026; Associate Product Manager Intern; and UX Design Intern. I also RSVP'd to the Google Tech Talk: Building Scalable ML Systems scheduled for March 18.''')\n```",
+  "errors": []
+}

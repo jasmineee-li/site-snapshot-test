@@ -1,0 +1,514 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Contacts - Accounts &amp; Contacts</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&amp;family=Roboto:wght@300;400;500;700&amp;display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app"><div class="topbar"><div class="topbar-left">
+            <button class="icon-btn" data-action="toggle-sidebar" title="Menu">
+                <span class="material-icons">menu</span>
+            </button>
+            <div class="topbar-brand">
+                <span class="material-icons topbar-logo-icon" style="color:#4285F4;">contacts</span>
+                <span class="topbar-app-name">Contacts</span>
+            </div>
+        </div><div class="topbar-center"><div class="search-bar" id="global-search">
+            <span class="material-icons search-icon">search</span>
+            <input type="text" class="search-input" id="global-search-input" value="" placeholder="Search contacts">
+            
+        </div></div><div class="topbar-right">
+            <button class="icon-btn" data-action="open-help" title="Help">
+                <span class="material-icons">help_outline</span>
+            </button>
+            <button class="icon-btn" data-action="open-settings-menu" title="Settings">
+                <span class="material-icons">settings</span>
+            </button>
+            <div class="topbar-profile" data-action="toggle-profile-menu">
+                <div class="avatar" style="width:32px;height:32px;background:#1a73e8;font-size:13px;line-height:32px;">AJ</div>
+            </div>
+        </div></div><div class="app-layout "><div class="sidebar"><div class="sidebar-header">
+            <div class="sidebar-logo">
+                <span class="material-icons" style="color:#4285F4;font-size:28px;">contacts</span>
+                <span class="sidebar-title">Contacts</span>
+            </div>
+        </div><div class="sidebar-action">
+            <button class="btn btn-primary btn-create" data-action="open-create-contact">
+                <span class="material-icons btn-icon">add</span> Create contact
+            </button>
+        </div><nav class="sidebar-nav"><div class="nav-item" data-action="navigate" data-view="contacts" data-filter="all">
+            <span class="material-icons nav-icon">people</span>
+            <span class="nav-label">Contacts</span>
+            <span class="nav-count">40</span>
+        </div><div class="nav-item" data-action="navigate" data-view="contacts" data-filter="frequently">
+            <span class="material-icons nav-icon">history</span>
+            <span class="nav-label">Frequently contacted</span>
+            
+        </div><div class="nav-item" data-action="navigate" data-view="contacts" data-filter="starred">
+            <span class="material-icons nav-icon">star</span>
+            <span class="nav-label">Starred</span>
+            <span class="nav-count">10</span>
+        </div><div class="nav-item nav-active" data-action="navigate" data-view="other-contacts" data-filter="other">
+            <span class="material-icons nav-icon">person_outline</span>
+            <span class="nav-label">Other contacts</span>
+            <span class="nav-count">20</span>
+        </div><div class="nav-item" data-action="navigate" data-view="merge-suggestions" data-filter="merge">
+            <span class="material-icons nav-icon">merge_type</span>
+            <span class="nav-label">Merge &amp; fix</span>
+            <span class="nav-count">2</span>
+        </div></nav><div class="sidebar-section"><div class="sidebar-section-header">
+            <span class="sidebar-section-title">Labels</span>
+            <button class="icon-btn icon-btn-sm" data-action="open-create-label" title="Create label">
+                <span class="material-icons">add</span>
+            </button>
+        </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_1">
+                <span class="label-dot" style="background:#EA4335"></span>
+                <span class="nav-label">Family</span>
+                <span class="nav-count">4</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_1" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_2">
+                <span class="label-dot" style="background:#34A853"></span>
+                <span class="nav-label">Friends</span>
+                <span class="nav-count">7</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_2" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_3">
+                <span class="label-dot" style="background:#4285F4"></span>
+                <span class="nav-label">Work</span>
+                <span class="nav-count">19</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_3" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_4">
+                <span class="label-dot" style="background:#FBBC04"></span>
+                <span class="nav-label">VIP Clients</span>
+                <span class="nav-count">4</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_4" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_5">
+                <span class="label-dot" style="background:#FF6D01"></span>
+                <span class="nav-label">Gym Buddies</span>
+                <span class="nav-count">5</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_5" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_6">
+                <span class="label-dot" style="background:#9C27B0"></span>
+                <span class="nav-label">College Alumni</span>
+                <span class="nav-count">4</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_6" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_7">
+                <span class="label-dot" style="background:#009688"></span>
+                <span class="nav-label">Neighbors</span>
+                <span class="nav-count">3</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_7" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_8">
+                <span class="label-dot" style="background:#795548"></span>
+                <span class="nav-label">Book Club</span>
+                <span class="nav-count">2</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_8" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_9">
+                <span class="label-dot" style="background:#607D8B"></span>
+                <span class="nav-label">Vendors</span>
+                <span class="nav-count">5</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_9" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_10">
+                <span class="label-dot" style="background:#F44336"></span>
+                <span class="nav-label">Emergency</span>
+                <span class="nav-count">4</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_10" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_11">
+                <span class="label-dot" style="background:#00BCD4"></span>
+                <span class="nav-label">Travel Contacts</span>
+                <span class="nav-count">3</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_11" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_12">
+                <span class="label-dot" style="background:#E91E63"></span>
+                <span class="nav-label">Healthcare</span>
+                <span class="nav-count">4</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_12" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div></div><nav class="sidebar-nav sidebar-nav-bottom"><div class="nav-item" data-action="navigate" data-view="import-export">
+            <span class="material-icons nav-icon">import_export</span>
+            <span class="nav-label">Import &amp; Export</span>
+        </div><div class="nav-item" data-action="navigate" data-view="delegates">
+            <span class="material-icons nav-icon">supervisor_account</span>
+            <span class="nav-label">Delegates</span>
+        </div><div class="nav-item" data-action="navigate" data-view="linked-services">
+            <span class="material-icons nav-icon">link</span>
+            <span class="nav-label">Linked Services</span>
+        </div><div class="nav-item" data-action="navigate" data-view="settings">
+            <span class="material-icons nav-icon">settings</span>
+            <span class="nav-label">Settings</span>
+        </div></nav></div><div class="main-area"><div class="main-content"><div class="content-header">
+            <h1 class="content-title">Other contacts</h1>
+            <span class="content-count">20 contacts</span>
+        </div><p class="content-description">Contacts auto-saved from people you've emailed. You can add them to your contacts or delete them.</p><div class="other-contacts-list"><div class="contact-card other-contact-card" data-other-id="other_09">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">UR</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">Uber Receipts</div>
+                <div class="contact-card-email">receipts@uber.com</div>
+                <div class="contact-card-meta">31 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_09" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_09" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_07">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">G</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">GitHub</div>
+                <div class="contact-card-email">noreply@github.com</div>
+                <div class="contact-card-meta">45 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_07" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_07" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_01">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">VS</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">Vercel Support</div>
+                <div class="contact-card-email">support@vercel.com</div>
+                <div class="contact-card-meta">8 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_01" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_01" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_05">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">SN</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">Stripe Notifications</div>
+                <div class="contact-card-email">no-reply@stripe.com</div>
+                <div class="contact-card-meta">22 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_05" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_05" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_17">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">HN</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">Hacker News Newsletter</div>
+                <div class="contact-card-email">newsletter@hackernews.com</div>
+                <div class="contact-card-meta">40 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_17" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_17" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_02">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">AB</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">AWS Billing</div>
+                <div class="contact-card-email">billing@aws.amazon.com</div>
+                <div class="contact-card-meta">15 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_02" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_02" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_15">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">JN</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">Jira Notifications</div>
+                <div class="contact-card-email">notifications@jira.atlassian.com</div>
+                <div class="contact-card-meta">55 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_15" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_15" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_19">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">D</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">DocuSign</div>
+                <div class="contact-card-email">no-reply@docusign.net</div>
+                <div class="contact-card-meta">9 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_19" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_19" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_12">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">Z</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">Zoom</div>
+                <div class="contact-card-email">do-not-reply@zoom.us</div>
+                <div class="contact-card-meta">19 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_12" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_12" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_14">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">DA</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">Datadog Alerts</div>
+                <div class="contact-card-email">alerts@datadog.com</div>
+                <div class="contact-card-meta">28 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_14" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_14" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_04">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">JB</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">Jason Blake</div>
+                <div class="contact-card-email">jason.blake@salesforce.com</div>
+                <div class="contact-card-meta">3 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_04" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_04" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_11">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">MS</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">Mike Santos</div>
+                <div class="contact-card-email">mike.santos@cloudflare.com</div>
+                <div class="contact-card-meta">5 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_11" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_11" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_08">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">AR</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">Alex Rivera</div>
+                <div class="contact-card-email">alex.rivera@notion.so</div>
+                <div class="contact-card-meta">6 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_08" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_08" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_03">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">TH</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">TechCorp HR</div>
+                <div class="contact-card-email">hr@techcorp.io</div>
+                <div class="contact-card-meta">4 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_03" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_03" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_06">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">TM</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">Tina Marshall</div>
+                <div class="contact-card-email">tina.marshall@designhub.com</div>
+                <div class="contact-card-meta">2 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_06" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_06" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_10">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">L</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">Linear</div>
+                <div class="contact-card-email">team@linear.app</div>
+                <div class="contact-card-meta">12 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_10" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_10" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_13">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">WC</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">Wendy Chung</div>
+                <div class="contact-card-email">wendy.chung@techcorp.io</div>
+                <div class="contact-card-meta">7 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_13" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_13" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_16">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">CB</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">Chloe Bennett</div>
+                <div class="contact-card-email">chloe.b@sequoiacap.com</div>
+                <div class="contact-card-meta">1 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_16" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_16" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_18">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">PG</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">Peter Grant</div>
+                <div class="contact-card-email">peter.grant@mongodb.com</div>
+                <div class="contact-card-meta">3 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_18" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_18" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div><div class="contact-card other-contact-card" data-other-id="other_20">
+            <div class="contact-card-avatar">
+                <div class="avatar" style="width:36px;height:36px;background:#9E9E9E;font-size:14px;line-height:36px;">NK</div>
+            </div>
+            <div class="contact-card-info">
+                <div class="contact-card-name">Nina Kovalenko</div>
+                <div class="contact-card-email">nina.k@figma.com</div>
+                <div class="contact-card-meta">4 interactions</div>
+            </div>
+            <div class="contact-card-actions">
+                <button class="icon-btn" data-action="move-to-contacts" data-other-id="other_20" title="Add to contacts">
+                    <span class="material-icons">person_add</span>
+                </button>
+                <button class="icon-btn" data-action="delete-other-contact" data-other-id="other_20" title="Delete">
+                    <span class="material-icons">delete</span>
+                </button>
+            </div>
+        </div></div></div></div></div></div>
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

@@ -1,0 +1,362 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayPal - My Wallet</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Mobile Header -->
+        <div class="mobile-header">
+            <span class="material-icons" data-action="toggle-sidebar">menu</span>
+            <span class="sidebar-logo">PayPal Wallet</span>
+        </div>
+
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <span class="material-icons">account_balance_wallet</span>
+                    PayPal
+                </div>
+            </div>
+
+            <div class="sidebar-user">
+                <div class="user-avatar" id="user-avatar">JM</div>
+                <div class="user-info">
+                    <div class="user-name" id="user-name">Jordan Mitchell</div>
+                    <div class="user-email" id="user-email">jordan.mitchell@outlook.com</div>
+                </div>
+            </div>
+
+            <div class="sidebar-nav">
+                <div class="nav-section">Overview</div>
+                <button class="nav-item" data-view="overview" data-action="navigate">
+                    <span class="material-icons">dashboard</span>
+                    My Wallet
+                </button>
+                <button class="nav-item" data-view="transactions" data-action="navigate">
+                    <span class="material-icons">receipt_long</span>
+                    Transactions
+                </button>
+
+                <div class="nav-section">Payment Methods</div>
+                <button class="nav-item" data-view="cards" data-action="navigate">
+                    <span class="material-icons">credit_card</span>
+                    Cards
+                </button>
+                <button class="nav-item" data-view="banks" data-action="navigate">
+                    <span class="material-icons">account_balance</span>
+                    Bank Accounts
+                </button>
+                <button class="nav-item" data-view="debit-card" data-action="navigate">
+                    <span class="material-icons">payment</span>
+                    PayPal Debit Card
+                </button>
+
+                <div class="nav-section">Money</div>
+                <button class="nav-item" data-view="balance" data-action="navigate">
+                    <span class="material-icons">account_balance_wallet</span>
+                    Balance
+                </button>
+                <button class="nav-item" data-view="savings" data-action="navigate">
+                    <span class="material-icons">savings</span>
+                    Savings
+                </button>
+                <button class="nav-item" data-view="crypto" data-action="navigate">
+                    <span class="material-icons">currency_bitcoin</span>
+                    Cryptocurrency
+                </button>
+
+                <div class="nav-section">Credit &amp; Pay Later</div>
+                <button class="nav-item" data-view="credit" data-action="navigate">
+                    <span class="material-icons">credit_score</span>
+                    PayPal Credit
+                </button>
+                <button class="nav-item" data-view="pay-later" data-action="navigate">
+                    <span class="material-icons">calendar_today</span>
+                    Pay in 4
+                </button>
+
+                <div class="nav-section">Rewards &amp; More</div>
+                <button class="nav-item" data-view="rewards" data-action="navigate">
+                    <span class="material-icons">star</span>
+                    Rewards
+                </button>
+                <button class="nav-item" data-view="offers" data-action="navigate">
+                    <span class="material-icons">local_offer</span>
+                    Offers
+                </button>
+                <button class="nav-item" data-view="gift-cards" data-action="navigate">
+                    <span class="material-icons">card_giftcard</span>
+                    Gift Cards
+                </button>
+
+                <div class="nav-section">Settings</div>
+                <button class="nav-item active" data-view="preferences" data-action="navigate">
+                    <span class="material-icons">settings</span>
+                    Preferences
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content" id="app-content">
+            <div class="page-header">
+                <h1>Payment Preferences</h1>
+            </div>
+
+            
+            <div class="section-header">
+                <h3>Default Payment Methods</h3>
+                
+            </div>
+        
+            <div class="settings-card">
+                <div class="form-group">
+                    <label class="form-label">Preferred Payment Method</label>
+                    
+            <div class="custom-dropdown " id="preferred-payment-dropdown" data-dropdown="preferred-payment-dropdown">
+                <div class="dropdown-trigger" data-action="toggle-dropdown" data-dropdown-id="preferred-payment-dropdown">
+                    <span class="dropdown-value">Visa ****4829 (credit)</span>
+                    <span class="dropdown-arrow material-icons">expand_more</span>
+                </div>
+                <div class="dropdown-menu" id="preferred-payment-dropdown-menu">
+                    
+                        <div class="dropdown-item selected" data-action="select-dropdown-item" data-dropdown-id="preferred-payment-dropdown" data-value="card_001">
+                            Visa ****4829 (credit)
+                        </div>
+                    
+                        <div class="dropdown-item " data-action="select-dropdown-item" data-dropdown-id="preferred-payment-dropdown" data-value="card_002">
+                            Mastercard ****7156 (debit)
+                        </div>
+                    
+                        <div class="dropdown-item " data-action="select-dropdown-item" data-dropdown-id="preferred-payment-dropdown" data-value="card_003">
+                            American Express ****3001 (credit)
+                        </div>
+                    
+                        <div class="dropdown-item " data-action="select-dropdown-item" data-dropdown-id="preferred-payment-dropdown" data-value="card_006">
+                            Mastercard ****2290 (credit)
+                        </div>
+                    
+                        <div class="dropdown-item " data-action="select-dropdown-item" data-dropdown-id="preferred-payment-dropdown" data-value="bank_001">
+                            Chase ****6742 (checking)
+                        </div>
+                    
+                        <div class="dropdown-item " data-action="select-dropdown-item" data-dropdown-id="preferred-payment-dropdown" data-value="bank_002">
+                            Bank of America ****3891 (savings)
+                        </div>
+                    
+                        <div class="dropdown-item " data-action="select-dropdown-item" data-dropdown-id="preferred-payment-dropdown" data-value="bank_004">
+                            Citibank ****1104 (checking)
+                        </div>
+                    
+                        <div class="dropdown-item " data-action="select-dropdown-item" data-dropdown-id="preferred-payment-dropdown" data-value="bank_005">
+                            US Bank ****7823 (savings)
+                        </div>
+                    
+                </div>
+            </div>
+        
+                </div>
+                <div class="divider"></div>
+                <div class="form-group">
+                    <label class="form-label">Backup Payment Method</label>
+                    
+            <div class="custom-dropdown " id="backup-payment-dropdown" data-dropdown="backup-payment-dropdown">
+                <div class="dropdown-trigger" data-action="toggle-dropdown" data-dropdown-id="backup-payment-dropdown">
+                    <span class="dropdown-value">Chase ****6742 (checking)</span>
+                    <span class="dropdown-arrow material-icons">expand_more</span>
+                </div>
+                <div class="dropdown-menu" id="backup-payment-dropdown-menu">
+                    
+                        <div class="dropdown-item " data-action="select-dropdown-item" data-dropdown-id="backup-payment-dropdown" data-value="card_001">
+                            Visa ****4829 (credit)
+                        </div>
+                    
+                        <div class="dropdown-item " data-action="select-dropdown-item" data-dropdown-id="backup-payment-dropdown" data-value="card_002">
+                            Mastercard ****7156 (debit)
+                        </div>
+                    
+                        <div class="dropdown-item " data-action="select-dropdown-item" data-dropdown-id="backup-payment-dropdown" data-value="card_003">
+                            American Express ****3001 (credit)
+                        </div>
+                    
+                        <div class="dropdown-item " data-action="select-dropdown-item" data-dropdown-id="backup-payment-dropdown" data-value="card_006">
+                            Mastercard ****2290 (credit)
+                        </div>
+                    
+                        <div class="dropdown-item selected" data-action="select-dropdown-item" data-dropdown-id="backup-payment-dropdown" data-value="bank_001">
+                            Chase ****6742 (checking)
+                        </div>
+                    
+                        <div class="dropdown-item " data-action="select-dropdown-item" data-dropdown-id="backup-payment-dropdown" data-value="bank_002">
+                            Bank of America ****3891 (savings)
+                        </div>
+                    
+                        <div class="dropdown-item " data-action="select-dropdown-item" data-dropdown-id="backup-payment-dropdown" data-value="bank_004">
+                            Citibank ****1104 (checking)
+                        </div>
+                    
+                        <div class="dropdown-item " data-action="select-dropdown-item" data-dropdown-id="backup-payment-dropdown" data-value="bank_005">
+                            US Bank ****7823 (savings)
+                        </div>
+                    
+                </div>
+            </div>
+        
+                </div>
+            </div>
+
+            
+            <div class="section-header">
+                <h3>Currency Conversion</h3>
+                
+            </div>
+        
+            <div class="settings-card">
+                <div class="radio-group">
+                    <label class="radio-option selected">
+                        <input type="radio" name="currency-conversion" value="paypal" checked="" data-action="set-currency-conversion">
+                        <div>
+                            <strong>Convert with PayPal</strong>
+                            <p>PayPal will handle the currency conversion at the time of purchase</p>
+                        </div>
+                    </label>
+                    <label class="radio-option ">
+                        <input type="radio" name="currency-conversion" value="card_issuer" data-action="set-currency-conversion">
+                        <div>
+                            <strong>Convert with Card Issuer</strong>
+                            <p>Your card issuer will handle the currency conversion</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            
+            <div class="section-header">
+                <h3>Transfer Preferences</h3>
+                
+            </div>
+        
+            <div class="settings-card">
+                
+            <div class="toggle-row">
+                <label class="toggle-label" for="instant-transfer-toggle">Prefer Instant Transfer</label>
+                <div class="toggle-switch on" id="instant-transfer-toggle" data-action="toggle-switch" data-toggle-name="instant-transfer">
+                    <div class="toggle-track">
+                        <div class="toggle-thumb"></div>
+                    </div>
+                </div>
+            </div>
+        
+                <div class="divider"></div>
+                
+            <div class="toggle-row">
+                <label class="toggle-label" for="auto-accept-toggle">Auto-accept Payments</label>
+                <div class="toggle-switch on" id="auto-accept-toggle" data-action="toggle-switch" data-toggle-name="auto-accept">
+                    <div class="toggle-track">
+                        <div class="toggle-thumb"></div>
+                    </div>
+                </div>
+            </div>
+        
+            </div>
+
+            
+            <div class="section-header">
+                <h3>Email Notifications</h3>
+                
+            </div>
+        
+            <div class="settings-card">
+                
+            <div class="toggle-row">
+                <label class="toggle-label" for="notif-payments">Payment Notifications</label>
+                <div class="toggle-switch on" id="notif-payments" data-action="toggle-switch" data-toggle-name="emailNotifications.payments">
+                    <div class="toggle-track">
+                        <div class="toggle-thumb"></div>
+                    </div>
+                </div>
+            </div>
+        
+                <div class="divider"></div>
+                
+            <div class="toggle-row">
+                <label class="toggle-label" for="notif-transfers">Transfer Notifications</label>
+                <div class="toggle-switch on" id="notif-transfers" data-action="toggle-switch" data-toggle-name="emailNotifications.transfers">
+                    <div class="toggle-track">
+                        <div class="toggle-thumb"></div>
+                    </div>
+                </div>
+            </div>
+        
+                <div class="divider"></div>
+                
+            <div class="toggle-row">
+                <label class="toggle-label" for="notif-security">Security Alerts</label>
+                <div class="toggle-switch on" id="notif-security" data-action="toggle-switch" data-toggle-name="emailNotifications.securityAlerts">
+                    <div class="toggle-track">
+                        <div class="toggle-thumb"></div>
+                    </div>
+                </div>
+            </div>
+        
+                <div class="divider"></div>
+                
+            <div class="toggle-row">
+                <label class="toggle-label" for="notif-promotions">Promotional Emails</label>
+                <div class="toggle-switch " id="notif-promotions" data-action="toggle-switch" data-toggle-name="emailNotifications.promotions">
+                    <div class="toggle-track">
+                        <div class="toggle-thumb"></div>
+                    </div>
+                </div>
+            </div>
+        
+                <div class="divider"></div>
+                
+            <div class="toggle-row">
+                <label class="toggle-label" for="notif-crypto">Crypto Alerts</label>
+                <div class="toggle-switch on" id="notif-crypto" data-action="toggle-switch" data-toggle-name="emailNotifications.cryptoAlerts">
+                    <div class="toggle-track">
+                        <div class="toggle-thumb"></div>
+                    </div>
+                </div>
+            </div>
+        
+                <div class="divider"></div>
+                
+            <div class="toggle-row">
+                <label class="toggle-label" for="notif-rewards">Rewards Updates</label>
+                <div class="toggle-switch on" id="notif-rewards" data-action="toggle-switch" data-toggle-name="emailNotifications.rewardsUpdates">
+                    <div class="toggle-track">
+                        <div class="toggle-thumb"></div>
+                    </div>
+                </div>
+            </div>
+        
+                <div class="divider"></div>
+                
+            <div class="toggle-row">
+                <label class="toggle-label" for="notif-weekly">Weekly Digest</label>
+                <div class="toggle-switch on" id="notif-weekly" data-action="toggle-switch" data-toggle-name="emailNotifications.weeklyDigest">
+                    <div class="toggle-track">
+                        <div class="toggle-thumb"></div>
+                    </div>
+                </div>
+            </div>
+        
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts (order matters: data → state → components → views → app) -->
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

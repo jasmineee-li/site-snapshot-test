@@ -1,0 +1,434 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Superhuman Mail</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="">
+    <!-- Top Bar -->
+    <header class="top-bar" id="topBar">
+        <div class="top-bar-left">
+            <div class="logo" data-testid="superhuman-logo">
+                <span class="logo-icon">⚡</span>
+                <span class="logo-text">Superhuman</span>
+            </div>
+        </div>
+        <div class="top-bar-center">
+            <div class="search-bar" id="searchBar" data-testid="search-bar">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" class="search-input" placeholder="Search emails... (use from:, to:, subject:, has:attachment)" data-testid="search-input" autocomplete="off" style="">
+            </div>
+        </div>
+        <div class="top-bar-right">
+            <button class="top-btn" data-action="toggle-calendar" data-testid="calendar-toggle-btn" title="Calendar (0)">📅</button>
+            <button class="top-btn" data-action="show-week-view" data-testid="week-view-btn" title="Week View (2)">📆</button>
+            <button class="top-btn" data-action="open-command-palette" data-testid="cmd-k-btn" title="Command Palette (Cmd+K)">⌘K</button>
+            <button class="top-btn" data-action="open-settings" data-testid="settings-btn" title="Settings">⚙</button>
+            <div class="user-avatar" id="userAvatar" data-testid="user-avatar" style="background: rgb(108, 79, 247);">
+                <span id="userInitials">AM</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar" data-testid="sidebar">
+        <div class="compose-btn-wrapper">
+            <button class="compose-btn" id="composeBtn" data-action="compose" data-testid="compose-btn">
+                <span class="compose-icon">✎</span>
+                <span>Compose</span>
+            </button>
+        </div>
+        <div class="sidebar-nav" id="sidebarNav"><div class="sidebar-folders">
+            <a class="sidebar-item" data-action="navigate" data-route="inbox" data-testid="sidebar-inbox">
+                <span class="sidebar-icon">✉</span>
+                <span class="sidebar-label">Inbox</span>
+                <span class="badge">10</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="starred" data-testid="sidebar-starred">
+                <span class="sidebar-icon">★</span>
+                <span class="sidebar-label">Starred</span>
+                
+            </a><a class="sidebar-item" data-action="navigate" data-route="done" data-testid="sidebar-done">
+                <span class="sidebar-icon">✓</span>
+                <span class="sidebar-label">Done</span>
+                
+            </a><a class="sidebar-item active" data-action="navigate" data-route="reminders" data-testid="sidebar-reminders">
+                <span class="sidebar-icon">⏰</span>
+                <span class="sidebar-label">Reminders</span>
+                <span class="badge">6</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="sent" data-testid="sidebar-sent">
+                <span class="sidebar-icon">➤</span>
+                <span class="sidebar-label">Sent</span>
+                
+            </a><a class="sidebar-item" data-action="navigate" data-route="drafts" data-testid="sidebar-drafts">
+                <span class="sidebar-icon">✎</span>
+                <span class="sidebar-label">Drafts</span>
+                <span class="badge">2</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="opens" data-testid="sidebar-opens">
+                <span class="sidebar-icon">👁</span>
+                <span class="sidebar-label">Recent Opens</span>
+                
+            </a><a class="sidebar-item" data-action="navigate" data-route="snippets" data-testid="sidebar-snippets">
+                <span class="sidebar-icon">📄</span>
+                <span class="sidebar-label">Snippets</span>
+                
+            </a><a class="sidebar-item" data-action="navigate" data-route="spam" data-testid="sidebar-spam">
+                <span class="sidebar-icon">⚠</span>
+                <span class="sidebar-label">Spam</span>
+                <span class="badge">3</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="trash" data-testid="sidebar-trash">
+                <span class="sidebar-icon">🗑</span>
+                <span class="sidebar-label">Trash</span>
+                
+            </a>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-section-header">
+                <span>Labels</span>
+                <button class="sidebar-add-btn" data-action="create-label" data-testid="create-label-btn" title="Create label">+</button>
+            </div>
+            <a class="sidebar-item" data-action="navigate" data-route="label/label_1" data-testid="sidebar-label-label_1">
+                <span class="label-dot" style="background:#6C4FF7"></span>
+                <span class="sidebar-label">Work</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_2" data-testid="sidebar-label-label_2">
+                <span class="label-dot" style="background:#34A853"></span>
+                <span class="sidebar-label">Personal</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_3" data-testid="sidebar-label-label_3">
+                <span class="label-dot" style="background:#FF9800"></span>
+                <span class="sidebar-label">Finance</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_4" data-testid="sidebar-label-label_4">
+                <span class="label-dot" style="background:#E54D89"></span>
+                <span class="sidebar-label">Clients</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_5" data-testid="sidebar-label-label_5">
+                <span class="label-dot" style="background:#F44336"></span>
+                <span class="sidebar-label">Urgent</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_6" data-testid="sidebar-label-label_6">
+                <span class="label-dot" style="background:#00BCD4"></span>
+                <span class="sidebar-label">Travel</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_7" data-testid="sidebar-label-label_7">
+                <span class="label-dot" style="background:#9C27B0"></span>
+                <span class="sidebar-label">Newsletters</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_8" data-testid="sidebar-label-label_8">
+                <span class="label-dot" style="background:#795548"></span>
+                <span class="sidebar-label">Recruiting</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_9" data-testid="sidebar-label-label_9">
+                <span class="label-dot" style="background:#607D8B"></span>
+                <span class="sidebar-label">Legal</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_10" data-testid="sidebar-label-label_10">
+                <span class="label-dot" style="background:#2196F3"></span>
+                <span class="sidebar-label">Product</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_11" data-testid="sidebar-label-label_11">
+                <span class="label-dot" style="background:#4CAF50"></span>
+                <span class="sidebar-label">Engineering</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_12" data-testid="sidebar-label-label_12">
+                <span class="label-dot" style="background:#E91E63"></span>
+                <span class="sidebar-label">Marketing</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_13" data-testid="sidebar-label-label_13">
+                <span class="label-dot" style="background:#CDDC39"></span>
+                <span class="sidebar-label">Receipts</span>
+            </a><a class="sidebar-item" data-action="navigate" data-route="label/label_14" data-testid="sidebar-label-label_14">
+                <span class="label-dot" style="background:#FF5722"></span>
+                <span class="sidebar-label">Events</span>
+            </a>
+        </div></div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent" data-testid="main-content">
+        <!-- Toolbar -->
+        <div class="toolbar" id="toolbar"><div class="toolbar-left"></div>
+                <div class="toolbar-right"><span class="toolbar-paging">1-6 of 6</span>
+                <button class="toolbar-btn toolbar-paging-btn" data-action="prev-page" disabled="" data-testid="prev-page">‹</button>
+                <button class="toolbar-btn toolbar-paging-btn" data-action="next-page" disabled="" data-testid="next-page">›</button></div></div>
+        <!-- Content area -->
+        <div class="content-wrapper" id="contentWrapper"><div class="email-list" data-testid="email-list">
+            <div class="email-item" data-email-id="112" data-testid="email-112">
+            <div class="email-checkbox" data-action="toggle-select" data-email-id="112" data-testid="email-checkbox-112">
+                <input type="checkbox" tabindex="-1">
+            </div>
+            <span class="unread-dot" style="background:#9B59B6"></span>
+            <div class="email-avatar" data-action="open-email" data-email-id="112">
+                <div class="avatar" style="width:36px;height:36px;background:#6C4FF7;font-size:14px" data-testid="avatar-Lena Johansson">LJ</div>
+            </div>
+            <div class="email-content" data-action="open-email" data-email-id="112">
+                <div class="email-header-row">
+                    <span class="email-sender">To: Lena Johansson</span>
+                    <span class="email-date">Mar 4</span>
+                </div>
+                <div class="email-subject-row">
+                    <span class="email-subject">Re: Nordic Ventures - Follow-up</span>
+                </div>
+                <div class="email-snippet-row">
+                    <span class="email-snippet">Lena, great meeting you too. Happy to schedule a call. Here's my availability next week...</span>
+                </div>
+                <div class="email-meta-row">
+                    
+                    
+                    <span class="read-receipt read-receipt-sent" title="Sent">✓</span>
+                    
+                </div>
+            </div>
+            <div class="email-actions">
+                <button class="email-action-btn" data-action="toggle-star" data-email-id="112" data-testid="star-112" title="Star"><span class="star-icon" title="Star">☆</span></button>
+                <button class="email-action-btn" data-action="mark-done-single" data-email-id="112" data-testid="done-112" title="Mark Done (E)">✓</button>
+                <button class="email-action-btn" data-action="remind-single" data-email-id="112" data-testid="remind-112" title="Remind Me (H)">⏰</button>
+            </div>
+        </div><div class="email-item" data-email-id="111" data-testid="email-111">
+            <div class="email-checkbox" data-action="toggle-select" data-email-id="111" data-testid="email-checkbox-111">
+                <input type="checkbox" tabindex="-1">
+            </div>
+            <span class="unread-dot" style="background:#9B59B6"></span>
+            <div class="email-avatar" data-action="open-email" data-email-id="111">
+                <div class="avatar" style="width:36px;height:36px;background:#6C4FF7;font-size:14px" data-testid="avatar-David Kim">DK</div>
+            </div>
+            <div class="email-content" data-action="open-email" data-email-id="111">
+                <div class="email-header-row">
+                    <span class="email-sender">To: David Kim</span>
+                    <span class="email-date">Mar 2</span>
+                </div>
+                <div class="email-subject-row">
+                    <span class="email-subject">Proposal: Enterprise Pricing Update</span>
+                </div>
+                <div class="email-snippet-row">
+                    <span class="email-snippet">Hi David, following up on our pricing discussion. Attached is the updated enterprise tier proposal.</span>
+                </div>
+                <div class="email-meta-row">
+                    
+                    <span class="attachment-icon" title="Has attachments">📎</span>
+                    <span class="read-receipt read-receipt-opened" title="Opened 7 time(s)">✓✓</span>
+                    
+                </div>
+            </div>
+            <div class="email-actions">
+                <button class="email-action-btn" data-action="toggle-star" data-email-id="111" data-testid="star-111" title="Star"><span class="star-icon" title="Star">☆</span></button>
+                <button class="email-action-btn" data-action="mark-done-single" data-email-id="111" data-testid="done-111" title="Mark Done (E)">✓</button>
+                <button class="email-action-btn" data-action="remind-single" data-email-id="111" data-testid="remind-111" title="Remind Me (H)">⏰</button>
+            </div>
+        </div><div class="email-item" data-email-id="64" data-testid="email-64">
+            <div class="email-checkbox" data-action="toggle-select" data-email-id="64" data-testid="email-checkbox-64">
+                <input type="checkbox" tabindex="-1">
+            </div>
+            <span class="unread-dot" style="background:#9B59B6"></span>
+            <div class="email-avatar" data-action="open-email" data-email-id="64">
+                <div class="avatar" style="width:36px;height:36px;background:#4285F4;font-size:14px" data-testid="avatar-James O'Brien">JO</div>
+            </div>
+            <div class="email-content" data-action="open-email" data-email-id="64">
+                <div class="email-header-row">
+                    <span class="email-sender">James O'Brien</span>
+                    <span class="email-date">Feb 20</span>
+                </div>
+                <div class="email-subject-row">
+                    <span class="email-subject">Patent Filing Deadline - April 15</span>
+                </div>
+                <div class="email-snippet-row">
+                    <span class="email-snippet">Reminder: The provisional patent for the AI workflow engine expires April 15. We need to file.</span>
+                </div>
+                <div class="email-meta-row">
+                    <span class="label-chip" style="background:#607D8B" data-testid="label-label_9">
+            Legal
+            
+        </span>
+                    
+                    
+                    
+                </div>
+            </div>
+            <div class="email-actions">
+                <button class="email-action-btn" data-action="toggle-star" data-email-id="64" data-testid="star-64" title="Star"><span class="star-icon" title="Star">☆</span></button>
+                <button class="email-action-btn" data-action="mark-done-single" data-email-id="64" data-testid="done-64" title="Mark Done (E)">✓</button>
+                <button class="email-action-btn" data-action="remind-single" data-email-id="64" data-testid="remind-64" title="Remind Me (H)">⏰</button>
+            </div>
+        </div><div class="email-item" data-email-id="65" data-testid="email-65">
+            <div class="email-checkbox" data-action="toggle-select" data-email-id="65" data-testid="email-checkbox-65">
+                <input type="checkbox" tabindex="-1">
+            </div>
+            <span class="unread-dot" style="background:#9B59B6"></span>
+            <div class="email-avatar" data-action="open-email" data-email-id="65">
+                <div class="avatar" style="width:36px;height:36px;background:#FF5722;font-size:14px" data-testid="avatar-David Kim">DK</div>
+            </div>
+            <div class="email-content" data-action="open-email" data-email-id="65">
+                <div class="email-header-row">
+                    <span class="email-sender">David Kim</span>
+                    <span class="email-date">Feb 18</span>
+                </div>
+                <div class="email-subject-row">
+                    <span class="email-subject">Re: Payment Terms Discussion</span>
+                </div>
+                <div class="email-snippet-row">
+                    <span class="email-snippet">Can we revisit the NET-60 terms? Our finance team prefers NET-30 for new partnerships.</span>
+                </div>
+                <div class="email-meta-row">
+                    <span class="label-chip" style="background:#FF9800" data-testid="label-label_3">
+            Finance
+            
+        </span><span class="label-chip" style="background:#E54D89" data-testid="label-label_4">
+            Clients
+            
+        </span>
+                    
+                    
+                    
+                </div>
+            </div>
+            <div class="email-actions">
+                <button class="email-action-btn" data-action="toggle-star" data-email-id="65" data-testid="star-65" title="Star"><span class="star-icon" title="Star">☆</span></button>
+                <button class="email-action-btn" data-action="mark-done-single" data-email-id="65" data-testid="done-65" title="Mark Done (E)">✓</button>
+                <button class="email-action-btn" data-action="remind-single" data-email-id="65" data-testid="remind-65" title="Remind Me (H)">⏰</button>
+            </div>
+        </div><div class="email-item" data-email-id="66" data-testid="email-66">
+            <div class="email-checkbox" data-action="toggle-select" data-email-id="66" data-testid="email-checkbox-66">
+                <input type="checkbox" tabindex="-1">
+            </div>
+            <span class="unread-dot" style="background:#9B59B6"></span>
+            <div class="email-avatar" data-action="open-email" data-email-id="66">
+                <div class="avatar" style="width:36px;height:36px;background:#BF360C;font-size:14px" data-testid="avatar-Aisha Mohammed">AM</div>
+            </div>
+            <div class="email-content" data-action="open-email" data-email-id="66">
+                <div class="email-header-row">
+                    <span class="email-sender">Aisha Mohammed</span>
+                    <span class="email-date">Feb 15</span>
+                </div>
+                <div class="email-subject-row">
+                    <span class="email-subject">EdTech Academy Partnership</span>
+                </div>
+                <div class="email-snippet-row">
+                    <span class="email-snippet">Would love to discuss an educational partnership. Our platform serves 50K+ students.</span>
+                </div>
+                <div class="email-meta-row">
+                    
+                    
+                    
+                    
+                </div>
+            </div>
+            <div class="email-actions">
+                <button class="email-action-btn" data-action="toggle-star" data-email-id="66" data-testid="star-66" title="Star"><span class="star-icon" title="Star">☆</span></button>
+                <button class="email-action-btn" data-action="mark-done-single" data-email-id="66" data-testid="done-66" title="Mark Done (E)">✓</button>
+                <button class="email-action-btn" data-action="remind-single" data-email-id="66" data-testid="remind-66" title="Remind Me (H)">⏰</button>
+            </div>
+        </div><div class="email-item" data-email-id="67" data-testid="email-67">
+            <div class="email-checkbox" data-action="toggle-select" data-email-id="67" data-testid="email-checkbox-67">
+                <input type="checkbox" tabindex="-1">
+            </div>
+            <span class="unread-dot" style="background:#9B59B6"></span>
+            <div class="email-avatar" data-action="open-email" data-email-id="67">
+                <div class="avatar" style="width:36px;height:36px;background:#AD1457;font-size:14px" data-testid="avatar-Yuki Tanaka">YT</div>
+            </div>
+            <div class="email-content" data-action="open-email" data-email-id="67">
+                <div class="email-header-row">
+                    <span class="email-sender">Yuki Tanaka</span>
+                    <span class="email-date">Feb 10</span>
+                </div>
+                <div class="email-subject-row">
+                    <span class="email-subject">TokyoTech Conference Invitation</span>
+                </div>
+                <div class="email-snippet-row">
+                    <span class="email-snippet">You're invited to speak at TokyoTech Summit in June. Topic: "Enterprise AI at Scale"</span>
+                </div>
+                <div class="email-meta-row">
+                    <span class="label-chip" style="background:#FF5722" data-testid="label-label_14">
+            Events
+            
+        </span><span class="label-chip" style="background:#00BCD4" data-testid="label-label_6">
+            Travel
+            
+        </span>
+                    
+                    
+                    
+                </div>
+            </div>
+            <div class="email-actions">
+                <button class="email-action-btn" data-action="toggle-star" data-email-id="67" data-testid="star-67" title="Star"><span class="star-icon" title="Star">☆</span></button>
+                <button class="email-action-btn" data-action="mark-done-single" data-email-id="67" data-testid="done-67" title="Mark Done (E)">✓</button>
+                <button class="email-action-btn" data-action="remind-single" data-email-id="67" data-testid="remind-67" title="Remind Me (H)">⏰</button>
+            </div>
+        </div>
+        </div></div>
+    </main>
+
+    <!-- Calendar Sidebar -->
+    <aside class="calendar-sidebar" id="calendarSidebar" style="display:none" data-testid="calendar-sidebar">
+        <!-- Populated by JS -->
+    </aside>
+
+    <!-- Compose Modal -->
+    <div class="compose-modal-overlay" id="composeModal" style="display:none">
+        <div class="compose-modal" data-testid="compose-modal">
+            <div class="compose-header">
+                <span class="compose-title" id="composeTitle">New Message</span>
+                <div class="compose-header-actions">
+                    <button class="compose-minimize" data-action="minimize-compose" aria-label="Minimize">–</button>
+                    <button class="compose-close" data-action="close-compose" aria-label="Close">×</button>
+                </div>
+            </div>
+            <div class="compose-fields">
+                <div class="compose-field">
+                    <label>To</label>
+                    <input type="text" id="composeTo" data-testid="compose-to" placeholder="Recipients" style="">
+                </div>
+                <div class="compose-field" id="composeCcField" style="display:none">
+                    <label>Cc</label>
+                    <input type="text" id="composeCc" data-testid="compose-cc" placeholder="" style="">
+                </div>
+                <div class="compose-field" id="composeBccField" style="display:none">
+                    <label>Bcc</label>
+                    <input type="text" id="composeBcc" data-testid="compose-bcc" placeholder="" style="">
+                </div>
+                <div class="compose-field-links">
+                    <a href="#" data-action="show-cc">Cc</a>
+                    <a href="#" data-action="show-bcc">Bcc</a>
+                    <a href="#" data-action="open-snippet-picker" data-testid="insert-snippet-btn" title="Insert Snippet (;)">📄 Snippet</a>
+                </div>
+                <div class="compose-field">
+                    <input type="text" id="composeSubject" data-testid="compose-subject" placeholder="Subject" style="">
+                </div>
+            </div>
+            <div class="compose-body">
+                <textarea id="composeBody" data-testid="compose-body" placeholder="Write your message..." style=""></textarea>
+            </div>
+            <div class="compose-footer">
+                <button class="btn btn-primary" data-action="send-email" data-testid="compose-send">Send</button>
+                <div class="compose-options">
+                    <button class="compose-option-btn" data-action="discard-draft" aria-label="Discard draft" data-testid="compose-discard">🗑</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Modal -->
+    <div class="modal-overlay" id="modalOverlay" style="display:none">
+        <div class="modal" id="modalContainer">
+            <div class="modal-header">
+                <h2 id="modalTitle"></h2>
+                <button class="modal-close" data-action="close-modal">×</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-footer" id="modalFooter"></div>
+        </div>
+    </div>
+
+    <!-- Settings Panel -->
+    <div class="settings-panel" id="settingsPanel" style="display:none" data-testid="settings-panel">
+        <!-- Populated by JS -->
+    </div>
+
+    <!-- Command Palette -->
+    <div id="commandPaletteContainer" style="display:none"></div>
+
+    <!-- Pickers -->
+    <div id="reminderPickerContainer" style="display:none"></div>
+    <div id="labelPickerContainer" style="display:none"></div>
+    <div id="movePickerContainer" style="display:none"></div>
+    <div id="snippetPickerContainer" style="display:none"></div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

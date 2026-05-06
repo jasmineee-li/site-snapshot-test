@@ -4,9 +4,11 @@ Shared LLM utils.
 
 import base64
 import io
+import json
 import logging
 import mimetypes
 import os
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -17,6 +19,11 @@ from PIL import Image
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+# Retry configuration for API calls
+MAX_RETRIES = 3
+INITIAL_BACKOFF = 1.0  # seconds
+MAX_BACKOFF = 30.0  # seconds
 
 
 def get_openrouter_client() -> OpenAI:
@@ -208,7 +215,7 @@ class OpenRouterLLMClient:
             Full response object from OpenRouter
 
         Raises:
-            Exception: If API call fails
+            Exception: If API call fails after all retries
         """
         kwargs = {
             "model": self.model,
@@ -218,7 +225,41 @@ class OpenRouterLLMClient:
         if temperature is not None:
             kwargs["temperature"] = temperature
 
-        return self.client.chat.completions.create(**kwargs)
+        last_exception = None
+        backoff = INITIAL_BACKOFF
+
+        for attempt in range(MAX_RETRIES):
+            try:
+                return self.client.chat.completions.create(**kwargs)
+            except json.JSONDecodeError as e:
+                # API returned invalid JSON (truncated response, etc.)
+                last_exception = e
+                logger.warning(
+                    f"OpenRouter returned invalid JSON (attempt {attempt + 1}/{MAX_RETRIES}): {e}"
+                )
+            except Exception as e:
+                # Check if this is a retryable error (rate limit, server error, etc.)
+                error_str = str(e).lower()
+                is_retryable = any(
+                    x in error_str
+                    for x in ["rate limit", "timeout", "502", "503", "504", "connection"]
+                )
+                if not is_retryable:
+                    raise  # Non-retryable error, fail immediately
+
+                last_exception = e
+                logger.warning(
+                    f"OpenRouter API error (attempt {attempt + 1}/{MAX_RETRIES}): {e}"
+                )
+
+            # Wait before retrying with exponential backoff
+            if attempt < MAX_RETRIES - 1:
+                sleep_time = min(backoff * (2**attempt), MAX_BACKOFF)
+                logger.info(f"Retrying in {sleep_time:.1f}s...")
+                time.sleep(sleep_time)
+
+        # All retries exhausted
+        raise last_exception
 
     def chat_simple(
         self,
@@ -277,69 +318,101 @@ class OpenRouterLLMClient:
                     content.append(image_content)
                     logger.debug(f"Added image: {path}")
 
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": content}],
-                max_tokens=max_tokens,
-            )
+        last_exception = None
+        backoff = INITIAL_BACKOFF
 
-            return response.choices[0].message.content or ""
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": content}],
+                    max_tokens=max_tokens,
+                )
+                return response.choices[0].message.content or ""
 
-        except Exception as e:
-            # #region agent log
-            import json
-            import traceback
+            except json.JSONDecodeError as e:
+                # API returned invalid JSON (truncated response, etc.)
+                last_exception = e
+                logger.warning(
+                    f"OpenRouter returned invalid JSON (attempt {attempt + 1}/{MAX_RETRIES}): {e}"
+                )
 
-            error_type = type(e).__name__
-            error_msg = str(e)
-            error_traceback = traceback.format_exc()
+            except Exception as e:
+                # Check if this is a retryable error
+                error_str = str(e).lower()
+                is_retryable = any(
+                    x in error_str
+                    for x in ["rate limit", "timeout", "502", "503", "504", "connection", "json"]
+                )
 
-            # Try to extract raw response from exception chain
-            raw_response = None
-            response_content = None
-            response_status = None
+                if not is_retryable:
+                    # Log detailed error info for non-retryable errors
+                    self._log_api_error(e)
+                    raise
 
-            # Check exception and its causes for response object
-            exc = e
-            for _ in range(5):  # Check up to 5 levels deep
-                if hasattr(exc, "response"):
-                    raw_response = exc.response
-                    break
-                if hasattr(exc, "http_response"):
-                    raw_response = exc.http_response
-                    break
-                if hasattr(exc, "__cause__") and exc.__cause__:
-                    exc = exc.__cause__
-                else:
-                    break
+                last_exception = e
+                logger.warning(
+                    f"OpenRouter API error (attempt {attempt + 1}/{MAX_RETRIES}): {e}"
+                )
 
-            # Try to extract content from response
-            if raw_response:
-                if hasattr(raw_response, "status_code"):
-                    response_status = raw_response.status_code
-                if hasattr(raw_response, "content"):
+            # Wait before retrying with exponential backoff
+            if attempt < MAX_RETRIES - 1:
+                sleep_time = min(backoff * (2**attempt), MAX_BACKOFF)
+                logger.info(f"Retrying in {sleep_time:.1f}s...")
+                time.sleep(sleep_time)
+
+        # All retries exhausted - log detailed error info
+        if last_exception:
+            self._log_api_error(last_exception)
+        raise last_exception
+
+    def _log_api_error(self, e: Exception) -> None:
+        """Log detailed API error information for debugging."""
+        import traceback
+
+        # Try to extract raw response from exception chain
+        raw_response = None
+        response_content = None
+        response_status = None
+
+        exc = e
+        for _ in range(5):  # Check up to 5 levels deep
+            if hasattr(exc, "response"):
+                raw_response = exc.response
+                break
+            if hasattr(exc, "http_response"):
+                raw_response = exc.http_response
+                break
+            if hasattr(exc, "__cause__") and exc.__cause__:
+                exc = exc.__cause__
+            else:
+                break
+
+        # Try to extract content from response
+        if raw_response:
+            if hasattr(raw_response, "status_code"):
+                response_status = raw_response.status_code
+            if hasattr(raw_response, "content"):
+                try:
+                    response_content = raw_response.content.decode("utf-8", errors="replace")
+                except:
                     try:
-                        response_content = raw_response.content.decode("utf-8", errors="replace")
-                    except:
-                        try:
-                            response_content = str(raw_response.content)
-                        except:
-                            pass
-                elif hasattr(raw_response, "text"):
-                    response_content = raw_response.text
-                elif hasattr(raw_response, "read"):
-                    try:
-                        response_content = raw_response.read().decode("utf-8", errors="replace")
+                        response_content = str(raw_response.content)
                     except:
                         pass
+            elif hasattr(raw_response, "text"):
+                response_content = raw_response.text
+            elif hasattr(raw_response, "read"):
+                try:
+                    response_content = raw_response.read().decode("utf-8", errors="replace")
+                except:
+                    pass
 
-            logger.error(f"OpenRouter API call failed: {e}")
-            if response_content:
-                logger.error(
-                    f"Response status: {response_status}, Content preview (first 1000 chars):\n{response_content[:1000]}"
-                )
-            raise
+        logger.error(f"OpenRouter API call failed: {e}")
+        if response_content:
+            logger.error(
+                f"Response status: {response_status}, Content preview (first 1000 chars):\n{response_content[:1000]}"
+            )
 
 
 def strip_code_fences(text: str) -> str:

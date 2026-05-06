@@ -1,0 +1,224 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elation Clinical Records</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"><div class="sidebar-header">
+            <div class="app-logo">
+                <span class="logo-icon">☤</span>
+                <span class="logo-text">Elation</span>
+            </div>
+            <div class="provider-info">
+                <div class="provider-name">Dr. Sarah Chen</div>
+                <div class="provider-practice">Greenwood Family Medicine</div>
+            </div>
+        </div>
+        <nav class="sidebar-nav"><div class="nav-item" data-action="navigate" data-section="patients">
+                <span class="nav-icon">👤</span>
+                <span class="nav-label">Patients</span>
+            </div><div class="nav-item active" data-action="navigate" data-section="templates">
+                <span class="nav-icon">📄</span>
+                <span class="nav-label">Templates</span>
+            </div><div class="nav-item" data-action="navigate" data-section="categories">
+                <span class="nav-icon">📁</span>
+                <span class="nav-label">Categories</span>
+            </div><div class="nav-item" data-action="navigate" data-section="settings">
+                <span class="nav-icon">⚙</span>
+                <span class="nav-label">Settings</span>
+            </div></nav></aside>
+        <main class="main-content" id="main-content"><div class="content-panel">
+            <div class="section-header">
+            <div class="section-header-text">
+                <h2>Visit Note Templates</h2>
+                <p class="section-subtitle">10 templates</p>
+            </div>
+            <div class="section-header-actions"><button class="btn btn-primary" data-action="new-template">+ New Template</button></div>
+        </div>
+            <div class="template-grid"><div class="template-card">
+                <div class="template-header">
+                    <strong>E* Annual Wellness Visit</strong>
+                    <div class="template-actions-menu">
+                        <button class="btn btn-xs btn-ghost" data-action="edit-template" data-template-id="tmpl_001">Edit</button>
+                        <button class="btn btn-xs btn-ghost" data-action="duplicate-template" data-template-id="tmpl_001">Duplicate</button>
+                        <button class="btn btn-xs btn-danger" data-action="delete-template" data-template-id="tmpl_001">Delete</button>
+                    </div>
+                </div>
+                <div class="template-meta">
+                    <span>By Dr. Sarah Chen</span>
+                    <span>Jan 15, 2024</span>
+                </div>
+                <div class="template-detail"><label>Sections:</label> hpi, ros, pe</div>
+                <div class="template-detail"><label>Billing:</label> <span class="billing-code">99395</span></div>
+                
+                <div class="template-tags"><span class="doc-tag">Annual</span><span class="doc-tag">Preventive</span></div>
+            </div><div class="template-card">
+                <div class="template-header">
+                    <strong>E* Problem-Focused Visit</strong>
+                    <div class="template-actions-menu">
+                        <button class="btn btn-xs btn-ghost" data-action="edit-template" data-template-id="tmpl_002">Edit</button>
+                        <button class="btn btn-xs btn-ghost" data-action="duplicate-template" data-template-id="tmpl_002">Duplicate</button>
+                        <button class="btn btn-xs btn-danger" data-action="delete-template" data-template-id="tmpl_002">Delete</button>
+                    </div>
+                </div>
+                <div class="template-meta">
+                    <span>By Dr. Sarah Chen</span>
+                    <span>Jan 15, 2024</span>
+                </div>
+                <div class="template-detail"><label>Sections:</label> hpi, assessment</div>
+                <div class="template-detail"><label>Billing:</label> <span class="billing-code">99213</span></div>
+                
+                <div class="template-tags"><span class="doc-tag">Problem-Focused</span></div>
+            </div><div class="template-card">
+                <div class="template-header">
+                    <strong>Telehealth Follow-Up</strong>
+                    <div class="template-actions-menu">
+                        <button class="btn btn-xs btn-ghost" data-action="edit-template" data-template-id="tmpl_003">Edit</button>
+                        <button class="btn btn-xs btn-ghost" data-action="duplicate-template" data-template-id="tmpl_003">Duplicate</button>
+                        <button class="btn btn-xs btn-danger" data-action="delete-template" data-template-id="tmpl_003">Delete</button>
+                    </div>
+                </div>
+                <div class="template-meta">
+                    <span>By Dr. Sarah Chen</span>
+                    <span>Feb 20, 2024</span>
+                </div>
+                <div class="template-detail"><label>Sections:</label> hpi, assessment</div>
+                <div class="template-detail"><label>Billing:</label> <span class="billing-code">99214</span></div>
+                <div class="template-detail"><label>POS:</label> 02</div>
+                <div class="template-tags"><span class="doc-tag">Telehealth</span><span class="doc-tag">Follow-Up</span></div>
+            </div><div class="template-card">
+                <div class="template-header">
+                    <strong>Flu Shot Administration</strong>
+                    <div class="template-actions-menu">
+                        <button class="btn btn-xs btn-ghost" data-action="edit-template" data-template-id="tmpl_004">Edit</button>
+                        <button class="btn btn-xs btn-ghost" data-action="duplicate-template" data-template-id="tmpl_004">Duplicate</button>
+                        <button class="btn btn-xs btn-danger" data-action="delete-template" data-template-id="tmpl_004">Delete</button>
+                    </div>
+                </div>
+                <div class="template-meta">
+                    <span>By Maria Santos</span>
+                    <span>Mar 1, 2024</span>
+                </div>
+                <div class="template-detail"><label>Sections:</label> proceduresAdministered</div>
+                <div class="template-detail"><label>Billing:</label> <span class="billing-code">90686</span> <span class="billing-code">90471</span></div>
+                
+                <div class="template-tags"><span class="doc-tag">Vaccination</span><span class="doc-tag">Flu</span></div>
+            </div><div class="template-card">
+                <div class="template-header">
+                    <strong>COVID-19 Vaccine Visit</strong>
+                    <div class="template-actions-menu">
+                        <button class="btn btn-xs btn-ghost" data-action="edit-template" data-template-id="tmpl_005">Edit</button>
+                        <button class="btn btn-xs btn-ghost" data-action="duplicate-template" data-template-id="tmpl_005">Duplicate</button>
+                        <button class="btn btn-xs btn-danger" data-action="delete-template" data-template-id="tmpl_005">Delete</button>
+                    </div>
+                </div>
+                <div class="template-meta">
+                    <span>By Dr. Sarah Chen</span>
+                    <span>Mar 15, 2024</span>
+                </div>
+                <div class="template-detail"><label>Sections:</label> proceduresAdministered, assessment</div>
+                <div class="template-detail"><label>Billing:</label> <span class="billing-code">91301</span> <span class="billing-code">0003A</span></div>
+                
+                <div class="template-tags"><span class="doc-tag">COVID-19</span><span class="doc-tag">Vaccination</span></div>
+            </div><div class="template-card">
+                <div class="template-header">
+                    <strong>Diabetes Management</strong>
+                    <div class="template-actions-menu">
+                        <button class="btn btn-xs btn-ghost" data-action="edit-template" data-template-id="tmpl_006">Edit</button>
+                        <button class="btn btn-xs btn-ghost" data-action="duplicate-template" data-template-id="tmpl_006">Duplicate</button>
+                        <button class="btn btn-xs btn-danger" data-action="delete-template" data-template-id="tmpl_006">Delete</button>
+                    </div>
+                </div>
+                <div class="template-meta">
+                    <span>By Dr. Michael Torres</span>
+                    <span>Apr 10, 2024</span>
+                </div>
+                <div class="template-detail"><label>Sections:</label> hpi, ros, pe</div>
+                <div class="template-detail"><label>Billing:</label> <span class="billing-code">99214</span></div>
+                
+                <div class="template-tags"><span class="doc-tag">Diabetes</span><span class="doc-tag">Chronic-Care</span></div>
+            </div><div class="template-card">
+                <div class="template-header">
+                    <strong>Hypertension Follow-Up</strong>
+                    <div class="template-actions-menu">
+                        <button class="btn btn-xs btn-ghost" data-action="edit-template" data-template-id="tmpl_007">Edit</button>
+                        <button class="btn btn-xs btn-ghost" data-action="duplicate-template" data-template-id="tmpl_007">Duplicate</button>
+                        <button class="btn btn-xs btn-danger" data-action="delete-template" data-template-id="tmpl_007">Delete</button>
+                    </div>
+                </div>
+                <div class="template-meta">
+                    <span>By Dr. Michael Torres</span>
+                    <span>Apr 20, 2024</span>
+                </div>
+                <div class="template-detail"><label>Sections:</label> hpi, assessment</div>
+                <div class="template-detail"><label>Billing:</label> <span class="billing-code">99213</span></div>
+                
+                <div class="template-tags"><span class="doc-tag">Hypertension</span><span class="doc-tag">Chronic-Care</span></div>
+            </div><div class="template-card">
+                <div class="template-header">
+                    <strong>Well Child Visit (2-5 years)</strong>
+                    <div class="template-actions-menu">
+                        <button class="btn btn-xs btn-ghost" data-action="edit-template" data-template-id="tmpl_008">Edit</button>
+                        <button class="btn btn-xs btn-ghost" data-action="duplicate-template" data-template-id="tmpl_008">Duplicate</button>
+                        <button class="btn btn-xs btn-danger" data-action="delete-template" data-template-id="tmpl_008">Delete</button>
+                    </div>
+                </div>
+                <div class="template-meta">
+                    <span>By Dr. Aisha Patel</span>
+                    <span>May 5, 2024</span>
+                </div>
+                <div class="template-detail"><label>Sections:</label> hpi, ros, pe</div>
+                <div class="template-detail"><label>Billing:</label> <span class="billing-code">99392</span></div>
+                
+                <div class="template-tags"><span class="doc-tag">Pediatric</span><span class="doc-tag">Well-Child</span></div>
+            </div><div class="template-card">
+                <div class="template-header">
+                    <strong>Injectable Administration</strong>
+                    <div class="template-actions-menu">
+                        <button class="btn btn-xs btn-ghost" data-action="edit-template" data-template-id="tmpl_009">Edit</button>
+                        <button class="btn btn-xs btn-ghost" data-action="duplicate-template" data-template-id="tmpl_009">Duplicate</button>
+                        <button class="btn btn-xs btn-danger" data-action="delete-template" data-template-id="tmpl_009">Delete</button>
+                    </div>
+                </div>
+                <div class="template-meta">
+                    <span>By Maria Santos</span>
+                    <span>May 15, 2024</span>
+                </div>
+                <div class="template-detail"><label>Sections:</label> proceduresAdministered</div>
+                <div class="template-detail"><label>Billing:</label> <span class="billing-code">96372</span></div>
+                
+                <div class="template-tags"><span class="doc-tag">Injectable</span><span class="doc-tag">Procedure</span></div>
+            </div><div class="template-card">
+                <div class="template-header">
+                    <strong>Pre-Operative Evaluation</strong>
+                    <div class="template-actions-menu">
+                        <button class="btn btn-xs btn-ghost" data-action="edit-template" data-template-id="tmpl_010">Edit</button>
+                        <button class="btn btn-xs btn-ghost" data-action="duplicate-template" data-template-id="tmpl_010">Duplicate</button>
+                        <button class="btn btn-xs btn-danger" data-action="delete-template" data-template-id="tmpl_010">Delete</button>
+                    </div>
+                </div>
+                <div class="template-meta">
+                    <span>By Dr. Sarah Chen</span>
+                    <span>Jun 1, 2024</span>
+                </div>
+                <div class="template-detail"><label>Sections:</label> hpi, ros, pe, assessment</div>
+                <div class="template-detail"><label>Billing:</label> <span class="billing-code">99215</span></div>
+                
+                <div class="template-tags"><span class="doc-tag">Pre-Op</span><span class="doc-tag">Clearance</span></div>
+            </div></div>
+            
+        </div></main>
+    </div>
+    <div id="modal-container"></div>
+    <div id="toast-container"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

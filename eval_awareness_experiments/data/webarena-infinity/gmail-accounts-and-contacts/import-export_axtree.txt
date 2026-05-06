@@ -1,0 +1,54 @@
+- document:
+  - button "menu"
+  - text: contacts Contacts search
+  - textbox "Search contacts"
+  - button "help_outline"
+  - button "settings"
+  - text: AJ contacts Contacts
+  - button "add Create contact"
+  - navigation: people Contacts 40 history Frequently contacted star Starred 10 person_outline Other contacts 20 merge_type Merge & fix 2
+  - text: Labels
+  - button "add"
+  - text: Family 4
+  - button "edit"
+  - text: Friends 7
+  - button "edit"
+  - text: Work 19
+  - button "edit"
+  - text: VIP Clients 4
+  - button "edit"
+  - text: Gym Buddies 5
+  - button "edit"
+  - text: College Alumni 4
+  - button "edit"
+  - text: Neighbors 3
+  - button "edit"
+  - text: Book Club 2
+  - button "edit"
+  - text: Vendors 5
+  - button "edit"
+  - text: Emergency 4
+  - button "edit"
+  - text: Travel Contacts 3
+  - button "edit"
+  - text: Healthcare 4
+  - button "edit"
+  - navigation: import_export Import & Export supervisor_account Delegates link Linked Services settings Settings
+  - heading "Import & Export" [level=1]
+  - heading "Import contacts" [level=3]
+  - paragraph: Import contacts from a CSV or vCard file.
+  - text: cloud_upload
+  - paragraph: Click to select a file
+  - paragraph: "Supported formats: CSV, vCard (.vcf)"
+  - heading "Export contacts" [level=3]
+  - paragraph: Export your contacts to a file for backup or transfer.
+  - text: Google CSV expand_more
+  - radio "All contacts (40)" [checked]
+  - text: All contacts (40)
+  - radio "Starred contacts (10)"
+  - text: Starred contacts (10)
+  - radio "By label"
+  - text: By label
+  - button "download Export"
+  - heading "History" [level=3]
+  - text: cloud_download all_contacts.vcf Exported 35 contacts · Jan 5, 2026 · vCard completed cloud_download gmail_contacts_backup.csv Exported 28 contacts · Jun 15, 2025 · Google CSV completed cloud_upload iphone_contacts.vcf Imported 12 contacts · Aug 20, 2024 · vCard completed cloud_upload outlook_contacts.csv Imported 45 contacts · Jan 10, 2020 · CSV completed

@@ -1,0 +1,248 @@
+- document:
+  - dialog "Your Privacy Choices":
+    - img "header-logo"
+    - button "close banner"
+    - heading "Your Privacy Choices" [level=3]
+    - paragraph:
+      - text: We and our vendors use technology that collects data about your use of our site so we can improve and personalize our products and services, for analytics and marketing, and to fulfill your requests. We may also share this information with marketing vendors, social media companies, and analytics partners. By using our website, you acknowledge and agree to our Terms of Use. To learn more about our privacy practices review our
+      - link "Privacy Policy (opens in a new tab)":
+        - /url: https://joinhandshake.com/privacy-policy/
+        - text: Privacy Policy
+      - text: . Please review your choices.
+    - button "Accept All"
+    - button "Customize Settings"
+    - button "Reject All"
+  - link "Skip to content":
+    - /url: "#maincontent"
+  - navigation "Main":
+    - link "Go to Handshake homepage":
+      - /url: /
+      - img
+      - img
+    - list:
+      - listitem:
+        - button "Hire now"
+      - listitem:
+        - button "Find a job"
+      - listitem:
+        - button "Career centers"
+      - listitem:
+        - button "Handshake AI"
+      - listitem:
+        - link "Research":
+          - /url: /research/
+    - list:
+      - listitem:
+        - link "Log in":
+          - /url: https://app.joinhandshake.com/login
+      - listitem:
+        - link "Sign up":
+          - /url: https://app.joinhandshake.com/register
+  - main:
+    - paragraph: About us
+    - heading "The career network for the AI economy" [level=1]
+    - img "Handshake office"
+    - heading "Handshake is the best place to learn, earn, and grow your career." [level=2]
+    - paragraph: Handshake is the career network for the AI economy. As the only three-sided job marketplace connecting 20 million knowledge workers, 1,600+ educational institutions, and 1 million employers, Handshake powers career discovery, hiring, and upskilling—from first internships to full-time roles, freelance work to gig work, and beyond. The platform combines dynamic profiles, intelligent job matching, and interactive skill-building to connect talent with opportunity and help the workforce stay ahead in the AI economy.
+    - img
+    - heading "Letter from the CEO" [level=2]
+    - paragraph: In 2014, we founded Handshake to change how, where, and why the next generation of talent builds their career—starting from their first day of college. I believed then, as I do now, that talent is everywhere and shouldn’t be limited by who you know or where you go to school. That belief helped fix a broken and selective recruiting system.
+    - paragraph: "Today, we’re building something even bigger: the career network for the AI economy."
+    - paragraph: AI is reshaping all aspects of work and what careers look like. We’re connecting job seekers with work that matters now—the roles, industries, and skills needed in the new economy. And we’re building the matching engine and AI-powered tools to make Handshake the most effective, trusted place to discover, explore, and land jobs—whether it’s your first internship, next step, or big leap forward.
+    - paragraph: Handshake started by giving students a better way in.
+    - paragraph: Now, we’re helping all job seekers thrive in the AI economy.
+    - img
+    - paragraph: Garrett Lord CEO, Handshake
+    - heading "Leadership" [level=2]
+    - img "Sahil Bhaiwala"
+    - text: Sahil Bhaiwala Chief Strategy and Innovation Officer, Handshake AI
+    - img "Hans Bjornavold"
+    - text: Hans Bjornavold VP, Strategy & Operations
+    - img "Ben Christensen"
+    - text: Ben Christensen Co-Founder
+    - img "Christine Cruzvergara"
+    - text: Christine Cruzvergara Chief Education Strategy Officer
+    - img "Nolan Farris"
+    - text: Nolan Farris President, Field Operations
+    - img "Matt Greenberg"
+    - text: Matt Greenberg Chief Technical Officer
+    - img "Paco Guzmán"
+    - text: Paco Guzmán Head of AI Research, Handshake AI
+    - img "Jesse Hulsing"
+    - text: Jesse Hulsing Chief Financial Officer
+    - img "Jerry Lee"
+    - text: Jerry Lee VP, Education Partnerships
+    - img "Garrett Lord"
+    - text: Garrett Lord Co-Founder & CEO
+    - img "Dylan Lowrey"
+    - text: Dylan Lowrey General Counsel
+    - img "Diane Melchionne"
+    - text: Diane Melchionne VP, Customer Success
+    - img "Jordan Pedraza"
+    - text: Jordan Pedraza VP, Global Support
+    - img "Sharath Rao"
+    - text: Sharath Rao VP of Engineering, Data
+    - img "Camila Ribeiro"
+    - text: Camila Ribeiro VP of People
+    - img "Scott Ringwelski"
+    - text: Scott Ringwelski Co-Founder
+    - img "Vee Sahgal"
+    - text: Vee Sahgal VP, Consumer Product & HAI Network
+    - img "Jonathan Stull"
+    - text: Jonathan Stull President and Chief Operating Officer
+    - img "Chau Tong"
+    - text: Chau Tong VP, Revenue Operations & Enablement
+    - img "Mallory Wheaton"
+    - text: Mallory Wheaton VP, Enterprise Sales & Account Management
+    - img "Veronika Zatulovskaya"
+    - text: Veronika Zatulovskaya VP, Marketing
+    - img "Yang Zhao"
+    - text: Yang Zhao Chief Business Officer, Handshake AI
+    - heading "Board of Directors" [level=2]
+    - img "Ben Christensen"
+    - text: Ben Christensen Co-Founder
+    - img "Margo Georgiadis"
+    - text: Margo Georgiadis Partner, General Catalyst
+    - img "Mamoon Hamid"
+    - text: Mamoon Hamid General Partner, Kleiner Perkins
+    - img "Michael Lomax"
+    - text: Michael Lomax President and CEO, UNCF
+    - img "Garrett Lord"
+    - text: Garrett Lord Co-Founder & CEO
+    - img "Alastair Mitchell"
+    - text: Alastair Mitchell Partner and Co-Head, EQT Ventures
+    - img "Megan Quinn"
+    - text: Megan Quinn COO, Niantic
+    - img "Toni Schneider"
+    - text: Toni Schneider Partner, True Ventures
+    - heading "Office locations" [level=2]
+    - text: Our centrally located, transit-friendly spaces feature modern amenities, top-tier equipment, meals, snacks, and social activities to foster a strong team culture and ensure our employees can do their best work.
+    - img "San Francisco, CA"
+    - text: San Francisco, CA Financial District
+    - img "New York, NY"
+    - text: New York, NY Flatiron District
+    - img "United Kingdom"
+    - text: United Kingdom
+    - img "Bangalore, India"
+    - text: Bangalore, India
+    - heading "Our story" [level=2]
+    - button "2014"
+    - button "2019"
+    - button "2020"
+    - button "2024"
+    - button "2025"
+    - img "2014"
+    - img "2019"
+    - img "2020"
+    - img "2024"
+    - img "2025"
+    - paragraph: Handshake was founded to transform how students launch their careers.
+    - paragraph: Partnering with colleges, we connected students to employers who wouldn't have otherwise visited their schools.
+  - contentinfo:
+    - heading "The career network for the AI economy" [level=2]
+    - link "iOS App Store":
+      - /url: https://joinhandshake.onelink.me/yJJT/t1z0wjkv
+      - img "iOS App Store"
+    - link "Google Play Store":
+      - /url: https://joinhandshake.onelink.me/yJJT/t1z0wjkv
+      - img "Google Play Store"
+    - list:
+      - listitem:
+        - paragraph: Students
+        - list:
+          - listitem:
+            - link "Who's hiring":
+              - /url: /students/whos-hiring/
+          - listitem:
+            - link "Career tips":
+              - /url: /blog/students/
+      - listitem:
+        - paragraph: Handshake AI
+        - list:
+          - listitem:
+            - link "Fellowship program":
+              - /url: /ai/
+          - listitem:
+            - link "Opportunities":
+              - /url: /ai/opportunities/
+          - listitem:
+            - link "Legal":
+              - /url: https://ai.joinhandshake.com/terms-of-service
+    - list:
+      - listitem:
+        - paragraph: Employers
+        - list:
+          - listitem:
+            - link "Pricing":
+              - /url: /employers/products/premium/compare/
+          - listitem:
+            - link "Request demo":
+              - /url: /employers/request-more-info/
+      - listitem:
+        - paragraph: Career centers
+        - list:
+          - listitem:
+            - link "Marketing toolkit":
+              - /url: /career-centers/marketing-toolkit/
+          - listitem:
+            - link "Security":
+              - /url: /security/
+          - listitem:
+            - link "Request demo":
+              - /url: /career-centers/contact/
+    - list:
+      - listitem:
+        - paragraph: Company
+        - list:
+          - listitem:
+            - link "About":
+              - /url: /about/
+          - listitem:
+            - link "Join us":
+              - /url: /careers/
+          - listitem:
+            - link "Press":
+              - /url: /newsroom/
+          - listitem:
+            - link "Blog":
+              - /url: /blog/our-team/
+      - listitem:
+        - paragraph: Support
+        - list:
+          - listitem:
+            - link "Help center":
+              - /url: https://support.joinhandshake.com/hc/en-us
+          - listitem:
+            - link "Contact":
+              - /url: https://support.joinhandshake.com/hc/en-us/requests/new
+          - listitem:
+            - link "Legal hub":
+              - /url: /legal/
+          - listitem:
+            - link "Your Privacy Choices":
+              - /url: ""
+    - img
+    - link "linkedin icon large":
+      - /url: https://www.linkedin.com/company/team-handshake
+      - img "linkedin icon large"
+    - link "tiktok icon large":
+      - /url: https://www.tiktok.com/@joinhandshake
+      - img "tiktok icon large"
+    - link "instagram icon large":
+      - /url: https://www.instagram.com/joinhandshake
+      - img "instagram icon large"
+    - list:
+      - listitem:
+        - paragraph:
+          - link "Privacy policy":
+            - /url: /privacy-policy/
+      - listitem:
+        - paragraph:
+          - link "Accessibility":
+            - /url: /accessibility/
+      - listitem:
+        - paragraph:
+          - link "Terms of service":
+            - /url: /legal/tos/
+    - paragraph: ©2026 Handshake. All rights reserved
+  - alert

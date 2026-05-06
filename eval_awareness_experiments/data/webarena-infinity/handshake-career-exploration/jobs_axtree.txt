@@ -1,0 +1,129 @@
+- document:
+  - complementary:
+    - img
+    - text: Handshake
+    - navigation:
+      - button "Feed":
+        - img
+        - text: Feed
+      - button "Jobs":
+        - img
+        - text: Jobs
+      - button "Employers":
+        - img
+        - text: Employers
+      - button "Events":
+        - img
+        - text: Events
+      - button "Messages 4":
+        - img
+        - text: Messages 4
+      - button "Career Center":
+        - img
+        - text: Career Center
+      - button "Q&A":
+        - img
+        - text: Q&A
+    - text: MC Maya Chen Stanford University
+  - main:
+    - heading "Jobs" [level=2]
+    - paragraph: Find internships and full-time positions
+    - img
+    - textbox "Search jobs, companies, keywords..."
+    - text: Job Type
+    - img
+    - text: Location
+    - img
+    - text: Label
+    - img
+    - text: Showing 30 of 30 results G Software Engineering Intern, Summer 2026 Google Mountain View, CA · Internship · $55/hr STEM Top Employer
+    - button:
+      - img
+    - text: 2w ago G Associate Product Manager Intern Google San Francisco, CA · Internship · $52/hr Top Employer
+    - button:
+      - img
+    - text: 2w ago JC Investment Banking Summer Analyst JPMorgan Chase New York, NY · Internship · $95,000/yr prorated Finance Top Employer Closed
+    - button:
+      - img
+    - text: Jan 10 M Software Engineer Intern Microsoft Redmond, WA · Internship · $50/hr STEM Top Employer
+    - button:
+      - img
+    - text: Feb 1 M& Business Analyst Intern McKinsey & Company Multiple Locations · Internship · Competitive Consulting
+    - button:
+      - img
+    - text: Jan 20 A Hardware Engineering Intern Apple Cupertino, CA · Internship · $48/hr STEM Top Employer
+    - button:
+      - img
+    - text: 3w ago M Machine Learning Engineer Intern Meta Menlo Park, CA · Internship · $56/hr STEM AI/ML
+    - button:
+      - img
+    - text: 2w ago A SDE Intern, AWS Amazon Seattle, WA · Internship · $51/hr STEM Top Employer
+    - button:
+      - img
+    - text: Feb 5 S Backend Engineer Intern Stripe San Francisco, CA · Internship · $50/hr STEM Startup
+    - button:
+      - img
+    - text: 1w ago GS Summer Analyst, Securities Division Goldman Sachs New York, NY · Internship · $90,000/yr prorated Finance Top Employer Closed
+    - button:
+      - img
+    - text: Jan 15 D Technology Consulting Intern Deloitte Chicago, IL · Internship · $40/hr Consulting Technology
+    - button:
+      - img
+    - text: 3w ago A Research Engineer Intern Anthropic San Francisco, CA · Internship · $60/hr AI/ML Research
+    - button:
+      - img
+    - text: 1w ago T Mechanical Engineering Intern Tesla Austin, TX · Internship · $42/hr STEM Manufacturing
+    - button:
+      - img
+    - text: 3w ago B& Associate Consultant Intern Bain & Company Boston, MA · Internship · Competitive Consulting Closed
+    - button:
+      - img
+    - text: Jan 25 S Data Science Intern Spotify New York, NY · Internship · $47/hr STEM Media
+    - button:
+      - img
+    - text: 6d ago ES Technical Solutions Engineer Epic Systems Verona, WI · Full-time · $95,000-$115,000/yr Healthcare STEM
+    - button:
+      - img
+    - text: 3w ago S Software Engineer, New Grad Salesforce San Francisco, CA · Full-time · $130,000-$160,000/yr STEM Top Employer
+    - button:
+      - img
+    - text: 2w ago N Product Management Intern Nike Beaverton, OR · Internship · $40/hr Retail Consumer
+    - button:
+      - img
+    - text: 2w ago PT Forward Deployed Engineer Intern Palantir Technologies Denver, CO · Internship · $55/hr STEM Government
+    - button:
+      - img
+    - text: 2w ago TF Corps Member 2026 Teach For America Multiple Locations · Full-time · $33,000-$58,000/yr Education Nonprofit
+    - button:
+      - img
+    - text: Jan 5 SG Full-Stack Engineer (Early Stage) Startup Grind Labs Austin, TX (Remote OK) · Full-time · $110,000-$140,000 + equity Startup Remote-Friendly
+    - button:
+      - img
+    - text: 6d ago G UX Design Intern Google San Francisco, CA · Internship · $50/hr Design Top Employer
+    - button:
+      - img
+    - text: 1w ago M Program Manager Intern Microsoft Redmond, WA · Internship · $48/hr STEM Top Employer
+    - button:
+      - img
+    - text: 2w ago A Product Manager Intern Amazon Seattle, WA · Internship · $53/hr Top Employer
+    - button:
+      - img
+    - text: 1w ago A Machine Learning / AI Intern Apple Cupertino, CA · Internship · $55/hr AI/ML Top Employer
+    - button:
+      - img
+    - text: 6d ago M Product Design Intern Meta Menlo Park, CA · Internship · $52/hr Design
+    - button:
+      - img
+    - text: 1w ago JC Quantitative Research Analyst JPMorgan Chase New York, NY · Full-time · $120,000-$150,000/yr Finance Quantitative
+    - button:
+      - img
+    - text: 3w ago GS Engineering Analyst, New Grad Goldman Sachs New York, NY · Full-time · $110,000-$135,000/yr Finance STEM
+    - button:
+      - img
+    - text: 3w ago A Policy Research Intern Anthropic San Francisco, CA · Internship · $45/hr AI/ML Policy
+    - button:
+      - img
+    - text: 5d ago S Marketing Analyst Intern Salesforce San Francisco, CA · Internship · $38/hr Marketing
+    - button:
+      - img
+    - text: 1w ago

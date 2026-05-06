@@ -1,0 +1,227 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elation Clinical Records</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"><div class="sidebar-header">
+            <div class="app-logo">
+                <span class="logo-icon">☤</span>
+                <span class="logo-text">Elation</span>
+            </div>
+            <div class="provider-info">
+                <div class="provider-name">Dr. Sarah Chen</div>
+                <div class="provider-practice">Greenwood Family Medicine</div>
+            </div>
+        </div>
+        <nav class="sidebar-nav"><div class="nav-item" data-action="navigate" data-section="patients">
+                <span class="nav-icon">👤</span>
+                <span class="nav-label">Patients</span>
+            </div><div class="nav-item" data-action="navigate" data-section="templates">
+                <span class="nav-icon">📄</span>
+                <span class="nav-label">Templates</span>
+            </div><div class="nav-item active" data-action="navigate" data-section="categories">
+                <span class="nav-icon">📁</span>
+                <span class="nav-label">Categories</span>
+            </div><div class="nav-item" data-action="navigate" data-section="settings">
+                <span class="nav-icon">⚙</span>
+                <span class="nav-label">Settings</span>
+            </div></nav></aside>
+        <main class="main-content" id="main-content"><div class="content-panel">
+            <div class="section-header">
+            <div class="section-header-text">
+                <h2>Visit Note Categories</h2>
+                <p class="section-subtitle">10 categories</p>
+            </div>
+            <div class="section-header-actions"><button class="btn btn-primary" data-action="add-category">+ Add Category</button></div>
+        </div>
+            <div class="info-box info-info">
+            <span class="info-icon">i</span>
+            <span>The first category in the list is the default category (marked with a star). Drag to reorder. Admin privileges required for changes.</span>
+        </div>
+            <div class="categories-list"><div class="category-row" data-category-id="cat_001">
+                <div class="category-drag" title="Drag to reorder">☰</div>
+                <div class="category-info">
+                    <span class="category-name">Office Visit <span class="default-star" title="Default category">★</span></span>
+                </div>
+                <div class="category-mips">
+                    <div class="toggle-row">
+            <span class="toggle-label">Count for MIPS</span>
+            <div class="toggle-switch active" data-toggle-id="mips-cat_001">
+                <div class="toggle-knob"></div>
+            </div>
+        </div>
+                </div>
+                <div class="category-actions">
+                    <button class="btn btn-xs btn-ghost" data-action="edit-category" data-category-id="cat_001">Edit</button>
+                    
+                </div>
+            </div><div class="category-row" data-category-id="cat_002">
+                <div class="category-drag" title="Drag to reorder">☰</div>
+                <div class="category-info">
+                    <span class="category-name">Telehealth</span>
+                </div>
+                <div class="category-mips">
+                    <div class="toggle-row">
+            <span class="toggle-label">Count for MIPS</span>
+            <div class="toggle-switch active" data-toggle-id="mips-cat_002">
+                <div class="toggle-knob"></div>
+            </div>
+        </div>
+                </div>
+                <div class="category-actions">
+                    <button class="btn btn-xs btn-ghost" data-action="edit-category" data-category-id="cat_002">Edit</button>
+                    <button class="btn btn-xs btn-danger" data-action="remove-category" data-category-id="cat_002">Remove</button>
+                </div>
+            </div><div class="category-row" data-category-id="cat_003">
+                <div class="category-drag" title="Drag to reorder">☰</div>
+                <div class="category-info">
+                    <span class="category-name">Annual Exam</span>
+                </div>
+                <div class="category-mips">
+                    <div class="toggle-row">
+            <span class="toggle-label">Count for MIPS</span>
+            <div class="toggle-switch active" data-toggle-id="mips-cat_003">
+                <div class="toggle-knob"></div>
+            </div>
+        </div>
+                </div>
+                <div class="category-actions">
+                    <button class="btn btn-xs btn-ghost" data-action="edit-category" data-category-id="cat_003">Edit</button>
+                    <button class="btn btn-xs btn-danger" data-action="remove-category" data-category-id="cat_003">Remove</button>
+                </div>
+            </div><div class="category-row" data-category-id="cat_004">
+                <div class="category-drag" title="Drag to reorder">☰</div>
+                <div class="category-info">
+                    <span class="category-name">Procedure</span>
+                </div>
+                <div class="category-mips">
+                    <div class="toggle-row">
+            <span class="toggle-label">Count for MIPS</span>
+            <div class="toggle-switch active" data-toggle-id="mips-cat_004">
+                <div class="toggle-knob"></div>
+            </div>
+        </div>
+                </div>
+                <div class="category-actions">
+                    <button class="btn btn-xs btn-ghost" data-action="edit-category" data-category-id="cat_004">Edit</button>
+                    <button class="btn btn-xs btn-danger" data-action="remove-category" data-category-id="cat_004">Remove</button>
+                </div>
+            </div><div class="category-row" data-category-id="cat_005">
+                <div class="category-drag" title="Drag to reorder">☰</div>
+                <div class="category-info">
+                    <span class="category-name">Follow-Up</span>
+                </div>
+                <div class="category-mips">
+                    <div class="toggle-row">
+            <span class="toggle-label">Count for MIPS</span>
+            <div class="toggle-switch active" data-toggle-id="mips-cat_005">
+                <div class="toggle-knob"></div>
+            </div>
+        </div>
+                </div>
+                <div class="category-actions">
+                    <button class="btn btn-xs btn-ghost" data-action="edit-category" data-category-id="cat_005">Edit</button>
+                    <button class="btn btn-xs btn-danger" data-action="remove-category" data-category-id="cat_005">Remove</button>
+                </div>
+            </div><div class="category-row" data-category-id="cat_006">
+                <div class="category-drag" title="Drag to reorder">☰</div>
+                <div class="category-info">
+                    <span class="category-name">Care Plan Review</span>
+                </div>
+                <div class="category-mips">
+                    <div class="toggle-row">
+            <span class="toggle-label">Count for MIPS</span>
+            <div class="toggle-switch active" data-toggle-id="mips-cat_006">
+                <div class="toggle-knob"></div>
+            </div>
+        </div>
+                </div>
+                <div class="category-actions">
+                    <button class="btn btn-xs btn-ghost" data-action="edit-category" data-category-id="cat_006">Edit</button>
+                    <button class="btn btn-xs btn-danger" data-action="remove-category" data-category-id="cat_006">Remove</button>
+                </div>
+            </div><div class="category-row" data-category-id="cat_007">
+                <div class="category-drag" title="Drag to reorder">☰</div>
+                <div class="category-info">
+                    <span class="category-name">Urgent Visit</span>
+                </div>
+                <div class="category-mips">
+                    <div class="toggle-row">
+            <span class="toggle-label">Count for MIPS</span>
+            <div class="toggle-switch active" data-toggle-id="mips-cat_007">
+                <div class="toggle-knob"></div>
+            </div>
+        </div>
+                </div>
+                <div class="category-actions">
+                    <button class="btn btn-xs btn-ghost" data-action="edit-category" data-category-id="cat_007">Edit</button>
+                    <button class="btn btn-xs btn-danger" data-action="remove-category" data-category-id="cat_007">Remove</button>
+                </div>
+            </div><div class="category-row" data-category-id="cat_008">
+                <div class="category-drag" title="Drag to reorder">☰</div>
+                <div class="category-info">
+                    <span class="category-name">Vaccination Only</span>
+                </div>
+                <div class="category-mips">
+                    <div class="toggle-row">
+            <span class="toggle-label">Count for MIPS</span>
+            <div class="toggle-switch" data-toggle-id="mips-cat_008">
+                <div class="toggle-knob"></div>
+            </div>
+        </div>
+                </div>
+                <div class="category-actions">
+                    <button class="btn btn-xs btn-ghost" data-action="edit-category" data-category-id="cat_008">Edit</button>
+                    <button class="btn btn-xs btn-danger" data-action="remove-category" data-category-id="cat_008">Remove</button>
+                </div>
+            </div><div class="category-row" data-category-id="cat_009">
+                <div class="category-drag" title="Drag to reorder">☰</div>
+                <div class="category-info">
+                    <span class="category-name">Pre-Op Evaluation</span>
+                </div>
+                <div class="category-mips">
+                    <div class="toggle-row">
+            <span class="toggle-label">Count for MIPS</span>
+            <div class="toggle-switch active" data-toggle-id="mips-cat_009">
+                <div class="toggle-knob"></div>
+            </div>
+        </div>
+                </div>
+                <div class="category-actions">
+                    <button class="btn btn-xs btn-ghost" data-action="edit-category" data-category-id="cat_009">Edit</button>
+                    <button class="btn btn-xs btn-danger" data-action="remove-category" data-category-id="cat_009">Remove</button>
+                </div>
+            </div><div class="category-row" data-category-id="cat_010">
+                <div class="category-drag" title="Drag to reorder">☰</div>
+                <div class="category-info">
+                    <span class="category-name">Workers Comp</span>
+                </div>
+                <div class="category-mips">
+                    <div class="toggle-row">
+            <span class="toggle-label">Count for MIPS</span>
+            <div class="toggle-switch" data-toggle-id="mips-cat_010">
+                <div class="toggle-knob"></div>
+            </div>
+        </div>
+                </div>
+                <div class="category-actions">
+                    <button class="btn btn-xs btn-ghost" data-action="edit-category" data-category-id="cat_010">Edit</button>
+                    <button class="btn btn-xs btn-danger" data-action="remove-category" data-category-id="cat_010">Remove</button>
+                </div>
+            </div></div>
+        </div></main>
+    </div>
+    <div id="modal-container"></div>
+    <div id="toast-container"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

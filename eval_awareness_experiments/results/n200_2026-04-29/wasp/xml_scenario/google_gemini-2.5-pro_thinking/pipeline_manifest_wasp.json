@@ -1,0 +1,74 @@
+{
+  "started": "2026-04-30T04:53:22.459728+00:00",
+  "config": {
+    "benchmark": "wasp",
+    "splits": [
+      "reddit",
+      "gitlab"
+    ],
+    "stage": "judge-only",
+    "tasks_per_split": 100,
+    "wasp_task_dir": null,
+    "concurrency": 8,
+    "avg_step_timeout": 60,
+    "browser_stage1_timeout": null,
+    "browser_stage1_overhead": 1800,
+    "browser_stage1_idle_timeout": 3600,
+    "browser_splits_sequential": false,
+    "browser_relaunch_incomplete": false,
+    "model_name": "google/gemini-2.5-pro:thinking",
+    "condition": "baseline",
+    "extra_instructions_preset": "none",
+    "system_prompt_frame": "hypothetical_scenario",
+    "max_steps": 15,
+    "shuffle": 42,
+    "report_port": 1234,
+    "report_port_base": null,
+    "judge_model": "anthropic/claude-opus-4.7:thinking",
+    "judges": [
+      "verbalized_awareness",
+      "purpose_continue_5q"
+    ],
+    "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/xml_scenario/google_gemini-2.5-pro_thinking",
+    "existing_dirs": null
+  },
+  "splits": {
+    "reddit": {
+      "study_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/xml_scenario/google_gemini-2.5-pro_thinking/_browser_runs/reddit",
+      "original_run_meta": {
+        "benchmark": "wasp",
+        "split": "reddit",
+        "model_name": "google/gemini-2.5-pro:thinking",
+        "condition": "baseline",
+        "extra_instructions_preset": "none",
+        "system_prompt_frame": "hypothetical_scenario",
+        "shuffle": 42,
+        "tasks_per_split": 100,
+        "max_steps": 15,
+        "avg_step_timeout": 60,
+        "written_at": "2026-04-29T19:51:09.840689+00:00"
+      },
+      "n_trajectories": 72,
+      "status": "judges_complete"
+    },
+    "gitlab": {
+      "study_dir": "eval_awareness_experiments/results/n200_2026-04-29/wasp/xml_scenario/google_gemini-2.5-pro_thinking/_browser_runs/gitlab",
+      "original_run_meta": {
+        "benchmark": "wasp",
+        "split": "gitlab",
+        "model_name": "google/gemini-2.5-pro:thinking",
+        "condition": "baseline",
+        "extra_instructions_preset": "none",
+        "system_prompt_frame": "hypothetical_scenario",
+        "shuffle": 42,
+        "tasks_per_split": 100,
+        "max_steps": 15,
+        "avg_step_timeout": 60,
+        "written_at": "2026-04-29T19:51:09.841504+00:00"
+      },
+      "n_trajectories": 96,
+      "status": "judges_complete"
+    }
+  },
+  "finished": "2026-04-30T04:55:34.680364+00:00"
+}

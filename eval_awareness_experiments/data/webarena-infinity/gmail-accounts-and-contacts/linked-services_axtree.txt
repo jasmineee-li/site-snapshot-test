@@ -1,0 +1,57 @@
+- document:
+  - button "menu"
+  - text: contacts Contacts search
+  - textbox "Search contacts"
+  - button "help_outline"
+  - button "settings"
+  - text: AJ contacts Contacts
+  - button "add Create contact"
+  - navigation: people Contacts 40 history Frequently contacted star Starred 10 person_outline Other contacts 20 merge_type Merge & fix 2
+  - text: Labels
+  - button "add"
+  - text: Family 4
+  - button "edit"
+  - text: Friends 7
+  - button "edit"
+  - text: Work 19
+  - button "edit"
+  - text: VIP Clients 4
+  - button "edit"
+  - text: Gym Buddies 5
+  - button "edit"
+  - text: College Alumni 4
+  - button "edit"
+  - text: Neighbors 3
+  - button "edit"
+  - text: Book Club 2
+  - button "edit"
+  - text: Vendors 5
+  - button "edit"
+  - text: Emergency 4
+  - button "edit"
+  - text: Travel Contacts 3
+  - button "edit"
+  - text: Healthcare 4
+  - button "edit"
+  - navigation: import_export Import & Export supervisor_account Delegates link Linked Services settings Settings
+  - heading "Linked Google Services" [level=1]
+  - paragraph: Under the EU's Digital Markets Act (DMA), you can choose which Google services are linked to your account. Linked services can share data to personalize your experience.
+  - heading "Services you can link or unlink" [level=3]
+  - text: search Google Search Personalized search results and recommendations
+  - checkbox [checked]
+  - text: play_circle YouTube Video recommendations and watch history
+  - checkbox [checked]
+  - text: campaign Google Ads Personalized ad experiences across Google services
+  - checkbox
+  - text: shop Google Play App recommendations and purchase history
+  - checkbox [checked]
+  - text: language Chrome Browsing data sync and personalized suggestions
+  - checkbox [checked]
+  - text: shopping_cart Google Shopping Shopping recommendations and price tracking
+  - checkbox
+  - text: map Google Maps Location history and place recommendations
+  - checkbox [checked]
+  - heading "Always linked services" [level=3]
+  - paragraph: These services are always linked to your Google Account and cannot be unlinked.
+  - text: check_circle Google Contacts Contact sync across devices lock Always linked check_circle Android Services Core device functionality lock Always linked check_circle Google Drive File storage and sync lock Always linked check_circle Gmail Email service lock Always linked check_circle Google Calendar Calendar sync and scheduling lock Always linked check_circle Google Photos Photo backup and storage lock Always linked check_circle Google Keep Notes and lists lock Always linked check_circle Google Meet Video conferencing lock Always linked check_circle Google Chat Messaging service lock Always linked check_circle Google Docs Document editing lock Always linked check_circle Google Sheets Spreadsheet editing lock Always linked check_circle Google Slides Presentation editing lock Always linked check_circle Google Translate Translation service lock Always linked check_circle Google Assistant AI assistant lock Always linked check_circle Google Fit Health and fitness tracking lock Always linked info
+  - paragraph: Regardless of your linking choices, Google may still use data across services for fraud prevention, spam protection, security, and legal compliance. You remain signed into all Google services.

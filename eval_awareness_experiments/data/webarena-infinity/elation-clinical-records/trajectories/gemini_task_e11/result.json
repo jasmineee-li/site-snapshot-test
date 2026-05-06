@@ -1,0 +1,23 @@
+{
+  "task_id": "task_e11",
+  "difficulty": "easy",
+  "instruction": "Resolve Marcus Johnson's prediabetes.",
+  "passed": true,
+  "verifier_message": "Successfully verified that Marcus Johnson's 'Prediabetes' is resolved with a resolvedDate set.",
+  "elapsed": 76.0,
+  "steps": 10,
+  "is_done": true,
+  "final_result": "I have successfully resolved Marcus Johnson's prediabetes. After reviewing his clinical record and navigating to the Problem List in his Clinical Profile, I marked the 'Prediabetes' diagnosis (R73.03) as resolved. It is now listed under the 'Resolved' section of his medical record.",
+  "errors": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

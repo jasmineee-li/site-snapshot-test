@@ -1,0 +1,33 @@
+{
+  "started": "2026-04-21T04:29:10.092048",
+  "config": {
+    "sites": [
+      "gitlab"
+    ],
+    "tasks_per_site": 20,
+    "agent_model": "z-ai/glm-5:thinking",
+    "judge_model": "anthropic/claude-opus-4.6:thinking",
+    "judges": [
+      "test_awareness_steering",
+      "verbalized_awareness"
+    ],
+    "max_steps": 15,
+    "output_dir": "eval_awareness_experiments/results/doomarena_opus47_scratchpad_ooda",
+    "skip_doomarena": true,
+    "study_dirs": [
+      "gitlab:results/browsergym/study_2026-04-21_00-21-09"
+    ],
+    "dry_run": false
+  },
+  "sites": {
+    "gitlab": {
+      "n_trajectories": 2,
+      "trajectory_dirs": [
+        "results/browsergym/study_2026-04-21_00-21-09/2026-04-21_04-21-09_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset2/2026-04-21_04-21-10_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.318_0",
+        "results/browsergym/study_2026-04-21_00-21-09/2026-04-21_04-21-09_genericagent-anthropic-claude-3-5-sonnet-beta-on-webarena-gitlab-single-site-subset2/2026-04-21_04-21-10_GenericAgent-anthropic_claude-3.5-sonnet_beta_on_webarena.801_0"
+      ],
+      "status": "judges_complete"
+    }
+  },
+  "finished": "2026-04-21T04:30:04.858390"
+}

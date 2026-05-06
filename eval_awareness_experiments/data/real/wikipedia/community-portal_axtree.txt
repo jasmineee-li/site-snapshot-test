@@ -1,0 +1,1596 @@
+- document:
+  - link "Jump to content":
+    - /url: "#bodyContent"
+  - banner:
+    - navigation "Site":
+      - button "Main menu"
+    - link "Wikipedia The Free Encyclopedia":
+      - /url: /wiki/Main_Page
+      - img "Wikipedia"
+      - img "The Free Encyclopedia"
+    - search:
+      - searchbox "Search Wikipedia"
+      - button "Search"
+    - navigation "Personal tools":
+      - list:
+        - listitem:
+          - link "Donate":
+            - /url: https://donate.wikimedia.org/?wmf_source=donate&wmf_medium=sidebar&wmf_campaign=en.wikipedia.org&uselang=en
+        - listitem:
+          - link "Create account":
+            - /url: /w/index.php?title=Special:CreateAccount&returnto=Wikipedia%3ACommunity+portal
+        - listitem:
+          - link "Log in":
+            - /url: /w/index.php?title=Special:UserLogin&returnto=Wikipedia%3ACommunity+portal
+  - main:
+    - heading "Wikipedia:Community portal" [level=1]
+    - button "Go to an article in another language. Available in 220 languages"
+    - navigation "Namespaces":
+      - list:
+        - listitem:
+          - link "Project page":
+            - /url: /wiki/Wikipedia:Community_portal
+        - listitem:
+          - link "Talk":
+            - /url: /wiki/Wikipedia_talk:Community_portal
+    - navigation "Views":
+      - list:
+        - listitem:
+          - link "Read":
+            - /url: /wiki/Wikipedia:Community_portal
+        - listitem:
+          - link "View source":
+            - /url: /w/index.php?title=Wikipedia:Community_portal&action=edit
+        - listitem:
+          - link "View history":
+            - /url: /w/index.php?title=Wikipedia:Community_portal&action=history
+    - navigation "Page tools":
+      - button "Tools"
+    - navigation "Appearance":
+      - text: Appearance
+      - button "hide"
+      - text: Text
+      - list:
+        - listitem:
+          - radio "Small"
+          - text: Small
+          - radio "Standard" [checked]
+          - text: Standard
+          - radio "Large"
+          - text: Large
+      - text: Width
+      - list:
+        - listitem:
+          - radio "Standard" [checked]
+          - text: Standard
+          - radio "Wide"
+          - text: Wide
+      - text: Color (beta)
+      - list:
+        - listitem:
+          - radio "Automatic"
+          - text: Automatic
+          - radio "Light" [checked]
+          - text: Light
+          - radio "Dark"
+          - text: Dark
+    - link "Page semi-protected":
+      - /url: /wiki/Wikipedia:Protection_policy#semi
+      - img "Page semi-protected"
+    - text: From Wikipedia, the free encyclopedia
+    - note:
+      - text: "\"WP:COM\" redirects here. For the explanation about Wikimedia Commons, see"
+      - link "WP:COMMONS":
+        - /url: /wiki/Wikipedia:COMMONS
+      - text: .
+    - list:
+      - listitem: Community portal
+    - list:
+      - listitem:
+        - link "Dashboard":
+          - /url: /wiki/Wikipedia:Dashboard
+        - text: ·
+      - listitem:
+        - link "Departments":
+          - /url: /wiki/Wikipedia:Department_directory
+        - text: ·
+      - listitem:
+        - link "Maintenance":
+          - /url: /wiki/Wikipedia:Maintenance
+        - list:
+          - listitem:
+            - text: (
+            - link "Tasks":
+              - /url: /wiki/Wikipedia:Task_Center
+            - text: )
+        - text: ·
+      - listitem:
+        - link "Discord":
+          - /url: /wiki/Wikipedia:Discord
+        - text: ·
+      - listitem:
+        - link "IRC":
+          - /url: /wiki/Wikipedia:IRC
+        - text: ·
+      - listitem:
+        - link "Matrix.org":
+          - /url: /wiki/Wikipedia:Matrix.org
+        - text: ·
+      - listitem:
+        - link "Meetups":
+          - /url: /wiki/Wikipedia:Meetup
+    - list:
+      - listitem:
+        - link "Directories":
+          - /url: /wiki/Wikipedia:Directories_and_indexes
+        - text: (
+        - link "Protocols":
+          - /url: /wiki/Wikipedia:List_of_policies_and_guidelines
+        - text: ·
+      - listitem:
+        - link "Essays":
+          - /url: /wiki/Wikipedia:Essay_directory
+        - text: ·
+      - listitem:
+        - link "How-to":
+          - /url: /wiki/Help:Directory
+        - text: ·
+      - listitem:
+        - link "Index":
+          - /url: /wiki/Wikipedia:Editor%27s_index_to_Wikipedia
+        - text: ·
+      - listitem:
+        - link "Noticeboards":
+          - /url: /wiki/Wikipedia:Request_directory
+        - text: ·
+      - listitem:
+        - link "AI":
+          - /url: /wiki/Wikipedia:Artificial_intelligence_resources
+        - text: ·
+      - listitem:
+        - link "WikiProjects":
+          - /url: /wiki/Wikipedia:WikiProject_Council/Directory
+        - text: )
+    - heading "Welcome to the community portal!" [level=2]
+    - note:
+      - link "Shortcuts":
+        - /url: /wiki/Wikipedia:Shortcut
+      - list:
+        - listitem:
+          - link "P:WP":
+            - /url: https://en.wikipedia.org/w/index.php?title=P:WP&redirect=no
+        - listitem:
+          - link "WP:COM":
+            - /url: https://en.wikipedia.org/w/index.php?title=Wikipedia:COM&redirect=no
+    - paragraph:
+      - text: This page provides a listing of current collaborations, tasks, and news about English Wikipedia. New to
+      - link "Wikipedia":
+        - /url: /wiki/Wikipedia
+      - text: "? See the"
+      - link "contributing to Wikipedia":
+        - /url: /wiki/Wikipedia:Contributing_to_Wikipedia
+      - text: page or
+      - link "our tutorial":
+        - /url: /wiki/Help:Introduction
+      - text: for everything you need to know to get started. For a listing of
+      - link "internal project pages":
+        - /url: /wiki/Wikipedia:ADMINP
+      - text: of interest, see the
+      - link "department directory":
+        - /url: /wiki/Wikipedia:Department_directory
+      - text: .
+    - heading "Interact more" [level=2]
+    - paragraph:
+      - text: For a listing of ongoing discussions and current requests, see the
+      - link "Dashboard":
+        - /url: /wiki/Wikipedia:Dashboard
+      - text: .
+    - figure:
+      - link "icon":
+        - /url: /wiki/Wikipedia:Help_desk
+        - img "icon"
+    - link "Help desk":
+      - /url: /wiki/Wikipedia:Help_desk
+    - text: Ask questions about how to use or edit Wikipedia
+    - figure:
+      - link "icon":
+        - /url: /wiki/Wikipedia:Teahouse
+        - img "icon"
+    - link "Teahouse":
+      - /url: /wiki/Wikipedia:Teahouse
+    - text: Friendly help for newcomers
+    - figure:
+      - link "icon":
+        - /url: /wiki/Wikipedia:Reference_desk
+        - img "icon"
+    - link "Reference desk":
+      - /url: /wiki/Wikipedia:Reference_desk
+    - text: Ask research questions about topics other than Wikipedia
+    - figure:
+      - link "icon":
+        - /url: /wiki/Wikipedia:WikiProject_Council/Directory
+        - img "icon"
+    - link "WikiProjects":
+      - /url: /wiki/Wikipedia:WikiProject_Council/Directory
+    - text: Work with other editors on a shared area of interest
+    - figure:
+      - link "icon":
+        - /url: /wiki/Wikipedia:Dispute_resolution
+        - img "icon"
+    - link "Dispute resolution":
+      - /url: /wiki/Wikipedia:Dispute_resolution
+    - text: Get help resolving disputes
+    - link "Village pumps":
+      - /url: /wiki/Wikipedia:Village_pump
+    - text: (
+    - link "view all":
+      - /url: /wiki/Wikipedia:Village_pump_(all)
+    - text: )
+    - link "icon":
+      - /url: /wiki/Wikipedia:Village_pump_(policy)
+      - img "icon"
+    - link "Policy":
+      - /url: /wiki/Wikipedia:Village_pump_(policy)
+    - text: Discuss existing and proposed policies
+    - link "icon":
+      - /url: /wiki/Wikipedia:Village_pump_(technical)
+      - img "icon"
+    - link "Technical":
+      - /url: /wiki/Wikipedia:Village_pump_(technical)
+    - text: Discuss technical issues about Wikipedia
+    - link "icon":
+      - /url: /wiki/Wikipedia:Village_pump_(proposals)
+      - img "icon"
+    - link "Proposals":
+      - /url: /wiki/Wikipedia:Village_pump_(proposals)
+    - text: Discuss new proposals that are not policy-related
+    - link "icon":
+      - /url: /wiki/Wikipedia:Village_pump_(idea_lab)
+      - img "icon"
+    - link "Idea lab":
+      - /url: /wiki/Wikipedia:Village_pump_(idea_lab)
+    - text: Incubate new ideas before formally proposing them
+    - link "icon":
+      - /url: /wiki/Wikipedia:Village_pump_(WMF)
+      - img "icon"
+    - link "WMF":
+      - /url: /wiki/Wikipedia:Village_pump_(WMF)
+    - text: Discuss matters involving the Wikimedia Foundation
+    - link "icon":
+      - /url: /wiki/Wikipedia:Village_pump_(miscellaneous)
+      - img "icon"
+    - link "Miscellaneous":
+      - /url: /wiki/Wikipedia:Village_pump_(miscellaneous)
+    - text: Post messages that do not fit into any other category
+    - textbox "Search all village pumps & archives"
+    - button "Search all"
+    - heading "Community bulletin board" [level=2]
+    - note:
+      - text: This section is
+      - link "transcluded":
+        - /url: /wiki/Help:Transclusion
+      - text: from
+      - link "Wikipedia:Community bulletin board":
+        - /url: /wiki/Wikipedia:Community_bulletin_board
+      - text: . (
+      - link "edit":
+        - /url: https://en.wikipedia.org/w/index.php?title=Wikipedia:Community_bulletin_board&action=edit
+      - text: "|"
+      - link "history":
+        - /url: https://en.wikipedia.org/w/index.php?title=Wikipedia:Community_bulletin_board&action=history
+      - text: )
+    - button "[show]"
+    - text: How to add to the community bulletin board
+    - paragraph:
+      - text: Welcome to the community bulletin board, which is a page used for announcements from
+      - link "WikiProjects":
+        - /url: /wiki/Wikipedia:Wikiproject
+      - text: and other groups. Included here are coordinated efforts, events, projects, and other general announcements.
+    - list:
+      - listitem:
+        - link "Dashboard":
+          - /url: /wiki/Wikipedia:Dashboard
+        - text: ·
+      - listitem:
+        - link "News":
+          - /url: /wiki/Wikipedia:News
+        - text: ·
+      - listitem:
+        - link "Task Center":
+          - /url: /wiki/Wikipedia:Task_Center
+        - text: ·
+      - listitem:
+        - link "Goings-on":
+          - /url: /wiki/Wikipedia:Goings-on
+        - text: ·
+      - listitem:
+        - link "Meetups":
+          - /url: /wiki/Wikipedia:Meetups
+        - text: ·
+      - listitem:
+        - link "In the media":
+          - /url: /wiki/Wikipedia:Wikipedia_in_the_media
+        - text: ·
+      - listitem:
+        - link "Mailing lists":
+          - /url: /wiki/Wikipedia:Mailing_lists
+    - text: Events and projects
+    - link "[add]":
+      - /url: /wiki/Special:EditPage/Wikipedia:Community_bulletin_board
+    - paragraph: Yearly or infrequent events
+    - list:
+      - listitem:
+        - link "WikiProject Unreferenced articles":
+          - /url: /wiki/Wikipedia:WikiProject_Unreferenced_articles
+        - text: is aiming to add citations to 6,000 unreferenced articles through this month. Sign up for the
+        - link "March unreferenced articles backlog drive":
+          - /url: /wiki/Wikipedia:WikiProject_Unreferenced_articles/Backlog_drives/March_2026
+        - text: to help!
+    - paragraph: Monthly or continuous events
+    - list:
+      - listitem:
+        - link "Monthly contest, WikiProject Military history":
+          - /url: /wiki/Wikipedia:WikiProject_Military_history/Contest
+        - text: . The contest department of the Military history WikiProject aims to motivate increased quality in military history articles by offering a form of friendly competition for project members making improvements to them. The primary contest available is a simple rolling competition that awards points for improving articles. The contest runs from the first to last day of each month.
+      - listitem:
+        - text: "Guild of Copy Editors: blitz. The"
+        - link "April 2026 editing blitz":
+          - /url: /wiki/Wikipedia:WikiProject_Guild_of_Copy_Editors/Blitzes/April_2026
+        - text: is a one-week-long effort by the
+        - link "Guild of Copy Editors":
+          - /url: /wiki/Wikipedia:GOCE
+        - text: "to reduce its backlog. The themes are: articles on the"
+        - link "GOCE Requests page":
+          - /url: /wiki/Wikipedia:GOCE/REQ
+        - text: ", and articles on the backlog from"
+        - link "September 2024":
+          - /url: /wiki/Category:Wikipedia_articles_needing_copy_edit_from_September_2024
+        - text: and
+        - link "October 2024":
+          - /url: /wiki/Category:Wikipedia_articles_needing_copy_edit_from_October_2024
+        - text: . It will begin on 12 April, 00:00 (UTC), and end on 18 April, 23:59 (UTC).
+      - listitem:
+        - link "Wikipedia:WikiProject Women in Red":
+          - /url: /wiki/Wikipedia:WikiProject_Women_in_Red
+        - text: "2025 Events:"
+    - table:
+      - rowgroup:
+        - 'row "Recently completed: Alphabet run: Countries starting with C Artists+Activists Works by women: Artworks"':
+          - cell "Recently completed:"
+          - 'cell "Alphabet run: Countries starting with C Artists+Activists Works by women: Artworks"':
+            - 'link "Alphabet run: Countries starting with C"':
+              - /url: /wiki/Wikipedia:WikiProject_Women_in_Red/Meetup/364
+            - link "Artists+Activists":
+              - /url: /wiki/Wikipedia:WikiProject_Women_in_Red/Meetup/365
+            - 'link "Works by women: Artworks"':
+              - /url: /wiki/Wikipedia:WikiProject_Women_in_Red/Meetup/366
+        - 'row "New this month: Alphabet run: Countries starting with D, E and F Works by women: Written works Cascading women"':
+          - cell "New this month:"
+          - 'cell "Alphabet run: Countries starting with D, E and F Works by women: Written works Cascading women"':
+            - 'link "Alphabet run: Countries starting with D, E and F"':
+              - /url: /wiki/Wikipedia:WikiProject_Women_in_Red/Meetup/367
+            - 'link "Works by women: Written works"':
+              - /url: /wiki/Wikipedia:WikiProject_Women_in_Red/Meetup/368
+            - link "Cascading women":
+              - /url: /wiki/Wikipedia:WikiProject_Women_in_Red/Meetup/369
+        - 'row "Ongoing initiatives: #1day1woman: 2026 Sports"':
+          - cell "Ongoing initiatives:"
+          - 'cell "#1day1woman: 2026 Sports"':
+            - 'link "#1day1woman: 2026"':
+              - /url: /wiki/Wikipedia:WikiProject_Women_in_Red/Meetup/358
+            - link "Sports":
+              - /url: /wiki/Wikipedia:WikiProject_Women_in_Red/Meetup/359
+        - 'row "Upcoming events: Alphabet run: Countries starting with G and H Works by women: Scientific Works Religion and Spirituality Ideas"':
+          - cell "Upcoming events:"
+          - 'cell "Alphabet run: Countries starting with G and H Works by women: Scientific Works Religion and Spirituality Ideas"':
+            - 'link "Alphabet run: Countries starting with G and H"':
+              - /url: /wiki/Wikipedia:WikiProject_Women_in_Red/Meetup/370
+            - 'link "Works by women: Scientific Works"':
+              - /url: /wiki/Wikipedia:WikiProject_Women_in_Red/Meetup/371
+            - link "Religion and Spirituality":
+              - /url: /wiki/Wikipedia:WikiProject_Women_in_Red/Meetup/372
+            - link "Ideas":
+              - /url: /wiki/Wikipedia:WikiProject_Women_in_Red/Ideas
+    - paragraph
+    - table "Meetups for April 2026 +/-":
+      - caption:
+        - link "Meetups":
+          - /url: /wiki/Wikipedia:Meetup
+        - text: for April 2026
+        - link "+/-":
+          - /url: https://en.wikipedia.org/w/index.php?title=Template:Meetup/April_2026&action=edit&preview=yes
+      - rowgroup:
+        - row "WikiClub Canada (online) April 8, 2026":
+          - cell "WikiClub Canada (online)":
+            - link "WikiClub Canada (online)":
+              - /url: https://meta.wikimedia.org/wiki/Event:WikiClub_Canada/April_2026
+          - cell "April 8, 2026"
+        - row "Bay Area April 9, 2026":
+          - cell "Bay Area":
+            - link "Bay Area":
+              - /url: /wiki/Event:Bay_Area_Meetup_April_2026
+          - cell "April 9, 2026"
+        - row "Philadelphia WikiSalon (online) April 11, 2026":
+          - cell "Philadelphia WikiSalon (online)":
+            - link "Philadelphia WikiSalon (online)":
+              - /url: /wiki/Wikipedia:Meetup/Philadelphia
+          - cell "April 11, 2026"
+        - row "San Diego 133 April 11, 2026":
+          - cell "San Diego 133":
+            - link "San Diego 133":
+              - /url: /wiki/Wikipedia:Meetup/San_Diego/April_2026
+          - cell "April 11, 2026"
+        - row "London 227 April 12, 2026":
+          - cell "London 227":
+            - link "London 227":
+              - /url: https://meta.wikimedia.org/wiki/Meetup/London/227
+          - cell "April 12, 2026"
+        - row "WikiClub Toronto Meetup April 18, 2026":
+          - cell "WikiClub Toronto Meetup":
+            - link "WikiClub Toronto Meetup":
+              - /url: https://meta.wikimedia.org/wiki/Event:WikiClub_Toronto_Informal_Editathon_(April_2026)
+          - cell "April 18, 2026"
+        - row "Perth 94 April 19, 2026":
+          - cell "Perth 94":
+            - link "Perth 94":
+              - /url: /wiki/Wikipedia:Meetup/Perth/94
+          - cell "April 19, 2026"
+        - row "Oxford 121 April 19, 2026":
+          - cell "Oxford 121":
+            - link "Oxford 121":
+              - /url: https://meta.wikimedia.org/wiki/Meetup/Oxford/121
+          - cell "April 19, 2026"
+        - row "Edinburgh 27 April 25, 2026":
+          - cell "Edinburgh 27":
+            - link "Edinburgh 27":
+              - /url: https://meta.wikimedia.org/wiki/Meetup/Edinburgh/27
+          - cell "April 25, 2026"
+        - row "Christchurch 44 April 26, 2026":
+          - cell "Christchurch 44":
+            - link "Christchurch 44":
+              - /url: /wiki/Wikipedia:Meetup/Christchurch/44
+          - cell "April 26, 2026"
+    - paragraph
+    - table "Meetups for May 2026 +/-":
+      - caption:
+        - link "Meetups":
+          - /url: /wiki/Wikipedia:Meetup
+        - text: for May 2026
+        - link "+/-":
+          - /url: https://en.wikipedia.org/w/index.php?title=Template:Meetup/May_2026&action=edit&preview=yes
+      - rowgroup:
+        - row:
+          - cell
+        - row "Wikicon Aotearoa 2026 May 2, 2026":
+          - cell "Wikicon Aotearoa 2026":
+            - link "Wikicon Aotearoa 2026":
+              - /url: /wiki/Wikipedia:WikiCon_Aotearoa/Wellington_2026
+          - cell "May 2, 2026"
+        - row "Open Christchurch Workshop May 3, 2026":
+          - cell "Open Christchurch Workshop":
+            - link "Open Christchurch Workshop":
+              - /url: /wiki/Wikipedia:Meetup/Christchurch/Open_Christchurch_2026/Representation_in_Architecture
+          - cell "May 3, 2026"
+        - row "San Diego 134 May 10, 2026":
+          - cell "San Diego 134":
+            - link "San Diego 134":
+              - /url: /wiki/Wikipedia:Meetup/San_Diego/May_2026
+          - cell "May 10, 2026"
+        - row "US Mountain West online May 12, 2026":
+          - cell "US Mountain West online":
+            - link "US Mountain West online":
+              - /url: /wiki/Wikipedia:Meetup/US_Mountain_West/2026-05-12
+          - cell "May 12, 2026"
+        - row "WikiClub Canada (online) May 13, 2026":
+          - cell "WikiClub Canada (online)":
+            - link "WikiClub Canada (online)":
+              - /url: https://meta.wikimedia.org/wiki/Event:WikiClub_Canada/May_2026
+          - cell "May 13, 2026"
+        - row "Bay Area (SF Wikisalon) May 14, 2026":
+          - cell "Bay Area (SF Wikisalon)":
+            - link "Bay Area (SF Wikisalon)":
+              - /url: /wiki/Event:Bay_Area_Meetup_May_2026
+          - cell "May 14, 2026"
+        - row "Bay Area (Oakland) May 23, 2026":
+          - cell "Bay Area (Oakland)":
+            - link "Bay Area (Oakland)":
+              - /url: /wiki/Event:Bay_Area_Meetup_Oakland_May_2026
+          - cell "May 23, 2026"
+    - link "WikiProject":
+      - /url: /wiki/Wikipedia:WikiProject
+    - text: notices
+    - link "[add]":
+      - /url: /wiki/Special:EditPage/Wikipedia:Community_bulletin_board
+    - paragraph:
+      - text: Also consider posting WikiProject, Task Force, and Collaboration news at The Signpost's
+      - link "WikiProject Report":
+        - /url: /wiki/Wikipedia:Wikipedia_Signpost/Newsroom/WikiProject_desk#Sidebar_news_requests
+      - text: page. Please include your signature when adding a listing here.
+    - list:
+      - listitem:
+        - link "WikiProject Outlines":
+          - /url: /wiki/Wikipedia:WikiProject_Outlines
+        - text: "news:"
+        - list:
+          - listitem:
+            - text: "New outlines:"
+            - list:
+              - listitem:
+                - link "Wikipedia:Artificial intelligence resources":
+                  - /url: /wiki/Wikipedia:Artificial_intelligence_resources
+          - listitem:
+            - text: "The following outline covers an ongoing situation, please help keep it updated:"
+            - list:
+              - listitem:
+                - link "Outline of the Russo-Ukrainian war":
+                  - /url: /wiki/Outline_of_the_Russo-Ukrainian_war
+          - listitem:
+            - text: The
+            - link "Outline of the week":
+              - /url: /wiki/Wikipedia:WikiProject_Outlines#Outline_of_the_week!
+            - text: is
+            - link "Outline of the Moon":
+              - /url: /wiki/Outline_of_the_Moon
+            - text: .
+          - listitem:
+            - text: Please help improve them. —
+            - link "The Transhumanist":
+              - /url: /wiki/User:The_Transhumanist
+            - link "09:46, 25 March 2026 (UTC)":
+              - /url: https://en.wikipedia.org/wiki/Wikipedia:Community_portal#c-The_Transhumanist-20260325094600-Community_bulletin_board
+      - listitem:
+        - text: A new task force of
+        - link "WikiProject Wildfire":
+          - /url: /wiki/Wikipedia:WikiProject_Wildfire
+        - text: has been activated as the
+        - link "Canada task force":
+          - /url: /wiki/Wikipedia:WikiProject_Wildfire/Canada_task_force
+        - text: "! Editors are welcome to join the new task force and help tag articles on Canadian wildfires as part of the task force, as well as help expand the main page. 🌀"
+        - link "Hurricane Wind and Fire":
+          - /url: /wiki/User:Hurricane_Wind_and_Fire
+        - link "(talk)":
+          - /url: /wiki/User_talk:Hurricane_Wind_and_Fire
+        - link "(contribs)":
+          - /url: /wiki/Special:Contributions/Hurricane_Wind_and_Fire
+        - text: 🔥
+        - link "00:51, 5 March 2026 (UTC)":
+          - /url: https://en.wikipedia.org/wiki/Wikipedia:Community_portal#c-Hurricane_Wind_and_Fire-20260305005100-The_Transhumanist-20260325094600
+      - listitem:
+        - link "WP Unreferenced articles":
+          - /url: /wiki/Wikipedia:WikiProject_Unreferenced_articles
+        - text: is trying to clear the
+        - link "decades-long backlog of unreferenced articles":
+          - /url: /wiki/Category:Articles_lacking_sources
+        - text: ", please help to lower the number of unreferenced articles below 30,000. Come contribute!"
+        - link "Catfurball":
+          - /url: /wiki/User:Catfurball
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Catfurball
+        - text: )
+        - link "20:15, 6 January 2026 (UTC)":
+          - /url: https://en.wikipedia.org/wiki/Wikipedia:Community_portal#c-Catfurball-20260106201500-The_Transhumanist-20260325094600
+      - listitem:
+        - link "WikiProject Nevada":
+          - /url: /wiki/Wikipedia:WikiProject_Nevada
+        - text: was recently re-activated! New editors interested in the subject are encouraged to join. There are over 800 articles with unknown importance levels. Your help assessing these articles would be appreciated! The sub-project,
+        - link "WikiProject Las Vegas":
+          - /url: /wiki/Wikipedia:WikiProject_Las_Vegas
+        - text: ", has recently become inactive, so new editors for WikiProject Nevada may also be interested joining here!"
+    - paragraph:
+      - text: 🌀
+      - link "Hurricane Wind and Fire":
+        - /url: /wiki/User:Hurricane_Wind_and_Fire
+      - link "(talk)":
+        - /url: /wiki/User_talk:Hurricane_Wind_and_Fire
+      - link "(contribs)":
+        - /url: /wiki/Special:Contributions/Hurricane_Wind_and_Fire
+      - text: 🔥
+      - link "02:09, 24 November 2025 (UTC)":
+        - /url: https://en.wikipedia.org/wiki/Wikipedia:Community_portal#c-Hurricane_Wind_and_Fire-20251124020900-Community_bulletin_board
+    - list:
+      - listitem:
+        - link "Wikipedia:WikiProject Amateur radio":
+          - /url: /wiki/Wikipedia:WikiProject_Amateur_radio
+        - text: starts living again! If you would like to contribute, please add yourself to the list of participants and include ways they can contribute. We've already started, come see! Check out the new navigational
+        - link "Template:Amateur radio topics":
+          - /url: /wiki/Template:Amateur_radio_topics
+        - text: "! Feel free to invite new members personally or through public postings."
+        - link "Sinucep":
+          - /url: /wiki/User:Sinucep
+        - text: (
+        - link "talk":
+          - /url: /wiki/User_talk:Sinucep
+        - text: )
+        - link "14:29, 23 December 2025 (UTC)":
+          - /url: https://en.wikipedia.org/wiki/Wikipedia:Community_portal#c-Sinucep-20251223142900-Hurricane_Wind_and_Fire-20251124020900
+    - link "Technical news":
+      - /url: /wiki/Wikipedia:Tech_news
+    - note:
+      - text: This section is
+      - link "transcluded":
+        - /url: /wiki/Help:Transclusion
+      - text: from
+      - link "Wikipedia:Tech news":
+        - /url: /wiki/Wikipedia:Tech_news
+      - text: . (
+      - link "edit":
+        - /url: https://en.wikipedia.org/w/index.php?title=Wikipedia:Tech_news&action=edit
+      - text: "|"
+      - link "history":
+        - /url: https://en.wikipedia.org/w/index.php?title=Wikipedia:Tech_news&action=history
+      - text: )
+    - paragraph:
+      - text: Latest
+      - link "tech news":
+        - /url: https://meta.wikimedia.org/wiki/Special:MyLanguage/Tech/News
+      - text: from the Wikimedia technical community. Please tell other users about these changes. Not all changes will affect you.
+      - link "Translations":
+        - /url: https://meta.wikimedia.org/wiki/Special:MyLanguage/Tech/News/2026/15
+      - text: are available.
+    - paragraph: Updates for editors
+    - list:
+      - listitem:
+        - text: The
+        - link "CampaignEvents extension":
+          - /url: https://www.mediawiki.org/wiki/Special:MyLanguage/Help:Extension:CampaignEvents
+        - text: now includes a new group goal-setting feature, enabling organizers to set and track event goals such as the number of articles created and participating contributors in real time. Similarly, participants can work toward shared targets and see their collective impact as the event unfolds. The feature is now available on all Wikimedia wikis. Learn more in
+        - link "the documentation":
+          - /url: https://www.mediawiki.org/wiki/Special:MyLanguage/Help:Extension:CampaignEvents/Registration/Collaborative_contributions#Goal_setting
+        - text: .
+      - listitem:
+        - img "Wishlist item"
+        - text: The new
+        - link "watchlist labels":
+          - /url: https://www.mediawiki.org/wiki/Special:MyLanguage/Help:Watchlist_labels
+        - text: feature (announced in
+        - link "Tech News 2026-07":
+          - /url: https://meta.wikimedia.org/wiki/Special:MyLanguage/Tech/News/2026/07
+        - text: ) is now available via VisualEditor, the source editor, and the 'watchstar' (or watch link, for skins that don't have a star icon). Previously it was only possible to assign labels via
+        - link "EditWatchlist":
+          - /url: /wiki/Special:EditWatchlist
+        - text: . In all three places it is a new field following the expiry field.
+      - listitem:
+        - img "Recurrent item"
+        - text: View all 23 community-submitted tasks that were
+        - link "resolved last week":
+          - /url: https://meta.wikimedia.org/wiki/Special:MyLanguage/Tech/News/Recently_resolved_community_tasks
+        - text: . For example, the issue where talk pages on mobile with Parsoid are unusable after empty section headers, has now been fixed.
+        - link "[1]":
+          - /url: https://phabricator.wikimedia.org/T419171
+    - paragraph: Updates for technical contributors
+    - list:
+      - listitem:
+        - text: The
+        - link "sub-referencing feature":
+          - /url: https://meta.wikimedia.org/wiki/Special:MyLanguage/WMDE_Technical_Wishes/Sub-referencing
+        - text: ", which lets editors add details to an existing reference without duplicating it, will be gradually rolled out to"
+        - link "more wikis":
+          - /url: https://phabricator.wikimedia.org/T414094
+        - text: later this year. Wikis using the
+        - link "Reference Tooltips":
+          - /url: https://www.mediawiki.org/wiki/Special:MyLanguage/Reference_Tooltips
+        - text: gadget are encouraged to update their version (typically at
+        - link "MediaWiki:Gadget-ReferenceTooltips.js":
+          - /url: https://meta.wikimedia.org/wiki/MediaWiki:Gadget-ReferenceTooltips.js
+        - text: as shown
+        - link "here":
+          - /url: https://en.wikipedia.org/w/index.php?diff=1344408362
+        - text: ) to ensure compatibility. Other reference-related gadgets may also be affected.
+        - link "[2]":
+          - /url: https://phabricator.wikimedia.org/T416304
+      - listitem:
+        - text: All Wikinews editions will be closed and switched to read-only mode on 4 May 2026. Content will remain accessible, but no new edits or articles can be added. This closure was approved by the Board of Trustees of the Wikimedia Foundation following extended discussions.
+        - link "Read more":
+          - /url: https://meta.wikimedia.org/wiki/Wikimedia_Foundation_Board_noticeboard#Board_of_Trustees_Approves_Closure_of_Wikinews
+        - text: .
+      - listitem:
+        - text: The
+        - link "Action API":
+          - /url: https://www.mediawiki.org/wiki/Special:MyLanguage/API:Action_API
+        - text: has had several formats for requested output. One of them,
+        - code: format=php
+        - text: ", is being removed soon. Please ensure your scripts or bots use the"
+        - link "JSON format":
+          - /url: https://www.mediawiki.org/wiki/Special:MyLanguage/API:Data_formats#Output
+        - text: . This removal should affect very few scripts and bots.
+        - link "[3]":
+          - /url: https://phabricator.wikimedia.org/T118538
+      - listitem:
+        - text: The
+        - link "Special:NamespaceInfo":
+          - /url: /wiki/Special:NamespaceInfo
+        - text: page now includes namespace aliases. For example "WP" for the "Project" ("Wikipedia") namespace on the German Wikipedia.
+        - link "[4]":
+          - /url: https://phabricator.wikimedia.org/T381455
+      - listitem:
+        - img "Recurrent item"
+        - text: "Detailed code updates later this week:"
+        - link "MediaWiki":
+          - /url: https://www.mediawiki.org/wiki/MediaWiki_1.46/wmf.23
+    - paragraph:
+      - link "Tech news":
+        - /url: https://meta.wikimedia.org/wiki/Special:MyLanguage/Tech/News
+      - text: prepared by
+      - link "Tech News writers":
+        - /url: https://meta.wikimedia.org/wiki/Special:MyLanguage/Tech/News/Writers
+      - text: and posted by
+      - link "bot":
+        - /url: https://meta.wikimedia.org/wiki/Special:MyLanguage/User:MediaWiki_message_delivery
+      - text: •
+      - link "Contribute":
+        - /url: https://meta.wikimedia.org/wiki/Special:MyLanguage/Tech/News#contribute
+      - text: •
+      - link "Translate":
+        - /url: https://meta.wikimedia.org/wiki/Special:MyLanguage/Tech/News/2026/15
+      - text: •
+      - link "Get help":
+        - /url: https://meta.wikimedia.org/wiki/Tech
+      - text: •
+      - link "Give feedback":
+        - /url: https://meta.wikimedia.org/wiki/Talk:Tech/News
+      - text: •
+      - link "Subscribe or unsubscribe":
+        - /url: https://meta.wikimedia.org/wiki/Global_message_delivery/Targets/Tech_ambassadors
+      - text: .
+    - link "Requests for comment":
+      - /url: /wiki/Wikipedia:Requests_for_comment
+    - paragraph:
+      - text: Discussions in the following areas have requested wider attention via
+      - link "Requests for comment":
+        - /url: /wiki/Wikipedia:Requests_for_comment
+      - text: ":"
+    - list:
+      - listitem:
+        - link "Biographies":
+          - /url: /wiki/Wikipedia:Requests_for_comment/Biographies
+      - listitem:
+        - link "Economy and trade":
+          - /url: /wiki/Wikipedia:Requests_for_comment/Economy,_trade,_and_companies
+      - listitem:
+        - link "History and geography":
+          - /url: /wiki/Wikipedia:Requests_for_comment/History_and_geography
+      - listitem:
+        - link "Language and linguistics":
+          - /url: /wiki/Wikipedia:Requests_for_comment/Language_and_linguistics
+      - listitem:
+        - link "Media, the arts, and architecture":
+          - /url: /wiki/Wikipedia:Requests_for_comment/Media,_the_arts,_and_architecture
+      - listitem:
+        - link "Politics, government, and law":
+          - /url: /wiki/Wikipedia:Requests_for_comment/Politics,_government,_and_law
+      - listitem:
+        - link "Religion and philosophy":
+          - /url: /wiki/Wikipedia:Requests_for_comment/Religion_and_philosophy
+      - listitem:
+        - link "Science and mathematics":
+          - /url: /wiki/Wikipedia:Requests_for_comment/Maths,_science,_and_technology
+      - listitem:
+        - link "Society, sports, and culture":
+          - /url: /wiki/Wikipedia:Requests_for_comment/Society,_sports,_and_culture
+      - listitem:
+        - link "Wikipedia policies and guidelines":
+          - /url: /wiki/Wikipedia:Requests_for_comment/Wikipedia_policies_and_guidelines
+      - listitem:
+        - link "Wikipedia style and naming":
+          - /url: /wiki/Wikipedia:Requests_for_comment/Wikipedia_style_and_naming
+      - listitem:
+        - link "WikiProjects and collaborations":
+          - /url: /wiki/Wikipedia:Requests_for_comment/WikiProjects_and_collaborations
+      - listitem:
+        - link "Wikipedia technical issues and templates":
+          - /url: /wiki/Wikipedia:Requests_for_comment/Wikipedia_technical_issues_and_templates
+      - listitem:
+        - link "Wikipedia proposals":
+          - /url: /wiki/Wikipedia:Requests_for_comment/Wikipedia_proposals
+      - listitem:
+        - link "Unsorted":
+          - /url: /wiki/Wikipedia:Requests_for_comment/Unsorted
+    - list:
+      - listitem:
+        - link "View all":
+          - /url: /wiki/Wikipedia:Requests_for_comment/All
+    - paragraph
+    - text: General notices
+    - list:
+      - listitem:
+        - text: Per
+        - link "community consensus":
+          - /url: /wiki/Wikipedia:Writing_articles_with_large_language_models/RfC
+        - text: ", the use of"
+        - link "large language models":
+          - /url: /wiki/Large_language_models
+        - text: to generate or rewrite Wikipedia article content is now
+        - link "generally prohibited":
+          - /url: /wiki/Wikipedia:NEWLLM
+        - text: .
+    - list:
+      - listitem:
+        - link "RfC on renaming AfD":
+          - /url: /wiki/Wikipedia:Village_pump_(policy)#RfC_on_renaming_AfD
+      - listitem:
+        - link "RfC on blocking policy regarding LLM-use":
+          - /url: /wiki/Wikipedia_talk:Blocking_policy#RFC:_Include_LLM_usage_as_a_reason_to_block
+    - list:
+      - listitem:
+        - link "Community consultation on editing on apps":
+          - /url: https://www.mediawiki.org/wiki/Wikimedia_Apps/Team/Future_of_Editing_on_the_Mobile_Apps
+    - navigation:
+      - rowgroup:
+        - row "The Signpost":
+          - columnheader "The Signpost":
+            - link "The Signpost":
+              - /url: /wiki/Wikipedia:Wikipedia_Signpost
+              - img "The Signpost"
+        - row "31 March 2026":
+          - cell "31 March 2026":
+            - link "31 March 2026":
+              - /url: /wiki/Wikipedia:Wikipedia_Signpost/Archives/2026-03-31
+        - row:
+          - cell:
+            - button "[hide]" [expanded]
+            - list:
+              - listitem:
+                - text: "News and notes:"
+                - link "Entirety of Wikinews to be shut down":
+                  - /url: /wiki/Wikipedia:Wikipedia_Signpost/2026-03-31/News_and_notes
+                - text: All languages to be shut down in May; first AI agent blocked; new name for AfD?
+            - list:
+              - listitem:
+                - text: "In the media:"
+                - link "AI ban, newspapers disrupt archiving; and antisemitism complaints":
+                  - /url: /wiki/Wikipedia:Wikipedia_Signpost/2026-03-31/In_the_media
+                - text: Perennial challenges with AI, demographic representation, and attacks from people buying media influence.
+            - list:
+              - listitem:
+                - text: "Community view:"
+                - link "Videos from WikiConference North America 2025 in NYC":
+                  - /url: /wiki/Wikipedia:Wikipedia_Signpost/2026-03-31/Community_view
+                - text: In attendees' own words.
+            - list:
+              - listitem:
+                - text: "Disinformation report:"
+                - link "Cleaning up after Jeffrey Epstein, Peter Nygard, and Mohamed Al-Fayed":
+                  - /url: /wiki/Wikipedia:Wikipedia_Signpost/2026-03-31/Disinformation_report
+                - text: Countering the edits of the rich and dangerous.
+            - list:
+              - listitem:
+                - text: "WikiConference report:"
+                - link "WikiConference North America 2025 in NYC review":
+                  - /url: /wiki/Wikipedia:Wikipedia_Signpost/2026-03-31/WikiConference_report
+                - text: About the conference series, and this conference particularly.
+            - list:
+              - listitem:
+                - text: "Obituary:"
+                - link "Dr. Subas Chandra Rout":
+                  - /url: /wiki/Wikipedia:Wikipedia_Signpost/2026-03-31/Obituary
+                - text: Rest in peace.
+            - list:
+              - listitem:
+                - text: "Traffic report:"
+                - link "Call in the dogs of war, soldier of fortune":
+                  - /url: /wiki/Wikipedia:Wikipedia_Signpost/2026-03-31/Traffic_report
+                - text: Though of course the picture needs to be Chuck Norris...
+            - list:
+              - listitem:
+                - text: "Gallery:"
+                - link "Canadian Rangers participate in Operation Enduring Encyclopedia":
+                  - /url: /wiki/Wikipedia:Wikipedia_Signpost/2026-03-31/Gallery
+                - text: Analogies between how Wikipedia works and how Canada works.
+            - list:
+              - listitem:
+                - text: "Comix:"
+                - link "n00bsitting":
+                  - /url: /wiki/Wikipedia:Wikipedia_Signpost/2026-03-31/Comix
+                - text: ...!
+        - row "Single page Front page · About · Subscribe · Suggestions · Archives":
+          - cell "Single page Front page · About · Subscribe · Suggestions · Archives":
+            - list:
+              - listitem:
+                - link "Single page":
+                  - /url: /wiki/Wikipedia:Wikipedia_Signpost/Single
+            - list:
+              - listitem:
+                - link "Front page":
+                  - /url: /wiki/Wikipedia:Wikipedia_Signpost
+                - text: ·
+              - listitem:
+                - link "About":
+                  - /url: /wiki/Wikipedia:Wikipedia_Signpost/About
+                - text: ·
+              - listitem:
+                - link "Subscribe":
+                  - /url: /wiki/Wikipedia:Wikipedia_Signpost/Subscribe
+                - text: ·
+              - listitem:
+                - link "Suggestions":
+                  - /url: https://en.wikipedia.org/wiki/Wikipedia:Wikipedia_Signpost/Newsroom/Suggestions
+                - text: ·
+              - listitem:
+                - link "Archives":
+                  - /url: /wiki/Wikipedia:Wikipedia_Signpost/Archives
+    - heading "Help out" [level=2]
+    - paragraph:
+      - text: You can help improve the articles listed below! This list updates frequently, so check back here for more tasks to try. (See
+      - link "Wikipedia:Maintenance":
+        - /url: /wiki/Wikipedia:Maintenance
+      - text: or the
+      - link "Task Center":
+        - /url: /wiki/Wikipedia:Task_Center
+      - text: for further information.)
+    - region "Fix spelling and grammar":
+      - text: Fix spelling and grammar
+      - list:
+        - listitem:
+          - link "Viadana, Lombardy":
+            - /url: /wiki/Viadana,_Lombardy
+        - listitem:
+          - link "Bobi Wine":
+            - /url: /wiki/Bobi_Wine
+        - listitem:
+          - link "Team Rubicon":
+            - /url: /wiki/Team_Rubicon
+        - listitem:
+          - link "Sagramore":
+            - /url: /wiki/Sagramore
+        - listitem:
+          - link "Legible Prague":
+            - /url: /wiki/Legible_Prague
+      - link "More...":
+        - /url: /wiki/Category:Wikipedia_articles_needing_copy_edit
+      - text: •
+      - link "Learn how":
+        - /url: /wiki/Wikipedia:Basic_copyediting
+    - region "Fix wikilinks":
+      - text: Fix wikilinks
+      - list:
+        - listitem:
+          - link "Cuddly Toys (2022 film)":
+            - /url: /wiki/Cuddly_Toys_(2022_film)
+        - listitem:
+          - link "Afruca":
+            - /url: /wiki/Afruca
+        - listitem:
+          - link "Looney Tunes and Merrie Melodies filmography (1960–1969)":
+            - /url: /wiki/Looney_Tunes_and_Merrie_Melodies_filmography_(1960%E2%80%931969)
+        - listitem:
+          - link "Teaching artist":
+            - /url: /wiki/Teaching_artist
+        - listitem:
+          - link "Kuai Dafu":
+            - /url: /wiki/Kuai_Dafu
+      - link "More...":
+        - /url: /wiki/Category:All_articles_with_too_few_wikilinks
+      - text: •
+      - link "Learn how":
+        - /url: /wiki/Help:Wikitext#Wikilinks
+    - region "Update with new information":
+      - text: Update with new information
+      - list:
+        - listitem:
+          - link "Louis-Philippe Dumoulin":
+            - /url: /wiki/Louis-Philippe_Dumoulin
+        - listitem:
+          - link "Allegany, New York":
+            - /url: /wiki/Allegany,_New_York
+        - listitem:
+          - link "Level of service (transportation)":
+            - /url: /wiki/Level_of_service_(transportation)
+        - listitem:
+          - link "Telewizja Trwam":
+            - /url: /wiki/Telewizja_Trwam
+        - listitem:
+          - link "Richard H. Campbell":
+            - /url: /wiki/Richard_H._Campbell
+      - link "More...":
+        - /url: /wiki/Category:Wikipedia_articles_in_need_of_updating
+      - text: •
+      - link "Learn how":
+        - /url: /wiki/Wikipedia:As_of
+    - region "Expand short articles":
+      - text: Expand short articles
+      - list:
+        - listitem:
+          - link "Sherwood, Maryland":
+            - /url: /wiki/Sherwood,_Maryland
+        - listitem:
+          - link "Newcomb, Maryland":
+            - /url: /wiki/Newcomb,_Maryland
+        - listitem:
+          - link "Doncaster, Talbot County, Maryland":
+            - /url: /wiki/Doncaster,_Talbot_County,_Maryland
+        - listitem:
+          - link "Tunis Mills, Maryland":
+            - /url: /wiki/Tunis_Mills,_Maryland
+        - listitem:
+          - link "Matthews, Maryland":
+            - /url: /wiki/Matthews,_Maryland
+      - link "More...":
+        - /url: /wiki/Category:All_stub_articles
+      - text: •
+      - link "Learn how":
+        - /url: /wiki/Wikipedia:Writing_better_articles#Layout
+    - region "Check and add references":
+      - text: Check and add references
+      - list:
+        - listitem:
+          - link "Α-Lactalbumin":
+            - /url: /wiki/%CE%91-Lactalbumin
+        - listitem:
+          - link "List of people who have walked across Australia":
+            - /url: /wiki/List_of_people_who_have_walked_across_Australia
+        - listitem:
+          - link "John Mann, Baron Mann":
+            - /url: /wiki/John_Mann,_Baron_Mann
+        - listitem:
+          - link "Frano Kulišić":
+            - /url: /wiki/Frano_Kuli%C5%A1i%C4%87
+        - listitem:
+          - link "Film4 Productions":
+            - /url: /wiki/Film4_Productions
+      - link "More...":
+        - /url: /wiki/Category:Wikipedia_articles_needing_factual_verification
+      - text: •
+      - link "Learn how":
+        - /url: /wiki/Help:Introduction_to_referencing_with_Wiki_Markup/1
+    - region "Fix original research issues":
+      - text: Fix original research issues
+      - list:
+        - listitem:
+          - link "Samyr Lainé":
+            - /url: /wiki/Samyr_Lain%C3%A9
+        - listitem:
+          - link "Sukhyang jeon":
+            - /url: /wiki/Sukhyang_jeon
+        - listitem:
+          - link "Berlin Oranienburger Straße station":
+            - /url: /wiki/Berlin_Oranienburger_Stra%C3%9Fe_station
+        - listitem:
+          - link "Dynamic density":
+            - /url: /wiki/Dynamic_density
+        - listitem:
+          - link "St. Anselm's North City School, Jaipur":
+            - /url: /wiki/St._Anselm%27s_North_City_School,_Jaipur
+      - link "More...":
+        - /url: /wiki/Category:Articles_that_may_contain_original_research
+      - text: •
+      - link "Learn how":
+        - /url: /wiki/Wikipedia:No_original_research#Synthesis_of_published_material_that_advances_a_position
+    - region "Improve lead sections":
+      - text: Improve lead sections
+      - list:
+        - listitem:
+          - link "Cinema of Laos":
+            - /url: /wiki/Cinema_of_Laos
+        - listitem:
+          - link "Royal Institute of Public Health":
+            - /url: /wiki/Royal_Institute_of_Public_Health
+        - listitem:
+          - link "2023–24 Brisbane Heat WBBL season":
+            - /url: /wiki/2023%E2%80%9324_Brisbane_Heat_WBBL_season
+        - listitem:
+          - link "Jérôme Souchier":
+            - /url: /wiki/J%C3%A9r%C3%B4me_Souchier
+        - listitem:
+          - link "Barlan":
+            - /url: /wiki/Barlan
+      - link "More...":
+        - /url: /wiki/Category:Wikipedia_introduction_cleanup
+      - text: •
+      - link "Learn how":
+        - /url: /wiki/Wikipedia:Writing_better_articles#Lead_section
+    - region "Add an image":
+      - text: Add an image
+      - list:
+        - listitem:
+          - link "Western Australian wine":
+            - /url: /wiki/Western_Australian_wine
+        - listitem:
+          - link "Welf pudding":
+            - /url: /wiki/Welf_pudding
+        - listitem:
+          - link "West LA Courthouse skate plaza":
+            - /url: /wiki/West_LA_Courthouse_skate_plaza
+        - listitem:
+          - link "Xavier Institute of Engineering":
+            - /url: /wiki/Xavier_Institute_of_Engineering
+        - listitem:
+          - link "Yanase-ura Site":
+            - /url: /wiki/Yanase-ura_Site
+      - link "More...":
+        - /url: /wiki/Category:Wikipedia_requested_images
+      - text: •
+      - link "Learn how":
+        - /url: https://commons.wikimedia.org/wiki/Commons:First_steps/Reuse
+    - region "Translate and clean up":
+      - text: Translate and clean up
+      - list:
+        - listitem:
+          - link "Rastrelli Cello Quartet":
+            - /url: /wiki/Rastrelli_Cello_Quartet
+        - listitem:
+          - link "National University of Engineering":
+            - /url: /wiki/National_University_of_Engineering
+        - listitem:
+          - link "Susumu Kodai":
+            - /url: /wiki/Susumu_Kodai
+        - listitem:
+          - link "Yaoshi Bao Chan":
+            - /url: /wiki/Yaoshi_Bao_Chan
+        - listitem:
+          - link "Gabriela Pizarro":
+            - /url: /wiki/Gabriela_Pizarro
+      - link "More...":
+        - /url: /wiki/Category:All_Wikipedia_articles_needing_cleanup_after_translation
+      - text: •
+      - link "Learn how":
+        - /url: /wiki/Wikipedia:Pages_needing_translation_into_English#Standard_procedures
+    - paragraph:
+      - text: Help counter
+      - link "systemic bias":
+        - /url: /wiki/Wikipedia:Systemic_bias
+      - text: by creating
+      - link "new articles on important women":
+        - /url: /wiki/Wikipedia:WikiProject_Women_in_Red/Redlist_index
+      - text: .
+    - paragraph:
+      - text: Help improve
+      - link "popular pages":
+        - /url: /wiki/Category:Lists_of_popular_pages_by_WikiProject
+      - text: ", especially"
+      - link "those of low quality":
+        - /url: /wiki/User:DataflowBot/output/Popular_low_quality_articles_(id-2)
+      - text: .
+    - note:
+      - text: This section is
+      - link "transcluded":
+        - /url: /wiki/Help:Transclusion
+      - text: from
+      - link "Wikipedia:Community portal/Open tasks":
+        - /url: /wiki/Wikipedia:Community_portal/Open_tasks
+      - text: . (
+      - link "edit":
+        - /url: https://en.wikipedia.org/w/index.php?title=Wikipedia:Community_portal/Open_tasks&action=edit
+      - text: "|"
+      - link "history":
+        - /url: https://en.wikipedia.org/w/index.php?title=Wikipedia:Community_portal/Open_tasks&action=history
+      - text: )
+    - table:
+      - rowgroup:
+        - 'row "This week''s article for improvement is: Agriculture in Haiti Previous selections: Ancient music · Port Vila · Christmas dinner The backlog of the week is: Category:Wikipedia requested maps in Micronesia"':
+          - 'cell "This week''s article for improvement is: Agriculture in Haiti Previous selections: Ancient music · Port Vila · Christmas dinner"':
+            - paragraph:
+              - text: This week's
+              - link "article for improvement":
+                - /url: /wiki/Wikipedia:Articles_for_improvement
+              - text: "is:"
+            - paragraph:
+              - link "Agriculture in Haiti":
+                - /url: /wiki/Agriculture_in_Haiti
+            - text: "Previous selections:"
+            - link "Ancient music":
+              - /url: /wiki/Ancient_music
+            - text: ·
+            - link "Port Vila":
+              - /url: /wiki/Port_Vila
+            - text: ·
+            - link "Christmas dinner":
+              - /url: /wiki/Christmas_dinner
+          - 'cell "The backlog of the week is: Category:Wikipedia requested maps in Micronesia"':
+            - paragraph:
+              - text: The
+              - link "backlog":
+                - /url: /wiki/Wikipedia:Backlog
+              - text: "of the week is:"
+            - paragraph:
+              - link "Category:Wikipedia requested maps in Micronesia":
+                - /url: /wiki/Category:Wikipedia_requested_maps_in_Micronesia
+          - cell
+    - heading "Newest featured content" [level=2]
+    - link "Articles":
+      - /url: /wiki/Wikipedia:Featured_articles
+    - link "Featured article":
+      - /url: /wiki/File:Featured_article_star.svg
+    - list:
+      - listitem:
+        - link "Diaspora Revolt":
+          - /url: /wiki/Diaspora_Revolt
+      - listitem:
+        - link "Bella Ramsey":
+          - /url: /wiki/Bella_Ramsey
+      - listitem:
+        - link "All Hell Breaks Loose (Charmed)":
+          - /url: /wiki/All_Hell_Breaks_Loose_(Charmed)
+      - listitem:
+        - link "III (Banks album)":
+          - /url: /wiki/III_(Banks_album)
+      - listitem:
+        - link "Serpent labret with articulated tongue":
+          - /url: /wiki/Serpent_labret_with_articulated_tongue
+      - listitem:
+        - link "III (Banks album)":
+          - /url: /wiki/III_(Banks_album)
+      - listitem:
+        - link "Hurricane Joaquin":
+          - /url: /wiki/Hurricane_Joaquin
+      - listitem:
+        - link "Truganini":
+          - /url: /wiki/Truganini
+      - listitem:
+        - link "Menora v. Illinois High School Association":
+          - /url: /wiki/Menora_v._Illinois_High_School_Association
+      - listitem:
+        - link "Crusading movement":
+          - /url: /wiki/Crusading_movement
+      - listitem:
+        - 'link "Splatoon 3: Side Order"':
+          - /url: /wiki/Splatoon_3:_Side_Order
+      - listitem:
+        - link "Macauley Island":
+          - /url: /wiki/Macauley_Island
+      - listitem:
+        - link "George Brown (cricketer, born 1887)":
+          - /url: /wiki/George_Brown_(cricketer,_born_1887)
+      - listitem:
+        - link "Manhattan Project feed materials program":
+          - /url: /wiki/Manhattan_Project_feed_materials_program
+      - listitem:
+        - link "Karma (Taylor Swift song)":
+          - /url: /wiki/Karma_(Taylor_Swift_song)
+    - link "Topics":
+      - /url: /wiki/Wikipedia:Featured_topics
+    - link "Featured topic":
+      - /url: /wiki/File:Cscr-featuredtopic.svg
+    - list:
+      - listitem:
+        - link "British monarchs":
+          - /url: /wiki/Wikipedia:Featured_topics/British_monarchs
+      - listitem:
+        - link "Kristen Bell":
+          - /url: /wiki/Wikipedia:Featured_topics/Kristen_Bell
+      - listitem:
+        - link "Chimamanda Ngozi Adichie":
+          - /url: /wiki/Wikipedia:Featured_topics/Chimamanda_Ngozi_Adichie
+      - listitem:
+        - link "No. 86 Wing RAAF":
+          - /url: /wiki/Wikipedia:Featured_topics/No._86_Wing_RAAF
+      - listitem:
+        - link "Overview of Lecrae":
+          - /url: /wiki/Wikipedia:Featured_topics/Overview_of_Lecrae
+      - listitem:
+        - link "Roman invasion of Africa (204–201 BC)":
+          - /url: /wiki/Wikipedia:Featured_topics/Roman_invasion_of_Africa_(204%E2%80%93201_BC)
+      - listitem:
+        - link "Scottish invasion of England (1648)":
+          - /url: /wiki/Wikipedia:Featured_topics/Scottish_invasion_of_England_(1648)
+      - listitem:
+        - link "Line of Duty":
+          - /url: /wiki/Wikipedia:Featured_topics/Line_of_Duty
+      - listitem:
+        - link "Overview of SZA":
+          - /url: /wiki/Wikipedia:Featured_topics/Overview_of_SZA
+      - listitem:
+        - link "Green Bay Packers players":
+          - /url: /wiki/Wikipedia:Featured_topics/Green_Bay_Packers_players
+      - listitem:
+        - link "History of the National Hockey League":
+          - /url: /wiki/Wikipedia:Featured_topics/History_of_the_National_Hockey_League
+      - listitem:
+        - link "Peter Capaldi":
+          - /url: /wiki/Wikipedia:Featured_topics/Peter_Capaldi
+      - listitem:
+        - link "Detroit Lions draft history":
+          - /url: /wiki/Wikipedia:Featured_topics/Detroit_Lions_draft_history
+      - listitem:
+        - link "Jake Gyllenhaal":
+          - /url: /wiki/Wikipedia:Featured_topics/Jake_Gyllenhaal
+      - listitem:
+        - link "Green Bay Packers draft history":
+          - /url: /wiki/Wikipedia:Featured_topics/Green_Bay_Packers_draft_history
+    - link "Lists":
+      - /url: /wiki/Wikipedia:Featured_lists
+    - link "Featured list":
+      - /url: /wiki/File:Featured_article_star.svg
+    - list:
+      - listitem:
+        - link "Timeline of the John Adams presidency":
+          - /url: /wiki/Timeline_of_the_John_Adams_presidency
+      - listitem:
+        - link "List of municipalities in Ávila":
+          - /url: /wiki/List_of_municipalities_in_%C3%81vila
+      - listitem:
+        - link "List of Justin Timberlake live performances":
+          - /url: /wiki/List_of_Justin_Timberlake_live_performances
+      - listitem:
+        - link "List of Doctor Who universe creatures and aliens":
+          - /url: /wiki/List_of_Doctor_Who_universe_creatures_and_aliens
+      - listitem:
+        - link "List of cricetines":
+          - /url: /wiki/List_of_cricetines
+      - listitem:
+        - link "Monuments of national significance in Zhytomyr Oblast":
+          - /url: /wiki/Monuments_of_national_significance_in_Zhytomyr_Oblast
+      - listitem:
+        - link "List of awards and nominations received by Yeah Yeah Yeahs":
+          - /url: /wiki/List_of_awards_and_nominations_received_by_Yeah_Yeah_Yeahs
+      - listitem:
+        - link "List of accolades received by Black Panther (film)":
+          - /url: /wiki/List_of_accolades_received_by_Black_Panther_(film)
+      - listitem:
+        - link "French Figure Skating Championships":
+          - /url: /wiki/French_Figure_Skating_Championships
+      - listitem:
+        - link "1987 Mississippi ballot measures":
+          - /url: /wiki/1987_Mississippi_ballot_measures
+      - listitem:
+        - link "Timeline of the 2024 Atlantic hurricane season":
+          - /url: /wiki/Timeline_of_the_2024_Atlantic_hurricane_season
+      - listitem:
+        - link "List of nesomyids":
+          - /url: /wiki/List_of_nesomyids
+      - listitem:
+        - link "List of Billboard Hot 100 number ones of 1965":
+          - /url: /wiki/List_of_Billboard_Hot_100_number_ones_of_1965
+      - listitem:
+        - link "Australian Convict Sites":
+          - /url: /wiki/Australian_Convict_Sites
+      - listitem:
+        - link "List of number-one singles on Tio i Topp":
+          - /url: /wiki/List_of_number-one_singles_on_Tio_i_Topp
+    - link "Pictures":
+      - /url: /wiki/Wikipedia:Featured_pictures
+    - link "Featured picture":
+      - /url: /wiki/File:Cscr-featured.svg
+    - list:
+      - listitem:
+        - link "Cobbler repairing shoes in his workshop":
+          - /url: /wiki/File:Cobbler_repairing_shoes_in_old_workshop_(Bazaar_in_Bitola,_Macedonia,_2025).jpg
+      - listitem:
+        - link "Black-necked swan":
+          - /url: /wiki/File:Black-necked_swan_(Cygnus_melancoryphus)_Santiago.jpg
+      - listitem:
+        - link "Chiloé wigeon":
+          - /url: /wiki/File:Chiloe_wigeon_(Mareca_sibilatrix)_male_Tricao_3.jpg
+      - listitem:
+        - link "Troides aeacus":
+          - /url: /wiki/File:Golden_birdwing_(Troides_aeacus_aeacus)_female_Siem_Reap.jpg
+      - listitem:
+        - link "Broad-tailed grassbird":
+          - /url: /wiki/File:Broad-tailed_Grassbird_in_Mahabaleshwar_August_2025_by_Tisha_Mukherjee_03.jpg
+      - listitem:
+        - link "African bush elephant":
+          - /url: /wiki/File:178_Male_African_bush_elephant_in_Etosha_National_Park_Photo_by_Giles_Laurent.jpg
+      - listitem:
+        - link "Papilio clytia":
+          - /url: /wiki/File:Common_mime_(Papilio_clytia)_form_dissimilis_in_flight_Luang_Prabang.jpg
+      - listitem:
+        - link "Brown-chested martin":
+          - /url: /wiki/File:Brown-chested_martin_(Progne_tapera)_Colonia.jpg
+      - listitem:
+        - link "Northern pig-tailed macaque":
+          - /url: /wiki/File:Northern_pig-tailed_macaque_(Macaca_leonina)_female_Angkor.jpg
+      - listitem:
+        - link "Valerie Perrine":
+          - /url: /wiki/File:Valerie_Perrine_(1975).jpg
+      - listitem:
+        - link "Chilaquiles":
+          - /url: /wiki/File:Chilaquiles_at_the_Grand_Cantina,_Windsor,_Ontario,_2025-09-01_04.jpg
+      - listitem:
+        - link "Crimson-breasted shrike":
+          - /url: /wiki/File:161_Crimson-breasted_shrike_in_Otjozondjupa_Region_Photo_by_Giles_Laurent.jpg
+      - listitem:
+        - link "Library hall of the Clementinum":
+          - /url: /wiki/File:Clementinum_baroque_library_2.jpg
+      - listitem:
+        - link "Stromatolite":
+          - /url: /wiki/File:Stromatolithe_Pal%C3%A9oarch%C3%A9en_-_MNHT.PAL.2009.10.1.jpg
+      - listitem:
+        - link "Collards":
+          - /url: /wiki/File:Collard-Greens-Bundle.jpg
+    - heading "Tip of the day" [level=2]
+    - complementary "Tip of the day...":
+      - link "Tip of the day...":
+        - /url: /wiki/Wikipedia:Tip_of_the_day
+      - figure
+      - text: Search box bookmarklet for your browser
+      - paragraph:
+        - link "Bookmarklets":
+          - /url: /wiki/Bookmarklet
+        - text: are
+        - link "Javascript":
+          - /url: /wiki/Javascript
+        - text: "programs that are stored as bookmarks in your browser, and which run when you click on them as opposed to bringing you to a page like a normal bookmark. Here is one that conducts a search in Wikipedia on any text you happen to have highlighted in whichever window you are in (or if no text is highlighted, presents you with a popup search box):"
+        - link "~axel/bookmarklet.html":
+          - /url: http://math-www.uni-paderborn.de/~axel/bookmarklet.html
+        - text: . See also
+        - link "Bookmarklets":
+          - /url: http://www.bookmarklets.com/
+        - text: .
+      - link "Prior tip":
+        - /url: /wiki/Wikipedia:Tip_of_the_day/April_8
+      - text: –
+      - link "Tips library":
+        - /url: /wiki/Wikipedia:Tips
+      - text: –
+      - link "Next tip":
+        - /url: /wiki/Wikipedia:Tip_of_the_day/April_10
+      - text: "Read more:"
+      - link "Bookmarklet":
+        - /url: /wiki/Bookmarklet
+      - link "Become a Wikipedia tipster":
+        - /url: /wiki/Wikipedia:Wikipedia_tipster
+      - note:
+        - text: "To add this auto-updating template to your user page, use {{"
+        - link "totd":
+          - /url: /wiki/Template:Totd
+        - text: "}}"
+    - paragraph
+    - navigation "sister-projects":
+      - text: Wikipedia:Community portal at Wikipedia's
+      - link "sister projects":
+        - /url: /wiki/Wikipedia:Wikimedia_sister_projects
+      - text: ":"
+      - list:
+        - listitem:
+          - link "Wiktionary logo":
+            - /url: /wiki/File:Wiktionary-logo-en-v2.svg
+            - img "Wiktionary logo"
+          - link "Definitions":
+            - /url: https://en.wiktionary.org/wiki/Wiktionary:Community_Portal
+          - text: from Wiktionary
+        - listitem:
+          - link "Wikimedia Commons logo":
+            - /url: /wiki/File:Commons-logo.svg
+            - img "Wikimedia Commons logo"
+          - link "Media":
+            - /url: https://commons.wikimedia.org/wiki/Commons:Community_portal
+          - text: from Commons
+        - listitem:
+          - link "Wikinews logo":
+            - /url: /wiki/File:Wikinews-logo.svg
+            - img "Wikinews logo"
+          - link "News":
+            - /url: https://en.wikinews.org/wiki/Wikinews:Newsroom
+          - text: from Wikinews
+        - listitem:
+          - link "Quotations":
+            - /url: https://en.wikiquote.org/wiki/Wikiquote:Community_Portal
+          - text: from Wikiquote
+        - listitem:
+          - link "Wikisource logo":
+            - /url: /wiki/File:Wikisource-logo.svg
+            - img "Wikisource logo"
+          - link "Texts":
+            - /url: https://en.wikisource.org/wiki/Wikisource:Community_portal
+          - text: from Wikisource
+        - listitem:
+          - link "Wikibooks logo":
+            - /url: /wiki/File:Wikibooks-logo.svg
+            - img "Wikibooks logo"
+          - link "Textbooks":
+            - /url: https://en.wikibooks.org/wiki/Wikibooks:Community_Portal
+          - text: from Wikibooks
+        - listitem:
+          - link "Wikiversity logo":
+            - /url: /wiki/File:Wikiversity_logo_2017.svg
+            - img "Wikiversity logo"
+          - link "Resources":
+            - /url: https://en.wikiversity.org/wiki/Wikiversity:Community_Portal
+          - text: from Wikiversity
+        - listitem:
+          - link "Wikivoyage logo":
+            - /url: /wiki/File:Wikivoyage-Logo-v3-icon.svg
+            - img "Wikivoyage logo"
+          - link "Travel guides":
+            - /url: https://en.wikivoyage.org/wiki/Wikivoyage:Community_portal
+          - text: from Wikivoyage
+        - listitem:
+          - link "Wikispecies logo":
+            - /url: /wiki/File:Wikispecies-logo.svg
+            - img "Wikispecies logo"
+          - link "Taxa":
+            - /url: https://species.wikimedia.org/wiki/Wikispecies:Community_Portal
+          - text: from Wikispecies
+        - listitem:
+          - link "Data":
+            - /url: https://www.wikidata.org/wiki/Wikidata:Community_portal
+          - text: from Wikidata
+    - navigation "Wikipedia editor navigation":
+      - table:
+        - rowgroup:
+          - row "[show] v · t · e Wikipedia editor navigation":
+            - columnheader "[show] v · t · e Wikipedia editor navigation":
+              - button "[show]"
+              - list:
+                - listitem:
+                  - link "v":
+                    - /url: /wiki/Template:Wikipedia_editor_navigation
+                  - text: ·
+                - listitem:
+                  - link "t":
+                    - /url: /wiki/Template_talk:Wikipedia_editor_navigation
+                  - text: ·
+                - listitem:
+                  - link "e":
+                    - /url: /wiki/Special:EditPage/Template:Wikipedia_editor_navigation
+              - link "Wikipedia editor navigation":
+                - /url: /wiki/Wikipedia:Editor%27s_index_to_Wikipedia
+          - row
+          - row
+    - link "Categories":
+      - /url: /wiki/Help:Category
+    - text: ":"
+    - list:
+      - listitem:
+        - link "Wikipedia basic information":
+          - /url: /wiki/Category:Wikipedia_basic_information
+      - listitem:
+        - link "Wikipedia discussion":
+          - /url: /wiki/Category:Wikipedia_discussion
+      - listitem:
+        - link "Wikipedia directories":
+          - /url: /wiki/Category:Wikipedia_directories
+      - listitem:
+        - link "Wikipedia news":
+          - /url: /wiki/Category:Wikipedia_news
+      - listitem:
+        - link "Wikipedia noticeboards":
+          - /url: /wiki/Category:Wikipedia_noticeboards
+  - contentinfo:
+    - list:
+      - listitem: This page was last edited on 27 March 2026, at 06:37 (UTC).
+      - listitem:
+        - text: Text is available under the
+        - link "Creative Commons Attribution-ShareAlike 4.0 License":
+          - /url: /wiki/Wikipedia:Text_of_the_Creative_Commons_Attribution-ShareAlike_4.0_International_License
+        - text: ; additional terms may apply. By using this site, you agree to the
+        - link "Terms of Use":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Terms_of_Use
+        - text: and
+        - link "Privacy Policy":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Privacy_policy
+        - text: . Wikipedia® is a registered trademark of the
+        - link "Wikimedia Foundation, Inc.":
+          - /url: https://wikimediafoundation.org/
+        - text: ", a non-profit organization."
+    - list:
+      - listitem:
+        - link "Privacy policy":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Privacy_policy
+      - listitem:
+        - link "About Wikipedia":
+          - /url: /wiki/Wikipedia:About
+      - listitem:
+        - link "Disclaimers":
+          - /url: /wiki/Wikipedia:General_disclaimer
+      - listitem:
+        - link "Contact Wikipedia":
+          - /url: //en.wikipedia.org/wiki/Wikipedia:Contact_us
+      - listitem:
+        - link "Legal & safety contacts":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Legal:Wikimedia_Foundation_Legal_and_Safety_Contact_Information
+      - listitem:
+        - link "Code of Conduct":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Universal_Code_of_Conduct
+      - listitem:
+        - link "Developers":
+          - /url: https://developer.wikimedia.org
+      - listitem:
+        - link "Statistics":
+          - /url: https://stats.wikimedia.org/#/en.wikipedia.org
+      - listitem:
+        - link "Cookie statement":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Cookie_statement
+      - listitem:
+        - link "Mobile view":
+          - /url: //en.wikipedia.org/w/index.php?title=Wikipedia:Community_portal&mobileaction=toggle_view_mobile
+    - list:
+      - listitem:
+        - link "Wikimedia Foundation":
+          - /url: https://www.wikimedia.org/
+          - img "Wikimedia Foundation"
+      - listitem:
+        - link "Powered by MediaWiki":
+          - /url: https://www.mediawiki.org/
+          - img "Powered by MediaWiki"
+  - list

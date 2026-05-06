@@ -1,0 +1,34 @@
+- document:
+  - complementary:
+    - text: Settings
+    - navigation:
+      - text: Account
+      - img
+      - text: Profile
+      - img
+      - text: Preferences
+      - img
+      - text: Notifications
+      - img
+      - text: Security & Access
+  - main:
+    - heading "Preferences" [level=2]
+    - paragraph: Adjust your preferences to personalize your workflow.
+    - heading "General" [level=3]
+    - text: Default home view The default view that opens when you log in. Active issues
+    - img
+    - text: Display full names Show full names instead of usernames. First day of the week Personalize how calendars display your weeks. Monday
+    - img
+    - text: Convert text emoticons into emojis Automatically convert text like :) into emojis.
+    - heading "Interface and theme" [level=3]
+    - text: Theme Choose your preferred theme. System
+    - img
+    - text: Font size Adjust the font size of the interface. Default
+    - img
+    - text: Use pointer cursor Show pointer cursor when hovering over interactive elements.
+    - heading "Desktop application" [level=3]
+    - text: Open in desktop app Attempt to open Linear URLs in the desktop app. Notification badge Show notification badges on the desktop app icon. Spell check Enable spell check in the desktop app.
+    - heading "Automations and workflows" [level=3]
+    - text: Auto-assign on create Automatically assign issues you create to yourself. Auto-assign on started Auto-assign issues you move to a started status. Git attachment format How git attachments are displayed. Title only
+    - img
+    - text: On git branch copy, move to started Move issue to started status when you copy the git branch name. On git branch copy, auto-assign Auto-assign the issue to yourself when you copy the git branch name.

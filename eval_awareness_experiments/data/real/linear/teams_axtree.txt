@@ -1,0 +1,6 @@
+- document:
+  - img
+  - heading "Welcome to Linear" [level=1]
+  - text: Linear is a purpose-built system for developing products. Streamline issues, projects, and product roadmaps.
+  - button "Get started"
+  - region "Notifications alt+T"

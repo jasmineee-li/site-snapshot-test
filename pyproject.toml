@@ -93,6 +93,15 @@ dev = [
     "nbformat>=5.10",
     "nbmake>=1.5",
 ]
+# Local CUA model serving + DoM probe extraction.
+# Install with `uv pip install -e '.[cua]'` on hosts that will run
+# probe training, steering, or vLLM serving for OpenCUA / GUI-Owl.
+cua = [
+    "vllm>=0.6",
+    "qwen-vl-utils>=0.0.8",
+    "accelerate>=0.30",
+    "scikit-learn>=1.4",
+]
 
 [dependency-groups]
 dev = [
@@ -107,6 +116,9 @@ dev = [
     "ipython>=8.20",
     "ipykernel>=6.29",
 ]
+
+[tool.setuptools]
+packages = ["probes", "models", "eval_awareness", "eval_awareness_experiments"]
 
 [tool.uv.sources]
 agentlab = { path = "AgentLab", editable = true }

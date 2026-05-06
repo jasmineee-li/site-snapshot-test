@@ -1,0 +1,500 @@
+<!DOCTYPE html><html class="ng-csp" data-placeholder-focus="false" lang="en"><head data-user="theagentcompany" data-user-displayname="theagentcompany" data-requesttoken="Aw5TAX82QzBaIA8vAApjOHdwERwTKQVHB1kvAndtZCs=:zhcQIc0BqLhIIZ5IADI+ijm0aayWFYQxOGwPHhSCR38=">
+		<meta charset="utf-8">
+		<title>
+			Settings - ownCloud		</title>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="referrer" content="never">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0">
+					<meta name="apple-itunes-app" content="app-id=543672169">
+				<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black">
+		<meta name="apple-mobile-web-app-title" content="Settings">
+		<meta name="mobile-web-app-capable" content="yes">
+		<meta name="theme-color" content="#1d2d44">
+		<link rel="icon" href="/core/img/favicon.ico">
+		<link rel="apple-touch-icon-precomposed" href="/core/img/favicon-touch.png">
+		<link rel="mask-icon" sizes="any" href="/core/img/favicon-mask.svg" color="#1d2d44">
+		<link rel="manifest" href="/core/img/manifest.json">
+					<link rel="stylesheet" href="/core/vendor/select2/select2.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/styles.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/inputs.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/header.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/icons.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/fonts.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/apps.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/global.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/fixes.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/multiselect.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/mobile.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/vendor/jquery-ui/themes/base/jquery-ui.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/jquery-ui-fixes.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/tooltip.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/files_pdfviewer/css/style.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/share.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/files_versions/css/versions.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/files_videoplayer/css/style.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/firstrunwizard/css/colorbox.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/firstrunwizard/css/firstrunwizard.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/apps/notifications/css/styles.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/core/css/jquery.ocdialog.css?v=d4747cbf859c8707c276df9b5e4443ae">
+					<link rel="stylesheet" href="/settings/css/settings.css?v=d4747cbf859c8707c276df9b5e4443ae">
+									<script src="/index.php/core/js/oc.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/jquery/dist/jquery.min.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/jquery-migrate/jquery-migrate.min.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/jquery-ui/ui/jquery-ui.custom.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/underscore/underscore.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/moment/min/moment-with-locales.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/handlebars/handlebars.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/blueimp-md5/js/md5.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/bootstrap/js/tooltip.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/backbone/backbone.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/es6-promise/dist/es6-promise.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/davclient.js/lib/client.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/clipboard/dist/clipboard.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/bowser/src/bowser.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/jquery.ocdialog.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/oc-dialogs.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/js.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/l10n.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/octemplate.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/eventsource.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/config.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/search/js/search.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/oc-requesttoken.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/apps.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/mimetype.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/mimetypelist.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/snapjs/dist/latest/snap.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/vendor/select2/select2.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/oc-backbone.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/oc-backbone-webdav.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/placeholder.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/jquery.avatar.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/backgroundjobs.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/files_pdfviewer/js/previewplugin.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/shareconfigmodel.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharemodel.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharescollection.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/shareitemmodel.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialogresharerinfoview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialoglinklistview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialoglinkshareview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialogmailview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialoglinksocialview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialogexpirationview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialogshareelistview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/sharedialogview.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/share.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/files_videoplayer/js/viewer.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/firstrunwizard/js/jquery.colorbox.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/firstrunwizard/js/firstrunwizard.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/notifications/js/app.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/notifications/js/notification.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/files/fileinfo.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/files/client.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/setupchecks.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/settings/js/panels/setupchecks.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/settings/js/panels/mail.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/configreport/js/admin.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/settings/js/panels/legal.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/updatenotification/js/admin.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/settings/js/panels/backgroundjobs.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/settings/js/settings.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/settings/js/admin.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/apps/files/js/jquery.fileupload.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/multiselect.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					<script src="/core/js/integritycheck-failed-notification.js?v=d4747cbf859c8707c276df9b5e4443ae"></script>
+					</head>
+	<body id="body-settings">
+		<noscript>
+	<div id="nojavascript">
+		<div>
+			This application requires JavaScript for correct operation. Please <a href="http://enable-javascript.com/" target="_blank" rel="noreferrer">enable JavaScript</a> and reload the page.		</div>
+	</div>
+</noscript>
+		<div id="notification-container">
+			<div id="notification" style="display: inline-block;"><div class="row"><a href="/index.php/settings/admin#security-warning">There were problems with the code integrity check. More information…</a></div></div>
+		</div>
+		<header role="banner">
+			<div id="header">
+				<a href="/index.php" id="owncloud" tabindex="1">
+					<h1 class="logo-icon">
+						ownCloud					</h1>
+				</a>
+				<a href="#" class="header-appname-container menutoggle" tabindex="2">
+					<button class="burger">
+						Menu					</button>
+					<h1 class="header-appname">
+						Settings					</h1>
+				</a>
+				<div id="logo-claim" style="display:none;"></div>
+				<div id="settings">
+					<div id="expand" tabindex="6" role="link" class="menutoggle">
+												<div class="avatardiv" style="display: none">
+													</div>
+												<span id="expandDisplayName">theagentcompany</span>
+					</div>
+					<div id="expanddiv" class="menu">
+					<ul>
+											<li>
+							<a href="/index.php/settings/personal" class="active">
+								<img alt="" src="/settings/img/admin.svg">
+								Settings							</a>
+						</li>
+											<li>
+							<a href="/index.php/settings/users">
+								<img alt="" src="/settings/img/users.svg">
+								Users							</a>
+						</li>
+											<li>
+							<a href="/index.php/settings/help">
+								<img alt="" src="/settings/img/help.svg">
+								Help							</a>
+						</li>
+											<li>
+							<a id="logout" href="http://the-agent-company.com:8092/index.php/logout?requesttoken=Aw5TAX82QzBaIA8vAApjOHdwERwTKQVHB1kvAndtZCs%3D%3AzhcQIc0BqLhIIZ5IADI%2Bijm0aayWFYQxOGwPHhSCR38%3D">
+								<img alt="" src="/core/img/actions/logout.svg">
+								Log out							</a>
+						</li>
+					</ul>
+					</div>
+				</div>
+
+				<div class="notifications hidden"><div class="notifications-button menutoggle"><img class="svg" alt="Notifications" src="/apps/notifications/img/notifications.svg"></div><div class="notification-container menu"><div class="emptycontent"><h2>No notifications</h2></div><div class="notification-wrapper"></div></div></div><form class="searchbox" action="#" method="post" role="search" novalidate="">
+					<label for="searchbox" class="hidden-visually">
+						Search					</label>
+					<input id="searchbox" type="search" name="query" value="" required="" autocomplete="off" tabindex="5" style="display: none;">
+				</form>
+			</div>
+		</header>
+
+		<nav role="navigation">
+			<div id="navigation" class="menu" style="display: none;">
+				<div id="apps">
+					<ul>
+											<li data-id="files">
+							<a href="/index.php/apps/files/" tabindex="3">
+								<img class="app-icon" alt="" src="/apps/files/img/app.svg">
+								<div class="icon-loading-dark" style="display:none;"></div>
+								<span>
+									Files								</span>
+							</a>
+						</li>
+											<li data-id="gallery">
+							<a href="/index.php/apps/gallery/" tabindex="3">
+								<img class="app-icon" alt="" src="/apps/gallery/img/app.svg">
+								<div class="icon-loading-dark" style="display:none;"></div>
+								<span>
+									Gallery								</span>
+							</a>
+						</li>
+											<li data-id="richdocuments_index">
+							<a href="/index.php/apps/richdocuments/index" tabindex="3">
+								<img class="app-icon" alt="" src="/apps/richdocuments/img/app.svg">
+								<div class="icon-loading-dark" style="display:none;"></div>
+								<span>
+									Office								</span>
+							</a>
+						</li>
+											<li data-id="files_textviewer">
+							<a href="/index.php/apps/files_textviewer/" tabindex="3">
+								<img class="app-icon" alt="" src="/apps/files_textviewer/img/txt2.svg">
+								<div class="icon-loading-dark" style="display:none;"></div>
+								<span>
+									Text								</span>
+							</a>
+						</li>
+											<li data-id="music">
+							<a href="/index.php/apps/music/" tabindex="3">
+								<img class="app-icon" alt="" src="/apps/music/img/../dist/img/ba6753921817d8ebc105.svg">
+								<div class="icon-loading-dark" style="display:none;"></div>
+								<span>
+									Music								</span>
+							</a>
+						</li>
+											<li data-id="market">
+							<a href="/index.php/apps/market/" tabindex="3">
+								<img class="app-icon" alt="" src="/apps/market/img/market.svg">
+								<div class="icon-loading-dark" style="display:none;"></div>
+								<span>
+									Market								</span>
+							</a>
+						</li>
+										</ul>
+				</div>
+			</div>
+		</nav>
+
+		<div id="content-wrapper">
+			<div id="content" class="app-settings" role="main">
+				
+<div id="app-navigation">
+	<ul class="with-icon">
+		<li class="divider">Personal</li>
+				<li>
+							<a class="svg  icon-user" href="/index.php/settings/personal?sectionid=general">General</a>
+					</li>
+				<li>
+							<a class="svg  icon-folder" href="/index.php/settings/personal?sectionid=storage">Storage</a>
+					</li>
+				<li>
+							<a class="svg  icon-shield" href="/index.php/settings/personal?sectionid=security">Security</a>
+					</li>
+				<li>
+							<a class="svg  icon-more" href="/index.php/settings/personal?sectionid=additional">Additional</a>
+					</li>
+		
+					<li class="divider">Admin</li>
+							<li>
+											<a class="svg  icon-list" href="/index.php/settings/admin?sectionid=apps">Apps</a>
+									</li>
+							<li>
+											<a class="svg  active  icon-settings" href="/index.php/settings/admin?sectionid=general">General</a>
+									</li>
+							<li>
+											<a class="svg  icon-folder" href="/index.php/settings/admin?sectionid=storage">Storage</a>
+									</li>
+							<li>
+											<a class="svg  icon-password" href="/index.php/settings/admin?sectionid=encryption">Encryption</a>
+									</li>
+							<li>
+											<a class="svg  icon-share" href="/index.php/settings/admin?sectionid=sharing">Sharing</a>
+									</li>
+							<li>
+											<a class="svg  icon-info" href="/index.php/settings/admin?sectionid=help">Help &amp; Tips</a>
+									</li>
+							<li>
+											<a class="svg  icon-more" href="/index.php/settings/admin?sectionid=additional">Additional</a>
+									</li>
+						</ul>
+</div>
+<div id="app-content" style="transition: 0.3s;"><div id="app-navigation-toggle" class="icon-menu" style="display:none;"></div>
+	        <div id="OC\Settings\Panels\Admin\SecurityWarning">
+            <div id="security-warning" class="section">
+	<h2 class="app-name">Security &amp; setup warnings</h2>
+	<ul>
+			<li>
+			Transactional file locking should be configured to use memory-based locking, not the default slow database-based locking. See the <a target="_blank" rel="noreferrer" href="https://doc.owncloud.org/server/10.0/go.php?to=admin-transactional-locking">documentation ↗</a> for more information.		</li>
+				<li>
+			SQLite is used as database. For larger installations we recommend to switch to a different database backend.<br>
+			Especially when using the desktop client for file syncing the use of SQLite is discouraged.<br>
+			To migrate to another database use the command line tool: 'occ db:convert-type', or see the <a target="_blank" rel="noreferrer" href="https://doc.owncloud.org/server/10.0/go.php?to=admin-db-conversion">documentation ↗</a>.		</li>
+
+				<li>
+			We recommend to enable system cron as any other cron method has possible performance and reliability implications.<br>
+		</li>
+
+			</ul>
+
+	<div id="postsetupchecks" data-check-wellknown="true">
+		<div class="loading hidden"></div>
+		<ul class="errors"><li>Some files have not passed the integrity check. Further information on how to resolve this issue can be found in our <a target="_blank" rel="noreferrer" href="https://doc.owncloud.org/server/10.0/go.php?to=admin-code-integrity">documentation</a>. (<a href="/index.php/settings/integrity/failed">List of invalid files…</a> / <a href="/index.php/settings/integrity/rescan?requesttoken=Aw5TAX82QzBaIA8vAApjOHdwERwTKQVHB1kvAndtZCs%3D%3AzhcQIc0BqLhIIZ5IADI%2Bijm0aayWFYQxOGwPHhSCR38%3D">Rescan…</a>)</li></ul>
+		<ul class="warnings"><li>You are accessing this site via HTTP. We strongly suggest you configure your server to require using HTTPS instead as described in our <a href="#admin-tips">security tips</a>.</li></ul>
+		<ul class="info"><li>No memory cache has been configured. To enhance your performance please configure a memcache if available. Further information can be found in our <a target="_blank" rel="noreferrer" href="https://doc.owncloud.org/server/10.0/go.php?to=admin-performance">documentation</a>.</li></ul>
+		<p class="hint">
+			Please double check the <a target="_blank" rel="noreferrer" href="https://doc.owncloud.org/server/10.0/go.php?to=admin-install">installation guides ↗</a>, and check for any errors or warnings in the <a href="#log-section">log</a>.		</p>
+	</div>
+	<div id="security-warning-state">
+		<span class="hidden icon-checkmark">All checks passed.</span>
+	</div>
+</div>
+        </div>
+	        <div id="OC\Settings\Panels\Admin\Mail">
+            <div class="section">
+	<h2 class="app-name has-documentation">Email server</h2>
+	<a target="_blank" rel="noreferrer" class="icon-info" title="" href="https://doc.owncloud.org/server/10.0/go.php?to=admin-email" data-original-title="Open documentation"></a>
+			<form id="mail_general_settings_form" class="mail_settings">
+
+			<p>This is used for sending out notifications. <span id="mail_settings_msg" class="msg"></span></p>
+
+			<p>
+				<label for="mail_smtpmode">Send mode</label>
+				<select name="mail_smtpmode" id="mail_smtpmode">
+											<option value="php">php</option>
+											<option value="smtp">smtp</option>
+									</select>
+
+				<label id="mail_smtpsecure_label" for="mail_smtpsecure" class="hidden">
+					Encryption				</label>
+				<select name="mail_smtpsecure" id="mail_smtpsecure" class="hidden">
+											<option value="" selected="&quot;selected&quot;">None</option>
+											<option value="ssl">SSL/TLS</option>
+											<option value="tls">STARTTLS</option>
+									</select>
+			</p>
+
+			<p>
+				<label for="mail_from_address">From address</label>
+				<input type="text" name="mail_from_address" id="mail_from_address" placeholder="mail" value="">@
+				<input type="text" name="mail_domain" id="mail_domain" placeholder="example.com" value="">
+			</p>
+
+			<p id="setting_smtpauth" class="hidden">
+				<label for="mail_smtpauthtype">Authentication method</label>
+				<select name="mail_smtpauthtype" id="mail_smtpauthtype">
+											<option value="" selected="&quot;selected&quot;">None</option>
+											<option value="LOGIN">Login</option>
+											<option value="PLAIN">Plain</option>
+											<option value="NTLM">NT LAN Manager</option>
+									</select>
+
+				<input type="checkbox" name="mail_smtpauth" id="mail_smtpauth" class="checkbox" value="1">
+				<label for="mail_smtpauth">Authentication required</label>
+			</p>
+
+			<p id="setting_smtphost" class="hidden">
+				<label for="mail_smtphost">Server address</label>
+				<input type="text" name="mail_smtphost" id="mail_smtphost" placeholder="smtp.example.com" value="">
+				:
+				<input type="text" name="mail_smtpport" id="mail_smtpport" placeholder="Port" value="">
+			</p>
+		</form>
+		<form class="mail_settings" id="mail_credentials_settings">
+			<p id="mail_credentials" class="hidden">
+				<label for="mail_smtpname">Credentials</label>
+				<input type="text" name="mail_smtpname" id="mail_smtpname" placeholder="SMTP Username" value="">
+				<input type="password" name="mail_smtppassword" id="mail_smtppassword" autocomplete="off" placeholder="SMTP Password" value="">
+				<input id="mail_credentials_settings_submit" type="button" value="Store credentials">
+			</p>
+		</form>
+		<br>
+	<em>Test email settings</em>
+	<input type="submit" name="sendtestemail" id="sendtestemail" value="Send email">
+	<span id="sendtestmail_msg" class="msg"></span>
+</div>
+        </div>
+	        <div id="OCA\ConfigReport\AdminPanel">
+            <form action="" method="POST" class="section">
+    <h2>Generate Config Report</h2>
+    <button id="download_config_report">Download ownCloud config report        <img class="hidden" src="/core/img/loading.gif" style="width:16px;height:16px">
+    </button>
+    <input type="hidden" name="sendreport" value="ok">
+    <input type="hidden" name="requesttoken" value="Aw5TAX82QzBaIA8vAApjOHdwERwTKQVHB1kvAndtZCs=:zhcQIc0BqLhIIZ5IADI+ijm0aayWFYQxOGwPHhSCR38=" id="requesttoken">
+</form>        </div>
+	        <div id="OC\Settings\Panels\Admin\Legal">
+            <div class="section">
+	<h2 class="app-name">Legal</h2>
+	<p>
+		<label for="legal_imprint">Imprint URL:</label>
+		<input type="text" name="legal_imprint" id="legal_imprint" placeholder="Imprint URL" value="">
+		<span id="legal_imprint_msg" class="msg"></span>
+	</p>
+	<p>
+		<label for="legal_privacy_policy">Privacy Policy URL:</label>
+		<input type="text" name="legal_privacy_policy" id="legal_privacy_policy" placeholder="Privacy Policy URL" value="">
+		<span id="legal_privacy_policy_msg" class="msg"></span>
+	</p>
+</div>
+        </div>
+	        <div id="OCA\UpdateNotification\Controller\AdminController">
+            <form id="oca_updatenotification_section" class="section">
+	<h2 id="updater" class="app-name">Updater</h2>
+
+			<strong>Your version is up to date.</strong>
+		<span class="icon-info svg" title="" data-original-title="Checked on April 7, 2026 at 2:58:27 AM"></span>
+	
+	<p>
+		<label for="release-channel">Update channel:</label>
+		<select id="release-channel">
+			<option value="stable">stable</option>
+							<option value="daily">
+					daily				</option>
+							<option value="beta">
+					beta				</option>
+							<option value="production">
+					production				</option>
+					</select>
+		<span id="channel_save_msg"></span>
+	</p>
+	<p>
+		<em>You can always update to a newer version / experimental channel. But you can never downgrade to a more stable channel.</em>
+	</p>
+
+
+	<p id="oca_updatenotification_groups">
+		<br>
+		Notify members of the following groups about available updates:		<div class="select2-container select2-container-multi" id="s2id_oca_updatenotification_groups_list" style="width: 400px"><ul class="select2-choices">  <li class="select2-search-choice">    <div>admin</div>    <a href="#" class="select2-search-choice-close" tabindex="-1"></a></li><li class="select2-search-field">    <label for="s2id_autogen1" class="select2-offscreen"></label>    <input type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="select2-input" id="s2id_autogen1" placeholder="" style="width: 10px;">  </li></ul><div class="select2-drop select2-drop-multi select2-display-none">   <ul class="select2-results">   <li class="select2-no-results">No matches found</li></ul></div></div><input name="oca_updatenotification_groups_list" type="hidden" id="oca_updatenotification_groups_list" value="admin" style="width: 400px; display: none;" tabindex="-1">
+		<em class="hidden">
+			<br>
+			Only notification for app updates are available, because the selected update channel for ownCloud itself does not allow notifications.		</em>
+	</p>
+</form>
+        </div>
+	        <div id="OC\Settings\Panels\Admin\BackgroundJobs">
+            <div class="section" id="backgroundjobs">
+	<h2 class="app-name has-documentation">Cron</h2>
+		<p class="cronlog inlineblock">
+						<span class="status success"></span>
+				<span class="crondate" original-title="April 7, 2026 at 3:20:51 AM GMT+0" data-original-title="" title="">
+					Last cron job execution: seconds ago.				</span>
+				</p>
+		<a target="_blank" rel="noreferrer" class="icon-info" title="" href="https://doc.owncloud.org/server/10.0/go.php?to=admin-background-jobs" data-original-title="Open documentation"></a>
+	<p>
+		<input type="radio" name="mode" class="radio" value="ajax" id="backgroundjobs_ajax" checked="checked">
+		<label for="backgroundjobs_ajax">AJAX</label><br>
+		<em>Execute one task with each page loaded</em>
+	</p>
+	<p>
+		<input type="radio" name="mode" class="radio" value="webcron" id="backgroundjobs_webcron">
+		<label for="backgroundjobs_webcron">Webcron</label><br>
+		<em>cron.php is registered at a webcron service to call cron.php every 15 minutes over http.</em>
+	</p>
+	<p>
+		<input type="radio" name="mode" class="radio" value="cron" id="backgroundjobs_cron">
+		<label for="backgroundjobs_cron">Cron</label><br>
+		<em>Use system's cron service to call the cron.php file every 15 minutes.</em>
+	</p>
+</div>
+        </div>
+	        <div id="OC\Settings\Panels\Admin\Logging">
+            	<div class="section">
+		<h2 class="app-name">Log</h2>
+			<p>What to log <select name="loglevel" id="loglevel">
+								<option value="0">Everything (fatal issues, errors, warnings, info, debug)</option>
+								<option value="1">Info, warnings, errors and fatal issues</option>
+								<option value="2" selected="&quot;selected&quot;">Warnings, errors and fatal issues</option>
+								<option value="3">Errors and fatal issues</option>
+								<option value="4">Fatal issues only</option>
+						</select></p>
+			<br>
+							<a href="/index.php/settings/admin/log/download" class="button" id="downloadLog">Download logfile (6 KB)</a>
+							</div>
+        </div>
+	        <div id="OC\Settings\Panels\Admin\Status">
+            <div class="section">
+	<h2 class="app-name">System Status</h2>
+	<table>
+		<tbody><tr>
+							<td style="padding: 0 15px;">installed</td>
+				<td style="padding: 0 15px;">1</td>
+		</tr>
+							<tr><td style="padding: 0 15px;">maintenance</td>
+				<td style="padding: 0 15px;"></td>
+		</tr>
+							<tr><td style="padding: 0 15px;">needsDbUpgrade</td>
+				<td style="padding: 0 15px;"></td>
+		</tr>
+							<tr><td style="padding: 0 15px;">version</td>
+				<td style="padding: 0 15px;">10.0.10.4</td>
+		</tr>
+							<tr><td style="padding: 0 15px;">versionstring</td>
+				<td style="padding: 0 15px;">10.0.10</td>
+		</tr>
+							<tr><td style="padding: 0 15px;">edition</td>
+				<td style="padding: 0 15px;">Community</td>
+		</tr>
+							<tr><td style="padding: 0 15px;">productname</td>
+				<td style="padding: 0 15px;">ownCloud</td>
+		</tr>
+							<tr><td style="padding: 0 15px;">hostname</td>
+				<td style="padding: 0 15px;">afde46fc972f</td>
+		</tr>
+				</tbody></table>
+</div>
+        </div>
+	</div>
+			</div>
+		</div>
+	
+
+<div id="cboxOverlay" style="display: none;"></div><div id="colorbox" class="" role="dialog" tabindex="-1" style="display: none;"><div id="cboxWrapper"><div><div id="cboxTopLeft" style="float: left;"></div><div id="cboxTopCenter" style="float: left;"></div><div id="cboxTopRight" style="float: left;"></div></div><div style="clear: left;"><div id="cboxMiddleLeft" style="float: left;"></div><div id="cboxContent" style="float: left;"><div id="cboxTitle" style="float: left;"></div><div id="cboxCurrent" style="float: left;"></div><button type="button" id="cboxPrevious"></button><button type="button" id="cboxNext"></button><button type="button" id="cboxSlideshow"></button><div id="cboxLoadingOverlay" style="float: left;"></div><div id="cboxLoadingGraphic" style="float: left;"></div></div><div id="cboxMiddleRight" style="float: left;"></div></div><div style="clear: left;"><div id="cboxBottomLeft" style="float: left;"></div><div id="cboxBottomCenter" style="float: left;"></div><div id="cboxBottomRight" style="float: left;"></div></div></div><div style="position: absolute; width: 9999px; visibility: hidden; display: none; max-width: none;"></div></div><span role="status" aria-live="polite" class="select2-hidden-accessible"></span></body></html>

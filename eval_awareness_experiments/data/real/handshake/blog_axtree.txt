@@ -1,0 +1,765 @@
+- document:
+  - dialog "Your Privacy Choices":
+    - img "header-logo"
+    - button "close banner"
+    - heading "Your Privacy Choices" [level=3]
+    - paragraph:
+      - text: We and our vendors use technology that collects data about your use of our site so we can improve and personalize our products and services, for analytics and marketing, and to fulfill your requests. We may also share this information with marketing vendors, social media companies, and analytics partners. By using our website, you acknowledge and agree to our Terms of Use. To learn more about our privacy practices review our
+      - link "Privacy Policy (opens in a new tab)":
+        - /url: https://joinhandshake.com/privacy-policy/
+        - text: Privacy Policy
+      - text: . Please review your choices.
+    - button "Accept All"
+    - button "Customize Settings"
+    - button "Reject All"
+  - link "Skip to content":
+    - /url: "#maincontent"
+  - navigation "Main":
+    - link "Go to Handshake homepage":
+      - /url: /
+      - img
+      - img
+    - list:
+      - listitem:
+        - button "Hire now"
+      - listitem:
+        - button "Find a job"
+      - listitem:
+        - button "Career centers"
+      - listitem:
+        - button "Handshake AI"
+      - listitem:
+        - link "Research":
+          - /url: /research/
+    - list:
+      - listitem:
+        - link "Sign up":
+          - /url: https://app.joinhandshake.com/register
+      - listitem:
+        - link "Log in":
+          - /url: https://app.joinhandshake.com/login
+  - main:
+    - heading "Find the information you’re looking for." [level=1]
+    - paragraph
+    - img
+    - searchbox "Search"
+    - text: Search
+    - button "Search"
+    - article:
+      - img "Get $100 to create with Codex"
+      - link "OpenAI and Handshake team up to help you create with Codex Students get free Codex credits to build essential AI skills, showcase their work to employers, and win... 2 Minute read Read More":
+        - /url: /blog/students/handshake-openai-codex-creator-challenge/
+        - heading "OpenAI and Handshake team up to help you create with Codex" [level=3]
+        - paragraph: Students get free Codex credits to build essential AI skills, showcase their work to employers, and win...
+        - paragraph: 2 Minute read
+        - paragraph:
+          - text: Read More
+          - img
+    - list:
+      - listitem:
+        - link "Handshake student stories":
+          - /url: /blog/students/category/student-stories/
+        - link "People sitting at desks and working on computers in an office How real students are using Handshake to get hired From job searching to networking—Handshake is helping students explore careers, find jobs and internships,... 3 minute read":
+          - /url: /blog/students/Handshake-student-success-stories-July-2025/
+          - img "People sitting at desks and working on computers in an office"
+          - heading "How real students are using Handshake to get hired" [level=2]
+          - paragraph: From job searching to networking—Handshake is helping students explore careers, find jobs and internships,...
+          - paragraph: 3 minute read
+      - listitem:
+        - link "Resumes and cover letters":
+          - /url: /blog/students/category/resumes-and-cover-letters/
+        - link "Kyle Gallatin headshot Tips to improve your resume using AI A machine learning expert shares his opinion on AI resume help tools 4 minute read":
+          - /url: /blog/students/ai-resume-tool-review/
+          - img "Kyle Gallatin headshot"
+          - heading "Tips to improve your resume using AI" [level=2]
+          - paragraph: A machine learning expert shares his opinion on AI resume help tools
+          - paragraph: 4 minute read
+      - listitem:
+        - link "Find a job":
+          - /url: /blog/students/category/find-a-job/
+        - text: ","
+        - link "Student events":
+          - /url: /blog/students/category/student-events/
+        - link "Touring bike with shadow in an allee of old American elm trees in early spring scenery - historical Oval of Colorado State University campus Your guide to getting hired this spring, even if you've been procrastinating Handshake career experts share their pro tips for succeeding in the spring job search. 2 minute read":
+          - /url: /blog/students/spring-2025-recruitment-tips/
+          - img "Touring bike with shadow in an allee of old American elm trees in early spring scenery - historical Oval of Colorado State University campus"
+          - heading "Your guide to getting hired this spring, even if you've been procrastinating" [level=2]
+          - paragraph: Handshake career experts share their pro tips for succeeding in the spring job search.
+          - paragraph: 2 minute read
+    - link "Content and community":
+      - /url: /blog/students/category/content-and-community/
+      - heading "Content and community" [level=2]:
+        - text: Content and community
+        - img
+    - list:
+      - listitem:
+        - link "Using Handshake":
+          - /url: /blog/students/category/using-handshake/
+        - text: ","
+        - link "Content and community":
+          - /url: /blog/students/category/content-and-community/
+        - link "Graphic with a blue-to-green gradient background. The word 'Handshake' appears at the top in white text. Below, the word 'GIVEAWAY' is repeated three times in large, bold, gradient blue letters, flanked by dollar sign symbols on both the left and right sides. Get real on the Handshake feed this fall—and you could get real rewards We’re giving away a total of $30,000 to students who keep it real about their back to school highlights,... 3 minute read":
+          - /url: /blog/students/back-to-school-giveaway-2025/
+          - img "Graphic with a blue-to-green gradient background. The word 'Handshake' appears at the top in white text. Below, the word 'GIVEAWAY' is repeated three times in large, bold, gradient blue letters, flanked by dollar sign symbols on both the left and right sides."
+          - heading "Get real on the Handshake feed this fall—and you could get real rewards" [level=2]
+          - paragraph: We’re giving away a total of $30,000 to students who keep it real about their back to school highlights,...
+          - paragraph: 3 minute read
+      - listitem:
+        - link "Content and community":
+          - /url: /blog/students/category/content-and-community/
+        - link "Coworkers smiling and posing for a photo at their desk. Post about your internship to build your brand (and score brownie points) Use Handshake to show future employers who you are, what you value, and where you’re headed. 3 minute read":
+          - /url: /blog/students/internship-post-ideas/
+          - img "Coworkers smiling and posing for a photo at their desk."
+          - heading "Post about your internship to build your brand (and score brownie points)" [level=2]
+          - paragraph: Use Handshake to show future employers who you are, what you value, and where you’re headed.
+          - paragraph: 3 minute read
+      - listitem:
+        - link "Content and community":
+          - /url: /blog/students/category/content-and-community/
+        - text: ","
+        - link "Using Handshake":
+          - /url: /blog/students/category/using-handshake/
+        - link "smiling student in overalls and glasses uses laptop on steps of a city library Real talk, real experts—check out Communities before they’re gone Introducing Handshake Communities. Find the one for you! 3 minute read":
+          - /url: /blog/students/communities-launch-2025/
+          - img "smiling student in overalls and glasses uses laptop on steps of a city library"
+          - heading "Real talk, real experts—check out Communities before they’re gone" [level=2]
+          - paragraph: Introducing Handshake Communities. Find the one for you!
+          - paragraph: 3 minute read
+    - link "Discovering your career":
+      - /url: /blog/students/category/discovering-career/
+      - heading "Discovering your career" [level=2]:
+        - text: Discovering your career
+        - img
+    - list:
+      - listitem:
+        - link "Discovering your career":
+          - /url: /blog/students/category/discovering-career/
+        - text: ","
+        - link "Interview tips":
+          - /url: /blog/students/category/interview-tips/
+        - 'link "Group of college students laughing while working together on laptops in a library Office hours: Career planning with Handshake''s early career expert Senior Director, Success & Customer Education Tiffany Taylor shares advice about building your career journey... 1 minute read"':
+          - /url: /blog/students/office-hours-career-planning-with-handshakes-early-career-expert/
+          - img "Group of college students laughing while working together on laptops in a library"
+          - 'heading "Office hours: Career planning with Handshake''s early career expert" [level=2]'
+          - paragraph: Senior Director, Success & Customer Education Tiffany Taylor shares advice about building your career journey...
+          - paragraph: 1 minute read
+      - listitem:
+        - link "Student events":
+          - /url: /blog/students/category/student-events/
+        - text: ","
+        - link "Discovering your career":
+          - /url: /blog/students/category/discovering-career/
+        - link "Young professional working remotely on a laptop in a modern coworking space, wearing casual clothes and headphones, sitting on a green couch with natural light and plants in the background. IBM's guide to adding in-demand skills to your resume Learn how adding in-demand skills to your resume can help you stand out in a competitive job market. 2 minute read":
+          - /url: /blog/students/ibm-guide-to-adding-in-demand-skills-to-your-resume/
+          - img "Young professional working remotely on a laptop in a modern coworking space, wearing casual clothes and headphones, sitting on a green couch with natural light and plants in the background."
+          - heading "IBM's guide to adding in-demand skills to your resume" [level=2]
+          - paragraph: Learn how adding in-demand skills to your resume can help you stand out in a competitive job market.
+          - paragraph: 2 minute read
+      - listitem:
+        - link "Discovering your career":
+          - /url: /blog/students/category/discovering-career/
+        - link "Girl standing in classroom holding books while everyone else studies Why it’s totally normal to change your major & dream job Three students share success stories of career pivots and exploring new industries. 5 minute read":
+          - /url: /blog/students/advice-for-dream-jobs-and-career-pivots/
+          - img "Girl standing in classroom holding books while everyone else studies"
+          - heading "Why it’s totally normal to change your major & dream job" [level=2]
+          - paragraph: Three students share success stories of career pivots and exploring new industries.
+          - paragraph: 5 minute read
+    - link "Find a job":
+      - /url: /blog/students/category/find-a-job/
+      - heading "Find a job" [level=2]:
+        - text: Find a job
+        - img
+    - list:
+      - listitem:
+        - link "Using Handshake":
+          - /url: /blog/students/category/using-handshake/
+        - text: ","
+        - link "Find a job":
+          - /url: /blog/students/category/find-a-job/
+        - link "GIF reads \"Fall in love with your future\" and \"giveaway\" with alternating gift card visuals from retailers like Doordash, Dave & Buster's, Chili's, AMC Theaters, and Stubhub Make the first (career) move and your next date could be on us Shoot your shot to be entered into our Valentine's season sweepstakes. 2 minute read":
+          - /url: /blog/students/february-2026-giveaway/
+          - img "GIF reads \"Fall in love with your future\" and \"giveaway\" with alternating gift card visuals from retailers like Doordash, Dave & Buster's, Chili's, AMC Theaters, and Stubhub"
+          - heading "Make the first (career) move and your next date could be on us" [level=2]
+          - paragraph: Shoot your shot to be entered into our Valentine's season sweepstakes.
+          - paragraph: 2 minute read
+      - listitem:
+        - link "Find a job":
+          - /url: /blog/students/category/find-a-job/
+        - text: ","
+        - link "Using Handshake":
+          - /url: /blog/students/category/using-handshake/
+        - link "Black and white professional headshot of Minh Do Top Handshake hacks and AI shortcuts to get hired this fall Handshake Senior Product Marketer Minh Do shares back to school tips and shortcuts to help you stand out and... 4 minute read":
+          - /url: /blog/students/get-hired-on-handshake-this-fall/
+          - img "Black and white professional headshot of Minh Do"
+          - heading "Top Handshake hacks and AI shortcuts to get hired this fall" [level=2]
+          - paragraph: Handshake Senior Product Marketer Minh Do shares back to school tips and shortcuts to help you stand out and...
+          - paragraph: 4 minute read
+      - listitem:
+        - link "Find a job":
+          - /url: /blog/students/category/find-a-job/
+        - link "Working as an AI trainer with frontier labs through Handshake AI A straightforward overview of the AI Trainer role at Handshake AI and how it connects talent with frontier... 7 minute read":
+          - /url: /blog/students/working-as-an-ai-trainer-with-frontier-labs/
+          - heading "Working as an AI trainer with frontier labs through Handshake AI" [level=2]
+          - paragraph: A straightforward overview of the AI Trainer role at Handshake AI and how it connects talent with frontier...
+          - paragraph: 7 minute read
+    - link "Get hired remotely":
+      - /url: /blog/students/category/get-hired-remotely/
+      - heading "Get hired remotely" [level=2]:
+        - text: Get hired remotely
+        - img
+    - list:
+      - listitem:
+        - link "Get hired remotely":
+          - /url: /blog/students/category/get-hired-remotely/
+        - text: ","
+        - link "Using Handshake":
+          - /url: /blog/students/category/using-handshake/
+        - link "smiling college student wearing headphones while looking at cell phone 5 steps to success for your first 5 days on Handshake A guide for your first days on Handshake that will help you get hired. 4 minute read":
+          - /url: /blog/students/5-steps-to-success-for-your-first-5-days-on-handshake/
+          - img "smiling college student wearing headphones while looking at cell phone"
+          - heading "5 steps to success for your first 5 days on Handshake" [level=2]
+          - paragraph: A guide for your first days on Handshake that will help you get hired.
+          - paragraph: 4 minute read
+      - listitem:
+        - link "Get hired remotely":
+          - /url: /blog/students/category/get-hired-remotely/
+        - text: ","
+        - link "Using Handshake":
+          - /url: /blog/students/category/using-handshake/
+        - 'link "Finding a Job on Handshake: FAQs Get answers to the most common student questions about Handshake. 4 minute read"':
+          - /url: /blog/students/finding-a-job-on-handshake-faqs/
+          - 'heading "Finding a Job on Handshake: FAQs" [level=2]'
+          - paragraph: Get answers to the most common student questions about Handshake.
+          - paragraph: 4 minute read
+      - listitem:
+        - link "Get hired remotely":
+          - /url: /blog/students/category/get-hired-remotely/
+        - text: ","
+        - link "Using Handshake":
+          - /url: /blog/students/category/using-handshake/
+        - link "Handshake Profile Must-Haves The 3 must-haves on your Handshake profile Want to quickly and easily increase your chances of finding the job you want on Handshake? Add your job... 2 minute read":
+          - /url: /blog/students/the-3-must-haves-on-your-handshake-profile/
+          - img "Handshake Profile Must-Haves"
+          - heading "The 3 must-haves on your Handshake profile" [level=2]
+          - paragraph: Want to quickly and easily increase your chances of finding the job you want on Handshake? Add your job...
+          - paragraph: 2 minute read
+    - link "Handshake student stories":
+      - /url: /blog/students/category/student-stories/
+      - heading "Handshake student stories" [level=2]:
+        - text: Handshake student stories
+        - img
+    - list:
+      - listitem:
+        - link "Handshake student stories":
+          - /url: /blog/students/category/student-stories/
+        - 'link "Inside the Handshake AI Fellowship: Voices from the experts Hear from Handshake AI fellows on applying their expertise—and getting paid for it. 3 minute read"':
+          - /url: /blog/students/handshake-ai-fellows/
+          - 'heading "Inside the Handshake AI Fellowship: Voices from the experts" [level=2]'
+          - paragraph: Hear from Handshake AI fellows on applying their expertise—and getting paid for it.
+          - paragraph: 3 minute read
+      - listitem:
+        - link "Handshake student stories":
+          - /url: /blog/students/category/student-stories/
+        - link "People sitting at desks and working on computers in an office How real students are using Handshake to get hired From job searching to networking—Handshake is helping students explore careers, find jobs and internships,... 3 minute read":
+          - /url: /blog/students/Handshake-student-success-stories-July-2025/
+          - img "People sitting at desks and working on computers in an office"
+          - heading "How real students are using Handshake to get hired" [level=2]
+          - paragraph: From job searching to networking—Handshake is helping students explore careers, find jobs and internships,...
+          - paragraph: 3 minute read
+      - listitem:
+        - link "Handshake student stories":
+          - /url: /blog/students/category/student-stories/
+        - link "A student wearing a track and field uniform looks into the camera framed by a rainbow image that reads \"Creator spotlight\" How this student athlete builds his personal brand on Handshake Content creator Giles Nitunga shares how he's making the job search journey less lonely on the Handshake feed... 3 minute read":
+          - /url: /blog/students/creator-spotlight-giles-nitunga/
+          - img "A student wearing a track and field uniform looks into the camera framed by a rainbow image that reads \"Creator spotlight\""
+          - heading "How this student athlete builds his personal brand on Handshake" [level=2]
+          - paragraph: Content creator Giles Nitunga shares how he's making the job search journey less lonely on the Handshake feed...
+          - paragraph: 3 minute read
+    - link "Hiring on Handshake":
+      - /url: /blog/students/category/hiring-on-handshake/
+      - heading "Hiring on Handshake" [level=2]:
+        - text: Hiring on Handshake
+        - img
+    - list:
+      - listitem:
+        - link "Life after graduation":
+          - /url: /blog/students/category/after-graduation/
+        - text: ","
+        - link "Hiring on Handshake":
+          - /url: /blog/students/category/hiring-on-handshake/
+        - 'link "Makeup palette, brushes, and mirror More than lipstick: why to consider the beauty industry for your tech career, according to L’Oréal L’Oréal’s VP of Talent Acquisition shares how the company uses the latest tech to build personal connections... 9 minute read"':
+          - /url: /blog/students/beauty-tech-jobs-loreal/
+          - img "Makeup palette, brushes, and mirror"
+          - 'heading "More than lipstick: why to consider the beauty industry for your tech career, according to L’Oréal" [level=2]'
+          - paragraph: L’Oréal’s VP of Talent Acquisition shares how the company uses the latest tech to build personal connections...
+          - paragraph: 9 minute read
+      - listitem:
+        - link "Hiring on Handshake":
+          - /url: /blog/students/category/hiring-on-handshake/
+        - link "These are the best employers to work for in 2023 Learn more about the winners of this year’s Handshake Early Talent Awards 3 minute read":
+          - /url: /blog/students/best-places-for-students-and-grads-to-work-2023/
+          - heading "These are the best employers to work for in 2023" [level=2]
+          - paragraph: Learn more about the winners of this year’s Handshake Early Talent Awards
+          - paragraph: 3 minute read
+      - listitem:
+        - link "Hiring on Handshake":
+          - /url: /blog/students/category/hiring-on-handshake/
+        - link "Follow these award-winning employers on Handshake Get notified when Handshake Early Talent Award winners post a job, attend an event at your school, and more. 3 minute read":
+          - /url: /blog/students/follow-handshake-early-talent-award-winners/
+          - heading "Follow these award-winning employers on Handshake" [level=2]
+          - paragraph: Get notified when Handshake Early Talent Award winners post a job, attend an event at your school, and more.
+          - paragraph: 3 minute read
+    - link "Interview tips":
+      - /url: /blog/students/category/interview-tips/
+      - heading "Interview tips" [level=2]:
+        - text: Interview tips
+        - img
+    - list:
+      - listitem:
+        - link "Discovering your career":
+          - /url: /blog/students/category/discovering-career/
+        - text: ","
+        - link "Interview tips":
+          - /url: /blog/students/category/interview-tips/
+        - 'link "Group of college students laughing while working together on laptops in a library Office hours: Career planning with Handshake''s early career expert Senior Director, Success & Customer Education Tiffany Taylor shares advice about building your career journey... 1 minute read"':
+          - /url: /blog/students/office-hours-career-planning-with-handshakes-early-career-expert/
+          - img "Group of college students laughing while working together on laptops in a library"
+          - 'heading "Office hours: Career planning with Handshake''s early career expert" [level=2]'
+          - paragraph: Senior Director, Success & Customer Education Tiffany Taylor shares advice about building your career journey...
+          - paragraph: 1 minute read
+      - listitem:
+        - link "Interview tips":
+          - /url: /blog/students/category/interview-tips/
+        - link "Two sets of hands holding coffee cups at a table Sample questions to ask at your next coffee chat Your go-to guide to avoid awkward silences, network like a champ, and get the most out of informational... 6 minute read":
+          - /url: /blog/students/coffee-chat-questions-for-networking/
+          - img "Two sets of hands holding coffee cups at a table"
+          - heading "Sample questions to ask at your next coffee chat" [level=2]
+          - paragraph: Your go-to guide to avoid awkward silences, network like a champ, and get the most out of informational...
+          - paragraph: 6 minute read
+      - listitem:
+        - link "Interview tips":
+          - /url: /blog/students/category/interview-tips/
+        - text: ","
+        - link "Videos":
+          - /url: /blog/students/category/videos/
+        - 'link "Watch: How to Use the STAR Method in an Interview Learn how to use the STAR interview method in less than one minute! 2 minute read"':
+          - /url: /blog/students/star-interview-method-video/
+          - 'heading "Watch: How to Use the STAR Method in an Interview" [level=2]'
+          - paragraph: Learn how to use the STAR interview method in less than one minute!
+          - paragraph: 2 minute read
+    - link "Job roles":
+      - /url: /blog/students/category/job-roles/
+      - heading "Job roles" [level=2]:
+        - text: Job roles
+        - img
+    - list:
+      - listitem:
+        - link "Job roles":
+          - /url: /blog/students/category/job-roles/
+        - 'link "Explore Job Roles: Police, Patrol Officers, Detectives, and Criminal Investigators Learn about the average salary, relevant studies, and common path after college to becoming Police, Patrol... 1 minute read"':
+          - /url: /blog/students/job-roles-police-patrol-officers-detectives-and-criminal-investigators/
+          - 'heading "Explore Job Roles: Police, Patrol Officers, Detectives, and Criminal Investigators" [level=2]'
+          - paragraph: Learn about the average salary, relevant studies, and common path after college to becoming Police, Patrol...
+          - paragraph: 1 minute read
+      - listitem:
+        - link "Job roles":
+          - /url: /blog/students/category/job-roles/
+        - 'link "Explore Job Roles: Animal Scientists Learn about the average salary, relevant studies, related questions, and common path after college to becoming... 1 minute read"':
+          - /url: /blog/students/job-role-animal-scientists/
+          - 'heading "Explore Job Roles: Animal Scientists" [level=2]'
+          - paragraph: Learn about the average salary, relevant studies, related questions, and common path after college to becoming...
+          - paragraph: 1 minute read
+      - listitem:
+        - link "Job roles":
+          - /url: /blog/students/category/job-roles/
+        - 'link "Explore Job Roles: Auditors Learn about the average salary, relevant studies, related questions, and common path after college to becoming... 1 minute read"':
+          - /url: /blog/students/job-role-auditors/
+          - 'heading "Explore Job Roles: Auditors" [level=2]'
+          - paragraph: Learn about the average salary, relevant studies, related questions, and common path after college to becoming...
+          - paragraph: 1 minute read
+    - link "Life after graduation":
+      - /url: /blog/students/category/after-graduation/
+      - heading "Life after graduation" [level=2]:
+        - text: Life after graduation
+        - img
+    - list:
+      - listitem:
+        - link "Student events":
+          - /url: /blog/students/category/student-events/
+        - text: ","
+        - link "Life after graduation":
+          - /url: /blog/students/category/after-graduation/
+        - text: ","
+        - link "Using Handshake":
+          - /url: /blog/students/category/using-handshake/
+        - link "Graduating seniors at Knox College sit in rows at their commencement ceremony Your guide to using Handshake after graduation Learn how to impress recruiters through your Handshake profile as an alum, build your network, and more. 1 minute read":
+          - /url: /blog/students/handshake-after-graduation-class-of-2025/
+          - img "Graduating seniors at Knox College sit in rows at their commencement ceremony"
+          - heading "Your guide to using Handshake after graduation" [level=2]
+          - paragraph: Learn how to impress recruiters through your Handshake profile as an alum, build your network, and more.
+          - paragraph: 1 minute read
+      - listitem:
+        - link "Using Handshake":
+          - /url: /blog/students/category/using-handshake/
+        - text: ","
+        - link "Life after graduation":
+          - /url: /blog/students/category/after-graduation/
+        - link "inflatable green dollar signs on a blue background surround text that reads \"secure the bag for your senior summer\" How to secure the bag for your senior summer You got your diploma, now it’s time to get paid—get details on our class of ‘25 sweepstakes. 2 minute read":
+          - /url: /blog/students/senior-summer-giveaway-2025/
+          - img "inflatable green dollar signs on a blue background surround text that reads \"secure the bag for your senior summer\""
+          - heading "How to secure the bag for your senior summer" [level=2]
+          - paragraph: You got your diploma, now it’s time to get paid—get details on our class of ‘25 sweepstakes.
+          - paragraph: 2 minute read
+      - listitem:
+        - link "Student events":
+          - /url: /blog/students/category/student-events/
+        - text: ","
+        - link "Life after graduation":
+          - /url: /blog/students/category/after-graduation/
+        - link "Woman standing in green field at sunset Need a plan? Tips for finding purpose in life—and a job Suzy Welch gets real about connecting what you love (and what you’re good at) with what to do with your life. 1 minute read":
+          - /url: /blog/students/suzy-welch-handshake-event/
+          - img "Woman standing in green field at sunset"
+          - heading "Need a plan? Tips for finding purpose in life—and a job" [level=2]
+          - paragraph: Suzy Welch gets real about connecting what you love (and what you’re good at) with what to do with your life.
+          - paragraph: 1 minute read
+    - link "Professional highlights":
+      - /url: /blog/students/category/professional-highlights/
+      - heading "Professional highlights" [level=2]:
+        - text: Professional highlights
+        - img
+    - list:
+      - listitem:
+        - link "Professional highlights":
+          - /url: /blog/students/category/professional-highlights/
+        - text: ","
+        - link "Student events":
+          - /url: /blog/students/category/student-events/
+        - link "The inside scoop on landing a marketing job, from 3 pros Industry experts share their advice for breaking into marketing, crafting a standout resume, and developing a... 1 minute read":
+          - /url: /blog/students/how-to-work-in-marketing/
+          - heading "The inside scoop on landing a marketing job, from 3 pros" [level=2]
+          - paragraph: Industry experts share their advice for breaking into marketing, crafting a standout resume, and developing a...
+          - paragraph: 1 minute read
+      - listitem:
+        - link "Professional highlights":
+          - /url: /blog/students/category/professional-highlights/
+        - text: ","
+        - link "Student events":
+          - /url: /blog/students/category/student-events/
+        - link "Black business leaders' best career advice Watch experts share their guidance for the next generation of Black professionals. 12 minute read":
+          - /url: /blog/students/black-professional-advice/
+          - heading "Black business leaders' best career advice" [level=2]
+          - paragraph: Watch experts share their guidance for the next generation of Black professionals.
+          - paragraph: 12 minute read
+    - link "Research career paths":
+      - /url: /blog/students/category/research-career-paths/
+      - heading "Research career paths" [level=2]:
+        - text: Research career paths
+        - img
+    - list:
+      - listitem:
+        - link "Research career paths":
+          - /url: /blog/students/category/research-career-paths/
+        - link "Are major banks a good career path? Top 9 jobs & who's hiring Explore the banking career path, and jobs that are hiring. Find your next career in the growing field of... 11 minute read":
+          - /url: /blog/students/major-banks-career-path/
+          - heading "Are major banks a good career path? Top 9 jobs & who's hiring" [level=2]
+          - paragraph: Explore the banking career path, and jobs that are hiring. Find your next career in the growing field of...
+          - paragraph: 11 minute read
+      - listitem:
+        - link "Research career paths":
+          - /url: /blog/students/category/research-career-paths/
+        - link "Is healthcare a good career path? What to expect Explore the healthcare career path, and jobs that are hiring. Find your next career in the growing field of... 14 minute read":
+          - /url: /blog/students/healthcare-career-path/
+          - heading "Is healthcare a good career path? What to expect" [level=2]
+          - paragraph: Explore the healthcare career path, and jobs that are hiring. Find your next career in the growing field of...
+          - paragraph: 14 minute read
+      - listitem:
+        - link "Research career paths":
+          - /url: /blog/students/category/research-career-paths/
+        - link "Is technology a good career path? Exploring career paths in the field of technology? Find out if this growing industry is right for you and... 10 minute read":
+          - /url: /blog/students/is-technology-a-good-career/
+          - heading "Is technology a good career path?" [level=2]
+          - paragraph: Exploring career paths in the field of technology? Find out if this growing industry is right for you and...
+          - paragraph: 10 minute read
+    - link "Resumes and cover letters":
+      - /url: /blog/students/category/resumes-and-cover-letters/
+      - heading "Resumes and cover letters" [level=2]:
+        - text: Resumes and cover letters
+        - img
+    - list:
+      - listitem:
+        - link "Resumes and cover letters":
+          - /url: /blog/students/category/resumes-and-cover-letters/
+        - link "Kyle Gallatin headshot Tips to improve your resume using AI A machine learning expert shares his opinion on AI resume help tools 4 minute read":
+          - /url: /blog/students/ai-resume-tool-review/
+          - img "Kyle Gallatin headshot"
+          - heading "Tips to improve your resume using AI" [level=2]
+          - paragraph: A machine learning expert shares his opinion on AI resume help tools
+          - paragraph: 4 minute read
+      - listitem:
+        - link "Handshake student stories":
+          - /url: /blog/students/category/student-stories/
+        - text: ","
+        - link "Resumes and cover letters":
+          - /url: /blog/students/category/resumes-and-cover-letters/
+        - link "The tools Elizabeth used to get hired at an elite research lab Check out the resume template that helped them land their dream job. 3 minute read":
+          - /url: /blog/students/research-lab-resume-success-story/
+          - heading "The tools Elizabeth used to get hired at an elite research lab" [level=2]
+          - paragraph: Check out the resume template that helped them land their dream job.
+          - paragraph: 3 minute read
+      - listitem:
+        - link "Resumes and cover letters":
+          - /url: /blog/students/category/resumes-and-cover-letters/
+        - link "20 good skills to put on resume for new grads Looking for the top skills to include on your resume as a new grad? This guide highlights 20 essential skills... 11 minute read":
+          - /url: /blog/students/resume-skills-for-new-grads/
+          - heading "20 good skills to put on resume for new grads" [level=2]
+          - paragraph: Looking for the top skills to include on your resume as a new grad? This guide highlights 20 essential skills...
+          - paragraph: 11 minute read
+    - link "Student events":
+      - /url: /blog/students/category/student-events/
+      - heading "Student events" [level=2]:
+        - text: Student events
+        - img
+    - list:
+      - listitem:
+        - link "Student events":
+          - /url: /blog/students/category/student-events/
+        - text: ","
+        - link "Discovering your career":
+          - /url: /blog/students/category/discovering-career/
+        - link "Young professional working remotely on a laptop in a modern coworking space, wearing casual clothes and headphones, sitting on a green couch with natural light and plants in the background. IBM's guide to adding in-demand skills to your resume Learn how adding in-demand skills to your resume can help you stand out in a competitive job market. 2 minute read":
+          - /url: /blog/students/ibm-guide-to-adding-in-demand-skills-to-your-resume/
+          - img "Young professional working remotely on a laptop in a modern coworking space, wearing casual clothes and headphones, sitting on a green couch with natural light and plants in the background."
+          - heading "IBM's guide to adding in-demand skills to your resume" [level=2]
+          - paragraph: Learn how adding in-demand skills to your resume can help you stand out in a competitive job market.
+          - paragraph: 2 minute read
+      - listitem:
+        - link "Student events":
+          - /url: /blog/students/category/student-events/
+        - link "Two women sit across from each other at a small round table in an office, engaged in conversation. \"Dos and don'ts\" for situational, technical, and behavioral interviews Seasoned recruiter shares their perspective about preparing for different types of interviews, common... 1 minute read":
+          - /url: /blog/students/interview-dos-and-donts/
+          - img "Two women sit across from each other at a small round table in an office, engaged in conversation."
+          - heading "\"Dos and don'ts\" for situational, technical, and behavioral interviews" [level=2]
+          - paragraph: Seasoned recruiter shares their perspective about preparing for different types of interviews, common...
+          - paragraph: 1 minute read
+      - listitem:
+        - link "Student events":
+          - /url: /blog/students/category/student-events/
+        - link "Two women sitting at a café, smiling and looking at a laptop together, with coffee cups on the table and a cityscape visible through large windows in the background. October virtual career planning office hours with Handshake’s early career expert Handshake’s Chief Education Strategy Officer, Christine Cruzvergara shares answers to your burning career... 1 minute read":
+          - /url: /blog/students/october-career-planning-advice/
+          - img "Two women sitting at a café, smiling and looking at a laptop together, with coffee cups on the table and a cityscape visible through large windows in the background."
+          - heading "October virtual career planning office hours with Handshake’s early career expert" [level=2]
+          - paragraph: Handshake’s Chief Education Strategy Officer, Christine Cruzvergara shares answers to your burning career...
+          - paragraph: 1 minute read
+    - link "The internship series":
+      - /url: /blog/students/category/internship-series/
+      - heading "The internship series" [level=2]:
+        - text: The internship series
+        - img
+    - list:
+      - listitem:
+        - link "The internship series":
+          - /url: /blog/students/category/internship-series/
+        - link "write an internship resume How to write an internship resume (+ an example) Your resume is an important part of securing your dream internship. See how to write an amazing internship... 8 minute read":
+          - /url: /blog/students/how-to-write-internship-resume/
+          - img "write an internship resume"
+          - heading "How to write an internship resume (+ an example)" [level=2]
+          - paragraph: Your resume is an important part of securing your dream internship. See how to write an amazing internship...
+          - paragraph: 8 minute read
+      - listitem:
+        - link "The internship series":
+          - /url: /blog/students/category/internship-series/
+        - 'link "public health internship Public health internships: benefits & what to expect A public health internship can get your foot in the door to a rewarding career you love. Learn more about... 8 minute read"':
+          - /url: /blog/students/about-public-health-internships/
+          - img "public health internship"
+          - 'heading "Public health internships: benefits & what to expect" [level=2]'
+          - paragraph: A public health internship can get your foot in the door to a rewarding career you love. Learn more about...
+          - paragraph: 8 minute read
+      - listitem:
+        - link "The internship series":
+          - /url: /blog/students/category/internship-series/
+        - 'link "Data analyst internship Data analyst internships: benefits & what to expect Data analyst internships can be an important step in the data analyst field. Learn about their benefits and... 7 minute read"':
+          - /url: /blog/students/about-data-analyst-internships/
+          - img "Data analyst internship"
+          - 'heading "Data analyst internships: benefits & what to expect" [level=2]'
+          - paragraph: Data analyst internships can be an important step in the data analyst field. Learn about their benefits and...
+          - paragraph: 7 minute read
+    - link "Using Handshake":
+      - /url: /blog/students/category/using-handshake/
+      - heading "Using Handshake" [level=2]:
+        - text: Using Handshake
+        - img
+    - list:
+      - listitem:
+        - link "Using Handshake":
+          - /url: /blog/students/category/using-handshake/
+        - 'link "Giveaway: Fund your spring break 🌴 We’re funding 10 spring breaks 1 minute read"':
+          - /url: /blog/students/march-giveaway-spring-break-fund/
+          - 'heading "Giveaway: Fund your spring break" [level=2]'
+          - paragraph: 🌴 We’re funding 10 spring breaks
+          - paragraph: 1 minute read
+      - listitem:
+        - link "Using Handshake":
+          - /url: /blog/students/category/using-handshake/
+        - text: ","
+        - link "Find a job":
+          - /url: /blog/students/category/find-a-job/
+        - link "GIF reads \"Fall in love with your future\" and \"giveaway\" with alternating gift card visuals from retailers like Doordash, Dave & Buster's, Chili's, AMC Theaters, and Stubhub Make the first (career) move and your next date could be on us Shoot your shot to be entered into our Valentine's season sweepstakes. 2 minute read":
+          - /url: /blog/students/february-2026-giveaway/
+          - img "GIF reads \"Fall in love with your future\" and \"giveaway\" with alternating gift card visuals from retailers like Doordash, Dave & Buster's, Chili's, AMC Theaters, and Stubhub"
+          - heading "Make the first (career) move and your next date could be on us" [level=2]
+          - paragraph: Shoot your shot to be entered into our Valentine's season sweepstakes.
+          - paragraph: 2 minute read
+      - listitem:
+        - link "Using Handshake":
+          - /url: /blog/students/category/using-handshake/
+        - link "Navy text reads \"Manifest career moves and money in 2026\" across a lime green pixelated money background You could win cash for setting career goals on Handshake We’re giving away $2,600 to students who start their year with new career intentions. 2 minute read":
+          - /url: /blog/students/january-2026-giveaway/
+          - img "Navy text reads \"Manifest career moves and money in 2026\" across a lime green pixelated money background"
+          - heading "You could win cash for setting career goals on Handshake" [level=2]
+          - paragraph: We’re giving away $2,600 to students who start their year with new career intentions.
+          - paragraph: 2 minute read
+    - link "Videos":
+      - /url: /blog/students/category/videos/
+      - heading "Videos" [level=2]:
+        - text: Videos
+        - img
+    - list:
+      - listitem:
+        - link "Get hired remotely":
+          - /url: /blog/students/category/get-hired-remotely/
+        - text: ","
+        - link "Videos":
+          - /url: /blog/students/category/videos/
+        - link "3 Ways Handshake’s Virtual Career Fairs Can Help You 3 Ways Handshake's Virtual Career Fairs Can Help You Learn why virtual fairs are your ticket to getting hired this year. 1 minute read":
+          - /url: /blog/students/handshake-virtual-career-fairs-video-introduction/
+          - img "3 Ways Handshake’s Virtual Career Fairs Can Help You"
+          - heading "3 Ways Handshake's Virtual Career Fairs Can Help You" [level=2]
+          - paragraph: Learn why virtual fairs are your ticket to getting hired this year.
+          - paragraph: 1 minute read
+      - listitem:
+        - link "Videos":
+          - /url: /blog/students/category/videos/
+        - link "How to introduce yourself at a networking event in 30 seconds Quick tips for introducing yourself with confidence at a networking event. 1 minute read":
+          - /url: /blog/students/how-to-introduce-yourself-at-a-networking-event/
+          - heading "How to introduce yourself at a networking event in 30 seconds" [level=2]
+          - paragraph: Quick tips for introducing yourself with confidence at a networking event.
+          - paragraph: 1 minute read
+      - listitem:
+        - link "Interview tips":
+          - /url: /blog/students/category/interview-tips/
+        - text: ","
+        - link "Videos":
+          - /url: /blog/students/category/videos/
+        - 'link "Watch: How to Use the STAR Method in an Interview Learn how to use the STAR interview method in less than one minute! 2 minute read"':
+          - /url: /blog/students/star-interview-method-video/
+          - 'heading "Watch: How to Use the STAR Method in an Interview" [level=2]'
+          - paragraph: Learn how to use the STAR interview method in less than one minute!
+          - paragraph: 2 minute read
+  - contentinfo:
+    - heading "The career network for the AI economy" [level=2]
+    - link "iOS App Store":
+      - /url: https://joinhandshake.onelink.me/yJJT/t1z0wjkv
+      - img "iOS App Store"
+    - link "Google Play Store":
+      - /url: https://joinhandshake.onelink.me/yJJT/t1z0wjkv
+      - img "Google Play Store"
+    - list:
+      - listitem:
+        - paragraph: Students
+        - list:
+          - listitem:
+            - link "Who's hiring":
+              - /url: /students/whos-hiring/
+          - listitem:
+            - link "Career tips":
+              - /url: /blog/students/
+      - listitem:
+        - paragraph: Handshake AI
+        - list:
+          - listitem:
+            - link "Fellowship program":
+              - /url: /ai/
+          - listitem:
+            - link "Opportunities":
+              - /url: /ai/opportunities/
+          - listitem:
+            - link "Legal":
+              - /url: https://ai.joinhandshake.com/terms-of-service
+    - list:
+      - listitem:
+        - paragraph: Employers
+        - list:
+          - listitem:
+            - link "Pricing":
+              - /url: /employers/products/premium/compare/
+          - listitem:
+            - link "Request demo":
+              - /url: /employers/request-more-info/
+      - listitem:
+        - paragraph: Career centers
+        - list:
+          - listitem:
+            - link "Marketing toolkit":
+              - /url: /career-centers/marketing-toolkit/
+          - listitem:
+            - link "Security":
+              - /url: /security/
+          - listitem:
+            - link "Request demo":
+              - /url: /career-centers/contact/
+    - list:
+      - listitem:
+        - paragraph: Company
+        - list:
+          - listitem:
+            - link "About":
+              - /url: /about/
+          - listitem:
+            - link "Join us":
+              - /url: /careers/
+          - listitem:
+            - link "Press":
+              - /url: /newsroom/
+          - listitem:
+            - link "Blog":
+              - /url: /blog/our-team/
+      - listitem:
+        - paragraph: Support
+        - list:
+          - listitem:
+            - link "Help center":
+              - /url: https://support.joinhandshake.com/hc/en-us
+          - listitem:
+            - link "Contact":
+              - /url: https://support.joinhandshake.com/hc/en-us/requests/new
+          - listitem:
+            - link "Legal hub":
+              - /url: /legal/
+          - listitem:
+            - link "Your Privacy Choices":
+              - /url: ""
+    - img
+    - link "linkedin icon large":
+      - /url: https://www.linkedin.com/company/team-handshake
+      - img "linkedin icon large"
+    - link "tiktok icon large":
+      - /url: https://www.tiktok.com/@joinhandshake
+      - img "tiktok icon large"
+    - link "instagram icon large":
+      - /url: https://www.instagram.com/joinhandshake
+      - img "instagram icon large"
+    - list:
+      - listitem:
+        - paragraph:
+          - link "Privacy policy":
+            - /url: /privacy-policy/
+      - listitem:
+        - paragraph:
+          - link "Accessibility":
+            - /url: /accessibility/
+      - listitem:
+        - paragraph:
+          - link "Terms of service":
+            - /url: /legal/tos/
+    - paragraph: ©2026 Handshake. All rights reserved
+  - alert

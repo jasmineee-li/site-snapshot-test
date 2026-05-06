@@ -1,0 +1,31 @@
+- document:
+  - banner:
+    - img
+    - text: Plan & Track AcmeCorp / platform-v4
+    - button "To-Do List":
+      - img
+      - text: "9"
+    - text: SC
+  - navigation:
+    - text: Plan
+    - img
+    - text: Issues 57
+    - img
+    - text: Boards
+    - img
+    - text: Epics
+    - img
+    - text: Milestones
+    - img
+    - text: Iterations
+    - img
+    - text: Labels Personal
+    - img
+    - text: To-Do List 9
+  - main:
+    - heading "Milestones" [level=1]
+    - button "New milestone"
+    - heading "Active 7" [level=2]
+    - text: v4.0 - Platform Redesign Nov 30 – Feb 27 24% 17 issues v4.1 - Performance Feb 28 – Apr 14 0% 20 issues v4.2 - Security Hardening Apr 15 – May 30 14% 7 issues v4.3 - Mobile Optimization May 31 – Jul 14 0% 0 issues v5.0 - Enterprise Edition Jul 31 – Nov 29 0% 10 issues Backlog 0% 1 issues Q1 2026 Planning Dec 31 – Mar 30 0% 2 issues
+    - heading "Closed 1" [level=2]
+    - text: v3.9 - Maintenance Sep 30 – Nov 29 100% 5 issues

@@ -1,0 +1,200 @@
+- document:
+  - banner:
+    - link "Skip to main content":
+      - /url: "#content-body"
+    - link "Homepage":
+      - /url: /
+    - list:
+      - listitem:
+        - link "Why GitLab":
+          - /url: https://about.gitlab.com/why-gitlab
+      - listitem:
+        - link "Pricing":
+          - /url: https://about.gitlab.com/pricing
+      - listitem:
+        - link "Explore":
+          - /url: /explore
+    - button "Search or go to… /"
+    - link "Get free trial":
+      - /url: /-/trial_registrations/new
+    - link "Sign in":
+      - /url: /users/sign_in?redirect_to_referer=yes
+  - navigation "Primary navigation":
+    - heading "Primary navigation" [level=2]
+    - text: Explore
+    - list "Explore":
+      - listitem:
+        - link "Projects":
+          - /url: /explore/projects
+      - listitem:
+        - link "Groups":
+          - /url: /explore/groups
+      - listitem:
+        - link "CI/CD Catalog":
+          - /url: /explore/catalog
+      - listitem:
+        - link "Topics":
+          - /url: /explore/projects/topics
+      - listitem:
+        - link "Snippets":
+          - /url: /explore/snippets
+    - button "What's new"
+    - button "Help"
+    - button "Collapse sidebar"
+  - navigation "Breadcrumb":
+    - list:
+      - listitem:
+        - link "Explore":
+          - /url: /explore
+        - text: /
+      - listitem:
+        - link "Groups":
+          - /url: /explore/groups
+  - main:
+    - heading "Explore groups" [level=1]
+    - paragraph:
+      - text: Below you will find all the groups that are public or internal. Contribute by requesting to join a group.
+      - link "Learn more":
+        - /url: /help/user/group/_index.md#explore-groups
+      - text: .
+    - tablist:
+      - tab "Active" [selected]
+      - tab "Inactive"
+    - group:
+      - button "Toggle search history"
+      - textbox "Search"
+      - button "Search"
+    - group:
+      - combobox "Sort by:": Created date
+      - text: "Sort by:"
+      - 'button "Sort direction: Descending"'
+    - tabpanel "Active":
+      - list:
+        - listitem:
+          - link "gouletter-group":
+            - /url: /gouletter-group
+          - text: 0 1 1 Created
+          - time: 7 minutes ago
+          - button "Actions"
+        - listitem:
+          - link "maxcatta05-group":
+            - /url: /maxcatta05-group
+          - text: 0 1 1 Created
+          - time: 34 minutes ago
+          - button "Actions"
+        - listitem:
+          - link "rhi-utils":
+            - /url: /rhi-utils
+          - text: 0 0 1 Created
+          - time: 40 minutes ago
+          - button "Actions"
+        - listitem:
+          - link "AlexGarciaMendoza":
+            - /url: /alexgarciamendoza
+          - text: 0 1 1 Created
+          - time: 41 minutes ago
+          - button "Actions"
+        - listitem:
+          - link "A Cup of Faith":
+            - /url: /acupoffaith
+          - text: 0 1 1 Created
+          - time: 46 minutes ago
+          - button "Actions"
+        - listitem:
+          - link "s":
+            - /url: /s5095115
+          - text: 0 2 1 Created
+          - time: 1 hour ago
+          - button "Actions"
+        - listitem:
+          - link "Ant_01_0ff":
+            - /url: /ant010ff1
+          - text: 0 1 1 Created
+          - time: 1 hour ago
+          - button "Actions"
+        - listitem:
+          - link "nwerc2026":
+            - /url: /nwerc2026
+          - text: 0 1 1 Created
+          - time: 2 hours ago
+          - button "Actions"
+        - listitem:
+          - link "jobs-applications":
+            - /url: /jobs-applications1
+          - text: 0 3 1 Created
+          - time: 2 hours ago
+          - button "Actions"
+        - listitem:
+          - link "gladion-group":
+            - /url: /gladion-group
+          - text: 0 1 1 Created
+          - time: 2 hours ago
+          - button "Actions"
+        - listitem:
+          - link "grupo4":
+            - /url: /grupo47225115
+          - text: 0 1 3 Created
+          - time: 3 hours ago
+          - button "Actions"
+        - listitem:
+          - link "lnls-ids":
+            - /url: /lnls-ids
+          - text: 0 1 3 Created
+          - time: 3 hours ago
+          - button "Actions"
+        - listitem:
+          - link "Interview-SearchAtlas":
+            - /url: /interview-searchatlas
+          - text: 0 1 1 Created
+          - time: 3 hours ago
+          - button "Actions"
+        - listitem:
+          - link "Open":
+            - /url: /open32015
+          - text: 0 0 1 Created
+          - time: 3 hours ago
+          - button "Actions"
+        - listitem:
+          - link "dot.studio":
+            - /url: /dot.studio
+          - text: 0 1 1 Created
+          - time: 3 hours ago
+          - button "Actions"
+        - listitem:
+          - link "Bookie918":
+            - /url: /bookie918
+          - text: 0 1 1 Created
+          - time: 4 hours ago
+          - button "Actions"
+        - listitem:
+          - link "Infosys_Smartstock":
+            - /url: /infosys_smartstock
+          - text: 0 0 3 Created
+          - time: 4 hours ago
+          - button "Actions"
+        - listitem:
+          - link "TalismanModManager":
+            - /url: /TalismanModManager
+          - article:
+            - paragraph: A cross-platform mod manager with accessible interface.
+          - text: 0 0 1 Created
+          - time: 4 hours ago
+          - button "Actions"
+        - listitem:
+          - link "namokarecommercehry-group":
+            - /url: /namokarecommercehry-group
+          - text: 0 3 1 Created
+          - time: 4 hours ago
+          - button "Actions"
+        - listitem:
+          - link "RCanvas":
+            - /url: /RCanvas
+          - article:
+            - paragraph: RCanvas is a UI Framework with simple and fast-to-write syntax for Rust language.
+          - text: 0 1 1 Created
+          - time: 5 hours ago
+          - button "Actions"
+      - navigation "Pagination":
+        - group:
+          - button "Previous" [disabled]
+          - button "Next"

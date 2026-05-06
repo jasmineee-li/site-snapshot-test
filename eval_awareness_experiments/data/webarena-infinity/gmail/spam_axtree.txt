@@ -1,0 +1,74 @@
+- document:
+  - banner:
+    - button "Main menu":
+      - img
+    - img
+    - text: Gmail
+    - button "Search":
+      - img
+    - textbox "Search mail"
+    - button "Show search options":
+      - img
+    - button "Settings":
+      - img
+    - text: AJ
+  - navigation:
+    - button "Compose":
+      - img
+      - text: Compose
+    - img
+    - text: Inbox 19
+    - img
+    - text: Starred
+    - img
+    - text: Snoozed
+    - img
+    - text: Sent
+    - img
+    - text: Drafts 2
+    - img
+    - text: Important
+    - img
+    - text: All Mail
+    - img
+    - text: Spam 5
+    - img
+    - text: Trash Labels
+    - button "▾"
+    - text: Work 12 Projects 4 Meetings 1 Clients 1 HR Personal Family Friends Finance Invoices Banking Travel 1 Receipts Newsletters 2 Health Education Action Required 4 Waiting For Reply 1 Reference
+    - img
+    - text: Create new label
+  - main:
+    - checkbox
+    - button "▾"
+    - button "Refresh":
+      - img
+      - text: Refresh
+    - button "Delete all spam messages"
+    - text: 1-5 of 5
+    - button "Newer" [disabled]:
+      - img
+      - text: Newer
+    - button "Older" [disabled]:
+      - img
+      - text: Older
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Crypto Gains Turn $100 into $100,000 with this coin! - The next Bitcoin is here. Invest now before it's too late. Guaranteed 1000x returns. Feb 21
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Weight Loss Miracle Lose 30 pounds in 30 days! - Revolutionary new supplement burns fat while you sleep. No exercise needed! Feb 20
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Lottery Winner Your email won the EU Lottery! - Your email address was selected in our annual draw. You've won EUR 750,000. Feb 20
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Account Alert Urgent: Verify your account now - Your Bank of America account has been suspended. Click here to verify your identity. Feb 18"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Free Gift Cards Claim your $500 Amazon Gift Card - You've been selected to receive a $500 Amazon Gift Card. Complete a short survey to claim. Feb 17

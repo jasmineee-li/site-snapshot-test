@@ -1,0 +1,1983 @@
+- document:
+  - banner:
+    - link " CL":
+      - /url: https://sfbay.craigslist.org/
+    - button "SF bay area"
+    - text: 
+    - button "all SF bay area"
+    - text: 
+    - button "housing"
+    - text: 
+    - button "apartments / housing for rent"
+    - text: 
+    - link " post":
+      - /url: https://post.craigslist.org/c/sfo
+    - link " acct":
+      - /url: https://accounts.craigslist.org/login/home
+  - main:
+    - text: 
+    - textbox "search apartments / housing for rent"
+    - button ""
+    - button ""
+    - heading "apartments / housing for rent" [level=1]
+    - button ""
+    - checkbox "search titles only"
+    - text: search titles only
+    - checkbox "has image"
+    - text: has image
+    - checkbox "posted today"
+    - text: posted today
+    - checkbox "show duplicates"
+    - text: show duplicates miles from location
+    - textbox "miles"
+    - textbox "from zip"
+    - text: 
+    - button "use map..."
+    - text: price $
+    - textbox "min"
+    - text: – $
+    - textbox "max"
+    - img
+    - img: $0 $1k $2k $3k $4k $29.3k
+    - img: "avg: $2,436"
+    - img
+    - text: bedrooms
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: min
+    - text: "-"
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: max
+    - text: bathrooms
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: min
+    - text: "-"
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: max
+    - text: sq ft
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: min
+    - text: "-"
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: max
+    - checkbox "cats ok"
+    - text: cats ok
+    - checkbox "dogs ok"
+    - text: dogs ok
+    - checkbox "furnished"
+    - text: furnished
+    - checkbox "no smoking"
+    - text: no smoking
+    - checkbox "wheelchair accessible"
+    - text: wheelchair accessible
+    - checkbox "air conditioning"
+    - text: air conditioning
+    - checkbox "EV charging"
+    - text: EV charging
+    - checkbox "no broker fee"
+    - text: no broker fee
+    - checkbox "no application fee"
+    - text: no application fee
+    - button " rent period"
+    - combobox:
+      - option "all dates" [selected]
+      - option "within 30 days"
+      - option "beyond 30 days"
+    - button " housing type"
+    - button " laundry"
+    - button " parking"
+    - text: open house date
+    - table:
+      - rowgroup:
+        - row "S M T W T F S":
+          - cell "S"
+          - cell "M"
+          - cell "T"
+          - cell "W"
+          - cell "T"
+          - cell "F"
+          - cell "S"
+        - row "5 6 7 8 9 10 11":
+          - cell "5"
+          - cell "6"
+          - cell "7"
+          - cell "8"
+          - cell "9"
+          - cell "10"
+          - cell "11"
+        - row "12 13 14 15 16 17 18":
+          - cell "12"
+          - cell "13"
+          - cell "14"
+          - cell "15"
+          - cell "16"
+          - cell "17"
+          - cell "18"
+        - row "19 20 21 22 23 24 25":
+          - cell "19"
+          - cell "20"
+          - cell "21"
+          - cell "22"
+          - cell "23"
+          - cell "24"
+          - cell "25"
+        - row "26 27 28 29 30 1 2":
+          - cell "26"
+          - cell "27"
+          - cell "28"
+          - cell "29"
+          - cell "30"
+          - cell "1"
+          - cell "2"
+        - row "3 4 5 6 7 8 9":
+          - cell "3"
+          - cell "4"
+          - cell "5"
+          - cell "6"
+          - cell "7"
+          - cell "8"
+          - cell "9"
+    - button " related searches"
+    - button "reset"
+    - button "apply"
+    - link "fair housing":
+      - /url: https://www.craigslist.org/about/FHA
+    - link "avoiding scams":
+      - /url: https://www.craigslist.org/about/help/safety/scams
+    - button ""
+    - button ""
+    - button ""
+    - button ""
+    - button "newest"
+    - text: 
+    - button "price"
+    - button "beds"
+    - button "baths"
+    - button "type"
+    - button "cats ok"
+    - button "dogs ok"
+    - button "furnished"
+    - text: 1 - 6 of 9,718
+    - heading "see also" [level=2]
+    - link "studio":
+      - /url: https://sfbay.craigslist.org/search/studio-apartment#search=2~gallery~0
+    - link "1-BR":
+      - /url: https://sfbay.craigslist.org/search/one-bedroom-apartment#search=2~gallery~0
+    - link "2-BR":
+      - /url: https://sfbay.craigslist.org/search/two-bedroom-apartment#search=2~gallery~0
+    - link "furnished":
+      - /url: https://sfbay.craigslist.org/search/furnished-apartment#search=2~gallery~0
+    - link "house for rent":
+      - /url: https://sfbay.craigslist.org/search/house-for-rent#search=2~gallery~0
+    - link "pet-friendly":
+      - /url: https://sfbay.craigslist.org/search/pet-friendly-apartment#search=2~gallery~0
+    - link "$1500 OFF TWO BEDROOM ONE BATH IN FREMONT 1":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-1500-off-two-bedroom-one-bath/7924105129.html
+      - img "$1500 OFF TWO BEDROOM ONE BATH IN FREMONT 1"
+    - text: • • • • • • • • •
+    - link "$1500 OFF TWO BEDROOM ONE BATH IN FREMONT":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-1500-off-two-bedroom-one-bath/7924105129.html
+    - button ""
+    - text: <1hr ago • 2br935ft2 • alameda
+    - button ""
+    - text: $2,909
+    - link "Exceptional 1 BR-Patio, Picnic Area & Modern Finishes! 1":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/san-rafael-exceptional-br-patio-picnic/7926695007.html
+      - img "Exceptional 1 BR-Patio, Picnic Area & Modern Finishes! 1"
+    - text: • • • • • • • • • •
+    - link "Exceptional 1 BR-Patio, Picnic Area & Modern Finishes!":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/san-rafael-exceptional-br-patio-picnic/7926695007.html
+    - button ""
+    - text: <1hr ago • 1br700ft2 • san rafael
+    - button ""
+    - text: $1,950
+    - link "2/bd, Patios and Balconies, Family Friendly 1":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pleasanton-bd-patios-and-balconies/7926698728.html
+      - img "2/bd, Patios and Balconies, Family Friendly 1"
+    - text: • • • • • • • • •
+    - link "2/bd, Patios and Balconies, Family Friendly":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pleasanton-bd-patios-and-balconies/7926698728.html
+    - button ""
+    - text: <1hr ago • 2br840ft2 • dublin / pleasanton / livermore
+    - button ""
+    - text: $2,725
+    - link "2 bedroom 1 bath, single family home, utilities included 1":
+      - /url: https://sfbay.craigslist.org/pen/apa/d/palo-alto-bedroom-bath-single-family/7923598404.html
+      - img "2 bedroom 1 bath, single family home, utilities included 1"
+    - text: • • • • • • • • • • •
+    - link "2 bedroom 1 bath, single family home, utilities included":
+      - /url: https://sfbay.craigslist.org/pen/apa/d/palo-alto-bedroom-bath-single-family/7923598404.html
+    - button ""
+    - text: <1hr ago • 2br600ft2 • east palo alto
+    - button ""
+    - text: $3,000
+    - link "Courtyard, Access to Los Gatos Trail, Large Closets 1":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-courtyard-access-to-los-gatos/7926246739.html
+      - img "Courtyard, Access to Los Gatos Trail, Large Closets 1"
+    - text: • • • • • • • • •
+    - link "Courtyard, Access to Los Gatos Trail, Large Closets":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-courtyard-access-to-los-gatos/7926246739.html
+    - button ""
+    - text: <1hr ago • 2br940ft2 • los gatos
+    - button ""
+    - text: $3,497
+    - link "Cozy 1BR – New Kitchen, Parking Available 1":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-cozy-1br-new-kitchen/7926699210.html
+      - img "Cozy 1BR – New Kitchen, Parking Available 1"
+    - text: • • •
+    - link "Cozy 1BR – New Kitchen, Parking Available":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-cozy-1br-new-kitchen/7926699210.html
+    - button ""
+    - text: <1hr ago • 1br450ft2 • city of san francisco
+    - button ""
+    - text: $1,775
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-gorgeous-remodeled-sunny/7924699720.html
+    - text: • • • • • • • • • • • • • • • • •
+    - link "Gorgeous, remodeled, sunny, spacious, porch, inc. parking 8-unit bldg":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-gorgeous-remodeled-sunny/7924699720.html
+    - button ""
+    - text: <1hr ago • 2br750ft2 • berkeley
+    - button ""
+    - text: $2,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-mirrored-closets-near-highway/7924122310.html
+    - text: • • • • • • • • •
+    - link "MIRRORED CLOSETS, NEAR HIGHWAY AND BUS ROUTES, BALCONY/ PATIO":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-mirrored-closets-near-highway/7924122310.html
+    - button ""
+    - text: <1hr ago • 2br851ft2 • hayward / castro valley
+    - button ""
+    - text: $2,549
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fairfield-state-of-the-art-fitness/7926703279.html
+    - text: • • • • • •
+    - link "State-Of-The-Art Fitness Facility, Dishwasher, Air Conditioner":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fairfield-state-of-the-art-fitness/7926703279.html
+    - button ""
+    - text: <1hr ago • 1br790ft2 • fairfield / vacaville
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-love-where-you-live/7923212710.html
+    - text: • • • • •
+    - link "Love where you live.":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-love-where-you-live/7923212710.html
+    - button ""
+    - text: <1hr ago • 2br880ft2 • san jose south
+    - button ""
+    - text: $2,689
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/apa/d/burlingame-arlington-3rd-floor-vintage/7926703120.html
+    - text: • • • • • • • • • • •
+    - link "Arlington 3rd floor Vintage Studio":
+      - /url: https://sfbay.craigslist.org/pen/apa/d/burlingame-arlington-3rd-floor-vintage/7926703120.html
+    - button ""
+    - text: <1hr ago • 500ft2 • burlingame
+    - button ""
+    - text: $2,675
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/el-cerrito-breakfast-bar-all-electric/7926696148.html
+    - text: • • • • • • • • •
+    - link "Breakfast Bar, All-electric Kitchen, Cable Ready":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/el-cerrito-breakfast-bar-all-electric/7926696148.html
+    - button ""
+    - text: <1hr ago • 1br710ft2 • albany / el cerrito
+    - button ""
+    - text: $2,645
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pittsburg-sunny-bed-bath-in-pittsburg/7920779769.html
+    - text: • • • • • • •
+    - link "Sunny 2 bed- 2 bath in Pittsburg":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pittsburg-sunny-bed-bath-in-pittsburg/7920779769.html
+    - button ""
+    - text: <1hr ago • 2br918ft2 • pittsburg / antioch
+    - button ""
+    - text: $1,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-in-the-heart-of-the-community/7924957285.html
+    - text: • • • • • • • • •
+    - link "In the heart of the community, spacious and comes with garage!":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-in-the-heart-of-the-community/7924957285.html
+    - button ""
+    - text: <1hr ago • 3br1423ft2 • fremont / union city / newark
+    - button ""
+    - text: $4,012
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-close-to-park-partial-wood/7925400350.html
+    - text: • • • • • • • • •
+    - link "Close to Park, Partial Wood-Style Flooring, 1 Bed":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-close-to-park-partial-wood/7925400350.html
+    - button ""
+    - text: <1hr ago • 1br662ft2 • san jose north
+    - button ""
+    - text: $2,999
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/apa/d/san-rafael-rooftop-lounge-and-sundeck/7926695803.html
+    - text: • • • • • • • • • •
+    - link "Rooftop lounge and sundeck with a Barbecue Area, Elevator":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/san-rafael-rooftop-lounge-and-sundeck/7926695803.html
+    - button ""
+    - text: <1hr ago • 1br640ft2 • san rafael
+    - button ""
+    - text: $3,400
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/campbell-pebble-creek-charm-bed-15-bath/7926236707.html
+    - text: • • • • • • • • • •
+    - link "Pebble Creek Charm – 2 Bed, 1.5 Bath First Floor Gem":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/campbell-pebble-creek-charm-bed-15-bath/7926236707.html
+    - button ""
+    - text: <1hr ago • 2br982ft2 • campbell
+    - button ""
+    - text: $3,430
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-workspaces-bedroom-berkeley-ca/7926235552.html
+    - text: • • • • • • • • •
+    - link "Workspaces, 2 bedroom, Berkeley CA":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-workspaces-bedroom-berkeley-ca/7926235552.html
+    - button ""
+    - text: <1hr ago • 2br • berkeley
+    - button ""
+    - text: $3,480
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-pet-friendly-bedroom-with-in/7926702786.html
+    - text: • • • • • • • • • • • • • • • • • •
+    - 'link "Pet Friendly 4-Bedroom with In Unit W/D - Near Willard Park! Unit #100"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-pet-friendly-bedroom-with-in/7926702786.html
+    - button ""
+    - text: <1hr ago • 4br1398ft2 • berkeley
+    - button ""
+    - text: $7,395
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/walnut-creek-dishwasher-bbq-picnic-area/7926217674.html
+    - text: • • • • • • • • •
+    - link "Dishwasher, BBQ/Picnic Area, 1/bd 1/ba":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/walnut-creek-dishwasher-bbq-picnic-area/7926217674.html
+    - button ""
+    - text: <1hr ago • 1br580ft2 • walnut creek
+    - button ""
+    - text: $2,322
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-bedroom-in-historic/7926698675.html
+    - text: • • • • • • • •
+    - link "**2-Bedroom in Historic Victorian with Private Garden**":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-bedroom-in-historic/7926698675.html
+    - button ""
+    - text: <1hr ago • 2br1100ft2 • city of san francisco
+    - button ""
+    - text: $2,895
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-classic-studio-walk-in-closet/7926702706.html
+    - text: • • • • • • • • • • •
+    - 'link "Classic Studio w/ Walk In Closet Near UC! Unit #206"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-classic-studio-walk-in-closet/7926702706.html
+    - button ""
+    - text: <1hr ago • 474ft2 • berkeley
+    - button ""
+    - text: $2,795
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/mountain-view-1000-on-us-rent-includes/7924820839.html
+    - text: • • • • • • • • •
+    - link "$1,000 On Us! Rent includes water, sewer, & trash utilities!":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/mountain-view-1000-on-us-rent-includes/7924820839.html
+    - button ""
+    - text: <1hr ago • 516ft2 • mountain view
+    - button ""
+    - text: $2,630
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/apa/d/menlo-park-spring-into-new-home-and-get/7926702627.html
+    - text: • • • • • • • • • • • • • • • •
+    - link "🌼Spring Into a New Home and Get $1,748.00 Off Rent!!🐝":
+      - /url: https://sfbay.craigslist.org/pen/apa/d/menlo-park-spring-into-new-home-and-get/7926702627.html
+    - button ""
+    - text: <1hr ago • 2br1000ft2 • menlo park
+    - button ""
+    - text: $3,495
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-2br-walk-in-closet-hardwood/7926702620.html
+    - text: • • • • • • • • • • • •
+    - 'link "2BR w/ Walk in Closet & Hardwood Floors! Unit #105"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-2br-walk-in-closet-hardwood/7926702620.html
+    - button ""
+    - text: <1hr ago • 2br867ft2 • berkeley
+    - button ""
+    - text: $3,775
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pleasanton-youll-love-being-here-wed/7926249141.html
+    - text: • • • • • • • • •
+    - link "You’ll love being here. We’d love to have you here!":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pleasanton-youll-love-being-here-wed/7926249141.html
+    - button ""
+    - text: <1hr ago • 3br1100ft2 • dublin / pleasanton / livermore
+    - button ""
+    - text: $2,838
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-charming-1br-with-city-views/7926702551.html
+    - text: • • • • • • • • • • • • •
+    - 'link "Charming 1BR with City Views! Unit #102"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-charming-1br-with-city-views/7926702551.html
+    - button ""
+    - text: <1hr ago • 1br600ft2 • berkeley
+    - button ""
+    - text: $3,295
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-flexible-lease-terms-move-in/7921989114.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • •
+    - link "*FLEXIBLE LEASE TERMS *MOVE-IN SAVINGS":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-flexible-lease-terms-move-in/7921989114.html
+    - button ""
+    - text: <1hr ago • 2br • santa rosa
+    - button ""
+    - text: $2,380
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-balcony-courtyard-view-d-in/7926702474.html
+    - text: • • • • • • • • • • • • • • • •
+    - 'link "Balcony Courtyard View & W/D In Unit! Unit #307"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-balcony-courtyard-view-d-in/7926702474.html
+    - button ""
+    - text: <1hr ago • 2br721ft2 • berkeley
+    - button ""
+    - text: $4,495
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-large-freshly-painted/7926693109.html
+    - text: • • •
+    - link "Large freshly painted third floor studio":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-large-freshly-painted/7926693109.html
+    - button ""
+    - text: <1hr ago • city of san francisco
+    - button ""
+    - text: $1,700
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-le-mirador-senior-apartments/7926702398.html
+    - text: • • • • • • • •
+    - link "Le Mirador Senior Apartments -Accepting Applications Now!!!":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-le-mirador-senior-apartments/7926702398.html
+    - button ""
+    - text: <1hr ago • 1br579ft2 • san jose south
+    - button ""
+    - text: $2,134
+    - button "show duplicates"
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-modern-2br-with-private/7926702390.html
+    - text: • • • • • • • • • • • • • • • • •
+    - 'link "Modern 2BR with Private Balcony! Unit #208"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-modern-2br-with-private/7926702390.html
+    - button ""
+    - text: <1hr ago • 2br795ft2 • berkeley
+    - button ""
+    - text: $4,045
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/campbell-limited-availability-cielo/7924237681.html
+    - text: • • • • • • • • • • • • • • • • • • •
+    - link "🚨 Limited Availability | Cielo Apartments Going Fast! 🔥":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/campbell-limited-availability-cielo/7924237681.html
+    - button ""
+    - text: <1hr ago • 2br855ft2 • campbell
+    - button ""
+    - text: $3,200
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-timeless-classic-1br-near/7926702290.html
+    - text: • • • • • • • • • • • • •
+    - 'link "Timeless Classic 1BR Near Campus & Shops Unit #311"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-timeless-classic-1br-near/7926702290.html
+    - button ""
+    - text: <1hr ago • 1br589ft2 • berkeley
+    - button ""
+    - text: $2,875
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/san-ramon-fitness-center-close-to-dog/7926239336.html
+    - text: • • • • • • • • •
+    - link "Fitness Center, Close to Dog Park, Dishwasher":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/san-ramon-fitness-center-close-to-dog/7926239336.html
+    - button ""
+    - text: <1hr ago • 1br701ft2 • danville / san ramon
+    - button ""
+    - text: $2,525
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/san-leandro-cozy-br-retreat-dishwasher/7926696624.html
+    - text: • • • • • • • •
+    - link "Cozy 2 BR Retreat w/ Dishwasher, Steps from Major Employers":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/san-leandro-cozy-br-retreat-dishwasher/7926696624.html
+    - button ""
+    - text: <1hr ago • 2br950ft2 • hayward / castro valley
+    - button ""
+    - text: $2,675
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-classic-1br-built-in-shelving/7926702124.html
+    - text: • • • • • • • • • • • • • •
+    - 'link "Classic 1BR w/ Built in Shelving - Near Campus! Unit #305"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-classic-1br-built-in-shelving/7926702124.html
+    - button ""
+    - text: <1hr ago • 1br586ft2 • berkeley
+    - button ""
+    - text: $3,345
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/gilroy-available-now-updated-apartments/7926695219.html
+    - text: • • • • • • • •
+    - link "Available Now - Updated Apartments w/ LVP Flooring Ameniti":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/gilroy-available-now-updated-apartments/7926695219.html
+    - button ""
+    - text: <1hr ago • 3br1000ft2 • gilroy
+    - button ""
+    - text: $2,504
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-cozy-br-gem-near-uc-berkeley/7926702043.html
+    - text: • • • • • • • • • • • •
+    - 'link "Cozy 2 BR Gem - Near UC Berkeley! Unit #303"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-cozy-br-gem-near-uc-berkeley/7926702043.html
+    - button ""
+    - text: <1hr ago • 2br600ft2 • berkeley
+    - button ""
+    - text: $3,895
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-clean-1br-on-site-d-parking/7926701982.html
+    - text: • • • • • • • • • • • • •
+    - link "Clean 1BR + On-Site W/D + Parking – Simple & Convenient!":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-clean-1br-on-site-d-parking/7926701982.html
+    - button ""
+    - text: <1hr ago • 1br450ft2 • santa rosa
+    - button ""
+    - text: $1,795
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-1br-washer-dryer-near-uc/7926701957.html
+    - text: • • • • • • • • • •
+    - 'link "1BR w/ Washer & Dryer - Near UC Berkeley! Unit #223"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-1br-washer-dryer-near-uc/7926701957.html
+    - button ""
+    - text: <1hr ago • 1br469ft2 • berkeley
+    - button ""
+    - text: $2,995
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/apa/d/mountain-view-3br-15ba-with-washer/7926701911.html
+    - text: • • • •
+    - link "3BR/1.5BA With Washer/Dryer in a Garden Setting!! Available 4/1/26":
+      - /url: https://sfbay.craigslist.org/pen/apa/d/mountain-view-3br-15ba-with-washer/7926701911.html
+    - button ""
+    - text: <1hr ago • 3br960ft2 • mountain view
+    - button ""
+    - text: $4,595
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/alameda-bedroom-bath-newly-remodeled/7923941427.html
+    - text: • • • • • • • • •
+    - link "2 bedroom 1 bath newly remodeled":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/alameda-bedroom-bath-newly-remodeled/7923941427.html
+    - button ""
+    - text: <1hr ago • 2br • Alameda
+    - button ""
+    - text: $3,000
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-studio-hardwood-floors-near/7926701863.html
+    - text: • • • • • • • • • •
+    - 'link "Studio w/ Hardwood Floors Near Campus! Unit #222"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-studio-hardwood-floors-near/7926701863.html
+    - button ""
+    - text: <1hr ago • 385ft2 • berkeley
+    - button ""
+    - text: $2,795
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-charming-studio-near-uc/7926701773.html
+    - text: • • • • • • • • • •
+    - 'link "Charming Studio: Near UC Berkeley! Unit #221"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-charming-studio-near-uc/7926701773.html
+    - button ""
+    - text: <1hr ago • 468ft2 • berkeley
+    - button ""
+    - text: $2,926
+    - link "2bedroom 1bath apartment in Antioch ca. 1":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/brentwood-2bedroom-1bath-apartment-in/7926701767.html
+      - img "2bedroom 1bath apartment in Antioch ca. 1"
+    - text: •
+    - link "2bedroom 1bath apartment in Antioch ca.":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/brentwood-2bedroom-1bath-apartment-in/7926701767.html
+    - button ""
+    - text: <1hr ago • 2br • pittsburg / antioch
+    - button ""
+    - text: $2,000
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/alameda-inviting-br-with-updated-floors/7926695130.html
+    - text: • • • • • •
+    - link "Inviting 2 BR with Updated Floors & Microwave in Pet Friendly Gem":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/alameda-inviting-br-with-updated-floors/7926695130.html
+    - button ""
+    - text: <1hr ago • 2br835ft2 • alameda
+    - button ""
+    - text: $2,895
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-2br-with-hardwood-floors/7926701689.html
+    - text: • • • • • • • • • • • • • •
+    - 'link "2BR with Hardwood Floors + Washer & Dryer - Unit #218"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-2br-with-hardwood-floors/7926701689.html
+    - button ""
+    - text: <1hr ago • 2br569ft2 • berkeley
+    - button ""
+    - text: $3,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-classic-studio-near-uc/7926701599.html
+    - text: • • • • • • • • • • •
+    - 'link "Classic Studio Near UC Berkeley! Unit #215"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-classic-studio-near-uc/7926701599.html
+    - button ""
+    - text: <1hr ago • 419ft2 • berkeley
+    - button ""
+    - text: $2,845
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-2br-near-fillmore-dining/7926693674.html
+    - text: • • • • • • • • • • • • • • •
+    - 'link "2BR Near Fillmore Dining & Alta Plaza Park! Unit #407"':
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-2br-near-fillmore-dining/7926693674.html
+    - button ""
+    - text: <1hr ago • 2br704ft2 • pacific heights
+    - button ""
+    - text: $5,295
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-charming-1br-apartment-close/7926701503.html
+    - text: • • • • • • • • • •
+    - 'link "Charming 1BR Apartment: Close to UC Berkeley! Unit #211"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-charming-1br-apartment-close/7926701503.html
+    - button ""
+    - text: <1hr ago • 1br334ft2 • berkeley
+    - button ""
+    - text: $2,795
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-2br-with-d-close-to-uc/7926701401.html
+    - text: • • • • • • • • • • • •
+    - 'link "2BR with W/D - Close to UC Berkeley! Unit #407"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-2br-with-d-close-to-uc/7926701401.html
+    - button ""
+    - text: <1hr ago • 2br595ft2 • berkeley
+    - button ""
+    - text: $3,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fairfield-community-playground-private/7926694557.html
+    - text: • • • • • • •
+    - link "Community Playground, Private Patio or Balcony":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fairfield-community-playground-private/7926694557.html
+    - button ""
+    - text: <1hr ago • 3br1165ft2 • fairfield / vacaville
+    - button ""
+    - text: $2,850
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-large-closets-electric-stove/7926245866.html
+    - text: • • • • • • • • • •
+    - link "Large Closets, Electric Stove, BBQ/Picnic Area":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-large-closets-electric-stove/7926245866.html
+    - button ""
+    - text: <1hr ago • 2br1012ft2 • alameda
+    - button ""
+    - text: $3,000
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-modern-2br-steps-from-campus/7926701331.html
+    - text: • • • • • • • • • •
+    - 'link "Modern 2BR – Steps from Campus! Unit #404"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-modern-2br-steps-from-campus/7926701331.html
+    - button ""
+    - text: <1hr ago • 2br710ft2 • berkeley
+    - button ""
+    - text: $4,295
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/apa/d/felton-felton-studio-for-rent/7926701319.html
+    - text: • • • • • • •
+    - link "Felton Studio For Rent":
+      - /url: https://sfbay.craigslist.org/scz/apa/d/felton-felton-studio-for-rent/7926701319.html
+    - button ""
+    - text: <1hr ago • 1br500ft2 • Felton
+    - button ""
+    - text: $2,195
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/apa/d/vallejo-stunning-br-infinity-pool/7926701312.html
+    - text: • • • • • •
+    - link "Stunning 3 BR-Infinity Pool, Quartz Counters, Dogs Welcome!":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/vallejo-stunning-br-infinity-pool/7926701312.html
+    - button ""
+    - text: <1hr ago • 3br1321ft2 • napa county
+    - button ""
+    - text: $3,635
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-1br-with-walk-in-closet/7926701244.html
+    - text: • • • • • • • • • • • • • • •
+    - 'link "1BR with Walk In Closet & Hardwood Floors Near UC! Unit #307"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-1br-with-walk-in-closet/7926701244.html
+    - button ""
+    - text: <1hr ago • 1br590ft2 • berkeley
+    - button ""
+    - text: $3,145
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-1077-ashbury-street-owner/7926693910.html
+    - text: • • • • •
+    - link "1077 Ashbury Street Owner LP - 1081C":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-1077-ashbury-street-owner/7926693910.html
+    - button ""
+    - text: <1hr ago • 1br400ft2 • haight ashbury
+    - button ""
+    - text: $4,275
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pittsburg-clubhouse-disposal-balcony/7926701167.html
+    - text: • • • • • •
+    - link "Clubhouse, Disposal, Balcony, Dishwasher":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pittsburg-clubhouse-disposal-balcony/7926701167.html
+    - button ""
+    - text: <1hr ago • 2br • pittsburg / antioch
+    - button ""
+    - text: $2,036
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-2br-with-washer-dryer-minutes/7926701053.html
+    - text: • • • • • • • • • • • • • •
+    - 'link "2BR with Washer & Dryer - Minutes away from UC! Unit #302"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-2br-with-washer-dryer-minutes/7926701053.html
+    - button ""
+    - text: <1hr ago • 2br499ft2 • berkeley
+    - button ""
+    - text: $4,245
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/mountain-view-great-location-month-free/7926695112.html
+    - text: • • • • • • • •
+    - link "Great Location! 1 Month Free!":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/mountain-view-great-location-month-free/7926695112.html
+    - button ""
+    - text: <1hr ago • 1br700ft2 • mountain view
+    - button ""
+    - text: $3,125
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-spacious-closets-outdoor-bbq/7926693974.html
+    - text: • • • • • • • • •
+    - link "Spacious closets, Outdoor BBQ area, Controlled access":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-spacious-closets-outdoor-bbq/7926693974.html
+    - button ""
+    - text: <1hr ago • 1br621ft2 • alameda
+    - button ""
+    - text: $2,323
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/apa/d/burlingame-newly-remodeled-spacious/7926690104.html
+    - text: • • • • • • • • • • • • • • •
+    - link "Newly Remodeled, Spacious unit, Prime Location":
+      - /url: https://sfbay.craigslist.org/pen/apa/d/burlingame-newly-remodeled-spacious/7926690104.html
+    - button ""
+    - text: <1hr ago • 1br658ft2 • burlingame
+    - button ""
+    - text: $3,300
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/antioch-view-dishwasher-air/7926700995.html
+    - text: • • • • • • • • • • • • • •
+    - link "View, Dishwasher, Air Conditioning, Covered Parking":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/antioch-view-dishwasher-air/7926700995.html
+    - button ""
+    - text: <1hr ago • 2br728ft2 • pittsburg / antioch
+    - button ""
+    - text: $1,699
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-renovated-1b-1b-in-san-jose/7925243932.html
+    - text: • • • • • • • • •
+    - link "Renovated 1B/1B in San Jose w/ detached garage parking, *pet-friendly*":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-renovated-1b-1b-in-san-jose/7925243932.html
+    - button ""
+    - text: <1hr ago • 1br722ft2 • san jose south
+    - button ""
+    - text: $2,874
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-modern-1br-with-in-unit-d-near/7926700971.html
+    - text: • • • • • • • • • • •
+    - 'link "Modern 1BR with In Unit W/D - Near UC Berkeley Campus! #209"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-modern-1br-with-in-unit-d-near/7926700971.html
+    - button ""
+    - text: <1hr ago • 1br338ft2 • berkeley
+    - button ""
+    - text: $2,695
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-your-new-home-awaits-huge/7926695722.html
+    - text: • • • • • •
+    - link "Your New Home Awaits-Huge Windows & Resort-Style Amenities":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-your-new-home-awaits-huge/7926695722.html
+    - button ""
+    - text: <1hr ago • 1br710ft2 • fremont / union city / newark
+    - button ""
+    - text: $2,295
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-spacious-1br-with-updated/7926700894.html
+    - text: • • • • • • • • • • • • • •
+    - 'link "Spacious 1BR with Updated Features! Unit #12"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-spacious-1br-with-updated/7926700894.html
+    - button ""
+    - text: <1hr ago • 1br500ft2 • berkeley
+    - button ""
+    - text: $3,245
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/apa/d/millbrae-walk-in-closets-private/7926245792.html
+    - text: • • • • • • • • •
+    - link "Walk-In Closets, Private Balcony, Elevators":
+      - /url: https://sfbay.craigslist.org/pen/apa/d/millbrae-walk-in-closets-private/7926245792.html
+    - button ""
+    - text: <1hr ago • 545ft2 • san mateo
+    - button ""
+    - text: $3,123
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-beautiful-spacious-studio-pet/7926700801.html
+    - text: • • • • • • • • • • •
+    - 'link "Beautiful & Spacious Studio; Pet-Friendly; Unit #9"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-beautiful-spacious-studio-pet/7926700801.html
+    - button ""
+    - text: <1hr ago • 500ft2 • berkeley
+    - button ""
+    - text: $2,295
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/union-city-bed-spacious-walk-in-closets/7926232699.html
+    - text: • • • • • • • • •
+    - link "3 Bed, Spacious Walk-In Closets, EV Charging Stations":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/union-city-bed-spacious-walk-in-closets/7926232699.html
+    - button ""
+    - text: <1hr ago • 3br1119ft2 • fremont / union city / newark
+    - button ""
+    - text: $3,636
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/san-leandro-lk-lease-specials-awaits/7926690321.html
+    - text: • • • • • • • • • • • • • • • • •
+    - link "L👀k & Lease Specials Awaits! Tour with Us Today at Belmark Apts!🌱":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/san-leandro-lk-lease-specials-awaits/7926690321.html
+    - button ""
+    - text: <1hr ago • 2br882ft2 • san leandro
+    - button ""
+    - text: $2,645
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-clubhouse-fitness-center/7926232384.html
+    - text: • • • • • • • • •
+    - link "Clubhouse, Fitness Center, Swimming pool":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-clubhouse-fitness-center/7926232384.html
+    - button ""
+    - text: <1hr ago • 1br621ft2 • alameda
+    - button ""
+    - text: $2,273
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-2br-apartment-near-telegraph/7926700728.html
+    - text: • • • • • • • • • • • •
+    - 'link "2BR Apartment Near Telegraph Avenue & UC Berkeley! Unit #5"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-2br-apartment-near-telegraph/7926700728.html
+    - button ""
+    - text: <1hr ago • 2br700ft2 • berkeley
+    - button ""
+    - text: $3,125
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pleasanton-inviting-br-in-central/7926696380.html
+    - text: • • • • • • • •
+    - link "Inviting 1 BR in Central Dublin-1 Month Free! Don't Wait":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pleasanton-inviting-br-in-central/7926696380.html
+    - button ""
+    - text: <1hr ago • 1br796ft2 • dublin / pleasanton / livermore
+    - button ""
+    - text: $2,561
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fairfield-rare-br-oversized-patio/7926695945.html
+    - text: • • • • • • • • • • • • • •
+    - link "Rare 2 BR, Oversized Patio-Stunning Gateway to Napa Lifestyle":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fairfield-rare-br-oversized-patio/7926695945.html
+    - button ""
+    - text: <1hr ago • 2br1076ft2 • fairfield / vacaville
+    - button ""
+    - text: $2,521
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-southside-berkeley-cozy-studio/7926700649.html
+    - text: • • • • • • • • • • •
+    - 'link "Southside Berkeley Cozy Studio – Near Campus! Unit #3"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-southside-berkeley-cozy-studio/7926700649.html
+    - button ""
+    - text: <1hr ago • 500ft2 • berkeley
+    - button ""
+    - text: $2,395
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-heating-refrigerator-in-house/7926700635.html
+    - text: • • • • • • •
+    - link "Heating, Refrigerator, In-house laundry":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-heating-refrigerator-in-house/7926700635.html
+    - button ""
+    - text: <1hr ago • 2br1050ft2 • fremont / union city / newark
+    - button ""
+    - text: $3,200
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/gilroy-beauty-apartment-bedrooms/7926700616.html
+    - text: • • • • • •
+    - 'link "Beauty Apartment 2 bedrooms 1 bathrooms @7255 East St #4"':
+      - /url: https://sfbay.craigslist.org/sby/apa/d/gilroy-beauty-apartment-bedrooms/7926700616.html
+    - button ""
+    - text: <1hr ago • 2br2475ft2 • gilroy
+    - button ""
+    - text: $2,475
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-1br-walk-in-closet-just/7926700525.html
+    - text: • • • • • • • • • • • • •
+    - 'link "1BR w/ Walk in Closet - Just Minutes from UC Campus! Unit #5"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-1br-walk-in-closet-just/7926700525.html
+    - button ""
+    - text: <1hr ago • 1br422ft2 • berkeley
+    - button ""
+    - text: $2,595
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-stunning-bedroom-bathroom/7926690970.html
+    - text: • • •
+    - link "Stunning 1 bedroom 1 bathroom apartment with stunning views":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-stunning-bedroom-bathroom/7926690970.html
+    - button ""
+    - text: <1hr ago • 1br • city of san francisco
+    - button ""
+    - text: $2,000
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-move-in-ready-call-today-by/7920909785.html
+    - text: • • • • • • • • • • • • • • •
+    - link "MOVE IN READY- CALL TODAY - By Annadel State Park - Luxury 2B":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-move-in-ready-call-today-by/7920909785.html
+    - button ""
+    - text: <1hr ago • 2br • santa rosa
+    - button ""
+    - text: $2,250
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-call-find-luxury-quartz/7920864705.html
+    - text: • • • • • • • • • •
+    - link "CALL & FIND LUXURY! - Quartz Counters - Two Nearby Playgrounds":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-call-find-luxury-quartz/7920864705.html
+    - button ""
+    - text: <1hr ago • 2br • santa rosa
+    - button ""
+    - text: $2,250
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-top-floor-1br-1ba-condo/7926693775.html
+    - text: • • • • • •
+    - link "***Top-Floor 1BR/1BA Condo w/ Golden Gate Views – Cow Hollow Luxury***":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-top-floor-1br-1ba-condo/7926693775.html
+    - button ""
+    - text: <1hr ago • 1br • 1725 Hyde St APT 5, San Francisco, CA
+    - button ""
+    - text: $1,796
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-fully-remodeled-top-floor/7926696217.html
+    - text: • • •
+    - link "Fully remodeled top floor studio apartment in 4 unit building":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-fully-remodeled-top-floor/7926696217.html
+    - button ""
+    - text: <1hr ago • city of san francisco
+    - button ""
+    - text: $1,700
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-light-filled-rooms-bedroom/7926695451.html
+    - text: • • • • • • • • • •
+    - link "Light-filled Rooms, 1 & 2 Bedroom Apartments, Pet Friendly":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-light-filled-rooms-bedroom/7926695451.html
+    - button ""
+    - text: <1hr ago • 2br900ft2 • santa rosa
+    - button ""
+    - text: $2,385
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/apa/d/napa-walk-in-closets-pool-and-spa-wood/7922690815.html
+    - text: • • • • • • • • •
+    - link "Walk-in Closets, Pool and Spa, Wood Burning Fireplace":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/napa-walk-in-closets-pool-and-spa-wood/7922690815.html
+    - button ""
+    - text: <1hr ago • 1br648ft2 • napa county
+    - button ""
+    - text: $2,398
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-north-beach-living/7922819026.html
+      - text: 
+      - paragraph: no image
+    - link "North Beach Living!!":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-north-beach-living/7922819026.html
+    - button ""
+    - text: <1hr ago • 1br • north beach / telegraph hill
+    - button ""
+    - text: $920
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/apa/d/redwood-city-stainless-steel-energy/7926693628.html
+    - text: • • • • • •
+    - link "Stainless-Steel, Energy Efficient Appliances, Tile Backsplashes":
+      - /url: https://sfbay.craigslist.org/pen/apa/d/redwood-city-stainless-steel-energy/7926693628.html
+    - button ""
+    - text: <1hr ago • 1br864ft2 • redwood city
+    - button ""
+    - text: $4,259
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-generous-walk-through-closet/7921701582.html
+    - text: • • • • • • • • •
+    - link "Generous walk-through closet!, Stunning Floor-to-ceiling Windows! A/C":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-generous-walk-through-closet/7921701582.html
+    - button ""
+    - text: <1hr ago • 1br750ft2 • san jose downtown
+    - button ""
+    - text: $2,595
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-large-1bdrm-with-pool-view-in/7925020586.html
+    - text: • • • • • • • • •
+    - link "Large 1bdrm with pool view, in unit laundry and move in special!":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-large-1bdrm-with-pool-view-in/7925020586.html
+    - button ""
+    - text: <1hr ago • 1br790ft2 • hayward / castro valley
+    - button ""
+    - text: $2,621
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-th-ave-101/7926700057.html
+    - text: • • • • •
+    - link "1290 20th Ave - 101":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-th-ave-101/7926700057.html
+    - button ""
+    - text: <1hr ago • 536ft2 • sunset / parkside
+    - button ""
+    - text: $3,544
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-pet-friendly-2br-near/7926693478.html
+    - text: • • • • • • • • • • •
+    - 'link "Pet Friendly 2BR Near Parks and Recreation! Unit #203"':
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-pet-friendly-2br-near/7926693478.html
+    - button ""
+    - text: <1hr ago • 2br704ft2 • pacific heights
+    - button ""
+    - text: $5,195
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/campbell-fresh-bright-2br-with-sleek/7926700009.html
+    - text: • • • • • • • • • •
+    - link "Fresh & Bright 2BR with Sleek Stainless Steel Touches ✨":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/campbell-fresh-bright-2br-with-sleek/7926700009.html
+    - button ""
+    - text: <1hr ago • 2br848ft2 • campbell
+    - button ""
+    - text: $3,600
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-unbeatable-br-home-steps-from/7926695848.html
+    - text: • • • • • •
+    - link "Unbeatable 2 BR Home Steps from Parks & Dining-Rare Find!":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-unbeatable-br-home-steps-from/7926695848.html
+    - button ""
+    - text: <1hr ago • 2br842ft2 • san jose south
+    - button ""
+    - text: $2,629
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pleasant-hill-we-welcome-your-furry/7926209105.html
+    - text: • • • • • • • • • • • • • • • • • •
+    - link "We welcome your furry friends! Pet Friendly! 2 Bd / 1 Ba / 903 SqFt":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pleasant-hill-we-welcome-your-furry/7926209105.html
+    - button ""
+    - text: <1hr ago • 2br903ft2 • concord / pleasant hill / martinez
+    - button ""
+    - text: $2,232
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/richmond-the-right-place-for-you/7923239158.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "The right place for you! Beautiful 1 bed / 1 bath - prime location!":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/richmond-the-right-place-for-you/7923239158.html
+    - button ""
+    - text: <1hr ago • 1br600ft2 • El Cerrito
+    - button ""
+    - text: $2,225
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/oakland-bd-custom-cabinetry-granite/7925381407.html
+    - text: • • • • • • • • •
+    - link "2 BD, Custom Cabinetry, Granite Counters":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/oakland-bd-custom-cabinetry-granite/7925381407.html
+    - button ""
+    - text: <1hr ago • 2br • oakland downtown
+    - button ""
+    - text: $2,842
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pittsburg-bed-bath-654-sqft-unit/7920781630.html
+    - text: • • • • • • •
+    - link "1 bed 1 bath 654 sqft unit":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pittsburg-bed-bath-654-sqft-unit/7920781630.html
+    - button ""
+    - text: <1hr ago • 1br654ft2 • pittsburg / antioch
+    - button ""
+    - text: $1,695
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/apa/d/palo-alto-located-in-palo-alto-resident/7926249149.html
+    - text: • • • • • • • • •
+    - link "Located in Palo Alto, Resident Storage, 1/bd 1/ba":
+      - /url: https://sfbay.craigslist.org/pen/apa/d/palo-alto-located-in-palo-alto-resident/7926249149.html
+    - button ""
+    - text: <1hr ago • 1br537ft2 • palo alto
+    - button ""
+    - text: $2,707
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-upstairs-apartment-fresh-paint/7926699683.html
+    - text: • • • • • •
+    - link "Upstairs Apartment, Fresh Paint, Wood Flooring, Wall A/C, Onsite Laund":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-upstairs-apartment-fresh-paint/7926699683.html
+    - button ""
+    - text: <1hr ago • 2br • san jose downtown
+    - button ""
+    - text: $2,395
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/santa-clara-come-see-quartz-countertops/7920996797.html
+    - text: • • • • • • • • • • • • • • •
+    - link "Come See! Quartz Countertops, Large Balcony, Wood-style flooring":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/santa-clara-come-see-quartz-countertops/7920996797.html
+    - button ""
+    - text: <1hr ago • 2br876ft2 • santa clara
+    - button ""
+    - text: $2,995
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-dwight-way-apartments/7926694916.html
+      - text: 
+      - paragraph: no image
+    - link "Dwight Way Apartments – Accessible 1 & 2 Bedroom Housing | Berkeley":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-dwight-way-apartments/7926694916.html
+    - button ""
+    - text: <1hr ago • 1br • berkeley
+    - button ""
+    - text: $1,849
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/oakland-nicely-updated-unit-in-gated/7923710192.html
+    - text: • • • • • • • • • • • • • • • • • • • •
+    - link "Nicely updated unit in gated community close to Highland Hospital":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/oakland-nicely-updated-unit-in-gated/7923710192.html
+    - button ""
+    - text: <1hr ago • 1br • oakland east
+    - button ""
+    - text: $1,950
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/emeryville-modernized-historic-building/7926208894.html
+    - text: • • • • • • • • • • • • • • • • • • • • •
+    - link "Modernized historic building! Beautiful details and features! 1055 Sq":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/emeryville-modernized-historic-building/7926208894.html
+    - button ""
+    - text: <1hr ago • 1055ft2 • Oakland
+    - button ""
+    - text: $2,511
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/santa-clara-stylish-with-expansive/7926694293.html
+    - text: • • • • • • • • • •
+    - link "Stylish with Expansive Layout & Convenient Amenities":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/santa-clara-stylish-with-expansive/7926694293.html
+    - button ""
+    - text: <1hr ago • 2br1027ft2 • santa clara
+    - button ""
+    - text: $4,076
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/union-city-1b-1b-card-system-laundry/7926248919.html
+    - text: • • • • • • • • •
+    - link "1B/1B, 7 Card System Laundry Facilities, Fremont CA":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/union-city-1b-1b-card-system-laundry/7926248919.html
+    - button ""
+    - text: <1hr ago • 1br670ft2 • fremont / union city / newark
+    - button ""
+    - text: $2,274
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/apa/d/san-mateo-sand-volleyball-court-outdoor/7924016458.html
+    - text: • • • • • • •
+    - link "Sand Volleyball Court, Outdoor Basketball Court, Washer &Dryer in Unit":
+      - /url: https://sfbay.craigslist.org/pen/apa/d/san-mateo-sand-volleyball-court-outdoor/7924016458.html
+    - button ""
+    - text: <1hr ago • 2br960ft2 • foster city
+    - button ""
+    - text: $4,391
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/apa/d/mountain-view-mountainview-apartment/7926032000.html
+    - text: • • • • • • • • •
+    - link "MountainView Apartment for Rent":
+      - /url: https://sfbay.craigslist.org/pen/apa/d/mountain-view-mountainview-apartment/7926032000.html
+    - button ""
+    - text: <1hr ago • 2br750ft2 • mountain view
+    - button ""
+    - text: $3,000
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/apa/d/mountain-view-cute-single-family-home/7926699367.html
+    - text: • • • • • • • •
+    - link "Cute Single Family Home in Downtown Mountain View, Awesome Location":
+      - /url: https://sfbay.craigslist.org/pen/apa/d/mountain-view-cute-single-family-home/7926699367.html
+    - button ""
+    - text: <1hr ago • 2br • mountain view
+    - button ""
+    - text: $4,595
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-2br-with-hardwood-floors-near/7926699340.html
+    - text: • • • • • • • • • • • • • • •
+    - 'link "2BR with Hardwood Floors near Cal Campus & Downtown! Unit #10"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-2br-with-hardwood-floors-near/7926699340.html
+    - button ""
+    - text: <1hr ago • 2br546ft2 • berkeley
+    - button ""
+    - text: $3,195
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-beautiful-and-spacious/7926694371.html
+    - text: • • •
+    - link "Beautiful and spacious studio apartment":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-beautiful-and-spacious/7926694371.html
+    - button ""
+    - text: <1hr ago • city of san francisco
+    - button ""
+    - text: $1,700
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-incredible-renovated-apartment/7926699273.html
+    - text: • • • • • • • • • • • • • • • •
+    - link "Incredible Renovated Apartment in Heart of Downtown Hayward":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-incredible-renovated-apartment/7926699273.html
+    - button ""
+    - text: <1hr ago • hayward / castro valley
+    - button ""
+    - text: $1,995
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-renovated-home-with-remodeled/7926699269.html
+    - text: • • • • • • • • • • •
+    - link "Renovated Home with Remodeled Kitchen/Bathrooms, A/C, W/D, Car Charger":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-renovated-home-with-remodeled/7926699269.html
+    - button ""
+    - text: <1hr ago • 3br1785ft2 • fremont / union city / newark
+    - button ""
+    - text: $4,700
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/tracy-private-casita-studio/7925228244.html
+    - text: • • • • • • •
+    - link "Private Casita/Studio":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/tracy-private-casita-studio/7925228244.html
+    - button ""
+    - text: <1hr ago • 1br • Mountain House, Tracy
+    - button ""
+    - text: $1,700
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-cute-and-cozy-cottage-private/7926699237.html
+    - text: • • • • • • •
+    - link "Cute and Cozy Cottage, Private Cul-De Sac, W/D, Parking, Private Patio":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-cute-and-cozy-cottage-private/7926699237.html
+    - button ""
+    - text: <1hr ago • 1br • san jose west
+    - button ""
+    - text: $2,295
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/apa/d/aptos-bedroom-apartment-for-rent/7925056996.html
+    - text: • • • • • •
+    - link "1 Bedroom apartment for rent":
+      - /url: https://sfbay.craigslist.org/scz/apa/d/aptos-bedroom-apartment-for-rent/7925056996.html
+    - button ""
+    - text: <1hr ago • 1br1000ft2 • Aptos
+    - button ""
+    - text: $1,900
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-spacious-bedroom-gated-complex/7926699128.html
+    - text: • • • • • • •
+    - link "Spacious 3 Bedroom, Gated Complex, Balcony, Fresh Paint, Great Locatio":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-spacious-bedroom-gated-complex/7926699128.html
+    - button ""
+    - text: <1hr ago • 3br1100ft2 • san jose downtown
+    - button ""
+    - text: $2,850
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/pen/apa/d/daly-city-two-bedrooms/7926691081.html
+      - text: 
+      - paragraph: no image
+    - link "Two Bedrooms":
+      - /url: https://sfbay.craigslist.org/pen/apa/d/daly-city-two-bedrooms/7926691081.html
+    - button ""
+    - text: <1hr ago • 2br • daly city
+    - button ""
+    - text: $2,500
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-inviting-apartment-with/7926698870.html
+    - text: • • • • • • • • • •
+    - link "Inviting / Apartment with Interactive Touchscreen Technolo":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-inviting-apartment-with/7926698870.html
+    - button ""
+    - text: <1hr ago • 543ft2 • SOMA / south beach
+    - button ""
+    - text: $4,720
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/mountain-view-1000-on-us/7926698823.html
+    - text: • • • • • • • • • •
+    - link "$1,000 ON US!!":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/mountain-view-1000-on-us/7926698823.html
+    - button ""
+    - text: <1hr ago • 516ft2 • mountain view
+    - button ""
+    - text: $2,780
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pleasant-hill-dishwasher-central-air/7926698801.html
+    - text: • • • • • • • •
+    - link "Dishwasher, Central Air Conditioning, Wood Look Flooring, Ceiling Fan":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pleasant-hill-dishwasher-central-air/7926698801.html
+    - button ""
+    - text: <1hr ago • 2br1029ft2 • concord / pleasant hill / martinez
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-range-business-center-bike/7925777052.html
+    - text: • • • • • • • •
+    - link "Range, Business Center, Bike Racks":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-range-business-center-bike/7925777052.html
+    - button ""
+    - text: <1hr ago • 3br1045ft2 • milpitas
+    - button ""
+    - text: $2,728
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/gilroy-dishwasher-sparkling-pool-hot/7926698715.html
+    - text: • • • • • • • • • •
+    - link "Dishwasher, Sparkling Pool & Hot Tub, Community Room, Balcony/Patio":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/gilroy-dishwasher-sparkling-pool-hot/7926698715.html
+    - button ""
+    - text: <1hr ago • 2br697ft2 • gilroy
+    - button ""
+    - text: $2,195
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-tmlp-13-mo-resident-lounge-ev/7926698711.html
+    - text: • • • • • • • • • •
+    - link "TMLP 13-mo. | Resident Lounge, EV Charging Stations, Club Room":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-tmlp-13-mo-resident-lounge-ev/7926698711.html
+    - button ""
+    - text: <1hr ago • 2br1034ft2 • san jose downtown
+    - button ""
+    - text: $3,681
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/concord-wood-style-flooring-swimming/7926698688.html
+    - text: • • • • • •
+    - link "Wood Style Flooring, Swimming Pool, High Ceilings":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/concord-wood-style-flooring-swimming/7926698688.html
+    - button ""
+    - text: <1hr ago • 2br739ft2 • concord / pleasant hill / martinez
+    - button ""
+    - text: $2,104
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-close-to-dog-park-private-patio/7926232219.html
+    - text: • • • • • • • • •
+    - link "Close to Dog Park, Private Patio or Balcony, Carport":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-close-to-dog-park-private-patio/7926232219.html
+    - button ""
+    - text: <1hr ago • 2br1010ft2 • fremont / union city / newark
+    - button ""
+    - text: $3,108
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-quality-living-it-starts-here/7924506331.html
+    - text: • • • • • • • •
+    - link "Quality living. It starts here!":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-quality-living-it-starts-here/7924506331.html
+    - button ""
+    - text: <1hr ago • 2br1025ft2 • san jose downtown
+    - button ""
+    - text: $3,457
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-studio-tenderloin-washer/7926688808.html
+    - text: • • • • • • • • • • • • • • • •
+    - link "Studio/Tenderloin/Washer/Dryer in Bldg/Gas Range/New flooring/$2345!":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-studio-tenderloin-washer/7926688808.html
+    - button ""
+    - text: <1hr ago • 325ft2 • tenderloin
+    - button ""
+    - text: $2,345
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-solar-shades-workshop/7926698666.html
+    - text: • • • • • • • • • •
+    - link "Solar shades, Workshop, Resident Lounge":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-solar-shades-workshop/7926698666.html
+    - button ""
+    - text: <1hr ago • 1br660ft2 • SOMA / south beach
+    - button ""
+    - text: $3,800
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/antioch-private-garages-limited-time/7926698649.html
+    - text: • • • • • • • • • • • •
+    - link "Private Garages, Limited Time Specials, New Construction":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/antioch-private-garages-limited-time/7926698649.html
+    - button ""
+    - text: <1hr ago • 1br756ft2 • brentwood / oakley
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/antioch-rare-opportunity-spacious-br/7926698641.html
+    - text: • • • • • •
+    - 'link "Rare Opportunity: Spacious 1 BR w/ Fresh Air Balcony & Pool"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/antioch-rare-opportunity-spacious-br/7926698641.html
+    - button ""
+    - text: <1hr ago • 1br596ft2 • pittsburg / antioch
+    - button ""
+    - text: $1,575
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/apa/d/san-quentin-tmlp-15-mo-claim-your-br/7926698638.html
+    - text: • • • • • •
+    - link "TMLP 15-mo. | Claim Your 1 BR-Fitness Studio, Pool, & Scenic Mount Tam Views":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/san-quentin-tmlp-15-mo-claim-your-br/7926698638.html
+    - button ""
+    - text: <1hr ago • 1br781ft2 • larkspur
+    - button ""
+    - text: $3,269
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-pet-friendly-living-with-room/7926698635.html
+      - text: 
+      - paragraph: no image
+    - link "Pet-Friendly Living with Room to Roam":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-pet-friendly-living-with-room/7926698635.html
+    - button ""
+    - text: <1hr ago • 2br983ft2 • hayward / castro valley
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-fully-equipped-kitchen/7926698628.html
+    - text: • • • • • • •
+    - link "Fully Equipped Kitchen, Updated On-Site Laundry Facility":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-fully-equipped-kitchen/7926698628.html
+    - button ""
+    - text: <1hr ago • 1br635ft2 • santa rosa
+    - button ""
+    - text: $2,015
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-3br-with-in-unit-washer-dryer/7926698630.html
+    - text: • • • • • • • • • • • • • • • •
+    - 'link "3BR with In Unit Washer & Dryer + Balcony! Unit #303"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-3br-with-in-unit-washer-dryer/7926698630.html
+    - button ""
+    - text: <1hr ago • 3br780ft2 • berkeley
+    - button ""
+    - text: $5,675
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/oakland-on-site-maintenance-stainless/7926698574.html
+    - text: • • • • • • • •
+    - link "On-site Maintenance, Stainless Steel Appliances, BBQ, Car Port":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/oakland-on-site-maintenance-stainless/7926698574.html
+    - button ""
+    - text: <1hr ago • 1br525ft2 • oakland piedmont / montclair
+    - button ""
+    - text: $2,295
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/apa/d/sausalito-high-speed-internet-access/7925433944.html
+    - text: • • • • • • • •
+    - link "High-Speed Internet Access, Mill Valley CA, 3/bd 2/ba":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/sausalito-high-speed-internet-access/7925433944.html
+    - button ""
+    - text: <1hr ago • 3br1485ft2 • mill valley
+    - button ""
+    - text: $7,650
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/campbell-two-bedroom-move-in-ready/7922738958.html
+    - text: • • • • • • • • • •
+    - link "Two Bedroom Move-In Ready Apartment with In-Home Laundry!":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/campbell-two-bedroom-move-in-ready/7922738958.html
+    - button ""
+    - text: <1hr ago • 2br1008ft2 • campbell
+    - button ""
+    - text: $3,615
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-tmlp-12-mo-gas-cooktop-crown/7926698531.html
+    - text: • • • • • • • • • •
+    - link "TMLP 12-mo. | Gas Cooktop*, Crown Molding*, Dishwasher":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-tmlp-12-mo-gas-cooktop-crown/7926698531.html
+    - button ""
+    - text: <1hr ago • 2br1560ft2 • san jose west
+    - button ""
+    - text: $4,270
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-unbeatable-br-homes-near-bart/7926698505.html
+    - text: • • • • • •
+    - link "Unbeatable 1 & 1 BR Homes Near BART-Pet Friendly!":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-unbeatable-br-homes-near-bart/7926698505.html
+    - button ""
+    - text: <1hr ago • 1br628ft2 • hayward / castro valley
+    - button ""
+    - text: $2,185
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/apa/d/daly-city-charming-neighborhood-in/7926698464.html
+    - text: • • • • • • • • • •
+    - link "Charming Neighborhood In Picturesque Coastal Community":
+      - /url: https://sfbay.craigslist.org/pen/apa/d/daly-city-charming-neighborhood-in/7926698464.html
+    - button ""
+    - text: <1hr ago • 1br687ft2 • daly city
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-renovated-br-modern-style/7926698452.html
+    - text: • • • • • • • •
+    - link "Renovated 1 BR-Modern Style, Pools & Gym, Limited Availability":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-renovated-br-modern-style/7926698452.html
+    - button ""
+    - text: <1hr ago • 1br725ft2 • san jose west
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/apa/d/santa-cruz-gorgeous-studio-oasis-walk/7926698445.html
+    - text: • • • • • • • •
+    - link "Gorgeous Studio Oasis-Walk to Entertainment & Dining!":
+      - /url: https://sfbay.craigslist.org/scz/apa/d/santa-cruz-gorgeous-studio-oasis-walk/7926698445.html
+    - button ""
+    - text: <1hr ago • 400ft2 • santa cruz
+    - button ""
+    - text: $2,982
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-cozy-br-ba-oasis-with-pool/7926698439.html
+    - text: • • • • • • • •
+    - link "Cozy 2 BR/1 BA Oasis with Pool Access, Move-in Special":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-cozy-br-ba-oasis-with-pool/7926698439.html
+    - button ""
+    - text: <1hr ago • 2br740ft2 • hayward / castro valley
+    - button ""
+    - text: $2,499
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/campbell-live-in-style-spacious-and/7926698431.html
+    - text: • • • • • • • • •
+    - 'link "Live in Style: Spacious 2 and 3 Bedroom Lofts at Orchard City Lofts"':
+      - /url: https://sfbay.craigslist.org/sby/apa/d/campbell-live-in-style-spacious-and/7926698431.html
+    - button ""
+    - text: <1hr ago • 1br844ft2 • santa clara
+    - button ""
+    - text: $4,350
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-look-lease-special-1x-month/7926698420.html
+    - text: • • • • • • •
+    - link "LOOK LEASE SPECIAL 1x1 $2040 + 1 MONTH FREE! CALL NOW!!":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-look-lease-special-1x-month/7926698420.html
+    - button ""
+    - text: <1hr ago • 1br600ft2 • hayward / castro valley
+    - button ""
+    - text: $2,040
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-gorgeous-br-ceiling-fans/7926698382.html
+    - text: • • • • • • •
+    - link "Gorgeous 2 BR-Ceiling Fans & Relaxing Courtyard Oasis":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-gorgeous-br-ceiling-fans/7926698382.html
+    - button ""
+    - text: <1hr ago • 2br912ft2 • hayward / castro valley
+    - button ""
+    - text: $2,475
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-vintage-3br-with-renovated/7926698383.html
+    - text: • • • • • • • • • • • • • •
+    - 'link "Vintage 3BR with Renovated Kitchen Near UC Berkeley! #2137-1"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-vintage-3br-with-renovated/7926698383.html
+    - button ""
+    - text: <1hr ago • 3br1478ft2 • berkeley
+    - button ""
+    - text: $4,995
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-tmlp-13-mo-soma-two/7926698288.html
+    - text: • • • • • • • • • • • •
+    - link "TMLP 13-mo. | SOMA two-bedroom apartment near Hayes Valley":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-tmlp-13-mo-soma-two/7926698288.html
+    - button ""
+    - text: <1hr ago • 2br687ft2 • downtown / civic / van ness
+    - button ""
+    - text: $3,881
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-tmlp-13-mo-live-luxe-exclusive/7926698277.html
+    - text: • • • • • • • •
+    - 'link "TMLP 13-mo. | Live Luxe: Exclusive Access to Resort Pool & Gourmet Kitchens"':
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-tmlp-13-mo-live-luxe-exclusive/7926698277.html
+    - button ""
+    - text: <1hr ago • 2br1228ft2 • san jose west
+    - button ""
+    - text: $5,314
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-modern-3br-with-private/7926698274.html
+    - text: • • • • • • • • • • • • • • • • •
+    - 'link "Modern 3BR with Private Balcony and Skyline Views! Unit #307"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-modern-3br-with-private/7926698274.html
+    - button ""
+    - text: <1hr ago • 3br1144ft2 • berkeley
+    - button ""
+    - text: $6,295
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-brand-new-stainless-steel/7926698258.html
+    - text: • • • • • • • • • •
+    - link "Brand New, Stainless Steel Appliances, AC, Washer/Dryer":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-brand-new-stainless-steel/7926698258.html
+    - button ""
+    - text: <1hr ago • 3br1200ft2 • santa rosa
+    - button ""
+    - text: $3,095
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/tracy-inviting-br-ba-resident-clubhouse/7926698227.html
+    - text: • • • • • • • • •
+    - link "Inviting 1 BR/1 BA-Resident Clubhouse & Miles of Trails":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/tracy-inviting-br-ba-resident-clubhouse/7926698227.html
+    - button ""
+    - text: <1hr ago • 1br766ft2 • dublin / pleasanton / livermore
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-outdoor-herb-garden/7926698218.html
+    - text: • • • • • • • • • • • • • •
+    - link "Outdoor Herb Garden, Frameless Glass Shower Enclosures":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-outdoor-herb-garden/7926698218.html
+    - button ""
+    - text: <1hr ago • 3br1692ft2 • castro / upper market
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/vallejo-online-payments-available/7926698206.html
+    - text: • • • • • • • • • • •
+    - link "Online Payments Available, Stainless Steel Stove/Range, Walk-in Closet":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/vallejo-online-payments-available/7926698206.html
+    - button ""
+    - text: <1hr ago • 2br972ft2 • vallejo / benicia
+    - button ""
+    - text: $1,895
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-bd-ba-air-conditioning-wall/7926232074.html
+    - text: • • • • • • • • •
+    - link "1/bd 1/ba, Air Conditioning Wall Units, Balcony or Patio":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-bd-ba-air-conditioning-wall/7926232074.html
+    - button ""
+    - text: <1hr ago • 1br650ft2 • willow glen / cambrian
+    - button ""
+    - text: $2,270
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/san-ramon-tmlp-13-mo-patio-storage/7926698182.html
+    - text: • • • • • • • •
+    - link "TMLP 13-mo. | Patio W/Storage, Assigned Carport/Onsite Laundry":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/san-ramon-tmlp-13-mo-patio-storage/7926698182.html
+    - button ""
+    - text: <1hr ago • 436ft2 • danville / san ramon
+    - button ""
+    - text: $2,000
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-garage-parking-available/7926698162.html
+    - text: • • • • • •
+    - link "Garage Parking Available, Large Windows, Laundry Facilities":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-garage-parking-available/7926698162.html
+    - button ""
+    - text: <1hr ago • 1br1ft2 • russian hill
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/apa/d/san-anselmo-exceptional-br-living/7926698165.html
+    - text: • • • • • • • • • • • •
+    - link "Exceptional 1 BR Living-Clubhouse, Carport & Outdoor Oasis":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/san-anselmo-exceptional-br-living/7926698165.html
+    - button ""
+    - text: <1hr ago • 1br728ft2 • san anselmo
+    - button ""
+    - text: $2,854
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fairfield-inviting-living-gym-spa/7926698100.html
+    - text: • • • • • • • • • • • • • • •
+    - link "Inviting / Living - Gym, Spa & Carport R":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fairfield-inviting-living-gym-spa/7926698100.html
+    - button ""
+    - text: <1hr ago • 2br936ft2 • fairfield / vacaville
+    - button ""
+    - text: $2,299
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/martinez-cozy-modern-flooring-pool/7926698088.html
+    - text: • • • • • •
+    - link "Cozy w/ Modern Flooring & Pool - Inquire About Specials!":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/martinez-cozy-modern-flooring-pool/7926698088.html
+    - button ""
+    - text: <1hr ago • 1br634ft2 • east bay area
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/walnut-creek-desirable-br-ba-abundant/7926698076.html
+    - text: • • • • • •
+    - link "Desirable 2 BR/1 BA-Abundant Light, Gourmet Kitchen, Pool":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/walnut-creek-desirable-br-ba-abundant/7926698076.html
+    - button ""
+    - text: <1hr ago • 2br850ft2 • concord / pleasant hill / martinez
+    - button ""
+    - text: $2,208
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fairfield-airy-open-floor-plan-br/7926698068.html
+    - text: • • • • • • •
+    - link "Airy Open Floor Plan 2 BR-Impeccable Style, Act Fast!":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fairfield-airy-open-floor-plan-br/7926698068.html
+    - button ""
+    - text: <1hr ago • 2br810ft2 • fairfield / vacaville
+    - button ""
+    - text: $1,875
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pleasanton-washer-dryer-included-on/7926698020.html
+    - text: • • • • • • • • •
+    - link "Washer Dryer Included, On-Site Management, Private Balcony":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pleasanton-washer-dryer-included-on/7926698020.html
+    - button ""
+    - text: <1hr ago • 1br672ft2 • dublin / pleasanton / livermore
+    - button ""
+    - text: $2,198
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/walnut-creek-spectacular-views-resident/7926697969.html
+    - text: • • • • • • • • • •
+    - link "Spectacular Views, Resident Lounge, Vaulted Ceilings, Fitness Center":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/walnut-creek-spectacular-views-resident/7926697969.html
+    - button ""
+    - text: <1hr ago • 2br1167ft2 • concord / pleasant hill / martinez
+    - button ""
+    - text: $3,835
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/apa/d/santa-cruz-tmlp-12-mo-pet-friendly/7926697965.html
+    - text: • • • • • • • •
+    - link "TMLP 12-mo. | Pet Friendly 2 Bedroom 1 Bath w/ Laminate Flooring!":
+      - /url: https://sfbay.craigslist.org/scz/apa/d/santa-cruz-tmlp-12-mo-pet-friendly/7926697965.html
+    - button ""
+    - text: <1hr ago • 2br771ft2 • santa cruz
+    - button ""
+    - text: $3,423
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/oakland-24-hour-gym-featuring-technogym/7926697954.html
+    - text: • • • • • • • •
+    - link "24-Hour gym featuring Technogym and Peloton, Grilling stations":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/oakland-24-hour-gym-featuring-technogym/7926697954.html
+    - button ""
+    - text: <1hr ago • 2br954ft2 • oakland downtown
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/apa/d/san-rafael-on-site-laundry-in-each/7926697930.html
+    - text: • • • • • • • • • •
+    - link "On Site Laundry in each building, Private patios and balconies":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/san-rafael-on-site-laundry-in-each/7926697930.html
+    - button ""
+    - text: <1hr ago • 2br921ft2 • san rafael
+    - button ""
+    - text: $3,375
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-stunning-fitness-center/7926697927.html
+    - text: • • • • • • • • • • • •
+    - link "Stunning Fitness Center, Soft Close Cabinetry, Quartz Countertops":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-stunning-fitness-center/7926697927.html
+    - button ""
+    - text: <1hr ago • 2br981ft2 • bayview
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/walnut-creek-online-availability-24-on/7926697913.html
+    - text: • • • • • • • • •
+    - link "Online Availability 24/7, On-Site Management":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/walnut-creek-online-availability-24-on/7926697913.html
+    - button ""
+    - text: <1hr ago • 1br • walnut creek
+    - button ""
+    - text: $3,000
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-on-site-parking-garage-with/7926697905.html
+    - text: • • • • • • • •
+    - link "On-site parking garage with EV charging, Open layouts":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-on-site-parking-garage-with/7926697905.html
+    - button ""
+    - text: <1hr ago • 1br564ft2 • santa rosa
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/alameda-now-offering-months-free/7926697876.html
+    - text: • • • • • • • • • •
+    - 'link "Now Offering 2 Months Free: Balconies, W/D in Unit, and Rooftop!"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/alameda-now-offering-months-free/7926697876.html
+    - button ""
+    - text: <1hr ago • 2br1042ft2 • alameda
+    - button ""
+    - text: $3,256
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/apa/d/daly-city-three-bedroom-housing-for/7926691631.html
+    - text: • • • • • • •
+    - link "three bedroom housing for rent available now":
+      - /url: https://sfbay.craigslist.org/pen/apa/d/daly-city-three-bedroom-housing-for/7926691631.html
+    - button ""
+    - text: <1hr ago • 3br1100ft2 • daly city
+    - button ""
+    - text: $4,600
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-tmlp-15-mo-outdoor-patios-with/7926697814.html
+    - text: • • • • • • • • •
+    - link "TMLP 15-mo. | Outdoor Patios with Storage, Quartz Countertops":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-tmlp-15-mo-outdoor-patios-with/7926697814.html
+    - button ""
+    - text: <1hr ago • 537ft2 • san jose downtown
+    - button ""
+    - text: $2,496
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/oakland-full-pet-spa-co-working-lounge/7926697779.html
+    - text: • • • • • • •
+    - link "Full Pet Spa, Co-working lounge with WFH amenities":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/oakland-full-pet-spa-co-working-lounge/7926697779.html
+    - button ""
+    - text: <1hr ago • 3br1478ft2 • oakland downtown
+    - button ""
+    - text: $4,125
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/campbell-resident-online-portal/7924760879.html
+    - text: • • • • • • • • •
+    - link "Resident Online Portal, Elevator, On-Site Management":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/campbell-resident-online-portal/7924760879.html
+    - button ""
+    - text: <1hr ago • 2br1359ft2 • santa clara
+    - button ""
+    - text: $4,350
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/dublin-1b-1b-renovated-floor-plans/7926697738.html
+    - text: • • • • • • • • •
+    - link "1B/1B, Renovated Floor Plans, Online Rent Payments":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/dublin-1b-1b-renovated-floor-plans/7926697738.html
+    - button ""
+    - text: <1hr ago • 1br687ft2 • dublin / pleasanton / livermore
+    - button ""
+    - text: $2,515
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/sunnyvale-tmlp-15-mo-pet-paradise-dog/7926697697.html
+    - text: • • • • • • • • • • • • •
+    - link "TMLP 15-mo. | Pet Paradise! Dog Park & Spa-Must-See 2 BR with Modern Touches":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/sunnyvale-tmlp-15-mo-pet-paradise-dog/7926697697.html
+    - button ""
+    - text: <1hr ago • 2br1135ft2 • sunnyvale
+    - button ""
+    - text: $4,542
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-tmlp-15-mo-captivating/7926697698.html
+    - text: • • • • • • • • •
+    - link "TMLP 15-mo. | Captivating Skyline Views & Modern Finishes-Tour Today":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-tmlp-15-mo-captivating/7926697698.html
+    - button ""
+    - text: <1hr ago • 1br663ft2 • western addition
+    - button ""
+    - text: $3,509
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pleasanton-must-see-livermore-homes/7926697624.html
+    - text: • • • • • • • • • •
+    - link "Must-See Livermore Homes-Stainless Appliances, Pool, Carport":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pleasanton-must-see-livermore-homes/7926697624.html
+    - button ""
+    - text: <1hr ago • 1br559ft2 • dublin / pleasanton / livermore
+    - button ""
+    - text: $2,175
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/walnut-creek-tmlp-14-mo-live-above/7926697612.html
+    - text: • • • • • • • • •
+    - 'link "TMLP 14-mo. | Live Above & Beyond: 2 BR w/ Granite, Washer/Dryer, Rooftop Lounge"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/walnut-creek-tmlp-14-mo-live-above/7926697612.html
+    - button ""
+    - text: <1hr ago • 2br1088ft2 • walnut creek
+    - button ""
+    - text: $3,498
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-1b1b-spacious-pet-friendly/7926697593.html
+    - text: • • • • • • • • •
+    - link "1B1B Spacious, Pet-Friendly Community, w/ Designated Parking":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/san-jose-1b1b-spacious-pet-friendly/7926697593.html
+    - button ""
+    - text: <1hr ago • 1br722ft2 • san jose south
+    - button ""
+    - text: $2,733
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/apa/d/redwood-city-french-door-refrigerator/7926697562.html
+    - text: • • • • • • • • •
+    - link "French door refrigerator, In-home, stacked washer and dryer":
+      - /url: https://sfbay.craigslist.org/pen/apa/d/redwood-city-french-door-refrigerator/7926697562.html
+    - button ""
+    - text: <1hr ago • 1br768ft2 • redwood city
+    - button ""
+    - text: $3,806
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-stunning-with-limited/7926697543.html
+    - text: • • • • • •
+    - link "Stunning with Limited Special Near Sonoma State!":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-stunning-with-limited/7926697543.html
+    - button ""
+    - text: <1hr ago • 1br686ft2 • santa rosa
+    - button ""
+    - text: $1,999
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/mountain-view-stand-alone-cottage/7926697506.html
+    - text: • • • •
+    - link "Stand Alone Cottage, Updated Kitchen, Fresh Paint, Wood Floors":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/mountain-view-stand-alone-cottage/7926697506.html
+    - button ""
+    - text: <1hr ago • 1br • mountain view
+    - button ""
+    - text: $2,295
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/concord-rare-opportunity-br-ba-haven/7926697503.html
+    - text: • • • • • • • • •
+    - 'link "Rare Opportunity: 1 BR/1 BA Haven with Fitness Center & Pool"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/concord-rare-opportunity-br-ba-haven/7926697503.html
+    - button ""
+    - text: <1hr ago • 1br720ft2 • concord / pleasant hill / martinez
+    - button ""
+    - text: $2,100
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pittsburg-cable-and-high-speed-internet/7926697483.html
+    - text: • • • • • •
+    - link "Cable and high-speed Internet available, Refrigerator":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/pittsburg-cable-and-high-speed-internet/7926697483.html
+    - button ""
+    - text: <1hr ago • 2br871ft2 • pittsburg / antioch
+    - button ""
+    - text: $2,035
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-fresh-new-enjoy-up-to-weeks/7926697471.html
+    - text: • • • • • • • •
+    - 'link "Fresh New: Enjoy Up to 6 Weeks FREE on all homes"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-fresh-new-enjoy-up-to-weeks/7926697471.html
+    - button ""
+    - text: <1hr ago • 1br699ft2 • fremont / union city / newark
+    - button ""
+    - text: $3,948
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-sun-filled-2br-with-scenic/7926697430.html
+    - text: • • • • • • • • • • • •
+    - 'link "Sun Filled 2BR with Scenic Views! Unit #306"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-sun-filled-2br-with-scenic/7926697430.html
+    - button ""
+    - text: <1hr ago • 2br747ft2 • berkeley
+    - button ""
+    - text: $4,295
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-tmlp-15-mo-heating-dining-room/7926697398.html
+    - text: • • • • • • • •
+    - link "TMLP 15-mo. | Heating, Dining Room, Elevator":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/fremont-tmlp-15-mo-heating-dining-room/7926697398.html
+    - button ""
+    - text: <1hr ago • 1br744ft2 • fremont / union city / newark
+    - button ""
+    - text: $2,577
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/san-leandro-backyard-hardwood-floors/7926697379.html
+    - text: • • • • • • •
+    - link "Backyard, Hardwood Floors, Window Coverings":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/san-leandro-backyard-hardwood-floors/7926697379.html
+    - button ""
+    - text: <1hr ago • 2br • east bay area
+    - button ""
+    - text: $2,620
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-community-laundry-room-24/7926697349.html
+    - text: • • • • • • • •
+    - link "Community Laundry Room, 24 Hour Fitness Center":
+      - /url: https://sfbay.craigslist.org/sfc/apa/d/san-francisco-community-laundry-room-24/7926697349.html
+    - button ""
+    - text: <1hr ago • 458ft2 • lower nob hill
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/apa/d/santa-clara-up-to-weeks-off-modern-br/7926697324.html
+    - text: • • • • • • •
+    - link "UP TO 5 WEEKS OFF* - Modern 2 BR w/ Open Concept!":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/santa-clara-up-to-weeks-off-modern-br/7926697324.html
+    - button ""
+    - text: <1hr ago • 2br1154ft2 • santa clara
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-spacious-2br-with-balcony-and/7926697321.html
+    - text: • • • • • • • • • • • • • • •
+    - 'link "Spacious 2BR with Balcony and In Unit Washer & Dryer! Unit #302"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-spacious-2br-with-balcony-and/7926697321.html
+    - button ""
+    - text: <1hr ago • 2br1144ft2 • berkeley
+    - button ""
+    - text: $5,085
+    - link "Affordable Senior Living - Free Daily Meals Included! 1":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/morgan-hill-affordable-senior-living/7926697302.html
+      - img "Affordable Senior Living - Free Daily Meals Included! 1"
+    - text: •
+    - link "Affordable Senior Living - Free Daily Meals Included!":
+      - /url: https://sfbay.craigslist.org/sby/apa/d/morgan-hill-affordable-senior-living/7926697302.html
+    - button ""
+    - text: <1hr ago • 1br552ft2 • morgan hill
+    - button ""
+    - text: $1,947
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-no-one-wants-oldyou-can-have/7926684706.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "No one wants old...you can have new! Brand new 1 BR, 1 BA! 779 sqft":
+      - /url: https://sfbay.craigslist.org/nby/apa/d/santa-rosa-no-one-wants-oldyou-can-have/7926684706.html
+    - button ""
+    - text: <1hr ago • 1br779ft2 • santa rosa
+    - button ""
+    - text: $2,364
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-laundry-facility-granite/7926697239.html
+    - text: • • • • • • • • •
+    - link "Laundry Facility, Granite Counters, Wood-Style Flooring":
+      - /url: https://sfbay.craigslist.org/eby/apa/d/hayward-laundry-facility-granite/7926697239.html
+    - button ""
+    - text: <1hr ago • 2br925ft2 • hayward / castro valley
+    - button ""
+    - text: $2,800
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-stylish-1br-with-indoor/7926697217.html
+    - text: • • • • • • • • • • •
+    - 'link "Stylish 1BR with Indoor/Outdoor Flow Near Cal Campus! Unit #105"':
+      - /url: https://sfbay.craigslist.org/eby/apa/d/berkeley-stylish-1br-with-indoor/7926697217.html
+    - button ""
+    - text: <1hr ago • 1br515ft2 • berkeley
+    - button ""
+    - text: $2,895
+    - link "help":
+      - /url: https://www.craigslist.org/about/help
+    - link "safety":
+      - /url: https://www.craigslist.org/about/help/safety
+    - link "privacy":
+      - /url: https://www.craigslist.org/about/privacy.policy
+    - link "terms":
+      - /url: https://www.craigslist.org/about/terms.of.use
+    - link "about":
+      - /url: https://www.craigslist.org/about
+    - link "app":
+      - /url: https://www.craigslist.org/about/craigslist_app
+    - text: © 2026 craigslist

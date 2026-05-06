@@ -1,0 +1,92 @@
+- document:
+  - alert
+  - button "T TheAgentCompany":
+    - text: T
+    - heading "TheAgentCompany" [level=4]
+  - button "S"
+  - button "New issue":
+    - img
+    - text: New issue
+  - button:
+    - img
+  - separator
+  - link "Home":
+    - /url: /tac/
+    - img
+    - paragraph: Home
+  - link "Notifications":
+    - /url: /tac/notifications/
+    - img
+    - paragraph: Notifications
+  - separator
+  - button "Workspace" [expanded]:
+    - text: Workspace
+    - img
+  - link "All Issues":
+    - /url: /tac/workspace-views/all-issues/
+    - img
+    - paragraph: All Issues
+  - link "Projects":
+    - /url: /tac/projects/
+    - img
+    - paragraph: Projects
+  - link "Active Cycles":
+    - /url: /tac/active-cycles/
+    - img
+    - paragraph: Active Cycles
+    - img
+  - link "Analytics":
+    - /url: /tac/analytics/
+    - img
+    - paragraph: Analytics
+  - link "Settings":
+    - /url: /tac/settings/
+    - img
+    - paragraph: Settings
+  - separator
+  - button "My projects"
+  - button:
+    - img
+  - button:
+    - img
+  - text: Community
+  - button:
+    - img
+  - button:
+    - img
+  - button:
+    - img
+  - main:
+    - listitem:
+      - link "TheAgentCompany":
+        - /url: /tac/settings/
+        - img
+        - text: TheAgentCompany
+    - listitem: Settings
+    - text: SETTINGS
+    - link "General":
+      - /url: /tac/settings/
+    - link "Members":
+      - /url: /tac/settings/members/
+    - link "Billing and plans":
+      - /url: /tac/settings/billing/
+    - link "Exports":
+      - /url: /tac/settings/exports/
+    - link "Webhooks":
+      - /url: /tac/settings/webhooks/
+    - link "API tokens":
+      - /url: /tac/settings/api-tokens/
+    - button "T"
+    - heading "TheAgentCompany" [level=3]
+    - button "localhost:8091/tac"
+    - button "Upload logo"
+    - heading "Workspace name" [level=4]
+    - textbox "Name": TheAgentCompany
+    - heading "Company size" [level=4]
+    - button "11-50"
+    - heading "Workspace URL" [level=4]
+    - textbox [disabled]: localhost:8091/tac
+    - button "Update Workspace"
+    - button "Delete Workspace":
+      - text: Delete Workspace
+      - img

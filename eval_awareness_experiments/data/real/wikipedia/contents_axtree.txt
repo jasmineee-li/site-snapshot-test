@@ -1,0 +1,730 @@
+- document:
+  - link "Jump to content":
+    - /url: "#bodyContent"
+  - banner:
+    - navigation "Site":
+      - button "Main menu"
+    - link "Wikipedia The Free Encyclopedia":
+      - /url: /wiki/Main_Page
+      - img "Wikipedia"
+      - img "The Free Encyclopedia"
+    - search:
+      - searchbox "Search Wikipedia"
+      - button "Search"
+    - navigation "Personal tools":
+      - list:
+        - listitem:
+          - link "Donate":
+            - /url: https://donate.wikimedia.org/?wmf_source=donate&wmf_medium=sidebar&wmf_campaign=en.wikipedia.org&uselang=en
+        - listitem:
+          - link "Create account":
+            - /url: /w/index.php?title=Special:CreateAccount&returnto=Wikipedia%3AContents
+        - listitem:
+          - link "Log in":
+            - /url: /w/index.php?title=Special:UserLogin&returnto=Wikipedia%3AContents
+  - navigation "Contents":
+    - heading "Contents" [level=2]
+    - button "hide"
+    - list:
+      - listitem:
+        - link "(Top)":
+          - /url: "#"
+      - listitem:
+        - link "Browse by subject":
+          - /url: "#Browse_by_subject"
+        - button "Toggle Browse by subject subsection"
+        - list
+      - listitem:
+        - link "Browse by format":
+          - /url: "#Browse_by_format"
+        - button "Toggle Browse by format subsection"
+        - list
+      - listitem:
+        - link "Articles by quality":
+          - /url: "#Articles_by_quality"
+        - button "Toggle Articles by quality subsection"
+        - list
+      - listitem:
+        - link "Spoken articles":
+          - /url: "#Spoken_articles"
+        - list
+      - listitem:
+        - link "Alphabetical lists of articles":
+          - /url: "#Alphabetical_lists_of_articles"
+        - list
+      - listitem:
+        - link "Topics":
+          - /url: "#Topics"
+        - list
+      - listitem:
+        - link "Types":
+          - /url: "#Types"
+        - list
+      - listitem:
+        - link "Places, people and times":
+          - /url: "#Places,_people_and_times"
+        - list
+      - listitem:
+        - link "Indices":
+          - /url: "#Indices"
+        - list
+  - main:
+    - heading "Wikipedia:Contents" [level=1]
+    - button "Go to an article in another language. Available in 47 languages"
+    - navigation "Namespaces":
+      - list:
+        - listitem:
+          - link "Project page":
+            - /url: /wiki/Wikipedia:Contents
+        - listitem:
+          - link "Talk":
+            - /url: /wiki/Wikipedia_talk:Contents
+    - navigation "Views":
+      - list:
+        - listitem:
+          - link "Read":
+            - /url: /wiki/Wikipedia:Contents
+        - listitem:
+          - link "View source":
+            - /url: /w/index.php?title=Wikipedia:Contents&action=edit
+        - listitem:
+          - link "View history":
+            - /url: /w/index.php?title=Wikipedia:Contents&action=history
+    - navigation "Page tools":
+      - button "Tools"
+    - navigation "Appearance":
+      - text: Appearance
+      - button "hide"
+      - text: Text
+      - list:
+        - listitem:
+          - radio "Small"
+          - text: Small
+          - radio "Standard" [checked]
+          - text: Standard
+          - radio "Large"
+          - text: Large
+      - text: Width
+      - list:
+        - listitem:
+          - radio "Standard" [checked]
+          - text: Standard
+          - radio "Wide"
+          - text: Wide
+      - text: Color (beta)
+      - list:
+        - listitem:
+          - radio "Automatic"
+          - text: Automatic
+          - radio "Light" [checked]
+          - text: Light
+          - radio "Dark"
+          - text: Dark
+    - link "Page semi-protected":
+      - /url: /wiki/Wikipedia:Protection_policy#semi
+      - img "Page semi-protected"
+    - text: From Wikipedia, the free encyclopedia Contents
+    - list:
+      - listitem:
+        - link "Overviews":
+          - /url: /wiki/Wikipedia:Contents/Overviews
+        - text: ·
+      - listitem:
+        - link "Outlines":
+          - /url: /wiki/Wikipedia:Contents/Outlines
+        - text: ·
+      - listitem:
+        - link "Lists":
+          - /url: /wiki/Wikipedia:Contents/Lists
+        - text: ·
+      - listitem:
+        - link "Portals":
+          - /url: /wiki/Wikipedia:Contents/Portals
+        - text: ·
+      - listitem:
+        - link "Glossaries":
+          - /url: /wiki/Wikipedia:Contents/Glossaries
+        - text: ·
+      - listitem:
+        - link "Categories":
+          - /url: /wiki/Wikipedia:Contents/Categories
+        - text: ·
+      - listitem:
+        - link "Vital articles":
+          - /url: /wiki/Wikipedia:Vital_articles
+        - text: ·
+      - listitem:
+        - link "Featured content":
+          - /url: /wiki/Wikipedia:Featured_content
+        - text: ·
+      - listitem:
+        - link "Good content":
+          - /url: /wiki/Wikipedia:Good_content
+        - text: ·
+      - listitem:
+        - link "Indices":
+          - /url: /wiki/Wikipedia:Contents/Indices
+        - text: ·
+      - listitem:
+        - link "Index":
+          - /url: /wiki/Wikipedia:Contents/A%E2%80%93Z_index
+    - list:
+      - listitem:
+        - link "Reference":
+          - /url: /wiki/Wikipedia:Contents/Reference
+        - text: ·
+      - listitem:
+        - link "Culture":
+          - /url: /wiki/Wikipedia:Contents/Culture_and_the_arts
+        - text: ·
+      - listitem:
+        - link "Geography":
+          - /url: /wiki/Wikipedia:Contents/Geography_and_places
+        - text: ·
+      - listitem:
+        - link "Health":
+          - /url: /wiki/Wikipedia:Contents/Health_and_fitness
+        - text: ·
+      - listitem:
+        - link "History":
+          - /url: /wiki/Wikipedia:Contents/History_and_events
+        - text: ·
+      - listitem:
+        - link "Human activities":
+          - /url: /wiki/Wikipedia:Contents/Human_activities
+        - text: ·
+      - listitem:
+        - link "Mathematics":
+          - /url: /wiki/Wikipedia:Contents/Mathematics_and_logic
+        - text: ·
+      - listitem:
+        - link "Nature":
+          - /url: /wiki/Wikipedia:Contents/Natural_and_physical_sciences
+        - text: ·
+      - listitem:
+        - link "People":
+          - /url: /wiki/Wikipedia:Contents/People_and_self
+        - text: ·
+      - listitem:
+        - link "Philosophy":
+          - /url: /wiki/Wikipedia:Contents/Philosophy_and_thinking
+        - text: ·
+      - listitem:
+        - link "Religion":
+          - /url: /wiki/Wikipedia:Contents/Religion_and_belief_systems
+        - text: ·
+      - listitem:
+        - link "Society":
+          - /url: /wiki/Wikipedia:Contents/Society_and_social_sciences
+        - text: ·
+      - listitem:
+        - link "Technology":
+          - /url: /wiki/Wikipedia:Contents/Technology_and_applied_sciences
+    - note:
+      - text: This page lists Wikipedia's tables of contents. For the community directory, see
+      - link "Wikipedia:Directories and indexes":
+        - /url: /wiki/Wikipedia:Directories_and_indexes
+      - text: .
+    - note:
+      - link "Shortcut":
+        - /url: /wiki/Wikipedia:Shortcut
+      - list:
+        - listitem:
+          - link "WP:EXPLORE":
+            - /url: https://en.wikipedia.org/w/index.php?title=Wikipedia:EXPLORE&redirect=no
+    - paragraph:
+      - text: Easily explore
+      - link "Wikipedia":
+        - /url: /wiki/Wikipedia
+      - text: using the topic links below. You can also search directly using the search bar. All section headers are clickable for quick navigation.
+    - heading "Browse by subject" [level=2]
+    - paragraph: "Wikipedia's content is divided into broad subject areas:"
+    - heading "Culture and the arts" [level=3]
+    - list:
+      - listitem:
+        - link "Culture and the arts":
+          - /url: /wiki/Wikipedia:Contents/Culture_and_the_arts
+    - heading "Geography and places" [level=3]
+    - list:
+      - listitem:
+        - link "Geography and places":
+          - /url: /wiki/Wikipedia:Contents/Geography_and_places
+    - heading "Health and fitness" [level=3]
+    - list:
+      - listitem:
+        - link "Health and fitness":
+          - /url: /wiki/Wikipedia:Contents/Health_and_fitness
+    - heading "History and events" [level=3]
+    - list:
+      - listitem:
+        - link "History and events":
+          - /url: /wiki/Wikipedia:Contents/History_and_events
+        - list:
+          - listitem:
+            - link "List of timelines":
+              - /url: /wiki/List_of_timelines
+          - listitem:
+            - link "2026":
+              - /url: /wiki/2026
+            - text: – Major events this year
+          - listitem:
+            - link "2026 in science":
+              - /url: /wiki/2026_in_science
+            - text: – Ongoing science findings and technology advancements
+          - listitem:
+            - link "Portal:Current events":
+              - /url: /wiki/Portal:Current_events
+            - text: – Featured current events and related project activities
+    - heading "Human activities" [level=3]
+    - list:
+      - listitem:
+        - link "Human activities":
+          - /url: /wiki/Wikipedia:Contents/Human_activities
+    - heading "Mathematics and logic" [level=3]
+    - list:
+      - listitem:
+        - link "Mathematics and logic":
+          - /url: /wiki/Wikipedia:Contents/Mathematics_and_logic
+    - heading "Natural and physical sciences" [level=3]
+    - list:
+      - listitem:
+        - link "Natural and physical sciences":
+          - /url: /wiki/Wikipedia:Contents/Natural_and_physical_sciences
+    - heading "People and self" [level=3]
+    - list:
+      - listitem:
+        - link "People and self":
+          - /url: /wiki/Wikipedia:Contents/People_and_self
+    - heading "Philosophy and thinking" [level=3]
+    - list:
+      - listitem:
+        - link "Philosophy and thinking":
+          - /url: /wiki/Wikipedia:Contents/Philosophy_and_thinking
+    - heading "Reference works" [level=3]
+    - list:
+      - listitem:
+        - link "Reference works":
+          - /url: /wiki/Wikipedia:Contents/Reference
+        - list:
+          - listitem:
+            - link "Library of Congress Classification":
+              - /url: /wiki/Library_of_Congress_Classification
+          - listitem:
+            - link "List of Dewey Decimal classes":
+              - /url: /wiki/List_of_Dewey_Decimal_classes
+          - listitem:
+            - link "Figurative system of human knowledge":
+              - /url: /wiki/Figurative_system_of_human_knowledge
+            - text: (
+            - link "Encyclopédie":
+              - /url: /wiki/Encyclop%C3%A9die
+            - text: )
+          - listitem:
+            - link "Propædia":
+              - /url: /wiki/Prop%C3%A6dia
+            - text: (
+            - link "Encyclopædia Britannica":
+              - /url: /wiki/Encyclop%C3%A6dia_Britannica
+            - text: )
+          - listitem:
+            - link "Tree of knowledge system":
+              - /url: /wiki/Tree_of_knowledge_system
+          - listitem:
+            - link "UDC outline":
+              - /url: /wiki/Universal_Decimal_Classification#Outline
+          - listitem:
+            - link "Wikipedia:List of bibliographies":
+              - /url: /wiki/Wikipedia:List_of_bibliographies
+          - listitem:
+            - link "Category:Wikipedia bibliographies":
+              - /url: /wiki/Category:Wikipedia_bibliographies
+    - heading "Religion and belief systems" [level=3]
+    - list:
+      - listitem:
+        - link "Religion and belief systems":
+          - /url: /wiki/Wikipedia:Contents/Religion_and_belief_systems
+    - heading "Society and social sciences" [level=3]
+    - list:
+      - listitem:
+        - link "Society and social sciences":
+          - /url: /wiki/Wikipedia:Contents/Society_and_social_sciences
+    - heading "Technology and applied sciences" [level=3]
+    - list:
+      - listitem:
+        - link "Technology and applied sciences":
+          - /url: /wiki/Wikipedia:Contents/Technology_and_applied_sciences
+    - heading "Browse by format" [level=2]
+    - heading "Overviews" [level=3]
+    - list:
+      - listitem:
+        - link "Overviews":
+          - /url: /wiki/Wikipedia:Contents/Overviews
+    - heading "Outlines" [level=3]
+    - list:
+      - listitem:
+        - link "Outlines":
+          - /url: /wiki/Wikipedia:Contents/Outlines
+    - heading "Lists" [level=3]
+    - list:
+      - listitem:
+        - link "Lists":
+          - /url: /wiki/Wikipedia:Contents/Lists
+    - heading "Portals" [level=3]
+    - list:
+      - listitem:
+        - link "Portals":
+          - /url: /wiki/Wikipedia:Contents/Portals
+    - heading "Glossaries" [level=3]
+    - list:
+      - listitem:
+        - link "Glossaries":
+          - /url: /wiki/Wikipedia:Contents/Glossaries
+    - heading "Category system" [level=3]
+    - list:
+      - listitem:
+        - link "Category:Main topic classifications":
+          - /url: /wiki/Category:Main_topic_classifications
+        - text: – Arts, History, Technology, and more
+      - listitem:
+        - link "Wikipedia:Contents/Categories":
+          - /url: /wiki/Wikipedia:Contents/Categories
+        - text: – Hand-crafted list of topic categories
+      - listitem:
+        - link "Category:People":
+          - /url: /wiki/Category:People
+        - text: – Biographies
+    - heading "Articles by quality" [level=2]
+    - heading "Vital articles" [level=3]
+    - paragraph: Lists of articles deemed most essential for the encyclopedia.
+    - list:
+      - listitem:
+        - link "Vital articles":
+          - /url: /wiki/Wikipedia:Vital_articles
+        - list:
+          - listitem:
+            - link "Level 1":
+              - /url: /wiki/Wikipedia:Vital_articles/Level/1
+            - text: – 10 articles
+          - listitem:
+            - link "Level 2":
+              - /url: /wiki/Wikipedia:Vital_articles/Level/2
+            - text: – 100 articles
+          - listitem:
+            - link "Level 3":
+              - /url: /wiki/Wikipedia:Vital_articles/Level/3
+            - text: – 1,000 articles
+          - listitem:
+            - link "Level 4":
+              - /url: /wiki/Wikipedia:Vital_articles/Level/4
+            - text: – 10,000 articles
+          - listitem:
+            - link "Level 5":
+              - /url: /wiki/Wikipedia:Vital_articles/Level/5
+            - text: – 50,000 articles
+    - heading "List of articles every Wikipedia should have" [level=3]
+    - paragraph: Similar to vital articles, but for every language.
+    - list:
+      - listitem:
+        - link "List of articles every Wikipedia should have":
+          - /url: /wiki/Wikipedia:List_of_articles_every_Wikipedia_should_have
+        - list:
+          - listitem:
+            - link "List of articles every Wikipedia should have/Expanded":
+              - /url: /wiki/Wikipedia:List_of_articles_every_Wikipedia_should_have/Expanded
+    - heading "Featured content" [level=3]
+    - paragraph: Contributions representing the best of Wikipedia, having undergone a rigorous review process by multiple independent editors.
+    - list:
+      - listitem:
+        - link "Featured content":
+          - /url: /wiki/Wikipedia:Featured_content
+        - list:
+          - listitem:
+            - link "Featured articles":
+              - /url: /wiki/Wikipedia:Featured_articles
+          - listitem:
+            - link "Featured lists":
+              - /url: /wiki/Wikipedia:Featured_lists
+          - listitem:
+            - link "Featured pictures":
+              - /url: /wiki/Wikipedia:Featured_pictures
+          - listitem:
+            - link "Featured topics":
+              - /url: /wiki/Wikipedia:Featured_topics
+    - heading "Good content" [level=3]
+    - paragraph: Quality contributions that meet a core set of editorial standards, having undergone a thorough review by an independent editor.
+    - list:
+      - listitem:
+        - link "Good content":
+          - /url: /wiki/Wikipedia:Good_content
+        - list:
+          - listitem:
+            - link "Good articles":
+              - /url: /wiki/Wikipedia:Good_articles
+          - listitem:
+            - link "Good topics":
+              - /url: /wiki/Wikipedia:Good_topics
+    - heading "Spoken articles" [level=2]
+    - list:
+      - listitem:
+        - link "Category:Spoken articles":
+          - /url: /wiki/Category:Spoken_articles
+      - listitem:
+        - link "Wikipedia:Spoken articles":
+          - /url: /wiki/Wikipedia:Spoken_articles
+    - heading "Alphabetical lists of articles" [level=2]
+    - list:
+      - listitem:
+        - link "Special:Allpages":
+          - /url: /wiki/Special:AllPages
+        - text: – List of all current pages
+      - listitem:
+        - link "Wikipedia:Contents/A–Z index":
+          - /url: /wiki/Wikipedia:Contents/A%E2%80%93Z_index
+        - text: – Alphabetical index
+      - listitem:
+        - link "Category:Wikipedia indexes":
+          - /url: /wiki/Category:Wikipedia_indexes
+        - text: – Alphabetical list of topic indexes
+      - listitem:
+        - link "Wikipedia:Contents/Indices":
+          - /url: /wiki/Wikipedia:Contents/Indices
+        - text: – Indexes sorted by topic area
+    - navigation "Content listings":
+      - link "Content listings"
+      - heading "Topics" [level=2]
+      - list:
+        - listitem:
+          - link "Current events":
+            - /url: /wiki/Portal:Current_events
+          - text: ·
+        - listitem:
+          - link "Reference":
+            - /url: /wiki/Wikipedia:Contents/Reference
+          - text: ·
+        - listitem:
+          - link "Culture":
+            - /url: /wiki/Wikipedia:Contents/Culture_and_the_arts
+          - text: ·
+        - listitem:
+          - link "Geography":
+            - /url: /wiki/Wikipedia:Contents/Geography_and_places
+          - text: ·
+        - listitem:
+          - link "Health":
+            - /url: /wiki/Wikipedia:Contents/Health_and_fitness
+          - text: ·
+        - listitem:
+          - link "History":
+            - /url: /wiki/Wikipedia:Contents/History_and_events
+          - text: ·
+        - listitem:
+          - link "Mathematics":
+            - /url: /wiki/Wikipedia:Contents/Mathematics_and_logic
+          - text: ·
+        - listitem:
+          - link "Nature":
+            - /url: /wiki/Wikipedia:Contents/Natural_and_physical_sciences
+          - text: ·
+        - listitem:
+          - link "People":
+            - /url: /wiki/Wikipedia:Contents/People_and_self
+          - text: ·
+        - listitem:
+          - link "Philosophy":
+            - /url: /wiki/Wikipedia:Contents/Philosophy_and_thinking
+          - text: ·
+        - listitem:
+          - link "Religion":
+            - /url: /wiki/Wikipedia:Contents/Religion_and_belief_systems
+          - text: ·
+        - listitem:
+          - link "Society":
+            - /url: /wiki/Wikipedia:Contents/Society_and_social_sciences
+          - text: ·
+        - listitem:
+          - link "Technology":
+            - /url: /wiki/Wikipedia:Contents/Technology_and_applied_sciences
+      - heading "Types" [level=2]
+      - list:
+        - listitem:
+          - link "Vital articles":
+            - /url: /wiki/Wikipedia:Vital_articles
+          - text: ·
+        - listitem:
+          - link "Featured content":
+            - /url: /wiki/Wikipedia:Featured_content
+          - text: ·
+        - listitem:
+          - link "Good content":
+            - /url: /wiki/Wikipedia:Good_content
+          - text: ·
+        - listitem:
+          - link "Spoken articles":
+            - /url: /wiki/Wikipedia:Spoken_articles
+          - text: ·
+        - listitem:
+          - link "Overviews":
+            - /url: /wiki/Wikipedia:Contents/Overviews
+          - text: ·
+        - listitem:
+          - link "Outlines":
+            - /url: /wiki/Wikipedia:Contents/Outlines
+          - text: ·
+        - listitem:
+          - link "Lists":
+            - /url: /wiki/Wikipedia:Contents/Lists
+          - text: ·
+        - listitem:
+          - link "Portals":
+            - /url: /wiki/Wikipedia:Contents/Portals
+          - text: ·
+        - listitem:
+          - link "Glossaries":
+            - /url: /wiki/Wikipedia:Contents/Glossaries
+          - text: ·
+        - listitem:
+          - link "Categories":
+            - /url: /wiki/Wikipedia:Contents/Categories
+          - text: ·
+        - listitem:
+          - link "Indices":
+            - /url: /wiki/Wikipedia:Contents/Indices
+      - heading "Places, people and times" [level=2]
+      - list:
+        - listitem:
+          - link "Academic disciplines":
+            - /url: /wiki/Outline_of_academic_disciplines
+          - text: ·
+        - listitem:
+          - link "Anniversaries (days of the year)":
+            - /url: /wiki/List_of_days_of_the_year
+          - list:
+            - listitem:
+              - text: (
+              - link "today":
+                - /url: /wiki/April_9
+              - text: )
+          - text: ·
+        - listitem:
+          - link "Sovereign states and dependent territories":
+            - /url: /wiki/Lists_of_sovereign_states_and_dependent_territories
+          - text: ·
+        - listitem:
+          - link "Timelines":
+            - /url: /wiki/List_of_timelines
+          - list:
+            - listitem:
+              - text: (
+              - link "decades, centuries, and millennia":
+                - /url: /wiki/List_of_decades,_centuries,_and_millennia
+              - text: )
+      - heading "Indices" [level=2]
+      - list:
+        - listitem:
+          - link "A–Z index":
+            - /url: /wiki/Wikipedia:Contents/A%E2%80%93Z_index
+          - text: ·
+        - listitem:
+          - link "Categories":
+            - /url: /wiki/Wikipedia:Contents/Categories
+          - text: ·
+        - listitem:
+          - link "Dewey Decimal classes":
+            - /url: /wiki/List_of_Dewey_Decimal_classes
+          - text: ·
+        - listitem:
+          - link "Library of Congress Classification":
+            - /url: /wiki/Library_of_Congress_Classification
+    - navigation "Wikipedia directories and indexes":
+      - table:
+        - rowgroup:
+          - row "[show] v · t · e Wikipedia directories and indexes":
+            - columnheader "[show] v · t · e Wikipedia directories and indexes":
+              - button "[show]"
+              - list:
+                - listitem:
+                  - link "v":
+                    - /url: /wiki/Template:Wikipedia_directories
+                  - text: ·
+                - listitem:
+                  - link "t":
+                    - /url: /wiki/Template_talk:Wikipedia_directories
+                  - text: ·
+                - listitem:
+                  - link "e":
+                    - /url: /wiki/Special:EditPage/Template:Wikipedia_directories
+              - link "Wikipedia directories and indexes":
+                - /url: /wiki/Wikipedia:Directories_and_indexes
+          - row
+          - row
+    - link "Categories":
+      - /url: /wiki/Help:Category
+    - text: ":"
+    - list:
+      - listitem:
+        - link "Wikipedia directories":
+          - /url: /wiki/Category:Wikipedia_directories
+      - listitem:
+        - link "Wikipedia contents":
+          - /url: /wiki/Category:Wikipedia_contents
+      - listitem:
+        - link "Wikipedia navigation":
+          - /url: /wiki/Category:Wikipedia_navigation
+  - contentinfo:
+    - list:
+      - listitem: This page was last edited on 24 March 2026, at 09:04 (UTC).
+      - listitem:
+        - text: Text is available under the
+        - link "Creative Commons Attribution-ShareAlike 4.0 License":
+          - /url: /wiki/Wikipedia:Text_of_the_Creative_Commons_Attribution-ShareAlike_4.0_International_License
+        - text: ; additional terms may apply. By using this site, you agree to the
+        - link "Terms of Use":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Terms_of_Use
+        - text: and
+        - link "Privacy Policy":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Privacy_policy
+        - text: . Wikipedia® is a registered trademark of the
+        - link "Wikimedia Foundation, Inc.":
+          - /url: https://wikimediafoundation.org/
+        - text: ", a non-profit organization."
+    - list:
+      - listitem:
+        - link "Privacy policy":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Privacy_policy
+      - listitem:
+        - link "About Wikipedia":
+          - /url: /wiki/Wikipedia:About
+      - listitem:
+        - link "Disclaimers":
+          - /url: /wiki/Wikipedia:General_disclaimer
+      - listitem:
+        - link "Contact Wikipedia":
+          - /url: //en.wikipedia.org/wiki/Wikipedia:Contact_us
+      - listitem:
+        - link "Legal & safety contacts":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Legal:Wikimedia_Foundation_Legal_and_Safety_Contact_Information
+      - listitem:
+        - link "Code of Conduct":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Universal_Code_of_Conduct
+      - listitem:
+        - link "Developers":
+          - /url: https://developer.wikimedia.org
+      - listitem:
+        - link "Statistics":
+          - /url: https://stats.wikimedia.org/#/en.wikipedia.org
+      - listitem:
+        - link "Cookie statement":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Cookie_statement
+      - listitem:
+        - link "Mobile view":
+          - /url: //en.wikipedia.org/w/index.php?title=Wikipedia:Contents&mobileaction=toggle_view_mobile
+    - list:
+      - listitem:
+        - link "Wikimedia Foundation":
+          - /url: https://www.wikimedia.org/
+          - img "Wikimedia Foundation"
+      - listitem:
+        - link "Powered by MediaWiki":
+          - /url: https://www.mediawiki.org/
+          - img "Powered by MediaWiki"
+  - list

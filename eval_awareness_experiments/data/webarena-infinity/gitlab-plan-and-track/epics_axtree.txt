@@ -1,0 +1,53 @@
+- document:
+  - banner:
+    - img
+    - text: Plan & Track AcmeCorp / platform-v4
+    - button "To-Do List":
+      - img
+      - text: "9"
+    - text: SC
+  - navigation:
+    - text: Plan
+    - img
+    - text: Issues 57
+    - img
+    - text: Boards
+    - img
+    - text: Epics
+    - img
+    - text: Milestones
+    - img
+    - text: Iterations
+    - img
+    - text: Labels Personal
+    - img
+    - text: To-Do List 9
+  - main:
+    - heading "Epics" [level=1]
+    - button "New epic"
+    - heading "Open 10" [level=2]
+    - img
+    - text: Open Platform Redesign &1 type feature component frontend UX Nov 30 – Apr 29 On track 2 child
+    - img
+    - text: Open Frontend Modernization &2 component frontend technical-debt Dec 14 – Mar 30 Needs attention 38%
+    - img
+    - text: Open API v3 Migration &3 component api breaking-change Jan 14 – Apr 29 On track 25%
+    - img
+    - text: Open Performance Initiative &4 performance component backend Jan 31 – May 30 On track 0% 2 child
+    - img
+    - text: Open Database Optimization &5 component database performance Feb 14 – Apr 29 On track 0%
+    - img
+    - text: Open Caching Layer Implementation &6 component infrastructure performance Feb 28 – May 14 0%
+    - img
+    - text: Open Security Hardening &7
+    - img
+    - text: security Jan 31 – May 30 At risk 25%
+    - img
+    - text: Open Mobile App v2 &8 type feature component frontend May 31 – Nov 29
+    - img
+    - text: Open Documentation Overhaul &9 type documentation Feb 28 – Jun 29 On track 0%
+    - img
+    - text: Open Enterprise SSO Integration &10 type feature security Jul 31 – Oct 30
+    - heading "Closed 1" [level=2]
+    - img
+    - text: Closed Analytics Dashboard &11 type feature component frontend Aug 31 – Nov 29 On track

@@ -1,0 +1,58 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elation Patient Communication</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Top Bar -->
+    <header class="top-bar">
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle sidebar">☰</button>
+        <div class="app-logo">
+            <div class="logo-icon">E</div>
+            <span>Elation</span>
+        </div>
+        <div class="topbar-spacer"></div>
+        <div class="topbar-user">
+            <div id="userAvatar"><div class="avatar" style="width:32px;height:32px;background:#4A90D9;font-size:13px" title="Sarah Chen">SC</div></div>
+            <span class="topbar-user-name" id="userName">Dr. Chen</span>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div id="sidebarNav"><nav class="sidebar-nav"><div class="nav-item " data-route="home" data-testid="nav-home"><span class="nav-icon">🏠</span><span class="nav-text">Practice Home</span></div><div class="nav-item " data-route="inbox" data-testid="nav-inbox"><span class="nav-icon">📨</span><span class="nav-text">Patient Letters</span><span class="nav-badge">12</span></div><div class="nav-item " data-route="sent" data-testid="nav-sent"><span class="nav-icon">📤</span><span class="nav-text">Sent</span></div><div class="nav-item " data-route="drafts" data-testid="nav-drafts"><span class="nav-icon">📝</span><span class="nav-text">Drafts</span><span class="nav-badge">1</span></div><div class="nav-item " data-route="reminders" data-testid="nav-reminders"><span class="nav-icon">🔔</span><span class="nav-text">Reminders</span><span class="nav-badge">9</span></div><div class="nav-divider"></div><div class="nav-item " data-route="patients" data-testid="nav-patients"><span class="nav-icon">👥</span><span class="nav-text">Patients</span></div><div class="nav-item " data-route="appointments" data-testid="nav-appointments"><span class="nav-icon">📅</span><span class="nav-text">Appointments</span></div><div class="nav-item active" data-route="bulk-letters" data-testid="nav-bulk-letters"><span class="nav-icon">📧</span><span class="nav-text">Bulk Letters</span></div><div class="nav-divider"></div><div class="nav-item " data-route="settings" data-testid="nav-settings"><span class="nav-icon">⚙</span><span class="nav-text">Settings</span></div></nav></div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div id="contentWrapper"><div class="page-content" data-testid="bulk-letters-page"><div class="page-header"><h1 class="page-title">Bulk Letters</h1><button class="btn btn-primary" data-action="new-bulk-letter" data-testid="new-bulk-btn">New Bulk Letter</button></div><div class="bulk-letter-list"><div class="bulk-letter-item" data-testid="bulk-bulk_3"><div class="bulk-header"><strong>Patient portal reminder</strong><span class="bulk-date">Jan 10, 2026, 5:00 AM</span></div><div class="bulk-subject">Subject: Access Your Health Records Online</div><div class="bulk-info">Sent to 15 patients by Sarah Chen</div><div class="bulk-body">Dear Patient, Did you know you can access your health records, message your doctor, and manage appointments through Patient Passport? Sign up today at our front desk or through the link in your invita...</div></div><div class="bulk-letter-item" data-testid="bulk-bulk_2"><div class="bulk-header"><strong>Holiday office hours notification</strong><span class="bulk-date">Dec 15, 2025, 4:00 AM</span></div><div class="bulk-subject">Subject: Holiday Office Hours</div><div class="bulk-info">Sent to 50 patients by Amanda Wright</div><div class="bulk-body">Dear Patient, Our office will have modified hours during the holiday season. Dec 24-25: Closed. Dec 31-Jan 1: Closed. All other days: Normal hours (8 AM - 5 PM). For urgent needs, please call our afte...</div></div><div class="bulk-letter-item" data-testid="bulk-bulk_1"><div class="bulk-header"><strong>Flu season reminder 2025</strong><span class="bulk-date">Oct 1, 2025, 4:00 AM</span></div><div class="bulk-subject">Subject: Flu Season Reminder</div><div class="bulk-info">Sent to 42 patients by Sarah Chen</div><div class="bulk-body">Dear Patient, This is a reminder that flu season is here. If you haven't received your flu vaccine yet, please schedule an appointment or visit your nearest pharmacy. The flu vaccine is especially imp...</div></div></div></div></div>
+    </main>
+
+    <!-- Compose Overlay -->
+    <div class="compose-overlay" id="composeOverlay" style="display: none;"></div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalTitle"></h2>
+                <button class="close-btn" data-action="close-modal">×</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-footer" id="modalFooter"></div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

@@ -1,0 +1,92 @@
+- document:
+  - banner:
+    - text: "Elation Rodriguez, James Male | DOB: May 13, 1978 (47y) | MRN: pat_001"
+    - img
+    - text: Dr. Sarah Mitchell
+  - navigation:
+    - img
+    - text: Chart
+    - img
+    - text: Meds Hx
+    - img
+    - text: Rx Requests 8
+    - img
+    - text: Settings
+    - button "Prescribe":
+      - img: Rx
+      - text: Prescribe
+    - button "Document Med":
+      - img
+      - text: Document Med
+  - main:
+    - heading "Medication History" [level=2]
+    - textbox "Search medications..."
+    - img
+    - text: All Medications ▾
+    - button "Reconcile":
+      - img
+      - text: Reconcile
+    - button "Bulk Refill":
+      - img
+      - text: Bulk Refill
+    - text: "Permanent Rx Meds (11) Alprazolam 0.5mg tablet Active Take 1 tablet by mouth twice daily as needed for anxiety Prescribed by: Dr. Sarah Mitchell Started: Jul 31, 2025"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Amlodipine 5mg tablet Active Take 1 tablet by mouth once daily Prescribed by: Dr. Sarah Mitchell Started: Feb 19, 2024"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Atorvastatin 20mg tablet Active Take 1 tablet by mouth at bedtime Prescribed by: Dr. Sarah Mitchell Started: Jul 14, 2019"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Gabapentin 300mg capsule Active Take 1 capsule by mouth three times daily Prescribed by: Dr. Sarah Mitchell Started: Mar 9, 2023"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Lisinopril 10mg tablet Active Take 1 tablet by mouth once daily Prescribed by: Dr. Sarah Mitchell Started: Mar 31, 2019"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Losartan 50mg tablet Active Take 1 tablet by mouth once daily Prescribed by: Dr. Michael Chen Started: Jun 14, 2025"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Metformin 500mg tablet Active Take 1 tablet by mouth twice daily with meals Prescribed by: Dr. Sarah Mitchell Started: Sep 9, 2020"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Metoprolol Succinate ER 50mg tablet Active Take 1 tablet by mouth once daily Prescribed by: Dr. Sarah Mitchell Started: Jan 4, 2024"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Montelukast 10mg tablet Active Take 1 tablet by mouth at bedtime Prescribed by: Dr. Sarah Mitchell Started: Apr 19, 2025"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Omeprazole 20mg capsule Active Take 1 capsule by mouth once daily before breakfast Prescribed by: Dr. Sarah Mitchell Started: Feb 28, 2021"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Sertraline 50mg tablet Active Take 1 tablet by mouth once daily in the morning Prescribed by: Dr. Sarah Mitchell Started: May 31, 2022"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Permanent OTC Meds (6) Aspirin 81mg tablet (low-dose) Active Take 1 tablet by mouth once daily Prescribed by: Dr. Sarah Mitchell Started: Sep 30, 2020"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Calcium 600mg + Vitamin D3 400 IU tablet Active Take 1 tablet by mouth twice daily Started: Jan 9, 2023"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Centrum Silver Multivitamin tablet Active Take 1 tablet by mouth once daily Started: May 31, 2020"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Fish Oil 1000mg softgel Active Take 2 softgels by mouth once daily with food Started: Mar 14, 2022"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Melatonin 3mg tablet Active Take 1 tablet by mouth at bedtime as needed Started: Sep 14, 2024"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Vitamin D3 2000 IU tablet Active Take 1 tablet by mouth once daily Prescribed by: Dr. Sarah Mitchell Started: Nov 30, 2021"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Temporary Medications (3) Amoxicillin 500mg capsule Active Take 1 capsule by mouth three times daily for 10 days Prescribed by: Dr. Sarah Mitchell Started: Feb 19, 2026"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Ciprofloxacin 500mg tablet Active Take 1 tablet by mouth twice daily for 7 days Prescribed by: Dr. Lisa Park Started: Feb 9, 2026"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Prednisone 10mg tablet Active Take as directed: 4 tabs day 1-2, 3 tabs day 3-4, 2 tabs day 5-6, 1 tab day 7 Prescribed by: Dr. Sarah Mitchell Started: Feb 19, 2026"
+    - button "Refill"
+    - button "Discontinue"
+    - text: "Discontinued Medications (6) Citalopram 20mg tablet Discontinued Take 1 tablet by mouth once daily Prescribed by: Dr. Sarah Mitchell Started: Oct 31, 2021 Discontinued: May 29, 2022 Reason: I want to discontinue this medication Glipizide 5mg tablet Discontinued Take 1 tablet by mouth once daily before breakfast Prescribed by: Dr. Michael Chen Started: Sep 9, 2020 Discontinued: Aug 14, 2021 Reason: Discontinued by another prescriber Hydrochlorothiazide 25mg tablet Discontinued Take 1 tablet by mouth once daily Prescribed by: Dr. Sarah Mitchell Started: Mar 19, 2019 Discontinued: Mar 31, 2019 Reason: I want to discontinue this medication Naproxen 500mg tablet Discontinued Take 1 tablet by mouth twice daily with food Prescribed by: Dr. Sarah Mitchell Started: Jan 17, 2023 Discontinued: Mar 14, 2023 Reason: Patient stopped taking medication Pantoprazole 40mg tablet Discontinued Take 1 tablet by mouth once daily before breakfast Prescribed by: Dr. Sarah Mitchell Started: Aug 9, 2020 Discontinued: Feb 27, 2021 Reason: I want to discontinue this medication Tramadol 50mg tablet Discontinued Take 1 tablet by mouth every 6 hours as needed for pain Prescribed by: Dr. Sarah Mitchell Started: Jan 31, 2023 Discontinued: Feb 28, 2023 Reason: I want to discontinue this medication Scripts Canceled (2) Azithromycin 250mg tablet Canceled Take 2 tablets day 1, then 1 tablet daily for days 2-5 Prescribed by: Dr. Sarah Mitchell Canceled: Jan 25, 2026 Lisinopril 20mg tablet Canceled Take 1 tablet by mouth once daily Prescribed by: Dr. Sarah Mitchell Canceled: Dec 10, 2025"

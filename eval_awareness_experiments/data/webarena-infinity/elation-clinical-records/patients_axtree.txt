@@ -1,0 +1,115 @@
+- document:
+  - complementary:
+    - text: ☤ Elation Dr. Sarah Chen Greenwood Family Medicine
+    - navigation: 👤 Patients 📄 Templates 📁 Categories ⚙ Settings
+  - main:
+    - heading "Patient List" [level=2]
+    - paragraph: 12 patients
+    - text: 🔍
+    - textbox "Search patients by name, DOB, phone, insurance..."
+    - table:
+      - rowgroup:
+        - row "Name DOB (Age) Sex Phone Provider Tags":
+          - columnheader "Name"
+          - columnheader "DOB (Age)"
+          - columnheader "Sex"
+          - columnheader "Phone"
+          - columnheader "Provider"
+          - columnheader "Tags"
+      - rowgroup:
+        - row "Henderson, Robert 1958-03-14 (68) Male (206) 555-1001 Dr. Sarah Chen *COVID-Dose-2-Complete Diabetes-Management Annual-Due":
+          - cell "Henderson, Robert":
+            - strong: Henderson, Robert
+          - cell "1958-03-14 (68)"
+          - cell "Male"
+          - cell "(206) 555-1001"
+          - cell "Dr. Sarah Chen"
+          - cell "*COVID-Dose-2-Complete Diabetes-Management Annual-Due"
+        - row "Nakamura, Emily 1985-07-22 (40) Female (206) 555-1002 Dr. Sarah Chen *COVID-Dose-1-Only Prenatal":
+          - cell "Nakamura, Emily":
+            - strong: Nakamura, Emily
+          - cell "1985-07-22 (40)"
+          - cell "Female"
+          - cell "(206) 555-1002"
+          - cell "Dr. Sarah Chen"
+          - cell "*COVID-Dose-1-Only Prenatal"
+        - row "Johnson, Marcus 1972-11-08 (53) Male (206) 555-1003 Dr. Michael Torres Hypertension-Monitoring Smoker":
+          - cell "Johnson, Marcus":
+            - strong: Johnson, Marcus
+          - cell "1972-11-08 (53)"
+          - cell "Male"
+          - cell "(206) 555-1003"
+          - cell "Dr. Michael Torres"
+          - cell "Hypertension-Monitoring Smoker"
+        - row "Rodriguez-Martinez, Sofia 1995-02-28 (31) Female (206) 555-1004 Dr. Sarah Chen *COVID-Dose-2-Complete Asthma":
+          - cell "Rodriguez-Martinez, Sofia":
+            - strong: Rodriguez-Martinez, Sofia
+          - cell "1995-02-28 (31)"
+          - cell "Female"
+          - cell "(206) 555-1004"
+          - cell "Dr. Sarah Chen"
+          - cell "*COVID-Dose-2-Complete Asthma"
+        - row "O'Brien, William 1948-06-30 (77) Male (206) 555-1005 Dr. Michael Torres *COVID-Booster-Due CHF Fall-Risk":
+          - cell "O'Brien, William":
+            - strong: O'Brien, William
+          - cell "1948-06-30 (77)"
+          - cell "Male"
+          - cell "(206) 555-1005"
+          - cell "Dr. Michael Torres"
+          - cell "*COVID-Booster-Due CHF Fall-Risk"
+        - row "Sharma, Priya 1990-12-15 (35) Female (206) 555-1006 Dr. Aisha Patel Pediatric-Parent":
+          - cell "Sharma, Priya":
+            - strong: Sharma, Priya
+          - cell "1990-12-15 (35)"
+          - cell "Female"
+          - cell "(206) 555-1006"
+          - cell "Dr. Aisha Patel"
+          - cell "Pediatric-Parent"
+        - row "Bergstrom, Thomas 1965-09-03 (60) Male (425) 555-1007 Dr. Sarah Chen COPD Diabetes-Management":
+          - cell "Bergstrom, Thomas":
+            - strong: Bergstrom, Thomas
+          - cell "1965-09-03 (60)"
+          - cell "Male"
+          - cell "(425) 555-1007"
+          - cell "Dr. Sarah Chen"
+          - cell "COPD Diabetes-Management"
+        - row "Washington, Aaliyah 2015-04-18 (10) Female (206) 555-1008 Dr. Aisha Patel Pediatric Immunizations-Due":
+          - cell "Washington, Aaliyah":
+            - strong: Washington, Aaliyah
+          - cell "2015-04-18 (10)"
+          - cell "Female"
+          - cell "(206) 555-1008"
+          - cell "Dr. Aisha Patel"
+          - cell "Pediatric Immunizations-Due"
+        - row "Kowalski, David 1979-01-25 (47) Male (425) 555-1009 Rachel Kim Anxiety Back-Pain":
+          - cell "Kowalski, David":
+            - strong: Kowalski, David
+          - cell "1979-01-25 (47)"
+          - cell "Male"
+          - cell "(425) 555-1009"
+          - cell "Rachel Kim"
+          - cell "Anxiety Back-Pain"
+        - row "Zhao, Helen 1953-08-09 (72) Female (206) 555-1010 Dr. Sarah Chen *COVID-Dose-2-Complete Osteoporosis Annual-Due":
+          - cell "Zhao, Helen":
+            - strong: Zhao, Helen
+          - cell "1953-08-09 (72)"
+          - cell "Female"
+          - cell "(206) 555-1010"
+          - cell "Dr. Sarah Chen"
+          - cell "*COVID-Dose-2-Complete Osteoporosis Annual-Due"
+        - row "Fitzgerald, James 1988-05-11 (37) Male (206) 555-1011 Rachel Kim":
+          - cell "Fitzgerald, James":
+            - strong: Fitzgerald, James
+          - cell "1988-05-11 (37)"
+          - cell "Male"
+          - cell "(206) 555-1011"
+          - cell "Rachel Kim"
+          - cell
+        - row "Wu, Mei-Ling 2008-10-29 (17) Female (425) 555-1012 Dr. Aisha Patel Pediatric Sports-Physical":
+          - cell "Wu, Mei-Ling":
+            - strong: Wu, Mei-Ling
+          - cell "2008-10-29 (17)"
+          - cell "Female"
+          - cell "(425) 555-1012"
+          - cell "Dr. Aisha Patel"
+          - cell "Pediatric Sports-Physical"

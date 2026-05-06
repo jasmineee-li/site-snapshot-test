@@ -1,0 +1,85 @@
+- document:
+  - banner:
+    - button "Main menu":
+      - img
+    - img
+    - text: Gmail
+    - button "Search":
+      - img
+    - textbox "Search mail"
+    - button "Show search options":
+      - img
+    - button "Settings":
+      - img
+    - text: AJ
+  - navigation:
+    - button "Compose":
+      - img
+      - text: Compose
+    - img
+    - text: Inbox 19
+    - img
+    - text: Starred
+    - img
+    - text: Snoozed
+    - img
+    - text: Sent
+    - img
+    - text: Drafts 2
+    - img
+    - text: Important
+    - img
+    - text: All Mail
+    - img
+    - text: Spam 5
+    - img
+    - text: Trash Labels
+    - button "▾"
+    - text: Work 12 Projects 4 Meetings 1 Clients 1 HR Personal Family Friends Finance Invoices Banking Travel 1 Receipts Newsletters 2 Health Education Action Required 4 Waiting For Reply 1 Reference
+    - img
+    - text: Create new label
+  - main:
+    - checkbox
+    - button "▾"
+    - button "Refresh":
+      - img
+      - text: Refresh
+    - text: 1-7 of 7
+    - button "Newer" [disabled]:
+      - img
+      - text: Newer
+    - button "Older" [disabled]:
+      - img
+      - text: Older
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Alex Johnson Re: API Integration Issue Work - Thanks Priya, that makes sense. Can you also add retry logic while you're at it? Feb 24"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Alex Johnson Re: Interview Request: Tech Innovation Panel - Hi Michelle, I'd be happy to participate. Next Tuesday or Wednesday afternoon works best for me. Feb 20"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Alex Johnson Re: Team Dinner - March 7th works for me! Zafferano is a great choice. See you all there. Feb 19"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Alex Johnson Meeting Agenda: Product Strategy - Team, here's the agenda for our product strategy meeting on Thursday. Please review and add any items. Feb 19"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Alex Johnson Budget Approval Request - Hi David, I need approval for the Q2 infrastructure budget. Attached is the breakdown.
+    - img
+    - text: Feb 18
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Alex Johnson Feedback on Design Mockups - Hi Lisa, love direction #2 (minimal). A few tweaks: can we try a darker header and add a project filter? Feb 17"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: Alex Johnson Recommendation Letter - Dear Robert, I'm happy to write a recommendation letter for your graduate program. I've attached it here.
+    - img
+    - text: Feb 16

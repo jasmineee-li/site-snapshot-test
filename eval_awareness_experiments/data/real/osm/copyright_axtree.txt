@@ -1,0 +1,258 @@
+- document:
+  - banner:
+    - heading "OpenStreetMap logo OpenStreetMap" [level=1]:
+      - link "OpenStreetMap logo OpenStreetMap":
+        - /url: /
+        - img "OpenStreetMap logo"
+        - text: OpenStreetMap
+    - navigation:
+      - link "Edit":
+        - /url: /edit
+      - button
+    - navigation:
+      - list:
+        - listitem:
+          - link "History":
+            - /url: /history
+        - listitem:
+          - link "Export":
+            - /url: /export
+        - listitem:
+          - link "GPS Traces":
+            - /url: /traces
+        - listitem:
+          - link "User Diaries":
+            - /url: /diary
+        - listitem:
+          - link "Communities":
+            - /url: /communities
+        - listitem:
+          - link "Copyright":
+            - /url: /copyright
+        - listitem:
+          - link "Help":
+            - /url: /help
+        - listitem:
+          - link "Donate":
+            - /url: https://supporting.openstreetmap.org/donate/
+        - listitem:
+          - link "About":
+            - /url: /about
+      - button "Select Language":
+        - img
+      - link "Log In":
+        - /url: /login?referer=%2Fcopyright
+      - link "Sign Up":
+        - /url: /user/new
+  - heading "Copyright and License" [level=1]
+  - paragraph: OpenStreetMap provides open map data for thousands of websites, mobile apps, and hardware devices. OpenStreetMap is built by a community of people like you who contribute and maintain mapping data about roads, trails, cafés, railway stations, and much more, all over the world.
+  - paragraph:
+    - link "Learn more about OpenStreetMap":
+      - /url: https://wiki.openstreetmap.org/wiki/About_OpenStreetMap
+    - text: and
+    - link "get started mapping":
+      - /url: /user/new
+    - text: "! You can read more on the"
+    - link "OpenStreetMap Blog":
+      - /url: https://blog.openstreetmap.org/
+    - text: ", and subscribe to"
+    - link "weeklyOSM":
+      - /url: https://weeklyosm.eu/
+    - text: . Find other mappers in your local
+    - link "OSM community":
+      - /url: /communities
+    - text: . Support the project by joining the
+    - link "OSM Foundation":
+      - /url: https://osmfoundation.org/
+    - text: and
+    - link "making a donation":
+      - /url: https://supporting.openstreetmap.org/donate/
+    - text: .
+  - heading "OpenStreetMap licensing" [level=3]
+  - paragraph:
+    - text: OpenStreetMap is
+    - emphasis: open
+    - text: data, licensed under the
+    - link "Open Data Commons Open Database License":
+      - /url: https://opendatacommons.org/licenses/odbl/
+    - text: (ODbL) by the
+    - link "OpenStreetMap Foundation":
+      - /url: https://osmfoundation.org/
+    - text: "(OSMF). In summary:"
+  - paragraph:
+    - text: You are free to copy, distribute, transmit and adapt our data, as long as you credit OpenStreetMap and its contributors. If you alter or build upon our data, you may distribute the result only under the same license. The
+    - link "full legal code at Open Data Commons":
+      - /url: https://opendatacommons.org/licenses/odbl/1-0/
+    - text: explains your rights and responsibilities.
+  - paragraph:
+    - text: Our documentation is licensed under the
+    - link "Creative Commons Attribution-ShareAlike 2.0 license":
+      - /url: https://creativecommons.org/licenses/by-sa/2.0/
+    - text: (CC BY-SA 2.0).
+  - paragraph:
+    - text: Read more about using our data at the
+    - link "OSMF Licence page":
+      - /url: https://osmfoundation.org/Licence
+    - text: .
+  - heading "How to credit OpenStreetMap" [level=3]
+  - paragraph: "Where you use OpenStreetMap data, you are required to do the following two things:"
+  - list:
+    - listitem: Provide credit to OpenStreetMap by displaying our attribution notice.
+    - listitem: Make clear that the data is available under the Open Database License.
+  - paragraph:
+    - text: For the attribution notice, we have different
+    - link "requirements on how this should be displayed":
+      - /url: https://wiki.osmfoundation.org/wiki/Licence/Attribution_Guidelines
+    - text: ", depending on how you are using our data. For example, different rules apply on how to show the attribution notice depending on whether you have created a browsable map, a printed map or a static image. More details can be found in the"
+    - link "attribution guidelines":
+      - /url: https://wiki.osmfoundation.org/wiki/Licence/Attribution_Guidelines
+    - text: section of
+    - link "the licensing requirements":
+      - /url: https://wiki.osmfoundation.org/wiki/Licence
+    - text: .
+  - paragraph:
+    - text: Generally speaking, to make clear that the data is available under the Open Database License, you may link to
+    - link "this copyright page":
+      - /url: /copyright
+    - text: . If you are distributing OSM in data form, please name and link directly to the license(s). In media where links are not possible (e.g. printed works), please include the full URL on the page, e.g. https://www.openstreetmap.org/copyright.
+  - paragraph: "In this example, the credit appears in the corner of the map:"
+  - paragraph:
+    - img "Example of how to attribute OpenStreetMap on a webpage"
+  - heading "Copyright infringement" [level=3]
+  - paragraph: OSM contributors are reminded never to add data from any copyrighted sources (e.g. Google Maps or printed maps) without explicit permission from the copyright holders.
+  - paragraph:
+    - text: If you believe that copyrighted material has been inappropriately added to the OpenStreetMap database or this site, please refer to our
+    - link "takedown procedure":
+      - /url: https://wiki.osmfoundation.org/wiki/Takedown_procedure
+    - text: or file directly at our
+    - link "on-line filing page":
+      - /url: https://dmca.openstreetmap.org/
+    - text: .
+  - heading "Trademarks" [level=3]
+  - paragraph:
+    - text: OpenStreetMap, the magnifying glass logo, and State of the Map are registered trademarks of the OpenStreetMap Foundation. If you have questions about your use of the marks, please see our
+    - link "Trademark Policy":
+      - /url: https://wiki.osmfoundation.org/wiki/Trademark_Policy
+    - text: .
+  - heading "Additional services" [level=3]
+  - paragraph:
+    - text: Although OpenStreetMap is open data, we cannot provide a free-of-charge map API or map tiles for third-parties. See our
+    - link "API Usage Policy":
+      - /url: https://operations.osmfoundation.org/policies/api/
+    - text: ","
+    - link "Tile Usage Policy":
+      - /url: https://operations.osmfoundation.org/policies/tiles/
+    - text: and
+    - link "Nominatim Usage Policy":
+      - /url: https://operations.osmfoundation.org/policies/nominatim/
+    - text: .
+  - heading "Our contributors" [level=3]
+  - paragraph: "Our contributors are thousands of individuals. We also include openly-licensed data from national mapping agencies and other sources, among them:"
+  - list:
+    - listitem:
+      - strong: Austria
+      - text: ": Contains data from"
+      - link "Stadt Wien":
+        - /url: https://data.wien.gv.at/
+      - text: (under
+      - link "CC BY":
+        - /url: https://creativecommons.org/licenses/by/3.0/at/deed.de
+      - text: ),
+      - link "Land Vorarlberg":
+        - /url: https://www.vorarlberg.at/vorarlberg/bauen_wohnen/bauen/vermessung_geoinformation/weitereinformationen/services/wmsdienste.htm
+      - text: and Land Tirol (under
+      - link "CC BY AT with amendments":
+        - /url: https://www.tirol.gv.at/data/nutzungsbedingungen/
+      - text: ).
+    - listitem:
+      - strong: Australia
+      - text: ": Incorporates or developed using Administrative Boundaries ©"
+      - link "Geoscape Australia":
+        - /url: https://geoscape.com.au/legal/data-copyright-and-disclaimer/
+      - text: licensed by the Commonwealth of Australia under
+      - link "Creative Commons Attribution 4.0 International licence (CC BY 4.0)":
+        - /url: https://creativecommons.org/licenses/by/4.0/
+      - text: .
+    - listitem:
+      - strong: Canada
+      - text: ": Contains data from GeoBase®, GeoGratis (© Department of Natural Resources Canada), CanVec (© Department of Natural Resources Canada), and StatCan (Geography Division, Statistics Canada)."
+    - listitem:
+      - strong: Czechia
+      - text: ": Contains data from the State Administration of Land Surveying and Cadastre licensed under"
+      - link "Creative Commons Attribution 4.0 International licence (CC BY 4.0)":
+        - /url: https://creativecommons.org/licenses/by/4.0/
+    - listitem:
+      - strong: Finland
+      - text: ": Contains data from the National Land Survey of Finland's Topographic Database and other datasets, under the"
+      - link "NLSFI License":
+        - /url: https://www.maanmittauslaitos.fi/en/opendata-licence-version1
+      - text: .
+    - listitem:
+      - strong: France
+      - text: ": Contains data sourced from Direction Générale des Impôts."
+    - listitem:
+      - strong: Croatia
+      - text: ": Contains data from the"
+      - link "State Geodetic Administration of Croatia":
+        - /url: https://dgu.gov.hr/
+      - text: and
+      - link "National Open Data Portal":
+        - /url: https://data.gov.hr/
+      - text: (public information of Croatia).
+    - listitem:
+      - strong: Netherlands
+      - text: ": Contains © AND data, 2007"
+    - listitem:
+      - strong: New Zealand
+      - text: ": Contains data sourced from the"
+      - link "LINZ Data Service":
+        - /url: https://data.linz.govt.nz/
+      - text: and licensed for reuse under
+      - link "CC BY 4.0":
+        - /url: https://creativecommons.org/licenses/by/4.0/
+      - text: .
+    - listitem:
+      - strong: Serbia
+      - text: ": Contains data from the"
+      - link "Serbian Geodetic Authority":
+        - /url: https://geosrbija.rs/
+      - text: and
+      - link "National Open Data Portal":
+        - /url: https://data.gov.rs/sr/
+      - text: (public information of Serbia), 2018.
+    - listitem:
+      - strong: Slovenia
+      - text: ": Contains data from the"
+      - link "Surveying and Mapping Authority":
+        - /url: https://www.gov.si/en/state-authorities/bodies-within-ministries/surveying-and-mapping-authority/
+      - text: and
+      - link "Ministry of Agriculture, Forestry and Food":
+        - /url: https://www.gov.si/en/state-authorities/ministries/ministry-of-agriculture-forestry-and-food/
+      - text: (public information of Slovenia).
+    - listitem:
+      - strong: Spain
+      - text: ": Contains data sourced from the Spanish National Geographic Institute ("
+      - link "IGN":
+        - /url: https://www.ign.es/
+      - text: ) and National Cartographic System (
+      - link "SCNE":
+        - /url: https://www.scne.es/
+      - text: ) licensed for reuse under
+      - link "CC BY 4.0":
+        - /url: https://creativecommons.org/licenses/by/4.0/
+      - text: .
+    - listitem:
+      - strong: South Africa
+      - text: ": Contains data sourced from"
+      - 'link "Chief Directorate: National Geo-Spatial Information"':
+        - /url: https://ngi.dalrrd.gov.za/
+      - text: ", State copyright reserved."
+    - listitem:
+      - strong: United Kingdom
+      - text: ": Contains Ordnance Survey data © Crown copyright and database right 2010-2023."
+  - paragraph:
+    - text: For further details of these, and other sources that have been used to help improve OpenStreetMap, please see the
+    - link "Contributors page":
+      - /url: https://wiki.openstreetmap.org/wiki/Contributors
+    - text: on the OpenStreetMap Wiki.
+  - paragraph: Inclusion of data in OpenStreetMap does not imply that the original data provider endorses OpenStreetMap, provides any warranty, or accepts any liability.

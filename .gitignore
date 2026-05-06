@@ -7,6 +7,8 @@ venv/
 .pytest_cache/
 .ruff_cache/
 .ruff_cache/
+__pycache__/
+*.py[cod]
 runs/
 BENCHMARK_SYSTEM.md
 CHANGES_SUMMARY.md
@@ -16,7 +18,24 @@ cua-website-sim/client_secret_141965070429-ohl73qg1epfpb2me8i600e732he2kls9.apps
 webarena/webarena-key.pem
 age
 
-results
+/results
 nohup*.out
+*.log
 .venv
 .cursor
+.codex
+.codex/
+eval_awareness_experiments/data/real/_auth/
+eval_awareness_experiments/results/
+read_logs/
+
+# Cloned external benchmark repos (BrowserGym, DoomArena, AgentDojo source,
+# InjecAgent, WASP). Each has its own remote and gets re-cloned by
+# eval_awareness_experiments/setup_pilot_deps.sh — no need to vendor them.
+external_benchmarks/
+
+# Per-stream stdout/stderr from launch_pilot.sh — runtime artifacts.
+logs/
+probes/trained/*
+!probes/trained/.gitkeep
+!probes/trained/manifest.yaml

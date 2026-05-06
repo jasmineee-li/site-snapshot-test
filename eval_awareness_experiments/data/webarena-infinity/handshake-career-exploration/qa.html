@@ -1,0 +1,296 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handshake - Career Exploration</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebarNav">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#E44D2E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    <span class="sidebar-logo-text">Handshake</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="feed">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="4" rx="1" stroke="currentColor" stroke-width="1.5"></rect><rect x="2" y="9" width="16" height="4" rx="1" stroke="currentColor" stroke-width="1.5"></rect><rect x="2" y="15" width="10" height="2" rx="1" stroke="currentColor" stroke-width="1.5"></rect></svg></span>
+                        <span class="sidebar-text">Feed</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="jobs">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="6" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M7 6V4a2 2 0 012-2h2a2 2 0 012 2v2" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Jobs</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="employers">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="16" height="13" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M7 10h6M10 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Employers</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="events">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M2 7h16M6 1v4M14 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Events</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="messages">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 4h14a1 1 0 011 1v9a1 1 0 01-1 1H6l-3 3V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Messages</span>
+                        <span class="notification-dot">4</span>
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="career-center">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" stroke="currentColor" stroke-width="1.5"></circle><path d="M3 18c0-3.87 3.13-7 7-7s7 3.13 7 7" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Career Center</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item active" data-action="navigate" data-page="qa">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"></circle><path d="M7 8a3 3 0 015.2 2c0 2-3 2-3 4M10 16v0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Q&amp;A</span>
+                        
+                    </button>
+                
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-user" data-action="navigate" data-page="profile">
+                    <div class="avatar avatar-small" style="background-color: #4A90D9">MC</div>
+                    <div class="sidebar-user-info">
+                        <div class="sidebar-user-name">Maya Chen</div>
+                        <div class="sidebar-user-school">Stanford University</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <main class="main-content" id="mainContent">
+            <div class="page-qa">
+                
+            <div class="section-header">
+                <h2 class="section-title">Q&amp;A Community</h2>
+                <p class="section-subtitle">Ask questions and get advice from peers</p>
+            </div>
+        
+                
+            <div class="tab-bar">
+                
+                    <button class="tab-item active" data-action="setQATab" data-tab="all">
+                        All Questions
+                        
+                    </button>
+                
+                    <button class="tab-item " data-action="setQATab" data-tab="my-questions">
+                        My Questions
+                        
+                    </button>
+                
+                    <button class="tab-item " data-action="setQATab" data-tab="my-answers">
+                        My Answers
+                        
+                    </button>
+                
+            </div>
+        
+                
+            <div class="search-input-wrapper">
+                <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"></circle><path d="M11 11L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>
+                <input type="text" class="search-input" id="qaSearch" placeholder="Search questions, advice, companies..." value="" autocomplete="off">
+            </div>
+        
+
+                <div class="qa-create-section">
+                    <h4>Ask your own question</h4>
+                    <textarea class="form-textarea" id="newQuestion" placeholder="Type your question here..." rows="3"></textarea>
+                    <button class="btn btn-primary" data-action="submitQuestion" style="margin-top: 8px;">Submit Question</button>
+                </div>
+
+                <div class="qa-list">
+                    
+                            <div class="qa-card" data-action="viewQuestion" data-question-id="qa_01">
+                                <div class="qa-card-header">
+                                    <span class="qa-author">Anonymous</span>
+                                    <span class="qa-meta">Stanford University · Computer Science · Class of 2026</span>
+                                    
+                                </div>
+                                <div class="qa-question-text">What is the Google SWE internship interview process like?</div>
+                                <div class="qa-card-footer">
+                                    <span>2 answers</span>
+                                    <span>1245 views</span>
+                                    <span>2w ago</span>
+                                </div>
+                            </div>
+                        
+                            <div class="qa-card" data-action="viewQuestion" data-question-id="qa_02">
+                                <div class="qa-card-header">
+                                    <span class="qa-author">Priya Sharma</span>
+                                    <span class="qa-meta">Columbia University · Economics · Class of 2026</span>
+                                    
+                                </div>
+                                <div class="qa-question-text">How competitive is the JPMorgan Investment Banking Summer Analyst program?</div>
+                                <div class="qa-card-footer">
+                                    <span>2 answers</span>
+                                    <span>892 views</span>
+                                    <span>2w ago</span>
+                                </div>
+                            </div>
+                        
+                            <div class="qa-card" data-action="viewQuestion" data-question-id="qa_03">
+                                <div class="qa-card-header">
+                                    <span class="qa-author">Kevin O'Brien</span>
+                                    <span class="qa-meta">MIT · Computer Science · Class of 2026</span>
+                                    
+                                </div>
+                                <div class="qa-question-text">Is it worth doing a consulting internship before going into tech?</div>
+                                <div class="qa-card-footer">
+                                    <span>1 answer</span>
+                                    <span>634 views</span>
+                                    <span>2w ago</span>
+                                </div>
+                            </div>
+                        
+                            <div class="qa-card" data-action="viewQuestion" data-question-id="qa_04">
+                                <div class="qa-card-header">
+                                    <span class="qa-author">Anonymous</span>
+                                    <span class="qa-meta">University of Michigan · Information Science · Class of 2027</span>
+                                    
+                                </div>
+                                <div class="qa-question-text">What should I wear to a virtual career fair on Handshake?</div>
+                                <div class="qa-card-footer">
+                                    <span>1 answer</span>
+                                    <span>423 views</span>
+                                    <span>3w ago</span>
+                                </div>
+                            </div>
+                        
+                            <div class="qa-card" data-action="viewQuestion" data-question-id="qa_05">
+                                <div class="qa-card-header">
+                                    <span class="qa-author">Lisa Chang</span>
+                                    <span class="qa-meta">UCLA · Psychology · Class of 2026</span>
+                                    
+                                </div>
+                                <div class="qa-question-text">How do you negotiate salary for a new grad offer?</div>
+                                <div class="qa-card-footer">
+                                    <span>2 answers</span>
+                                    <span>1567 views</span>
+                                    <span>3w ago</span>
+                                </div>
+                            </div>
+                        
+                            <div class="qa-card" data-action="viewQuestion" data-question-id="qa_06">
+                                <div class="qa-card-header">
+                                    <span class="qa-author">Aisha Mohammed</span>
+                                    <span class="qa-meta">Howard University · Computer Engineering · Class of 2027</span>
+                                    
+                                </div>
+                                <div class="qa-question-text">What are the best resources for learning system design for interviews?</div>
+                                <div class="qa-card-footer">
+                                    <span>1 answer</span>
+                                    <span>987 views</span>
+                                    <span>3w ago</span>
+                                </div>
+                            </div>
+                        
+                            <div class="qa-card" data-action="viewQuestion" data-question-id="qa_07">
+                                <div class="qa-card-header">
+                                    <span class="qa-author">Maya Chen</span>
+                                    <span class="qa-meta">Stanford University · Computer Science · Class of 2027</span>
+                                    
+                                </div>
+                                <div class="qa-question-text">What's the work-life balance like at Meta as a new grad engineer?</div>
+                                <div class="qa-card-footer">
+                                    <span>1 answer</span>
+                                    <span>756 views</span>
+                                    <span>Feb 5</span>
+                                </div>
+                            </div>
+                        
+                            <div class="qa-card" data-action="viewQuestion" data-question-id="qa_08">
+                                <div class="qa-card-header">
+                                    <span class="qa-author">Sam Patel</span>
+                                    <span class="qa-meta">UC Berkeley · Business Administration · Class of 2027</span>
+                                    
+                                </div>
+                                <div class="qa-question-text">How important is GPA for consulting recruiting at MBB firms?</div>
+                                <div class="qa-card-footer">
+                                    <span>1 answer</span>
+                                    <span>1123 views</span>
+                                    <span>Feb 1</span>
+                                </div>
+                            </div>
+                        
+                            <div class="qa-card" data-action="viewQuestion" data-question-id="qa_09">
+                                <div class="qa-card-header">
+                                    <span class="qa-author">Rachel Torres</span>
+                                    <span class="qa-meta">Georgia Tech · Computer Science · Class of 2026</span>
+                                    
+                                </div>
+                                <div class="qa-question-text">Should I accept a return offer or keep interviewing?</div>
+                                <div class="qa-card-footer">
+                                    <span>1 answer</span>
+                                    <span>534 views</span>
+                                    <span>Jan 28</span>
+                                </div>
+                            </div>
+                        
+                            <div class="qa-card" data-action="viewQuestion" data-question-id="qa_10">
+                                <div class="qa-card-header">
+                                    <span class="qa-author">Anonymous</span>
+                                    <span class="qa-meta">University of Pennsylvania · Finance · Class of 2027</span>
+                                    
+                                </div>
+                                <div class="qa-question-text">What is the timeline for summer 2027 internship recruiting in finance?</div>
+                                <div class="qa-card-footer">
+                                    <span>0 answers</span>
+                                    <span>678 views</span>
+                                    <span>Jan 25</span>
+                                </div>
+                            </div>
+                        
+                            <div class="qa-card" data-action="viewQuestion" data-question-id="qa_11">
+                                <div class="qa-card-header">
+                                    <span class="qa-author">Derek Williams</span>
+                                    <span class="qa-meta">Morehouse College · Computer Science · Class of 2027</span>
+                                    
+                                </div>
+                                <div class="qa-question-text">What diversity programs do big tech companies offer for underrepresented students?</div>
+                                <div class="qa-card-footer">
+                                    <span>1 answer</span>
+                                    <span>890 views</span>
+                                    <span>Jan 20</span>
+                                </div>
+                            </div>
+                        
+                            <div class="qa-card" data-action="viewQuestion" data-question-id="qa_12">
+                                <div class="qa-card-header">
+                                    <span class="qa-author">Sophia Williams</span>
+                                    <span class="qa-meta">Harvard University · Government · Class of 2026</span>
+                                    
+                                </div>
+                                <div class="qa-question-text">How do you transition from a liberal arts background to a tech career?</div>
+                                <div class="qa-card-footer">
+                                    <span>1 answer</span>
+                                    <span>567 views</span>
+                                    <span>Jan 15</span>
+                                </div>
+                            </div>
+                        
+                </div>
+            </div>
+        </main>
+    </div>
+    <div id="modalContainer"></div>
+    <div id="toast"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

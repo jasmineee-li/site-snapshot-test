@@ -1,0 +1,2299 @@
+<!DOCTYPE html><html lang="en" data-product-locale="en" class="file_browser_view--filebrowserHtml--aIIa3"><head>
+      <link id="figma_preload_user_state" rel="preload" as="fetch" crossorigin="anonymous" href="/api/user/state?team_id=1624181128783394775&amp;fuid=1624181127237430241">
+      <link id="figma_preload_session_state" rel="preload" as="fetch" crossorigin="anonymous" href="/api/session/state?fuid=1624181127237430241">
+    <script nonce="">performance.mark('figma:bootstrap:preload-start-http')</script>
+
+    <meta charset="utf-8">
+
+    <meta name="entrypoint_variant" content="figma_app">
+
+    <meta name="is_preload_streaming" content="true">
+
+    
+      <script nonce="">
+        function isSupportedBrowser() {
+          const isCSSLayerSupported = typeof CSSLayerBlockRule !== 'undefined'
+
+          let isIntlListFormatSupported = true
+          try {
+            new Intl.ListFormat()
+          } catch {
+            isIntlListFormatSupported = false
+          }
+
+
+          const checks = [
+            isCSSLayerSupported,
+            isIntlListFormatSupported,
+            window.WebGL2RenderingContext !== undefined,
+            window.WeakRef !== undefined,
+          ]
+          // The browser is supported if all checks pass
+          return checks.every(v => v)
+        }
+        if (!isSupportedBrowser()) {
+          window.isUnsupportedBrowser = true
+          location.href = '/unsupported_browser'
+        }
+      </script>
+
+    
+<style nonce="">
+
+
+@font-face {
+  font-family: 'Apercu';
+  font-style: italic;
+  font-weight: 200;
+  src:
+    url(https://static.figma.com/blog/fonts/Apercu-LightItalic.eot?#iefix) format('embedded-opentype'),
+    url(https://static.figma.com/blog/fonts/Apercu-LightItalic.woff2) format('woff2'),
+    url(https://static.figma.com/blog/fonts/Apercu-LightItalic.ttf) format('truetype');
+}
+
+@font-face {
+  font-family: 'Apercu';
+  font-style: normal;
+  font-weight: 200;
+  src:
+    url(https://static.figma.com/blog/fonts/Apercu-Light.eot?#iefix) format('embedded-opentype'),
+    url(https://static.figma.com/blog/fonts/Apercu-Light.woff2) format('woff2'),
+    url(https://static.figma.com/blog/fonts/Apercu-Light.ttf) format('truetype');
+}
+
+@font-face {
+  font-family: 'Apercu';
+  font-style: normal;
+  font-weight: 400;
+  src:
+    url(https://static.figma.com/blog/fonts/Apercu-Regular.eot?#iefix) format('embedded-opentype'),
+    url(https://static.figma.com/blog/fonts/Apercu-Regular.woff2) format('woff2'),
+    url(https://static.figma.com/blog/fonts/Apercu-Regular.ttf) format('truetype');
+}
+
+@font-face {
+  font-family: 'Apercu';
+  font-style: italic;
+  font-weight: 400;
+  src:
+    url(https://static.figma.com/blog/fonts/Apercu-RegularItalic.eot?#iefix)
+      format('embedded-opentype'),
+    url(https://static.figma.com/blog/fonts/Apercu-RegularItalic.woff2) format('woff2'),
+    url(https://static.figma.com/blog/fonts/Apercu-RegularItalic.ttf) format('truetype');
+}
+
+@font-face {
+  font-family: 'Apercu';
+  font-style: normal;
+  font-weight: 500;
+  src:
+    url(https://static.figma.com/blog/fonts/Apercu-Medium.eot?#iefix) format('embedded-opentype'),
+    url(https://static.figma.com/blog/fonts/Apercu-Medium.woff2) format('woff2'),
+    url(https://static.figma.com/blog/fonts/Apercu-Medium.ttf) format('truetype');
+}
+
+@font-face {
+  font-family: 'Apercu';
+  font-style: italic;
+  font-weight: 500;
+  src:
+    url(https://static.figma.com/blog/fonts/Apercu-MediumItalic.eot?#iefix) format('embedded-opentype'),
+    url(https://static.figma.com/blog/fonts/Apercu-MediumItalic.woff2) format('woff2'),
+    url(https://static.figma.com/blog/fonts/Apercu-MediumItalic.ttf) format('truetype');
+}
+
+@font-face {
+  font-family: 'Apercu-Mono';
+  font-style: normal;
+  font-weight: 400;
+  src:
+    url(https://static.figma.com/blog/fonts/Apercu-Mono.eot?#iefix) format('embedded-opentype'),
+    url(https://static.figma.com/blog/fonts/Apercu-Mono.woff2) format('woff2'),
+    url(https://static.figma.com/blog/fonts/Apercu-Mono.ttf) format('truetype');
+}
+
+
+
+
+
+
+
+@font-face {
+  font-family: 'D7CBI';
+  font-style: italic;
+  font-weight: 400;
+  src:
+    url(https://static.figma.com/webfont/1/DSEG7Classic-Italic-Custom2.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/DSEG7Classic-Italic-Custom2.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'D7CBIB';
+  font-style: italic;
+  font-weight: 700;
+  src:
+    url(https://static.figma.com/uploads/ebb2329c34e943b5ff793ecbca7fd432fb93f8c6) format('woff2'),
+    url(https://static.figma.com/uploads/06688d40b7d52b25111a4d495f45e6584f7e65cb) format('woff');
+}
+
+
+@font-face {
+  font-family: 'Figma Sans';
+  font-style: normal;
+  font-weight: 300;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Standard-Text-Light.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Figma-Standard-Text-Light.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Sans';
+  font-style: oblique;
+  font-weight: 300;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Standard-Text-Light-Oblique.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Figma-Standard-Text-Light-Oblique.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Sans';
+  font-style: normal;
+  font-weight: 400;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Standard-Text-Regular.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/Figma-Standard-Text-Regular.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Sans';
+  font-style: oblique;
+  font-weight: 400;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Standard-Text-Regular-Oblique.woff2)
+      format('woff2'),
+    url(https://static.figma.com/webfont/Figma-Standard-Text-Regular-Oblique.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Sans';
+  font-style: normal;
+  font-weight: 500;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Standard-Text-Medium.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Figma-Standard-Text-Medium.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Sans';
+  font-style: oblique;
+  font-weight: 500;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Standard-Text-Medium-Oblique.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Figma-Standard-Text-Medium-Oblique.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Sans';
+  font-style: normal;
+  font-weight: 700;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Standard-Text-Bold.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Figma-Standard-Text-Bold.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Sans';
+  font-style: oblique;
+  font-weight: 700;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Standard-Text-Bold-Oblique.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Figma-Standard-Text-Bold-Oblique.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Sans';
+  font-style: normal;
+  font-weight: 900;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Standard-Text-Heavy.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Figma-Standard-Text-Heavy.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Sans';
+  font-style: oblique;
+  font-weight: 900;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Standard-Text-Heavy-Oblique.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Figma-Standard-Text-Heavy-Oblique.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Mono';
+  font-style: normal;
+  font-weight: 300;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Mono-Light.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Figma-Mono-Light.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Mono';
+  font-style: oblique;
+  font-weight: 300;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Mono-Light-Oblique.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Figma-Mono-Light-Oblique.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Mono';
+  font-style: normal;
+  font-weight: 400;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Mono-Regular.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Figma-Mono-Regular.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Mono';
+  font-style: oblique;
+  font-weight: 400;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Mono-Regular-Oblique.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Figma-Mono-Regular-Oblique.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Mono';
+  font-style: normal;
+  font-weight: 500;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Mono-Medium.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Figma-Mono-Medium.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Mono';
+  font-style: oblique;
+  font-weight: 500;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Mono-Medium-Oblique.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Figma-Mono-Medium-Oblique.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Mono';
+  font-style: normal;
+  font-weight: 700;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Mono-Bold.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Figma-Mono-Bold.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Mono';
+  font-style: oblique;
+  font-weight: 700;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Mono-Bold-Oblique.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Figma-Mono-Bold-Oblique.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Mono';
+  font-style: normal;
+  font-weight: 900;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Mono-Heavy.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Figma-Mono-Heavy.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Figma Mono';
+  font-style: oblique;
+  font-weight: 900;
+  src:
+    url(https://static.figma.com/webfont/1/Figma-Mono-Heavy-Oblique.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Figma-Mono-Heavy-Oblique.woff) format('woff');
+}
+
+
+@font-face {
+  font-family: 'Inter';
+  font-weight: 100 900;
+  font-style: normal;
+  font-named-instance: 'Regular';
+  src: url(https://static.figma.com/uploads/2cca21a49f7dad1daa612d73d50357644671964a);
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-weight: 100 900;
+  font-style: italic;
+  font-named-instance: 'Italic';
+  src: url(https://static.figma.com/uploads/43d730c59dee2754d29e0d946ba8cb8339656979)
+    format('woff2');
+}
+
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 300;
+  src:
+    url(https://static.figma.com/webfont/1/Roboto-Light.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Roboto-Light.woff) format('woff');
+}
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 400;
+  src:
+    url(https://static.figma.com/webfont/1/Roboto-Regular.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Roboto-Regular.woff) format('woff');
+}
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 500;
+  src:
+    url(https://static.figma.com/webfont/1/Roboto-Medium.woff2?v=2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Roboto-Medium.woff) format('woff');
+}
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 700;
+  src:
+    url(https://static.figma.com/webfont/1/Roboto-Bold.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/Roboto-Bold.woff) format('woff');
+}
+@font-face {
+  font-family: 'Roboto Mono';
+  font-style: normal;
+  font-weight: 400;
+  src:
+    url(https://static.figma.com/webfont/1/RobotoMono-Regular.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/RobotoMono-Regular.woff) format('woff');
+}
+@font-face {
+  font-family: 'Roboto Mono';
+  font-style: normal;
+  font-weight: 700;
+  src:
+    url(https://static.figma.com/webfont/1/RobotoMono-Bold.woff2) format('woff2'),
+    url(https://static.figma.com/webfont/1/RobotoMono-Bold.woff) format('woff');
+}
+
+
+
+@font-face {
+  font-family: 'Whyte';
+  font-style: normal;
+  font-weight: 400;
+  src:
+    url(https://static.figma.com/webfont/1/Whyte-Regular.woff) format('woff'),
+    url(https://static.figma.com/webfont/1/Whyte-Regular.woff2) format('wof2');
+}
+
+@font-face {
+  font-family: 'Whyte';
+  font-style: normal;
+  font-weight: 500;
+  src:
+    url(https://static.figma.com/webfont/1/Whyte-Medium.woff) format('woff'),
+    url(https://static.figma.com/webfont/1/Whyte-Medium.woff2) format('wof2');
+}
+
+@font-face {
+  font-family: 'Whyte';
+  font-style: normal;
+  font-weight: 700;
+  src:
+    url(https://static.figma.com/webfont/1/Whyte-Bold.woff) format('woff'),
+    url(https://static.figma.com/webfont/1/Whyte-Bold.woff2) format('wof2');
+}
+
+@font-face {
+  font-family: 'WhyteInktrap';
+  font-style: normal;
+  font-weight: 400;
+  src:
+    url(https://static.figma.com/webfont/1/WhyteInktrap-Regular.woff) format('woff'),
+    url(https://static.figma.com/webfont/1/WhyteInktrap-Regular.woff2) format('wof2');
+}
+
+@font-face {
+  font-family: 'WhyteInktrap';
+  font-style: normal;
+  font-weight: 700;
+  src:
+    url(https://static.figma.com/webfont/1/WhyteInktrap-Bold.woff) format('woff'),
+    url(https://static.figma.com/webfont/1/WhyteInktrap-Bold.woff2) format('wof2');
+}
+
+</style>
+
+
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/runtime~figma_app-5a64e5049eb9954a.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-core-7f00fbff3234d737.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/svg-6bc485add60b2266.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/svg-0075965bf8f35442.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/svg-ee02e4ebbd9c9c12.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/svg-460a916ebb53ffa9.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/svg-10e6dcec46a9da5b.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/cssbuilder-b411695bb8784b77.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/svg-7492c7f3309adaa9.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/svg-f8783d25aff607ec.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/svg-0746701e6e1f90d6.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/svg-fb5467eb7cfe819f.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-5dd04c3947c226a3.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-78a0a7650a996381.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-c9e2e2ada4686f94.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-cd29252a8e6adadf.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-b029513bb5425697.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-5679ff687a2a56a4.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/5535-33db8e3c4b51928a.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/4232-d607295cb4a760a8.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/6532-54b22d838f179e6e.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/2798-f5ee0196031a9422.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/1121-01962bc4aa67b096.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/9732-6c9e32340aa56abc.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/6650-c4179e02e256c25c.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/2807-64af9d37c019b963.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/3167-ca932865244f0bdf.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/5215-5fd9affdcac975a5.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/3632-1715709dbd9ddaf9.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/3142-859ca432c3212eaa.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/96-88bbf2480a1cae1c.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/9071-0e8cd11fdb57e134.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/5608-9fb748be26b9a19f.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/408-4deb214048fbc709.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/3849-65f9d27076350375.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/1620-7235908d7226fb20.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/618-03241bd2076c2034.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/9638-0dc1fa76835aec64.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/4739-43d86b878b0d5ffe.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/figma_app-aa77dce5d9f72da1.min.js.br" crossorigin="anonymous" nonce="">
+
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/0c62c2fd-eb64164498d47438.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/1185-c275effad3e58f62.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/2048-a6807226a4474a01.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/2099-3ae111aa1f9a8d44.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/2740-49f01fe9bee2e5fd.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/4116-bc22ea822e9c85e3.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/4584-a16a304b9c28169c.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/4917-1d485e2bd6e0860a.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/5936-6d872bed745e857b.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/5960-a3664a3067a9a244.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/6338-26ec188dbfc8a165.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/6523-0295c448b05f2c7c.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/6713-3d477e54174fcbd4.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/6804-25eb18d605fc673a.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/7267-85165e08ea4ca82e.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/7944-ba61fc2b485f5bdf.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/8474-35c6117fe7ccf295.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/8799-1acd03c1092f8232.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/9816-e7443bd02df4be0e.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/c5e2cae0-682284c407c062fd.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/svg-2b94afc3e3e94c1c.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/svg-7ab012407cb7c89a.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-66794aed6dd2fb25.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-0f9cfa09e0734773.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-e9dcb5e47a8032a1.min.js.br" crossorigin="anonymous" nonce="">
+      <link rel="preload" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-9815c7a80644aef6.min.js.br" crossorigin="anonymous" nonce="">
+
+
+
+
+    <script nonce="">performance?.mark('loadTimings:initialOptionsStart')</script>
+
+    <script nonce="" type="application/json" data-initial="">{"REDACTED": true}</script>
+<script nonce="">
+Object.assign(window, JSON.parse(document.querySelector('[data-initial]').textContent));
+
+console.log('Running frontend commit', "fbc2e67b2b63357b96d1da7a9bd2c22a359d000d");
+
+</script>
+
+<script nonce="">performance?.mark('figma:bootstrap:earlyJsLoadStart')</script>
+  <script nonce="" data-early-bundle="early">
+    
+!function(){try{var e="undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof globalThis?globalThis:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&(e._sentryDebugIds=e._sentryDebugIds||{},e._sentryDebugIds[n]="ce8a8e34-707c-5e09-a5c1-f537f9a4abff")}catch(e){}}();
+(()=>{"use strict";let e,t,n,o;var r={},i={};function s(e){var t=i[e];if(void 0!==t)return t.exports;var n=i[e]={exports:{}};return r[e](n,n.exports,s),n.exports}s.rv=()=>"1.7.5",s.ruid="bundler=rspack@1.7.5";class a extends WebSocket{constructor(e,t,n){super(e,t),this.onCloseCb=n,this.events=[],this._onopen_=null,this._onmessage_=null,this._onclose_=null,this._onerror_=null,super.onopen=this.onOpen,super.onmessage=this.onMessage,super.onclose=this.onClose,super.onerror=this.onError}onOpen(e){this.events.push({event:"onopen",ev:e}),this.flushIfInitialized()}onMessage(e){this.events.push({event:"onmessage",ev:e}),this.flushIfInitialized()}onClose(e){this.onCloseCb?.(),this.events.push({event:"onclose",ev:e}),this.flushIfInitialized()}onError(e){this.events.push({event:"onerror",ev:e}),this.flushIfInitialized()}flushIfInitialized(){if(this._onmessage_&&this._onopen_&&this._onclose_&&this._onerror_)for(;this.events.length>0;){let{event:e,ev:t}=this.events.shift();switch(e){case"onopen":this._onopen_(t);break;case"onmessage":this._onmessage_(t);break;case"onclose":this._onclose_(t);break;case"onerror":this._onerror_(t)}}}set onopen(e){this._onopen_=e,this.flushIfInitialized()}get onopen(){return this._onopen_}set onmessage(e){this._onmessage_=e,this.flushIfInitialized()}get onmessage(){return this._onmessage_}set onclose(e){this._onclose_=e,this.flushIfInitialized()}get onclose(){return this._onclose_}set onerror(e){this._onerror_=e,this.flushIfInitialized()}get onerror(){return this._onerror_}}class l{constructor(){this.queue=[],this.storeErrors=!0}static getInstance(){return l.instance||(l.instance=new l),l.instance}registerError(e){this.queue.push(e)}onerror(e,t,n,o,r){return this.storeErrors&&this.queue.push({message:e,source:t,lineno:n,colno:o,error:r}),!1}drainErrors(){for(let e of(this.storeErrors=!1,this.queue))window.onerror?.(e.message,e.source,e.lineno,e.colno,e.error);this.queue.length=0}init(){return{onerror:this.onerror.bind(this),drainErrors:this.drainErrors.bind(this),registerError:this.registerError.bind(this)}}}let c=l.getInstance(),d=!1,w=!1;window.MONITORING=window.MONITORING||{};let p=window.MONITORING;function u(e,t,n){try{let o=`${n}:connectStart`;performance.mark(o,{startTime:t}),e.addEventListener("open",()=>{let e=`${n}:open`;performance.mark(e),performance.measure(`${n}:connect`,o,e)},{once:!0}),e.addEventListener("message",()=>{let e=`${n}:firstByte`;performance.mark(e),performance.measure(`${n}:firstByte`,o,e)},{once:!0})}catch(e){console.error("Error instrumenting WebSocket timing",e)}}let f=window.matchMedia("(prefers-color-scheme: dark)");function h(e){return"system"===e?f.matches?"dark":"light":"dark"===e?"dark":"light"}function m(e){return"dark"===e?"1E1E1E":"F5F5F5"}let _="global-debug-theme-preference";function I(e){if(e){let t=e?.getItem(_);return t||"system"}return null}function g(e){return Array.from(e).map(e=>String.fromCharCode(e.charCodeAt(0)-1)).join("")}let S=Object.freeze("gjhnb"),O=Object.freeze("dispnf.fyufotjpo;00"),y=Object.freeze("np{.fyufotjpo;00"),N=Error,T=String.prototype.includes,k=Object.getOwnPropertyDescriptor(N.prototype,"stack")?.get;performance?.mark("figma:bootstrap:earlyJsExecutionStart"),self.global=self;let{onerror:E,drainErrors:L,registerError:v}=c.init();window.onerror=E,window.drainErrors=L;try{p.earlyVisibilityChangeHandler=()=>{let e=window.performance.now();d||(d=!0,p.firstVisibilityChange={visibilityState:document.visibilityState,time:e}),p.mostRecentVisibilityChange={visibilityState:document.visibilityState,time:e}},window.addEventListener("visibilitychange",p.earlyVisibilityChangeHandler)}catch(e){console.error("Error initializing page visibility listener",e)}try{p.earlyNetworkStatusChangeHandler=()=>{let e=window.performance.now();w||(w=!0,p.firstNetworkStatusChange={networkStatus:window.navigator.onLine?"online":"offline",time:e}),p.mostRecentNetworkStatus={networkStatus:window.navigator.onLine?"online":"offline",time:e}},window.addEventListener("online",p.earlyNetworkStatusChangeHandler),window.addEventListener("offline",p.earlyNetworkStatusChangeHandler)}catch(e){console.error("Error initializing network status listener",e)}"true"===new URLSearchParams(window.location.search).get("api_paywall")&&sessionStorage.setItem("figma_initial_api_paywall","true"),(()=>{var r,i;let s,l,c,d,w,{file_minimal_user_state:p,mock_user_state_for_tests_json:E,multiplayer_preconnect_options:L,omit_core_data:A,omit_user_state:b,preload_fullscreen_urls:P,should_connect_to_multiplayer:R,api_user_state_path:C,api_session_state_path:D,skip_lg_preload:$,checkpoint_url:H,checkpoint_sequence_number:U}=window.EARLY_ARGS||{};if(window.INITIAL_OPTIONS||(window.INITIAL_OPTIONS={}),window.EARLY_ARGS?.feature_flags?.track_initial_options_usage&&function(){let e=window.INITIAL_OPTIONS;if(!e)return;window.INITIAL_OPTIONS_ACCESSED_FIELDS||(window.INITIAL_OPTIONS_ACCESSED_FIELDS=new Map);let t=new Proxy(e,{get(t,n){let o=t[n];if("symbol"==typeof n||!e.hasOwnProperty(n)||Array.isArray(e)&&"length"===n||!window.INITIAL_OPTIONS_ACCESSED_FIELDS)return o;let r=Error().stack;if(r){let e=window.INITIAL_OPTIONS_ACCESSED_FIELDS.get(n);e||(e=new Set,window.INITIAL_OPTIONS_ACCESSED_FIELDS.set(n,e)),e.add(r)}return o},set:(e,t,n)=>(e[t]=n,!0)});window.INITIAL_OPTIONS=t}(),H&&null!=U){performance?.mark("figma:checkpoint-fetch:fetch-start");let e=fetch(H).then(e=>e.ok?(performance?.mark("figma:checkpoint-fetch:fetch-end"),e.arrayBuffer()):(console.warn(`Unable to fetch checkpoint: status ${e.status}`,e),v({message:"[checkpoint-reconnect] Checkpoint fetch response not ok"}),performance?.mark("figma:checkpoint-fetch:fetch-failed"),null)).catch(e=>(v({message:"[checkpoint-reconnect] Checkpoint fetch failed",error:e}),performance?.mark("figma:checkpoint-fetch:fetch-failed"),null)),t=crypto.randomUUID();window.CHECKPOINT_DATA={url:H,sequenceNumber:U,reconnectKey:t,fetchPromise:e},L&&(L.checkpointReconnect={reconnectKey:t,sequenceNumber:U})}((e,t,n,o,r,i,s)=>{if(e){window.userStateXHR={readyState:4,status:200,responseText:e};return}if(!window.Fig)return;if(o||!window.INITIAL_OPTIONS.user_data){window.startUserStateXHR=()=>{};return}let a=i||"/api/session/state";window.startUserStateXHR=function(e){let t=r;if(!t){t="/api/user/state";var o=[];window.INITIAL_OPTIONS.org_id&&o.push("org_id="+window.INITIAL_OPTIONS.org_id),window.INITIAL_OPTIONS.team_id&&o.push("team_id="+window.INITIAL_OPTIONS.team_id),n&&o.push("omit_core_data=1"),e&&o.push("file_key="+e),0!==o.length&&(t+="?"+o.join("&"))}window.userStateXHR=new XMLHttpRequest,window.userStateXHR.open("GET",t);let i=window.INITIAL_OPTIONS.user_data?.id;i&&window.userStateXHR.setRequestHeader("X-Figma-User-ID",i),window.userStateXHR.send();var s=window.performance?window.performance.now():-1;window.userStateXHR.addEventListener("load",function(){window.userStateXHRDuration=window.performance?window.performance.now()-s:-1},!1),window.sessionStateXHR=new XMLHttpRequest,window.sessionStateXHR.open("GET",a),i&&window.sessionStateXHR.setRequestHeader("X-Figma-User-ID",i),window.sessionStateXHR.send()};let l="/preload-android-proto"===location.pathname||"/file/new"===location.pathname||"/design/new"===location.pathname||"/slides/new"===location.pathname||"/board/new"===location.pathname||"/site/new"===location.pathname||"/buzz/new"===location.pathname||"/rev/new"===location.pathname||"/make/new"===location.pathname,c=window.INITIAL_OPTIONS.editing_file&&window.INITIAL_OPTIONS.editing_file.key;t?window.startUserStateXHR(c):l||window.startUserStateXHR()})(E,!!p,!!A,!!b,C,D);let F=/iPhone|iPad|iPod/.test(navigator.userAgent),G=!!window.EARLY_ARGS?.feature_flags?.livegraph_skip_early_conn_preload;if(!F&&!$&&!G){let e,t,n,o,r,i=(e=window.INITIAL_OPTIONS?.figma_url,t=!!window.EARLY_ARGS?.feature_flags?.livegraph_connect_next,n={clientUrl:window.document.URL},o=window.__figmaDesktop||window.__figmaDesktopGetPopoutAPI?.(),r=window.bellFeedAPI,o?(n.desktop=JSON.stringify(o.appVersion),o.version>=126&&(n.desktopOS=JSON.stringify(o.osVersion))):r&&(n.bell="1",r.version>=8&&(n.desktop=JSON.stringify(r.desktopAppVersion),n.desktopOS=JSON.stringify(r.osVersion))),{url:function(e){let t,n;if(e)try{let o=new URL(e);n=o.protocol,t=o.host}catch(e){}return(void 0===t||void 0===n)&&("admin.staging.figma.com"===(t=window.location.host)||"embed.staging.figma.com"===t?t="staging.figma.com":("admin.figma.com"===t||"embed.figma.com"===t)&&(t="www.figma.com"),n=window.location.protocol),`${"https:"===n?"wss":"ws"}://${t}`}(e),userId:window.INITIAL_OPTIONS?.user_data?.id||null,anonUserId:window.INITIAL_OPTIONS?.anonymous_user_id||null,pageLoadToken:window.INITIAL_OPTIONS?.page_load_token||"",preloadedViews:window.INITIAL_OPTIONS?.livegraph_preload_views||{},commitHash:window.INITIAL_OPTIONS?.release_manifest_git_commit||"missing",clientType:o||r?"desktop":"web",useNext:t,extras:n}),s=new URLSearchParams(i.pageLoadToken);for(let[e,t]of(s.append("userId",i.userId||""),s.append("anonUserId",i.anonUserId||""),s.append("clientType",i.clientType),s.append("commitHash",i.commitHash),s.append("preload",JSON.stringify(i.preloadedViews)),Object.entries(i.extras)))s.append(e,t);s.append("connectionType","initial"),s.append("reconnect","0");let l=i.useNext?"/api/livegraph-next":"/api/livegraph",c=`${i.url}${l}?${s.toString()}`;if(!i.extras.bell)try{let e=performance.now();window.LGEarlyWS=new a(c,void 0,()=>{window.LGEarlyWS=void 0}),u(window.LGEarlyWS,e,"figma:ws:livegraph")}catch(e){console.warn("Early.js Bootstrap Error: LG websocket creation failed",e),console.error(e),v({message:"Early.js Bootstrap Error: LG websocket creation failed",error:e})}}if(r=!1!==R,s=window.INITIAL_OPTIONS.user_data?.id,l=window.INITIAL_OPTIONS.tracking_session_id,c=window.INITIAL_OPTIONS.release_manifest_git_commit,d=null,null!=window.__figmaDesktop?d=window.__figmaDesktop.clientID??null:null!=window.__figmaDesktopGetPopoutAPI&&(d=window.__figmaDesktopGetPopoutAPI().clientID??null),w=L?.checkpointReconnect?.reconnectKey??null,window.mpGlobal={version:function(){if(!window.EARLY_ARGS?.feature_flags?.manifest_commit_sha)return 151;let e=window.location.search;if(e.includes("force-client-version")){let t=new URLSearchParams(e).get("force-client-version");if(t){let e=parseInt(t);if(!isNaN(e)&&e>0)return console.log(`!! Overriding client version to ${e}`),e}}return 151}(),sock:null,msgs:[],perfMetrics:[],shouldConnectToMultiplayer:r,url({fileKey:e,role:t,oauthToken:n,nodeIds:o,suppressDecodeErrors:i,tagForLogging:a,forceViewOnly:p,canvasQuerySkipContainers:u,checkpointReconnect:f}){if(!r)return"";let h=null;L&&e===L.fileKey&&L.targetFileVersion&&(h=L.targetFileVersion);let m=null!==w&&f?.reconnectKey===w,_=m?"":("editor"===t||"viewerWithCpp"===t)&&o?`&scenegraph-queries-initial-nodes=${o}`:"",I=new URLSearchParams(window.location.search),g="true"===I.get("recovery"),S="true"===I.get("merge-on-file-open"),O=I.get("force-dpl-journaled-reconnect");"editor"!==t||L?.forceIncrementalForEditors!==1||g||S?(L?.forceIncrementalForEditors===0||g)&&(_+="&use-incremental-for-editors=0"):_+="&use-incremental-for-editors=1","editor"===t&&(window.EARLY_ARGS?.feature_flags?.incremental_loading_validation||S&&window.EARLY_ARGS?.feature_flags?.incremental_loading_validation_branching)&&(_+="&incremental-loading-validation=1");let y=1;try{let e=JSON.parse(sessionStorage.getItem("reload_times")||"[0]"),t=e[e.length-1];y=+(Date.now()-t<5e3)}catch(e){}let N=u;("prototype"===t||"viewer"===t)&&(N=!0);let T=window.INITIAL_OPTIONS.e2e_traffic,k=window.INITIAL_OPTIONS.e2e_test_name;return`${location.protocol.replace("http","ws")}//${location.host}/api/multiplayer/${e}?role=${t}&tracking_session_id=${l}&version=${this.version}&recentReload=${y}&file-load-streaming-compression`+_+(n?"&oauth_token="+n:"")+(s?`&user-id=${s}`:"")+(h?`&target-file-version=${h}`:"")+(c?`&client_release=${c}`:"")+(i?"&suppress-decode-errors":"")+(a?`&tag-for-logging=${a}`:"")+(T?"&e2e_traffic=true":"")+(k?`&e2e_test_name=${k}`:"")+(p?"&force-view-only":"")+(d?`&clientID=${d}`:"")+(N?"&canvas-query-skip-containers":"")+(null!==O?`&force-dpl-journaled-reconnect=${O}`:"")+(m?"&previousLoadMode=full":"")+(f?.reconnectKey?`&reconnect-key=${f.reconnectKey}`:"")+(f?.sequenceNumber!=null?`&reconnect-sequence-number=${f.sequenceNumber}`:"")},DEBUG_THEME_PREFERENCE_KEY:_,DARK_THEME_MEDIA_QUERY:f,themePreferenceFromLocalStorage:I,getBackgroundColorForTheme:m,getVisibleTheme:h,preconnect(e){if(!1===r)return;if(this.sock){if(e===this.sock.url&&this.sock.readyState!==WebSocket.CLOSED)return;try{this.sock.close()}catch(e){}}let t=performance.now();this.sock=new WebSocket(e),this.sock.binaryType="arraybuffer",u(this.sock,t,"figma:ws:multiplayer"),this.sock.onopen=e=>{this.perfMetrics.push({key:"mp-ws-onopen",ts:performance.now(),nBytes:void 0})},this.sock.onmessage=e=>{let t=new Uint8Array(e.data);this.msgs.push(t),this.perfMetrics.push({key:"mp-ws-onmessage",ts:performance.now(),nBytes:t.length*t.BYTES_PER_ELEMENT})},this.msgs=[],this.perfMetrics=[]},isCheckpointReconnectUrl:e=>null!==w&&new URL(e).searchParams.get("reconnect-key")===w},L&&(L.forceViewOnly=!1,(window.INITIAL_OPTIONS?.cluster_name==="staging"||window.INITIAL_OPTIONS?.cluster_name==="local")&&(function(){let e=null;try{e=window.localStorage}catch(e){}return e})()?.getItem("force-vscode")==="true"?L.forceViewOnly=!0:L.forceViewOnly=window?.location.ancestorOrigins&&[...window.location.ancestorOrigins].some(e=>e.startsWith("vscode-webview://")),mpGlobal.preconnect(mpGlobal.url(L))),!P&&!/FigmaMobile-Android/.test(navigator.userAgent)&&(L?.role==="editor"||L?.role==="viewerWithCpp"||L?.role==="prototype")){let e,t=L?.role==="prototype"?Fig.prototypeLibURLs:Fig.fullscreenURLs,n=fetch(t["compiled_wasm.wasm"]);n.catch(e=>console.error(`Fetching compiled_wasm.wasm failed: ${e}`));let o=(i=t["compiled_wasm.js"],(e=new Promise((e,t)=>{let n,o=((n=document.createElement("script")).type="text/javascript",n.async=!0,n.setAttribute("nonce",window.INITIAL_OPTIONS.csp_nonce),n.crossOrigin="anonymous",n);o.onload=e,o.src=i,document.head.appendChild(o)})).catch(e=>console.error(`Fetching ${i} failed: ${e}`)),e);window.FULLSCREEN_PRELOADS={wasm:n,js:o}}!function(){try{if(window.INITIAL_OPTIONS.e2e_traffic||window.location.pathname.startsWith("/test/interactions"))return;let r=window.INITIAL_OPTIONS.editing_file?.can_edit===!1;Object.defineProperty(window,e||(e=g(S)),{get:()=>{let e,i;if((e=new N,!((i=k?k.call(e):e.stack)&&(null==t&&(t=g(O)),null==n&&(n=g(y)),T.call(i,t)||T.call(i,n))))&&!r){if(null!=o){let e=window.__windowDotFigmaOnAccess;"function"==typeof e&&e()}return o}},set:e=>{r||(o=null!=e?e:void 0)},configurable:!1,enumerable:!1})}catch(e){}}(),performance?.mark("figma:bootstrap:earlyJsExecutionEnd")})()})();
+
+//# debugId=ce8a8e34-707c-5e09-a5c1-f537f9a4abff
+
+//# sourceMappingURL=https://admin.figma.com/admin/webpack-artifacts/65d5991636c4e3962c9f070d313f6479e15800c2/early-f16978cae99634c9.min.js.map
+  </script>
+
+
+
+    <script nonce="">performance?.mark('loadTimings:initialOptionsEnd')</script>
+
+    <meta name="google" content="notranslate">
+    <meta name="slack-app-id" content="A01N2QYSA81">
+
+    <title>Home – Figma</title>
+
+    <style nonce="" type="text/css">
+
+  /*
+    This should be kept in sync with:
+    - GRID_TILE_MIN_WIDTH in web/js/browse/shared/views/items_view/grid_view/grid_view.tsx
+    - $gridTileMinWidth in _measurements.css
+  */
+  :root {
+    --file-grid-tile-min-width: 272px;
+  }
+
+  #filebrowser-loading-page {
+    opacity: 1;
+    -webkit-transition: opacity .2s ease-in-out;
+  }
+
+  .filebrowser-loading-page-layout {
+    display: flex;
+    flex-wrap: wrap;
+
+    /* Make sure the loading page is flush with the edges of the page so
+       our layout isnt affected by browser default margins/paddings */
+    position: absolute;
+    top: 48px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--color-bg, var(--fallback-color-bg, white));
+  }
+
+  #loading-content-pane {
+    opacity: 1;
+    -webkit-transition: opacity .4s ease-in-out;
+  }
+
+  #filebrowser-loading-page.fadeOut {
+    opacity: 0;
+  }
+
+  #filebrowser-loading-page.hidden {
+    display: none;
+    opacity: 0;
+  }
+
+  .filebrowser-loading-page .file-grid.create-file-grid {
+    margin: 24px 0px;
+    grid-gap: 32px;
+    background-color: var(--color-bg, white);
+  }
+
+  /* HAX: see loading-page-container in loading_spinner.tsx */
+  #loading-page-container .create-file-grid {
+    display: none;
+    background-color: var(--color-bg, white);
+  }
+  #loading-page-container .sort-dropdown {
+    margin-top: 0px;
+  }
+
+ /*
+  * HAX: The sidebar is cloned and used independently outside of this
+  * page so any styles like `.filebrowser-loading-page .thing` applied
+  * to sidebar sub-elements also need a selector like
+  * `.filebrowser-loading-sidebar .thing` so that they work outside of
+  * this page too.
+  */
+  .filebrowser-loading-page .row,
+  .filebrowser-loading-sidebar .row {
+    background-color: var(--color-bg-secondary, #f0f0f0);
+    border-radius: 3px;
+    height: 16px;
+  }
+
+  .filebrowser-loading-page .circle,
+  .filebrowser-loading-sidebar .circle {
+    border-radius: 3px;
+    background-color: var(--color-bg-secondary, #f0f0f0);
+    width: 16px;
+    height: 16px;
+  }
+
+  .filebrowser-loading-page .row .circle,
+  .filebrowser-loading-sidebar .row .circle {
+    position: relative;
+    top: -1px;
+    left: -35px;
+  }
+
+  .filebrowser-loading-sidebar {
+    flex: 0 0 240px;
+    width: 240px;
+    background-color: var(--color-bg, white);
+    padding-top: 16px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .filebrowser-loading-page .navbar {
+    height: 48px;
+    width: 100%;
+    position: fixed;
+    top: 0;
+    background-color: var(--color-bg-toolbar, #2C2C2C);
+    z-index: 1;
+  }
+
+  .filebrowser-loading-sidebar .row {
+    width: 85px;
+    margin-top: 8px;
+    margin-bottom: 12px;
+    margin-left: 48px;
+  }
+
+  .filebrowser-loading-sidebar .row .circle {
+    position: relative;
+    top: -1px;
+    left: -35px;
+  }
+
+  .filebrowser-loading-page .divider,
+  .filebrowser-loading-sidebar .divider {
+    height: 1px;
+    background-color: var(--color-border, rgba(0, 0, 0, 0.1));
+    margin-top: 8px;
+    margin-bottom: 16px;
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+
+  .filebrowser-loading-sidebar .row:nth-child(7) { width: 40px; }
+  .filebrowser-loading-sidebar .row:nth-child(8) { width: 58px; }
+
+  .filebrowser-loading-sidebar .row:nth-last-child(1) { opacity: 0.4; width: 65px; }
+  .filebrowser-loading-sidebar .row:nth-last-child(2) { opacity: 0.4; width: 65px; }
+  .filebrowser-loading-sidebar .row:nth-last-child(3) { opacity: 0.8; width: 46px; }
+
+  .filebrowser-loading-page .page {
+    flex: 1 1;
+    box-sizing: border-box;
+    border-left: 1px var(--color-border, #e5e5e5) solid;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .filebrowser-loading-page .toolbar {
+    border-bottom: 1px var(--color-border, #e5e5e5) solid;
+    height: 48px;
+  }
+
+  .filebrowser-loading-page .toolbar .item {
+    background-color: var(--color-bg-secondary, #f0f0f0);
+    border-radius: 3px;
+    width: 85px;
+    height: 16px;
+    margin-left: 32px;
+    margin-top: 16px;
+  }
+
+  .filebrowser-loading-page .columns {
+    flex: 1 1;
+    display: flex;
+    flex-direction: row-reverse;
+    padding-right: 32px;
+  }
+
+  @media (max-width: 849px) {
+    .filebrowser-loading-page .columns {
+      flex-direction: column;
+    }
+
+    .filebrowser-loading-page .right-column {
+      padding-left: 32px;
+    }
+
+    .filebrowser-loading-page .public-header + .columns {
+      flex-direction: column-reverse;
+    }
+  }
+
+  .filebrowser-loading-page .content {
+    flex: 1 1;
+  }
+
+  .filebrowser-loading-page .sort-dropdown {
+    border-radius: 3px;
+    width: 86px;
+    padding: 16px 32px 32px 32px;
+  }
+
+  .filebrowser-loading-page .create-file-tile {
+    background-color: var(--color-bg-secondary, white);
+    border: 1px solid var(--color-border, #e5e5e5);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    height: 72px;
+    box-sizing: border-box;
+  }
+
+  @media (max-width: 832px) {
+    .filebrowser-loading-page .create-file-tile {
+      height: 48px;
+    }
+  }
+
+  @media (max-width: 645px) {
+    .filebrowser-loading-page .create-file-tile, .filebrowser-loading-page .sort-dropdown {
+      display: none;
+    }
+  }
+
+  .filebrowser-loading-page .create-file-tile .icon {
+    background-color: var(--color-bg-secondary, #f0f0f0);
+    border-radius: 2px;
+    margin-left: 16px;
+    margin-right: 16px;
+    height: 24px;
+    width: 24px;
+  }
+
+  .filebrowser-loading-page .create-file-tile .label {
+    background-color: var(--color-bg-secondary, #f0f0f0);
+    width: 132px;
+    height: 16px;
+    border-radius: 3px;
+  }
+
+  @media (max-width: 1440px) {
+   .filebrowser-loading-page .create-file-tile:nth-last-child(1) {
+     display: none;
+   }
+  }
+
+  .filebrowser-loading-page .tile {
+    height: 56px;
+    padding-top: 60%;
+    position: relative;
+  }
+
+  .filebrowser-loading-page .tile .inner {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    left: 2px;
+    right: 2px;
+    border: 1px solid var(--color-border, #e5e5e5);
+    border-radius: 6px;
+    background-color: var(--color-bg-secondary, #f0f0f0);
+  }
+
+  .filebrowser-loading-page .tile .inner .lower {
+    height: 56px;
+    background-color: var(--color-bg, white);
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    border-radius: 0 0 6px 6px;
+  }
+
+  .filebrowser-loading-page .public-grid {
+    width: 100%;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(var(--file-grid-tile-min-width), 1fr));
+    grid-gap: 32px;
+    padding-left: 32px;
+  }
+
+  @media (max-width: 1023px) {
+    .filebrowser-loading-page .public-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .filebrowser-loading-page .public-grid .tile {
+    height: 56px;
+    padding-top: 60%;
+  }
+
+  .filebrowser-loading-page .public-grid .tile:nth-child(6) { opacity: .8; }
+  .filebrowser-loading-page .public-grid .tile:nth-child(7) { opacity: .4; }
+
+  .filebrowser-loading-page .file-grid {
+    width: 100%;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(var(--file-grid-tile-min-width), 1fr));
+    grid-gap: 32px;
+    padding-left: 32px;
+  }
+
+  .filebrowser-loading-page .file-grid .tile:nth-child(6) { opacity: .8; }
+  .filebrowser-loading-page .file-grid .tile:nth-child(7) { opacity: .4; }
+
+  .filebrowser-loading-page .team-grid {
+    width: 100%;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(264px, 1fr));
+    grid-gap: 32px 32px;
+    padding: 32px 0 0 32px;
+    align-content: start;
+  }
+
+  .filebrowser-loading-page .team-tile {
+    border: 1px solid var(--color-border, rgba(0, 0, 0, .1));
+    border-radius: 6px;
+    position: relative;
+    padding: 16px;
+  }
+
+  .filebrowser-loading-page .team-grid .team-tile:nth-child(6) { opacity: .8; }
+  .filebrowser-loading-page .team-grid .team-tile:nth-child(7) { opacity: .4; }
+
+  .filebrowser-loading-page .team-tile .row {
+    margin-top: 0;
+    margin-left: 0;
+    margin-bottom: 0;
+  }
+
+  .filebrowser-loading-page .team-tile .row:nth-child(1) {
+    width: 32px;
+    height: 32px;
+  }
+
+  .filebrowser-loading-page .team-tile .row:nth-child(2) {
+    width: 65px;
+    height: 30px;
+    position: absolute;
+    top: 17px;
+    right: 16px;
+    margin-top: 0;
+  }
+
+  .filebrowser-loading-page .team-tile .row:nth-child(3) {
+    width: 120px;
+    margin-top: 20px;
+  }
+  .filebrowser-loading-page .team-tile .row:nth-child(4) {
+    width: 232px;
+    margin-top: 12px;
+  }
+  .filebrowser-loading-page .team-tile .row:nth-child(5) {
+    width: 174px;
+    margin-top: 8px;
+  }
+
+  .filebrowser-loading-page .team-tile .circles {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .filebrowser-loading-page .team-tile .circle {
+    top: 0;
+    left: 0;
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
+    margin-top: 22px;
+  }
+
+  .filebrowser-loading-page .public-header {
+    background-color: var(--color-bg-secondary, #f0f0f0);
+    width: 100%;
+    height: 240px;
+    margin-bottom: 80px;
+  }
+
+  .filebrowser-loading-page .profile-header {
+    background-color: var(--color-bg-secondary, #f0f0f0);
+    width: 100%;
+    height: 64px;
+  }
+
+  .filebrowser-loading-page .profile-grid {
+    padding: 32px;
+    display: grid;
+    grid-template-columns: 1fr 24px 1fr .75fr;
+    align-items: end;
+  }
+
+  .filebrowser-loading-page .profile-grid .row {
+    margin-top: 24px;
+  }
+
+  .filebrowser-loading-page .profile-grid div:nth-child(4n+1) { width: 148px; }
+  .filebrowser-loading-page .profile-grid div:nth-child(4n+3) { width: 56px; }
+  .filebrowser-loading-page .profile-grid div:nth-child(4n+4) { width: 99px; }
+
+  .filebrowser-loading-page .profile-grid div:nth-child(1) { width: 61px; margin-top: 0; }
+
+  .filebrowser-loading-page .profile-grid div:nth-child(5) { width: 61px; margin-top: 32px; }
+  .filebrowser-loading-page .profile-grid div:nth-child(7) { width: 69px; }
+  .filebrowser-loading-page .profile-grid div:nth-child(8) { width: 51px; }
+
+  .filebrowser-loading-page .profile-grid div:nth-child(9) { margin-top: 36px; }
+  .filebrowser-loading-page .profile-grid div:nth-child(11) { width: 69px; }
+  .filebrowser-loading-page .profile-grid div:nth-child(12) { width: 72px; }
+
+  .filebrowser-loading-page .profile-grid div:nth-child(25),
+  .filebrowser-loading-page .profile-grid div:nth-child(27),
+  .filebrowser-loading-page .profile-grid div:nth-child(28) { opacity: .8; }
+
+  .filebrowser-loading-page .profile-grid div:nth-child(29),
+  .filebrowser-loading-page .profile-grid div:nth-child(31),
+  .filebrowser-loading-page .profile-grid div:nth-child(32) { opacity: .4; }
+
+  @media(max-width: 1000px) {
+    .filebrowser-loading-page .profile-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .filebrowser-loading-page .profile-grid div:nth-child(5),
+    .filebrowser-loading-page .profile-grid div:nth-child(6),
+    .filebrowser-loading-page .profile-grid div:nth-child(7),
+    .filebrowser-loading-page .profile-grid div:nth-child(8),
+    .filebrowser-loading-page .profile-grid div:nth-child(4n+2),
+    .filebrowser-loading-page .profile-grid div:nth-child(4n+3),
+    .filebrowser-loading-page .profile-grid div:nth-child(4n+4) { display: none; }
+  }
+
+  .filebrowser-loading-page .project-grid {
+    padding-left: 32px;
+    display: grid;
+    grid-row-gap: 22px;
+  }
+
+  .filebrowser-loading-page .project-grid .card {
+    border: 1px solid var(--color-border, rgba(0, 0, 0, .1));
+    border-radius: 4px;
+    box-sizing: border-box;
+    height: 178px;
+    display: flex;
+  }
+
+  .filebrowser-loading-page .project-grid .card:nth-child(3) { opacity: .8; }
+  .filebrowser-loading-page .project-grid .card:nth-child(4) { opacity: .4; }
+
+  .filebrowser-loading-page .project-grid .card .left {
+    width: 196px;
+    margin: 16px;
+  }
+
+  .filebrowser-loading-page .project-grid .card .right {
+    flex: 1 1;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    overflow: hidden;
+    margin: 16px 0;
+  }
+
+  .filebrowser-loading-page .project-grid .card .left .row:nth-child(1) { width: 107px; }
+  .filebrowser-loading-page .project-grid .card .left .row:nth-child(2) { width: 164px; margin-top: 12px; }
+  .filebrowser-loading-page .project-grid .card .left .row:nth-child(3) { width: 145px; margin-top: 8px; }
+  .filebrowser-loading-page .project-grid .card .left .row:nth-child(4) { width: 158px; margin-top: 8px; }
+
+  .filebrowser-loading-page .project-grid .card .right .row {
+    height: 100%;
+    flex: 1 1 196px;
+    margin-right: 16px;
+    border-radius: 6px;
+  }
+
+  .filebrowser-loading-page .right-column {
+    flex: 0 0 304px;
+    margin-right: 16px;
+    margin-top: 16px;
+    box-sizing: border-box;
+    padding-left: 32px;
+  }
+
+  .filebrowser-loading-page .right-column .row:nth-child(1) {
+    margin-top: 16px;
+    width: 120px;
+  }
+  .filebrowser-loading-page .right-column .row:nth-child(2) {
+    margin-top: 18px;
+    width: 272px;
+  }
+  .filebrowser-loading-page .right-column .row:nth-child(3) {
+    margin-top: 8px;
+    width: 248px;
+  }
+  .filebrowser-loading-page .right-column .row:nth-child(4) {
+    margin-top: 8px;
+    width: 272px;
+  }
+  .filebrowser-loading-page .right-column .row:nth-child(5) {
+    margin-top: 8px;
+    width: 256px;
+  }
+  .filebrowser-loading-page .right-column .row:nth-child(6) {
+    margin-top: 8px;
+    width: 200px;
+  }
+  .filebrowser-loading-page .right-column .row:nth-child(7) {
+    margin-top: 35px;
+    width: 88px;
+  }
+  .filebrowser-loading-page .right-column .row:nth-child(8) {
+    margin-top: 22px;
+    margin-left: 51px;
+    width: 88px;
+    opacity: .8;
+  }
+  .filebrowser-loading-page .right-column .row:nth-child(9) {
+    margin-top: 18px;
+    margin-left: 51px;
+    width: 88px;
+    opacity: .4;
+  }
+
+  .filebrowser-loading-page .public-left-column {
+    padding: 0 0 32px 32px;
+    width: 320px;
+  }
+
+  .filebrowser-loading-page .public-left-column .row {
+    margin-top: 8px;
+  }
+
+  .filebrowser-loading-page .public-left-column .row:nth-child(1) {
+    width: 120px;
+    margin-top: 0;
+  }
+  .filebrowser-loading-page .public-left-column .row:nth-child(2) {
+    width: 272px;
+    margin-top: 18px;
+  }
+  .filebrowser-loading-page .public-left-column .row:nth-child(3) {
+    width: 248px;
+  }
+  .filebrowser-loading-page .public-left-column .row:nth-child(4) {
+    width: 272px;
+  }
+  .filebrowser-loading-page .public-left-column .row:nth-child(5) {
+    width: 256px;
+    opacity: .8;
+  }
+  .filebrowser-loading-page .public-left-column .row:nth-child(6) {
+    width: 200px;
+    opacity: .4;
+  }
+
+  /*
+  Note: Make sure any changes here are also duplicated in the fullscreen progress bar
+  (.progressBar in progress_bar.css)
+  */
+  #filebrowser-loading-progress-bar {
+    height: 5px;
+    /* Z index 6 chosen here so it renders over any nav elements but below any scroll bar or modals */
+    z-index: 6;
+
+      background: var(--color-bg-brand, #0D99FF);
+
+    position: absolute;
+    left: 0;
+    animation: filebrowserloadingProgressBar 10s cubic-bezier(.08,.8,.1,1) forwards;
+  }
+
+  @keyframes filebrowserloadingProgressBar {
+    from { width: 0; }
+    to { width: 100%; }
+  }
+
+
+  @media (max-width: 645px) {
+    .filebrowser-loading-sidebar {
+      display: none;
+    }
+
+    .filebrowser-loading-page .page {
+      margin-left: 0;
+      width: 100%;
+    }
+
+    .filebrowser-loading-page .public-header {
+      height: 120px;
+    }
+
+    .filebrowser-loading-page .file-grid {
+      grid-template-columns: 1fr;
+      max-width: 400px;
+      margin: 0 auto;
+      align-self: center;
+    }
+  }
+
+</style>
+
+
+    <style nonce="" type="text/css">
+
+  /*  PAGE LAYOUT STYLES */
+  .fb-page-layout {
+    background-color: var(--color-bg, var(--fallback-color-bg, white));
+  }
+
+  .fb-flex-row {
+    height: 100vh;
+    display: flex;
+    flex-direction: row;
+  }
+
+  .fb-sidebar {
+    width: 240px;
+    padding-top: 4px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .fb-sidebar > :nth-last-child(2) {
+    opacity: 0.6;
+  }
+
+  .fb-sidebar > :nth-last-child(1) {
+    opacity: 0.3;
+  }
+
+  .fb-page {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    border-left: 1px var(--color-border) solid;
+  }
+
+  .fb-page-content-columns {
+    overflow: hidden;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: row;
+  }
+
+  .fb-page-content {
+    flex-grow: 1;
+    overflow: hidden;
+    position: relative;
+    margin-right: 32px;
+  }
+
+  .fb-page-right-column {
+    width: 304px;
+    margin-top: 24px;
+    margin-right: 16px;
+    padding-left: 32px;
+  }
+
+  .fb-fading-content {
+    margin-left: 32px;
+  }
+
+  /* This is what applies the fading gradient over the skeletons */
+  .fb-fading-content:after {
+    position: absolute;
+    bottom: 0;
+    height: 100%;
+    width: 100%;
+    content: "";
+    background: linear-gradient(to bottom, transparent 50%, var(--color-bg) 100%);
+    pointer-events: none;
+  }
+
+  /* SIDEBAR STYLES */
+
+  .fb-sidebar-account-and-notifications {
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .fb-sidebar-searchbar {
+    padding: 0 8px;
+    margin-top: 4px;
+    margin-bottom: 8px;
+  }
+
+  .fb-sidebar-row {
+    padding: 8px 16px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .fb-sidebar-row :nth-child(2) {
+    margin-left: 12px;
+  }
+
+
+  .fb-divider {
+    height: 1px;
+    background-color: var(--color-border, rgba(0, 0, 0, 0.1));
+    width: 100%;
+    margin-top: 8px;
+    margin-bottom: 10px;
+  }
+
+
+  @media (max-width: 645px) {
+    .fb-sidebar {
+      display: none;
+    }
+  }
+
+  /* RIGHT COLUMN STYLES */
+
+  .fb-page-right-column-header {
+    margin-bottom: 18px;
+  }
+
+  .fb-page-right-column-rows > :not(:first-child) {
+    margin-top: 8px;
+  }
+
+  .fb-page-right-column-lower {
+    margin-top: 35px;
+  }
+
+  .fb-page-right-column-user-list {
+    margin-top: 22px;
+    margin-left: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .fb-page-right-column-user {
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+  }
+
+  .fb-page-right-column-user:nth-child(2) {
+    opacity: 0.6;
+  }
+
+  .fb-page-right-column-user:nth-child(3) {
+    opacity: 0.3;
+  }
+
+  /* Skeleton Item Styles */
+
+  .fb-shrink-0 {
+    flex-shrink: 0;
+  }
+
+  .fb-circle-16 {
+    flex-shrink: 0;
+    background-color: var(--color-bg-secondary, #f0f0f0);
+    height: 16px;
+    width: 16px;
+    border-radius: 9999px;
+  }
+
+  .fb-circle-24 {
+    background-color: var(--color-bg-secondary, #f0f0f0);
+    height: 24px;
+    width: 24px;
+    border-radius: 9999px;
+  }
+
+  .fb-rectangle-16 {
+    background-color: var(--color-bg-secondary);
+    height: 16px;
+    border-radius: 3px;
+  }
+
+  .fb-rectangle-24 {
+    background-color: var(--color-bg-secondary);
+    height: 24px;
+    border-radius: 3px;
+  }
+
+  .fb-rectangle-32 {
+    background-color: var(--color-bg-secondary);
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .fb-rectangle-36 {
+    background-color: var(--color-bg-secondary);
+    height: 36px;
+    border-radius: 3px;
+  }
+
+  /* Skeleton Item Width Options */
+
+  .fb-width-16 {
+    width: 16px;
+  }
+
+  .fb-width-32 {
+    width: 32px;
+  }
+
+  .fb-width-36 {
+    width: 36px;
+  }
+
+  .fb-width-50 {
+    width: 50px;
+  }
+
+  .fb-width-55 {
+    width: 55px;
+  }
+
+  .fb-width-60 {
+    width: 60px;
+  }
+
+  .fb-width-70 {
+    width: 70px;
+  }
+
+  .fb-width-80 {
+    width: 80px;
+  }
+
+  .fb-width-88 {
+    width: 88px;
+  }
+
+  .fb-width-100 {
+    width: 100px;
+  }
+
+  .fb-width-105 {
+    width: 105px;
+  }
+
+  .fb-width-115 {
+    width: 115px;
+  }
+
+  .fb-width-120 {
+    width: 120px;
+  }
+
+  .fb-width-148 {
+    width: 148px;
+  }
+
+  .fb-width-167 {
+    width: 167px;
+  }
+
+  .fb-width-180 {
+    width: 180px;
+  }
+
+  .fb-width-200 {
+    width: 200px;
+  }
+
+  .fb-width-248 {
+    width: 248px;
+  }
+
+  .fb-width-256 {
+    width: 256px;
+  }
+
+  .fb-width-272 {
+    width: 272px;
+  }
+
+  .fb-width-full {
+    width: 100%;
+  }
+
+  /* Header Styles */
+
+  .fb-toolbar-48 {
+    border-bottom: 1px var(--color-border, #e5e5e5) solid;
+    height: 48px;
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    padding-left: 32px;
+  }
+
+  .fb-toolbar-64 {
+    border-bottom: 1px var(--color-border, #e5e5e5) solid;
+    height: 64px;
+    /* We have 10px above the toolbar in the actual page */
+    margin-top: 10px;
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    padding-left: 32px;
+  }
+
+  .fb-toolbar-84 {
+    border-bottom: 1px var(--color-border, #e5e5e5) solid;
+    height: 80px;
+    /* We have 4px above the toolbar in the actual page */
+    margin-top: 4px;
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    padding-left: 32px;
+  }
+
+  .fb-toolbar-84 :nth-child(2) {
+    margin-left: 12px;
+  }
+
+  .fb-breadcrumb {
+    height: 48px;
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    padding-left: 32px;
+  }
+
+  .fb-header {
+    height: 64px;
+    display: flex;
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 32px;
+  }
+
+  .fb-header :nth-child(2) {
+    margin-left: 12px;
+  }
+
+  .fb-viewbar {
+    padding-left: 32px;
+    height: 64px;
+    align-items: center;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  /* Page Content: Tile Grid */
+
+  .fb-tile-grid {
+    display: grid;
+    gap: 32px;
+    justify-items: stretch;
+    /* Keep this grid template in line with the grid-template-columns in `shared/views/items_view/grid_view/grid_view.tsx` */
+    grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
+  }
+
+  .fb-tile-grid-top-padding {
+    margin-top: 24px;
+  }
+
+  .fb-file-tile-DEPRECATED {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .fb-file-tile-DEPRECATED .fb-rectangle-16 {
+    margin-top: 20px;
+    margin-bottom: 20px
+  }
+
+  .fb-file-thumbnail {
+    background-color: var(--color-bg-secondary);
+    aspect-ratio: 16 / 9;
+  }
+
+  .fb-border-radius-8 {
+    border-radius: 8px;
+  }
+
+  .fb-card {
+    border: 1px solid var(--color-border);
+    border-radius: 13px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .fb-file-card-footer {
+    border-top: 1px solid var(--color-border);
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .fb-file-card-footer-text-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .fb-project-tile {
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+  }
+
+  .fb-project-tile > :nth-child(2) {
+    margin-top: 16px;
+  }
+
+  .fb-project-tile > :nth-child(3) {
+    margin-top: 8px;
+  }
+
+  .fb-team-tile {
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+  }
+
+  .fb-team-tile > :nth-child(2) {
+    margin-top: 48px;
+  }
+
+  .fb-team-tile > :nth-child(3),
+  .fb-team-tile > :nth-child(4) {
+    margin-top: 8px;
+  }
+
+  .fb-project-preview-grid {
+    display: grid;
+    gap: 12px;
+    justify-items: stretch;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  @media (max-width: 645px) {
+
+    .fb-tile-grid {
+      grid-template-columns: 100%;
+    }
+  }
+
+  .fb-profile-grid-header {
+    margin-top: 24px;
+    margin-bottom: 8px;
+  }
+
+</style>
+
+
+      <meta name="mobile-web-app-capable" content="yes">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+      <meta name="apple-mobile-web-app-capable" content="yes">
+      <meta property="og:title" content="Figma">
+    <meta property="og:site_name" content="Figma">
+
+    
+
+
+<link rel="icon" sizes="192x192" href="https://static.figma.com/uploads/1a667ef53b7c4837049399d0593ffca39e0bec9e">
+<link rel="icon" sizes="128x128" href="https://static.figma.com/uploads/b6df2735e4cb368306acf5480b50f96e69f96099">
+
+<link rel="icon" type="image/png" href="https://static.figma.com/app/icon/1/favicon.png">
+<!--[if IE]><link rel="shortcut icon" href="https://static.figma.com/app/icon/1/favicon.ico" type="image/vnd.microsoft.icon" /><![endif]-->
+<link rel="icon" sizes="any" type="image/svg+xml" href="https://static.figma.com/app/icon/1/favicon.svg">
+
+<link rel="apple-touch-icon" sizes="76x76" href="https://static.figma.com/app/icon/1/touch-76.png">
+<link rel="apple-touch-icon" sizes="120x120" href="https://static.figma.com/app/icon/1/touch-120.png">
+<link rel="apple-touch-icon" sizes="152x152" href="https://static.figma.com/app/icon/1/touch-152.png">
+<link rel="apple-touch-icon" sizes="167x167" href="https://static.figma.com/app/icon/1/touch-167.png">
+<link rel="apple-touch-icon" sizes="180x180" href="https://static.figma.com/app/icon/1/touch-180.png">
+
+
+
+
+        <link rel="preload" href="https://static.figma.com/uploads/2cca21a49f7dad1daa612d73d50357644671964a" as="font" crossorigin="anonymous">
+        <link rel="preload" href="https://static.figma.com/uploads/43d730c59dee2754d29e0d946ba8cb8339656979" as="font" crossorigin="anonymous">
+        <link rel="preload" href="https://static.figma.com/webfont/1/DSEG7Classic-Italic-Custom2.woff2" as="font" crossorigin="anonymous">
+
+      <link href="https://www.figma.com/webpack-artifacts/assets/figma_app-84557322a56cc957.min.css.br" rel="stylesheet" crossorigin="anonymous">
+
+      <link rel="preload" as="fetch" id="englishDictionaryUrl" href="https://www.figma.com/webpack-artifacts/assets/figma_app-9d2e0c0edcde1416.min.en.json.br" crossorigin="anonymous">
+  <script type="text/javascript" async="" nonce="" crossorigin="anonymous" src="https://static.figma.com/fullscreen/fbc2e67b2b63357b96d1da7a9bd2c22a359d000d/fullscreen-wasm/compiled_wasm.js.br"></script><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/svg-67d959e3fb01acc3.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/9816-e7443bd02df4be0e.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/6713-3d477e54174fcbd4.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/6338-26ec188dbfc8a165.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/5194-f7d89fdd0df8c289.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/5395-cd0350b8d1da57ee.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/7572-4bd0fa80622b1d72.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/7944-ba61fc2b485f5bdf.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/4584-a16a304b9c28169c.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/469e6e40-2c82483dc1d67001.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/8799-1acd03c1092f8232.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/2048-a6807226a4474a01.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/c5e2cae0-682284c407c062fd.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/svg-2b94afc3e3e94c1c.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/svg-7ab012407cb7c89a.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-0f9cfa09e0734773.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-66794aed6dd2fb25.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-e9dcb5e47a8032a1.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-9815c7a80644aef6.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/7267-85165e08ea4ca82e.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/6804-25eb18d605fc673a.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/6523-0295c448b05f2c7c.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/1185-c275effad3e58f62.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/5936-6d872bed745e857b.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/2740-49f01fe9bee2e5fd.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/5960-a3664a3067a9a244.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/8474-35c6117fe7ccf295.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/4917-1d485e2bd6e0860a.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/2099-3ae111aa1f9a8d44.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/4116-bc22ea822e9c85e3.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/0c62c2fd-eb64164498d47438.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/1a115cee-3cff97445e4da339.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/draftjs_composer-912eda46960846b9.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-6f568329d1b765d1.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/quill_composer-431dfe1519573dbd.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/553-3eb60ded4a85a6d1.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/af221b13-855d335a5296ce44.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/svg-cdc5eba4525f6242.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-9192a5af6dd894e3.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-511a2a73eb1adbb3.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-4da3e3893c9551d6.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-7db8f1c332b31898.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-b8cdd02c89eaedec.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-ba034147136ea6a2.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-8d289bb8d017b143.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/5158-23bdad81a97c24e6.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/8658-0f6e242cd47fa923.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/810-a581ef36647cb604.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/5787-0cf9e448c6b4acdc.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/938-5ef9c1e5b2c92c56.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/7865-47dde0a60e795dcb.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/6743-8bc954a2c950fd13.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/7793-e7f90849f1dc3854.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/716-19a9f9af9e2630aa.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/1717-cdf769fa7a749613.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/556-8bdeeb3bf92c5dee.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/2960-d8dbfe9b8668cad2.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/2750-191db53273df3868.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/3696-6c387d94b774e7fd.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/134-0feff13920a630c1.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/7124-11b75cbb45a0843e.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/9908-57e3cb28e27fe1f7.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/9168-fca02624c66c7f32.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/2498-f3761d48361cebb7.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/5586-c1638f0dbe428174.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/2933-0b69237327c4942f.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/7a72fc59-7aed60f802f98bf0.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/svg-acc00e4cc636fa09.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/svg-b208c4c7746abbf3.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-843fcfb7285ea33d.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-970bb487201d7848.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/3316-3d8ac469703fce62.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/2919-185498591a497a96.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/2529-bd50367913113830.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/8325-c86a9a1547c557e8.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/869-95aaa1e096427800.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/8835-8818014c9fce029d.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/6655-14a88f72a06629c7.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/1791-ab8505d91f356474.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/5650-2438444675956e0a.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/2561-cbe4e612ee9f05e3.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/191-2650a3c1201cb1ed.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/4-d5911d17e4b80747.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/3578-3c38bbb850a91c65.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/7606-0b5c39be2dc95e3e.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/a88a4c5a-71f95a66524c2cb1.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/873233fc-6c2371ccc521c955.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/b2835def-86a10162bdc70a8b.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/22195a88-b587202e0f57df68.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/vendor-a3172ba722ec4e21.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/940032c6-08cdde52f89d5db9.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/6db9f521-66e84b64d19a71bf.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/svg-73fdf4040a8a0902.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/2b17fec9-633789072fa9ad54.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/181e8476-1f2f531fc7c6ebb9.min.js.br"><script type="text/javascript" async="" nonce="" crossorigin="anonymous" src="https://static.figma.com/fullscreen/1ad0f375bac0acd8c024cf3fc5fc5824b781bc2f/import/import.shim.js.br"></script><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/1e926454-83e909c1677233d4.min.js.br"><link crossorigin="anonymous" rel="prefetch" as="script" href="https://www.figma.com/webpack-artifacts/assets/7451-d43af50831a24350.min.js.br"></head>
+  <body class="feature_flag_unified_index_v3_modal_z feature_flag_fpl_web_stacking_updates feature_flag_fpl_a11y_place_image_announcement feature_flag_aip_content_fill_no_autolayout feature_flag_cmty_release_plugin_row_v2 feature_flag_ds_gradient_variables feature_flag_ui3_mixin_changes feature_flag_fpl_korean_font_weight feature_flag_fpl_select_aria_disabled feature_flag_fpl_a11y_grid feature_flag_layers_panel_v2_derived_prop feature_flag_plan_level_file_export_controls feature_flag_ds_extended_collections feature_flag_dse_fpl_wave_2 feature_flag_fpl_cap_window_height_at_full feature_flag_dse_fpl_wave_1 feature_flag_aip_content_fill feature_flag_fpl_a11y_rotation feature_flag_fpl_submenu_stay_open feature_flag_fpl_menu_under_curator feature_flag_bake_chat_message_revamp feature_flag_bake_manual_edits feature_flag_qa_user_additional_feedback feature_flag_aip_magnolia feature_flag_fpl_tooltip feature_flag_ds_extended_collections_plankey file_browser_view--filebrowserBody--yian7" data-preferred-theme="light" data-fpl-version="ui3" style="color-scheme: light;">
+
+
+    <div id="react-page"><div data-testid="statsig-comp"><div class="in_app_page--app--KxUei in_app_page--appFont--2LLwy" data-fpl-audit="true"><div class="in_app_page--content--5Tb91"><div class="web_stacking--layer--DqQ0R"><div class="cx_flex--uQqQ4 cx_flexColumn--t73d9"><div class="cx_flex--uQqQ4 cx_flexRow--MkU5a cx_flexGrow1--tkv-J"><nav class="sidebar--navDefault--Wtmsn" aria-label="Sidebar"><div class="x78zum5 xdt5ytf xh8yej3"><div class="cx_flex--uQqQ4 cx_flexColumn--t73d9 cx_colorBg--qJagP"><div class="cx_justifyBetween---nfXi cx_flex--uQqQ4 cx_flexRow--MkU5a cx_itemsCenter--q5Zbc cx_pt8--ssx7T cx_ml8--GhVkN cx_mr8--8UCON cx_mb8--UZ-26 cx_lh0--5Jxko"><div data-fpl-component="primitive" role="presentation" style="display: contents;"><button data-fpl-component="primitive" aria-haspopup="menu" aria-expanded="false" id=":r1l:" aria-label="Open account dropdown" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 x78zum5 x6s0dn4 x10w6t97 x12oqio5 xexx8yu x18d9i69 x6wrskw xmzs88n xb3r6kr x133mfui xiwbtd4"><div class="account_switcher--dropdownButtonContent--um0d4" data-testid="ProfileButton"><div class="cx_relative--zQwMt cx_inlineFlex--ME9Zo"><div><div class="avatar--avatar--gnJ3d avatar--circle--llyF0" style="width: 24px; height: 24px;"><img data-test-key="1775770395797-y3c4dzq" alt="" data-testid="image-avatar" class="" src="https://s3-alpha.figma.com/profile/5933e397-93f2-4d05-af4a-ee160d0c198b" style="width: 24px; height: 24px;"></div></div></div><span data-tooltip-type="text" style="font-size: 13px; line-height: 24px; letter-spacing: calc(-0.003px + var(--text-tracking-pos, 0) * 13px); font-weight: 500; color: var(--color-text, var(--fallback-color-text)); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Kristina Zhou</span></div><svg width="16" height="16" fill="none" viewBox="0 0 16 16" class="x2lah0s" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" d="M9.768 6.768a.5.5 0 0 1 .707.707l-2.12 2.121a.5.5 0 0 1-.708 0L5.525 7.475a.5.5 0 0 1 .708-.707l1.768 1.767z"></path></svg></button></div><div><div class="_14wijgr0" data-fpl-sr-only="true"><div data-fpl-component="primitive" aria-relevant="all" role="status"></div></div><button data-fpl-component="primitive" aria-haspopup="menu" aria-label="Notifications" data-onboarding-key="ACCOUNT_SWITCHING_NOTIFICATION_ONBOARDING_KEY" data-tooltip="Notifications" data-tooltip-max-width="300" data-tooltip-show-below="true" data-tooltip-type="text" aria-expanded="false" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 notifications--bellIconButton--kjicq"><div class="notification_bell--redDotAndBellContainer--gVmic"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M12.992 6.124Q13 6.064 13 6a1 1 0 1 0-1.992.124A4 4 0 0 0 8 10v1.172a5.83 5.83 0 0 1-1.707 4.12A1 1 0 0 0 7 17h3a2 2 0 0 0 4 0h3a1 1 0 0 0 .707-1.707A5.83 5.83 0 0 1 16 11.172V10a4 4 0 0 0-3.008-3.876M12 18a1 1 0 0 1-1-1h2a1 1 0 0 1-1 1m5-2a6.82 6.82 0 0 1-2-4.828V10a3 3 0 1 0-6 0v1.172A6.83 6.83 0 0 1 7 16z" clip-rule="evenodd"></path></svg></div></button></div></div><div class="x1n2onr6 xzo6umx" data-testid="facetedSearchEntrypoint"><div data-testid="facetedSearchModal" class="x1n2onr6 x87tlaw x1j0aogd"><div class="x1e56ztr xet2fuk x1db2dqx"><div data-fpl-component="primitive" class="faceted_search_bar--searchBar--FO3mb search--searchContainerSidebarWithSelection--nmGHp search--_expandingSearchBoxSidebarContainerBase--C6eb2 search--searchContainerSidebar--WhHk4" spellcheck="false"><div class="faceted_search_bar--rightFadeContainer--NFGS6 faceted_search_bar--_fadeContainer--TZ-3N"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" class="faceted_search_bar--iconWrapper--0xWey" aria-hidden="true" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" d="M11.5 6a5.5 5.5 0 0 1 4.226 9.019l2.127 2.127a.5.5 0 1 1-.707.707l-2.127-2.127A5.5 5.5 0 1 1 11.5 6m0 1a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9"></path></svg></div><div class="faceted_search_bar--clipContainer--LZia-"><input data-fpl-component="primitive" aria-label="Search" class="faceted_search_bar--input--DXi7V" data-testid="facetedSearchInput" id="facetedSearchInput" placeholder="Search" role="combobox" aria-expanded="false" aria-controls="fpl-:r1o:-listbox" aria-autocomplete="list" aria-haspopup="listbox" autocomplete="off" size="1" type="text" spellcheck="false" data-1p-ignore="true" value="" style="width: calc(100% - 10px);"></div></div></div></div></div></div><div class="sidebar--sidebarScrollContainer--cSGnu scroll_container--clipContainer--cL0WX js-fullscreen-wheel-event-capture" data-non-interactive="true"><div class="scroll_container--scrollContainer--WKNyX scroll_container--full--S7bP3" data-non-interactive="true"><div class="scroll_container--full--S7bP3" data-non-interactive="true"><div class="sidebar--innerScrollContainer--FxojT" data-non-interactive="true"><div></div><div class="sidebar--navContent--vCjqY"><div class="x78zum5 x1iyjqo2 xdt5ytf"><ul><li class="x3ct3a4"><button data-fpl-component="primitive" aria-current="page" aria-labelledby=":r1p:" draggable="false" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 sidebar_row--sidebarRowContainer--2rSg6"><div class="sidebar_row--sidebarRow--N0NxU sidebar_row--sidebarRowSelected--BZAjI"><div></div><div id=":r1p:" class="sidebar_row--sidebarRowContent--pklEb"><div class="x78zum5 xvy4d1p xxk0z11 x6s0dn4 xl56j7k x2lah0s" aria-hidden="true"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M11.5 18a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13m5.5-6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0m-5-3a.5.5 0 0 0-1 0v3a.5.5 0 0 0 .146.354l2 2a.5.5 0 0 0 .708-.708L12 11.293z" clip-rule="evenodd"></path></svg></div><span data-tooltip-type="text" style="max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Recents</span></div></div></button></li><button data-fpl-component="primitive" aria-labelledby=":r2j:" data-onboarding-key="community_hub_link" draggable="false" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 sidebar_row--sidebarRowContainer--2rSg6"><div class="sidebar_row--sidebarRow--N0NxU"><div></div><div id=":r2j:" class="sidebar_row--sidebarRowContent--pklEb"><div class="x78zum5 xvy4d1p xxk0z11 x6s0dn4 xl56j7k x2lah0s" aria-hidden="true"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" d="M16.523 9.21a1 1 0 0 1 1.477.88v4.564c0 .55-.302 1.057-.786 1.32l-5.477 2.965a.5.5 0 0 1-.476 0l-5.476-2.965A1.5 1.5 0 0 1 5 14.654V10.09c0-.758.811-1.24 1.478-.88l5.023 2.72zM6 14.654a.5.5 0 0 0 .262.44l4.737 2.566v-4.863L6 10.09zm5.999-1.857v4.863l4.74-2.566a.5.5 0 0 0 .261-.44V10.09zM11.501 5a2.5 2.5 0 1 1-.002 5.002A2.5 2.5 0 0 1 11.501 5m0 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3"></path></svg></div><span data-tooltip-type="text" style="max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Community</span></div></div></button></ul><div class="sidebar--divider--u8375"></div><div class="x13ad5r6 xr9ek0c xjpr12u"><div data-fpl-component="primitive" role="presentation" style="display: contents;"><div class="x78zum5 x1q0g3np x6s0dn4 x1nhvcw1 x1jnr06f x163pfp" data-onboarding-key="PLAN_SWITCHER_ONBOARDING_KEY"><button data-fpl-component="primitive" aria-haspopup="menu" aria-expanded="false" id=":r1s:" aria-label="Plan: Kristina Zhou's team" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 x78zum5 x6s0dn4 x10w6t97 x12oqio5 x6wrskw xb3r6kr x133mfui xiwbtd4"><div class="x78zum5 x1q0g3np x6s0dn4 xb3r6kr"><div class="workspace_icon--container16px--gfQ22 workspace_icon--_containerBase--UEM0J "><div class="workspace_icon--iconContainer--Xfexl"><span data-testid="initial-avatar" class="avatar--avatar--gnJ3d avatar--circle--llyF0" aria-hidden="true" style="display: flex; justify-content: center; color: var(--color-textonmultiplayerblue); background-color: rgb(0, 123, 229); width: 16px; height: 16px; line-height: 16px; font-size: 8px;">K</span><div class="workspace_icon--shadow16px--8QZvA workspace_icon--_shadowBase--3Ao0Q"></div></div></div><div class="x78zum5 x1q0g3np xet2fuk xb3r6kr"><span data-tooltip-type="text" style="font-size: 13px; line-height: 24px; letter-spacing: calc(-0.003px + var(--text-tracking-pos, 0) * 13px); font-weight: 500; color: var(--color-text, var(--fallback-color-text)); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Kristina Zhou's team</span></div></div><svg width="24" height="24" fill="none" viewBox="0 0 24 24" class="x2lah0s" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M9.146 11.146a.5.5 0 0 1 .708 0l1.646 1.647 1.646-1.647a.5.5 0 0 1 .708.708l-2 2a.5.5 0 0 1-.708 0l-2-2a.5.5 0 0 1 0-.708" clip-rule="evenodd"></path></svg></button><div class="x78zum5 xozqiw3 xj3b58b x1yf7rl7"><button aria-label="Change plan. Kristina Zhou's team currently on Free plan" aria-expanded="false" class="x4wgufp"><span class="badge--badgeLarge--k54Yt text--fontPos11--rO47d text--_fontBase--VaHfk badge--badgeLargePadding--VR5x1 badge--strongDefault--5fmGS cx_noWrap--Mg1fM cx_flex--uQqQ4 plan_switcher_team_badges--freeBadgeHover--Y8BVx badge--badgeInlineBlock--nU0nL" data-tooltip-offset-x="0">Free</span></button></div></div></div></div><ul><div draggable="false"><li><div data-fpl-component="primitive" class="card-primitive__root__h5a39 sidebar_row--sidebarRowContainer--2rSg6" data-onboarding-key="DRAFT_FOLDER_LINK_ONBOARDING_KEY"><div class="sidebar_row--sidebarRow--N0NxU"><button data-fpl-component="primitive" data-card-main-action="true" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 card-primitive__button__jv46G sidebar_row--draftRow--sRa7N" aria-labelledby=":r1v:"></button><div></div><div class="sidebar_row--sidebarRowContent--pklEb"><div class="x78zum5 xvy4d1p xxk0z11 x6s0dn4 xl56j7k x2lah0s" aria-hidden="true"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" d="M12.598 5.01a.5.5 0 0 1 .255.136l4 4A.5.5 0 0 1 16.5 10h-4a.5.5 0 0 1-.5-.5V6H8.5a.5.5 0 0 0-.5.5v11a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5v-6a.5.5 0 0 1 1 0v6a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 17.5v-11A1.5 1.5 0 0 1 8.5 5h4zM13 9h2.293L13 6.707z"></path></svg></div><span data-fpl-component="primitive" aria-hidden="true" id=":r1v:"><i18n-text>Drafts</i18n-text></span></div><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA"><div class="xg01cxk x1o7uuvo x1uxbtfk x4gyw5p x1euntei"><div data-fpl-component="primitive" role="presentation" style="display: contents;"><button data-fpl-component="" data-tooltip="New file" data-onboarding-key="new-file-icon" aria-label="New file" aria-haspopup="menu" aria-expanded="false" id=":r22:" data-tooltip-type="text" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 base-icon-button__baseIconButton__TXKzr icon-button__iconButton__CTj-- icon-button__ghost__1ok6j"><span aria-hidden="true" class="base-icon-button__icon__FIIFq"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24L"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M11.5 6a.5.5 0 0 1 .5.5V11h4.5a.5.5 0 0 1 0 1H12v4.5a.5.5 0 0 1-1 0V12H6.5a.5.5 0 0 1 0-1H11V6.5a.5.5 0 0 1 .5-.5" clip-rule="evenodd"></path></svg></span></button></div></div></div></div></div></li></div><li class="x3ct3a4"><button data-fpl-component="primitive" aria-labelledby=":r25:" data-onboarding-key="ALL_PROJECTS_LINK_ONBOARIND_KEY" draggable="false" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 sidebar_row--sidebarRowContainer--2rSg6"><div class="sidebar_row--sidebarRow--N0NxU"><div></div><div id=":r25:" class="sidebar_row--sidebarRowContent--pklEb"><div class="x78zum5 xvy4d1p xxk0z11 x6s0dn4 xl56j7k x2lah0s" aria-hidden="true"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M7 7h3v3H7zM6 7a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm1 7h3v3H7zm-1 0a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm11-7h-3v3h3zm-3-1a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1zm0 8h3v3h-3zm-1 0a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1z" clip-rule="evenodd"></path></svg></div><span data-tooltip-type="text" style="max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">All projects</span></div></div></button></li><button data-fpl-component="primitive" aria-labelledby=":r2k:" data-onboarding-key="internal_hub_link" draggable="false" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 sidebar_row--sidebarRowContainer--2rSg6"><div class="sidebar_row--sidebarRow--N0NxU"><div></div><div id=":r2k:" class="sidebar_row--sidebarRowContent--pklEb"><div class="x78zum5 xvy4d1p xxk0z11 x6s0dn4 xl56j7k x2lah0s" aria-hidden="true"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M7 7h10a1 1 0 0 1 1 1v2H6V8a1 1 0 0 1 1-1m-1 4v5a1 1 0 0 0 1 1h2v-6zm4 6h7a1 1 0 0 0 1-1v-5h-8zM5 8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" clip-rule="evenodd"></path></svg></div><span data-tooltip-type="text" style="max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Resources</span></div></div></button><li class="x3ct3a4"><button data-fpl-component="primitive" aria-labelledby=":r26:" draggable="false" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 sidebar_row--sidebarRowContainer--2rSg6"><div class="sidebar_row--sidebarRow--N0NxU"><div></div><div id=":r26:" class="sidebar_row--sidebarRowContent--pklEb"><div class="x78zum5 xvy4d1p xxk0z11 x6s0dn4 xl56j7k x2lah0s" aria-hidden="true"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" d="M16 6a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1h-.04l-.08 1h.62a.5.5 0 0 1 0 1h-.7l-.454 5.621A1.5 1.5 0 0 1 13.85 18H9.149a1.5 1.5 0 0 1-1.495-1.379L7.2 11h-.7a.5.5 0 0 1 0-1h.62l-.08-1H7a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zM8.651 16.54a.5.5 0 0 0 .498.46h4.702a.5.5 0 0 0 .498-.46L14.958 9H8.042zm3.496-4.893a.5.5 0 1 1 .707.707l-.647.646.646.646a.5.5 0 1 1-.707.707l-.646-.646-.646.646a.5.5 0 1 1-.707-.707l.646-.646-.646-.646a.5.5 0 1 1 .707-.707l.646.646zM7 8h9V7H7z"></path></svg></div><span data-tooltip-type="text" style="max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Trash</span></div></div></button></li></ul><div class="x78zum5 xdt5ytf x1ee9nrg x5u4jae x18d9i69 x87ps6o"><div class="x78zum5 x6s0dn4 x1qughib x9qefgd xmkeg23 x1y0btm7 xoyxnz1 x127aom xkrshzq"><div class="x78zum5 xdt5ytf x1yc453h"><span class="xxrns5j x1q8tae1 x1vg90ec x1eab18d x1yyillh">See what’s included</span><span class="xrlp15q x1nmd3yn xm735u9 xkbmbem x3wk4up xwrk6fb">Your plan and usage</span></div><button data-fpl-component="" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 button__button__-U-QJ button__secondary__8YIhr button__md__fgTCf button__hug__sHi7n"><span class="button__buttonContainer__C6lTN"><span class="button__buttonText__nvCyD"><span class="button__buttonContent__tVdQi">View all</span></span></span></button></div></div><div class="sidebar--divider--u8375"></div><section aria-labelledby="favorites-heading"><div class="cx_relative--zQwMt" draggable="false"><div class="x1n2onr6 xllavft x1ee41r2 xm7qe6o xhx6fvi xlyh1x3 xzssux2"><div data-fpl-component="" class="collapse__collapseRoot__nSZ1e"><div data-fpl-component="" class="collapse__collapseHeader__PGUuS collapse__mediumSize__mVJVK collapse__fillWidth__9mtAx"><button data-fpl-component="" draggable="true" data-onboarding-key="FAVORITES_ONBOARDING_KEY" aria-expanded="true" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 collapse__collapseLabelButton__gN4Af collapse__collapseLabelButtonTruncated__QmRzP"><span class="collapse__collapseChevron__SnIUQ"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" aria-hidden="true" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" d="M9.768 6.768a.5.5 0 0 1 .707.707l-2.12 2.121a.5.5 0 0 1-.708 0L5.525 7.475a.5.5 0 0 1 .708-.707l1.768 1.767z"></path></svg></span><span class="collapse__collapseLabel__cVIMx collapse__mediumLabelSize__YZ57W collapse__collapseLabelTruncated__CZ18H"><i18n-text>Starred</i18n-text></span></button></div><div data-fpl-component="" class="collapse__collapseContent__J6Fze"><ol><li><div draggable="true"><div class="favorited_generic_row--rowWithMoveButtons--9v0-H"><div class="favorited_generic_row--rowContentContainer--x18bw"><div data-fpl-component="primitive" role="presentation" style="display: contents;"><div draggable="false"><button data-fpl-component="primitive" aria-description="Project" aria-labelledby=":r2g:" draggable="true" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 sidebar_row--sidebarRowContainer--2rSg6"><div class="sidebar_row--sidebarRow--N0NxU"><div></div><div id=":r2g:" class="sidebar_row--sidebarRowContent--pklEb"><div class="x78zum5 xvy4d1p xxk0z11 x6s0dn4 xl56j7k x2lah0s" aria-hidden="true"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" d="M10.586 6a1.5 1.5 0 0 1 1.06.44L13.208 8H16.5A1.5 1.5 0 0 1 18 9.5v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 16.5v-9A1.5 1.5 0 0 1 7.5 6zM7.5 7a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.5-.5h-3.707L10.94 7.146A.5.5 0 0 0 10.586 7zm8 8a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1z"></path></svg></div><span data-tooltip-type="text" style="max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Team project</span></div></div></button></div></div></div><div class="favorited_generic_row--moveButtons--emibA visually_hidden--visuallyHidden--sMum-"><button data-fpl-component="" aria-label="Move row down" data-tooltip="Move row down" data-tooltip-type="text" type="button" aria-disabled="true" tabindex="0" data-show-focus="true" class="_19xx72g0 base-icon-button__baseIconButton__TXKzr icon-button__iconButton__CTj-- icon-button__ghost__1ok6j"><span aria-hidden="true" class="base-icon-button__icon__FIIFq"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M12 7a.5.5 0 0 1 .5.5v6.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708l3.146 3.147V7.5A.5.5 0 0 1 12 7" clip-rule="evenodd"></path></svg></span></button><button data-fpl-component="" aria-label="Move row up" data-tooltip="Move row up" data-tooltip-type="text" type="button" aria-disabled="true" tabindex="0" data-show-focus="true" class="_19xx72g0 base-icon-button__baseIconButton__TXKzr icon-button__iconButton__CTj-- icon-button__ghost__1ok6j"><span aria-hidden="true" class="base-icon-button__icon__FIIFq"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M12 16a.5.5 0 0 1-.5-.5V8.707l-3.146 3.147a.5.5 0 0 1-.708-.708l4-4a.5.5 0 0 1 .708 0l4 4a.5.5 0 0 1-.708.708L12.5 8.707V15.5a.5.5 0 0 1-.5.5" clip-rule="evenodd"></path></svg></span></button></div></div></div></li></ol></div></div></div></div></section></div><div></div></div></div></div></div></div><div class="x7wzq59 x1ey2m1c xkrshzq x1vjfegm"><div><div class="x1a8lsjc xz9dl7a"><div class="base_upgrade_section--content--bQ9MJ"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24L"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M19 11.5a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0m1 0a8.5 8.5 0 1 1-17 0 8.5 8.5 0 0 1 17 0m-5.146-.354-3-3a.5.5 0 0 0-.708 0l-3 3a.5.5 0 0 0 .708.708L11 9.707V14.5a.5.5 0 0 0 1 0V9.707l2.146 2.147a.5.5 0 0 0 .708-.708" clip-rule="evenodd"></path></svg><div class="base_upgrade_section--textContainer--Nakg5 base_upgrade_section--baseTextContainer--mfsJF"><p><i18n-text>Ready to go beyond this free plan? Upgrade for premium features.</i18n-text></p></div><div style="height: 12px;"></div><button data-fpl-component="" data-testid="redesigned-upgrade-button" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 button__button__-U-QJ button__primary__tP7NU button__md__fgTCf button__fill__teOYe"><span class="button__buttonContainer__C6lTN"><span class="button__buttonText__nvCyD"><span class="button__buttonContent__tVdQi"><i18n-text>View plans</i18n-text></span></span></span></button></div></div></div></div></div><div data-testid="filebrowser-loading-sidebar-loading-skeleton" class="cx_eventsNone--iuF1s cx_absolute--c8Br6 cx_top0--FQt4c cx_left0--MTTBW cx_right0--tosop cx_bottom0--EAVel cx_overflowHidden--cin3y cx_opacity1---aobF loading_page--fadeOut--vsa4j" style="animation-delay: 0ms; background-color: var(--color-bg);"><div id="filebrowser-loading-sidebar" class="fb-sidebar">
+      <div class="fb-sidebar-account-and-notifications">
+        <div class="fb-circle-24 fb-shrink-0"></div>
+        <div class="fb-rectangle-16 fb-width-120"></div>
+      </div>
+      <div class="fb-sidebar-searchbar">
+        <div class="fb-rectangle-32 fb-width-full"></div>
+      </div>
+      <div class="fb-sidebar-row">
+        <div class="fb-rectangle-16 fb-width-16 fb-shrink-0"></div>
+        <div class="fb-rectangle-16 fb-width-70"></div>
+      </div>
+      <div class="fb-divider"></div>
+      <div class="fb-sidebar-row">
+        <div class="fb-circle-16"></div>
+        <div class="fb-rectangle-16 fb-width-115"></div>
+      </div>
+      <div class="fb-sidebar-row">
+        <div class="fb-rectangle-16 fb-width-16 fb-shrink-0"></div>
+        <div class="fb-rectangle-16 fb-width-70"></div>
+      </div>
+      <div class="fb-sidebar-row">
+        <div class="fb-rectangle-16 fb-width-16 fb-shrink-0"></div>
+        <div class="fb-rectangle-16 fb-width-100"></div>
+      </div>
+      <div class="fb-sidebar-row">
+        <div class="fb-rectangle-16 fb-width-60"></div>
+      </div>
+      <div class="fb-sidebar-row">
+        <div class="fb-rectangle-16 fb-width-16 fb-shrink-0"></div>
+        <div class="fb-rectangle-16 fb-width-100"></div>
+      </div>
+      <div class="fb-sidebar-row">
+        <div class="fb-rectangle-16 fb-width-16 fb-shrink-0"></div>
+        <div class="fb-rectangle-16 fb-width-80"></div>
+      </div>
+      <div class="fb-sidebar-row">
+        <div class="fb-rectangle-16 fb-width-16 fb-shrink-0"></div>
+        <div class="fb-rectangle-16 fb-width-120"></div>
+      </div>
+      <div class="fb-sidebar-row">
+        <div class="fb-rectangle-16 fb-width-16 fb-shrink-0"></div>
+        <div class="fb-rectangle-16 fb-width-105"></div>
+      </div>
+    </div></div></nav><div class="file_browser_layout--fileBrowserPageViewContainer--2Xs7w"><div class="cx_sticky--D3Kxc cx_top0--FQt4c cx_colorBg--qJagP cx_zIndexTopBar---PFTK"><div class="x78zum5 x1q0g3np x2lah0s x167g77z x6s0dn4 xsdox4t x1tudf5h x1m2p0i2 xso031l x1q0q8m5 x1h6zu7b" data-testid="file-browser-desktop-header"><span class="xeuugli xh8yej3"><div class="x78zum5 x1qughib xh8yej3 x6s0dn4 x40hh3e"><div class="x2lah0s"><h1><span class="x193iq5w xuxw1ft xb3r6kr xlyipyv xuglrfq xfdvpcx x1osgcmt x1z0nsxv xo1l8bm">Recents</span></h1></div><div class="x78zum5 x167g77z xeuugli"><div class="xh8yej3 x9f619 x78zum5 x7v6yn8 xkjsfwp x1bat2d6"><div class="x3nfvp2 x167g77z x2lah0s"><div data-editor-theme="design" data-preferred-theme="light" style="display: contents;"><button data-fpl-component="primitive" data-tooltip="" data-tooltip-type="text" data-tooltip-timeout-delay="50" aria-label="New Design file" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 x19op3sw xej0tt4 xlb5elq x10ytl9y xjld0yd xirtdz7 x1nonkbi xi951o6 x1338tou x1d213w6 x136xn3g x1mis9oq xlrpslg x39v4z8 x7ql0sr x15z6xun xfu8tpu x1hovt7 xm9ble1 x2lah0s x17hesxv xtyca2 xs2t3q6 xpn7q9g x11ux7kj x12ogx2r xeml8i2 xglojfg xwm72a5 xb3r6kr" data-testid="new-design-file-button"><div class="cx_grid--WNpsF"><div class="cx_gridRowEnd1--I1A8s cx_gridColumnEnd1--6Joxm"><div class="x1y1aw1k xwib8y2 xyfqnmn xnm25rq x78zum5 x6s0dn4 x167g77z"><div class="xyjhxxb x1hlhp33 xahcd82 x6s0dn4 xl56j7k x1a00udw xx3o462" data-testid="file-icon"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M3.39 2.207c.237-.182.545-.25.84-.181l5.059 1.19a4.87 4.87 0 0 1 3.748 4.905l.672.672a1 1 0 0 1 0 1.414l-3.5 3.5a1 1 0 0 1-1.414 0l-.673-.673a4.866 4.866 0 0 1-4.904-3.747L2.028 4.23a1 1 0 0 1 .266-.937l1-1zm.464.939 3.132 3.132a2 2 0 1 1-.707.707L3.147 3.853 3.001 4l1.19 5.058a3.867 3.867 0 0 0 4.31 2.941l1 1.001 3.5-3.5-1-1A3.87 3.87 0 0 0 9.06 4.19L4.001 3zm4.147 3.853a1 1 0 1 0 0 2 1 1 0 0 0 0-2" clip-rule="evenodd"></path></svg></div><div class="xyjhxxb x1hlhp33 xtz2s2v x1a00udw xx3o462" data-testid="plus-icon"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M7.5 3a.5.5 0 0 1 .5.5V7h3.5a.5.5 0 0 1 0 1H8v3.5a.5.5 0 0 1-1 0V8H3.5a.5.5 0 0 1 0-1H7V3.5a.5.5 0 0 1 .5-.5" clip-rule="evenodd"></path></svg></div><span class="xrlp15q x1nmd3yn xm735u9 xkbmbem x3wk4up xiuzu7u">Design</span></div></div><div class="cx_eventsNone--iuF1s cx_gridRowEnd1--I1A8s cx_gridColumnEnd1--6Joxm cx_overflowHidden--cin3y loading_page--fadeOut--vsa4j cx_opacity1---aobF"><div class="xkrshzq"><div class="loading_content--loadingImage--GRy2w  x10w6t97" style="opacity: 1;"><div class="loading_content--lightShimmerAnimation--poBk6"></div></div></div></div></div></button></div><div data-editor-theme="whiteboard" data-preferred-theme="light" style="display: contents;"><button data-fpl-component="primitive" data-tooltip="" data-tooltip-type="text" data-tooltip-timeout-delay="50" aria-label="New FigJam file" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 x19op3sw xej0tt4 xlb5elq x10ytl9y xjld0yd xirtdz7 x1nonkbi xi951o6 x1338tou x1d213w6 x136xn3g x1mis9oq xlrpslg x39v4z8 x7ql0sr x15z6xun xfu8tpu x1hovt7 xm9ble1 x2lah0s x17hesxv xtyca2 xs2t3q6 xpn7q9g x11ux7kj x12ogx2r xeml8i2 xglojfg xwm72a5 xb3r6kr" data-testid="new-whiteboard-file-button"><div class="cx_grid--WNpsF"><div class="cx_gridRowEnd1--I1A8s cx_gridColumnEnd1--6Joxm"><div class="x1y1aw1k xwib8y2 xyfqnmn xnm25rq x78zum5 x6s0dn4 x167g77z"><div class="xyjhxxb x1hlhp33 xahcd82 x6s0dn4 xl56j7k x1a00udw xx3o462" data-testid="file-icon"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" d="M12 3a1 1 0 0 1 1 1v4.586l-.005.099a1 1 0 0 1-.288.608l-3.414 3.414-.073.066a1 1 0 0 1-.634.227H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm-8 9h4V9a1 1 0 0 1 1-1h3V4H4zm5-.414L11.586 9H9z"></path></svg></div><div class="xyjhxxb x1hlhp33 xtz2s2v x1a00udw xx3o462" data-testid="plus-icon"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M7.5 3a.5.5 0 0 1 .5.5V7h3.5a.5.5 0 0 1 0 1H8v3.5a.5.5 0 0 1-1 0V8H3.5a.5.5 0 0 1 0-1H7V3.5a.5.5 0 0 1 .5-.5" clip-rule="evenodd"></path></svg></div><span class="xrlp15q x1nmd3yn xm735u9 xkbmbem x3wk4up xiuzu7u">FigJam</span></div></div><div class="cx_eventsNone--iuF1s cx_gridRowEnd1--I1A8s cx_gridColumnEnd1--6Joxm cx_overflowHidden--cin3y loading_page--fadeOut--vsa4j cx_opacity1---aobF"><div class="xkrshzq"><div class="loading_content--loadingImage--GRy2w  x10w6t97" style="opacity: 1;"><div class="loading_content--lightShimmerAnimation--poBk6"></div></div></div></div></div></button></div><div data-editor-theme="piper" data-preferred-theme="light" style="display: contents;"><button data-fpl-component="primitive" data-tooltip="" data-tooltip-type="text" data-tooltip-timeout-delay="50" aria-label="New Slides file" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 x19op3sw xej0tt4 xlb5elq x10ytl9y xjld0yd xirtdz7 x1nonkbi xi951o6 x1338tou x1d213w6 x136xn3g x1mis9oq xlrpslg x39v4z8 x7ql0sr x15z6xun xfu8tpu x1hovt7 xm9ble1 x2lah0s x17hesxv xtyca2 xs2t3q6 xpn7q9g x11ux7kj x12ogx2r xeml8i2 xglojfg xwm72a5 xb3r6kr" data-testid="new-slides-file-button"><div class="cx_grid--WNpsF"><div class="cx_gridRowEnd1--I1A8s cx_gridColumnEnd1--6Joxm"><div class="x1y1aw1k xwib8y2 xyfqnmn xnm25rq x78zum5 x6s0dn4 x167g77z"><div class="xyjhxxb x1hlhp33 xahcd82 x6s0dn4 xl56j7k x1a00udw xx3o462" data-testid="file-icon"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M4 4h8a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1m.434 8H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-.434l.412 1.354a.5.5 0 1 1-.956.292L10.52 12H5.479l-.5 1.646a.5.5 0 1 1-.957-.292zM5 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2m0 3a1 1 0 1 0 0 2 1 1 0 0 0 0-2" clip-rule="evenodd"></path></svg></div><div class="xyjhxxb x1hlhp33 xtz2s2v x1a00udw xx3o462" data-testid="plus-icon"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M7.5 3a.5.5 0 0 1 .5.5V7h3.5a.5.5 0 0 1 0 1H8v3.5a.5.5 0 0 1-1 0V8H3.5a.5.5 0 0 1 0-1H7V3.5a.5.5 0 0 1 .5-.5" clip-rule="evenodd"></path></svg></div><span class="xrlp15q x1nmd3yn xm735u9 xkbmbem x3wk4up xiuzu7u">Slides</span></div></div><div class="cx_eventsNone--iuF1s cx_gridRowEnd1--I1A8s cx_gridColumnEnd1--6Joxm cx_overflowHidden--cin3y loading_page--fadeOut--vsa4j cx_opacity1---aobF"><div class="xkrshzq"><div class="loading_content--loadingImage--GRy2w  x10w6t97" style="opacity: 1;"><div class="loading_content--lightShimmerAnimation--poBk6"></div></div></div></div></div></button></div><div data-editor-theme="cooper" data-preferred-theme="light" style="display: contents;"><button data-fpl-component="primitive" data-tooltip="" data-tooltip-type="text" data-tooltip-timeout-delay="50" aria-label="New Buzz file" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 x19op3sw xej0tt4 xlb5elq x10ytl9y xjld0yd xirtdz7 x1nonkbi xi951o6 x1338tou x1d213w6 x136xn3g x1mis9oq xlrpslg x39v4z8 x7ql0sr x15z6xun xfu8tpu x1hovt7 xm9ble1 x2lah0s x17hesxv xtyca2 xs2t3q6 xpn7q9g x11ux7kj x12ogx2r xeml8i2 xglojfg xwm72a5 xb3r6kr" data-testid="new-cooper-file-button"><div class="cx_grid--WNpsF"><div class="cx_gridRowEnd1--I1A8s cx_gridColumnEnd1--6Joxm"><div class="x1y1aw1k xwib8y2 xyfqnmn xnm25rq x78zum5 x6s0dn4 x167g77z"><div class="xyjhxxb x1hlhp33 xahcd82 x6s0dn4 xl56j7k x1a00udw xx3o462" data-testid="file-icon"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" d="M5.164 4.68a1.503 1.503 0 0 1 2.175-.367l.142.126 4.08 4.079.124.142a1.5 1.5 0 0 1-.366 2.174l-.165.094-6.022 2.92a1.5 1.5 0 0 1-1.628-.208l-.088-.081-.977-.977a1.5 1.5 0 0 1-.288-1.714l2.92-6.023zm-2.113 6.624a.5.5 0 0 0 .096.571l.976.977a.5.5 0 0 0 .499.125l.073-.03 1.376-.668-2.353-2.354zm1.129-2.33 2.843 2.843 1.743-.844-3.742-3.741zm2.594-3.828a.502.502 0 0 0-.803.135l-.485.999 4.232 4.231 1-.483a.5.5 0 0 0 .176-.756l-.042-.047zm7.615 1.337a.477.477 0 0 1 .518.39l.01.069a.474.474 0 0 1-.437.536l-1.459.127a.5.5 0 0 1-.087-.995zm-1.09-2.331a.475.475 0 0 1 .643.15q.02.03.037.06a.474.474 0 0 1-.18.655l-1.96 1.133a.5.5 0 0 1-.501-.866zm-2.317-1.953a.474.474 0 0 1 .656-.18l.06.037a.476.476 0 0 1 .149.645l-1.132 1.96a.5.5 0 0 1-.865-.5zM9.057 1.08l.07.011c.246.04.411.269.39.518L9.39 3.064a.5.5 0 0 1-.997-.087l.127-1.459a.473.473 0 0 1 .537-.437"></path></svg></div><div class="xyjhxxb x1hlhp33 xtz2s2v x1a00udw xx3o462" data-testid="plus-icon"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M7.5 3a.5.5 0 0 1 .5.5V7h3.5a.5.5 0 0 1 0 1H8v3.5a.5.5 0 0 1-1 0V8H3.5a.5.5 0 0 1 0-1H7V3.5a.5.5 0 0 1 .5-.5" clip-rule="evenodd"></path></svg></div><span class="xrlp15q x1nmd3yn xm735u9 xkbmbem x3wk4up xiuzu7u">Buzz</span></div></div><div class="cx_eventsNone--iuF1s cx_gridRowEnd1--I1A8s cx_gridColumnEnd1--6Joxm cx_overflowHidden--cin3y loading_page--fadeOut--vsa4j cx_opacity1---aobF"><div class="xkrshzq"><div class="loading_content--loadingImage--GRy2w  x10w6t97" style="opacity: 1;"><div class="loading_content--lightShimmerAnimation--poBk6"></div></div></div></div></div></button></div><div data-editor-theme="seascape" data-preferred-theme="light" style="display: contents;"><button data-fpl-component="primitive" data-onboarding-key="sites_on_starter_onboarding_key" data-tooltip="" data-tooltip-type="text" data-tooltip-timeout-delay="50" aria-label="New Site file" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 x19op3sw xej0tt4 xlb5elq x10ytl9y xjld0yd xirtdz7 x1nonkbi xi951o6 x1338tou x1d213w6 x136xn3g x1mis9oq xlrpslg x39v4z8 x7ql0sr x15z6xun xfu8tpu x1hovt7 xm9ble1 x2lah0s x17hesxv xtyca2 xs2t3q6 xpn7q9g x11ux7kj x12ogx2r xeml8i2 xglojfg xwm72a5 xb3r6kr" data-testid="new-sites-file-button"><div class="cx_grid--WNpsF"><div class="cx_gridRowEnd1--I1A8s cx_gridColumnEnd1--6Joxm"><div class="x1y1aw1k xwib8y2 xyfqnmn xnm25rq x78zum5 x6s0dn4 x167g77z"><div class="xyjhxxb x1hlhp33 xahcd82 x6s0dn4 xl56j7k x1a00udw xx3o462" data-testid="file-icon"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M9.52 12.765A5 5 0 0 0 12.975 8.5h-2.484c-.06 1.736-.427 3.263-.971 4.265M8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12M6.48 3.235A5 5 0 0 0 3.026 7.5H5.51c.06-1.737.427-3.263.971-4.265M6.51 7.5c.049-1.349.297-2.523.645-3.358.196-.47.404-.786.584-.969a.8.8 0 0 1 .198-.154C7.977 3 7.995 3 8 3s.024 0 .063.02c.043.02.11.065.198.153.18.183.388.498.584.969.348.835.596 2.01.646 3.358zm0 1c.049 1.349.297 2.523.645 3.358.196.47.404.786.584.969a.8.8 0 0 0 .198.153c.04.02.058.02.063.02s.024 0 .063-.02a.8.8 0 0 0 .198-.153c.18-.183.388-.498.584-.969.348-.835.596-2.01.646-3.358zm-1.001 0c.06 1.736.427 3.263.971 4.265A5 5 0 0 1 3.026 8.5zm4.982-1c-.06-1.737-.427-3.263-.971-4.265A5 5 0 0 1 12.975 7.5z" clip-rule="evenodd"></path></svg></div><div class="xyjhxxb x1hlhp33 xtz2s2v x1a00udw xx3o462" data-testid="plus-icon"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M7.5 3a.5.5 0 0 1 .5.5V7h3.5a.5.5 0 0 1 0 1H8v3.5a.5.5 0 0 1-1 0V8H3.5a.5.5 0 0 1 0-1H7V3.5a.5.5 0 0 1 .5-.5" clip-rule="evenodd"></path></svg></div><span class="xrlp15q x1nmd3yn xm735u9 xkbmbem x3wk4up xiuzu7u">Site</span></div></div><div class="cx_eventsNone--iuF1s cx_gridRowEnd1--I1A8s cx_gridColumnEnd1--6Joxm cx_overflowHidden--cin3y loading_page--fadeOut--vsa4j cx_opacity1---aobF"><div class="xkrshzq"><div class="loading_content--loadingImage--GRy2w  x10w6t97" style="opacity: 1;"><div class="loading_content--lightShimmerAnimation--poBk6"></div></div></div></div></div></button></div><div data-editor-theme="bake-filebrowser" data-preferred-theme="light" style="display: contents;"><button data-fpl-component="primitive" data-onboarding-key="make-file-creation-tooltip-target" data-tooltip="" data-tooltip-type="text" data-tooltip-timeout-delay="50" aria-label="New Make file" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 x19op3sw xej0tt4 xlb5elq x10ytl9y xjld0yd xirtdz7 x1nonkbi xi951o6 x1338tou x1d213w6 x136xn3g x1mis9oq xlrpslg x39v4z8 x7ql0sr x15z6xun xfu8tpu x1hovt7 x2lah0s x17hesxv xtyca2 xs2t3q6 xpn7q9g x11ux7kj x12ogx2r xeml8i2 xglojfg xwm72a5 xb3r6kr x4sspaa" data-testid="new-figmake-file-button"><div class="cx_grid--WNpsF"><div class="cx_gridRowEnd1--I1A8s cx_gridColumnEnd1--6Joxm"><div class="x1y1aw1k xwib8y2 xyfqnmn xnm25rq x78zum5 x6s0dn4 x167g77z"><div class="xyjhxxb x1hlhp33 xahcd82 x6s0dn4 xl56j7k x1a00udw xx3o462" data-testid="file-icon"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" d="M9.497 8c.277 0 .504.226.498.504-.033 1.353-.197 2.582-.452 3.517-.142.52-.32.979-.539 1.318-.204.317-.532.66-1.004.661-.471 0-.8-.344-1.003-.661-.22-.34-.397-.798-.54-1.319q-.06-.226-.115-.475a.482.482 0 0 1 .507-.577c.23.012.427.18.478.404q.045.203.095.386c.13.474.274.822.414 1.039.083.128.246.128.329 0 .14-.218.284-.565.414-1.04.224-.823.379-1.943.414-3.207v-.054A.503.503 0 0 1 9.498 8M4.454 6.342a.483.483 0 0 1 .578.507.52.52 0 0 1-.405.478 9 9 0 0 0-.384.096c-.474.13-.822.274-1.04.414-.127.083-.127.246 0 .328.218.14.566.285 1.04.414.823.225 1.944.38 3.208.414h.056a.501.501 0 0 1-.013 1h-.069c-1.324-.036-2.527-.199-3.445-.449-.52-.142-.98-.32-1.318-.54C2.345 8.802 2 8.474 2 8.002s.345-.8.662-1.004c.339-.219.797-.397 1.318-.539q.226-.062.474-.116m4.122-.333c1.324.036 2.527.199 3.445.449.52.142.98.32 1.318.54.317.203.662.531.662 1.003l-.004.087c-.04.425-.36.725-.658.917-.339.219-.797.397-1.318.539q-.226.062-.475.114a.483.483 0 0 1-.578-.507.52.52 0 0 1 .405-.478q.202-.044.385-.094c.474-.13.822-.274 1.04-.414.127-.083.127-.245 0-.328-.218-.14-.566-.285-1.04-.414-.823-.225-1.944-.38-3.208-.414l-.056-.001a.5.5 0 0 1 .013-1zM8 2c.472 0 .8.344 1.004.661.22.34.397.798.54 1.318q.06.226.115.474a.484.484 0 0 1-.508.578.52.52 0 0 1-.478-.404 8 8 0 0 0-.094-.385c-.13-.474-.274-.822-.414-1.039-.083-.128-.246-.128-.329 0-.14.217-.284.565-.414 1.04-.227.834-.383 1.973-.416 3.257A.51.51 0 0 1 6.5 8a.49.49 0 0 1-.494-.5c.033-1.354.196-2.585.452-3.52.142-.521.32-.98.539-1.319C7.2 2.344 7.529 2 8 2"></path></svg></div><div class="xyjhxxb x1hlhp33 xtz2s2v x1a00udw xx3o462" data-testid="plus-icon"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M7.5 3a.5.5 0 0 1 .5.5V7h3.5a.5.5 0 0 1 0 1H8v3.5a.5.5 0 0 1-1 0V8H3.5a.5.5 0 0 1 0-1H7V3.5a.5.5 0 0 1 .5-.5" clip-rule="evenodd"></path></svg></div><span class="xrlp15q x1nmd3yn xm735u9 xkbmbem x3wk4up xiuzu7u">Make</span></div></div><div class="cx_eventsNone--iuF1s cx_gridRowEnd1--I1A8s cx_gridColumnEnd1--6Joxm cx_overflowHidden--cin3y loading_page--fadeOut--vsa4j cx_opacity1---aobF"><div class="xkrshzq"><div class="loading_content--loadingImage--GRy2w  x10w6t97" style="opacity: 1;"><div class="loading_content--lightShimmerAnimation--poBk6"></div></div></div></div></div></button></div><button data-fpl-component="primitive" data-tooltip="Import" data-tooltip-type="text" aria-label="Import" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 x2lah0s x17hesxv xb3r6kr xtyca2 xqhx7zg x1139a7h x1atkp7y x12ogx2r x1hecwx3 xglojfg x2sas0f" data-testid="file-import-button"><div class="cx_grid--WNpsF"><div class="cx_gridRowEnd1--I1A8s cx_gridColumnEnd1--6Joxm"><div class="xfawy5m"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M8 6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V9.5a.5.5 0 0 0-1 0V16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h3a.5.5 0 0 0 0-1zm9 0a5.5 5.5 0 0 0-5.5 5.5v1.793l-1.646-1.647a.5.5 0 0 0-.708.708l2.5 2.5a.5.5 0 0 0 .708 0l2.5-2.5a.5.5 0 0 0-.708-.708L12.5 13.293V11.5A4.5 4.5 0 0 1 17 7h.5a.5.5 0 0 0 0-1z" clip-rule="evenodd"></path></svg></div></div><div class="cx_eventsNone--iuF1s cx_gridRowEnd1--I1A8s cx_gridColumnEnd1--6Joxm cx_overflowHidden--cin3y loading_page--fadeOut--vsa4j cx_opacity1---aobF"><div class="xkrshzq"><div class="loading_content--loadingImage--GRy2w  x10w6t97" style="opacity: 1;"><div class="loading_content--lightShimmerAnimation--poBk6"></div></div></div></div></div></button></div></div></div></div></span></div></div><div class="mobile_tool_bar--mobileActionsContainer--rzaqm"><div class="mobile_tool_bar--toolBarMobileLeftSide--NfdJK"><button data-fpl-component="" aria-label="Show navigation" data-tooltip-type="text" data-tooltip="Show navigation" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 base-icon-button__baseIconButton__TXKzr icon-button__iconButton__CTj-- icon-button__ghost__1ok6j"><span aria-hidden="true" class="base-icon-button__icon__FIIFq"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M8 8.75A.75.75 0 0 1 8.75 8h6.5a.75.75 0 0 1 .75.75v.5a.75.75 0 0 1-.75.75h-6.5A.75.75 0 0 1 8 9.25zm0 3a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 .75.75v.5a.75.75 0 0 1-.75.75h-6.5a.75.75 0 0 1-.75-.75zM8.75 14a.75.75 0 0 0-.75.75v.5c0 .414.336.75.75.75h6.5a.75.75 0 0 0 .75-.75v-.5a.75.75 0 0 0-.75-.75z" clip-rule="evenodd"></path><path fill="var(--fpl-icon-color-3, var(--color-icon-tertiary))" fill-rule="evenodd" d="M6.5 6h11a.5.5 0 0 1 .5.5v11a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5M5 6.5A1.5 1.5 0 0 1 6.5 5h11A1.5 1.5 0 0 1 19 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 17.5z" clip-rule="evenodd"></path></svg></span></button><div class="mobile_tool_bar--toolBarTabTitle--eKFD4 ellipsis--ellipsis--70pHK"><h1 class="x193iq5w xuxw1ft xb3r6kr xlyipyv xuglrfq xfdvpcx x1osgcmt x1z0nsxv xo1l8bm">Recents</h1></div></div></div><div data-editor-theme="seascape" data-preferred-theme="light" style="display: contents;"><div class="x1pzdqlv x3m7eg8 x8w2b5y x11gt0nz x78zum5 xdt5ytf x6s0dn4 xkh2ocl xl56j7k xlvnts1"><div class="x1kvbfxc xh8yej3 x78zum5 xdt5ytf x6s0dn4 xou54vl"><div class="x78zum5 x6s0dn4 xkh2ocl x167g77z x13y4tvo"><h2 class="xor4psk xosj86m xaoa4km x2i041 x14terfx x1i3afut xdpxx8g">Describe your idea and make it come to life</h2><div class="x78zum5 x6s0dn4 x2lah0s"><a aria-label="Learn about AI tools in Figma Design" data-tooltip="Learn more" data-tooltip-show-above="true" data-tooltip-type="text" href="https://help.figma.com/hc/articles/23870272542231" target="_blank" class="basic_form--link--CEgrw blue_link--blueLink--4ER8T xt7dq6l x2lah0s x1sxf85j xiwbtd4 x1y3gkto" rel="noopener"><div class="cx_bSolid--e8a2- cx_bt1--oF0a6 cx_br1--uzw9B cx_bb1--wLmz2 cx_bl1--DBbCD cx_flex--uQqQ4 cx_h16--syyK- cx_pt0--kNiN5 cx_pb0--vpsYF cx_pl4--yBmnA cx_pr4--uvKcg cx_font11--xzrxr cx_itemsCenter--q5Zbc cx_justifyCenter--8nP9s cx_gap4--aFadz cx_bRadius5--TjaOW cx_colorBorder--vB66g cx_colorTextSecondary--vUiad" data-testid="qav2-item-badge">AI</div></a></div><div class="x78zum5 x6s0dn4 x12r19s3 x8x9d4c"><button data-fpl-component="" aria-label="Dismiss prompt box" data-testid="prompt-box-dismiss-button" data-tooltip="Dismiss prompt box" data-tooltip-type="text" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 base-icon-button__baseIconButton__TXKzr icon-button__iconButton__CTj-- icon-button__ghost__1ok6j"><span aria-hidden="true" class="base-icon-button__icon__FIIFq"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M16.854 7.146a.5.5 0 0 1 0 .707L12.707 12l4.147 4.146a.5.5 0 0 1-.708.707L12 12.708l-4.146 4.147a.5.5 0 1 1-.708-.708L11.293 12 7.146 7.854a.5.5 0 0 1 .708-.708L12 11.293l4.146-4.147a.5.5 0 0 1 .708 0" clip-rule="evenodd"></path></svg></span></button></div></div><div data-editor-theme="seascape" data-preferred-theme="light" style="display: contents;"><form class="xdkapel x127aom x1x0gksc x78zum5 xdt5ytf x1cy8zhl xkh2ocl xbxdop8" data-testid="prompt-box"><div class="x78zum5 x6s0dn4 xkh2ocl x98rzlu x1n2onr6 x109j2v6 x15h74y x1hhzuzn x5tiur9 xou54vl xb3r6kr"><input class="x98rzlu xktpd3l x1a2a7pz x1ed109x x4z9k3i x1i3afut xjbqb8w x17rw0jw x1ghz6dp x1717udv xjb2p0i x163xpbs" placeholder="Create a step-by-step cooking tutorial with an ingredient checklist and timer integration." aria-label="Prompt input field" value=""><button data-fpl-component="primitive" data-testid="prompt-box-submit-button" aria-label="Submit your prompt" type="submit" aria-disabled="true" disabled="" tabindex="0" data-show-focus="true" class="_19xx72g0 x78zum5 xyv8faw x14atkfc xd7y6wv x1qymret x156m2f4 x1hiae8k xf18ygs x6s0dn4 xl56j7k xdlk57i xfctadk x1jnr06f x2lah0s x8x9d4c x1c5nz5c x135c42j"><span class="xep4mhd x2b8uid xlkyzom x1j6dyjg x1j61x8r x10p5zqr x8iu3zt x1lx7fe9 xuxw1ft">Make it</span><span class="x4sspaa x78zum5 x6s0dn4"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M3.5 7.5A.5.5 0 0 1 4 7h6.793L7.646 3.854a.5.5 0 1 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L10.793 8H4a.5.5 0 0 1-.5-.5" clip-rule="evenodd"></path></svg></span></button></div></form></div></div></div></div><div class="file_browser_page_view--mobileToolBarSpacer--NT7XZ"></div><div class="file_browser_page_view--viewBarWrapper--iWThY cx_sticky--D3Kxc"><div class=""><div class="x1peatla x78zum5 x1a02dak x1qughib x6s0dn4 x87ps6o"><div class="x78zum5 x2lah0s x6s0dn4 x67bb7w"><div data-fpl-component="" class="tabs__tabStrip__6GiU-" role="tablist" aria-orientation="horizontal" data-tab-group=":rp:"><button data-fpl-component="" tabindex="0" type="button" class="tabs__tabButton__UEhB4" role="tab" aria-selected="true" aria-controls="tab:rp:-recently-viewed-panel" id="tab:rp:-recently-viewed-trigger"><span aria-hidden="true" class="tabs__tabButtonStrong__Kgz2o">Recently viewed</span><span>Recently viewed</span></button><button data-fpl-component="" tabindex="-1" type="button" class="tabs__tabButton__UEhB4" role="tab" aria-selected="false" aria-controls="tab:rp:-shared-with-you-panel" id="tab:rp:-shared-with-you-trigger"><span aria-hidden="true" class="tabs__tabButtonStrong__Kgz2o">Shared files</span><span>Shared files</span></button><button data-fpl-component="" tabindex="-1" type="button" class="tabs__tabButton__UEhB4" role="tab" aria-selected="false" aria-controls="tab:rp:-shared-projects-panel" id="tab:rp:-shared-projects-trigger"><span aria-hidden="true" class="tabs__tabButtonStrong__Kgz2o">Shared projects</span><span>Shared projects</span></button></div></div><div class="x78zum5 x2lah0s x67bb7w x167g77z x6s0dn4"><div class="cx_flex--uQqQ4 cx_flexWrap--h1Zjt cx_gap8--C-Tsm"><div data-fpl-component="" class="card-primitive__root__h5a39 chip__chip__p9lFq chip__sizeMd__OpcZs chip__enabled__oqgSy chip__interactive__mYmLC chip__variantPrimary__cdoqy"><button data-fpl-component="" data-card-main-action="true" aria-controls=":r3f:" aria-haspopup="listbox" aria-expanded="false" role="combobox" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 card-primitive__button__jv46G chip__mainButton__8pK6D chip__selectTrigger__7i1RF" aria-labelledby=":r3g:"></button><div class="chip__content__PFdMr"><span class="chip__title__pAoz6"><span data-fpl-component="primitive" aria-hidden="true" id=":r3g:"><span>All organizations</span></span></span><span class="chip__trailing__gFQmd"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" aria-describedby=":r3g:" class="chip__triggerChevron__s7ngi" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" d="M9.768 6.768a.5.5 0 0 1 .707.707l-2.12 2.121a.5.5 0 0 1-.708 0L5.525 7.475a.5.5 0 0 1 .708-.707l1.768 1.767z"></path></svg></span></div></div><div data-fpl-component="primitive" style="display: none;"><div data-fpl-component="primitive" role="presentation" style="display: contents;"><div data-fpl-component="primitive" style="position: absolute; left: 0px; top: 0px; transform: translate(0px, 0px);"><ul class="select-primitive__container__hpR3l _15y6gsqa _15y6gsq8" data-fpl-fallback="false" role="listbox" tabindex="-1" data-floating-ui-focusable="" id=":r3f:" aria-orientation="vertical" data-fpl-component=""><div data-editor-theme="design" data-preferred-theme="dark" style="display: contents;"><li data-fpl-component="" aria-selected="true" role="option" tabindex="-1" data-fpl-select-value="" class="_15y6gsqc _14wijgr9"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" aria-hidden="true" class="_15y6gsqd" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" d="M11.584 3.723a.5.5 0 0 1 .832.554l-5 7.5a.502.502 0 0 1-.77.077l-3-3a.5.5 0 0 1 .708-.708l2.568 2.569z"></path></svg><span class="_15y6gsqe">All organizations</span></li><div data-fpl-component="primitive" class="select-primitive__scrollArrow__-uP-4 _15y6gsqi" data-fpl-select-direction="up" aria-hidden="true"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M11.146 10.146a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L11.5 11.207l-1.646 1.647a.5.5 0 0 1-.708-.708z" clip-rule="evenodd"></path></svg></div><div data-fpl-component="primitive" class="select-primitive__scrollArrow__-uP-4 _15y6gsqi" data-fpl-select-direction="down" aria-hidden="true"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M9.146 11.146a.5.5 0 0 1 .708 0l1.646 1.647 1.646-1.647a.5.5 0 0 1 .708.708l-2 2a.5.5 0 0 1-.708 0l-2-2a.5.5 0 0 1 0-.708" clip-rule="evenodd"></path></svg></div></div></ul></div></div></div><div data-fpl-component="" class="card-primitive__root__h5a39 chip__chip__p9lFq chip__sizeMd__OpcZs chip__enabled__oqgSy chip__interactive__mYmLC chip__variantPrimary__cdoqy"><button data-fpl-component="" data-card-main-action="true" aria-controls=":rr:" aria-haspopup="listbox" aria-expanded="false" role="combobox" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 card-primitive__button__jv46G chip__mainButton__8pK6D chip__selectTrigger__7i1RF" aria-labelledby=":rs:"></button><div class="chip__content__PFdMr"><span class="chip__title__pAoz6"><span data-fpl-component="primitive" aria-hidden="true" id=":rs:"><span><i18n-text>All files</i18n-text></span></span></span><span class="chip__trailing__gFQmd"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" aria-describedby=":rs:" class="chip__triggerChevron__s7ngi" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" d="M9.768 6.768a.5.5 0 0 1 .707.707l-2.12 2.121a.5.5 0 0 1-.708 0L5.525 7.475a.5.5 0 0 1 .708-.707l1.768 1.767z"></path></svg></span></div></div><div data-fpl-component="primitive" style="display: none;"><div data-fpl-component="primitive" role="presentation" style="display: contents;"><div data-fpl-component="primitive" style="position: absolute; left: 0px; top: 0px; transform: translate(0px, 0px);"><ul class="select-primitive__container__hpR3l _15y6gsqa _15y6gsq8" data-fpl-fallback="false" role="listbox" tabindex="-1" data-floating-ui-focusable="" id=":rr:" aria-orientation="vertical" data-fpl-component=""><div data-editor-theme="design" data-preferred-theme="dark" style="display: contents;"><li data-fpl-component="" aria-selected="true" role="option" tabindex="-1" data-fpl-select-value="0" class="_15y6gsqc _14wijgr9"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" aria-hidden="true" class="_15y6gsqd" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" d="M11.584 3.723a.5.5 0 0 1 .832.554l-5 7.5a.502.502 0 0 1-.77.077l-3-3a.5.5 0 0 1 .708-.708l2.568 2.569z"></path></svg><span class="_15y6gsqe"><i18n-text>All files</i18n-text></span></li><div data-fpl-component="primitive" class="select-primitive__scrollArrow__-uP-4 _15y6gsqi" data-fpl-select-direction="up" aria-hidden="true"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M11.146 10.146a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L11.5 11.207l-1.646 1.647a.5.5 0 0 1-.708-.708z" clip-rule="evenodd"></path></svg></div><div data-fpl-component="primitive" class="select-primitive__scrollArrow__-uP-4 _15y6gsqi" data-fpl-select-direction="down" aria-hidden="true"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M9.146 11.146a.5.5 0 0 1 .708 0l1.646 1.647 1.646-1.647a.5.5 0 0 1 .708.708l-2 2a.5.5 0 0 1-.708 0l-2-2a.5.5 0 0 1 0-.708" clip-rule="evenodd"></path></svg></div></div></ul></div></div></div></div><div class="cx_flex--uQqQ4 cx_gap8--C-Tsm"><div data-fpl-component="primitive" role="presentation" style="display: contents;"><div data-fpl-component="" class="card-primitive__root__h5a39 chip__chip__p9lFq chip__sizeMd__OpcZs chip__enabled__oqgSy chip__interactive__mYmLC chip__variantPrimary__cdoqy" aria-haspopup="menu" aria-expanded="false" id=":r10:"><button data-fpl-component="" data-card-main-action="true" aria-haspopup="menu" aria-expanded="false" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 card-primitive__button__jv46G chip__mainButton__8pK6D" aria-labelledby=":r11:"></button><div class="chip__content__PFdMr"><span class="chip__title__pAoz6"><span data-fpl-component="primitive" aria-hidden="true" id=":r11:"><span><i18n-text>Last viewed</i18n-text></span></span></span><span class="chip__trailing__gFQmd"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" data-fpl-icon-size="16"><path fill="var(--fpl-icon-color, var(--color-icon))" d="M9.768 6.768a.5.5 0 0 1 .707.707l-2.12 2.121a.5.5 0 0 1-.708 0L5.525 7.475a.5.5 0 0 1 .708-.707l1.768 1.767z"></path></svg></span></div></div></div><div class="x78zum5 x6s0dn4"><form><fieldset data-fpl-component="" value="1" class="_12v7fda4 _12v7fdaa" role="radiogroup"><legend data-fpl-component="primitive" class="_14wijgr0">View mode</legend><div data-radio-options-root="true"><div data-fpl-component="primitive" class="_16btwim1 _12v7fda6"><input class="_16btwim0" id=":r15:-1" data-tooltip="Show as grid" data-tooltip-type="text" name=":r15:" type="radio" value="1" checked=""><span class="_12v7fda7" aria-hidden="true"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M7 7h3v3H7zM6 7a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm1 7h3v3H7zm-1 0a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm11-7h-3v3h3zm-3-1a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1zm0 8h3v3h-3zm-1 0a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1z" clip-rule="evenodd"></path></svg></span><label class="_14wijgr0" for=":r15:-1">Show as grid</label></div><div data-fpl-component="primitive" class="_16btwim1 _12v7fda6"><input class="_16btwim0" id=":r15:-0" data-tooltip="Show as list" data-tooltip-type="text" name=":r15:" type="radio" value="0"><span class="_12v7fda7" aria-hidden="true"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" data-fpl-icon-size="24"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M6.5 6.5a1 1 0 1 1 2 0 1 1 0 0 1-2 0m4-.5a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1zm0 10a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1zm0-5a.5.5 0 0 0 0 1h7a.5.5 0 0 0 0-1zm-4 .5a1 1 0 1 1 2 0 1 1 0 0 1-2 0m1 4a1 1 0 1 0 0 2 1 1 0 0 0 0-2" clip-rule="evenodd"></path></svg></span><label class="_14wijgr0" for=":r15:-0">Show as list</label></div></div></fieldset></form></div></div></div></div></div><div style="display: none;"></div></div><div class="file_browser_page_view--scrollableContainerClass--rJJrv"><div class="file_browser_page_view--container--noG2B "><main class="file_browser_page_view--contentContainer--uVZg9 "><div class="tiles_view--container--a-UV-"><div class="tiles_view--planCardLayout--Ri2GC"><div class="cx_hFull--PdZbt cx_wFull--QwHl9 cx_relative--zQwMt" data-testid="dragSelectionInitiatorDataTestId" data-fpl-audit="true"><div><div style="height: 261.938px;"><div role="list" class="xrvj5dj x1rr9rqv x1rzw5jd   xy3p2pi         x9f619 xsqj5wx x1tudf5h x1m2p0i2 x1gan7if" data-fpl-audit="true" style="--x-transform: translateY(0px);"><div data-index="0" data-fpl-audit="true"><div class="x14cymxr xb5a4bo x19jrzsf xy5v4tt" style="--x-n09fb7: 0;"><div data-fpl-component="primitive" class="card-primitive__root__h5a39" role="group" aria-label="FigJam basics"><button data-fpl-component="primitive" data-card-main-action="true" draggable="true" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 card-primitive__button__jv46G" data-items-view-parent-id=":r2l:" aria-labelledby=":r2s:"></button><div class="x78zum5 xdt5ytf x1y0btm7 xmkeg23 xoyxnz1 x127aom x1a2a7pz x1g40iwv xb3r6kr"><div class="x1n2onr6"><div data-testid="thumbnail-container" class="cx_hFull--PdZbt cx_wFull--QwHl9 cx_borderBox--pW6l9 cx_overflowHidden--cin3y thumbnail--whiteboardBackground--ZrfKT" style="background-color: rgb(238, 238, 238);"><div class="thumbnail_container--aspectRatio--llvSG"><img data-test-key="1775770396002-79sju11" alt="" src="https://s3-alpha.figma.com/thumbnails/c53e0212-2de0-4eeb-bcc4-a3dcf47e1fbc?X-Amz-Algorithm=AWS4-HMAC-SHA256&amp;X-Amz-Credential=AKIA_redacted_000000RE%2F20260409%2Fus-west-2%2Fs3%2Faws4_request&amp;X-Amz-Date=20260409T000000Z&amp;X-Amz-Expires=604800&amp;X-Amz-SignedHeaders=host&amp;X-Amz-Signature=39da6c936281aa03d688f2d6600ccb7bf828408954a0d2457dda53275415e3ad" draggable="false" class="img_hidden_until_loaded--imageInitial--O65QG img_hidden_until_loaded--imageLoaded--AVSiM cx_hFull--PdZbt cx_wFull--QwHl9 thumbnail--thumbnailContain--ClAae" crossorigin="anonymous"></div></div><div class="x78zum5 x1q0g3np x1cy8zhl xou54vl x1qughib x10l6tqk xu96u03 x13vifvy x3m8u43 x1tamke2 xb3r6kr xeuugli x98rzlu x9f619"><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA xb3r6kr xeuugli"><div class="x78zum5 x6s0dn4 xrdokzc"></div></div><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA x13qp9f6"><div class="x78zum5 x6s0dn4 xrdokzc"><div class="x1xjl02s"></div><div class="x1xjl02s"><button data-fpl-component="primitive" aria-label="Add to sidebar" aria-pressed="false" data-testid="favorite-star-button" data-tooltip-type="text" data-tooltip="Add to sidebar" data-tooltip-timeout-delay="50" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 x78zum5 x6s0dn4 xl56j7k xvy4d1p xxk0z11 x7r0jtz xdkapel x15nvv5p xiwbtd4 x69nwrx x1g40iwv"><span aria-hidden="true"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" data-testid="favorite-star-button-unfavorited-icon" data-fpl-icon-size="16" style="--color-icon: var(--color-icon-secondary);"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M8.952 2.195a1 1 0 0 0-1.904 0L6.148 5H3.245a1 1 0 0 0-.58 1.815L4.993 8.47l-.937 2.701a1 1 0 0 0 1.516 1.148L8 10.63l2.429 1.691a1 1 0 0 0 1.516-1.148l-.938-2.701 2.328-1.656A1 1 0 0 0 12.755 5H9.853zM4.97 6h1.908l.597-1.863L8 2.5l.525 1.637L9.123 6h3.633l-1.407 1-1.532 1.09.625 1.802L11 11.5l-1.396-.973L8 9.41l-1.604 1.117L5 11.5l.558-1.608.626-1.802L4.65 7 3.245 6z" clip-rule="evenodd"></path></svg></span></button></div></div></div></div></div><div class="x78zum5 x1q0g3np x6s0dn4 x1lqv20w xjd7tmr x1ee9nrg x1u2iebx xpacvxx xkrshzq x1y0btm7 x178xt8z xoyxnz1"><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA"><div data-editor-theme="whiteboard" data-preferred-theme="light" style="display: contents;"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" aria-label="FigJam file" data-fpl-icon-size="16"><path fill="var(--color-bg-brand)" d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2z"></path><path fill="var(--color-icon-onbrand)" d="M12 3a1 1 0 0 1 1 1v4.586l-.005.099a1 1 0 0 1-.288.608l-3.414 3.414-.073.066a1 1 0 0 1-.634.227H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm-8 9h4V9a1 1 0 0 1 1-1h3V4H4zm5-.414L11.586 9H9z"></path></svg></div></div><div class="x98rzlu x78zum5 xdt5ytf x195vfkc xb3r6kr"><span data-fpl-component="primitive" aria-hidden="true" id=":r2s:"><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA"><span data-tooltip-type="text" style="color: var(--color-text, var(--fallback-color-text)); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><h2 class="xxrns5j x1q8tae1 x1vg90ec x1eab18d x1yyillh xlyipyv xuxw1ft xb3r6kr"><div class="cx_flex--uQqQ4 cx_flexRow--MkU5a cx_itemsCenter--q5Zbc cx_gap4--aFadz" data-tooltip-type="text" dir="auto"><span data-tooltip-type="text" style="max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><span class="xxrns5j x1q8tae1 x1vg90ec x1eab18d x1yyillh">FigJam basics</span></span></div></h2></span></div></span><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA"><span data-tooltip-type="text" style="color: var(--color-text-secondary, var(--fallback-color-text-secondary)); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><span class="xrlp15q x1nmd3yn xm735u9 xkbmbem x3wk4up xlyipyv xuxw1ft xb3r6kr"><div class="x78zum5 x6s0dn4 xh8yej3"><i18n-text>Edited 17 minutes ago</i18n-text></div></span></span></div></div><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA"></div></div></div></div></div></div><div data-index="1" data-fpl-audit="true"><div class="x14cymxr xb5a4bo x19jrzsf xy5v4tt" style="--x-n09fb7: 0;"><div data-fpl-component="primitive" class="card-primitive__root__h5a39" role="group" aria-label="Figma basics"><button data-fpl-component="primitive" data-card-main-action="true" draggable="true" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 card-primitive__button__jv46G" data-items-view-parent-id=":r2l:" aria-labelledby=":r34:"></button><div class="x78zum5 xdt5ytf x1y0btm7 xmkeg23 xoyxnz1 x127aom x1a2a7pz x1g40iwv xb3r6kr"><div class="x1n2onr6"><div data-testid="thumbnail-container" class="cx_hFull--PdZbt cx_wFull--QwHl9 cx_borderBox--pW6l9 cx_overflowHidden--cin3y" style="background-color: rgb(255, 255, 255);"><div class="thumbnail_container--aspectRatio--llvSG"><img data-test-key="1775770396003-nioov8w" alt="" src="https://s3-alpha.figma.com/thumbnails/6f9fe775-79b4-4c74-aab0-e7f9d0bcd226?X-Amz-Algorithm=AWS4-HMAC-SHA256&amp;X-Amz-Credential=AKIA_redacted_000000RE%2F20260409%2Fus-west-2%2Fs3%2Faws4_request&amp;X-Amz-Date=20260409T000000Z&amp;X-Amz-Expires=604800&amp;X-Amz-SignedHeaders=host&amp;X-Amz-Signature=5f88b8ba052128afebca8064e67d6a6948669adc2db36dedc859c6baa609ca23" draggable="false" class="img_hidden_until_loaded--imageInitial--O65QG img_hidden_until_loaded--imageLoaded--AVSiM cx_hFull--PdZbt cx_wFull--QwHl9 thumbnail--thumbnailContain--ClAae" crossorigin="anonymous"></div></div><div class="x78zum5 x1q0g3np x1cy8zhl xou54vl x1qughib x10l6tqk xu96u03 x13vifvy x3m8u43 x1tamke2 xb3r6kr xeuugli x98rzlu x9f619"><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA xb3r6kr xeuugli"><div class="x78zum5 x6s0dn4 xrdokzc"></div></div><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA x13qp9f6"><div class="x78zum5 x6s0dn4 xrdokzc"><div class="x1xjl02s"></div><div class="x1xjl02s"><button data-fpl-component="primitive" aria-label="Add to sidebar" aria-pressed="false" data-testid="favorite-star-button" data-tooltip-type="text" data-tooltip="Add to sidebar" data-tooltip-timeout-delay="50" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 x78zum5 x6s0dn4 xl56j7k xvy4d1p xxk0z11 x7r0jtz xdkapel x15nvv5p xiwbtd4 x69nwrx x1g40iwv"><span aria-hidden="true"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" data-testid="favorite-star-button-unfavorited-icon" data-fpl-icon-size="16" style="--color-icon: var(--color-icon-secondary);"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M8.952 2.195a1 1 0 0 0-1.904 0L6.148 5H3.245a1 1 0 0 0-.58 1.815L4.993 8.47l-.937 2.701a1 1 0 0 0 1.516 1.148L8 10.63l2.429 1.691a1 1 0 0 0 1.516-1.148l-.938-2.701 2.328-1.656A1 1 0 0 0 12.755 5H9.853zM4.97 6h1.908l.597-1.863L8 2.5l.525 1.637L9.123 6h3.633l-1.407 1-1.532 1.09.625 1.802L11 11.5l-1.396-.973L8 9.41l-1.604 1.117L5 11.5l.558-1.608.626-1.802L4.65 7 3.245 6z" clip-rule="evenodd"></path></svg></span></button></div></div></div></div></div><div class="x78zum5 x1q0g3np x6s0dn4 x1lqv20w xjd7tmr x1ee9nrg x1u2iebx xpacvxx xkrshzq x1y0btm7 x178xt8z xoyxnz1"><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA"><div data-editor-theme="design" data-preferred-theme="light" style="display: contents;"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" aria-label="Design file" data-fpl-icon-size="16"><path fill="var(--color-bg-brand)" d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2z"></path><path fill="var(--color-icon-onbrand)" fill-rule="evenodd" d="M4.14 3.207a1 1 0 0 1 .837-.181l3.762.878a4.57 4.57 0 0 1 3.531 4.452l.437.436a1 1 0 0 1 0 1.415l-2.5 2.5a1 1 0 0 1-1.414 0l-.437-.437A4.57 4.57 0 0 1 3.96 8.949l-.054-.21-.879-3.762a1 1 0 0 1 .267-.935l.75-.75zm.59.813 2.623 2.624-.006.006a1.5 1.5 0 1 1-.697.697l-.004.004-2.624-2.624L4 4.749l.879 3.763a3.573 3.573 0 0 0 3.87 2.737l.75.75L12 9.5l-.75-.75a3.57 3.57 0 0 0-2.737-3.872L4.75 4zM8 7.5a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1" clip-rule="evenodd"></path></svg></div></div><div class="x98rzlu x78zum5 xdt5ytf x195vfkc xb3r6kr"><span data-fpl-component="primitive" aria-hidden="true" id=":r34:"><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA"><span data-tooltip-type="text" style="color: var(--color-text, var(--fallback-color-text)); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><h2 class="xxrns5j x1q8tae1 x1vg90ec x1eab18d x1yyillh xlyipyv xuxw1ft xb3r6kr"><div class="cx_flex--uQqQ4 cx_flexRow--MkU5a cx_itemsCenter--q5Zbc cx_gap4--aFadz" data-tooltip-type="text" dir="auto"><span data-tooltip-type="text" style="max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><span class="xxrns5j x1q8tae1 x1vg90ec x1eab18d x1yyillh">Figma basics</span></span></div></h2></span></div></span><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA"><span data-tooltip-type="text" style="color: var(--color-text-secondary, var(--fallback-color-text-secondary)); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><span class="xrlp15q x1nmd3yn xm735u9 xkbmbem x3wk4up xlyipyv xuxw1ft xb3r6kr"><div class="x78zum5 x6s0dn4 xh8yej3"><i18n-text>Edited 17 minutes ago</i18n-text></div></span></span></div></div><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA"></div></div></div></div></div></div><div data-index="2" data-fpl-audit="true"><div class="x14cymxr xb5a4bo x19jrzsf xy5v4tt" style="--x-n09fb7: 0;"><div data-fpl-component="primitive" class="card-primitive__root__h5a39" role="group" aria-label="Kristina Zhou's team library"><button data-fpl-component="primitive" data-card-main-action="true" draggable="true" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 card-primitive__button__jv46G" data-items-view-parent-id=":r2l:" aria-labelledby=":r3c:"></button><div class="x78zum5 xdt5ytf x1y0btm7 xmkeg23 xoyxnz1 x127aom x1a2a7pz x1g40iwv xb3r6kr"><div class="x1n2onr6"><div data-testid="thumbnail-container" class="cx_hFull--PdZbt cx_wFull--QwHl9 cx_borderBox--pW6l9 cx_overflowHidden--cin3y" style="background-color: rgb(250, 250, 250);"><div class="thumbnail_container--aspectRatio--llvSG"><img data-test-key="1775770396003-jkr5oft" alt="" src="https://s3-alpha.figma.com/thumbnails/f29d2542-17e9-4f96-934f-945376c0df7a?X-Amz-Algorithm=AWS4-HMAC-SHA256&amp;X-Amz-Credential=AKIA_redacted_000000RE%2F20260409%2Fus-west-2%2Fs3%2Faws4_request&amp;X-Amz-Date=20260409T000000Z&amp;X-Amz-Expires=604800&amp;X-Amz-SignedHeaders=host&amp;X-Amz-Signature=18a242b8ada2bacbf9e7dd5ee47359272a881c7fa35aea7e70d438012b60bf69" draggable="false" class="img_hidden_until_loaded--imageInitial--O65QG img_hidden_until_loaded--imageLoaded--AVSiM cx_hFull--PdZbt cx_wFull--QwHl9 thumbnail--thumbnailContain--ClAae" crossorigin="anonymous"></div></div><div class="x78zum5 x1q0g3np x1cy8zhl xou54vl x1qughib x10l6tqk xu96u03 x13vifvy x3m8u43 x1tamke2 xb3r6kr xeuugli x98rzlu x9f619"><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA xb3r6kr xeuugli"><div class="x78zum5 x6s0dn4 xrdokzc"></div></div><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA x13qp9f6"><div class="x78zum5 x6s0dn4 xrdokzc"><div class="x1xjl02s"></div><div class="x1xjl02s"><button data-fpl-component="primitive" aria-label="Add to sidebar" aria-pressed="false" data-testid="favorite-star-button" data-tooltip-type="text" data-tooltip="Add to sidebar" data-tooltip-timeout-delay="50" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 x78zum5 x6s0dn4 xl56j7k xvy4d1p xxk0z11 x7r0jtz xdkapel x15nvv5p xiwbtd4 x69nwrx x1g40iwv"><span aria-hidden="true"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" data-testid="favorite-star-button-unfavorited-icon" data-fpl-icon-size="16" style="--color-icon: var(--color-icon-secondary);"><path fill="var(--fpl-icon-color, var(--color-icon))" fill-rule="evenodd" d="M8.952 2.195a1 1 0 0 0-1.904 0L6.148 5H3.245a1 1 0 0 0-.58 1.815L4.993 8.47l-.937 2.701a1 1 0 0 0 1.516 1.148L8 10.63l2.429 1.691a1 1 0 0 0 1.516-1.148l-.938-2.701 2.328-1.656A1 1 0 0 0 12.755 5H9.853zM4.97 6h1.908l.597-1.863L8 2.5l.525 1.637L9.123 6h3.633l-1.407 1-1.532 1.09.625 1.802L11 11.5l-1.396-.973L8 9.41l-1.604 1.117L5 11.5l.558-1.608.626-1.802L4.65 7 3.245 6z" clip-rule="evenodd"></path></svg></span></button></div></div></div></div></div><div class="x78zum5 x1q0g3np x6s0dn4 x1lqv20w xjd7tmr x1ee9nrg x1u2iebx xpacvxx xkrshzq x1y0btm7 x178xt8z xoyxnz1"><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA"><div data-editor-theme="design" data-preferred-theme="light" style="display: contents;"><svg width="16" height="16" fill="none" viewBox="0 0 16 16" aria-label="Design file" data-fpl-icon-size="16"><path fill="var(--color-bg-brand)" d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2z"></path><path fill="var(--color-icon-onbrand)" fill-rule="evenodd" d="M4.14 3.207a1 1 0 0 1 .837-.181l3.762.878a4.57 4.57 0 0 1 3.531 4.452l.437.436a1 1 0 0 1 0 1.415l-2.5 2.5a1 1 0 0 1-1.414 0l-.437-.437A4.57 4.57 0 0 1 3.96 8.949l-.054-.21-.879-3.762a1 1 0 0 1 .267-.935l.75-.75zm.59.813 2.623 2.624-.006.006a1.5 1.5 0 1 1-.697.697l-.004.004-2.624-2.624L4 4.749l.879 3.763a3.573 3.573 0 0 0 3.87 2.737l.75.75L12 9.5l-.75-.75a3.57 3.57 0 0 0-2.737-3.872L4.75 4zM8 7.5a.5.5 0 1 0 0 1 .5.5 0 0 0 0-1" clip-rule="evenodd"></path></svg></div></div><div class="x98rzlu x78zum5 xdt5ytf x195vfkc xb3r6kr"><span data-fpl-component="primitive" aria-hidden="true" id=":r3c:"><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA"><span data-tooltip-type="text" style="color: var(--color-text, var(--fallback-color-text)); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><h2 class="xxrns5j x1q8tae1 x1vg90ec x1eab18d x1yyillh xlyipyv xuxw1ft xb3r6kr"><div class="cx_flex--uQqQ4 cx_flexRow--MkU5a cx_itemsCenter--q5Zbc cx_gap4--aFadz" data-tooltip-type="text" dir="auto"><span data-tooltip-type="text" style="max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><span class="xxrns5j x1q8tae1 x1vg90ec x1eab18d x1yyillh">Kristina Zhou's team library</span></span></div></h2></span></div></span><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA"><span data-tooltip-type="text" style="color: var(--color-text-secondary, var(--fallback-color-text-secondary)); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><span class="xrlp15q x1nmd3yn xm735u9 xkbmbem x3wk4up xlyipyv xuxw1ft xb3r6kr"><div class="x78zum5 x6s0dn4 xh8yej3"><i18n-text>Edited 17 minutes ago</i18n-text></div></span></span></div></div><div data-fpl-component="primitive" class="card-primitive__interactive__9-8aA"></div></div></div></div></div></div></div></div></div></div></div></div><div class="x1n2onr6"><div class="x1egiwwb x10l6tqk x1ey2m1c xu96u03 x3m8u43 x47corl"></div><div class="xjm9jq1 x10l6tqk x1ey2m1c xu96u03 x3m8u43 x47corl"></div></div><div data-testid="loading-content-pane-loading-skeleton" class="cx_pr32--V69CJ cx_eventsNone--iuF1s cx_absolute--c8Br6 cx_top0--FQt4c cx_left0--MTTBW cx_right0--tosop cx_bottom0--EAVel cx_overflowHidden--cin3y cx_opacity1---aobF loading_page--fadeOut--vsa4j" style="animation-delay: 0ms; background-color: var(--color-bg);"><div id="loading-content-pane">
+            <div class="fb-fading-content">
+
+
+                  <div class="fb-tile-grid fb-tile-grid-top-padding">
+
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                  </div>
+
+            </div>
+          </div></div></main></div></div></div></div><div class="file_browser_drop_zone--dragTargetNormal--nLi0m"></div></div><div class="accessible_area--displayContent--TuRM4" data-fullscreen-bubble-phase="true"><div class="bottom_right_tools_container--container--wpPX8 bottom_right_tools_container--design--KVUF3" data-testid="bottom-right-tools-container" style="margin-bottom: 0px; --inProductHelpSidePanelWidth: 0px; --cookieBannerHeight: 0px;"><div data-fpl-component="primitive" aria-label="Help/zoom toolbar" class="x1q0g3np x78zum5 xrdokzc x1n2onr6 x1vjfegm" data-testid="buzz-help-and-zoom-menu" role="toolbar" aria-orientation="horizontal"><div class="cx_flexColumn--t73d9 cx_gap12--0Fs-t cx_justifyCenter--8nP9s cx_itemsEnd--WSL2I"><div data-fpl-component="primitive" role="presentation" style="display: contents;"><button data-fpl-component="primitive" aria-haspopup="menu" aria-expanded="false" id=":r2:" aria-label="Help" data-fullscreen-intercept="true" data-onboarding-key="help-widget-zendesk" data-testid="help-widget-button" data-tooltip="Help and resources" data-tooltip-hide-immediately="true" data-tooltip-show-above="true" data-tooltip-show-immediately="true" data-tooltip-submenu-open="false" data-tooltip-type="text" type="button" tabindex="0" data-show-focus="true" class="_19xx72g0 help_widget--clickableSvg--q86Am help_widget--helpWidget--1t2eV help_widget--helpWidgetShared--Qb3pt text--_negText--7Cnf0"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" class="help_widget--helpWidgetIcon--ZxhAq" data-fpl-icon-size="24L"><path fill="var(--fpl-icon-color, var(--color-icon))" d="M12 15.5a.75.75 0 1 1 0 1.5.75.75 0 0 1 0-1.5M12 7c1.844 0 3.5 1.262 3.5 3 0 .69-.271 1.251-.731 1.661-.447.398-1.045.632-1.685.747-.364.066-.584.337-.584.592v1a.5.5 0 0 1-1 0v-1c0-.849.683-1.445 1.406-1.576.528-.095.932-.275 1.196-.51.25-.223.398-.514.398-.914 0-1.023-1.03-2-2.5-2s-2.5.977-2.5 2a.5.5 0 0 1-1 0c0-1.738 1.656-3 3.5-3"></path></svg></button></div><div class="zendesk-web-widget"></div></div></div></div></div></div><div class="web_stacking--layer--DqQ0R web_stacking--nonStaticLayer--PgXZ3"><div id="comment-preview-outlet"></div></div><div class="web_stacking--layer--DqQ0R web_stacking--nonStaticLayer--PgXZ3"></div><div class="web_stacking--layer--DqQ0R web_stacking--nonStaticLayer--PgXZ3"><div class="flash_view--flashes--pcDZK"></div><div data-fpl-component="primitive" aria-relevant="all" role="status"></div><div class="visual_bell_DEPRECATED--base--cqq3V visual_bell_DEPRECATED--fplBase--61Mw0" style="transform: translateY(100vh);"><div data-editor-theme="design" data-preferred-theme="dark" style="display: contents;"><div data-fpl-component="" data-testid="visual-bell-root" role="presentation"><div class="toast__root__nVszD" role="group"><span class="xjp7ctv"><div data-fpl-component="" aria-relevant="all" data-testid="visual-bell-message" class="toast__message__wf2fG" role="alert"><span></span><span></span></div></span><span class="x10l6tqk x1nj6f5o"><div data-fpl-component="" aria-relevant="all" class="toast__message__wf2fG" role="alert"></div></span></div></div></div></div><div data-editor-theme="design" data-preferred-theme="dark" style="display: contents;"><div class="blocked_ui_loading_indicator--base--iBE49 blocked_ui_loading_indicator--fpl--VyUlf" style="transform: translateY(-64px);"></div></div></div><div class="web_stacking--layer--DqQ0R web_stacking--nonStaticLayer--PgXZ3"></div><div class="web_stacking--layer--DqQ0R web_stacking--nonStaticLayer--PgXZ3"></div></div></div></div></div>
+
+      <script nonce="">
+  const themePreference = window.localStorage.getItem('global-debug-theme-preference') || 'system'
+
+  let theme
+  if (themePreference === 'dark') {
+    theme = 'dark'
+  } else if (themePreference === 'system') {
+    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  } else {
+    theme = 'light'
+  }
+
+  document.querySelector("body").dataset.preferredTheme = theme
+</script>
+
+
+
+      
+<div class="file-browser-loading-page-container">
+  <div id="filebrowser-loading-page" class="fb-page-layout" style="display: none;">
+  <div id="filebrowser-loading-progress-bar"></div>
+
+  <div class="fb-flex-row">
+    <div id="filebrowser-loading-sidebar" class="fb-sidebar">
+      <div class="fb-sidebar-account-and-notifications">
+        <div class="fb-circle-24 fb-shrink-0"></div>
+        <div class="fb-rectangle-16 fb-width-120"></div>
+      </div>
+      <div class="fb-sidebar-searchbar">
+        <div class="fb-rectangle-32 fb-width-full"></div>
+      </div>
+      <div class="fb-sidebar-row">
+        <div class="fb-rectangle-16 fb-width-16 fb-shrink-0"></div>
+        <div class="fb-rectangle-16 fb-width-70"></div>
+      </div>
+      <div class="fb-divider"></div>
+      <div class="fb-sidebar-row">
+        <div class="fb-circle-16"></div>
+        <div class="fb-rectangle-16 fb-width-115"></div>
+      </div>
+      <div class="fb-sidebar-row">
+        <div class="fb-rectangle-16 fb-width-16 fb-shrink-0"></div>
+        <div class="fb-rectangle-16 fb-width-70"></div>
+      </div>
+      <div class="fb-sidebar-row">
+        <div class="fb-rectangle-16 fb-width-16 fb-shrink-0"></div>
+        <div class="fb-rectangle-16 fb-width-100"></div>
+      </div>
+      <div class="fb-sidebar-row">
+        <div class="fb-rectangle-16 fb-width-60"></div>
+      </div>
+      <div class="fb-sidebar-row">
+        <div class="fb-rectangle-16 fb-width-16 fb-shrink-0"></div>
+        <div class="fb-rectangle-16 fb-width-100"></div>
+      </div>
+      <div class="fb-sidebar-row">
+        <div class="fb-rectangle-16 fb-width-16 fb-shrink-0"></div>
+        <div class="fb-rectangle-16 fb-width-80"></div>
+      </div>
+      <div class="fb-sidebar-row">
+        <div class="fb-rectangle-16 fb-width-16 fb-shrink-0"></div>
+        <div class="fb-rectangle-16 fb-width-120"></div>
+      </div>
+      <div class="fb-sidebar-row">
+        <div class="fb-rectangle-16 fb-width-16 fb-shrink-0"></div>
+        <div class="fb-rectangle-16 fb-width-105"></div>
+      </div>
+    </div>
+
+
+    <div class="fb-page">
+
+
+          <div class="fb-toolbar-48">
+            <div class="fb-rectangle-16 fb-width-120"></div>
+          </div>
+
+
+
+      <div class="fb-page-content-columns">
+
+        <div class="fb-page-content">
+
+          <div id="loading-content-pane">
+            <div class="fb-fading-content">
+
+
+                  <div class="fb-tile-grid fb-tile-grid-top-padding">
+
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="fb-card">
+                        <div class="fb-file-thumbnail"></div>
+                        <div class="fb-file-card-footer">
+                          <div class="fb-rectangle-16 fb-width-16"></div>
+                          <div class="fb-file-card-footer-text-container">
+                            <div class="fb-rectangle-16 fb-width-120"></div>
+                            <div class="fb-rectangle-16 fb-width-88"></div>
+                          </div>
+                        </div>
+                      </div>
+                  </div>
+
+            </div>
+          </div>
+        </div>
+
+        &nbsp;
+
+
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+    <script nonce="" data-entrypoint="figma_app">
+      window.ENTRY_POINT = document.currentScript.dataset.entrypoint
+    </script>
+
+    
+
+      <script nonce="">
+    window['sentryConfig'] = {
+      id: 1624181127237430241,
+    }
+  </script>
+
+    
+
+    <script nonce="">performance?.mark('loadTimings:jsEvalStart')</script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/runtime~figma_app-5a64e5049eb9954a.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/vendor-core-7f00fbff3234d737.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/svg-6bc485add60b2266.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/svg-0075965bf8f35442.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/svg-ee02e4ebbd9c9c12.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/svg-460a916ebb53ffa9.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/svg-10e6dcec46a9da5b.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/cssbuilder-b411695bb8784b77.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/svg-7492c7f3309adaa9.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/svg-f8783d25aff607ec.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/svg-0746701e6e1f90d6.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/svg-fb5467eb7cfe819f.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/vendor-5dd04c3947c226a3.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/vendor-78a0a7650a996381.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/vendor-c9e2e2ada4686f94.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/vendor-cd29252a8e6adadf.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/vendor-b029513bb5425697.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/vendor-5679ff687a2a56a4.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/5535-33db8e3c4b51928a.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/4232-d607295cb4a760a8.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/6532-54b22d838f179e6e.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/2798-f5ee0196031a9422.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/1121-01962bc4aa67b096.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/9732-6c9e32340aa56abc.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/6650-c4179e02e256c25c.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/2807-64af9d37c019b963.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/3167-ca932865244f0bdf.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/5215-5fd9affdcac975a5.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/3632-1715709dbd9ddaf9.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/3142-859ca432c3212eaa.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/96-88bbf2480a1cae1c.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/9071-0e8cd11fdb57e134.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/5608-9fb748be26b9a19f.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/408-4deb214048fbc709.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/3849-65f9d27076350375.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/1620-7235908d7226fb20.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/618-03241bd2076c2034.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/9638-0dc1fa76835aec64.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/4739-43d86b878b0d5ffe.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/figma_app-aa77dce5d9f72da1.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/0c62c2fd-eb64164498d47438.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/1185-c275effad3e58f62.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/2048-a6807226a4474a01.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/2099-3ae111aa1f9a8d44.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/2740-49f01fe9bee2e5fd.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/4116-bc22ea822e9c85e3.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/4584-a16a304b9c28169c.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/4917-1d485e2bd6e0860a.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/5936-6d872bed745e857b.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/5960-a3664a3067a9a244.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/6338-26ec188dbfc8a165.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/6523-0295c448b05f2c7c.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/6713-3d477e54174fcbd4.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/6804-25eb18d605fc673a.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/7267-85165e08ea4ca82e.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/7944-ba61fc2b485f5bdf.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/8474-35c6117fe7ccf295.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/8799-1acd03c1092f8232.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/9816-e7443bd02df4be0e.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/c5e2cae0-682284c407c062fd.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/svg-2b94afc3e3e94c1c.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/svg-7ab012407cb7c89a.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/vendor-66794aed6dd2fb25.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/vendor-0f9cfa09e0734773.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/vendor-e9dcb5e47a8032a1.min.js.br" defer="" crossorigin="anonymous"></script>
+      <script nonce="" src="https://www.figma.com/webpack-artifacts/assets/vendor-9815c7a80644aef6.min.js.br" defer="" crossorigin="anonymous"></script>
+    <script nonce="">
+      document.addEventListener('DOMContentLoaded', (e) => {
+        performance?.mark('loadTimings:DCL', { startTime: e.timeStamp })
+      })
+      window.addEventListener('load', (e) => {
+        performance?.mark('loadTimings:LOAD', { startTime: e.timeStamp })
+      })
+    </script>
+  
+
+</div><iframe src="https://sprig.figma.com" aria-hidden="true" tabindex="-1" height="0" width="0" style="position: fixed; bottom: 0px; right: 0px; z-index: 9; color-scheme: normal; transition: right 0.3s, bottom 0.3s;"></iframe></body></html>

@@ -1,0 +1,75 @@
+- document:
+  - banner:
+    - img
+    - text: Plan & Track AcmeCorp / platform-v4
+    - button "To-Do List":
+      - img
+      - text: "9"
+    - text: SC
+  - navigation:
+    - text: Plan
+    - img
+    - text: Issues 57
+    - img
+    - text: Boards
+    - img
+    - text: Epics
+    - img
+    - text: Milestones
+    - img
+    - text: Iterations
+    - img
+    - text: Labels Personal
+    - img
+    - text: To-Do List 9
+  - main:
+    - heading "To-Do List" [level=1]
+    - button "Mark all as done"
+    - button "To Do 9"
+    - button "Snoozed 2"
+    - button "Done 4"
+    - text: MJ
+    - strong: Marcus Johnson
+    - text: "assigned Login page shows blank screen on Safari 17.2 #171mo ago"
+    - button "Snooze"
+    - button "Done"
+    - text: FA
+    - strong: Fatima Al-Rashid
+    - text: "mentioned you on Email notifications sent with wrong timezone offset #181mo ago"
+    - button "Snooze"
+    - button "Done"
+    - text: PP
+    - strong: Priya Patel
+    - text: "assigned Migrate user settings page to React #41mo ago"
+    - button "Snooze"
+    - button "Done"
+    - text: OS
+    - strong: Oliver Schmidt
+    - text: mentioned you on Security Hardening &71mo ago
+    - button "Snooze"
+    - button "Done"
+    - text: SC
+    - strong: Sarah Chen
+    - text: "assigned Add dark mode support for the entire application #221mo ago"
+    - button "Snooze"
+    - button "Done"
+    - text: SC
+    - strong: Sarah Chen
+    - text: "assigned Reduce JavaScript bundle size by 40% #281mo ago"
+    - button "Snooze"
+    - button "Done"
+    - text: SC
+    - strong: Sarah Chen
+    - text: "assigned Upgrade vulnerable dependencies identified in audit #141mo ago"
+    - button "Snooze"
+    - button "Done"
+    - text: DK
+    - strong: David Kim
+    - text: "requested review on Optimize issue list query to use keyset pagination #271mo ago"
+    - button "Snooze"
+    - button "Done"
+    - text: NK
+    - strong: Nina Kowalski
+    - text: "mentioned you on Implement lazy loading for images and avatars #291mo ago"
+    - button "Snooze"
+    - button "Done"

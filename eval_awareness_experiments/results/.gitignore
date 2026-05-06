@@ -1,0 +1,12 @@
+# Ignore experiment results (can be large) — keep markdown sidecars,
+# manifests stay out (regeneratable), and runtime logs/pilot logs stay out.
+*.jsonl
+*.csv
+*.png
+*.json
+*.log
+_pilot_logs/
+!.gitkeep
+# Exception: WASP post-hoc ASR results (small, analysis-essential, includes
+# per-task classifier reasoning). Produced by wasp_post_hoc_evaluator.py.
+!wasp_asr_*.jsonl

@@ -1,0 +1,35 @@
+- document:
+  - navigation:
+    - text: account_balance_wallet PayPal JM Jordan Mitchell jordan.mitchell@outlook.com Overview
+    - button "dashboard My Wallet"
+    - button "receipt_long Transactions"
+    - text: Payment Methods
+    - button "credit_card Cards"
+    - button "account_balance Bank Accounts"
+    - button "payment PayPal Debit Card"
+    - text: Money
+    - button "account_balance_wallet Balance"
+    - button "savings Savings"
+    - button "currency_bitcoin Cryptocurrency"
+    - text: Credit & Pay Later
+    - button "credit_score PayPal Credit"
+    - button "calendar_today Pay in 4"
+    - text: Rewards & More
+    - button "star Rewards"
+    - button "local_offer Offers"
+    - button "card_giftcard Gift Cards"
+    - text: Settings
+    - button "settings Preferences"
+  - main:
+    - heading "My Wallet" [level=1]
+    - paragraph: Welcome back, Jordan
+    - text: account_balance_wallet PayPal Balance $2,847.63 6 currencies savings Savings $12,450.82 4.3% APY currency_bitcoin Crypto $7,428.99 6 assets star Rewards 4,825 pts Worth $48.25
+    - heading "Payment Methods" [level=3]
+    - button "View All"
+    - text: VISA •••• 4829 Credit Confirmed MC •••• 7156 Debit Confirmed AMEX •••• 3001 Credit Confirmed account_balance Chase •••• 6742 checking Confirmed account_balance Bank of America •••• 3891 savings Confirmed
+    - heading "Active Pay Later Plans" [level=3]
+    - button "View All"
+    - text: Nordstrom $284.50 2/4 payments Best Buy $649.99 4/4 payments Nike $189.00 1/4 payments
+    - heading "Recent Activity" [level=3]
+    - button "View All"
+    - text: shopping_cart Amazon.com Mar 6, 2026 -$89.47 arrow_downward From Marcus Williams Mar 6, 2026 +$150.00 shopping_cart Spotify Premium Mar 4, 2026 -$11.99 shopping_cart Uber Trip Mar 4, 2026 -$24.50 account_balance To Chase ***6742 Mar 3, 2026 -$500.00

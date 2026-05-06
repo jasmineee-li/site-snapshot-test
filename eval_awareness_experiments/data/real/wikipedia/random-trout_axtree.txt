@@ -1,0 +1,1776 @@
+- document:
+  - link "Jump to content":
+    - /url: "#bodyContent"
+  - banner:
+    - navigation "Site":
+      - button "Main menu"
+    - link "Wikipedia The Free Encyclopedia":
+      - /url: /wiki/Main_Page
+      - img "Wikipedia"
+      - img "The Free Encyclopedia"
+    - search:
+      - searchbox "Search Wikipedia"
+      - button "Search"
+    - navigation "Personal tools":
+      - list:
+        - listitem:
+          - link "Donate":
+            - /url: https://donate.wikimedia.org/?wmf_source=donate&wmf_medium=sidebar&wmf_campaign=en.wikipedia.org&uselang=en
+        - listitem:
+          - link "Create account":
+            - /url: /w/index.php?title=Special:CreateAccount&returnto=Trout
+        - listitem:
+          - link "Log in":
+            - /url: /w/index.php?title=Special:UserLogin&returnto=Trout
+  - navigation "Contents":
+    - heading "Contents" [level=2]
+    - button "hide"
+    - list:
+      - listitem:
+        - link "(Top)":
+          - /url: "#"
+      - listitem:
+        - link "Species":
+          - /url: "#Species"
+        - button "Toggle Species subsection" [expanded]
+        - list:
+          - listitem:
+            - link "Fish from other families":
+              - /url: "#Fish_from_other_families"
+            - list
+      - listitem:
+        - link "Anatomy":
+          - /url: "#Anatomy"
+        - list
+      - listitem:
+        - link "Habitat":
+          - /url: "#Habitat"
+        - list
+      - listitem:
+        - link "Diet":
+          - /url: "#Diet"
+        - list
+      - listitem:
+        - link "Trout as food":
+          - /url: "#Trout_as_food"
+        - button "Toggle Trout as food subsection" [expanded]
+        - list:
+          - listitem:
+            - link "Nutritional value":
+              - /url: "#Nutritional_value"
+            - list
+      - listitem:
+        - link "Trout fishing":
+          - /url: "#Trout_fishing"
+        - button "Toggle Trout fishing subsection" [expanded]
+        - list:
+          - listitem:
+            - link "River fishing":
+              - /url: "#River_fishing"
+            - list
+          - listitem:
+            - link "Ice fishing":
+              - /url: "#Ice_fishing"
+            - list
+          - listitem:
+            - link "Trout fishing records":
+              - /url: "#Trout_fishing_records"
+            - list
+          - listitem:
+            - link "Baits":
+              - /url: "#Baits"
+            - list
+      - listitem:
+        - link "Declines in native trout populations":
+          - /url: "#Declines_in_native_trout_populations"
+        - list
+      - listitem:
+        - link "See also":
+          - /url: "#See_also"
+        - list
+      - listitem:
+        - link "References":
+          - /url: "#References"
+        - list
+      - listitem:
+        - link "Further reading":
+          - /url: "#Further_reading"
+        - list
+      - listitem:
+        - link "External links":
+          - /url: "#External_links"
+        - list
+  - main:
+    - heading "Trout" [level=1]
+    - button "Go to an article in another language. Available in 66 languages"
+    - navigation "Namespaces":
+      - list:
+        - listitem:
+          - link "Article":
+            - /url: /wiki/Trout
+        - listitem:
+          - link "Talk":
+            - /url: /wiki/Talk:Trout
+    - navigation "Views":
+      - list:
+        - listitem:
+          - link "Read":
+            - /url: /wiki/Trout
+        - listitem:
+          - link "View source":
+            - /url: /w/index.php?title=Trout&action=edit
+        - listitem:
+          - link "View history":
+            - /url: /w/index.php?title=Trout&action=history
+    - navigation "Page tools":
+      - button "Tools"
+    - navigation "Appearance":
+      - text: Appearance
+      - button "hide"
+      - text: Text
+      - list:
+        - listitem:
+          - radio "Small"
+          - text: Small
+          - radio "Standard" [checked]
+          - text: Standard
+          - radio "Large"
+          - text: Large
+      - text: Width
+      - list:
+        - listitem:
+          - radio "Standard" [checked]
+          - text: Standard
+          - radio "Wide"
+          - text: Wide
+      - text: Color (beta)
+      - list:
+        - listitem:
+          - radio "Automatic"
+          - text: Automatic
+          - radio "Light" [checked]
+          - text: Light
+          - radio "Dark"
+          - text: Dark
+    - link "Page semi-protected":
+      - /url: /wiki/Wikipedia:Protection_policy#semi
+      - img "Page semi-protected"
+    - text: From Wikipedia, the free encyclopedia
+    - note:
+      - note:
+        - text: "\"Trouting\" redirects here. For the practice on Wikipedia, see"
+        - link "Wikipedia:Whacking with a wet trout":
+          - /url: /wiki/Wikipedia:Whacking_with_a_wet_trout
+        - text: .
+      - note:
+        - text: Not to be confused with
+        - link "Trout slapping":
+          - /url: /wiki/Trout_slapping
+        - text: .
+    - note:
+      - text: For other uses, see
+      - link "Trout (disambiguation)":
+        - /url: /wiki/Trout_(disambiguation)
+      - text: .
+    - link "icon":
+      - /url: /wiki/File:Question_book-new.svg
+      - img "icon"
+    - text: This article needs additional citations for
+    - link "verification":
+      - /url: /wiki/Wikipedia:Verifiability
+    - text: . Please help
+    - link "improve this article":
+      - /url: /wiki/Special:EditPage/Trout
+    - text: by
+    - link "adding citations to reliable sources":
+      - /url: /wiki/Help:Referencing_for_beginners
+    - text: ". Unsourced material may be challenged and removed. Find sources:"
+    - link "\"Trout\"":
+      - /url: https://www.google.com/search?as_eq=wikipedia&q=%22Trout%22
+    - text: –
+    - link "news":
+      - /url: https://www.google.com/search?tbm=nws&q=%22Trout%22+-wikipedia&tbs=ar:1
+    - text: ·
+    - link "newspapers":
+      - /url: https://www.google.com/search?&q=%22Trout%22&tbs=bkt:s&tbm=bks
+    - text: ·
+    - link "books":
+      - /url: https://www.google.com/search?tbs=bks:1&q=%22Trout%22+-wikipedia
+    - text: ·
+    - link "scholar":
+      - /url: https://scholar.google.com/scholar?q=%22Trout%22
+    - text: ·
+    - link "JSTOR":
+      - /url: https://www.jstor.org/action/doBasicSearch?Query=%22Trout%22&acc=on&wc=on
+    - text: (May 2008) (
+    - link "Learn how and when to remove this message":
+      - /url: /wiki/Help:Maintenance_template_removal
+    - text: )
+    - figure "Brown trout":
+      - link:
+        - /url: /wiki/File:Salmo_trutta.jpg
+        - img
+      - link "Brown trout":
+        - /url: /wiki/Brown_trout
+    - paragraph:
+      - text: "Trout (pl.: trout) is a"
+      - link "generic":
+        - /url: /wiki/Umbrella_term
+      - link "common name":
+        - /url: /wiki/Common_name
+      - text: for numerous species of carnivorous
+      - link "freshwater fishes":
+        - /url: /wiki/Freshwater_fish
+      - text: belonging to the genera
+      - link "Oncorhynchus":
+        - /url: /wiki/Oncorhynchus
+      - text: ","
+      - link "Salmo":
+        - /url: /wiki/Salmo
+      - text: ", and"
+      - link "Salvelinus":
+        - /url: /wiki/Salvelinus
+      - text: ", all of which are members of the subfamily"
+      - link "Salmoninae":
+        - /url: /wiki/Salmoninae
+      - text: in the family
+      - link "Salmonidae":
+        - /url: /wiki/Salmonidae
+      - text: . The word trout is also used for some similar-shaped but non-salmonid fish, such as the
+      - link "spotted seatrout/speckled trout":
+        - /url: /wiki/Cynoscion_nebulosus
+      - text: (Cynoscion nebulosus, which is actually a
+      - link "croaker":
+        - /url: /wiki/Sciaenidae
+      - text: ).
+    - paragraph:
+      - text: Trout are closely related to
+      - link "salmon":
+        - /url: /wiki/Salmon
+      - text: and have similar
+      - link "migratory":
+        - /url: /wiki/Fish_migration
+      - text: life cycles. Most trout are strictly
+      - link "potamodromous":
+        - /url: /wiki/Potamodromous
+      - text: ", spending their entire lives exclusively in"
+      - link "freshwater":
+        - /url: /wiki/Freshwater
+      - link "lakes":
+        - /url: /wiki/Lake
+      - text: ","
+      - link "rivers":
+        - /url: /wiki/River
+      - text: and
+      - link "wetlands":
+        - /url: /wiki/Wetland
+      - text: and migrating upstream to
+      - link "spawn":
+        - /url: /wiki/Spawn_(biology)
+      - text: in the shallow gravel
+      - link "beds":
+        - /url: /wiki/Stream_bed
+      - text: of smaller
+      - link "headwater":
+        - /url: /wiki/Headwater
+      - text: creeks. The hatched
+      - link "fry":
+        - /url: /wiki/Fry_(fish)
+      - text: and
+      - link "juvenile":
+        - /url: /wiki/Juvenile_fish
+      - text: trout, known as alevin and parr, will stay upstream growing for years before migrating down to larger waterbodies as maturing adults. There are some
+      - link "anadromous":
+        - /url: /wiki/Anadromous
+      - text: species of trout, such as the
+      - link "steelhead":
+        - /url: /wiki/Steelhead_trout
+      - text: (a coastal
+      - link "subspecies":
+        - /url: /wiki/Subspecies
+      - text: of
+      - link "rainbow trout":
+        - /url: /wiki/Rainbow_trout
+      - text: ) and
+      - link "sea trout":
+        - /url: /wiki/Sea_trout
+      - text: (the sea-run subspecies of
+      - link "brown trout":
+        - /url: /wiki/Brown_trout
+      - text: ), that can spend up to three years of their adult lives at sea before returning to freshwater streams for spawning, in the same fashion as a
+      - link "salmon run":
+        - /url: /wiki/Salmon_run
+      - text: .
+      - link "Brook trout":
+        - /url: /wiki/Brook_trout
+      - text: and three other
+      - link "extant":
+        - /url: /wiki/Extant_taxon
+      - text: species of North American trout, despite the names, are actually
+      - link "char (or charr)":
+        - /url: /wiki/Salvelinus
+      - text: ", which are salmonids also closely related to trout and salmon."
+    - paragraph:
+      - text: Trout are classified as
+      - link "oily fish":
+        - /url: /wiki/Oily_fish
+      - superscript:
+        - link "[1]":
+          - /url: "#cite_note-1"
+      - text: and have been important
+      - link "food fish":
+        - /url: /wiki/Food_fish
+      - text: for humans. As mid-level
+      - link "predators":
+        - /url: /wiki/Predator
+      - text: ", trout prey upon smaller"
+      - link "aquatic animals":
+        - /url: /wiki/Aquatic_animal
+      - text: including
+      - link "crustaceans":
+        - /url: /wiki/Crustacean
+      - text: ","
+      - link "insects":
+        - /url: /wiki/Insect
+      - text: ","
+      - link "worms":
+        - /url: /wiki/Worm
+      - text: ","
+      - link "baitfish":
+        - /url: /wiki/Baitfish
+      - text: and
+      - link "tadpoles":
+        - /url: /wiki/Tadpole
+      - text: ", and themselves in turn are also important"
+      - link "staple":
+        - /url: /wiki/Staple_food
+      - link "prey":
+        - /url: /wiki/Prey
+      - text: items for many animals, including
+      - link "brown bears":
+        - /url: /wiki/Brown_bear
+      - text: ","
+      - link "otters":
+        - /url: /wiki/Otter
+      - text: ","
+      - link "raccoons":
+        - /url: /wiki/Raccoon
+      - text: ","
+      - link "birds of prey":
+        - /url: /wiki/Birds_of_prey
+      - text: (e.g.
+      - link "sea eagles":
+        - /url: /wiki/Sea_eagle
+      - text: ","
+      - link "ospreys":
+        - /url: /wiki/Osprey
+      - text: ","
+      - link "fish owls":
+        - /url: /wiki/Fish_owl
+      - text: ),
+      - link "gulls":
+        - /url: /wiki/Gull
+      - text: ","
+      - link "cormorants":
+        - /url: /wiki/Cormorant
+      - text: and
+      - link "kingfishers":
+        - /url: /wiki/Kingfisher
+      - text: ", and other large aquatic predators. Discarded remains of trout also provide a source of nutrients for"
+      - link "scavengers":
+        - /url: /wiki/Scavenger
+      - text: ","
+      - link "detrivores":
+        - /url: /wiki/Detrivore
+      - text: and
+      - link "riparian":
+        - /url: /wiki/Riparian
+      - text: florae, making trout
+      - link "keystone species":
+        - /url: /wiki/Keystone_species
+      - text: across
+      - link "aquatic":
+        - /url: /wiki/Aquatic_ecosystem
+      - text: and
+      - link "terrestrial ecosystems":
+        - /url: /wiki/Terrestrial_ecosystem
+      - text: .
+    - heading "Species" [level=2]
+    - paragraph:
+      - text: The name "trout" is commonly used for many (if not most) species in three of the seven
+      - link "genera":
+        - /url: /wiki/Genus
+      - text: in the
+      - link "subfamily":
+        - /url: /wiki/Subfamily
+      - text: "Salmoninae:"
+      - link "Salmo":
+        - /url: /wiki/Salmo
+      - text: (
+      - link "Atlantic":
+        - /url: /wiki/Atlantic_Ocean
+      - text: ),
+      - link "Oncorhynchus":
+        - /url: /wiki/Oncorhynchus
+      - text: (
+      - link "Pacific":
+        - /url: /wiki/Pacific_Ocean
+      - text: ) and
+      - link "Salvelinus":
+        - /url: /wiki/Salvelinus
+      - text: (
+      - link "circum":
+        - /url: /wiki/Circumpolar_distribution
+      - text: "-"
+      - link "arctic":
+        - /url: /wiki/Arctic
+      - text: "). Fish species referred to as trout include:"
+    - 'figure "Salmo: marble trout, S. marmoratus"':
+      - link:
+        - /url: /wiki/File:Marble_trout_from_zadla%C5%A1%C4%8Dica.jpg
+        - img
+      - link "Salmo":
+        - /url: /wiki/Salmo
+      - text: ":"
+      - link "marble trout":
+        - /url: /wiki/Marble_trout
+      - text: ", S. marmoratus"
+    - list:
+      - listitem:
+        - text: Genus
+        - link "Salmo":
+          - /url: /wiki/Salmo
+        - text: ", all extant species except"
+        - link "Atlantic salmon":
+          - /url: /wiki/Atlantic_salmon
+        - list:
+          - listitem:
+            - link "Adriatic trout":
+              - /url: /wiki/Adriatic_trout
+            - text: ", Salmo obtusirostris"
+          - listitem:
+            - link "Brown trout":
+              - /url: /wiki/Brown_trout
+            - text: ", Salmo trutta"
+            - list:
+              - listitem:
+                - link "River trout":
+                  - /url: /wiki/River_trout
+                - text: ","
+                - link "S. t. morpha fario":
+                  - /url: /wiki/S._trutta_fario
+              - listitem:
+                - text: Lake trout/Lacustrine trout,
+                - link "S. t. morpha lacustris":
+                  - /url: /wiki/S._trutta_lacustris
+              - listitem:
+                - link "Sea trout":
+                  - /url: /wiki/Sea_trout
+                - text: ", S. t. morpha trutta"
+          - listitem:
+            - link "Flathead trout":
+              - /url: /wiki/Flathead_trout
+            - text: ", Salmo platycephalus"
+          - listitem:
+            - link "Marble trout":
+              - /url: /wiki/Marble_trout
+            - text: ", Soca River trout or Soča trout – Salmo marmoratus"
+          - listitem:
+            - link "Ohrid trout":
+              - /url: /wiki/Ohrid_trout
+            - text: ", Salmo letnica, S. balcanicus (extinct), S. lumi, and S. aphelios"
+          - listitem:
+            - link "Sevan trout":
+              - /url: /wiki/Sevan_trout
+            - text: ", Salmo ischchan"
+    - 'figure "Oncorhynchus: rainbow trout, O. mykiss"':
+      - link:
+        - /url: /wiki/File:Rainbow_Trout.jpg
+        - img
+      - link "Oncorhynchus":
+        - /url: /wiki/Oncorhynchus
+      - text: ":"
+      - link "rainbow trout":
+        - /url: /wiki/Rainbow_trout
+      - text: ", O. mykiss"
+    - list:
+      - listitem:
+        - text: Genus
+        - link "Oncorhynchus":
+          - /url: /wiki/Oncorhynchus
+        - text: ", six of the 12 extant species"
+        - list:
+          - listitem:
+            - link "Apache trout":
+              - /url: /wiki/Apache_trout
+            - text: ", Oncorhynchus apache"
+          - listitem:
+            - link "Biwa trout":
+              - /url: /wiki/Biwa_trout
+            - text: ", Oncorhynchus masou rhodurus"
+          - listitem:
+            - link "Cutthroat trout":
+              - /url: /wiki/Cutthroat_trout
+            - text: ", Oncorhynchus clarki"
+            - list:
+              - listitem:
+                - link "Coastal cutthroat trout":
+                  - /url: /wiki/Coastal_cutthroat_trout
+                - text: ", O. c. clarki"
+                - list:
+                  - listitem:
+                    - link "Crescenti trout":
+                      - /url: /wiki/Crescenti_trout
+                    - text: ", O. c. c. f. crescenti"
+              - listitem:
+                - link "Alvord cutthroat trout":
+                  - /url: /wiki/Alvord_cutthroat_trout
+                - text: ", O. c. alvordensis (extinct)"
+              - listitem:
+                - link "Bonneville cutthroat trout":
+                  - /url: /wiki/Bonneville_cutthroat_trout
+                - text: ", O. c. utah"
+              - listitem:
+                - link "Humboldt cutthroat trout":
+                  - /url: /wiki/Humboldt_cutthroat_trout
+                - text: ", O. c. humboldtensis"
+              - listitem:
+                - link "Lahontan cutthroat trout":
+                  - /url: /wiki/Lahontan_cutthroat_trout
+                - text: ", O. c. henshawi"
+                - list:
+                  - listitem:
+                    - link "Whitehorse Basin cutthroat trout":
+                      - /url: /wiki/Whitehorse_Basin_cutthroat_trout
+              - listitem:
+                - link "Paiute cutthroat trout":
+                  - /url: /wiki/Paiute_cutthroat_trout
+                - text: ", O. c. seleniris"
+              - listitem:
+                - link "Snake River fine-spotted cutthroat trout":
+                  - /url: /wiki/Snake_River_fine-spotted_cutthroat_trout
+                - text: ", O. c. behnkei"
+              - listitem:
+                - link "Westslope cutthroat trout":
+                  - /url: /wiki/Westslope_cutthroat_trout
+                - text: ", O. c. lewisi"
+              - listitem:
+                - link "Yellowfin cutthroat trout":
+                  - /url: /wiki/Yellowfin_cutthroat_trout
+                - text: ", O. c. macdonaldi (extinct)"
+              - listitem:
+                - link "Yellowstone cutthroat trout":
+                  - /url: /wiki/Yellowstone_cutthroat_trout
+                - text: ", O. c. bouvieri"
+              - listitem:
+                - link "Colorado River cutthroat trout":
+                  - /url: /wiki/Colorado_River_cutthroat_trout
+                - text: ", O. c. pleuriticus"
+              - listitem:
+                - link "Greenback cutthroat trout":
+                  - /url: /wiki/Greenback_cutthroat_trout
+                - text: ", O. c. stomias"
+              - listitem:
+                - link "Rio Grande cutthroat trout":
+                  - /url: /wiki/Rio_Grande_cutthroat_trout
+                - text: ", O. c. virginalis"
+          - listitem:
+            - link "Gila trout":
+              - /url: /wiki/Gila_trout
+            - text: ", Oncorhynchus gilae"
+          - listitem:
+            - link "Rainbow trout":
+              - /url: /wiki/Rainbow_trout
+            - text: ", Oncorhynchus mykiss"
+            - list:
+              - listitem:
+                - link "Kamchatkan rainbow trout":
+                  - /url: /wiki/Kamchatkan_rainbow_trout
+                - text: ","
+                - link "Oncorhynchus mykiss mykiss":
+                  - /url: /wiki/Oncorhynchus_mykiss_mykiss
+              - listitem:
+                - link "Columbia River redband trout":
+                  - /url: /wiki/Columbia_River_redband_trout
+                - text: ", Oncorhynchus mykiss gairdneri"
+              - listitem:
+                - link "Coastal rainbow trout":
+                  - /url: /wiki/Coastal_rainbow_trout
+                - text: (
+                - link "steelhead":
+                  - /url: /wiki/Steelhead
+                - text: ), Oncorhynchus mykiss irideus
+                - list:
+                  - listitem:
+                    - link "Beardslee trout":
+                      - /url: /wiki/Beardslee_trout
+                    - text: ", Oncorhynchus mykiss irideus var. beardsleei"
+              - listitem:
+                - link "Great Basin redband trout":
+                  - /url: /wiki/Great_Basin_redband_trout
+                - text: ", Oncorhynchus mykiss newberrii"
+              - listitem:
+                - link "Golden trout":
+                  - /url: /wiki/Golden_trout
+                - text: ", Oncorhynchus mykiss aguabonita"
+                - list:
+                  - listitem:
+                    - link "Kern River rainbow trout":
+                      - /url: /wiki/Kern_River_rainbow_trout
+                    - text: ","
+                    - link "Oncorhynchus mykiss aguabonita":
+                      - /url: /wiki/Oncorhynchus_mykiss_aguabonita
+                    - text: var. gilberti
+                  - listitem:
+                    - text: Sacramento golden trout,
+                    - link "Oncorhynchus mykiss aguabonita":
+                      - /url: /wiki/Oncorhynchus_mykiss_aguabonita
+                    - text: var. stonei
+                  - listitem:
+                    - link "Little Kern golden trout":
+                      - /url: /wiki/Little_Kern_golden_trout
+                    - text: ","
+                    - link "Oncorhynchus mykiss aguabonita":
+                      - /url: /wiki/Oncorhynchus_mykiss_aguabonita
+                    - text: var. whitei
+              - listitem:
+                - link "Kamloops rainbow trout":
+                  - /url: /wiki/Kamloops_rainbow_trout
+                - text: ","
+                - link "Oncorhynchus mykiss kamloops":
+                  - /url: /wiki/Oncorhynchus_mykiss_kamloops
+              - listitem:
+                - link "Baja California rainbow trout":
+                  - /url: /wiki/Baja_California_rainbow_trout
+                - text: ", Nelson's trout, or San Pedro Martir trout,"
+                - link "Oncorhynchus mykiss nelsoni":
+                  - /url: /wiki/Oncorhynchus_mykiss_nelsoni
+              - listitem:
+                - link "Eagle Lake trout":
+                  - /url: /wiki/Eagle_Lake_trout
+                - text: ","
+                - link "Oncorhynchus mykiss aquilarum":
+                  - /url: /wiki/Oncorhynchus_mykiss_aquilarum
+              - listitem:
+                - link "McCloud River redband trout":
+                  - /url: /wiki/McCloud_River_redband_trout
+                - text: ","
+                - link "Oncorhynchus mykiss stonei":
+                  - /url: /wiki/Oncorhynchus_mykiss_stonei
+              - listitem:
+                - link "Sheepheaven Creek redband trout":
+                  - /url: /wiki/Sheepheaven_Creek_redband_trout
+          - listitem:
+            - link "Mexican golden trout":
+              - /url: /wiki/Mexican_golden_trout
+            - text: ", Oncorhynchus chrysogaster"
+    - 'figure "Salvelinus: brook trout, S. fontinalis"':
+      - link:
+        - /url: /wiki/File:Brook_trout_1918.jpg
+        - img
+      - link "Salvelinus":
+        - /url: /wiki/Salvelinus
+      - text: ":"
+      - link "brook trout":
+        - /url: /wiki/Brook_trout
+      - text: ", S. fontinalis"
+    - list:
+      - listitem:
+        - text: Genus
+        - link "Salvelinus":
+          - /url: /wiki/Salvelinus
+        - text: ", five of the 52 extant species"
+        - list:
+          - listitem:
+            - link "Brook trout":
+              - /url: /wiki/Brook_trout
+            - text: ", Salvelinus fontinalis"
+            - list:
+              - listitem:
+                - link "Aurora trout":
+                  - /url: /wiki/Aurora_trout
+                - text: ", S. f. timagamiensis"
+          - listitem:
+            - link "Bull trout":
+              - /url: /wiki/Bull_trout
+            - text: ", Salvelinus confluentus"
+          - listitem:
+            - link "Dolly Varden trout":
+              - /url: /wiki/Dolly_Varden_trout
+            - text: ", Salvelinus malma"
+          - listitem:
+            - link "Lake trout":
+              - /url: /wiki/Lake_trout
+            - text: ", Salvelinus namaycush"
+          - listitem:
+            - link "Silver trout":
+              - /url: /wiki/Silver_trout
+            - text: ", † Salvelinus agassizi (extinct)"
+      - listitem:
+        - text: Hybrids
+        - list:
+          - listitem:
+            - link "Tiger trout":
+              - /url: /wiki/Tiger_trout
+            - text: ", Salmo trutta X Salvelinus fontinalis (infertile)"
+          - listitem:
+            - text: Speckled Lake (
+            - link "Splake":
+              - /url: /wiki/Splake
+            - text: ) trout, Salvelinus namaycush X Salvelinus fontinalis (fertile)
+    - heading "Fish from other families" [level=3]
+    - list:
+      - listitem:
+        - text: Pseudaphritidae
+        - list:
+          - listitem:
+            - text: Genus Pseudaphritis
+            - list:
+              - listitem:
+                - link "Sand trout":
+                  - /url: /wiki/Sand_trout
+                - text: ", Pseudaphritis urvillii"
+      - listitem:
+        - link "Sciaenidae":
+          - /url: /wiki/Sciaenidae
+        - list:
+          - listitem:
+            - text: Genus Cynoscion
+            - list:
+              - listitem:
+                - link "Spotted sea-trout":
+                  - /url: /wiki/Cynoscion_nebulosus
+                - text: ", Cynoscion nebulosus"
+    - heading "Anatomy" [level=2]
+    - paragraph:
+      - text: Trout that live in different environments can have dramatically different colorations and patterns. Mostly, these colors and patterns form as
+      - link "camouflage":
+        - /url: /wiki/Camouflage
+      - text: ", based on the surroundings, and will change as the fish moves to different habitats. Trout in, or newly returned from the sea, can look very silvery, while the same fish living in a small stream or in an alpine lake could have pronounced markings and more vivid coloration; it is also possible that in some species, this signifies that they are ready to mate. In general, trout that are about to breed have extremely intense coloration and can look like an entirely different fish outside of spawning season. It is virtually impossible to define a particular color pattern as belonging to a specific breed; however, in general, wild fish are claimed to have more vivid colors and patterns."
+    - paragraph:
+      - text: Trout have fins entirely without spines, and all of them have a small
+      - link "adipose":
+        - /url: /wiki/Adipose
+      - text: fin along the back, near the tail. The pelvic fins sit well back on the body, on each side of the anus. The
+      - link "swim bladder":
+        - /url: /wiki/Swim_bladder
+      - text: is connected to the
+      - link "esophagus":
+        - /url: /wiki/Esophagus
+      - text: ", allowing for gulping or rapid expulsion of air, a condition known as"
+      - link "physostome":
+        - /url: /wiki/Physostome
+      - text: . Unlike many other physostome fish, trout do not use their bladder as an auxiliary device for
+      - link "oxygen":
+        - /url: /wiki/Oxygen
+      - text: uptake, relying solely on their
+      - link "gills":
+        - /url: /wiki/Gills
+      - text: .
+    - paragraph:
+      - text: There are many species, and even more populations, that are isolated from each other and morphologically different. However, since many of these distinct populations show no significant genetic differences, what may appear to be a large number of species is considered a much smaller number of distinct species by most
+      - link "ichthyologists":
+        - /url: /wiki/Ichthyology
+      - text: . The trout found in the eastern
+      - link "United States":
+        - /url: /wiki/United_States
+      - text: are a good example of this. The
+      - link "brook trout":
+        - /url: /wiki/Brook_trout
+      - text: ", the"
+      - link "aurora trout":
+        - /url: /wiki/Aurora_trout
+      - text: ", and the (extinct)"
+      - link "silver trout":
+        - /url: /wiki/Silver_trout
+      - text: all have physical characteristics and colorations that distinguish them, yet
+      - link "genetic":
+        - /url: /wiki/Gene
+      - text: analysis shows that they are one species, Salvelinus fontinalis.
+    - paragraph:
+      - link "Lake trout":
+        - /url: /wiki/Lake_trout
+      - text: (Salvelinus namaycush), like brook trout, belong to the char genus. Lake trout inhabit many of the larger lakes in North America, and live much longer than
+      - link "rainbow trout":
+        - /url: /wiki/Rainbow_trout
+      - text: ", which have an average maximum lifespan of seven years. Lake trout can live many decades, and can grow to more than 30 kilograms (66 lb)."
+    - heading "Habitat" [level=2]
+    - figure "A trout farm in Sochi, Russia":
+      - link:
+        - /url: /wiki/File:Forel_farm_Sochi.jpg
+        - img
+      - text: A trout farm in
+      - link "Sochi":
+        - /url: /wiki/Sochi
+      - text: ","
+      - link "Russia":
+        - /url: /wiki/Russia
+    - paragraph:
+      - text: As salmonids, trout are
+      - link "coldwater fish":
+        - /url: /wiki/Coldwater_fish
+      - text: that are usually found in cool (50–60 °F or 10–16 °C), clear streams, wetlands and lakes, although many of the species have
+      - link "anadromous":
+        - /url: /wiki/Anadromous
+      - text: populations as well. Juvenile trout are referred to as troutlet, troutling or parr. They are distributed naturally throughout
+      - link "North America":
+        - /url: /wiki/North_America
+      - text: ", northern"
+      - link "Asia":
+        - /url: /wiki/Asia
+      - text: and
+      - link "Europe":
+        - /url: /wiki/Europe
+      - text: . Several species of trout were introduced to
+      - link "Australia":
+        - /url: /wiki/Australia
+      - text: and
+      - link "New Zealand":
+        - /url: /wiki/New_Zealand
+      - text: by amateur fishing enthusiasts in the 19th century, effectively displacing and endangering several
+      - link "upland":
+        - /url: /wiki/Upland_and_lowland_(freshwater_ecology)
+      - text: native fish species. The introduced species included
+      - link "brown trout":
+        - /url: /wiki/Brown_trout
+      - text: from
+      - link "England":
+        - /url: /wiki/England
+      - text: and
+      - link "rainbow trout":
+        - /url: /wiki/Rainbow_trout
+      - text: from
+      - link "California":
+        - /url: /wiki/California
+      - text: . The rainbow trout has a
+      - link "steelhead":
+        - /url: /wiki/Steelhead
+      - text: subspecies, generally accepted as coming from
+      - link "Sonoma Creek":
+        - /url: /wiki/Sonoma_Creek
+      - text: . The rainbow trout of New Zealand still show the steelhead tendency to run up rivers in winter to spawn.
+      - superscript:
+        - link "[2]":
+          - /url: "#cite_note-2"
+    - paragraph:
+      - text: In Australia, the rainbow trout was introduced in 1894 from New Zealand and is an extremely popular gamefish in recreational angling.
+      - superscript:
+        - link "[3]":
+          - /url: "#cite_note-fishes-3"
+      - text: Despite severely impacting the distribution and abundance of native Australian fish, such as the
+      - link "climbing galaxias":
+        - /url: /wiki/Climbing_galaxias
+      - text: ", millions of rainbow and other trout species are released annually from government and private hatcheries."
+      - superscript:
+        - link "[3]":
+          - /url: "#cite_note-fishes-3"
+    - paragraph:
+      - text: The closest resemblance of seema trout and other trout family can be found in the
+      - link "Himalayan Region":
+        - /url: /wiki/Himalayas
+      - text: of India, Nepal, Bhutan, Pakistan and in
+      - link "Tian Shan":
+        - /url: /wiki/Tian_Shan
+      - text: mountains of
+      - link "Kyrgyzstan":
+        - /url: /wiki/Kyrgyzstan
+      - text: .
+      - superscript:
+        - text: "["
+        - link "clarification needed":
+          - /url: /wiki/Wikipedia:Please_clarify
+        - text: "]"
+    - heading "Diet" [level=2]
+    - figure "Golden trout, Oncorhynchus aguabonita":
+      - link:
+        - /url: /wiki/File:Truite_doree.jpg
+        - img
+      - link "Golden trout":
+        - /url: /wiki/Golden_trout
+      - text: ", Oncorhynchus aguabonita"
+    - paragraph:
+      - text: Trout generally feed on other fish, and soft-bodied aquatic
+      - link "invertebrates":
+        - /url: /wiki/Invertebrate
+      - text: ", such as"
+      - link "flies":
+        - /url: /wiki/Diptera
+      - text: ","
+      - link "mayflies":
+        - /url: /wiki/Mayfly
+      - text: ","
+      - link "caddisflies":
+        - /url: /wiki/Trichoptera
+      - text: ","
+      - link "stoneflies":
+        - /url: /wiki/Plecoptera
+      - text: ","
+      - link "mollusks":
+        - /url: /wiki/Mollusk
+      - text: and
+      - link "dragonflies":
+        - /url: /wiki/Odonata
+      - text: . In lakes, various species of
+      - link "zooplankton":
+        - /url: /wiki/Plankton
+      - text: often form a large part of the diet. In general, trout longer than about 300 millimetres (12 in) prey almost exclusively on fish, where they are available. Adult trout will devour smaller fish up to one-third of their length. Trout may feed on
+      - link "shrimp":
+        - /url: /wiki/Shrimp
+      - text: ","
+      - link "mealworms":
+        - /url: /wiki/Mealworm
+      - text: ","
+      - link "bloodworms":
+        - /url: /wiki/Chironomidae
+      - text: ","
+      - link "insects":
+        - /url: /wiki/Insect
+      - text: ", small animal parts, and"
+      - link "eel":
+        - /url: /wiki/Eel
+      - text: .
+    - paragraph:
+      - text: Trout who swim the streams love to feed on land animals, aquatic life, and flies.
+      - superscript:
+        - link "[4]":
+          - /url: "#cite_note-Trout_Food_{{!}}_Stream_Explorers-4"
+      - text: Most of their diet comes from macroinvertebrates, or animals that do not have a backbone like snails, worms, or insects. They also eat flies, and most people who try to use lures to fish trout mimic flies because they are one of trout's most fed on meals.
+      - superscript:
+        - link "[4]":
+          - /url: "#cite_note-Trout_Food_{{!}}_Stream_Explorers-4"
+      - text: Trout enjoy certain land animals, including insects like grasshoppers. They also eat small animals like mice when they fall in. (Although only large trout have mouths capable of eating mice.) They consume a diet of aquatic life like minnows or crawfish as well. Trout have a diverse diet they follow; they have plenty of different options.
+      - superscript:
+        - link "[4]":
+          - /url: "#cite_note-Trout_Food_{{!}}_Stream_Explorers-4"
+    - heading "Trout as food" [level=2]
+    - figure "Baked trout":
+      - link:
+        - /url: /wiki/File:Baked_trout.jpg
+        - img
+      - text: Baked trout
+    - paragraph:
+      - text: Compared to other salmonids, trout are somewhat more
+      - link "bony":
+        - /url: /wiki/Fish_bone
+      - text: ", but the flesh is generally considered delicious, and the texture is often indistinguishable from"
+      - link "that of salmon":
+        - /url: /wiki/Salmon_as_food
+      - text: . The flavor of the flesh is heavily influenced by the diet of the fish. For example, trout that have been feeding on crustaceans tend to be more flavorful than those feeding primarily on
+      - link "insects":
+        - /url: /wiki/Insect
+      - text: and
+      - link "larvae":
+        - /url: /wiki/Larva
+      - text: . Because of their popularity, trout are often raised on
+      - link "fish farms":
+        - /url: /wiki/Fish_farm
+      - text: and then
+      - link "stocked":
+        - /url: /wiki/Fish_stocking
+      - text: into heavily fished waters, in an effort to mask the effects of
+      - link "overfishing":
+        - /url: /wiki/Overfishing
+      - text: .
+      - superscript:
+        - text: "["
+        - link "citation needed":
+          - /url: /wiki/Wikipedia:Citation_needed
+        - text: "]"
+      - text: Farmed trout are also sold commercially as
+      - link "seafood":
+        - /url: /wiki/Seafood
+      - text: ", although they are not"
+      - link "saltwater fish":
+        - /url: /wiki/Saltwater_fish
+      - text: . Trout meat is typically prepared the same way as salmon, often by
+      - link "smoking":
+        - /url: /wiki/Smoking_(cooking)
+      - text: .
+      - superscript:
+        - link "[5]":
+          - /url: "#cite_note-5"
+    - paragraph:
+      - text: In
+      - link "Mainland China":
+        - /url: /wiki/Mainland_China
+      - text: ", farm-raised"
+      - link "rainbow trout":
+        - /url: /wiki/Rainbow_trout
+      - text: from
+      - link "Qinghai":
+        - /url: /wiki/Qinghai
+      - text: was officially sanctioned to be labeled and sold domestically as salmon, which caused much controversy regarding
+      - link "food safety":
+        - /url: /wiki/Food_safety
+      - text: and
+      - link "consumer rights violation":
+        - /url: /wiki/Consumer_protection
+      - text: ","
+      - superscript:
+        - link "[6]":
+          - /url: "#cite_note-6"
+      - text: as
+      - link "raw fish dishes":
+        - /url: /wiki/Raw_fish_dish
+      - text: or
+      - link "yusheng":
+        - /url: /wiki/Yusheng
+      - text: using
+      - link "Atlantic salmon":
+        - /url: /wiki/Atlantic_salmon
+      - text: are gaining popularity in
+      - link "southern China":
+        - /url: /wiki/Southern_China
+      - text: . Farmed rainbow trout is much cheaper than the imported Atlantic salmon and the meat are indistinguishable to the untrained eyes, and the news of trout being sold as salmon triggered public scrutiny accusing seafood suppliers of
+      - link "bait-and-switch":
+        - /url: /wiki/Bait-and-switch
+      - text: and
+      - link "unethical business practices":
+        - /url: /wiki/Business_ethics
+      - text: . Also, many people believe freshwater trout are more prone to
+      - link "parasites":
+        - /url: /wiki/Fish_parasite
+      - text: than oceanic salmon (even though both live in freshwater for significant periods of their life cycles) and thus unsafe for
+      - link "raw eating":
+        - /url: /wiki/Raw_foodism
+      - text: .
+    - heading "Nutritional value" [level=3]
+    - paragraph:
+      - text: One
+      - link "fillet":
+        - /url: /wiki/Fish_fillet
+      - text: "of trout (about 79 g or 2.8 oz) contains:"
+      - superscript:
+        - link "[7]":
+          - /url: "#cite_note-7"
+    - list:
+      - listitem:
+        - link "Energy":
+          - /url: /wiki/Food_energy
+        - text: ": 490 kJ (117 kcal)"
+      - listitem:
+        - link "Fat":
+          - /url: /wiki/Fat
+        - text: "(g): 5.22"
+      - listitem:
+        - link "Carbohydrates":
+          - /url: /wiki/Carbohydrate
+        - text: "(g): 0"
+      - listitem:
+        - link "Fibers":
+          - /url: /wiki/Dietary_fiber
+        - text: "(g): 0"
+      - listitem:
+        - link "Protein":
+          - /url: /wiki/Protein
+        - text: "(g): 16.41"
+      - listitem:
+        - link "Cholesterol":
+          - /url: /wiki/Cholesterol
+        - text: "(mg): 46"
+    - heading "Trout fishing" [level=2]
+    - paragraph:
+      - text: Trout are very popular freshwater
+      - link "game fish":
+        - /url: /wiki/Game_fish
+      - text: highly prized especially by creek fishermen, because they generally put up a good fight when caught with a
+      - link "hook":
+        - /url: /wiki/Fish_hook
+      - text: and
+      - link "line":
+        - /url: /wiki/Fishing_line
+      - text: . As trout are
+      - link "predatory fish":
+        - /url: /wiki/Predatory_fish
+      - text: ","
+      - link "lure fishing":
+        - /url: /wiki/Angling#Lure_fishing
+      - text: (which use
+      - link "replica":
+        - /url: /wiki/Replica
+      - text: baits called
+      - link "lures":
+        - /url: /wiki/Fishing_lure
+      - text: to imitate live prey) is the predominant form of
+      - link "sport fishing":
+        - /url: /wiki/Sport_fishing
+      - text: involving trout, although traditional
+      - link "bait fishing":
+        - /url: /wiki/Fishing_bait
+      - text: techniques using
+      - link "floats":
+        - /url: /wiki/Fishing_float
+      - text: and/or
+      - link "sinkers":
+        - /url: /wiki/Fishing_sinker
+      - text: (particularly with moving
+      - link "live baits":
+        - /url: /wiki/Live_food
+      - text: such as
+      - link "baitfish":
+        - /url: /wiki/Baitfish
+      - text: ","
+      - link "crayfish":
+        - /url: /wiki/Crayfish
+      - text: or
+      - link "aquatic insects":
+        - /url: /wiki/Aquatic_insect
+      - text: ) are also successful, especially against
+      - link "stocked":
+        - /url: /wiki/Fish_stocking
+      - text: trout that are
+      - link "hatchery":
+        - /url: /wiki/Fish_hatchery
+      - text: /
+      - link "farm":
+        - /url: /wiki/Fish_farm
+      - text: "-raised and thus more accustomed to"
+      - link "artificial feeds":
+        - /url: /wiki/Fish_feed
+      - text: .
+    - paragraph:
+      - text: Many species of trout, most noticeably
+      - link "rainbow trout":
+        - /url: /wiki/Rainbow_trout
+      - text: and
+      - link "brown trout":
+        - /url: /wiki/Brown_trout
+      - text: ", have been widely"
+      - link "introduced":
+        - /url: /wiki/Introduced_species
+      - text: into waterbodies outside of their
+      - link "native ranges":
+        - /url: /wiki/Native_range
+      - text: purely for the sake of
+      - link "recreational fishing":
+        - /url: /wiki/Recreational_fishing
+      - text: ", and some of these introduced populations have even become"
+      - link "invasive":
+        - /url: /wiki/Invasive_species
+      - text: in the new habitats.
+    - heading "River fishing" [level=3]
+    - paragraph:
+      - text: While trout can be caught with a normal
+      - link "rod":
+        - /url: /wiki/Fishing_rod
+      - text: and
+      - link "reel":
+        - /url: /wiki/Fishing_reel
+      - text: ","
+      - link "fly fishing":
+        - /url: /wiki/Fly_fishing
+      - text: is a distinctive lure fishing method developed for trout, and now extended to other species. Due to the high proportion of
+      - link "insects":
+        - /url: /wiki/Insect
+      - text: and small
+      - link "crustaceans":
+        - /url: /wiki/Crustacean
+      - text: within the trout's diet, small lures made of
+      - link "hand-tied":
+        - /url: /wiki/Fly_tying
+      - link "hairs":
+        - /url: /wiki/Hair
+      - text: and
+      - link "threads":
+        - /url: /wiki/Thread_(yarn)
+      - text: are often used to imitate these aquatic
+      - link "invertebrates":
+        - /url: /wiki/Invertebrate
+      - text: that the trout prey upon. These ultralight
+      - link "fly lures":
+        - /url: /wiki/Fly_lure
+      - text: cannot be
+      - link "cast":
+        - /url: /wiki/Casting_(fishing)
+      - text: adequately by conventional techniques, and a specialized heavy line (i.e. fly line) is needed to launch the lure.
+    - paragraph:
+      - text: Understanding how moving water shapes the stream channel makes it easier to find trout. In most streams, the current creates a riffle-run-pool pattern that repeats itself over and over. A deep pool may hold a big brown trout, but rainbow trout and smaller brown trout are likely found in runs.
+      - link "Riffles":
+        - /url: /wiki/Riffle
+      - text: are where fishers will find small trout, called troutlet, during the day and larger trout crowding in during morning and evening feeding periods.
+      - superscript:
+        - link "[8]":
+          - /url: "#cite_note-8"
+    - list:
+      - listitem: Riffles have a fast current and shallow water. This gives way to a bottom of gravel, rubble or boulder. Riffles are morning and evening feeding areas. Trout usually spawn just above or below riffles, but may spawn right in them.
+      - listitem: Runs are deeper than riffles with a moderate current and are found between riffles and pools. The bottom is made up of small gravel or rubble. These hot spots hold trout almost anytime, if there is sufficient cover.
+      - listitem: Pools are smoother and look darker than the other areas of the stream. The deep, slow-moving water generally has a bottom of silt, sand, or small gravel. Pools make good midday resting spots for medium to large trout.
+      - listitem:
+        - text: It is recommended that when fishing for trout, that the fisher(s) should use line in the 4–8 lb test for streamfish, and stronger line with the same diameter for trout from the sea or from a large lake, such as Lake Michigan. It is also recommended to use a hook size 8–5 for trout of all kind. Trout, especially farm-raised ones, tend to like
+        - link "salmon roes":
+          - /url: /wiki/Salmon_roe
+        - text: ","
+        - link "worms":
+          - /url: /wiki/Worm
+        - text: ","
+        - link "minnows":
+          - /url: /wiki/Minnow
+        - text: ", cut bait,"
+        - link "maize":
+          - /url: /wiki/Maize
+        - text: ", or"
+        - link "marshmallows":
+          - /url: /wiki/Marshmallow
+        - text: .
+    - heading "Ice fishing" [level=3]
+    - paragraph:
+      - text: Fishing for trout under the ice generally occurs in depths of 4 to 8 feet (1.2 to 2.4 m). Because trout are cold water fish, during the winter they move from up-deep to the shallows, replacing the small fish that inhabit the area during the summer. Trout in winter constantly cruise in shallow depths looking for food, usually traveling in groups, although bigger fish may travel alone and in water that's somewhat deeper, around 12 feet (3.7 m). Rainbow, Brown, and Brook trout are the most common trout species caught through the ice.
+      - superscript:
+        - link "[9]":
+          - /url: "#cite_note-9"
+    - heading "Trout fishing records" [level=3]
+    - paragraph:
+      - text: By information from
+      - link "International Game Fish Association":
+        - /url: /wiki/International_Game_Fish_Association
+      - text: "(IGFA), the most outstanding records are:"
+      - superscript:
+        - link "[10]":
+          - /url: "#cite_note-10"
+    - list:
+      - listitem:
+        - link "Brook trout":
+          - /url: /wiki/Brook_trout
+        - text: caught by Dr. W. Cook in the
+        - link "Nipigon River":
+          - /url: /wiki/Nipigon_River
+        - text: in Ontario (Canada) July 1, 1916, that weighed 6.57 kg (14 lb 8 oz)
+      - listitem:
+        - link "Cutthroat trout":
+          - /url: /wiki/Cutthroat_trout
+        - text: caught by John Skimmerhorn in
+        - link "Pyramid Lake (Nevada)":
+          - /url: /wiki/Pyramid_Lake_(Nevada)
+        - text: (U.S.) December 1, 1925, that weighed 18.59 kg (41 lb 0 oz)
+      - listitem:
+        - link "Bull trout":
+          - /url: /wiki/Bull_trout
+        - text: caught by N. Higgins in
+        - link "Lake Pend Oreille":
+          - /url: /wiki/Lake_Pend_Oreille
+        - text: in Idaho (U.S.) October 27, 1949, that weighed 14.51 kg (32 lb 0 oz)
+      - listitem:
+        - link "Golden trout":
+          - /url: /wiki/Golden_trout
+        - text: caught by Chas Reed in Cooks Lake in Wyoming (U.S.) August 5, 1948, that weighed 4.98 kg (11 lb 0 oz)
+      - listitem:
+        - link "Rainbow trout":
+          - /url: /wiki/Rainbow_trout
+        - text: caught by Sean Konrad in
+        - link "Lake Diefenbaker":
+          - /url: /wiki/Lake_Diefenbaker
+        - text: in Saskatchewan (Canada) September 5, 2009, that weighed 21.77 kg (48 lb 0 oz)
+      - listitem:
+        - link "Lake trout":
+          - /url: /wiki/Lake_trout
+        - text: caught by Lloyd Bull in
+        - link "Great Bear Lake":
+          - /url: /wiki/Great_Bear_Lake
+        - text: in Northwest Territories (Canada) on August 19, 1995, that weighed 32.65 kg (72 lb 0 oz)
+    - heading "Baits" [level=3]
+    - list:
+      - listitem:
+        - link "Waxworms are used as live-bait for trout fishing.":
+          - /url: /wiki/File:Achroia_grisella_caterpillars_kleine_wasmot_rupsen_(1).jpg
+          - img "Waxworms are used as live-bait for trout fishing."
+        - link "Waxworms":
+          - /url: /wiki/Waxworm
+        - text: are used as
+        - link "live-bait":
+          - /url: /wiki/Fishing_bait
+        - text: for trout fishing.
+      - listitem:
+        - link "Corn worms are also excellent live-bait when trout fishing.":
+          - /url: /wiki/File:Corn_borer.jpg
+          - img "Corn worms are also excellent live-bait when trout fishing."
+        - link "Corn worms":
+          - /url: /wiki/European_corn_borer
+        - text: are also excellent
+        - link "live-bait":
+          - /url: /wiki/Fishing_bait
+        - text: when trout fishing.
+      - listitem:
+        - link "Nymph of a golden stonefly are used as live-bait for trout fishing.":
+          - /url: /wiki/File:Plecoptera.jpg
+          - img "Nymph of a golden stonefly are used as live-bait for trout fishing."
+        - link "Nymph":
+          - /url: /wiki/Nymph_(biology)
+        - text: of a golden
+        - link "stonefly":
+          - /url: /wiki/Stonefly
+        - text: are used as
+        - link "live-bait":
+          - /url: /wiki/Fishing_bait
+        - text: for trout fishing.
+      - listitem:
+        - link "Nymph mayfly":
+          - /url: /wiki/File:Ecdyonurus_tobiironis_Kurotanigawakagerou_larva.jpg
+          - img "Nymph mayfly"
+        - link "Nymph":
+          - /url: /wiki/Nymph_(biology)
+        - link "mayfly":
+          - /url: /wiki/Mayfly
+      - listitem:
+        - link "Salmon roe (red caviar)":
+          - /url: /wiki/File:Ikorka.jpg
+          - img "Salmon roe (red caviar)"
+        - link "Salmon roe":
+          - /url: /wiki/Salmon_roe
+        - text: (
+        - link "red caviar":
+          - /url: /wiki/Red_caviar
+        - text: )
+      - listitem:
+        - link "Worms are cheap and effective bait to use for trout and most types of fish.":
+          - /url: /wiki/File:Jyv%C3%A4skyl%C3%A4_-_worm.jpg
+          - img "Worms are cheap and effective bait to use for trout and most types of fish."
+        - text: Worms are cheap and effective bait to use for trout and most types of fish.
+      - listitem:
+        - link "A soft plastic lure or \"trout worm\"":
+          - /url: /wiki/File:Orange-trout-worms2.jpg
+          - img "A soft plastic lure or \"trout worm\""
+        - text: A
+        - link "soft plastic lure":
+          - /url: /wiki/Soft_plastic_lure
+        - text: or "trout worm"
+    - list:
+      - listitem: Fly Fishing Flies
+      - listitem:
+        - link "Wooly buggers can be tied in every color imaginable.":
+          - /url: /wiki/File:MoscaWoolyBugger.jpg
+          - img "Wooly buggers can be tied in every color imaginable."
+        - text: Wooly buggers can be tied in every color imaginable.
+      - listitem:
+        - link "Egg patterns are effective for steelhead and trout in rivers.":
+          - /url: /wiki/File:Pink-roe-egg-fly_02.jpg
+          - img "Egg patterns are effective for steelhead and trout in rivers."
+        - text: Egg patterns are effective for steelhead and trout in rivers.
+      - listitem:
+        - link "Muddler minnow":
+          - /url: /wiki/File:Muddler_minnow_fly.JPG
+          - img "Muddler minnow"
+        - text: Muddler minnow
+    - heading "Declines in native trout populations" [level=2]
+    - paragraph:
+      - text: Salmonid populations in general have been declining due to numerous factors, including
+      - link "invasive species":
+        - /url: /wiki/Invasive_species
+      - text: ", hybridization, wildfires, and climate change. Native salmonid fish in the western and southwestern United States are threatened by non-native species that were introduced decades ago. Non-native salmonids were introduced to enrich recreational fishing;"
+      - superscript:
+        - link "[11]":
+          - /url: "#cite_note-11"
+      - text: however, they quickly started outcompeting and displacing native salmonids upon their arrival.
+    - paragraph:
+      - text: Non-native, invasive species are quick to adapt to their new environment and learn to outcompete any native species, making them a force the native salmon and trout have to reckon with. Not only do the non-native fish drive the native fish to occupy new niches, but they also try to hybridize with them, contaminating the native gene construction. As more hybrids between native and non-native fish are formed, the lineage of the pure fish is continuously being contaminated by other species and soon may no longer represent the sole native species. The
+      - link "Rio Grande cutthroat trout":
+        - /url: /wiki/Rio_Grande_cutthroat_trout
+      - text: (Oncorhynchus clarki virginalis) are susceptible to hybridization with other salmonids such as
+      - link "rainbow trout":
+        - /url: /wiki/Rainbow_trout
+      - text: (Oncorhynchus mykiss) and yield a new "
+      - link "cutbow":
+        - /url: /wiki/Cutbow
+      - text: "\" trout, which is a contamination of both lineages’ genes. One solution to this issue is implemented by"
+      - link "New Mexico Department of Game and Fish":
+        - /url: /wiki/New_Mexico_Department_of_Game_and_Fish
+      - link "hatcheries":
+        - /url: /wiki/Fish_hatchery
+      - text: ": stock only sterile fish in river streams. Hatcheries serve as a reservoir of fish for recreational activities but growing and stocking non-sterile fish would worsen the hybridization issue on a quicker, more magnified time scale. By stocking sterile fish, the native salmonids can't share genes with the non-native hatchery fish, thus, preventing further gene contamination of the native trout in New Mexico. Fire is also a factor in deteriorating"
+      - link "Gila trout":
+        - /url: /wiki/Gila_trout
+      - text: (Oncorhynchus gilae) populations because of the ash and soot that can enter streams following fires.
+      - superscript:
+        - link "[12]":
+          - /url: "#cite_note-12"
+      - text: The ash lowers water quality, making it more difficult for the Gila trout to survive. In some New Mexico streams, the native Gila trout will be evacuated from streams that are threatened by nearby fires and be reintroduced after the threat is resolved.
+      - superscript:
+        - text: "["
+        - link "citation needed":
+          - /url: /wiki/Wikipedia:Citation_needed
+        - text: "]"
+    - paragraph:
+      - link "Climate change":
+        - /url: /wiki/Climate_change
+      - text: is also dwindling native salmonid populations.
+      - link "Global warming":
+        - /url: /wiki/Global_warming
+      - text: continually affects various cold-water fish such as trout, especially as inland waterbodies are more prone to warming than oceans. With an increase of temperature along with changes in spawning river flow, an abundance of trout species are affected negatively. In the past, a mere 8 °F (4.4 °C) increase was predicted to eliminate half of the native
+      - link "brook trout":
+        - /url: /wiki/Brook_trout
+      - text: in the Southern
+      - link "Appalachian Mountains":
+        - /url: /wiki/Appalachian_Mountains
+      - text: .
+      - superscript:
+        - link "[13]":
+          - /url: "#cite_note-13"
+      - text: Trout generally prefer streams with colder water (50–60 °F or 10–16 °C) to spawn and thrive, but raising water temperatures are altering this ecosystem and further deteriorate native populations.
+    - heading "See also" [level=2]
+    - navigation "Portals":
+      - listitem:
+        - link "icon":
+          - /url: /wiki/File:Foodlogo2.svg
+          - img "icon"
+        - link "Food portal":
+          - /url: /wiki/Portal:Food
+    - list:
+      - listitem:
+        - link "Introduced trout in lake ecosystems":
+          - /url: /wiki/Introduced_trout_in_lake_ecosystems
+      - listitem:
+        - link "List of smoked foods":
+          - /url: /wiki/List_of_smoked_foods
+      - listitem:
+        - link "Trout tickling":
+          - /url: /wiki/Trout_tickling
+    - heading "References" [level=2]
+    - list:
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-1"
+          - text: ^
+        - link "\"What are oily fish?\"":
+          - /url: https://web.archive.org/web/20131204081530/http://www.food.gov.uk/multimedia/faq/oilyfishfaq/oilyfishqa02
+        - text: .
+        - link "Food Standards Agency":
+          - /url: /wiki/Food_Standards_Agency
+        - text: . June 23, 2004. Archived from
+        - link "the original":
+          - /url: http://www.food.gov.uk/multimedia/faq/oilyfishfaq/oilyfishqa02
+        - text: on December 4, 2013. Retrieved February 17, 2013.
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-2"
+          - text: ^
+        - text: "Landergren, Peter (1999). \"Spawning of anadromous rainbow trout, Oncorhynchus mykiss (Walbaum): A threat to sea trout, Salmo trutta L., populations?\". Fisheries Research. 40 (1): 55–63."
+        - link "Bibcode":
+          - /url: /wiki/Bibcode_(identifier)
+        - text: ":"
+        - link "1999FishR..40...55L":
+          - /url: https://ui.adsabs.harvard.edu/abs/1999FishR..40...55L
+        - text: .
+        - link "doi":
+          - /url: /wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1016/S0165-7836(98)00215-X":
+          - /url: https://doi.org/10.1016%2FS0165-7836%2898%2900215-X
+        - text: .
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-fishes_3-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-fishes_3-1"
+          - superscript: b
+        - text: Gomon, Martin; Bray, Dianne.
+        - link "\"Rainbow Trout, Oncorhynchus mykiss\"":
+          - /url: https://fishesofaustralia.net.au/home/species/2083
+        - text: . Fishes of Australia.
+        - link "Archived":
+          - /url: https://web.archive.org/web/20140904090858/http://www.fishesofaustralia.net.au/home/species/2083
+        - text: from the original on September 4, 2014. Retrieved August 30, 2014.
+      - listitem:
+        - text: ^
+        - 'link "Jump up to: a"':
+          - /url: "#cite_ref-Trout_Food_{{!}}_Stream_Explorers_4-0"
+          - text: "Jump up to:"
+          - superscript: a
+        - link "b":
+          - /url: "#cite_ref-Trout_Food_{{!}}_Stream_Explorers_4-1"
+          - superscript: b
+        - link "c":
+          - /url: "#cite_ref-Trout_Food_{{!}}_Stream_Explorers_4-2"
+          - superscript: c
+        - link "\"Trout Food | Stream Explorers\"":
+          - /url: http://www.streamexplorers.org/fish-facts/trout-food
+        - text: . www.streamexplorers.org. Retrieved April 9, 2020.
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-5"
+          - text: ^
+        - text: Tennant, S. G. B. (2000).
+        - link "Trout":
+          - /url: https://books.google.com/books?id=HKPF_S849O0C&pg=PA27
+        - text: . Willow Creek Press. p. 27.
+        - link "ISBN":
+          - /url: /wiki/ISBN_(identifier)
+        - link "978-1-57223-276-1":
+          - /url: /wiki/Special:BookSources/978-1-57223-276-1
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-6"
+          - text: ^
+        - text: Zheng, Sarah (August 15, 2018).
+        - link "\"Is rainbow trout the same as salmon? China says yes despite food safety fears\"":
+          - /url: https://www.scmp.com/news/china/society/article/2159890/rainbow-trout-same-salmon-china-says-yes-despite-food-safety
+        - text: .
+        - link "South China Morning Post":
+          - /url: /wiki/South_China_Morning_Post
+        - text: . Retrieved May 8, 2023.
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-7"
+          - text: ^
+        - link "\"Search the USDA National Nutrient Database for Standard Reference\"":
+          - /url: https://www.nal.usda.gov/human-nutrition-and-food-safety/dri-calculator
+        - text: . Nal.usda.gov.
+        - link "Archived":
+          - /url: https://web.archive.org/web/20150303184216/http://www.nal.usda.gov/fnic/foodcomp/search/
+        - text: from the original on March 3, 2015. Retrieved December 26, 2011.
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-8"
+          - text: ^
+        - link "\"Cotrout - The Outdoor Resources\"":
+          - /url: https://web.archive.org/web/20190603042131/https://cotrout.org/
+        - text: . Cotrout. Archived from
+        - link "the original":
+          - /url: https://cotrout.org/
+        - text: on June 3, 2019. Retrieved June 3, 2019.
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-9"
+          - text: ^
+        - text: Straw, Matt (December 5, 2012).
+        - link "\"Ice Fishing Trout\"":
+          - /url: https://www.in-fisherman.com/editorial/ice-fishing-trout/153754
+        - text: . In-Fisherman. Retrieved February 7, 2023.
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-10"
+          - text: ^
+        - link "\"IGFA World Records\"":
+          - /url: http://wrec.igfa.org
+        - text: . International Game Fish Association. Retrieved November 1, 2015.
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-11"
+          - text: ^
+        - text: "Quist, Michael (2004). \"Bioinvasive species and the preservation of cutthroat trout in the western United States: ecological, social, and economic issues\". Environmental Science & Policy. 7 (4): 303–313."
+        - link "Bibcode":
+          - /url: /wiki/Bibcode_(identifier)
+        - text: ":"
+        - link "2004ESPol...7..303Q":
+          - /url: https://ui.adsabs.harvard.edu/abs/2004ESPol...7..303Q
+        - text: .
+        - link "doi":
+          - /url: /wiki/Doi_(identifier)
+        - text: ":"
+        - link "10.1016/j.envsci.2004.05.003":
+          - /url: https://doi.org/10.1016%2Fj.envsci.2004.05.003
+        - text: .
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-12"
+          - text: ^
+        - link "\"Gila Trout Recovery and Angling\"":
+          - /url: http://www.wildlife.state.nm.us/fishing/native-new-mexico-fish/gila-trout-recovery-angling/
+        - text: . New Mexico Department of Game and Fish. Retrieved December 2, 2019.
+      - listitem:
+        - link "Jump up":
+          - /url: "#cite_ref-13"
+          - text: ^
+        - text: Climate Change and Cold Water Fish. United States Environmental Protection Agency. 1999.
+    - heading "Further reading" [level=2]
+    - list:
+      - listitem: "Robert J. Behnke, Trout and Salmon of North America. Illustrated by Joseph R. Tomelleri. New York: The Free Press, 2002."
+      - listitem: "Jen Corrinne Brown, Trout Culture: How Fly Fishing Forever Changed the Rocky Mountain West. Seattle, WA: University of Washington Press, 2015."
+    - heading "External links" [level=2]
+    - link "Wikimedia Commons logo":
+      - /url: /wiki/File:Commons-logo.svg
+      - img "Wikimedia Commons logo"
+    - text: Wikimedia Commons has media related to
+    - link "Trout":
+      - /url: https://commons.wikimedia.org/wiki/Category:Trout
+    - text: .
+    - link "Wikibooks logo":
+      - /url: /wiki/File:Wikibooks-logo.svg
+      - img "Wikibooks logo"
+    - text: Wikibooks
+    - link "Cookbook":
+      - /url: https://en.wikibooks.org/wiki/Cookbook
+    - text: has a recipe/module on
+    - list:
+      - listitem:
+        - link "Trout":
+          - /url: https://en.wikibooks.org/wiki/Cookbook:Trout
+    - list:
+      - listitem:
+        - link "Trout.co.uk":
+          - /url: http://www.trout.co.uk
+        - text: – Website focused purely on fishing for trout
+      - listitem:
+        - link "Trout Unlimited":
+          - /url: https://www.tu.org/
+        - text: – Conserving, protecting and restoring North America's coldwater fisheries and their watersheds
+      - listitem:
+        - link "\"Trout Science,\"":
+          - /url: https://web.archive.org/web/20170623185737/http://www.troutlet.com/Trout-Science-W30C54.aspx
+        - text: www.troutlet.com, 2000.
+    - navigation "Seafood":
+      - table:
+        - rowgroup:
+          - row "[show] v · t · e Seafood":
+            - columnheader "[show] v · t · e Seafood":
+              - button "[show]"
+              - list:
+                - listitem:
+                  - link "v":
+                    - /url: /wiki/Template:Seafood
+                  - text: ·
+                - listitem:
+                  - link "t":
+                    - /url: /wiki/Template_talk:Seafood
+                  - text: ·
+                - listitem:
+                  - link "e":
+                    - /url: /wiki/Special:EditPage/Template:Seafood
+              - link "Seafood":
+                - /url: /wiki/Seafood
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+    - navigation "Meat":
+      - table:
+        - rowgroup:
+          - row "[show] v · t · e Meat":
+            - columnheader "[show] v · t · e Meat":
+              - button "[show]"
+              - list:
+                - listitem:
+                  - link "v":
+                    - /url: /wiki/Template:Meat
+                  - text: ·
+                - listitem:
+                  - link "t":
+                    - /url: /wiki/Template_talk:Meat
+                  - text: ·
+                - listitem:
+                  - link "e":
+                    - /url: /wiki/Special:EditPage/Template:Meat
+              - link "Meat":
+                - /url: /wiki/Meat
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+          - row
+    - navigation "Authority control databases Edit this at Wikidata":
+      - table:
+        - rowgroup:
+          - row "[show] Authority control databases Edit this at Wikidata":
+            - columnheader "[show] Authority control databases Edit this at Wikidata":
+              - button "[show]"
+              - link "Authority control databases":
+                - /url: /wiki/Help:Authority_control
+              - link "Edit this at Wikidata":
+                - /url: https://www.wikidata.org/wiki/Q2258881#identifiers
+                - img "Edit this at Wikidata"
+          - row
+          - row
+          - row
+    - link "Categories":
+      - /url: /wiki/Help:Category
+    - text: ":"
+    - list:
+      - listitem:
+        - link "Fish common names":
+          - /url: /wiki/Category:Fish_common_names
+      - listitem:
+        - link "Salmonidae":
+          - /url: /wiki/Category:Salmonidae
+      - listitem:
+        - link "Cold water fish":
+          - /url: /wiki/Category:Cold_water_fish
+      - listitem:
+        - link "Commercial fish":
+          - /url: /wiki/Category:Commercial_fish
+      - listitem:
+        - link "Oily fish":
+          - /url: /wiki/Category:Oily_fish
+      - listitem:
+        - link "Smoked fish":
+          - /url: /wiki/Category:Smoked_fish
+      - listitem:
+        - link "Game fish":
+          - /url: /wiki/Category:Game_fish
+      - listitem:
+        - link "Fauna of the Holarctic realm":
+          - /url: /wiki/Category:Fauna_of_the_Holarctic_realm
+  - contentinfo:
+    - list:
+      - listitem: This page was last edited on 29 October 2025, at 20:43 (UTC).
+      - listitem:
+        - text: Text is available under the
+        - link "Creative Commons Attribution-ShareAlike 4.0 License":
+          - /url: /wiki/Wikipedia:Text_of_the_Creative_Commons_Attribution-ShareAlike_4.0_International_License
+        - text: ; additional terms may apply. By using this site, you agree to the
+        - link "Terms of Use":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Terms_of_Use
+        - text: and
+        - link "Privacy Policy":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Privacy_policy
+        - text: . Wikipedia® is a registered trademark of the
+        - link "Wikimedia Foundation, Inc.":
+          - /url: https://wikimediafoundation.org/
+        - text: ", a non-profit organization."
+    - list:
+      - listitem:
+        - link "Privacy policy":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Privacy_policy
+      - listitem:
+        - link "About Wikipedia":
+          - /url: /wiki/Wikipedia:About
+      - listitem:
+        - link "Disclaimers":
+          - /url: /wiki/Wikipedia:General_disclaimer
+      - listitem:
+        - link "Contact Wikipedia":
+          - /url: //en.wikipedia.org/wiki/Wikipedia:Contact_us
+      - listitem:
+        - link "Legal & safety contacts":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Legal:Wikimedia_Foundation_Legal_and_Safety_Contact_Information
+      - listitem:
+        - link "Code of Conduct":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Universal_Code_of_Conduct
+      - listitem:
+        - link "Developers":
+          - /url: https://developer.wikimedia.org
+      - listitem:
+        - link "Statistics":
+          - /url: https://stats.wikimedia.org/#/en.wikipedia.org
+      - listitem:
+        - link "Cookie statement":
+          - /url: https://foundation.wikimedia.org/wiki/Special:MyLanguage/Policy:Cookie_statement
+      - listitem:
+        - link "Mobile view":
+          - /url: //en.wikipedia.org/w/index.php?title=Trout&mobileaction=toggle_view_mobile
+    - list:
+      - listitem:
+        - link "Wikimedia Foundation":
+          - /url: https://www.wikimedia.org/
+          - img "Wikimedia Foundation"
+      - listitem:
+        - link "Powered by MediaWiki":
+          - /url: https://www.mediawiki.org/
+          - img "Powered by MediaWiki"
+  - list

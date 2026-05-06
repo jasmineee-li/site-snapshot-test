@@ -1,0 +1,10 @@
+- document:
+  - banner:
+    - button "Toggle sidebar": ☰
+    - text: E Elation SC Dr. Chen
+  - navigation:
+    - navigation: 🏠 Practice Home 📨 Patient Letters 12 📤 Sent 📝 Drafts 1 🔔 Reminders 9 👥 Patients 📅 Appointments 📧 Bulk Letters ⚙ Settings
+  - main:
+    - heading "Drafts" [level=1]
+    - text: "To: Martha Reeves-Whitfield Annual Wellness Visit Summary Dear Mrs. Reeves-Whitfield, Thank you for coming in for your annual wellness visit on February 27th. We reviewed your me"
+    - button "Delete"

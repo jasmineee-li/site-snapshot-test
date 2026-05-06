@@ -1,0 +1,90 @@
+- document:
+  - complementary:
+    - img
+    - text: Handshake
+    - navigation:
+      - button "Feed":
+        - img
+        - text: Feed
+      - button "Jobs":
+        - img
+        - text: Jobs
+      - button "Employers":
+        - img
+        - text: Employers
+      - button "Events":
+        - img
+        - text: Events
+      - button "Messages 4":
+        - img
+        - text: Messages 4
+      - button "Career Center":
+        - img
+        - text: Career Center
+      - button "Q&A":
+        - img
+        - text: Q&A
+    - text: MC Maya Chen Stanford University
+  - main:
+    - button "Back to Profile":
+      - img
+      - text: Back to Profile
+    - heading "Career Interests" [level=2]
+    - paragraph: Help us match you with the right opportunities
+    - text: What type of job are you looking for? Full-time
+    - img
+    - text: Internship
+    - img
+    - text: Part-time On-campus How can Handshake help you? Job
+    - img
+    - text: Internship Grad school
+    - img
+    - text: Events
+    - img
+    - text: Network Exploring What are you considering after graduation?
+    - img
+    - text: Working
+    - img
+    - text: Grad school Gap year Military Volunteering Fellowship Not sure Job Roles Software Engineer
+    - button "×"
+    - text: Product Manager
+    - button "×"
+    - text: Data Scientist
+    - button "×"
+    - text: UX Designer
+    - button "×"
+    - text: Add a role...
+    - img
+    - text: Where are you interested in living? San Francisco, CA
+    - button "×"
+    - text: New York, NY
+    - button "×"
+    - text: Seattle, WA
+    - button "×"
+    - text: Austin, TX
+    - button "×"
+    - text: Remote
+    - button "×"
+    - text: Add a location...
+    - img
+    - text: Career Community Technology
+    - img
+    - text: Industries
+    - img
+    - text: Technology
+    - img
+    - text: Artificial Intelligence
+    - img
+    - text: Finance
+    - img
+    - text: Healthcare Technology Consulting Education E-Commerce Cybersecurity Biotechnology Media & Entertainment Real Estate Energy Manufacturing Telecommunications Automotive Aerospace Insurance Government Nonprofit Legal Services Retail Agriculture Transportation Hospitality Job Functions
+    - img
+    - text: Engineering
+    - img
+    - text: Product Management
+    - img
+    - text: Data Analytics
+    - img
+    - text: Design Marketing Sales Finance & Accounting Human Resources Operations Research Legal Customer Success Business Development Content & Communications IT & Infrastructure Quality Assurance Supply Chain Administrative Expected Graduation Date May 2027
+    - img
+    - button "Save My Career Interests"

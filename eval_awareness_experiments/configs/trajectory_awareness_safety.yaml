@@ -1,0 +1,24 @@
+# Run eval awareness + scenario recognition judges on safety benchmark trajectories.
+# Part 1: Core measurement — do agents show eval awareness on IPI benchmarks?
+
+name: trajectory_awareness_safety
+experiment: trajectory_awareness
+
+models:
+  - anthropic/claude-opus-4.6:thinking
+
+formats:
+  - trajectory
+
+sources:
+  - doomarena
+  - wasp
+  - safearena
+  # - os-harm  # disabled for now
+
+judges:
+  - test_awareness_steering
+  - verbalized_awareness
+
+manifest: eval_awareness_experiments/data/manifest.json
+output_dir: eval_awareness_experiments/results

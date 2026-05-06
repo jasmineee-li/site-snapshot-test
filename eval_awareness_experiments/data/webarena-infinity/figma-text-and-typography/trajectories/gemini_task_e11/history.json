@@ -1,0 +1,375 @@
+{
+  "history": [
+    {
+      "model_output": {
+        "evaluation_previous_goal": "Start",
+        "memory": null,
+        "next_goal": "Initial navigation",
+        "action": [
+          {
+            "navigate": {
+              "url": "http://localhost:8004",
+              "new_tab": false
+            }
+          }
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "long_term_memory": "Found initial url and automatically loaded it. Navigated to http://localhost:8004",
+          "extracted_content": "🔗 Navigated to http://localhost:8004",
+          "include_extracted_content_only_once": false,
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [],
+        "screenshot_path": null,
+        "interacted_element": [
+          null
+        ],
+        "url": "http://localhost:8004",
+        "title": "Initial Actions"
+      },
+      "metadata": {
+        "step_start_time": 1772960614.7213678,
+        "step_end_time": 1772960614.7213678,
+        "step_number": 0,
+        "step_interval": null
+      },
+      "state_message": null
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "The agent has just started and successfully navigated to the home page. Verdict: Success",
+        "memory": "Navigated to the home page of the Design System application. I need to find the font preview setting, which is likely under the 'Settings' section.",
+        "next_goal": "Click on the 'Settings' link to find the font preview option.",
+        "action": [
+          {
+            "click": {
+              "index": 5272
+            }
+          }
+        ],
+        "thinking": "The user wants to turn off the font preview in the settings. I see a 'Settings' link in the navigation menu. I will click it to access the settings page where I expect to find the font preview toggle.",
+        "current_plan_item": 0,
+        "plan_update": [
+          "Click on 'Settings' link",
+          "Locate the 'Font Preview' setting",
+          "Turn off the 'Font Preview' setting",
+          "Verify the setting is turned off"
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "extracted_content": "Clicked a \"Settings\"",
+          "include_extracted_content_only_once": false,
+          "metadata": {
+            "click_x": 109.5,
+            "click_y": 233.578125
+          },
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8004/",
+            "title": "localhost:8004",
+            "target_id": "6284",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069ad3b6-2d32-70b5-8000-6edc5d70f669_1772960610/screenshots/step_1.png",
+        "interacted_element": [
+          {
+            "node_id": 2777,
+            "backend_node_id": 5272,
+            "frame_id": null,
+            "node_type": 1,
+            "node_value": "",
+            "node_name": "A",
+            "attributes": {
+              "class": "nav-item ",
+              "data-action": "navigate",
+              "data-section": "settings"
+            },
+            "x_path": "html/body/div[1]/aside/nav/a[5]",
+            "element_hash": 1588976553577723914,
+            "stable_hash": 5450826688816214726,
+            "bounds": {
+              "x": 0.0,
+              "y": 215.578125,
+              "width": 219.0,
+              "height": 36.0
+            },
+            "ax_name": null
+          }
+        ],
+        "url": "http://localhost:8004/",
+        "title": "localhost:8004"
+      },
+      "metadata": {
+        "step_start_time": 1772960614.7214153,
+        "step_end_time": 1772960620.7887435,
+        "step_number": 1,
+        "step_interval": 0.0
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8004\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8004. Your task: Turn off font preview in the settings.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<step_info>Step1 maximum:500\nToday:2026-03-08</step_info>\n</agent_state>\n<browser_state>\n<page_stats>5 links, 199 interactive, 0 iframes, 1 shadow(open), 0 shadow(closed), 378 total elements</page_stats>\nCurrent tab: 6284\nAvailable tabs:\nTab 6284: http://localhost:8004/ - localhost:8004\n\n<page_info>0.0 above, 0.0 below </page_info>\n\nInteractive elements:\n[Start of page]\n[5205]<div />\n\t<svg /> <!-- SVG content collapsed -->\nDesign System v4.2\nTypography\n[5225]<a />\n\tLayers\n[5237]<a />\n\tTypography\n[5248]<a />\n\tText Styles\n[5261]<a />\n\tFonts\n[5272]<a />\n\tSettings\n[5288]<div />\n\tSC\nSarah Chen\nEditor\n|scroll element|<main id=mainContent /> (0.0 pages above, 0.6 pages below)\n\tText Layers\n\t20 layers in this file\n\t[5317]<div />\n\t\t[5319]<svg /> <!-- SVG content collapsed -->\n\t\t|SHADOW(open)|[5179]<input type=text id=layer-search placeholder=Search layers... />\n\t[5325]<button />\n\t\tNew Text\n\t[5335]<div />\n\t\t[5337]<div />\n\t\t\t[5339]<svg /> <!-- SVG content collapsed -->\n\t\t[5344]<div />\n\t\t\t[5346]<div />\n\t\t\t\tPage Title\n\t\t\t[5349]<div />\n\t\t\t\tInter Bold · 48px\n                         ·\n\t\t\t\t[5351]<span />\n\t\t\t\t\tHeading/H1\n\t\t\t[5355]<div />\n\t\t\t\tWelcome to the Design System\n\t\t[5359]<div />\n\t\t\t[5361]<button title=Hide />\n\t\t\t[5368]<button title=Lock />\n\t[5377]<div />\n\t\t[5379]<div />\n\t\t\t[5381]<svg /> <!-- SVG content collapsed -->\n\t\t[5386]<div />\n\t\t\t[5388]<div />\n\t\t\t\tBody Text\n\t\t\t[5391]<div />\n\t\t\t\tInter Regular · 16px\n                         ·\n\t\t\t\t[5393]<span />\n\t\t\t\t\tBody/Regular\n\t\t\t[5397]<div />\n\t\t\t\tFigma is a collaborative design tool that enables ...\n\t\t[5403]<button title=Hide />\n\t\t[5410]<button title=Lock />\n\t[5419]<div />\n\t\t[5421]<div />\n\t\t\t[5423]<svg /> <!-- SVG content collapsed -->\n\t\t[5428]<div />\n\t\t\t[5430]<div />\n\t\t\t\tSection Header\n\t\t\t[5433]<div />\n\t\t\t\tMontserrat Semi Bold · 32px\n                         ·\n\t\t\t\t[5435]<span />\n\t\t\t\t\tHeading/H2\n\t\t\t[5439]<div />\n\t\t\t\tTypography Settings\n\t\t[5445]<button title=Hide />\n\t\t[5452]<button title=Lock />\n\t[5461]<div />\n\t\t[5463]<div />\n\t\t\t[5465]<svg /> <!-- SVG content collapsed -->\n\t\t[5470]<div />\n\t\t\t[5472]<div />\n\t\t\t\tFeature List\n\t\t\t[5475]<div />\n\t\t\t\tInter Regular · 14px\n\t\t\t[5478]<div />\n\t\t\t\tReal-time collaboration Component system and varia...\n\t\t[5484]<button title=Hide />\n\t\t[5491]<button title=Lock />\n\t[5500]<div />\n\t\t[5502]<div />\n\t\t\t[5504]<svg /> <!-- SVG content collapsed -->\n\t\t[5509]<div />\n\t\t\t[5511]<div />\n\t\t\t\tPricing Tiers\n\t\t\t[5514]<div />\n\t\t\t\tInter Medium · 14px\n\t\t\t[5517]<div />\n\t\t\t\tStarter - Free forever Professional - $12/editor/m...\n\t\t[5523]<button title=Hide />\n\t\t[5530]<button title=Lock />\n\t[5539]<div />\n\t\t[5541]<div />\n\t\t\t[5543]<svg /> <!-- SVG content collapsed -->\n\t\t[5548]<div />\n\t\t\t[5181]<div />\n\t\t\t\tCall to Action\n\t\t\t[5552]<div />\n\t\t\t\tPoppins Semi Bold · 18px\n                         ·\n\t\t\t\t[5554]<span />\n\t\t\t\t\tButton/Primary\n\t\t\t[5558]<div />\n\t\t\t\tGet Started for Free\n\t\t[5564]<button title=Hide />\n\t\t[5571]<button title=Lock />\n\t[5580]<div />\n\t\t[5582]<div />\n\t\t\t[5584]<svg /> <!-- SVG content collapsed -->\n\t\t[5589]<div />\n\t\t\t[5591]<div />\n\t\t\t\tCopyright Notice\n\t\t\t[5594]<div />\n\t\t\t\tInter Regular · 12px\n                         ·\n\t\t\t\t[5596]<span />\n\t\t\t\t\tCaption/Small\n\t\t\t[5600]<div />\n\t\t\t\t(c) 2026 Figma, Inc. All rights reserved. Terms of...\n\t\t[5606]<button title=Hide />\n\t\t[5613]<button title=Lock />\n\t[5622]<div />\n\t\t[5624]<div />\n\t\t\t[5626]<svg /> <!-- SVG content collapsed -->\n\t\t[5631]<div />\n\t\t\t[5633]<div />\n\t\t\t\tArabic Welcome\n\t\t\t[5636]<div />\n\t\t\t\tNoto Sans Arabic Bold · 28px\n\t\t\t[5639]<div />\n\t\t\t\tمرحبا بكم في نظام التصميم\n\t\t[5645]<button title=Hide />\n\t\t[5652]<button title=Lock />\n\t[5661]<div />\n\t\t[5663]<div />\n\t\t\t[5665]<svg /> <!-- SVG content collapsed -->\n\t\t[5670]<div />\n\t\t\t[5672]<div />\n\t\t\t\tHebrew Body\n\t\t\t[5675]<div />\n\t\t\t\tNoto Sans Hebrew Regular · 16px\n\t\t\t[5678]<div />\n\t\t\t\tעיצוב טיפוגרפי הוא אמנות ומדע של סידור טקסט\n\t\t[5684]<button title=Hide />\n\t\t[5691]<button title=Lock />\n\t[5700]<div />\n\t\t[5702]<div />\n\t\t\t[5704]<svg /> <!-- SVG content collapsed -->\n\t\t[5709]<div />\n\t\t\t[5711]<div />\n\t\t\t\tJapanese Heading\n\t\t\t[5714]<div />\n\t\t\t\tNoto Sans JP Bold · 24px\n\t\t\t[5717]<div />\n\t\t\t\tデザインシステムのガイド\n\t\t[5723]<button title=Hide />\n\t\t[5730]<button title=Lock />\n\t[5739]<div />\n\t\t[5741]<div />\n\t\t\t[5743]<svg /> <!-- SVG content collapsed -->\n\t\t[5748]<div />\n\t\t\t[5750]<div />\n\t\t\t\tTruncated Preview\n\t\t\t[5753]<div />\n\t\t\t\tRoboto Regular · 14px\n\t\t\t[5182]<div />\n\t\t\t\tThis is an extremely long text layer that demonstr...\n\t\t[5761]<button title=Hide />\n\t\t[5768]<button title=Lock />\n\t[5777]<div />\n\t\t[5779]<div />\n\t\t\t[5781]<svg /> <!-- SVG content collapsed -->\n\t\t[5786]<div />\n\t\t\t[5788]<div />\n\t\t\t\tCode Sample\n\t\t\t[5791]<div />\n\t\t\t\tJetBrains Mono Regular · 13px\n                         ·\n\t\t\t\t[5793]<span />\n\t\t\t\t\tCode/Inline\n\t\t\t[5797]<div />\n\t\t\t\tconst typography = {   fontFamily: \"Inter\",   font...\n\t\t[5803]<button title=Hide />\n\t\t[5810]<button title=Lock />\n\t[5819]<div />\n\t\t[5821]<div />\n\t\t\t[5823]<svg /> <!-- SVG content collapsed -->\n\t\t[5828]<div />\n\t\t\t[5830]<div />\n\t\t\t\tVariable Font Demo\n\t\t\t[5833]<div />\n\t\t\t\tInter Regular · 20px\n\t\t\t[5836]<div />\n\t\t\t\tVariable fonts allow granular control over weight,...\n\t\t[5842]<button title=Hide />\n\t\t[5849]<button title=Lock />\n\t[5858]<div />\n\t\t[5860]<div />\n\t\t\t[5862]<svg /> <!-- SVG content collapsed -->\n\t\t[5867]<div />\n\t\t\t[5869]<div />\n\t\t\t\tStrikethrough Example\n\t\t\t[5872]<div />\n\t\t\t\tInter Regular · 14px\n\t\t\t[5875]<div />\n\t\t\t\tThis text has been marked for deletion and review.\n\t\t[5881]<button title=Hide />\n\t\t[5888]<button title=Lock />\n\t[5897]<div />\n\t\t[5899]<div />\n\t\t\t[5901]<svg /> <!-- SVG content collapsed -->\n\t\t[5906]<div />\n\t\t\t[5908]<div />\n\t\t\t\tUnderlined Link Text\n\t\t\t[5911]<div />\n\t\t\t\tInter Medium · 14px\n\t\t\t[5914]<div />\n\t\t\t\tClick here to learn more about advanced typography\n\t\t[5920]<button title=Hide />\n\t\t[5927]<button title=Lock />\n\t[5936]<div />\n\t\t[5938]<div />\n\t\t\t[5940]<svg /> <!-- SVG content collapsed -->\n\t\t[5945]<div />\n\t\t\t[5947]<div />\n\t\t\t\tIndented Quote\n\t\t\t[5950]<div />\n\t\t\t\tPlayfair Display Regular · 22px\n\t\t\t[5953]<div />\n\t\t\t\t\"Good typography is invisible. Bad typography is e...\n\t\t[5959]<button title=Hide />\n\t\t[5966]<button title=Lock />\n\t[5975]<div />\n\t\t[5977]<div />\n\t\t\t[5979]<svg /> <!-- SVG content collapsed -->\n\t\t[5984]<div />\n\t\t\t[5986]<div />\n\t\t\t\tSmall Caps Header\n\t\t\t[5989]<div />\n\t\t\t\tMontserrat Medium · 14px\n                         ·\n\t\t\t\t[5991]<span />\n\t\t\t\t\tLabel/SmallCaps\n\t\t\t[5995]<div />\n\t\t\t\tDesign Principles\n\t\t[6001]<button title=Hide />\n\t\t[6008]<button title=Lock />\n\t[6017]<div />\n\t\t[6019]<div />\n\t\t\t[6021]<svg /> <!-- SVG content collapsed -->\n\t\t[6026]<div />\n\t\t\t[6028]<div />\n\t\t\t\tMixed Direction Text\n\t\t\t[6031]<div />\n\t\t\t\tInter Regular · 16px\n\t\t\t[6034]<div />\n\t\t\t\tThe Arabic word مرحبا means \"hello\" in English.\n\t\t[6040]<button title=Hide />\n\t\t[6047]<button title=Lock />\n\t[6056]<div />\n\t\t[6058]<div />\n\t\t\t[6060]<svg /> <!-- SVG content collapsed -->\n\t\t[6065]<div />\n\t\t\t[6067]<div />\n\t\t\t\tRelease Notes Header\n\t\t\t[6070]<div />\n\t\t\t\tDM Sans Bold · 36px\n\t\t\t[6073]<div />\n\t\t\t\tWhat's New in v4.2\n\t\t[6079]<button title=Hide />\n\t\t[6086]<button title=Lock />\n\t[6095]<div />\n\t\t[6097]<div />\n\t\t\t[6099]<svg /> <!-- SVG content collapsed -->\n\t\t[6104]<div />\n\t\t\t[6106]<div />\n\t\t\t\tStep Instructions\n\t\t\t[6109]<div />\n\t\t\t\tInter Regular · 14px\n\t\t\t[6112]<div />\n\t\t\t\tInstall the font file on your system Open Figma an...\n\t\t[6118]<button title=Hide />\n\t\t[6125]<button title=Lock />\n[End of page]\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "Successfully navigated to the Settings page and located the font preview toggle. Verdict: Success",
+        "memory": "I am on the Settings page (http://localhost:8004/#/settings). I have identified the font preview toggle at index 6454.",
+        "next_goal": "Click the 'Show font preview on hover' toggle to turn it off.",
+        "action": [
+          {
+            "click": {
+              "index": 6454
+            }
+          }
+        ],
+        "thinking": "I have successfully navigated to the Settings page. I can see the 'Show font preview on hover' setting under the 'Canvas' section. The toggle element for this setting is index 6454. I will click this element to turn off the font preview as requested.",
+        "current_plan_item": 2,
+        "plan_update": [
+          "Click on 'Settings' link",
+          "Locate the 'Font Preview' setting",
+          "Turn off the 'Font Preview' setting",
+          "Verify the setting is turned off"
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "extracted_content": "Clicked div id=toggle-font-preview",
+          "include_extracted_content_only_once": false,
+          "metadata": {
+            "click_x": 1363.0,
+            "click_y": 746.796875
+          },
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8004/#/settings",
+            "title": "Figma - Text & Typography",
+            "target_id": "6284",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069ad3b6-2d32-70b5-8000-6edc5d70f669_1772960610/screenshots/step_2.png",
+        "interacted_element": [
+          {
+            "node_id": 3738,
+            "backend_node_id": 6454,
+            "frame_id": null,
+            "node_type": 1,
+            "node_value": "",
+            "node_name": "DIV",
+            "attributes": {
+              "class": "toggle-switch active",
+              "id": "toggle-font-preview",
+              "data-toggle-id": "toggle-font-preview"
+            },
+            "x_path": "html/body/div[1]/main/div/div[8]/div[2]/div[2]",
+            "element_hash": 1299667201438207659,
+            "stable_hash": 15002156780523131251,
+            "bounds": {
+              "x": 1347.0,
+              "y": 1142.796875,
+              "width": 32.0,
+              "height": 18.0
+            },
+            "ax_name": null
+          }
+        ],
+        "url": "http://localhost:8004/#/settings",
+        "title": "Figma - Text & Typography"
+      },
+      "metadata": {
+        "step_start_time": 1772960620.7901235,
+        "step_end_time": 1772960626.384008,
+        "step_number": 2,
+        "step_interval": 6.067328214645386
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8004\n<step>\nThe agent has just started and successfully navigated to the home page. Verdict: Success\nNavigated to the home page of the Design System application. I need to find the font preview setting, which is likely under the 'Settings' section.\nClick on the 'Settings' link to find the font preview option.\nResult\nClicked a \"Settings\"\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8004. Your task: Turn off font preview in the settings.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[>] 0: Click on 'Settings' link\n[ ] 1: Locate the 'Font Preview' setting\n[ ] 2: Turn off the 'Font Preview' setting\n[ ] 3: Verify the setting is turned off\n</plan>\n<step_info>Step2 maximum:500\nToday:2026-03-08</step_info>\n</agent_state>\n<browser_state>\n<page_stats>5 links, 45 interactive, 0 iframes, 2 shadow(open), 0 shadow(closed), 287 total elements</page_stats>\nCurrent tab: 6284\nAvailable tabs:\nTab 6284: http://localhost:8004/#/settings - Figma - Text & Typography\n\n<page_info>0.0 above, 0.0 below </page_info>\n\nInteractive elements:\n[Start of page]\n*[6161]<div />\n\t<svg /> <!-- SVG content collapsed -->\nDesign System v4.2\nTypography\n*[6169]<a />\n\tLayers\n*[6176]<a />\n\tTypography\n*[6181]<a />\n\tText Styles\n*[6189]<a />\n\tFonts\n*[6194]<a />\n\tSettings\n*[6202]<div />\n\tSC\nSarah Chen\nEditor\n|scroll element|<main id=mainContent /> (0.0 pages above, 0.4 pages below)\n\tSettings\n\tConfigure default text properties and preferences\n\tSmart Features\n\tSmart quotes\n\tConvert straight quotes to curly quotes\n\t*[6216]<div id=toggle-smart-quotes />\n\t\t*[6217]<div />\n\tSmart symbols\n\tAuto-convert character combinations to symbols\n\t*[6222]<div id=toggle-smart-symbols />\n\t\t*[6223]<div />\n\tType\n\tResult\n\tName\n\t->\n\tRight Arrow\n\t<-\n\tLeft Arrow\n\tvv\n\tDown Arrow\n\t^^\n\tUp Arrow\n\t(c)\n\tCopyright\n\t(r)\n\tRegistered\n\t(tm)\n\tTrademark\n\t[ ]\n\tCheckbox\n\t...\n\tEllipsis\n\t--\n\tEm Dash\n\t1/2\n\tHalf\n\t1/4\n\tQuarter\n\t3/4\n\tThree Quarters\n\tDefault Text Properties\n\tFont family\n\t*[6288]<div />\n\t\t*[6289]<span />\n\t\t\tInter\n\t\t*[6290]<svg /> <!-- SVG content collapsed -->\n\tFont style\n\t*[6329]<div />\n\t\t*[6330]<span />\n\t\t\tRegular\n\t\t*[6331]<svg /> <!-- SVG content collapsed -->\n\tFont size\n\t*[6349]<div />\n\t\t*[6350]<span />\n\t\t\t16\n\t\t*[6351]<svg /> <!-- SVG content collapsed -->\n\tAlignment\n\t*[6382]<div />\n\t\t*[6383]<span />\n\t\t\tleft\n\t\t*[6384]<svg /> <!-- SVG content collapsed -->\n\tText direction\n\t*[6397]<div />\n\t\t*[6398]<span />\n\t\t\tltr\n\t\t*[6399]<svg /> <!-- SVG content collapsed -->\n\tSpelling\n\tLanguage\n\t*[6413]<div />\n\t\t*[6414]<span />\n\t\t\tEnglish (US)\n\t\t*[6415]<svg /> <!-- SVG content collapsed -->\n\tCanvas\n\tSnap to grid\n\t*[6449]<div id=toggle-snap-grid />\n\t\t*[6450]<div />\n\tShow font preview on hover\n\t*[6454]<div id=toggle-font-preview />\n\t\t*[6455]<div />\n\tNudge amount\n\t|SHADOW(open)|*[6461]<input type=text id=input-nudge value=1 />\n\t*[6462]<span />\n\t\tpx\n\tBig nudge amount\n\t|SHADOW(open)|*[6468]<input type=text id=input-big-nudge value=10 />\n\t*[6469]<span />\n\t\tpx\n\tRecent Fonts\n\t*[6475]<span />\n\t\t1.\n\t*[6476]<span />\n\t\tInter\n\t*[6478]<span />\n\t\t2.\n\t*[6479]<span />\n\t\tRoboto\n\t*[6481]<span />\n\t\t3.\n\tMontserrat\n\t*[6484]<span />\n\t\t4.\n\t*[6485]<span />\n\t\tPoppins\n\t*[6487]<span />\n\t\t5.\n\tPlayfair Display\n[End of page]\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "I clicked the 'Show font preview on hover' toggle. Verdict: Success (pending verification).",
+        "memory": "Navigated to Settings and clicked the font preview toggle. Now verifying the state.",
+        "next_goal": "Verify that the 'Show font preview on hover' toggle is in the 'off' state.",
+        "action": [
+          {
+            "evaluate": {
+              "code": "(function(){const el = document.getElementById('toggle-font-preview'); return {id: el.id, className: el.className, ariaChecked: el.getAttribute('aria-checked'), backgroundColor: window.getComputedStyle(el).backgroundColor}})()"
+            }
+          }
+        ],
+        "thinking": "I have clicked the 'Show font preview on hover' toggle in the previous step. Now I need to verify if the setting is actually turned off. I will use the `evaluate` action to check the state of the toggle element (index 7359) by looking at its attributes or classes, as the text description doesn't explicitly state the 'on' or 'off' status.",
+        "current_plan_item": 3,
+        "plan_update": [
+          "Click on 'Settings' link",
+          "Locate the 'Font Preview' setting",
+          "Turn off the 'Font Preview' setting",
+          "Verify the setting is turned off"
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "long_term_memory": "{\"id\": \"toggle-font-preview\", \"className\": \"toggle-switch \", \"ariaChecked\": null, \"backgroundColor\": \"rgb(74, 74, 74)\"}",
+          "extracted_content": "{\"id\": \"toggle-font-preview\", \"className\": \"toggle-switch \", \"ariaChecked\": null, \"backgroundColor\": \"rgb(74, 74, 74)\"}",
+          "include_extracted_content_only_once": false,
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8004/#/settings",
+            "title": "Figma - Text & Typography",
+            "target_id": "6284",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069ad3b6-2d32-70b5-8000-6edc5d70f669_1772960610/screenshots/step_3.png",
+        "interacted_element": [
+          null
+        ],
+        "url": "http://localhost:8004/#/settings",
+        "title": "Figma - Text & Typography"
+      },
+      "metadata": {
+        "step_start_time": 1772960626.385464,
+        "step_end_time": 1772960634.9959583,
+        "step_number": 3,
+        "step_interval": 5.593884468078613
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8004\n<step>\nThe agent has just started and successfully navigated to the home page. Verdict: Success\nNavigated to the home page of the Design System application. I need to find the font preview setting, which is likely under the 'Settings' section.\nClick on the 'Settings' link to find the font preview option.\nResult\nClicked a \"Settings\"\n<step>\nSuccessfully navigated to the Settings page and located the font preview toggle. Verdict: Success\nI am on the Settings page (http://localhost:8004/#/settings). I have identified the font preview toggle at index 6454.\nClick the 'Show font preview on hover' toggle to turn it off.\nResult\nClicked div id=toggle-font-preview\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8004. Your task: Turn off font preview in the settings.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[>] 0: Click on 'Settings' link\n[ ] 1: Locate the 'Font Preview' setting\n[ ] 2: Turn off the 'Font Preview' setting\n[ ] 3: Verify the setting is turned off\n</plan>\n<step_info>Step3 maximum:500\nToday:2026-03-08</step_info>\n</agent_state>\n<browser_state>\n<page_stats>5 links, 45 interactive, 0 iframes, 2 shadow(open), 0 shadow(closed), 287 total elements</page_stats>\nCurrent tab: 6284\nAvailable tabs:\nTab 6284: http://localhost:8004/#/settings - Figma - Text & Typography\n\n<page_info>0.0 above, 0.0 below </page_info>\n\nInteractive elements:\n[Start of page]\n*[7066]<div />\n\t<svg /> <!-- SVG content collapsed -->\nDesign System v4.2\nTypography\n*[7074]<a />\n\tLayers\n*[7081]<a />\n\tTypography\n*[7086]<a />\n\tText Styles\n*[7094]<a />\n\tFonts\n*[7099]<a />\n\tSettings\n*[7107]<div />\n\tSC\nSarah Chen\nEditor\n|scroll element|<main id=mainContent /> (0.4 pages above, 0.0 pages below)\n\tSettings\n\tConfigure default text properties and preferences\n\tSmart Features\n\tSmart quotes\n\tConvert straight quotes to curly quotes\n\t*[7121]<div id=toggle-smart-quotes />\n\t\t*[7122]<div />\n\tSmart symbols\n\tAuto-convert character combinations to symbols\n\t*[7127]<div id=toggle-smart-symbols />\n\t\t*[7128]<div />\n\tType\n\tResult\n\tName\n\t->\n\tRight Arrow\n\t<-\n\tLeft Arrow\n\tvv\n\tDown Arrow\n\t^^\n\tUp Arrow\n\t(c)\n\tCopyright\n\t(r)\n\tRegistered\n\t(tm)\n\tTrademark\n\t[ ]\n\tCheckbox\n\t...\n\tEllipsis\n\t--\n\tEm Dash\n\t1/2\n\tHalf\n\t1/4\n\tQuarter\n\t3/4\n\tThree Quarters\n\tDefault Text Properties\n\tFont family\n\t*[7193]<div />\n\t\t*[7194]<span />\n\t\t\tInter\n\t\t*[7195]<svg /> <!-- SVG content collapsed -->\n\tFont style\n\t*[7234]<div />\n\t\t*[7235]<span />\n\t\t\tRegular\n\t\t*[7236]<svg /> <!-- SVG content collapsed -->\n\tFont size\n\t*[7254]<div />\n\t\t*[7255]<span />\n\t\t\t16\n\t\t*[7256]<svg /> <!-- SVG content collapsed -->\n\tAlignment\n\t*[7287]<div />\n\t\t*[7288]<span />\n\t\t\tleft\n\t\t*[7289]<svg /> <!-- SVG content collapsed -->\n\tText direction\n\t*[7302]<div />\n\t\t*[7303]<span />\n\t\t\tltr\n\t\t*[7304]<svg /> <!-- SVG content collapsed -->\n\tSpelling\n\tLanguage\n\t*[7318]<div />\n\t\t*[7319]<span />\n\t\t\tEnglish (US)\n\t\t*[7320]<svg /> <!-- SVG content collapsed -->\n\tCanvas\n\tSnap to grid\n\t*[7354]<div id=toggle-snap-grid />\n\t\t*[7355]<div />\n\tShow font preview on hover\n\t*[7359]<div id=toggle-font-preview />\n\t\t*[7360]<div />\n\tNudge amount\n\t|SHADOW(open)|*[7366]<input type=text id=input-nudge value=1 />\n\t*[7367]<span />\n\t\tpx\n\tBig nudge amount\n\t|SHADOW(open)|*[7373]<input type=text id=input-big-nudge value=10 />\n\t*[7374]<span />\n\t\tpx\n\tRecent Fonts\n\t*[7380]<span />\n\t\t1.\n\t*[7381]<span />\n\t\tInter\n\t*[7383]<span />\n\t\t2.\n\t*[7384]<span />\n\t\tRoboto\n\t*[7386]<span />\n\t\t3.\n\tMontserrat\n\t*[7389]<span />\n\t\t4.\n\t*[7390]<span />\n\t\tPoppins\n\t*[7392]<span />\n\t\t5.\n\tPlayfair Display\n[End of page]\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "I clicked the toggle, but I need to verify if the resulting state 'rgb(74, 74, 74)' corresponds to 'off'. Verdict: Uncertain.",
+        "memory": "Clicked the font preview toggle (id=toggle-font-preview). Current background color is rgb(74, 74, 74). Comparing with other toggles to confirm this means 'off'.",
+        "next_goal": "Compare toggle states to verify the font preview is turned off.",
+        "action": [
+          {
+            "evaluate": {
+              "code": "(function() { const t1 = document.getElementById('toggle-font-preview'); const t2 = document.getElementById('toggle-smart-quotes'); return { fontPreview: { className: t1.className, bg: window.getComputedStyle(t1).backgroundColor }, smartQuotes: { className: t2.className, bg: window.getComputedStyle(t2).backgroundColor } }; })()"
+            }
+          }
+        ],
+        "thinking": "I have already clicked the 'Show font preview on hover' toggle in the previous step. To ensure it is now in the 'off' state, I will compare its properties with another toggle on the page. Based on the previous evaluation, the background color was 'rgb(74, 74, 74)'. I will check the properties of 'toggle-smart-quotes' and 'toggle-font-preview' to confirm the 'off' state.",
+        "current_plan_item": 3,
+        "plan_update": [
+          "Click on 'Settings' link",
+          "Locate the 'Font Preview' setting",
+          "Turn off the 'Font Preview' setting",
+          "Verify the setting is turned off"
+        ]
+      },
+      "result": [
+        {
+          "is_done": false,
+          "long_term_memory": "{\"fontPreview\": {\"className\": \"toggle-switch \", \"bg\": \"rgb(74, 74, 74)\"}, \"smartQuotes\": {\"className\": \"toggle-switch active\", \"bg\": \"rgb(123, 97, 255)\"}}",
+          "extracted_content": "{\"fontPreview\": {\"className\": \"toggle-switch \", \"bg\": \"rgb(74, 74, 74)\"}, \"smartQuotes\": {\"className\": \"toggle-switch active\", \"bg\": \"rgb(123, 97, 255)\"}}",
+          "include_extracted_content_only_once": false,
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8004/#/settings",
+            "title": "Figma - Text & Typography",
+            "target_id": "6284",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069ad3b6-2d32-70b5-8000-6edc5d70f669_1772960610/screenshots/step_4.png",
+        "interacted_element": [
+          null
+        ],
+        "url": "http://localhost:8004/#/settings",
+        "title": "Figma - Text & Typography"
+      },
+      "metadata": {
+        "step_start_time": 1772960634.9994383,
+        "step_end_time": 1772960644.0516813,
+        "step_number": 4,
+        "step_interval": 8.610494375228882
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8004\n<step>\nThe agent has just started and successfully navigated to the home page. Verdict: Success\nNavigated to the home page of the Design System application. I need to find the font preview setting, which is likely under the 'Settings' section.\nClick on the 'Settings' link to find the font preview option.\nResult\nClicked a \"Settings\"\n<step>\nSuccessfully navigated to the Settings page and located the font preview toggle. Verdict: Success\nI am on the Settings page (http://localhost:8004/#/settings). I have identified the font preview toggle at index 6454.\nClick the 'Show font preview on hover' toggle to turn it off.\nResult\nClicked div id=toggle-font-preview\n<step>\nI clicked the 'Show font preview on hover' toggle. Verdict: Success (pending verification).\nNavigated to Settings and clicked the font preview toggle. Now verifying the state.\nVerify that the 'Show font preview on hover' toggle is in the 'off' state.\nResult\n{\"id\": \"toggle-font-preview\", \"className\": \"toggle-switch \", \"ariaChecked\": null, \"backgroundColor\": \"rgb(74, 74, 74)\"}\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8004. Your task: Turn off font preview in the settings.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[>] 0: Click on 'Settings' link\n[ ] 1: Locate the 'Font Preview' setting\n[ ] 2: Turn off the 'Font Preview' setting\n[ ] 3: Verify the setting is turned off\n</plan>\n<step_info>Step4 maximum:500\nToday:2026-03-08</step_info>\n</agent_state>\n<browser_state>\n<page_stats>5 links, 45 interactive, 0 iframes, 2 shadow(open), 0 shadow(closed), 287 total elements</page_stats>\nCurrent tab: 6284\nAvailable tabs:\nTab 6284: http://localhost:8004/#/settings - Figma - Text & Typography\n\n<page_info>0.0 above, 0.0 below </page_info>\n\nInteractive elements:\n[Start of page]\n[7066]<div />\n\t<svg /> <!-- SVG content collapsed -->\nDesign System v4.2\nTypography\n[7074]<a />\n\tLayers\n[7081]<a />\n\tTypography\n[7086]<a />\n\tText Styles\n[7094]<a />\n\tFonts\n[7099]<a />\n\tSettings\n[7107]<div />\n\tSC\nSarah Chen\nEditor\n|scroll element|<main id=mainContent /> (0.4 pages above, 0.0 pages below)\n\tSettings\n\tConfigure default text properties and preferences\n\tSmart Features\n\tSmart quotes\n\tConvert straight quotes to curly quotes\n\t[7121]<div id=toggle-smart-quotes />\n\t\t[7122]<div />\n\tSmart symbols\n\tAuto-convert character combinations to symbols\n\t[7127]<div id=toggle-smart-symbols />\n\t\t[7128]<div />\n\tType\n\tResult\n\tName\n\t->\n\tRight Arrow\n\t<-\n\tLeft Arrow\n\tvv\n\tDown Arrow\n\t^^\n\tUp Arrow\n\t(c)\n\tCopyright\n\t(r)\n\tRegistered\n\t(tm)\n\tTrademark\n\t[ ]\n\tCheckbox\n\t...\n\tEllipsis\n\t--\n\tEm Dash\n\t1/2\n\tHalf\n\t1/4\n\tQuarter\n\t3/4\n\tThree Quarters\n\tDefault Text Properties\n\tFont family\n\t[7193]<div />\n\t\t[7194]<span />\n\t\t\tInter\n\t\t[7195]<svg /> <!-- SVG content collapsed -->\n\tFont style\n\t[7234]<div />\n\t\t[7235]<span />\n\t\t\tRegular\n\t\t[7236]<svg /> <!-- SVG content collapsed -->\n\tFont size\n\t[7254]<div />\n\t\t[7255]<span />\n\t\t\t16\n\t\t[7256]<svg /> <!-- SVG content collapsed -->\n\tAlignment\n\t[7287]<div />\n\t\t[7288]<span />\n\t\t\tleft\n\t\t[7289]<svg /> <!-- SVG content collapsed -->\n\tText direction\n\t[7302]<div />\n\t\t[7303]<span />\n\t\t\tltr\n\t\t[7304]<svg /> <!-- SVG content collapsed -->\n\tSpelling\n\tLanguage\n\t[7318]<div />\n\t\t[7319]<span />\n\t\t\tEnglish (US)\n\t\t[7320]<svg /> <!-- SVG content collapsed -->\n\tCanvas\n\tSnap to grid\n\t[7354]<div id=toggle-snap-grid />\n\t\t[7355]<div />\n\tShow font preview on hover\n\t[7359]<div id=toggle-font-preview />\n\t\t[7360]<div />\n\tNudge amount\n\t|SHADOW(open)|[7366]<input type=text id=input-nudge value=1 />\n\t[7367]<span />\n\t\tpx\n\tBig nudge amount\n\t|SHADOW(open)|[7373]<input type=text id=input-big-nudge value=10 />\n\t[7374]<span />\n\t\tpx\n\tRecent Fonts\n\t[7380]<span />\n\t\t1.\n\t[7381]<span />\n\t\tInter\n\t[7383]<span />\n\t\t2.\n\t[7384]<span />\n\t\tRoboto\n\t[7386]<span />\n\t\t3.\n\tMontserrat\n\t[7389]<span />\n\t\t4.\n\t[7390]<span />\n\t\tPoppins\n\t[7392]<span />\n\t\t5.\n\tPlayfair Display\n[End of page]\n</browser_state>\n"
+    },
+    {
+      "model_output": {
+        "evaluation_previous_goal": "The comparison of toggle states confirmed that the 'fontPreview' toggle is in the 'off' state. Verdict: Success",
+        "memory": "Turned off 'Show font preview on hover' in Settings. Verified the 'off' state by comparing CSS classes and background colors with an active toggle.",
+        "next_goal": "The task is complete. I will now call the done action.",
+        "action": [
+          {
+            "done": {
+              "text": "I have successfully turned off the font preview setting. I navigated to the Settings page, located the 'Show font preview on hover' toggle, and clicked it. I then verified that its state changed to 'off' by comparing its visual properties with other active toggles on the page.",
+              "success": true,
+              "files_to_display": []
+            }
+          }
+        ],
+        "thinking": "I have successfully navigated to the Settings page and toggled the 'Show font preview on hover' setting. By comparing its state with the 'Smart quotes' toggle, I confirmed that the font preview toggle is now in the 'off' state (background color rgb(74, 74, 74) and no 'active' class), whereas the active toggle is purple (rgb(123, 97, 255)) and has the 'active' class. The task is complete.",
+        "current_plan_item": 3,
+        "plan_update": [
+          "Click on 'Settings' link",
+          "Locate the 'Font Preview' setting",
+          "Turn off the 'Font Preview' setting",
+          "Verify the setting is turned off"
+        ]
+      },
+      "result": [
+        {
+          "is_done": true,
+          "success": true,
+          "judgement": {
+            "reasoning": "The agent successfully navigated to the settings page and located the font preview toggle. It performed a click action on the toggle and then used a script to verify the element's state. By comparing the 'toggle-font-preview' element with an active toggle ('toggle-smart-quotes'), the agent confirmed that the font preview toggle lacked the 'active' class and had a neutral background color (grey vs purple), indicating it was in the 'off' state. The task was completed as requested.",
+            "verdict": true,
+            "failure_reason": "",
+            "impossible_task": false,
+            "reached_captcha": false
+          },
+          "attachments": [],
+          "long_term_memory": "Task completed: True - I have successfully turned off the font preview setting. I navigated to the Settings page, located t - 177 more characters",
+          "extracted_content": "I have successfully turned off the font preview setting. I navigated to the Settings page, located the 'Show font preview on hover' toggle, and clicked it. I then verified that its state changed to 'off' by comparing its visual properties with other active toggles on the page.",
+          "include_extracted_content_only_once": false,
+          "include_in_memory": false
+        }
+      ],
+      "state": {
+        "tabs": [
+          {
+            "url": "http://localhost:8004/#/settings",
+            "title": "Figma - Text & Typography",
+            "target_id": "6284",
+            "parent_target_id": null
+          }
+        ],
+        "screenshot_path": "/tmp/browser_use_agent_069ad3b6-2d32-70b5-8000-6edc5d70f669_1772960610/screenshots/step_5.png",
+        "interacted_element": [
+          null
+        ],
+        "url": "http://localhost:8004/#/settings",
+        "title": "Figma - Text & Typography"
+      },
+      "metadata": {
+        "step_start_time": 1772960644.052755,
+        "step_end_time": 1772960650.7739441,
+        "step_number": 5,
+        "step_interval": 9.052242994308472
+      },
+      "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to http://localhost:8004\n<step>\nThe agent has just started and successfully navigated to the home page. Verdict: Success\nNavigated to the home page of the Design System application. I need to find the font preview setting, which is likely under the 'Settings' section.\nClick on the 'Settings' link to find the font preview option.\nResult\nClicked a \"Settings\"\n<step>\nSuccessfully navigated to the Settings page and located the font preview toggle. Verdict: Success\nI am on the Settings page (http://localhost:8004/#/settings). I have identified the font preview toggle at index 6454.\nClick the 'Show font preview on hover' toggle to turn it off.\nResult\nClicked div id=toggle-font-preview\n<step>\nI clicked the 'Show font preview on hover' toggle. Verdict: Success (pending verification).\nNavigated to Settings and clicked the font preview toggle. Now verifying the state.\nVerify that the 'Show font preview on hover' toggle is in the 'off' state.\nResult\n{\"id\": \"toggle-font-preview\", \"className\": \"toggle-switch \", \"ariaChecked\": null, \"backgroundColor\": \"rgb(74, 74, 74)\"}\n<step>\nI clicked the toggle, but I need to verify if the resulting state 'rgb(74, 74, 74)' corresponds to 'off'. Verdict: Uncertain.\nClicked the font preview toggle (id=toggle-font-preview). Current background color is rgb(74, 74, 74). Comparing with other toggles to confirm this means 'off'.\nCompare toggle states to verify the font preview is turned off.\nResult\n{\"fontPreview\": {\"className\": \"toggle-switch \", \"bg\": \"rgb(74, 74, 74)\"}, \"smartQuotes\": {\"className\": \"toggle-switch active\", \"bg\": \"rgb(123, 97, 255)\"}}\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are interacting with a web application at http://localhost:8004. Your task: Turn off font preview in the settings.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<plan>\n[>] 0: Click on 'Settings' link\n[ ] 1: Locate the 'Font Preview' setting\n[ ] 2: Turn off the 'Font Preview' setting\n[ ] 3: Verify the setting is turned off\n</plan>\n<step_info>Step5 maximum:500\nToday:2026-03-08</step_info>\n</agent_state>\n<browser_state>\n<page_stats>5 links, 45 interactive, 0 iframes, 2 shadow(open), 0 shadow(closed), 287 total elements</page_stats>\nCurrent tab: 6284\nAvailable tabs:\nTab 6284: http://localhost:8004/#/settings - Figma - Text & Typography\n\n<page_info>0.0 above, 0.0 below </page_info>\n\nInteractive elements:\n[Start of page]\n[7066]<div />\n\t<svg /> <!-- SVG content collapsed -->\nDesign System v4.2\nTypography\n[7074]<a />\n\tLayers\n[7081]<a />\n\tTypography\n[7086]<a />\n\tText Styles\n[7094]<a />\n\tFonts\n[7099]<a />\n\tSettings\n[7107]<div />\n\tSC\nSarah Chen\nEditor\n|scroll element|<main id=mainContent /> (0.4 pages above, 0.0 pages below)\n\tSettings\n\tConfigure default text properties and preferences\n\tSmart Features\n\tSmart quotes\n\tConvert straight quotes to curly quotes\n\t[7121]<div id=toggle-smart-quotes />\n\t\t[7122]<div />\n\tSmart symbols\n\tAuto-convert character combinations to symbols\n\t[7127]<div id=toggle-smart-symbols />\n\t\t[7128]<div />\n\tType\n\tResult\n\tName\n\t->\n\tRight Arrow\n\t<-\n\tLeft Arrow\n\tvv\n\tDown Arrow\n\t^^\n\tUp Arrow\n\t(c)\n\tCopyright\n\t(r)\n\tRegistered\n\t(tm)\n\tTrademark\n\t[ ]\n\tCheckbox\n\t...\n\tEllipsis\n\t--\n\tEm Dash\n\t1/2\n\tHalf\n\t1/4\n\tQuarter\n\t3/4\n\tThree Quarters\n\tDefault Text Properties\n\tFont family\n\t[7193]<div />\n\t\t[7194]<span />\n\t\t\tInter\n\t\t[7195]<svg /> <!-- SVG content collapsed -->\n\tFont style\n\t[7234]<div />\n\t\t[7235]<span />\n\t\t\tRegular\n\t\t[7236]<svg /> <!-- SVG content collapsed -->\n\tFont size\n\t[7254]<div />\n\t\t[7255]<span />\n\t\t\t16\n\t\t[7256]<svg /> <!-- SVG content collapsed -->\n\tAlignment\n\t[7287]<div />\n\t\t[7288]<span />\n\t\t\tleft\n\t\t[7289]<svg /> <!-- SVG content collapsed -->\n\tText direction\n\t[7302]<div />\n\t\t[7303]<span />\n\t\t\tltr\n\t\t[7304]<svg /> <!-- SVG content collapsed -->\n\tSpelling\n\tLanguage\n\t[7318]<div />\n\t\t[7319]<span />\n\t\t\tEnglish (US)\n\t\t[7320]<svg /> <!-- SVG content collapsed -->\n\tCanvas\n\tSnap to grid\n\t[7354]<div id=toggle-snap-grid />\n\t\t[7355]<div />\n\tShow font preview on hover\n\t[7359]<div id=toggle-font-preview />\n\t\t[7360]<div />\n\tNudge amount\n\t|SHADOW(open)|[7366]<input type=text id=input-nudge value=1 />\n\t[7367]<span />\n\t\tpx\n\tBig nudge amount\n\t|SHADOW(open)|[7373]<input type=text id=input-big-nudge value=10 />\n\t[7374]<span />\n\t\tpx\n\tRecent Fonts\n\t[7380]<span />\n\t\t1.\n\t[7381]<span />\n\t\tInter\n\t[7383]<span />\n\t\t2.\n\t[7384]<span />\n\t\tRoboto\n\t[7386]<span />\n\t\t3.\n\tMontserrat\n\t[7389]<span />\n\t\t4.\n\t[7390]<span />\n\t\tPoppins\n\t[7392]<span />\n\t\t5.\n\tPlayfair Display\n[End of page]\n</browser_state>\n"
+    }
+  ]
+}

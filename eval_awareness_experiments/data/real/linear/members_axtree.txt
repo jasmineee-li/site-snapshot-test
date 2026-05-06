@@ -1,0 +1,75 @@
+- document:
+  - link "Skip to content":
+    - /url: "#skip-nav"
+  - navigation:
+    - button "Kristina Zhou Workspace Menu": Kristina Zhou
+    - button "Search workspace"
+    - button "Create new issue"
+    - button "Inbox":
+      - link "Inbox":
+        - /url: /kristys-team/inbox
+    - button "My issues":
+      - link "My issues":
+        - /url: /kristys-team/my-issues/subscribed
+    - button
+    - status
+    - button "Workspace" [expanded]
+    - button "Projects":
+      - link "Projects":
+        - /url: /kristys-team/projects/all
+    - button "Views":
+      - link "Views":
+        - /url: /kristys-team/views/issues
+    - button
+    - button "Members":
+      - link "Members":
+        - /url: /kristys-team/members
+    - status
+    - button "Show more links": More
+    - button "Your teams" [expanded]
+    - button "Join a team"
+    - list:
+      - button "Kristina Zhou Issues Projects Views":
+        - button "Kristina Zhou Team menu" [expanded]: Kristina Zhou
+        - link "Issues":
+          - /url: /kristys-team/team/KRI/all
+        - link "Projects":
+          - /url: /kristys-team/team/KRI/projects/all
+        - link "Views":
+          - /url: /kristys-team/team/KRI/views/issues
+        - list:
+          - status
+      - status
+    - button "Try" [expanded]
+    - link "Import issues":
+      - /url: /kristys-team/settings/import-export
+    - button "Dismiss":
+      - img "Dismiss"
+    - text: Invite people
+    - button "Dismiss":
+      - img "Dismiss"
+    - link "Connect GitHub":
+      - /url: /kristys-team/settings/integrations/github?source=try
+    - button "Dismiss":
+      - img "Dismiss"
+  - button "Open Help menu"
+  - main:
+    - heading "Members" [level=2]
+    - text: "2"
+    - button "Invite members"
+    - button "Order by Name": Name
+    - button "Order by Status": Status
+    - button "Order by Joined": Joined
+    - text: Teams Last seen
+    - link "Kristina Zhou Kristina Zhou zhoukristina9 Admin Joined Apr 9, 2:18:51 PM KRI Online":
+      - /url: /kristys-team/profiles/zhoukristina9
+      - text: KZ Kristina Zhou zhoukristina9 Admin Apr 9
+      - button "KRI"
+      - text: Online
+    - link "Linear Linear linear Application Joined Apr 9, 2:18:51 PM Last seen Apr 9, 2026":
+      - /url: /kristys-team/profiles/linear
+      - img "Linear"
+      - text: Linear linear Application Apr 9 Apr 9
+  - button "Ask Linear"
+  - button "Chat history"
+  - region "Notifications alt+T"

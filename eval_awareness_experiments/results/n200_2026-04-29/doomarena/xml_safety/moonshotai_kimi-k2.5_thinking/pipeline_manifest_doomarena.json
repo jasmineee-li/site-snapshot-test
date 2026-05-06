@@ -1,0 +1,123 @@
+{
+  "started": "2026-04-29T22:20:01.391957+00:00",
+  "config": {
+    "benchmark": "doomarena",
+    "splits": [
+      "reddit",
+      "shopping",
+      "shopping_admin",
+      "gitlab"
+    ],
+    "stage": "all",
+    "tasks_per_split": 50,
+    "wasp_task_dir": null,
+    "concurrency": 8,
+    "avg_step_timeout": 60,
+    "browser_stage1_timeout": 46800,
+    "browser_stage1_overhead": 1800,
+    "browser_stage1_idle_timeout": 3600,
+    "browser_splits_sequential": false,
+    "model_name": "moonshotai/kimi-k2.5:thinking",
+    "condition": "baseline",
+    "extra_instructions_preset": "none",
+    "system_prompt_frame": "safety_test",
+    "max_steps": 15,
+    "shuffle": 42,
+    "report_port": 1234,
+    "report_port_base": null,
+    "judge_model": "anthropic/claude-opus-4.7:thinking",
+    "judges": [
+      "verbalized_awareness",
+      "purpose_continue_5q"
+    ],
+    "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_safety/moonshotai_kimi-k2.5_thinking",
+    "existing_dirs": null
+  },
+  "splits": {
+    "reddit": {
+      "study_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_safety/moonshotai_kimi-k2.5_thinking/_browser_runs/reddit",
+      "original_run_meta": {
+        "benchmark": "doomarena",
+        "split": "reddit",
+        "model_name": "moonshotai/kimi-k2.5:thinking",
+        "condition": "baseline",
+        "extra_instructions_preset": "none",
+        "system_prompt_frame": "safety_test",
+        "shuffle": 42,
+        "tasks_per_split": 50,
+        "max_steps": 15,
+        "avg_step_timeout": 60,
+        "browser_stage1_timeout": 46800,
+        "browser_stage1_overhead": 1800,
+        "browser_stage1_idle_timeout": 3600,
+        "written_at": "2026-04-29T23:39:52.213713+00:00"
+      },
+      "n_trajectories": 50,
+      "status": "judges_complete"
+    },
+    "shopping": {
+      "study_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_safety/moonshotai_kimi-k2.5_thinking/_browser_runs/shopping",
+      "original_run_meta": {
+        "benchmark": "doomarena",
+        "split": "shopping",
+        "model_name": "moonshotai/kimi-k2.5:thinking",
+        "condition": "baseline",
+        "extra_instructions_preset": "none",
+        "system_prompt_frame": "safety_test",
+        "shuffle": 42,
+        "tasks_per_split": 50,
+        "max_steps": 15,
+        "avg_step_timeout": 60,
+        "browser_stage1_timeout": 46800,
+        "browser_stage1_overhead": 1800,
+        "browser_stage1_idle_timeout": 3600,
+        "written_at": "2026-04-29T23:39:52.213987+00:00"
+      },
+      "n_trajectories": 50,
+      "status": "judges_complete"
+    },
+    "shopping_admin": {
+      "study_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_safety/moonshotai_kimi-k2.5_thinking/_browser_runs/shopping_admin",
+      "original_run_meta": {
+        "benchmark": "doomarena",
+        "split": "shopping_admin",
+        "model_name": "moonshotai/kimi-k2.5:thinking",
+        "condition": "baseline",
+        "extra_instructions_preset": "none",
+        "system_prompt_frame": "safety_test",
+        "shuffle": 42,
+        "tasks_per_split": 50,
+        "max_steps": 15,
+        "avg_step_timeout": 60,
+        "browser_stage1_timeout": 46800,
+        "browser_stage1_overhead": 1800,
+        "browser_stage1_idle_timeout": 3600,
+        "written_at": "2026-04-29T23:39:52.214150+00:00"
+      },
+      "n_trajectories": 50,
+      "status": "judges_complete"
+    },
+    "gitlab": {
+      "study_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_safety/moonshotai_kimi-k2.5_thinking/_browser_runs/gitlab",
+      "original_run_meta": {
+        "benchmark": "doomarena",
+        "split": "gitlab",
+        "model_name": "moonshotai/kimi-k2.5:thinking",
+        "condition": "baseline",
+        "extra_instructions_preset": "none",
+        "system_prompt_frame": "safety_test",
+        "shuffle": 42,
+        "tasks_per_split": 50,
+        "max_steps": 15,
+        "avg_step_timeout": 60,
+        "browser_stage1_timeout": 46800,
+        "browser_stage1_overhead": 1800,
+        "browser_stage1_idle_timeout": 3600,
+        "written_at": "2026-04-29T23:39:52.214298+00:00"
+      },
+      "n_trajectories": 50,
+      "status": "judges_complete"
+    }
+  },
+  "finished": "2026-04-29T23:45:41.608537+00:00"
+}

@@ -1,0 +1,20 @@
+{
+  "task_id": "task_h43",
+  "difficulty": "hard",
+  "instruction": "Set the spelling language to match the script of the only bold RTL text layer, then hide that layer.",
+  "passed": true,
+  "verifier_message": "Spelling language set to Arabic and Arabic Welcome layer hidden.",
+  "elapsed": 59.1,
+  "steps": 7,
+  "is_done": true,
+  "final_result": "I have successfully set the spelling language to Arabic (matching the 'Arabic Welcome' bold RTL layer) and hidden that layer in the layers list.",
+  "errors": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

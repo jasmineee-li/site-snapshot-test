@@ -1,0 +1,76 @@
+- document:
+  - banner:
+    - heading "OpenStreetMap logo OpenStreetMap" [level=1]:
+      - link "OpenStreetMap logo OpenStreetMap":
+        - /url: /
+        - img "OpenStreetMap logo"
+        - text: OpenStreetMap
+    - navigation:
+      - link "Edit":
+        - /url: /edit
+      - button
+    - navigation:
+      - list:
+        - listitem:
+          - link "History":
+            - /url: /history
+        - listitem:
+          - link "Export":
+            - /url: /export
+        - listitem:
+          - link "GPS Traces":
+            - /url: /traces
+        - listitem:
+          - link "User Diaries":
+            - /url: /diary
+        - listitem:
+          - link "Communities":
+            - /url: /communities
+        - listitem:
+          - link "Copyright":
+            - /url: /copyright
+        - listitem:
+          - link "Help":
+            - /url: /help
+        - listitem:
+          - link "Donate":
+            - /url: https://supporting.openstreetmap.org/donate/
+        - listitem:
+          - link "About":
+            - /url: /about
+      - button "Select Language":
+        - img
+      - link "Log In":
+        - /url: /login?referer=%2Fhelp
+      - link "Sign Up":
+        - /url: /user/new
+  - heading "Getting Help" [level=1]
+  - paragraph: OpenStreetMap has several resources for learning about the project, asking and answering questions, and collaboratively discussing and documenting mapping topics.
+  - heading "Beginners' Guide" [level=6]:
+    - link "Beginners' Guide":
+      - /url: https://wiki.openstreetmap.org/wiki/Beginners%27_guide
+  - paragraph: Community maintained guide for beginners.
+  - heading "Help & Community Forum" [level=6]:
+    - link "Help & Community Forum":
+      - /url: https://community.openstreetmap.org/
+  - paragraph: A shared place for to seek help and have conversations about OpenStreetMap.
+  - heading "Mailing Lists" [level=6]:
+    - link "Mailing Lists":
+      - /url: https://lists.openstreetmap.org/
+  - paragraph: Ask a question or discuss interesting matters on a wide range of topical or regional mailing lists.
+  - heading "IRC" [level=6]:
+    - link "IRC":
+      - /url: https://irc.openstreetmap.org/
+  - paragraph: Interactive chat in many different languages and on many topics.
+  - heading "switch2osm" [level=6]:
+    - link "switch2osm":
+      - /url: https://switch2osm.org/
+  - paragraph: Help for companies and organisations switching to OpenStreetMap based maps and other services.
+  - heading "For Organizations" [level=6]:
+    - link "For Organizations":
+      - /url: https://welcome.openstreetmap.org/
+  - paragraph: With an organization making plans for OpenStreetMap? Find what you need to know in the Welcome Mat.
+  - heading "OpenStreetMap Wiki" [level=6]:
+    - link "OpenStreetMap Wiki":
+      - /url: https://wiki.openstreetmap.org/
+  - paragraph: Browse the wiki for in-depth OpenStreetMap documentation.

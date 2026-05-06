@@ -1,0 +1,48 @@
+- document:
+  - navigation:
+    - text: account_balance_wallet PayPal JM Jordan Mitchell jordan.mitchell@outlook.com Overview
+    - button "dashboard My Wallet"
+    - button "receipt_long Transactions"
+    - text: Payment Methods
+    - button "credit_card Cards"
+    - button "account_balance Bank Accounts"
+    - button "payment PayPal Debit Card"
+    - text: Money
+    - button "account_balance_wallet Balance"
+    - button "savings Savings"
+    - button "currency_bitcoin Cryptocurrency"
+    - text: Credit & Pay Later
+    - button "credit_score PayPal Credit"
+    - button "calendar_today Pay in 4"
+    - text: Rewards & More
+    - button "star Rewards"
+    - button "local_offer Offers"
+    - button "card_giftcard Gift Cards"
+    - text: Settings
+    - button "settings Preferences"
+  - main:
+    - heading "Cards" [level=1]
+    - button "add Link a Card"
+    - text: VISA Preferred •••• •••• •••• 4829 Jordan Mitchell 09/2028 Confirmed Added Mar 14, 2019 Last used Mar 5, 2026
+    - button "Update"
+    - button "Remove"
+    - text: MC •••• •••• •••• 7156 Jordan Mitchell 03/2027 Confirmed Instant Transfer Added Jun 22, 2020 Last used Feb 28, 2026
+    - button "Update"
+    - button "Set as Preferred"
+    - button "Remove"
+    - text: AMEX •••• •••• •••• 3001 Jordan Mitchell 12/2026 Confirmed Added Jan 10, 2021 Last used Jan 15, 2026
+    - button "Update"
+    - button "Set as Preferred"
+    - button "Remove"
+    - text: VISA •••• •••• •••• 8834 Jordan Mitchell 11/2029 Pending Instant Transfer Added Mar 1, 2026
+    - button "Confirm Card"
+    - button "Update"
+    - button "Remove"
+    - text: MC Backup •••• •••• •••• 2290 Jordan Mitchell 08/2028 Confirmed Added Sep 15, 2022 Last used Feb 10, 2026
+    - button "Update"
+    - button "Set as Preferred"
+    - button "Remove"
+    - heading "Expired Cards" [level=3]
+    - text: DISC •••• •••• •••• 6221 Jordan Mitchell 06/2025 Expired Expired 06/2025
+    - button "Update Expiration"
+    - button "Remove"

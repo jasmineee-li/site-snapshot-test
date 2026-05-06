@@ -1,0 +1,19 @@
+{
+  "task_id": "task_e11",
+  "difficulty": "easy",
+  "instruction": "Turn off font preview in the settings.",
+  "passed": true,
+  "verifier_message": "Font preview is turned off.",
+  "elapsed": 46.3,
+  "steps": 6,
+  "is_done": true,
+  "final_result": "I have successfully turned off the font preview setting. I navigated to the Settings page, located the 'Show font preview on hover' toggle, and clicked it. I then verified that its state changed to 'off' by comparing its visual properties with other active toggles on the page.",
+  "errors": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

@@ -1,0 +1,622 @@
+- document:
+  - banner:
+    - link "Skip to main content":
+      - /url: "#content-body"
+    - link "Homepage":
+      - /url: /
+    - list:
+      - listitem:
+        - link "Why GitLab":
+          - /url: https://about.gitlab.com/why-gitlab
+      - listitem:
+        - link "Pricing":
+          - /url: https://about.gitlab.com/pricing
+      - listitem:
+        - link "Explore":
+          - /url: /explore
+    - button "Search or go to… /"
+    - link "Get free trial":
+      - /url: /-/trial_registrations/new
+    - link "Sign in":
+      - /url: /users/sign_in?redirect_to_referer=yes
+  - navigation "Primary navigation":
+    - heading "Primary navigation" [level=2]
+    - text: Explore
+    - list "Explore":
+      - listitem:
+        - link "Projects":
+          - /url: /explore/projects
+      - listitem:
+        - link "Groups":
+          - /url: /explore/groups
+      - listitem:
+        - link "CI/CD Catalog":
+          - /url: /explore/catalog
+      - listitem:
+        - link "Topics":
+          - /url: /explore/projects/topics
+      - listitem:
+        - link "Snippets":
+          - /url: /explore/snippets
+    - button "What's new"
+    - button "Help"
+    - button "Collapse sidebar"
+  - navigation "Breadcrumb":
+    - list:
+      - listitem:
+        - link "Explore":
+          - /url: /explore
+        - text: /
+      - listitem:
+        - link "Projects":
+          - /url: /explore/projects/trending
+  - main:
+    - heading "Explore projects" [level=1]
+    - tablist:
+      - tab "Active"
+      - tab "Inactive"
+      - tab "Trending" [selected]
+    - group:
+      - button "Toggle search history"
+      - textbox "Search":
+        - /placeholder: Filter or search (3 character minimum)
+      - button "Search"
+    - group:
+      - combobox "Sort by:": Updated date
+      - text: "Sort by:"
+      - 'button "Sort direction: Descending"'
+    - tabpanel "Trending":
+      - list:
+        - listitem:
+          - link "F-Droid / Client":
+            - /url: /fdroid/fdroidclient
+          - article:
+            - paragraph: Android client application
+          - text: "Topics:"
+          - link "android":
+            - /url: /explore/projects/topics/android
+          - link "app store":
+            - /url: /explore/projects/topics/app%20store
+          - link "fdroid":
+            - /url: /explore/projects/topics/fdroid
+          - button "+1 more"
+          - 'link "Status: Passed"':
+            - /url: /fdroid/fdroidclient/-/pipelines/2435272113
+          - link "F-Droid / Client has 2.6k stars":
+            - /url: /fdroid/fdroidclient/-/starrers
+            - text: 2.6k
+          - link "F-Droid / Client has 1k forks":
+            - /url: /fdroid/fdroidclient/-/forks
+            - text: 1k
+          - link "F-Droid / Client has 23 open merge requests":
+            - /url: /fdroid/fdroidclient/-/merge_requests
+            - text: "23"
+          - link "F-Droid / Client has 506 open issues":
+            - /url: /fdroid/fdroidclient/-/issues
+            - text: "506"
+          - text: Updated
+          - time: 3 minutes ago
+          - button "Actions"
+        - listitem:
+          - link "Tezos / tezos":
+            - /url: /tezos/tezos
+          - 'link "Status: Failed"':
+            - /url: /tezos/tezos/-/pipelines/2442117727
+          - link "Tezos / tezos has 650 stars":
+            - /url: /tezos/tezos/-/starrers
+            - text: "650"
+          - link "Tezos / tezos has 465 forks":
+            - /url: /tezos/tezos/-/forks
+            - text: "465"
+          - link "Tezos / tezos has 399 open merge requests":
+            - /url: /tezos/tezos/-/merge_requests
+            - text: "399"
+          - link "Tezos / tezos has 2.1k open issues":
+            - /url: /tezos/tezos/-/issues
+            - text: 2.1k
+          - text: Updated
+          - time: 17 minutes ago
+          - button "Actions"
+        - listitem:
+          - link "GitLab.com / Runbooks":
+            - /url: /gitlab-com/runbooks
+          - article:
+            - paragraph: Runbooks for the stressed on-call
+            - paragraph:
+              - link "https://runbooks.gitlab.com":
+                - /url: https://runbooks.gitlab.com
+            - paragraph:
+              - text: Mirrored to
+              - link "https://ops.gitlab.net/gitlab-com/runbooks":
+                - /url: https://ops.gitlab.net/gitlab-com/runbooks
+          - button "Show more"
+          - link "GitLab.com / Runbooks has 613 stars":
+            - /url: /gitlab-com/runbooks/-/starrers
+            - text: "613"
+          - link "GitLab.com / Runbooks has 283 forks":
+            - /url: /gitlab-com/runbooks/-/forks
+            - text: "283"
+          - link "GitLab.com / Runbooks has 111 open merge requests":
+            - /url: /gitlab-com/runbooks/-/merge_requests
+            - text: "111"
+          - link "GitLab.com / Runbooks has 43 open issues":
+            - /url: /gitlab-com/runbooks/-/issues
+            - text: "43"
+          - text: Updated
+          - time: 19 minutes ago
+          - button "Actions"
+        - listitem:
+          - link "GitLab.org / omnibus-gitlab":
+            - /url: /gitlab-org/omnibus-gitlab
+          - article:
+            - paragraph: This project creates full-stack platform-specific downloadable packages for GitLab.
+          - text: "Topics:"
+          - link "bug":
+            - /url: /explore/projects/topics/bug
+          - link "confirmed":
+            - /url: /explore/projects/topics/confirmed
+          - link "critical":
+            - /url: /explore/projects/topics/critical
+          - button "+7 more"
+          - link "GitLab.org / omnibus-gitlab has 693 stars":
+            - /url: /gitlab-org/omnibus-gitlab/-/starrers
+            - text: "693"
+          - link "GitLab.org / omnibus-gitlab has 1.3k forks":
+            - /url: /gitlab-org/omnibus-gitlab/-/forks
+            - text: 1.3k
+          - link "GitLab.org / omnibus-gitlab has 122 open merge requests":
+            - /url: /gitlab-org/omnibus-gitlab/-/merge_requests
+            - text: "122"
+          - link "GitLab.org / omnibus-gitlab has 1.2k open issues":
+            - /url: /gitlab-org/omnibus-gitlab/-/issues
+            - text: 1.2k
+          - text: Updated
+          - time: 24 minutes ago
+          - button "Actions"
+        - listitem:
+          - link "ase / ase":
+            - /url: /ase/ase
+          - article:
+            - paragraph:
+              - link "Atomic Simulation Environment":
+                - /url: https://wiki.fysik.dtu.dk/ase/
+              - text: ": A Python library for working with atoms"
+          - text: "Topics:"
+          - link "Atomistic simu…":
+            - /url: /explore/projects/topics/Atomistic%20simulations
+          - link "materials":
+            - /url: /explore/projects/topics/materials
+          - link "physics":
+            - /url: /explore/projects/topics/physics
+          - button "+1 more"
+          - 'link "Status: Passed"':
+            - /url: /ase/ase/-/pipelines/2441827165
+          - link "ase / ase has 510 stars":
+            - /url: /ase/ase/-/starrers
+            - text: "510"
+          - link "ase / ase has 914 forks":
+            - /url: /ase/ase/-/forks
+            - text: "914"
+          - link "ase / ase has 258 open merge requests":
+            - /url: /ase/ase/-/merge_requests
+            - text: "258"
+          - link "ase / ase has 687 open issues":
+            - /url: /ase/ase/-/issues
+            - text: "687"
+          - text: Updated
+          - time: 27 minutes ago
+          - button "Actions"
+        - listitem:
+          - link "F-Droid / Data":
+            - /url: /fdroid/fdroiddata
+          - article:
+            - paragraph:
+              - text: Data for the main F-Droid repository at
+              - link "https://f-droid.org":
+                - /url: https://f-droid.org
+          - text: "Topics:"
+          - link "fdroid":
+            - /url: /explore/projects/topics/fdroid
+          - link "android":
+            - /url: /explore/projects/topics/android
+          - link "apps":
+            - /url: /explore/projects/topics/apps
+          - 'link "Status: Passed"':
+            - /url: /fdroid/fdroiddata/-/pipelines/2442144239
+          - link "F-Droid / Data has 1.1k stars":
+            - /url: /fdroid/fdroiddata/-/starrers
+            - text: 1.1k
+          - link "F-Droid / Data has 5.5k forks":
+            - /url: /fdroid/fdroiddata/-/forks
+            - text: 5.5k
+          - link "F-Droid / Data has 372 open merge requests":
+            - /url: /fdroid/fdroiddata/-/merge_requests
+            - text: "372"
+          - link "F-Droid / Data has 32 open issues":
+            - /url: /fdroid/fdroiddata/-/issues
+            - text: "32"
+          - text: Updated
+          - time: 28 minutes ago
+          - button "Actions"
+        - listitem:
+          - link "GitLab.org / GitLab FOSS":
+            - /url: /gitlab-org/gitlab-foss
+          - article:
+            - paragraph: GitLab FOSS is a read-only mirror of GitLab, with all proprietary code removed.
+            - paragraph:
+              - text: This project was previously used to host GitLab Community Edition, but all development has now moved to
+              - link "https://gitlab.com/gitlab-org/gitlab":
+                - /url: https://gitlab.com/gitlab-org/gitlab
+              - text: .
+          - button "Show more"
+          - text: "Topics:"
+          - link "hacktoberfest":
+            - /url: /explore/projects/topics/hacktoberfest
+          - link "infra-mgmt Man…":
+            - /url: /explore/projects/topics/infra-mgmt%20Managed
+          - link "Canonical":
+            - /url: /explore/projects/topics/Canonical
+          - 'link "Status: Warning"':
+            - /url: /gitlab-org/gitlab-foss/-/pipelines/2441925382
+          - link "GitLab.org / GitLab FOSS has 7.2k stars":
+            - /url: /gitlab-org/gitlab-foss/-/starrers
+            - text: 7.2k
+          - link "GitLab.org / GitLab FOSS has 8.3k forks":
+            - /url: /gitlab-org/gitlab-foss/-/forks
+            - text: 8.3k
+          - link "GitLab.org / GitLab FOSS has 0 open merge requests":
+            - /url: /gitlab-org/gitlab-foss/-/merge_requests
+            - text: "0"
+          - link "GitLab.org / GitLab FOSS has 0 open issues":
+            - /url: /gitlab-org/gitlab-foss/-/issues
+            - text: "0"
+          - text: Updated
+          - time: 29 minutes ago
+          - button "Actions"
+        - listitem:
+          - link "F-Droid / Requests For Packaging":
+            - /url: /fdroid/rfp
+          - article:
+            - paragraph: Request apps etc. to be packaged, build and distributed via F-Droid's mainline repository.
+          - text: "Topics:"
+          - link "fdroid":
+            - /url: /explore/projects/topics/fdroid
+          - link "issuebot":
+            - /url: /explore/projects/topics/issuebot
+          - 'link "Status: Failed"':
+            - /url: /fdroid/rfp/-/pipelines/2442011383
+          - link "F-Droid / Requests For Packaging has 215 stars":
+            - /url: /fdroid/rfp/-/starrers
+            - text: "215"
+          - link "F-Droid / Requests For Packaging has 111 forks":
+            - /url: /fdroid/rfp/-/forks
+            - text: "111"
+          - link "F-Droid / Requests For Packaging has 936 open issues":
+            - /url: /fdroid/rfp/-/issues
+            - text: "936"
+          - text: Updated
+          - time: 34 minutes ago
+          - button "Actions"
+        - listitem:
+          - link "GitLab.com / www-gitlab-com":
+            - /url: /gitlab-com/www-gitlab-com
+          - article:
+            - paragraph:
+              - text: Source for a portion of
+              - link "https://about.gitlab.com/":
+                - /url: https://about.gitlab.com/
+            - paragraph:
+              - text: This repo/project is for the public-facing website of GitLab that's not part of Marketing CMS, which lives
+              - link "https://gitlab.com/gitlab-com/marketing/digital-experience/about-gitlab-com":
+                - /url: https://gitlab.com/gitlab-com/marketing/digital-experience/about-gitlab-com
+            - paragraph:
+              - text: Please file product improvement suggestions at
+              - link "https://gitlab.com/gitlab-org/gitlab":
+                - /url: https://gitlab.com/gitlab-org/gitlab
+          - button "Show more"
+          - text: "Topics:"
+          - link "gitlab":
+            - /url: /explore/projects/topics/gitlab
+          - link "handbook":
+            - /url: /explore/projects/topics/handbook
+          - link "hacktoberfest":
+            - /url: /explore/projects/topics/hacktoberfest
+          - 'link "Status: Failed"':
+            - /url: /gitlab-com/www-gitlab-com/-/pipelines/2442327963
+          - link "GitLab.com / www-gitlab-com has 1.1k stars":
+            - /url: /gitlab-com/www-gitlab-com/-/starrers
+            - text: 1.1k
+          - link "GitLab.com / www-gitlab-com has 3.3k forks":
+            - /url: /gitlab-com/www-gitlab-com/-/forks
+            - text: 3.3k
+          - link "GitLab.com / www-gitlab-com has 1.3k open merge requests":
+            - /url: /gitlab-com/www-gitlab-com/-/merge_requests
+            - text: 1.3k
+          - link "GitLab.com / www-gitlab-com has 1.6k open issues":
+            - /url: /gitlab-com/www-gitlab-com/-/issues
+            - text: 1.6k
+          - text: Updated
+          - time: 36 minutes ago
+          - button "Actions"
+        - listitem:
+          - link "George Nachman / iterm2":
+            - /url: /gnachman/iterm2
+          - article:
+            - paragraph: Issues site for iTerm2
+          - link "George Nachman / iterm2 has 1.5k stars":
+            - /url: /gnachman/iterm2/-/starrers
+            - text: 1.5k
+          - link "George Nachman / iterm2 has 198 forks":
+            - /url: /gnachman/iterm2/-/forks
+            - text: "198"
+          - link "George Nachman / iterm2 has 3.5k open issues":
+            - /url: /gnachman/iterm2/-/issues
+            - text: 3.5k
+          - text: Updated
+          - time: 40 minutes ago
+          - button "Actions"
+        - listitem:
+          - link "GitLab.com / GitLab Infrastructure Team / Production Engineering":
+            - /url: /gitlab-com/gl-infra/production-engineering
+          - article:
+            - paragraph: Keep GitLab running and make it scale!
+          - 'link "Status: Warning"':
+            - /url: /gitlab-com/gl-infra/production-engineering/-/pipelines/2435780889
+          - link "GitLab.com / GitLab Infrastructure Team / Production Engineering has 229 stars":
+            - /url: /gitlab-com/gl-infra/production-engineering/-/starrers
+            - text: "229"
+          - link "GitLab.com / GitLab Infrastructure Team / Production Engineering has 131 forks":
+            - /url: /gitlab-com/gl-infra/production-engineering/-/forks
+            - text: "131"
+          - link "GitLab.com / GitLab Infrastructure Team / Production Engineering has 550 open issues":
+            - /url: /gitlab-com/gl-infra/production-engineering/-/issues
+            - text: "550"
+          - text: Updated
+          - time: 43 minutes ago
+          - button "Actions"
+        - listitem:
+          - link "GitLab.org / GitLab":
+            - /url: /gitlab-org/gitlab
+          - article:
+            - paragraph: GitLab is an open source end-to-end software development platform with built-in version control, issue tracking, code review, CI/CD, and more. Self-host GitLab on your own servers, in a container, or on a cloud provider.
+          - button "Show more"
+          - text: "Topics:"
+          - link "hacktoberfest":
+            - /url: /explore/projects/topics/hacktoberfest
+          - link "ruby":
+            - /url: /explore/projects/topics/ruby
+          - link "vue.js":
+            - /url: /explore/projects/topics/vue.js
+          - button "+1 more"
+          - 'link "Status: Running"':
+            - /url: /gitlab-org/gitlab/-/pipelines/2442517549
+          - link "GitLab.org / GitLab has 6k stars":
+            - /url: /gitlab-org/gitlab/-/starrers
+            - text: 6k
+          - link "GitLab.org / GitLab has 12k forks":
+            - /url: /gitlab-org/gitlab/-/forks
+            - text: 12k
+          - link "GitLab.org / GitLab has 2.6k open merge requests":
+            - /url: /gitlab-org/gitlab/-/merge_requests
+            - text: 2.6k
+          - link "GitLab.org / GitLab has 47.9k open issues":
+            - /url: /gitlab-org/gitlab/-/issues
+            - text: 47.9k
+          - text: Updated
+          - time: 43 minutes ago
+          - button "Actions"
+        - listitem:
+          - link "GitLab.org / release / tasks":
+            - /url: /gitlab-org/release/tasks
+          - article:
+            - paragraph: GitLab release tasks project, release managers issue tracker
+          - link "GitLab.org / release / tasks has 67 stars":
+            - /url: /gitlab-org/release/tasks/-/starrers
+            - text: "67"
+          - link "GitLab.org / release / tasks has 192 forks":
+            - /url: /gitlab-org/release/tasks/-/forks
+            - text: "192"
+          - link "GitLab.org / release / tasks has 0 open merge requests":
+            - /url: /gitlab-org/release/tasks/-/merge_requests
+            - text: "0"
+          - link "GitLab.org / release / tasks has 1.1k open issues":
+            - /url: /gitlab-org/release/tasks/-/issues
+            - text: 1.1k
+          - text: Updated
+          - time: 48 minutes ago
+          - button "Actions"
+        - listitem:
+          - link "Inkscape / inkscape":
+            - /url: /inkscape/inkscape
+          - article:
+            - paragraph: Inkscape vector image editor
+          - text: "Topics:"
+          - link "svg":
+            - /url: /explore/projects/topics/svg
+          - link "vectorgraphics":
+            - /url: /explore/projects/topics/vectorgraphics
+          - link "C++":
+            - /url: /explore/projects/topics/C%2B%2B
+          - button "+3 more"
+          - 'link "Status: Passed"':
+            - /url: /inkscape/inkscape/-/pipelines/2439095728
+          - link "Inkscape / inkscape has 3.9k stars":
+            - /url: /inkscape/inkscape/-/starrers
+            - text: 3.9k
+          - link "Inkscape / inkscape has 1.9k forks":
+            - /url: /inkscape/inkscape/-/forks
+            - text: 1.9k
+          - link "Inkscape / inkscape has 171 open merge requests":
+            - /url: /inkscape/inkscape/-/merge_requests
+            - text: "171"
+          - link "Inkscape / inkscape has 2.1k open issues":
+            - /url: /inkscape/inkscape/-/issues
+            - text: 2.1k
+          - text: Updated
+          - time: 1 hour ago
+          - button "Actions"
+        - listitem:
+          - link "F-Droid / Website":
+            - /url: /fdroid/fdroid-website
+          - article:
+            - paragraph:
+              - text: Jekyll page to power
+              - link "https://f-droid.org":
+                - /url: https://f-droid.org
+              - text: ", staging at"
+              - link "https://staging.f-droid.org/":
+                - /url: https://staging.f-droid.org/
+          - text: "Topics:"
+          - link "website":
+            - /url: /explore/projects/topics/website
+          - link "fdroid":
+            - /url: /explore/projects/topics/fdroid
+          - link "jekyll":
+            - /url: /explore/projects/topics/jekyll
+          - button "+3 more"
+          - 'link "Status: Passed"':
+            - /url: /fdroid/fdroid-website/-/pipelines/2442265997
+          - link "F-Droid / Website has 198 stars":
+            - /url: /fdroid/fdroid-website/-/starrers
+            - text: "198"
+          - link "F-Droid / Website has 753 forks":
+            - /url: /fdroid/fdroid-website/-/forks
+            - text: "753"
+          - link "F-Droid / Website has 25 open merge requests":
+            - /url: /fdroid/fdroid-website/-/merge_requests
+            - text: "25"
+          - link "F-Droid / Website has 161 open issues":
+            - /url: /fdroid/fdroid-website/-/issues
+            - text: "161"
+          - text: Updated
+          - time: 1 hour ago
+          - button "Actions"
+        - listitem:
+          - link "GitLab.org / gitlab-runner":
+            - /url: /gitlab-org/gitlab-runner
+          - article:
+            - paragraph: GitLab Runner is the open source project that is used to run your CI/CD jobs and send the results back to GitLab
+          - text: "Topics:"
+          - link "hacktoberfest":
+            - /url: /explore/projects/topics/hacktoberfest
+          - link "golang":
+            - /url: /explore/projects/topics/golang
+          - 'link "Status: Running"':
+            - /url: /gitlab-org/gitlab-runner/-/pipelines/2442218926
+          - link "GitLab.org / gitlab-runner has 2.6k stars":
+            - /url: /gitlab-org/gitlab-runner/-/starrers
+            - text: 2.6k
+          - link "GitLab.org / gitlab-runner has 2.6k forks":
+            - /url: /gitlab-org/gitlab-runner/-/forks
+            - text: 2.6k
+          - link "GitLab.org / gitlab-runner has 128 open merge requests":
+            - /url: /gitlab-org/gitlab-runner/-/merge_requests
+            - text: "128"
+          - link "GitLab.org / gitlab-runner has 2.5k open issues":
+            - /url: /gitlab-org/gitlab-runner/-/issues
+            - text: 2.5k
+          - text: Updated
+          - time: 1 hour ago
+          - button "Actions"
+        - listitem:
+          - link "GitLab.org / release-tools":
+            - /url: /gitlab-org/release-tools
+          - article:
+            - paragraph: Instructions and tools for releasing GitLab.
+          - text: "Topics:"
+          - link "hacktoberfest":
+            - /url: /explore/projects/topics/hacktoberfest
+          - link "GitLab.org / release-tools has 100 stars":
+            - /url: /gitlab-org/release-tools/-/starrers
+            - text: "100"
+          - link "GitLab.org / release-tools has 155 forks":
+            - /url: /gitlab-org/release-tools/-/forks
+            - text: "155"
+          - link "GitLab.org / release-tools has 49 open merge requests":
+            - /url: /gitlab-org/release-tools/-/merge_requests
+            - text: "49"
+          - text: Updated
+          - time: 2 hours ago
+          - button "Actions"
+        - listitem:
+          - link "GitLab.org / Gitaly":
+            - /url: /gitlab-org/gitaly
+          - article:
+            - paragraph: Gitaly is a Git RPC service for handling all the git calls made by GitLab
+          - text: "Topics:"
+          - link "gitlab":
+            - /url: /explore/projects/topics/gitlab
+          - link "git":
+            - /url: /explore/projects/topics/git
+          - link "rpc":
+            - /url: /explore/projects/topics/rpc
+          - button "+2 more"
+          - 'link "Status: Failed"':
+            - /url: /gitlab-org/gitaly/-/pipelines/2440393149
+          - link "GitLab.org / Gitaly has 434 stars":
+            - /url: /gitlab-org/gitaly/-/starrers
+            - text: "434"
+          - link "GitLab.org / Gitaly has 374 forks":
+            - /url: /gitlab-org/gitaly/-/forks
+            - text: "374"
+          - link "GitLab.org / Gitaly has 90 open merge requests":
+            - /url: /gitlab-org/gitaly/-/merge_requests
+            - text: "90"
+          - link "GitLab.org / Gitaly has 714 open issues":
+            - /url: /gitlab-org/gitaly/-/issues
+            - text: "714"
+          - text: Updated
+          - time: 2 hours ago
+          - button "Actions"
+        - listitem:
+          - link "GitLab.org / charts / GitLab Chart":
+            - /url: /gitlab-org/charts/gitlab
+          - article:
+            - paragraph: Cloud Native GitLab Helm Chart
+          - text: "Topics:"
+          - link "gitlab":
+            - /url: /explore/projects/topics/gitlab
+          - link "helm":
+            - /url: /explore/projects/topics/helm
+          - link "k8s":
+            - /url: /explore/projects/topics/k8s
+          - button "+2 more"
+          - link "GitLab.org / charts / GitLab Chart has 450 stars":
+            - /url: /gitlab-org/charts/gitlab/-/starrers
+            - text: "450"
+          - link "GitLab.org / charts / GitLab Chart has 747 forks":
+            - /url: /gitlab-org/charts/gitlab/-/forks
+            - text: "747"
+          - link "GitLab.org / charts / GitLab Chart has 61 open merge requests":
+            - /url: /gitlab-org/charts/gitlab/-/merge_requests
+            - text: "61"
+          - link "GitLab.org / charts / GitLab Chart has 415 open issues":
+            - /url: /gitlab-org/charts/gitlab/-/issues
+            - text: "415"
+          - text: Updated
+          - time: 2 hours ago
+          - button "Actions"
+        - listitem:
+          - link "Isleward / isleward":
+            - /url: /Isleward/isleward
+          - article:
+            - paragraph: The moddable, multiplayer roguelike.
+          - link "Isleward / isleward has 385 stars":
+            - /url: /Isleward/isleward/-/starrers
+            - text: "385"
+          - link "Isleward / isleward has 164 forks":
+            - /url: /Isleward/isleward/-/forks
+            - text: "164"
+          - link "Isleward / isleward has 6 open merge requests":
+            - /url: /Isleward/isleward/-/merge_requests
+            - text: "6"
+          - link "Isleward / isleward has 263 open issues":
+            - /url: /Isleward/isleward/-/issues
+            - text: "263"
+          - text: Updated
+          - time: 3 hours ago
+          - button "Actions"
+      - navigation "Pagination":
+        - group:
+          - button "Previous" [disabled]
+          - button "Next"

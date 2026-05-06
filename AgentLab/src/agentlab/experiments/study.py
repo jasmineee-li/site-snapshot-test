@@ -1348,14 +1348,21 @@ def _convert_env_args(env_args_list) -> list[EnvArgs]:
     """
     from bgym import EnvArgs as BGymEnvArgs
 
+    from dataclasses import fields as _dc_fields
+
     new_list = []
     for ea in env_args_list:
         # already new → keep as‑is
         if isinstance(ea, (EnvArgs, AbstractEnvArgs)):
             new_list.append(ea)
-        # old → convert
+        # subclass of BGymEnvArgs carrying extra fields (e.g. DoomArena's
+        # AttackedBrowserEnvArgs) → keep as‑is; downstream code handles it.
+        elif isinstance(ea, BGymEnvArgs) and type(ea) is not BGymEnvArgs:
+            new_list.append(ea)
+        # old plain BGymEnvArgs → convert, filtering to fields EnvArgs knows
         elif isinstance(ea, BGymEnvArgs):
-            new_list.append(EnvArgs(**asdict(ea)))
+            known = {f.name for f in _dc_fields(EnvArgs)}
+            new_list.append(EnvArgs(**{k: v for k, v in asdict(ea).items() if k in known}))
         else:
             raise TypeError(f"Unexpected type: {type(ea)}")
     return new_list

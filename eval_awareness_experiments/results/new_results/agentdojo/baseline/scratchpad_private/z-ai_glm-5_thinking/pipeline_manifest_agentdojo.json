@@ -1,0 +1,30 @@
+{
+  "started": "2026-04-24T01:27:28.905208+00:00",
+  "config": {
+    "benchmark": "agentdojo",
+    "splits": null,
+    "stage": "all",
+    "tasks_per_split": 2,
+    "model_name": "z-ai/glm-5:thinking",
+    "condition": "baseline",
+    "extra_instructions_preset": "scratchpad_private",
+    "max_steps": 15,
+    "shuffle": 42,
+    "report_port": 1234,
+    "judge_model": "anthropic/claude-opus-4.6:thinking",
+    "judges": [
+      "verbalized_awareness",
+      "purpose_continue_5q"
+    ],
+    "output_dir": "eval_awareness_experiments/results/causal/agentdojo/baseline/scratchpad_private/z-ai_glm-5_thinking",
+    "existing_dirs": null
+  },
+  "splits": {
+    "workspace": {
+      "run_dir": "/Users/jasminexli/grayswan/browser-sim/results/toolcalling/agentdojo/workspace/baseline_scratchpad_private_z-ai_glm-5_thinking",
+      "n_trajectories": 2,
+      "status": "judges_complete"
+    }
+  },
+  "finished": "2026-04-24T01:28:54.769151+00:00"
+}

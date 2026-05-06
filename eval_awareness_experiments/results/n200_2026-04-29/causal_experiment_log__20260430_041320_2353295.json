@@ -1,0 +1,14 @@
+[
+  {
+    "benchmark": "doomarena",
+    "arm": "xml_safety",
+    "condition": "baseline",
+    "model": "moonshotai/kimi-k2.5:thinking",
+    "preset": "none",
+    "system_prompt_frame": "safety_test",
+    "stage": "all",
+    "status": "skipped (already complete)",
+    "output_dir": "eval_awareness_experiments/results/n200_2026-04-29/doomarena/xml_safety/moonshotai_kimi-k2.5_thinking",
+    "cmd": null
+  }
+]

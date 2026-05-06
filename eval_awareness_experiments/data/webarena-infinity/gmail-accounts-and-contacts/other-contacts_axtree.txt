@@ -1,0 +1,99 @@
+- document:
+  - button "menu"
+  - text: contacts Contacts search
+  - textbox "Search contacts"
+  - button "help_outline"
+  - button "settings"
+  - text: AJ contacts Contacts
+  - button "add Create contact"
+  - navigation: people Contacts 40 history Frequently contacted star Starred 10 person_outline Other contacts 20 merge_type Merge & fix 2
+  - text: Labels
+  - button "add"
+  - text: Family 4
+  - button "edit"
+  - text: Friends 7
+  - button "edit"
+  - text: Work 19
+  - button "edit"
+  - text: VIP Clients 4
+  - button "edit"
+  - text: Gym Buddies 5
+  - button "edit"
+  - text: College Alumni 4
+  - button "edit"
+  - text: Neighbors 3
+  - button "edit"
+  - text: Book Club 2
+  - button "edit"
+  - text: Vendors 5
+  - button "edit"
+  - text: Emergency 4
+  - button "edit"
+  - text: Travel Contacts 3
+  - button "edit"
+  - text: Healthcare 4
+  - button "edit"
+  - navigation: import_export Import & Export supervisor_account Delegates link Linked Services settings Settings
+  - heading "Other contacts" [level=1]
+  - text: 20 contacts
+  - paragraph: Contacts auto-saved from people you've emailed. You can add them to your contacts or delete them.
+  - text: UR Uber Receipts receipts@uber.com 31 interactions
+  - button "person_add"
+  - button "delete"
+  - text: G GitHub noreply@github.com 45 interactions
+  - button "person_add"
+  - button "delete"
+  - text: VS Vercel Support support@vercel.com 8 interactions
+  - button "person_add"
+  - button "delete"
+  - text: SN Stripe Notifications no-reply@stripe.com 22 interactions
+  - button "person_add"
+  - button "delete"
+  - text: HN Hacker News Newsletter newsletter@hackernews.com 40 interactions
+  - button "person_add"
+  - button "delete"
+  - text: AB AWS Billing billing@aws.amazon.com 15 interactions
+  - button "person_add"
+  - button "delete"
+  - text: JN Jira Notifications notifications@jira.atlassian.com 55 interactions
+  - button "person_add"
+  - button "delete"
+  - text: D DocuSign no-reply@docusign.net 9 interactions
+  - button "person_add"
+  - button "delete"
+  - text: Z Zoom do-not-reply@zoom.us 19 interactions
+  - button "person_add"
+  - button "delete"
+  - text: DA Datadog Alerts alerts@datadog.com 28 interactions
+  - button "person_add"
+  - button "delete"
+  - text: JB Jason Blake jason.blake@salesforce.com 3 interactions
+  - button "person_add"
+  - button "delete"
+  - text: MS Mike Santos mike.santos@cloudflare.com 5 interactions
+  - button "person_add"
+  - button "delete"
+  - text: AR Alex Rivera alex.rivera@notion.so 6 interactions
+  - button "person_add"
+  - button "delete"
+  - text: TH TechCorp HR hr@techcorp.io 4 interactions
+  - button "person_add"
+  - button "delete"
+  - text: TM Tina Marshall tina.marshall@designhub.com 2 interactions
+  - button "person_add"
+  - button "delete"
+  - text: L Linear team@linear.app 12 interactions
+  - button "person_add"
+  - button "delete"
+  - text: WC Wendy Chung wendy.chung@techcorp.io 7 interactions
+  - button "person_add"
+  - button "delete"
+  - text: CB Chloe Bennett chloe.b@sequoiacap.com 1 interactions
+  - button "person_add"
+  - button "delete"
+  - text: PG Peter Grant peter.grant@mongodb.com 3 interactions
+  - button "person_add"
+  - button "delete"
+  - text: NK Nina Kovalenko nina.k@figma.com 4 interactions
+  - button "person_add"
+  - button "delete"

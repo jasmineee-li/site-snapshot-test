@@ -1,0 +1,29 @@
+[
+  {
+    "benchmark": "agentdojo",
+    "condition": "baseline",
+    "model": "z-ai/glm-5:thinking",
+    "preset": "none",
+    "stage": "all",
+    "status": "ok",
+    "cmd": "/Users/jasminexli/grayswan/browser-sim/.venv/bin/python -m eval_awareness_experiments.run_safety_pipeline --benchmark agentdojo --model-name z-ai/glm-5:thinking --condition baseline --extra-instructions-preset none --stage all --output-dir eval_awareness_experiments/results/causal/agentdojo/baseline/none/z-ai_glm-5_thinking --judges verbalized_awareness purpose_continue_5q --tasks-per-split 2"
+  },
+  {
+    "benchmark": "agentdojo",
+    "condition": "baseline",
+    "model": "z-ai/glm-5:thinking",
+    "preset": "scratchpad_bare",
+    "stage": "all",
+    "status": "ok",
+    "cmd": "/Users/jasminexli/grayswan/browser-sim/.venv/bin/python -m eval_awareness_experiments.run_safety_pipeline --benchmark agentdojo --model-name z-ai/glm-5:thinking --condition baseline --extra-instructions-preset scratchpad_bare --stage all --output-dir eval_awareness_experiments/results/causal/agentdojo/baseline/scratchpad_bare/z-ai_glm-5_thinking --judges verbalized_awareness purpose_continue_5q --tasks-per-split 2"
+  },
+  {
+    "benchmark": "agentdojo",
+    "condition": "baseline",
+    "model": "z-ai/glm-5:thinking",
+    "preset": "scratchpad_private",
+    "stage": "all",
+    "status": "ok",
+    "cmd": "/Users/jasminexli/grayswan/browser-sim/.venv/bin/python -m eval_awareness_experiments.run_safety_pipeline --benchmark agentdojo --model-name z-ai/glm-5:thinking --condition baseline --extra-instructions-preset scratchpad_private --stage all --output-dir eval_awareness_experiments/results/causal/agentdojo/baseline/scratchpad_private/z-ai_glm-5_thinking --judges verbalized_awareness purpose_continue_5q --tasks-per-split 2"
+  }
+]

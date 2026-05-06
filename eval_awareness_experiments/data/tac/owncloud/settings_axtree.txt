@@ -1,0 +1,241 @@
+- document:
+  - link "There were problems with the code integrity check. More information…":
+    - /url: /index.php/settings/admin#security-warning
+  - banner:
+    - link "ownCloud":
+      - /url: /index.php
+      - heading "ownCloud" [level=1]
+    - link "Menu Settings":
+      - /url: "#"
+      - button "Menu"
+      - heading "Settings" [level=1]
+    - link "theagentcompany"
+    - search: Search
+  - navigation
+  - main:
+    - list:
+      - listitem: Personal
+      - listitem:
+        - link "General":
+          - /url: /index.php/settings/personal?sectionid=general
+      - listitem:
+        - link "Storage":
+          - /url: /index.php/settings/personal?sectionid=storage
+      - listitem:
+        - link "Security":
+          - /url: /index.php/settings/personal?sectionid=security
+      - listitem:
+        - link "Additional":
+          - /url: /index.php/settings/personal?sectionid=additional
+      - listitem: Admin
+      - listitem:
+        - link "Apps":
+          - /url: /index.php/settings/admin?sectionid=apps
+      - listitem:
+        - link "General":
+          - /url: /index.php/settings/admin?sectionid=general
+      - listitem:
+        - link "Storage":
+          - /url: /index.php/settings/admin?sectionid=storage
+      - listitem:
+        - link "Encryption":
+          - /url: /index.php/settings/admin?sectionid=encryption
+      - listitem:
+        - link "Sharing":
+          - /url: /index.php/settings/admin?sectionid=sharing
+      - listitem:
+        - link "Help & Tips":
+          - /url: /index.php/settings/admin?sectionid=help
+      - listitem:
+        - link "Additional":
+          - /url: /index.php/settings/admin?sectionid=additional
+    - paragraph: You are using 86.9 MB
+    - heading "Profile picture" [level=2]
+    - text: T
+    - button "Upload new"
+    - paragraph:
+      - emphasis: png or jpg, max. 20 MB
+    - heading "Full name" [level=2]
+    - textbox "Full name": theagentcompany
+    - heading "Email" [level=2]
+    - textbox "Email":
+      - /placeholder: Your email address
+    - button "Set email"
+    - emphasis: For password recovery and notifications
+    - heading "Groups" [level=2]
+    - paragraph: "You are member of the following groups:"
+    - paragraph: admin
+    - heading "Password" [level=2]
+    - text: "Current password:"
+    - textbox "Current password:":
+      - /placeholder: Current password
+    - text: "New password:"
+    - textbox "New password:":
+      - /placeholder: New password
+    - button "Change password"
+    - heading "Language" [level=2]
+    - combobox:
+      - option "English" [selected]
+      - option "Castellano"
+      - option "Français"
+      - option "Deutsch (Persönlich)"
+      - 'option "Deutsch (Förmlich: Sie)"'
+      - option "Japanese (日本語)"
+      - option "العربية"
+      - option "Русский"
+      - option "Nederlands"
+      - option "Italiano"
+      - option "Português brasileiro"
+      - option "Português"
+      - option "Dansk"
+      - option "Suomi"
+      - option "Norwegian Bokmål"
+      - option "Svenska"
+      - option "Türkçe"
+      - option "简体中文"
+      - option "한국어"
+      - option "Afrikaans"
+      - option "Asturianu"
+      - option "Bahasa Indonesia"
+      - option "Bahasa Melayu"
+      - option "Belarusian"
+      - option "Bengali"
+      - option "Burmese - MYANMAR"
+      - option "Castellano (Argentina)"
+      - option "Català"
+      - option "Deutsch (Österreich)"
+      - option "Eesti"
+      - option "English (British English)"
+      - option "Español (México)"
+      - option "Esperanto"
+      - option "Euskara"
+      - option "Galego"
+      - option "Georgian for Georgia"
+      - option "Hrvatski"
+      - option "Interlingua"
+      - option "Kurdish Iraq"
+      - option "Latviešu"
+      - option "Lietuvių"
+      - option "Lëtzebuergesch"
+      - option "Magyar"
+      - option "Nynorsk"
+      - option "Occitan-lengadocian"
+      - option "Shqip"
+      - option "Sinhala"
+      - option "Slovensky"
+      - option "Slovenščina"
+      - option "Srpski"
+      - option "Tiếng Việt"
+      - option "Urdu (Pakistan)"
+      - option "polski"
+      - option "română"
+      - option "Íslenska"
+      - option "Česky"
+      - option "Ελληνικά"
+      - option "Български"
+      - option "Српски"
+      - option "Українська"
+      - option "македонски"
+      - option "עברית"
+      - option "ئۇيغۇرچە"
+      - option "فارسى"
+      - option "हिन्दी"
+      - option "தமிழ்"
+      - option "ಕನ್ನಡ"
+      - option "ภาษาไทย - Thai languages"
+      - option "正體中文（臺灣）"
+      - option "繁體中文（香港）"
+      - option "ach"
+      - option "ady"
+      - option "ak"
+      - option "am_ET"
+      - option "az"
+      - option "bn_IN"
+      - option "bs"
+      - option "cy_GB"
+      - option "es_CL"
+      - option "fil"
+      - option "fy_NL"
+      - option "gu"
+      - option "hy"
+      - option "io"
+      - option "jv"
+      - option "km"
+      - option "lo"
+      - option "mg"
+      - option "ml"
+      - option "ml_IN"
+      - option "mn"
+      - option "mr"
+      - option "mt_MT"
+      - option "nds"
+      - option "nqo"
+      - option "pa"
+      - option "su"
+      - option "sw_KE"
+      - option "ta_IN"
+      - option "te"
+      - option "tg_TJ"
+      - option "tl_PH"
+      - option "tzm"
+    - link "Help translate":
+      - /url: https://www.transifex.com/projects/p/owncloud/
+      - emphasis: Help translate
+    - heading "Mail Notifications" [level=2]
+    - paragraph: "You can choose to be notified about events via mail. Some events are informative, others require an action (like accept/decline). Select your preference below:"
+    - combobox:
+      - option "Do not notify via mail"
+      - option "Notify only when an action is required" [selected]
+      - option "Notify about all events"
+    - paragraph: To be able to receive mail notifications it is required to specify an email address for your account.
+    - heading "Federated Cloud" [level=2]
+    - paragraph:
+      - text: "Your Federated Cloud ID:"
+      - strong: theagentcompany@the-agent-company.com:8092
+    - paragraph: "Share it:"
+    - button "GNU Social"
+    - button "Diaspora"
+    - button "Twitter"
+    - button "Facebook"
+    - button "Google+"
+    - button "Add to your website"
+    - paragraph
+    - heading "Get the apps to sync your files" [level=2]
+    - link "Desktop client":
+      - /url: https://owncloud.org/install/#install-clients
+      - img "Desktop client"
+    - link "Android app":
+      - /url: https://play.google.com/store/apps/details?id=com.owncloud.android
+      - img "Android app"
+    - link "iOS app":
+      - /url: https://itunes.apple.com/us/app/owncloud/id543672169?mt=8
+      - img "iOS app"
+    - paragraph:
+      - text: If you want to support the project
+      - link "join development":
+        - /url: https://owncloud.org/contribute
+      - text: or
+      - link "spread the word":
+        - /url: https://owncloud.org/promote
+      - text: "!"
+    - paragraph:
+      - link "Show First Run Wizard again":
+        - /url: "#"
+    - heading "Version" [level=2]
+    - paragraph:
+      - link "ownCloud":
+        - /url: https://owncloud.org
+      - text: 10.0.10 (stable)
+    - paragraph
+    - paragraph:
+      - text: Developed by the
+      - link "ownCloud community":
+        - /url: https://owncloud.org/contact
+      - text: ", the"
+      - link "source code":
+        - /url: https://github.com/owncloud
+      - text: is licensed under the
+      - link "AGPL":
+        - /url: https://www.gnu.org/licenses/agpl-3.0.html
+      - text: .
+    - paragraph

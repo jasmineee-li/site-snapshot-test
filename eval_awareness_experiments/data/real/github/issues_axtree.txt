@@ -1,0 +1,128 @@
+- document:
+  - region
+  - link "Skip to content":
+    - /url: "#start-of-content"
+  - banner:
+    - heading "Navigation Menu" [level=2]
+    - link "Homepage":
+      - /url: /
+    - navigation "Global":
+      - list:
+        - listitem:
+          - button "Platform"
+        - listitem:
+          - button "Solutions"
+        - listitem:
+          - button "Resources"
+        - listitem:
+          - button "Open Source"
+        - listitem:
+          - button "Enterprise"
+        - listitem:
+          - link "Pricing":
+            - /url: https://github.com/pricing
+    - button "Search or jump to…"
+    - link "Sign in":
+      - /url: /login?return_to=https%3A%2F%2Fgithub.com%2Ftorvalds%2Flinux%2Fissues
+    - link "Sign up":
+      - /url: /signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E%2Fissues%2Findex&source=header-repo&source_repo=torvalds%2Flinux
+    - button "Appearance settings"
+  - main:
+    - link "torvalds":
+      - /url: /torvalds
+    - text: /
+    - strong:
+      - link "linux":
+        - /url: /torvalds/linux
+    - text: Public
+    - list:
+      - listitem:
+        - link "You must be signed in to change notification settings":
+          - /url: /login?return_to=%2Ftorvalds%2Flinux
+          - text: Notifications
+      - listitem:
+        - link "Fork 61.5k":
+          - /url: /login?return_to=%2Ftorvalds%2Flinux
+      - listitem:
+        - link "You must be signed in to star a repository":
+          - /url: /login?return_to=%2Ftorvalds%2Flinux
+          - text: Star 227k
+    - navigation "Repository":
+      - list:
+        - listitem:
+          - link "Code":
+            - /url: /torvalds/linux
+        - listitem:
+          - link "Actions":
+            - /url: /torvalds/linux/actions
+        - listitem:
+          - link "Projects":
+            - /url: /torvalds/linux/projects
+        - listitem:
+          - link "Security and quality":
+            - /url: /torvalds/linux/security
+        - listitem:
+          - link "Insights":
+            - /url: /torvalds/linux/pulse
+    - heading "Issues" [level=1]
+    - form "Search Issues":
+      - text: Search Issues
+      - combobox "Search Issues": is:issue state:open
+      - button "Search"
+    - link "Labels":
+      - /url: /torvalds/linux/labels
+    - link "Milestones":
+      - /url: /torvalds/linux/milestones
+    - link "New issue":
+      - /url: /login?return_to=https://github.com/torvalds/linux/issues
+    - heading "Search results" [level=2]
+    - list:
+      - listitem:
+        - link "Open (0)":
+          - /url: /torvalds/linux/issues
+      - listitem:
+        - link "Closed (0)":
+          - /url: /torvalds/linux/issues?q=is%3Aissue%20state%3Aclosed
+    - toolbar "Actions":
+      - button "Filter by author": Author
+      - button "Filter by label": Labels
+      - button "Filter by project": Projects
+      - button "Filter by milestone": Milestones
+      - button "Filter by assignees": Assignees
+      - button "Sort by Newest , descending"
+    - region:
+      - heading "No results" [level=3]
+      - paragraph: Try adjusting your search filters.
+  - contentinfo:
+    - heading "Footer" [level=2]
+    - link "GitHub Homepage":
+      - /url: https://github.com
+    - text: © 2026 GitHub, Inc.
+    - navigation "Footer":
+      - heading "Footer navigation" [level=3]
+      - list "Footer navigation":
+        - listitem:
+          - link "Terms":
+            - /url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+        - listitem:
+          - link "Privacy":
+            - /url: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement
+        - listitem:
+          - link "Security":
+            - /url: https://github.com/security
+        - listitem:
+          - link "Status":
+            - /url: https://www.githubstatus.com/
+        - listitem:
+          - link "Community":
+            - /url: https://github.community/
+        - listitem:
+          - link "Docs":
+            - /url: https://docs.github.com/
+        - listitem:
+          - link "Contact":
+            - /url: https://support.github.com?tags=dotcom-footer
+        - listitem:
+          - button "Manage cookies"
+        - listitem:
+          - button "Do not share my personal information"

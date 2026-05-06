@@ -1,0 +1,90 @@
+- document:
+  - alert
+  - button "T TheAgentCompany":
+    - text: T
+    - heading "TheAgentCompany" [level=4]
+  - button "S"
+  - button "New issue":
+    - img
+    - text: New issue
+  - button:
+    - img
+  - separator
+  - link "Home":
+    - /url: /tac/
+    - img
+    - paragraph: Home
+  - link "Notifications":
+    - /url: /tac/notifications/
+    - img
+    - paragraph: Notifications
+  - separator
+  - button "Workspace" [expanded]:
+    - text: Workspace
+    - img
+  - link "All Issues":
+    - /url: /tac/workspace-views/all-issues/
+    - img
+    - paragraph: All Issues
+  - link "Projects":
+    - /url: /tac/projects/
+    - img
+    - paragraph: Projects
+  - link "Active Cycles":
+    - /url: /tac/active-cycles/
+    - img
+    - paragraph: Active Cycles
+    - img
+  - link "Analytics":
+    - /url: /tac/analytics/
+    - img
+    - paragraph: Analytics
+  - link "Settings":
+    - /url: /tac/settings/
+    - img
+    - paragraph: Settings
+  - separator
+  - button "My projects"
+  - button:
+    - img
+  - button:
+    - img
+  - text: Community
+  - button:
+    - img
+  - button:
+    - img
+  - button:
+    - img
+  - main:
+    - listitem:
+      - img
+      - text: Active Cycles
+    - img
+    - heading "On-demand snapshots of all your cycles" [level=2]
+    - paragraph: Monitor cycles across projects, track high-priority issues, and zoom in cycles that need attention.
+    - link "Upgrade":
+      - /url: https://plane.so/pricing
+      - img
+      - text: Upgrade
+    - img "l-1"
+    - img "r-1"
+    - img "r-2"
+    - heading "10,000-feet view of all active cycles." [level=3]
+    - img
+    - text: Zoom out to see running cycles across all your projects at once instead of going from Cycle to Cycle in each project.
+    - heading "Get a snapshot of each active cycle." [level=3]
+    - img
+    - text: Track high-level metrics for all active cycles, see their state of progress, and get a sense of scope against deadlines.
+    - heading "Compare burndowns." [level=3]
+    - img
+    - text: Monitor how each of your teams are performing with a peek into each cycle’s burndown report.
+    - heading "Quickly see make-or-break issues." [level=3]
+    - img
+    - text: Preview high-priority issues for each cycle against due dates. See all of them per cycle in one click.
+    - heading "Zoom into cycles that need attention." [level=3]
+    - img
+    - text: Investigate the state of any cycle that doesn’t conform to expectations in one click.
+    - heading "Stay ahead of blockers." [level=3]
+    - img
+    - text: Spot challenges from one project to another and see inter-cycle dependencies that aren’t obvious from any other view.

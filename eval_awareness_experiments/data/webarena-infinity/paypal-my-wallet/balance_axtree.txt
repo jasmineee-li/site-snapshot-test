@@ -1,0 +1,43 @@
+- document:
+  - navigation:
+    - text: account_balance_wallet PayPal JM Jordan Mitchell jordan.mitchell@outlook.com Overview
+    - button "dashboard My Wallet"
+    - button "receipt_long Transactions"
+    - text: Payment Methods
+    - button "credit_card Cards"
+    - button "account_balance Bank Accounts"
+    - button "payment PayPal Debit Card"
+    - text: Money
+    - button "account_balance_wallet Balance"
+    - button "savings Savings"
+    - button "currency_bitcoin Cryptocurrency"
+    - text: Credit & Pay Later
+    - button "credit_score PayPal Credit"
+    - button "calendar_today Pay in 4"
+    - text: Rewards & More
+    - button "star Rewards"
+    - button "local_offer Offers"
+    - button "card_giftcard Gift Cards"
+    - text: Settings
+    - button "settings Preferences"
+  - main:
+    - heading "PayPal Balance" [level=1]
+    - button "add Add Money"
+    - button "arrow_upward Withdraw"
+    - text: Total Balance (USD equivalent) $4,161.50
+    - heading "Currencies" [level=3]
+    - button "add Add Currency"
+    - button "currency_exchange Convert"
+    - text: USD U.S. Dollar Primary $2,847.63 EUR Euro €523.18
+    - button "Set Primary"
+    - text: GBP British Pound £189.42
+    - button "Set Primary"
+    - text: CAD Canadian Dollar CA$0.00
+    - button "Set Primary"
+    - button "Remove"
+    - text: JPY Japanese Yen ¥45,200
+    - button "Set Primary"
+    - text: AUD Australian Dollar A$312.75
+    - button "Set Primary"
+    - heading "Exchange Rates" [level=3]
+    - text: USD / EUR 0.9200 Euro USD / GBP 0.7900 British Pound USD / CAD 1.3600 Canadian Dollar USD / AUD 1.5400 Australian Dollar USD / JPY 149.50 Japanese Yen USD / CHF 0.8800 Swiss Franc

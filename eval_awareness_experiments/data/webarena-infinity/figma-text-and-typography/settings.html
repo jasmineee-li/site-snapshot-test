@@ -1,0 +1,732 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Figma - Text &amp; Typography</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebarNav">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <svg width="20" height="20" viewBox="0 0 20 20"><rect width="20" height="20" rx="4" fill="#7B61FF"></rect><text x="4" y="15" font-size="13" font-weight="bold" fill="white">T</text></svg>
+                </div>
+                <div class="sidebar-title">
+                    <div class="file-name">Design System v4.2</div>
+                    <div class="page-name">Typography</div>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                
+                    <a class="nav-item " data-action="navigate" data-section="layers">
+                        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 1L1 5l7 4 7-4-7-4z" fill="none" stroke="currentColor" stroke-width="1.5"></path><path d="M1 8l7 4 7-4" fill="none" stroke="currentColor" stroke-width="1.5"></path><path d="M1 11l7 4 7-4" fill="none" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="nav-label">Layers</span>
+                    </a>
+                
+                    <a class="nav-item " data-action="navigate" data-section="properties">
+                        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16"><text x="2" y="13" font-size="14" font-weight="bold" fill="currentColor">T</text></svg></span>
+                        <span class="nav-label">Typography</span>
+                    </a>
+                
+                    <a class="nav-item " data-action="navigate" data-section="styles">
+                        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect><line x1="4" y1="5" x2="12" y2="5" stroke="currentColor" stroke-width="1.5"></line><line x1="4" y1="8" x2="10" y2="8" stroke="currentColor" stroke-width="1.5"></line><line x1="4" y1="11" x2="8" y2="11" stroke="currentColor" stroke-width="1.5"></line></svg></span>
+                        <span class="nav-label">Text Styles</span>
+                    </a>
+                
+                    <a class="nav-item " data-action="navigate" data-section="fonts">
+                        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16"><text x="0" y="13" font-size="12" fill="currentColor">Ag</text></svg></span>
+                        <span class="nav-label">Fonts</span>
+                    </a>
+                
+                    <a class="nav-item active" data-action="navigate" data-section="settings">
+                        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.5"></circle><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.5 1.5M11.5 11.5L13 13M13 3l-1.5 1.5M4.5 11.5L3 13" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="nav-label">Settings</span>
+                    </a>
+                
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-user">
+                    <div class="user-avatar" style="background-color: #7B61FF">
+                        SC
+                    </div>
+                    <div class="user-info">
+                        <div class="user-name">Sarah Chen</div>
+                        <div class="user-role">Editor</div>
+                    </div>
+                </div>
+            </div></aside>
+        <main class="main-content" id="mainContent">
+            <div class="content-panel">
+                
+            <div class="section-header">
+                <h2 class="section-title">Settings</h2>
+                <p class="section-subtitle">Configure default text properties and preferences</p>
+            </div>
+
+                <div class="settings-group">
+                    <h3 class="subsection-title">Smart Features</h3>
+                    
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <span class="toggle-label">Smart quotes</span>
+                    <span class="toggle-description">Convert straight quotes to curly quotes</span>
+                </div>
+                <div class="toggle-switch active" id="toggle-smart-quotes" data-toggle-id="toggle-smart-quotes">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+                    
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <span class="toggle-label">Smart symbols</span>
+                    <span class="toggle-description">Auto-convert character combinations to symbols</span>
+                </div>
+                <div class="toggle-switch active" id="toggle-smart-symbols" data-toggle-id="toggle-smart-symbols">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+                    
+                        <div class="smart-symbols-table">
+                            <div class="symbols-header">
+                                <span>Type</span><span>Result</span><span>Name</span>
+                            </div>
+                            
+                                <div class="symbols-row">
+                                    <code>-&gt;</code>
+                                    <span class="symbol-output">→</span>
+                                    <span class="symbol-name">Right Arrow</span>
+                                </div>
+                            
+                                <div class="symbols-row">
+                                    <code>&lt;-</code>
+                                    <span class="symbol-output">←</span>
+                                    <span class="symbol-name">Left Arrow</span>
+                                </div>
+                            
+                                <div class="symbols-row">
+                                    <code>vv</code>
+                                    <span class="symbol-output">↓</span>
+                                    <span class="symbol-name">Down Arrow</span>
+                                </div>
+                            
+                                <div class="symbols-row">
+                                    <code>^^</code>
+                                    <span class="symbol-output">↑</span>
+                                    <span class="symbol-name">Up Arrow</span>
+                                </div>
+                            
+                                <div class="symbols-row">
+                                    <code>(c)</code>
+                                    <span class="symbol-output">©</span>
+                                    <span class="symbol-name">Copyright</span>
+                                </div>
+                            
+                                <div class="symbols-row">
+                                    <code>(r)</code>
+                                    <span class="symbol-output">®</span>
+                                    <span class="symbol-name">Registered</span>
+                                </div>
+                            
+                                <div class="symbols-row">
+                                    <code>(tm)</code>
+                                    <span class="symbol-output">™</span>
+                                    <span class="symbol-name">Trademark</span>
+                                </div>
+                            
+                                <div class="symbols-row">
+                                    <code>[ ]</code>
+                                    <span class="symbol-output">▢</span>
+                                    <span class="symbol-name">Checkbox</span>
+                                </div>
+                            
+                                <div class="symbols-row">
+                                    <code>...</code>
+                                    <span class="symbol-output">…</span>
+                                    <span class="symbol-name">Ellipsis</span>
+                                </div>
+                            
+                                <div class="symbols-row">
+                                    <code>--</code>
+                                    <span class="symbol-output">—</span>
+                                    <span class="symbol-name">Em Dash</span>
+                                </div>
+                            
+                                <div class="symbols-row">
+                                    <code>1/2</code>
+                                    <span class="symbol-output">½</span>
+                                    <span class="symbol-name">Half</span>
+                                </div>
+                            
+                                <div class="symbols-row">
+                                    <code>1/4</code>
+                                    <span class="symbol-output">¼</span>
+                                    <span class="symbol-name">Quarter</span>
+                                </div>
+                            
+                                <div class="symbols-row">
+                                    <code>3/4</code>
+                                    <span class="symbol-output">¾</span>
+                                    <span class="symbol-name">Three Quarters</span>
+                                </div>
+                            
+                        </div>
+                    
+                </div>
+
+                <div class="property-divider"></div>
+
+                <div class="settings-group">
+                    <h3 class="subsection-title">Default Text Properties</h3>
+
+                    
+            <div class="property-row">
+                <label class="property-label">Font family</label>
+                <div class="property-control">
+            <div class="custom-dropdown " id="dd-default-font" data-value="Inter">
+                <div class="dropdown-trigger" data-dropdown-id="dd-default-font">
+                    <span class="dropdown-value">Inter</span>
+                    <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none"></path></svg>
+                </div>
+                <div class="dropdown-menu">
+                    
+                            <div class="dropdown-item selected" data-dropdown-id="dd-default-font" data-value="Inter">
+                                Inter
+                                <svg class="check-icon" width="12" height="10" viewBox="0 0 12 10"><path d="M1 5l3 3 7-7" stroke="currentColor" stroke-width="2" fill="none"></path></svg>
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Roboto">
+                                Roboto
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Open Sans">
+                                Open Sans
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Lato">
+                                Lato
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Montserrat">
+                                Montserrat
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Poppins">
+                                Poppins
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Playfair Display">
+                                Playfair Display
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Merriweather">
+                                Merriweather
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Source Code Pro">
+                                Source Code Pro
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="JetBrains Mono">
+                                JetBrains Mono
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Noto Sans">
+                                Noto Sans
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Noto Serif">
+                                Noto Serif
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Noto Sans SC">
+                                Noto Sans SC
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Noto Sans TC">
+                                Noto Sans TC
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Noto Sans JP">
+                                Noto Sans JP
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Noto Sans KR">
+                                Noto Sans KR
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Noto Sans Arabic">
+                                Noto Sans Arabic
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Noto Sans Hebrew">
+                                Noto Sans Hebrew
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Raleway">
+                                Raleway
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Ubuntu">
+                                Ubuntu
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="PT Sans">
+                                PT Sans
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Georgia">
+                                Georgia
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Helvetica Neue">
+                                Helvetica Neue
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Arial">
+                                Arial
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="SF Pro">
+                                SF Pro
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Fira Code">
+                                Fira Code
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="DM Sans">
+                                DM Sans
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Space Grotesk">
+                                Space Grotesk
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="IBM Plex Sans">
+                                IBM Plex Sans
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-font" data-value="Crimson Text">
+                                Crimson Text
+                                
+                            </div>
+                </div>
+            </div></div>
+            </div>
+
+                    
+            <div class="property-row">
+                <label class="property-label">Font style</label>
+                <div class="property-control">
+            <div class="custom-dropdown " id="dd-default-style" data-value="Regular">
+                <div class="dropdown-trigger" data-dropdown-id="dd-default-style">
+                    <span class="dropdown-value">Regular</span>
+                    <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none"></path></svg>
+                </div>
+                <div class="dropdown-menu">
+                    
+                            <div class="dropdown-item " data-dropdown-id="dd-default-style" data-value="Thin">
+                                Thin
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-style" data-value="Extra Light">
+                                Extra Light
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-style" data-value="Light">
+                                Light
+                                
+                            </div>
+                            <div class="dropdown-item selected" data-dropdown-id="dd-default-style" data-value="Regular">
+                                Regular
+                                <svg class="check-icon" width="12" height="10" viewBox="0 0 12 10"><path d="M1 5l3 3 7-7" stroke="currentColor" stroke-width="2" fill="none"></path></svg>
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-style" data-value="Medium">
+                                Medium
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-style" data-value="Semi Bold">
+                                Semi Bold
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-style" data-value="Bold">
+                                Bold
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-style" data-value="Extra Bold">
+                                Extra Bold
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-style" data-value="Black">
+                                Black
+                                
+                            </div>
+                </div>
+            </div></div>
+            </div>
+
+                    
+            <div class="property-row">
+                <label class="property-label">Font size</label>
+                <div class="property-control">
+            <div class="custom-dropdown " id="dd-default-size" data-value="16">
+                <div class="dropdown-trigger" data-dropdown-id="dd-default-size">
+                    <span class="dropdown-value">16</span>
+                    <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none"></path></svg>
+                </div>
+                <div class="dropdown-menu">
+                    
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="8">
+                                8px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="9">
+                                9px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="10">
+                                10px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="11">
+                                11px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="12">
+                                12px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="13">
+                                13px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="14">
+                                14px
+                                
+                            </div>
+                            <div class="dropdown-item selected" data-dropdown-id="dd-default-size" data-value="16">
+                                16px
+                                <svg class="check-icon" width="12" height="10" viewBox="0 0 12 10"><path d="M1 5l3 3 7-7" stroke="currentColor" stroke-width="2" fill="none"></path></svg>
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="18">
+                                18px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="20">
+                                20px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="24">
+                                24px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="28">
+                                28px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="32">
+                                32px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="36">
+                                36px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="40">
+                                40px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="48">
+                                48px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="56">
+                                56px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="64">
+                                64px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="72">
+                                72px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="80">
+                                80px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="96">
+                                96px
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-size" data-value="128">
+                                128px
+                                
+                            </div>
+                </div>
+            </div></div>
+            </div>
+
+                    
+            <div class="property-row">
+                <label class="property-label">Alignment</label>
+                <div class="property-control">
+            <div class="custom-dropdown " id="dd-default-align" data-value="left">
+                <div class="dropdown-trigger" data-dropdown-id="dd-default-align">
+                    <span class="dropdown-value">left</span>
+                    <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none"></path></svg>
+                </div>
+                <div class="dropdown-menu">
+                    
+                            <div class="dropdown-item selected" data-dropdown-id="dd-default-align" data-value="left">
+                                Left
+                                <svg class="check-icon" width="12" height="10" viewBox="0 0 12 10"><path d="M1 5l3 3 7-7" stroke="currentColor" stroke-width="2" fill="none"></path></svg>
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-align" data-value="center">
+                                Center
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-align" data-value="right">
+                                Right
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-align" data-value="justify">
+                                Justify
+                                
+                            </div>
+                </div>
+            </div></div>
+            </div>
+
+                    
+            <div class="property-row">
+                <label class="property-label">Text direction</label>
+                <div class="property-control">
+            <div class="custom-dropdown " id="dd-default-direction" data-value="ltr">
+                <div class="dropdown-trigger" data-dropdown-id="dd-default-direction">
+                    <span class="dropdown-value">ltr</span>
+                    <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none"></path></svg>
+                </div>
+                <div class="dropdown-menu">
+                    
+                            <div class="dropdown-item selected" data-dropdown-id="dd-default-direction" data-value="ltr">
+                                Left to Right
+                                <svg class="check-icon" width="12" height="10" viewBox="0 0 12 10"><path d="M1 5l3 3 7-7" stroke="currentColor" stroke-width="2" fill="none"></path></svg>
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-default-direction" data-value="rtl">
+                                Right to Left
+                                
+                            </div>
+                </div>
+            </div></div>
+            </div>
+                </div>
+
+                <div class="property-divider"></div>
+
+                <div class="settings-group">
+                    <h3 class="subsection-title">Spelling</h3>
+                    
+            <div class="property-row">
+                <label class="property-label">Language</label>
+                <div class="property-control">
+            <div class="custom-dropdown " id="dd-spelling-lang" data-value="English (US)">
+                <div class="dropdown-trigger" data-dropdown-id="dd-spelling-lang">
+                    <span class="dropdown-value">English (US)</span>
+                    <svg class="dropdown-arrow" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none"></path></svg>
+                </div>
+                <div class="dropdown-menu">
+                    
+                            <div class="dropdown-item selected" data-dropdown-id="dd-spelling-lang" data-value="English (US)">
+                                English (US)
+                                <svg class="check-icon" width="12" height="10" viewBox="0 0 12 10"><path d="M1 5l3 3 7-7" stroke="currentColor" stroke-width="2" fill="none"></path></svg>
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="English (UK)">
+                                English (UK)
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="French">
+                                French
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="German">
+                                German
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Spanish">
+                                Spanish
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Italian">
+                                Italian
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Portuguese (BR)">
+                                Portuguese (BR)
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Portuguese (PT)">
+                                Portuguese (PT)
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Dutch">
+                                Dutch
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Swedish">
+                                Swedish
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Norwegian">
+                                Norwegian
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Danish">
+                                Danish
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Finnish">
+                                Finnish
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Polish">
+                                Polish
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Czech">
+                                Czech
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Romanian">
+                                Romanian
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Turkish">
+                                Turkish
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Japanese">
+                                Japanese
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Korean">
+                                Korean
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Simplified Chinese">
+                                Simplified Chinese
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Traditional Chinese">
+                                Traditional Chinese
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Arabic">
+                                Arabic
+                                
+                            </div>
+                            <div class="dropdown-item " data-dropdown-id="dd-spelling-lang" data-value="Hebrew">
+                                Hebrew
+                                
+                            </div>
+                </div>
+            </div></div>
+            </div>
+                </div>
+
+                <div class="property-divider"></div>
+
+                <div class="settings-group">
+                    <h3 class="subsection-title">Canvas</h3>
+                    
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <span class="toggle-label">Snap to grid</span>
+                    
+                </div>
+                <div class="toggle-switch active" id="toggle-snap-grid" data-toggle-id="toggle-snap-grid">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+                    
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <span class="toggle-label">Show font preview on hover</span>
+                    
+                </div>
+                <div class="toggle-switch active" id="toggle-font-preview" data-toggle-id="toggle-font-preview">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+                    
+            <div class="property-row">
+                <label class="property-label">Nudge amount</label>
+                <div class="property-control">
+            <div class="number-input-group" id="input-nudge-group">
+                
+                <div class="number-input-wrapper">
+                    <input type="text" class="number-input" id="input-nudge" value="1" data-min="0.1" data-max="100" data-step="0.1" placeholder="">
+                    <span class="number-unit">px</span>
+                </div>
+            </div></div>
+            </div>
+                    
+            <div class="property-row">
+                <label class="property-label">Big nudge amount</label>
+                <div class="property-control">
+            <div class="number-input-group" id="input-big-nudge-group">
+                
+                <div class="number-input-wrapper">
+                    <input type="text" class="number-input" id="input-big-nudge" value="10" data-min="1" data-max="100" data-step="1" placeholder="">
+                    <span class="number-unit">px</span>
+                </div>
+            </div></div>
+            </div>
+                </div>
+
+                <div class="property-divider"></div>
+
+                <div class="settings-group">
+                    <h3 class="subsection-title">Recent Fonts</h3>
+                    <div class="recent-fonts-list">
+                        
+                            <div class="recent-font-row">
+                                <span class="recent-font-num">1.</span>
+                                <span class="recent-font-name">Inter</span>
+                            </div>
+                        
+                            <div class="recent-font-row">
+                                <span class="recent-font-num">2.</span>
+                                <span class="recent-font-name">Roboto</span>
+                            </div>
+                        
+                            <div class="recent-font-row">
+                                <span class="recent-font-num">3.</span>
+                                <span class="recent-font-name">Montserrat</span>
+                            </div>
+                        
+                            <div class="recent-font-row">
+                                <span class="recent-font-num">4.</span>
+                                <span class="recent-font-name">Poppins</span>
+                            </div>
+                        
+                            <div class="recent-font-row">
+                                <span class="recent-font-num">5.</span>
+                                <span class="recent-font-name">Playfair Display</span>
+                            </div>
+                        
+                    </div>
+                </div>
+            </div></main>
+    </div>
+    <div id="modalContainer"></div>
+    <div id="toastContainer"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

@@ -1,0 +1,40 @@
+- document:
+  - navigation:
+    - text: account_balance_wallet PayPal JM Jordan Mitchell jordan.mitchell@outlook.com Overview
+    - button "dashboard My Wallet"
+    - button "receipt_long Transactions"
+    - text: Payment Methods
+    - button "credit_card Cards"
+    - button "account_balance Bank Accounts"
+    - button "payment PayPal Debit Card"
+    - text: Money
+    - button "account_balance_wallet Balance"
+    - button "savings Savings"
+    - button "currency_bitcoin Cryptocurrency"
+    - text: Credit & Pay Later
+    - button "credit_score PayPal Credit"
+    - button "calendar_today Pay in 4"
+    - text: Rewards & More
+    - button "star Rewards"
+    - button "local_offer Offers"
+    - button "card_giftcard Gift Cards"
+    - text: Settings
+    - button "settings Preferences"
+  - main:
+    - heading "Transactions" [level=1]
+    - text: search
+    - textbox "Search transactions..."
+    - text: All Time expand_more
+    - button "All"
+    - button "Payments"
+    - button "Received"
+    - button "Transfers"
+    - button "Crypto"
+    - button "Pending"
+    - text: schedule Pending - eBay Mar 7, 2026 · Visa ****4829 · Pending Shopping -$45.00 schedule Pending - Google Cloud Mar 6, 2026 · Mastercard ****7156 · Pending Services -$12.34 shopping_cart Amazon.com Mar 6, 2026 · Visa ****4829 Shopping -$89.47 arrow_downward From Marcus Williams Mar 6, 2026 · PayPal Balance Personal +$150.00 shopping_cart Spotify Premium Mar 4, 2026 · Visa ****4829 Entertainment -$11.99 shopping_cart Uber Trip Mar 4, 2026 · Mastercard ****7156 Travel -$24.50 account_balance To Chase ***6742 Mar 3, 2026 · Chase ****6742 Transfer -$500.00 shopping_cart Target Mar 2, 2026 · Visa ****4829 Shopping -$67.23 arrow_downward From Emily Rodriguez Mar 1, 2026 · PayPal Balance Personal +$42.00 shopping_cart Nike.com Mar 1, 2026 · Visa ****4829 Shopping -$189.00 1-10 of 40
+    - button "chevron_left" [disabled]
+    - button "1"
+    - button "2"
+    - text: ...
+    - button "4"
+    - button "chevron_right"

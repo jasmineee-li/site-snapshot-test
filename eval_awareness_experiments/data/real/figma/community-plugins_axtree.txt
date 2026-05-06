@@ -1,0 +1,631 @@
+- document:
+  - button "Open account dropdown":
+    - text: Kristina Zhou
+    - img
+  - link:
+    - /url: /community
+    - img
+  - button "Design resources UI kits Pre-made essentials like buttons and toasts UI kits Wireframes Explore your early ideas with lo-fi frames Wireframes Social media Create content like a pro Social media Figma Weave New Try our AI creative tools Figma Weave Design templates Portfolio templates Mobile apps Resume templates Web ads Assets Icons Illustrations Shapes & colors Device mockups":
+    - text: Design resources
+    - img
+    - link "UI kits":
+      - /url: /community/ui-kits
+    - text: Pre-made essentials like buttons and toasts
+    - img "UI kits"
+    - link "Wireframes":
+      - /url: /community/wireframes
+    - text: Explore your early ideas with lo-fi frames
+    - img "Wireframes"
+    - link "Social media":
+      - /url: /community/social-media-templates?editor_type=buzz
+    - text: Create content like a pro
+    - img "Social media"
+    - link "Figma Weave":
+      - /url: /community/weave
+    - strong: New
+    - text: Try our AI creative tools
+    - img "Figma Weave"
+    - link "Design templates":
+      - /url: /community/design-templates
+    - link "Portfolio templates":
+      - /url: /community/portfolio-templates
+    - link "Mobile apps":
+      - /url: /community/mobile-apps
+    - link "Resume templates":
+      - /url: /community/resume-templates
+    - link "Web ads":
+      - /url: /community/web-ads
+    - link "Assets":
+      - /url: /community/visual-assets
+    - link "Icons":
+      - /url: /community/icons
+    - link "Illustrations":
+      - /url: /community/illustrations
+    - link "Shapes & colors":
+      - /url: /community/shapes-colors
+    - link "Device mockups":
+      - /url: /community/device-mockups
+  - button "Websites Landing page Make a splash, right from the start Landing page Landing page Portfolio Showcase your best work Portfolio Business Promote your brand online Business More websites Blog Wedding Photography Interior design":
+    - text: Websites
+    - img
+    - link "Landing page":
+      - /url: /community/website-templates/landing-pages?editor_type=sites
+    - text: Make a splash, right from the start
+    - img "Landing page"
+    - img "Landing page"
+    - link "Portfolio":
+      - /url: /community/website-templates/portfolio?editor_type=sites
+    - text: Showcase your best work
+    - img "Portfolio"
+    - link "Business":
+      - /url: /community/website-templates/business?editor_type=sites
+    - text: Promote your brand online
+    - img "Business"
+    - link "More websites":
+      - /url: /community/website-templates?editor_type=sites
+    - link "Blog":
+      - /url: /community/website-templates/blog?editor_type=sites
+    - link "Wedding":
+      - /url: /community/website-templates/wedding?editor_type=sites
+    - link "Photography":
+      - /url: /community/website-templates/photography?editor_type=sites
+    - link "Interior design":
+      - /url: /community/website-templates/interior-design?editor_type=sites
+  - button "Figma Make"
+  - button "Extensions Plugins Further capabilities for design and development Plugins Widgets Useful tools that run right in your files Widgets Widgets Apps Extensions that connect Figma to other products Apps Apps Apps Editing & effects File organization Development Accessibility tools MCP clients Figma skills":
+    - text: Extensions
+    - img
+    - link "Plugins":
+      - /url: /community/plugins
+    - text: Further capabilities for design and development
+    - img "Plugins"
+    - link "Widgets":
+      - /url: /community/whiteboarding?resource_type=widgets
+    - text: Useful tools that run right in your files
+    - img "Widgets"
+    - img "Widgets"
+    - link "Apps":
+      - /url: /community/apps
+    - text: Extensions that connect Figma to other products
+    - img "Apps"
+    - img "Apps"
+    - img "Apps"
+    - link "Editing & effects":
+      - /url: /community/editing-effects?resource_type=plugins
+    - link "File organization":
+      - /url: /community/file-organization?resource_type=plugins
+    - link "Development":
+      - /url: /community/development?resource_type=plugins
+    - link "Accessibility tools":
+      - /url: /community/accessibility?resource_type=plugins
+    - link "MCP clients":
+      - /url: /community/apps/mcp-client?resource_type=integrations
+    - link "Figma skills":
+      - /url: /community/skills
+  - button "Whiteboarding Brainstorming Ideate, then pick your favorites Brainstorming Brainstorming Diagramming Map out complex flows Diagramming Fun & games Take a break (or break the ice) Fun & games Team meetings Templates for everything from kickoffs to retros Team meetings Team meetings More whiteboarding Strategic planning":
+    - text: Whiteboarding
+    - img
+    - link "Brainstorming":
+      - /url: /community/brainstorming
+    - text: Ideate, then pick your favorites
+    - img "Brainstorming"
+    - img "Brainstorming"
+    - link "Diagramming":
+      - /url: /community/diagramming
+    - text: Map out complex flows
+    - img "Diagramming"
+    - link "Fun & games":
+      - /url: /community/fun-games
+    - text: Take a break (or break the ice)
+    - img "Fun & games"
+    - link "Team meetings":
+      - /url: /community/team-meetings
+    - text: Templates for everything from kickoffs to retros
+    - img "Team meetings"
+    - img "Team meetings"
+    - link "More whiteboarding":
+      - /url: /community/whiteboarding
+    - link "Strategic planning":
+      - /url: /community/strategic-planning
+  - button "Presentations Startup pitch Share the story behind your big idea Startup pitch Product roadmap Turn customers into believers by sharing your product vision Product roadmap More presentations Mix and match with Figma Slides templates More presentations More presentations":
+    - text: Presentations
+    - img
+    - link "Startup pitch":
+      - /url: /community/file/1382483546106051977
+    - text: Share the story behind your big idea
+    - img "Startup pitch"
+    - link "Product roadmap":
+      - /url: /community/file/1382445842871959915
+    - text: Turn customers into believers by sharing your product vision
+    - img "Product roadmap"
+    - link "More presentations":
+      - /url: /community/presentations?editor_type=slides
+    - text: Mix and match with Figma Slides templates
+    - img "More presentations"
+    - img "More presentations"
+  - button:
+    - img
+  - textbox "Search"
+  - button "×"
+  - button "Publish"
+  - link:
+    - /url: /community
+    - img
+  - img
+  - link "Plugins":
+    - /url: /community/plugins
+  - heading "Plugins" [level=1]
+  - paragraph: Extend your design capabilities with tools created by the community.
+  - heading "Featured plugins" [level=1]
+  - tablist:
+    - tab "Trending" [selected]
+    - tab "Most popular"
+    - tab "Free plugins"
+  - link "Figma plugin \"html.to.design — by ‹div›RIOTS — Import websites to Figma designs (web,html,css)\"":
+    - /url: /community/plugin/1159123024924461424/html-to-design-by-divriots-import-websites-to-figma-designs-web-html-css
+    - img "Figma plugin \"html.to.design — by ‹div›RIOTS — Import websites to Figma designs (web,html,css)\""
+  - link "html.to.design — by ‹div›RIOTS — Import websites to Figma designs (web,html,css) Paid 34k 2.2m":
+    - /url: /community/plugin/1159123024924461424/html-to-design-by-divriots-import-websites-to-figma-designs-web-html-css
+    - text: html.to.design — by ‹div›RIOTS — Import websites to Figma designs (web,html,css)
+    - strong: Paid
+    - img
+    - text: 34k
+    - img
+    - text: 2.2m
+  - text: Convert any website into fully editable Figma designs
+  - button "Try in…"
+  - link "Figma plugin \"ARC - Bend your type!\"":
+    - /url: /community/plugin/762070688792833472/arc-bend-your-type
+    - img "Figma plugin \"ARC - Bend your type!\""
+  - link "ARC - Bend your type! Paid 8.8k 1m":
+    - /url: /community/plugin/762070688792833472/arc-bend-your-type
+    - text: ARC - Bend your type!
+    - strong: Paid
+    - img
+    - text: 8.8k
+    - img
+    - text: 1m
+  - text: Curve your text upward, downward or into a circle
+  - button "Try in…"
+  - link "Figma plugin \"Autoflow\"":
+    - /url: /community/plugin/733902567457592893/autoflow
+    - img "Figma plugin \"Autoflow\""
+  - link "Autoflow Paid 13.1k 1m":
+    - /url: /community/plugin/733902567457592893/autoflow
+    - text: Autoflow
+    - strong: Paid
+    - img
+    - text: 13.1k
+    - img
+    - text: 1m
+  - text: Automagically draw flow arrows! Create user flows and diagrams in a hand-drawn or minimalist style.
+  - button "Try in…"
+  - link "Figma plugin \"Wireframe Designer\"":
+    - /url: /community/plugin/1228969298040149016/wireframe-designer
+    - img "Figma plugin \"Wireframe Designer\""
+  - link "Wireframe Designer Paid 4.9k 550k":
+    - /url: /community/plugin/1228969298040149016/wireframe-designer
+    - text: Wireframe Designer
+    - strong: Paid
+    - img
+    - text: 4.9k
+    - img
+    - text: 550k
+  - text: Effortlessly generate wireframe designs using AI
+  - button "Try in…"
+  - link "Figma plugin \"SkewDat\"":
+    - /url: /community/plugin/741472919529947576/skewdat
+    - img "Figma plugin \"SkewDat\""
+  - link "SkewDat Paid 6.9k 604k":
+    - /url: /community/plugin/741472919529947576/skewdat
+    - text: SkewDat
+    - strong: Paid
+    - img
+    - text: 6.9k
+    - img
+    - text: 604k
+  - text: Skew any layer or group with all layers preserved to edit.
+  - button "Try in…"
+  - link "Figma plugin \"Print for Figma | CMYK, Bleed, Crop Marks, DPI\"":
+    - /url: /community/plugin/874441781480244375/print-for-figma-cmyk-bleed-crop-marks-dpi
+    - img "Figma plugin \"Print for Figma | CMYK, Bleed, Crop Marks, DPI\""
+  - link "Print for Figma | CMYK, Bleed, Crop Marks, DPI Paid 3.4k 240k":
+    - /url: /community/plugin/874441781480244375/print-for-figma-cmyk-bleed-crop-marks-dpi
+    - text: Print for Figma | CMYK, Bleed, Crop Marks, DPI
+    - strong: Paid
+    - img
+    - text: 3.4k
+    - img
+    - text: 240k
+  - text: Export Figma to CMYK with Bleed, Crop Marks, DPI, and more ...
+  - button "Try in…"
+  - heading "Explore by category" [level=3]
+  - link "Accessibility tools Contrast check, spell check":
+    - /url: /community/accessibility?resource_type=plugins
+    - text: Accessibility tools Contrast check, spell check
+    - img
+    - img
+  - link "Editing & effects Shadows, textures, and much more":
+    - /url: /community/editing-effects?resource_type=plugins
+    - text: Editing & effects Shadows, textures, and much more
+    - img
+    - img
+  - link "Development plugins Turn designs into code":
+    - /url: /community/development?resource_type=plugins
+    - text: Development plugins Turn designs into code
+    - img
+    - img
+  - link "File organization Tidy your files":
+    - /url: /community/file-organization?resource_type=plugins
+    - text: File organization Tidy your files
+    - img
+    - img
+  - link "Import & export Compress images, export as gif, and more":
+    - /url: /community/import-export?resource_type=plugins
+    - text: Import & export Compress images, export as gif, and more
+    - img
+    - img
+  - link "Prototyping & animation Create even higher fidelity animations":
+    - /url: /community/prototyping-animation?resource_type=plugins
+    - text: Prototyping & animation Create even higher fidelity animations
+    - img
+    - img
+  - heading "All plugins" [level=3]
+  - text: Filter by
+  - button "All products":
+    - text: All products
+    - img
+  - button "All Prices":
+    - text: All Prices
+    - img
+  - button "Popular":
+    - text: Popular
+    - img
+  - link "Figma plugin \"Iconify\"":
+    - /url: /community/plugin/735098390272716381/iconify
+    - img "Figma plugin \"Iconify\""
+  - link "Iconify 32.3k 4.3m":
+    - /url: /community/plugin/735098390272716381/iconify
+    - text: Iconify
+    - img
+    - text: 32.3k
+    - img
+    - text: 4.3m
+  - text: All popular open source icon sets in one plugin. Emojis too.
+  - button "Open in…"
+  - link "Figma plugin \"Unsplash\"":
+    - /url: /community/plugin/738454987945972471/unsplash
+    - img "Figma plugin \"Unsplash\""
+  - link "Unsplash 31k 3.5m":
+    - /url: /community/plugin/738454987945972471/unsplash
+    - text: Unsplash
+    - img
+    - text: 31k
+    - img
+    - text: 3.5m
+  - text: Insert beautiful images from Unsplash into your designs.
+  - button "Open in…"
+  - link "Figma plugin \"Figma to Code (HTML, Tailwind, Flutter, SwiftUI)\"":
+    - /url: /community/plugin/842128343887142055/figma-to-code-html-tailwind-flutter-swiftui
+    - img "Figma plugin \"Figma to Code (HTML, Tailwind, Flutter, SwiftUI)\""
+  - link "Figma to Code (HTML, Tailwind, Flutter, SwiftUI) 8.1k 2.2m":
+    - /url: /community/plugin/842128343887142055/figma-to-code-html-tailwind-flutter-swiftui
+    - text: Figma to Code (HTML, Tailwind, Flutter, SwiftUI)
+    - img
+    - text: 8.1k
+    - img
+    - text: 2.2m
+  - text: "Code Conversion Made Easy: Figma to Web & Apps"
+  - button "Open in…"
+  - link "Figma plugin \"html.to.design — by ‹div›RIOTS — Import websites to Figma designs (web,html,css)\"":
+    - /url: /community/plugin/1159123024924461424/html-to-design-by-divriots-import-websites-to-figma-designs-web-html-css
+    - img "Figma plugin \"html.to.design — by ‹div›RIOTS — Import websites to Figma designs (web,html,css)\""
+  - link "html.to.design — by ‹div›RIOTS — Import websites to Figma designs (web,html,css) Paid 34k 2.2m":
+    - /url: /community/plugin/1159123024924461424/html-to-design-by-divriots-import-websites-to-figma-designs-web-html-css
+    - text: html.to.design — by ‹div›RIOTS — Import websites to Figma designs (web,html,css)
+    - strong: Paid
+    - img
+    - text: 34k
+    - img
+    - text: 2.2m
+  - text: Convert any website into fully editable Figma designs
+  - button "Try in…"
+  - link "Figma plugin \"Icons8 — icons, illustrations, photos\"":
+    - /url: /community/plugin/791103617505812222/icons8-icons-illustrations-photos
+    - img "Figma plugin \"Icons8 — icons, illustrations, photos\""
+  - link "Icons8 — icons, illustrations, photos Paid 9.2k 2.1m":
+    - /url: /community/plugin/791103617505812222/icons8-icons-illustrations-photos
+    - text: Icons8 — icons, illustrations, photos
+    - strong: Paid
+    - img
+    - text: 9.2k
+    - img
+    - text: 2.1m
+  - text: All our graphics at your fingertips.
+  - button "Try in…"
+  - link "Figma plugin \"Anima - Figma to Code React, HTML, CSS, Tailwind, MUI (DevMode Inspect React / HTML / Vue / CSS)\"":
+    - /url: /community/plugin/857346721138427857/anima-figma-to-code-react-html-css-tailwind-mui-devmode-inspect-react-html-vue-css
+    - img "Figma plugin \"Anima - Figma to Code React, HTML, CSS, Tailwind, MUI (DevMode Inspect React / HTML / Vue / CSS)\""
+  - link "Anima - Figma to Code React, HTML, CSS, Tailwind, MUI (DevMode Inspect React / HTML / Vue / CSS) 16.3k 1.7m":
+    - /url: /community/plugin/857346721138427857/anima-figma-to-code-react-html-css-tailwind-mui-devmode-inspect-react-html-vue-css
+    - text: Anima - Figma to Code React, HTML, CSS, Tailwind, MUI (DevMode Inspect React / HTML / Vue / CSS)
+    - img
+    - text: 16.3k
+    - img
+    - text: 1.7m
+  - text: Anima - AI Powered Design to code
+  - button "Open in…"
+  - link "Figma plugin \"Remove BG\"":
+    - /url: /community/plugin/738992712906748191/remove-bg
+    - img "Figma plugin \"Remove BG\""
+  - link "Remove BG Paid 16.3k 1.6m":
+    - /url: /community/plugin/738992712906748191/remove-bg
+    - text: Remove BG
+    - strong: Paid
+    - img
+    - text: 16.3k
+    - img
+    - text: 1.6m
+  - text: Remove the background of images automatically with just a single click.
+  - button "Try in…"
+  - link "Figma plugin \"Mockup Plugin – Devices Mockups, Print Mockups, Branding Mockups\"":
+    - /url: /community/plugin/817043359134136295/mockup-plugin-devices-mockups-print-mockups-branding-mockups
+    - img "Figma plugin \"Mockup Plugin – Devices Mockups, Print Mockups, Branding Mockups\""
+  - link "Mockup Plugin – Devices Mockups, Print Mockups, Branding Mockups Paid 18.5k 1.4m":
+    - /url: /community/plugin/817043359134136295/mockup-plugin-devices-mockups-print-mockups-branding-mockups
+    - text: Mockup Plugin – Devices Mockups, Print Mockups, Branding Mockups
+    - strong: Paid
+    - img
+    - text: 18.5k
+    - img
+    - text: 1.4m
+  - text: Experience thousands of the highest quality mockups with the most user-friendly interface
+  - button "Try in…"
+  - link "Figma plugin \"Material Design Icons\"":
+    - /url: /community/plugin/740272380439725040/material-design-icons
+    - img "Figma plugin \"Material Design Icons\""
+  - link "Material Design Icons Paid 12k 1.4m":
+    - /url: /community/plugin/740272380439725040/material-design-icons
+    - text: Material Design Icons
+    - strong: Paid
+    - img
+    - text: 12k
+    - img
+    - text: 1.4m
+  - text: Instant easy access to the entire Material Design Icons library
+  - button "Try in…"
+  - link "Figma plugin \"Icons8 Background Remover\"":
+    - /url: /community/plugin/997643096679511216/icons8-background-remover
+    - img "Figma plugin \"Icons8 Background Remover\""
+  - link "Icons8 Background Remover 12.6k 1.2m":
+    - /url: /community/plugin/997643096679511216/icons8-background-remover
+    - text: Icons8 Background Remover
+    - img
+    - text: 12.6k
+    - img
+    - text: 1.2m
+  - text: Remove background from one or many images at once!
+  - button "Open in…"
+  - link "Figma plugin \"Builder.io - Figma to Code & AI Apps (React, Vue, Tailwind, etc)\"":
+    - /url: /community/plugin/747985167520967365/builder-io-figma-to-code-ai-apps-react-vue-tailwind-etc
+    - img "Figma plugin \"Builder.io - Figma to Code & AI Apps (React, Vue, Tailwind, etc)\""
+  - link "Builder.io - Figma to Code & AI Apps (React, Vue, Tailwind, etc) 22.3k 1.2m":
+    - /url: /community/plugin/747985167520967365/builder-io-figma-to-code-ai-apps-react-vue-tailwind-etc
+    - text: Builder.io - Figma to Code & AI Apps (React, Vue, Tailwind, etc)
+    - img
+    - text: 22.3k
+    - img
+    - text: 1.2m
+  - text: Export designs to clean, responsive code or turn Figma screens into AI apps and prototypes.
+  - button "Open in…"
+  - link "Figma plugin \"Lorem Ipsum — by ‹div›RIOTS\"":
+    - /url: /community/plugin/736000994034548392/lorem-ipsum-by-divriots
+    - img "Figma plugin \"Lorem Ipsum — by ‹div›RIOTS\""
+  - link "Lorem Ipsum — by ‹div›RIOTS 10.4k 1.1m":
+    - /url: /community/plugin/736000994034548392/lorem-ipsum-by-divriots
+    - text: Lorem Ipsum — by ‹div›RIOTS
+    - img
+    - text: 10.4k
+    - img
+    - text: 1.1m
+  - text: "Fill your designs with placeholders in a click: text, images and even data!"
+  - button "Open in…"
+  - link "Figma plugin \"Open Iconic Icon Set by Iconduck\"":
+    - /url: /community/plugin/1146185659935567786/open-iconic-icon-set-by-iconduck
+    - img "Figma plugin \"Open Iconic Icon Set by Iconduck\""
+  - link "Open Iconic Icon Set by Iconduck Paid 1.2k 1.1m":
+    - /url: /community/plugin/1146185659935567786/open-iconic-icon-set-by-iconduck
+    - text: Open Iconic Icon Set by Iconduck
+    - strong: Paid
+    - img
+    - text: 1.2k
+    - img
+    - text: 1.1m
+  - text: Open Iconic Icon Set is an open source library of 223 icons. Free to use in all designs!
+  - button "Try in…"
+  - 'link "Figma plugin \"IconScout: Icons, Illustrations, 3D Assets & Lottie Animations\""':
+    - /url: /community/plugin/744098704933821409/iconscout-icons-illustrations-3d-assets-lottie-animations
+    - 'img "Figma plugin \"IconScout: Icons, Illustrations, 3D Assets & Lottie Animations\""'
+  - 'link "IconScout: Icons, Illustrations, 3D Assets & Lottie Animations Paid 4.5k 1.1m"':
+    - /url: /community/plugin/744098704933821409/iconscout-icons-illustrations-3d-assets-lottie-animations
+    - text: "IconScout: Icons, Illustrations, 3D Assets & Lottie Animations"
+    - strong: Paid
+    - img
+    - text: 4.5k
+    - img
+    - text: 1.1m
+  - text: Access 13.1M+ Free & Premium Icons, 3D, Illustrations & Lottie Animations. Stickers, Logos & Emojis.
+  - button "Try in…"
+  - link "Figma plugin \"Content Reel\"":
+    - /url: /community/plugin/731627216655469013/content-reel
+    - img "Figma plugin \"Content Reel\""
+  - link "Content Reel 15.9k 1m":
+    - /url: /community/plugin/731627216655469013/content-reel
+    - text: Content Reel
+    - img
+    - text: 15.9k
+    - img
+    - text: 1m
+  - text: Design layouts more efficiently by pulling text strings, images, and icons.
+  - button "Open in…"
+  - link "Figma plugin \"ARC - Bend your type!\"":
+    - /url: /community/plugin/762070688792833472/arc-bend-your-type
+    - img "Figma plugin \"ARC - Bend your type!\""
+  - link "ARC - Bend your type! Paid 8.8k 1m":
+    - /url: /community/plugin/762070688792833472/arc-bend-your-type
+    - text: ARC - Bend your type!
+    - strong: Paid
+    - img
+    - text: 8.8k
+    - img
+    - text: 1m
+  - text: Curve your text upward, downward or into a circle
+  - button "Try in…"
+  - link "Figma plugin \"Autoflow\"":
+    - /url: /community/plugin/733902567457592893/autoflow
+    - img "Figma plugin \"Autoflow\""
+  - link "Autoflow Paid 13.1k 1m":
+    - /url: /community/plugin/733902567457592893/autoflow
+    - text: Autoflow
+    - strong: Paid
+    - img
+    - text: 13.1k
+    - img
+    - text: 1m
+  - text: Automagically draw flow arrows! Create user flows and diagrams in a hand-drawn or minimalist style.
+  - button "Try in…"
+  - link "Figma plugin \"Feather Icons\"":
+    - /url: /community/plugin/744047966581015514/feather-icons
+    - img "Figma plugin \"Feather Icons\""
+  - link "Feather Icons 9.2k 1m":
+    - /url: /community/plugin/744047966581015514/feather-icons
+    - text: Feather Icons
+    - img
+    - text: 9.2k
+    - img
+    - text: 1m
+  - text: Quick access to Feather icons in Figma
+  - button "Open in…"
+  - link "Figma plugin \"LottieFiles - Discover, Create & Export Lottie animations\"":
+    - /url: /community/plugin/809860933081065308/lottiefiles-discover-create-export-lottie-animations
+    - img "Figma plugin \"LottieFiles - Discover, Create & Export Lottie animations\""
+  - link "LottieFiles - Discover, Create & Export Lottie animations Paid 14.3k 966k":
+    - /url: /community/plugin/809860933081065308/lottiefiles-discover-create-export-lottie-animations
+    - text: LottieFiles - Discover, Create & Export Lottie animations
+    - strong: Paid
+    - img
+    - text: 14.3k
+    - img
+    - text: 966k
+  - text: Animate Your Designs with Lottie Animations
+  - button "Try in…"
+  - link "Figma plugin \"Artboard Mockups\"":
+    - /url: /community/plugin/750673765607708804/artboard-mockups
+    - img "Figma plugin \"Artboard Mockups\""
+  - link "Artboard Mockups Paid 8.9k 918k":
+    - /url: /community/plugin/750673765607708804/artboard-mockups
+    - text: Artboard Mockups
+    - strong: Paid
+    - img
+    - text: 8.9k
+    - img
+    - text: 918k
+  - text: Device mockups, branding mockups, apparel mockups and more
+  - button "Try in…"
+  - button "Load more"
+  - text: About
+  - paragraph: Discover solutions that streamline workflows, enhance creativity, and integrate seamlessly with your process. From automation utilities to specialized widgets, explore both free and premium options tailored to your specific needs and working style.
+  - text: Figma
+  - link "Figma.com":
+    - /url: https://www.figma.com/
+  - link "Figma Downloads":
+    - /url: https://www.figma.com/downloads/
+  - link "Design tools":
+    - /url: https://www.figma.com/tools/
+  - link "Resource library":
+    - /url: https://www.figma.com/resource-library/
+  - link "Solutions":
+    - /url: https://www.figma.com/solutions/
+  - link "Pricing":
+    - /url: https://www.figma.com/pricing/
+  - link "Release notes":
+    - /url: https://www.figma.com/release-notes/
+  - text: Products
+  - link "Figma Design":
+    - /url: https://www.figma.com/design/
+  - link "Dev Mode":
+    - /url: https://www.figma.com/dev-mode/
+  - link "FigJam":
+    - /url: https://www.figma.com/figjam/
+  - link "Figma Slides":
+    - /url: https://www.figma.com/slides/
+  - link "Figma Draw":
+    - /url: https://www.figma.com/draw/
+  - link "Figma Make":
+    - /url: https://www.figma.com/make/
+  - link "AI":
+    - /url: https://www.figma.com/ai/
+  - text: Top categories
+  - link "Instagram templates":
+    - /url: /community/instagram-templates
+  - link "Resume templates":
+    - /url: /community/resume-templates
+  - link "Calendar templates":
+    - /url: /community/calendar-templates
+  - link "Libraries":
+    - /url: /community/libraries
+  - link "Design inspiration":
+    - /url: /community/design-inspirations
+  - link "Fonts & typography":
+    - /url: /community/fonts-typography
+  - link "Data templates":
+    - /url: /community/data-templates
+  - text: Recommended
+  - link "Education":
+    - /url: /community/education
+  - link "Workshop templates":
+    - /url: /community/workshop-templates
+  - link "Classroom activities":
+    - /url: /community/classroom-activities
+  - link "Design tutorials":
+    - /url: /community/design-tutorials
+  - link "Lesson plans":
+    - /url: /community/lesson-plans
+  - link "Stock photography":
+    - /url: /community/stock-photography
+  - link "Landing page templates":
+    - /url: /community/website-templates/landing-pages
+  - text: Explore
+  - link "Ecommerce templates":
+    - /url: /community/website-templates/ecommerce
+  - link "Mobile mockups":
+    - /url: /community/device-mockups/mobile
+  - link "Chatbot templates":
+    - /url: /community/website-templates/chatbots
+  - link "Food delivery apps":
+    - /url: /community/mobile-apps/food-delivery
+  - link "Profile page templates":
+    - /url: /community/website-templates/user-profile-page
+  - link "Mobile UI templates":
+    - /url: /community/mobile-apps/ui
+  - link "LinkedIn templates":
+    - /url: /community/linkedin-templates
+  - link:
+    - /url: https://www.figma.com
+    - img
+  - text: © 2026 Figma, Inc. •
+  - link "Site map":
+    - /url: https://www.figma.com/auto-sitemaps/figma-community-index.xml
+  - text: •
+  - link "Community guidelines":
+    - /url: https://help.figma.com/hc/articles/360038510573-Figma-Community-Guidelines
+  - text: •
+  - link "Terms of service":
+    - /url: https://www.figma.com/legal/tos/
+  - toolbar "Help/zoom toolbar":
+    - button "Help":
+      - img
+  - status
+  - group:
+    - alert
+    - alert

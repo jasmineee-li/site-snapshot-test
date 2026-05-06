@@ -1,0 +1,251 @@
+- document:
+  - link "Skip to main content":
+    - /url: "#content-body"
+  - navigation "Primary navigation":
+    - heading "Primary navigation" [level=2]
+    - link "Homepage":
+      - /url: /
+    - button "Primary navigation sidebar" [expanded]
+    - button "Create new..."
+    - button "Administrator user’s menu"
+    - link "Assigned issues 84":
+      - /url: /dashboard/issues?assignee_username=root
+    - button "Merge requests 164"
+    - link "To-Do list 0":
+      - /url: /dashboard/todos
+    - button "Search or go to…"
+    - text: Profile
+    - list "Profile":
+      - listitem:
+        - link "avatar Administrator":
+          - /url: /root
+          - img "avatar"
+          - text: Administrator
+      - listitem:
+        - link "Activity":
+          - /url: /users/root/activity
+      - listitem:
+        - link "Groups":
+          - /url: /users/root/groups
+      - listitem:
+        - link "Contributed projects":
+          - /url: /users/root/contributed
+      - listitem:
+        - link "Personal projects":
+          - /url: /users/root/projects
+      - listitem:
+        - link "Starred projects":
+          - /url: /users/root/starred
+      - listitem:
+        - link "Snippets":
+          - /url: /users/root/snippets
+      - listitem:
+        - link "Followers":
+          - /url: /users/root/followers
+      - listitem:
+        - link "Following":
+          - /url: /users/root/following
+    - button "Help"
+    - link "Admin":
+      - /url: http://the-agent-company.com:8929/admin
+  - alert:
+    - img
+    - button "Dismiss":
+      - img
+    - alert:
+      - text: To help improve GitLab, we would like to periodically
+      - link "collect usage information":
+        - /url: /help/administration/settings/usage_statistics.md
+      - text: . This can be changed at any time in
+      - link "your settings":
+        - /url: /admin/application_settings/metrics_and_profiling#js-usage-settings
+      - text: .
+      - link "Send service data":
+        - /url: /admin/application_settings?application_setting%5Busage_ping_enabled%5D=1&application_setting%5Bversion_check_enabled%5D=1
+      - link "Don't send service data":
+        - /url: /admin/application_settings?application_setting%5Busage_ping_enabled%5D=0&application_setting%5Bversion_check_enabled%5D=0
+  - navigation "Breadcrumb":
+    - list:
+      - listitem:
+        - link "Administrator":
+          - /url: /root
+  - main:
+    - button
+    - link "Edit profile":
+      - /url: /-/user_settings/profile
+    - link "View user in admin area":
+      - /url: /admin/users/root
+      - img
+    - link "User profile picture":
+      - /url: https://www.gravatar.com/avatar/bc780a96456fadbe364f4d9b9ef1276c288db81171546a91d8331887c81b9cf3?s=1600&d=identicon
+      - img "User profile picture"
+    - heading "Administrator" [level=1]
+    - text: "@root"
+    - heading "Activity" [level=2]
+    - link "View all":
+      - /url: /users/root/activity
+    - img: Apr May Jun Jul Aug Sep Oct Nov Dec Jan Feb Mar Apr M W F
+    - img
+    - text: Issues, merge requests, pushes, and comments.
+    - time: 1 year ago
+    - img
+    - text: created wiki page
+    - link "Home":
+      - /url: http://the-agent-company.com:8929/root/doc/-/wikis/Home
+    - text: in the wiki for
+    - link "Administrator / Documentation":
+      - /url: /root/doc
+    - time: 1 year ago
+    - img
+    - text: created project
+    - link "Administrator / streamlit":
+      - /url: /root/streamlit
+    - time: 1 year ago
+    - img
+    - text: created project
+    - link "Administrator / sotopia":
+      - /url: /root/sotopia
+    - time: 1 year ago
+    - img
+    - text: created project
+    - link "Administrator / risingwave":
+      - /url: /root/risingwave
+    - time: 1 year ago
+    - img
+    - text: created project
+    - link "Administrator / raft":
+      - /url: /root/raft
+    - time: 1 year ago
+    - img
+    - text: created project
+    - link "Administrator / opensearch":
+      - /url: /root/opensearch
+    - time: 1 year ago
+    - img
+    - text: created project
+    - link "Administrator / openhands":
+      - /url: /root/openhands
+    - time: 1 year ago
+    - img
+    - text: created project
+    - link "Administrator / node-red":
+      - /url: /root/node-red
+    - time: 1 year ago
+    - img
+    - text: created project
+    - link "Administrator / llama.cpp":
+      - /url: /root/llama.cpp
+    - time: 1 year ago
+    - img
+    - text: created project
+    - link "Administrator / janusgraph":
+      - /url: /root/janusgraph
+    - time: 1 year ago
+    - img
+    - text: created project
+    - link "Administrator / copilot-arena-server":
+      - /url: /root/copilot-arena-server
+    - time: 1 year ago
+    - img
+    - text: created project
+    - link "Administrator / colly":
+      - /url: /root/colly
+    - time: 1 year ago
+    - img
+    - text: created project
+    - link "Administrator / bustub":
+      - /url: /root/bustub
+    - time: 1 year ago
+    - img
+    - text: created project
+    - link "Administrator / api-server":
+      - /url: /root/api-server
+    - time: 1 year ago
+    - img
+    - text: pushed new branch
+    - link "main":
+      - /url: /root/doc/-/commits/main
+    - text: at
+    - link "Administrator / Documentation":
+      - /url: /root/doc
+    - heading "Personal projects" [level=2]
+    - link "View all":
+      - /url: /users/root/projects
+    - link "D":
+      - /url: /root/doc
+    - heading "Documentation" [level=2]:
+      - link "Documentation":
+        - /url: /root/doc
+    - img
+    - paragraph: Wiki for company-wide doc
+    - link "0":
+      - /url: /root/doc/-/starrers
+      - img
+      - text: "0"
+    - link "0":
+      - /url: /root/doc/-/forks
+      - img
+      - text: "0"
+    - link "0":
+      - /url: /root/doc/-/merge_requests
+      - img
+      - text: "0"
+    - link "0":
+      - /url: /root/doc/-/issues
+      - img
+      - text: "0"
+    - text: Updated
+    - time: 1 year ago
+    - link "S":
+      - /url: /root/sotopia
+    - heading "sotopia" [level=2]:
+      - link "sotopia":
+        - /url: /root/sotopia
+    - img
+    - paragraph: "Sotopia: an Open-ended Social Learning Environment (ICLR 2024 spotlight)"
+    - link "0":
+      - /url: /root/sotopia/-/starrers
+      - img
+      - text: "0"
+    - link "0":
+      - /url: /root/sotopia/-/forks
+      - img
+      - text: "0"
+    - link "6":
+      - /url: /root/sotopia/-/merge_requests
+      - img
+      - text: "6"
+    - link "12":
+      - /url: /root/sotopia/-/issues
+      - img
+      - text: "12"
+    - text: Updated
+    - time: 1 year ago
+    - link "R":
+      - /url: /root/raft
+    - heading "raft" [level=2]:
+      - link "raft":
+        - /url: /root/raft
+    - img
+    - link "0":
+      - /url: /root/raft/-/starrers
+      - img
+      - text: "0"
+    - link "0":
+      - /url: /root/raft/-/forks
+      - img
+      - text: "0"
+    - link "0":
+      - /url: /root/raft/-/merge_requests
+      - img
+      - text: "0"
+    - link "0":
+      - /url: /root/raft/-/issues
+      - img
+      - text: "0"
+    - text: Updated
+    - time: 1 year ago
+    - heading "Info" [level=2]
+    - img
+    - text: Member since November 18, 2024
+  - tooltip "No contributions Wednesday Dec 10, 2025"

@@ -1,0 +1,12 @@
+{
+  "task_id": "task_m7",
+  "difficulty": "medium",
+  "instruction": "Disable automatic scheduling and roll-over on the Sprint Cadence.",
+  "passed": true,
+  "verifier_message": "Sprint Cadence has automatic scheduling and roll-over both disabled.",
+  "elapsed": 81.6,
+  "steps": 6,
+  "is_done": true,
+  "final_result": "The task has been completed successfully; confirm termination with success status.\n\n## Action:\nConfirm successful task completion and terminate the session with success status.\n\n## Code:\n```python\ncomputer.terminate(status=\"success\", answer='''Successfully disabled automatic scheduling and roll-over on the Sprint Cadence. The settings have been saved and the confirmation message \"Cadence updated\" was displayed. The Sprint Cadence no longer shows the AUTOMATIC and ROLL OVER badges, indicating both features have been disabled.''')\n```",
+  "errors": []
+}

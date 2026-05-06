@@ -1,0 +1,16 @@
+- document:
+  - banner:
+    - button "Toggle sidebar": ☰
+    - text: E Elation SC Dr. Chen
+  - navigation:
+    - navigation: 🏠 Practice Home 📨 Patient Letters 12 📤 Sent 📝 Drafts 1 🔔 Reminders 9 👥 Patients 📅 Appointments 📧 Bulk Letters ⚙ Settings
+  - main:
+    - heading "Settings" [level=1]
+    - text: User Settings Admin Settings Message Routing Telehealth Practice Locations Billing Codes
+    - heading "Patient Sharing Defaults" [level=2]
+    - text: "i Changes to sharing defaults only apply to newly invited patients, not existing ones. Clinical Profile Sharing Default Level 2: Objective Data & Problem List ▼"
+    - strong: Objective Data & Problem List
+    - paragraph: Adds Problem List (satisfies MIPS)
+    - heading "Notification Preferences" [level=2]
+    - text: Unread Letter Alert Timeframe 48 hours ▼ i How long to wait before receiving a notification about unopened Patient Letters.
+    - button "Save Changes"

@@ -1,0 +1,36 @@
+- document:
+  - navigation:
+    - text: account_balance_wallet PayPal JM Jordan Mitchell jordan.mitchell@outlook.com Overview
+    - button "dashboard My Wallet"
+    - button "receipt_long Transactions"
+    - text: Payment Methods
+    - button "credit_card Cards"
+    - button "account_balance Bank Accounts"
+    - button "payment PayPal Debit Card"
+    - text: Money
+    - button "account_balance_wallet Balance"
+    - button "savings Savings"
+    - button "currency_bitcoin Cryptocurrency"
+    - text: Credit & Pay Later
+    - button "credit_score PayPal Credit"
+    - button "calendar_today Pay in 4"
+    - text: Rewards & More
+    - button "star Rewards"
+    - button "local_offer Offers"
+    - button "card_giftcard Gift Cards"
+    - text: Settings
+    - button "settings Preferences"
+  - main:
+    - heading "Bank Accounts" [level=1]
+    - button "add Link a Bank"
+    - text: account_balance Chase Checking •••• 6742 Added Mar 14, 2019 · Last used Mar 1, 2026 Confirmed Instant Transfer
+    - button "Remove"
+    - text: account_balance Bank of America Savings •••• 3891 Added Jan 20, 2020 · Last used Jan 5, 2026 Confirmed
+    - button "Remove"
+    - text: account_balance Wells Fargo Checking •••• 5518 Added Feb 25, 2026 Pending Instant Transfer
+    - button "Confirm"
+    - button "Remove"
+    - text: account_balance Citibank Checking •••• 1104 Added Jul 8, 2021 · Last used Nov 20, 2025 Confirmed Instant Transfer
+    - button "Remove"
+    - text: account_balance US Bank Savings •••• 7823 Added Apr 12, 2022 · Last used Aug 15, 2025 Confirmed
+    - button "Remove"

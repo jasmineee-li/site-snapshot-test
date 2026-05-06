@@ -1,0 +1,697 @@
+- document:
+  - banner:
+    - heading "OpenStreetMap logo OpenStreetMap" [level=1]:
+      - link "OpenStreetMap logo OpenStreetMap":
+        - /url: /
+        - img "OpenStreetMap logo"
+        - text: OpenStreetMap
+    - navigation:
+      - link "Edit":
+        - /url: /edit
+      - button
+    - navigation:
+      - list:
+        - listitem:
+          - link "History":
+            - /url: /history
+        - listitem:
+          - link "Export":
+            - /url: /export
+        - listitem:
+          - link "GPS Traces":
+            - /url: /traces
+        - listitem:
+          - link "User Diaries":
+            - /url: /diary
+        - listitem:
+          - link "Communities":
+            - /url: /communities
+        - listitem:
+          - link "Copyright":
+            - /url: /copyright
+        - listitem:
+          - link "Help":
+            - /url: /help
+        - listitem:
+          - link "Donate":
+            - /url: https://supporting.openstreetmap.org/donate/
+        - listitem:
+          - link "About":
+            - /url: /about
+      - button "Select Language":
+        - img
+      - link "Log In":
+        - /url: /login?referer=%2Ftraces
+      - link "Sign Up":
+        - /url: /user/new
+  - heading "Public GPS Traces" [level=1]
+  - navigation:
+    - list:
+      - listitem: Browse recent GPS trace uploads
+  - link:
+    - /url: /traces/rss
+  - link "Upload a trace":
+    - /url: /traces/new
+  - list:
+    - listitem:
+      - link "All Traces":
+        - /url: /traces
+  - navigation:
+    - list:
+      - listitem:
+        - img
+    - list:
+      - listitem:
+        - img
+        - text: Newer Traces
+      - listitem:
+        - link "Older Traces":
+          - /url: /traces?before=12284810
+          - text: Older Traces
+          - img
+    - list:
+      - listitem:
+        - link "Oldest Traces":
+          - /url: /traces?after=0
+          - img
+  - table:
+    - rowgroup:
+      - row "activity_22468929671.gpx 1232 points IDENTIFIABLE 15 minutes ago by En Roue vers l'Aventure Marche sur les sentiers":
+        - cell:
+          - link:
+            - /url: /user/En%20Roue%20vers%20l'Aventure/traces/12284909
+        - cell "activity_22468929671.gpx 1232 points IDENTIFIABLE 15 minutes ago by En Roue vers l'Aventure Marche sur les sentiers":
+          - list:
+            - listitem:
+              - link "activity_22468929671.gpx":
+                - /url: /user/En%20Roue%20vers%20l'Aventure/traces/12284909
+            - listitem: 1232 points
+            - listitem: IDENTIFIABLE
+          - paragraph:
+            - time: 15 minutes ago
+            - text: by
+            - link "En Roue vers l'Aventure":
+              - /url: /user/En%20Roue%20vers%20l'Aventure
+          - paragraph: Marche sur les sentiers
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=37.76227539405227&mlon=-2.904245965182781#map=14/37.76227539405227/-2.904245965182781
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284909
+      - row "UNKIDA_75.gpx 1371 points PUBLIC 15 minutes ago by ston416 гуниб75":
+        - cell:
+          - link:
+            - /url: /user/ston416/traces/12284908
+        - cell "UNKIDA_75.gpx 1371 points PUBLIC 15 minutes ago by ston416 гуниб75":
+          - list:
+            - listitem:
+              - link "UNKIDA_75.gpx":
+                - /url: /user/ston416/traces/12284908
+            - listitem: 1371 points
+            - listitem: PUBLIC
+          - paragraph:
+            - time: 15 minutes ago
+            - text: by
+            - link "ston416":
+              - /url: /user/ston416
+          - paragraph: гуниб75
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=42.389269&mlon=46.951321#map=14/42.389269/46.951321
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284908
+      - row "2026_02_21_Blankenburg_S.gpx 10268 points PUBLIC 34 minutes ago by Manuel H 2026-02-21 Blankenburg S":
+        - cell:
+          - link:
+            - /url: /user/Manuel%20H/traces/12284902
+        - cell "2026_02_21_Blankenburg_S.gpx 10268 points PUBLIC 34 minutes ago by Manuel H 2026-02-21 Blankenburg S":
+          - list:
+            - listitem:
+              - link "2026_02_21_Blankenburg_S.gpx":
+                - /url: /user/Manuel%20H/traces/12284902
+            - listitem: 10268 points
+            - listitem: PUBLIC
+          - paragraph:
+            - time: 34 minutes ago
+            - text: by
+            - link "Manuel H":
+              - /url: /user/Manuel%20H
+          - paragraph: 2026-02-21 Blankenburg S
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=51.785823&mlon=10.9538487#map=14/51.785823/10.9538487
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284902
+      - row "Nantua_Fecles_2026_04_09_21.49.05.gpx 883 points IDENTIFIABLE 38 minutes ago by zbh0170 Nantua - Les Fècles en boucle 20260409":
+        - cell:
+          - link:
+            - /url: /user/zbh0170/traces/12284896
+        - cell "Nantua_Fecles_2026_04_09_21.49.05.gpx 883 points IDENTIFIABLE 38 minutes ago by zbh0170 Nantua - Les Fècles en boucle 20260409":
+          - list:
+            - listitem:
+              - link "Nantua_Fecles_2026_04_09_21.49.05.gpx":
+                - /url: /user/zbh0170/traces/12284896
+            - listitem: 883 points
+            - listitem: IDENTIFIABLE
+          - paragraph:
+            - time: 38 minutes ago
+            - text: by
+            - link "zbh0170":
+              - /url: /user/zbh0170
+          - paragraph: Nantua - Les Fècles en boucle 20260409
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=46.1571998522&mlon=5.6037118938#map=14/46.1571998522/5.6037118938
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284896
+      - row "09_Apr_2026_1544.gpx 382 points IDENTIFIABLE about 1 hour ago by Justin1234 Driving - IPhone 17 Pro GPS":
+        - cell:
+          - link:
+            - /url: /user/Justin1234/traces/12284871
+        - cell "09_Apr_2026_1544.gpx 382 points IDENTIFIABLE about 1 hour ago by Justin1234 Driving - IPhone 17 Pro GPS":
+          - list:
+            - listitem:
+              - link "09_Apr_2026_1544.gpx":
+                - /url: /user/Justin1234/traces/12284871
+            - listitem: 382 points
+            - listitem: IDENTIFIABLE
+          - paragraph:
+            - time: about 1 hour ago
+            - text: by
+            - link "Justin1234":
+              - /url: /user/Justin1234
+          - paragraph: Driving - IPhone 17 Pro GPS
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=28.38390711686459&mlon=-81.49864143590119#map=14/28.38390711686459/-81.49864143590119
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284871
+      - row "20260410.gpx 1245 points IDENTIFIABLE about 2 hours ago by うさもも 2026/04/10":
+        - cell:
+          - link:
+            - /url: /user/%E3%81%86%E3%81%95%E3%82%82%E3%82%82/traces/12284860
+        - cell "20260410.gpx 1245 points IDENTIFIABLE about 2 hours ago by うさもも 2026/04/10":
+          - list:
+            - listitem:
+              - link "20260410.gpx":
+                - /url: /user/%E3%81%86%E3%81%95%E3%82%82%E3%82%82/traces/12284860
+            - listitem: 1245 points
+            - listitem: IDENTIFIABLE
+          - paragraph:
+            - time: about 2 hours ago
+            - text: by
+            - link "うさもも":
+              - /url: /user/%E3%81%86%E3%81%95%E3%82%82%E3%82%82
+          - paragraph: 2026/04/10
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=36.0168107&mlon=139.3837978#map=14/36.0168107/139.3837978
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284860
+      - row "2026_04_07_15_16_Di._601.gpx 5358 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-04-07_15-16_Di. 601":
+        - cell:
+          - link:
+            - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284859
+        - cell "2026_04_07_15_16_Di._601.gpx 5358 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-04-07_15-16_Di. 601":
+          - list:
+            - listitem:
+              - link "2026_04_07_15_16_Di._601.gpx":
+                - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284859
+            - listitem: 5358 points
+            - listitem: PUBLIC
+          - paragraph:
+            - time: about 2 hours ago
+            - text: by
+            - link "Alois Glässel":
+              - /url: /user/Alois%20Gl%C3%A4ssel
+            - text: in
+            - link "osmand":
+              - /url: /traces/tag/osmand
+            - text: ","
+            - link "car":
+              - /url: /traces/tag/car
+          - paragraph: 2026-04-07_15-16_Di. 601
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=48.0232704&mlon=12.5523676#map=14/48.0232704/12.5523676
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284859
+      - row "2026_03_12_12_59_Do._509.gpx 2733 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-12_12-59_Do. 509":
+        - cell:
+          - link:
+            - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284858
+        - cell "2026_03_12_12_59_Do._509.gpx 2733 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-12_12-59_Do. 509":
+          - list:
+            - listitem:
+              - link "2026_03_12_12_59_Do._509.gpx":
+                - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284858
+            - listitem: 2733 points
+            - listitem: PUBLIC
+          - paragraph:
+            - time: about 2 hours ago
+            - text: by
+            - link "Alois Glässel":
+              - /url: /user/Alois%20Gl%C3%A4ssel
+            - text: in
+            - link "osmand":
+              - /url: /traces/tag/osmand
+            - text: ","
+            - link "car":
+              - /url: /traces/tag/car
+          - paragraph: 2026-03-12_12-59_Do. 509
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=47.9646486&mlon=12.5888926#map=14/47.9646486/12.5888926
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284858
+      - row "2026_04_09_05_48_Do._609.1.gpx 5667 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-04-09_05-48_Do. 609.1":
+        - cell:
+          - link:
+            - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284857
+        - cell "2026_04_09_05_48_Do._609.1.gpx 5667 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-04-09_05-48_Do. 609.1":
+          - list:
+            - listitem:
+              - link "2026_04_09_05_48_Do._609.1.gpx":
+                - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284857
+            - listitem: 5667 points
+            - listitem: PUBLIC
+          - paragraph:
+            - time: about 2 hours ago
+            - text: by
+            - link "Alois Glässel":
+              - /url: /user/Alois%20Gl%C3%A4ssel
+            - text: in
+            - link "osmand":
+              - /url: /traces/tag/osmand
+            - text: ","
+            - link "car":
+              - /url: /traces/tag/car
+          - paragraph: 2026-04-09_05-48_Do. 609.1
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=48.0753476&mlon=12.597419#map=14/48.0753476/12.597419
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284857
+      - row "2026_03_24_06_30_Di._505_1.gpx 4368 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-24_06-30_Di. 505 1":
+        - cell:
+          - link:
+            - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284856
+        - cell "2026_03_24_06_30_Di._505_1.gpx 4368 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-24_06-30_Di. 505 1":
+          - list:
+            - listitem:
+              - link "2026_03_24_06_30_Di._505_1.gpx":
+                - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284856
+            - listitem: 4368 points
+            - listitem: PUBLIC
+          - paragraph:
+            - time: about 2 hours ago
+            - text: by
+            - link "Alois Glässel":
+              - /url: /user/Alois%20Gl%C3%A4ssel
+            - text: in
+            - link "osmand":
+              - /url: /traces/tag/osmand
+            - text: ","
+            - link "car":
+              - /url: /traces/tag/car
+          - paragraph: 2026-03-24_06-30_Di. 505 1
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=48.0562879&mlon=12.5681454#map=14/48.0562879/12.5681454
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284856
+      - row "2026_03_19_00_00_Do..gpx 3862 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-19_00-00_Do.":
+        - cell:
+          - link:
+            - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284855
+        - cell "2026_03_19_00_00_Do..gpx 3862 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-19_00-00_Do.":
+          - list:
+            - listitem:
+              - link "2026_03_19_00_00_Do..gpx":
+                - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284855
+            - listitem: 3862 points
+            - listitem: PUBLIC
+          - paragraph:
+            - time: about 2 hours ago
+            - text: by
+            - link "Alois Glässel":
+              - /url: /user/Alois%20Gl%C3%A4ssel
+            - text: in
+            - link "osmand":
+              - /url: /traces/tag/osmand
+            - text: ","
+            - link "car":
+              - /url: /traces/tag/car
+          - paragraph: 2026-03-19_00-00_Do.
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=48.0972137&mlon=11.9616781#map=14/48.0972137/11.9616781
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284855
+      - row "2026_03_23_12_15_Mo._511.3.gpx 5490 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-23_12-15_Mo. 511.3":
+        - cell:
+          - link:
+            - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284854
+        - cell "2026_03_23_12_15_Mo._511.3.gpx 5490 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-23_12-15_Mo. 511.3":
+          - list:
+            - listitem:
+              - link "2026_03_23_12_15_Mo._511.3.gpx":
+                - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284854
+            - listitem: 5490 points
+            - listitem: PUBLIC
+          - paragraph:
+            - time: about 2 hours ago
+            - text: by
+            - link "Alois Glässel":
+              - /url: /user/Alois%20Gl%C3%A4ssel
+            - text: in
+            - link "osmand":
+              - /url: /traces/tag/osmand
+            - text: ","
+            - link "car":
+              - /url: /traces/tag/car
+          - paragraph: 2026-03-23_12-15_Mo. 511.3
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=48.0276202&mlon=12.5563694#map=14/48.0276202/12.5563694
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284854
+      - row "2026_03_20_15_30_Fr._509.gpx 2389 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-20_15-30_Fr. 509":
+        - cell:
+          - link:
+            - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284853
+        - cell "2026_03_20_15_30_Fr._509.gpx 2389 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-20_15-30_Fr. 509":
+          - list:
+            - listitem:
+              - link "2026_03_20_15_30_Fr._509.gpx":
+                - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284853
+            - listitem: 2389 points
+            - listitem: PUBLIC
+          - paragraph:
+            - time: about 2 hours ago
+            - text: by
+            - link "Alois Glässel":
+              - /url: /user/Alois%20Gl%C3%A4ssel
+            - text: in
+            - link "osmand":
+              - /url: /traces/tag/osmand
+            - text: ","
+            - link "car":
+              - /url: /traces/tag/car
+          - paragraph: 2026-03-20_15-30_Fr. 509
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=47.9643659&mlon=12.5890048#map=14/47.9643659/12.5890048
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284853
+      - row "2026_03_24_10_01_Di._505_2.gpx 1633 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-24_10-01_Di. 505 2":
+        - cell:
+          - link:
+            - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284852
+        - cell "2026_03_24_10_01_Di._505_2.gpx 1633 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-24_10-01_Di. 505 2":
+          - list:
+            - listitem:
+              - link "2026_03_24_10_01_Di._505_2.gpx":
+                - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284852
+            - listitem: 1633 points
+            - listitem: PUBLIC
+          - paragraph:
+            - time: about 2 hours ago
+            - text: by
+            - link "Alois Glässel":
+              - /url: /user/Alois%20Gl%C3%A4ssel
+            - text: in
+            - link "osmand":
+              - /url: /traces/tag/osmand
+            - text: ","
+            - link "car":
+              - /url: /traces/tag/car
+          - paragraph: 2026-03-24_10-01_Di. 505 2
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=48.0275888&mlon=12.5562549#map=14/48.0275888/12.5562549
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284852
+      - row "2026_03_18_16_54_Mi._FCB_hin.gpx 5760 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-18_16-54_Mi. FCB hin":
+        - cell:
+          - link:
+            - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284851
+        - cell "2026_03_18_16_54_Mi._FCB_hin.gpx 5760 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-18_16-54_Mi. FCB hin":
+          - list:
+            - listitem:
+              - link "2026_03_18_16_54_Mi._FCB_hin.gpx":
+                - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284851
+            - listitem: 5760 points
+            - listitem: PUBLIC
+          - paragraph:
+            - time: about 2 hours ago
+            - text: by
+            - link "Alois Glässel":
+              - /url: /user/Alois%20Gl%C3%A4ssel
+            - text: in
+            - link "osmand":
+              - /url: /traces/tag/osmand
+            - text: ","
+            - link "car":
+              - /url: /traces/tag/car
+          - paragraph: 2026-03-18_16-54_Mi. FCB hin
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=48.0310645&mlon=12.5570364#map=14/48.0310645/12.5570364
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284851
+      - row "2026_03_24_15_47_Di._505_4.gpx 3015 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-24_15-47_Di. 505 4":
+        - cell:
+          - link:
+            - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284850
+        - cell "2026_03_24_15_47_Di._505_4.gpx 3015 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-24_15-47_Di. 505 4":
+          - list:
+            - listitem:
+              - link "2026_03_24_15_47_Di._505_4.gpx":
+                - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284850
+            - listitem: 3015 points
+            - listitem: PUBLIC
+          - paragraph:
+            - time: about 2 hours ago
+            - text: by
+            - link "Alois Glässel":
+              - /url: /user/Alois%20Gl%C3%A4ssel
+            - text: in
+            - link "osmand":
+              - /url: /traces/tag/osmand
+            - text: ","
+            - link "car":
+              - /url: /traces/tag/car
+          - paragraph: 2026-03-24_15-47_Di. 505 4
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=47.8698881&mlon=12.6559194#map=14/47.8698881/12.6559194
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284850
+      - row "2026_03_13_06_04_Fr._511_553.2.gpx 4111 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-13_06-04_Fr. 511+553.2":
+        - cell:
+          - link:
+            - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284849
+        - cell "2026_03_13_06_04_Fr._511_553.2.gpx 4111 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-13_06-04_Fr. 511+553.2":
+          - list:
+            - listitem:
+              - link "2026_03_13_06_04_Fr._511_553.2.gpx":
+                - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284849
+            - listitem: 4111 points
+            - listitem: PUBLIC
+          - paragraph:
+            - time: about 2 hours ago
+            - text: by
+            - link "Alois Glässel":
+              - /url: /user/Alois%20Gl%C3%A4ssel
+            - text: in
+            - link "osmand":
+              - /url: /traces/tag/osmand
+            - text: ","
+            - link "car":
+              - /url: /traces/tag/car
+          - paragraph: 2026-03-13_06-04_Fr. 511+553.2
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=48.0563622&mlon=12.5683574#map=14/48.0563622/12.5683574
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284849
+      - row "2026_03_18_23_20_Mi..gpx 1837 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-18_23-20_Mi.":
+        - cell:
+          - link:
+            - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284848
+        - cell "2026_03_18_23_20_Mi..gpx 1837 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-18_23-20_Mi.":
+          - list:
+            - listitem:
+              - link "2026_03_18_23_20_Mi..gpx":
+                - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284848
+            - listitem: 1837 points
+            - listitem: PUBLIC
+          - paragraph:
+            - time: about 2 hours ago
+            - text: by
+            - link "Alois Glässel":
+              - /url: /user/Alois%20Gl%C3%A4ssel
+            - text: in
+            - link "osmand":
+              - /url: /traces/tag/osmand
+            - text: ","
+            - link "car":
+              - /url: /traces/tag/car
+          - paragraph: 2026-03-18_23-20_Mi.
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=48.2215331&mlon=11.6243227#map=14/48.2215331/11.6243227
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284848
+      - row "2026_03_24_12_38_Di._505_3.gpx 5339 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-24_12-38_Di. 505 3":
+        - cell:
+          - link:
+            - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284847
+        - cell "2026_03_24_12_38_Di._505_3.gpx 5339 points PUBLIC about 2 hours ago by Alois Glässel in osmand, car 2026-03-24_12-38_Di. 505 3":
+          - list:
+            - listitem:
+              - link "2026_03_24_12_38_Di._505_3.gpx":
+                - /url: /user/Alois%20Gl%C3%A4ssel/traces/12284847
+            - listitem: 5339 points
+            - listitem: PUBLIC
+          - paragraph:
+            - time: about 2 hours ago
+            - text: by
+            - link "Alois Glässel":
+              - /url: /user/Alois%20Gl%C3%A4ssel
+            - text: in
+            - link "osmand":
+              - /url: /traces/tag/osmand
+            - text: ","
+            - link "car":
+              - /url: /traces/tag/car
+          - paragraph: 2026-03-24_12-38_Di. 505 3
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=47.8629993&mlon=12.6470377#map=14/47.8629993/12.6470377
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284847
+      - row "2026_04_09_21_06_Thu.gpx 65 points PUBLIC about 3 hours ago by Cmapuk-noxa6bl4 in osmand Озёрный - Киногородок":
+        - cell:
+          - link:
+            - /url: /user/Cmapuk-noxa6bl4/traces/12284810
+        - cell "2026_04_09_21_06_Thu.gpx 65 points PUBLIC about 3 hours ago by Cmapuk-noxa6bl4 in osmand Озёрный - Киногородок":
+          - list:
+            - listitem:
+              - link "2026_04_09_21_06_Thu.gpx":
+                - /url: /user/Cmapuk-noxa6bl4/traces/12284810
+            - listitem: 65 points
+            - listitem: PUBLIC
+          - paragraph:
+            - time: about 3 hours ago
+            - text: by
+            - link "Cmapuk-noxa6bl4":
+              - /url: /user/Cmapuk-noxa6bl4
+            - text: in
+            - link "osmand":
+              - /url: /traces/tag/osmand
+          - paragraph: Озёрный - Киногородок
+        - cell:
+          - navigation:
+            - list:
+              - listitem:
+                - link "View location on map":
+                  - /url: /?mlat=57.8579313&mlon=33.6643205#map=14/57.8579313/33.6643205
+              - listitem:
+                - link "Open in editor":
+                  - /url: /edit?gpx=12284810
+  - navigation:
+    - list:
+      - listitem:
+        - img
+    - list:
+      - listitem:
+        - img
+        - text: Newer Traces
+      - listitem:
+        - link "Older Traces":
+          - /url: /traces?before=12284810
+          - text: Older Traces
+          - img
+    - list:
+      - listitem:
+        - link "Oldest Traces":
+          - /url: /traces?after=0
+          - img

@@ -1,0 +1,39 @@
+{
+  "n_rows": 168,
+  "n_rewards": 168,
+  "n_attack_success_labels": 168,
+  "asr": 0.06547619047619048,
+  "tsr": 0.8869047619047619,
+  "probe_by_attack_success": {
+    "false": {
+      "n": 157,
+      "last_user_token": {
+        "mean": 0.39167620421974525,
+        "std": 0.07640529437849845
+      },
+      "user_message_mean": {
+        "mean": 0.22252562699044587,
+        "std": 0.012359576585554012
+      },
+      "first_assistant_message_mean": {
+        "mean": 0.21833636046974522,
+        "std": 0.058307863281462605
+      }
+    },
+    "true": {
+      "n": 11,
+      "last_user_token": {
+        "mean": 0.412109375,
+        "std": 0.02754592465681382
+      },
+      "user_message_mean": {
+        "mean": 0.21661931818181818,
+        "std": 0.005442340953122906
+      },
+      "first_assistant_message_mean": {
+        "mean": 0.23384232954545456,
+        "std": 0.025710815852127773
+      }
+    }
+  }
+}

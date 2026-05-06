@@ -1,0 +1,479 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linear - Account Settings</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-app-title">Settings</div>
+            </div>
+            <nav id="sidebarNav">
+            <div class="sidebar-section-label">Account</div>
+            
+                <div class="sidebar-item " data-action="navigate" data-section="profile">
+                    <span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 8a3 3 0 100-6 3 3 0 000 6zm-5 6s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3z"></path></svg></span>
+                    <span class="sidebar-text">Profile</span>
+                </div>
+            
+                <div class="sidebar-item " data-action="navigate" data-section="preferences">
+                    <span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 100 6.492 3.246 3.246 0 000-6.492zM5.754 8a2.246 2.246 0 114.492 0 2.246 2.246 0 01-4.492 0z"></path><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 01-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 01-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 01.52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 011.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 011.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 01.52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 01-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 01-1.255-.52l-.094-.319z"></path></svg></span>
+                    <span class="sidebar-text">Preferences</span>
+                </div>
+            
+                <div class="sidebar-item active" data-action="navigate" data-section="notifications">
+                    <span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 16a2 2 0 002-2H6a2 2 0 002 2zM8 1.918l-.797.161A4.002 4.002 0 004 6c0 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134 8.197 12 6.628 12 6a4.002 4.002 0 00-3.203-3.92L8 1.917z"></path></svg></span>
+                    <span class="sidebar-text">Notifications</span>
+                </div>
+            
+                <div class="sidebar-item " data-action="navigate" data-section="security">
+                    <span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0c-.69 0-1.281.476-1.478 1.117L5.532 2H3.5A1.5 1.5 0 002 3.5v10A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5v-10A1.5 1.5 0 0012.5 2h-2.032l-.99-.883A1.5 1.5 0 008 0zm.5 4.75a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z"></path></svg></span>
+                    <span class="sidebar-text">Security &amp; Access</span>
+                </div>
+            
+        </nav>
+        </aside>
+        <main class="main-content" id="mainContent">
+            <div class="content-section">
+                
+            <div class="section-header">
+                <h2 class="section-title">Notifications</h2>
+                <p class="section-subtitle">Manage how and when you receive notifications.</p>
+            </div>
+        
+
+                <div class="notification-channels">
+                    
+            <div class="notification-channel" data-channel="desktop" id="channel-desktop">
+                <div class="channel-header" data-action="toggleChannelExpand" data-channel="desktop">
+                    <div class="channel-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></div>
+                    <div class="channel-info">
+                        <span class="channel-name">Desktop</span>
+                        <span class="channel-status-dot dot-active"></span>
+                    </div>
+                    <svg class="channel-expand-arrow" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z"></path></svg>
+                </div>
+                <div class="channel-body" style="display:none;">
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Enable desktop notifications</div>
+                    
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch active" id="notif-desktop-enabled" data-toggle-id="notif-desktop-enabled">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+                    <div class="channel-notification-types ">
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Issue assigned to you</span>
+                                <div class="toggle-switch active " data-toggle-id="notif-desktop-issueAssigned" data-channel="desktop" data-notif-key="issueAssigned">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Status changes</span>
+                                <div class="toggle-switch active " data-toggle-id="notif-desktop-issueStatusChanged" data-channel="desktop" data-notif-key="issueStatusChanged">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Comments on subscribed issues</span>
+                                <div class="toggle-switch active " data-toggle-id="notif-desktop-issueCommented" data-channel="desktop" data-notif-key="issueCommented">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Mentions</span>
+                                <div class="toggle-switch active " data-toggle-id="notif-desktop-issueMentioned" data-channel="desktop" data-notif-key="issueMentioned">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Project updates</span>
+                                <div class="toggle-switch active " data-toggle-id="notif-desktop-projectUpdated" data-channel="desktop" data-notif-key="projectUpdated">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Cycle updates</span>
+                                <div class="toggle-switch  " data-toggle-id="notif-desktop-cycleUpdated" data-channel="desktop" data-notif-key="cycleUpdated">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                    </div>
+                    
+                </div>
+            </div>
+        
+                    
+            <div class="notification-channel" data-channel="mobile" id="channel-mobile">
+                <div class="channel-header" data-action="toggleChannelExpand" data-channel="mobile">
+                    <div class="channel-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg></div>
+                    <div class="channel-info">
+                        <span class="channel-name">Mobile</span>
+                        <span class="channel-status-dot dot-active"></span>
+                    </div>
+                    <svg class="channel-expand-arrow" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z"></path></svg>
+                </div>
+                <div class="channel-body" style="display:none;">
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Enable mobile notifications</div>
+                    
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch active" id="notif-mobile-enabled" data-toggle-id="notif-mobile-enabled">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+                    <div class="channel-notification-types ">
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Issue assigned to you</span>
+                                <div class="toggle-switch active " data-toggle-id="notif-mobile-issueAssigned" data-channel="mobile" data-notif-key="issueAssigned">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Status changes</span>
+                                <div class="toggle-switch active " data-toggle-id="notif-mobile-issueStatusChanged" data-channel="mobile" data-notif-key="issueStatusChanged">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Comments on subscribed issues</span>
+                                <div class="toggle-switch active " data-toggle-id="notif-mobile-issueCommented" data-channel="mobile" data-notif-key="issueCommented">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Mentions</span>
+                                <div class="toggle-switch active " data-toggle-id="notif-mobile-issueMentioned" data-channel="mobile" data-notif-key="issueMentioned">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Project updates</span>
+                                <div class="toggle-switch  " data-toggle-id="notif-mobile-projectUpdated" data-channel="mobile" data-notif-key="projectUpdated">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Cycle updates</span>
+                                <div class="toggle-switch  " data-toggle-id="notif-mobile-cycleUpdated" data-channel="mobile" data-notif-key="cycleUpdated">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                    </div>
+                    
+                </div>
+            </div>
+        
+                    
+            <div class="notification-channel" data-channel="email" id="channel-email">
+                <div class="channel-header" data-action="toggleChannelExpand" data-channel="email">
+                    <div class="channel-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></div>
+                    <div class="channel-info">
+                        <span class="channel-name">Email</span>
+                        <span class="channel-status-dot dot-active"></span>
+                    </div>
+                    <svg class="channel-expand-arrow" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z"></path></svg>
+                </div>
+                <div class="channel-body" style="display:none;">
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Enable email notifications</div>
+                    
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch active" id="notif-email-enabled" data-toggle-id="notif-email-enabled">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+                    <div class="channel-notification-types ">
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Issue assigned to you</span>
+                                <div class="toggle-switch active " data-toggle-id="notif-email-issueAssigned" data-channel="email" data-notif-key="issueAssigned">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Status changes</span>
+                                <div class="toggle-switch active " data-toggle-id="notif-email-issueStatusChanged" data-channel="email" data-notif-key="issueStatusChanged">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Comments on subscribed issues</span>
+                                <div class="toggle-switch  " data-toggle-id="notif-email-issueCommented" data-channel="email" data-notif-key="issueCommented">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Mentions</span>
+                                <div class="toggle-switch active " data-toggle-id="notif-email-issueMentioned" data-channel="email" data-notif-key="issueMentioned">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Project updates</span>
+                                <div class="toggle-switch  " data-toggle-id="notif-email-projectUpdated" data-channel="email" data-notif-key="projectUpdated">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Cycle updates</span>
+                                <div class="toggle-switch  " data-toggle-id="notif-email-cycleUpdated" data-channel="email" data-notif-key="cycleUpdated">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                    </div>
+                    
+                <div class="channel-extra-settings">
+                    <div class="extra-setting-divider"></div>
+                    <h4 class="extra-setting-title">Delivery preferences</h4>
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Send urgent immediately</div>
+                    <div class="setting-description">Send notification email immediately for urgent issues or SLA breaches.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch active" id="notif-email-urgent" data-toggle-id="notif-email-urgent">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Delay low priority outside hours</div>
+                    <div class="setting-description">Delay low priority email notifications outside work hours (8am-6pm).</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch active" id="notif-email-delay-low" data-toggle-id="notif-email-delay-low">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+                </div>
+            
+                </div>
+            </div>
+        
+                    
+            <div class="notification-channel" data-channel="slack" id="channel-slack">
+                <div class="channel-header" data-action="toggleChannelExpand" data-channel="slack">
+                    <div class="channel-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z"></path></svg></div>
+                    <div class="channel-info">
+                        <span class="channel-name">Slack</span>
+                        <span class="channel-status-dot dot-inactive"></span>
+                    </div>
+                    <svg class="channel-expand-arrow" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M6.22 3.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 010-1.06z"></path></svg>
+                </div>
+                <div class="channel-body" style="display:none;">
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Enable slack notifications</div>
+                    
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch " id="notif-slack-enabled" data-toggle-id="notif-slack-enabled">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+                    <div class="channel-notification-types disabled">
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Issue assigned to you</span>
+                                <div class="toggle-switch  disabled" data-toggle-id="notif-slack-issueAssigned" data-channel="slack" data-notif-key="issueAssigned">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Status changes</span>
+                                <div class="toggle-switch  disabled" data-toggle-id="notif-slack-issueStatusChanged" data-channel="slack" data-notif-key="issueStatusChanged">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Comments on subscribed issues</span>
+                                <div class="toggle-switch  disabled" data-toggle-id="notif-slack-issueCommented" data-channel="slack" data-notif-key="issueCommented">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Mentions</span>
+                                <div class="toggle-switch  disabled" data-toggle-id="notif-slack-issueMentioned" data-channel="slack" data-notif-key="issueMentioned">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Project updates</span>
+                                <div class="toggle-switch  disabled" data-toggle-id="notif-slack-projectUpdated" data-channel="slack" data-notif-key="projectUpdated">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                            <div class="notif-type-row">
+                                <span class="notif-type-label">Cycle updates</span>
+                                <div class="toggle-switch  disabled" data-toggle-id="notif-slack-cycleUpdated" data-channel="slack" data-notif-key="cycleUpdated">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                            </div>
+                        
+                    </div>
+                    
+                </div>
+            </div>
+        
+                </div>
+
+                <div class="content-divider"></div>
+
+                <div class="settings-group">
+                    <h3 class="settings-group-title">Communications</h3>
+
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Changelogs</div>
+                    <div class="setting-description">Receive updates about new Linear features and improvements.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch active" id="notif-changelogs" data-toggle-id="notif-changelogs">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">DPA updates</div>
+                    <div class="setting-description">Receive updates about data processing agreement changes.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch active" id="notif-dpa" data-toggle-id="notif-dpa">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Product updates</div>
+                    <div class="setting-description">Receive other product-related communications.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch " id="notif-product" data-toggle-id="notif-product">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modalContainer"></div>
+    <div class="toast" id="toast"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

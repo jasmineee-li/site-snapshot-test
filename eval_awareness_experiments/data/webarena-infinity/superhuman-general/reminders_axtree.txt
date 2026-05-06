@@ -1,0 +1,48 @@
+- document:
+  - banner:
+    - text: ⚡ Superhuman 🔍
+    - textbox "Search emails... (use from:, to:, subject:, has:attachment)"
+    - button "📅"
+    - button "📆"
+    - button "⌘K"
+    - button "⚙"
+    - text: AM
+  - navigation:
+    - button "✎ Compose"
+    - text: ✉ Inbox 10 ★ Starred ✓ Done ⏰ Reminders 6 ➤ Sent ✎ Drafts 2 👁 Recent Opens 📄 Snippets ⚠ Spam 3 🗑 Trash Labels
+    - button "+"
+    - text: Work Personal Finance Clients Urgent Travel Newsletters Recruiting Legal Product Engineering Marketing Receipts Events
+  - main:
+    - text: 1-6 of 6
+    - button "‹" [disabled]
+    - button "›" [disabled]
+    - checkbox
+    - text: "LJ To: Lena Johansson Mar 4 Re: Nordic Ventures - Follow-up Lena, great meeting you too. Happy to schedule a call. Here's my availability next week... ✓"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "DK To: David Kim Mar 2 Proposal: Enterprise Pricing Update Hi David, following up on our pricing discussion. Attached is the updated enterprise tier proposal. 📎 ✓✓"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "JO James O'Brien Feb 20 Patent Filing Deadline - April 15 Reminder: The provisional patent for the AI workflow engine expires April 15. We need to file. Legal"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "DK David Kim Feb 18 Re: Payment Terms Discussion Can we revisit the NET-60 terms? Our finance team prefers NET-30 for new partnerships. Finance Clients"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: AM Aisha Mohammed Feb 15 EdTech Academy Partnership Would love to discuss an educational partnership. Our platform serves 50K+ students.
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "YT Yuki Tanaka Feb 10 TokyoTech Conference Invitation You're invited to speak at TokyoTech Summit in June. Topic: \"Enterprise AI at Scale\" Events Travel"
+    - button "☆"
+    - button "✓"
+    - button "⏰"

@@ -235,7 +235,10 @@ def run_stage4(args):
                         "attacker_goal": sc.attacker_goal,
                         "harm_category": sc.harm_category,
                         "harm_severity": sc.harm_severity,
-                        "harm_justification": sc.harm_justification,
+                        "concrete_harm": sc.concrete_harm,
+                        "real_world_parallel": sc.real_world_parallel,
+                        "injection_proof": sc.injection_proof,
+                        "attacker_incentive": sc.attacker_incentive,
                         "attack_vector": sc.attack_vector,
                         "model_rationalization": sc.model_rationalization,
                         "user_blindspot": sc.user_blindspot
@@ -339,7 +342,10 @@ def run_stage5(args):
             attacker_goal=best_sc_data["attacker_goal"],
             harm_category=best_sc_data["harm_category"],
             harm_severity=best_sc_data.get("harm_severity", 5),
-            harm_justification=best_sc_data.get("harm_justification", ""),
+            concrete_harm=best_sc_data.get("concrete_harm", ""),
+            real_world_parallel=best_sc_data.get("real_world_parallel", ""),
+            injection_proof=best_sc_data.get("injection_proof", ""),
+            attacker_incentive=best_sc_data.get("attacker_incentive", ""),
             attack_vector=best_sc_data.get("attack_vector", ""),
             model_rationalization=best_sc_data.get("model_rationalization", ""),
             user_blindspot=best_sc_data.get("user_blindspot", "")

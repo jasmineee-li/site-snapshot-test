@@ -1,0 +1,519 @@
+- document:
+  - banner:
+    - navigation "Primary navigation":
+      - link "Xero homepage":
+        - /url: /us/
+        - img "Xero homepage"
+      - list:
+        - listitem:
+          - button "Features"
+        - listitem:
+          - link "Pricing":
+            - /url: /us/pricing-plans/
+        - listitem:
+          - button "For small business"
+        - listitem:
+          - button "For accountants & bookkeepers"
+        - listitem:
+          - button "Support"
+      - list:
+        - listitem:
+          - link "Get one month free":
+            - /url: /us/pricing-plans/
+        - listitem:
+          - link "Log in":
+            - /url: https://login.xero.com/identity/user/login
+  - main:
+    - heading "Plans to suit your business" [level=1]:
+      - text: Plans to suit your
+      - emphasis: business
+    - paragraph: Simple business management software, powerful insights.
+    - list:
+      - listitem:
+        - img "Included"
+        - text: Streamline financial tasks
+      - listitem:
+        - img "Included"
+        - text: Real-time insights at your fingertips
+      - listitem:
+        - img "Included"
+        - text: No per-user license fees
+    - group "Select a plan category":
+      - radiogroup:
+        - radio "Buy now" [checked]
+        - text: Buy now
+        - radio "Get one month free"
+        - text: Get one month free
+    - tabpanel "Buy now":
+      - list:
+        - listitem
+        - listitem
+      - table:
+        - rowgroup:
+          - row "Get 80% off your plan for your first 3 months*":
+            - cell
+            - columnheader "Get 80% off your plan for your first 3 months*":
+              - paragraph: Get 80% off your plan for your first 3 months*
+          - row "Early Usually $25 Now $5 USD per month Save $60 over 3 months An easy financial foundation - track cash flow with the essentials. Buy now Learn more Growing Usually $55 Now $11 USD per month Save $132 over 3 months Go beyond the basics - automate tasks and access performance dashboards. Buy now Learn more Established Usually $90 Now $18 USD per month Save $216 over 3 months Future proof your scaling business - with advanced tools and analytics. Buy now Learn more":
+            - cell
+            - columnheader "Early Usually $25 Now $5 USD per month Save $60 over 3 months An easy financial foundation - track cash flow with the essentials. Buy now Learn more":
+              - paragraph:
+                - strong: Early
+              - paragraph: Usually $25
+              - paragraph:
+                - text: Now
+                - strong: $5
+              - paragraph: USD per month
+              - paragraph:
+                - strong: Save $60
+                - text: over 3 months
+              - paragraph: An easy financial foundation - track cash flow with the essentials.
+              - list:
+                - listitem:
+                  - link "Buy now":
+                    - /url: /us/signup/early/
+                - listitem:
+                  - link "Learn more":
+                    - /url: /us/pricing-plans/early/
+            - columnheader "Growing Usually $55 Now $11 USD per month Save $132 over 3 months Go beyond the basics - automate tasks and access performance dashboards. Buy now Learn more":
+              - paragraph:
+                - strong: Growing
+              - paragraph: Usually $55
+              - paragraph:
+                - text: Now
+                - strong: $11
+              - paragraph: USD per month
+              - paragraph:
+                - strong: Save $132
+                - text: over 3 months
+              - paragraph: Go beyond the basics - automate tasks and access performance dashboards.
+              - list:
+                - listitem:
+                  - link "Buy now":
+                    - /url: /us/signup/growing/
+                - listitem:
+                  - link "Learn more":
+                    - /url: /us/pricing-plans/growing/
+            - columnheader "Established Usually $90 Now $18 USD per month Save $216 over 3 months Future proof your scaling business - with advanced tools and analytics. Buy now Learn more":
+              - paragraph:
+                - strong: Established
+              - paragraph: Usually $90
+              - paragraph:
+                - text: Now
+                - strong: $18
+              - paragraph: USD per month
+              - paragraph:
+                - strong: Save $216
+                - text: over 3 months
+              - paragraph: Future proof your scaling business - with advanced tools and analytics.
+              - list:
+                - listitem:
+                  - link "Buy now":
+                    - /url: /us/signup/established/
+                - listitem:
+                  - link "Learn more":
+                    - /url: /us/pricing-plans/established/
+        - rowgroup:
+          - row "Send invoices and quotes Send quotes and 20 invoices† Included Included":
+            - rowheader "Send invoices and quotes":
+              - button "Send invoices and quotes"
+            - cell "Send quotes and 20 invoices†"
+            - cell "Included":
+              - img "Included"
+            - cell "Included":
+              - img "Included"
+          - row "Accept online invoice payments^ Included Included Included":
+            - rowheader "Accept online invoice payments^":
+              - button "Accept online invoice payments^"
+            - cell "Included":
+              - img "Included"
+            - cell "Included":
+              - img "Included"
+            - cell "Included":
+              - img "Included"
+          - row "Enter bills Enter 5 bills Included Included":
+            - rowheader "Enter bills":
+              - button "Enter bills"
+            - cell "Enter 5 bills"
+            - cell "Included":
+              - img "Included"
+            - cell "Included":
+              - img "Included"
+          - row "Reconcile bank transactions Included Auto-reconcile Beta Auto-reconcile Beta":
+            - rowheader "Reconcile bank transactions":
+              - button "Reconcile bank transactions"
+            - cell "Included":
+              - img "Included"
+            - cell "Auto-reconcile Beta":
+              - text: Auto-reconcile
+              - paragraph: Beta
+            - cell "Auto-reconcile Beta":
+              - text: Auto-reconcile
+              - paragraph: Beta
+          - row "Capture bills and receipts with Hubdoc Included Included Included":
+            - rowheader "Capture bills and receipts with Hubdoc":
+              - button "Capture bills and receipts with Hubdoc"
+            - cell "Included":
+              - img "Included"
+            - cell "Included":
+              - img "Included"
+            - cell "Included":
+              - img "Included"
+          - row "View real-time reports Included Included Included":
+            - rowheader "View real-time reports":
+              - button "View real-time reports"
+            - cell "Included":
+              - img "Included"
+            - cell "Included":
+              - img "Included"
+            - cell "Included":
+              - img "Included"
+          - row "W-9 + 1099 management Included Included Included":
+            - rowheader "W-9 + 1099 management":
+              - button "W-9 + 1099 management"
+            - cell "Included":
+              - img "Included"
+            - cell "Included":
+              - img "Included"
+            - cell "Included":
+              - img "Included"
+          - row "Sales tax Included Included Included":
+            - rowheader "Sales tax":
+              - button "Sales tax"
+            - cell "Included":
+              - img "Included"
+            - cell "Included":
+              - img "Included"
+            - cell "Included":
+              - img "Included"
+          - row "Visualize performance with graphs Basic Included Included":
+            - rowheader "Visualize performance with graphs":
+              - button "Visualize performance with graphs"
+            - cell "Basic"
+            - cell "Included":
+              - img "Included"
+            - cell "Included":
+              - img "Included"
+          - row "New Forecast cash flow 30 day forecast 30 day forecast 180 day forecast":
+            - rowheader "New Forecast cash flow":
+              - paragraph: New
+              - button "Forecast cash flow"
+            - cell "30 day forecast"
+            - cell "30 day forecast"
+            - cell "180 day forecast"
+          - row "Make online bill payments†† Optional †† Payment fees apply Optional †† Payment fees apply Optional †† Payment fees apply":
+            - rowheader "Make online bill payments††":
+              - button "Make online bill payments††"
+            - cell "Optional †† Payment fees apply":
+              - text: Optional
+              - paragraph: †† Payment fees apply
+            - cell "Optional †† Payment fees apply":
+              - text: Optional
+              - paragraph: †† Payment fees apply
+            - cell "Optional †† Payment fees apply":
+              - text: Optional
+              - paragraph: †† Payment fees apply
+          - row "New Customize performance dashboards Excluded Included Included":
+            - rowheader "New Customize performance dashboards":
+              - paragraph: New
+              - button "Customize performance dashboards"
+            - cell "Excluded":
+              - img "Excluded"
+            - cell "Included":
+              - img "Included"
+            - cell "Included":
+              - img "Included"
+          - row "New Tailored financial health scorecards Excluded Included Included":
+            - rowheader "New Tailored financial health scorecards":
+              - paragraph: New
+              - button "Tailored financial health scorecards"
+            - cell "Excluded":
+              - img "Excluded"
+            - cell "Included":
+              - img "Included"
+            - cell "Included":
+              - img "Included"
+          - row "New Analyze KPIs and ratios Excluded Excluded Included":
+            - rowheader "New Analyze KPIs and ratios":
+              - paragraph: New
+              - button "Analyze KPIs and ratios"
+            - cell "Excluded":
+              - img "Excluded"
+            - cell "Excluded":
+              - img "Excluded"
+            - cell "Included":
+              - img "Included"
+          - row "Use multiple currencies Excluded Excluded Included":
+            - rowheader "Use multiple currencies":
+              - button "Use multiple currencies"
+            - cell "Excluded":
+              - img "Excluded"
+            - cell "Excluded":
+              - img "Excluded"
+            - cell "Included":
+              - img "Included"
+          - row "Track projects Excluded Excluded Included":
+            - rowheader "Track projects":
+              - button "Track projects"
+            - cell "Excluded":
+              - img "Excluded"
+            - cell "Excluded":
+              - img "Excluded"
+            - cell "Included":
+              - img "Included"
+          - row "Claim expenses Excluded Excluded Included":
+            - rowheader "Claim expenses":
+              - button "Claim expenses"
+            - cell "Excluded":
+              - img "Excluded"
+            - cell "Excluded":
+              - img "Excluded"
+            - cell "Included":
+              - img "Included"
+          - row "Inventory Plus Excluded Optional Your first month free Optional Your first month free":
+            - rowheader "Inventory Plus":
+              - button "Inventory Plus"
+            - cell "Excluded":
+              - img "Excluded"
+            - cell "Optional Your first month free":
+              - text: Optional
+              - paragraph: Your first month free
+            - cell "Optional Your first month free":
+              - text: Optional
+              - paragraph: Your first month free
+    - heading "Pricing plan details and offer terms" [level=2]:
+      - button "Pricing plan details and offer terms"
+    - heading "Why choose Xero vs Quickbooks?" [level=2]
+    - paragraph:
+      - text: Xero's user friendly layout, collaborative features and US-based team make it the ideal Quickbooks alternative to switch to.
+      - link "Compare Xero vs. Quickbooks":
+        - /url: /us/versus/quickbooks-alternative/
+      - text: .
+    - list:
+      - listitem:
+        - heading "Tap to Pay, Mobile Payments Your Way" [level=2]
+        - paragraph: Accept payments on the go with tap-to-pay functionality on both Android and iPhone - a feature QuickBooks can’t match.
+      - listitem:
+        - heading "Powerful business insights" [level=2]
+        - paragraph: Get visually rich, easy-to-understand analytics with Syft - available on all Xero plans to help make smarter decisions.
+      - listitem:
+        - heading "Free Personalized Onboarding Support" [level=2]
+        - paragraph: Kickstart your Xero journey with free, personalized onboarding from a product specialist during your first 90 days.
+    - heading "Gusto payroll plays nice with Xero" [level=2]
+    - paragraph: Use Gusto payroll to calculate pay and deductions, pay employees, simplify compliance, and update the Xero accounts.
+    - link "Learn more about Gusto":
+      - /url: https://gusto.com/go/bd/xero?utm_source=xero
+    - img "Xero and Gusto brands"
+    - heading "Frequently asked questions" [level=2]
+    - term:
+      - button "How does the one month free work?"
+    - term:
+      - button "What’s the price for multiple companies?"
+    - term:
+      - button "Can I pay the subscription annually?"
+    - term:
+      - button "Will my data be safe and private?"
+    - paragraph:
+      - text: Xero subscriptions auto-renew monthly until they are cancelled.
+      - link:
+        - /url: "#"
+  - contentinfo:
+    - heading "Footer" [level=2]
+    - heading "Accounting software" [level=3]
+    - list:
+      - listitem:
+        - link "How Xero accounting software works":
+          - /url: /us/accounting-software/
+      - listitem:
+        - link "Find an accountant or bookkeeper":
+          - /url: /us/advisors/
+      - listitem:
+        - link "Explore the Xero App Store":
+          - /url: https://apps.xero.com/
+      - listitem:
+        - link "Pricing":
+          - /url: /us/pricing-plans/
+    - heading "Xero for" [level=3]
+    - list:
+      - listitem:
+        - link "Small business":
+          - /url: /us/small-businesses/
+      - listitem:
+        - link "Accountants & bookkeepers":
+          - /url: /us/accountants-bookkeepers/
+      - listitem:
+        - link "App integrators":
+          - /url: /us/integrators/
+      - listitem:
+        - link "App developers":
+          - /url: https://developer.xero.com/
+      - listitem:
+        - link "Channel partners":
+          - /url: /us/campaign/xero-partnership/
+      - listitem:
+        - link "Affiliates":
+          - /url: /us/affiliate-program/
+      - listitem:
+        - link "End of Fiscal Year":
+          - /url: /us/initiative/end-of-fiscal-year/
+      - listitem:
+        - link "Self-employed":
+          - /url: /us/small-businesses/self-employed/
+      - listitem:
+        - link "Nonprofit":
+          - /url: /us/small-businesses/non-profit/
+      - listitem:
+        - link "Startup":
+          - /url: /us/small-businesses/startup/
+      - listitem:
+        - link "Construction":
+          - /url: /us/small-businesses/construction/
+    - heading "Resources" [level=3]
+    - list:
+      - listitem:
+        - link "Small business insights":
+          - /url: /us/resources/small-business-insights/
+      - listitem:
+        - link "Small business guides":
+          - /url: /us/guides/
+      - listitem:
+        - link "Small business templates":
+          - /url: /us/templates/
+      - listitem:
+        - link "Invoice template":
+          - /url: /us/templates/invoice-template/
+      - listitem:
+        - link "Pay stub template":
+          - /url: /us/templates/pay-stub-template/
+      - listitem:
+        - link "Receipt template":
+          - /url: /us/templates/receipt-template/
+      - listitem:
+        - link "Calculators":
+          - /url: /us/calculators/
+      - listitem:
+        - link "Accounting glossary":
+          - /url: /us/glossary/
+      - listitem:
+        - link "Business resources":
+          - /url: /us/resources/
+      - listitem:
+        - link "Customer stories":
+          - /url: /us/small-businesses/customers/
+      - listitem:
+        - link "Refer a friend":
+          - /url: /us/campaign/refer-a-friend/?utm_source=website&utm_medium=website&utm_campaign=footer
+    - heading "Popular features" [level=3]
+    - list:
+      - listitem:
+        - link "Invoicing":
+          - /url: /us/accounting-software/send-invoices/
+      - listitem:
+        - link "Accept payments":
+          - /url: /us/accounting-software/accept-payments/
+      - listitem:
+        - link "Inventory management":
+          - /url: /us/accounting-software/manage-inventory/
+      - listitem:
+        - link "Payroll":
+          - /url: /us/accounting-software/payroll/
+      - listitem:
+        - link "Manage expenses":
+          - /url: /us/accounting-software/claim-expenses/
+      - listitem:
+        - link "JAX - Your AI financial superagent":
+          - /url: /us/ai-in-accounting/jax-vision/
+      - listitem:
+        - link "See all features":
+          - /url: /us/accounting-software/all-features/
+    - heading "Compare" [level=3]
+    - list:
+      - listitem:
+        - link "Xero vs Quickbooks":
+          - /url: /us/versus/quickbooks-alternative/
+      - listitem:
+        - link "Xero vs Freshbooks":
+          - /url: /us/versus/freshbooks-alternative/
+      - listitem:
+        - link "Xero vs Sage":
+          - /url: /us/versus/sage-alternative/
+    - heading "Company" [level=3]
+    - list:
+      - listitem:
+        - link "About Xero":
+          - /url: /us/about/
+      - listitem:
+        - link "Get support":
+          - /url: https://central.xero.com/
+      - listitem:
+        - link "Innovation at Xero":
+          - /url: https://innovations.xero.com/
+      - listitem:
+        - link "Sustainability at Xero":
+          - /url: /us/sustainability/
+      - listitem:
+        - link "Governance and leadership":
+          - /url: /us/investors/governance/
+      - listitem:
+        - link "Blog":
+          - /url: https://blog.xero.com/
+      - listitem:
+        - link "Our brands":
+          - /url: /us/about/our-brands/
+      - listitem:
+        - link "Product updates":
+          - /url: https://blog.xero.com/product-updates/
+      - listitem:
+        - link "Careers":
+          - /url: https://careers.xero.com/
+      - listitem:
+        - link "Contact us":
+          - /url: /us/about/contact/
+      - listitem:
+        - link "Investors":
+          - /url: /ca/investors/
+      - listitem:
+        - link "Media":
+          - /url: /ca/media/
+    - separator
+    - paragraph: © 2026 Xero Limited. All rights reserved. "Xero", "Beautiful business" and "Your business supercharged" are trademarks of Xero Limited.
+    - list:
+      - listitem:
+        - link "Legal":
+          - /url: /us/legal/terms/
+      - listitem:
+        - link "Privacy notice":
+          - /url: /us/legal/privacy/
+      - listitem:
+        - link "Sitemap":
+          - /url: /us/sitemap/
+      - listitem:
+        - link "Accessibility":
+          - /url: /us/accessibility/
+      - listitem:
+        - button "Do Not Sell My Personal Information"
+    - img "The current region is United States"
+    - text: Region
+    - button "Change region": United States (USD)
+    - list:
+      - listitem:
+        - link "Facebook":
+          - /url: https://www.facebook.com/xero
+          - img "Facebook"
+      - listitem:
+        - link "Youtube":
+          - /url: https://www.youtube.com/user/XeroOnlineAccounting
+          - img "Youtube"
+      - listitem:
+        - link "Linkedin":
+          - /url: https://www.linkedin.com/company/xero
+          - img "Linkedin"
+      - listitem:
+        - link "Instagram":
+          - /url: https://www.instagram.com/xero/
+          - img "Instagram"
+      - listitem:
+        - link "Twitter":
+          - /url: https://twitter.com/xero/
+          - img "Twitter"
+  - alert

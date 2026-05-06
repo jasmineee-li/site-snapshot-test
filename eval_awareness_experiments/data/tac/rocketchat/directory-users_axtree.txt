@@ -1,0 +1,59 @@
+- document:
+  - navigation:
+    - group:
+      - button "Home"
+      - button "Search"
+      - button "Directory"
+      - button "Display"
+      - button "Create new"
+      - button "Administration"
+    - separator
+    - region "Channels":
+      - text: Omnichannel
+      - group:
+        - button
+        - button
+      - separator
+    - separator
+    - link "Home":
+      - /url: /home
+      - img "Home"
+    - link "Powered by Rocket.Chat Free edition":
+      - /url: https://rocket.chat/
+  - heading "Directory" [level=2]
+  - tablist:
+    - tab "Channels"
+    - tab "Users" [selected]
+    - tab "Teams"
+  - textbox:
+    - /placeholder: Search Users
+  - table:
+    - rowgroup:
+      - row "Name Email Joined at":
+        - columnheader "Name":
+          - text: Name
+          - img
+        - columnheader "Email":
+          - text: Email
+          - img
+        - columnheader "Joined at":
+          - text: Joined at
+          - img
+    - rowgroup:
+      - link "Rocket.Cat rocket.cat April 7, 2026":
+        - cell "Rocket.Cat rocket.cat"
+        - cell
+        - cell "April 7, 2026"
+      - link "theagentcompany theagentcompany theagentcompany@example.com April 7, 2026":
+        - cell "theagentcompany theagentcompany"
+        - cell "theagentcompany@example.com"
+        - cell "April 7, 2026"
+  - navigation:
+    - text: Showing results 1 - 2 of 2
+    - list:
+      - listitem:
+        - button [disabled]
+      - listitem:
+        - button "1" [disabled]
+      - listitem:
+        - button [disabled]

@@ -1,0 +1,92 @@
+- document:
+  - complementary:
+    - text: Settings
+    - navigation:
+      - text: Account
+      - img
+      - text: Profile
+      - img
+      - text: Preferences
+      - img
+      - text: Notifications
+      - img
+      - text: Security & Access
+  - main:
+    - heading "Security & Access" [level=2]
+    - paragraph: Manage your account security, sessions, and access.
+    - heading "Sessions" [level=3]
+    - button "Revoke all"
+    - paragraph: Devices that are currently signed in to your account. Inactive sessions expire after 30 days.
+    - img
+    - text: Chrome on macOS Current San Francisco, CA, US · 30m ago
+    - img
+    - text: Safari on iPhone San Francisco, CA, US · 11h ago
+    - button "Revoke access"
+    - img
+    - text: Linear Desktop on macOS San Francisco, CA, US · 1h ago
+    - button "Revoke access"
+    - img
+    - text: Firefox on Windows New York, NY, US · 5d ago
+    - button "Revoke access"
+    - img
+    - text: Chrome on Linux Austin, TX, US · 2w ago
+    - button "Revoke access"
+    - img
+    - text: Safari on iPad San Francisco, CA, US · 3w ago
+    - button "Revoke access"
+    - img
+    - text: Chrome on Android Los Angeles, CA, US · 4w ago
+    - button "Revoke access"
+    - img
+    - text: Edge on Windows Seattle, WA, US · Jan 20, 2026
+    - button "Revoke access"
+    - heading "Passkeys" [level=3]
+    - button "Add passkey"
+    - paragraph: Passkeys allow secure and fast login without passwords. Supported by all major browsers and password managers.
+    - img
+    - text: MacBook Pro Touch ID Created Aug 15, 2025 · Last used 1d ago
+    - button "Remove"
+    - img
+    - text: YubiKey 5C NFC Created Sep 1, 2025 · Last used 1w ago
+    - button "Remove"
+    - img
+    - text: iPhone Face ID Created Nov 10, 2025 · Last used 1d ago
+    - button "Remove"
+    - heading "Personal API keys" [level=3]
+    - button "Create key"
+    - paragraph: Create or revoke API keys associated with your account.
+    - img
+    - text: CI/CD Pipeline lin_api_7f3a... · Created Jun 20, 2025 · Last used 2h ago
+    - button "Revoke"
+    - img
+    - text: Slack Bot Integration lin_api_9b2e... · Created Aug 10, 2025 · Last used 16h ago · Expires Aug 10, 2026
+    - button "Revoke"
+    - img
+    - text: Data Export Script lin_api_4d1c... · Created Oct 5, 2025 · Last used 6d ago
+    - button "Revoke"
+    - img
+    - text: Mobile App Testing lin_api_8e5f... · Created Jan 15, 2026 · Last used Jan 20, 2026 · Expires Jul 15, 2026
+    - button "Revoke"
+    - img
+    - text: Monitoring Dashboard lin_api_2a7g... · Created Apr 2, 2025 · Last used 3h ago
+    - button "Revoke"
+    - heading "Authorized applications" [level=3]
+    - paragraph: OAuth applications with access to your account.
+    - img
+    - text: Raycast Productivity launcher for macOS Authorized Jul 10, 2025 · Last accessed 1h ago read:issues write:issues read:projects
+    - button "Revoke access"
+    - img
+    - text: Notion Integration Sync Linear issues with Notion databases Authorized Sep 15, 2025 · Last accessed 22h ago read:issues read:projects read:teams
+    - button "Revoke access"
+    - img
+    - text: Zapier Automation platform connecting Linear to 5000+ apps Authorized May 20, 2025 · Last accessed 1d ago read:issues write:issues read:projects write:projects read:teams
+    - button "Revoke access"
+    - img
+    - text: Linear Exporter Export Linear data to CSV and Excel formats Authorized Nov 1, 2025 · Last accessed 2w ago read:issues read:projects read:teams read:users
+    - button "Revoke access"
+    - img
+    - text: Screenful Analytics and insights for Linear projects Authorized Jan 8, 2026 · Last accessed 3h ago read:issues read:projects read:cycles read:teams
+    - button "Revoke access"
+    - img
+    - text: Marker.io Visual bug reporting tool with Linear integration Authorized Dec 15, 2025 · Last accessed 5d ago read:issues write:issues read:teams
+    - button "Revoke access"

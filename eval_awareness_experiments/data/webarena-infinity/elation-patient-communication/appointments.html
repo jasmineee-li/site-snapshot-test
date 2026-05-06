@@ -1,0 +1,58 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elation Patient Communication</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Top Bar -->
+    <header class="top-bar">
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle sidebar">☰</button>
+        <div class="app-logo">
+            <div class="logo-icon">E</div>
+            <span>Elation</span>
+        </div>
+        <div class="topbar-spacer"></div>
+        <div class="topbar-user">
+            <div id="userAvatar"><div class="avatar" style="width:32px;height:32px;background:#4A90D9;font-size:13px" title="Sarah Chen">SC</div></div>
+            <span class="topbar-user-name" id="userName">Dr. Chen</span>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div id="sidebarNav"><nav class="sidebar-nav"><div class="nav-item " data-route="home" data-testid="nav-home"><span class="nav-icon">🏠</span><span class="nav-text">Practice Home</span></div><div class="nav-item " data-route="inbox" data-testid="nav-inbox"><span class="nav-icon">📨</span><span class="nav-text">Patient Letters</span><span class="nav-badge">12</span></div><div class="nav-item " data-route="sent" data-testid="nav-sent"><span class="nav-icon">📤</span><span class="nav-text">Sent</span></div><div class="nav-item " data-route="drafts" data-testid="nav-drafts"><span class="nav-icon">📝</span><span class="nav-text">Drafts</span><span class="nav-badge">1</span></div><div class="nav-item " data-route="reminders" data-testid="nav-reminders"><span class="nav-icon">🔔</span><span class="nav-text">Reminders</span><span class="nav-badge">9</span></div><div class="nav-divider"></div><div class="nav-item " data-route="patients" data-testid="nav-patients"><span class="nav-icon">👥</span><span class="nav-text">Patients</span></div><div class="nav-item active" data-route="appointments" data-testid="nav-appointments"><span class="nav-icon">📅</span><span class="nav-text">Appointments</span></div><div class="nav-item " data-route="bulk-letters" data-testid="nav-bulk-letters"><span class="nav-icon">📧</span><span class="nav-text">Bulk Letters</span></div><div class="nav-divider"></div><div class="nav-item " data-route="settings" data-testid="nav-settings"><span class="nav-icon">⚙</span><span class="nav-text">Settings</span></div></nav></div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div id="contentWrapper"><div class="page-content" data-testid="appointments-page"><div class="page-header"><h1 class="page-title">Appointments</h1><button class="btn btn-primary" data-action="new-appointment" data-testid="new-appt-btn">New Appointment</button></div><h2 class="section-title">Upcoming</h2><div class="appointments-table-container"><table class="appointments-table" data-testid="upcoming-appts"><thead><tr><th>Date</th><th>Time</th><th>Patient</th><th>Provider</th><th>Type</th><th>Reason</th><th>Actions</th></tr></thead><tbody><tr data-testid="appt-row-appt_8"><td>05/15/2026</td><td>6:00 AM</td><td><a class="link" data-action="open-patient" data-patient="pat_17">Thomas Nakamura</a></td><td>Michael Torres</td><td class="in-person">🏥 In-person</td><td>Cardiac monitoring</td><td><button class="btn btn-sm btn-danger" data-action="cancel-appointment" data-appointment="appt_8">Cancel</button></td></tr></tbody></table></div><h2 class="section-title">Past Appointments</h2><div class="appointments-table-container"><table class="appointments-table"><thead><tr><th>Date</th><th>Time</th><th>Patient</th><th>Provider</th><th>Type</th><th>Reason</th><th>Status</th><th>Actions</th></tr></thead><tbody><tr class="past-appt"><td>03/20/2026</td><td>6:00 AM</td><td>Maria Gonzalez</td><td>Sarah Chen</td><td>🏥 In-person</td><td>Pre-diabetes follow-up</td><td><span class="status-scheduled">scheduled</span></td><td><button class="btn btn-sm btn-danger" data-action="cancel-appointment" data-appointment="appt_11">Cancel</button></td></tr><tr class="past-appt"><td>03/18/2026</td><td>6:00 AM</td><td>Dennis Volkov</td><td>Robert Kim</td><td>🏥 In-person</td><td>Blood pressure management</td><td><span class="status-scheduled">scheduled</span></td><td><button class="btn btn-sm btn-danger" data-action="cancel-appointment" data-appointment="appt_15">Cancel</button></td></tr><tr class="past-appt"><td>03/15/2026</td><td>10:00 AM</td><td>Howard Blackwell</td><td>Robert Kim</td><td>📹 Virtual</td><td>CHF management review</td><td><span class="status-scheduled">scheduled</span></td><td><button class="btn btn-sm btn-danger" data-action="cancel-appointment" data-appointment="appt_9">Cancel</button></td></tr><tr class="past-appt"><td>03/12/2026</td><td>5:30 AM</td><td>Patricia O'Brien</td><td>Sarah Chen</td><td>🏥 In-person</td><td>Kidney function labs review</td><td><span class="status-scheduled">scheduled</span></td><td><button class="btn btn-sm btn-danger" data-action="cancel-appointment" data-appointment="appt_7">Cancel</button></td></tr><tr class="past-appt"><td>03/10/2026</td><td>5:00 AM</td><td>Robert Washington</td><td>Michael Torres</td><td>🏥 In-person</td><td>Warfarin check / INR</td><td><span class="status-scheduled">scheduled</span></td><td><button class="btn btn-sm btn-danger" data-action="cancel-appointment" data-appointment="appt_3">Cancel</button></td></tr><tr class="past-appt"><td>03/08/2026</td><td>7:00 AM</td><td>Rachel Steinberg</td><td>Jessica Okafor</td><td>🏥 In-person</td><td>Medication review</td><td><span class="status-scheduled">scheduled</span></td><td><button class="btn btn-sm btn-danger" data-action="cancel-appointment" data-appointment="appt_10">Cancel</button></td></tr><tr class="past-appt"><td>03/07/2026</td><td>10:00 AM</td><td>Andrew McIntyre</td><td>Michael Torres</td><td>📹 Virtual</td><td>GI follow-up</td><td><span class="status-scheduled">scheduled</span></td><td><button class="btn btn-sm btn-danger" data-action="cancel-appointment" data-appointment="appt_6">Cancel</button></td></tr><tr class="past-appt"><td>03/06/2026</td><td>6:00 AM</td><td>Helen Matsumoto</td><td>Sarah Chen</td><td>🏥 In-person</td><td>Cognitive assessment follow-up</td><td><span class="status-scheduled">scheduled</span></td><td><button class="btn btn-sm btn-danger" data-action="cancel-appointment" data-appointment="appt_4">Cancel</button></td></tr><tr class="past-appt"><td>03/05/2026</td><td>10:00 AM</td><td>Susan Cho</td><td>Jessica Okafor</td><td>📹 Virtual</td><td>Urticaria flare evaluation</td><td><span class="status-scheduled">scheduled</span></td><td><button class="btn btn-sm btn-danger" data-action="cancel-appointment" data-appointment="appt_14">Cancel</button></td></tr><tr class="past-appt"><td>03/05/2026</td><td>5:00 AM</td><td>James Rodriguez</td><td>Sarah Chen</td><td>🏥 In-person</td><td>Diabetes follow-up</td><td><span class="status-scheduled">scheduled</span></td><td><button class="btn btn-sm btn-danger" data-action="cancel-appointment" data-appointment="appt_1">Cancel</button></td></tr><tr class="past-appt"><td>03/04/2026</td><td>9:00 AM</td><td>Sophia Nguyen</td><td>Sarah Chen</td><td>📹 Virtual</td><td>Thyroid check-up</td><td><span class="status-scheduled">scheduled</span></td><td><button class="btn btn-sm btn-danger" data-action="cancel-appointment" data-appointment="appt_2">Cancel</button></td></tr><tr class="past-appt"><td>03/04/2026</td><td>4:00 AM</td><td>Janet Okonkwo</td><td>Sarah Chen</td><td>📹 Virtual</td><td>Urgent: Blood sugar management</td><td><span class="status-scheduled">scheduled</span></td><td><button class="btn btn-sm btn-danger" data-action="cancel-appointment" data-appointment="appt_13">Cancel</button></td></tr><tr class="past-appt"><td>03/03/2026</td><td>9:00 AM</td><td>Martha Reeves-Whitfield</td><td>Sarah Chen</td><td>🏥 In-person</td><td>Annual wellness visit follow-up</td><td><span class="status-scheduled">scheduled</span></td><td><button class="btn btn-sm btn-danger" data-action="cancel-appointment" data-appointment="appt_12">Cancel</button></td></tr><tr class="past-appt"><td>03/03/2026</td><td>5:00 AM</td><td>Aisha Patel</td><td>Jessica Okafor</td><td>🏥 In-person</td><td>32-week prenatal checkup</td><td><span class="status-scheduled">scheduled</span></td><td><button class="btn btn-sm btn-danger" data-action="cancel-appointment" data-appointment="appt_5">Cancel</button></td></tr><tr class="past-appt"><td>02/20/2026</td><td>9:00 AM</td><td>Howard Blackwell</td><td>Robert Kim</td><td>🏥 In-person</td><td>Pacemaker interrogation</td><td><span class="status-completed">completed</span></td><td></td></tr></tbody></table></div></div></div>
+    </main>
+
+    <!-- Compose Overlay -->
+    <div class="compose-overlay" id="composeOverlay" style="display: none;"></div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalTitle"></h2>
+                <button class="close-btn" data-action="close-modal">×</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-footer" id="modalFooter"></div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

@@ -1,0 +1,1282 @@
+- document:
+  - banner:
+    - link " CL":
+      - /url: https://sfbay.craigslist.org/
+    - button "SF bay area"
+    - text: 
+    - button "all SF bay area"
+    - text: 
+    - button "community"
+    - text: 
+    - button "all"
+    - text: 
+    - link " post":
+      - /url: https://post.craigslist.org/c/sfo
+    - link " acct":
+      - /url: https://accounts.craigslist.org/login/home
+  - main:
+    - text: 
+    - textbox "search community"
+    - button ""
+    - button ""
+    - heading "community" [level=1]
+    - button ""
+    - list:
+      - list:
+        - listitem:
+          - link "musicians":
+            - /url: https://sfbay.craigslist.org/search/muc#search=2~list~0
+          - text: "624"
+          - checkbox [checked]
+        - listitem:
+          - link "pets":
+            - /url: https://sfbay.craigslist.org/search/pet#search=2~list~0
+          - text: "493"
+          - checkbox [checked]
+        - listitem:
+          - link "general community":
+            - /url: https://sfbay.craigslist.org/search/com#search=2~list~0
+          - text: "263"
+          - checkbox [checked]
+        - listitem:
+          - link "lost & found":
+            - /url: https://sfbay.craigslist.org/search/laf#search=2~list~0
+          - text: "209"
+          - checkbox [checked]
+        - listitem:
+          - link "childcare":
+            - /url: https://sfbay.craigslist.org/search/kid#search=2~list~0
+          - text: "183"
+          - checkbox [checked]
+      - button "+ show 9 more"
+    - button "check all"
+    - button "uncheck all"
+    - checkbox "search titles only"
+    - text: search titles only
+    - checkbox "has image"
+    - text: has image
+    - checkbox "posted today"
+    - text: posted today
+    - checkbox "hide duplicates"
+    - text: hide duplicates miles from location
+    - textbox "miles"
+    - textbox "from zip"
+    - text: 
+    - button "use map..."
+    - button " lost or found?"
+    - button "reset"
+    - button "apply"
+    - button ""
+    - button ""
+    - button ""
+    - button ""
+    - button "newest"
+    - text: 
+    - button "has image"
+    - button "posted today"
+    - text: 1 - 15 of 2,431
+    - button ""
+    - link "Lab mix female dog, very sweet and well behaved dog":
+      - /url: https://sfbay.craigslist.org/sby/pet/d/san-jose-lab-mix-female-dog-very-sweet/7925174588.html
+    - text: •san jose downtown•4m ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "HappySweet pups!":
+      - /url: https://sfbay.craigslist.org/sfc/pet/d/palo-alto-happysweet-pups/7926704940.html
+    - text: •747-2two9-3O59•6m ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Rainy day Friday for cozy indoor activity":
+      - /url: https://sfbay.craigslist.org/eby/mis/d/concord-rainy-day-friday-for-cozy/7926701144.html
+    - text: •concord / pleasant hill / martinez•7m ago•
+    - button "hide"
+    - button ""
+    - link "Valley Churches United Spring Sale 2026":
+      - /url: https://sfbay.craigslist.org/scz/vnn/d/ben-lomond-valley-churches-united/7926704602.html
+    - text: •scotts valley•8m ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Looking for a Dynamic Guitar Player! Smashing Pumpkins, Audioslave etc":
+      - /url: https://sfbay.craigslist.org/sby/muc/d/san-jose-looking-for-dynamic-guitar/7926704028.html
+    - text: •san jose north•11m ago•
+    - button "hide"
+    - button ""
+    - link "Looking for Coverband Singer STP/Audioslave/Radiohead/Nirvana and more":
+      - /url: https://sfbay.craigslist.org/sby/muc/d/san-jose-looking-for-coverband-singer/7926703441.html
+    - text: •san jose north•14m ago•
+    - button "hide"
+    - button ""
+    - link "Bulldog":
+      - /url: https://sfbay.craigslist.org/nby/pet/d/rohnert-park-bulldog/7926703386.html
+    - text: •rohnert pk / cotati•14m ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Retired male":
+      - /url: https://sfbay.craigslist.org/eby/com/d/alameda-retired-male/7926696779.html
+    - text: •alameda•17m ago•
+    - button "hide"
+    - button ""
+    - link "Busco amiga para platicar":
+      - /url: https://sfbay.craigslist.org/eby/com/d/san-ramon-busco-amiga-para-platicar/7926702411.html
+    - text: •San Ramon•18m ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "German Shepherd Husky mix":
+      - /url: https://sfbay.craigslist.org/scz/pet/d/scotts-valley-german-shepherd-husky-mix/7926701493.html
+    - text: •santa cruz•22m ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "need someone to pierce my septum":
+      - /url: https://sfbay.craigslist.org/sby/com/d/san-jose-need-someone-to-pierce-my/7925184533.html
+    - text: •san jose downtown•23m ago•
+    - button "hide"
+    - button ""
+    - link "open my iphone 13, and u can keep it":
+      - /url: https://sfbay.craigslist.org/sby/com/d/san-jose-open-my-iphone-13-and-can-keep/7921089019.html
+    - text: •san jose downtown•23m ago•
+    - button "hide"
+    - button ""
+    - link "Cat for adoption":
+      - /url: https://sfbay.craigslist.org/sfc/pet/d/san-francisco-cat-for-adoption/7926700940.html
+    - text: •ingleside / SFSU / CCSF•25m ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Frenchie/ Pug mix (Frug)":
+      - /url: https://sfbay.craigslist.org/eby/pet/d/pittsburg-frenchie-pug-mix-frug/7925029833.html
+    - text: •Pittsburg•30m ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Swing and jazz band available for your event":
+      - /url: https://sfbay.craigslist.org/nby/muc/d/san-rafael-swing-and-jazz-band/7924750780.html
+    - text: •Northern California•35m ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "I'll play sax and/or clarinet with your band or for your recording":
+      - /url: https://sfbay.craigslist.org/nby/muc/d/san-rafael-ill-play-sax-and-or-clarinet/7924750707.html
+    - text: •San Rafael•35m ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Jazz Band":
+      - /url: https://sfbay.craigslist.org/nby/muc/d/san-rafael-jazz-band/7926698271.html
+    - text: •north bay / marin•36m ago•
+    - button "hide"
+    - button ""
+    - link "Funk/Soul/R&B Bass Player Looking For a Band in Need":
+      - /url: https://sfbay.craigslist.org/sby/muc/d/morgan-hill-funk-soul-rb-bass-player/7922427877.html
+    - text: •morgan hill•50m ago•
+    - button "hide"
+    - button ""
+    - link "Ragdoll Kitten need a home":
+      - /url: https://sfbay.craigslist.org/sfc/pet/d/sunnyvale-ragdoll-kitten-need-home/7926692478.html
+    - text: •515 809-eight986•54m ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Yorkie Puppies":
+      - /url: https://sfbay.craigslist.org/sby/pet/d/san-jose-yorkie-puppies/7926685719.html
+    - text: •campbell•56m ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "found some time":
+      - /url: https://sfbay.craigslist.org/nby/laf/d/santa-rosa-found-some-time/7926685035.html
+    - text: •sebastopol•57m ago•
+    - button "hide"
+    - button ""
+    - link "I Know Blues Guitar Inside and Out":
+      - /url: https://sfbay.craigslist.org/sfc/muc/d/san-francisco-know-blues-guitar-inside/7926691129.html
+    - text: •cole valley / ashbury hts•60m ago•
+    - button "hide"
+    - button ""
+    - link "Snakes for sale":
+      - /url: https://sfbay.craigslist.org/sby/com/d/san-jose-snakes-for-sale/7926690799.html
+    - text: •San Jose•1h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "MalePuppY Need":
+      - /url: https://sfbay.craigslist.org/sfc/pet/d/san-francisco-malepuppy-need/7926690089.html
+    - text: •747-2two9-3O59•1h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "LESSONS - Quality Time at the Piano":
+      - /url: https://sfbay.craigslist.org/eby/muc/d/berkeley-lessons-quality-time-at-the/7923895325.html
+    - text: •berkeley•1h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "White Silkie Rooster":
+      - /url: https://sfbay.craigslist.org/nby/pet/d/fairfield-white-silkie-rooster/7924109699.html
+    - text: •Fairfield•1h ago•
+    - button "hide"
+    - button ""
+    - link "Gallito Chaparrito":
+      - /url: https://sfbay.craigslist.org/nby/pet/d/fairfield-gallito-chaparrito/7922461179.html
+    - text: •Fairfield•1h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "PRACTICE SPACE for drummers, guitarists,etc, AVAILABLE Now":
+      - /url: https://sfbay.craigslist.org/sby/muc/d/practice-space-for-drummers/7924303761.html
+    - text: •SAN JOSE 101/4TH ST•1h ago•
+    - button "hide"
+    - button ""
+    - link "Amigo looking for my lost friend":
+      - /url: https://sfbay.craigslist.org/eby/mis/d/san-ramon-amigo-looking-for-my-lost/7926686165.html
+    - text: •danville / san ramon•1h ago•
+    - button "hide"
+    - button ""
+    - link "LOOKING FOR TAGALOG SPEAKING NANNY":
+      - /url: https://sfbay.craigslist.org/sby/kid/d/san-jose-looking-for-tagalog-speaking/7926677319.html
+    - text: •San Jose•1h ago•
+    - button "hide"
+    - button ""
+    - link "Kittens":
+      - /url: https://sfbay.craigslist.org/pen/pet/d/fremont-kittens/7926683895.html
+    - text: •Fremont•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Imagine and Play Child Care Spanish everyday":
+      - /url: https://sfbay.craigslist.org/nby/kid/d/mill-valley-imagine-and-play-child-care/7921068937.html
+    - text: •mill valley•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Drum Lessons, First Lesson Free!":
+      - /url: https://sfbay.craigslist.org/nby/muc/d/penngrove-drum-lessons-first-lesson-free/7924047030.html
+    - text: •rohnert pk / cotati•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Rhythm guitar needed for surf cover band":
+      - /url: https://sfbay.craigslist.org/pen/muc/d/pacifica-rhythm-guitar-needed-for-surf/7926679644.html
+    - text: •pacifica•2h ago•
+    - button "hide"
+    - button ""
+    - link "Ride needed to Santa Cruz from San Jose":
+      - /url: https://sfbay.craigslist.org/sby/rid/d/ride-needed-to-santa-cruz-from-san-jose/7926678949.html
+    - text: •san jose downtown•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "2 boy cats looking for a good home":
+      - /url: https://sfbay.craigslist.org/pen/pet/d/san-carlos-boy-cats-looking-for-good/7925026835.html
+    - text: •san carlos•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "White w/ Blue Eyes Crazy Cute Puppies - purebred":
+      - /url: https://sfbay.craigslist.org/sfc/pet/d/san-francisco-white-blue-eyes-crazy/7922246156.html
+    - text: •USF / panhandle•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "⛪Amateur Organist Wanted at Historic Traditional Catholic Oratory":
+      - /url: https://sfbay.craigslist.org/sfc/muc/d/san-francisco-amateur-organist-wanted/7923725389.html
+    - text: •north beach / telegraph hill•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "⛪Amateurs Wanted to Sing Gregorian Chant":
+      - /url: https://sfbay.craigslist.org/sfc/muc/d/san-francisco-amateurs-wanted-to-sing/7923725493.html
+    - text: •north beach / telegraph hill•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Free dogs to good home":
+      - /url: https://sfbay.craigslist.org/eby/pet/d/oakland-free-dogs-to-good-home/7926675873.html
+    - text: •Oakland•2h ago•
+    - button "hide"
+    - button ""
+    - link "Starbucks":
+      - /url: https://sfbay.craigslist.org/eby/mis/d/san-ramon-starbucks/7926663399.html
+    - text: •danville / san ramon•2h ago•
+    - button "hide"
+    - button ""
+    - link "Guitarist Wanted – Working Pop Cover Band":
+      - /url: https://sfbay.craigslist.org/sby/muc/d/san-jose-guitarist-wanted-working-pop/7926674343.html
+    - text: •san jose south•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "male yorkie":
+      - /url: https://sfbay.craigslist.org/eby/pet/d/crows-landing-male-yorkie/7925291586.html
+    - text: •dublin / pleasanton / livermore•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Guitarist Wanted – Working Pop Cover Band":
+      - /url: https://sfbay.craigslist.org/eby/muc/d/berkeley-guitarist-wanted-working-pop/7926673277.html
+    - text: •berkeley•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Free pallets to pick up or burn(LOTS TO GRAB)":
+      - /url: https://sfbay.craigslist.org/nby/com/d/petaluma-free-pallets-to-pick-up-or/7926672696.html
+    - text: •petaluma•2h ago•
+    - button "hide"
+    - button ""
+    - link "Pro Drummer Available For Touring and Sessions":
+      - /url: https://sfbay.craigslist.org/sfc/muc/d/san-francisco-pro-drummer-available-for/7924663030.html
+    - text: •city of san francisco•2h ago•
+    - button "hide"
+    - button ""
+    - link "American Bully Pup ABKC reg. Blue tri":
+      - /url: https://sfbay.craigslist.org/eby/pet/d/hayward-american-bully-pup-abkc-reg/7926670210.html
+    - text: •Hayward•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Looking for private daycare part-time ongoing":
+      - /url: https://sfbay.craigslist.org/eby/kid/d/fremont-looking-for-private-daycare/7923272030.html
+    - text: •hayward / castro valley•2h ago•
+    - button "hide"
+    - button ""
+    - link "Drum / Percussion Lessons":
+      - /url: https://sfbay.craigslist.org/sby/muc/d/san-jose-drum-percussion-lessons/7922558593.html
+    - text: •south bay area•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "DRUM RECORDING / TRACK MIXING":
+      - /url: https://sfbay.craigslist.org/sby/muc/d/san-jose-drum-recording-track-mixing/7926669244.html
+    - text: •san jose west•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - 'link "re: They think you''re stupid"':
+      - /url: https://sfbay.craigslist.org/sfc/pol/d/san-francisco-re-they-think-youre-stupid/7926660104.html
+    - text: •city of san francisco•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Lost iPhone 14":
+      - /url: https://sfbay.craigslist.org/scz/laf/d/santa-clara-lost-iphone-14/7921296547.html
+    - text: •santa cruz•2h ago•
+    - button "hide"
+    - button ""
+    - link "rosella, birds, parot":
+      - /url: https://sfbay.craigslist.org/sby/pet/d/san-jose-rosella-birds-parot/7923541026.html
+    - text: •san jose downtown•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Lovely female kitten - spayed and vaccinated":
+      - /url: https://sfbay.craigslist.org/sfc/pet/d/san-francisco-lovely-female-kitten/7923582601.html
+    - text: •richmond / seacliff•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "rosella, birds, parot":
+      - /url: https://sfbay.craigslist.org/sby/pet/d/san-jose-rosella-birds-parot/7925398423.html
+    - text: •san jose downtown•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Red slider turtle free to good home":
+      - /url: https://sfbay.craigslist.org/sby/pet/d/morgan-hill-red-slider-turtle-free-to/7926666648.html
+    - text: •Morgan Hill•2h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Now Enrolling - Village Little Preschool":
+      - /url: https://sfbay.craigslist.org/sby/kid/d/cupertino-now-enrolling-village-little/7926665899.html
+    - text: •cupertino•3h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Now Enrolling - Village Little Preschool":
+      - /url: https://sfbay.craigslist.org/sby/kid/d/cupertino-now-enrolling-village-little/7926665564.html
+    - text: •cupertino•3h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Art and Gardening partner desired":
+      - /url: https://sfbay.craigslist.org/scz/act/d/aptos-art-and-gardening-partner-desired/7922823089.html
+    - text: •aptos•3h ago•
+    - button "hide"
+    - button ""
+    - link "Struggling with deep sleep? Test our sleep wristband (beta phase)!":
+      - /url: https://sfbay.craigslist.org/scz/com/d/capitola-struggling-with-deep-sleep/7926664318.html
+    - text: •capitola•3h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Puppies Pomeranian!":
+      - /url: https://sfbay.craigslist.org/sfc/pet/d/san-francisco-puppies-pomeranian/7926663531.html
+    - text: •Sunnyvale/Fairfield /Vacaville•3h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Martial Arts women":
+      - /url: https://sfbay.craigslist.org/sby/act/d/san-jose-martial-arts-women/7926657434.html
+    - text: •san jose south•3h ago•
+    - button "hide"
+    - button ""
+    - link "rehoming Leopard Gecko with everything included!!":
+      - /url: https://sfbay.craigslist.org/scz/pet/d/santa-cruz-rehoming-leopard-gecko-with/7926661488.html
+    - text: •santa cruz•3h ago•
+    - button "hide"
+    - button ""
+    - link "sheepadoodle":
+      - /url: https://sfbay.craigslist.org/sby/pet/d/san-jose-sheepadoodle/7926661456.html
+    - text: •san jose west•3h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Small pup":
+      - /url: https://sfbay.craigslist.org/nby/pet/d/deer-park-small-pup/7926652415.html
+    - text: •napa county•3h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Part time nanny available":
+      - /url: https://sfbay.craigslist.org/eby/kid/d/fremont-part-time-nanny-available/7926658456.html
+    - text: •fremont / union city / newark•3h ago•
+    - button "hide"
+    - button ""
+    - link "My door was open and you caught me":
+      - /url: https://sfbay.craigslist.org/eby/mis/d/oakland-my-door-was-open-and-you-caught/7926658230.html
+    - text: •oakland piedmont / montclair•3h ago•
+    - button "hide"
+    - button ""
+    - link "Point Reyes Open Studios over Memorial Day Weekend":
+      - /url: https://sfbay.craigslist.org/nby/ats/d/olema-point-reyes-open-studios-over/7926658086.html
+    - text: •west marin•3h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Shih tzu puppies":
+      - /url: https://sfbay.craigslist.org/eby/pet/d/pittsburg-shih-tzu-puppies/7926657226.html
+    - text: •pittsburg / antioch•3h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Horse-loving philanthropist opportunities":
+      - /url: https://sfbay.craigslist.org/sfc/com/d/sacramento-horse-loving-philanthropist/7922302998.html
+    - text: •Nor Cal•3h ago•
+    - button "hide"
+    - button ""
+    - link "ESTATE SALE":
+      - /url: https://sfbay.craigslist.org/sby/vnn/d/san-jose-estate-sale/7926654947.html
+    - text: •SARATOGA•3h ago•
+    - button "hide"
+    - button ""
+    - link "American bully/staffordshire needs new home asap":
+      - /url: https://sfbay.craigslist.org/sby/pet/d/san-jose-american-bully-staffordshire/7926645262.html
+    - text: •San Jose•3h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Gigging Grateful Dead Cover Band Looking for Experienced Drummer":
+      - /url: https://sfbay.craigslist.org/sfc/muc/d/san-francisco-gigging-grateful-dead/7925273792.html
+    - text: •alamo square / nopa•3h ago•
+    - button "hide"
+    - button ""
+    - link "FULL BAND LOOKING FOR BACKUP SINGER":
+      - /url: https://sfbay.craigslist.org/pen/muc/d/san-mateo-full-band-looking-for-backup/7926642806.html
+    - text: •foster city•3h ago•
+    - button "hide"
+    - button ""
+    - link "Metalcore Band Looking for Guitarist/Bassist":
+      - /url: https://sfbay.craigslist.org/nby/muc/d/santa-rosa-metalcore-band-looking-for/7922495567.html
+    - text: •santa rosa•3h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Toy Yorkie Puppies":
+      - /url: https://sfbay.craigslist.org/eby/pet/d/union-city-toy-yorkie-puppies/7926646463.html
+    - text: •fremont / union city / newark•4h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - 'link "re: They think you''re stupid (fairfax) (fairfax) (fairfax)"':
+      - /url: https://sfbay.craigslist.org/sby/pol/d/morgan-hill-re-they-think-youre-stupid/7926634884.html
+    - text: •south bay area•4h ago•
+    - button "hide"
+    - button ""
+    - link "Found - rings":
+      - /url: https://sfbay.craigslist.org/sfc/laf/d/san-francisco-found-rings/7920648110.html
+    - text: •San Francisco•4h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Doodle Puppy for Rehoming":
+      - /url: https://sfbay.craigslist.org/pen/pet/d/redwood-city-doodle-puppy-for-rehoming/7926636050.html
+    - text: •Redwood City•4h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Amplifier and guitar repair":
+      - /url: https://sfbay.craigslist.org/nby/muc/d/novato-amplifier-and-guitar-repair/7921806147.html
+    - text: •Novato•4h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Garage":
+      - /url: https://sfbay.craigslist.org/eby/com/d/alameda-garage/7925726145.html
+    - text: •alameda•4h ago•
+    - button "hide"
+    - button ""
+    - link "Enhance and Project your Voice - Singing Lessons":
+      - /url: https://sfbay.craigslist.org/eby/muc/d/berkeley-enhance-and-project-your-voice/7921817502.html
+    - text: •berkeley•4h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Western hognose":
+      - /url: https://sfbay.craigslist.org/eby/pet/d/san-leandro-western-hognose/7924157721.html
+    - text: •San Leandro•4h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "sax player tenor/alto/flute available for gigs":
+      - /url: https://sfbay.craigslist.org/nby/muc/d/san-rafael-sax-player-tenor-alto-flute/7925028191.html
+    - text: •san rafael•4h ago•
+    - button "hide"
+    - button ""
+    - link "Drum Set Lessons for the advanced and beginner":
+      - /url: https://sfbay.craigslist.org/nby/muc/d/petaluma-drum-set-lessons-for-the/7926633230.html
+    - text: •petaluma•4h ago•
+    - button "hide"
+    - button ""
+    - link "ENGLISH BULL":
+      - /url: https://sfbay.craigslist.org/sfc/pet/d/san-francisco-english-bull/7926632985.html
+    - text: •city of san francisco•4h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Santa Clara Little Learners has openings":
+      - /url: https://sfbay.craigslist.org/sby/kid/d/santa-clara-santa-clara-little-learners/7926619273.html
+    - text: •santa clara•5h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Female friend for lunch and conversation !!":
+      - /url: https://sfbay.craigslist.org/eby/com/d/discovery-bay-female-friend-for-lunch/7926618215.html
+    - text: •brentwood / oakley•5h ago•
+    - button "hide"
+    - button ""
+    - link "Found kryptonite lock":
+      - /url: https://sfbay.craigslist.org/scz/laf/d/santa-cruz-found-kryptonite-lock/7926627495.html
+    - text: •santa cruz•5h ago•
+    - button "hide"
+    - button ""
+    - link "Are you looking for a Bass Player?":
+      - /url: https://sfbay.craigslist.org/eby/muc/d/concord-are-you-looking-for-bass-player/7920525614.html
+    - text: •east bay area•5h ago•
+    - button "hide"
+    - button ""
+    - link "Afternoons":
+      - /url: https://sfbay.craigslist.org/pen/act/d/san-mateo-afternoons/7925147427.html
+    - text: •san mateo•5h ago•
+    - button "hide"
+    - button ""
+    - link "looking for friends to hang out with,":
+      - /url: https://sfbay.craigslist.org/pen/act/d/san-mateo-looking-for-friends-to-hang/7922205251.html
+    - text: •san mateo•5h ago•
+    - button "hide"
+    - button ""
+    - link "Volunteers needed Rabbit & Guinea Pig rescue":
+      - /url: https://sfbay.craigslist.org/eby/vol/d/oakland-volunteers-needed-rabbit-guinea/7925797879.html
+    - text: •Oakland•5h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "$325 Mo. Micro Recording/Rehearsal Studio available May 1st":
+      - /url: https://sfbay.craigslist.org/eby/muc/d/oakland-325-mo-micro-recording/7925072231.html
+    - text: •Oakland•5h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Happy Kidz Montessori Family Daycare (WWW.HAPPYKIDZDAYCARE.COM)":
+      - /url: https://sfbay.craigslist.org/eby/kid/d/newark-happy-kidz-montessori-family/7922194782.html
+    - text: •fremont / union city / newark•5h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Happy Kidz Montessori Family Daycare (WWW.HAPPYKIDZDAYCARE.COM)":
+      - /url: https://sfbay.craigslist.org/eby/kid/d/newark-happy-kidz-montessori-family/7921973770.html
+    - text: •fremont / union city / newark•5h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Russian Male Hamster . Rehoming":
+      - /url: https://sfbay.craigslist.org/eby/pet/d/san-pablo-russian-male-hamster-rehoming/7926616522.html
+    - text: •San Pablo•5h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Go Nick !!!":
+      - /url: https://sfbay.craigslist.org/sfc/pol/d/san-francisco-go-nick/7926611912.html
+    - text: •This gets DEEP•6h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Session Guitarist Recording on Your Track!":
+      - /url: https://sfbay.craigslist.org/sfc/muc/d/daly-city-session-guitarist-recording/7926605014.html
+    - text: •city of san francisco•6h ago•
+    - button "hide"
+    - button ""
+    - link "Sorry Gavin, we don't believe you":
+      - /url: https://sfbay.craigslist.org/sfc/pol/d/san-francisco-sorry-gavin-we-dont/7926608677.html
+    - text: •city of san francisco•6h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Tasteful Drummer or Percussionist Needed":
+      - /url: https://sfbay.craigslist.org/nby/muc/d/santa-rosa-tasteful-drummer-or/7923488009.html
+    - text: •santa rosa•6h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "art":
+      - /url: https://sfbay.craigslist.org/nby/com/d/napa-art/7926598981.html
+    - text: •napa county•6h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Christian Worship Band Ministry - Fishers of Men (and Women)":
+      - /url: https://sfbay.craigslist.org/eby/muc/d/walnut-creek-christian-worship-band/7923472308.html
+    - text: •walnut creek•6h ago•
+    - button "hide"
+    - button ""
+    - link "Big Band Jazz Musicians Wanted for New Band":
+      - /url: https://sfbay.craigslist.org/eby/muc/d/walnut-creek-big-band-jazz-musicians/7923476885.html
+    - text: •walnut creek•6h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "FUNK ROCK JAZZ BLUES":
+      - /url: https://sfbay.craigslist.org/eby/muc/d/martinez-funk-rock-jazz-blues/7922178206.html
+    - text: •Martinez•6h ago•
+    - button "hide"
+    - button ""
+    - link "Cause and Effect":
+      - /url: https://sfbay.craigslist.org/sfc/pol/d/san-francisco-cause-and-effect/7926605206.html
+    - text: •city of san francisco•6h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Renditional copies and bite don't take it plz":
+      - /url: https://sfbay.craigslist.org/nby/pol/d/healdsburg-renditional-copies-and-bite/7926599749.html
+    - text: •Healdsburg•6h ago•
+    - button "hide"
+    - button ""
+    - link "The Bill Petitti Quartet":
+      - /url: https://sfbay.craigslist.org/nby/muc/d/fairfax-the-bill-petitti-quartet/7924585414.html
+    - text: •fairfax•6h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "pet portraits":
+      - /url: https://sfbay.craigslist.org/sfc/ats/d/san-francisco-pet-portraits/7922806788.html
+    - text: •sunset / parkside•6h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Kathy Mata Ballet seeking Volunteer Dancer":
+      - /url: https://sfbay.craigslist.org/sfc/ats/d/san-francisco-kathy-mata-ballet-seeking/7924457908.html
+    - text: •San Francisco•6h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Guitar Player Wanted for Old Time Fiddle Tunes":
+      - /url: https://sfbay.craigslist.org/sfc/muc/d/san-francisco-guitar-player-wanted-for/7926600320.html
+    - text: •San Francisco /oakland•6h ago•
+    - button "hide"
+    - button ""
+    - link "Looking for vocalist/strings player. Southern Rock/Country":
+      - /url: https://sfbay.craigslist.org/nby/muc/d/novato-looking-for-vocalist-strings/7922391622.html
+    - text: •san rafael•7h ago•
+    - button "hide"
+    - button ""
+    - link "lost cat at Roberts Lake Park near golf course":
+      - /url: https://sfbay.craigslist.org/nby/laf/d/rohnert-park-lost-cat-at-roberts-lake/7924486638.html
+    - text: •rohnert pk / cotati•7h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Daydreamchildcare.com":
+      - /url: https://sfbay.craigslist.org/sby/kid/d/san-jose-daydreamchildcarecom/7920490011.html
+    - text: •santa clara•7h ago•
+    - button "hide"
+    - button ""
+    - link "Affordable Childcare Center (CCAP Accepted)":
+      - /url: https://sfbay.craigslist.org/sby/kid/d/san-jose-affordable-childcare-center/7920489970.html
+    - text: •santa clara•7h ago•
+    - button "hide"
+    - button ""
+    - link "Affordable Childcare Center (CCAP Accepted)":
+      - /url: https://sfbay.craigslist.org/sby/kid/d/san-jose-affordable-childcare-center/7920489995.html
+    - text: •santa clara•7h ago•
+    - button "hide"
+    - button ""
+    - link "Bay to Breakers - walking??":
+      - /url: https://sfbay.craigslist.org/sfc/act/d/san-francisco-bay-to-breakers-walking/7926587834.html
+    - text: •city of san francisco•7h ago•
+    - button "hide"
+    - button ""
+    - link "Ride Share Wanted From Santa Cruz C.A. To Roseville C.A. And Back.":
+      - /url: https://sfbay.craigslist.org/scz/rid/d/ride-share-wanted-from-santa-cruz-ca-to/7926585192.html
+    - text: •Santa Cruz C.A.•8h ago•
+    - button "hide"
+    - button ""
+    - link "can you sing and write lyrics?":
+      - /url: https://sfbay.craigslist.org/eby/muc/d/livermore-can-you-sing-and-write-lyrics/7924724219.html
+    - text: •dublin / pleasanton / livermore•8h ago•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Feeling creative? Feeling helpful?":
+      - /url: https://sfbay.craigslist.org/pen/vol/d/pacifica-feeling-creative-feeling/7926585339.html
+    - text: •pacifica•8h ago•
+    - button "hide"
+    - button ""
+    - link "Computer Tutor wanted":
+      - /url: https://sfbay.craigslist.org/scz/com/d/santa-cruz-computer-tutor-wanted/7926584100.html
+    - text: •santa cruz•8h ago•
+    - button "hide"
+    - button ""
+    - link "Guitar, Ukulele, Bass Guitar Lessons":
+      - /url: https://sfbay.craigslist.org/sfc/muc/d/cincinnati-guitar-ukulele-bass-guitar/7920483287.html
+    - text: •Remote•8h ago•
+    - button "hide"
+    - button ""
+    - link "Looking for senior friend":
+      - /url: https://sfbay.craigslist.org/pen/act/d/south-san-francisco-looking-for-senior/7926582726.html
+    - text: •south san francisco•8h ago•
+    - button "hide"
+    - button ""
+    - link "jazz piano lessons":
+      - /url: https://sfbay.craigslist.org/eby/muc/d/berkeley-jazz-piano-lessons/7924641226.html
+    - text: •berkeley•4/9•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - 'link "NEEDED: VOLUNTEER DIRECTOR/GUITAR INSTRUCTOR FOR YOUTH GUITAR CLASSES"':
+      - /url: https://sfbay.craigslist.org/nby/vol/d/petaluma-needed-volunteer-director/7926578767.html
+    - text: •sonoma•4/9•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - 'link "NEEDED: VOLUNTEER DIRECTOR/GUITAR INSTRUCTOR FOR YOUTH GUITAR CLASSES"':
+      - /url: https://sfbay.craigslist.org/nby/muc/d/petaluma-needed-volunteer-director/7926578525.html
+    - text: •sonoma•4/9•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - 'link "re: Oh my goodness ...."':
+      - /url: https://sfbay.craigslist.org/nby/pol/d/fairfax-re-oh-my-goodness/7926576632.html
+    - text: •fairfax•4/9•
+    - button "hide"
+    - button ""
+    - 'link "re: They think you''re stupid (fairfax) (fairfax)"':
+      - /url: https://sfbay.craigslist.org/nby/pol/d/fairfax-re-they-think-youre-stupid/7926575548.html
+    - text: •fairfax•4/9•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "any software savvy musicians there .. rehearsal availability wrangling":
+      - /url: https://sfbay.craigslist.org/eby/muc/d/dublin-any-software-savvy-musicians/7923825713.html
+    - text: •East Bay•4/9•
+    - button "hide"
+    - button ""
+    - link "Fancy mice":
+      - /url: https://sfbay.craigslist.org/sby/pet/d/san-jose-fancy-mice/7922907557.html
+    - text: •san jose east•4/9•
+    - button "hide"
+    - button ""
+    - link "Tame male argentine tegu for trade":
+      - /url: https://sfbay.craigslist.org/nby/pet/d/santa-rosa-tame-male-argentine-tegu-for/7925504490.html
+    - text: •Santa Rosa•4/9•
+    - button "hide"
+    - button ""
+    - link "Hey! You on the bike! Wait up!":
+      - /url: https://sfbay.craigslist.org/sfc/mis/d/san-francisco-hey-you-on-the-bike-wait/7926565042.html
+    - text: •lower nob hill•4/9•
+    - button "hide"
+    - button ""
+    - link "Meyer Sound 900-LFC 1 Speaker Covers":
+      - /url: https://sfbay.craigslist.org/sfc/laf/d/san-francisco-meyer-sound-900-lfc/7926563992.html
+    - text: •San Francisco•4/9•
+    - button "hide"
+    - button ""
+    - link "Drummer wanted for cover band":
+      - /url: https://sfbay.craigslist.org/sfc/muc/d/san-francisco-drummer-wanted-for-cover/7923343434.html
+    - text: •downtown / civic / van ness•4/9•
+    - button "hide"
+    - button ""
+    - link "BABYSITTER/CHILDCARE":
+      - /url: https://sfbay.craigslist.org/sby/kid/d/saratoga-babysitter-childcare/7925733347.html
+    - text: •saratoga•4/9•
+    - button "hide"
+    - button ""
+    - link "New Roommates Wanted for Studio Share!":
+      - /url: https://sfbay.craigslist.org/eby/muc/d/oakland-new-roommates-wanted-for-studio/7924980347.html
+    - text: •oakland downtown•4/9•
+    - button "hide"
+    - button ""
+    - link "Beautiful woman walking dog":
+      - /url: https://sfbay.craigslist.org/nby/mis/d/rohnert-park-beautiful-woman-walking-dog/7926561131.html
+    - text: •Rohnert Park•4/8•
+    - button "hide"
+    - button ""
+    - link "HELP! Advice needed from radiologist or CT SCAN tech..":
+      - /url: https://sfbay.craigslist.org/sfc/com/d/san-francisco-help-advice-needed-from/7926557523.html
+    - text: •city of san francisco•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "LOVING, TRUSTLINED NANNY AVAILABLE!!":
+      - /url: https://sfbay.craigslist.org/sfc/kid/d/san-francisco-loving-trustlined-nanny/7921709160.html
+    - text: •San Francisco, Pacific Heights•4/8•
+    - button "hide"
+    - button ""
+    - link "LOVING, TRUSTLINED NANNY AVAILABLE!!":
+      - /url: https://sfbay.craigslist.org/sfc/kid/d/san-francisco-loving-trustlined-nanny/7922718573.html
+    - text: •San Francisco, Pacific Heights•4/8•
+    - button "hide"
+    - button ""
+    - link "Rehoming 3 adult female ball pythons":
+      - /url: https://sfbay.craigslist.org/eby/pet/d/concord-rehoming-adult-female-ball/7924832092.html
+    - text: •concord / pleasant hill / martinez•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Midtown Cutie Pie":
+      - /url: https://sfbay.craigslist.org/scz/mis/d/santa-cruz-midtown-cutie-pie/7926557072.html
+    - text: •santa cruz•4/8•
+    - button "hide"
+    - button ""
+    - link "Driving to La 4/9.":
+      - /url: https://sfbay.craigslist.org/eby/rid/d/driving-to-la-9/7926559322.html
+    - text: •berkeley•4/8•
+    - button "hide"
+    - button ""
+    - link "PIANO ACCOMPANIST AVAILABLE":
+      - /url: https://sfbay.craigslist.org/nby/muc/d/novato-piano-accompanist-available/7920997340.html
+    - text: •novato•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Rehearsal studio available":
+      - /url: https://sfbay.craigslist.org/sfc/muc/d/san-francisco-rehearsal-studio-available/7922871103.html
+    - text: •downtown / civic / van ness•4/8•
+    - button "hide"
+    - button ""
+    - link "Looking for a Romanian cook":
+      - /url: https://sfbay.craigslist.org/pen/grp/d/burlingame-looking-for-romanian-cook/7926555869.html
+    - text: •Hillsborough•4/8•
+    - button "hide"
+    - button ""
+    - link "American Bully":
+      - /url: https://sfbay.craigslist.org/sby/pet/d/redwood-city-american-bully/7926556974.html
+    - text: •Redwood City•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Creative Photographer Seeking Female Models":
+      - /url: https://sfbay.craigslist.org/scz/ats/d/san-jose-creative-photographer-seeking/7921044767.html
+    - text: •santa cruz•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Fashion model":
+      - /url: https://sfbay.craigslist.org/sby/ats/d/san-jose-fashion-model/7921045310.html
+    - text: •san jose south•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Rehearsal studio available to share":
+      - /url: https://sfbay.craigslist.org/sfc/muc/d/san-francisco-rehearsal-studio/7923744733.html
+    - text: •bayview•4/8•
+    - button "hide"
+    - button ""
+    - link "Bass Player Seeking...":
+      - /url: https://sfbay.craigslist.org/sfc/muc/d/san-francisco-bass-player-seeking/7920649727.html
+    - text: •city of san francisco•4/8•
+    - button "hide"
+    - button ""
+    - link "Rehoming Black Lab / Dobermann Mix (4 Years Old) - No Fee":
+      - /url: https://sfbay.craigslist.org/sby/pet/d/sunnyvale-rehoming-black-lab-dobermann/7926556822.html
+    - text: •sunnyvale•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Military macaw":
+      - /url: https://sfbay.craigslist.org/nby/pet/d/rohnert-park-military-macaw/7923083626.html
+    - text: •Rohnert Park•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Affordable Childcare Center (CCAP Accepted)":
+      - /url: https://sfbay.craigslist.org/sby/kid/d/san-jose-affordable-childcare-center/7922584345.html
+    - text: •santa clara•4/8•
+    - button "hide"
+    - button ""
+    - link "Daydreamchildcare.com":
+      - /url: https://sfbay.craigslist.org/sby/kid/d/san-jose-daydreamchildcarecom/7922584366.html
+    - text: •santa clara•4/8•
+    - button "hide"
+    - button ""
+    - link "Daycare/Preschool-Curriculum (Early Learning) - Montessori Method":
+      - /url: https://sfbay.craigslist.org/sby/kid/d/san-jose-daycare-preschool-curriculum/7922584358.html
+    - text: •campbell•4/8•
+    - button "hide"
+    - button ""
+    - link "Art studio available in SF":
+      - /url: https://sfbay.craigslist.org/sfc/ats/d/san-francisco-art-studio-available-in-sf/7922361758.html
+    - text: •ingleside / SFSU / CCSF•4/8•
+    - button "hide"
+    - button ""
+    - link "Private rehearsal studio available":
+      - /url: https://sfbay.craigslist.org/sfc/muc/d/san-francisco-private-rehearsal-studio/7924575144.html
+    - text: •bayview•4/8•
+    - button "hide"
+    - button ""
+    - link "Rehearsal studio available to share":
+      - /url: https://sfbay.craigslist.org/sfc/muc/d/san-francisco-rehearsal-studio/7922892171.html
+    - text: •downtown / civic / van ness•4/8•
+    - button "hide"
+    - button ""
+    - link "Rehoming Belgian Malinois puppies🐕":
+      - /url: https://sfbay.craigslist.org/sby/pet/d/san-jose-rehoming-belgian-malinois/7926553909.html
+    - text: •San Jose•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Budgie parakeets":
+      - /url: https://sfbay.craigslist.org/sby/pet/d/san-jose-budgie-parakeets/7926555303.html
+    - text: •san jose south•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Male Anery Het Kahl Boa":
+      - /url: https://sfbay.craigslist.org/sby/pet/d/san-jose-male-anery-het-kahl-boa/7926555164.html
+    - text: •san jose north•4/8•
+    - button "hide"
+    - button ""
+    - link "Guitarist Playing Instrumentals and Chord Melody Seeks....":
+      - /url: https://sfbay.craigslist.org/sfc/muc/d/san-francisco-guitarist-playing/7926554929.html
+    - text: •USF / panhandle•4/8•
+    - button "hide"
+    - button ""
+    - link "Looking for a guitar player":
+      - /url: https://sfbay.craigslist.org/sby/muc/d/san-jose-looking-for-guitar-player/7926554912.html
+    - text: •san jose east•4/8•
+    - button "hide"
+    - button ""
+    - link "Female VPI Axanthic Bumblebee Ball Python":
+      - /url: https://sfbay.craigslist.org/sby/pet/d/san-jose-female-vpi-axanthic-bumblebee/7926554806.html
+    - text: •san jose north•4/8•
+    - button "hide"
+    - button ""
+    - link "Citizens watch found":
+      - /url: https://sfbay.craigslist.org/scz/laf/d/santa-cruz-citizens-watch-found/7926554650.html
+    - text: •santa cruz•4/8•
+    - button "hide"
+    - button ""
+    - link "Boomer bass/guitar looking for Acoustic/Electric musicians":
+      - /url: https://sfbay.craigslist.org/pen/muc/d/half-moon-bay-boomer-bass-guitar/7922111745.html
+    - text: •half moon bay•4/8•
+    - button "hide"
+    - button ""
+    - link "San fran to Colorado Springs":
+      - /url: https://sfbay.craigslist.org/eby/rid/d/san-fran-to-colorado-springs/7926553153.html
+    - text: •Dublin•4/8•
+    - button "hide"
+    - button ""
+    - link "Book Club Seeking New Members":
+      - /url: https://sfbay.craigslist.org/sfc/grp/d/san-francisco-book-club-seeking-new/7926553037.html
+    - text: •San Francisco•4/8•
+    - button "hide"
+    - button ""
+    - link "1 yr old siamese female":
+      - /url: https://sfbay.craigslist.org/sby/pet/d/san-jose-yr-old-siamese-female/7921722526.html
+    - text: •San Jose•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Rock-metal bassist/singer needed":
+      - /url: https://sfbay.craigslist.org/eby/muc/d/concord-rock-metal-bassist-singer-needed/7922138657.html
+    - text: •concord / pleasant hill / martinez•4/8•
+    - button "hide"
+    - button ""
+    - link "Redhead Impasto by Terun":
+      - /url: https://sfbay.craigslist.org/pen/mis/d/san-carlos-redhead-impasto-by-terun/7926551399.html
+    - text: •San Carlos•4/8•
+    - button "hide"
+    - button ""
+    - link "Lost Canon Film Camera + Red Bag":
+      - /url: https://sfbay.craigslist.org/scz/laf/d/santa-cruz-lost-canon-film-camera-red/7921705719.html
+    - text: •santa cruz•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - 'link "Ride offer: Berkeley to Santa Barbara April 17"':
+      - /url: https://sfbay.craigslist.org/eby/rid/d/ride-offer-berkeley-to-santa-barbara/7926020797.html
+    - text: •berkeley•4/8•
+    - button "hide"
+    - button ""
+    - 'link "found: folding pocket knife"':
+      - /url: https://sfbay.craigslist.org/eby/laf/d/walnut-creek-found-folding-pocket-knife/7925566018.html
+    - text: •walnut creek•4/8•
+    - button "hide"
+    - button ""
+    - link "Latin/Jazz/Funk/Rock group seeking bass player":
+      - /url: https://sfbay.craigslist.org/pen/muc/d/half-moon-bay-latin-jazz-funk-rock/7924930704.html
+    - text: •peninsula•4/8•
+    - button "hide"
+    - button ""
+    - link "Lost skateboard at Candlestick":
+      - /url: https://sfbay.craigslist.org/sfc/laf/d/san-francisco-lost-skateboard-at/7926548406.html
+    - text: •bayview•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Paid singer":
+      - /url: https://sfbay.craigslist.org/sby/muc/d/san-jose-paid-singer/7921477577.html
+    - text: •San Jose•4/8•
+    - button "hide"
+    - button ""
+    - link "Judy from Daly City":
+      - /url: https://sfbay.craigslist.org/sby/mis/d/san-jose-judy-from-daly-city/7922561231.html
+    - text: •San Jose•4/8•
+    - button "hide"
+    - button ""
+    - link "Electric dirt bike partner":
+      - /url: https://sfbay.craigslist.org/sby/act/d/san-jose-electric-dirt-bike-partner/7926548366.html
+    - text: •San Jose•4/8•
+    - button "hide"
+    - button ""
+    - link "Music Rehearsal Room in SSF Available NOW-Monthly":
+      - /url: https://sfbay.craigslist.org/pen/muc/d/south-san-francisco-music-rehearsal/7926548133.html
+    - text: •south san francisco•4/8•
+    - button "hide"
+    - button ""
+    - link "Trip to Santa Cruz":
+      - /url: https://sfbay.craigslist.org/sby/com/d/san-jose-trip-to-santa-cruz/7924623285.html
+    - text: •San Jose•4/8•
+    - button "hide"
+    - button ""
+    - link "Drummer and Guitar Player Looking for Bass and/or Keys":
+      - /url: https://sfbay.craigslist.org/sfc/muc/d/san-francisco-drummer-and-guitar-player/7924149201.html
+    - text: •bayview•4/8•
+    - button "hide"
+    - button ""
+    - link "Frenchi Mix Rackrussell":
+      - /url: https://sfbay.craigslist.org/eby/pet/d/san-pablo-frenchi-mix-rackrussell/7926545958.html
+    - text: •San Pablo•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Music Instruction for Guitarists":
+      - /url: https://sfbay.craigslist.org/sfc/muc/d/san-francisco-music-instruction-for/7926543181.html
+    - text: •sunset / parkside•4/8•
+    - button "hide"
+    - button ""
+    - link "Wildfire prevention, reduce fire fuel loads":
+      - /url: https://sfbay.craigslist.org/sby/com/d/san-jose-wildfire-prevention-reduce/7921717633.html
+    - text: •Greater South Bay Area, Morgan Hill, Gilroy•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Looking for tennis partner":
+      - /url: https://sfbay.craigslist.org/eby/act/d/san-lorenzo-looking-for-tennis-partner/7925133787.html
+    - text: •fremont / union city / newark•4/8•
+    - button "hide"
+    - button ""
+    - link "24 hour fitness and bus":
+      - /url: https://sfbay.craigslist.org/sfc/mis/d/san-francisco-24-hour-fitness-and-bus/7926545202.html
+    - text: •San Francisco•4/8•
+    - button "hide"
+    - button ""
+    - link "Jelly's Place needs truck driver volunteers this weekend":
+      - /url: https://sfbay.craigslist.org/eby/pet/d/san-pablo-jellys-place-needs-truck/7926544829.html
+    - text: •richmond / point / annex•4/8•
+    - button "hide"
+    - button ""
+    - link "FREE BALDWIN PIANO":
+      - /url: https://sfbay.craigslist.org/nby/muc/d/fairfield-free-baldwin-piano/7926544816.html
+    - text: •Fairfield•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "FOUND earring on the M tram line between powell and castro":
+      - /url: https://sfbay.craigslist.org/sfc/laf/d/san-francisco-found-earring-on-the-tram/7926544813.html
+    - text: •downtown / civic / van ness•4/8•
+    - button "hide"
+    - button ""
+    - link "Mini Australian shepherd puppies":
+      - /url: https://sfbay.craigslist.org/nby/pet/d/sebastopol-mini-australian-shepherd/7925019608.html
+    - text: •sebastopol•4/8•
+    - button "hide"
+    - button ""
+    - link "Chihuahua mix":
+      - /url: https://sfbay.craigslist.org/sby/pet/d/gilroy-chihuahua-mix/7925083009.html
+    - text: •gilroy•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Munchkin Kitten":
+      - /url: https://sfbay.craigslist.org/sfc/pet/d/redding-munchkin-kitten/7926539360.html
+    - text: •South Redding•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "STOLEN HARD DRIVES & iPHONE $$$REWARD$$$":
+      - /url: https://sfbay.craigslist.org/sby/laf/d/san-jose-stolen-hard-drives-iphone/7926538941.html
+    - text: •San Jose•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "3 snakes looking for homes":
+      - /url: https://sfbay.craigslist.org/eby/pet/d/martinez-snakes-looking-for-homes/7926541625.html
+    - text: •concord / pleasant hill / martinez•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Horse Trainer":
+      - /url: https://sfbay.craigslist.org/nby/com/d/santa-rosa-horse-trainer/7922984336.html
+    - text: •Santa Rosa•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Piano Lessons in Berkeley":
+      - /url: https://sfbay.craigslist.org/eby/muc/d/berkeley-piano-lessons-in-berkeley/7920388780.html
+    - text: •berkeley•4/8•
+    - button "hide"
+    - button ""
+    - link "*FOUND* white purse with items inside":
+      - /url: https://sfbay.craigslist.org/eby/laf/d/san-jose-found-white-purse-with-items/7920439594.html
+    - text: •east bay area•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - button ""
+    - link "Fun & Comprehensive Voice Coaching":
+      - /url: https://sfbay.craigslist.org/eby/muc/d/berkeley-fun-comprehensive-voice/7921103549.html
+    - text: •berkeley•4/8•
+    - button "pic"
+    - text: •
+    - button "hide"
+    - link "help":
+      - /url: https://www.craigslist.org/about/help
+    - link "safety":
+      - /url: https://www.craigslist.org/about/help/safety
+    - link "privacy":
+      - /url: https://www.craigslist.org/about/privacy.policy
+    - link "terms":
+      - /url: https://www.craigslist.org/about/terms.of.use
+    - link "about":
+      - /url: https://www.craigslist.org/about
+    - link "app":
+      - /url: https://www.craigslist.org/about/craigslist_app
+    - text: © 2026 craigslist
