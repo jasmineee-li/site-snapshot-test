@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -12,7 +13,7 @@ from worldsim import main as worldsim_main
 from worldsim.agent_models import resolve_agent_model_profile, supported_agentlab_model_profiles
 from worldsim.agentlab_cli import _prepare_single_task, _select_instance, _task_from_args
 from worldsim.config import BenchmarkConfig
-from worldsim.har_converter import strict_runtime_har_trace
+from worldsim.har_converter import minimal_har_placeholder_entry, strict_runtime_har_trace
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.runners import agentlab as agentlab_runner
 from worldsim.runners import available_runners, get_runner_module
@@ -410,6 +411,23 @@ def test_build_phase4_sidecar_request_maps_runner_contract(monkeypatch, tmp_path
     assert request["url_origin_rewrites"] == {"http://canonical.test": "http://gitlab.test"}
 
 
+def test_build_phase4_sidecar_request_filters_cross_scheme_rewrites(tmp_path):
+    request = _build_phase4_sidecar_request(
+        "Do the task",
+        "https://gitlab.test",
+        tmp_path,
+        AgentLabAgentWrapper(model="gpt52", provider="openrouter"),
+        {
+            "url_origin_rewrites": {
+                "http://canonical.test": "https://gitlab.test",
+                "https://canonical.test": "https://gitlab.test",
+            },
+        },
+    )
+
+    assert request["url_origin_rewrites"] == {"https://canonical.test": "https://gitlab.test"}
+
+
 def test_build_phase4_sidecar_request_resolves_scoped_auth_and_no_global_headers(tmp_path):
     request = _build_phase4_sidecar_request(
         "Do the task",
@@ -681,14 +699,26 @@ def test_sidecar_network_trace_includes_evaluator_fields(tmp_path):
     response.request = request
     recorder._on_request(request)
     recorder._on_response(response)
+    recorder.persist()
 
     event = recorder.events[0]
     assert event["query_params"] == {"ticket": ["123"]}
     assert event["request_headers"]["authorization"] == "<redacted>"
+    assert event["post_data"] == '{"ok": true}'
     assert event["response_status"] == 201
-    assert event["response_cookies"] == []
+    assert event["response_cookies"] == [{"name": "sid", "value": "<redacted>"}]
     assert "request" not in event
     assert "response" not in event
+    persisted = json.loads((tmp_path / "network.har").read_text(encoding="utf-8"))
+    network_trace.validate_har_1_2_shape(persisted, require_real_entry=True)
+    persisted_entries = persisted["log"]["entries"]
+    round_trip = strict_runtime_har_trace(persisted_entries)
+    assert round_trip[0]["request"]["url"] == "http://gitlab.test/path?ticket=123"
+    assert round_trip[0]["request"]["method"] == "POST"
+    assert round_trip[0]["request"]["postData"] == {
+        "mimeType": "application/json",
+        "text": '{"ok": true}',
+    }
     har = network_trace._as_har(recorder.events, started_at=0)
     entry = har["log"]["entries"][0]
     assert isinstance(entry["startedDateTime"], str)
@@ -698,6 +728,115 @@ def test_sidecar_network_trace_includes_evaluator_fields(tmp_path):
     assert entry["timings"] == {"send": 0, "wait": 0, "receive": 0}
     converted = strict_runtime_har_trace(recorder.events)
     assert converted[0]["request"]["httpVersion"] == "HTTP/1.1"
+
+
+def test_sidecar_network_trace_redacts_sensitive_post_data_and_validates_har(tmp_path):
+    network_trace = _load_sidecar_module("network_trace")
+
+    event = {
+        "url": "http://gitlab.test/login",
+        "method": "POST",
+        "request_headers": {"content-type": "application/x-www-form-urlencoded"},
+        "headers": {"content-type": "application/x-www-form-urlencoded"},
+        "post_data": network_trace._redact_post_data("username=alice&password=wonder"),
+        "query_params": {},
+        "response_status": 200,
+        "response_headers": {},
+        "response_cookies": [],
+        "timestamp": 0,
+    }
+    har = network_trace._as_har([event], started_at=0)
+
+    network_trace.validate_har_1_2_shape(har, require_real_entry=True)
+    assert "postData" not in har["log"]["entries"][0]["request"]
+    with pytest.raises(ValueError, match="real HTTP evidence"):
+        network_trace.validate_har_1_2_shape(
+            {
+                "log": {
+                    "version": "1.2",
+                    "creator": {"name": "worldsim-agentlab"},
+                    "entries": [minimal_har_placeholder_entry()],
+                }
+            },
+            require_real_entry=True,
+        )
+
+
+def test_phase4_timeout_result_redacts_captured_secret_output(monkeypatch, tmp_path):
+    def timeout_run(*args, **kwargs):
+        raise subprocess.TimeoutExpired(
+            cmd=args[0],
+            timeout=3,
+            output="stdout Basic c2VjcmV0 secret-token",
+            stderr="stderr password=wonder Cookie: sid=abc",
+        )
+
+    monkeypatch.setattr(agentlab_runner.subprocess, "run", timeout_run)
+    request = {
+        "task_id": "task-1",
+        "scoped_auth": {"headers": {"Authorization": "Basic c2VjcmV0", "Cookie": "sid=abc"}},
+        "auth_mechanism": {"http_basic": {"username": "alice", "password": "wonder"}},
+        "api_token": "secret-token",
+    }
+
+    payload = agentlab_runner._run_sidecar_request(
+        request,
+        tmp_path,
+        subcommand="phase4-run",
+        timeout=3,
+    )
+    persisted_request = json.loads((tmp_path / "agentlab_phase4_request.json").read_text())
+    persisted_result = json.loads((tmp_path / "agentlab_sidecar_result.json").read_text())
+    serialized = json.dumps(persisted_result)
+
+    assert payload["status"] == "error"
+    assert persisted_request["scoped_auth"] == "<redacted>"
+    assert "c2VjcmV0" not in serialized
+    assert "secret-token" not in serialized
+    assert "wonder" not in serialized
+    assert "sid=abc" not in serialized
+    assert "<redacted>" in serialized
+
+
+def test_sidecar_result_redacts_request_secrets_echoed_in_logs(monkeypatch, tmp_path):
+    def completed_run(*args, **kwargs):
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=0,
+            stdout=json.dumps(
+                {
+                    "status": "success",
+                    "errors": [],
+                    "log": "sent Basic c2VjcmV0 with token secret-token",
+                    "nested": {"message": "password=wonder cookie sid=abc"},
+                }
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(agentlab_runner.subprocess, "run", completed_run)
+    request = {
+        "task_id": "task-1",
+        "scoped_auth": {"headers": {"Authorization": "Basic c2VjcmV0", "Cookie": "sid=abc"}},
+        "auth_mechanism": {"http_basic": {"username": "alice", "password": "wonder"}},
+        "api_token": "secret-token",
+    }
+
+    payload = agentlab_runner._run_sidecar_request(
+        request,
+        tmp_path,
+        subcommand="phase4-run",
+        timeout=3,
+    )
+    persisted_result = json.loads((tmp_path / "agentlab_sidecar_result.json").read_text())
+    serialized = json.dumps(persisted_result)
+
+    assert "Basic c2VjcmV0" in payload["log"]
+    assert "c2VjcmV0" not in serialized
+    assert "secret-token" not in serialized
+    assert "wonder" not in serialized
+    assert "sid=abc" not in serialized
+    assert persisted_result["log"] == "sent <redacted> with token <redacted>"
 
 
 def test_phase4_sidecar_helpers_normalize_final_message_and_pvpo_payload():

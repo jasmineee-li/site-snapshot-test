@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from datetime import UTC, datetime
+from http.cookies import SimpleCookie
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
@@ -46,12 +48,14 @@ class NetworkTraceRecorder:
     def persist(self) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         events = self.events
+        har = _as_har(events, started_at=self._started_at)
+        validate_har_1_2_shape(har, require_real_entry=bool(events))
         (self.output_dir / "network_trace.json").write_text(
             json.dumps(events, indent=2, sort_keys=True),
             encoding="utf-8",
         )
         (self.output_dir / "network.har").write_text(
-            json.dumps(_as_har(events, started_at=self._started_at), indent=2, sort_keys=True),
+            json.dumps(har, indent=2, sort_keys=True),
             encoding="utf-8",
         )
         navigation = [
@@ -72,7 +76,7 @@ class NetworkTraceRecorder:
     def _on_request(self, request: Any) -> None:
         key = id(request)
         headers = _redact_headers(_safe_call(lambda: request.headers) or {})
-        post_data = _safe_call(lambda: request.post_data)
+        post_data = _redact_post_data(_safe_call(lambda: request.post_data))
         event = {
             "url": _safe_call(lambda: request.url) or "",
             "method": str(_safe_call(lambda: request.method) or "GET").upper(),
@@ -94,11 +98,13 @@ class NetworkTraceRecorder:
         event = self._events_by_request.get(id(request))
         if event is None:
             return
-        response_headers = _redact_headers(_safe_call(lambda: response.headers) or {})
+        raw_response_headers = _safe_call(lambda: response.headers) or {}
+        response_cookies = _cookies_from_headers(raw_response_headers)
+        response_headers = _redact_headers(raw_response_headers)
         status = _safe_call(lambda: response.status)
         event["response_status"] = status
         event["response_headers"] = response_headers
-        event["response_cookies"] = _cookies_from_headers(response_headers)
+        event["response_cookies"] = response_cookies
 
     def _on_request_failed(self, request: Any) -> None:
         event = self._events_by_request.get(id(request))
@@ -130,6 +136,14 @@ def _redact_headers(headers: Any) -> dict[str, str]:
     return out
 
 
+def _redact_post_data(value: Any) -> str:
+    if not isinstance(value, str) or not value:
+        return ""
+    if re.search(r"(?i)(password|passwd|token|secret|csrf|auth|api[_-]?key|session)\s*[:=]", value):
+        return "<redacted>"
+    return value
+
+
 def _is_navigation_like(event: dict[str, Any]) -> bool:
     return bool(event.get("is_navigation_request")) or str(event.get("resource_type")) == "document"
 
@@ -142,16 +156,94 @@ def _query_params(url: str) -> dict[str, list[str]]:
 
 
 def _cookies_from_headers(headers: dict[str, str]) -> list[dict[str, str]]:
-    raw = headers.get("set-cookie")
+    raw = None
+    if isinstance(headers, dict):
+        for key, value in headers.items():
+            if str(key).lower() == "set-cookie":
+                raw = str(value)
+                break
     if not raw or raw == "<redacted>":
         return []
-    cookies = []
-    for chunk in raw.split(","):
-        first = chunk.split(";", 1)[0]
-        if "=" in first:
-            name, _value = first.split("=", 1)
-            cookies.append({"name": name.strip(), "value": "<redacted>"})
+    cookies: list[dict[str, str]] = []
+    parsed = SimpleCookie()
+    try:
+        parsed.load(raw)
+    except Exception:
+        parsed = SimpleCookie()
+    for name in parsed:
+        cookies.append({"name": str(name), "value": "<redacted>"})
+    if cookies:
+        return cookies
+    for match in re.finditer(r"(?:^|,\s*)([^=;,\s]+)=", raw):
+        cookies.append({"name": match.group(1).strip(), "value": "<redacted>"})
     return cookies
+
+
+def validate_har_1_2_shape(har: dict[str, Any], *, require_real_entry: bool = False) -> None:
+    log = har.get("log") if isinstance(har, dict) else None
+    if not isinstance(log, dict):
+        raise ValueError("HAR missing log object")
+    if log.get("version") != "1.2":
+        raise ValueError("HAR log.version must be 1.2")
+    creator = log.get("creator")
+    if not isinstance(creator, dict) or not isinstance(creator.get("name"), str):
+        raise ValueError("HAR missing creator.name")
+    entries = log.get("entries")
+    if not isinstance(entries, list):
+        raise ValueError("HAR log.entries must be a list")
+    real_entries = 0
+    nonzero_statuses = 0
+    for entry in entries:
+        _validate_har_entry(entry)
+        request = entry["request"]
+        response = entry["response"]
+        url = request["url"]
+        if isinstance(url, str) and url.startswith(("http://", "https://")):
+            real_entries += 1
+        if isinstance(response.get("status"), int) and response["status"] != 0:
+            nonzero_statuses += 1
+    if require_real_entry and (real_entries == 0 or nonzero_statuses == 0):
+        raise ValueError("HAR completed trace must include real HTTP evidence")
+
+
+def _validate_har_entry(entry: Any) -> None:
+    if not isinstance(entry, dict):
+        raise ValueError("HAR entry must be an object")
+    request = entry.get("request")
+    response = entry.get("response")
+    if not isinstance(request, dict) or not isinstance(response, dict):
+        raise ValueError("HAR entry must contain request and response objects")
+    for key in ("url", "method", "httpVersion"):
+        if not isinstance(request.get(key), str) or not request[key]:
+            raise ValueError(f"HAR request.{key} must be a non-empty string")
+    for key in ("headers", "cookies", "queryString"):
+        _validate_name_value_list(request.get(key), f"HAR request.{key}")
+    if not isinstance(response.get("status"), int):
+        raise ValueError("HAR response.status must be an int")
+    for key in ("statusText", "httpVersion", "redirectURL"):
+        if not isinstance(response.get(key), str):
+            raise ValueError(f"HAR response.{key} must be a string")
+    for key in ("headers", "cookies"):
+        _validate_name_value_list(response.get(key), f"HAR response.{key}")
+    content = response.get("content")
+    if not isinstance(content, dict):
+        raise ValueError("HAR response.content must be an object")
+    post_data = request.get("postData")
+    if post_data is not None:
+        if not isinstance(post_data, dict):
+            raise ValueError("HAR request.postData must be an object")
+        if not isinstance(post_data.get("mimeType"), str) or not isinstance(post_data.get("text"), str):
+            raise ValueError("HAR request.postData must contain string mimeType and text")
+
+
+def _validate_name_value_list(value: Any, label: str) -> None:
+    if not isinstance(value, list):
+        raise ValueError(f"{label} must be a list")
+    for item in value:
+        if not isinstance(item, dict):
+            raise ValueError(f"{label} entries must be objects")
+        if not isinstance(item.get("name"), str) or not isinstance(item.get("value"), str):
+            raise ValueError(f"{label} entries must contain string name and value")
 
 
 def _as_har(events: list[dict[str, Any]], *, started_at: float) -> dict[str, Any]:

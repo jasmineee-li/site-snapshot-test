@@ -25,6 +25,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import requests
 
@@ -219,6 +220,21 @@ def _resolved_storage_state_for_phase4(
     return runtime_path
 
 
+def _same_scheme_origin_rewrites(value: Any) -> dict[str, str]:
+    if not isinstance(value, dict):
+        return {}
+    rewrites: dict[str, str] = {}
+    for source, target in value.items():
+        source_origin = _origin_from_url(str(source))
+        target_origin = _origin_from_url(str(target))
+        if not source_origin or not target_origin or source_origin == target_origin:
+            continue
+        if urlparse(source_origin).scheme != urlparse(target_origin).scheme:
+            continue
+        rewrites[source_origin] = target_origin
+    return rewrites
+
+
 def _scoped_auth_for_phase4(
     auth: dict[str, Any] | None,
     *,
@@ -338,7 +354,7 @@ def _build_phase4_sidecar_request(
     )
     task_site = run_kwargs.get("task_site")
     instance_id = run_kwargs.get("instance_id")
-    url_origin_rewrites = run_kwargs.get("url_origin_rewrites") or {}
+    url_origin_rewrites = _same_scheme_origin_rewrites(run_kwargs.get("url_origin_rewrites"))
     return {
         "schema_version": 1,
         "mode": "phase4",
@@ -447,12 +463,16 @@ def _run_sidecar_request(
             timeout=timeout,
         )
     except subprocess.TimeoutExpired as exc:
+        timeout_payload = {
+            "stdout": exc.stdout if isinstance(exc.stdout, str) else "",
+            "stderr": exc.stderr if isinstance(exc.stderr, str) else "",
+        }
         request_path.write_text(
             json.dumps(_redact_sidecar_payload(request), indent=2, sort_keys=True),
             encoding="utf-8",
         )
         if subcommand == "phase4-run":
-            payload = _phase4_timeout_result(request, task_dir, timeout, exc)
+            payload = _phase4_timeout_result(request, task_dir, timeout, timeout_payload)
             response_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
             return payload
         raise
@@ -474,7 +494,11 @@ def _run_sidecar_request(
         encoding="utf-8",
     )
     response_path.write_text(
-        json.dumps(_redact_sidecar_payload(payload), indent=2, sort_keys=True),
+        json.dumps(
+            _redact_sidecar_payload(payload, secret_values=_secret_strings_from_payload(request)),
+            indent=2,
+            sort_keys=True,
+        ),
         encoding="utf-8",
     )
     return payload
@@ -484,7 +508,7 @@ def _phase4_timeout_result(
     request: dict[str, Any],
     task_dir: Path,
     timeout: int | None,
-    exc: subprocess.TimeoutExpired,
+    timeout_payload: dict[str, str],
 ) -> dict[str, Any]:
     message = f"AgentLab sidecar exceeded task timeout {timeout}s"
     task_dir.mkdir(parents=True, exist_ok=True)
@@ -526,8 +550,14 @@ def _phase4_timeout_result(
         },
         "artifacts": {},
         "browser_runtime": runtime,
-        "timeout_stdout": (exc.stdout or "")[-1000:] if isinstance(exc.stdout, str) else "",
-        "timeout_stderr": (exc.stderr or "")[-1000:] if isinstance(exc.stderr, str) else "",
+        "timeout_stdout": _redact_sidecar_text(
+            (timeout_payload.get("stdout") or "")[-1000:],
+            request,
+        ),
+        "timeout_stderr": _redact_sidecar_text(
+            (timeout_payload.get("stderr") or "")[-1000:],
+            request,
+        ),
     }
 
 
@@ -646,7 +676,7 @@ def _recycle_pvpo_browser_after_parent_timeout(cdp_url: str) -> dict[str, Any]:
     return payload
 
 
-def _redact_sidecar_payload(value: Any) -> Any:
+def _redact_sidecar_payload(value: Any, *, secret_values: set[str] | None = None) -> Any:
     if isinstance(value, dict):
         redacted: dict[str, Any] = {}
         for key, item in value.items():
@@ -658,11 +688,54 @@ def _redact_sidecar_payload(value: Any) -> Any:
             elif lower == "headers" and isinstance(item, dict):
                 redacted[key] = _redact_sidecar_headers(item)
             else:
-                redacted[key] = _redact_sidecar_payload(item)
+                redacted[key] = _redact_sidecar_payload(item, secret_values=secret_values)
         return redacted
     if isinstance(value, list):
-        return [_redact_sidecar_payload(item) for item in value]
+        return [_redact_sidecar_payload(item, secret_values=secret_values) for item in value]
+    if isinstance(value, str) and secret_values:
+        return _redact_text_values(value, secret_values)
     return value
+
+
+def _secret_strings_from_payload(value: Any) -> set[str]:
+    secrets: set[str] = set()
+
+    def visit(item: Any, *, sensitive: bool = False) -> None:
+        if isinstance(item, dict):
+            for key, child in item.items():
+                lower = str(key).lower()
+                child_sensitive = sensitive or lower in {
+                    "authorization",
+                    "cookie",
+                    "set-cookie",
+                    "proxy-authorization",
+                } or any(
+                    marker in lower
+                    for marker in ("token", "secret", "password", "auth", "cookie", "csrf", "key")
+                )
+                visit(child, sensitive=child_sensitive)
+            return
+        if isinstance(item, list):
+            for child in item:
+                visit(child, sensitive=sensitive)
+            return
+        if sensitive and isinstance(item, str) and item:
+            secrets.add(item)
+
+    visit(value)
+    return secrets
+
+
+def _redact_sidecar_text(text: str, request: dict[str, Any]) -> str:
+    return _redact_text_values(text, _secret_strings_from_payload(request))
+
+
+def _redact_text_values(text: str, secret_values: set[str]) -> str:
+    redacted = text
+    for secret in sorted(secret_values, key=len, reverse=True):
+        if len(secret) >= 4:
+            redacted = redacted.replace(secret, "<redacted>")
+    return redacted
 
 
 def _redact_sidecar_headers(headers: dict[str, Any]) -> dict[str, Any]:
