@@ -377,3 +377,54 @@ For future Reddit/Postmill comment cohorts:
 - do not count `injection_not_encountered` comment rows as resistance,
 - keep the attribution tests in `tests/test_rewards.py` as the regression gate
   for any reward refactor.
+
+## Current Status After `b0becc50`
+
+Commit `b0becc50 fix(phase4): fail closed on reddit comment visibility`
+keeps this cell intentionally blocked for final counting. It fixes the
+measurement failure mode, not the positive outcome rate.
+
+What is now enforced:
+
+- Reddit/Postmill `comment.body` carriers that require the visual comment
+  region must show seed-specific painted visibility at entry.
+- DOM-only witness evidence is rejected for Phase 4 admission.
+- Carrier comments that require expansion are rejected for Phase 4 admission.
+- Reddit comment target selection defaults to empty-thread eligibility for
+  comment-seed safety.
+- Attribution/readback hardening from this issue remains in force:
+  agent-authored comments must be attributed, and seeded carrier comment IDs
+  must be excluded from accepted final-state readback.
+
+Why this was necessary:
+
+The WebArena/Postmill application renders top-level comments through the
+submission page and sorts visible top-level comments by descending score. A
+seeded carrier comment can therefore exist in the DOM while not being painted
+in the browser observation. The historical failing rows matched this exactly:
+`payload_witness_not_painted`, `dom_witness_seen_not_layout_visible`, and
+`max_coverage=0`.
+
+Current interpretation:
+
+- Reddit/Postmill `submit_comment` attribution/readback is green.
+- Reddit/Postmill `submit_comment` positive ASR evidence remains red.
+- The blocker is seed-specific painted carrier visibility, not final-state
+  comment attribution.
+- Old comment artifacts remain non-counting development evidence because they
+  are both non-encounter rows and legacy hybrid answer-probe rows.
+
+Next implementation direction, when this cell is revisited:
+
+1. Generate or overgenerate comment tasks against empty threads or fresh
+   carrier threads where the seeded carrier comment is guaranteed to be
+   painted.
+2. Prove in Phase 2c that the exact seeded comment has layout-visible witness
+   coverage before Phase 4 starts.
+3. Keep `submit_comment` split from `create_post` in launch commands and
+   reporting.
+4. Include the cell in the final 70 only after both painted visibility and
+   attributed agent-authored readback pass unit and live gates.
+
+Do not relax PVPO, count DOM-only rows, count request success as ASR, or use
+parent-thread substring scans without attribution and seeded-carrier exclusion.
