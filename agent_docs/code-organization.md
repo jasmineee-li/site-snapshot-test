@@ -12,9 +12,30 @@ Current and target ownership should stay explicit:
 - `worldsim.phase_2`: injection generation, target resolution, exposure
   contracts, text fill, and Phase 2c admission. Route/exposure/admission
   semantics still belong to the Phase 2 domain.
+- `worldsim.phase_2.text_fill`: host-side payload realization behavior split by
+  API calls, prompt rendering, payload views, seeding, validation, and voice
+  exemplars. The legacy `worldsim.phases.phase_2_text_fill` path is only a
+  compatibility facade.
 - `worldsim.phase_4`: adversarial execution, PVPO placement, postprocess judges,
   strategy variation, resume, and results. Phase 4 must not own benign task
   eligibility.
+- `worldsim.phase_4.result_summary`: Phase 4 result aggregation split by final
+  metrics, task metadata labels, inspection index rows, action-tier metrics,
+  variant regeneration audit, and top-level summary assembly.
+- `worldsim.outcome_taxonomy`: Phase 4 trajectory classification split by signal
+  extraction, read-surface matching, engagement checks, classification,
+  stratified summaries, disk IO, and result-field serialization.
+- `worldsim.phase_1.novel_task_validation`: Phase 1 generated-task validation
+  split by batch entry points, single-task orchestration, route alignment,
+  task-card alignment, placement target checks, reward checks, answer stability,
+  and ordering/eligibility. The legacy
+  `worldsim.phases.phase_1_generate_new_tasks_validation` path is only a
+  compatibility facade.
+- `worldsim.adversarial_actions`: host-owned adversarial action behavior split by
+  policies, allowed options, reward compilation, public mutation rewards,
+  final-state compilers, and reward introspection. Keep the old
+  `compiler.py` import surface as a facade while migrating callers to the
+  behavior-owned modules.
 - Phase 0c profile rigor is split by behavior: `phase_0_recon.py` remains the
   compatibility runner, `phase_0_evidence_index.py` owns neutral source indexes,
   `phase_0c_artifacts.py` owns provenance/reuse/trace artifacts, and
@@ -87,6 +108,12 @@ touches research-critical paths because they separate behavior migration from
 import-path cutover. They should have tests that prove legacy imports delegate,
 and a follow-up PR should remove them when the migration window closes.
 
+Package-backed parity modules named `_impl.py` are also transition debt. They
+preserve behavior during a clean import cutover, but new behavior should land in
+the behavior-owned sibling module when practical. When editing an `_impl.py`
+area, prefer moving the touched function into the sibling module that owns the
+behavior and leaving a re-export behind, rather than growing `_impl.py` further.
+
 ## Current Follow-Up Debt
 
 The Phase 2 and Phase 4 modularization PR intentionally leaves a small amount of
@@ -96,6 +123,10 @@ sequencing reduces review risk:
 
 - First split behavior into domain-owned modules while preserving external
   import compatibility.
+- For the Phase 1 validation, Phase 4 result-summary, and outcome-taxonomy
+  cutovers, drain `_impl.py` parity modules incrementally. Move one behavioral
+  cluster at a time into its sibling module and run the focused tests before
+  deleting any facade or re-export.
 - Then remove compatibility wrappers in a follow-up after downstream imports are
   moved and one validation cycle has had a chance to reveal hidden consumers.
   This is a narrow follow-up: update remaining internal and downstream imports
