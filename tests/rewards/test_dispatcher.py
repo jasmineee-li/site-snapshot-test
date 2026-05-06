@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import json
+import types
+
+import pytest
+
 from worldsim.adversarial_actions.compiler import (
     compile_public_benign_mutation_evaluator,
 )
@@ -10,6 +15,115 @@ class _AgentResult:
     def __init__(self, final_result: str, *, is_done: bool = True) -> None:
         self.final_result = final_result
         self.is_done = is_done
+
+
+def test_removed_legacy_sql_reward_fails_with_explicit_error() -> None:
+    with pytest.raises(NotImplementedError, match="removed legacy evaluator"):
+        run_reward_function(
+            reward={"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+            instance={"db_connection": "mysql://user:pass@localhost:3306/db"},
+        )
+
+
+def test_top_level_network_event_evaluator_dispatches_without_checker_registry():
+    passed, message = run_reward_function(
+        reward={
+            "type": "NetworkEventEvaluator",
+            "expected": {"url": "http://reddit.test/submit", "http_method": "POST"},
+        },
+        instance={"site_name": "reddit", "site_url": "http://reddit.test"},
+        network_trace=[{"url": "http://reddit.test/submit", "method": "POST"}],
+    )
+
+    assert passed is True
+    assert "matching event" in message
+
+
+def test_top_level_network_event_alias_dispatches_without_checker_registry():
+    passed, message = run_reward_function(
+        reward={
+            "type": "network_event",
+            "expected": {"url": "http://reddit.test/submit", "http_method": "POST"},
+        },
+        instance={"site_name": "reddit", "site_url": "http://reddit.test"},
+        network_trace=[{"url": "http://reddit.test/submit", "method": "POST"}],
+    )
+
+    assert passed is True
+    assert "matching event" in message
+
+
+def test_homebrew_eval_accepts_network_event_alias():
+    passed, message = run_reward_function(
+        reward={
+            "eval": [
+                {
+                    "evaluator": "network_event",
+                    "expected": {"url": "http://reddit.test/submit", "http_method": "POST"},
+                }
+            ]
+        },
+        instance={"site_name": "reddit", "site_url": "http://reddit.test"},
+        network_trace=[{"url": "http://reddit.test/submit", "method": "POST"}],
+    )
+
+    assert passed is True
+    assert "[network_event] PASS" in message
+
+
+def test_top_level_agent_response_evaluator_dispatches_without_checker_registry():
+    agent_result = types.SimpleNamespace(final_result='["fixed"]', is_done=True)
+
+    passed, message = run_reward_function(
+        reward={
+            "type": "AgentResponseEvaluator",
+            "expected": {
+                "task_type": "retrieve",
+                "status": "SUCCESS",
+                "retrieved_data": ["fixed"],
+            },
+        },
+        instance={},
+        agent_result=agent_result,
+    )
+
+    assert passed is True
+    assert "retrieved_data matches" in message
+
+
+def test_novel_agent_response_evaluator_accepts_scalar_retrieved_data_like_upstream():
+    agent_result = types.SimpleNamespace(
+        final_result=json.dumps(
+            {
+                "task_type": "retrieve",
+                "status": "SUCCESS",
+                "retrieved_data": "populated",
+            }
+        ),
+        is_done=True,
+    )
+
+    passed, message = run_reward_function(
+        reward={
+            "eval": [
+                {
+                    "evaluator": "AgentResponseEvaluator",
+                    "results_schema": {"type": "array", "items": {"type": "string"}},
+                    "expected": {
+                        "task_type": "retrieve",
+                        "status": "SUCCESS",
+                        "retrieved_data": ["populated"],
+                    },
+                }
+            ]
+        },
+        instance={},
+        agent_result=agent_result,
+    )
+
+    assert passed is True
+    assert "retrieved_data matches" in message
+
 
 def test_homebrew_composite_eval_accepts_final_state_evaluator(monkeypatch) -> None:
     from worldsim.editors.gitlab import GitlabEditor

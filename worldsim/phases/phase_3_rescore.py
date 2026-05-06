@@ -26,6 +26,7 @@ from typing import Any
 
 from worldsim.agent_response_transform import detect_strategy, transform_agent_response
 from worldsim.rewards import WEBARENA_EVAL_MODULE, WEBARENA_EVAL_PYTHON_ENV
+from worldsim.rewards.webarena_sites import build_supported_webarena_environments
 
 logger = logging.getLogger(__name__)
 
@@ -87,28 +88,7 @@ def _normalize_environments(
     takes the placeholder mapping directly (rescore does not thread through
     a live benchmark instance).
     """
-    placeholder_to_site = {
-        "__SHOPPING__": "shopping",
-        "__SHOPPING_ADMIN__": "shopping_admin",
-        "__GITLAB__": "gitlab",
-        "__REDDIT__": "reddit",
-        "__WIKIPEDIA__": "wikipedia",
-        "__MAP__": "map",
-    }
-
-    out: dict[str, list[str]] = {}
-    if not url_placeholders:
-        return out
-    for placeholder, site_name in placeholder_to_site.items():
-        url = url_placeholders.get(placeholder)
-        if url:
-            out.setdefault(site_name, []).append(url)
-    # Accept user-defined placeholders too.
-    for key, val in url_placeholders.items():
-        if key not in placeholder_to_site and val:
-            site_name = key.strip("_").lower()
-            out.setdefault(site_name, []).append(val)
-    return out
+    return build_supported_webarena_environments(url_placeholders)
 
 
 def _default_placeholders(instances_path: Path | None) -> dict[str, str]:

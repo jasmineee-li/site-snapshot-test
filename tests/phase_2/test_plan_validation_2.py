@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 def test_validate_generated_adversarial_tasks_rejects_legacy_shaped_task_with_payload_texts():
     task = {
         "id": "adv-1",
@@ -25,7 +26,14 @@ def test_validate_generated_adversarial_tasks_rejects_legacy_shaped_task_with_pa
         },
         "reward_function": {
             "benign_reward": _benign_task()["reward_function"],
-            "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+            "adversarial_reward": {
+                "type": "AgentResponseEvaluator",
+                "expected": {
+                    "task_type": "retrieve",
+                    "status": "SUCCESS",
+                    "retrieved_data": ["ok"],
+                },
+            },
         },
     }
 
@@ -37,6 +45,7 @@ def test_validate_generated_adversarial_tasks_rejects_legacy_shaped_task_with_pa
 
     assert validated == []
     assert any("must not include Phase 2b/final-task fields" in error for error in errors)
+
 
 def test_validate_adversarial_task_contract_rejects_unresolved_http_path():
     task = _finalized_plan_task()
@@ -67,6 +76,7 @@ def test_validate_adversarial_task_contract_rejects_unresolved_http_path():
     )
 
     assert violation == "adversarial_data_seed api_calls[0].path contains unresolved placeholders"
+
 
 @pytest.mark.parametrize(
     "text,expect_match",
@@ -107,6 +117,7 @@ def test_unresolved_http_template_token_regex_narrowed_to_identifier_shape(text,
         f"expected match={expect_match}"
     )
 
+
 def test_validate_adversarial_task_contract_rejects_legacy_seed_template_shape():
     task = _plan_task()
     task["seed_template"] = {
@@ -130,6 +141,7 @@ def test_validate_adversarial_task_contract_rejects_legacy_seed_template_shape()
     )
 
     assert "deprecated" in violation
+
 
 def test_validate_adversarial_task_contract_accepts_editor_seed_shape():
     benign_task = {
@@ -202,7 +214,14 @@ def test_validate_adversarial_task_contract_accepts_editor_seed_shape():
         "delivery_channel": site_profile["injection_surface"][0]["delivery_channels"][0],
         "reward_function": {
             "benign_reward": benign_task["reward_function"],
-            "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+            "adversarial_reward": {
+                "type": "AgentResponseEvaluator",
+                "expected": {
+                    "task_type": "retrieve",
+                    "status": "SUCCESS",
+                    "retrieved_data": ["ok"],
+                },
+            },
         },
     }
 
@@ -213,6 +232,7 @@ def test_validate_adversarial_task_contract_accepts_editor_seed_shape():
     )
 
     assert violation is None
+
 
 def test_validate_adversarial_task_contract_accepts_editor_alias_placeholder_plan():
     benign_task = {
@@ -284,7 +304,14 @@ def test_validate_adversarial_task_contract_accepts_editor_alias_placeholder_pla
         },
         "reward_function": {
             "benign_reward": benign_task["reward_function"],
-            "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+            "adversarial_reward": {
+                "type": "AgentResponseEvaluator",
+                "expected": {
+                    "task_type": "retrieve",
+                    "status": "SUCCESS",
+                    "retrieved_data": ["ok"],
+                },
+            },
         },
     }
 
@@ -295,6 +322,7 @@ def test_validate_adversarial_task_contract_accepts_editor_alias_placeholder_pla
     )
 
     assert violation is None
+
 
 def test_validate_adversarial_task_contract_accepts_gitlab_issue_description_body_alias():
     benign_task = {
@@ -365,7 +393,14 @@ def test_validate_adversarial_task_contract_accepts_gitlab_issue_description_bod
         },
         "reward_function": {
             "benign_reward": benign_task["reward_function"],
-            "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+            "adversarial_reward": {
+                "type": "AgentResponseEvaluator",
+                "expected": {
+                    "task_type": "retrieve",
+                    "status": "SUCCESS",
+                    "retrieved_data": ["ok"],
+                },
+            },
         },
     }
 
@@ -376,6 +411,7 @@ def test_validate_adversarial_task_contract_accepts_gitlab_issue_description_bod
     )
 
     assert violation is None
+
 
 def test_validate_adversarial_task_contract_rejects_editor_map_seed():
     benign_task = {
@@ -444,7 +480,14 @@ def test_validate_adversarial_task_contract_rejects_editor_map_seed():
         "delivery_channel": site_profile["injection_surface"][0]["delivery_channels"][0],
         "reward_function": {
             "benign_reward": benign_task["reward_function"],
-            "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+            "adversarial_reward": {
+                "type": "AgentResponseEvaluator",
+                "expected": {
+                    "task_type": "retrieve",
+                    "status": "SUCCESS",
+                    "retrieved_data": ["ok"],
+                },
+            },
         },
     }
 
@@ -457,6 +500,7 @@ def test_validate_adversarial_task_contract_rejects_editor_map_seed():
     assert (
         violation == "target-based map seeds must be quarantined instead of validated for execution"
     )
+
 
 def test_validate_adversarial_task_contract_rejects_placeholder_postcondition_selector():
     task = _finalized_plan_task()
@@ -490,6 +534,7 @@ def test_validate_adversarial_task_contract_rejects_placeholder_postcondition_se
         violation
         == "delivery_channel.postcondition.where contains a placeholder literal and must identify the created row concretely"
     )
+
 
 def test_validate_generated_adversarial_task_rejects_preseeded_read_surface_fields():
     task = _plan_task()

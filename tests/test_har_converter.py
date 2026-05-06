@@ -7,17 +7,11 @@ Covers three layers:
    is valid HAR, network_trace.json is unchanged).
 3. Live wire-in at ``worldsim.rewards._run_webarena_verified_eval`` (the
    subprocess payload carries HAR entries regardless of input shape).
-
-Anchored by a regression test that reproduces task 11: an
-``AgentResponseEvaluator`` with ``retrieved_data: [6]`` that previously scored
-0 because the empty flat trace tripped the vendor's "Trace content list is
-empty" guard before the agent-response check could run.
 """
 
 from __future__ import annotations
 
 import json
-import os
 import types
 from pathlib import Path
 
@@ -479,7 +473,7 @@ def test_reward_subprocess_receives_placeholder_for_empty_network_trace(monkeypa
 
     passed, _ = rewards.run_reward_function(
         reward={"task_id": 11, "eval": [{"evaluator": "AgentResponseEvaluator"}]},
-        instance={"site_name": "shopping", "site_url": "http://shopping.test"},
+        instance={"site_name": "gitlab", "site_url": "http://gitlab.test"},
         network_trace=[],
     )
 
@@ -494,7 +488,7 @@ def test_reward_subprocess_receives_placeholder_for_none_network_trace(monkeypat
 
     rewards.run_reward_function(
         reward={"task_id": 11, "eval": [{"evaluator": "AgentResponseEvaluator"}]},
-        instance={"site_name": "shopping", "site_url": "http://shopping.test"},
+        instance={"site_name": "gitlab", "site_url": "http://gitlab.test"},
         network_trace=None,
     )
 
@@ -508,7 +502,7 @@ def test_reward_network_evaluator_fails_closed_on_empty_network_trace(monkeypatc
 
     passed, message = rewards.run_reward_function(
         reward={"task_id": 11, "eval": [{"evaluator": "NetworkEventEvaluator"}]},
-        instance={"site_name": "shopping", "site_url": "http://shopping.test"},
+        instance={"site_name": "gitlab", "site_url": "http://gitlab.test"},
         network_trace=[],
     )
 
@@ -521,13 +515,13 @@ def test_reward_subprocess_receives_converted_har_for_flat_input(monkeypatch):
 
     flat_trace = [
         {
-            "url": "http://shopping.test/api/orders/1",
+            "url": "http://gitlab.test/api/v4/projects/1/issues",
             "method": "GET",
             "response_status": 200,
             "headers": {"Accept": "application/json"},
         },
         {
-            "url": "http://shopping.test/api/orders/1",
+            "url": "http://gitlab.test/api/v4/projects/1/issues",
             "method": "POST",
             "response_status": 201,
             "headers": {"Content-Type": "application/json"},
@@ -535,7 +529,7 @@ def test_reward_subprocess_receives_converted_har_for_flat_input(monkeypatch):
     ]
     rewards.run_reward_function(
         reward={"task_id": 11, "eval": [{"evaluator": "AgentResponseEvaluator"}]},
-        instance={"site_name": "shopping", "site_url": "http://shopping.test"},
+        instance={"site_name": "gitlab", "site_url": "http://gitlab.test"},
         network_trace=flat_trace,
     )
 
@@ -556,7 +550,7 @@ def test_reward_subprocess_passes_through_already_har_input(monkeypatch):
         {
             "request": {
                 "method": "GET",
-                "url": "http://shopping.test/api/orders/1",
+                "url": "http://gitlab.test/api/v4/projects/1/issues",
                 "headers": [{"name": "Accept", "value": "application/json"}],
             },
             "response": {
@@ -568,7 +562,7 @@ def test_reward_subprocess_passes_through_already_har_input(monkeypatch):
     ]
     rewards.run_reward_function(
         reward={"task_id": 11, "eval": [{"evaluator": "AgentResponseEvaluator"}]},
-        instance={"site_name": "shopping", "site_url": "http://shopping.test"},
+        instance={"site_name": "gitlab", "site_url": "http://gitlab.test"},
         network_trace=har_input,
     )
 
@@ -576,112 +570,5 @@ def test_reward_subprocess_passes_through_already_har_input(monkeypatch):
     assert len(trace) == 1
     # The request dict still has the raw HAR keys, not a nested request object.
     assert trace[0]["request"]["method"] == "GET"
-    assert trace[0]["request"]["url"] == "http://shopping.test/api/orders/1"
+    assert trace[0]["request"]["url"] == "http://gitlab.test/api/v4/projects/1/issues"
     assert "request" not in trace[0]["request"]
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Regression: task-11-like AgentResponseEvaluator scores correctly
-# ─────────────────────────────────────────────────────────────────────
-
-
-def _vendor_python_or_skip() -> str:
-    """Return a Python executable that can run the vendor evaluator.
-
-    Order of preference:
-      1. ``WORLDSIM_WEBARENA_EVAL_PYTHON`` from the environment (honors any
-         existing test config).
-      2. ``webarena_verified`` importable in the active interpreter.
-      3. The shipped vendor venv at
-         ``packages/worldsim-webarena-verified/.venv/bin/python`` (when it
-         exists and has the evaluate module installed).
-    Otherwise, skip the test.
-    """
-    env = os.environ.get(rewards.WEBARENA_EVAL_PYTHON_ENV, "").strip()
-    if env and Path(env).exists():
-        return env
-
-    try:
-        import webarena_verified  # noqa: F401
-
-        # The in-process path is fine, but we still need the subprocess helper
-        # module since _run_webarena_verified_eval uses subprocess only when
-        # the env var is set. Run in-process by signalling an empty env.
-        return ""
-    except ImportError:
-        pass
-
-    candidate = (
-        Path(__file__).resolve().parents[1]
-        / "packages"
-        / "worldsim-webarena-verified"
-        / ".venv"
-        / "bin"
-        / "python"
-    )
-    if candidate.exists():
-        return str(candidate)
-
-    pytest.skip(
-        "vendor WebArena Verified evaluator not available: set "
-        f"{rewards.WEBARENA_EVAL_PYTHON_ENV} or install webarena_verified in the current env"
-    )
-
-
-class _FakeAgentResult:
-    def __init__(self, final_result: str, is_done: bool = True) -> None:
-        self.final_result = final_result
-        self.is_done = is_done
-
-
-def test_task_11_regression_agent_response_scores_on_empty_trace(monkeypatch):
-    """Task 11: retrieved_data=[6] matches expected=[6], empty trace -> pass.
-
-    Without the converter, the empty network_trace would short-circuit the
-    vendor with "Trace content list is empty" before AgentResponseEvaluator
-    ever ran. With ensure_har_trace injecting a placeholder, the agent
-    response check runs and passes.
-    """
-    vendor_python = _vendor_python_or_skip()
-    if vendor_python:
-        monkeypatch.setenv(rewards.WEBARENA_EVAL_PYTHON_ENV, vendor_python)
-    else:
-        monkeypatch.delenv(rewards.WEBARENA_EVAL_PYTHON_ENV, raising=False)
-
-    reward = {
-        "task_id": 11,
-        "eval": [
-            {
-                "evaluator": "AgentResponseEvaluator",
-                "results_schema": {"type": "array", "items": {"type": "number"}},
-                "expected": {
-                    "task_type": "retrieve",
-                    "status": "SUCCESS",
-                    "retrieved_data": [6],
-                },
-            }
-        ],
-    }
-    agent_result = _FakeAgentResult(
-        final_result=(
-            "```json\n"
-            '{"task_type":"retrieve","status":"SUCCESS","retrieved_data":[6],'
-            '"error_details":null}\n'
-            "```"
-        ),
-    )
-    instance = {
-        "site_name": "shopping_admin",
-        "site_url": "http://shopping-admin.test",
-    }
-
-    passed, message = rewards.run_reward_function(
-        reward=reward,
-        instance=instance,
-        agent_result=agent_result,
-        network_trace=[],
-    )
-
-    assert passed, f"expected pass, got message={message!r}"
-    assert "[AgentResponseEvaluator]" in message
-    assert "SUCCESS" in message.upper()

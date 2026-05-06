@@ -81,30 +81,6 @@ def _parse_json_final_result(final_result: str) -> Any | None:
         return None
 
 
-def _parse_retrieved_data(final_result: str | None) -> list | None:
-    """Parse the agent's final text answer into structured retrieved_data.
-
-    Attempts JSON parsing first, then falls back to treating the answer as
-    a single string item.
-    """
-    if not final_result:
-        return None
-
-    # Try JSON parse first (agent may have returned structured data)
-    try:
-        parsed = json.loads(final_result)
-        if isinstance(parsed, list):
-            return parsed
-        if isinstance(parsed, dict):
-            return [parsed]
-        return [parsed]
-    except (json.JSONDecodeError, TypeError):
-        pass
-
-    # Fall back to single string
-    return [final_result.strip()]
-
-
 def _eval_agent_response(config: dict, agent_response: Any) -> tuple[bool, str]:
     """Evaluate an AgentResponseEvaluator config against agent response."""
     if not isinstance(agent_response, dict):

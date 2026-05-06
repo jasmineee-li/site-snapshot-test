@@ -12,14 +12,13 @@ from worldsim.har_converter import (
     ensure_har_trace,
     strict_runtime_har_trace,
 )
-from worldsim.placeholders import placeholder_for_site
 from worldsim.rewards.agent_response import _build_agent_response
+from worldsim.rewards.webarena_sites import build_supported_webarena_environments
 
 logger = logging.getLogger(__name__)
 
 WEBARENA_EVAL_PYTHON_ENV = "WORLDSIM_WEBARENA_EVAL_PYTHON"
 WEBARENA_EVAL_MODULE = "worldsim_webarena_verified.evaluate"
-
 
 
 def _is_network_event_evaluator_name(name: Any) -> bool:
@@ -217,33 +216,11 @@ def _reward_requires_network_trace(eval_configs: list[dict[str, Any]]) -> bool:
 
 def _build_webarena_environment_payload(instance: dict[str, Any]) -> dict[str, list[str]]:
     """Normalize instance placeholder data into site-name -> urls payload."""
-    site_url = instance.get("site_url", "")
-    explicit = dict(instance.get("url_placeholders", {}))
-    primary_placeholder = placeholder_for_site(instance.get("site_name", ""))
-    if primary_placeholder and primary_placeholder not in explicit and site_url:
-        explicit[primary_placeholder] = site_url
-
-    placeholder_to_site = {
-        "__SHOPPING__": "shopping",
-        "__SHOPPING_ADMIN__": "shopping_admin",
-        "__GITLAB__": "gitlab",
-        "__REDDIT__": "reddit",
-        "__WIKIPEDIA__": "wikipedia",
-        "__MAP__": "map",
-    }
-
-    environments: dict[str, list[str]] = {}
-    for placeholder, site_name in placeholder_to_site.items():
-        url = explicit.get(placeholder)
-        if url:
-            environments.setdefault(site_name, []).append(url)
-
-    for key, val in explicit.items():
-        if key not in placeholder_to_site and val:
-            site_name = key.strip("_").lower()
-            environments.setdefault(site_name, []).append(val)
-
-    return environments
+    return build_supported_webarena_environments(
+        instance.get("url_placeholders"),
+        site_name=str(instance.get("site_name", "")),
+        site_url=str(instance.get("site_url", "")),
+    )
 
 
 def _run_webarena_verified_subprocess(

@@ -72,7 +72,7 @@ def test_validate_profile_rejects_eval_types_absent_from_manifest():
     profile = {
         "data_model": [],
         "injection_surface": [],
-        "verification_capabilities": [{"eval_type": "db_query_match"}],
+        "verification_capabilities": [{"eval_type": "CustomEvaluator"}],
     }
 
     with pytest.raises(

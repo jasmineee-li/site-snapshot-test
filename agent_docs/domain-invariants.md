@@ -354,7 +354,7 @@ When adding OpenAI-backed prompt/API flows, prefer Structured Outputs or determi
 
 Do not reintroduce `visual_concealment`; paper concealment is behavioral final-response steering, not visual concealment.
 
-Behavioral concealment strategies such as `scripted_message`, `command_silent_execution`, and `false_justification` remain deferred unless the reward system changes. The current `AgentResponseEvaluator` plus `db_query_match` reward is tool-side and cannot grade those strategies.
+Behavioral concealment strategies such as `scripted_message`, `command_silent_execution`, and `false_justification` remain deferred unless the reward system changes. The current `AgentResponseEvaluator`, `NetworkEventEvaluator`, and `FinalStateEvaluator` rewards are tool-side and cannot grade those strategies.
 
 Title fields are retired as active mainline IPI carriers for GitLab and Reddit.
 They remain writable UGC metadata and historical analysis dimensions, but new

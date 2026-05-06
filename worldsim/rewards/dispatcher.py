@@ -6,19 +6,11 @@ from worldsim.rewards.agent_response import _build_agent_response, _eval_agent_r
 from worldsim.rewards.final_state import _eval_final_state
 from worldsim.rewards.homebrew import _run_homebrew_eval
 from worldsim.rewards.network_event import _eval_network_event
-from worldsim.rewards.sql_checker import _db_query_match
 from worldsim.rewards.vendor_webarena import _run_webarena_verified_eval
 
 _NETWORK_EVENT_REWARD_TYPES = frozenset({"NetworkEventEvaluator", "network_event"})
 _FINAL_STATE_REWARD_TYPES = frozenset({"FinalStateEvaluator", "final_state"})
-
-def _is_network_event_evaluator_name(name: Any) -> bool:
-    return isinstance(name, str) and name in _NETWORK_EVENT_REWARD_TYPES
-
-
-_CHECKERS: dict[str, Any] = {
-    "db_query_match": _db_query_match,
-}
+_REMOVED_REWARD_TYPES = frozenset({"db_query_match"})
 
 
 def run_reward_function(
@@ -30,7 +22,7 @@ def run_reward_function(
     """Run one reward spec against a benchmark instance.
 
     Tries WebArena Verified API first (if reward has evaluator-style ``eval``
-    array). Falls back to the ``_CHECKERS`` registry for other eval types.
+    array). Falls back to homebrew evaluators for WorldSim reward specs.
 
     Args:
         reward: Reward spec. For WebArena Verified tasks, contains ``eval``
@@ -64,11 +56,10 @@ def run_reward_function(
     if eval_type == "AgentResponseEvaluator":
         agent_response = _build_agent_response([reward], agent_result)
         return _eval_agent_response(reward, agent_response)
-
-    checker = _CHECKERS.get(eval_type)
-    if checker is None:
+    if eval_type in _REMOVED_REWARD_TYPES:
         raise NotImplementedError(
-            f"Reward type {eval_type!r} not registered in worldsim.rewards. "
-            f"Extend _CHECKERS to add support."
+            f"Reward type {eval_type!r} is a removed legacy evaluator. "
+            "Regenerate the task with NetworkEventEvaluator, FinalStateEvaluator, "
+            "or AgentResponseEvaluator evidence."
         )
-    return checker(reward, instance)
+    raise NotImplementedError(f"Reward type {eval_type!r} not supported in worldsim.rewards.")

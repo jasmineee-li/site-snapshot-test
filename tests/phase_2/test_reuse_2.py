@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 def test_validate_reusable_phase_2_task_rejects_legacy_reddit_comment_contract():
     task = _finalized_plan_task()
     task.update(
@@ -152,6 +153,7 @@ async def test_phase_2_run_reuses_existing_final_tasks_for_text_fill_resume(monk
     assert state["status"] == "complete"
     assert state["phase_2_stage"] == "complete"
 
+
 @pytest.mark.asyncio
 async def test_phase_2_run_reuses_legacy_final_tasks_without_phase_2_stage(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
@@ -181,7 +183,14 @@ async def test_phase_2_run_reuses_legacy_final_tasks_without_phase_2_stage(monke
         },
         "reward_function": {
             "benign_reward": _benign_task()["reward_function"],
-            "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+            "adversarial_reward": {
+                "type": "AgentResponseEvaluator",
+                "expected": {
+                    "task_type": "retrieve",
+                    "status": "SUCCESS",
+                    "retrieved_data": ["ok"],
+                },
+            },
         },
     }
     (tmp_path / "phase_1").mkdir(parents=True)
@@ -213,6 +222,7 @@ async def test_phase_2_run_reuses_legacy_final_tasks_without_phase_2_stage(monke
     assert state["status"] == "complete"
     assert state["phase_2_stage"] == "complete"
 
+
 def test_load_reusable_phase_2_tasks_rejects_stale_legacy_tasks_when_benign_ids_change(tmp_path):
     stale_legacy_task = {
         "id": "adv-legacy-stale",
@@ -238,7 +248,14 @@ def test_load_reusable_phase_2_tasks_rejects_stale_legacy_tasks_when_benign_ids_
         },
         "reward_function": {
             "benign_reward": _benign_task()["reward_function"],
-            "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+            "adversarial_reward": {
+                "type": "AgentResponseEvaluator",
+                "expected": {
+                    "task_type": "retrieve",
+                    "status": "SUCCESS",
+                    "retrieved_data": ["ok"],
+                },
+            },
         },
     }
     output_path = tmp_path / "adversarial_tasks.json"
@@ -266,6 +283,7 @@ def test_load_reusable_phase_2_tasks_rejects_stale_legacy_tasks_when_benign_ids_
 
     assert reusable is None
 
+
 def test_load_reusable_phase_2_tasks_rejects_text_model_drift(tmp_path):
     output_path = tmp_path / "adversarial_tasks.json"
     output_path.write_text(json.dumps([_finalized_plan_task()], indent=2))
@@ -291,6 +309,7 @@ def test_load_reusable_phase_2_tasks_rejects_text_model_drift(tmp_path):
 
     assert reusable is None
 
+
 def test_normalize_l4_benign_task_ids_restores_source_id():
     tasks = [
         {
@@ -307,6 +326,7 @@ def test_normalize_l4_benign_task_ids_restores_source_id():
     phase_2_injections._normalize_l4_benign_task_ids_in_place(tasks)
 
     assert tasks[0]["benign_task_id"] == "benign-1"
+
 
 @pytest.mark.asyncio
 async def test_phase_2_run_reuses_legacy_saved_plans_without_phase_2_stage(monkeypatch, tmp_path):
@@ -345,6 +365,7 @@ async def test_phase_2_run_reuses_legacy_saved_plans_without_phase_2_stage(monke
     ) == [finalized]
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["phase_2_stage"] == "complete"
+
 
 @pytest.mark.asyncio
 async def test_phase_2_run_rejects_stale_same_site_reused_tasks(monkeypatch, tmp_path):
@@ -388,6 +409,7 @@ async def test_phase_2_run_rejects_stale_same_site_reused_tasks(monkeypatch, tmp
     assert _strip_feasibility(
         json.loads((tmp_path / "phase_2" / "adversarial_tasks.json").read_text())
     ) == [fresh]
+
 
 @pytest.mark.asyncio
 async def test_phase_2_run_rejects_reuse_when_texts_per_plan_increases(monkeypatch, tmp_path):

@@ -22,13 +22,7 @@ def _eval_network_event(
     URL/method, optional response status, query params, and request body
     evidence.
     """
-    should_not_exist = config.get("should_not_exist", False)
-
-    # Check should_not_exist BEFORE the None trace check: if we expect an
-    # event NOT to exist and there's no trace at all, the event is absent.
     if network_trace is None:
-        if should_not_exist:
-            return True, "no network trace, event correctly absent"
         return False, "no network trace captured (required for NetworkEventEvaluator)"
 
     expected = config.get("expected", {})
@@ -81,11 +75,6 @@ def _eval_network_event(
 
     if last_only and matching_events:
         matching_events = [matching_events[-1]]
-
-    if should_not_exist:
-        if matching_events:
-            return False, f"event found but should_not_exist: {resolved_urls}"
-        return True, "event correctly absent"
 
     if not matching_events:
         return False, f"no matching network event for {sorted(expected_methods)} {resolved_urls}"

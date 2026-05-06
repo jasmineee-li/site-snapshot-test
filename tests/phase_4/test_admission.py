@@ -2,17 +2,20 @@
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 def test_exposure_admission_requires_matching_evidence_contract_id():
     task = _phase4_exposure_fields()
     task["feasibility"]["exposure"]["contract_id"] = "gitlab:other:test"
 
     assert exposure_admission_error(task) == "exposure_contract_id_mismatch"
 
+
 def test_exposure_admission_requires_phase4_capability():
     task = _phase4_exposure_fields()
     del task["exposure_contract"]["phase4_exposure"]
 
     assert exposure_admission_error(task) == "missing_phase4_exposure_capability"
+
 
 def test_exposure_admission_rejects_phase4_inadmissible_topology():
     task = _phase4_exposure_fields()
@@ -32,11 +35,13 @@ def test_exposure_admission_rejects_phase4_inadmissible_topology():
         == "phase4_exposure_inadmissible:unforced_transitive_child_surface"
     )
 
+
 def test_exposure_admission_visual_reachable_advisory():
     task = _phase4_exposure_fields()
     task["feasibility"]["exposure"]["visual_reachable"] = False
 
     assert exposure_admission_error(task) is None
+
 
 def test_exposure_admission_allows_layout_visible_at_entry():
     task = _phase4_exposure_fields()
@@ -46,6 +51,7 @@ def test_exposure_admission_allows_layout_visible_at_entry():
 
     assert exposure_admission_error(task) is None
 
+
 def test_exposure_admission_allows_far_below_fold_as_telemetry():
     task = _phase4_exposure_fields()
     task["feasibility"]["exposure"]["layout_visible_at_entry"] = False
@@ -53,6 +59,7 @@ def test_exposure_admission_allows_far_below_fold_as_telemetry():
     task["feasibility"]["exposure"]["requires_expand"] = False
 
     assert exposure_admission_error(task) is None
+
 
 def test_exposure_admission_allows_near_below_fold():
     task = _phase4_exposure_fields()
@@ -62,6 +69,7 @@ def test_exposure_admission_allows_near_below_fold():
 
     assert exposure_admission_error(task) is None
 
+
 def test_exposure_admission_allows_collapsed_ancestor_as_telemetry():
     task = _phase4_exposure_fields()
     task["feasibility"]["exposure"]["layout_visible_at_entry"] = False
@@ -70,11 +78,13 @@ def test_exposure_admission_allows_collapsed_ancestor_as_telemetry():
 
     assert exposure_admission_error(task) is None
 
+
 def test_exposure_admission_keeps_legacy_layout_fields_optional():
     task = _phase4_exposure_fields()
 
     assert "layout_visible_at_entry" not in task["feasibility"]["exposure"]
     assert exposure_admission_error(task) is None
+
 
 def test_exposure_admission_keeps_present_but_missing_layout_probe_as_telemetry():
     task = _phase4_exposure_fields()
@@ -83,6 +93,7 @@ def test_exposure_admission_keeps_present_but_missing_layout_probe_as_telemetry(
     task["feasibility"]["exposure"]["requires_expand"] = None
 
     assert exposure_admission_error(task) is None
+
 
 def test_exposure_admission_rejects_reddit_comment_seed_not_painted():
     task = _phase4_exposure_fields(site="reddit", url="http://reddit.test/f/books/1")
@@ -96,6 +107,7 @@ def test_exposure_admission_rejects_reddit_comment_seed_not_painted():
 
     assert exposure_admission_error(task) == "reddit_comment_seed_not_painted_at_entry"
 
+
 def test_exposure_admission_accepts_reddit_comment_seed_painted():
     task = _phase4_exposure_fields(site="reddit", url="http://reddit.test/f/books/1")
     task["exposure_contract"]["kind"] = "reddit_submission"
@@ -108,6 +120,7 @@ def test_exposure_admission_accepts_reddit_comment_seed_painted():
 
     assert exposure_admission_error(task) is None
 
+
 def test_exposure_admission_requires_matching_verification_payload():
     task = _phase4_exposure_fields()
     task["feasibility"]["exposure"]["verification"] = {
@@ -117,6 +130,7 @@ def test_exposure_admission_requires_matching_verification_payload():
     }
 
     assert exposure_admission_error(task) == "exposure_verification_mismatch"
+
 
 def test_rebase_adversarial_task_uses_validated_benign_contract():
     task, _ = _prepared_adv_task()
@@ -130,7 +144,10 @@ def test_rebase_adversarial_task_uses_validated_benign_contract():
     stale_adversarial = json.loads(json.dumps(task))
     stale_adversarial["instruction"] = "stale phase 2 instruction"
     stale_adversarial["reward_function"]["benign_reward"] = {"type": "stale"}
-    stale_adversarial["reward_function"]["adversarial_reward"] = {"type": "db_query_match"}
+    stale_adversarial["reward_function"]["adversarial_reward"] = {
+        "type": "AgentResponseEvaluator",
+        "expected": {"task_type": "retrieve", "status": "SUCCESS", "retrieved_data": ["ok"]},
+    }
     stale_adversarial["agent_context"] = {"site_context": {"platform_name": "Wrong"}}
 
     rebuilt = phase_4_adversarial._rebase_adversarial_task(
@@ -140,8 +157,12 @@ def test_rebase_adversarial_task_uses_validated_benign_contract():
 
     assert rebuilt["instruction"] == "Use the repaired benign instruction"
     assert rebuilt["reward_function"]["benign_reward"] == validated_benign["reward_function"]
-    assert rebuilt["reward_function"]["adversarial_reward"] == {"type": "db_query_match"}
+    assert rebuilt["reward_function"]["adversarial_reward"] == {
+        "type": "AgentResponseEvaluator",
+        "expected": {"task_type": "retrieve", "status": "SUCCESS", "retrieved_data": ["ok"]},
+    }
     assert rebuilt["agent_context"] == validated_benign["agent_context"]
+
 
 def test_rebase_adversarial_task_preserves_cross_site_delivery_sites():
     task, _ = _prepared_adv_task()
@@ -153,7 +174,10 @@ def test_rebase_adversarial_task_preserves_cross_site_delivery_sites():
     stale_adversarial["site"] = "shopping_admin"
     stale_adversarial["sites"] = ["shopping_admin", "shopping"]
     stale_adversarial["delivery_channel"] = {"delivery_site": "shopping"}
-    stale_adversarial["reward_function"]["adversarial_reward"] = {"type": "db_query_match"}
+    stale_adversarial["reward_function"]["adversarial_reward"] = {
+        "type": "AgentResponseEvaluator",
+        "expected": {"task_type": "retrieve", "status": "SUCCESS", "retrieved_data": ["ok"]},
+    }
 
     rebuilt = phase_4_adversarial._rebase_adversarial_task(
         stale_adversarial,
@@ -161,6 +185,7 @@ def test_rebase_adversarial_task_preserves_cross_site_delivery_sites():
     )
 
     assert rebuilt["sites"] == ["shopping_admin", "shopping"]
+
 
 def test_rebase_adversarial_task_rejects_non_self_contained_seed():
     task, _ = _prepared_adv_task()
@@ -195,6 +220,7 @@ def test_rebase_adversarial_task_rejects_non_self_contained_seed():
             malformed_adversarial,
             validated_benign,
         )
+
 
 @pytest.mark.asyncio
 async def test_admission_excludes_invalid_contracts(tmp_path, monkeypatch):
@@ -363,6 +389,7 @@ async def test_admission_excludes_invalid_contracts(tmp_path, monkeypatch):
     admitted_ids = [t["id"] for t in called_with.get("tasks", [])]
     assert admitted_ids == ["adv-valid"]
 
+
 @pytest.mark.asyncio
 async def test_admission_rejects_non_list_contracts(tmp_path, monkeypatch, caplog):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
@@ -379,6 +406,7 @@ async def test_admission_rejects_non_list_contracts(tmp_path, monkeypatch, caplo
         )
     assert rc == 1
     assert any("must be a JSON array" in message for message in caplog.messages)
+
 
 @pytest.mark.asyncio
 async def test_admission_rejects_entry_missing_id(tmp_path, monkeypatch, caplog):
@@ -400,6 +428,7 @@ async def test_admission_rejects_entry_missing_id(tmp_path, monkeypatch, caplog)
     assert rc == 1
     assert any("missing or empty id" in message for message in caplog.messages)
 
+
 @pytest.mark.asyncio
 async def test_admission_rejects_unknown_validity_status(tmp_path, monkeypatch, caplog):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
@@ -420,6 +449,7 @@ async def test_admission_rejects_unknown_validity_status(tmp_path, monkeypatch, 
     assert rc == 1
     assert any("validity_status must be" in message for message in caplog.messages)
 
+
 @pytest.mark.asyncio
 async def test_admission_rejects_non_dict_entry(tmp_path, monkeypatch, caplog):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
@@ -439,6 +469,7 @@ async def test_admission_rejects_non_dict_entry(tmp_path, monkeypatch, caplog):
         )
     assert rc == 1
     assert any("not a JSON object" in message for message in caplog.messages)
+
 
 @pytest.mark.asyncio
 async def test_admission_rejects_valid_contract_missing_task_object(tmp_path, monkeypatch, caplog):

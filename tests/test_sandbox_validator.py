@@ -2435,15 +2435,9 @@ class TestEmptyAdversarialDataSeed:
 
 
 class TestAdversarialRewardTypeSpecificFields:
-    """adversarial_reward with type field but missing type-specific fields.
+    """adversarial_reward stale evaluator rejection."""
 
-    Neither the sandbox validator nor the orchestrator currently validates
-    type-specific fields (e.g. query/expected for db_query_match). This test
-    documents the current behavior: presence of 'type' is sufficient.
-    """
-
-    def test_db_query_match_without_query_accepted(self):
-        """Type-specific fields are not validated — only 'type' is required."""
+    def test_removed_db_query_match_rejected(self):
         task = {
             "id": "adv_1",
             "benign_task_id": "benign_1",
@@ -2463,13 +2457,10 @@ class TestAdversarialRewardTypeSpecificFields:
             },
             "adversarial_reward": {
                 "type": "db_query_match",
-                # No 'query' or 'expected' fields
             },
         }
         errors = validator.validate_adversarial_tasks([task])
-        # Should pass because the validator only checks for 'type'
-        assert not any("query" in e for e in errors)
-        assert not any("expected" in e for e in errors)
+        assert any("removed legacy evaluator" in e for e in errors)
 
 
 # ---------------------------------------------------------------------------

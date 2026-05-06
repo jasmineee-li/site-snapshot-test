@@ -471,7 +471,14 @@ def test_validate_reusable_phase_2_task_rejects_legacy_task_with_phase_2b_fields
         },
         "reward_function": {
             "benign_reward": _benign_task()["reward_function"],
-            "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+            "adversarial_reward": {
+                "type": "NetworkEventEvaluator",
+                "expected": {
+                    "url": "__SHOPPING__/review/product/post/id/1/",
+                    "http_method": "POST",
+                    "post_data": {"detail": "legacy attack"},
+                },
+            },
         },
     }
 

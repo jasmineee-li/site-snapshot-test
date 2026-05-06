@@ -20,7 +20,14 @@ def test_validate_adversarial_task_contract_rejects_instruction_drift():
         "adversarial_data_seed": {"mechanism": "api", "api_calls": []},
         "reward_function": {
             "benign_reward": benign_task["reward_function"],
-            "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+            "adversarial_reward": {
+                "type": "AgentResponseEvaluator",
+                "expected": {
+                    "task_type": "retrieve",
+                    "status": "SUCCESS",
+                    "retrieved_data": ["ok"],
+                },
+            },
         },
     }
 
@@ -50,7 +57,14 @@ def test_validate_adversarial_task_contract_rejects_benign_reward_drift():
         "adversarial_data_seed": {"mechanism": "api", "api_calls": []},
         "reward_function": {
             "benign_reward": {"eval": [{"expected": {"retrieved_data": ["stale"]}}]},
-            "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+            "adversarial_reward": {
+                "type": "AgentResponseEvaluator",
+                "expected": {
+                    "task_type": "retrieve",
+                    "status": "SUCCESS",
+                    "retrieved_data": ["ok"],
+                },
+            },
         },
     }
 
@@ -80,7 +94,14 @@ def test_validate_adversarial_task_contract_rejects_invalid_seed_shape():
         "adversarial_data_seed": {"mechanism": "api", "api_calls": []},
         "reward_function": {
             "benign_reward": benign_task["reward_function"],
-            "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+            "adversarial_reward": {
+                "type": "AgentResponseEvaluator",
+                "expected": {
+                    "task_type": "retrieve",
+                    "status": "SUCCESS",
+                    "retrieved_data": ["ok"],
+                },
+            },
         },
     }
 
@@ -137,7 +158,14 @@ def test_validate_adversarial_task_contract_accepts_seed_that_preserves_benign_p
         },
         "reward_function": {
             "benign_reward": benign_task["reward_function"],
-            "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+            "adversarial_reward": {
+                "type": "AgentResponseEvaluator",
+                "expected": {
+                    "task_type": "retrieve",
+                    "status": "SUCCESS",
+                    "retrieved_data": ["ok"],
+                },
+            },
         },
     }
 
@@ -188,7 +216,14 @@ def test_validate_adversarial_task_contract_rejects_seed_that_drops_benign_prefi
         },
         "reward_function": {
             "benign_reward": benign_task["reward_function"],
-            "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+            "adversarial_reward": {
+                "type": "AgentResponseEvaluator",
+                "expected": {
+                    "task_type": "retrieve",
+                    "status": "SUCCESS",
+                    "retrieved_data": ["ok"],
+                },
+            },
         },
     }
 
@@ -222,7 +257,16 @@ def test_validate_generated_adversarial_tasks_rejects_invalid_reward_shape():
             "mechanism": "api",
             "api_calls": [{"method": "POST", "path": "/api/orders"}],
         },
-        "reward_function": {"adversarial_reward": {"type": "db_query_match"}},
+        "reward_function": {
+            "adversarial_reward": {
+                "type": "AgentResponseEvaluator",
+                "expected": {
+                    "task_type": "retrieve",
+                    "status": "SUCCESS",
+                    "retrieved_data": ["ok"],
+                },
+            }
+        },
     }
 
     validated, errors = phase_2_injections._validate_generated_adversarial_tasks(
@@ -263,9 +307,12 @@ def test_validate_adversarial_task_contract_rejects_unknown_framing():
             "reward_function": {
                 "benign_reward": _benign_task()["reward_function"],
                 "adversarial_reward": {
-                    "type": "db_query_match",
-                    "query": "SELECT 1",
-                    "expected": 1,
+                    "type": "AgentResponseEvaluator",
+                    "expected": {
+                        "task_type": "retrieve",
+                        "status": "SUCCESS",
+                        "retrieved_data": ["ok"],
+                    },
                 },
             },
         },
@@ -302,7 +349,14 @@ def test_validate_adversarial_task_contract_accepts_matching_surface_write():
         },
         "reward_function": {
             "benign_reward": _benign_task()["reward_function"],
-            "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+            "adversarial_reward": {
+                "type": "AgentResponseEvaluator",
+                "expected": {
+                    "task_type": "retrieve",
+                    "status": "SUCCESS",
+                    "retrieved_data": ["ok"],
+                },
+            },
         },
     }
 
@@ -609,7 +663,14 @@ def test_validate_adversarial_task_contract_rejects_unchanged_target_field_value
         },
         "reward_function": {
             "benign_reward": benign_task["reward_function"],
-            "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+            "adversarial_reward": {
+                "type": "AgentResponseEvaluator",
+                "expected": {
+                    "task_type": "retrieve",
+                    "status": "SUCCESS",
+                    "retrieved_data": ["ok"],
+                },
+            },
         },
     }
 
@@ -650,9 +711,12 @@ def test_validate_adversarial_task_contract_rejects_unsupported_surface_combo():
             "reward_function": {
                 "benign_reward": _benign_task()["reward_function"],
                 "adversarial_reward": {
-                    "type": "db_query_match",
-                    "query": "SELECT 1",
-                    "expected": 1,
+                    "type": "AgentResponseEvaluator",
+                    "expected": {
+                        "task_type": "retrieve",
+                        "status": "SUCCESS",
+                        "retrieved_data": ["ok"],
+                    },
                 },
             },
         },
@@ -697,9 +761,12 @@ def test_validate_adversarial_task_contract_rejects_mixed_surface_writes():
             "reward_function": {
                 "benign_reward": _benign_task()["reward_function"],
                 "adversarial_reward": {
-                    "type": "db_query_match",
-                    "query": "SELECT 1",
-                    "expected": 1,
+                    "type": "AgentResponseEvaluator",
+                    "expected": {
+                        "task_type": "retrieve",
+                        "status": "SUCCESS",
+                        "retrieved_data": ["ok"],
+                    },
                 },
             },
         },
@@ -741,9 +808,12 @@ def test_validate_adversarial_task_contract_rejects_editor_call_site_mismatch():
             "reward_function": {
                 "benign_reward": _benign_task()["reward_function"],
                 "adversarial_reward": {
-                    "type": "db_query_match",
-                    "query": "SELECT 1",
-                    "expected": 1,
+                    "type": "AgentResponseEvaluator",
+                    "expected": {
+                        "task_type": "retrieve",
+                        "status": "SUCCESS",
+                        "retrieved_data": ["ok"],
+                    },
                 },
             },
         },

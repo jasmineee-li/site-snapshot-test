@@ -1865,6 +1865,12 @@ def validate_adversarial_tasks(
             errors.append(f"{prefix} adversarial_reward must be a non-empty object")
         elif isinstance(adv_reward, dict) and "type" not in adv_reward and "eval" not in adv_reward:
             errors.append(f"{prefix} adversarial_reward missing type field")
+        elif isinstance(adv_reward, dict) and adv_reward.get("type") == "db_query_match":
+            errors.append(
+                f"{prefix} adversarial_reward uses removed legacy evaluator "
+                "'db_query_match'; regenerate with NetworkEventEvaluator, "
+                "FinalStateEvaluator, or AgentResponseEvaluator"
+            )
         elif adv_action is not None:
             if not isinstance(adv_action, dict) or not adv_action:
                 errors.append(f"{prefix} adversarial_action must be a non-empty object")

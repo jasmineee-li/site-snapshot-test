@@ -17,7 +17,7 @@ Dropped from paper Table 6:
 Concealment-steering strategies (`scripted_message`, `command_silent_execution`,
 `false_justification`) are explicitly deferred because they steer only the
 agent's final response and the current reward functions are tool-side only
-(`AgentResponseEvaluator`, `db_query_match`). Grading concealment requires
+(`AgentResponseEvaluator`, `NetworkEventEvaluator`, `FinalStateEvaluator`). Grading concealment requires
 both a prompt judge (paper Appendix A.1/A.2) AND a new reward axis.
 """
 

@@ -73,7 +73,14 @@ def sample_task() -> dict:
         "payload_texts": [{"rendered_payload": "...payload prose..."}],
         "reward_function": {
             "benign_reward": {"eval": [{"evaluator": "AgentResponseEvaluator"}], "task_id": 1},
-            "adversarial_reward": {"type": "db_query_match", "query": "..."},
+            "adversarial_reward": {
+                "type": "AgentResponseEvaluator",
+                "expected": {
+                    "task_type": "retrieve",
+                    "status": "SUCCESS",
+                    "retrieved_data": ["ok"],
+                },
+            },
         },
     }
 

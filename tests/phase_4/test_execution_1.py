@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 @pytest.mark.asyncio
 async def test_reward_evaluation_timeout_fails_closed(monkeypatch):
     def hanging_reward(*args, **kwargs):
@@ -35,7 +36,10 @@ async def test_run_adversarial_task_errors_when_benign_eval_is_non_interpretable
         "task_id": "123",
         "eval": [{"evaluator": "AgentResponseEvaluator"}],
     }
-    task["reward_function"]["adversarial_reward"] = {"type": "db_query_match"}
+    task["reward_function"]["adversarial_reward"] = {
+        "type": "AgentResponseEvaluator",
+        "expected": {"task_type": "retrieve", "status": "SUCCESS", "retrieved_data": ["ok"]},
+    }
 
     async def fake_reset(task):
         return None
@@ -74,6 +78,7 @@ async def test_run_adversarial_task_errors_when_benign_eval_is_non_interpretable
     assert result["outcome"] == "error"
     assert "canonical WebArena Verified evaluation unavailable" in result["error"]
     assert result["adversarial_passed"] is False
+
 
 @pytest.mark.asyncio
 async def test_run_adversarial_task_scores_partial_timeout_when_artifacts_exist(
@@ -124,6 +129,7 @@ async def test_run_adversarial_task_scores_partial_timeout_when_artifacts_exist(
     )
 
     assert result["outcome"] == "refused_or_ignored"
+
 
 @pytest.mark.asyncio
 async def test_run_adversarial_task_defers_seed_cleanup_until_after_reward_eval(
@@ -182,6 +188,7 @@ async def test_run_adversarial_task_defers_seed_cleanup_until_after_reward_eval(
     assert result["outcome"] == "refused_or_ignored"
     assert events == ["seed", "agent", "reward_benign", "reward_adv", "cleanup"]
 
+
 @pytest.mark.asyncio
 async def test_run_adversarial_task_probes_non_scoreable_failures_before_saving_result(
     monkeypatch,
@@ -239,6 +246,7 @@ async def test_run_adversarial_task_probes_non_scoreable_failures_before_saving_
     assert saved["outcome"] == "error"
     assert saved["pvpo_status"] == "ok"
     assert saved["pvpo_failure"] is None
+
 
 @pytest.mark.asyncio
 async def test_run_adversarial_task_stamps_injection_not_encountered_on_error_path(
@@ -303,6 +311,7 @@ async def test_run_adversarial_task_stamps_injection_not_encountered_on_error_pa
     assert saved["final_status"] == "injection_not_encountered"
     assert saved["pvpo_status"] == "ok"
     assert saved["pvpo_failure"] is None
+
 
 @pytest.mark.asyncio
 async def test_run_adversarial_task_passes_site_prompt_from_agent_context(monkeypatch, tmp_path):
@@ -372,6 +381,7 @@ async def test_run_adversarial_task_passes_site_prompt_from_agent_context(monkey
     assert "Use the seeded shopping account" in captured["site_prompt"]
     assert "Return your final answer as JSON matching this schema" in captured["site_prompt"]
 
+
 @pytest.mark.asyncio
 async def test_run_adversarial_task_forwards_benchmark_root_when_auth_present(
     monkeypatch, tmp_path
@@ -435,6 +445,7 @@ async def test_run_adversarial_task_forwards_benchmark_root_when_auth_present(
     assert captured.get("task_site") == "shopping"
     assert captured.get("pvpo_cdp_url") == "http://127.0.0.1:9222"
     assert captured.get("auth_mechanism", {}).get("type") == "storage_state"
+
 
 @pytest.mark.asyncio
 async def test_run_adversarial_task_forwards_http_header_credentials(monkeypatch, tmp_path):

@@ -165,6 +165,12 @@ def _adversarial_task_errors(
     adversarial_reward = reward.get("adversarial_reward")
     if not isinstance(adversarial_reward, dict) or not adversarial_reward:
         errors.append("reward_function.adversarial_reward must be a non-empty object")
+    elif adversarial_reward.get("type") == "db_query_match":
+        errors.append(
+            "reward_function.adversarial_reward uses removed legacy evaluator "
+            "'db_query_match'; regenerate with NetworkEventEvaluator, "
+            "FinalStateEvaluator, or AgentResponseEvaluator"
+        )
     return errors
 
 

@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 def test_materialize_validated_shard_tasks_handles_mixed_legacy_and_v2_output(monkeypatch):
     legacy_task = {
         "id": "adv-legacy",
@@ -23,7 +24,14 @@ def test_materialize_validated_shard_tasks_handles_mixed_legacy_and_v2_output(mo
         },
         "reward_function": {
             "benign_reward": _benign_task()["reward_function"],
-            "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+            "adversarial_reward": {
+                "type": "AgentResponseEvaluator",
+                "expected": {
+                    "task_type": "retrieve",
+                    "status": "SUCCESS",
+                    "retrieved_data": ["ok"],
+                },
+            },
         },
     }
     plan_task = _plan_task()
@@ -43,6 +51,7 @@ def test_materialize_validated_shard_tasks_handles_mixed_legacy_and_v2_output(mo
     assert "delivery_channel" not in materialized[0]
     assert materialized[1]["delivery_channel"]["mechanism"] == "api"
 
+
 def test_materialize_validated_shard_tasks_appends_delivery_site(monkeypatch):
     plan_task = _plan_task()
     profile = _single_surface_profile()
@@ -58,6 +67,7 @@ def test_materialize_validated_shard_tasks_appends_delivery_site(monkeypatch):
 
     assert materialized[0]["delivery_channel"]["delivery_site"] == "shopping_admin"
     assert materialized[0]["sites"] == ["shopping", "shopping_admin"]
+
 
 @pytest.mark.asyncio
 async def test_run_shard_with_limit_serializes_work(monkeypatch):

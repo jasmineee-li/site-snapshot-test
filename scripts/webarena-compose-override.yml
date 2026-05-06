@@ -8,7 +8,7 @@
 # passed in the request body.
 #
 # Also exposes internal database ports for postcondition verification and
-# db_query_match rewards (see instances.json db_connection fields). The host
+# final-state/readback checks (see instances.json db_connection fields). The host
 # must provide explicit bind targets; there is no broad default. After
 # `docker compose up -d`, run scripts/configure_db_access.sh to grant
 # remote DB access inside the recreated containers.

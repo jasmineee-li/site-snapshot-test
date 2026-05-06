@@ -1087,7 +1087,6 @@ def _classify_evaluator_unavailable_subclass(task: dict[str, Any]) -> str:
     Heuristics (handoff §4):
     - new_task tasks with no adversarial_reward → new_task_no_adversarial
     - reward uses NetworkEventEvaluator → network_trace_missing
-    - reward uses db_query_match → db_unreachable
     - else → generic evaluator_unavailable
     """
     reward = task.get("reward_function") or {}
@@ -1122,9 +1121,6 @@ def _classify_evaluator_unavailable_subclass(task: dict[str, Any]) -> str:
         isinstance(adv_reward, dict) and _has_evaluator(adv_reward, "NetworkEventEvaluator")
     ):
         return "evaluator_unavailable_network_trace_missing"
-
-    if isinstance(adv_reward, dict) and adv_reward.get("type") == "db_query_match":
-        return "evaluator_unavailable_db_unreachable"
 
     return "evaluator_unavailable"
 

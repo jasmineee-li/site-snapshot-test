@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_2_injections.py; shared helpers live in tests/phase_2/_fixtures.py.
 from tests.phase_2._fixtures import *  # noqa: F403,F401
 
+
 def test_self_contained_adversarial_seed_admits_mode_b_api_post_then_patch():
     benign_seed = _gitlab_milestone_benign_seed()
     seed_template = {
@@ -20,6 +21,7 @@ def test_self_contained_adversarial_seed_admits_mode_b_api_post_then_patch():
         phase_2_injections._validate_self_contained_adversarial_seed(benign_seed, seed_template)
         is None
     )
+
 
 def test_self_contained_adversarial_seed_admits_mode_b_reddit_multi_editor_calls():
     benign_seed = _reddit_multi_editor_benign_seed()
@@ -45,6 +47,7 @@ def test_self_contained_adversarial_seed_admits_mode_b_reddit_multi_editor_calls
         is None
     )
 
+
 def test_self_contained_adversarial_seed_rejects_mode_b_reddit_dropping_benign_calls():
     benign_seed = _reddit_multi_editor_benign_seed()
     seed_template = {
@@ -69,6 +72,7 @@ def test_self_contained_adversarial_seed_rejects_mode_b_reddit_dropping_benign_c
         error
         == "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
     )
+
 
 def test_validate_seed_template_contract_admits_mode_b_reddit_multi_editor_calls():
     """validate_seed_template_contract takes the editor_calls path when
@@ -101,6 +105,7 @@ def test_validate_seed_template_contract_admits_mode_b_reddit_multi_editor_calls
     }
 
     validate_seed_template_contract(seed_template)
+
 
 def test_validate_adversarial_task_contract_rejects_editor_body_placeholders():
     benign_task = {
@@ -173,7 +178,14 @@ def test_validate_adversarial_task_contract_rejects_editor_body_placeholders():
         "delivery_channel": site_profile["injection_surface"][0]["delivery_channels"][0],
         "reward_function": {
             "benign_reward": benign_task["reward_function"],
-            "adversarial_reward": {"type": "db_query_match", "query": "SELECT 1", "expected": 1},
+            "adversarial_reward": {
+                "type": "AgentResponseEvaluator",
+                "expected": {
+                    "task_type": "retrieve",
+                    "status": "SUCCESS",
+                    "retrieved_data": ["ok"],
+                },
+            },
         },
     }
 
@@ -188,6 +200,7 @@ def test_validate_adversarial_task_contract_rejects_editor_body_placeholders():
         == "adversarial_data_seed contains unresolved placeholders in the required body field 'body'"
     )
 
+
 def test_seed_delivery_mechanism_returns_api_for_api_seed():
     seed_template = {
         "mechanism": "api",
@@ -198,9 +211,11 @@ def test_seed_delivery_mechanism_returns_api_for_api_seed():
     }
     assert phase_2_injections._seed_delivery_mechanism(seed_template) == "api"
 
+
 def test_seed_delivery_mechanism_rejects_api_seed_without_calls():
     with pytest.raises(ValueError, match="mechanism=api but no api_calls"):
         phase_2_injections._seed_delivery_mechanism({"mechanism": "api", "api_calls": []})
+
 
 def test_call_delivery_path_parses_absolute_urls_by_path_for_contract_matching():
     call = {
@@ -210,6 +225,7 @@ def test_call_delivery_path_parses_absolute_urls_by_path_for_contract_matching()
     }
 
     assert phase_2_injections._call_delivery_path(call) == "/rest/V1/reviews"
+
 
 def test_validate_finalized_http_seed_contract_accepts_editor_shopping_postcondition_fields():
     seed = {
@@ -239,6 +255,7 @@ def test_validate_finalized_http_seed_contract_accepts_editor_shopping_postcondi
 
     assert error is None
 
+
 def test_validate_finalized_http_seed_contract_rejects_conflicting_nested_shopping_review_body():
     seed = {
         "mechanism": "api",
@@ -262,6 +279,7 @@ def test_validate_finalized_http_seed_contract_rejects_conflicting_nested_shoppi
     )
 
     assert "mixes top-level review fields with body.review" in error
+
 
 def test_validate_finalized_http_seed_contract_accepts_reddit_legacy_dynamic_comment_field():
     seed = {
@@ -298,6 +316,7 @@ def test_validate_finalized_http_seed_contract_accepts_reddit_legacy_dynamic_com
 
     assert error is None
 
+
 def test_validate_finalized_http_seed_contract_accepts_reddit_submission_form_aliases():
     seed = {
         "mechanism": "editor",
@@ -332,6 +351,7 @@ def test_validate_finalized_http_seed_contract_accepts_reddit_submission_form_al
     )
 
     assert error is None
+
 
 def test_validate_adversarial_task_contract_accepts_nested_review_body_shape():
     benign_seed = {
