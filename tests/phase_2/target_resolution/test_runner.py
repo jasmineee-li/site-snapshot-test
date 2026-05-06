@@ -103,9 +103,9 @@ class TestResolveTasks:
         assert record["reason"] == "reddit_submission_too_many_existing_comments_for_visible_seed"
         assert record["reddit_existing_comment_count"] == 402
 
-    def test_reddit_submission_short_thread_records_visibility_budget(self) -> None:
+    def test_reddit_submission_empty_thread_records_visibility_budget(self) -> None:
         async def comment_count(instance, forum_name, submission_id):
-            return 14
+            return 0
 
         tasks = [
             _reddit_task(
@@ -125,8 +125,34 @@ class TestResolveTasks:
 
         requirements = out["short"][0]["encounter_requirements"]
         assert out["short"][0]["kind"] == "reddit_submission"
-        assert requirements["existing_comment_count"] == 14
-        assert requirements["max_existing_comments_for_comment_seed"] == 20
+        assert requirements["existing_comment_count"] == 0
+        assert requirements["max_existing_comments_for_comment_seed"] == 0
+
+    def test_reddit_submission_with_existing_comment_is_not_comment_seed_safe(self) -> None:
+        async def comment_count(instance, forum_name, submission_id):
+            return 1
+
+        tasks = [
+            _reddit_task(
+                task_id="has-comment",
+                eval_url="__REDDIT__/f/television/70886/-/comment",
+            )
+        ]
+        out = asyncio.run(
+            resolve_tasks(
+                tasks,
+                PLACEHOLDERS,
+                {"site_url": "https://reddit.local"},
+                allow_layers=("L1", "L2"),
+                reddit_comment_count_fn=comment_count,
+            )
+        )
+
+        record = out["has-comment"][0]
+        assert record["kind"] is None
+        assert record["reason"] == "reddit_submission_too_many_existing_comments_for_visible_seed"
+        assert record["reddit_existing_comment_count"] == 1
+        assert record["reddit_existing_comment_limit"] == 0
 
     def test_l3_stub_record_on_classifier_failure_keeps_task_in_output(self) -> None:
         """Classifier returning ``None`` yields a stub record with

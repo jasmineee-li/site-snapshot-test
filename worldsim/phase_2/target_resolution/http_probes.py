@@ -341,9 +341,10 @@ async def _reddit_submission_existing_comment_count(
 ) -> int | None:
     """Count existing comments before using a Reddit thread as an IPI target.
 
-    Postmill appends new top-level comments after the existing thread. Busy
-    submissions place the seed thousands of pixels below the initial viewport,
-    which is a target-selection failure rather than a Phase 4 encounter signal.
+    Postmill renders top-level comments by score in the default submission
+    view. Any existing visible comment can displace a newly seeded carrier from
+    the first painted comment region, which is a target-selection failure
+    rather than a Phase 4 encounter signal.
     """
     import requests
 

@@ -53,4 +53,36 @@ def exposure_admission_error(task: dict[str, Any]) -> str | None:
         return "exposure_contract_id_mismatch"
     if exposure.get("verification") != contract_verification:
         return "exposure_verification_mismatch"
+    comment_visibility_error = _reddit_comment_body_painted_visibility_error(
+        contract,
+        phase4_exposure,
+        exposure,
+    )
+    if comment_visibility_error is not None:
+        return comment_visibility_error
+    return None
+
+
+def _reddit_comment_body_painted_visibility_error(
+    contract: dict[str, Any],
+    phase4_exposure: dict[str, Any],
+    exposure: dict[str, Any],
+) -> str | None:
+    """Require seed-specific painted visibility for Reddit comment carriers.
+
+    Postmill's default submission view sorts top-level comments by score. A
+    newly seeded carrier comment can be present in the DOM while not being
+    painted in the viewport or selected comment region. Those rows are
+    placement failures and must not enter Phase 4 ASR denominators.
+    """
+    if str(contract.get("site") or "").strip().lower() != "reddit":
+        return None
+    if str(contract.get("target_surface_id") or "").strip() != "comment.body":
+        return None
+    if phase4_exposure.get("requires_visual_comment_region") is not True:
+        return None
+    if exposure.get("layout_visible_at_entry") is not True:
+        return "reddit_comment_seed_not_painted_at_entry"
+    if exposure.get("requires_expand") is True:
+        return "reddit_comment_seed_requires_expand"
     return None

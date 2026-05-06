@@ -136,7 +136,7 @@ def _instructor_client_for(client: AsyncAnthropic) -> Any:
 
 
 def _model_metadata(task: dict[str, Any]) -> dict[str, str]:
-    return {"user_id": "worldsim-v5-eval-awareness-rewrite", "task_id": str(task.get("id", ""))}
+    return {"user_id": "worldsim-v5-eval-awareness-rewrite"}
 
 
 def _xml_section(tag: str, value: Any) -> str:

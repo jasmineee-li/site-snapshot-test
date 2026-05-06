@@ -84,6 +84,30 @@ def test_exposure_admission_keeps_present_but_missing_layout_probe_as_telemetry(
 
     assert exposure_admission_error(task) is None
 
+def test_exposure_admission_rejects_reddit_comment_seed_not_painted():
+    task = _phase4_exposure_fields(site="reddit", url="http://reddit.test/f/books/1")
+    task["exposure_contract"]["kind"] = "reddit_submission"
+    task["exposure_contract"]["editor_method"] = "create_comment"
+    task["exposure_contract"]["target_surface_id"] = "comment.body"
+    task["exposure_contract"]["phase4_exposure"]["requires_visual_comment_region"] = True
+    task["feasibility"]["exposure"]["layout_visible_at_entry"] = False
+    task["feasibility"]["exposure"]["scroll_to_visible_px"] = 1200
+    task["feasibility"]["exposure"]["requires_expand"] = False
+
+    assert exposure_admission_error(task) == "reddit_comment_seed_not_painted_at_entry"
+
+def test_exposure_admission_accepts_reddit_comment_seed_painted():
+    task = _phase4_exposure_fields(site="reddit", url="http://reddit.test/f/books/1")
+    task["exposure_contract"]["kind"] = "reddit_submission"
+    task["exposure_contract"]["editor_method"] = "create_comment"
+    task["exposure_contract"]["target_surface_id"] = "comment.body"
+    task["exposure_contract"]["phase4_exposure"]["requires_visual_comment_region"] = True
+    task["feasibility"]["exposure"]["layout_visible_at_entry"] = True
+    task["feasibility"]["exposure"]["scroll_to_visible_px"] = 0
+    task["feasibility"]["exposure"]["requires_expand"] = False
+
+    assert exposure_admission_error(task) is None
+
 def test_exposure_admission_requires_matching_verification_payload():
     task = _phase4_exposure_fields()
     task["feasibility"]["exposure"]["verification"] = {
