@@ -12,6 +12,7 @@ REMOTE_DIR=""
 SSH_KEY_ARG=""
 NAME=""
 LIMIT=20
+JSON=0
 
 usage() {
     cat <<'USAGE'
@@ -23,6 +24,7 @@ Options:
   --ssh-key <path>          SSH private key (default: $SSH_KEY or ~/.ssh/webarena-key.pem)
   --name <name>             only list jobs with this human name
   --limit <n>               max rows (default: 20)
+  --json                    print machine-readable JSON rows
   -h, --help                show this help
 USAGE
 }
@@ -34,6 +36,7 @@ while (($#)); do
         --ssh-key) SSH_KEY_ARG="$2"; shift 2 ;;
         --name) NAME="$2"; shift 2 ;;
         --limit) LIMIT="$2"; shift 2 ;;
+        --json) JSON=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) rj_die "unknown arg: $1" ;;
     esac
@@ -44,12 +47,13 @@ done
 rj_prepare_connection "$HOST_CONFIG" "$SSH_KEY_ARG"
 REMOTE_DIR="${REMOTE_DIR:-$(rj_default_remote_dir)}"
 
-rj_ssh_bash "$REMOTE_DIR" "$NAME" "$LIMIT" <<'REMOTE'
+rj_ssh_bash "$REMOTE_DIR" "$NAME" "$LIMIT" "$JSON" <<'REMOTE'
 set -euo pipefail
 remote_dir="$1"
 name="$2"
 limit="$3"
-python3 - "$remote_dir" "$name" "$limit" <<'PY'
+json_mode="$4"
+python3 - "$remote_dir" "$name" "$limit" "$json_mode" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -57,7 +61,11 @@ from pathlib import Path
 root = Path(sys.argv[1]) / "logs" / "remote_jobs"
 name = sys.argv[2]
 limit = int(sys.argv[3])
+json_mode = sys.argv[4] == "1"
 if not root.exists():
+    if json_mode:
+        print(json.dumps({"jobs": []}, sort_keys=True))
+        raise SystemExit(0)
     print("no remote job registry found")
     raise SystemExit(0)
 
@@ -82,11 +90,23 @@ for metadata_path in root.glob("*/metadata.json"):
             status = "stale" if state == "Z" else "running"
     else:
         status = "stale"
-    rows.append((metadata_path.stat().st_mtime, data.get("created_at", ""), data.get("job_id", metadata_path.parent.name), data.get("name", ""), status))
+    rows.append({
+        "mtime": metadata_path.stat().st_mtime,
+        "created_at": data.get("created_at", ""),
+        "job_id": data.get("job_id", metadata_path.parent.name),
+        "name": data.get("name", ""),
+        "status": status,
+        "state_dir": data.get("state_dir"),
+        "expected_outputs": data.get("expected_outputs") or [],
+    })
 
-rows.sort(reverse=True)
+rows.sort(key=lambda row: row["mtime"], reverse=True)
+rows = rows[:limit]
+if json_mode:
+    print(json.dumps({"jobs": rows}, indent=2, sort_keys=True))
+    raise SystemExit(0)
 print("created_at status  name  job_id")
-for _, created, job_id, job_name, status in rows[:limit]:
-    print(f"{created} {status:7} {job_name} {job_id}")
+for row in rows:
+    print(f"{row['created_at']} {row['status']:7} {row['name']} {row['job_id']}")
 PY
 REMOTE

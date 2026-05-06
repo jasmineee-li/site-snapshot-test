@@ -8,7 +8,7 @@ or failed under the eval-awareness iterator.
 Start with the compact inspector instead of hand-written `python -c` JSON dumps:
 
 ```bash
-uv run python scripts/inspect_phase4_traces.py logs/<run> summary
+uv run python -m worldsim.main trace summary logs/<run>
 ```
 
 For r5 artifacts, run the same inspector remotely:
@@ -20,10 +20,20 @@ scripts/remote_trace_inspect.sh \
   --run logs/<run> -- summary
 ```
 
+For a registered remote job, prefer job selectors so the wrapper derives the
+state dir from metadata:
+
+```bash
+scripts/remote_trace_inspect.sh \
+  --host-config configs/benchmark_hosts/r5.yaml \
+  --remote-dir /home/ubuntu/browser-sim \
+  --job-id <job_id> -- summary
+```
+
 Add narrow filters before increasing detail:
 
 ```bash
-uv run python scripts/inspect_phase4_traces.py logs/<run> summary \
+uv run python -m worldsim.main trace summary logs/<run> \
   --site gitlab \
   --action create_issue_note
 ```
@@ -38,18 +48,37 @@ Use this order:
    `--outcome`, `--limit`, and `--fields`.
 3. `task <task_id> --iterator` when the question is about rewrite attempts,
    stop reason, or why contrasts did not work.
-4. `task <task_id> --refs` when you need artifact paths for `history.json`,
-   `result.json`, Needham XML, TP/VEA raw responses, or PVPO summary.
-5. Only after that, open raw trajectory artifacts directly.
+4. `timeline <task_id>` when you need a compact event order across agent run,
+   PVPO, rewards, final-state readback, TP/VEA, and iterator attempts.
+5. `task <task_id> --refs` when you need artifact paths and a compact artifact
+   manifest for `history.json`, `result.json`, Needham XML, TP/VEA raw
+   responses, or PVPO summary.
+6. Only after that, open raw trajectory artifacts directly.
 
 Machine consumption:
 
 ```bash
-uv run python scripts/inspect_phase4_traces.py logs/<run> slice \
+uv run python -m worldsim.main trace slice logs/<run> \
   --outcome resistant_unaware \
   --fields task_id,site,action,final_status,reward_msg,iterator_stop \
   --output json
 ```
+
+For large slices, use `--output jsonl` with a bounded `--limit`, or pass
+`--all` only when the caller genuinely needs every row.
+
+Discoverable surfaces:
+
+```bash
+uv run python -m worldsim.main trace schema --output json
+uv run python -m worldsim.main trace fields
+uv run python -m worldsim.main trace examples
+```
+
+Useful filters include `--surface`, `--origin`, `--route`, `--pvpo`,
+`--coverage-min`, `--tp`, `--vea`, `--awareness`, `--iterator-stop`,
+`--attack-attempted`, `--attack-success`, `--state-success`, `--has-trace`,
+`--missing-artifact`, and `--reward-contains`.
 
 ## Interpretation Checklist
 
@@ -67,6 +96,7 @@ For `resistant_unaware`, distinguish these cases:
 - `state_success=false`: request-level evidence may differ from final-state
   readback; report these separately.
 
-Do not paste full `signals`, full `history.json`, prompts, screenshots, or raw
-stderr into the conversation by default. Emit compact counts, task ids, artifact
-paths, and the next exact command.
+Do not paste full `signals`, full `history.json`, prompts, screenshots, request
+bodies, cookies, auth headers, or raw stderr into the conversation by default.
+Emit compact counts, task ids, artifact paths, redaction mode, and the next
+exact command.

@@ -118,10 +118,10 @@ def test_cli_slice_json_fields(tmp_path: Path) -> None:
         [
             sys.executable,
             "scripts/inspect_phase4_traces.py",
+            "slice",
             str(run),
             "--output",
             "json",
-            "slice",
             "--fields",
             "task_id,action,outcome_fine,iterator_stop",
         ],
@@ -139,3 +139,56 @@ def test_cli_slice_json_fields(tmp_path: Path) -> None:
             "iterator_stop": "budget_exhausted",
         }
     ]
+
+
+def test_worldsim_trace_timeline_and_jsonl(tmp_path: Path) -> None:
+    run = _run(tmp_path)
+
+    timeline = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "worldsim.main",
+            "trace",
+            "timeline",
+            str(run),
+            "task-1",
+            "--output",
+            "json",
+        ],
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    timeline_payload = json.loads(timeline.stdout)
+    assert timeline_payload["schema_version"] == "phase4_trace_timeline_v1"
+    assert [event["kind"] for event in timeline_payload["events"][:3]] == [
+        "agent_run",
+        "pvpo_capture",
+        "reward_eval",
+    ]
+    assert "task_refs" in timeline_payload["next_commands"]
+
+    jsonl = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "worldsim.main",
+            "trace",
+            "slice",
+            str(run),
+            "--pvpo",
+            "encountered",
+            "--attack-attempted",
+            "false",
+            "--output",
+            "jsonl",
+            "--fields",
+            "task_id,pvpo,attack_attempted",
+        ],
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    rows = [json.loads(line) for line in jsonl.stdout.splitlines()]
+    assert rows == [{"attack_attempted": False, "pvpo": "pvpo_no_artifacts", "task_id": "task-1"}]

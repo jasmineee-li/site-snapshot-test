@@ -539,6 +539,17 @@ for candidate in phase4_results_candidates():
         f"cd {remote_dir} && uv run python scripts/summarize_phase_4_results.py "
         f"{rel(candidate)} --inspect-limit 8"
     )
+    run_root = candidate.parent.parent
+    print(
+        "phase4_trace_summary_command: "
+        f"cd {remote_dir} && uv run python -m worldsim.main trace summary {rel(run_root)}"
+    )
+    print(
+        "phase4_trace_slice_command: "
+        f"cd {remote_dir} && uv run python -m worldsim.main trace slice {rel(run_root)} "
+        "--outcome resistant_unaware "
+        "--fields task_id,site,action,max_coverage,tp,vea,iterator_stop --limit 20"
+    )
     break
 
 print(f"stdout: {stdout}")

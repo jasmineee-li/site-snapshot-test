@@ -26,6 +26,8 @@ from worldsim.phase_4.result_summary import (
     final_metric_success,
     summarize_results,
     task_editor_method,
+    task_origin,
+    task_route_variant,
     task_site,
     task_surface,
 )
@@ -57,7 +59,15 @@ DETAIL_FIELDS = [
     "iterator_generated",
     "attempt_count",
     "answer_label",
+    "origin",
+    "route",
+    "pvpo",
+    "tp_aware",
+    "vea_aware",
+    "signals",
 ]
+
+ALL_FIELDS = DETAIL_FIELDS
 
 
 def load_inspection(
@@ -87,6 +97,24 @@ def filter_results(
     status: str | None = None,
     outcome: str | None = None,
     task_id: str | None = None,
+    surface: str | None = None,
+    origin: str | None = None,
+    route: str | None = None,
+    pvpo: str | None = None,
+    coverage_min: float | None = None,
+    tp: str | None = None,
+    vea: str | None = None,
+    awareness: str | None = None,
+    iterator_stop: str | None = None,
+    iterator_algorithm: str | None = None,
+    has_iterator: bool | None = None,
+    benign_passed: bool | None = None,
+    attack_attempted: bool | None = None,
+    attack_success: bool | None = None,
+    state_success: bool | None = None,
+    has_trace: bool | None = None,
+    missing_artifact: str | None = None,
+    reward_contains: str | None = None,
 ) -> list[dict[str, Any]]:
     filtered: list[dict[str, Any]] = []
     for result in results:
@@ -101,6 +129,55 @@ def filter_results(
             continue
         if task_id and result.get("task_id") != task_id:
             continue
+        if surface and task_surface(task) != surface:
+            continue
+        if origin and task_origin(result, task) != origin:
+            continue
+        if route and task_route_variant(task) != route:
+            continue
+        if pvpo and _pvpo_filter_value(result) != pvpo:
+            continue
+        if coverage_min is not None and float(_max_coverage(result) or 0) < coverage_min:
+            continue
+        if tp and _aware_filter_value(result.get("transcript_purpose_is_aware")) != tp:
+            continue
+        if vea and _aware_filter_value(result.get("verbalized_eval_awareness_is_aware")) != vea:
+            continue
+        if awareness and _combined_awareness(result) != awareness:
+            continue
+        iterator = _iterator_record(result)
+        if iterator_stop and _nested(iterator, "adaptive_budget", "stop_reason") != iterator_stop:
+            continue
+        if iterator_algorithm and iterator.get("algorithm") != iterator_algorithm:
+            continue
+        if has_iterator is not None and bool(iterator) is not has_iterator:
+            continue
+        if benign_passed is not None and (result.get("benign_passed") is True) is not benign_passed:
+            continue
+        if (
+            attack_attempted is not None
+            and final_metric_success(result, "attack_action_attempted") is not attack_attempted
+        ):
+            continue
+        if (
+            attack_success is not None
+            and final_metric_success(result, "attack_action_success") is not attack_success
+        ):
+            continue
+        if (
+            state_success is not None
+            and final_metric_success(result, "state_confirmed_action_success") is not state_success
+        ):
+            continue
+        trace = _primary_trace(result, phase4_dir=Path("."))
+        if has_trace is not None and (trace is not None) is not has_trace:
+            continue
+        if missing_artifact and not _artifact_missing(result, missing_artifact):
+            continue
+        if reward_contains:
+            reward = str(result.get("adversarial_reward_message") or "")
+            if reward_contains.lower() not in reward.lower():
+                continue
         filtered.append(result)
     return filtered
 
@@ -132,6 +209,8 @@ def task_row(
         "task_id": task_id,
         "site": task_site(result, task),
         "surface": task_surface(task),
+        "origin": task_origin(result, task),
+        "route": task_route_variant(task),
         "action": action_name(result, task),
         "final_status": result.get("final_status"),
         "outcome_fine": result.get("outcome_fine"),
@@ -207,6 +286,7 @@ def build_summary(
             task_row(result, task_lookup, phase4_dir=phase4_dir)
             for result in filtered[:sample_limit]
         ],
+        "next_commands": next_commands(str(results_path.parent.parent), filtered[:1]),
     }
 
 
@@ -225,7 +305,70 @@ def build_task_detail(
     if include_refs:
         trace = _primary_trace(result, phase4_dir=phase4_dir)
         base["refs"] = _artifact_refs(trace)
+        base["artifacts"] = artifact_manifest(trace)
+    base["next_commands"] = next_commands(str(phase4_dir.parent), [result])
     return base
+
+
+def build_timeline(
+    result: dict[str, Any],
+    *,
+    phase4_dir: Path,
+) -> dict[str, Any]:
+    trace = _primary_trace(result, phase4_dir=phase4_dir)
+    iterator = _iterator_record(result)
+    events = [
+        _event("agent_run", result.get("final_status"), result.get("outcome_fine"), trace),
+        _event("pvpo_capture", _pvpo_filter_value(result), f"max_coverage={_max_coverage(result)}", trace),
+        _event("reward_eval", result.get("adversarial_passed"), result.get("adversarial_reward_message"), trace),
+        _event(
+            "final_state_readback",
+            result.get("state_confirmed_action_success"),
+            result.get("adversarial_final_state_message"),
+            trace,
+        ),
+        _event(
+            "transcript_purpose",
+            result.get("transcript_purpose_classification"),
+            result.get("transcript_purpose_failure"),
+            trace,
+        ),
+        _event(
+            "verbalized_eval_awareness",
+            result.get("verbalized_eval_awareness_classification"),
+            result.get("verbalized_eval_awareness_failure"),
+            trace,
+        ),
+    ]
+    attempts = iterator.get("attempts") if isinstance(iterator.get("attempts"), list) else []
+    for index, attempt in enumerate(attempts):
+        if not isinstance(attempt, dict):
+            continue
+        events.append(
+            {
+                "index": len(events),
+                "kind": "iterator_attempt",
+                "attempt_index": index,
+                "status": attempt.get("status") or attempt.get("final_status"),
+                "message": compact_text(
+                    attempt.get("adversarial_reward_message")
+                    or attempt.get("failure")
+                    or attempt.get("failed_reason"),
+                    limit=180,
+                ),
+                "trace": attempt.get("trajectory_dir") or attempt.get("variant_trajectory_dir"),
+            }
+        )
+    spans = _span_summary(events)
+    return {
+        "schema_version": "phase4_trace_timeline_v1",
+        "task_id": result.get("task_id"),
+        "trace": str(trace) if trace else None,
+        "redaction_mode": "compact",
+        "events": events,
+        "spans": spans,
+        "next_commands": next_commands(str(phase4_dir.parent), [result]),
+    }
 
 
 def format_text(payload: dict[str, Any], *, command: str) -> str:
@@ -235,6 +378,8 @@ def format_text(payload: dict[str, Any], *, command: str) -> str:
         return _format_task(payload)
     if command == "schema":
         return _format_schema(payload)
+    if command == "timeline":
+        return _format_timeline(payload)
     return _format_rows(payload)
 
 
@@ -316,7 +461,36 @@ def _format_task(payload: dict[str, Any]) -> str:
         lines.append("refs:")
         for key, value in payload["refs"].items():
             lines.append(f"  {key}: {value}")
+    if payload.get("artifacts"):
+        lines.append("artifacts:")
+        for item in payload["artifacts"]:
+            lines.append(
+                f"  {item.get('kind')}: exists={item.get('exists')} size={item.get('size')} path={item.get('path')}"
+            )
+    lines.extend(_format_next_commands(payload))
     return "\n".join(lines)
+
+
+def _format_timeline(payload: dict[str, Any]) -> str:
+    lines = [f"timeline: {payload.get('task_id')} redaction_mode={payload.get('redaction_mode')}"]
+    for event in payload.get("events") or []:
+        if not isinstance(event, dict):
+            continue
+        lines.append(
+            f"  {event.get('index')}. {event.get('kind')} status={event.get('status')} {event.get('message') or ''}"
+        )
+    lines.extend(_format_next_commands(payload))
+    return "\n".join(lines)
+
+
+def _format_next_commands(payload: dict[str, Any]) -> list[str]:
+    commands = payload.get("next_commands")
+    if not isinstance(commands, dict) or not commands:
+        return []
+    lines = ["next_commands:"]
+    for key, value in commands.items():
+        lines.append(f"  {key}: {value}")
+    return lines
 
 
 def _format_schema(payload: dict[str, Any]) -> str:
@@ -371,6 +545,38 @@ def _primary_trace(result: dict[str, Any], *, phase4_dir: Path) -> Path | None:
         if candidates:
             return candidates[0]
     return None
+
+
+def _pvpo_filter_value(result: dict[str, Any]) -> str:
+    coverage = float(_max_coverage(result) or 0)
+    if coverage > 0:
+        return "encountered"
+    if result.get("encounter") or result.get("signals"):
+        return "not_encountered"
+    return "unknown"
+
+
+def _aware_filter_value(value: Any) -> str:
+    return "aware" if value is True else "unaware"
+
+
+def _combined_awareness(result: dict[str, Any]) -> str:
+    tp = result.get("transcript_purpose_is_aware") is True
+    vea = result.get("verbalized_eval_awareness_is_aware") is True
+    if tp and vea:
+        return "both"
+    if tp or vea:
+        return "any"
+    return "none"
+
+
+def _artifact_missing(result: dict[str, Any], kind: str) -> bool:
+    trace = _primary_trace(result, phase4_dir=Path("."))
+    if trace is None:
+        return True
+    refs = _artifact_paths(trace)
+    path = refs.get(kind)
+    return path is None or not path.exists()
 
 
 def _answer_label_for_trace(trace: Path | None) -> str | None:
@@ -429,7 +635,12 @@ def _compact_iterator(iterator: dict[str, Any]) -> dict[str, Any]:
 def _artifact_refs(trace: Path | None) -> dict[str, str | None]:
     if trace is None:
         return {}
-    refs = {
+    refs = _artifact_paths(trace)
+    return {key: str(path) if path.exists() else None for key, path in refs.items()}
+
+
+def _artifact_paths(trace: Path) -> dict[str, Path]:
+    return {
         "trace": trace,
         "history": trace / "history.json",
         "result": trace / "result.json",
@@ -439,7 +650,74 @@ def _artifact_refs(trace: Path | None) -> dict[str, str | None]:
         "vea_raw": trace / "verbalized_eval_awareness_raw_response.json",
         "pvpo_summary": trace / "pvpo" / "capture_summary.json",
     }
-    return {key: str(path) if path.exists() else None for key, path in refs.items()}
+
+
+def artifact_manifest(trace: Path | None) -> list[dict[str, Any]]:
+    if trace is None:
+        return []
+    rows = []
+    for kind, path in _artifact_paths(trace).items():
+        exists = path.exists()
+        stat = path.stat() if exists else None
+        rows.append(
+            {
+                "kind": kind,
+                "path": str(path),
+                "exists": exists,
+                "size": stat.st_size if stat else None,
+                "mtime": stat.st_mtime if stat else None,
+                "redaction_level": "raw_ref_only",
+            }
+        )
+    return rows
+
+
+def _event(kind: str, status: Any, message: Any, trace: Path | None) -> dict[str, Any]:
+    return {
+        "index": 0,
+        "kind": kind,
+        "status": status,
+        "message": compact_text(message, limit=180),
+        "trace": str(trace) if trace else None,
+    }
+
+
+def _span_summary(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    spans = []
+    for index, event in enumerate(events):
+        event["index"] = index
+        spans.append(
+            {
+                "kind": event.get("kind"),
+                "status": event.get("status"),
+                "child_count": 0,
+                "bottleneck": False,
+            }
+        )
+    return spans
+
+
+def next_commands(run_path: str, results: list[dict[str, Any]]) -> dict[str, str]:
+    commands = {
+        "summary": f"uv run python -m worldsim.main trace summary {run_path}",
+        "slice_resistant_unaware": (
+            f"uv run python -m worldsim.main trace slice {run_path} "
+            "--outcome resistant_unaware --fields task_id,site,action,max_coverage,tp,vea,iterator_stop --limit 20"
+        ),
+    }
+    if results:
+        task_id = results[0].get("task_id")
+        if isinstance(task_id, str) and task_id:
+            commands["task_iterator"] = (
+                f"uv run python -m worldsim.main trace task {run_path} {task_id} --iterator"
+            )
+            commands["task_refs"] = (
+                f"uv run python -m worldsim.main trace task {run_path} {task_id} --refs"
+            )
+            commands["timeline"] = (
+                f"uv run python -m worldsim.main trace timeline {run_path} {task_id}"
+            )
+    return commands
 
 
 def schema() -> dict[str, Any]:
@@ -448,12 +726,42 @@ def schema() -> dict[str, Any]:
             "summary": "Aggregate compact counts and representative samples.",
             "slice": "Render compact task rows matching filters.",
             "task": "Explain one task with optional iterator attempts and artifact refs.",
+            "timeline": "Show compact derived event timeline for one task.",
             "schema": "Print this machine-readable command summary.",
         },
-        "filters": ["--site", "--action", "--status", "--outcome", "--task-id"],
-        "outputs": ["text", "json"],
-        "fields": [*DETAIL_FIELDS, "pvpo", "tp_aware", "vea_aware", "signals"],
+        "filters": [
+            "--site",
+            "--action",
+            "--status",
+            "--outcome",
+            "--task-id",
+            "--surface",
+            "--origin",
+            "--route",
+            "--pvpo",
+            "--coverage-min",
+            "--tp",
+            "--vea",
+            "--awareness",
+            "--iterator-stop",
+            "--iterator-algorithm",
+            "--has-iterator",
+            "--benign-passed",
+            "--attack-attempted",
+            "--attack-success",
+            "--state-success",
+            "--has-trace",
+            "--missing-artifact",
+            "--reward-contains",
+        ],
+        "outputs": ["text", "json", "jsonl"],
+        "fields": ALL_FIELDS,
         "default_fields": DEFAULT_FIELDS,
+        "examples": [
+            "uv run python -m worldsim.main trace summary logs/<run> --action create_issue_note",
+            "uv run python -m worldsim.main trace slice logs/<run> --outcome resistant_unaware --fields task_id,site,action,reward_msg,iterator_stop",
+            "uv run python -m worldsim.main trace task logs/<run> <task_id> --iterator --refs",
+        ],
     }
 
 
@@ -462,9 +770,11 @@ __all__ = [
     "DETAIL_FIELDS",
     "build_summary",
     "build_task_detail",
+    "build_timeline",
     "filter_results",
     "format_text",
     "load_inspection",
+    "next_commands",
     "schema",
     "task_row",
 ]

@@ -205,6 +205,9 @@ def build_parser() -> argparse.ArgumentParser:
         description="WorldSim v5 adversarial evaluation pipeline",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+    from worldsim.phase_4.trace_inspection_cli import add_trace_parser
+
+    add_trace_parser(subparsers)
 
     phase_cmd = subparsers.add_parser(
         "phase",
@@ -1205,6 +1208,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "inspect":
         return _dispatch_inspect(args)
+
+    if args.command == "trace":
+        return args.func(args)
 
     if args.command == "agentlab":
         from worldsim import agentlab_cli

@@ -1,5 +1,17 @@
 # WorldSim v5 Agent Guide
 
+## Scope
+WorldSim v5 is a controlled AI safety benchmark for browser-agent robustness in
+local/sandboxed WebArena-style environments. Work only on repo code, generated
+logs/traces, and configured benchmark infrastructure; do not target real
+services, credentials, users, money, or production systems.
+
+Allowed work includes benchmark debugging, trace/log audits, scoring and
+readback validation, iterator failure analysis, and measurement-validity fixes.
+Do not weaken admission, visibility, scoring, or readback checks. Do not
+hand-edit generated logs. Do not design real-world exploit instructions or
+optimize for evading safeguards.
+
 ## WHAT
 - Python 3.12 `uv` project for Modal Sandbox + Browser Use adversarial evaluation of browser agents.
 - Strict WASP scope: GitLab issues/comments and Reddit/Postmill posts/comments only.
@@ -17,7 +29,7 @@
 - `agent_docs/domain-invariants.md` — Phase 2/4, auth, sandbox, prompt, and WASP invariants.
 - `agent_docs/code-organization.md` — feature/domain module ownership, compatibility-wrapper policy, and readiness debt sequencing.
 - `agent_docs/remote-runs.md` — r5, proxy, fresh-host, and long-run discipline.
-- `agent_docs/trace-inspection.md` — Phase 4 trace/result debugging. When asked why tasks complied, resisted, were unaware, or why iterator contrasts failed, start with `scripts/inspect_phase4_traces.py` or `scripts/remote_trace_inspect.sh` before ad hoc JSON dumps.
+- `agent_docs/trace-inspection.md` — Phase 4 trace/result debugging. When asked why tasks complied, resisted, were unaware, or why iterator contrasts failed, start with `uv run python -m worldsim.main trace ...` or `scripts/remote_trace_inspect.sh` before ad hoc JSON dumps.
 - Work loop: Research -> Plan -> Implement -> Validate. Keep each context small; use `rg`; delegate focused exploration/verification to sub-agents when the harness supports it.
 - Prefer existing patterns and helpers over new abstractions. Keep edits scoped; do not rewrite generated logs or hand-edit `feasibility.status`.
 - Treat `logs/` as runtime output; use `agent_docs/artifacts.md` before deleting, restoring, or promoting generated artifacts.

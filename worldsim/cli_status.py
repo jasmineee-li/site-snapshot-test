@@ -484,6 +484,29 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
                 trace = row.get("primary_inspection_trace")
                 if isinstance(trace, str) and trace:
                     lines.append(f"     trace={trace}")
+                task_id = row.get("task_id")
+                results_path = payload.get("phase4_results_path")
+                if isinstance(task_id, str) and isinstance(results_path, str):
+                    run_root = str(Path(results_path).parent.parent)
+                    lines.append(
+                        "     next="
+                        f"uv run python -m worldsim.main trace task {run_root} "
+                        f"{task_id} --iterator --refs"
+                    )
+            results_path = payload.get("phase4_results_path")
+            if isinstance(results_path, str):
+                run_root = str(Path(results_path).parent.parent)
+                lines.append(
+                    "Trace summary: "
+                    f"uv run python -m worldsim.main trace summary {run_root}"
+                )
+                lines.append(
+                    "Trace resistant_unaware slice: "
+                    f"uv run python -m worldsim.main trace slice {run_root} "
+                    "--outcome resistant_unaware "
+                    "--fields task_id,site,action,max_coverage,tp,vea,iterator_stop "
+                    "--limit 20"
+                )
     else:
         lines.append("Phase 4 results: not found")
 
