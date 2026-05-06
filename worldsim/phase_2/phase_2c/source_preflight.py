@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from worldsim.phase_2.phase_2c._impl import (
     _cookie_domain_matches_host,
-    _ensure_live_storage_state_options,
     _infer_records_benchmark,
     _playwright_storage_state_for_preflight,
     _playwright_storage_state_payload_for_preflight,
@@ -13,7 +12,6 @@ from worldsim.phase_2.phase_2c._impl import (
     _resolve_agent_auth_headers,
     _resolve_benign_storage_state_path,
     _run_preflight_and_filter_raw,
-    _self_test_context_options,
     _storage_state_cookie_hosts,
     _storage_state_origin_hosts,
     _storage_state_preflight_error,
@@ -23,7 +21,6 @@ from worldsim.phase_2.phase_2c._impl import (
 
 __all__ = [
     "_cookie_domain_matches_host",
-    "_ensure_live_storage_state_options",
     "_infer_records_benchmark",
     "_playwright_storage_state_for_preflight",
     "_playwright_storage_state_payload_for_preflight",
@@ -32,7 +29,6 @@ __all__ = [
     "_resolve_agent_auth_headers",
     "_resolve_benign_storage_state_path",
     "_run_preflight_and_filter_raw",
-    "_self_test_context_options",
     "_storage_state_cookie_hosts",
     "_storage_state_origin_hosts",
     "_storage_state_preflight_error",
