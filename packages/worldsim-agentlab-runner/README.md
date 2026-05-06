@@ -54,9 +54,11 @@ fallbacks where possible; `gpt52` also disables/excludes OpenRouter reasoning
 to match the Browser Use OpenRouter parity arm.
 
 There are two separate modes. `run` is the benchmark-native comparison runner.
-`phase4-run` is the WorldSim-v5 runtime and must preserve Browser Use-equivalent
-auth, PVPO, network, history, final-response, screenshot, and resume artifacts
-before a live sweep is treated as parity data.
+`phase4-run` is the only AgentLab path that may be compared as WorldSim-v5
+Phase 4 data. It must preserve Browser Use-equivalent auth, PVPO, network,
+history, final-response, screenshot, and resume artifacts before a live sweep is
+treated as parity data. Do not describe native `run` outputs as AgentLab
+Phase 4 parity results.
 
 Phase 4 request controls intentionally use scoped interception rather than
 global Playwright headers. Storage-state auth is normalized and host-validated
@@ -69,6 +71,11 @@ standards-shaped HAR 1.2 artifact with ISO timestamps, request/response
 metadata, `cache`, and `timings` fields for audit tooling. Persisted request
 copies and network artifacts redact auth headers, cookies, and token-like
 headers.
+
+AgentLab actions stay AgentLab-native. The Phase 4 exporter may parse
+AgentLab's Python-call action strings into ordered tool-call records for
+Needham XML, TP/VEA, and outcome-taxonomy consumers, but it must preserve the
+raw AgentLab text and must not relabel those actions as Browser Use actions.
 
 AgentLab Phase 4 currently honors only the whole-task subprocess timeout. Root
 WorldSim fails fast if `--agent-llm-timeout` or `--agent-step-timeout` is passed

@@ -65,6 +65,203 @@ There are two separate products:
    contracts before treating a new host/model matrix as parity data.
 
 Do not collapse these paths. Comparison reward is not WorldSim-v5 refusal ASR.
+In docs, runbooks, result summaries, and paper notes, use **AgentLab
+`phase4-run`** when referring to WorldSim-v5 Phase 4 data. Plain AgentLab
+`run` means benchmark-native comparison mode only.
+
+## Rigor Proof Plan
+
+Progressively disclose proof in three layers. Stop at the first failing layer;
+do not promote AgentLab results as Phase 4 parity data until all required gates
+for the target host/model matrix pass.
+
+### Layer 1 - Local Contract Gate
+
+Purpose: prove the sidecar emits the same artifact contracts without requiring a
+live benchmark host.
+
+Run:
+
+```bash
+uv run pytest tests/test_agentlab_runner.py tests/test_phase_4_pvpo_beginframe.py tests/test_eval_worker_pool.py -q
+uv run pytest tests/rewards/test_final_state_webarena_verified_reddit.py tests/test_trace_redaction.py -q
+uvx ruff check packages/worldsim-agentlab-runner/src/worldsim_agentlab_runner tests/test_agentlab_runner.py
+```
+
+Expected evidence:
+
+- `phase4-run` context kwargs include `service_workers="block"` and preserve
+  `storage_state`.
+- Request controls rewrite same-scheme origins, repair URL-bearing headers, and
+  add scoped auth without global Playwright headers.
+- Timeout/error paths write minimal `history.json`, `final_response.json`,
+  `needham_trace.*`, `network_trace.json`, `network.har`, `browser_runtime.json`,
+  and sidecar result artifacts.
+- Reddit/Postmill request-body preservation and final-state attributed readback
+  still pass. Request-body evidence alone is never final-state success.
+
+### Layer 2 - Synthetic Parity Fixtures
+
+Purpose: prove the remaining P2 trajectory risks without spending r5 cycles.
+
+Add/run targeted fixtures before a broad sweep:
+
+```bash
+uv run pytest tests/test_agentlab_runner.py -q -k "action_projection or needham or final_message"
+uv run pytest tests/test_outcome_taxonomy.py -q
+```
+
+Required new probes:
+
+- **Action strings.** Feed AgentLab-native action strings produced by the latest
+  `origin/data-import` AgentLab format: single call, newline-joined calls,
+  semicolon-separated calls, fenced Python, mixed assignment plus calls,
+  attribute calls, invalid Python, and raw non-call text.
+- **Needham byte equivalence.** Convert synthetic AgentLab steps to
+  `ChatMessage` objects and compare `needham_trace.xml` byte-for-byte against
+  `worldsim.phase_4.needham_xml.format_xml` for the same logical transcript.
+- **Outcome taxonomy all-actions scan.** Use a synthetic step where the relevant
+  platform action is the second AgentLab call. The classifier must inspect all
+  ordered actions or explicitly mark the trajectory as lower-confidence instead
+  of silently reading only the first action.
+
+### Layer 3 - r5 Live Smoke
+
+Purpose: prove BrowserGym, Playwright, CDP, service-worker policy, PVPO,
+network/HAR, rewards, resume, and artifact manifests together on the rigor host.
+
+Smallest smoke:
+
+```bash
+bash scripts/run_integration_tests.sh \
+  --host-config configs/benchmark_hosts/r5.yaml \
+  --quiet \
+  --agent-runner agentlab \
+  --phase 4 \
+  --max-tasks-per-site 1
+```
+
+Artifact audit:
+
+```bash
+rg -n '"request_controls"|"service_workers"|"rewrite_hits"|"scoped_auth_hits"' logs/<run>/phase_4
+rg -n '"pvpo"|"beginframe"|"dirty"|"recycle"|"max_coverage"' logs/<run>/phase_4
+rg -n '"postData"|"method"|"url"|"status"' logs/<run>/phase_4/*/network.har
+rg -n '"format"|"needham-agentlab-v1"|"tool_calls"|"agentlab_action"' logs/<run>/phase_4/*/needham_trace.json
+rg -n '"status"|"final_result"|"result_fingerprint"|"_runner"' logs/<run>/phase_4/*/result.json logs/<run>/phase_4/*/processed_result.json
+```
+
+Pass criteria:
+
+- `browser_runtime.json` shows AgentLab `phase4-run`, request-control telemetry,
+  service workers blocked, and no global auth headers.
+- PVPO writes per-step captures and `capture_summary.json`; `max_coverage == 0`
+  means genuine non-encounter or placement-fix input, not missing
+  instrumentation.
+- `network_trace.json` is flat, `network.har` is valid HAR 1.2, reward-private
+  traces exist at mode `0600`, and public traces preserve benchmark request
+  bodies while redacting auth headers/cookies.
+- `history.json`, `final_response.json`, and `needham_trace.*` are internally
+  consistent with AgentLab steps and final response.
+- `result.json` / `processed_result.json` include runner/fingerprint fields so
+  resume skips completed AgentLab dirs and reruns incomplete dirs.
+
+## P1 Live Risks To Close
+
+1. **Full-stack `phase4-run` proof.** Local tests prove contracts, not r5
+   runtime behavior. One GitLab and one Reddit/Postmill live task are the
+   minimum before treating a new AgentLab host/model matrix as parity data.
+2. **Service-worker policy passthrough.** The code now passes
+   `service_workers="block"` through BrowserGym context kwargs. Live proof must
+   confirm BrowserGym forwards it to Playwright and GitLab/Postmill workflows do
+   not depend on service workers.
+3. **Timeout/crash artifacts.** Unit tests cover stale cleanup and placeholders;
+   live proof must exercise a short controlled timeout to prove partial
+   BrowserGym writes are recovered or replaced consistently.
+4. **PVPO lifecycle.** The coordinator and CDP detach paths are unit-covered,
+   but r5 must prove screenshot patch, canonical PVPO capture, recycle reset,
+   dirty endpoint semantics, and per-endpoint beginFrame serialization under
+   real headless-shell load.
+
+The PVPO item is not "okay sure" until live-proven because AgentLab has two
+sync CDP users in one process: BrowserGym screenshots and canonical PVPO
+capture. Local unit tests can simulate locks and dirty state; only r5 proves the
+actual CDP endpoint, browser recycle, and HeadlessExperimental.beginFrame path.
+
+## P2 Trajectory Risks And Proof
+
+### AgentLab Actions
+
+Latest `origin/data-import` inspection (fetched 2026-05-06, tip
+`3f873069`) shows AgentLab converts tool calls into AgentLab environment action
+strings, then joins multiple calls with newlines. See upstream
+`AgentlabAction.convert_toolcall_to_agentlab_action_format()` and
+`convert_multiactions_to_agentlab_action_format()`.
+
+WorldSim must not convert these into Browser Use actions. The Phase 4 exporter
+parses AgentLab-native Python-call strings only to expose ordered tool-call
+structure to Needham XML, TP/VEA, and outcome taxonomy. The raw AgentLab action
+string remains the audit source of truth.
+
+Required invariant:
+
+- one AgentLab action string produces the same raw string in every projected
+  call's `arguments.raw`;
+- newline-joined AgentLab calls produce ordered AgentLab-named tool calls;
+- non-call text or invalid Python produces one `agentlab_action` raw fallback;
+- parser failures never invent Browser Use action names.
+
+### Needham XML
+
+The risk is not semantic drift in the XML grammar; `worldsim.phase_4.needham_xml`
+already has a byte-equivalence contract for the Needham serializer quirks. The
+remaining risk is adapter drift: AgentLab history may project a different
+message list than Browser Use for equivalent events.
+
+Comprehensive proof:
+
+1. Build the same logical transcript as typed `ChatMessage` objects.
+2. Build an AgentLab synthetic `episode_info` producing that transcript.
+3. Serialize both through the canonical Needham serializer.
+4. Assert byte-for-byte identical XML, including escaping, tool-call ordering,
+   the tool-role comma quirk, and trailing blank line.
+
+AgentLab-specific `needham_trace.json` may keep `format="needham-agentlab-v1"`
+for provenance. The XML transcript consumed by TP/VEA must remain
+`needham-xml-v1`.
+
+### Outcome Taxonomy
+
+Outcome taxonomy is an offline classifier over trajectory artifacts. The risk is
+that multi-action AgentLab steps can carry the meaningful platform action after
+the first call, while some older classifier logic historically inspected only
+`actions[0]`.
+
+Best-practice fix:
+
+- normalize each step into an ordered action iterator;
+- classify over all actions in order;
+- keep first-action convenience helpers only as wrappers around the iterator;
+- add a regression where only the second action matches the platform action.
+
+This does not change rewards, PVPO, TP, or VEA. It only prevents postprocess
+labels from under-reading an AgentLab-native multi-action turn.
+
+## Request Body Handling
+
+WorldSim preserves benchmark request bodies because WebArena-style validators
+need URL/query/body evidence for actions such as Reddit/Postmill
+`submit_comment`. These are fake benchmark sites, but raw request bodies can
+still contain auth form fields, CSRF tokens, session-like values, or generated
+payload text that should not be pasted into chat or reports by default.
+
+The operational rule is simple:
+
+- local artifacts may preserve benchmark bodies for scoring and audit;
+- public summaries should cite paths, methods, status, and redacted snippets;
+- paste raw bodies only when the exact field value is necessary for debugging,
+  and first check that it is benchmark-only payload rather than a credential,
+  token, cookie, or private prompt text.
 
 ## Parity Work Status
 
@@ -139,8 +336,13 @@ uv run pytest tests/phase_4/test_resume_1.py tests/phase_4/test_resume_2.py test
 bash scripts/verify_fast.sh
 ```
 
-Live gate before claiming WorldSim-v5 parity:
+Live gate before claiming AgentLab `phase4-run` WorldSim-v5 parity:
 
 ```bash
-scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml --quiet
+bash scripts/run_integration_tests.sh \
+  --host-config configs/benchmark_hosts/r5.yaml \
+  --quiet \
+  --agent-runner agentlab \
+  --phase 4 \
+  --max-tasks-per-site 1
 ```
