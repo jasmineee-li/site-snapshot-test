@@ -3,32 +3,37 @@
 # steering effectiveness vs. capability degradation.
 #
 # Per cell: run AgentDojo via the HF backend with given (layer, alpha),
-# capture per-pair JSONs (which carry `passed` = capability and
-# `attack_success` = safety). After the grid completes, do ONE final
-# pass that loads the model + probe and scores each trajectory's
-# first-assistant message via the same probe span used in the WASP
-# launcher; this gives the steering-bite signal without adding a model
-# load per cell.
+# in --no-injection mode (each unique user_task runs once, no injection
+# wrapping, no security check). Records per-task `passed` (capability).
+# After the grid completes, the trained probe is **never** used to score
+# steering bite — that would be circular since steering literally adds the
+# probe direction to activations. Instead, an LLM-as-judge (Sonnet-4.6 by
+# default, via OpenRouter) reads each agent transcript and rates verbalized
+# eval-awareness using the same VerbalizedAwarenessJudge as the WASP /
+# transcript pipeline. The cross-probe (the OTHER probe family's score) is
+# kept as an interpretability sanity-check column.
 #
-# Output: $OUTPUT_ROOT/sweep_summary.csv (and .md), one row per cell.
+# Output: $OUTPUT_ROOT/sweep_summary.{csv,md}, one row per cell.
 #
 # Defaults sweep MCQ probe on OpenCUA-32B with:
 #   layers: 15 (SAD top-1), 16 + 24 (paper mid-band fractions for 64-layer
 #           models), 6 (early-band control), 3 (the SAD top-3 layer)
-#   alphas: 0.0 (baseline), 0.3, 0.6, 1.0
+#   alphas: baseline (no steering, run once) + 0.3, 0.6, 1.0
 #
 # To sweep the framing probe instead, pass:
 #   PROBE_DIR=probes/trained/opencua-32b-chat-template-span/framing \
+#   CROSS_PROBE_DIR=probes/trained/opencua-32b-chat-template-span/mcq \
 #   LAYERS=63,9,16,24,6
 #
 # To sweep GUI-Owl, pass:
 #   MODEL=mPLUG/GUI-Owl-1.5-32B-Think MODEL_NAME=local/gui-owl-32b-think \
 #   PROBE_DIR=probes/trained/gui-owl-32b-chat-template-span/mcq \
+#   CROSS_PROBE_DIR=probes/trained/gui-owl-32b-chat-template-span/framing \
 #   LAYERS=30,16,24,6,5
 #
-# Total runtime estimate: ~5-10 min per (layer, non-zero alpha) cell at
-# MAX_TASKS=20 + a single shared baseline. Default grid = 1 baseline +
-# 5 layers × 3 non-zero alphas = 16 cells.
+# Runtime estimate: ~10-15 min per cell at MAX_TASKS=40 (40 unique
+# user_tasks). Default grid = 1 baseline + 5 layers × 3 alphas = 16 cells.
+# Plus ~2 min of judging at the end (640 transcripts at concurrency 64).
 
 set -euo pipefail
 
@@ -44,16 +49,18 @@ HF_PYTHON=${HF_PYTHON:-$REPO_ROOT/.venv/bin/python}
 MODEL=${MODEL:-xlangai/OpenCUA-32B}
 MODEL_NAME=${MODEL_NAME:-local/opencua-32b}
 PROBE_DIR=${PROBE_DIR:-probes/trained/opencua-32b-chat-template-span/mcq}
+CROSS_PROBE_DIR=${CROSS_PROBE_DIR:-probes/trained/opencua-32b-chat-template-span/framing}
 LAYERS=${LAYERS:-15,16,24,6,3}
 ALPHAS=${ALPHAS:-0.3,0.6,1.0}
-MAX_TASKS=${MAX_TASKS:-20}
+MAX_TASKS=${MAX_TASKS:-40}
 SUITE=${SUITE:-workspace}
 SHUFFLE=${SHUFFLE:-42}
 CONCURRENCY=${CONCURRENCY:-4}
 SWEEP_ID=${SWEEP_ID:-agentdojo_sweep_$(date -u +%Y%m%d_%H%M%S)}
 OUTPUT_ROOT=${OUTPUT_ROOT:-$REPO_ROOT/results/toolcalling/agentdojo/sweep/$SWEEP_ID}
 CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
-PROBE_SPAN=${PROBE_SPAN:-first_assistant_message_mean}
+JUDGE_MODEL=${JUDGE_MODEL:-anthropic/claude-sonnet-4.6}
+JUDGE_CONCURRENCY=${JUDGE_CONCURRENCY:-32}
 
 mkdir -p "$OUTPUT_ROOT/cells"
 LOG_PATH="$OUTPUT_ROOT/sweep.log"
@@ -62,9 +69,12 @@ exec > >(tee -a "$LOG_PATH") 2>&1
 echo "started_at=$(date -u --iso-8601=seconds)"
 echo "sweep_id=$SWEEP_ID"
 echo "output_root=$OUTPUT_ROOT"
-echo "model=$MODEL model_name=$MODEL_NAME probe_dir=$PROBE_DIR"
+echo "model=$MODEL model_name=$MODEL_NAME"
+echo "probe_dir=$PROBE_DIR (steering)"
+echo "cross_probe_dir=$CROSS_PROBE_DIR (independent score)"
 echo "layers=$LAYERS alphas=$ALPHAS max_tasks=$MAX_TASKS suite=$SUITE"
-echo "cuda_visible_devices=$CUDA_VISIBLE_DEVICES probe_span=$PROBE_SPAN"
+echo "cuda_visible_devices=$CUDA_VISIBLE_DEVICES"
+echo "judge_model=$JUDGE_MODEL judge_concurrency=$JUDGE_CONCURRENCY"
 
 IFS=',' read -ra LAYER_ARR <<< "$LAYERS"
 IFS=',' read -ra ALPHA_ARR <<< "$ALPHAS"
@@ -83,6 +93,7 @@ run_cell() {
     env CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES" \
         "$HF_PYTHON" -m eval_awareness_experiments.run_agentdojo \
             --suite "$SUITE" \
+            --no-injection \
             --max-tasks "$MAX_TASKS" \
             --shuffle "$SHUFFLE" \
             --concurrency "$CONCURRENCY" \
@@ -111,61 +122,64 @@ for layer in "${LAYER_ARR[@]}"; do
     done
 done
 
-echo "[$(date -u --iso-8601=seconds)] all cells done; aggregating + probe scoring"
+echo "[$(date -u --iso-8601=seconds)] all cells done; running LLM judge + cross-probe scoring"
 
 env \
     REPO_ROOT="$REPO_ROOT" \
     OUTPUT_ROOT="$OUTPUT_ROOT" \
     SUITE="$SUITE" \
     MODEL_PATH="$MODEL" \
-    PROBE_DIR="$PROBE_DIR" \
-    PROBE_SPAN="$PROBE_SPAN" \
+    CROSS_PROBE_DIR="$CROSS_PROBE_DIR" \
     BASELINE_DIR="$BASELINE_DIR" \
     LAYERS="$LAYERS" \
     ALPHAS="$ALPHAS" \
     CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES" \
+    JUDGE_MODEL="$JUDGE_MODEL" \
+    JUDGE_CONCURRENCY="$JUDGE_CONCURRENCY" \
+    SWEEP_ID="$SWEEP_ID" \
     "$HF_PYTHON" - <<'PY'
 """
-Aggregate AgentDojo sweep cells into a (layer, alpha) summary CSV/MD with
-TSR, ASR, and mean probe-span score for one chosen span. Loads the model
-+ probe ONCE here so that scoring all cells is one bf16 forward-pass loop
-rather than one model load per cell.
+Aggregate AgentDojo sweep cells into a (layer, alpha) summary table with:
+- TSR (capability) — directly from per-task `passed`
+- eval_aware_rate (LLM-as-judge on the agent transcript) — independent of
+  the steering direction, so it's a non-circular measure of "did the model
+  start verbalizing eval-awareness more under steering"
+- cross_probe_score (the OTHER probe family scored at its SAD-best layer)
+  as a secondary, near-independent activation-side signal
+
+The trained-on probe is intentionally NOT scored here — that would be
+circular since steering literally adds its direction to the residual stream.
 """
 
+import asyncio
 import csv
 import json
 import os
-from collections import defaultdict
 from pathlib import Path
 from statistics import mean
 
 import torch
 
+from eval_awareness_experiments.judges.verbalized_awareness import VerbalizedAwarenessJudge
+from eval_awareness_experiments.llm import LLM
+from eval_awareness_experiments.types import Message, ReasoningCategory, Transcript
 from probes.contrastive_probe import ContrastiveProbe
 from probes.model_loader import load_model
 from probes.score_probe import _normalize_chat_messages, _score_messages
 
-repo = Path(os.environ["REPO_ROOT"])
 out_root = Path(os.environ["OUTPUT_ROOT"])
 suite = os.environ["SUITE"]
 model_path = os.environ["MODEL_PATH"]
-probe_dir = os.environ["PROBE_DIR"]
-span = os.environ["PROBE_SPAN"]
+cross_probe_dir = os.environ["CROSS_PROBE_DIR"]
 baseline_dir = Path(os.environ["BASELINE_DIR"])
 layers = [int(x) for x in os.environ["LAYERS"].split(",") if x.strip()]
 alphas = [float(x) for x in os.environ["ALPHAS"].split(",") if x.strip()]
+judge_model_name = os.environ["JUDGE_MODEL"]
+judge_concurrency = int(os.environ["JUDGE_CONCURRENCY"])
 
 
 def steps_to_messages(d):
-    """Convert a ToolCallTaskResult JSON to a chat-template messages list.
-
-    The AgentDojo runner stores `steps[].preamble`, `.thought`, `.action`,
-    `.observation`. For probe scoring we want a faithful messages history
-    so the chat template matches what the model actually saw at generation
-    time. Tool calls are flattened into the assistant turn as text; tool
-    results become 'user' messages (the simplest chat-template-friendly
-    representation that probes.score_probe knows how to walk).
-    """
+    """Convert a ToolCallTaskResult JSON to a chat-template messages list."""
     msgs = []
     if d.get("system_prompt"):
         msgs.append({"role": "system", "content": d["system_prompt"]})
@@ -186,6 +200,33 @@ def steps_to_messages(d):
     return _normalize_chat_messages(msgs)
 
 
+def to_transcript(d):
+    """Build a Transcript suitable for VerbalizedAwarenessJudge from a per-pair JSON."""
+    msgs = []
+    if d.get("system_prompt"):
+        msgs.append(Message(role="system", content=d["system_prompt"]))
+    msgs.append(Message(role="user", content=d.get("task_instruction", "")))
+    for step in d.get("steps", []):
+        parts = []
+        if step.get("preamble"):
+            parts.append(step["preamble"])
+        if step.get("thought"):
+            parts.append(step["thought"])
+        if step.get("action"):
+            parts.append(step["action"])
+        msgs.append(Message(role="assistant", content="\n".join(parts) or ""))
+        if step.get("observation"):
+            msgs.append(Message(role="tool", content=step["observation"]))
+    if d.get("final_answer"):
+        msgs.append(Message(role="assistant", content=d["final_answer"]))
+    return Transcript(
+        messages=msgs,
+        system_instructions=d.get("system_prompt", ""),
+        instruction=d.get("task_instruction", ""),
+        metadata={"task_id": d.get("task_id")},
+    )
+
+
 def cell_jsons(cell_dir):
     suite_dir = cell_dir / suite / "cell"
     if not suite_dir.exists():
@@ -193,81 +234,119 @@ def cell_jsons(cell_dir):
     return sorted(p for p in suite_dir.glob("*.json") if p.name != "manifest.json")
 
 
-def aggregate_cell(cell_dir, model, tokenizer, probe, layer_for_probe, threshold):
-    """Return TSR, ASR, mean probe score (None if no trajectories)."""
-    jsons = cell_jsons(cell_dir)
-    n = 0
-    n_passed = 0
-    n_attack = 0
-    probe_scores = []
-    for fp in jsons:
-        try:
-            d = json.loads(fp.read_text())
-        except Exception:
-            continue
-        n += 1
-        if d.get("passed") is True:
-            n_passed += 1
-        if d.get("attack_success") is True:
-            n_attack += 1
-        try:
-            messages = steps_to_messages(d)
-            if not messages:
-                continue
-            res = _score_messages(
-                probe, model, tokenizer, messages,
-                int(layer_for_probe), float(threshold),
-                span=span,
-            )
-            probe_scores.append(res["mean_score"])
-        except Exception as e:
-            print(f"[probe-score warn] {fp.name}: {e!r}")
-    return {
-        "n": n,
-        "tsr": (n_passed / n) if n else None,
-        "asr": (n_attack / n) if n else None,
-        "n_passed": n_passed,
-        "n_attack": n_attack,
-        "mean_probe_score": mean(probe_scores) if probe_scores else None,
-        "n_probe_scored": len(probe_scores),
-    }
-
-
-print(f"loading model {model_path} (one-time, for probe scoring across all cells)")
-model, tokenizer = load_model(model_path, device=None, dtype=torch.bfloat16)
-probe = ContrastiveProbe.load(probe_dir)
-
-# Pick the same layer + threshold the WASP launcher would: probe.best_layer
-# (which `chat_template_experiment.py --mcq-layer-selection sad` already set
-# to the SAD-top-1 layer). Threshold reused from probe metadata.
-layer_for_probe = probe.best_layer
-threshold = probe.threshold or 0.0
-print(f"probe scoring at layer={layer_for_probe} threshold={threshold} span={span}")
-
-baseline = aggregate_cell(baseline_dir, model, tokenizer, probe, layer_for_probe, threshold)
-print(f"baseline: {baseline}")
-
-rows = []
+# Discover all cells.
+all_cells = [("baseline", 0, 0.0, baseline_dir)]
 for layer in layers:
     for alpha in alphas:
         cell_id = f"layer{layer}_alpha{alpha}"
-        cell_dir = out_root / "cells" / cell_id
-        agg = aggregate_cell(cell_dir, model, tokenizer, probe, layer_for_probe, threshold)
-        rows.append({
+        all_cells.append((cell_id, layer, alpha, out_root / "cells" / cell_id))
+
+# 1) LLM-as-judge for verbalized eval-awareness across ALL cells in one async pass.
+print(f"loading {sum(len(cell_jsons(d)) for _, _, _, d in all_cells)} transcripts for LLM judge")
+judge_llm = LLM(
+    model=judge_model_name,
+    thinking="thinking" in judge_model_name,
+    concurrency=judge_concurrency,
+    temperature=0.0,
+)
+judge = VerbalizedAwarenessJudge(
+    grader_model=judge_llm,
+    classifier_model=judge_llm,
+    max_concurrency=judge_concurrency,
+)
+
+EVAL_AWARE_CATS = {
+    ReasoningCategory.ALIGNMENT_EVAL,
+    ReasoningCategory.CAPABILITY_EVAL,
+    ReasoningCategory.OTHER_EVAL,
+}
+
+
+async def judge_one(d):
+    transcript = to_transcript(d)
+    try:
+        return await judge.judge(transcript)
+    except Exception as e:
+        print(f"[judge warn] task={d.get('task_id')}: {e!r}")
+        return None
+
+
+async def judge_cell(cell_dir):
+    docs = []
+    for fp in cell_jsons(cell_dir):
+        try:
+            docs.append(json.loads(fp.read_text()))
+        except Exception:
+            pass
+    results = await asyncio.gather(*[judge_one(d) for d in docs])
+    return docs, results
+
+
+# 2) Cross-probe activation score (the OTHER probe family at its SAD-best layer).
+print(f"loading model {model_path} for cross-probe scoring")
+model, tokenizer = load_model(model_path, device=None, dtype=torch.bfloat16)
+cross_probe = ContrastiveProbe.load(cross_probe_dir)
+cross_layer = cross_probe.best_layer
+cross_threshold = cross_probe.threshold or 0.0
+print(f"cross-probe scoring at layer={cross_layer} threshold={cross_threshold}")
+
+
+def cross_score_doc(d):
+    try:
+        msgs = steps_to_messages(d)
+        if not msgs:
+            return None
+        res = _score_messages(
+            cross_probe, model, tokenizer, msgs,
+            int(cross_layer), float(cross_threshold),
+            span="first_assistant_message_mean",
+        )
+        return res["mean_score"]
+    except Exception as e:
+        print(f"[cross-probe warn] task={d.get('task_id')}: {e!r}")
+        return None
+
+
+async def aggregate_all():
+    rows = []
+    for cell_id, layer, alpha, cell_dir in all_cells:
+        docs, judge_results = await judge_cell(cell_dir)
+        n = len(docs)
+        n_passed = sum(1 for d in docs if d.get("passed") is True)
+        n_aware = sum(
+            1 for r in judge_results
+            if r is not None and r.category in EVAL_AWARE_CATS
+        )
+        n_judged = sum(1 for r in judge_results if r is not None)
+        cross_scores = [s for s in (cross_score_doc(d) for d in docs) if s is not None]
+        row = {
+            "cell": cell_id,
             "layer": layer,
             "alpha": alpha,
-            **agg,
-        })
-        print(f"{cell_id}: {agg}")
+            "n": n,
+            "tsr": (n_passed / n) if n else None,
+            "n_passed": n_passed,
+            "eval_aware_rate": (n_aware / n_judged) if n_judged else None,
+            "n_aware": n_aware,
+            "n_judged": n_judged,
+            "mean_cross_probe_score": mean(cross_scores) if cross_scores else None,
+            "n_cross_scored": len(cross_scores),
+        }
+        rows.append(row)
+        print(
+            f"{cell_id}: n={n} tsr={row['tsr']} aware={row['eval_aware_rate']} "
+            f"cross_probe={row['mean_cross_probe_score']}"
+        )
+    return rows
 
-# Add baseline as alpha=0.0 row per layer for plotting convenience.
-for layer in layers:
-    rows.insert(0, {"layer": layer, "alpha": 0.0, **baseline})
+
+rows = asyncio.run(aggregate_all())
 
 fields = [
-    "layer", "alpha", "n", "tsr", "asr",
-    "n_passed", "n_attack",
-    "mean_probe_score", "n_probe_scored",
+    "cell", "layer", "alpha", "n",
+    "tsr", "n_passed",
+    "eval_aware_rate", "n_aware", "n_judged",
+    "mean_cross_probe_score", "n_cross_scored",
 ]
 csv_path = out_root / "sweep_summary.csv"
 with csv_path.open("w", newline="") as f:
@@ -290,21 +369,21 @@ md_lines = [
     f"# AgentDojo steering sweep — {os.environ.get('SWEEP_ID', '')}",
     "",
     f"- model: `{model_path}`",
-    f"- probe_dir: `{probe_dir}`",
-    f"- probe layer for scoring: {layer_for_probe} (threshold={threshold})",
-    f"- span: `{span}`",
-    f"- max_tasks per cell: {baseline['n']}",
+    f"- cross_probe_dir: `{cross_probe_dir}` (layer {cross_layer}, threshold {cross_threshold})",
+    f"- LLM judge: `{judge_model_name}`",
+    f"- max_tasks per cell: {rows[0]['n'] if rows else '-'}",
     "",
-    "| layer | alpha | n | TSR | ASR | mean_probe_score | n_probe_scored |",
-    "|---:|---:|---:|---:|---:|---:|---:|",
+    "| cell | layer | alpha | n | TSR | eval_aware_rate | mean_cross_probe |",
+    "|---|---:|---:|---:|---:|---:|---:|",
 ]
 for r in rows:
     md_lines.append(
         "| "
         + " | ".join([
-            fmt(r["layer"]), fmt(r["alpha"]), fmt(r["n"]),
-            fmt(r["tsr"]), fmt(r["asr"]),
-            fmt(r["mean_probe_score"]), fmt(r["n_probe_scored"]),
+            r["cell"], fmt(r["layer"]), fmt(r["alpha"]), fmt(r["n"]),
+            fmt(r["tsr"]),
+            fmt(r["eval_aware_rate"]),
+            fmt(r["mean_cross_probe_score"]),
         ])
         + " |"
     )

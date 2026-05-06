@@ -169,13 +169,16 @@ async def _run_one_pair(
             for m in messages
             if m.get("role") == "assistant" and isinstance(m.get("content"), str)
         )
-        try:
-            attack_success = bool(
-                injection_task.security(model_output, pre_environment, live_environment)
-            )
-        except Exception as e:
-            logger.warning(f"injection_task.security raised: {e!r}")
+        if injection_task is None:
             attack_success = None
+        else:
+            try:
+                attack_success = bool(
+                    injection_task.security(model_output, pre_environment, live_environment)
+                )
+            except Exception as e:
+                logger.warning(f"injection_task.security raised: {e!r}")
+                attack_success = None
 
         try:
             passed = bool(
@@ -186,15 +189,24 @@ async def _run_one_pair(
             passed = None
         return attack_success, passed
 
-    task_id = f"{suite_name}__{user_task.ID}__{injection_task.ID}"
-    metadata = {
-        "suite": suite_name,
-        "user_task_id": user_task.ID,
-        "injection_task_id": injection_task.ID,
-        "injection_goal": injection_task.GOAL,
-        "user_task_difficulty": str(getattr(user_task, "DIFFICULTY", "")),
-        "injection_task_difficulty": str(getattr(injection_task, "DIFFICULTY", "")),
-    }
+    if injection_task is None:
+        task_id = f"{suite_name}__{user_task.ID}__no_injection"
+        metadata = {
+            "suite": suite_name,
+            "user_task_id": user_task.ID,
+            "user_task_difficulty": str(getattr(user_task, "DIFFICULTY", "")),
+            "no_injection": True,
+        }
+    else:
+        task_id = f"{suite_name}__{user_task.ID}__{injection_task.ID}"
+        metadata = {
+            "suite": suite_name,
+            "user_task_id": user_task.ID,
+            "injection_task_id": injection_task.ID,
+            "injection_goal": injection_task.GOAL,
+            "user_task_difficulty": str(getattr(user_task, "DIFFICULTY", "")),
+            "injection_task_difficulty": str(getattr(injection_task, "DIFFICULTY", "")),
+        }
 
     try:
         path = await runner.run_task_to_file(
@@ -260,6 +272,12 @@ def _parse_args() -> argparse.Namespace:
                         help="Only run user tasks with these IDs.")
     parser.add_argument("--injection-task-filter", nargs="*", default=None,
                         help="Only run injection tasks with these IDs.")
+    parser.add_argument("--no-injection", action="store_true",
+                        help="Capability-only mode: run each user_task ONCE with no "
+                             "injection wrapping and no injection security check. "
+                             "Use this for clean TSR estimates in steering sweeps. "
+                             "--max-tasks then bounds unique user_tasks (default 20). "
+                             "Mutually exclusive with --injection-task-filter.")
     parser.add_argument("--model-name", required=True,
                         help="OpenRouter model id. Append :thinking for reasoning mode.")
     parser.add_argument("--max-turns", type=int, default=15)
@@ -319,14 +337,31 @@ async def _main_async(args: argparse.Namespace) -> None:
 
     tools_schema = _build_openai_tool_schemas(suite.tools)
 
-    pairs = _enumerate_pairs(
-        suite,
-        max_tasks=args.max_tasks,
-        shuffle_seed=args.shuffle,
-        user_task_filter=args.user_task_filter,
-        injection_task_filter=args.injection_task_filter,
-    )
-    logger.info(f"Running {len(pairs)} (user_task, injection_task) pairs")
+    if args.no_injection:
+        if args.injection_task_filter:
+            raise SystemExit(
+                "--no-injection is incompatible with --injection-task-filter "
+                "(no injection_tasks will run)."
+            )
+        user_tasks = suite.user_tasks
+        if args.user_task_filter:
+            user_tasks = {k: v for k, v in user_tasks.items() if k in args.user_task_filter}
+        items = list(user_tasks.values())
+        if args.shuffle is not None:
+            rnd = random.Random(args.shuffle)
+            rnd.shuffle(items)
+        items = items[: args.max_tasks]
+        pairs = [(ut, None) for ut in items]
+        logger.info(f"[no-injection] Running {len(pairs)} unique user_tasks (capability-only)")
+    else:
+        pairs = _enumerate_pairs(
+            suite,
+            max_tasks=args.max_tasks,
+            shuffle_seed=args.shuffle,
+            user_task_filter=args.user_task_filter,
+            injection_task_filter=args.injection_task_filter,
+        )
+        logger.info(f"Running {len(pairs)} (user_task, injection_task) pairs")
 
     extra_instr = args.extra_instructions or EXTRA_INSTRUCTION_PRESETS.get(
         args.extra_instructions_preset
@@ -372,7 +407,10 @@ async def _main_async(args: argparse.Namespace) -> None:
             suite=suite,
             user_task=ut,
             injection_task=it,
-            injections=_build_injections(it, args.condition, placeholder_keys),
+            injections=(
+                {} if it is None
+                else _build_injections(it, args.condition, placeholder_keys)
+            ),
             tools_schema=tools_schema,
             runner=runner,
             out_dir=out_dir,
