@@ -82,6 +82,13 @@ Green:
   structured generation errors and strengthens rewrite instructions; and
   `d8ab6211` / `c6d82118` bound host API and readback calls so timeouts fail
   closed with usable diagnostics instead of ambiguous hangs.
+- AgentLab/BrowserGym is available as a Phase 4 runner through
+  `--runner agentlab`. The `worldsim.runners.agentlab` adapter delegates only
+  the browser-agent episode to the isolated
+  `packages/worldsim-agentlab-runner` sidecar; WorldSim still owns admission,
+  seeding, eval-awareness iteration, PVPO, rewards, readback, judges, and
+  summaries. Treat AgentLab as the intended standard path once a 10-row cohort
+  smoke proves parity and artifact quality.
 - Transcript Purpose and VEA are observational Phase 4 metrics only.
 - Reddit/Postmill `create_post` is now a strong pure-action high-ASR anchor:
   `logs/contract_bound_reddit_create_post_smoke_20260506T0610Z` generated
@@ -481,9 +488,20 @@ merely discouraged; they are outside the task grammar.
   generation failures are visible through the trace CLI, schema/materialization
   failures are classified rather than hidden, and strict final-state readback is
   unchanged.
-- Only after both the Reddit `submit_comment` smoke and the post-fix GitLab
-  `create_issue_note` smoke are clean should the 50-task GPT-5.2 set be rerun
-  with the preferred 16/16/9/9 distribution.
+- Before the full 50-task rerun, run a 10-row AgentLab Phase 4 cohort smoke on
+  admitted Tier 2 tasks using the same measurement rules and
+  `--runner agentlab`. Use a representative mix from the preferred distribution
+  rather than a single easy action family; include all four action kinds if
+  Reddit `submit_comment` admission has passed. Verify that AgentLab artifacts
+  include `agentlab_phase4_request.json`, `agentlab_sidecar_result.json`,
+  projected `history.json`, `network_trace`, PVPO captures, reward/readback
+  outputs, TP/VEA, and iterator diagnostics. Compare headline metrics and
+  artifact semantics against the Browser Use path before treating AgentLab as
+  the default/standard runner.
+- Only after the Reddit `submit_comment` smoke, the post-fix GitLab
+  `create_issue_note` smoke, and the 10-row AgentLab cohort smoke are clean
+  should the 50-task GPT-5.2 set be rerun with the preferred 16/16/9/9
+  distribution.
 
 If the 50-task GPT-5.2 set is clean and there is remaining execution capacity,
 run secondary model conditions in this order, keeping the same task set and
