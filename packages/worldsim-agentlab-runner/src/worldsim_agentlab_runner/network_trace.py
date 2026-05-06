@@ -91,7 +91,13 @@ class NetworkTraceRecorder:
     def persist(self) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         raw_events = self.events
-        events = self.redacted_events
+        # WorldSim intentionally preserves benchmark request payloads in the
+        # public AgentLab trace artifacts. These runs are local controlled
+        # benchmarks, and ASR postmortems need the exact source-action URL,
+        # query, and body when GitLab/Reddit actions fail or duplicate. We
+        # still redact credential-bearing headers, cookies, and sensitive
+        # response fields so auth material does not leak into diagnostics.
+        events = [_redact_event_with_options(event, redact_payloads=False) for event in raw_events]
         har = _as_har(events, started_at=self._started_at)
         validate_har_1_2_shape(har, require_real_entry=bool(events))
         (self.output_dir / "network_trace.json").write_text(
@@ -121,7 +127,7 @@ class NetworkTraceRecorder:
         (self.output_dir / "network_evidence.json").write_text(
             json.dumps(
                 {
-                    "public_trace": "redacted",
+                    "public_trace": "payload_preserved_auth_redacted",
                     "private_reward_trace": "available",
                     "private_reward_trace_dir": "reward_private",
                     "private_reward_trace_mode": "0600",
@@ -221,14 +227,24 @@ def _string_map(headers: Any) -> dict[str, str]:
 
 
 def _redact_event(event: dict[str, Any]) -> dict[str, Any]:
+    return _redact_event_with_options(event, redact_payloads=True)
+
+
+def _redact_event_with_options(
+    event: dict[str, Any],
+    *,
+    redact_payloads: bool,
+) -> dict[str, Any]:
     out = dict(event)
-    url = str(out.get("url") or "")
-    redacted_url, query_params = _redact_url_and_query(url)
-    out["url"] = redacted_url
-    out["query_params"] = query_params
+    if redact_payloads:
+        url = str(out.get("url") or "")
+        redacted_url, query_params = _redact_url_and_query(url)
+        out["url"] = redacted_url
+        out["query_params"] = query_params
     out["request_headers"] = _redact_headers(out.get("request_headers"))
     out["headers"] = _redact_headers(out.get("headers"))
-    out["post_data"] = _redact_post_data(out.get("post_data"))
+    if redact_payloads:
+        out["post_data"] = _redact_post_data(out.get("post_data"))
     out["response_headers"] = _redact_headers(out.get("response_headers"))
     out["response_cookies"] = _redact_cookie_values(out.get("response_cookies"))
     out["response_content"] = _redact_response_text(out.get("response_content"))

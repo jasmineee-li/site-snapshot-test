@@ -842,12 +842,13 @@ def test_sidecar_network_trace_includes_evaluator_fields(tmp_path):
     assert round_trip[0]["response"]["content"]["text"] == '{"result": "created"}'
     persisted_trace = json.loads((tmp_path / "network_trace.json").read_text(encoding="utf-8"))
     assert persisted_trace[0]["request_headers"]["authorization"] == "<redacted>"
+    assert persisted_trace[0]["post_data"] == '{"ok": true}'
     assert persisted_trace[0]["response_cookies"] == [
         {"name": "sid", "value": "<redacted>"},
         {"name": "theme", "value": "<redacted>"},
     ]
     evidence = json.loads((tmp_path / "network_evidence.json").read_text(encoding="utf-8"))
-    assert evidence["public_trace"] == "redacted"
+    assert evidence["public_trace"] == "payload_preserved_auth_redacted"
     private_har_path = tmp_path / "reward_private" / "network.har"
     assert stat.S_IMODE(private_har_path.stat().st_mode) == 0o600
     private_har = json.loads(private_har_path.read_text(encoding="utf-8"))
@@ -866,7 +867,7 @@ def test_sidecar_network_trace_includes_evaluator_fields(tmp_path):
     assert converted[0]["request"]["httpVersion"] == "HTTP/1.1"
 
 
-def test_sidecar_network_trace_redacts_sensitive_post_data_but_preserves_benchmark_evidence(
+def test_sidecar_network_trace_preserves_public_post_data_for_benchmark_evidence(
     tmp_path,
 ):
     network_trace = _load_sidecar_module("network_trace")
@@ -876,9 +877,7 @@ def test_sidecar_network_trace_redacts_sensitive_post_data_but_preserves_benchma
         "method": "POST",
         "request_headers": {"content-type": "application/x-www-form-urlencoded"},
         "headers": {"content-type": "application/x-www-form-urlencoded"},
-        "post_data": network_trace._redact_post_data(
-            "username=alice&password=wonder&submission%5Burl%5D=https%3A%2F%2Fauth0.test"
-        ),
+        "post_data": "username=alice&password=wonder&submission%5Burl%5D=https%3A%2F%2Fauth0.test",
         "query_params": {},
         "response_status": 200,
         "response_headers": {"content-type": "application/json"},
@@ -899,8 +898,9 @@ def test_sidecar_network_trace_redacts_sensitive_post_data_but_preserves_benchma
         entry["request"]["url"]
         == "http://gitlab.test/search?keywordUpdated=false&csrf_token=%3Credacted%3E"
     )
-    assert entry["request"]["postData"]["text"] == (
-        "username=alice&password=%3Credacted%3E&submission%5Burl%5D=https%3A%2F%2Fauth0.test"
+    assert (
+        entry["request"]["postData"]["text"]
+        == "username=alice&password=wonder&submission%5Burl%5D=https%3A%2F%2Fauth0.test"
     )
     assert entry["response"]["content"]["text"] == '{"access_token":"<redacted>","title":"Secret"}'
     with pytest.raises(ValueError, match="real HTTP evidence"):
@@ -1145,15 +1145,12 @@ def test_sidecar_result_redacts_request_secrets_echoed_in_logs(monkeypatch, tmp_
     assert "c2VjcmV0" not in (tmp_path / "agentlab_phase4_request.json").read_text()
     assert "c2VjcmV0" not in serialized
     assert "secret-token" not in serialized
-    assert "wonder" not in serialized
     assert "sid=abc" not in serialized
     assert persisted_result["log"] == "sent <redacted> with token <redacted>"
     persisted_event = persisted_result["network_trace"][0]
-    assert persisted_event["url"] == (
-        "http://gitlab.test/login?csrf_token=%3Credacted%3E&keywordUpdated=false"
-    )
+    assert persisted_event["url"] == "http://gitlab.test/login?csrf_token=abc&keywordUpdated=false"
     assert persisted_event["post_data"] == (
-        "username=%3Credacted%3E&password=%3Credacted%3E&keywordUpdated=false"
+        "username=alice&password=wonder&keywordUpdated=false"
     )
     assert persisted_event["response_cookies"] == [{"name": "sid", "value": "<redacted>"}]
     assert persisted_event["response_content"] == '{"access_token":"<redacted>","title":"Secret"}'

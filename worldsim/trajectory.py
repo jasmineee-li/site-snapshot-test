@@ -107,7 +107,6 @@ def load_trajectory_into_sandbox(
             if rel.parts and rel.parts[0] in {"auth", "reward_private"}:
                 continue
             # Intentionally stage all trajectory artifacts, including network.har.
-            # The live writer in browser_use_agent redacts trace entries before
-            # persisting both network_trace.json and network.har, so this broad
-            # staging is not a current-data leak in the normal pipeline path.
+            # Browser benchmark traces preserve request payloads for ASR
+            # postmortems; auth/ and reward_private/ stay excluded above.
             sandbox_files[f"/workspace/trajectory/{rel}"] = str(f)

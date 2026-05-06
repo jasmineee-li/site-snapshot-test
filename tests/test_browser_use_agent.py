@@ -1899,7 +1899,7 @@ async def test_network_trace_stop_returns_evaluator_trace_with_auth_headers_reda
         lambda: [
             {
                 "url": "http://reddit.test/f/news?q=needle&token=secret#frag",
-                "query_params": {"q": ["needle"]},
+                "query_params": {"q": ["needle"], "token": ["secret"]},
                 "headers": {
                     "X-Postmill-Auto-Login": "alice:pw",
                     "Referer": "http://reddit.test/ref?token=secret#frag",
@@ -1931,25 +1931,21 @@ async def test_network_trace_stop_returns_evaluator_trace_with_auth_headers_reda
     assert trace[0]["headers"]["X-Postmill-Auto-Login"] == "<redacted>"
     assert trace[0]["headers"]["Referer"] == "http://reddit.test/ref?token=secret#frag"
     assert trace[0]["response_headers"]["Location"] == ("http://reddit.test/done?token=secret#frag")
-    assert trace[0]["query_params"] == {"q": ["needle"]}
+    assert trace[0]["query_params"] == {"q": ["needle"], "token": ["secret"]}
     assert trace[0]["post_data"] == "payload=needle"
     assert trace[0]["response_cookies"] == {"sid": "<redacted>"}
 
     persisted_trace = json.loads((tmp_path / "network_trace.json").read_text())
-    assert persisted_trace[0]["url"] == (
-        "http://reddit.test/f/news?q=%3Credacted%3E&token=%3Credacted%3E"
-    )
-    assert persisted_trace[0]["headers"]["Referer"] == (
-        "http://reddit.test/ref?token=%3Credacted%3E"
-    )
+    assert persisted_trace[0]["url"] == "http://reddit.test/f/news?q=needle&token=secret#frag"
+    assert persisted_trace[0]["headers"]["Referer"] == "http://reddit.test/ref?token=secret#frag"
     assert persisted_trace[0]["response_headers"]["Location"] == (
-        "http://reddit.test/done?token=%3Credacted%3E"
+        "http://reddit.test/done?token=secret#frag"
     )
-    assert persisted_trace[0]["query_params"] == {"q": ["<redacted>"]}
-    assert persisted_trace[0]["post_data"] == "<redacted>"
+    assert persisted_trace[0]["query_params"] == {"q": ["needle"], "token": ["secret"]}
+    assert persisted_trace[0]["post_data"] == "payload=needle"
     assert persisted_trace[0]["response_cookies"] == {"sid": "<redacted>"}
     assert persisted_trace[0]["redirect_chain"] == [
-        {"url": "http://reddit.test/login?token=%3Credacted%3E", "status": 302}
+        {"url": "http://reddit.test/login?token=secret#frag", "status": 302}
     ]
 
     nav_trace = json.loads((tmp_path / "navigation_trace.json").read_text())
@@ -1962,8 +1958,9 @@ async def test_network_trace_stop_returns_evaluator_trace_with_auth_headers_reda
     har_response_headers = {
         item["name"]: item["value"] for item in har_entry["response"]["headers"]
     }
-    assert har_request_headers["Referer"] == "http://reddit.test/ref?token=%3Credacted%3E"
-    assert har_response_headers["Location"] == "http://reddit.test/done?token=%3Credacted%3E"
+    assert har_request_headers["Referer"] == "http://reddit.test/ref?token=secret#frag"
+    assert har_response_headers["Location"] == "http://reddit.test/done?token=secret#frag"
+    assert har_entry["request"]["postData"]["text"] == "payload=needle"
 
 
 @pytest.mark.asyncio

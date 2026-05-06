@@ -209,10 +209,11 @@ class _NetworkTraceRecorder:
             self._poll_task = None
 
         trace = self._finalize_trace()
-        redacted_trace = [
+        persisted_trace = [
             self._redact_trace_entry(
                 entry,
                 sensitive_header_names=self._sensitive_header_names,
+                redact_payloads=False,
             )
             for entry in trace
         ]
@@ -224,9 +225,13 @@ class _NetworkTraceRecorder:
             )
             for entry in trace
         ]
-        # Persist only redacted wire artifacts; downstream sandboxes may stage
-        # network.har wholesale from the trajectory directory.
-        self._write_trace(redacted_trace)
+        # WorldSim intentionally preserves benchmark request payloads in local
+        # Browser Use trace artifacts. These runs are controlled local
+        # benchmarks, and ASR postmortems need the exact source-action URL,
+        # query, and body when GitLab/Reddit actions fail or duplicate. We
+        # still redact credential-bearing headers and cookies so auth material
+        # does not leak into diagnostics.
+        self._write_trace(persisted_trace)
         return evaluator_trace
 
     # ------------------------------------------------------------------

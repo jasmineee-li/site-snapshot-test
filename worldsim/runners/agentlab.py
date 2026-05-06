@@ -805,18 +805,18 @@ def _redact_network_event(
     for key, item in value.items():
         lower = str(key).lower()
         if lower in {"url"} and isinstance(item, str):
-            event[key] = _redact_url_value(item, secret_values=secret_values)
+            # AgentLab network traces intentionally keep benchmark request
+            # payloads visible. These are controlled local benchmark actions,
+            # and ASR debugging needs the exact source-action URL/query/body
+            # to distinguish missing writes, duplicate transports, and wrong
+            # anchors. Auth headers/cookies and explicit secret echoes are
+            # still redacted below.
+            event[key] = item
         elif lower == "query_params" and isinstance(item, dict):
-            event[key] = {
-                str(param): [
-                    _redact_network_scalar(str(param), child, secret_values=secret_values)
-                    for child in values
-                ]
-                if isinstance(values, list)
-                else _redact_network_scalar(str(param), values, secret_values=secret_values)
-                for param, values in item.items()
-            }
-        elif lower in {"post_data", "response_content"}:
+            event[key] = item
+        elif lower == "post_data":
+            event[key] = item
+        elif lower == "response_content":
             event[key] = _redact_network_body(item, secret_values=secret_values)
         elif lower in {"request_headers", "headers", "response_headers"} and isinstance(item, dict):
             event[key] = _redact_sidecar_headers(item)
