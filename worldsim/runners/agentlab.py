@@ -13,6 +13,7 @@ auth, and trajectory artifact compatibility are implemented.
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 import os
@@ -26,6 +27,7 @@ from typing import Any
 
 import requests
 
+from worldsim.agent_auth import _resolve_declared_storage_state_path, resolve_agent_auth_headers
 from worldsim.agent_config import execution_instance_dict, task_reset_endpoints
 from worldsim.agent_models import resolve_agent_model_profile
 from worldsim.agent_runtime import AgentResult
@@ -53,6 +55,7 @@ class AgentLabAgentWrapper:
     provider: str | None = None
     service_tier: str | None = None
     max_steps: int = _DEFAULT_MAX_STEPS
+    timeout: int | None = None
 
     async def setup(self, server_url: str) -> None:
         return None
@@ -80,6 +83,7 @@ class AgentLabAgentWrapper:
                 request,
                 task_dir,
                 "phase4-run",
+                self.timeout,
             )
         except Exception as exc:
             return AgentResult(
@@ -169,6 +173,52 @@ def _storage_state_for_agentlab(instance_dict: dict[str, Any]) -> str | None:
         if isinstance(path, str) and path.strip():
             return path
     return None
+
+
+def _resolved_storage_state_for_phase4(
+    auth: dict[str, Any] | None,
+    *,
+    benchmark_root: Path | None,
+    task_site: str | None,
+    instance_id: str | None,
+) -> str | None:
+    if not isinstance(auth, dict) or auth.get("type") != "storage_state":
+        return None
+    storage = auth.get("storage_state") if isinstance(auth.get("storage_state"), dict) else {}
+    raw_path = storage.get("path") or auth.get("path")
+    if not isinstance(raw_path, str) or not raw_path.strip():
+        return None
+    site_name = str(task_site or "").strip()
+    path, error = _resolve_declared_storage_state_path(
+        raw_path.strip(),
+        benchmark_root=benchmark_root,
+        site_name=site_name,
+        instance_id=instance_id,
+    )
+    if error is not None or path is None:
+        raise RuntimeError(error or "storage_state path could not be resolved")
+    return str(path.resolve())
+
+
+def _scoped_auth_for_phase4(
+    auth: dict[str, Any] | None,
+    *,
+    server_url: str,
+) -> dict[str, Any]:
+    if not isinstance(auth, dict):
+        return {}
+    auth_type = str(auth.get("type") or "").strip()
+    if auth_type == "http_basic":
+        block = auth.get("http_basic") if isinstance(auth.get("http_basic"), dict) else auth
+        username = block.get("username")
+        password = block.get("password")
+        if not isinstance(username, str) or not isinstance(password, str):
+            raise RuntimeError("http_basic auth requires username/password")
+        token = base64.b64encode(f"{username}:{password}".encode()).decode("ascii")
+        return {"origin": _origin_from_url(server_url), "headers": {"Authorization": f"Basic {token}"}}
+    if auth_type == "http_headers":
+        return {"origin": _origin_from_url(server_url), "headers": resolve_agent_auth_headers(auth)}
+    return {}
 
 
 def _browsergym_env_overrides(instance_dict: dict[str, Any]) -> dict[str, str]:
@@ -264,6 +314,11 @@ def _build_phase4_sidecar_request(
         service_tier=agent.service_tier,
     )
     auth_mechanism = _dict_or_none(run_kwargs.get("auth_mechanism"))
+    benchmark_root = (
+        Path(run_kwargs["benchmark_root"]) if run_kwargs.get("benchmark_root") is not None else None
+    )
+    task_site = run_kwargs.get("task_site")
+    instance_id = run_kwargs.get("instance_id")
     return {
         "schema_version": 1,
         "mode": "phase4",
@@ -277,9 +332,7 @@ def _build_phase4_sidecar_request(
         "task_site": run_kwargs.get("task_site"),
         "instance_id": run_kwargs.get("instance_id"),
         "auth_mechanism": auth_mechanism,
-        "benchmark_root": str(run_kwargs["benchmark_root"])
-        if run_kwargs.get("benchmark_root") is not None
-        else None,
+        "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
         "payload_text": run_kwargs.get("payload_text"),
         "payload_witnesses": run_kwargs.get("payload_witnesses") or [],
         "pvpo_cdp_url": run_kwargs.get("pvpo_cdp_url"),
@@ -295,7 +348,13 @@ def _build_phase4_sidecar_request(
         "max_steps": agent.max_steps,
         "headless": True,
         "vision_support": model_profile.vision_support,
-        "storage_state": _storage_state_for_agentlab({"agent_auth": auth_mechanism}),
+        "storage_state": _resolved_storage_state_for_phase4(
+            auth_mechanism,
+            benchmark_root=benchmark_root,
+            task_site=str(task_site) if task_site is not None else None,
+            instance_id=str(instance_id) if instance_id is not None else None,
+        ),
+        "scoped_auth": _scoped_auth_for_phase4(auth_mechanism, server_url=server_url),
         "env_overrides": _phase4_env_overrides(server_url, run_kwargs),
         "task_seed": None,
     }
@@ -336,7 +395,10 @@ def _default_sidecar_command(subcommand: str = "run") -> list[str]:
 def _sidecar_command(subcommand: str = "run") -> list[str]:
     raw = os.environ.get(_SIDECAR_CMD_ENV)
     if raw and raw.strip():
-        return shlex.split(raw)
+        parts = shlex.split(raw)
+        if parts and parts[-1] in {"run", "phase4-run"}:
+            return [*parts[:-1], subcommand]
+        return [*parts, subcommand]
     return _default_sidecar_command(subcommand)
 
 
@@ -344,6 +406,7 @@ def _run_sidecar_request(
     request: dict[str, Any],
     task_dir: Path,
     subcommand: str = "run",
+    timeout: int | None = None,
 ) -> dict[str, Any]:
     task_dir.mkdir(parents=True, exist_ok=True)
     request_path = task_dir / (
@@ -357,6 +420,7 @@ def _run_sidecar_request(
         text=True,
         capture_output=True,
         check=False,
+        timeout=timeout,
     )
     if proc.returncode != 0:
         detail = proc.stderr.strip() or proc.stdout.strip()
@@ -446,6 +510,18 @@ def _phase4_env_overrides(server_url: str, run_kwargs: dict[str, Any]) -> dict[s
     if env_key:
         return {env_key: server_url}
     return {}
+
+
+def _origin_from_url(raw_url: str) -> str:
+    from urllib.parse import urlparse
+
+    parsed = urlparse(raw_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return ""
+    default_port = 80 if parsed.scheme == "http" else 443
+    if parsed.port and parsed.port != default_port:
+        return f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"
+    return f"{parsed.scheme}://{parsed.hostname}"
 
 
 def _persist_result_sentinel(
@@ -546,6 +622,7 @@ def make_agent_factory(
     provider: str | None = None,
     service_tier: str | None = None,
     max_steps: int = _DEFAULT_MAX_STEPS,
+    task_timeout: int | None = None,
     **_: Any,
 ) -> Callable[[], AgentLabAgentWrapper]:
     """Return a factory for AgentLab sidecar settings."""
@@ -556,6 +633,7 @@ def make_agent_factory(
             provider=provider,
             service_tier=service_tier,
             max_steps=max_steps,
+            timeout=task_timeout,
         )
 
     return factory

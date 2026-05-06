@@ -4,6 +4,7 @@ import json
 import time
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
 _SENSITIVE_HEADERS = {"authorization", "cookie", "proxy-authorization", "x-csrf-token"}
 
@@ -16,8 +17,13 @@ class NetworkTraceRecorder:
         self._events_by_request: dict[int, dict[str, Any]] = {}
         self._ordered_ids: list[int] = []
         self._started_at = time.time()
+        self._attached_context_ids: set[int] = set()
 
     def attach(self, context: Any) -> None:
+        context_id = id(context)
+        if context_id in self._attached_context_ids:
+            return
+        self._attached_context_ids.add(context_id)
         context.on("request", self._on_request)
         context.on("response", self._on_response)
         context.on("requestfailed", self._on_request_failed)
@@ -62,6 +68,7 @@ class NetworkTraceRecorder:
             "request_headers": headers,
             "headers": headers,
             "post_data": post_data or "",
+            "query_params": _query_params(_safe_call(lambda: request.url) or ""),
             "resource_type": _safe_call(lambda: request.resource_type) or "",
             "is_navigation_request": bool(_safe_call(lambda: request.is_navigation_request())),
             "timestamp": time.time(),
@@ -86,9 +93,11 @@ class NetworkTraceRecorder:
         status = _safe_call(lambda: response.status)
         event["response_status"] = status
         event["response_headers"] = response_headers
+        event["response_cookies"] = _cookies_from_headers(response_headers)
         event["response"] = {
             "status": status,
             "headers": response_headers,
+            "cookies": event["response_cookies"],
         }
 
     def _on_request_failed(self, request: Any) -> None:
@@ -121,6 +130,26 @@ def _is_navigation_like(event: dict[str, Any]) -> bool:
     return bool(event.get("is_navigation_request")) or str(event.get("resource_type")) == "document"
 
 
+def _query_params(url: str) -> dict[str, list[str]]:
+    try:
+        return {str(k): [str(item) for item in v] for k, v in parse_qs(urlsplit(url).query).items()}
+    except Exception:
+        return {}
+
+
+def _cookies_from_headers(headers: dict[str, str]) -> list[dict[str, str]]:
+    raw = headers.get("set-cookie")
+    if not raw or raw == "<redacted>":
+        return []
+    cookies = []
+    for chunk in raw.split(","):
+        first = chunk.split(";", 1)[0]
+        if "=" in first:
+            name, value = first.split("=", 1)
+            cookies.append({"name": name.strip(), "value": value.strip()})
+    return cookies
+
+
 def _as_har(events: list[dict[str, Any]], *, started_at: float) -> dict[str, Any]:
     entries = []
     for event in events:
@@ -132,11 +161,17 @@ def _as_har(events: list[dict[str, Any]], *, started_at: float) -> dict[str, Any
                     "method": event.get("method", "GET"),
                     "url": event.get("url", ""),
                     "headers": _har_headers(event.get("request_headers")),
+                    "queryString": [
+                        {"name": key, "value": value}
+                        for key, values in (event.get("query_params") or {}).items()
+                        for value in values
+                    ],
                     "postData": {"text": event.get("post_data", "")},
                 },
                 "response": {
                     "status": event.get("response_status") or 0,
                     "headers": _har_headers(event.get("response_headers")),
+                    "cookies": event.get("response_cookies") or [],
                 },
             }
         )

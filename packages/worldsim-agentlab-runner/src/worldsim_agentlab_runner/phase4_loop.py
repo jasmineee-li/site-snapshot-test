@@ -93,6 +93,8 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
                 request,
                 action_mapping=agent.action_set.to_python_code,
                 exp_dir=output_dir,
+                network_recorder=network,
+                runtime=runtime,
             )
             with patched_chromium_launch(str(request.get("pvpo_cdp_url") or ""), runtime):
                 step_info = StepInfo(step=0)
@@ -102,7 +104,6 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
                     obs_preprocessor=agent.obs_preprocessor,
                 )
             episode_info.append(step_info)
-            network.attach(env.unwrapped.context)
             pvpo.capture_step(env.unwrapped.page, step_info.step)
 
             while not step_info.is_done and steps_taken < int(request.get("max_steps") or 30):

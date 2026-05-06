@@ -112,10 +112,11 @@ async def test_agentlab_wrapper_lifecycle_and_phase4_sidecar_bridge(monkeypatch,
     agent = AgentLabAgentWrapper(model="demo-model")
     captured: dict[str, object] = {}
 
-    def fake_run_sidecar_request(request, task_dir, subcommand="run"):
+    def fake_run_sidecar_request(request, task_dir, subcommand="run", timeout=None):
         captured["request"] = request
         captured["task_dir"] = task_dir
         captured["subcommand"] = subcommand
+        captured["timeout"] = timeout
         return {
             "status": "success",
             "elapsed": 1.25,
@@ -144,10 +145,28 @@ async def test_agentlab_wrapper_lifecycle_and_phase4_sidecar_bridge(monkeypatch,
     assert result.final_result == "done"
     assert result.network_trace == [{"url": "http://example.test", "method": "GET"}]
     assert captured["subcommand"] == "phase4-run"
+    assert captured["timeout"] is None
     assert captured["task_dir"] == tmp_path
     assert captured["request"]["mode"] == "phase4"
     assert captured["request"]["start_urls"] == ["http://example.test/start"]
     assert captured["request"]["payload_text"] == "payload"
+
+
+@pytest.mark.asyncio
+async def test_agentlab_wrapper_passes_phase4_timeout(monkeypatch, tmp_path):
+    agent = AgentLabAgentWrapper(model="demo-model", timeout=3)
+    captured: dict[str, object] = {}
+
+    def fake_run_sidecar_request(request, task_dir, subcommand="run", timeout=None):
+        captured["subcommand"] = subcommand
+        captured["timeout"] = timeout
+        return {"status": "success", "elapsed": 0, "steps": 0, "is_done": False}
+
+    monkeypatch.setattr(agentlab_runner, "_run_sidecar_request", fake_run_sidecar_request)
+
+    await agent.run("task", "http://example.test", tmp_path)
+
+    assert captured == {"subcommand": "phase4-run", "timeout": 3}
 
 
 def test_parse_sidecar_result_marks_error_payload_as_error(tmp_path):
@@ -259,6 +278,7 @@ def test_sidecar_command_can_be_overridden(monkeypatch):
     monkeypatch.setenv("WORLDSIM_AGENTLAB_RUNNER_CMD", "custom-runner run")
 
     assert _sidecar_command() == ["custom-runner", "run"]
+    assert _sidecar_command("phase4-run") == ["custom-runner", "phase4-run"]
 
 
 def test_build_sidecar_request_maps_worldsim_inputs(tmp_path):
@@ -328,11 +348,17 @@ def test_build_sidecar_request_reads_nested_storage_state_schema(tmp_path):
     assert request["storage_state"] == "nested-auth.json"
 
 
-def test_build_phase4_sidecar_request_maps_runner_contract(tmp_path):
+def test_build_phase4_sidecar_request_maps_runner_contract(monkeypatch, tmp_path):
+    state_dir = tmp_path / "state"
+    auth_path = state_dir / "auth.json"
+    auth_path.parent.mkdir(parents=True)
+    auth_path.write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+
     request = _build_phase4_sidecar_request(
         "Do the task",
         "http://gitlab.test",
-        tmp_path,
+        tmp_path / "task",
         AgentLabAgentWrapper(model="gpt52", provider="openrouter", max_steps=9),
         {
             "start_urls": ["http://gitlab.test/root"],
@@ -354,12 +380,53 @@ def test_build_phase4_sidecar_request_maps_runner_contract(tmp_path):
     assert request["task"] == "Do the task"
     assert request["start_urls"] == ["http://gitlab.test/root"]
     assert request["site_prompt"] == "site prompt"
-    assert request["storage_state"] == "auth.json"
+    assert request["storage_state"] == str(auth_path)
     assert request["payload_text"] == "payload"
     assert request["payload_witnesses"] == [{"id": "w", "text": "payload"}]
     assert request["pvpo_cdp_url"] == "http://127.0.0.1:9222"
     assert request["max_steps"] == 9
     assert request["env_overrides"] == {"WA_GITLAB": "http://gitlab.test"}
+    assert request["url_origin_rewrites"] == {"http://canonical.test": "http://gitlab.test"}
+
+
+def test_build_phase4_sidecar_request_resolves_scoped_auth_and_no_global_headers(tmp_path):
+    request = _build_phase4_sidecar_request(
+        "Do the task",
+        "http://gitlab.test",
+        tmp_path,
+        AgentLabAgentWrapper(model="gpt52", provider="openrouter"),
+        {
+            "auth_mechanism": {
+                "type": "http_headers",
+                "http_headers": {"headers": {"X-Test-Auth": "secret"}},
+            },
+        },
+    )
+    worldsim_task = _load_sidecar_module("worldsim_task")
+
+    assert request["scoped_auth"] == {
+        "origin": "http://gitlab.test",
+        "headers": {"X-Test-Auth": "secret"},
+    }
+    assert "extra_http_headers" not in worldsim_task._context_kwargs_from_request(request)
+
+
+def test_build_phase4_sidecar_request_resolves_nested_http_basic(tmp_path):
+    request = _build_phase4_sidecar_request(
+        "Do the task",
+        "http://gitlab.test",
+        tmp_path,
+        AgentLabAgentWrapper(model="gpt52", provider="openrouter"),
+        {
+            "auth_mechanism": {
+                "type": "http_basic",
+                "http_basic": {"username": "alice", "password": "wonder"},
+            },
+        },
+    )
+
+    assert request["scoped_auth"]["origin"] == "http://gitlab.test"
+    assert request["scoped_auth"]["headers"]["Authorization"].startswith("Basic ")
 
 
 def test_sidecar_normalizes_direct_provider_requests_for_gpt_5_2():
@@ -433,6 +500,8 @@ def test_sidecar_artifact_manifest_includes_phase4_outputs(tmp_path):
         path.write_text("{}", encoding="utf-8")
     (tmp_path / "pvpo").mkdir()
     (tmp_path / "pvpo" / "step_0.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "screenshots").mkdir()
+    (tmp_path / "screenshots" / "step_0.png").write_bytes(b"png")
     (tmp_path / "step_0.pkl.gz").write_bytes(b"x")
 
     manifest = module._artifact_manifest(tmp_path)
@@ -441,7 +510,81 @@ def test_sidecar_artifact_manifest_includes_phase4_outputs(tmp_path):
     assert manifest["network_har"] == str(tmp_path / "network.har")
     assert manifest["needham_xml"] == str(tmp_path / "needham_trace.xml")
     assert manifest["pvpo_steps"] == [str(tmp_path / "pvpo" / "step_0.json")]
+    assert manifest["screenshots"] == [str(tmp_path / "screenshots" / "step_0.png")]
     assert manifest["steps"] == [str(tmp_path / "step_0.pkl.gz")]
+
+
+def test_sidecar_request_controls_rewrite_and_scope_auth():
+    controls = _load_sidecar_module("request_controls")
+    continued: list[dict[str, object]] = []
+
+    class FakeRoute:
+        def continue_(self, **kwargs):
+            continued.append(kwargs)
+
+    class FakeRequest:
+        def __init__(self):
+            self.url = "http://canonical.test/path?q=1"
+            self.headers = {"accept": "text/html"}
+
+    class FakeContext:
+        def route(self, pattern, handler):
+            assert pattern == "**/*"
+            handler(FakeRoute(), FakeRequest())
+
+    telemetry = controls.install_request_controls(
+        FakeContext(),
+        {
+            "url_origin_rewrites": {"http://canonical.test": "http://gitlab.test"},
+            "scoped_auth": {
+                "origin": "http://gitlab.test",
+                "headers": {"Authorization": "Basic abc"},
+            },
+        },
+    )
+
+    assert continued == [
+        {
+            "url": "http://gitlab.test/path?q=1",
+            "headers": {"accept": "text/html", "Authorization": "Basic abc"},
+        }
+    ]
+    assert telemetry["rewrite_hits"] == 1
+    assert telemetry["scoped_auth_hits"] == 1
+
+
+def test_sidecar_network_trace_includes_evaluator_fields(tmp_path):
+    network_trace = _load_sidecar_module("network_trace")
+    recorder = network_trace.NetworkTraceRecorder(tmp_path)
+
+    class FakeRequest:
+        def __init__(self):
+            self.url = "http://gitlab.test/path?ticket=123"
+            self.method = "POST"
+            self.headers = {"Content-Type": "application/json", "Authorization": "secret"}
+            self.post_data = '{"ok": true}'
+            self.resource_type = "xhr"
+
+        def is_navigation_request(self):
+            return False
+
+    request = FakeRequest()
+
+    class FakeResponse:
+        def __init__(self):
+            self.status = 201
+            self.headers = {"Set-Cookie": "sid=abc; Path=/", "X-Result": "ok"}
+
+    response = FakeResponse()
+    response.request = request
+    recorder._on_request(request)
+    recorder._on_response(response)
+
+    event = recorder.events[0]
+    assert event["query_params"] == {"ticket": ["123"]}
+    assert event["request_headers"]["authorization"] == "<redacted>"
+    assert event["response_status"] == 201
+    assert event["response_cookies"] == [{"name": "sid", "value": "abc"}]
 
 
 def test_phase4_sidecar_helpers_normalize_final_message_and_pvpo_payload():
@@ -475,6 +618,27 @@ def test_phase4_sidecar_helpers_normalize_final_message_and_pvpo_payload():
     assert payload["background_color"] == [1, 2, 3]
     assert payload["match_found"] is True
     assert payload["match_offset"] == 0
+
+
+def test_worldsim_task_validate_ignores_agentlab_llm_chat_messages():
+    worldsim_task = _load_sidecar_module("worldsim_task")
+    task = object.__new__(worldsim_task.WorldSimOpenEndedTask)
+
+    reward, done, message, info = task.validate(
+        None,
+        [
+            {"role": "user", "content": "observation"},
+            {
+                "role": "assistant",
+                "content": "Thought: I should click the issue link.\nAction: click('link')",
+            },
+        ],
+    )
+
+    assert reward == 0.0
+    assert done is False
+    assert message == ""
+    assert info == {}
 
 
 def test_named_agent_model_profiles_cover_openrouter_matrix():

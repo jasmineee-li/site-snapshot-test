@@ -26,6 +26,9 @@ class WorldSimOpenEndedTask:
         start_urls: list[str],
         goal: str,
         site_prompt: str | None = None,
+        request: dict[str, Any] | None = None,
+        network_recorder: Any = None,
+        runtime: dict[str, Any] | None = None,
     ) -> None:
         from browsergym.core.task import AbstractBrowserTask
 
@@ -33,11 +36,17 @@ class WorldSimOpenEndedTask:
         self.start_urls = [url for url in start_urls if isinstance(url, str) and url.strip()]
         self.goal = goal
         self.site_prompt = site_prompt
+        self.request = request or {}
+        self.network_recorder = network_recorder
+        self.runtime = runtime if isinstance(runtime, dict) else {}
         self.slow_mo = 0
         self.timeout = 10_000
         self.viewport = {"width": 1280, "height": 720}
 
     def setup(self, page: Any) -> tuple[str, dict[str, Any]]:
+        if self.network_recorder is not None:
+            self.network_recorder.attach(page.context)
+        self._install_request_controls(page.context)
         if self.start_urls:
             page.goto(self.start_urls[0], wait_until="domcontentloaded", timeout=15_000)
             for url in self.start_urls[1:]:
@@ -60,12 +69,20 @@ class WorldSimOpenEndedTask:
     def teardown(self) -> None:
         return None
 
+    def _install_request_controls(self, context: Any) -> None:
+        from worldsim_agentlab_runner.request_controls import install_request_controls
+
+        telemetry = install_request_controls(context, self.request)
+        self.runtime.setdefault("request_controls", {}).update(telemetry)
+
 
 def make_worldsim_browsergym_env(
     request: dict[str, Any],
     *,
     action_mapping: Any,
     exp_dir: Path,
+    network_recorder: Any = None,
+    runtime: dict[str, Any] | None = None,
 ) -> Any:
     import gymnasium as gym
     from browsergym.core.env import BrowserEnv
@@ -75,6 +92,9 @@ def make_worldsim_browsergym_env(
         start_urls=_string_list(request.get("start_urls")),
         goal=_required_str(request, "task"),
         site_prompt=_optional_str(request.get("site_prompt")),
+        request=request,
+        network_recorder=network_recorder,
+        runtime=runtime,
     )
     context_kwargs = _context_kwargs_from_request(request)
     env = BrowserEnv(
@@ -111,18 +131,6 @@ def _context_kwargs_from_request(request: dict[str, Any]) -> dict[str, Any]:
     storage_state = request.get("storage_state")
     if storage_state:
         kwargs["storage_state"] = storage_state
-    auth = request.get("auth_mechanism")
-    if isinstance(auth, dict):
-        auth_type = auth.get("type")
-        if auth_type == "http_basic":
-            username = auth.get("username")
-            password = auth.get("password")
-            if isinstance(username, str) and isinstance(password, str):
-                kwargs["http_credentials"] = {"username": username, "password": password}
-        elif auth_type == "http_headers":
-            headers = auth.get("headers")
-            if isinstance(headers, dict):
-                kwargs["extra_http_headers"] = {str(k): str(v) for k, v in headers.items()}
     return kwargs
 
 

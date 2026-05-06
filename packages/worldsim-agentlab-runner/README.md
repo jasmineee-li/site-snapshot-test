@@ -1,6 +1,7 @@
 # WorldSim AgentLab Runner
 
-Isolated sidecar for AgentLab/BrowserGym comparison runs.
+Isolated sidecar for AgentLab/BrowserGym comparison runs and the experimental
+WorldSim-v5 Phase 4 AgentLab runner.
 
 This package intentionally has its own dependency graph. Root WorldSim uses
 Browser Use 0.12.6, which requires `openai==2.16.0`; current AgentLab requires
@@ -16,6 +17,17 @@ uv run --project packages/worldsim-agentlab-runner \
 
 The command prints one JSON object to stdout. The parent WorldSim process owns
 conversion into canonical `result.json`.
+
+WorldSim-v5 Phase 4 uses the sibling command:
+
+```bash
+uv run --project packages/worldsim-agentlab-runner \
+  worldsim-agentlab-runner phase4-run /path/to/agentlab_phase4_request.json
+```
+
+That path runs admitted WorldSim tasks through AgentLab/BrowserGym while root
+WorldSim keeps ownership of seeding, rewards, PVPO gates, TP/VEA,
+placement-fix, variants, resume, and summaries.
 
 Parent CLI:
 
@@ -41,5 +53,7 @@ Named OpenRouter profiles pin the intended provider and disable OpenRouter
 fallbacks where possible; `gpt52` also disables/excludes OpenRouter reasoning
 to match the Browser Use OpenRouter parity arm.
 
-This is a comparison-runner path. It runs BrowserGym/AgentLab task semantics and
-does not replace Browser Use for WorldSim-v5 Phase 4 parity yet.
+There are two separate modes. `run` is the benchmark-native comparison runner.
+`phase4-run` is the WorldSim-v5 runtime and must preserve Browser Use-equivalent
+auth, PVPO, network, history, final-response, screenshot, and resume artifacts
+before a live sweep is treated as parity data.

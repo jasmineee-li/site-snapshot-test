@@ -269,7 +269,10 @@ def _artifact_manifest(output_dir: Path) -> dict[str, Any]:
         "needham_trace": output_dir / "needham_trace.json",
         "needham_xml": output_dir / "needham_trace.xml",
     }
-    screenshots = sorted(str(path) for path in output_dir.glob("screenshot_step_*"))
+    screenshots = sorted(
+        {str(path) for path in output_dir.glob("screenshot_step_*")}
+        | {str(path) for path in (output_dir / "screenshots").glob("step_*.png")}
+    )
     pvpo_steps = sorted(str(path) for path in (output_dir / "pvpo").glob("step_*.json"))
     steps = sorted(str(path) for path in output_dir.glob("step_*.pkl.gz"))
     videos = sorted(str(path) for path in output_dir.glob("**/*.webm"))

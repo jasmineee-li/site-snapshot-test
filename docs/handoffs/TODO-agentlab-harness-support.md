@@ -1,13 +1,17 @@
 # AgentLab Harness Support Plan
 
-Status: comparison-runner slice exists; WorldSim-v5 Phase 4 parity does not.
+Status: comparison-runner slice exists; experimental WorldSim-v5 Phase 4 runner
+exists behind the isolated sidecar. Treat new AgentLab Phase 4 sweeps as parity
+data only after the live artifact/PVPO/network/auth/resume gate passes on the
+target host/model matrix.
 
 Upstream inspected at `vendors/AgentLab-upstream` after cloning
 `https://github.com/ServiceNow/AgentLab.git`. The current public execution API
 is `agentlab.experiments.loop.EnvArgs` plus synchronous `ExpArgs.run()`.
-AgentLab writes `summary_info.json` and per-step pickle/screenshot artifacts.
-That is enough for comparison-runner reporting, but it is not enough for
-WorldSim-v5 Phase 4 parity.
+AgentLab writes `summary_info.json` and per-step pickle/screenshot artifacts for
+comparison runs. The WorldSim-v5 Phase 4 sidecar additionally writes
+WorldSim-compatible history, final response, network, HAR, PVPO, screenshot, and
+browser-runtime artifacts.
 
 ## Current Slice
 
@@ -62,45 +66,44 @@ There are two separate products:
 
 Do not collapse these paths. Comparison reward is not WorldSim-v5 refusal ASR.
 
-## Parity Work Required
+## Parity Work Status
 
-1. **Runner-neutral request object**
-   - Replace `run_adversarial_task`'s Browser Use kwargs with
-     `AgentRunRequest`.
-   - Keep Browser Use adapter behavior byte-for-byte equivalent first.
+1. **Runner-neutral request fields**
+   - Phase 4 now serializes the Browser Use runtime fields that AgentLab needs:
+     start URLs, site prompt, benchmark root, task site, payload text/witnesses,
+     PVPO CDP URL, instance id, and origin rewrites.
 
 2. **Auth adapter**
-   - Reproduce `storage_state`, origin-scoped `http_basic`, and origin-scoped
-     `http_headers`.
-   - Do not map headers to global Playwright extra headers; that leaks secrets
-     across origins and misses first navigation races.
+   - Phase 4 resolves `storage_state` before crossing the sidecar boundary and
+     sends scoped `http_basic` / `http_headers` controls for request
+     interception. Do not reintroduce global Playwright `extra_http_headers`;
+     it leaks secrets across origins and misses first-navigation races.
 
 3. **Browser instrumentation**
-   - Extract PVPO endpoint leasing/recycling, beginFrame screenshots, scroll
-     and navigation ticks, and network capture out of `browser_use_agent.py`.
-   - AgentLab/BrowserGym must call the same instrumentation at step boundaries.
+   - AgentLab captures PVPO beginFrame screenshots and network events in the
+     sidecar. Browser Use still owns the mature async implementation; live
+     parity gates should compare artifact manifests and PVPO capture summaries.
 
 4. **Trajectory exporter**
-   - Either export BrowserGym steps to current `history.json` shape or make
-     Phase 4 judges read a runner-neutral Needham trace first.
-   - Preserve screenshot alignment with `screenshots/step_N.png`.
+   - AgentLab exports `history.json`, `final_response.json`, `needham_trace.*`,
+     and canonical `screenshots/step_N.png`.
 
 5. **Network trace parity**
-   - Return evaluator-grade in-memory `network_trace` in WorldSim's flat schema.
-   - Persist redacted `network_trace.json`, `navigation_trace.json`, and
-     `network.har`.
-   - BrowserGym native artifacts are not sufficient for action rewards.
+   - AgentLab returns in-memory `network_trace` and persists redacted
+     `network_trace.json`, `navigation_trace.json`, and `network.har`. Keep
+     reward fixtures covering query params, POST bodies, response headers, and
+     cookies before claiming parity for action-reward sweeps.
 
 6. **PVPO parity**
-   - Accept `payload_text`, `payload_witnesses`, and `pvpo_cdp_url`.
-   - Write `pvpo/capture_summary.json`, per-step PVPO JSON, and paired
-     screenshots.
-   - `max_coverage == 0` must mean non-encounter, not missing instrumentation.
+   - AgentLab accepts `payload_text`, `payload_witnesses`, and `pvpo_cdp_url`,
+     and writes `pvpo/capture_summary.json`, per-step PVPO JSON, and paired
+     screenshots. `max_coverage == 0` must still mean non-encounter, not missing
+     instrumentation.
 
 7. **Resume and provenance**
-   - Include runner name, runner version, BrowserGym task name, AgentLab
-     version, and adapter version in fingerprints.
-   - Keep `result.json` as the completion sentinel.
+   - Phase 4 includes runner name in fingerprints and keeps `result.json` as
+     the completion sentinel. Live gates should prove resume skips completed
+     AgentLab task dirs and reruns incomplete dirs.
 
 ## Suggested Next PRs
 
