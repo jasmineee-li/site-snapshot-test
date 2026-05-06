@@ -314,7 +314,16 @@ def _parse_args() -> argparse.Namespace:
         "--steering-layer",
         type=int,
         default=None,
-        help="Decoder layer to steer at. Defaults to probe.best_layer.",
+        help="Decoder layer to steer at. Defaults to probe.best_layer. "
+             "Mutually exclusive with --steering-layers.",
+    )
+    parser.add_argument(
+        "--steering-layers",
+        default=None,
+        help="Comma-separated list of decoder layers to steer at simultaneously "
+             "(e.g. '9,8,1,10,12,15' for top-6 multi-layer). Each layer gets "
+             "alpha-per-layer = --steering-alpha. Mutually exclusive with "
+             "--steering-layer.",
     )
     parser.add_argument(
         "--steering-alpha",
@@ -366,6 +375,13 @@ async def _main_async(args: argparse.Namespace) -> None:
     extra_instr = args.extra_instructions or EXTRA_INSTRUCTION_PRESETS.get(
         args.extra_instructions_preset
     )
+    if args.steering_layer is not None and args.steering_layers is not None:
+        raise SystemExit(
+            "Pass exactly one of --steering-layer or --steering-layers."
+        )
+    steering_layers = None
+    if args.steering_layers:
+        steering_layers = [int(x.strip()) for x in args.steering_layers.split(",") if x.strip()]
     runner = build_tool_calling_runner(
         model_name=args.model_name,
         condition=args.condition,
@@ -378,6 +394,7 @@ async def _main_async(args: argparse.Namespace) -> None:
         backend=args.backend,
         probe_dir=args.probe_dir,
         steering_layer=args.steering_layer,
+        steering_layers=steering_layers,
         steering_alpha=args.steering_alpha,
     )
 
@@ -389,11 +406,14 @@ async def _main_async(args: argparse.Namespace) -> None:
         if args.system_prompt_frame != "none"
         else ""
     )
-    steer_suffix = (
-        f"_alpha{args.steering_alpha:+.2f}_layer{args.steering_layer or 'best'}"
-        if args.steering_alpha != 0.0
-        else ""
-    )
+    if args.steering_alpha != 0.0:
+        if steering_layers:
+            layer_repr = "L" + "_".join(str(L) for L in steering_layers)
+        else:
+            layer_repr = f"layer{args.steering_layer or 'best'}"
+        steer_suffix = f"_alpha{args.steering_alpha:+.2f}_{layer_repr}"
+    else:
+        steer_suffix = ""
     run_name = args.run_name or (
         f"{args.condition}_{args.extra_instructions_preset}{frame_suffix}{steer_suffix}_"
         f"{args.model_name.replace('/', '_').replace(':', '_')}"

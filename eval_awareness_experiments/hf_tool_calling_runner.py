@@ -117,6 +117,7 @@ class HFToolCallingRunner:
         dtype: torch.dtype | None = None,
         probe_dir: str | Path | None = None,
         steering_layer: int | None = None,
+        steering_layers: list[int] | None = None,
         steering_alpha: float = 0.0,
     ):
         # Strip the local/ prefix and :thinking suffix; HF cares about the
@@ -136,7 +137,12 @@ class HFToolCallingRunner:
         self.max_tokens = max_tokens
         self.temperature = temperature
         self.steering_alpha = steering_alpha
+        if steering_layer is not None and steering_layers is not None:
+            raise ValueError(
+                "Pass exactly one of `steering_layer` or `steering_layers`."
+            )
         self.steering_layer = steering_layer
+        self.steering_layers = list(steering_layers) if steering_layers else None
         self.probe_dir = str(probe_dir) if probe_dir else None
 
         # Lock so concurrent run_task() awaits serialize on the single GPU.
@@ -168,12 +174,18 @@ class HFToolCallingRunner:
                 )
             from probes.contrastive_probe import ContrastiveProbe
             self.probe = ContrastiveProbe.load(self.probe_dir)
-            if self.steering_layer is None:
+            if self.steering_layer is None and self.steering_layers is None:
                 self.steering_layer = self.probe.best_layer
-            logger.info(
-                f"Steering enabled: alpha={self.steering_alpha} "
-                f"layer={self.steering_layer} probe={self.probe_dir}"
-            )
+            if self.steering_layers is not None:
+                logger.info(
+                    f"Steering enabled: alpha_per_layer={self.steering_alpha} "
+                    f"layers={self.steering_layers} probe={self.probe_dir}"
+                )
+            else:
+                logger.info(
+                    f"Steering enabled: alpha={self.steering_alpha} "
+                    f"layer={self.steering_layer} probe={self.probe_dir}"
+                )
 
     async def run_task(
         self,
@@ -260,6 +272,7 @@ class HFToolCallingRunner:
             "backend": "hf",
             "steering_alpha": self.steering_alpha,
             "steering_layer": self.steering_layer,
+            "steering_layers": self.steering_layers,
             "probe_dir": self.probe_dir,
             **(metadata or {}),
         }
@@ -360,10 +373,17 @@ class HFToolCallingRunner:
         from contextlib import nullcontext
         if self.steering_alpha != 0.0 and self.probe is not None:
             from probes.steering import steering_hook
-            ctx = steering_hook(
-                self.shim, self.probe,
-                layer=self.steering_layer, alpha=self.steering_alpha,
-            )
+            if self.steering_layers is not None:
+                ctx = steering_hook(
+                    self.shim, self.probe,
+                    layers=self.steering_layers,
+                    alpha_per_layer=self.steering_alpha,
+                )
+            else:
+                ctx = steering_hook(
+                    self.shim, self.probe,
+                    layer=self.steering_layer, alpha=self.steering_alpha,
+                )
         else:
             ctx = nullcontext()
 

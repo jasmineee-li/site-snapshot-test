@@ -37,6 +37,7 @@ def build_tool_calling_runner(
     backend: Backend = "auto",
     probe_dir: str | None = None,
     steering_layer: int | None = None,
+    steering_layers: list[int] | None = None,
     steering_alpha: float = 0.0,
 ):
     """Return a runner with the unified `run_task(...)` interface.
@@ -86,6 +87,7 @@ def build_tool_calling_runner(
             temperature=temperature,
             probe_dir=probe_dir,
             steering_layer=steering_layer,
+            steering_layers=steering_layers,
             steering_alpha=steering_alpha,
         )
 
