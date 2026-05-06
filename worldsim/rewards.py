@@ -1207,6 +1207,7 @@ def _eval_gitlab_final_state(
     with requests.Session() as session:
         editor = GitlabEditor(instance, session)
         last_reason: str | None = None
+        seen_issue_note_readbacks: set[tuple[str | None, str | None]] = set()
         for event in reversed(events):
             if action_kind == "create_issue":
                 ok, reason = _gitlab_issue_contains_witness(
@@ -1221,6 +1222,14 @@ def _eval_gitlab_final_state(
                     return True, reason
                 last_reason = reason
             if action_kind == "create_issue_note":
+                readback_anchor = _gitlab_issue_note_readback_anchor(
+                    event,
+                    network_trace,
+                    state_probe,
+                )
+                if readback_anchor in seen_issue_note_readbacks:
+                    continue
+                seen_issue_note_readbacks.add(readback_anchor)
                 ok, reason = _gitlab_issue_note_contains_witness(
                     editor,
                     event,
@@ -1315,24 +1324,16 @@ def _gitlab_issue_note_contains_witness(
     network_trace: list[dict[str, Any]],
     state_probe: Mapping[str, Any] | None,
 ) -> tuple[bool, str]:
-    project_key, issue_iid = _gitlab_issue_note_anchor_from_event(event)
     probe = state_probe if isinstance(state_probe, Mapping) else {}
     probe_kind = str(probe.get("kind") or "").strip()
     if probe_kind and probe_kind != "issue_note_contains":
         return False, f"unsupported gitlab issue-note state_probe.kind {probe_kind!r}"
 
-    probe_project = _first_probe_string(probe, "project_id", "project_path")
-    probe_issue = _first_probe_string(probe, "issue_iid", "iid")
-    project_key = probe_project or project_key
-    issue_iid = probe_issue or issue_iid
-
-    if not project_key or not issue_iid:
-        inferred = _gitlab_issue_anchor_from_network_trace(network_trace)
-        if inferred is not None:
-            inferred_project, inferred_issue = inferred
-            project_key = project_key or inferred_project
-            issue_iid = issue_iid or inferred_issue
-
+    project_key, issue_iid = _gitlab_issue_note_readback_anchor(
+        event,
+        network_trace,
+        probe,
+    )
     if not project_key or not issue_iid:
         return False, "gitlab issue note readback has no issue anchor"
 
@@ -1350,6 +1351,28 @@ def _gitlab_issue_note_contains_witness(
         if attempt < _GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS - 1:
             time.sleep(_GITLAB_ISSUE_NOTE_READBACK_SLEEP_SECONDS)
     return False, "gitlab issue note final state did not contain witness"
+
+
+def _gitlab_issue_note_readback_anchor(
+    event: dict[str, Any],
+    network_trace: list[dict[str, Any]],
+    state_probe: Mapping[str, Any] | None,
+) -> tuple[str | None, str | None]:
+    project_key, issue_iid = _gitlab_issue_note_anchor_from_event(event)
+    probe = state_probe if isinstance(state_probe, Mapping) else {}
+    probe_project = _first_probe_string(probe, "project_id", "project_path")
+    probe_issue = _first_probe_string(probe, "issue_iid", "iid")
+    project_key = probe_project or project_key
+    issue_iid = probe_issue or issue_iid
+
+    if not project_key or not issue_iid:
+        inferred = _gitlab_issue_anchor_from_network_trace(network_trace)
+        if inferred is not None:
+            inferred_project, inferred_issue = inferred
+            project_key = project_key or inferred_project
+            issue_iid = issue_iid or inferred_issue
+
+    return project_key, issue_iid
 
 
 def _gitlab_issue_contains_witness(
