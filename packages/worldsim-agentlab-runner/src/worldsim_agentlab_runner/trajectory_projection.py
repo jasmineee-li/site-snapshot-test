@@ -3,8 +3,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
+from xml.sax.saxutils import escape
 
 from worldsim_agentlab_runner.worldsim_task import latest_assistant_message
+
+TRACE_FORMAT = "needham-agentlab-v1"
+TRANSCRIPT_FORMAT = "needham-xml-v1"
+_TOOL_RESULT_CAP = 3000
 
 
 def write_worldsim_artifacts(
@@ -92,6 +97,7 @@ def _history_entry(step: Any) -> dict[str, Any]:
             "raw_reward": getattr(step, "raw_reward", None),
             "terminated": getattr(step, "terminated", None),
             "truncated": getattr(step, "truncated", None),
+            "observation_text": _observation_text(obs),
         },
     }
 
@@ -130,6 +136,7 @@ def _state_message(obs: dict[str, Any]) -> str:
 
 def _write_needham_trace(output_dir: Path, *, task_instruction: str, history: list[dict[str, Any]]) -> None:
     messages: list[dict[str, Any]] = [{"role": "user", "text": task_instruction}]
+    next_tool_id = 0
     for index, step in enumerate(history):
         model_output = step.get("model_output") if isinstance(step, dict) else {}
         action_items = model_output.get("action") if isinstance(model_output, dict) else []
@@ -139,11 +146,12 @@ def _write_needham_trace(output_dir: Path, *, task_instruction: str, history: li
                 if isinstance(action, dict) and "agentlab_action" in action:
                     tool_calls.append(
                         {
-                            "id": str(len(tool_calls)),
+                            "id": str(next_tool_id),
                             "function": "agentlab_action",
                             "arguments": action["agentlab_action"],
                         }
                     )
+                    next_tool_id += 1
         text = model_output.get("thinking") if isinstance(model_output, dict) else ""
         messages.append(
             {
@@ -153,11 +161,7 @@ def _write_needham_trace(output_dir: Path, *, task_instruction: str, history: li
                 "provenance": {"source": "agentlab_history", "source_step": index},
             }
         )
-        result_text = "\n".join(
-            str(item.get("extracted_content", ""))
-            for item in step.get("result", [])
-            if isinstance(item, dict)
-        )
+        result_text = _needham_tool_result_text(step)
         if result_text or tool_calls:
             messages.append(
                 {
@@ -167,38 +171,86 @@ def _write_needham_trace(output_dir: Path, *, task_instruction: str, history: li
                     "provenance": {"source": "agentlab_history", "source_step": index},
                 }
             )
+    xml = _format_needham_xml(messages)
     (output_dir / "needham_trace.json").write_text(
         json.dumps(
             {
-                "format": "needham-agentlab-v1",
-                "transcript_format": "needham-xml-v1",
+                "format": TRACE_FORMAT,
+                "transcript_format": TRANSCRIPT_FORMAT,
+                "source": "agentlab_history",
                 "messages": messages,
+                "xml": xml,
             },
             indent=2,
             sort_keys=True,
         ),
         encoding="utf-8",
     )
-    (output_dir / "needham_trace.xml").write_text(_simple_xml(messages), encoding="utf-8")
+    (output_dir / "needham_trace.xml").write_text(xml, encoding="utf-8")
 
 
-def _simple_xml(messages: list[dict[str, Any]]) -> str:
-    lines = ["<transcript>"]
-    for message in messages:
-        role = str(message.get("role") or "user")
-        text = _xml_escape(str(message.get("text") or ""))
-        lines.append(f'  <message role="{_xml_escape(role)}">{text}</message>')
-    lines.append("</transcript>")
-    return "\n".join(lines)
+def _needham_tool_result_text(step: dict[str, Any]) -> str:
+    agentlab = step.get("agentlab") if isinstance(step, dict) else {}
+    if isinstance(agentlab, dict):
+        observation = agentlab.get("observation_text")
+        if isinstance(observation, str) and observation:
+            return observation[:_TOOL_RESULT_CAP]
+    result_text = "\n".join(
+        str(item.get("extracted_content", ""))
+        for item in step.get("result", [])
+        if isinstance(item, dict)
+    )
+    if result_text:
+        return result_text[:_TOOL_RESULT_CAP]
+    state_message = step.get("state_message") if isinstance(step, dict) else None
+    if isinstance(state_message, str):
+        return state_message[:_TOOL_RESULT_CAP]
+    return ""
+
+
+def _observation_text(obs: dict[str, Any]) -> str:
+    axtree = obs.get("axtree_txt")
+    if isinstance(axtree, str) and axtree:
+        return axtree
+    return _state_message(obs)
+
+
+def _format_needham_xml(messages: list[dict[str, Any]]) -> str:
+    return "\n".join(_format_needham_message(message) for message in messages) + "\n\n"
+
+
+def _format_needham_message(message: dict[str, Any]) -> str:
+    role = str(message.get("role") or "user")
+    text = _xml_escape(str(message.get("text") or ""))
+    function = message.get("function")
+    if role == "tool" and isinstance(function, str):
+        result = f'<message role="{_xml_escape(role)}", function="{_xml_escape(function)}">\n{text}'
+    else:
+        result = f'<message role="{_xml_escape(role)}">\n{text}'
+    tool_calls = message.get("tool_calls")
+    if role == "assistant" and isinstance(tool_calls, list):
+        result += "\n<tool_calls>"
+        for tool_call in tool_calls:
+            if not isinstance(tool_call, dict):
+                continue
+            call_id = str(tool_call.get("id") or "")
+            call_function = str(tool_call.get("function") or "")
+            result += f'<tool_call id="{_xml_escape(call_id)}" function="{_xml_escape(call_function)}">'
+            arguments = tool_call.get("arguments")
+            if isinstance(arguments, dict):
+                for arg_name, arg_value in arguments.items():
+                    result += (
+                        f'\n<argument name="{_xml_escape(str(arg_name))}">'
+                        f"{_xml_escape(str(arg_value))}</argument>"
+                    )
+            result += "\n</tool_call>"
+        result += "\n</tool_calls>"
+    result += "\n</message>"
+    return result
 
 
 def _xml_escape(value: str) -> str:
-    return (
-        value.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-    )
+    return escape(value, entities={'"': "&quot;"})
 
 
 def _string_or_none(value: Any) -> str | None:
