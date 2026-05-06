@@ -279,7 +279,7 @@ for layer_set in layer_sets:
         )
 
 # 1) LLM-as-judge for verbalized eval-awareness across ALL cells in one async pass.
-print(f"loading {sum(len(cell_jsons(d)) for _, _, _, d in all_cells)} transcripts for LLM judge")
+print(f"loading {sum(len(cell_jsons(d)) for _, _, _, _, d in all_cells)} transcripts for LLM judge")
 judge_llm = LLM(
     model=judge_model_name,
     thinking="thinking" in judge_model_name,
