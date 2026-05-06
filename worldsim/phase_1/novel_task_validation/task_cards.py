@@ -1,4 +1,4 @@
-"""Task-card and capability alignment validation helpers."""
+"""Task-card and capability alignment validation exports."""
 
 from __future__ import annotations
 

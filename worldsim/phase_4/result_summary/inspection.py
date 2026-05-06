@@ -1,4 +1,4 @@
-"""Inspection-index construction for Phase 4 outputs."""
+"""Inspection-index export for Phase 4 outputs."""
 
 from __future__ import annotations
 

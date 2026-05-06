@@ -1,4 +1,4 @@
-"""Final outcome and variant metric helpers."""
+"""Final outcome and variant metric exports."""
 
 from __future__ import annotations
 

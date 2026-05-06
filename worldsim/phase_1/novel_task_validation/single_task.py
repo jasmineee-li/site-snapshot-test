@@ -1,4 +1,4 @@
-"""Single-task validation orchestration."""
+"""Single-task validation export backed by the parity implementation."""
 
 from __future__ import annotations
 

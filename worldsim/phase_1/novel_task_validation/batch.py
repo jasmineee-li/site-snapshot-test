@@ -1,4 +1,4 @@
-"""Batch validation entry points for generated novel tasks."""
+"""Batch validation exports backed by the parity implementation."""
 
 from __future__ import annotations
 

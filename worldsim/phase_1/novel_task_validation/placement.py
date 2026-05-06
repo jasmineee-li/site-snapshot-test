@@ -1,4 +1,4 @@
-"""Phase 2 placement-target validation helpers."""
+"""Phase 2 placement-target validation exports."""
 
 from __future__ import annotations
 

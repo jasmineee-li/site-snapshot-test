@@ -1,4 +1,4 @@
-"""Trajectory artifact loading and termination-state helpers."""
+"""Trajectory artifact loading and termination-state exports."""
 
 from __future__ import annotations
 

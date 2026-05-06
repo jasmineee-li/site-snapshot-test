@@ -1,4 +1,4 @@
-"""Injection exposure and attacker-engagement signal checks."""
+"""Injection exposure and attacker-engagement signal exports."""
 
 from __future__ import annotations
 

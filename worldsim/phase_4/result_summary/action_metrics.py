@@ -1,4 +1,4 @@
-"""Action-tier summary metrics."""
+"""Action-tier summary metric exports."""
 
 from __future__ import annotations
 

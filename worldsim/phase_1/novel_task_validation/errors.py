@@ -1,4 +1,4 @@
-"""Structured errors for Phase 1 novel-task validation."""
+"""Structured error exports for Phase 1 novel-task validation."""
 
 from __future__ import annotations
 

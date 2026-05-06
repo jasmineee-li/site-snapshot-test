@@ -1,4 +1,4 @@
-"""Trajectory signal dataclasses and extraction entry point."""
+"""Trajectory signal dataclass and extraction exports."""
 
 from __future__ import annotations
 

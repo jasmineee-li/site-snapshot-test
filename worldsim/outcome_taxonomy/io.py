@@ -1,4 +1,4 @@
-"""Disk-backed outcome classification entry points."""
+"""Disk-backed outcome classification export."""
 
 from __future__ import annotations
 

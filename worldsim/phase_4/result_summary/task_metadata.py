@@ -1,4 +1,4 @@
-"""Task metadata labels used by Phase 4 summaries."""
+"""Task metadata label exports used by Phase 4 summaries."""
 
 from __future__ import annotations
 

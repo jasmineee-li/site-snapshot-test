@@ -1,4 +1,4 @@
-"""Reward-function validation helpers for generated tasks."""
+"""Reward-function validation exports for generated tasks."""
 
 from __future__ import annotations
 

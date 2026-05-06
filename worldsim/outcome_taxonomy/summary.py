@@ -1,4 +1,4 @@
-"""Stratified outcome aggregation and log formatting."""
+"""Stratified outcome aggregation and log-formatting exports."""
 
 from __future__ import annotations
 

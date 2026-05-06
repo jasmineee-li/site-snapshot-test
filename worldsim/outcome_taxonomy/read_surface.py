@@ -1,4 +1,4 @@
-"""Read-surface and trace URL matching helpers."""
+"""Read-surface and trace URL matching exports."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Phase 1 novel-task validation package."""
+"""Public package surface for Phase 1 novel-task validation."""
 
 from __future__ import annotations
 

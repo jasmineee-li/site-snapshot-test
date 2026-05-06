@@ -1,4 +1,4 @@
-"""Ordering and eligibility helpers for novel generated tasks."""
+"""Ordering and eligibility exports for novel generated tasks."""
 
 from __future__ import annotations
 

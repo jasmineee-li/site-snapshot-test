@@ -1,4 +1,4 @@
-"""Phase 4 result summary package."""
+"""Public package surface for Phase 4 result summaries."""
 
 from __future__ import annotations
 

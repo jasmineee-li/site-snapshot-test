@@ -1,4 +1,4 @@
-"""Top-level Phase 4 result summarization."""
+"""Top-level Phase 4 result summarization export."""
 
 from __future__ import annotations
 

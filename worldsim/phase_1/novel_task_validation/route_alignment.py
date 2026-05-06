@@ -1,4 +1,4 @@
-"""Route-contract and start-URL validation helpers."""
+"""Route-contract and start-URL validation exports."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Outcome classification and confidence helpers."""
+"""Outcome classification and confidence exports."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Variant regeneration audit summaries."""
+"""Variant regeneration audit summary exports."""
 
 from __future__ import annotations
 

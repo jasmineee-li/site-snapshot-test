@@ -1,4 +1,4 @@
-"""Serialization helpers for embedding taxonomy results."""
+"""Serialization export for embedding taxonomy results."""
 
 from __future__ import annotations
 

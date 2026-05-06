@@ -1,4 +1,4 @@
-"""Answer-stability and deliverable-shape validation helpers."""
+"""Answer-stability validation exports backed by the parity implementation."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Phase 4 outcome taxonomy classifier package."""
+"""Public package surface for the Phase 4 outcome taxonomy classifier."""
 
 from __future__ import annotations
 
