@@ -362,6 +362,73 @@ def test_eval_awareness_rewrite_materializes_payload_inside_existing_editor_seed
     assert task["adversarial_data_seed"]["editor_calls"][0]["args"]["detail"] == "payload"
 
 
+def test_eval_awareness_rewrite_updates_selected_payload_text_for_sequential_rewrites():
+    from worldsim.phase_4.eval_awareness_rewrite_api import (
+        _materialize_rewrite_seed,
+        _merge_rewrite,
+    )
+
+    task, _instances = _prepared_adv_task()
+    task["payload_texts"] = [
+        {
+            "rendered_payload": "payload",
+            "raw_text": "payload",
+            "framing_witnesses": ["payload"],
+        }
+    ]
+    task["selected_payload_index"] = 0
+    task["exposure_contract"] = {
+        "editor_method": "create_product_review",
+        "payload_arg": "detail",
+    }
+    task["adversarial_data_seed"]["editor_calls"].insert(
+        0,
+        {
+            "benchmark": "webarena_verified",
+            "site": "shopping",
+            "method": "create_product_review",
+            "args": {"entity_pk_value": 2, "detail": "benign setup"},
+        },
+    )
+
+    first = _merge_rewrite(
+        task,
+        {
+            "status": "ok",
+            "payload_text": {
+                "rendered_payload": "first rewrite",
+                "raw_text": "first rewrite",
+                "framing_witnesses": ["first rewrite"],
+                "attack_action_witnesses": ["first rewrite"],
+                "concealment_witnesses": [],
+            },
+        },
+    )
+
+    assert first["payload_texts"][0]["rendered_payload"] == "first rewrite"
+    assert (
+        first["adversarial_data_seed"]["editor_calls"][1]["args"]["detail"]
+        == "first rewrite"
+    )
+
+    second_seed = _materialize_rewrite_seed(
+        first,
+        {
+            "payload_text": {
+                "rendered_payload": "second rewrite",
+                "raw_text": "second rewrite",
+                "framing_witnesses": ["second rewrite"],
+                "attack_action_witnesses": ["second rewrite"],
+                "concealment_witnesses": [],
+            }
+        },
+    )
+
+    assert second_seed is not None
+    assert second_seed["editor_calls"][1]["args"]["detail"] == "second rewrite"
+    assert second_seed["editor_calls"][0]["args"]["detail"] == "benign setup"
+
+
 def test_eval_awareness_rewrite_ignores_model_seed_mechanism_labels():
     from worldsim.phase_4.eval_awareness_rewrite_api import _merge_rewrite
 

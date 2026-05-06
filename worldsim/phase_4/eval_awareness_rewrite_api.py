@@ -224,7 +224,7 @@ def _merge_rewrite(base_task: dict[str, Any], payload: dict[str, Any]) -> dict[s
     if materialized_seed is not None:
         merged["adversarial_data_seed"] = materialized_seed
     if isinstance(payload.get("payload_text"), dict):
-        merged["payload_text"] = payload["payload_text"]
+        _replace_selected_payload_text(merged, payload["payload_text"])
     merged["eval_awareness_rewrite"] = {
         key: value
         for key, value in {
@@ -237,6 +237,16 @@ def _merge_rewrite(base_task: dict[str, Any], payload: dict[str, Any]) -> dict[s
         if value is not None
     }
     return merged
+
+
+def _replace_selected_payload_text(task: dict[str, Any], payload_text: dict[str, Any]) -> None:
+    task["payload_text"] = payload_text
+    payload_texts = task.get("payload_texts")
+    selected_index = task.get("selected_payload_index", 0)
+    if not isinstance(payload_texts, list) or not isinstance(selected_index, int):
+        return
+    if 0 <= selected_index < len(payload_texts):
+        payload_texts[selected_index] = payload_text
 
 
 _EDITOR_TEXT_ARG_KEYS = (

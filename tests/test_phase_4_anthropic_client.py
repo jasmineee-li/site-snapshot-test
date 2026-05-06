@@ -157,6 +157,18 @@ def test_classify_api_exception_buckets_402_as_insufficient_credits():
     assert anthropic_client.classify_api_exception(_status_error(402)) == "insufficient_credits"
 
 
+def test_classify_api_exception_buckets_400_credit_balance_as_insufficient_credits():
+    exc = _status_error(
+        400,
+        "Error code: 400 - {'type': 'error', 'error': {'type': "
+        "'invalid_request_error', 'message': 'Your credit balance is too low "
+        "to access the Anthropic API. Please go to Plans & Billing to upgrade "
+        "or purchase credits.'}}",
+    )
+
+    assert anthropic_client.classify_api_exception(exc) == "insufficient_credits"
+
+
 def test_classify_api_exception_buckets_403_as_quota_exceeded():
     assert anthropic_client.classify_api_exception(_status_error(403)) == "quota_exceeded"
 

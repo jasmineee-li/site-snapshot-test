@@ -63,7 +63,19 @@ def classify_api_exception(exc: BaseException) -> str:
             return "insufficient_credits"
         if exc.status_code == 403:
             return "quota_exceeded"
+        if exc.status_code == 400 and _looks_like_credit_exhaustion(exc):
+            return "insufficient_credits"
     return "api_error"
+
+
+def _looks_like_credit_exhaustion(exc: APIStatusError) -> bool:
+    text = str(exc).lower()
+    body = getattr(exc, "body", None)
+    if body is not None:
+        text = f"{text} {body!r}".lower()
+    return "credit balance" in text and (
+        "too low" in text or "insufficient" in text or "purchase credits" in text
+    )
 
 
 def _resolved_auth_path() -> str | None:
