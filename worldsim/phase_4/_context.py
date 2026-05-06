@@ -37,7 +37,7 @@ from worldsim.agent_config import (
     task_reset_endpoints,
 )
 from worldsim.agent_prompt import build_agent_prompt
-from worldsim.agent_runtime import RUNNER_BROWSER_USE, AgentResult, AgentRunner
+from worldsim.agent_runtime import RUNNER_AGENTLAB, RUNNER_BROWSER_USE, AgentResult, AgentRunner
 from worldsim.atomic_io import write_json_atomic
 from worldsim.auth_tokens import acquire_tokens_for_instances
 from worldsim.benchmark_capabilities import get_benchmark_capabilities, infer_benchmark_name

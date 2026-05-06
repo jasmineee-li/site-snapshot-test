@@ -140,22 +140,19 @@ async def run(args: argparse.Namespace) -> int:
             **state_metadata,
         )
         return 1
-    if agent_runner != RUNNER_BROWSER_USE:
-        message = (
-            f"runner {agent_runner!r} is available only as an AgentLab/BrowserGym "
-            "comparison scaffold. WorldSim-v5 Phase 4 still requires "
-            "runner='browser_use' until PVPO, network trace, auth, and trajectory "
-            "parity are implemented."
-        )
-        logger.error("Phase 4 runner gate failed: %s", message)
-        save_state(
-            "phase_4",
-            status="failed",
-            reason="runner_not_worldsim_v5_ready",
-            error=message,
-            **state_metadata,
-        )
-        return 1
+    if agent_runner == RUNNER_AGENTLAB:
+        errors = _agentlab_phase4_preflight_errors()
+        if errors:
+            message = "AgentLab Phase 4 runner preflight failed: " + "; ".join(errors)
+            logger.error("Phase 4 runner gate failed: %s", message)
+            save_state(
+                "phase_4",
+                status="failed",
+                reason="runner_not_worldsim_v5_ready",
+                error=message,
+                **state_metadata,
+            )
+            return 1
     if capabilities.phase_4_mode != "worldsim_v5":
         message = f"benchmark {capabilities.canonical_name!r} does not support WorldSim v5 Phase 4"
         logger.error("Phase 4 benchmark metadata gate failed: %s", message)
@@ -650,6 +647,18 @@ async def run(args: argparse.Namespace) -> int:
         final_results=final_results,
         tasks=tasks,
     )
+
+
+def _agentlab_phase4_preflight_errors() -> list[str]:
+    repo_root = Path(__file__).resolve().parents[2]
+    errors: list[str] = []
+    sidecar = repo_root / "packages" / "worldsim-agentlab-runner"
+    if not sidecar.is_dir():
+        errors.append(f"missing AgentLab sidecar package at {sidecar}")
+    vendor = repo_root / "vendors" / "AgentLab-upstream"
+    if not vendor.is_dir():
+        errors.append(f"missing vendored AgentLab checkout at {vendor}")
+    return errors
 
 
 import sys as _sys

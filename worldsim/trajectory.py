@@ -22,8 +22,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from worldsim.agent_runtime import AgentResult
 from worldsim.atomic_io import write_json_atomic
-from worldsim.browser_use_agent import AgentResult
 
 
 def save_result(
@@ -67,6 +67,24 @@ def save_result(
         target,
         data,
         failpoint_base="trajectory.save_result",
+    )
+
+
+def save_result_payload(task_dir: Path, payload: dict[str, Any]) -> None:
+    """Write a pre-normalized ``result.json`` sentinel.
+
+    Non-Browser-Use runners may normalize their native result into the
+    canonical sentinel shape without constructing an ``AgentResult`` instance.
+    This keeps resume behavior shared while avoiding fake Browser Use history
+    objects in adapter code.
+    """
+
+    task_dir = Path(task_dir)
+    task_dir.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(
+        task_dir / "result.json",
+        payload,
+        failpoint_base="trajectory.save_result_payload",
     )
 
 

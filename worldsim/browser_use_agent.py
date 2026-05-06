@@ -20,9 +20,9 @@ import shutil
 import tempfile
 import time
 from contextlib import suppress
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse, urlsplit, urlunsplit
 
 from worldsim.agent_auth import (
@@ -32,11 +32,14 @@ from worldsim.agent_auth import (
     resolve_agent_auth_headers,
     storage_state_preflight_error_for_payload,
 )
+from worldsim.agent_runtime import AgentResult, AgentRunner
 from worldsim.atomic_io import write_json_atomic
 from worldsim.config import has_configured_agent_auth, has_effective_agent_auth
 from worldsim.pvpo_endpoint import validate_pvpo_cdp_url
 
 logger = logging.getLogger(__name__)
+
+__all__ = ["AgentResult", "AgentRunner", "BrowserUseAgent"]
 
 
 def _ensure_browser_use_runtime_env() -> None:
@@ -116,45 +119,6 @@ _CLEAR_PAGE_STORAGE_JS = """
   return true;
 })()
 """
-
-
-@dataclass
-class AgentResult:
-    """Summary of one agent run, extracted from the Browser Use history."""
-
-    elapsed: float
-    steps: int
-    is_done: bool
-    final_result: str | None
-    status: str = "success"
-    errors: list[str] = field(default_factory=list)
-    network_trace: list[dict[str, Any]] = field(default_factory=list)
-
-
-class AgentRunner(Protocol):
-    """Protocol every agent implementation in the worker pool must satisfy."""
-
-    async def setup(self, server_url: str) -> None: ...
-
-    async def run(
-        self,
-        task: str,
-        server_url: str,
-        task_dir: Path,
-        *,
-        start_urls: list[str] | None = None,
-        site_prompt: str | None = None,
-        auth_mechanism: dict[str, Any] | None = None,
-        benchmark_root: Path | None = None,
-        task_site: str | None = None,
-        payload_text: str | None = None,
-        payload_witnesses: list[str | dict[str, Any]] | None = None,
-        pvpo_cdp_url: str | None = None,
-        instance_id: str | None = None,
-        url_origin_rewrites: dict[str, str] | None = None,
-    ) -> AgentResult: ...
-
-    async def teardown(self) -> None: ...
 
 
 class _NetworkTraceRecorder:

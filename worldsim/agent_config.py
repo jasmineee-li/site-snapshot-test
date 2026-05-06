@@ -46,7 +46,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
-from worldsim.browser_use_agent import AgentRunner, BrowserUseAgent
+from worldsim.agent_runtime import RUNNER_BROWSER_USE, AgentRunner
+from worldsim.browser_use_agent import BrowserUseAgent
 from worldsim.config import BenchmarkInstance
 from worldsim.eval_worker_pool import run_eval
 from worldsim.instance_selection import select_task_site_instance
@@ -366,8 +367,9 @@ def make_agent_factory(
     llm_timeout: int | None = None,
     step_timeout: int | None = None,
     task_timeout: int | None = None,
-) -> Callable[[], BrowserUseAgent]:
-    """Return a zero-arg callable that produces a fresh ``BrowserUseAgent``.
+    runner: str = RUNNER_BROWSER_USE,
+) -> Callable[[], AgentRunner]:
+    """Return a zero-arg callable that produces a fresh browser-agent runner.
 
     The LLM is built lazily on first call so import errors surface at
     runtime inside the worker, not at factory-creation time.
@@ -375,6 +377,19 @@ def make_agent_factory(
     ``task_timeout`` is WorldSim's outer wall-clock guard for one browser task.
     When omitted, Browser Use's provider/model/task defaults are preserved.
     """
+    normalized_runner = str(runner or RUNNER_BROWSER_USE).strip().lower()
+    if normalized_runner != RUNNER_BROWSER_USE:
+        from worldsim.runners import get_runner_module
+
+        module = get_runner_module(normalized_runner)
+        return module.make_agent_factory(
+            model=model,
+            provider=provider,
+            service_tier=service_tier,
+            llm_timeout=llm_timeout,
+            step_timeout=step_timeout,
+            task_timeout=task_timeout,
+        )
 
     def factory() -> BrowserUseAgent:
         llm = make_llm(model=model, provider=provider, service_tier=service_tier)

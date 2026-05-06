@@ -1,0 +1,45 @@
+# WorldSim AgentLab Runner
+
+Isolated sidecar for AgentLab/BrowserGym comparison runs.
+
+This package intentionally has its own dependency graph. Root WorldSim uses
+Browser Use 0.12.6, which requires `openai==2.16.0`; current AgentLab requires
+`openai<2`. Keeping AgentLab here avoids resolver conflicts in the orchestrator
+environment.
+
+Run contract:
+
+```bash
+uv run --project packages/worldsim-agentlab-runner \
+  worldsim-agentlab-runner run /path/to/agentlab_request.json
+```
+
+The command prints one JSON object to stdout. The parent WorldSim process owns
+conversion into canonical `result.json`.
+
+Parent CLI:
+
+```bash
+uv run python -m worldsim.main agentlab run \
+  --instances instances.scale.json \
+  --browsergym-task-name webarena_verified.42 \
+  --site gitlab \
+  --agent-model gpt52 \
+  --agent-provider openrouter
+```
+
+Named model profiles can be listed with:
+
+```bash
+uv run python -m worldsim.main agentlab models
+```
+
+Current named OpenRouter profiles are `opus47`, `sonnet46`, `gemini25pro`,
+`kimik25`, `gpt52`, and `glm5`. Direct native routes remain available for
+compatible providers, for example `--agent-provider openai --agent-model gpt-5.2`.
+Named OpenRouter profiles pin the intended provider and disable OpenRouter
+fallbacks where possible; `gpt52` also disables/excludes OpenRouter reasoning
+to match the Browser Use OpenRouter parity arm.
+
+This is a comparison-runner path. It runs BrowserGym/AgentLab task semantics and
+does not replace Browser Use for WorldSim-v5 Phase 4 parity yet.

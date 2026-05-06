@@ -23,7 +23,7 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
-from worldsim.browser_use_agent import AgentRunner
+from worldsim.agent_runtime import AgentRunner
 from worldsim.config import BenchmarkInstance
 from worldsim.instance_selection import ordered_instances, stable_index_for_task
 from worldsim.placeholders import normalize_site_name

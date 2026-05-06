@@ -1,0 +1,143 @@
+from __future__ import annotations
+
+from functools import partial
+from pathlib import Path
+from typing import Any
+
+_INITIAL_ASSISTANT_PREFIX = "Hi! I am your UI assistant"
+
+
+class WorldSimOpenEndedTask:
+    """BrowserGym task that delegates scoring back to WorldSim Phase 4."""
+
+    slow_mo = 0
+    timeout = 10_000
+    locale = None
+    timezone_id = None
+
+    @classmethod
+    def get_task_id(cls) -> str:
+        return "worldsim_openended"
+
+    def __init__(
+        self,
+        seed: int,
+        *,
+        start_urls: list[str],
+        goal: str,
+        site_prompt: str | None = None,
+    ) -> None:
+        from browsergym.core.task import AbstractBrowserTask
+
+        AbstractBrowserTask.__init__(self, seed)
+        self.start_urls = [url for url in start_urls if isinstance(url, str) and url.strip()]
+        self.goal = goal
+        self.site_prompt = site_prompt
+        self.slow_mo = 0
+        self.timeout = 10_000
+        self.viewport = {"width": 1280, "height": 720}
+
+    def setup(self, page: Any) -> tuple[str, dict[str, Any]]:
+        if self.start_urls:
+            page.goto(self.start_urls[0], wait_until="domcontentloaded", timeout=15_000)
+            for url in self.start_urls[1:]:
+                extra_page = page.context.new_page()
+                extra_page.goto(url, wait_until="domcontentloaded", timeout=15_000)
+            page.bring_to_front()
+        goal = self.goal
+        if self.site_prompt:
+            goal = f"{self.site_prompt.strip()}\n\n{goal.strip()}"
+        return goal, {"worldsim_start_urls": list(self.start_urls)}
+
+    def validate(self, page: Any, chat_messages: list[dict[str, Any]]) -> tuple[float, bool, str, dict]:
+        final_message = latest_assistant_message(chat_messages)
+        if final_message:
+            return 0.0, True, "", {"worldsim_final_result": final_message}
+        if any(message.get("role") == "infeasible" for message in chat_messages):
+            return 0.0, True, "", {"worldsim_final_result": "INFEASIBLE"}
+        return 0.0, False, "", {}
+
+    def teardown(self) -> None:
+        return None
+
+
+def make_worldsim_browsergym_env(
+    request: dict[str, Any],
+    *,
+    action_mapping: Any,
+    exp_dir: Path,
+) -> Any:
+    import gymnasium as gym
+    from browsergym.core.env import BrowserEnv
+
+    task = partial(
+        WorldSimOpenEndedTask,
+        start_urls=_string_list(request.get("start_urls")),
+        goal=_required_str(request, "task"),
+        site_prompt=_optional_str(request.get("site_prompt")),
+    )
+    context_kwargs = _context_kwargs_from_request(request)
+    env = BrowserEnv(
+        task_entrypoint=task,
+        headless=bool(request.get("headless", True)),
+        action_mapping=action_mapping,
+        use_raw_page_output=False,
+        record_video_dir=str(exp_dir) if bool(request.get("record_video", False)) else None,
+        pw_context_kwargs=context_kwargs,
+        pre_observation_delay=float(request.get("pre_observation_delay") or 0.5),
+    )
+    return gym.wrappers.TimeLimit(env, max_episode_steps=int(request.get("max_steps") or 30))
+
+
+def latest_assistant_message(chat_messages: Any) -> str | None:
+    if not isinstance(chat_messages, (list, tuple)):
+        return None
+    for message in reversed(chat_messages):
+        if not isinstance(message, dict):
+            continue
+        if message.get("role") != "assistant":
+            continue
+        text = message.get("message")
+        if not isinstance(text, str) or not text.strip():
+            continue
+        if text.startswith(_INITIAL_ASSISTANT_PREFIX):
+            continue
+        return text.strip()
+    return None
+
+
+def _context_kwargs_from_request(request: dict[str, Any]) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {}
+    storage_state = request.get("storage_state")
+    if storage_state:
+        kwargs["storage_state"] = storage_state
+    auth = request.get("auth_mechanism")
+    if isinstance(auth, dict):
+        auth_type = auth.get("type")
+        if auth_type == "http_basic":
+            username = auth.get("username")
+            password = auth.get("password")
+            if isinstance(username, str) and isinstance(password, str):
+                kwargs["http_credentials"] = {"username": username, "password": password}
+        elif auth_type == "http_headers":
+            headers = auth.get("headers")
+            if isinstance(headers, dict):
+                kwargs["extra_http_headers"] = {str(k): str(v) for k, v in headers.items()}
+    return kwargs
+
+
+def _required_str(payload: dict[str, Any], key: str) -> str:
+    value = payload.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"request missing required string field {key!r}")
+    return value
+
+
+def _optional_str(value: Any) -> str | None:
+    return value if isinstance(value, str) and value.strip() else None
+
+
+def _string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if isinstance(item, str) and item.strip()]
