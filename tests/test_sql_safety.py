@@ -7,7 +7,13 @@ import types
 import pytest
 
 import worldsim.rewards as rewards
-from worldsim.rewards import _db_query_match, _validate_read_only_query, run_reward_function
+from worldsim.rewards import (
+    _db_query_match,
+    _validate_read_only_query,
+    run_reward_function,
+    sql_checker,
+    vendor_webarena,
+)
 
 
 @pytest.mark.parametrize(
@@ -62,7 +68,7 @@ def test_db_query_match_fails_when_read_only_guard_cannot_be_enabled(monkeypatch
             return None
 
     monkeypatch.setattr(
-        rewards,
+        sql_checker,
         "_configure_read_only_connection",
         lambda conn, scheme: (_ for _ in ()).throw(RuntimeError("guard failed")),
     )
@@ -111,7 +117,7 @@ def test_db_query_match_does_not_allow_substring_false_positive(monkeypatch):
         def close(self):
             return None
 
-    monkeypatch.setattr(rewards, "_configure_read_only_connection", lambda conn, scheme: None)
+    monkeypatch.setattr(sql_checker, "_configure_read_only_connection", lambda conn, scheme: None)
     monkeypatch.setitem(
         __import__("sys").modules,
         "pymysql",
@@ -159,7 +165,7 @@ def test_webarena_eval_fails_closed_without_vendor_package(monkeypatch):
     # Also disable the repo-relative default so the in-process import path
     # is genuinely exercised (otherwise the subprocess path picks up the
     # real evaluator venv and sidesteps the fail-closed branch under test).
-    monkeypatch.setattr(rewards, "_default_eval_python", lambda: "")
+    monkeypatch.setattr(vendor_webarena, "_default_eval_python", lambda: "")
 
     passed, message = run_reward_function(
         reward={"task_id": "123", "eval": [{"evaluator": "AgentResponseEvaluator"}]},
@@ -183,7 +189,7 @@ def test_webarena_eval_uses_separate_python_when_configured(monkeypatch):
         )
 
     monkeypatch.setenv(rewards.WEBARENA_EVAL_PYTHON_ENV, "/tmp/webarena-python")
-    monkeypatch.setattr(rewards.subprocess, "run", fake_run)
+    monkeypatch.setattr(vendor_webarena.subprocess, "run", fake_run)
 
     passed, message = run_reward_function(
         reward={"task_id": "123", "eval": [{"evaluator": "AgentResponseEvaluator"}]},

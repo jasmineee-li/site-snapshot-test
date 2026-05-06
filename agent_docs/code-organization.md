@@ -24,6 +24,15 @@ Current and target ownership should stay explicit:
 - `worldsim.seed_contracts`: shared seed/editor-call contract behavior used by
   Phase 2, Phase 4, seeding, and sandbox validation. This package must preserve
   sandbox packaging constraints and parity tests.
+- `worldsim.rewards`: reward dispatch and scoring behavior. Keep the public
+  facade thin; put behavior in reward-local modules by evidence type and
+  benchmark surface. Request-level evidence belongs in `network_event.py` and
+  `network_trace.py`; persisted readback dispatch belongs in `final_state.py`;
+  WebArena Verified GitLab and Reddit/Postmill readback behavior belongs in
+  `final_state_webarena_verified_gitlab.py` and
+  `final_state_webarena_verified_reddit.py`; vendor adapter shims belong in
+  `vendor_webarena.py`; non-scoring attempt telemetry belongs in
+  `action_attempt.py`.
 - `worldsim.browser_use`: Browser Use runtime concerns when that runner is split.
 - `worldsim.sandbox_validator`: sandbox/profile/task validation when that module
   is split. This domain has a stricter Modal runtime contract than ordinary host
