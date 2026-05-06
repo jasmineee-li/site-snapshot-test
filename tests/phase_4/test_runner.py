@@ -253,6 +253,7 @@ async def test_phase_4_run_filters_tasks_by_sites_before_rebase(monkeypatch, tmp
                     "benign_task_id": "benign-gitlab",
                     "site": "gitlab",
                     "sites": ["gitlab"],
+                    "adversarial_action": {"kind": "create_issue"},
                     "instruction": "Open issue",
                     "start_urls": ["http://gitlab.test/issues"],
                     "data_seed": {"mechanism": "none"},
@@ -275,6 +276,7 @@ async def test_phase_4_run_filters_tasks_by_sites_before_rebase(monkeypatch, tmp
                     "benign_task_id": "benign-shopping",
                     "site": "shopping",
                     "sites": ["shopping"],
+                    "adversarial_action": {"kind": "create_post"},
                     "instruction": "Open order",
                     "start_urls": ["http://shopping.test/orders"],
                     "data_seed": {"mechanism": "none"},
@@ -358,6 +360,7 @@ async def test_phase_4_run_filters_tasks_by_sites_before_rebase(monkeypatch, tmp
             allow_unknown_auth=True,
             phase_4_max_workers=2,
             phase_4_variant_budget="smoke-3-probe",
+            adversarial_action_kind="create_issue",
             resume=False,
         )
     )
@@ -367,6 +370,7 @@ async def test_phase_4_run_filters_tasks_by_sites_before_rebase(monkeypatch, tmp
     assert isinstance(tasks, list)
     assert len(tasks) == 1
     assert tasks[0]["site"] == "gitlab"
+    assert tasks[0]["adversarial_action"]["kind"] == "create_issue"
     assert captured["max_workers"] == 2
 
 

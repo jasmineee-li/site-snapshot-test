@@ -29,6 +29,43 @@ def _filter_tasks_by_sites(
     return filtered
 
 
+def _filter_tasks_by_adversarial_action_kind(
+    tasks: list[dict[str, Any]],
+    action_filter_raw: str | None,
+    *,
+    phase_label: str,
+) -> list[dict[str, Any]]:
+    if not action_filter_raw:
+        return tasks
+    action_filter = {
+        action.strip() for action in action_filter_raw.split(",") if action.strip()
+    }
+    known_actions = {
+        str((task.get("adversarial_action") or {}).get("kind", "")).strip()
+        for task in tasks
+        if isinstance(task.get("adversarial_action"), dict)
+        and (task.get("adversarial_action") or {}).get("kind")
+    }
+    unknown = action_filter - known_actions
+    if unknown:
+        raise ValueError(
+            f"{phase_label}: --adversarial-action-kind includes unknown action kind(s): "
+            f"{sorted(unknown)}. Known action kinds: {sorted(known_actions)}"
+        )
+    filtered = [
+        task
+        for task in tasks
+        if str((task.get("adversarial_action") or {}).get("kind", "")).strip()
+        in action_filter
+    ]
+    logger.info(
+        "%s: --adversarial-action-kind filter active, running only %s",
+        phase_label,
+        sorted(action_filter),
+    )
+    return filtered
+
+
 def _load_site_profiles(
     tasks: list[dict[str, Any]], profiles_dir: Path
 ) -> dict[str, dict[str, Any]]:
@@ -84,6 +121,7 @@ def _load_admitted_phase_4_tasks(
     *,
     state_dir: Path,
     sites_filter_raw: str | None,
+    adversarial_action_kind_filter_raw: str | None,
     max_tasks_per_site: int | None,
     state_metadata: dict[str, Any],
 ) -> dict[str, Any]:
@@ -100,6 +138,15 @@ def _load_admitted_phase_4_tasks(
         adversarial_tasks = _filter_tasks_by_sites(
             adversarial_tasks,
             sites_filter_raw,
+            phase_label="Phase 4",
+        )
+    except ValueError as exc:
+        logger.error("%s", exc)
+        return _admission_failure()
+    try:
+        adversarial_tasks = _filter_tasks_by_adversarial_action_kind(
+            adversarial_tasks,
+            adversarial_action_kind_filter_raw,
             phase_label="Phase 4",
         )
     except ValueError as exc:

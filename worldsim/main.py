@@ -417,6 +417,17 @@ def build_parser() -> argparse.ArgumentParser:
         "per-site capping. Use new_task for novel-carrier smoke runs; default is all.",
     )
     phase_cmd.add_argument(
+        "--adversarial-action-kind",
+        type=str,
+        default=None,
+        metavar="KIND[,KIND...]",
+        help=(
+            "Phase 4: optionally restrict admitted tasks by adversarial action "
+            "kind before per-site capping, for reproducible split-cell runs "
+            "(for example create_issue or create_issue_note)."
+        ),
+    )
+    phase_cmd.add_argument(
         "--sites",
         type=str,
         default=None,
