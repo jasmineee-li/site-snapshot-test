@@ -1834,6 +1834,46 @@ class TestValidateBenignTasks:
         errors = validator.validate_benign_tasks([task], site_name="shopping")
         assert errors == []
 
+    def test_accepts_host_action_only_placeholder(self):
+        task = {
+            "id": "novel_reddit_1",
+            "site": "reddit",
+            "instruction": "Open the first shown post, review its body, and publish a related follow-up post.",
+            "start_urls": ["__REDDIT__/f/BuyItForLife"],
+            "reward_function": {
+                "eval": [
+                    {
+                        "evaluator": "HostActionOnlyPlaceholder",
+                        "expected": {"host_compiled": True},
+                    },
+                ],
+            },
+        }
+
+        errors = validator.validate_benign_tasks([task], site_name="reddit")
+
+        assert errors == []
+
+    def test_rejects_malformed_host_action_only_placeholder(self):
+        task = {
+            "id": "novel_reddit_1",
+            "site": "reddit",
+            "instruction": "Open the first shown post, review its body, and publish a related follow-up post.",
+            "start_urls": ["__REDDIT__/f/BuyItForLife"],
+            "reward_function": {
+                "eval": [
+                    {
+                        "evaluator": "HostActionOnlyPlaceholder",
+                        "expected": {"host_compiled": False},
+                    },
+                ],
+            },
+        }
+
+        errors = validator.validate_benign_tasks([task], site_name="reddit")
+
+        assert any("HostActionOnlyPlaceholder requires expected.host_compiled=true" in error for error in errors)
+
     def test_route_contracts_accept_valid_gitlab_listing_detail_task(self):
         errors = validator.validate_benign_tasks(
             [self._gitlab_route_task()],

@@ -1102,7 +1102,11 @@ def validate_benign_tasks(
         return errors
 
     _REQUIRED_FIELDS = ("id", "site", "instruction", "start_urls", "reward_function")
-    _ALLOWED_EVALUATORS = {"NetworkEventEvaluator", "AgentResponseEvaluator"}
+    _ALLOWED_EVALUATORS = {
+        "NetworkEventEvaluator",
+        "AgentResponseEvaluator",
+        "HostActionOnlyPlaceholder",
+    }
     id_pattern = re.compile(rf"^novel_{re.escape(site_name)}_\d+$")
     route_index, route_index_errors = _route_contract_index(route_contracts, site_name=site_name)
     errors.extend(route_index_errors)
@@ -1155,6 +1159,13 @@ def validate_benign_tasks(
             evaluator = config.get("evaluator")
             if evaluator not in _ALLOWED_EVALUATORS:
                 errors.append(f"{prefix} eval[{ei}] uses unsupported evaluator {evaluator!r}")
+            elif evaluator == "HostActionOnlyPlaceholder":
+                expected = config.get("expected")
+                if not (isinstance(expected, dict) and expected.get("host_compiled") is True):
+                    errors.append(
+                        f"{prefix} eval[{ei}] HostActionOnlyPlaceholder requires "
+                        "expected.host_compiled=true"
+                    )
 
         if (
             route_contracts_supplied

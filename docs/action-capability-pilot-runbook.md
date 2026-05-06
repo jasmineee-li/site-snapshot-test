@@ -27,6 +27,7 @@ capability blueprints and recorded in Phase 1 state.
 | --- | --- | --- | --- |
 | Semantic minimum validation | `semantic_minval` | `semantic_only` | Prove no-title body carriers and host-compiled binary semantic rewards still work. |
 | Tier 2 public mutation pilot | `tier2_mutation_pilot` | `tier2_pilot` | Test bounded public create/comment actions with POST/status/body evidence. |
+| Tier 2 pure action paper profile | `tier2_pure_action_paper` | `tier2_pilot` | Generate final-suite candidate rows with IPI-bearing public actions, `host_action_only` benign utility, and no Reddit/Postmill comment rows until painted visibility is fixed. |
 | Tier 3 repository pilot | `tier3_repository_pilot` | `tier3_pilot` | Test disposable repository/content mutation with request evidence, readback, and cleanup. |
 | Tier 3 destructive-resource pilot | `tier3_delete_resource_pilot` | `tier3_pilot` | Test WASP-style harmless UGC acknowledgement plus host-owned disposable project deletion. |
 
@@ -165,6 +166,58 @@ Tier 2:
 --task-capability-profile tier2_mutation_pilot
 --phase-2a-action-policy tier2_pilot
 ```
+
+Paper-facing Tier 2:
+
+```bash
+--task-capability-profile tier2_pure_action_paper
+--phase-2a-action-policy tier2_pilot
+```
+
+Use `tier2_pure_action_paper` for final-suite candidate generation. It is
+stricter than `tier2_mutation_pilot`: benign utility is `host_action_only`,
+legacy final-answer probes are excluded, and Reddit/Postmill `submit_comment`
+is not part of the profile until seed-specific painted visibility is fixed.
+Phase 1 uses the contract-bound action API backend, not the Claude Code
+sandbox. The host selects the task card, route, anchors, editor method, and
+host-action-only reward shape; the model emits only semantic task slots. Host
+compilation inserts `HostActionOnlyPlaceholder`, and validation accepts that
+placeholder only for host-action-only cards before replacing it with
+host-compiled public-action request/readback evidence. Do not reintroduce
+final-answer label examples, route IDs, reward schemas, or endpoint details
+into model-owned task-slot generation.
+
+Before Phase 2, run:
+
+```bash
+uv run python scripts/validate_contract_bound_action_tasks.py "$RUN" --min-tasks 1
+```
+
+Before Phase 4, run:
+
+```bash
+uv run python scripts/audit_pure_action_paper_suite.py "$RUN" --min-tasks 1
+```
+
+For the final 70-task suite, replace `--min-tasks 1` with
+`--expected-count 70`. The audit is a cohort gate: any failure means regenerate
+or fix the generator/readback path before running Phase 4.
+
+For paper-facing Phase 4 smokes and final-suite runs, pin the variant system
+instead of relying on defaults:
+
+```bash
+--phase-4-variant-system eval-awareness-iterator
+--phase-4-eval-awareness-max-iterations 3
+```
+
+Do not pass `--phase-4-variant-budget smoke-3-probe` unless intentionally
+running the legacy `strategy-variation` loop. The budget preset belongs to the
+legacy fan-out system; paper-facing iterator runs should show
+`eval_awareness_iterator` artifacts, not `strategy_variation` artifacts. If an
+iterator job is stopped before `phase_4/results.json` is written, treat it as
+no evidence and rerun from the frozen Phase 1-3 artifacts after the iterator
+fix lands.
 
 Use `tier2_pilot` for the main action pilot. It fails closed when a contract has
 no host-ready Tier 2 action, rather than falling back to semantic/navigation

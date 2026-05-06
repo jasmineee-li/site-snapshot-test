@@ -46,6 +46,7 @@ _NOVEL_TASK_REQUIRED_FIELDS = (
     "reward_function",
 )
 _ALLOWED_GENERATE_NEW_TASKS_EVALUATORS = {"NetworkEventEvaluator", "AgentResponseEvaluator"}
+_HOST_ACTION_ONLY_PLACEHOLDER_EVALUATOR = "HostActionOnlyPlaceholder"
 _MODEL_AUTHORED_HOST_METADATA_FIELDS = (
     "allowed_action_kinds",
     "action_target_contract",
@@ -542,9 +543,15 @@ def validate_generated_novel_task(
             )
         evaluator = config.get("evaluator")
         host_compiled_final_state = _is_host_compiled_final_state_evaluator(task, config)
+        host_action_only_placeholder = _is_host_action_only_placeholder_evaluator(
+            task,
+            task_card_index,
+            config,
+        )
         if (
             evaluator not in _ALLOWED_GENERATE_NEW_TASKS_EVALUATORS
             and not host_compiled_final_state
+            and not host_action_only_placeholder
         ):
             return _field_error(
                 index,
@@ -554,7 +561,11 @@ def validate_generated_novel_task(
                 expected=sorted(_ALLOWED_GENERATE_NEW_TASKS_EVALUATORS),
                 actual=evaluator,
             )
-        if evaluator not in allowed_eval_types and not host_compiled_final_state:
+        if (
+            evaluator not in allowed_eval_types
+            and not host_compiled_final_state
+            and not host_action_only_placeholder
+        ):
             return _field_error(
                 index,
                 "EVALUATOR_NOT_IN_PROFILE",
@@ -563,20 +574,21 @@ def validate_generated_novel_task(
                 expected=sorted(allowed_eval_types),
                 actual=evaluator,
             )
-        expected_problem = _validate_eval_expected(
-            config,
-            evaluator=evaluator,
-            prefix=f"task {index} ({task_id})",
-            eval_index=eval_index,
-        )
-        if expected_problem is not None:
-            return _field_error(
-                index,
-                "INVALID_EVALUATOR_EXPECTED",
-                f"reward_function.eval[{eval_index}].expected",
-                expected_problem,
-                actual=config.get("expected"),
+        if not host_action_only_placeholder:
+            expected_problem = _validate_eval_expected(
+                config,
+                evaluator=evaluator,
+                prefix=f"task {index} ({task_id})",
+                eval_index=eval_index,
             )
+            if expected_problem is not None:
+                return _field_error(
+                    index,
+                    "INVALID_EVALUATOR_EXPECTED",
+                    f"reward_function.eval[{eval_index}].expected",
+                    expected_problem,
+                    actual=config.get("expected"),
+                )
 
     deliverable_problem = _validate_agent_response_instruction_deliverable(
         task,
@@ -2044,6 +2056,26 @@ def _is_host_compiled_final_state_evaluator(
     return str(expected.get("contains") or "").strip() == witness and json.loads(
         json.dumps(dict(config), sort_keys=True)
     ) == json.loads(json.dumps(dict(compiled), sort_keys=True))
+
+
+def _is_host_action_only_placeholder_evaluator(
+    task: Mapping[str, Any],
+    cards: dict[str, dict[str, Any]] | None,
+    config: Mapping[str, Any],
+) -> bool:
+    """Allow action-only generation to omit response-evaluator design.
+
+    The placeholder is accepted only before task-card alignment finalizes the
+    host-owned benign action contract. It must never survive validation output:
+    ``finalize_host_action_only_benign_reward`` replaces the full reward with
+    the compiled request/readback evaluator.
+    """
+    if config.get("evaluator") != _HOST_ACTION_ONLY_PLACEHOLDER_EVALUATOR:
+        return False
+    if not _task_uses_host_action_only_card(task, cards):
+        return False
+    expected = config.get("expected")
+    return isinstance(expected, Mapping) and expected.get("host_compiled") is True
 
 
 def _validate_network_method_requirements(

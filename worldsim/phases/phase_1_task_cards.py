@@ -185,7 +185,12 @@ def validate_task_card_plan(plan: Any) -> None:
             )
         if len(expected_reward_shapes) == 1:
             expected_reward_shape = next(iter(expected_reward_shapes))
-            if reward_shape != expected_reward_shape:
+            stricter_host_action_only = (
+                reward_shape == BENIGN_REWARD_HOST_ACTION_ONLY
+                and card.get("requires_benign_action_evidence") is True
+                and expected_reward_shape != BENIGN_REWARD_HOST_ACTION_ONLY
+            )
+            if reward_shape != expected_reward_shape and not stricter_host_action_only:
                 raise TaskCardPlanError(
                     f"task_cards[{index}].benign_reward_shape {reward_shape!r} "
                     f"does not match compatible action contract "

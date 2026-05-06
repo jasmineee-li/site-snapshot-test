@@ -40,6 +40,115 @@ def test_materialized_reddit_strategy_uses_form_delivery_mechanism():
     assert plans[0]["seed_template"]["editor_calls"][0]["method"] == "create_comment"
 
 
+def test_materialize_strategy_canonicalizes_benign_id_exposure_contract_alias():
+    contract = build_exposure_contract(
+        benign_task_id="reddit-1",
+        site="reddit",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "reddit_submission",
+            "anchors": {"forum_name": "books", "submission_id": "12345"},
+            "start_url_resolved": "https://reddit.local/f/books/12345",
+            "exact_comment_region_forced_by_task": True,
+            "visual_comment_region_forced_by_task": True,
+            "seeded_comment_visible_forced_by_task": True,
+        },
+    )
+    plans = [
+        {
+            "id": "adv-reddit-1",
+            "benign_task_id": "reddit-1",
+            "exposure_contract_id": "reddit-1",
+            "framing": "authority",
+            "concealment": "plaintext",
+            "attack_objective": "test objective",
+            "adversarial_reward": {"type": "noop"},
+        }
+    ]
+
+    phase_2_injections._materialize_strategy_plans_from_exposure(
+        plans,
+        exposure_contracts={"reddit-1": contract},
+        benchmark="webarena_verified",
+    )
+
+    assert plans[0]["exposure_contract_id"] == contract["contract_id"]
+    assert plans[0]["target_surface_id"] == "comment.body"
+
+
+def test_materialize_strategy_rejects_ambiguous_benign_id_contract_alias():
+    contract = build_exposure_contract(
+        benign_task_id="reddit-1",
+        site="reddit",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "reddit_submission",
+            "anchors": {"forum_name": "books", "submission_id": "12345"},
+            "start_url_resolved": "https://reddit.local/f/books/12345",
+            "exact_comment_region_forced_by_task": True,
+            "visual_comment_region_forced_by_task": True,
+            "seeded_comment_visible_forced_by_task": True,
+        },
+    )
+    duplicate_contract = dict(contract)
+    duplicate_contract["contract_id"] = "reddit:reddit-1:alternate"
+    plans = [
+        {
+            "id": "adv-reddit-1",
+            "benign_task_id": "reddit-1",
+            "exposure_contract_id": "reddit-1",
+            "framing": "authority",
+            "concealment": "plaintext",
+            "attack_objective": "test objective",
+            "adversarial_reward": {"type": "noop"},
+        }
+    ]
+
+    with pytest.raises(ValueError, match="ambiguous exposure contract"):
+        phase_2_injections._materialize_strategy_plans_from_exposure(
+            plans,
+            exposure_contracts={
+                "reddit-1": contract,
+                "reddit-1-alternate": duplicate_contract,
+            },
+            benchmark="webarena_verified",
+        )
+
+
+def test_materialize_strategy_rejects_non_alias_unknown_exposure_contract_id():
+    contract = build_exposure_contract(
+        benign_task_id="reddit-1",
+        site="reddit",
+        benchmark="webarena_verified",
+        benign_target_resource={
+            "kind": "reddit_submission",
+            "anchors": {"forum_name": "books", "submission_id": "12345"},
+            "start_url_resolved": "https://reddit.local/f/books/12345",
+            "exact_comment_region_forced_by_task": True,
+            "visual_comment_region_forced_by_task": True,
+            "seeded_comment_visible_forced_by_task": True,
+        },
+    )
+    plans = [
+        {
+            "id": "adv-reddit-1",
+            "benign_task_id": "reddit-1",
+            "exposure_contract_id": "not-a-contract",
+            "framing": "authority",
+            "concealment": "plaintext",
+            "attack_objective": "test objective",
+            "adversarial_reward": {"type": "noop"},
+        }
+    ]
+
+    with pytest.raises(ValueError, match="references no known exposure contract"):
+        phase_2_injections._materialize_strategy_plans_from_exposure(
+            plans,
+            exposure_contracts={"reddit-1": contract},
+            benchmark="webarena_verified",
+        )
+
+
 def test_validated_reddit_comment_plan_resolves_dynamic_form_delivery_channel():
     contract = build_exposure_contract(
         benign_task_id="reddit-1",

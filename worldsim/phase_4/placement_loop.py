@@ -14,16 +14,16 @@ async def _run_pvpo_gate(
     *,
     sandbox_model: str,
 ) -> dict[str, Any]:
-    """Run Stage 1 encounter detection + transcript_purpose and VEA judges in parallel.
+    """Run Stage 1 encounter detection plus observational awareness metrics.
 
     Flow:
 
     1. PVPO ``determine_encounter`` — unchanged.
     2. ``max_coverage == 0`` → stamp ``injection_not_encountered=True``,
-       null every metric key, skip both judges entirely. Running
-       observational metrics before payload encounter adds cost with no
-       current downstream consumer.
-    3. ``max_coverage > 0`` → fan out transcript_purpose and VEA via
+       but still run Transcript Purpose and VEA over the trajectory when the
+       Needham transcript can be built. Both metrics are observational only
+       and never change encounter/ASR status.
+    3. ``max_coverage > 0`` → fan out Transcript Purpose and VEA via
        ``asyncio.gather(return_exceptions=True)``. Neither metric gates
        anything; either failure is independent. Resume correctness is
        driven by the ``processed_result.json`` fingerprint check at
@@ -49,19 +49,21 @@ async def _run_pvpo_gate(
         encounter.max_coverage == 0 or encounter.reference_screenshot_path is None
     )
 
-    if injection_not_encountered:
-        return _gate_miss_payload(encounter_dict)
-
     # Extract the trajectory once and build one Needham XML transcript shared by
-    # Transcript Purpose and VEA.
+    # Transcript Purpose and VEA. Both metrics run even when PVPO reports
+    # non-encounter; encounter/ASR status remains fail-closed.
     try:
         traj = extract_trajectory(task_dir)
     except (FileNotFoundError, ValueError) as exc:
         logger.warning(
-            "pvpo: trajectory extract failed for %s; skipping Stage 2 judges: %s",
+            "pvpo: trajectory extract failed for %s; observational metrics unavailable: %s",
             task_dir,
             exc,
         )
+        if injection_not_encountered:
+            payload = _gate_miss_payload(encounter_dict)
+            payload.update(_transcript_purpose_failure_result("trajectory_unavailable", task_dir))
+            return payload
         return _observational_metrics_unavailable(
             encounter_dict=encounter_dict,
             task_dir=task_dir,
@@ -70,9 +72,13 @@ async def _run_pvpo_gate(
 
     if not _trajectory_available_for_observational_metrics(traj):
         logger.warning(
-            "pvpo: trajectory for %s is partial; skipping Stage 2 judges",
+            "pvpo: trajectory for %s is partial; observational metrics unavailable",
             task_dir,
         )
+        if injection_not_encountered:
+            payload = _gate_miss_payload(encounter_dict)
+            payload.update(_transcript_purpose_failure_result("trajectory_unavailable", task_dir))
+            return payload
         return _observational_metrics_unavailable(
             encounter_dict=encounter_dict,
             task_dir=task_dir,
@@ -91,29 +97,19 @@ async def _run_pvpo_gate(
             )
     except Exception as exc:
         logger.warning(
-            "pvpo: Needham trace build failed for %s; skipping Stage 2 judges: %s",
+            "pvpo: Needham trace build failed for %s; observational metrics unavailable: %s",
             task_dir,
             exc,
         )
+        if injection_not_encountered:
+            payload = _gate_miss_payload(encounter_dict)
+            payload.update(_transcript_purpose_failure_result("trajectory_unavailable", task_dir))
+            return payload
         return _observational_metrics_unavailable(
             encounter_dict=encounter_dict,
             task_dir=task_dir,
             failure_class="trajectory_unavailable",
         )
-
-    screenshot_path = encounter.reference_screenshot_path
-    screenshot_bytes = encounter.reference_screenshot_bytes
-    # The encounter detector captures the PNG bytes at strict-validation
-    # time; if we're missing them, treat the Stage 2 input as unavailable
-    # regardless of what ``is_file()`` says about the path (which follows
-    # symlinks and therefore cannot substitute for the strict check).
-    if screenshot_path is None or not screenshot_bytes:
-        logger.warning(
-            "pvpo: reference screenshot unavailable at Stage 2 start for %s; "
-            "routing to placement-fix",
-            task_dir,
-        )
-        return _gate_miss_payload(encounter_dict)
 
     async def _run_transcript_purpose() -> dict[str, Any]:
         return await run_transcript_purpose_api(
@@ -132,6 +128,44 @@ async def _run_pvpo_gate(
             sandbox_model=sandbox_model,
             needham_xml=needham_xml,
         )
+
+    screenshot_path = encounter.reference_screenshot_path
+    screenshot_bytes = encounter.reference_screenshot_bytes
+    # The encounter detector captures the PNG bytes at strict-validation
+    # time; if we're missing them, the run is still a PVPO gate miss, but
+    # observational metrics can classify the full transcript.
+    if injection_not_encountered or screenshot_path is None or not screenshot_bytes:
+        if not injection_not_encountered:
+            logger.warning(
+                "pvpo: reference screenshot unavailable at Stage 2 start for %s; "
+                "routing to placement-fix",
+                task_dir,
+            )
+        tp_task = asyncio.create_task(_run_transcript_purpose())
+        vea_task = asyncio.create_task(_run_vea())
+        try:
+            tp_result_raw, vea_result_raw = await asyncio.gather(
+                tp_task, vea_task, return_exceptions=True
+            )
+            if isinstance(tp_result_raw, BaseException):
+                logger.warning("pvpo: transcript_purpose raised unexpectedly: %s", tp_result_raw)
+                tp_result = _transcript_purpose_failure_result("api_error", task_dir)
+            else:
+                tp_result = tp_result_raw
+            if isinstance(vea_result_raw, BaseException):
+                logger.warning("pvpo: VEA raised unexpectedly: %s", vea_result_raw)
+                vea_result = _vea_failure_result("api_error")
+            else:
+                vea_result = vea_result_raw
+        finally:
+            for metric_task in (tp_task, vea_task):
+                if not metric_task.done():
+                    metric_task.cancel()
+            await asyncio.gather(tp_task, vea_task, return_exceptions=True)
+        payload = _gate_miss_payload(encounter_dict)
+        payload.update(tp_result)
+        payload.update(vea_result)
+        return payload
 
     tp_task = asyncio.create_task(_run_transcript_purpose())
     vea_task = asyncio.create_task(_run_vea())

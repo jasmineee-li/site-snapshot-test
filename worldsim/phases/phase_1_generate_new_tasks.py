@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 from collections.abc import Iterable
 from dataclasses import dataclass
 from hashlib import sha256
@@ -17,6 +18,10 @@ from worldsim.modal_sandbox import (
     run_claude_in_sandbox,
     upload_to_volume,
 )
+from worldsim.phases.phase_1_contract_bound_action_api import (
+    contract_bound_tool_schema_digest,
+    generate_contract_bound_action_tasks_api,
+)
 from worldsim.phases.phase_1_generate_new_tasks_validation import (
     GeneratedTaskValidationError,
     sort_novel_tasks,
@@ -28,6 +33,7 @@ from worldsim.phases.phase_1_route_contracts import (
     route_contracts_digest,
 )
 from worldsim.phases.phase_1_task_cards import (
+    card_benign_reward_shape,
     task_card_plan_digest,
     task_card_plan_for_site,
 )
@@ -44,7 +50,9 @@ GENERATE_NEW_TASKS_FIX_MAX_ITERATIONS = 2
 NOVEL_TASK_OUTPUT_PATH = "/workspace/output/benign_tasks.json"
 GENERATE_NEW_TASKS_RESUME_METADATA_PATH = "generate_new_tasks_resume_metadata.json"
 SITE_CACHE_METADATA_SUFFIX = ".metadata.json"
-GENERATE_NEW_TASKS_CACHE_SCHEMA_VERSION = 6
+GENERATE_NEW_TASKS_CACHE_SCHEMA_VERSION = 7
+CONTRACT_BOUND_ACTION_API_ENV = "WORLDSIM_PHASE1_CONTRACT_BOUND_API"
+CONTRACT_BOUND_ACTION_API_REQUIRED_PROFILES = frozenset({"tier2_pure_action_paper"})
 
 
 def _read_only_volume(volume: Any) -> Any:
@@ -124,14 +132,23 @@ async def run_generate_new_tasks(
             all_cached_tasks.extend(result.benign_tasks)
         return sort_novel_tasks(all_cached_tasks)
 
-    # Fail fast if sandbox auth or image setup is missing before we pay for volume upload.
-    await preflight_sandbox_environment()
-
     logger.info(
         "Phase 1 (generate-new-tasks): generating novel tasks for %d eligible sites",
         len(eligible_sites),
     )
-    benchmark_volume = await upload_to_volume(Path(benchmark_root).resolve())
+    site_plans = {
+        site.site_name: task_card_plan_for_site(task_card_plan, site.site_name)
+        for site in eligible_sites
+    }
+    uses_sandbox = any(
+        not _use_contract_bound_action_api(site_plans[site.site_name])
+        for site in eligible_sites
+    )
+    benchmark_volume = None
+    if uses_sandbox:
+        # Fail fast if sandbox auth or image setup is missing before we pay for volume upload.
+        await preflight_sandbox_environment()
+        benchmark_volume = await upload_to_volume(Path(benchmark_root).resolve())
 
     results = await asyncio.gather(
         *[
@@ -147,7 +164,7 @@ async def run_generate_new_tasks(
                 ),
                 sandbox_model=sandbox_model,
                 novel_tasks_per_site=novel_tasks_per_site,
-                task_card_plan=task_card_plan_for_site(task_card_plan, site.site_name),
+                task_card_plan=site_plans[site.site_name],
             )
             for site in eligible_sites
         ],
@@ -286,7 +303,7 @@ def _fail_if_task_card_plan_missing_sites(
 async def generate_new_tasks_for_site(
     *,
     site: EligibleSiteProfile,
-    benchmark_volume: Any,
+    benchmark_volume: Any | None,
     output_dir: Path,
     cache_fingerprint: str,
     sandbox_model: str = "claude-sonnet-4-6",
@@ -323,12 +340,63 @@ async def generate_new_tasks_for_site(
     if cached_result is not None:
         return cached_result
 
+    if _use_contract_bound_action_api(task_card_plan):
+        logger.info(
+            "Phase 1 (generate-new-tasks): launching contract-bound API backend for site %r",
+            site.site_name,
+        )
+        try:
+            generated_tasks = await generate_contract_bound_action_tasks_api(
+                site_name=site.site_name,
+                task_card_plan=task_card_plan or {},
+                route_contracts=route_contracts,
+                profile=site.profile,
+                requested_count=novel_tasks_per_site,
+                sandbox_model=sandbox_model,
+            )
+        except ValueError as exc:
+            return SiteGenerateNewTasksResult(site.site_name, [], [str(exc)])
+        validated_tasks, detailed_errors = validate_generated_novel_tasks_detailed(
+            generated_tasks,
+            site_name=site.site_name,
+            profile=site.profile,
+            expected_task_count=novel_tasks_per_site,
+            route_contracts=route_contracts,
+            task_card_plan=task_card_plan,
+        )
+        if detailed_errors:
+            return SiteGenerateNewTasksResult(
+                site.site_name,
+                [],
+                [error.render() for error in detailed_errors],
+            )
+        sorted_tasks = sort_novel_tasks(_attach_agent_context_to_tasks(validated_tasks, agent_context))
+        intermediate_path.write_text(json.dumps(sorted_tasks, indent=2))
+        _write_site_cache_metadata(
+            _site_cache_metadata_path(intermediate_path),
+            fingerprint=cache_fingerprint,
+            site_name=site.site_name,
+        )
+        logger.info(
+            "Phase 1 (generate-new-tasks): site %r contract-bound API completed",
+            site.site_name,
+        )
+        return SiteGenerateNewTasksResult(site.site_name, sorted_tasks, [])
+
+    if benchmark_volume is None:
+        return SiteGenerateNewTasksResult(
+            site.site_name,
+            [],
+            ["sandbox generation backend requires a benchmark volume"],
+        )
+
     logger.info(
         "Phase 1 (generate-new-tasks): launching novel-task sandbox for site %r", site.site_name
     )
     base_prompt = render_generate_benign_tasks_prompt(
         site_name=site.site_name,
         num_tasks=novel_tasks_per_site,
+        task_card_plan=task_card_plan,
     )
     prompt = base_prompt
     last_errors: list[str] = []
@@ -597,13 +665,54 @@ def _load_all_cached_site_results(
     return cached_results
 
 
-def render_generate_benign_tasks_prompt(*, site_name: str, num_tasks: int) -> str:
+def render_generate_benign_tasks_prompt(
+    *,
+    site_name: str,
+    num_tasks: int,
+    task_card_plan: dict[str, Any] | None = None,
+) -> str:
     """Render the generate-new-tasks prompt without interpreting literal example braces."""
+    prompt_name = (
+        "generate-benign-action-tasks"
+        if _task_card_plan_is_host_action_only(task_card_plan)
+        else "generate-benign-tasks"
+    )
     prompt = load_prompt(
-        "generate-benign-tasks",
+        prompt_name,
         validation_command=f"benign-tasks --site-name {site_name}",
     )
     return prompt.replace("{site_name}", site_name).replace("{num_tasks}", str(num_tasks))
+
+
+def _task_card_plan_is_host_action_only(task_card_plan: dict[str, Any] | None) -> bool:
+    """Return whether every active task card is action-only utility."""
+    if not isinstance(task_card_plan, dict):
+        return False
+    active_cards = [
+        card
+        for card in task_card_plan.get("task_cards", [])
+        if isinstance(card, dict) and str(card.get("status", "active")) == "active"
+    ]
+    return bool(active_cards) and all(
+        card_benign_reward_shape(card) == "host_action_only" for card in active_cards
+    )
+
+
+def _use_contract_bound_action_api(task_card_plan: dict[str, Any] | None) -> bool:
+    """Return whether Phase 1 should use the contract-bound API backend."""
+    if not _task_card_plan_is_host_action_only(task_card_plan):
+        return False
+    profile = ""
+    if isinstance(task_card_plan, dict):
+        profile = str(task_card_plan.get("task_capability_profile") or "").strip()
+    if profile in CONTRACT_BOUND_ACTION_API_REQUIRED_PROFILES:
+        return True
+    return os.environ.get(CONTRACT_BOUND_ACTION_API_ENV, "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
 
 def _render_generate_new_tasks_correction(errors: list[GeneratedTaskValidationError]) -> str:
@@ -636,6 +745,12 @@ def compute_generate_new_tasks_shared_inputs_fingerprint(
             "generate-benign-tasks",
             validation_command="benign-tasks --site-name {site_name}",
         ),
+        "host_action_prompt": load_prompt(
+            "generate-benign-action-tasks",
+            validation_command="benign-tasks --site-name {site_name}",
+        ),
+        "contract_bound_action_tool_schema": contract_bound_tool_schema_digest(),
+        "contract_bound_action_backend_env": os.environ.get(CONTRACT_BOUND_ACTION_API_ENV, ""),
         "sandbox_model": sandbox_model,
         "task_card_plan_digest": task_card_plan_digest(task_card_plan),
     }

@@ -15,6 +15,91 @@ class SiteInjectionResult:
     errors: list[str]
 
 
+def _filter_tasks_by_origin(
+    tasks: list[dict[str, Any]],
+    task_origin: str | None,
+    *,
+    phase_label: str,
+) -> list[dict[str, Any]]:
+    if task_origin in (None, "", "all"):
+        return tasks
+    if task_origin not in {"existing_task", "new_task"}:
+        raise ValueError(
+            f"{phase_label}: --task-origin must be one of all, existing_task, new_task; "
+            f"got {task_origin!r}"
+        )
+    filtered = [task for task in tasks if _classify_origin(task) == task_origin]
+    logger.info("%s: --task-origin filter active, running only %s", phase_label, task_origin)
+    logger.info("%s: task-origin filter kept %d/%d tasks", phase_label, len(filtered), len(tasks))
+    return filtered
+
+
+def _classify_origin(task: Mapping[str, Any]) -> str:
+    stamped = task.get("origin")
+    if stamped in {"existing_task", "new_task"}:
+        return str(stamped)
+    task_id = str(task.get("task_id") or task.get("id") or "")
+    if task_id.startswith("novel_"):
+        return "new_task"
+    return "existing_task"
+
+
+def _with_phase1_route_surface_overlays(
+    site_name: str,
+    site_profile: dict[str, Any],
+    *,
+    state_dir: Path,
+) -> dict[str, Any]:
+    """Merge host-owned route fallback surfaces into the Phase 2 profile view."""
+
+    path = state_dir / "phase_1" / f"TASK_ROUTE_CONTRACTS_{site_name}.json"
+    if not path.exists():
+        return site_profile
+    try:
+        route_contracts = json.loads(path.read_text())
+    except json.JSONDecodeError:
+        logger.warning("Phase 2: ignoring malformed route contracts at %s", path)
+        return site_profile
+
+    overlays: list[dict[str, Any]] = []
+    route_families = route_contracts.get("route_families")
+    if isinstance(route_families, list):
+        for route in route_families:
+            if not isinstance(route, Mapping):
+                continue
+            overlay = route.get("profile_surface_overlay")
+            if isinstance(overlay, Mapping):
+                overlays.append(json.loads(json.dumps(overlay)))
+    if not overlays:
+        return site_profile
+
+    updated = json.loads(json.dumps(site_profile))
+    surfaces = updated.setdefault("injection_surface", [])
+    if not isinstance(surfaces, list):
+        logger.warning("Phase 2: site profile %s has non-list injection_surface", site_name)
+        return site_profile
+    existing_ids = {
+        str(surface.get("id") or "")
+        for surface in surfaces
+        if isinstance(surface, Mapping)
+    }
+    added = 0
+    for overlay in overlays:
+        surface_id = str(overlay.get("id") or "").strip()
+        if not surface_id or surface_id in existing_ids:
+            continue
+        surfaces.append(overlay)
+        existing_ids.add(surface_id)
+        added += 1
+    if added:
+        logger.info(
+            "Phase 2: added %d host-owned route surface overlay(s) for site %r",
+            added,
+            site_name,
+        )
+    return updated
+
+
 async def run(args: argparse.Namespace) -> int:
     """Phase 2 entrypoint — generate adversarial injections for each site."""
     state_dir = get_state_dir()
@@ -27,10 +112,12 @@ async def run(args: argparse.Namespace) -> int:
     )
     phase_2a_action_policy = getattr(args, "phase_2a_action_policy", None)
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
+    task_origin = getattr(args, "task_origin", None) or "all"
     sites_filter_raw = getattr(args, "sites", None)
     state_metadata: dict[str, Any] = {
         "sandbox_model": sandbox_model,
         "max_tasks_per_site": max_tasks_per_site,
+        "task_origin": task_origin,
         "sites": sites_filter_raw,
         "phase_2b_texts_per_plan": texts_per_plan,
         "phase_2_text_fill_concurrency": text_fill_concurrency,
@@ -91,6 +178,22 @@ async def run(args: argparse.Namespace) -> int:
         )
         return 1
     state_metadata["benchmark_name"] = benchmark_name
+
+    try:
+        benign_tasks = _filter_tasks_by_origin(
+            benign_tasks,
+            task_origin,
+            phase_label="Phase 2",
+        )
+    except ValueError as exc:
+        logger.error(str(exc))
+        save_state(
+            "phase_2",
+            status="failed",
+            reason="invalid_task_origin",
+            **state_metadata,
+        )
+        return 1
 
     # Load profiles from Phase 0c
     profiles_dir = state_dir / "phase_0c"
@@ -154,7 +257,12 @@ async def run(args: argparse.Namespace) -> int:
         )
         return 1
     site_profile_payloads = {
-        site: json.loads(path.read_text()) for site, path in site_profiles.items()
+        site: _with_phase1_route_surface_overlays(
+            site,
+            json.loads(path.read_text()),
+            state_dir=state_dir,
+        )
+        for site, path in site_profiles.items()
     }
     benign_by_id = {str(task.get("id", "")): task for task in benign_tasks}
     expected_benign_task_ids = {
@@ -216,6 +324,7 @@ async def run(args: argparse.Namespace) -> int:
                         site_tasks=shard,
                         all_site_tasks=tasks,
                         profile_path=site_profiles[site],
+                        site_profile_override=site_profile_payloads.get(site),
                         label=label,
                         sandbox_model=sandbox_model,
                         instance=per_site_instance,

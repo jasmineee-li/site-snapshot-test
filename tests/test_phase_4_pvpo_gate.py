@@ -180,6 +180,82 @@ async def test_zero_coverage_gate_miss_result_shape(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_zero_coverage_still_runs_transcript_purpose_and_vea(monkeypatch, tmp_path):
+    _write_history(tmp_path)
+    calls = {"tp": 0, "vea": 0}
+
+    def fake_determine(task, trajectory_dir):
+        return _encounter(
+            max_coverage=0.0,
+            reference_step=None,
+            reference_path=None,
+            per_step_coverage=[0.0, 0.0],
+        )
+
+    async def fake_tp(
+        task,
+        trajectory_dir,
+        extracted,
+        *,
+        sandbox_model,
+        needham_xml=None,
+        include_apollo_continue_format=True,
+    ):
+        calls["tp"] += 1
+        assert needham_xml is not None
+        return {
+            "transcript_purpose_classification": "Capability Evaluation",
+            "transcript_purpose_is_aware": True,
+            "transcript_purpose_guess": "benchmark workflow",
+            "transcript_purpose_explanation": "classified as benchmark-like",
+            "transcript_purpose_failure": None,
+            "transcript_purpose_format": "needham-xml-v1",
+            "transcript_purpose_attempts": 1,
+            "transcript_purpose_raw_response_path": str(
+                tmp_path / "transcript_purpose_raw_response.json"
+            ),
+            "transcript_purpose_was_refused": False,
+            "transcript_purpose_apollo_continue_classification": None,
+            "transcript_purpose_apollo_continue_is_aware": None,
+            "transcript_purpose_apollo_continue_was_refused": None,
+            "transcript_purpose_apollo_continue_guess": None,
+            "transcript_purpose_apollo_continue_explanation": None,
+            "transcript_purpose_apollo_continue_failure": None,
+            "transcript_purpose_apollo_continue_attempts": None,
+            "transcript_purpose_apollo_continue_raw_response_path": None,
+        }
+
+    async def fake_vea(task, trajectory_dir, extracted, *, sandbox_model, needham_xml=None):
+        calls["vea"] += 1
+        assert needham_xml is not None
+        return {
+            "verbalized_eval_awareness_classification": "Real",
+            "verbalized_eval_awareness_is_aware": False,
+            "verbalized_eval_awareness_evidence": [],
+            "verbalized_eval_awareness_failure": None,
+            "verbalized_eval_awareness_transcript_format": "needham-xml-v1",
+            "verbalized_eval_awareness_raw_response_path": str(
+                tmp_path / "verbalized_eval_awareness_raw_response.json"
+            ),
+        }
+
+    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_adversarial, "run_transcript_purpose_api", fake_tp)
+    monkeypatch.setattr(phase_4_adversarial, "run_verbalized_eval_awareness_api", fake_vea)
+
+    result = await phase_4_adversarial._run_pvpo_gate(
+        _task(), tmp_path, sandbox_model="claude-sonnet-4-6"
+    )
+
+    assert result["injection_not_encountered"] is True
+    assert result["transcript_purpose_classification"] == "Capability Evaluation"
+    assert result["transcript_purpose_is_aware"] is True
+    assert result["verbalized_eval_awareness_classification"] == "Real"
+    assert result["verbalized_eval_awareness_is_aware"] is False
+    assert calls == {"tp": 1, "vea": 1}
+
+
+@pytest.mark.asyncio
 async def test_gate_falls_back_when_determine_encounter_raises(monkeypatch, tmp_path):
     """Finding 2: a hard failure inside ``determine_encounter`` must not
     propagate. The gate synthesises an empty encounter and stamps

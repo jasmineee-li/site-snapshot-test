@@ -43,19 +43,28 @@ def write_scenario_funnel_csv(export: dict[str, Any], path: Path) -> None:
         "strict_success_source",
         "expected_adversarial_witness",
         "expected_witness_present_in_recovered_text",
+        "phase2c_admitted",
+        "visual_encounter",
         "benign_passed",
+        "benign_utility",
         "benign_utility_miss",
         "pvpo_observation",
         "pvpo_max_coverage",
         "final_status",
+        "browser_action_attempt",
         "direct_action_attempted",
         "action_attempted",
         "direct_request_action_success",
         "request_action_success",
         "direct_state_confirmed_success",
         "state_confirmed_success",
+        "state_confirmed_asr",
         "direct_strict_benchmark_success",
         "strict_benchmark_success",
+        "transcript_purpose_is_aware",
+        "transcript_purpose_label",
+        "vea_is_aware",
+        "vea_classification",
         "followup_loop_outcome",
         "selected_variation_strategy",
         "awareness_note",
@@ -109,11 +118,15 @@ def _csv_row(export: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
         "expected_witness_present_in_recovered_text": created.get(
             "expected_witness_present_in_recovered_text"
         ),
+        "phase2c_admitted": metrics.get("phase2c_admitted"),
+        "visual_encounter": metrics.get("visual_encounter"),
         "benign_passed": metrics.get("benign_passed"),
+        "benign_utility": metrics.get("benign_utility"),
         "benign_utility_miss": metrics.get("benign_utility_miss"),
         "pvpo_observation": metrics.get("pvpo_observation"),
         "pvpo_max_coverage": metrics.get("pvpo_max_coverage"),
         "final_status": metrics.get("final_status"),
+        "browser_action_attempt": metrics.get("action_attempted"),
         "direct_action_attempted": metrics.get("direct_action_attempted"),
         "action_attempted": metrics.get("action_attempted"),
         "direct_request_action_success": metrics.get("direct_request_action_success"),
@@ -122,10 +135,17 @@ def _csv_row(export: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
             "direct_state_confirmed_success"
         ),
         "state_confirmed_success": metrics.get("state_confirmed_success"),
+        "state_confirmed_asr": metrics.get("state_confirmed_asr"),
         "direct_strict_benchmark_success": metrics.get(
             "direct_strict_benchmark_success"
         ),
         "strict_benchmark_success": metrics.get("strict_benchmark_success"),
+        "transcript_purpose_is_aware": _nested_metric(
+            metrics, "transcript_purpose", "is_aware"
+        ),
+        "transcript_purpose_label": _nested_metric(metrics, "transcript_purpose", "label"),
+        "vea_is_aware": _nested_metric(metrics, "vea", "is_aware"),
+        "vea_classification": _nested_metric(metrics, "vea", "classification"),
         "followup_loop_outcome": metrics.get("followup_loop_outcome"),
         "selected_variation_strategy": metrics.get("selected_variation_strategy"),
         "awareness_note": metrics.get("awareness_note"),
@@ -147,9 +167,11 @@ def _render_markdown(export: dict[str, Any]) -> str:
         f"- Result rows: `{summary.get('result_rows')}`",
         f"- Final status counts: `{summary.get('final_status_counts')}`",
         f"- PVPO counts: `{summary.get('pvpo_counts')}`",
-        f"- Final action attempts/request/state-confirmed: `{summary.get('action_attempt_count')}` / `{summary.get('request_success_count')}` / `{summary.get('state_confirmed_success_count')}`",
+        f"- Admitted/encounter/benign utility: `{summary.get('phase2c_admitted_count')}` / `{summary.get('visual_encounter_count')}` / `{summary.get('benign_utility_count')}`",
+        f"- Final action attempts/request/state-confirmed ASR: `{summary.get('browser_action_attempt_count')}` / `{summary.get('request_success_count')}` / `{summary.get('state_confirmed_asr_count')}`",
         f"- Direct request/state-confirmed/strict success: `{summary.get('direct_request_success_count')}` / `{summary.get('direct_state_confirmed_success_count')}` / `{summary.get('direct_strict_success_count')}`",
         f"- Final strict success/follow-up-loop success: `{summary.get('strict_success_count')}` / `{summary.get('followup_loop_success_count')}`",
+        f"- Transcript Purpose aware / VEA aware: `{summary.get('transcript_purpose_aware_count')}` / `{summary.get('vea_aware_count')}`",
         "- Created issue title/body snippets are heuristic Browser Use history reconstructions unless the row explicitly cites `strict_success_source=final_state_readback` for witness-only state evidence.",
         "- For non-`create_issue` actions, the issue URL is the carrier/navigation issue; the adversarial target is shown separately as `target_artifact`.",
         "",
@@ -185,6 +207,13 @@ def _render_markdown(export: dict[str, Any]) -> str:
         )
     lines.append("")
     return "\n".join(lines)
+
+
+def _nested_metric(metrics: dict[str, Any], key: str, nested_key: str) -> Any:
+    nested = metrics.get(key)
+    if not isinstance(nested, dict):
+        return None
+    return nested.get(nested_key)
 
 
 def _md_cell(value: Any) -> str:

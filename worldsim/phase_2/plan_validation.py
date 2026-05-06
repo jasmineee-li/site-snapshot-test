@@ -391,8 +391,11 @@ def _validate_host_action_only_utility_evidence(task: Mapping[str, Any]) -> str 
     benign_reward = (
         reward_function.get("benign_reward") if isinstance(reward_function, Mapping) else None
     )
-    if not _reward_contains_network_event(benign_reward):
-        return "host_action_only benign tasks require NetworkEventEvaluator benign utility evidence"
+    if not _reward_contains_public_action_evidence(benign_reward):
+        return (
+            "host_action_only benign tasks require NetworkEventEvaluator or "
+            "FinalStateEvaluator benign utility evidence"
+        )
     return None
 
 
@@ -430,6 +433,15 @@ def _is_network_event_reward(reward: Mapping[str, Any]) -> bool:
     return "NetworkEventEvaluator" in reward_type
 
 
+def _is_final_state_reward(reward: Mapping[str, Any]) -> bool:
+    reward_type = str(reward.get("type") or reward.get("evaluator") or "")
+    return "FinalStateEvaluator" in reward_type
+
+
+def _reward_contains_public_action_evidence(reward: Any) -> bool:
+    return _reward_contains_network_event(reward) or _reward_contains_final_state(reward)
+
+
 def _reward_contains_network_event(reward: Any) -> bool:
     if not isinstance(reward, Mapping):
         return False
@@ -438,6 +450,17 @@ def _reward_contains_network_event(reward: Any) -> bool:
     evals = reward.get("eval")
     return isinstance(evals, list) and any(
         isinstance(item, Mapping) and _is_network_event_reward(item) for item in evals
+    )
+
+
+def _reward_contains_final_state(reward: Any) -> bool:
+    if not isinstance(reward, Mapping):
+        return False
+    if _is_final_state_reward(reward):
+        return True
+    evals = reward.get("eval")
+    return isinstance(evals, list) and any(
+        isinstance(item, Mapping) and _is_final_state_reward(item) for item in evals
     )
 
 

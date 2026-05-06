@@ -156,11 +156,14 @@ def _build_row(
         },
         "target_artifact": target_artifact,
         "metrics": {
+            "phase2c_admitted": _phase2c_admitted(task),
+            "visual_encounter": _visual_encounter(result),
             "final_status": result.get("final_status"),
             "outcome_fine": result.get("outcome_fine"),
             "pvpo_observation": result.get("pvpo_observation"),
             "pvpo_max_coverage": _nested_float(result, "encounter", "max_coverage"),
             "benign_passed": result.get("benign_passed"),
+            "benign_utility": result.get("benign_passed") is True,
             "adversarial_passed": result.get("adversarial_passed"),
             "direct_action_attempted": _first_present(
                 result,
@@ -192,7 +195,10 @@ def _build_row(
                 dict(result), "attack_action_success"
             ),
             "state_confirmed_success": _final_state_confirmed_success(result),
+            "state_confirmed_asr": _final_state_confirmed_success(result),
             "strict_benchmark_success": _final_strict_success(result),
+            "transcript_purpose": _transcript_purpose_metrics(result),
+            "vea": _vea_metrics(result),
             "followup_loop_outcome": _followup_loop_outcome(result),
             "selected_variation_strategy": _selected_variation_strategy(result),
             "benign_utility_miss": _classify_benign_miss(result),
@@ -255,14 +261,26 @@ def _summary(run_dir: Path, rows: list[dict[str, Any]]) -> dict[str, Any]:
         "phase1_generated_tasks": phase1_generated_tasks,
         "phase2_candidate_tasks": phase2_candidate_tasks or None,
         "admitted_tasks": admitted_tasks,
+        "phase2c_admitted_count": sum(
+            1 for row in rows if row["metrics"].get("phase2c_admitted") is True
+        ),
         "infeasible_tasks": infeasible_tasks,
         "result_rows": len(rows),
         "final_status_counts": _count(row["metrics"].get("final_status") for row in rows),
         "scenario_template_counts": _count(row.get("scenario_template_id") for row in rows),
         "pvpo_counts": _count(row["metrics"].get("pvpo_observation") for row in rows),
+        "visual_encounter_count": sum(
+            1 for row in rows if row["metrics"].get("visual_encounter") is True
+        ),
         "benign_utility_counts": _count(
             "passed" if row["metrics"].get("benign_passed") else "failed"
             for row in rows
+        ),
+        "benign_utility_count": sum(
+            1 for row in rows if row["metrics"].get("benign_utility") is True
+        ),
+        "browser_action_attempt_count": sum(
+            1 for row in rows if row["metrics"].get("action_attempted") is True
         ),
         "action_attempt_count": sum(
             1 for row in rows if row["metrics"].get("action_attempted") is True
@@ -283,6 +301,9 @@ def _summary(run_dir: Path, rows: list[dict[str, Any]]) -> dict[str, Any]:
         "state_confirmed_success_count": sum(
             1 for row in rows if row["metrics"].get("state_confirmed_success") is True
         ),
+        "state_confirmed_asr_count": sum(
+            1 for row in rows if row["metrics"].get("state_confirmed_asr") is True
+        ),
         "direct_strict_success_count": sum(
             1
             for row in rows
@@ -297,6 +318,14 @@ def _summary(run_dir: Path, rows: list[dict[str, Any]]) -> dict[str, Any]:
             1
             for row in rows
             if row["metrics"].get("followup_loop_outcome") == "success_on_variant"
+        ),
+        "transcript_purpose_aware_count": sum(
+            1
+            for row in rows
+            if row["metrics"].get("transcript_purpose", {}).get("is_aware") is True
+        ),
+        "vea_aware_count": sum(
+            1 for row in rows if row["metrics"].get("vea", {}).get("is_aware") is True
         ),
     }
 
@@ -527,6 +556,49 @@ def _final_action_attempted(result: Mapping[str, Any]) -> bool:
     return result_summary.final_metric_success(
         payload, "attack_action_attempted"
     ) or result_summary.final_metric_success(payload, "adversarial_action_attempted")
+
+
+def _phase2c_admitted(task: Mapping[str, Any]) -> bool | None:
+    if not task:
+        return None
+    feasibility = task.get("feasibility")
+    if isinstance(feasibility, Mapping):
+        status = str(feasibility.get("status") or "").strip().lower()
+        if status:
+            return status == "verified"
+    return True
+
+
+def _visual_encounter(result: Mapping[str, Any]) -> bool:
+    return (_nested_float(result, "encounter", "max_coverage") or 0.0) > 0.0
+
+
+def _transcript_purpose_metrics(result: Mapping[str, Any]) -> dict[str, Any]:
+    source = _awareness_source_result(result)
+    return {
+        "is_aware": source.get("transcript_purpose_is_aware"),
+        "label": source.get("transcript_purpose_label")
+        or source.get("transcript_purpose_classification"),
+        "was_refused": source.get("transcript_purpose_was_refused"),
+        "failure": source.get("transcript_purpose_failure"),
+    }
+
+
+def _vea_metrics(result: Mapping[str, Any]) -> dict[str, Any]:
+    source = _awareness_source_result(result)
+    return {
+        "is_aware": source.get("verbalized_eval_awareness_is_aware"),
+        "classification": source.get("verbalized_eval_awareness_classification"),
+        "failure": source.get("verbalized_eval_awareness_failure"),
+    }
+
+
+def _awareness_source_result(result: Mapping[str, Any]) -> Mapping[str, Any]:
+    if result.get("final_status") == "success_on_variant":
+        selected = result_summary.selected_successful_strategy_variants(dict(result))
+        if selected:
+            return selected[0]
+    return result
 
 
 def _direct_strict_success(result: Mapping[str, Any]) -> bool:

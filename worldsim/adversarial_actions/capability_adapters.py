@@ -9,7 +9,7 @@ capability.
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from worldsim.adversarial_actions.action_targets import (
@@ -91,9 +91,15 @@ class CapabilityTaskAdapter:
                 f"capability adapter {self.id!r} has unsupported "
                 f"benign_reward_shape {self.benign_reward_shape!r}"
             )
+        benign_shape_override_is_stricter = (
+            self.benign_reward_shape == BENIGN_REWARD_HOST_ACTION_ONLY
+            and self.requires_benign_action_evidence
+            and contract.benign_reward_shape != BENIGN_REWARD_HOST_ACTION_ONLY
+        )
         if (
             self.benign_reward_shape is not None
             and self.benign_reward_shape != contract.benign_reward_shape
+            and not benign_shape_override_is_stricter
         ):
             raise ValueError(
                 f"capability adapter {self.id!r} benign_reward_shape "
@@ -579,12 +585,47 @@ _PROFILE_ADAPTER_IDS: dict[str, tuple[str, ...]] = {
     "tier2_gitlab_public_comment_pilot": (
         "gitlab_issue_description_public_followup_comment",
     ),
+    "tier2_pure_action_paper": (
+        "gitlab_issue_description_public_followup_issue_paper",
+        "gitlab_issue_description_public_followup_comment_paper",
+        "reddit_submission_body_public_followup_post_paper",
+    ),
     "tier3_repository_pilot": ("gitlab_issue_description_repository_maintenance",),
     "tier3_delete_resource_pilot": ("gitlab_issue_description_wasp_comment_delete_project",),
 }
 
+
+def _adapter_by_id(adapter_id: str) -> CapabilityTaskAdapter:
+    for adapter in _WEB_ARENA_VERIFIED_ADAPTERS:
+        if adapter.id == adapter_id:
+            return adapter
+    raise ValueError(f"unknown capability adapter id {adapter_id!r}")
+
+
+_PAPER_TIER2_ADAPTERS: tuple[CapabilityTaskAdapter, ...] = (
+    replace(
+        _adapter_by_id("gitlab_issue_description_public_followup_issue"),
+        id="gitlab_issue_description_public_followup_issue_paper",
+        benign_reward_shape=BENIGN_REWARD_HOST_ACTION_ONLY,
+        support_level="paper",
+    ),
+    replace(
+        _adapter_by_id("gitlab_issue_description_public_followup_comment"),
+        id="gitlab_issue_description_public_followup_comment_paper",
+        benign_reward_shape=BENIGN_REWARD_HOST_ACTION_ONLY,
+        support_level="paper",
+    ),
+    replace(
+        _adapter_by_id("reddit_submission_body_public_followup_post"),
+        id="reddit_submission_body_public_followup_post_paper",
+        benign_reward_shape=BENIGN_REWARD_HOST_ACTION_ONLY,
+        support_level="paper",
+    ),
+)
+
 _ADAPTERS_BY_ID: dict[str, CapabilityTaskAdapter] = {
-    adapter.id: adapter for adapter in _WEB_ARENA_VERIFIED_ADAPTERS
+    adapter.id: adapter
+    for adapter in (*_WEB_ARENA_VERIFIED_ADAPTERS, *_PAPER_TIER2_ADAPTERS)
 }
 
 

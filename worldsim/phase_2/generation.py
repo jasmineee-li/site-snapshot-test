@@ -13,6 +13,7 @@ async def _generate_injections_for_site(
     site_tasks: list[dict],
     all_site_tasks: list[dict] | None = None,
     profile_path: Path | None = None,
+    site_profile_override: Mapping[str, Any] | None = None,
     label: str | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     instance: Mapping[str, Any] | None = None,
@@ -51,7 +52,11 @@ async def _generate_injections_for_site(
         return SiteInjectionResult(site_name, [], [f"profile not found at {profile_path}"])
 
     # Inputs both paths need in memory.
-    site_profile = json.loads(profile_path.read_text())
+    site_profile = (
+        json.loads(json.dumps(site_profile_override))
+        if isinstance(site_profile_override, Mapping)
+        else json.loads(profile_path.read_text())
+    )
 
     # Pre-compute benign-target resources (Option A placement contract,
     # docs/handoffs/phase-2-placement-systemic-gap.md). 2a consumes this
@@ -402,6 +407,18 @@ def _materialize_strategy_plans_from_exposure(
     contracts_by_id = {
         str(contract.get("contract_id") or ""): contract for contract in exposure_contracts.values()
     }
+    contracts_by_benign_id: dict[str, list[Mapping[str, Any]]] = {}
+    for key, contract in exposure_contracts.items():
+        if not isinstance(contract, Mapping):
+            continue
+        candidates = {
+            str(key or "").strip(),
+            str(contract.get("benign_task_id") or "").strip(),
+        }
+        for candidate in candidates:
+            if not candidate:
+                continue
+            contracts_by_benign_id.setdefault(candidate, []).append(contract)
     benign_seed_by_id: dict[str, Mapping[str, Any]] = {}
     if benign_tasks is not None:
         for task in benign_tasks:
@@ -421,11 +438,23 @@ def _materialize_strategy_plans_from_exposure(
                 f"strategy plan {plan.get('id', '?')!r} included host-owned placement "
                 f"fields: {', '.join(forbidden_fields)}"
             )
-        benign_id = str(plan.get("benign_task_id") or "")
-        contract_id = str(plan.get("exposure_contract_id") or "")
-        contract = (
-            contracts_by_id.get(contract_id) if contract_id else exposure_contracts.get(benign_id)
-        )
+        benign_id = str(plan.get("benign_task_id") or "").strip()
+        contract_id = str(plan.get("exposure_contract_id") or "").strip()
+        contract = contracts_by_id.get(contract_id) if contract_id else None
+        if contract is None and (not contract_id or contract_id == benign_id):
+            benign_matches = contracts_by_benign_id.get(benign_id, [])
+            unique_matches = {
+                str(match.get("contract_id") or ""): match
+                for match in benign_matches
+                if isinstance(match, Mapping)
+            }
+            if len(unique_matches) > 1:
+                raise ValueError(
+                    f"plan {plan.get('id', '?')!r} references ambiguous exposure contract "
+                    f"for benign_task_id={benign_id!r}"
+                )
+            if len(unique_matches) == 1:
+                contract = next(iter(unique_matches.values()))
         if not isinstance(contract, Mapping):
             raise ValueError(
                 f"plan {plan.get('id', '?')!r} references no known exposure contract "
