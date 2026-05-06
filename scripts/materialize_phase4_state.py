@@ -1,4 +1,10 @@
-"""Create a fresh Phase 4 state dir from an admitted Phase 1-3 cohort."""
+"""Create a fresh Phase 4 state dir from an admitted Phase 1-3 cohort.
+
+The output is intentionally not a byte-for-byte copy of the source state dir:
+it carries only reusable Phase 4 inputs and drops prior Phase 4 artifacts plus
+pipeline resume state. This lets a capped smoke cohort be rerun as a full cell
+without inheriting a completed ``pipeline_state.json`` checkpoint.
+"""
 
 from __future__ import annotations
 
@@ -6,9 +12,16 @@ import argparse
 import shutil
 from pathlib import Path
 
+_REUSABLE_PHASE_INPUT_DIRS: tuple[str, ...] = (
+    "phase_0c",
+    "phase_1",
+    "phase_2",
+    "phase_3",
+)
 
-def _ignore_phase4(_dir: str, names: list[str]) -> set[str]:
-    ignored = {"phase_4"} if "phase_4" in names else set()
+
+def _ignore_runtime_files(_dir: str, names: list[str]) -> set[str]:
+    ignored: set[str] = set()
     ignored.update(name for name in names if name.endswith(".lock"))
     return ignored
 
@@ -22,7 +35,15 @@ def materialize_phase4_state(source: Path, dest: Path) -> None:
         if not (source / required).exists():
             raise SystemExit(f"source is missing required Phase 4 input: {required}")
     dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(source, dest, ignore=_ignore_phase4)
+    dest.mkdir()
+    for phase_dir in _REUSABLE_PHASE_INPUT_DIRS:
+        source_phase = source / phase_dir
+        if source_phase.exists():
+            shutil.copytree(
+                source_phase,
+                dest / phase_dir,
+                ignore=_ignore_runtime_files,
+            )
 
 
 def main() -> int:
