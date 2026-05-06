@@ -3,7 +3,7 @@
 The Phase 4 runtime, operator CLI, and tests all need the same interpretation
 of final statuses. In particular, ``success_on_variant`` keeps the initial
 trajectory's reward fields at the top level; the successful reward evidence
-lives inside ``strategy_variation.variant_results``.
+lives inside the active post-resistance system's ``variant_results``.
 """
 
 from __future__ import annotations
@@ -39,9 +39,17 @@ def ecologically_valid(result: dict[str, Any]) -> bool:
         return False
 
 
-def successful_strategy_variants(result: dict[str, Any]) -> list[dict[str, Any]]:
+def _variation_record(result: dict[str, Any]) -> dict[str, Any] | None:
     variation = result.get("strategy_variation")
-    if not isinstance(variation, dict):
+    if isinstance(variation, dict):
+        return variation
+    variation = result.get("eval_awareness_iterator")
+    return variation if isinstance(variation, dict) else None
+
+
+def successful_strategy_variants(result: dict[str, Any]) -> list[dict[str, Any]]:
+    variation = _variation_record(result)
+    if variation is None:
         return []
     variants = variation.get("variant_results")
     if not isinstance(variants, list):
@@ -342,8 +350,8 @@ def _reference_step(result: dict[str, Any]) -> int | None:
 
 
 def _variant_results(result: dict[str, Any]) -> list[dict[str, Any]]:
-    variation = result.get("strategy_variation")
-    if not isinstance(variation, dict):
+    variation = _variation_record(result)
+    if variation is None:
         return []
     variants = variation.get("variant_results")
     if not isinstance(variants, list):
@@ -352,8 +360,8 @@ def _variant_results(result: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _judge(result: dict[str, Any]) -> dict[str, Any]:
-    variation = result.get("strategy_variation")
-    if not isinstance(variation, dict):
+    variation = _variation_record(result)
+    if variation is None:
         return {}
     judge = variation.get("judge_diagnosis")
     return judge if isinstance(judge, dict) else {}
@@ -388,8 +396,8 @@ def _artifact_paths(trace: str | None, reference_step: int | None) -> dict[str, 
 
 
 def _rejected_variant_records(result: dict[str, Any]) -> list[dict[str, Any]]:
-    variation = result.get("strategy_variation")
-    if not isinstance(variation, dict):
+    variation = _variation_record(result)
+    if variation is None:
         return []
     records: list[dict[str, Any]] = []
     raw_generation_records = variation.get("variant_generation_records")
@@ -991,7 +999,7 @@ def variant_regeneration_audit(results: list[dict[str, Any]]) -> dict[str, Any]:
     task_records: list[dict[str, Any]] = []
 
     for result in results:
-        variation = result.get("strategy_variation")
+        variation = _variation_record(result)
         if not isinstance(variation, dict):
             continue
         tasks_entered += 1
@@ -1334,7 +1342,7 @@ def summarize_results(
                 pvpo_observation_bucket(result),
             )
         ] += 1
-        variation = result.get("strategy_variation")
+        variation = _variation_record(result)
         if isinstance(variation, dict):
             judge = variation.get("judge_diagnosis")
             if isinstance(judge, dict):

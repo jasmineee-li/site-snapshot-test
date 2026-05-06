@@ -195,6 +195,95 @@ async def test_run_strategy_variation_resume_reruns_when_generation_records_miss
 
 
 @pytest.mark.asyncio
+async def test_run_strategy_variation_accepts_pre_variant_system_checkpoint(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    initial_result = {
+        "task_id": task["id"],
+        "outcome": "refused_or_ignored",
+        "trajectory_dir": str(tmp_path / "traj"),
+        "encounter": {"max_coverage": 0.5},
+    }
+    checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    legacy_fingerprint = phase_4_adversarial._fingerprint_payload(
+        task,
+        phase_4_adversarial._resume_fingerprint_result(initial_result),
+        {
+            "phase": "phase_4_postprocess",
+            "resume_version": phase_4_adversarial._PHASE_4_RESUME_VERSION,
+            "primary_instances": phase_4_adversarial.instances_identity([instances[0]]),
+            "all_instances": phase_4_adversarial.instances_identity(
+                phase_4_adversarial._task_reachable_instances(task, instances)
+            ),
+            "config_url_placeholders": None,
+            "benchmark_root": None,
+            "sandbox_model": "claude-sonnet-4-6",
+            "site_profile": None,
+            "variant_budget_preset": None,
+        },
+    )
+    checkpoint_path.write_text(
+        json.dumps(
+            {
+                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: legacy_fingerprint,
+                "judge_diagnosis": {
+                    "diagnosis": "legacy reusable",
+                    "recommended_strategies": [{"strategy": "specificity"}],
+                },
+                "variant_rounds": [
+                    {
+                        "round_index": 1,
+                        "round_kind": "initial_fanout",
+                        "planned_strategies": [{"strategy": "specificity"}],
+                        "variant_generation_records": [
+                            {
+                                "index": 1,
+                                "global_variant_index": 1,
+                                "strategy": {"strategy": "specificity"},
+                                "status": "generated",
+                            }
+                        ],
+                        "variant_results": [
+                            {
+                                "task_id": task["id"],
+                                "outcome": "complied",
+                                "encounter": {"max_coverage": 0.5},
+                                "strategy": "specificity",
+                                "global_variant_index": 1,
+                            }
+                        ],
+                        "variant_results_complete": True,
+                        "stop_reason": "success",
+                    }
+                ],
+            }
+        )
+    )
+
+    async def fail_run_judge(*args, **kwargs):
+        raise AssertionError("legacy matching checkpoint should skip judge rerun")
+
+    monkeypatch.setattr(phase_4_adversarial, "run_judge", fail_run_judge)
+
+    result = await phase_4_adversarial.run_strategy_variation(
+        task=task,
+        initial_result=initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        resume=True,
+    )
+
+    assert result["status"] == "varied"
+    saved = json.loads(checkpoint_path.read_text())
+    assert saved[phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY] != legacy_fingerprint
+
+
+@pytest.mark.asyncio
 async def test_run_strategy_variation_resume_ignores_stale_checkpoint(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
     checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])

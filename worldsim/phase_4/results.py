@@ -4,7 +4,11 @@
 from __future__ import annotations
 
 from worldsim.phase_4._context import install_context
-from worldsim.phase_4.postprocess_progress import write_phase_4_progress
+from worldsim.phase_4.postprocess_progress import (
+    Phase4ProgressState,
+    compute_progress_extra,
+    write_phase_4_progress,
+)
 
 install_context(globals())
 
@@ -120,6 +124,47 @@ def _write_phase_4_results(
     if terminal_reason is not None:
         save_payload["reason"] = terminal_reason
     save_state("phase_4", status=terminal_status, **save_payload)
+    terminal_progress_state = Phase4ProgressState(
+        state_dir=state_dir,
+        task_dir_root=Path(str(state_metadata.get("task_dir_root") or output_dir)),
+        total_tasks=len(tasks),
+        completed_initial_tasks=len(final_results),
+        phase_4_max_workers=state_metadata.get("phase_4_max_workers"),
+        phase_4_variant_budget=state_metadata.get("phase_4_variant_budget"),
+        phase_4_variant_system=state_metadata.get("phase_4_variant_system"),
+        phase_4_eval_awareness_max_iterations=state_metadata.get(
+            "phase_4_eval_awareness_max_iterations"
+        ),
+    )
+    terminal_progress_state.completed_task_ids.update(
+        str(result.get("task_id") or "unknown") for result in final_results
+    )
+    for result in final_results:
+        task_id = str(result.get("task_id") or "unknown")
+        variation = result.get("eval_awareness_iterator")
+        if not isinstance(variation, dict):
+            variation = result.get("strategy_variation")
+        if not isinstance(variation, dict):
+            continue
+        variant_results = variation.get("variant_results")
+        variant_results = variant_results if isinstance(variant_results, list) else []
+        generation_errors = variation.get("variant_generation_errors")
+        generation_errors = generation_errors if isinstance(generation_errors, list) else []
+        terminal_progress_state.variant_progress_by_task[task_id] = {
+            "task_id": task_id,
+            "event": "terminal",
+            "stop_reason": variation.get("stop_reason"),
+            "generation_attempted": len(variant_results) + len(generation_errors),
+            "generation_generated": len(variant_results),
+            "generation_failed": len(generation_errors),
+            "evaluated": len(variant_results),
+            "pvpo_valid": sum(1 for item in variant_results if _ecologically_valid(item)),
+            "complied": sum(
+                1
+                for item in variant_results
+                if _ecologically_valid(item) and item.get("outcome") == "complied"
+            ),
+        }
     try:
         write_phase_4_progress(
             state_dir,
@@ -133,6 +178,7 @@ def _write_phase_4_results(
             phase_4_max_workers=state_metadata.get("phase_4_max_workers"),
             results_path=output_dir / "results.json",
             final_status_counts=Counter(str(r.get("final_status", "missing")) for r in final_results),
+            extra=compute_progress_extra(terminal_progress_state),
         )
     except Exception as exc:
         logger.warning("Could not write terminal Phase 4 progress heartbeat: %s", exc)

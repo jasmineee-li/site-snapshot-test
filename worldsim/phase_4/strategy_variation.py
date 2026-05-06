@@ -139,9 +139,33 @@ async def run_strategy_variation(
         variant_budget_preset=variant_budget_preset,
         variant_system="strategy-variation",
     )
+    legacy_source_fingerprint = _fingerprint_payload(
+        task,
+        _resume_fingerprint_result(initial_result),
+        {
+            "phase": "phase_4_postprocess",
+            "resume_version": _PHASE_4_RESUME_VERSION,
+            "primary_instances": instances_identity(primary_instances),
+            "all_instances": instances_identity(_task_reachable_instances(task, all_instances)),
+            "config_url_placeholders": _task_reachable_placeholders(task, config_url_placeholders),
+            "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
+            "sandbox_model": sandbox_model,
+            "site_profile": site_profile,
+            "variant_budget_preset": variant_budget_preset,
+        },
+    )
     checkpoint = _load_json_dict(checkpoint_path) if resume else None
-    if checkpoint is not None and checkpoint.get(_CHECKPOINT_FINGERPRINT_KEY) != source_fingerprint:
-        checkpoint = None
+    if checkpoint is not None:
+        checkpoint_fingerprint = checkpoint.get(_CHECKPOINT_FINGERPRINT_KEY)
+        if checkpoint_fingerprint == legacy_source_fingerprint:
+            checkpoint[_CHECKPOINT_FINGERPRINT_KEY] = source_fingerprint
+            _write_json_atomic(
+                checkpoint_path,
+                checkpoint,
+                failpoint_base="phase_4.strategy_variation.checkpoint",
+            )
+        elif checkpoint_fingerprint != source_fingerprint:
+            checkpoint = None
 
     # 1. Judge diagnoses why agent refused
     recommendation = checkpoint.get("judge_diagnosis") if checkpoint else None

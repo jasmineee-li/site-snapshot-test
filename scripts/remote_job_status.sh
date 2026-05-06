@@ -421,7 +421,9 @@ for candidate in phase4_progress_candidates():
     if isinstance(variant_progress, dict) and variant_progress:
         print(
             "phase4_variant_progress: "
+            f"system={variant_progress.get('variant_system') or 'unknown'} "
             f"budget={variant_progress.get('budget_preset') or 'unknown'} "
+            f"eval_awareness_max_iterations={variant_progress.get('eval_awareness_max_iterations') or 'n/a'} "
             f"entered={variant_progress.get('entered_tasks') or 0} "
             f"active={variant_progress.get('active_tasks') or 0} "
             f"generated={variant_progress.get('generation_generated') or 0}/"

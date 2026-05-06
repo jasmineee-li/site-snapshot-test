@@ -1845,7 +1845,9 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
                 "postprocess_attempted_tasks": 3,
                 "postprocess_failed_tasks": 1,
                 "variant_progress": {
+                    "variant_system": "eval-awareness-iterator",
                     "budget_preset": "smoke-3-probe",
+                    "eval_awareness_max_iterations": 3,
                     "entered_tasks": 2,
                     "active_tasks": 2,
                     "generation_attempted": 6,
@@ -1891,7 +1893,10 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
     assert "status=running stage=initial_evaluation" in completed.stdout
     assert "initial=30/32 started=4/32 active=2 postprocessed=0/32" in completed.stdout
     assert "postprocess_attempted=3/32 postprocess_failed=1" in completed.stdout
-    assert "phase4_variant_progress: budget=smoke-3-probe entered=2 active=2" in completed.stdout
+    assert (
+        "phase4_variant_progress: system=eval-awareness-iterator "
+        "budget=smoke-3-probe eval_awareness_max_iterations=3 entered=2 active=2"
+    ) in completed.stdout
     assert "generated=5/6 generation_failed=1 evaluated=3 pvpo_valid=3 complied=0" in completed.stdout
     assert "phase4_variant_active: adv-1:variant_evaluation_started:round1" in completed.stdout
     assert "age_seconds=" in completed.stdout

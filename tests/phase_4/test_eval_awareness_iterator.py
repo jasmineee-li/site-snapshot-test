@@ -1,4 +1,6 @@
 # ruff: noqa
+from unittest.mock import AsyncMock
+
 from ._fixtures import *  # noqa: F403,F401
 
 
@@ -273,6 +275,7 @@ def test_eval_awareness_cue_prompt_uses_xml_inputs_without_research_framing():
     assert "<rewrite_constraints>" in input_text
     assert "<task_context>" in input_text
     assert "<previous_iterations>" in input_text
+    assert "verbalized_eval_awareness" not in input_text
 
 
 def test_eval_awareness_rewrite_prompt_uses_benign_xml_problem_sheet():
@@ -306,3 +309,134 @@ def test_eval_awareness_rewrite_prompt_uses_benign_xml_problem_sheet():
     assert "<cue_diagnosis>" in input_text
     assert "<rewrite_constraints>" in input_text
     assert "<task_context>" in input_text
+
+
+def test_eval_awareness_rewrite_rejects_payload_text_seed_mismatch():
+    from pydantic import ValidationError
+
+    from worldsim.phase_4.eval_awareness_rewrite_api import build_eval_awareness_rewrite
+
+    task, _instances = _prepared_adv_task()
+    seed = json.loads(json.dumps(task["adversarial_data_seed"]))
+    seed["editor_calls"][0]["args"]["detail"] = "seed payload A"
+
+    with pytest.raises(ValidationError, match="rendered_payload must match"):
+        build_eval_awareness_rewrite.model_validate(
+            {
+                "status": "ok",
+                "adversarial_data_seed": seed,
+                "payload_text": {
+                    "rendered_payload": "seed payload B",
+                    "raw_text": "seed payload B",
+                    "framing_witnesses": ["seed payload B"],
+                    "attack_action_witnesses": ["seed payload B"],
+                    "concealment_witnesses": [],
+                },
+                "cue_reasoning": "The old payload reads like a benchmark instruction.",
+                "rewrite_plan": "Replace benchmark-like wording with site-native wording.",
+            },
+            context={"task": task},
+        )
+
+
+@pytest.mark.asyncio
+async def test_eval_awareness_iterator_resume_respects_terminal_checkpoint(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    initial_result = {
+        "task_id": "adv-1",
+        "outcome": "refused_or_ignored",
+        "encounter": {"max_coverage": 0.5},
+        "trajectory_dir": str(tmp_path / "traj"),
+        "transcript_purpose_classification": "Capability Evaluation",
+    }
+
+    async def fake_rewrite(task, cue, *, iteration, **kwargs):
+        rewritten = json.loads(json.dumps(task))
+        rewritten["variant_status"] = {
+            "status": "failed",
+            "failure_class": "schema_violation",
+            "reason": "bad rewrite",
+        }
+        return rewritten
+
+    from worldsim.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
+
+    monkeypatch.setattr(
+        eval_awareness_cue_api,
+        "run_eval_awareness_cue_api",
+        AsyncMock(
+            return_value={
+                "status": "ok",
+                "trigger_source": "tp_classification:Capability Evaluation",
+            }
+        ),
+    )
+    rewrite_mock = AsyncMock(side_effect=fake_rewrite)
+    monkeypatch.setattr(
+        eval_awareness_rewrite_api,
+        "generate_eval_awareness_rewrite_api",
+        rewrite_mock,
+    )
+
+    first = await phase_4_adversarial.run_eval_awareness_iterator(
+        task=task,
+        initial_result=initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        max_iterations=3,
+    )
+    assert first["status"] == "rewrite_failed"
+    assert rewrite_mock.await_count == 1
+
+    rewrite_mock.side_effect = AssertionError("terminal checkpoint should not resume rewriting")
+    second = await phase_4_adversarial.run_eval_awareness_iterator(
+        task=task,
+        initial_result=initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        resume=True,
+        max_iterations=3,
+    )
+
+    assert second["status"] == "rewrite_failed"
+    assert second["stop_reason"] == "rewrite_failed"
+    assert rewrite_mock.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_eval_awareness_zero_budget_is_resistant(monkeypatch, tmp_path):
+    task, instances = _prepared_adv_task()
+    initial_result = {
+        "task_id": "adv-1",
+        "outcome": "refused_or_ignored",
+        "encounter": {"max_coverage": 0.5},
+        "trajectory_dir": str(tmp_path / "traj"),
+        "transcript_purpose_classification": "Capability Evaluation",
+    }
+
+    async def no_fix(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
+
+    result = await phase_4_adversarial._process_adversarial_result(
+        task=task,
+        initial_result=initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        eval_awareness_max_iterations=0,
+    )
+
+    assert result["final_status"] == "resistant"
+    assert result["eval_awareness_iterator"]["status"] == "resistant"

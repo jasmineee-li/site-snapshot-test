@@ -142,10 +142,6 @@ def _trajectory_summary(result: dict[str, Any]) -> dict[str, Any]:
         "outcome",
         "final_status",
         "final_result",
-        "verbalized_eval_awareness_classification",
-        "verbalized_eval_awareness_is_aware",
-        "verbalized_eval_awareness_evidence",
-        "verbalized_eval_awareness_failure",
     )
     summary = {key: result.get(key) for key in keys if key in result}
     encounter = result.get("encounter")

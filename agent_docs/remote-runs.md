@@ -68,6 +68,8 @@ scripts/remote_job_start.sh \
       --sites reddit \
       --task-origin new_task \
       --max-tasks-per-site 16 \
+      --phase-4-variant-system eval-awareness-iterator \
+      --phase-4-eval-awareness-max-iterations 3 \
       --agent-provider openai \
       --agent-model gpt-5.2 \
       --agent-service-tier priority \
@@ -78,6 +80,11 @@ scripts/remote_job_start.sh \
       4
   '
 ```
+
+`eval-awareness-iterator` is the Phase 4 default. Pass it explicitly in remote
+rigor commands so run intent is visible in job logs. For legacy `3+3+1`
+comparability, use `--phase-4-variant-system strategy-variation` and set
+`--phase-4-variant-budget adaptive-3-3-1` explicitly.
 
 `remote_job_status.sh` is the first status surface. It reports process liveness,
 heartbeat age, expected-output presence, and Phase 4 progress when available.

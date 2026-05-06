@@ -1528,6 +1528,15 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         phase_4_variant_budget = state.get("phase_4_variant_budget")
     if phase_4_variant_system is None:
         phase_4_variant_system = state.get("phase_4_variant_system")
+    if (
+        target == "phase_4"
+        and phase_4_variant_system is None
+        and "phase_4_variant_system" not in state
+    ):
+        # Pre-iterator Phase 4 states did not persist this field. Preserve the
+        # behavior those runs started with instead of silently resuming into the
+        # new default.
+        phase_4_variant_system = "strategy-variation"
     if phase_4_eval_awareness_max_iterations is None:
         phase_4_eval_awareness_max_iterations = state.get(
             "phase_4_eval_awareness_max_iterations"

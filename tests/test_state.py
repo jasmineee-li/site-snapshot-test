@@ -437,6 +437,36 @@ def test_dispatch_resume_restores_saved_agent_settings_when_not_overridden(monke
     assert captured["agent_step_timeout"] == 300
 
 
+def test_dispatch_resume_treats_legacy_phase_4_state_as_strategy_variation(
+    monkeypatch, tmp_path
+):
+    monkeypatch.chdir(tmp_path)
+    custom_logs = tmp_path / "custom-logs"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(custom_logs))
+    save_state(
+        "phase_4",
+        status="running",
+        instances_path="/tmp/instances.json",
+        agent_model="claude-sonnet-4-6",
+    )
+    monkeypatch.delenv("WORLDSIM_STATE_DIR")
+
+    captured = {}
+
+    def fake_dispatch_phase(args):
+        captured["phase"] = args.phase
+        captured["phase_4_variant_system"] = args.phase_4_variant_system
+        return 0
+
+    monkeypatch.setattr(worldsim_main, "_dispatch_phase", fake_dispatch_phase)
+
+    rc = worldsim_main._dispatch_resume(Namespace())
+
+    assert rc == 0
+    assert captured["phase"] == "4"
+    assert captured["phase_4_variant_system"] == "strategy-variation"
+
+
 def test_dispatch_resume_overrides_saved_phase_4_timeouts(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "custom-logs"

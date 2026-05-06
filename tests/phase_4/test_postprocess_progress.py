@@ -114,6 +114,7 @@ def test_write_postprocess_progress_preserves_runtime_budget_knobs(tmp_path):
         completed_initial_tasks=3,
         phase_4_max_workers=2,
         phase_4_variant_budget="smoke-3-probe",
+        phase_4_variant_system="strategy-variation",
     )
     state.started_task_ids.add("t1")
     state.active_task_ids.add("t1")
@@ -124,6 +125,25 @@ def test_write_postprocess_progress_preserves_runtime_budget_knobs(tmp_path):
     assert payload["phase_4_max_workers"] == 2
     assert payload["variant_progress"]["budget_preset"] == "smoke-3-probe"
     assert payload["variant_progress"]["budget_shape"] == [3]
+
+
+def test_write_postprocess_progress_reports_iterator_budget_shape(tmp_path):
+    state = Phase4ProgressState(
+        state_dir=tmp_path,
+        task_dir_root=tmp_path / "phase_4" / "20260505_120000",
+        total_tasks=3,
+        completed_initial_tasks=3,
+        phase_4_variant_system="eval-awareness-iterator",
+        phase_4_eval_awareness_max_iterations=2,
+    )
+
+    asyncio.run(write_postprocess_progress(state))
+
+    payload = _read_progress(tmp_path)
+    assert payload["variant_progress"]["variant_system"] == "eval-awareness-iterator"
+    assert payload["variant_progress"]["budget_preset"] == "eval-awareness-iterator"
+    assert payload["variant_progress"]["budget_shape"] == [1, 1]
+    assert payload["variant_progress"]["eval_awareness_max_iterations"] == 2
 
 
 def test_record_postprocess_lifecycle_reflects_success_and_failure_counts(tmp_path):

@@ -557,6 +557,7 @@ async def run(args: argparse.Namespace) -> int:
         phase_4_max_workers=phase_4_max_workers,
         phase_4_variant_budget=phase_4_variant_budget,
         phase_4_variant_system=phase_4_variant_system,
+        phase_4_eval_awareness_max_iterations=phase_4_eval_awareness_max_iterations,
     )
     _write_progress_safely(
         "postprocessing",

@@ -114,6 +114,11 @@ class build_eval_awareness_rewrite(BaseModel):
             rendered_from_seed = selected_seed_payload_text(task, self.adversarial_data_seed)
             payload_for_validation = self.payload_text.model_dump()
             if isinstance(rendered_from_seed, str) and rendered_from_seed:
+                if self.payload_text.rendered_payload != rendered_from_seed:
+                    raise ValueError(
+                        "payload_text_contract_violation: rendered_payload must match "
+                        "the selected payload text in adversarial_data_seed"
+                    )
                 payload_for_validation = {**payload_for_validation, "rendered_payload": rendered_from_seed}
             action_error = _action_payload_text_contract_error(task, payload_for_validation)
             if action_error is not None:
