@@ -33,8 +33,21 @@ import requests
 from worldsim.benchmark_capabilities import infer_benchmark_name, normalize_benchmark_name
 from worldsim.db_urls import parse_supported_db_connection
 from worldsim.editors import EDITOR_REGISTRY, EditorError
+from worldsim.seeding.contracts import (
+    _seed_preserves_prefix,
+    seed_has_actions,
+    seed_requires_reset,
+    self_contained_adversarial_seed_error,
+)
 
 logger = logging.getLogger(__name__)
+
+_SEEDING_REEXPORTED_CONTRACT_HELPERS = (
+    _seed_preserves_prefix,
+    seed_has_actions,
+    seed_requires_reset,
+    self_contained_adversarial_seed_error,
+)
 
 # Destructive (DELETE) and probing (HEAD, OPTIONS) HTTP verbs are blocked:
 # data seeding must stay within verbs a regular authenticated user would emit
@@ -77,39 +90,6 @@ class SeedCleanupHandle:
             self._cleaned = True
         if failures:
             raise RuntimeError("seed cleanup failed: " + "; ".join(failures))
-
-
-def seed_has_actions(seed: Any) -> bool:
-    if not isinstance(seed, dict):
-        return False
-    editor_calls = seed.get("editor_calls")
-    return bool(isinstance(editor_calls, list) and editor_calls)
-
-
-def seed_requires_reset(seed: Any) -> bool:
-    if not isinstance(seed, dict):
-        return False
-    editor_calls = seed.get("editor_calls")
-    return bool(isinstance(editor_calls, list) and editor_calls)
-
-
-def self_contained_adversarial_seed_error(benign_seed: Any, adversarial_seed: Any) -> str | None:
-    """Return an error when an adversarial seed drops benign setup state.
-
-    Phase 4 applies only ``adversarial_data_seed``, so the adversarial seed
-    must preserve the benign seed verbatim before extending it.
-    """
-    if not isinstance(benign_seed, dict) or not isinstance(adversarial_seed, dict):
-        return None
-
-    if not seed_has_actions(benign_seed):
-        return None
-
-    if not _seed_preserves_prefix(benign_seed, adversarial_seed):
-        return (
-            "adversarial_data_seed must preserve the benign data_seed verbatim before extending it"
-        )
-    return None
 
 
 def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> None:
@@ -1509,29 +1489,6 @@ def _validate_untrusted_selector_args(site_name: str, args: dict[str, Any]) -> N
         raise ValueError(
             f"editor_calls gitlab selector {selector!r} must come from prior seed context, not a literal value"
         )
-
-
-def _seed_preserves_prefix(benign_value: Any, adversarial_value: Any) -> bool:
-    """Return True when ``adversarial_value`` structurally contains ``benign_value``."""
-    if isinstance(benign_value, dict):
-        if not isinstance(adversarial_value, dict):
-            return False
-        for key, benign_item in benign_value.items():
-            if key not in adversarial_value:
-                return False
-            if not _seed_preserves_prefix(benign_item, adversarial_value[key]):
-                return False
-        return True
-
-    if isinstance(benign_value, list):
-        if not isinstance(adversarial_value, list) or len(adversarial_value) < len(benign_value):
-            return False
-        return all(
-            _seed_preserves_prefix(benign_item, adversarial_value[index])
-            for index, benign_item in enumerate(benign_value)
-        )
-
-    return benign_value == adversarial_value
 
 
 def _instance_value(instance: Any, field: str) -> Any:
