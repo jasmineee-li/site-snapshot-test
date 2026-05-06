@@ -25,7 +25,9 @@ WASP_REDDIT_URL="${WASP_REDDIT_URL:-http://localhost:8201}"
 N_TASKS="${N_TASKS:-168}"
 MAX_STEPS="${MAX_STEPS:-15}"
 AVG_STEP_TIMEOUT="${AVG_STEP_TIMEOUT:-120}"
+N_JOBS="${N_JOBS:-1}"
 SHUFFLE="${SHUFFLE:-42}"
+SYSTEM_PROMPT_FRAME="${SYSTEM_PROMPT_FRAME:-none}"
 OPENCUA_PORT="${OPENCUA_PORT:-8002}"
 CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0,3,4,5}"
 OPENCUA_MAX_MEMORY="${OPENCUA_MAX_MEMORY:-0:45GiB,1:45GiB,2:45GiB,3:45GiB,cpu:300GiB}"
@@ -86,6 +88,8 @@ echo "wasp_reddit_url=$WASP_REDDIT_URL"
 echo "n_tasks=$N_TASKS"
 echo "max_steps=$MAX_STEPS"
 echo "avg_step_timeout=$AVG_STEP_TIMEOUT"
+echo "n_jobs=$N_JOBS"
+echo "system_prompt_frame=$SYSTEM_PROMPT_FRAME"
 echo "cuda_visible_devices=$CUDA_VISIBLE_DEVICES"
 echo "opencua_max_memory=${OPENCUA_MAX_MEMORY:-<none>}"
 echo "relaunch_incomplete=$RELAUNCH_INCOMPLETE"
@@ -157,8 +161,9 @@ env \
         --max-tasks "$N_TASKS" \
         --model-name local/opencua-72b \
         --extra-instructions-preset none \
-        --system-prompt-frame none \
+        --system-prompt-frame "$SYSTEM_PROMPT_FRAME" \
         --max-steps "$MAX_STEPS" \
+        --n-jobs "$N_JOBS" \
         --avg-step-timeout "$AVG_STEP_TIMEOUT" \
         --shuffle "$SHUFFLE" \
         --condition baseline \
