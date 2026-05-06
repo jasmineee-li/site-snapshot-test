@@ -63,6 +63,7 @@ CROSS_PROBE_DIR=${CROSS_PROBE_DIR:-probes/trained/gui-owl-32b-chat-template-span
 LAYER_SETS=${LAYER_SETS:-9;9,8,10;9,8,10,12,15,11;9,8,10,12,15,11,14,17,13,16,18,6}
 ALPHAS=${ALPHAS:-0.3,0.6}
 MAX_TASKS=${MAX_TASKS:-40}
+MAX_TOKENS=${MAX_TOKENS:-2048}
 SUITE=${SUITE:-workspace}
 SHUFFLE=${SHUFFLE:-42}
 CONCURRENCY=${CONCURRENCY:-4}
@@ -107,10 +108,12 @@ run_cell() {
     fi
     echo "[$(date -u --iso-8601=seconds)] cell $cell_id layers=[$layer_set_csv] alpha=$alpha"
     env CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES" \
+        PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}" \
         "$HF_PYTHON" -m eval_awareness_experiments.run_agentdojo \
             --suite "$SUITE" \
             --no-injection \
             --max-tasks "$MAX_TASKS" \
+            --max-tokens "$MAX_TOKENS" \
             --shuffle "$SHUFFLE" \
             --concurrency "$CONCURRENCY" \
             --model-name "$MODEL_NAME" \

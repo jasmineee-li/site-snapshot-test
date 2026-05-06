@@ -282,7 +282,8 @@ def _parse_args() -> argparse.Namespace:
                         help="OpenRouter model id. Append :thinking for reasoning mode.")
     parser.add_argument("--max-turns", type=int, default=15)
     parser.add_argument("--max-tokens", type=int, default=8192,
-                        help="Maximum model output tokens per turn.")
+                        help="Per-turn generation budget (max_new_tokens). Lower "
+                             "this on the HF backend to bound KV cache / avoid OOM.")
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--condition", choices=ALL_CONDITIONS, default="baseline")
     parser.add_argument("--extra-instructions-preset", default="none",
