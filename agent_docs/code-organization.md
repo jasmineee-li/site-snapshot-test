@@ -16,6 +16,17 @@ Current and target ownership should stay explicit:
   API calls, prompt rendering, payload views, seeding, validation, and voice
   exemplars. The legacy `worldsim.phases.phase_2_text_fill` path is only a
   compatibility facade.
+- `worldsim.phase_2.phase_2c`: Phase 2c feasibility verification split by
+  report types, constants, fingerprints, outcome stanzas, exposure projection,
+  reddit attribution, admission guards, render/reachability probes,
+  source-data preflight, per-task verification, and runner orchestration. The
+  legacy `worldsim.phases.phase_2_feasibility` path is the patchable
+  compatibility surface during migration.
+- `worldsim.phase_2.exposure_contract`: deterministic Phase 2 exposure
+  contracts split by signature, builder, seed-template materialization, exposure
+  modes, candidate selection, Phase 4 exposure gates, route metadata,
+  verification contracts, and editor argument templates. The legacy
+  `worldsim.phases.phase_2_exposure_contract` path is a compatibility facade.
 - `worldsim.phase_4`: adversarial execution, PVPO placement, postprocess judges,
   strategy variation, resume, and results. Phase 4 must not own benign task
   eligibility.
@@ -45,6 +56,14 @@ Current and target ownership should stay explicit:
 - `worldsim.seed_contracts`: shared seed/editor-call contract behavior used by
   Phase 2, Phase 4, seeding, and sandbox validation. This package must preserve
   sandbox packaging constraints and parity tests.
+- `worldsim.seeding`: host-side seed validation, context rendering, editor-call
+  execution, read-surface/result metadata, reddit/map context resolution,
+  runtime error validation, DB helpers, and editor-argument compatibility. This
+  package remains a patchable public surface because many tests and hidden
+  callers monkeypatch `worldsim.seeding` directly.
+- `worldsim.cli`: WorldSim CLI parser, dispatch, phase-4 lock handling,
+  verification proxy setup, task-bank commands, resume flow, and auth
+  validation. `worldsim.main` remains the executable compatibility entrypoint.
 - `worldsim.rewards`: reward dispatch and scoring behavior. Keep the public
   facade thin; put behavior in reward-local modules by evidence type and
   benchmark surface. Request-level evidence belongs in `network_event.py` and
@@ -123,10 +142,11 @@ sequencing reduces review risk:
 
 - First split behavior into domain-owned modules while preserving external
   import compatibility.
-- For the Phase 1 validation, Phase 4 result-summary, and outcome-taxonomy
-  cutovers, drain `_impl.py` parity modules incrementally. Move one behavioral
-  cluster at a time into its sibling module and run the focused tests before
-  deleting any facade or re-export.
+- For package cutovers that still have `_impl.py` parity modules, drain those
+  modules incrementally. Move one behavioral cluster at a time into its sibling
+  module and run the focused tests before deleting any facade or re-export.
+  Priority order: Phase 2c feasibility, seeding execution, exposure contracts,
+  Phase 4 result-summary, outcome taxonomy, Phase 1 validation, then CLI.
 - Then remove compatibility wrappers in a follow-up after downstream imports are
   moved and one validation cycle has had a chance to reveal hidden consumers.
   This is a narrow follow-up: update remaining internal and downstream imports
