@@ -312,21 +312,15 @@ def _detect_loopy_behavior(history: list[dict[str, Any]]) -> bool:
     """Flag if any (action-name, action-args) tuple repeats ≥3 times."""
     counts: dict[str, int] = {}
     for step in history:
-        model_output = step.get("model_output") or {}
-        actions = model_output.get("action") or []
-        if not isinstance(actions, list) or not actions:
-            continue
-        first = actions[0]
-        if not isinstance(first, dict) or not first:
-            continue
-        # Each action is ``{"action_name": {args...}}``. Serialize to a stable key.
-        try:
-            key = json.dumps(first, sort_keys=True, default=str)
-        except (TypeError, ValueError):
-            continue
-        counts[key] = counts.get(key, 0) + 1
-        if counts[key] >= 3:
-            return True
+        for action in _iter_ordered_actions(step):
+            # Each action is ``{"action_name": {args...}}``. Serialize to a stable key.
+            try:
+                key = json.dumps(action, sort_keys=True, default=str)
+            except (TypeError, ValueError):
+                continue
+            counts[key] = counts.get(key, 0) + 1
+            if counts[key] >= 3:
+                return True
     return False
 
 
@@ -601,6 +595,21 @@ def _classify_action(name: str) -> str:
     return "ambiguous"
 
 
+def _iter_ordered_actions(step: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return ordered per-step action records from Browser Use or AgentLab history.
+
+    Browser Use typically emits one action per step, while AgentLab `phase4-run`
+    can project a newline-joined native action string into multiple ordered
+    calls. Outcome taxonomy must inspect all of them without relabeling
+    AgentLab actions as Browser Use actions.
+    """
+    model_output = step.get("model_output") or {}
+    actions = model_output.get("action") if isinstance(model_output, dict) else None
+    if not isinstance(actions, list):
+        return []
+    return [action for action in actions if isinstance(action, dict) and action]
+
+
 def _collect_platform_observable_corpus(
     history: list[dict[str, Any]],
     network_trace: list[dict[str, Any]],
@@ -617,14 +626,8 @@ def _collect_platform_observable_corpus(
     """
     chunks: list[str] = []
     for step in history:
-        model_output = step.get("model_output") or {}
-        actions = model_output.get("action") if isinstance(model_output, dict) else None
-        action_name = ""
-        if isinstance(actions, list) and actions:
-            first = actions[0]
-            if isinstance(first, dict):
-                action_name = next(iter(first.keys()), "")
-        if _classify_action(action_name) != "platform":
+        action_names = [next(iter(action.keys()), "") for action in _iter_ordered_actions(step)]
+        if not any(_classify_action(action_name) == "platform" for action_name in action_names):
             continue
         state = step.get("state") or {}
         if isinstance(state, dict):

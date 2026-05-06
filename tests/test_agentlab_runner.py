@@ -1565,13 +1565,27 @@ def test_worldsim_task_validate_allows_final_answer_with_action_word():
 def test_agentlab_action_projection_preserves_multiline_tool_calls():
     projection = _load_sidecar_module("trajectory_projection")
 
-    actions = projection._action_projection('click("a")\nfill("b", "c")')
+    actions = projection._action_projection("click(selector='a')\nfill(selector='b', text='c')")
 
     assert [next(iter(action)) for action in actions] == ["click", "fill"]
-    assert actions[0]["click"]["args"] == ["a"]
-    assert actions[0]["click"]["raw"] == 'click("a")\nfill("b", "c")'
-    assert actions[1]["fill"]["args"] == ["b", "c"]
-    assert actions[1]["fill"]["raw"] == 'click("a")\nfill("b", "c")'
+    assert actions[0]["click"]["selector"] == "a"
+    assert actions[0]["click"]["raw"] == "click(selector='a')\nfill(selector='b', text='c')"
+    assert actions[1]["fill"]["selector"] == "b"
+    assert actions[1]["fill"]["text"] == "c"
+    assert actions[1]["fill"]["raw"] == "click(selector='a')\nfill(selector='b', text='c')"
+
+
+def test_agentlab_action_projection_preserves_semicolon_tool_calls():
+    projection = _load_sidecar_module("trajectory_projection")
+
+    raw = "click(selector='a'); fill(selector='b', text='c')"
+    actions = projection._action_projection(raw)
+
+    assert [next(iter(action)) for action in actions] == ["click", "fill"]
+    assert actions[0]["click"]["selector"] == "a"
+    assert actions[0]["click"]["raw"] == raw
+    assert actions[1]["fill"]["text"] == "c"
+    assert actions[1]["fill"]["raw"] == raw
 
 
 def test_agentlab_action_projection_extracts_calls_from_mixed_statements():
@@ -1587,6 +1601,15 @@ def test_agentlab_action_projection_extracts_calls_from_mixed_statements():
     assert actions[1]["fill"]["raw"] == raw
 
 
+def test_agentlab_action_projection_preserves_attribute_call_name():
+    projection = _load_sidecar_module("trajectory_projection")
+
+    raw = "page.click(selector='a')"
+    actions = projection._action_projection(raw)
+
+    assert actions == [{"click": {"raw": raw, "selector": "a"}}]
+
+
 def test_agentlab_action_projection_extracts_calls_from_code_fence():
     projection = _load_sidecar_module("trajectory_projection")
 
@@ -1598,12 +1621,97 @@ def test_agentlab_action_projection_extracts_calls_from_code_fence():
     assert actions[1]["fill"]["raw"] == raw
 
 
+def test_agentlab_action_projection_preserves_dict_entries_as_native_actions():
+    projection = _load_sidecar_module("trajectory_projection")
+
+    raw = {"click": {"selector": "a"}, "fill": {"selector": "b", "text": "c"}}
+    actions = projection._action_projection(raw)
+
+    assert [next(iter(action)) for action in actions] == ["click", "fill"]
+    assert actions[0]["click"]["selector"] == "a"
+    assert actions[0]["click"]["raw"] == str(raw)
+    assert actions[1]["fill"]["text"] == "c"
+    assert actions[1]["fill"]["raw"] == str(raw)
+
+
+def test_agentlab_action_projection_invalid_python_uses_raw_fallback():
+    projection = _load_sidecar_module("trajectory_projection")
+
+    actions = projection._action_projection("click(")
+
+    assert actions == [{"agentlab_action": {"raw": "click("}}]
+
+
 def test_agentlab_action_projection_preserves_raw_fallback_without_calls():
     projection = _load_sidecar_module("trajectory_projection")
 
     actions = projection._action_projection("x = 1")
 
     assert actions == [{"agentlab_action": {"raw": "x = 1"}}]
+
+
+def test_agentlab_needham_xml_matches_canonical_serializer(tmp_path):
+    projection = _load_sidecar_module("trajectory_projection")
+    from worldsim.phase_4.needham_chat_types import ChatMessage, ToolCall
+    from worldsim.phase_4.needham_xml import format_xml
+
+    step = SimpleNamespace(
+        step=0,
+        obs={"url": "http://gitlab.test/issue/1", "axtree_txt": "Issue page"},
+        agent_info={"think": "Inspecting issue"},
+        action="click(selector='a')\nfill(selector='b', text='c')",
+        reward=0,
+        raw_reward=0,
+        terminated=False,
+        truncated=False,
+        task_info={},
+    )
+
+    projection.write_worldsim_artifacts(
+        tmp_path,
+        episode_info=[step],
+        final_result="Done",
+        status="success",
+        errors=[],
+        task_instruction="Review the issue.",
+    )
+
+    expected = format_xml(
+        [
+            ChatMessage(role="user", text="Review the issue."),
+            ChatMessage(
+                role="assistant",
+                text="Inspecting issue",
+                tool_calls=(
+                    ToolCall(
+                        id="0",
+                        function="click",
+                        arguments={
+                            "raw": "click(selector='a')\nfill(selector='b', text='c')",
+                            "selector": "a",
+                        },
+                    ),
+                    ToolCall(
+                        id="1",
+                        function="fill",
+                        arguments={
+                            "raw": "click(selector='a')\nfill(selector='b', text='c')",
+                            "selector": "b",
+                            "text": "c",
+                        },
+                    ),
+                ),
+            ),
+            ChatMessage(role="tool", text="Issue page", function="click"),
+            ChatMessage(role="assistant", text="Done"),
+        ]
+    )
+    trace = json.loads((tmp_path / "needham_trace.json").read_text())
+
+    assert trace["format"] == "needham-agentlab-v1"
+    assert trace["transcript_format"] == "needham-xml-v1"
+    assert (tmp_path / "needham_trace.xml").read_text() == expected
+    assert trace["xml"] == expected
 
 
 def test_worldsim_task_uses_site_prompt_without_duplicate_goal():

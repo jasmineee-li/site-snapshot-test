@@ -211,6 +211,12 @@ Required invariant:
 - non-call text or invalid Python produces one `agentlab_action` raw fallback;
 - parser failures never invent Browser Use action names.
 
+Status: locally proved. `tests/test_agentlab_runner.py` covers single calls,
+newline-joined calls, semicolon-separated calls, fenced Python, mixed
+assignment plus calls, attribute calls, dict actions, invalid Python, and
+non-call raw fallback. These tests intentionally assert AgentLab-native action
+names and raw text preservation.
+
 ### Needham XML
 
 The risk is not semantic drift in the XML grammar; `worldsim.phase_4.needham_xml`
@@ -230,6 +236,11 @@ AgentLab-specific `needham_trace.json` may keep `format="needham-agentlab-v1"`
 for provenance. The XML transcript consumed by TP/VEA must remain
 `needham-xml-v1`.
 
+Status: locally proved with a synthetic AgentLab episode that compares
+`needham_trace.xml` byte-for-byte against
+`worldsim.phase_4.needham_xml.format_xml(...)` for equivalent typed
+`ChatMessage` objects.
+
 ### Outcome Taxonomy
 
 Outcome taxonomy is an offline classifier over trajectory artifacts. The risk is
@@ -246,6 +257,11 @@ Best-practice fix:
 
 This does not change rewards, PVPO, TP, or VEA. It only prevents postprocess
 labels from under-reading an AgentLab-native multi-action turn.
+
+Status: fixed locally. Outcome taxonomy now iterates ordered actions for loop
+detection and platform-observable C1 corpus collection. A regression covers an
+AgentLab step where the payload-visible platform action is the second projected
+call.
 
 ## Request Body Handling
 
