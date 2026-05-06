@@ -12,6 +12,42 @@ Slug conventions:
 
 ---
 
+## 2026-05-06 — opencua32-mcq-vs-framing-via-sad-all
+
+**Type:** scaffold (no runs yet)
+**Groups:** causal-eval-awareness, cua-models, dom-probing, wasp-asr
+**What:** Switch the open-weights leg of the eval-awareness causal study from OpenCUA-72B to OpenCUA-32B and run two matched WASP steering arms — one with the MCQ-trained DoM probe and one with the 16-prompt framing-pair probe — both with layer + threshold chosen via SAD `stages_oversight` all-set. The 72B 168-task baseline + steering pilots are the reference, but 32B gives us a single-H100 footprint and the room to A/B the two probe families directly.
+**Why:** We have two DoM probe-training methods (MCQ contrastive pairs and Hua-et-al framing colon-prompts) but no clean head-to-head: the framing probe was previously selecting layers via its own 16-prompt held-out split, while MCQ was already on SAD-all. Putting both on the SAD-all selection protocol means the only thing that varies between WASP arms is the trained vector itself, so any difference in ASR / TSR / probe-span scores is attributable to the probe-training method, not the layer choice.
+**Parent:** #causal-eval-awareness, follows the OpenCUA-72B WASP steering work in `HANDOFF_WASP_STEERING_RUNS_2026-05-05.md`.
+**Key changes:**
+- `probes/chat_template_experiment.py`: generalized `evaluate_mcq_probe_on_sad` → `evaluate_probe_on_sad` (parameterized by `probe_subdir`), added `--framing-layer-selection {sad,heldout}` (default `sad`) so the framing probe also gets a `top_layers_all` ranking from SAD `stages_oversight`. Writes `sad_stages_oversight_eval_framing.json` alongside the existing MCQ JSON; updates `framing/probe_info.json` to record the SAD-selected `top_layers` so steering hooks can pick them up automatically.
+- `scripts/train_probes_opencua_32b_chat_template.sh`: one-shot wrapper that runs the chat-template experiment with both `--mcq-layer-selection sad` and `--framing-layer-selection sad` for `xlangai/OpenCUA-32B`, dropping outputs under `probes/trained/opencua-32b-chat-template-span/{mcq,framing}/`.
+- `eval_awareness_experiments/launch_opencua32_wasp_full_attacked_with_probes.sh`: 32B variant of the 72B WASP launcher. Defaults to single H100 / no `OPENCUA_MAX_MEMORY` split / port 8001. New `STEERING_LAYERS=auto` reads the top-6 layers from `$SAD_EVAL` so flipping `PROBE_DIR` + `SAD_EVAL` to the framing probe is a pure configuration change.
+
+**Files:**
+- `probes/chat_template_experiment.py` (added the generalized SAD-eval path + framing branch)
+- `scripts/train_probes_opencua_32b_chat_template.sh` (NEW)
+- `eval_awareness_experiments/launch_opencua32_wasp_full_attacked_with_probes.sh` (NEW)
+
+**Run plan (next):**
+1. Confirm SAD `structs.zip` is at `/tmp/sad/sad/stages/oversight/structs.zip` (or set `SAD_STRUCTS_ZIP`).
+2. Pre-cache `xlangai/OpenCUA-32B` into `HF_HOME` to avoid the parallel-download race.
+3. Train both probes: `bash scripts/train_probes_opencua_32b_chat_template.sh`. Expect outputs at `probes/trained/opencua-32b-chat-template-span/{mcq,framing}` plus two `sad_stages_oversight_eval*.json`.
+4. Pre-launcher sanity: `cat probes/trained/opencua-32b-chat-template-span/summary.json` and confirm `mcq.sad.selected_layer`, `framing.sad.selected_layer`, and the per-probe `top_layers_all`.
+5. **MCQ arm.** `STEERING_ENABLED=1 STEERING_ALPHA_PER_LAYER=0.6 STEERING_LAYERS=auto bash eval_awareness_experiments/launch_opencua32_wasp_full_attacked_with_probes.sh` (defaults to MCQ probe + MCQ SAD eval).
+6. **Framing arm.** Same command but with `PROBE_DIR=$REPO_ROOT/probes/trained/opencua-32b-chat-template-span/framing` and `SAD_EVAL=$REPO_ROOT/probes/trained/opencua-32b-chat-template-span/sad_stages_oversight_eval_framing.json`. Override `STEERING_PROBE_DIR` to match.
+7. **Baseline.** Same launcher with `STEERING_ENABLED=0` (probe scoring still uses SAD-all so the no-steer ASR / TSR / probe means are comparable).
+8. Compare: ASR, TSR, and `probe_reward_asr_summary.json` per arm. The probe with the larger ASR drop (or TSR-preserving steering effect) at matched α is the better representational direction.
+
+**Results:** _not yet run_ — pending GPU availability + SAD `structs.zip` on the chosen node.
+
+**Notes:**
+- 32B fits on a single H100 in bf16, so no `OPENCUA_MAX_MEMORY` split is needed (defaults are empty). Switch to a 2-GPU split only if KV cache pressure shows up in `hf_openai_server.log`.
+- Steering applies the same token-gated mask as 72B: user-message content tokens during prefill, generated tokens after the first generated sentence.
+- The 72B `summary.json` showed `framing.heldout` top layer 1 vs `mcq.sad` top layer 24 — they were ranking very different parts of the network. Forcing both onto SAD-all should converge them into a comparable layer band; if they still diverge, that's the experimentally interesting case.
+
+---
+
 ## 2026-05-03 — opencua-gui-owl-causal-eval-awareness-scaffold
 
 **Type:** scaffold (no runs yet)
