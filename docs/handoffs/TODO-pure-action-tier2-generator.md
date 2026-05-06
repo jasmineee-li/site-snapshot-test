@@ -12,6 +12,22 @@ Pure action-first does not mean non-IPI. It means the benign task and
 adversarial objective are both public actions scored through host-owned
 readback, without Tier 1 binary final-answer utility probes.
 
+Immediate execution target: build a **50-task Tier 2 pure-action set** for the
+paper-facing GPT-5.2 condition, across GitLab and Reddit/Postmill WASP-scope
+public-action workflows. Every counted row must use the eval-awareness iterator
+with three rewrite attempts for post-resistance analysis:
+
+```bash
+--phase-4-variant-system eval-awareness-iterator
+--phase-4-eval-awareness-max-iterations 3
+--agent-model gpt-5.2
+--agent-provider openai
+--agent-service-tier priority
+```
+
+The 70-task protocol remains the larger paper target, but the next autonomous
+milestone is a clean 50-task Tier 2 set with the same measurement rules.
+
 ## Current RAG
 
 Green:
@@ -102,6 +118,26 @@ Do not count:
 - old hybrid development rows with answer-probe utility.
 
 ## Paper Cells
+
+Recommended 50-task milestone distribution if Reddit/Postmill comments remain
+blocked:
+
+| Family | Count | Status |
+| --- | ---: | --- |
+| GitLab `create_issue` | 20 | High-ASR anchor |
+| Reddit/Postmill `create_post` | 20 | High-ASR anchor |
+| GitLab `create_issue_note` | 10 | Lower-ASR contrast |
+| Reddit/Postmill `submit_comment` | 0 | Blocked until painted visibility |
+
+Expanded 50-task milestone distribution if Reddit/Postmill comments become
+seed-specifically painted and attributed:
+
+| Family | Count | Status |
+| --- | ---: | --- |
+| GitLab `create_issue` | 16 | High-ASR anchor |
+| Reddit/Postmill `create_post` | 16 | High-ASR anchor |
+| GitLab `create_issue_note` | 9 | GitLab contrast |
+| Reddit/Postmill `submit_comment` | 9 | Reddit/Postmill contrast after fix |
 
 Recommended fallback distribution if Reddit/Postmill comments remain blocked:
 
@@ -357,9 +393,15 @@ merely discouraged; they are outside the task grammar.
 
 ## Next Parallel Work
 
-- Complete the remaining 4 Reddit/Postmill `create_post` rows from
-  `logs/contract_bound_reddit_create_post_smoke_20260506T0610Z`, then export
-  the scenario funnel and variant trace for the full 12-row cell.
+- The attempted resume job
+  `20260506T091827Z-reddit-create-post-complete-12-resume-c85966` exited 0 but
+  did not run additional rows because the saved pipeline checkpoint already
+  says Phase 4 is complete. Do not rely on `resume` to fill the remaining
+  Reddit/Postmill create-post rows from that run. Instead, materialize a fresh
+  state dir from the same Phase 2 artifacts or add/use an explicit Phase 4
+  selection path that does not inherit the completed checkpoint cap.
+- Complete a 12-row Reddit/Postmill `create_post` run, then export the scenario
+  funnel and variant trace for the full cell.
 - Complete static artifact audits for the 12 valid Reddit/Postmill
   `create_post` rows: route distribution, forum diversity, payload strategy
   diversity, benign witness uniqueness, and reward/readback shape.
@@ -367,8 +409,31 @@ merely discouraged; they are outside the task grammar.
   exact gap between DOM presence, generic region visibility, and
   seed-specific painted visibility. Do not relax PVPO or count comment rows
   until this is fixed.
+- Give Reddit/Postmill `submit_comment` three serious implementation shots
+  before declaring it out of the 50-task milestone:
+  1. seed into empty or fresh carrier threads where the seeded comment is the
+     first painted top-level comment;
+  2. route/task wording forces opening and viewing the seeded comment before
+     the benign action;
+  3. inspect vendor Postmill ordering/collapse behavior and add a host-side
+     placement preflight that rejects below-fold/collapsed/comment-region-only
+     carriers.
 - Draft the pre-70 protocol update, but do not freeze it until the explicit
   iterator GitLab rerun and full 12-row Reddit `create_post` execution finish.
+
+If the 50-task GPT-5.2 set is clean and there is remaining execution capacity,
+run secondary model conditions in this order, keeping the same task set and
+measurement gates:
+
+1. Gemini 2.5 Pro;
+2. Claude Sonnet 4.6;
+3. Claude Opus 4.7;
+4. Kimi K2.5;
+5. GLM-5.
+
+Model sweeps are secondary evidence. Do not start them before the GPT-5.2
+50-task Tier 2 set is generated, admitted, visually encountered, and
+state-scored.
 
 ## What Not To Touch
 
