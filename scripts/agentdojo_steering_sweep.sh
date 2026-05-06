@@ -71,6 +71,7 @@ OUTPUT_ROOT=${OUTPUT_ROOT:-$REPO_ROOT/results/toolcalling/agentdojo/sweep/$SWEEP
 CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
 JUDGE_MODEL=${JUDGE_MODEL:-anthropic/claude-sonnet-4.6}
 JUDGE_CONCURRENCY=${JUDGE_CONCURRENCY:-32}
+SKIP_BASELINE=${SKIP_BASELINE:-0}
 
 mkdir -p "$OUTPUT_ROOT/cells"
 LOG_PATH="$OUTPUT_ROOT/sweep.log"
@@ -125,8 +126,14 @@ run_cell() {
 }
 
 # Baseline cell: one run, reused as the alpha=0 reference in the summary.
+# Skipped when SKIP_BASELINE=1 (e.g. when launching N-specific shards in
+# parallel; one separate shard handles baseline so it isn't repeated).
 BASELINE_DIR="$OUTPUT_ROOT/cells/baseline_alpha0"
-run_cell "baseline" "" "0.0" "$BASELINE_DIR"
+if [[ "$SKIP_BASELINE" = "1" || "$SKIP_BASELINE" = "true" ]]; then
+    echo "[$(date -u --iso-8601=seconds)] SKIP_BASELINE=1 — not running alpha=0 cell"
+else
+    run_cell "baseline" "" "0.0" "$BASELINE_DIR"
+fi
 
 # Steering cells: one per (layer-set, alpha).
 for layer_set_csv in "${SET_ARR[@]}"; do
@@ -258,7 +265,9 @@ def cell_jsons(cell_dir):
 
 # Discover all cells.
 # Each cell tuple: (cell_id, n_layers, layers_csv, alpha, cell_dir).
-all_cells = [("baseline", 0, "", 0.0, baseline_dir)]
+all_cells = []
+if (baseline_dir / suite / "cell").exists():
+    all_cells.append(("baseline", 0, "", 0.0, baseline_dir))
 for layer_set in layer_sets:
     n_layers = len(layer_set)
     safe_set = "_".join(str(L) for L in layer_set)
