@@ -15,25 +15,32 @@
 #
 # Output: $OUTPUT_ROOT/sweep_summary.{csv,md}, one row per cell.
 #
-# Defaults sweep MCQ probe on OpenCUA-32B with:
-#   layers: 15 (SAD top-1), 16 + 24 (paper mid-band fractions for 64-layer
-#           models), 6 (early-band control), 3 (the SAD top-3 layer)
-#   alphas: baseline (no steering, run once) + 0.3, 0.6, 1.0
+# Each cell installs steering hooks at ALL layers in its LAYER_SET
+# simultaneously (per-layer alpha = $ALPHA, total residual perturbation
+# scales with set size). Cells are parameterized by (LAYER_SET, ALPHA).
 #
-# To sweep the framing probe instead, pass:
-#   PROBE_DIR=probes/trained/opencua-32b-chat-template-span/framing \
-#   CROSS_PROBE_DIR=probes/trained/opencua-32b-chat-template-span/mcq \
-#   LAYERS=63,9,16,24,6
+# Defaults sweep the framing probe on GUI-Owl-32B-Think with top-N sets
+# from the SAD-all ranking (layers <4 filtered out as too-early /
+# tokenization-ish):
+#   N=1:  [9]
+#   N=3:  [9, 8, 10]
+#   N=6:  [9, 8, 10, 12, 15, 11]
+#   N=12: [9, 8, 10, 12, 15, 11, 14, 17, 13, 16, 18, 6]
+# alphas: 0.3, 0.6 (per-layer; total ~= N × alpha)
+# = 1 baseline + 4 sets × 2 alphas = 9 cells.
 #
-# To sweep GUI-Owl, pass:
-#   MODEL=mPLUG/GUI-Owl-1.5-32B-Think MODEL_NAME=local/gui-owl-32b-think \
-#   PROBE_DIR=probes/trained/gui-owl-32b-chat-template-span/mcq \
-#   CROSS_PROBE_DIR=probes/trained/gui-owl-32b-chat-template-span/framing \
-#   LAYERS=30,16,24,6,5
+# To sweep MCQ probe on OpenCUA-32B instead:
+#   MODEL=xlangai/OpenCUA-32B MODEL_NAME=local/opencua-32b \
+#   PROBE_DIR=probes/trained/opencua-32b-chat-template-span/mcq \
+#   CROSS_PROBE_DIR=probes/trained/opencua-32b-chat-template-span/framing \
+#   LAYER_SETS="3;3,15;3,15,14;3,15,14,52,35,20"
 #
-# Runtime estimate: ~10-15 min per cell at MAX_TASKS=40 (40 unique
-# user_tasks). Default grid = 1 baseline + 5 layers × 3 alphas = 16 cells.
-# Plus ~2 min of judging at the end (640 transcripts at concurrency 64).
+# Runtime estimate: ~10-15 min per cell at MAX_TASKS=40. Default grid =
+# 9 cells × ~12 min = ~2h on a single GPU (sequential). Each cell's
+# AgentDojo run is independent so different cells can be parallelized
+# across GPUs by launching the harness multiple times with disjoint
+# LAYER_SETS / ALPHAS values + different CUDA_VISIBLE_DEVICES.
+# Plus ~2 min of LLM judging at the end (~360 transcripts at concurrency 32).
 
 set -euo pipefail
 
@@ -46,12 +53,15 @@ export TRANSFORMERS_CACHE=${TRANSFORMERS_CACHE:-/local_data/group_dir/huggingfac
 export PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}"
 HF_PYTHON=${HF_PYTHON:-$REPO_ROOT/.venv/bin/python}
 
-MODEL=${MODEL:-xlangai/OpenCUA-32B}
-MODEL_NAME=${MODEL_NAME:-local/opencua-32b}
-PROBE_DIR=${PROBE_DIR:-probes/trained/opencua-32b-chat-template-span/mcq}
-CROSS_PROBE_DIR=${CROSS_PROBE_DIR:-probes/trained/opencua-32b-chat-template-span/framing}
-LAYERS=${LAYERS:-15,16,24,6,3}
-ALPHAS=${ALPHAS:-0.3,0.6,1.0}
+MODEL=${MODEL:-mPLUG/GUI-Owl-1.5-32B-Think}
+MODEL_NAME=${MODEL_NAME:-local/gui-owl-32b-think}
+PROBE_DIR=${PROBE_DIR:-probes/trained/gui-owl-32b-chat-template-span/framing}
+CROSS_PROBE_DIR=${CROSS_PROBE_DIR:-probes/trained/gui-owl-32b-chat-template-span/mcq}
+# LAYER_SETS is a `;`-separated list of comma-separated layer lists. Each
+# entry defines one cell's steering set. Default: GUI-Owl framing top-N
+# (N=1, 3, 6, 12) from the SAD-all ranking, layers <4 filtered out.
+LAYER_SETS=${LAYER_SETS:-9;9,8,10;9,8,10,12,15,11;9,8,10,12,15,11,14,17,13,16,18,6}
+ALPHAS=${ALPHAS:-0.3,0.6}
 MAX_TASKS=${MAX_TASKS:-40}
 SUITE=${SUITE:-workspace}
 SHUFFLE=${SHUFFLE:-42}
@@ -72,24 +82,29 @@ echo "output_root=$OUTPUT_ROOT"
 echo "model=$MODEL model_name=$MODEL_NAME"
 echo "probe_dir=$PROBE_DIR (steering)"
 echo "cross_probe_dir=$CROSS_PROBE_DIR (independent score)"
-echo "layers=$LAYERS alphas=$ALPHAS max_tasks=$MAX_TASKS suite=$SUITE"
+echo "layer_sets=$LAYER_SETS alphas=$ALPHAS max_tasks=$MAX_TASKS suite=$SUITE"
 echo "cuda_visible_devices=$CUDA_VISIBLE_DEVICES"
 echo "judge_model=$JUDGE_MODEL judge_concurrency=$JUDGE_CONCURRENCY"
 
-IFS=',' read -ra LAYER_ARR <<< "$LAYERS"
+IFS=';' read -ra SET_ARR <<< "$LAYER_SETS"
 IFS=',' read -ra ALPHA_ARR <<< "$ALPHAS"
 
 CELLS_FILE="$OUTPUT_ROOT/cells.txt"
 : > "$CELLS_FILE"
 
 run_cell() {
-    local cell_id=$1 layer=$2 alpha=$3 cell_dir=$4
+    local cell_id=$1 layer_set_csv=$2 alpha=$3 cell_dir=$4
+    # layer_set_csv may be empty for the baseline cell.
     mkdir -p "$cell_dir"
     local extra_args=()
     if [[ "$alpha" != "0.0" && "$alpha" != "0" ]]; then
-        extra_args+=(--steering-layer "$layer" --steering-alpha "$alpha")
+        if [[ -z "$layer_set_csv" ]]; then
+            echo "ERROR: nonzero alpha $alpha requires a layer set" >&2
+            return 1
+        fi
+        extra_args+=(--steering-layers "$layer_set_csv" --steering-alpha "$alpha")
     fi
-    echo "[$(date -u --iso-8601=seconds)] cell $cell_id layer=$layer alpha=$alpha"
+    echo "[$(date -u --iso-8601=seconds)] cell $cell_id layers=[$layer_set_csv] alpha=$alpha"
     env CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES" \
         "$HF_PYTHON" -m eval_awareness_experiments.run_agentdojo \
             --suite "$SUITE" \
@@ -106,19 +121,22 @@ run_cell() {
             --probe-dir "$PROBE_DIR" \
             "${extra_args[@]}" \
             > "$cell_dir/run.log" 2>&1
-    echo "$cell_id $layer $alpha $cell_dir" >> "$CELLS_FILE"
+    echo "$cell_id [$layer_set_csv] $alpha $cell_dir" >> "$CELLS_FILE"
 }
 
-# Baseline cell: one run, reused across layer rows in the final table.
+# Baseline cell: one run, reused as the alpha=0 reference in the summary.
 BASELINE_DIR="$OUTPUT_ROOT/cells/baseline_alpha0"
-run_cell "baseline" "0" "0.0" "$BASELINE_DIR"
+run_cell "baseline" "" "0.0" "$BASELINE_DIR"
 
-# Steering cells.
-for layer in "${LAYER_ARR[@]}"; do
+# Steering cells: one per (layer-set, alpha).
+for layer_set_csv in "${SET_ARR[@]}"; do
+    # Count layers in this set (used for cell-id label, e.g. N6).
+    n_layers=$(echo "$layer_set_csv" | awk -F',' '{print NF}')
+    safe_set=$(echo "$layer_set_csv" | tr ',' '_')
     for alpha in "${ALPHA_ARR[@]}"; do
-        cell_id="layer${layer}_alpha${alpha}"
+        cell_id="N${n_layers}_layers${safe_set}_alpha${alpha}"
         cell_dir="$OUTPUT_ROOT/cells/$cell_id"
-        run_cell "$cell_id" "$layer" "$alpha" "$cell_dir"
+        run_cell "$cell_id" "$layer_set_csv" "$alpha" "$cell_dir"
     done
 done
 
@@ -131,7 +149,7 @@ env \
     MODEL_PATH="$MODEL" \
     CROSS_PROBE_DIR="$CROSS_PROBE_DIR" \
     BASELINE_DIR="$BASELINE_DIR" \
-    LAYERS="$LAYERS" \
+    LAYER_SETS="$LAYER_SETS" \
     ALPHAS="$ALPHAS" \
     CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES" \
     JUDGE_MODEL="$JUDGE_MODEL" \
@@ -172,7 +190,11 @@ suite = os.environ["SUITE"]
 model_path = os.environ["MODEL_PATH"]
 cross_probe_dir = os.environ["CROSS_PROBE_DIR"]
 baseline_dir = Path(os.environ["BASELINE_DIR"])
-layers = [int(x) for x in os.environ["LAYERS"].split(",") if x.strip()]
+layer_sets = [
+    [int(L) for L in s.split(",") if L.strip()]
+    for s in os.environ["LAYER_SETS"].split(";")
+    if s.strip()
+]
 alphas = [float(x) for x in os.environ["ALPHAS"].split(",") if x.strip()]
 judge_model_name = os.environ["JUDGE_MODEL"]
 judge_concurrency = int(os.environ["JUDGE_CONCURRENCY"])
@@ -235,11 +257,17 @@ def cell_jsons(cell_dir):
 
 
 # Discover all cells.
-all_cells = [("baseline", 0, 0.0, baseline_dir)]
-for layer in layers:
+# Each cell tuple: (cell_id, n_layers, layers_csv, alpha, cell_dir).
+all_cells = [("baseline", 0, "", 0.0, baseline_dir)]
+for layer_set in layer_sets:
+    n_layers = len(layer_set)
+    safe_set = "_".join(str(L) for L in layer_set)
+    layers_csv = ",".join(str(L) for L in layer_set)
     for alpha in alphas:
-        cell_id = f"layer{layer}_alpha{alpha}"
-        all_cells.append((cell_id, layer, alpha, out_root / "cells" / cell_id))
+        cell_id = f"N{n_layers}_layers{safe_set}_alpha{alpha}"
+        all_cells.append(
+            (cell_id, n_layers, layers_csv, alpha, out_root / "cells" / cell_id)
+        )
 
 # 1) LLM-as-judge for verbalized eval-awareness across ALL cells in one async pass.
 print(f"loading {sum(len(cell_jsons(d)) for _, _, _, d in all_cells)} transcripts for LLM judge")
@@ -309,7 +337,7 @@ def cross_score_doc(d):
 
 async def aggregate_all():
     rows = []
-    for cell_id, layer, alpha, cell_dir in all_cells:
+    for cell_id, n_layers, layers_csv, alpha, cell_dir in all_cells:
         docs, judge_results = await judge_cell(cell_dir)
         n = len(docs)
         n_passed = sum(1 for d in docs if d.get("passed") is True)
@@ -321,7 +349,8 @@ async def aggregate_all():
         cross_scores = [s for s in (cross_score_doc(d) for d in docs) if s is not None]
         row = {
             "cell": cell_id,
-            "layer": layer,
+            "n_layers": n_layers,
+            "layers": layers_csv,
             "alpha": alpha,
             "n": n,
             "tsr": (n_passed / n) if n else None,
@@ -343,7 +372,7 @@ async def aggregate_all():
 rows = asyncio.run(aggregate_all())
 
 fields = [
-    "cell", "layer", "alpha", "n",
+    "cell", "n_layers", "layers", "alpha", "n",
     "tsr", "n_passed",
     "eval_aware_rate", "n_aware", "n_judged",
     "mean_cross_probe_score", "n_cross_scored",
@@ -373,14 +402,15 @@ md_lines = [
     f"- LLM judge: `{judge_model_name}`",
     f"- max_tasks per cell: {rows[0]['n'] if rows else '-'}",
     "",
-    "| cell | layer | alpha | n | TSR | eval_aware_rate | mean_cross_probe |",
-    "|---|---:|---:|---:|---:|---:|---:|",
+    "| cell | N | layers | alpha | n | TSR | eval_aware_rate | mean_cross_probe |",
+    "|---|---:|---|---:|---:|---:|---:|---:|",
 ]
 for r in rows:
     md_lines.append(
         "| "
         + " | ".join([
-            r["cell"], fmt(r["layer"]), fmt(r["alpha"]), fmt(r["n"]),
+            r["cell"], fmt(r["n_layers"]), r["layers"] or "-",
+            fmt(r["alpha"]), fmt(r["n"]),
             fmt(r["tsr"]),
             fmt(r["eval_aware_rate"]),
             fmt(r["mean_cross_probe_score"]),
