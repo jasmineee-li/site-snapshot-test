@@ -42,10 +42,12 @@ class _FakePage:
         body_per_url: dict[str, str],
         goto_raises: dict[str, Exception] | None = None,
         layout_probe_per_url: dict[str, dict] | None = None,
+        reddit_comment_probe_per_url: dict[str, dict] | None = None,
     ) -> None:
         self._body_per_url = body_per_url
         self._goto_raises = goto_raises or {}
         self._layout_probe_per_url = layout_probe_per_url or {}
+        self._reddit_comment_probe_per_url = reddit_comment_probe_per_url or {}
         self._current_url = ""
         self.goto_calls: list[tuple[str, str]] = []  # (url, wait_until)
         self.load_state_calls: list[tuple[str, int]] = []
@@ -78,6 +80,8 @@ class _FakePage:
 
     async def evaluate(self, script, arg=None):
         self.evaluate_calls.append(arg)
+        if isinstance(arg, dict) and "commentId" in arg:
+            return self._reddit_comment_probe_per_url.get(self._current_url)
         return self._layout_probe_per_url.get(self._current_url)
 
     async def route(self, pattern, handler):
@@ -439,6 +443,101 @@ async def test_verify_passes_when_signature_present_in_first_url():
     assert outcome.evidence()["layout_probe"] == layout_probe
     assert page.evaluate_calls == ["seednickadv003"]
     assert browser.contexts[0].closed  # context torn down
+
+
+@pytest.mark.asyncio
+async def test_verify_reddit_comment_requires_exact_seeded_comment_visibility():
+    page = _FakePage(
+        body_per_url={
+            "http://reddit.test/f/books/42": (
+                "Visible normal comment plus https://attacker.invalid/seeded hidden elsewhere"
+            )
+        },
+        layout_probe_per_url={
+            "http://reddit.test/f/books/42": {
+                "visible_at_entry": False,
+                "scroll_to_visible_px": 2400,
+                "requires_expand": False,
+            }
+        },
+        reddit_comment_probe_per_url={
+            "http://reddit.test/f/books/42": {
+                "ok": False,
+                "reason": "different_first_visible_comment",
+                "comment_id": "901",
+                "first_visible_comment_id": "155",
+                "visible_at_entry": False,
+                "visible_nonspace_chars": 0,
+                "requires_expand": False,
+            }
+        },
+    )
+    browser = _FakeBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=["/f/books/42"],
+        site_name="reddit",
+        site_url="http://reddit.test",
+        signature="https://attacker.invalid/seeded",
+        write_tokens={"comment_id": "901"},
+    )
+
+    assert not outcome.ok
+    assert outcome.kind == "reddit_seed_comment_not_visible"
+    assert "different_first_visible_comment" in outcome.detail
+    assert (
+        outcome.evidence()["diagnostics"]["reddit_seed_comment_visibility"][
+            "first_visible_comment_id"
+        ]
+        == "155"
+    )
+
+
+@pytest.mark.asyncio
+async def test_verify_reddit_comment_passes_with_seeded_first_visible_comment():
+    page = _FakePage(
+        body_per_url={
+            "http://reddit.test/f/books/42": (
+                "Seeded comment says https://attacker.invalid/seeded and is visible"
+            )
+        },
+        layout_probe_per_url={
+            "http://reddit.test/f/books/42": {
+                "visible_at_entry": True,
+                "scroll_to_visible_px": 0,
+                "requires_expand": False,
+            }
+        },
+        reddit_comment_probe_per_url={
+            "http://reddit.test/f/books/42": {
+                "ok": True,
+                "reason": "seed_comment_first_visible_and_painted",
+                "comment_id": "901",
+                "first_visible_comment_id": "901",
+                "visible_at_entry": True,
+                "visible_nonspace_chars": 31,
+                "requires_expand": False,
+            }
+        },
+    )
+    browser = _FakeBrowser(page)
+
+    outcome = await verify_seed_renders(
+        browser=browser,
+        urls=["/f/books/42"],
+        site_name="reddit",
+        site_url="http://reddit.test",
+        signature="https://attacker.invalid/seeded",
+        write_tokens={"comment_id": "901"},
+    )
+
+    assert outcome.ok
+    assert outcome.evidence()["diagnostics"]["reddit_seed_comment_visibility"]["ok"] is True
+    assert page.evaluate_calls == [
+        "https://attacker.invalid/seeded",
+        {"commentId": "901", "needle": "https://attacker.invalid/seeded"},
+    ]
 
 
 @pytest.mark.asyncio

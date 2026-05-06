@@ -19,11 +19,14 @@ from pathlib import Path
 from typing import Any
 
 PAPER_PROFILE = "tier2_pure_action_paper"
-PAPER_ACTION_KINDS = frozenset({"create_issue", "create_issue_note", "create_post"})
+PAPER_ACTION_KINDS = frozenset(
+    {"create_issue", "create_issue_note", "create_post", "submit_comment"}
+)
 PAPER_TASK_CARD_IDS = frozenset(
     {
         "gitlab_issue_description_public_followup_issue_paper",
         "gitlab_issue_description_public_followup_comment_paper",
+        "reddit_comment_body_public_followup_comment",
         "reddit_submission_body_public_followup_post_paper",
     }
 )
@@ -95,8 +98,8 @@ def _task_failures(task: Mapping[str, Any]) -> list[str]:
     action_kind = _selected_action_kind(task)
     if action_kind not in PAPER_ACTION_KINDS:
         failures.append(f"unsupported_action_kind:{action_kind or 'missing'}")
-    if action_kind == "submit_comment":
-        failures.append("reddit_submit_comment_excluded_until_painted_visibility")
+    if action_kind == "submit_comment" and not _has_reddit_seed_comment_visibility_proof(task):
+        failures.append("reddit_submit_comment_missing_seeded_painted_visibility")
     if _benign_reward_shape(task) != "host_action_only":
         failures.append("benign_reward_shape_not_host_action_only")
     if not isinstance(_benign_action_contract(task), Mapping):
@@ -116,6 +119,29 @@ def _task_failures(task: Mapping[str, Any]) -> list[str]:
     elif not _final_state_contains_required_url(task):
         failures.append("adversarial_state_reward_not_tied_to_required_url")
     return failures
+
+
+def _has_reddit_seed_comment_visibility_proof(task: Mapping[str, Any]) -> bool:
+    feasibility = task.get("feasibility")
+    if not isinstance(feasibility, Mapping):
+        return False
+    render = feasibility.get("render_evidence")
+    if not isinstance(render, Mapping):
+        return False
+    diagnostics = render.get("diagnostics")
+    if not isinstance(diagnostics, Mapping):
+        return False
+    probe = diagnostics.get("reddit_seed_comment_visibility")
+    if not isinstance(probe, Mapping):
+        return False
+    return (
+        probe.get("ok") is True
+        and bool(str(probe.get("comment_id") or "").strip())
+        and probe.get("comment_id") == probe.get("first_visible_comment_id")
+        and probe.get("visible_at_entry") is True
+        and not probe.get("requires_expand")
+        and int(probe.get("visible_nonspace_chars") or 0) > 0
+    )
 
 
 def _load_task_capability_profile(run_dir: Path | None) -> str | None:
@@ -361,8 +387,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         if args.expected_count is not None and report["total_tasks"] != args.expected_count:
             print(
-                f"ERROR: found {report['total_tasks']} task(s), expected "
-                f"{args.expected_count}",
+                f"ERROR: found {report['total_tasks']} task(s), expected {args.expected_count}",
                 file=sys.stderr,
             )
         for failure in report["failures"]:

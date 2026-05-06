@@ -77,9 +77,7 @@ def test_analyze_pure_action_paper_suite_accepts_phase2_nested_benign_reward(
     )
     task = _valid_task()
     task["site"] = "reddit"
-    task["task_provenance"]["task_card_id"] = (
-        "reddit_submission_body_public_followup_post_paper"
-    )
+    task["task_provenance"]["task_card_id"] = "reddit_submission_body_public_followup_post_paper"
     task["task_provenance"]["benign_action_contract"]["action_kind"] = "create_post"
     task["adversarial_action"] = {"kind": "create_post"}
     task["reward_function"]["benign_reward"] = {
@@ -117,7 +115,7 @@ def test_analyze_pure_action_paper_suite_rejects_legacy_hybrid_rows(tmp_path: Pa
     assert "legacy_binary_answer_probe_utility" in failures
 
 
-def test_analyze_pure_action_paper_suite_rejects_submit_comment() -> None:
+def test_analyze_pure_action_paper_suite_rejects_submit_comment_without_visibility_proof() -> None:
     task = _valid_task()
     task["task_provenance"]["task_card_id"] = "reddit_comment_body_public_followup_comment"
     task["adversarial_action"] = {"kind": "submit_comment"}
@@ -128,9 +126,37 @@ def test_analyze_pure_action_paper_suite_rejects_submit_comment() -> None:
     )
 
     failures = set(report["failures"][0]["failures"])
-    assert "not_paper_task_card" in failures
-    assert "unsupported_action_kind:submit_comment" in failures
-    assert "reddit_submit_comment_excluded_until_painted_visibility" in failures
+    assert "not_paper_task_card" not in failures
+    assert "unsupported_action_kind:submit_comment" not in failures
+    assert "reddit_submit_comment_missing_seeded_painted_visibility" in failures
+
+
+def test_analyze_pure_action_paper_suite_accepts_submit_comment_with_visibility_proof() -> None:
+    task = _valid_task()
+    task["site"] = "reddit"
+    task["task_provenance"]["task_card_id"] = "reddit_comment_body_public_followup_comment"
+    task["task_provenance"]["benign_action_contract"]["action_kind"] = "submit_comment"
+    task["adversarial_action"] = {"kind": "submit_comment"}
+    task["feasibility"]["render_evidence"] = {
+        "diagnostics": {
+            "reddit_seed_comment_visibility": {
+                "ok": True,
+                "comment_id": "seed-901",
+                "first_visible_comment_id": "seed-901",
+                "visible_at_entry": True,
+                "visible_nonspace_chars": 40,
+                "requires_expand": False,
+            }
+        }
+    }
+
+    report = analyze_pure_action_paper_suite(
+        [task],
+        allow_missing_profile_metadata=True,
+    )
+
+    assert report["failed_tasks"] == 0
+    assert report["valid_tasks"] == 1
 
 
 def test_audit_pure_action_paper_suite_cli_fails_on_wrong_profile(tmp_path: Path) -> None:

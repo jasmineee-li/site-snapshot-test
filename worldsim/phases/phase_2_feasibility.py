@@ -943,6 +943,16 @@ async def _verify_one(
                 ),
                 "verification": exposure_contract.get("verification"),
             }
+            diagnostics = (
+                render_outcome.diagnostics
+                if render_outcome is not None and isinstance(render_outcome.diagnostics, dict)
+                else {}
+            )
+            reddit_comment_visibility = diagnostics.get("reddit_seed_comment_visibility")
+            if isinstance(reddit_comment_visibility, dict):
+                feasibility["exposure"]["seeded_comment_visibility"] = dict(
+                    reddit_comment_visibility
+                )
     attribution_problem = _attach_reddit_comment_attribution_contract(result, metadata)
     if attribution_problem is not None:
         return _infeasible_task(
@@ -1092,7 +1102,10 @@ def _task_has_reddit_submit_comment_reward(task: dict[str, Any]) -> bool:
         return True
     for config in _iter_final_state_reward_configs(task.get("reward_function")):
         expected = config.get("expected")
-        if isinstance(expected, dict) and str(expected.get("action_kind") or "") == "submit_comment":
+        if (
+            isinstance(expected, dict)
+            and str(expected.get("action_kind") or "") == "submit_comment"
+        ):
             return True
     return False
 
@@ -1814,7 +1827,9 @@ def _answer_target_collision_reason(task: dict[str, Any]) -> str | None:
     benign_surface_values = _seed_surface_values(task.get("data_seed"), surface)
     if not benign_surface_values:
         return None
-    if not any(_strings_overlap(answer, value) for answer in expected for value in benign_surface_values):
+    if not any(
+        _strings_overlap(answer, value) for answer in expected for value in benign_surface_values
+    ):
         return None
     return (
         f"ordered answer-target collision for {surface}: benign reward expects a "
@@ -1875,7 +1890,10 @@ def _benign_agent_response_expected_strings(task: dict[str, Any]) -> list[str]:
         return []
     values: list[str] = []
     for evaluator in evals:
-        if not isinstance(evaluator, dict) or evaluator.get("evaluator") != "AgentResponseEvaluator":
+        if (
+            not isinstance(evaluator, dict)
+            or evaluator.get("evaluator") != "AgentResponseEvaluator"
+        ):
             continue
         expected = evaluator.get("expected")
         if isinstance(expected, dict):

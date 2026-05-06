@@ -290,9 +290,7 @@ def render_signature_selection(
     ]
     if not candidate_records:
         candidate_records = [
-            (index, method, args)
-            for index, method, args in call_records
-            if isinstance(args, dict)
+            (index, method, args) for index, method, args in call_records if isinstance(args, dict)
         ]
     # In multi-call seeds the last editor call is typically the one that
     # produces the user-visible note/comment while earlier calls create
@@ -308,9 +306,7 @@ def render_signature_selection(
                     if isinstance(raw, str) and raw.strip():
                         value = raw.strip()
                         signature = (
-                            value
-                            if base == "nickname"
-                            else _stable_render_signature_text(value)
+                            value if base == "nickname" else _stable_render_signature_text(value)
                         )
                         if signature:
                             return RenderSignatureSelection(
@@ -964,6 +960,279 @@ def _render_check_inputs_from_metadata(
     return urls, write_tokens, diagnostics
 
 
+def _reddit_comment_id(write_tokens: dict[str, Any] | None) -> str | None:
+    if not isinstance(write_tokens, dict):
+        return None
+    value = write_tokens.get("comment_id")
+    if value in (None, ""):
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+async def _reddit_seed_comment_visibility_probe(
+    page: Any,
+    *,
+    comment_id: str,
+    normalized_needle: str,
+) -> dict[str, Any] | None:
+    """Return strict entry-viewport evidence for an exact Postmill comment.
+
+    Generic body-text rendering is not enough for Reddit/Postmill comment
+    carriers: a seeded comment can be present in the parent thread DOM while a
+    different comment is the one painted/read by the agent. This probe binds the
+    payload witness to the editor-returned ``comment_id`` and requires that the
+    exact comment is the first visible comment block at page entry.
+    """
+    if not comment_id or not normalized_needle:
+        return None
+    try:
+        result = await page.evaluate(
+            """
+            ({ commentId, needle }) => {
+              const root = document.body || document.documentElement;
+              if (!root) return null;
+              const targetId = String(commentId || "");
+              const normalizedNeedle = String(needle || "");
+              const viewportH = window.innerHeight || 0;
+              const viewportW = window.innerWidth || 0;
+
+              function normalize(text) {
+                return String(text || "").toLowerCase().replace(/\\s+/g, " ").trim();
+              }
+              function isVisibleRect(rect) {
+                return Boolean(
+                  rect &&
+                    rect.width > 0 &&
+                    rect.height > 0 &&
+                    rect.bottom > 0 &&
+                    rect.top < viewportH &&
+                    rect.right > 0 &&
+                    rect.left < viewportW
+                );
+              }
+              function elementCommentId(el) {
+                if (!el) return "";
+                for (const key of ["data-comment-id", "comment-id", "data-id"]) {
+                  const value = el.getAttribute && el.getAttribute(key);
+                  if (value) return String(value);
+                }
+                const id = el.getAttribute && el.getAttribute("id");
+                if (id && id.startsWith("comment-")) return id.slice("comment-".length);
+                if (id) return id;
+                const anchors = el.querySelectorAll ? el.querySelectorAll("a[href*='/comment/']") : [];
+                for (const anchor of anchors) {
+                  const href = String(anchor.getAttribute("href") || "");
+                  const match = href.match(/\\/comment\\/([^/?#]+)/);
+                  if (match) return match[1];
+                }
+                return "";
+              }
+              function hasCommentPermalink(el, id) {
+                if (!el || !el.querySelector) return false;
+                if (elementCommentId(el) === id) return true;
+                return Boolean(el.querySelector(`a[href*="/comment/${CSS.escape(id)}"]`));
+              }
+              function candidateRootsFor(id) {
+                const nodes = [];
+                const selectors = [
+                  `[data-comment-id="${CSS.escape(id)}"]`,
+                  `[comment-id="${CSS.escape(id)}"]`,
+                  `[data-id="${CSS.escape(id)}"]`,
+                  `#comment-${CSS.escape(id)}`,
+                  `a[href*="/comment/${CSS.escape(id)}"]`,
+                ];
+                for (const selector of selectors) {
+                  try {
+                    nodes.push(...document.querySelectorAll(selector));
+                  } catch (_) {}
+                }
+                const roots = [];
+                const seen = new Set();
+                for (const node of nodes) {
+                  let best = null;
+                  for (let el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement; el && el !== document.documentElement; el = el.parentElement) {
+                    const text = normalize(el.innerText || el.textContent || "");
+                    if (!text.includes(normalizedNeedle)) continue;
+                    if (!hasCommentPermalink(el, id)) continue;
+                    best = el;
+                    const classes = String(el.className || "");
+                    if (/(^|\\s)comment(\\s|$)/i.test(classes) || el.hasAttribute("data-comment-id")) {
+                      break;
+                    }
+                  }
+                  if (best && !seen.has(best)) {
+                    seen.add(best);
+                    roots.push(best);
+                  }
+                }
+                roots.sort((a, b) => {
+                  const ar = a.getBoundingClientRect();
+                  const br = b.getBoundingClientRect();
+                  return (a.innerText || a.textContent || "").length - (b.innerText || b.textContent || "").length ||
+                    ar.top - br.top;
+                });
+                return roots;
+              }
+              function visibleCommentRoots() {
+                const anchors = Array.from(document.querySelectorAll("a[href*='/comment/']"));
+                const roots = [];
+                const seen = new Set();
+                for (const anchor of anchors) {
+                  let best = null;
+                  for (let el = anchor; el && el !== document.documentElement; el = el.parentElement) {
+                    if (!hasCommentPermalink(el, elementCommentId(anchor) || "")) continue;
+                    const text = normalize(el.innerText || el.textContent || "");
+                    if (!text || text.length < 8) continue;
+                    best = el;
+                    const classes = String(el.className || "");
+                    if (/(^|\\s)comment(\\s|$)/i.test(classes) || el.hasAttribute("data-comment-id")) {
+                      break;
+                    }
+                  }
+                  if (!best || seen.has(best)) continue;
+                  seen.add(best);
+                  const rect = best.getBoundingClientRect();
+                  if (isVisibleRect(rect)) {
+                    roots.push({ id: elementCommentId(best), top: rect.top, text: normalize(best.innerText || best.textContent || "").slice(0, 160) });
+                  }
+                }
+                roots.sort((a, b) => a.top - b.top);
+                return roots;
+              }
+              function textRangeProbe(container) {
+                const walker = document.createTreeWalker(
+                  container,
+                  NodeFilter.SHOW_TEXT,
+                  {
+                    acceptNode(node) {
+                      const parent = node.parentElement;
+                      if (!parent) return NodeFilter.FILTER_REJECT;
+                      const tag = parent.tagName;
+                      if (tag === "SCRIPT" || tag === "STYLE" || tag === "NOSCRIPT") {
+                        return NodeFilter.FILTER_REJECT;
+                      }
+                      return NodeFilter.FILTER_ACCEPT;
+                    },
+                  },
+                );
+                const textNodes = [];
+                const charMap = [];
+                let corpus = "";
+                function appendNormalized(content, nodeIndex) {
+                  const lower = String(content || "").toLowerCase();
+                  for (let offset = 0; offset < lower.length; offset += 1) {
+                    const ch = lower[offset];
+                    if (/\\s/.test(ch)) {
+                      if (corpus.length === 0 || corpus[corpus.length - 1] === " ") continue;
+                      corpus += " ";
+                      charMap.push({ nodeIndex, offset, isSpace: true });
+                      continue;
+                    }
+                    corpus += ch;
+                    charMap.push({ nodeIndex, offset, isSpace: false });
+                  }
+                }
+                while (walker.nextNode()) {
+                  const node = walker.currentNode;
+                  const content = node.textContent || "";
+                  if (!content) continue;
+                  const nodeIndex = textNodes.length;
+                  textNodes.push(node);
+                  appendNormalized(content, nodeIndex);
+                }
+                const offset = corpus.indexOf(normalizedNeedle);
+                if (offset < 0) return { match_found_in_comment: false };
+                const length = normalizedNeedle.length;
+                let startInfo = null;
+                let endInfo = null;
+                let visibleNonspace = 0;
+                for (let i = 0; i < length; i += 1) {
+                  const info = charMap[offset + i];
+                  if (!info) continue;
+                  if (!startInfo) startInfo = info;
+                  endInfo = info;
+                  if (!info.isSpace) visibleNonspace += 1;
+                }
+                if (!startInfo || !endInfo) return { match_found_in_comment: false };
+                const startNode = textNodes[startInfo.nodeIndex];
+                const endNode = textNodes[endInfo.nodeIndex];
+                const range = document.createRange();
+                range.setStart(startNode, startInfo.offset);
+                range.setEnd(endNode, Math.min((endInfo.offset || 0) + 1, (endNode.textContent || "").length));
+                const rect = range.getBoundingClientRect();
+                let requiresExpand = false;
+                for (let n = startNode.parentElement; n; n = n.parentElement) {
+                  const style = window.getComputedStyle(n);
+                  if (style.display === "none" || style.visibility === "hidden") {
+                    requiresExpand = true;
+                    break;
+                  }
+                  if (n.tagName === "DETAILS" && !n.open) {
+                    requiresExpand = true;
+                    break;
+                  }
+                  if (n.classList && n.classList.contains("comment--collapsed")) {
+                    requiresExpand = true;
+                    break;
+                  }
+                  if (n === container) break;
+                }
+                return {
+                  match_found_in_comment: true,
+                  visible_at_entry: isVisibleRect(rect),
+                  visible_nonspace_chars: isVisibleRect(rect) ? visibleNonspace : 0,
+                  rect_top: rect.top,
+                  rect_bottom: rect.bottom,
+                  viewport_h: viewportH,
+                  viewport_w: viewportW,
+                  requires_expand: requiresExpand,
+                };
+              }
+
+              const targetRoots = candidateRootsFor(targetId);
+              const firstVisible = visibleCommentRoots()[0] || null;
+              if (targetRoots.length === 0) {
+                return {
+                  ok: false,
+                  reason: "seed_comment_block_not_found",
+                  comment_id: targetId,
+                  first_visible_comment_id: firstVisible ? firstVisible.id : null,
+                  first_visible_comment_text: firstVisible ? firstVisible.text : null,
+                };
+              }
+              const probe = textRangeProbe(targetRoots[0]);
+              const firstId = firstVisible ? firstVisible.id : null;
+              const ok = Boolean(
+                probe.match_found_in_comment &&
+                  probe.visible_at_entry &&
+                  !probe.requires_expand &&
+                  firstId === targetId
+              );
+              return {
+                ok,
+                reason: ok ? "seed_comment_first_visible_and_painted" :
+                  (!probe.match_found_in_comment ? "signature_not_in_seed_comment" :
+                    probe.requires_expand ? "seed_comment_requires_expand" :
+                    !probe.visible_at_entry ? "seed_comment_not_visible_at_entry" :
+                    firstId !== targetId ? "different_first_visible_comment" :
+                    "seed_comment_visibility_unknown"),
+                comment_id: targetId,
+                first_visible_comment_id: firstId,
+                first_visible_comment_text: firstVisible ? firstVisible.text : null,
+                target_root_count: targetRoots.length,
+                ...probe,
+              };
+            }
+            """,
+            {"commentId": comment_id, "needle": normalized_needle},
+        )
+    except Exception:
+        logger.debug("phase 2c render check: reddit comment visibility probe failed", exc_info=True)
+        return None
+    return result if isinstance(result, dict) else None
+
+
 async def _gitlab_issue_description_ryw_fastpath(
     *,
     page: Any,
@@ -1091,9 +1360,7 @@ async def _gitlab_issue_description_ryw_fastpath(
             continue
         pos = normalized_description.find(normalized_signature)
         snippet = (
-            description[max(0, pos - 40) : pos + len(signature) + 120]
-            if pos >= 0
-            else description
+            description[max(0, pos - 40) : pos + len(signature) + 120] if pos >= 0 else description
         )
         logger.info(
             "phase 2c render issue RYW fetched %s status=%s description_len=%d match=True",
@@ -1345,6 +1612,9 @@ async def verify_seed_renders(
                 per_url_errors={},
                 diagnostics=diagnostics,
             )
+    reddit_comment_id = _reddit_comment_id(write_tokens)
+    strict_reddit_comment_visibility = site_name == "reddit" and reddit_comment_id is not None
+    strict_reddit_failure: RenderOutcome | None = None
     context = await browser.new_context(**context_kwargs)
     try:
         page = await context.new_page()
@@ -1411,6 +1681,38 @@ async def verify_seed_renders(
                         raw_pos = pos
                     snippet = body_text[max(0, raw_pos - 40) : raw_pos + len(signature) + 40]
                     layout_probe = await _layout_probe_for_signature(page, needle)
+                    if strict_reddit_comment_visibility:
+                        probe = await _reddit_seed_comment_visibility_probe(
+                            page,
+                            comment_id=reddit_comment_id,
+                            normalized_needle=needle,
+                        )
+                        strict_diagnostics = dict(diagnostics or {})
+                        strict_diagnostics["reddit_seed_comment_visibility"] = probe or {
+                            "ok": False,
+                            "reason": "probe_failed",
+                            "comment_id": reddit_comment_id,
+                        }
+                        if not (isinstance(probe, dict) and probe.get("ok") is True):
+                            reason = (
+                                str(probe.get("reason"))
+                                if isinstance(probe, dict) and probe.get("reason")
+                                else "probe_failed"
+                            )
+                            errors[target] = f"reddit_seed_comment_visibility_failed:{reason}"
+                            strict_reddit_failure = RenderOutcome.failed(
+                                kind="reddit_seed_comment_not_visible",
+                                detail=(
+                                    "reddit comment carrier rendered in page text, but the "
+                                    f"seeded comment_id {reddit_comment_id!r} was not proven "
+                                    f"as the first visible painted comment ({reason})"
+                                ),
+                                urls_tried=list(seen),
+                                per_url_errors=dict(errors),
+                                diagnostics=strict_diagnostics,
+                            )
+                            continue
+                        diagnostics = strict_diagnostics
                     return RenderOutcome.passed(
                         url=target,
                         signature=signature,
@@ -1460,6 +1762,8 @@ async def verify_seed_renders(
                 msg = f"{exc.__class__.__name__}: {exc}"
                 errors[target] = msg
                 logger.debug("phase 2c render check error on %s: %s", target, msg)
+        if strict_reddit_failure is not None:
+            return strict_reddit_failure
         return _classify_failure(
             urls_tried=seen,
             per_url_errors=errors,
