@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 
 _INITIAL_MAX_TOKENS = 8192
 _MAX_MAX_TOKENS = 32768
-_STRUCTURED_RETRIES = 2
+_STRUCTURED_ATTEMPTS = 3
 
 
 class build_eval_awareness_rewrite(BaseModel):
@@ -147,6 +147,7 @@ def _rewrite_constraints(task: dict[str, Any]) -> dict[str, Any]:
         "length_budget": task.get("length_budget"),
         "delivery_channel": task.get("delivery_channel"),
         "selected_payload_index": task.get("selected_payload_index"),
+        "structured_output_limits": _structured_output_limits(),
     }
     payload_contract = _variant_payload_contract(task)
     if payload_contract is not None:
@@ -157,6 +158,17 @@ def _rewrite_constraints(task: dict[str, Any]) -> dict[str, Any]:
             action_guidance
         )
     return constraints
+
+
+def _structured_output_limits() -> dict[str, int]:
+    limits: dict[str, int] = {}
+    for name, field in build_eval_awareness_rewrite.model_fields.items():
+        for item in field.metadata:
+            max_length = getattr(item, "max_length", None)
+            if isinstance(max_length, int):
+                limits[name] = max_length
+                break
+    return limits
 
 
 def _task_context(task: dict[str, Any]) -> dict[str, Any]:
@@ -446,7 +458,7 @@ async def generate_eval_awareness_rewrite_api(
                         messages=messages,
                         response_model=build_eval_awareness_rewrite,
                         context=response_context,
-                        max_retries=instructor_semantic_retrying(_STRUCTURED_RETRIES),
+                        max_retries=instructor_semantic_retrying(_STRUCTURED_ATTEMPTS),
                         hooks=hooks,
                         metadata=_model_metadata(task),
                     )

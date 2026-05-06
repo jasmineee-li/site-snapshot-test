@@ -301,7 +301,8 @@ def build_task_detail(
     base = task_row(result, task_lookup, phase4_dir=phase4_dir, fields=DETAIL_FIELDS)
     base["why"] = _why(result)
     if include_iterator:
-        base["iterator"] = _compact_iterator(_iterator_record(result))
+        trace = _primary_trace(result, phase4_dir=phase4_dir)
+        base["iterator"] = _compact_iterator(_iterator_record(result), trace=trace)
     if include_refs:
         trace = _primary_trace(result, phase4_dir=phase4_dir)
         base["refs"] = _artifact_refs(trace)
@@ -357,6 +358,17 @@ def build_timeline(
                     limit=180,
                 ),
                 "trace": attempt.get("trajectory_dir") or attempt.get("variant_trajectory_dir"),
+            }
+        )
+    for error in _iterator_generation_errors(iterator, trace=trace):
+        events.append(
+            {
+                "index": len(events),
+                "kind": "iterator_generation_error",
+                "attempt_index": error.get("iteration"),
+                "status": error.get("failure_class"),
+                "message": error.get("reason"),
+                "trace": str(trace) if trace else None,
             }
         )
     spans = _span_summary(events)
@@ -457,6 +469,37 @@ def _format_task(payload: dict[str, Any]) -> str:
             lines.append(
                 f"  {attempt.get('index')}: status={attempt.get('status')} outcome={attempt.get('outcome')} reward={attempt.get('reward')}"
             )
+        generation_errors = payload["iterator"].get("generation_errors") or []
+        if generation_errors:
+            lines.append("iterator_generation_errors:")
+            for error in generation_errors:
+                api = error.get("api") if isinstance(error.get("api"), dict) else {}
+                retry = (
+                    error.get("instructor_retry")
+                    if isinstance(error.get("instructor_retry"), dict)
+                    else {}
+                )
+                lines.append(
+                    "  "
+                    f"iteration={error.get('iteration')} "
+                    f"failure_class={error.get('failure_class')} "
+                    f"reason={error.get('reason')} "
+                    f"api_attempts={api.get('attempts')} "
+                    f"instructor_attempts={retry.get('n_attempts')} "
+                    f"completion_ids={api.get('completion_ids')}"
+                )
+                for parse_error in api.get("parse_errors") or []:
+                    lines.append(
+                        "    "
+                        f"parse_error[{parse_error.get('type')}]: "
+                        f"{parse_error.get('message')}"
+                    )
+                for last_error in api.get("last_attempt_errors") or []:
+                    lines.append(
+                        "    "
+                        f"last_attempt_error[{last_error.get('type')}]: "
+                        f"{last_error.get('message')}"
+                    )
     if payload.get("refs"):
         lines.append("refs:")
         for key, value in payload["refs"].items():
@@ -606,14 +649,16 @@ def _why(result: dict[str, Any]) -> str:
     return f"classified from final_status={final_status} outcome_fine={outcome}"
 
 
-def _compact_iterator(iterator: dict[str, Any]) -> dict[str, Any]:
+def _compact_iterator(iterator: dict[str, Any], *, trace: Path | None = None) -> dict[str, Any]:
     attempts = iterator.get("attempts")
     if not isinstance(attempts, list):
         attempts = iterator.get("variant_results") if isinstance(iterator.get("variant_results"), list) else []
+    generation_errors = _iterator_generation_errors(iterator, trace=trace)
     return {
         "algorithm": iterator.get("algorithm"),
         "adaptive_budget": iterator.get("adaptive_budget"),
         "judge_diagnosis": iterator.get("judge_diagnosis"),
+        "generation_errors": generation_errors,
         "attempts": [
             {
                 "index": index,
@@ -630,6 +675,140 @@ def _compact_iterator(iterator: dict[str, Any]) -> dict[str, Any]:
             if isinstance(attempt, dict)
         ],
     }
+
+
+def _iterator_generation_errors(
+    iterator: dict[str, Any],
+    *,
+    trace: Path | None,
+) -> list[dict[str, Any]]:
+    errors = iterator.get("generation_errors")
+    if not isinstance(errors, list):
+        errors = []
+    checkpoint = _load_iterator_checkpoint(trace)
+    checkpoint_errors = checkpoint.get("generation_errors")
+    if isinstance(checkpoint_errors, list):
+        errors = [*errors, *checkpoint_errors]
+    compacted = [_compact_generation_error(error) for error in errors if isinstance(error, dict)]
+    seen: set[str] = set()
+    unique: list[dict[str, Any]] = []
+    for error in compacted:
+        key = json.dumps(
+            {
+                "iteration": error.get("iteration"),
+                "failure_class": error.get("failure_class"),
+                "reason": error.get("reason"),
+                "completion_ids": _nested(error, "api", "completion_ids"),
+            },
+            sort_keys=True,
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(error)
+    return unique
+
+
+def _load_iterator_checkpoint(trace: Path | None) -> dict[str, Any]:
+    if trace is None:
+        return {}
+    checkpoint = trace / "eval_awareness_iterator_checkpoint.json"
+    if not checkpoint.exists():
+        return {}
+    payload = load_json_or_empty(checkpoint)
+    return payload if isinstance(payload, dict) else {}
+
+
+def _compact_generation_error(error: dict[str, Any]) -> dict[str, Any]:
+    diagnostics = error.get("api_diagnostics") if isinstance(error.get("api_diagnostics"), dict) else {}
+    instructor = (
+        diagnostics.get("instructor_retry_exception")
+        if isinstance(diagnostics.get("instructor_retry_exception"), dict)
+        else {}
+    )
+    return {
+        "iteration": error.get("iteration"),
+        "status": error.get("status"),
+        "failure_class": error.get("failure_class"),
+        "reason": compact_text(error.get("reason"), limit=220),
+        "api": _compact_api_diagnostics(diagnostics),
+        "instructor_retry": _compact_instructor_retry(instructor),
+    }
+
+
+def _compact_api_diagnostics(diagnostics: dict[str, Any]) -> dict[str, Any]:
+    responses = diagnostics.get("completion_responses")
+    if not isinstance(responses, list):
+        responses = []
+    parse_errors = diagnostics.get("parse_errors")
+    if not isinstance(parse_errors, list):
+        parse_errors = []
+    completion_errors = diagnostics.get("completion_errors")
+    if not isinstance(completion_errors, list):
+        completion_errors = []
+    last_attempt_errors = diagnostics.get("last_attempt_errors")
+    if not isinstance(last_attempt_errors, list):
+        last_attempt_errors = []
+    return {
+        "provider": diagnostics.get("provider"),
+        "mode": diagnostics.get("mode"),
+        "response_model": diagnostics.get("response_model"),
+        "attempts": diagnostics.get("attempts"),
+        "completion_ids": [
+            response.get("id")
+            for response in responses
+            if isinstance(response, dict) and response.get("id")
+        ],
+        "stop_reasons": [
+            response.get("stop_reason")
+            for response in responses
+            if isinstance(response, dict) and response.get("stop_reason")
+        ],
+        "parse_errors": [_compact_error_message(error) for error in parse_errors],
+        "completion_errors": [_compact_error_message(error) for error in completion_errors],
+        "last_attempt_errors": [_compact_error_message(error) for error in last_attempt_errors],
+    }
+
+
+def _compact_instructor_retry(instructor: dict[str, Any]) -> dict[str, Any]:
+    failed = instructor.get("failed_attempts")
+    if not isinstance(failed, list):
+        failed = []
+    return {
+        "n_attempts": instructor.get("n_attempts"),
+        "total_usage": instructor.get("total_usage"),
+        "failed_attempts": [
+            {
+                "attempt_number": attempt.get("attempt_number"),
+                "exception": _compact_error_message(attempt.get("exception")),
+                "completion_id": _nested(
+                    attempt.get("completion") if isinstance(attempt, dict) else {},
+                    "id",
+                ),
+            }
+            for attempt in failed
+            if isinstance(attempt, dict)
+        ],
+    }
+
+
+def _compact_error_message(error: Any) -> dict[str, Any]:
+    if not isinstance(error, dict):
+        return {"type": type(error).__name__, "message": compact_text(error, limit=260)}
+    message = str(error.get("message") or "")
+    return {
+        "type": error.get("type"),
+        "message": compact_text(_redact_validation_input_value(message), limit=360),
+    }
+
+
+def _redact_validation_input_value(message: str) -> str:
+    lines = []
+    for line in message.splitlines():
+        if "input_value=" in line:
+            line = line.split("input_value=", 1)[0] + "input_value=<omitted>"
+        lines.append(line)
+    return " | ".join(line.strip() for line in lines if line.strip())
 
 
 def _artifact_refs(trace: Path | None) -> dict[str, str | None]:
@@ -725,7 +904,7 @@ def schema() -> dict[str, Any]:
         "commands": {
             "summary": "Aggregate compact counts and representative samples.",
             "slice": "Render compact task rows matching filters.",
-            "task": "Explain one task with optional iterator attempts and artifact refs.",
+            "task": "Explain one task with optional iterator attempts, generation errors, and artifact refs.",
             "timeline": "Show compact derived event timeline for one task.",
             "schema": "Print this machine-readable command summary.",
         },
@@ -761,6 +940,7 @@ def schema() -> dict[str, Any]:
             "uv run python -m worldsim.main trace summary logs/<run> --action create_issue_note",
             "uv run python -m worldsim.main trace slice logs/<run> --outcome resistant_unaware --fields task_id,site,action,reward_msg,iterator_stop",
             "uv run python -m worldsim.main trace task logs/<run> <task_id> --iterator --refs",
+            "uv run python -m worldsim.main trace timeline logs/<run> <task_id>",
         ],
     }
 

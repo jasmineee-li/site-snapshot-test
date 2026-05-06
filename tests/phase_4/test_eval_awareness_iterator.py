@@ -308,7 +308,15 @@ def test_eval_awareness_rewrite_prompt_uses_benign_xml_problem_sheet():
     assert "<payload>" in input_text
     assert "<cue_diagnosis>" in input_text
     assert "<rewrite_constraints>" in input_text
+    assert "structured_output_limits" in input_text
+    assert '"rewrite_plan": 1000' in input_text
     assert "<task_context>" in input_text
+
+
+def test_eval_awareness_rewrite_uses_three_structured_attempts():
+    from worldsim.phase_4 import eval_awareness_rewrite_api
+
+    assert eval_awareness_rewrite_api._STRUCTURED_ATTEMPTS == 3
 
 
 def test_eval_awareness_rewrite_schema_accepts_payload_only_seed_host_owned():
