@@ -6,6 +6,7 @@ from typing import Any
 
 # ruff: noqa: F403
 from worldsim.seeding import _impl as _legacy_impl
+from worldsim.seeding import validation as _validation
 from worldsim.seeding._impl import *
 
 globals().update(
@@ -35,6 +36,8 @@ def _sync_legacy_patches() -> None:
     for name in _PATCHABLE_GLOBALS:
         if name in globals():
             setattr(_legacy_impl, name, globals()[name])
+            if name == "EDITOR_REGISTRY":
+                setattr(_validation, name, globals()[name])
 
 
 def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> None:
