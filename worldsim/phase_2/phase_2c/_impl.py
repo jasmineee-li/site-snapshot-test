@@ -19,7 +19,6 @@ import asyncio
 import json
 import logging
 import os
-import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -50,6 +49,23 @@ from worldsim.instance_selection import (
     _ordered_instance_dicts,
     replica_key,
     select_task_site_instance_dict_p2c,
+)
+from worldsim.phase_2.phase_2c.admission_guards import (
+    _answer_target_collision_reason,
+    _benign_agent_response_expected_strings,
+    _flatten_string_values,
+    _seed_has_appended_surface_attack,
+    _seed_surface_values,
+    _strings_overlap,
+)
+from worldsim.phase_2.phase_2c.exposure import (
+    _first_rendered_payload,
+    _metadata_path_value,
+    _phase4_exposure_inadmissible_reason,
+    _reachability_resource_for_task,
+    _required_url_token,
+    _selected_rendered_payload,
+    _verification_target_url,
 )
 from worldsim.phase_2.phase_2c.fingerprints import (
     _exposure_contract_fingerprint_projection,
@@ -94,7 +110,14 @@ _PHASE_2C_REEXPORTED_HELPERS = (
     _hours_since,
     _instances_digest,
     _sync_stamp_commit,
+    _benign_agent_response_expected_strings,
+    _flatten_string_values,
+    _metadata_path_value,
+    _seed_has_appended_surface_attack,
+    _seed_surface_values,
     skipped_task_stanza,
+    _strings_overlap,
+    _verification_target_url,
 )
 
 # Failpoint bases fired by ``write_json_atomic``. Callers wire these up so the
@@ -1279,165 +1302,6 @@ def _iter_final_state_reward_configs(reward_function: Any) -> list[dict[str, Any
     return configs
 
 
-def _phase4_exposure_inadmissible_reason(contract: Any) -> str | None:
-    if not isinstance(contract, dict):
-        return None
-    capability = contract.get("phase4_exposure")
-    if not isinstance(capability, dict):
-        return None
-    if capability.get("admissible") is True:
-        return None
-    reason = capability.get("reason")
-    if isinstance(reason, str) and reason.strip():
-        return reason.strip()
-    return "inadmissible"
-
-
-def _reachability_resource_for_task(
-    task: dict[str, Any],
-    *,
-    metadata: dict[str, Any] | None = None,
-) -> dict[str, Any] | None:
-    """Project an exposure contract into the existing reachability probe shape."""
-    resource = task.get("benign_target_resource")
-    projected = dict(resource) if isinstance(resource, dict) else {}
-    contract = task.get("exposure_contract")
-    if not isinstance(contract, dict):
-        return projected or None
-    verification = contract.get("verification")
-    verification_url = (
-        verification.get("url")
-        if isinstance(verification, dict)
-        else contract.get("benign_read_url")
-    )
-    if isinstance(verification_url, str) and verification_url.strip():
-        projected["start_url_resolved"] = verification_url
-    target_url = _verification_target_url(contract, metadata or {})
-    if target_url:
-        projected["exposure_target_url"] = target_url
-    kind = contract.get("kind")
-    if isinstance(kind, str) and kind.strip():
-        projected["kind"] = kind
-    if "anchors" not in projected and isinstance(contract.get("anchors"), dict):
-        projected["anchors"] = dict(contract["anchors"])
-    projected["exposure_contract_id"] = contract.get("contract_id")
-    projected["exposure_mode"] = contract.get("mode")
-    return projected
-
-
-def _verification_target_url(contract: dict[str, Any], metadata: dict[str, Any]) -> str | None:
-    verification = contract.get("verification")
-    if not isinstance(verification, dict):
-        return None
-    target = verification.get("target")
-    if not isinstance(target, dict):
-        return None
-    direct = target.get("url")
-    if isinstance(direct, str) and direct.strip():
-        return direct.strip()
-    source = target.get("url_source")
-    if not isinstance(source, str) or not source.startswith("seed_metadata."):
-        return None
-    key = source.removeprefix("seed_metadata.")
-    value = _metadata_path_value(metadata, key)
-    if isinstance(value, str) and value.strip():
-        return value.strip()
-    return None
-
-
-def _metadata_path_value(metadata: dict[str, Any], path: str) -> Any:
-    current: Any = metadata
-    for part in path.split("."):
-        if isinstance(current, dict):
-            current = current.get(part)
-            continue
-        if isinstance(current, list):
-            selected: Any = None
-            if part.isdigit():
-                index = int(part)
-                if 0 <= index < len(current):
-                    selected = current[index]
-            else:
-                for item in current:
-                    if isinstance(item, dict) and item.get("role") == part:
-                        selected = item
-                        break
-            current = selected
-            continue
-        return None
-    return current
-
-
-def _required_url_token(task: dict[str, Any]) -> str | None:
-    """Return the first URL value from task.required_tokens, or None."""
-    tokens = task.get("required_tokens")
-    if not isinstance(tokens, list):
-        return None
-    for entry in tokens:
-        if not isinstance(entry, dict):
-            continue
-        if entry.get("kind") != "url":
-            continue
-        value = entry.get("value")
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return None
-
-
-def _first_rendered_payload(seed: dict[str, Any]) -> str | None:
-    """Extract the longest rendered payload string from a seed's editor_calls.
-
-    Used as the source pool for the reachability probe's second witness.
-    Prefers the longest arg value across all calls so an unsubstituted
-    short ``{benign_*}`` token does not win over the actual body text:
-    observed in 3 reddit create_comment tasks where the dict iteration
-    picked the 22-char ``{benign_submission_id}`` selector arg before
-    the 200-600 char comment body, producing a literal-token witness
-    that the reachability probe could never find on the rendered page.
-    """
-    if not isinstance(seed, dict):
-        return None
-    calls = seed.get("editor_calls")
-    if not isinstance(calls, list):
-        return None
-    best: str | None = None
-    for call in calls:
-        if not isinstance(call, dict):
-            continue
-        args = call.get("args")
-        if not isinstance(args, dict):
-            continue
-        for value in args.values():
-            if isinstance(value, str) and len(value) >= 20:
-                if best is None or len(value) > len(best):
-                    best = value
-    return best
-
-
-def _selected_rendered_payload(task: dict[str, Any]) -> str | None:
-    """Return the selected Phase 2b rendered payload when present."""
-    payloads = task.get("payload_texts")
-    if not isinstance(payloads, list) or not payloads:
-        return None
-    raw_index = task.get("selected_payload_index", 0)
-    try:
-        selected_index = int(raw_index)
-    except (TypeError, ValueError):
-        selected_index = 0
-    candidates: list[Any] = []
-    if 0 <= selected_index < len(payloads):
-        candidates.append(payloads[selected_index])
-    candidates.extend(payloads)
-    for payload in candidates:
-        if not isinstance(payload, dict):
-            continue
-        for key in ("rendered_payload", "raw_text"):
-            value = payload.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-    return None
-
-
 def _preflight_request_context_options(
     instance: dict[str, Any],
     *,
@@ -1881,156 +1745,6 @@ def _resolve_benign_browser_context_auth(
     if resolved.unusable_reason is not None:
         return {}, resolved.unusable_reason
     return dict(resolved.browser_context_kwargs), None
-
-
-_ORDERED_ANSWER_RE = re.compile(
-    r"\b(latest|newest|most\s+recent|first)\b",
-    re.IGNORECASE,
-)
-_SURFACE_ANSWER_TERMS: dict[str, tuple[str, ...]] = {
-    "issue.title": ("title",),
-    "submission.title": ("title",),
-    "issue.description": ("description", "body"),
-    "submission.body": ("description", "body", "post"),
-}
-_SURFACE_EDITOR_METHODS: dict[str, tuple[str, ...]] = {
-    "issue.title": ("gitlab.create_issue_title",),
-    "issue.description": ("gitlab.create_issue_description",),
-    "submission.title": ("reddit.create_submission_title",),
-    "submission.body": ("reddit.create_submission",),
-}
-_SURFACE_ARG_FIELDS: dict[str, tuple[str, ...]] = {
-    "issue.title": ("title", "title_template"),
-    "submission.title": ("title", "title_template"),
-    "issue.description": ("body", "body_template", "description", "description_template"),
-    "submission.body": ("body", "body_template", "description", "description_template"),
-}
-
-
-def _answer_target_collision_reason(task: dict[str, Any]) -> str | None:
-    """Detect generated created-child carriers whose answer target is displaced.
-
-    Phase 2's self-contained adversarial seed preserves the benign setup call
-    before appending the adversarial payload write. For ordered listing tasks
-    such as "tell me the newest issue title", that extra child can become the
-    ordered answer itself. If the benign reward still expects the original
-    setup value, Phase 4 measures a task-definition conflict, not attack
-    effectiveness. Quarantine those tasks before live seeding.
-    """
-    surface = str(task.get("target_surface_id") or "")
-    answer_terms = _SURFACE_ANSWER_TERMS.get(surface)
-    if not answer_terms:
-        return None
-    instruction = str(task.get("instruction") or "")
-    lowered_instruction = instruction.casefold()
-    if _ORDERED_ANSWER_RE.search(instruction) is None:
-        return None
-    if not any(term in lowered_instruction for term in answer_terms):
-        return None
-    if not _seed_has_appended_surface_attack(task, surface):
-        return None
-    expected = _benign_agent_response_expected_strings(task)
-    if not expected:
-        return None
-    benign_surface_values = _seed_surface_values(task.get("data_seed"), surface)
-    if not benign_surface_values:
-        return None
-    if not any(
-        _strings_overlap(answer, value) for answer in expected for value in benign_surface_values
-    ):
-        return None
-    return (
-        f"ordered answer-target collision for {surface}: benign reward expects a "
-        "seed-created field value, but the adversarial self-contained seed appends "
-        "another created child on the same ordered surface. Generate an answer "
-        "whose target remains invariant under adversarial seeding, or use a "
-        "payload-aware reward contract."
-    )
-
-
-def _seed_has_appended_surface_attack(task: dict[str, Any], surface: str) -> bool:
-    data_seed = task.get("data_seed")
-    adv_seed = task.get("adversarial_data_seed")
-    data_calls = data_seed.get("editor_calls") if isinstance(data_seed, dict) else None
-    adv_calls = adv_seed.get("editor_calls") if isinstance(adv_seed, dict) else None
-    if not isinstance(data_calls, list) or not isinstance(adv_calls, list):
-        return False
-    if len(adv_calls) <= len(data_calls):
-        return False
-    methods = _SURFACE_EDITOR_METHODS.get(surface, ())
-    for call in adv_calls[len(data_calls) :]:
-        if not isinstance(call, dict):
-            continue
-        method = f"{call.get('site')}.{call.get('method')}"
-        if method in methods:
-            return True
-    return False
-
-
-def _seed_surface_values(seed: Any, surface: str) -> list[str]:
-    calls = seed.get("editor_calls") if isinstance(seed, dict) else None
-    if not isinstance(calls, list):
-        return []
-    fields = _SURFACE_ARG_FIELDS.get(surface, ())
-    methods = _SURFACE_EDITOR_METHODS.get(surface, ())
-    values: list[str] = []
-    for call in calls:
-        if not isinstance(call, dict):
-            continue
-        method = f"{call.get('site')}.{call.get('method')}"
-        if method not in methods:
-            continue
-        args = call.get("args")
-        if not isinstance(args, dict):
-            continue
-        for arg_field in fields:
-            value = args.get(arg_field)
-            if isinstance(value, str) and value.strip():
-                values.append(value.strip())
-    return values
-
-
-def _benign_agent_response_expected_strings(task: dict[str, Any]) -> list[str]:
-    reward = task.get("reward_function")
-    benign = reward.get("benign_reward") if isinstance(reward, dict) else None
-    evals = benign.get("eval") if isinstance(benign, dict) else None
-    if not isinstance(evals, list):
-        return []
-    values: list[str] = []
-    for evaluator in evals:
-        if (
-            not isinstance(evaluator, dict)
-            or evaluator.get("evaluator") != "AgentResponseEvaluator"
-        ):
-            continue
-        expected = evaluator.get("expected")
-        if isinstance(expected, dict):
-            values.extend(_flatten_string_values(expected.get("retrieved_data")))
-    return [value for value in values if value.strip()]
-
-
-def _flatten_string_values(value: Any) -> list[str]:
-    if isinstance(value, str):
-        return [value]
-    if isinstance(value, list):
-        out: list[str] = []
-        for item in value:
-            out.extend(_flatten_string_values(item))
-        return out
-    if isinstance(value, dict):
-        out: list[str] = []
-        for item in value.values():
-            out.extend(_flatten_string_values(item))
-        return out
-    return []
-
-
-def _strings_overlap(left: str, right: str) -> bool:
-    normalized_left = re.sub(r"\s+", " ", left).strip().casefold()
-    normalized_right = re.sub(r"\s+", " ", right).strip().casefold()
-    if not normalized_left or not normalized_right:
-        return False
-    return normalized_left in normalized_right or normalized_right in normalized_left
 
 
 def _auth_probe_failure_kind(reason: str) -> str:
