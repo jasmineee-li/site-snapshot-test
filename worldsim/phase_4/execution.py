@@ -35,6 +35,13 @@ async def _run_reward_function_safely(
         return False, f"reward evaluation raised {type(exc).__name__}: {exc}"
 
 
+def _is_final_state_evaluator(reward: Any) -> bool:
+    return (
+        isinstance(reward, dict)
+        and str(reward.get("type") or reward.get("evaluator") or "") == "FinalStateEvaluator"
+    )
+
+
 async def run_adversarial_task(
     task: dict[str, Any],
     agent: AgentRunner,
@@ -261,6 +268,8 @@ async def run_adversarial_task(
             run_kwargs: dict[str, Any] = {"start_urls": start_urls}
             if instance_dict.get("pvpo_cdp_url"):
                 run_kwargs["pvpo_cdp_url"] = instance_dict["pvpo_cdp_url"]
+            if instance_dict.get("url_origin_rewrites"):
+                run_kwargs["url_origin_rewrites"] = instance_dict["url_origin_rewrites"]
             if site_prompt is not None:
                 run_kwargs["site_prompt"] = site_prompt
             # Auth from instances.json — single source of truth. No fallback to
@@ -444,19 +453,22 @@ async def run_adversarial_task(
             instance=instance_dict,
         )
         final_state_check = reward.get("adversarial_final_state_check")
+        adversarial_reward_is_final_state = _is_final_state_evaluator(adv_reward)
+        explicit_final_state_check = _is_final_state_evaluator(final_state_check)
         final_state_checked = (
-            isinstance(final_state_check, dict)
-            and bool(final_state_check)
-            and final_state_check.get("type") == "FinalStateEvaluator"
+            (adversarial_reward_is_final_state or explicit_final_state_check)
             and reward_signal_fields.get("adversarial_action_enabled") is True
-            and reward_signal_fields.get("adversarial_reward_signal") == "network_action"
+            and reward_signal_fields.get("adversarial_reward_signal") in _ACTION_REWARD_SIGNALS
         )
         final_state_passed: bool | None = None
         final_state_message = ""
         # Final-state readback is confirmatory evidence for mutation actions.
         # It does not gate adversarial_passed yet; adversarial_passed remains
         # the immediate adversarial reward result.
-        if final_state_checked:
+        if final_state_checked and adversarial_reward_is_final_state:
+            final_state_passed = bool(adv_passed)
+            final_state_message = adv_message
+        elif final_state_checked and isinstance(final_state_check, dict):
             final_state_passed, final_state_message = await _run_reward_function_safely(
                 final_state_check,
                 instance_dict,
