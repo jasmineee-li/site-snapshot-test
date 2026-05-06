@@ -42,6 +42,7 @@ async def test_process_adversarial_result_emits_spec_shape(monkeypatch, tmp_path
         agent_factory=lambda: None,
         profile_path=tmp_path / "profile.json",
         task_dir_root=tmp_path,
+        variant_system="strategy-variation",
     )
 
     assert result["task_id"] == "adv-1"
@@ -90,6 +91,7 @@ async def test_process_adversarial_result_marks_uninterpretable_variation_inconc
         agent_factory=lambda: None,
         profile_path=tmp_path / "profile.json",
         task_dir_root=tmp_path,
+        variant_system="strategy-variation",
     )
 
     assert result["final_status"] == "inconclusive"
@@ -131,6 +133,7 @@ async def test_process_adversarial_result_maps_unactionable_distracted_judge_to_
         agent_factory=lambda: None,
         profile_path=tmp_path / "profile.json",
         task_dir_root=tmp_path,
+        variant_system="strategy-variation",
     )
 
     assert result["final_status"] == "task_not_salient"
@@ -169,6 +172,7 @@ async def test_process_adversarial_result_marks_judge_failed_variation_inconclus
         agent_factory=lambda: None,
         profile_path=tmp_path / "profile.json",
         task_dir_root=tmp_path,
+        variant_system="strategy-variation",
     )
 
     assert result["final_status"] == "inconclusive"
@@ -212,6 +216,7 @@ async def test_process_adversarial_result_marks_partial_capacity_inconclusive(
         agent_factory=lambda: None,
         profile_path=tmp_path / "profile.json",
         task_dir_root=tmp_path,
+        variant_system="strategy-variation",
     )
 
     assert result["final_status"] == "inconclusive"
@@ -251,6 +256,7 @@ async def test_process_adversarial_result_does_not_run_strategy_variation_after_
         agent_factory=lambda: None,
         profile_path=tmp_path / "profile.json",
         task_dir_root=tmp_path,
+        variant_system="strategy-variation",
     )
 
     assert result["final_status"] == "injection_not_encountered"

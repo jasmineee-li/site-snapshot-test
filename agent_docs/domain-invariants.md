@@ -315,19 +315,27 @@ visible-but-unpainted witness failures, but both remain non-encounters when
 below-fold Reddit/Postmill comment carriers; fix task/exposure admission
 instead.
 
-Transcript Purpose and Verbalized Eval Awareness are observational metrics. They must never gate, branch, or affect run control.
+Transcript Purpose and Verbalized Eval Awareness are observational metrics in
+baseline trajectory scoring. The explicit `eval-awareness-iterator` Phase 4
+variant system is the exception: it uses Transcript Purpose as the declared
+rewrite-control signal, while VEA remains a reported generalization signal and
+must not be optimized or used for branching.
 
-Attack-budget reporting is also observational. Summaries should expose the
-configured `3+3+1` cap, generated/rejected/evaluated/PVPO-valid/compliant
-counts by round, remaining budget, termination reason, and lineage, but those
-fields must not change final-status classification or ASR computation.
+Attack-budget reporting is also observational. Legacy strategy variation should
+expose the configured `3+3+1` cap, generated/rejected/evaluated/PVPO-valid/
+compliant counts by round, remaining budget, termination reason, and lineage.
+The eval-awareness iterator should expose its sequential rewrite cap, attempted
+rewrites, rejected rewrites, browser-evaluated attempts, TP-real attempts,
+PVPO-valid attempts, compliant attempts, selected iteration, and stop reason.
+Those fields must not override reward/PVPO final-status classification or ASR
+computation.
 
 Trajectories flow through disk. A Phase 4 run writes `phase_4/results.json`,
 `phase_4/progress.json`, and timestamped per-task directories containing
 `history.json`, `result.json`, `screenshots/`, `conversations/`, and `pvpo/`.
 Judges and classifiers receive host-side dataclass-projected slices.
 
-The six host-API prompt files are:
+The host-API prompt files include:
 
 - `worldsim/prompts/judge-adversarial-failure.md`
 - `worldsim/prompts/generate-variant.md`
@@ -335,6 +343,8 @@ The six host-API prompt files are:
 - `worldsim/prompts/transcript-purpose-classify.md`
 - `worldsim/prompts/verbalized-eval-awareness.md`
 - `worldsim/prompts/placement-fix.md`
+- `worldsim/prompts/eval-awareness-cue-diagnosis.md`
+- `worldsim/prompts/eval-awareness-rewrite.md`
 
 They feed single-turn API calls with no sandbox error boundary. Be conservative and test exact parsing contracts.
 

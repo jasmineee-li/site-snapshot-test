@@ -28,9 +28,14 @@ from typing import Any
 from dotenv import load_dotenv
 
 from worldsim.adversarial_actions import ACTION_POLICIES
+from worldsim.agent_runtime import RUNNER_BROWSER_USE
 from worldsim.config import has_configured_agent_auth, load_benchmark_config
-from worldsim.phase_4._context import phase_4_variant_budget_choices
+from worldsim.phase_4._context import (
+    phase_4_variant_budget_choices,
+    phase_4_variant_system_choices,
+)
 from worldsim.phases.phase_1_task_cards import task_capability_profile_choices
+from worldsim.runners import available_runners
 
 load_dotenv(override=True)  # override=True: .env values win over empty-string shell vars.
 
@@ -268,6 +273,16 @@ def build_parser() -> argparse.ArgumentParser:
         "reset_endpoint). Required for Phase 4.",
     )
     phase_cmd.add_argument(
+        "--runner",
+        default=RUNNER_BROWSER_USE,
+        choices=available_runners(),
+        help=(
+            "Browser-agent harness for execution phases. Browser Use remains "
+            "the only Phase 4 WorldSim-v5 runner until AgentLab PVPO/network/"
+            "trajectory parity lands."
+        ),
+    )
+    phase_cmd.add_argument(
         "--host-inventory-instances",
         type=Path,
         default=None,
@@ -351,6 +366,27 @@ def build_parser() -> argparse.ArgumentParser:
             "Phase 4: cap concurrent Browser Use worker sessions, including "
             "initial evaluation and variant/placement reruns. Omit to use the "
             "instance pool size or WORLDSIM_MAX_WORKERS fallback."
+        ),
+    )
+    phase_cmd.add_argument(
+        "--phase-4-variant-system",
+        choices=phase_4_variant_system_choices(),
+        default=None,
+        help=(
+            "Phase 4 post-resistance rewrite system. Defaults to "
+            "eval-awareness-iterator; use strategy-variation for the legacy "
+            "refusal-judge strategy fan-out, or none to stop after the initial "
+            "encountered refusal."
+        ),
+    )
+    phase_cmd.add_argument(
+        "--phase-4-eval-awareness-max-iterations",
+        type=_non_negative_int,
+        default=None,
+        metavar="N",
+        help=(
+            "Phase 4 eval-awareness iterator: maximum sequential rewrite/rerun "
+            "attempts after the baseline trajectory. Defaults to 3."
         ),
     )
     phase_cmd.add_argument(
@@ -542,6 +578,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Override the saved Browser Use agent model for the resumed phase.",
     )
     resume_cmd.add_argument(
+        "--runner",
+        default=argparse.SUPPRESS,
+        choices=available_runners(),
+        help="Override the saved browser-agent harness for the resumed phase.",
+    )
+    resume_cmd.add_argument(
         "--sandbox-model",
         default=argparse.SUPPRESS,
         help="Override the saved Claude sandbox model for the resumed phase.",
@@ -585,6 +627,25 @@ def build_parser() -> argparse.ArgumentParser:
         default=argparse.SUPPRESS,
         metavar="N",
         help="Override the saved Phase 4 Browser Use worker concurrency cap.",
+    )
+    resume_cmd.add_argument(
+        "--phase-4-variant-system",
+        choices=phase_4_variant_system_choices(),
+        default=argparse.SUPPRESS,
+        help="Override the saved Phase 4 post-resistance rewrite system.",
+    )
+    resume_cmd.add_argument(
+        "--phase-4-eval-awareness-max-iterations",
+        type=_non_negative_int,
+        default=argparse.SUPPRESS,
+        metavar="N",
+        help="Override the saved Phase 4 eval-awareness iterator rewrite budget.",
+    )
+    resume_cmd.add_argument(
+        "--phase-4-variant-budget",
+        choices=phase_4_variant_budget_choices(),
+        default=argparse.SUPPRESS,
+        help="Override the saved legacy Phase 4 strategy-variation budget.",
     )
     resume_cmd.add_argument(
         "--generate-novel",
@@ -801,6 +862,107 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run state dir, phase_4/results.json, or pipeline_state.json. Defaults to WORLDSIM_STATE_DIR/logs.",
     )
     inspect_cmd.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+
+    agentlab_cmd = subparsers.add_parser(
+        "agentlab",
+        help="Run AgentLab/BrowserGym comparison tasks.",
+    )
+    agentlab_sub = agentlab_cmd.add_subparsers(dest="agentlab_command", required=True)
+    agentlab_models = agentlab_sub.add_parser(
+        "models",
+        help="List named WorldSim AgentLab model profiles.",
+    )
+    agentlab_models.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+    agentlab_run = agentlab_sub.add_parser(
+        "run",
+        help="Run one AgentLab/BrowserGym comparison task through the isolated sidecar.",
+    )
+    agentlab_run.add_argument(
+        "--task-json",
+        type=Path,
+        default=None,
+        help="WorldSim task JSON object. Lists are accepted only when they contain one task.",
+    )
+    agentlab_run.add_argument(
+        "--browsergym-task-name",
+        default=None,
+        help="BrowserGym task name to run when --task-json is omitted or should be overridden.",
+    )
+    agentlab_run.add_argument(
+        "--task-id",
+        default=None,
+        help="Optional task id for artifact paths and result.json.",
+    )
+    agentlab_run.add_argument(
+        "--benchmark-name",
+        default=None,
+        help="Benchmark metadata for synthetic --browsergym-task-name tasks.",
+    )
+    agentlab_run.add_argument(
+        "--instances",
+        type=Path,
+        required=True,
+        help="Instances config supplying site URLs, reset endpoints, and auth metadata.",
+    )
+    agentlab_run.add_argument(
+        "--site",
+        default=None,
+        help="Site/instance to bind. Required when the task and instances are ambiguous.",
+    )
+    agentlab_run.add_argument(
+        "--replica-name",
+        default=None,
+        help="Optional same-site replica_name selector.",
+    )
+    agentlab_run.add_argument(
+        "--replica-index",
+        type=int,
+        default=None,
+        help="Optional same-site replica_index selector.",
+    )
+    agentlab_run.add_argument(
+        "--output-dir",
+        type=Path,
+        default=None,
+        help="Task artifact directory. Defaults under logs/agentlab_comparison/.",
+    )
+    agentlab_run.add_argument(
+        "--agent-model",
+        default="gpt52",
+        help="Agent model/profile passed to AgentLab. Default: gpt52.",
+    )
+    agentlab_run.add_argument(
+        "--agent-provider",
+        choices=AGENT_PROVIDER_CHOICES,
+        default="openrouter",
+        help="Provider route for bare model names/profiles. Default: openrouter.",
+    )
+    agentlab_run.add_argument(
+        "--agent-service-tier",
+        default=None,
+        help="Optional OpenAI service tier for OpenAI/OpenRouter routes.",
+    )
+    agentlab_run.add_argument(
+        "--max-steps",
+        type=_positive_int,
+        default=30,
+        help="AgentLab/BrowserGym max_steps.",
+    )
+    agentlab_run.add_argument(
+        "--attack-mode",
+        choices=("comparison", "seeded_comparison"),
+        default="comparison",
+        help=(
+            "comparison runs BrowserGym-native tasks; seeded_comparison also applies "
+            "the task data_seed before the AgentLab run."
+        ),
+    )
+    agentlab_run.add_argument(
+        "--benchmark-prefix",
+        default="webarena_verified",
+        help="Fallback BrowserGym task-name prefix for WebArena Verified task ids.",
+    )
+    agentlab_run.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
 
     task_bank_cmd = subparsers.add_parser(
         "task-bank",
@@ -1032,6 +1194,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "inspect":
         return _dispatch_inspect(args)
+
+    if args.command == "agentlab":
+        from worldsim import agentlab_cli
+
+        if args.agentlab_command == "run":
+            return agentlab_cli.run(args)
+        if args.agentlab_command == "models":
+            return agentlab_cli.models(args)
+        return 1
 
     if args.command == "task-bank":
         return _dispatch_task_bank(args)
@@ -1294,6 +1465,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     config = getattr(args, "config", None)
     instances = getattr(args, "instances", None)
     agent_model = getattr(args, "agent_model", None)
+    agent_runner = getattr(args, "runner", None)
     sandbox_model = getattr(args, "sandbox_model", None)
     agent_provider = getattr(args, "agent_provider", None)
     agent_service_tier = getattr(args, "agent_service_tier", None)
@@ -1302,6 +1474,10 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     agent_task_timeout = getattr(args, "agent_task_timeout", None)
     phase_4_max_workers = getattr(args, "phase_4_max_workers", None)
     phase_4_variant_budget = getattr(args, "phase_4_variant_budget", None)
+    phase_4_variant_system = getattr(args, "phase_4_variant_system", None)
+    phase_4_eval_awareness_max_iterations = getattr(
+        args, "phase_4_eval_awareness_max_iterations", None
+    )
     generate_novel = getattr(args, "generate_novel", None)
     novel_tasks_per_site = getattr(args, "novel_tasks_per_site", None)
     task_card_plan = getattr(args, "task_card_plan", None)
@@ -1332,6 +1508,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         instances = Path(state["instances_path"])
     if agent_model is None:
         agent_model = state.get("agent_model")
+    if agent_runner is None:
+        agent_runner = state.get("agent_runner", RUNNER_BROWSER_USE)
     if sandbox_model is None:
         sandbox_model = state.get("sandbox_model", DEFAULT_SANDBOX_MODEL)
     if agent_provider is None:
@@ -1348,6 +1526,12 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         phase_4_max_workers = state.get("phase_4_max_workers")
     if phase_4_variant_budget is None:
         phase_4_variant_budget = state.get("phase_4_variant_budget")
+    if phase_4_variant_system is None:
+        phase_4_variant_system = state.get("phase_4_variant_system")
+    if phase_4_eval_awareness_max_iterations is None:
+        phase_4_eval_awareness_max_iterations = state.get(
+            "phase_4_eval_awareness_max_iterations"
+        )
     if generate_novel is None:
         generate_novel = state.get("generate_novel", False)
     if novel_tasks_per_site is None:
@@ -1409,6 +1593,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         config=config,
         instances=instances,
         agent_model=agent_model,
+        runner=agent_runner,
         sandbox_model=sandbox_model,
         agent_provider=agent_provider,
         agent_service_tier=agent_service_tier,
@@ -1417,6 +1602,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         agent_task_timeout=agent_task_timeout,
         phase_4_max_workers=phase_4_max_workers,
         phase_4_variant_budget=phase_4_variant_budget,
+        phase_4_variant_system=phase_4_variant_system,
+        phase_4_eval_awareness_max_iterations=phase_4_eval_awareness_max_iterations,
         generate_novel=generate_novel,
         novel_tasks_per_site=novel_tasks_per_site,
         task_card_plan=task_card_plan,

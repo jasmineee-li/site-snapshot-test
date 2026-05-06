@@ -48,6 +48,7 @@ async def test_run_strategy_variation_resume_continues_partial_generation_checkp
                         benchmark_root=None,
                         sandbox_model="claude-sonnet-4-6",
                         site_profile=None,
+                        variant_system="strategy-variation",
                     )
                 ),
                 "judge_diagnosis": {
@@ -140,6 +141,7 @@ async def test_run_strategy_variation_resume_reruns_when_generation_records_miss
                         benchmark_root=None,
                         sandbox_model="claude-sonnet-4-6",
                         site_profile=None,
+                        variant_system="strategy-variation",
                     )
                 ),
                 "judge_diagnosis": {

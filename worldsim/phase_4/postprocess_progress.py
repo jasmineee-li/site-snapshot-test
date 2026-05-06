@@ -33,6 +33,7 @@ from typing import Any
 from worldsim.atomic_io import write_json_atomic
 from worldsim.phase_4._context import (
     _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET,
+    _normalize_phase_4_variant_system,
     _phase_4_variant_budget_shape,
 )
 
@@ -56,6 +57,7 @@ class Phase4ProgressState:
     completed_initial_tasks: int
     phase_4_max_workers: int | None = None
     phase_4_variant_budget: str | None = None
+    phase_4_variant_system: str | None = None
     started_task_ids: set[str] = field(default_factory=set)
     active_task_ids: set[str] = field(default_factory=set)
     completed_task_ids: set[str] = field(default_factory=set)
@@ -103,6 +105,7 @@ def compute_progress_extra(state: Phase4ProgressState) -> dict[str, Any]:
     ]
     variant_progress = {
         "schema_version": 1,
+        "variant_system": _normalize_phase_4_variant_system(state.phase_4_variant_system),
         "budget_preset": state.phase_4_variant_budget or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET,
         "budget_shape": list(_phase_4_variant_budget_shape(state.phase_4_variant_budget)),
         "entered_tasks": len(variant_tasks),

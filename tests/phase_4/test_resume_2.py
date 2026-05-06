@@ -27,6 +27,7 @@ async def test_run_strategy_variation_resume_reuses_saved_variant_result(monkeyp
         benchmark_root=None,
         sandbox_model="claude-sonnet-4-6",
         site_profile=None,
+        variant_system="strategy-variation",
     )
     checkpoint_path = phase_4_adversarial._strategy_variation_checkpoint_path(tmp_path, task["id"])
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
@@ -148,6 +149,7 @@ async def test_run_strategy_variation_resume_ignores_saved_variant_result_from_d
                         benchmark_root=None,
                         sandbox_model="claude-sonnet-4-6",
                         site_profile=None,
+                        variant_system="strategy-variation",
                     )
                 ),
                 "judge_diagnosis": {
@@ -285,6 +287,7 @@ async def test_run_strategy_variation_resume_reuses_variant_result_fingerprint_w
                         benchmark_root=None,
                         sandbox_model="claude-sonnet-4-6",
                         site_profile=None,
+                        variant_system="strategy-variation",
                     )
                 ),
                 "judge_diagnosis": {
@@ -380,6 +383,7 @@ async def test_run_strategy_variation_resume_reruns_refusal_variant_without_hist
                         benchmark_root=None,
                         sandbox_model="claude-sonnet-4-6",
                         site_profile=None,
+                        variant_system="strategy-variation",
                     )
                 ),
                 "judge_diagnosis": {

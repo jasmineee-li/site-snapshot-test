@@ -34,6 +34,7 @@ async def run(args: argparse.Namespace) -> int:
         task_dir_root = state_dir / "phase_4" / timestamp
 
     agent_model = getattr(args, "agent_model", None) or DEFAULT_MODEL
+    agent_runner = getattr(args, "runner", RUNNER_BROWSER_USE) or RUNNER_BROWSER_USE
     sandbox_model = getattr(args, "sandbox_model", None) or "claude-sonnet-4-6"
     agent_provider = getattr(args, "agent_provider", None)
     agent_service_tier = getattr(args, "agent_service_tier", None)
@@ -51,6 +52,12 @@ async def run(args: argparse.Namespace) -> int:
     instances_path = getattr(args, "instances", None)
     phase_4_max_workers = getattr(args, "phase_4_max_workers", None)
     phase_4_variant_budget = getattr(args, "phase_4_variant_budget", None)
+    phase_4_variant_system = _normalize_phase_4_variant_system(
+        getattr(args, "phase_4_variant_system", None)
+    )
+    phase_4_eval_awareness_max_iterations = _normalize_eval_awareness_max_iterations(
+        getattr(args, "phase_4_eval_awareness_max_iterations", None)
+    )
 
     _sweep_orphan_inflight_sentinels(task_dir_root)
 
@@ -58,6 +65,7 @@ async def run(args: argparse.Namespace) -> int:
         task_dir_root=task_dir_root,
         instances_path=instances_path or "",
         agent_model=agent_model,
+        agent_runner=agent_runner,
         sandbox_model=sandbox_model,
         agent_provider=agent_provider,
         agent_service_tier=agent_service_tier,
@@ -71,6 +79,8 @@ async def run(args: argparse.Namespace) -> int:
         skip_host_bound_storage_state_auth=skip_host_bound_storage_state_auth,
         phase_4_max_workers=phase_4_max_workers,
         phase_4_variant_budget=phase_4_variant_budget,
+        phase_4_variant_system=phase_4_variant_system,
+        phase_4_eval_awareness_max_iterations=phase_4_eval_awareness_max_iterations,
     )
 
     admission = _load_admitted_phase_4_tasks(
@@ -116,6 +126,36 @@ async def run(args: argparse.Namespace) -> int:
         )
         return 1
     capabilities = get_benchmark_capabilities(run_benchmark or config.benchmark_name)
+    if agent_runner not in capabilities.supported_runners:
+        message = (
+            f"runner {agent_runner!r} is not supported for benchmark "
+            f"{capabilities.canonical_name!r}; supported={capabilities.supported_runners}"
+        )
+        logger.error("Phase 4 benchmark runner gate failed: %s", message)
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="unsupported_runner",
+            error=message,
+            **state_metadata,
+        )
+        return 1
+    if agent_runner != RUNNER_BROWSER_USE:
+        message = (
+            f"runner {agent_runner!r} is available only as an AgentLab/BrowserGym "
+            "comparison scaffold. WorldSim-v5 Phase 4 still requires "
+            "runner='browser_use' until PVPO, network trace, auth, and trajectory "
+            "parity are implemented."
+        )
+        logger.error("Phase 4 runner gate failed: %s", message)
+        save_state(
+            "phase_4",
+            status="failed",
+            reason="runner_not_worldsim_v5_ready",
+            error=message,
+            **state_metadata,
+        )
+        return 1
     if capabilities.phase_4_mode != "worldsim_v5":
         message = f"benchmark {capabilities.canonical_name!r} does not support WorldSim v5 Phase 4"
         logger.error("Phase 4 benchmark metadata gate failed: %s", message)
@@ -397,9 +437,10 @@ async def run(args: argparse.Namespace) -> int:
         llm_timeout=agent_llm_timeout,
         step_timeout=agent_step_timeout,
         task_timeout=agent_task_timeout,
+        runner=agent_runner,
     )
     if phase_4_max_workers is not None:
-        logger.info("Phase 4 Browser Use worker concurrency cap: %d", phase_4_max_workers)
+        logger.info("Phase 4 browser-agent worker concurrency cap: %d", phase_4_max_workers)
     browser_worker_semaphore = (
         asyncio.Semaphore(phase_4_max_workers) if phase_4_max_workers is not None else None
     )
@@ -455,6 +496,7 @@ async def run(args: argparse.Namespace) -> int:
                     instances=config.instances,
                     config_url_placeholders=config.url_placeholders,
                     agent_model=agent_model,
+                    agent_runner=agent_runner,
                     agent_provider=agent_provider,
                     agent_llm_timeout=agent_llm_timeout,
                     agent_step_timeout=agent_step_timeout,
@@ -496,6 +538,7 @@ async def run(args: argparse.Namespace) -> int:
                 instances=config.instances,
                 config_url_placeholders=config.url_placeholders,
                 agent_model=agent_model,
+                agent_runner=agent_runner,
                 agent_provider=agent_provider,
                 agent_llm_timeout=agent_llm_timeout,
                 agent_step_timeout=agent_step_timeout,
@@ -516,6 +559,7 @@ async def run(args: argparse.Namespace) -> int:
         completed_initial_tasks=len(results),
         phase_4_max_workers=phase_4_max_workers,
         phase_4_variant_budget=phase_4_variant_budget,
+        phase_4_variant_system=phase_4_variant_system,
     )
     _write_progress_safely(
         "postprocessing",
@@ -550,6 +594,8 @@ async def run(args: argparse.Namespace) -> int:
                     str(task_by_id.get(str(result.get("task_id", "")), {}).get("site", ""))
                 ),
                 variant_budget_preset=phase_4_variant_budget,
+                variant_system=phase_4_variant_system,
+                eval_awareness_max_iterations=phase_4_eval_awareness_max_iterations,
                 progress_callback=_record_progress,
                 browser_worker_semaphore=browser_worker_semaphore,
             )
@@ -609,6 +655,7 @@ async def run(args: argparse.Namespace) -> int:
 import sys as _sys
 
 from worldsim.phase_4 import admission as _admission
+from worldsim.phase_4 import eval_awareness_iterator as _eval_awareness_iterator
 from worldsim.phase_4 import execution as _execution
 from worldsim.phase_4 import execution_helpers as _execution_helpers
 from worldsim.phase_4 import metrics as _metrics
@@ -628,6 +675,7 @@ _link_modules(
         _admission,
         _execution,
         _execution_helpers,
+        _eval_awareness_iterator,
         _metrics,
         _payload_text,
         _placement_loop,

@@ -37,10 +37,10 @@ from worldsim.agent_config import (
     task_reset_endpoints,
 )
 from worldsim.agent_prompt import build_agent_prompt
+from worldsim.agent_runtime import RUNNER_BROWSER_USE, AgentResult, AgentRunner
 from worldsim.atomic_io import write_json_atomic
 from worldsim.auth_tokens import acquire_tokens_for_instances
 from worldsim.benchmark_capabilities import get_benchmark_capabilities, infer_benchmark_name
-from worldsim.browser_use_agent import AgentResult, AgentRunner
 from worldsim.config import (
     BenchmarkConfig,
     BenchmarkInstance,
@@ -259,6 +259,14 @@ _RESET_MAX_RETRIES = 2
 _RESET_RETRY_DELAY = 10
 
 _VARIANT_ROUNDS_KEY = "variant_rounds"
+_PHASE_4_VARIANT_SYSTEMS: tuple[str, ...] = (
+    "eval-awareness-iterator",
+    "strategy-variation",
+    "none",
+)
+_DEFAULT_PHASE_4_VARIANT_SYSTEM = "eval-awareness-iterator"
+_DEFAULT_PHASE_4_EVAL_AWARENESS_MAX_ITERATIONS = 3
+_PHASE_4_EVAL_AWARENESS_ITERATOR_VERSION = "eval-awareness-iterator-v1"
 _ADAPTIVE_VARIANT_BUDGET = (3, 3, 1)
 _PHASE_4_VARIANT_BUDGET_PRESETS: dict[str, tuple[int, ...]] = {
     "adaptive-3-3-1": _ADAPTIVE_VARIANT_BUDGET,
@@ -269,6 +277,23 @@ _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET = "adaptive-3-3-1"
 
 def phase_4_variant_budget_choices() -> tuple[str, ...]:
     return tuple(_PHASE_4_VARIANT_BUDGET_PRESETS)
+
+
+def phase_4_variant_system_choices() -> tuple[str, ...]:
+    return _PHASE_4_VARIANT_SYSTEMS
+
+
+def _normalize_phase_4_variant_system(value: str | None) -> str:
+    normalized = (value or _DEFAULT_PHASE_4_VARIANT_SYSTEM).strip()
+    if normalized in _PHASE_4_VARIANT_SYSTEMS:
+        return normalized
+    return _DEFAULT_PHASE_4_VARIANT_SYSTEM
+
+
+def _normalize_eval_awareness_max_iterations(value: int | None) -> int:
+    if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+        return value
+    return _DEFAULT_PHASE_4_EVAL_AWARENESS_MAX_ITERATIONS
 
 
 def _phase_4_variant_budget_shape(preset: str | None) -> tuple[int, ...]:

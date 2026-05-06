@@ -72,8 +72,18 @@ scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml -
 `--quiet` captures passing pytest output and surfaces full output only on failure. If it fails, include the surfaced failure output in the PR or handoff.
 
 Docs-only changes that describe Phase 4 behavior do not require a live stack by
-themselves, but they should name the expected runtime evidence. For the
-`3+3+1` adaptive strategy loop, verification evidence should show:
+themselves, but they should name the expected runtime evidence. For the default
+`eval-awareness-iterator`, verification evidence should show:
+
+- the configured sequential rewrite cap (default 3)
+- the TP trigger for each attempted iteration, including `None`/failure triggers
+- cue diagnosis and rewrite status for each iteration
+- rejected-rewrite classes from host payload-contract QA
+- browser-evaluated, PVPO-valid, TP-real, VEA-aware, and compliant counts
+- selected iteration and stop reason
+- unchanged benign task contracts and Phase 3 reward functions across rewrites
+
+For the legacy `3+3+1` adaptive strategy loop, verification evidence should show:
 
 - the configured attack budget (`[3, 3, 1]`, total variant budget 7)
 - per-round generated, host-rejected, browser-evaluated, PVPO-valid, and compliant counts

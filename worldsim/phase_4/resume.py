@@ -55,6 +55,7 @@ def _phase_4_state_metadata(
     task_dir_root: Path,
     instances_path: Path | str,
     agent_model: str,
+    agent_runner: str = RUNNER_BROWSER_USE,
     sandbox_model: str,
     agent_provider: str | None,
     agent_service_tier: str | None,
@@ -65,6 +66,8 @@ def _phase_4_state_metadata(
     skip_host_bound_storage_state_auth: bool,
     phase_4_max_workers: int | None = None,
     phase_4_variant_budget: str | None = None,
+    phase_4_variant_system: str | None = None,
+    phase_4_eval_awareness_max_iterations: int | None = None,
     agent_llm_timeout: float | None = None,
     agent_step_timeout: float | None = None,
     agent_task_timeout: float | None = None,
@@ -73,6 +76,7 @@ def _phase_4_state_metadata(
         "task_dir_root": str(task_dir_root),
         "instances_path": str(instances_path),
         "agent_model": agent_model,
+        "agent_runner": agent_runner,
         "sandbox_model": sandbox_model,
         "agent_provider": agent_provider,
         "agent_service_tier": agent_service_tier,
@@ -89,8 +93,15 @@ def _phase_4_state_metadata(
         metadata["benchmark_path"] = str(benchmark_root)
     if phase_4_max_workers is not None:
         metadata["phase_4_max_workers"] = phase_4_max_workers
-    if phase_4_variant_budget is not None:
-        metadata["phase_4_variant_budget"] = phase_4_variant_budget
+    metadata["phase_4_variant_system"] = _normalize_phase_4_variant_system(
+        phase_4_variant_system
+    )
+    metadata["phase_4_eval_awareness_max_iterations"] = (
+        _normalize_eval_awareness_max_iterations(phase_4_eval_awareness_max_iterations)
+    )
+    metadata["phase_4_variant_budget"] = (
+        phase_4_variant_budget or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET
+    )
     return metadata
 
 
@@ -112,6 +123,7 @@ def _phase_4_eval_context(
     instances: list[BenchmarkInstance],
     config_url_placeholders: dict[str, str] | None,
     agent_model: str,
+    agent_runner: str = RUNNER_BROWSER_USE,
     agent_provider: str | None,
     sandbox_model: str,
     benchmark_root: Path | None,
@@ -125,6 +137,7 @@ def _phase_4_eval_context(
         "instances": instances_identity(instances),
         "config_url_placeholders": config_url_placeholders,
         "agent_model": agent_model,
+        "agent_runner": agent_runner,
         "agent_provider": agent_provider,
         "agent_llm_timeout": agent_llm_timeout,
         "agent_step_timeout": agent_step_timeout,
@@ -180,6 +193,7 @@ def _phase_4_eval_context_for_task(
     instances: list[BenchmarkInstance],
     config_url_placeholders: dict[str, str] | None,
     agent_model: str,
+    agent_runner: str = RUNNER_BROWSER_USE,
     agent_provider: str,
     sandbox_model: str,
     benchmark_root: Path | None,
@@ -191,6 +205,7 @@ def _phase_4_eval_context_for_task(
         instances=_task_reachable_instances(task, instances),
         config_url_placeholders=_task_reachable_placeholders(task, config_url_placeholders),
         agent_model=agent_model,
+        agent_runner=agent_runner,
         agent_provider=agent_provider,
         agent_llm_timeout=agent_llm_timeout,
         agent_step_timeout=agent_step_timeout,
@@ -294,20 +309,33 @@ def _phase_4_postprocess_fingerprint(
     sandbox_model: str,
     site_profile: dict[str, Any] | None,
     variant_budget_preset: str | None = None,
+    variant_system: str | None = None,
+    eval_awareness_max_iterations: int | None = None,
 ) -> str:
+    normalized_variant_system = _normalize_phase_4_variant_system(variant_system)
     return _fingerprint_payload(
         task,
         _resume_fingerprint_result(result),
         {
             "phase": "phase_4_postprocess",
             "resume_version": _PHASE_4_RESUME_VERSION,
+            "variant_system": normalized_variant_system,
+            "eval_awareness_iterator_version": (
+                _PHASE_4_EVAL_AWARENESS_ITERATOR_VERSION
+                if normalized_variant_system == "eval-awareness-iterator"
+                else None
+            ),
+            "eval_awareness_max_iterations": _normalize_eval_awareness_max_iterations(
+                eval_awareness_max_iterations
+            ),
             "primary_instances": instances_identity(primary_instances),
             "all_instances": instances_identity(_task_reachable_instances(task, all_instances)),
             "config_url_placeholders": _task_reachable_placeholders(task, config_url_placeholders),
             "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
             "sandbox_model": sandbox_model,
             "site_profile": site_profile,
-            "variant_budget_preset": variant_budget_preset,
+            "variant_budget_preset": variant_budget_preset
+            or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET,
         },
     )
 

@@ -21,6 +21,8 @@ async def _postprocess_one_task(
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
     variant_budget_preset: str | None = None,
+    variant_system: str | None = None,
+    eval_awareness_max_iterations: int | None = None,
     progress_callback: Phase4ProgressCallback | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
@@ -49,6 +51,8 @@ async def _postprocess_one_task(
         sandbox_model=sandbox_model,
         site_profile=site_profile,
         variant_budget_preset=variant_budget_preset,
+        variant_system=variant_system,
+        eval_awareness_max_iterations=eval_awareness_max_iterations,
     )
     if resume and processed_file.exists():
         try:
@@ -92,6 +96,8 @@ async def _postprocess_one_task(
         site_profile=site_profile,
         source_fingerprint=source_fingerprint,
         variant_budget_preset=variant_budget_preset,
+        variant_system=variant_system,
+        eval_awareness_max_iterations=eval_awareness_max_iterations,
         progress_callback=progress_callback,
         browser_worker_semaphore=browser_worker_semaphore,
     )
@@ -124,6 +130,8 @@ async def _process_adversarial_result(
     site_profile: dict[str, Any] | None = None,
     source_fingerprint: str | None = None,
     variant_budget_preset: str | None = None,
+    variant_system: str | None = None,
+    eval_awareness_max_iterations: int | None = None,
     progress_callback: Phase4ProgressCallback | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
@@ -214,28 +222,61 @@ async def _process_adversarial_result(
             **annotations,
         }
 
-    variation = await run_strategy_variation(
-        task=current_task,
-        initial_result=current_result,
-        primary_instances=primary_instances,
-        all_instances=all_instances,
-        agent_factory=agent_factory,
-        profile_path=profile_path,
-        task_dir_root=task_dir_root,
-        resume=resume,
-        benchmark_root=benchmark_root,
-        sandbox_model=sandbox_model,
-        site_profile=site_profile,
-        variant_budget_preset=variant_budget_preset,
-        progress_callback=progress_callback,
-        browser_worker_semaphore=browser_worker_semaphore,
-    )
+    resolved_variant_system = _normalize_phase_4_variant_system(variant_system)
+    if resolved_variant_system == "none":
+        return {
+            **_build_phase_4_result(
+                task_id=task.get("id", "unknown"),
+                initial_result=initial_result,
+                current_result=current_result,
+                final_status="resistant",
+            ),
+            **annotations,
+        }
+    if resolved_variant_system == "strategy-variation":
+        variation = await run_strategy_variation(
+            task=current_task,
+            initial_result=current_result,
+            primary_instances=primary_instances,
+            all_instances=all_instances,
+            agent_factory=agent_factory,
+            profile_path=profile_path,
+            task_dir_root=task_dir_root,
+            resume=resume,
+            benchmark_root=benchmark_root,
+            sandbox_model=sandbox_model,
+            site_profile=site_profile,
+            variant_budget_preset=variant_budget_preset,
+            progress_callback=progress_callback,
+            browser_worker_semaphore=browser_worker_semaphore,
+        )
+        variation_field = "strategy_variation"
+    else:
+        variation = await run_eval_awareness_iterator(
+            task=current_task,
+            initial_result=current_result,
+            primary_instances=primary_instances,
+            all_instances=all_instances,
+            agent_factory=agent_factory,
+            profile_path=profile_path,
+            task_dir_root=task_dir_root,
+            config_url_placeholders=config_url_placeholders,
+            resume=resume,
+            benchmark_root=benchmark_root,
+            sandbox_model=sandbox_model,
+            site_profile=site_profile,
+            max_iterations=eval_awareness_max_iterations,
+            progress_callback=progress_callback,
+            browser_worker_semaphore=browser_worker_semaphore,
+        )
+        variation_field = "eval_awareness_iterator"
     variation_status = variation.get("status")
     if variation_status in {
         "no_instances",
         "variant_generation_failed",
         "judge_failed",
         "partial_capacity",
+        "rewrite_failed",
     }:
         return {
             **_build_phase_4_result(
@@ -246,7 +287,7 @@ async def _process_adversarial_result(
                 judge_diagnosis=variation.get("judge_diagnosis", {}).get("diagnosis"),
             ),
             **annotations,
-            "strategy_variation": variation,
+            variation_field: variation,
         }
     if variation_status == "resistant":
         return {
@@ -258,7 +299,7 @@ async def _process_adversarial_result(
                 judge_diagnosis=variation.get("judge_diagnosis", {}).get("diagnosis"),
             ),
             **annotations,
-            "strategy_variation": variation,
+            variation_field: variation,
         }
     if variation_status == "resistant_judge_unactionable":
         refusal_trigger = str(
@@ -274,7 +315,18 @@ async def _process_adversarial_result(
                 judge_diagnosis=variation.get("judge_diagnosis", {}).get("diagnosis"),
             ),
             **annotations,
-            "strategy_variation": variation,
+            variation_field: variation,
+        }
+    if variation_status == "tp_real_baseline":
+        return {
+            **_build_phase_4_result(
+                task_id=task.get("id", "unknown"),
+                initial_result=initial_result,
+                current_result=current_result,
+                final_status="resistant",
+            ),
+            **annotations,
+            variation_field: variation,
         }
     variant_outcomes = [
         variant_result.get("outcome")
@@ -302,6 +354,28 @@ async def _process_adversarial_result(
         ),
         None,
     )
+    selected_result = variation.get("selected_result")
+    if isinstance(selected_result, dict):
+        successful_variant = (
+            selected_result
+            if _ecologically_valid(selected_result) and selected_result.get("outcome") == "complied"
+            else successful_variant
+        )
+    selected_iteration = variation.get("selected_iteration")
+    selected_trace = (
+        successful_variant.get("variant_trajectory_dir")
+        or successful_variant.get("trajectory_dir")
+        if isinstance(successful_variant, dict)
+        else None
+    )
+    selected_global_index = (
+        successful_variant.get("global_variant_index")
+        if isinstance(successful_variant, dict)
+        else None
+    )
+    selected_legacy_index = (
+        successful_variant.get("variant_index") if isinstance(successful_variant, dict) else None
+    )
     return {
         **_build_phase_4_result(
             task_id=task.get("id", "unknown"),
@@ -322,7 +396,17 @@ async def _process_adversarial_result(
             ),
         ),
         **annotations,
-        "strategy_variation": variation,
+        variation_field: variation,
+        **(
+            {
+                "successful_variant_trace": selected_trace,
+                "successful_variant_global_index": selected_global_index,
+                "successful_variant_index": selected_legacy_index,
+                "successful_iterator_iteration": selected_iteration,
+            }
+            if successful_variant is not None
+            else {}
+        ),
     }
 
 

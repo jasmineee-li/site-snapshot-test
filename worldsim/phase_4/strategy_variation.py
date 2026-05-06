@@ -137,6 +137,7 @@ async def run_strategy_variation(
         sandbox_model=sandbox_model,
         site_profile=site_profile,
         variant_budget_preset=variant_budget_preset,
+        variant_system="strategy-variation",
     )
     checkpoint = _load_json_dict(checkpoint_path) if resume else None
     if checkpoint is not None and checkpoint.get(_CHECKPOINT_FINGERPRINT_KEY) != source_fingerprint:
