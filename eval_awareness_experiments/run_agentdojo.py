@@ -208,6 +208,14 @@ async def _run_one_pair(
             "injection_task_difficulty": str(getattr(injection_task, "DIFFICULTY", "")),
         }
 
+    # Resume: if this task's JSON already exists on disk, skip the run.
+    # Saves entire cells of work when relaunching after a crash, after copying
+    # in older sweep results, or just iterating on the harness.
+    out_path = out_dir / f"{task_id}.json"
+    if out_path.exists() and out_path.stat().st_size > 0:
+        logger.info(f"[skip] {task_id}: existing output at {out_path}")
+        return out_path
+
     try:
         path = await runner.run_task_to_file(
             out_dir,
