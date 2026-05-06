@@ -241,6 +241,7 @@ async def preflight_check(*, sandbox_model: str = "claude-sonnet-4-6") -> tuple[
 
 
 RETRYABLE_STATUS_CODES: frozenset[int] = frozenset({408, 429, 500, 502, 503, 529})
+_API_CALL_TIMEOUT_S = float(os.environ.get("WORLDSIM_PHASE4_API_CALL_TIMEOUT_S", "240"))
 
 
 async def call_with_retry[T](
@@ -249,6 +250,7 @@ async def call_with_retry[T](
     retries: int = 3,
     base_delay: float = 1.0,
     label: str = "",
+    timeout_s: float | None = None,
 ) -> T:
     """Wrap `fn` with jittered exponential backoff for transient API failures.
 
@@ -261,6 +263,9 @@ async def call_with_retry[T](
     last_exc: Exception | None = None
     for attempt in range(retries + 1):
         try:
+            call_timeout = _API_CALL_TIMEOUT_S if timeout_s is None else timeout_s
+            if call_timeout and call_timeout > 0:
+                return await asyncio.wait_for(fn(), timeout=call_timeout)
             return await fn()
         except APIStatusError as exc:
             last_exc = exc
@@ -320,6 +325,21 @@ async def call_with_retry[T](
                 retries,
                 delay,
                 exc,
+            )
+            await asyncio.sleep(delay)
+            continue
+        except TimeoutError as exc:
+            last_exc = exc
+            if attempt >= retries:
+                raise
+            delay = base_delay * (2**attempt) + random.uniform(0, 0.5)
+            logger.warning(
+                "[%s] anthropic call timed out after %.1fs; retry %d/%d after %.1fs",
+                label,
+                _API_CALL_TIMEOUT_S if timeout_s is None else timeout_s,
+                attempt + 1,
+                retries,
+                delay,
             )
             await asyncio.sleep(delay)
             continue

@@ -613,6 +613,38 @@ async def test_call_with_retry_retries_on_api_timeout(monkeypatch):
     assert calls["n"] == 2
 
 
+@pytest.mark.asyncio
+async def test_call_with_retry_retries_on_wall_clock_timeout(monkeypatch):
+    """A stalled host-side Messages call must not hold Phase 4 open forever."""
+
+    sleeps: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    monkeypatch.setattr(anthropic_client.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(anthropic_client.random, "uniform", lambda *_args: 0.0)
+    calls = {"n": 0}
+
+    async def flaky() -> str:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            await asyncio.Future()
+        return "ok"
+
+    result = await anthropic_client.call_with_retry(
+        flaky,
+        retries=1,
+        base_delay=0.0,
+        label="wall-clock-timeout-test",
+        timeout_s=0.001,
+    )
+
+    assert result == "ok"
+    assert calls["n"] == 2
+    assert sleeps == [0.0]
+
+
 async def _noop_async() -> None:
     """Awaitable no-op used as a fast `asyncio.sleep` substitute in tests."""
     return None
