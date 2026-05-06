@@ -162,7 +162,7 @@ def _looks_like_python_action(text: str) -> bool:
 
 
 def _context_kwargs_from_request(request: dict[str, Any]) -> dict[str, Any]:
-    kwargs: dict[str, Any] = {}
+    kwargs: dict[str, Any] = {"service_workers": "block"}
     storage_state = request.get("storage_state")
     if storage_state:
         kwargs["storage_state"] = storage_state

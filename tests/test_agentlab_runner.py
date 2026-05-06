@@ -475,7 +475,7 @@ def test_build_phase4_sidecar_request_resolves_scoped_auth_and_no_global_headers
     assert "extra_http_headers" not in worldsim_task._context_kwargs_from_request(request)
 
 
-def test_phase4_browsergym_context_kwargs_keep_storage_state_without_runner_only_sw_policy(
+def test_phase4_browsergym_context_kwargs_keep_storage_state_and_block_service_workers(
     tmp_path,
 ):
     worldsim_task = _load_sidecar_module("worldsim_task")
@@ -484,7 +484,18 @@ def test_phase4_browsergym_context_kwargs_keep_storage_state_without_runner_only
 
     kwargs = worldsim_task._context_kwargs_from_request({"storage_state": str(storage_state)})
 
-    assert kwargs == {"storage_state": str(storage_state)}
+    assert kwargs == {
+        "storage_state": str(storage_state),
+        "service_workers": "block",
+    }
+
+
+def test_phase4_browsergym_context_kwargs_block_service_workers_without_storage_state():
+    worldsim_task = _load_sidecar_module("worldsim_task")
+
+    kwargs = worldsim_task._context_kwargs_from_request({})
+
+    assert kwargs == {"service_workers": "block"}
 
 
 def test_build_phase4_sidecar_request_resolves_nested_http_basic(tmp_path):
