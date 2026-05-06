@@ -1,16 +1,11 @@
 from __future__ import annotations
 
 # ruff: noqa: F401
-import json
-
-import instructor
-
-from worldsim.phase_2.text_fill import api as _api_module
-from worldsim.phase_2.text_fill import service as _service_module
 from worldsim.phase_2.text_fill.api import (
     _anthropic_available,
     _call_anthropic_fallback,
     _call_openrouter,
+    _call_text_fill_api,
     _direct_anthropic_model_name,
     _format_instructor_retry_exception,
     _openrouter_available,
@@ -59,7 +54,9 @@ from worldsim.phase_2.text_fill.seed import (
     validate_seed_template_contract,
 )
 from worldsim.phase_2.text_fill.service import (
+    _fill_one_task,
     _finalize_task_payloads,
+    _generate_single_payload,
     _validate_cached_payloads,
     fill_texts_for_tasks,
 )
@@ -98,21 +95,3 @@ from worldsim.phase_2.text_fill.voice import (
     load_voice_registry,
     resolve_site_kind,
 )
-from worldsim.phase_4.anthropic_client import get_client
-
-
-async def _call_text_fill_api(*args, **kwargs):
-    _api_module.get_client = get_client
-    _api_module.instructor = instructor
-    return await _api_module._call_text_fill_api(*args, **kwargs)
-
-
-async def _generate_single_payload(*args, **kwargs):
-    _service_module.render_fill_prompt = render_fill_prompt
-    _service_module._call_text_fill_api = _call_text_fill_api
-    return await _service_module._generate_single_payload(*args, **kwargs)
-
-
-async def _fill_one_task(*args, **kwargs):
-    _service_module._generate_single_payload = _generate_single_payload
-    return await _service_module._fill_one_task(*args, **kwargs)
