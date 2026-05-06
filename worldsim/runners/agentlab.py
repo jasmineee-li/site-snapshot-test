@@ -20,6 +20,7 @@ import os
 import shlex
 import shutil
 import subprocess
+import tempfile
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -455,25 +456,31 @@ def _run_sidecar_request(
         "agentlab_phase4_request.json" if subcommand == "phase4-run" else "agentlab_request.json"
     )
     response_path = task_dir / "agentlab_sidecar_result.json"
-    request_path.write_text(json.dumps(request, indent=2, sort_keys=True), encoding="utf-8")
+    request_path.write_text(
+        json.dumps(_redact_sidecar_payload(request), indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
 
     try:
-        proc = subprocess.run(
-            [*_sidecar_command(subcommand), str(request_path)],
-            text=True,
-            capture_output=True,
-            check=False,
-            timeout=timeout,
-        )
+        with tempfile.TemporaryDirectory(prefix="worldsim-agentlab-request-") as runtime_dir:
+            runtime_request_path = Path(runtime_dir) / request_path.name
+            runtime_request_path.write_text(
+                json.dumps(request, indent=2, sort_keys=True),
+                encoding="utf-8",
+            )
+            runtime_request_path.chmod(0o600)
+            proc = subprocess.run(
+                [*_sidecar_command(subcommand), str(runtime_request_path)],
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=timeout,
+            )
     except subprocess.TimeoutExpired as exc:
         timeout_payload = {
             "stdout": exc.stdout if isinstance(exc.stdout, str) else "",
             "stderr": exc.stderr if isinstance(exc.stderr, str) else "",
         }
-        request_path.write_text(
-            json.dumps(_redact_sidecar_payload(request), indent=2, sort_keys=True),
-            encoding="utf-8",
-        )
         if subcommand == "phase4-run":
             payload = _phase4_timeout_result(request, task_dir, timeout, timeout_payload)
             response_path.write_text(
@@ -482,10 +489,6 @@ def _run_sidecar_request(
             return payload
         raise
     if proc.returncode != 0:
-        request_path.write_text(
-            json.dumps(_redact_sidecar_payload(request), indent=2, sort_keys=True),
-            encoding="utf-8",
-        )
         detail = proc.stderr.strip() or proc.stdout.strip()
         detail = _redact_sidecar_text(detail, request)
         raise RuntimeError(f"AgentLab sidecar failed with exit {proc.returncode}: {detail}")
@@ -495,10 +498,6 @@ def _run_sidecar_request(
         raise RuntimeError(f"AgentLab sidecar returned invalid JSON: {proc.stdout[:500]}") from exc
     if not isinstance(payload, dict):
         raise RuntimeError("AgentLab sidecar returned a non-object JSON payload")
-    request_path.write_text(
-        json.dumps(_redact_sidecar_payload(request), indent=2, sort_keys=True),
-        encoding="utf-8",
-    )
     response_path.write_text(
         json.dumps(
             _redact_sidecar_payload(payload, secret_values=_secret_strings_from_payload(request)),

@@ -453,6 +453,19 @@ def test_build_phase4_sidecar_request_resolves_scoped_auth_and_no_global_headers
     assert "extra_http_headers" not in worldsim_task._context_kwargs_from_request(request)
 
 
+def test_phase4_browsergym_context_kwargs_block_service_workers_and_keep_storage_state(tmp_path):
+    worldsim_task = _load_sidecar_module("worldsim_task")
+    storage_state = tmp_path / "storage_state.json"
+    storage_state.write_text('{"cookies":[],"origins":[]}', encoding="utf-8")
+
+    kwargs = worldsim_task._context_kwargs_from_request({"storage_state": str(storage_state)})
+
+    assert kwargs == {
+        "service_workers": "block",
+        "storage_state": str(storage_state),
+    }
+
+
 def test_build_phase4_sidecar_request_resolves_nested_http_basic(tmp_path):
     request = _build_phase4_sidecar_request(
         "Do the task",
@@ -671,6 +684,9 @@ def test_sidecar_request_controls_rewrite_and_scope_auth():
                 "Referer": "http://canonical.test/source",
             }
 
+        def is_navigation_request(self):
+            return False
+
     class FakeContext:
         def route(self, pattern, handler):
             assert pattern == "**/*"
@@ -706,6 +722,60 @@ def test_sidecar_request_controls_rewrite_and_scope_auth():
     assert telemetry["scoped_auth_redirect_guard_hits"] == 1
 
 
+def test_sidecar_request_controls_preserve_navigation_semantics():
+    controls = _load_sidecar_module("request_controls")
+    continued: list[dict[str, object]] = []
+    fetched: list[dict[str, object]] = []
+
+    class FakeRoute:
+        def fetch(self, **kwargs):
+            fetched.append(kwargs)
+            return {"status": 200}
+
+        def fulfill(self, **kwargs):
+            raise AssertionError("navigation requests must not be fulfilled")
+
+        def continue_(self, **kwargs):
+            continued.append(kwargs)
+
+    class FakeRequest:
+        def __init__(self):
+            self.url = "http://canonical.test/path?q=1"
+            self.headers = {"Host": "canonical.test", "Origin": "http://canonical.test"}
+
+        def is_navigation_request(self):
+            return True
+
+    class FakeContext:
+        def route(self, pattern, handler):
+            assert pattern == "**/*"
+            handler(FakeRoute(), FakeRequest())
+
+    telemetry = controls.install_request_controls(
+        FakeContext(),
+        {
+            "url_origin_rewrites": {"http://canonical.test": "http://gitlab.test"},
+            "scoped_auth": {
+                "origin": "http://gitlab.test",
+                "headers": {"Authorization": "Basic abc"},
+            },
+        },
+    )
+
+    assert fetched == []
+    assert continued == [
+        {
+            "url": "http://gitlab.test/path?q=1",
+            "headers": {
+                "Origin": "http://gitlab.test",
+                "Authorization": "Basic abc",
+            },
+        }
+    ]
+    assert telemetry["rewrite_hits"] == 1
+    assert telemetry["scoped_auth_hits"] == 1
+
+
 def test_sidecar_network_trace_includes_evaluator_fields(tmp_path):
     network_trace = _load_sidecar_module("network_trace")
     recorder = network_trace.NetworkTraceRecorder(tmp_path)
@@ -727,6 +797,13 @@ def test_sidecar_network_trace_includes_evaluator_fields(tmp_path):
         def __init__(self):
             self.status = 201
             self.headers = {"Set-Cookie": "sid=abc; Path=/", "X-Result": "ok"}
+            self.headers_array = [
+                {
+                    "name": "set-cookie",
+                    "value": "sid=abc; Path=/; Expires=Wed, 21 Oct 2026 07:28:00 GMT",
+                },
+                {"name": "set-cookie", "value": "theme=light; Path=/"},
+            ]
             self.text = '{"result": "created"}'
 
     response = FakeResponse()
@@ -740,7 +817,10 @@ def test_sidecar_network_trace_includes_evaluator_fields(tmp_path):
     assert event["request_headers"]["Authorization"] == "secret"
     assert event["post_data"] == '{"ok": true}'
     assert event["response_status"] == 201
-    assert event["response_cookies"] == [{"name": "sid", "value": "abc"}]
+    assert event["response_cookies"] == [
+        {"name": "sid", "value": "abc"},
+        {"name": "theme", "value": "light"},
+    ]
     assert event["response_content"] == '{"result": "created"}'
     assert "request" not in event
     assert "response" not in event
@@ -757,7 +837,10 @@ def test_sidecar_network_trace_includes_evaluator_fields(tmp_path):
     assert round_trip[0]["response"]["content"]["text"] == '{"result": "created"}'
     persisted_trace = json.loads((tmp_path / "network_trace.json").read_text(encoding="utf-8"))
     assert persisted_trace[0]["request_headers"]["authorization"] == "<redacted>"
-    assert persisted_trace[0]["response_cookies"] == [{"name": "sid", "value": "<redacted>"}]
+    assert persisted_trace[0]["response_cookies"] == [
+        {"name": "sid", "value": "<redacted>"},
+        {"name": "theme", "value": "<redacted>"},
+    ]
     har = network_trace._as_har(recorder.events, started_at=0)
     entry = har["log"]["entries"][0]
     assert isinstance(entry["startedDateTime"], str)
@@ -843,6 +926,10 @@ def test_phase4_request_copy_redacts_native_pickle(tmp_path):
 
 def test_phase4_timeout_result_redacts_captured_secret_output(monkeypatch, tmp_path):
     def timeout_run(*args, **kwargs):
+        request_path = Path(args[0][-1])
+        assert request_path.parent != tmp_path
+        runtime_request = json.loads(request_path.read_text())
+        assert runtime_request["scoped_auth"]["headers"]["Authorization"] == "Basic c2VjcmV0"
         raise subprocess.TimeoutExpired(
             cmd=args[0],
             timeout=3,
@@ -870,6 +957,7 @@ def test_phase4_timeout_result_redacts_captured_secret_output(monkeypatch, tmp_p
 
     assert payload["status"] == "error"
     assert persisted_request["scoped_auth"] == "<redacted>"
+    assert "c2VjcmV0" not in (tmp_path / "agentlab_phase4_request.json").read_text()
     assert "c2VjcmV0" not in serialized
     assert "secret-token" not in serialized
     assert "wonder" not in serialized
@@ -879,6 +967,10 @@ def test_phase4_timeout_result_redacts_captured_secret_output(monkeypatch, tmp_p
 
 def test_sidecar_result_redacts_request_secrets_echoed_in_logs(monkeypatch, tmp_path):
     def completed_run(*args, **kwargs):
+        request_path = Path(args[0][-1])
+        assert request_path.parent != tmp_path
+        runtime_request = json.loads(request_path.read_text())
+        assert runtime_request["scoped_auth"]["headers"]["Authorization"] == "Basic c2VjcmV0"
         return subprocess.CompletedProcess(
             args=args[0],
             returncode=0,
@@ -918,9 +1010,12 @@ def test_sidecar_result_redacts_request_secrets_echoed_in_logs(monkeypatch, tmp_
         timeout=3,
     )
     persisted_result = json.loads((tmp_path / "agentlab_sidecar_result.json").read_text())
+    persisted_request = json.loads((tmp_path / "agentlab_phase4_request.json").read_text())
     serialized = json.dumps(persisted_result)
 
     assert "Basic c2VjcmV0" in payload["log"]
+    assert persisted_request["scoped_auth"] == "<redacted>"
+    assert "c2VjcmV0" not in (tmp_path / "agentlab_phase4_request.json").read_text()
     assert "c2VjcmV0" not in serialized
     assert "secret-token" not in serialized
     assert "wonder" not in serialized

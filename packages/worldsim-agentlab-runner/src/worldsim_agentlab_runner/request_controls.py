@@ -48,23 +48,32 @@ def install_request_controls(context: Any, request: dict[str, Any]) -> dict[str,
             telemetry["scoped_auth_hits"] += 1
             auth_applied = True
         headers = _strip_forbidden_continue_headers(headers)
+        is_navigation = bool(_safe_bool_call(getattr(req, "is_navigation_request", None)))
         if rewritten != url:
             telemetry["rewrite_hits"] += 1
-            if auth_applied and _fetch_and_fulfill_without_redirects(
-                route,
-                url=rewritten,
-                headers=headers,
-                telemetry=telemetry,
+            if (
+                (not is_navigation)
+                and auth_applied
+                and _fetch_and_fulfill_without_redirects(
+                    route,
+                    url=rewritten,
+                    headers=headers,
+                    telemetry=telemetry,
+                )
             ):
                 return
             route.continue_(url=rewritten, headers=headers)
             return
         if headers_changed or auth_applied:
-            if auth_applied and _fetch_and_fulfill_without_redirects(
-                route,
-                url=None,
-                headers=headers,
-                telemetry=telemetry,
+            if (
+                (not is_navigation)
+                and auth_applied
+                and _fetch_and_fulfill_without_redirects(
+                    route,
+                    url=None,
+                    headers=headers,
+                    telemetry=telemetry,
+                )
             ):
                 return
             route.continue_(headers=headers)
@@ -73,6 +82,15 @@ def install_request_controls(context: Any, request: dict[str, Any]) -> dict[str,
 
     context.route("**/*", handler)
     return telemetry
+
+
+def _safe_bool_call(value: Any) -> bool:
+    try:
+        if callable(value):
+            value = value()
+    except Exception:
+        return False
+    return bool(value)
 
 
 def _normalize_scoped_auth(value: Any) -> dict[str, Any]:

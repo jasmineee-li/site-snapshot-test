@@ -142,7 +142,7 @@ class NetworkTraceRecorder:
         if event is None:
             return
         raw_response_headers = _safe_call(lambda: response.headers) or {}
-        response_cookies = _cookies_from_headers(raw_response_headers)
+        response_cookies = _cookies_from_response(response, raw_response_headers)
         status = _safe_call(lambda: response.status)
         event["response_status"] = status
         event["response_headers"] = _string_map(raw_response_headers)
@@ -296,13 +296,58 @@ def _is_sensitive_field_name(name: str) -> bool:
     return any(marker in normalized for marker in _SENSITIVE_FIELD_SUBSTRINGS)
 
 
-def _cookies_from_headers(headers: dict[str, str]) -> list[dict[str, str]]:
-    raw = None
+def _cookies_from_response(response: Any, fallback_headers: dict[str, str]) -> list[dict[str, str]]:
+    raw_headers = _safe_call(lambda: response.headers_array)
+    cookie_headers: list[str] = []
+    if isinstance(raw_headers, list):
+        for header in raw_headers:
+            if not isinstance(header, dict):
+                continue
+            if str(header.get("name") or "").lower() == "set-cookie":
+                value = header.get("value")
+                if isinstance(value, str) and value:
+                    cookie_headers.append(value)
+    if not cookie_headers:
+        cookie_headers = _set_cookie_header_values(fallback_headers)
+    cookies: list[dict[str, str]] = []
+    for raw in cookie_headers:
+        cookies.extend(_cookies_from_set_cookie_value(raw))
+    return cookies
+
+
+def _set_cookie_header_values(headers: dict[str, str]) -> list[str]:
     if isinstance(headers, dict):
         for key, value in headers.items():
             if str(key).lower() == "set-cookie":
                 raw = str(value)
-                break
+                if raw and raw != "<redacted>":
+                    return _split_combined_set_cookie_header(raw)
+    return []
+
+
+def _split_combined_set_cookie_header(raw: str) -> list[str]:
+    parts: list[str] = []
+    start = 0
+    index = 0
+    in_expires = False
+    while index < len(raw):
+        lower_tail = raw[index : index + 8].lower()
+        if lower_tail == "expires=":
+            in_expires = True
+            index += 8
+            continue
+        char = raw[index]
+        if in_expires and char == ";":
+            in_expires = False
+        if char == "," and not in_expires:
+            parts.append(raw[start:index].strip())
+            start = index + 1
+        index += 1
+    parts.append(raw[start:].strip())
+    return [part for part in parts if part]
+
+
+def _cookies_from_set_cookie_value(raw: str) -> list[dict[str, str]]:
     if not raw or raw == "<redacted>":
         return []
     cookies: list[dict[str, str]] = []
