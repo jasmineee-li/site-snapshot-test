@@ -4,6 +4,7 @@ from typing import Any
 from urllib.parse import urlparse, urlunparse
 
 _URL_VALUE_HEADER_NAMES = {"referer", "referrer", "location", "content-location"}
+_FORBIDDEN_CONTINUE_HEADER_NAMES = {"host", "content-length"}
 
 
 def install_request_controls(context: Any, request: dict[str, Any]) -> dict[str, Any]:
@@ -41,14 +42,31 @@ def install_request_controls(context: Any, request: dict[str, Any]) -> dict[str,
             rewritten_url=rewritten,
         )
         auth_origin = scoped_auth.get("origin") if scoped_auth else ""
+        auth_applied = False
         if auth_origin and _origin_from_url(rewritten or url) == auth_origin:
             headers.update(scoped_auth.get("headers") or {})
             telemetry["scoped_auth_hits"] += 1
+            auth_applied = True
+        headers = _strip_forbidden_continue_headers(headers)
         if rewritten != url:
             telemetry["rewrite_hits"] += 1
+            if auth_applied and _fetch_and_fulfill_without_redirects(
+                route,
+                url=rewritten,
+                headers=headers,
+                telemetry=telemetry,
+            ):
+                return
             route.continue_(url=rewritten, headers=headers)
             return
-        if headers_changed or auth_origin:
+        if headers_changed or auth_applied:
+            if auth_applied and _fetch_and_fulfill_without_redirects(
+                route,
+                url=None,
+                headers=headers,
+                telemetry=telemetry,
+            ):
+                return
             route.continue_(headers=headers)
             return
         route.continue_()
@@ -117,7 +135,6 @@ def _headers_for_rewritten_request(
         return dict(headers), False
     out = dict(headers)
     changed = False
-    rewritten_parts = urlparse(rewritten_url)
     for name, value in list(out.items()):
         lower = name.lower()
         if lower == "origin" and _origin_from_url(value) == old_origin:
@@ -128,10 +145,40 @@ def _headers_for_rewritten_request(
             if rewritten_value != value:
                 out[name] = rewritten_value
                 changed = True
-        elif lower == "host" and rewritten_parts.netloc and value != rewritten_parts.netloc:
-            out[name] = rewritten_parts.netloc
-            changed = True
     return out, changed
+
+
+def _strip_forbidden_continue_headers(headers: dict[str, str]) -> dict[str, str]:
+    return {
+        name: value
+        for name, value in headers.items()
+        if str(name).lower() not in _FORBIDDEN_CONTINUE_HEADER_NAMES
+    }
+
+
+def _fetch_and_fulfill_without_redirects(
+    route: Any,
+    *,
+    url: str | None,
+    headers: dict[str, str],
+    telemetry: dict[str, Any],
+) -> bool:
+    fetch = getattr(route, "fetch", None)
+    fulfill = getattr(route, "fulfill", None)
+    if not callable(fetch) or not callable(fulfill):
+        return False
+    try:
+        kwargs: dict[str, Any] = {"headers": headers, "max_redirects": 0}
+        if url:
+            kwargs["url"] = url
+        response = fetch(**kwargs)
+        fulfill(response=response)
+    except TypeError:
+        return False
+    telemetry["scoped_auth_redirect_guard_hits"] = (
+        telemetry.get("scoped_auth_redirect_guard_hits", 0) + 1
+    )
+    return True
 
 
 def _origin_from_url(raw_url: str) -> str:

@@ -79,6 +79,29 @@ def _post_data_to_har(post_data: Any, request_headers: Any) -> dict[str, str] | 
     return {"mimeType": mime, "text": text}
 
 
+def _response_content_to_har(flat: dict[str, Any]) -> dict[str, Any]:
+    text = flat.get("response_content")
+    if not isinstance(text, str):
+        text = ""
+    mime = str(flat.get("response_mime_type") or "")
+    headers = flat.get("response_headers")
+    if not mime:
+        if isinstance(headers, dict):
+            for key, value in headers.items():
+                if str(key).lower() == "content-type":
+                    mime = str(value)
+                    break
+        elif isinstance(headers, list):
+            for header in headers:
+                if (
+                    isinstance(header, dict)
+                    and str(header.get("name", "")).lower() == "content-type"
+                ):
+                    mime = str(header.get("value", ""))
+                    break
+    return {"size": len(text), "mimeType": mime, "text": text}
+
+
 def flat_event_to_har_entry(flat: dict[str, Any]) -> dict[str, Any]:
     """Translate one flat ``_NetworkTraceRecorder`` entry to a HAR entry."""
     request = {
@@ -100,7 +123,7 @@ def flat_event_to_har_entry(flat: dict[str, Any]) -> dict[str, Any]:
         "httpVersion": "HTTP/1.1",
         "headers": _headers_to_har(flat.get("response_headers")),
         "cookies": _cookies_to_har(flat.get("response_cookies")),
-        "content": {"size": 0, "mimeType": str(flat.get("response_mime_type") or ""), "text": ""},
+        "content": _response_content_to_har(flat),
         "redirectURL": "",
         "headersSize": -1,
         "bodySize": -1,

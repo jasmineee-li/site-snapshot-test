@@ -25,7 +25,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import requests
 
@@ -250,7 +250,10 @@ def _scoped_auth_for_phase4(
         if not isinstance(username, str) or not isinstance(password, str):
             raise RuntimeError("http_basic auth requires username/password")
         token = base64.b64encode(f"{username}:{password}".encode()).decode("ascii")
-        return {"origin": _origin_from_url(server_url), "headers": {"Authorization": f"Basic {token}"}}
+        return {
+            "origin": _origin_from_url(server_url),
+            "headers": {"Authorization": f"Basic {token}"},
+        }
     if auth_type == "http_headers":
         return {"origin": _origin_from_url(server_url), "headers": resolve_agent_auth_headers(auth)}
     return {}
@@ -473,7 +476,9 @@ def _run_sidecar_request(
         )
         if subcommand == "phase4-run":
             payload = _phase4_timeout_result(request, task_dir, timeout, timeout_payload)
-            response_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+            response_path.write_text(
+                json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8"
+            )
             return payload
         raise
     if proc.returncode != 0:
@@ -482,6 +487,7 @@ def _run_sidecar_request(
             encoding="utf-8",
         )
         detail = proc.stderr.strip() or proc.stdout.strip()
+        detail = _redact_sidecar_text(detail, request)
         raise RuntimeError(f"AgentLab sidecar failed with exit {proc.returncode}: {detail}")
     try:
         payload = json.loads(proc.stdout)
@@ -520,7 +526,9 @@ def _phase4_timeout_result(
         "timeout_expired": True,
         "cdp_url": request.get("pvpo_cdp_url"),
     }
-    runtime.update(_recycle_pvpo_browser_after_parent_timeout(str(request.get("pvpo_cdp_url") or "")))
+    runtime.update(
+        _recycle_pvpo_browser_after_parent_timeout(str(request.get("pvpo_cdp_url") or ""))
+    )
     (task_dir / "browser_runtime.json").write_text(
         json.dumps(runtime, indent=2, sort_keys=True),
         encoding="utf-8",
@@ -562,7 +570,8 @@ def _phase4_timeout_result(
 
 
 def _write_minimal_timeout_artifacts(task_dir: Path, request: dict[str, Any], message: str) -> None:
-    (task_dir / "history.json").write_text(
+    _write_text_if_absent(
+        task_dir / "history.json",
         json.dumps(
             {
                 "history": [],
@@ -573,35 +582,43 @@ def _write_minimal_timeout_artifacts(task_dir: Path, request: dict[str, Any], me
             },
             indent=2,
             sort_keys=True,
-        ),
-        encoding="utf-8",
+        )
+        + "\n",
     )
-    (task_dir / "final_response.json").write_text(
-        json.dumps({"status": "error", "final_result": None, "errors": [message], "steps": 0}, indent=2),
-        encoding="utf-8",
+    _write_text_if_absent(
+        task_dir / "final_response.json",
+        json.dumps(
+            {"status": "error", "final_result": None, "errors": [message], "steps": 0}, indent=2
+        )
+        + "\n",
     )
-    (task_dir / "network_trace.json").write_text("[]\n", encoding="utf-8")
-    (task_dir / "network.har").write_text(
+    _write_text_if_absent(task_dir / "network_trace.json", "[]\n")
+    _write_text_if_absent(
+        task_dir / "network.har",
         json.dumps(
             {
                 "log": {
                     "version": "1.2",
                     "creator": {"name": "worldsim-agentlab", "version": "timeout"},
+                    "_worldsim_evidence_status": "timeout_placeholder",
                     "entries": [minimal_har_placeholder_entry()],
                 }
             },
             indent=2,
             sort_keys=True,
-        ),
-        encoding="utf-8",
+        )
+        + "\n",
     )
     pvpo_dir = task_dir / "pvpo"
     pvpo_dir.mkdir(parents=True, exist_ok=True)
-    (pvpo_dir / "capture_summary.json").write_text(
+    _write_text_if_absent(
+        pvpo_dir / "capture_summary.json",
         json.dumps(
             {
                 "status": "timeout_no_artifacts",
-                "payload_present": bool(request.get("payload_text") or request.get("payload_witnesses")),
+                "payload_present": bool(
+                    request.get("payload_text") or request.get("payload_witnesses")
+                ),
                 "steps_seen": 0,
                 "steps_captured": 0,
                 "issue_steps": 1,
@@ -615,10 +632,11 @@ def _write_minimal_timeout_artifacts(task_dir: Path, request: dict[str, Any], me
             },
             indent=2,
             sort_keys=True,
-        ),
-        encoding="utf-8",
+        )
+        + "\n",
     )
-    (task_dir / "summary_info.json").write_text(
+    _write_text_if_absent(
+        task_dir / "summary_info.json",
         json.dumps(
             {
                 "n_steps": 0,
@@ -630,9 +648,15 @@ def _write_minimal_timeout_artifacts(task_dir: Path, request: dict[str, Any], me
             },
             indent=2,
             sort_keys=True,
-        ),
-        encoding="utf-8",
+        )
+        + "\n",
     )
+
+
+def _write_text_if_absent(path: Path, text: str) -> None:
+    if path.exists() and path.stat().st_size > 0:
+        return
+    path.write_text(text, encoding="utf-8")
 
 
 def _recycle_pvpo_browser_after_parent_timeout(cdp_url: str) -> dict[str, Any]:
@@ -681,8 +705,13 @@ def _redact_sidecar_payload(value: Any, *, secret_values: set[str] | None = None
         redacted: dict[str, Any] = {}
         for key, item in value.items():
             lower = str(key).lower()
-            if lower in {"authorization", "cookie", "set-cookie", "proxy-authorization"} or any(
-                marker in lower for marker in ("token", "secret", "password", "auth", "cookie", "csrf", "key")
+            if lower == "network_trace" and isinstance(item, list):
+                redacted[key] = [
+                    _redact_network_event(event, secret_values=secret_values) for event in item
+                ]
+            elif lower in {"authorization", "cookie", "set-cookie", "proxy-authorization"} or any(
+                marker in lower
+                for marker in ("token", "secret", "password", "auth", "cookie", "csrf", "key")
             ):
                 redacted[key] = "<redacted>"
             elif lower == "headers" and isinstance(item, dict):
@@ -697,6 +726,151 @@ def _redact_sidecar_payload(value: Any, *, secret_values: set[str] | None = None
     return value
 
 
+def _redact_network_event(
+    value: Any,
+    *,
+    secret_values: set[str] | None = None,
+) -> Any:
+    if not isinstance(value, dict):
+        return _redact_sidecar_payload(value, secret_values=secret_values)
+    event: dict[str, Any] = {}
+    for key, item in value.items():
+        lower = str(key).lower()
+        if lower in {"url"} and isinstance(item, str):
+            event[key] = _redact_url_value(item, secret_values=secret_values)
+        elif lower == "query_params" and isinstance(item, dict):
+            event[key] = {
+                str(param): [
+                    _redact_network_scalar(str(param), child, secret_values=secret_values)
+                    for child in values
+                ]
+                if isinstance(values, list)
+                else _redact_network_scalar(str(param), values, secret_values=secret_values)
+                for param, values in item.items()
+            }
+        elif lower in {"post_data", "response_content"}:
+            event[key] = _redact_network_body(item, secret_values=secret_values)
+        elif lower in {"request_headers", "headers", "response_headers"} and isinstance(item, dict):
+            event[key] = _redact_sidecar_headers(item)
+        elif lower == "response_cookies" and isinstance(item, list):
+            event[key] = [
+                {"name": str(cookie.get("name") or ""), "value": "<redacted>"}
+                for cookie in item
+                if isinstance(cookie, dict)
+            ]
+        else:
+            event[key] = _redact_sidecar_payload(item, secret_values=secret_values)
+    return event
+
+
+def _redact_url_value(value: str, *, secret_values: set[str] | None = None) -> str:
+    parsed = urlparse(value)
+    pairs = parse_qsl(parsed.query, keep_blank_values=True)
+    if not pairs:
+        return _redact_text_values(value, secret_values or set())
+    redacted_pairs = [
+        (
+            key,
+            "<redacted>"
+            if _is_sensitive_network_field(key)
+            else _redact_text_values(val, secret_values or set()),
+        )
+        for key, val in pairs
+    ]
+    return urlunparse(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            parsed.params,
+            urlencode(redacted_pairs, doseq=True),
+            parsed.fragment,
+        )
+    )
+
+
+def _redact_network_body(value: Any, *, secret_values: set[str] | None = None) -> Any:
+    if not isinstance(value, str) or not value:
+        return value
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        parsed = None
+    if parsed is not None:
+        redacted = _redact_network_json(parsed, secret_values=secret_values)
+        return json.dumps(redacted, sort_keys=True, separators=(",", ":"))
+    pairs = parse_qsl(value, keep_blank_values=True)
+    if pairs and urlencode(pairs) == value.replace(" ", "+"):
+        return urlencode(
+            [
+                (
+                    key,
+                    _redact_network_scalar(key, item, secret_values=secret_values),
+                )
+                for key, item in pairs
+            ]
+        )
+    return _redact_text_values(value, secret_values or set())
+
+
+def _redact_network_json(value: Any, *, secret_values: set[str] | None = None) -> Any:
+    if isinstance(value, dict):
+        return {
+            str(key): _redact_network_scalar(str(key), item, secret_values=secret_values)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact_network_json(item, secret_values=secret_values) for item in value]
+    if isinstance(value, str):
+        return _redact_text_values(value, secret_values or set())
+    return value
+
+
+def _redact_network_scalar(
+    field_name: str, value: Any, *, secret_values: set[str] | None = None
+) -> Any:
+    if _is_sensitive_network_field(field_name):
+        return "<redacted>"
+    if isinstance(value, str):
+        return _redact_text_values(value, secret_values or set())
+    return _redact_network_json(value, secret_values=secret_values)
+
+
+def _is_sensitive_network_field(name: str) -> bool:
+    normalized = name.strip().lower().replace("-", "_")
+    return normalized in {
+        "password",
+        "passwd",
+        "secret",
+        "csrf",
+        "csrf_token",
+        "authenticity_token",
+        "access_token",
+        "refresh_token",
+        "id_token",
+        "api_key",
+        "apikey",
+        "session",
+        "session_id",
+        "_session",
+        "cookie",
+    } or any(
+        marker in normalized
+        for marker in (
+            "password",
+            "passwd",
+            "secret",
+            "csrf",
+            "authenticity_token",
+            "access_token",
+            "refresh_token",
+            "id_token",
+            "api_key",
+            "session",
+        )
+    )
+
+
 def _secret_strings_from_payload(value: Any) -> set[str]:
     secrets: set[str] = set()
 
@@ -704,14 +878,27 @@ def _secret_strings_from_payload(value: Any) -> set[str]:
         if isinstance(item, dict):
             for key, child in item.items():
                 lower = str(key).lower()
-                child_sensitive = sensitive or lower in {
-                    "authorization",
-                    "cookie",
-                    "set-cookie",
-                    "proxy-authorization",
-                } or any(
-                    marker in lower
-                    for marker in ("token", "secret", "password", "auth", "cookie", "csrf", "key")
+                child_sensitive = (
+                    sensitive
+                    or lower
+                    in {
+                        "authorization",
+                        "cookie",
+                        "set-cookie",
+                        "proxy-authorization",
+                    }
+                    or any(
+                        marker in lower
+                        for marker in (
+                            "token",
+                            "secret",
+                            "password",
+                            "auth",
+                            "cookie",
+                            "csrf",
+                            "key",
+                        )
+                    )
                 )
                 visit(child, sensitive=child_sensitive)
             return
@@ -743,7 +930,8 @@ def _redact_sidecar_headers(headers: dict[str, Any]) -> dict[str, Any]:
     for key, item in headers.items():
         lower = str(key).lower()
         if lower in {"authorization", "cookie", "set-cookie", "proxy-authorization"} or any(
-            marker in lower for marker in ("token", "secret", "session", "auth", "cookie", "csrf", "key")
+            marker in lower
+            for marker in ("token", "secret", "session", "auth", "cookie", "csrf", "key")
         ):
             out[str(key)] = "<redacted>"
         else:
@@ -760,7 +948,9 @@ def _parse_sidecar_result(task_id: str, task_dir: Path, result: dict[str, Any]) 
     err_msg = result.get("error") or summary.get("err_msg")
     raw_passed = result.get("passed")
     passed = bool(raw_passed) if raw_passed is not None else reward > 0 and err_msg is None
-    status = str(result.get("status") or ("error" if err_msg else ("success" if passed else "failure")))
+    status = str(
+        result.get("status") or ("error" if err_msg else ("success" if passed else "failure"))
+    )
     errors = [str(err_msg)] if err_msg else list(result.get("errors") or [])
 
     if err_msg:

@@ -148,6 +148,23 @@ def test_flat_event_post_data_with_form_content_type():
     }
 
 
+def test_flat_event_response_content_is_preserved_for_network_evaluators():
+    flat = {
+        "url": "http://shopping.test/api/orders/1",
+        "method": "GET",
+        "response_status": 200,
+        "response_headers": {"Content-Type": "application/json"},
+        "response_content": '{"status":"ok"}',
+    }
+    entry = flat_event_to_har_entry(flat)
+
+    assert entry["response"]["content"] == {
+        "size": len('{"status":"ok"}'),
+        "mimeType": "application/json",
+        "text": '{"status":"ok"}',
+    }
+
+
 def test_flat_event_missing_post_data_omits_postdata_key():
     flat = {
         "url": "http://shopping.test",

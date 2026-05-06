@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from http.cookies import SimpleCookie
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, parse_qsl, urlencode, urlsplit, urlunsplit
 
 _SENSITIVE_HEADERS = {
     "authorization",
@@ -19,7 +19,46 @@ _SENSITIVE_HEADERS = {
     "x-csrf-token",
     "x-csrftoken",
 }
-_SENSITIVE_HEADER_SUBSTRINGS = ("token", "secret", "session", "auth", "login", "cookie", "csrf", "key")
+_SENSITIVE_HEADER_SUBSTRINGS = (
+    "token",
+    "secret",
+    "session",
+    "auth",
+    "login",
+    "cookie",
+    "csrf",
+    "key",
+)
+_SENSITIVE_FIELD_NAMES = {
+    "password",
+    "passwd",
+    "secret",
+    "csrf",
+    "csrf_token",
+    "authenticity_token",
+    "access_token",
+    "refresh_token",
+    "id_token",
+    "api_key",
+    "apikey",
+    "session",
+    "session_id",
+    "_session",
+    "cookie",
+}
+_SENSITIVE_FIELD_SUBSTRINGS = (
+    "password",
+    "passwd",
+    "secret",
+    "csrf",
+    "authenticity_token",
+    "access_token",
+    "refresh_token",
+    "id_token",
+    "api_key",
+    "session",
+)
+_BODY_CAPTURE_CAP = 120_000
 
 
 class NetworkTraceRecorder:
@@ -45,9 +84,13 @@ class NetworkTraceRecorder:
     def events(self) -> list[dict[str, Any]]:
         return [self._events_by_request[key] for key in self._ordered_ids]
 
+    @property
+    def redacted_events(self) -> list[dict[str, Any]]:
+        return [_redact_event(event) for event in self.events]
+
     def persist(self) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        events = self.events
+        events = self.redacted_events
         har = _as_har(events, started_at=self._started_at)
         validate_har_1_2_shape(har, require_real_entry=bool(events))
         (self.output_dir / "network_trace.json").write_text(
@@ -75,15 +118,15 @@ class NetworkTraceRecorder:
 
     def _on_request(self, request: Any) -> None:
         key = id(request)
-        headers = _redact_headers(_safe_call(lambda: request.headers) or {})
-        post_data = _redact_post_data(_safe_call(lambda: request.post_data))
+        headers = _string_map(_safe_call(lambda: request.headers) or {})
+        url = _safe_call(lambda: request.url) or ""
         event = {
-            "url": _safe_call(lambda: request.url) or "",
+            "url": url,
             "method": str(_safe_call(lambda: request.method) or "GET").upper(),
             "request_headers": headers,
             "headers": headers,
-            "post_data": post_data or "",
-            "query_params": _query_params(_safe_call(lambda: request.url) or ""),
+            "post_data": _safe_call(lambda: request.post_data) or "",
+            "query_params": _query_params(url),
             "resource_type": _safe_call(lambda: request.resource_type) or "",
             "is_navigation_request": bool(_safe_call(lambda: request.is_navigation_request())),
             "timestamp": time.time(),
@@ -100,11 +143,11 @@ class NetworkTraceRecorder:
             return
         raw_response_headers = _safe_call(lambda: response.headers) or {}
         response_cookies = _cookies_from_headers(raw_response_headers)
-        response_headers = _redact_headers(raw_response_headers)
         status = _safe_call(lambda: response.status)
         event["response_status"] = status
-        event["response_headers"] = response_headers
+        event["response_headers"] = _string_map(raw_response_headers)
         event["response_cookies"] = response_cookies
+        event["response_content"] = _safe_call(lambda: response.text) or ""
 
     def _on_request_failed(self, request: Any) -> None:
         event = self._events_by_request.get(id(request))
@@ -117,7 +160,11 @@ class NetworkTraceRecorder:
 def _safe_call(fn: Any) -> Any:
     try:
         value = fn()
-        return value() if callable(value) and not isinstance(value, (str, bytes, dict, list)) else value
+        return (
+            value()
+            if callable(value) and not isinstance(value, (str, bytes, dict, list))
+            else value
+        )
     except Exception:
         return None
 
@@ -130,16 +177,58 @@ def _redact_headers(headers: Any) -> dict[str, str]:
         name = str(key).lower()
         out[name] = (
             "<redacted>"
-            if name in _SENSITIVE_HEADERS or any(marker in name for marker in _SENSITIVE_HEADER_SUBSTRINGS)
+            if name in _SENSITIVE_HEADERS
+            or any(marker in name for marker in _SENSITIVE_HEADER_SUBSTRINGS)
             else str(value)
         )
+    return out
+
+
+def _string_map(headers: Any) -> dict[str, str]:
+    if not isinstance(headers, dict):
+        return {}
+    return {str(key): str(value) for key, value in headers.items()}
+
+
+def _redact_event(event: dict[str, Any]) -> dict[str, Any]:
+    out = dict(event)
+    url = str(out.get("url") or "")
+    redacted_url, query_params = _redact_url_and_query(url)
+    out["url"] = redacted_url
+    out["query_params"] = query_params
+    out["request_headers"] = _redact_headers(out.get("request_headers"))
+    out["headers"] = _redact_headers(out.get("headers"))
+    out["post_data"] = _redact_post_data(out.get("post_data"))
+    out["response_headers"] = _redact_headers(out.get("response_headers"))
+    out["response_cookies"] = _redact_cookie_values(out.get("response_cookies"))
+    out["response_content"] = _redact_response_text(out.get("response_content"))
     return out
 
 
 def _redact_post_data(value: Any) -> str:
     if not isinstance(value, str) or not value:
         return ""
-    if re.search(r"(?i)(password|passwd|token|secret|csrf|auth|api[_-]?key|session)\s*[:=]", value):
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        parsed = None
+    if parsed is not None:
+        redacted = _redact_sensitive_fields(parsed)
+        if redacted != parsed:
+            return json.dumps(redacted, sort_keys=True, separators=(",", ":"))
+        return value
+    form_pairs = parse_qsl(value, keep_blank_values=True)
+    if form_pairs and urlencode(form_pairs) == value.replace(" ", "+"):
+        return urlencode(
+            [
+                (key, "<redacted>" if _is_sensitive_field_name(key) else item)
+                for key, item in form_pairs
+            ]
+        )
+    if re.search(
+        r"(?i)(password|passwd|secret|csrf|authenticity_token|access_token|refresh_token|id_token|api[_-]?key|session)\s*[:=]",
+        value,
+    ):
         return "<redacted>"
     return value
 
@@ -153,6 +242,58 @@ def _query_params(url: str) -> dict[str, list[str]]:
         return {str(k): [str(item) for item in v] for k, v in parse_qs(urlsplit(url).query).items()}
     except Exception:
         return {}
+
+
+def _redact_url_and_query(url: str) -> tuple[str, dict[str, list[str]]]:
+    try:
+        parts = urlsplit(url)
+        pairs = parse_qsl(parts.query, keep_blank_values=True)
+    except Exception:
+        return url, {}
+    redacted_pairs = [
+        (key, "<redacted>" if _is_sensitive_field_name(key) else value) for key, value in pairs
+    ]
+    query: dict[str, list[str]] = {}
+    for key, value in redacted_pairs:
+        query.setdefault(str(key), []).append(str(value))
+    redacted_url = urlunsplit(
+        (
+            parts.scheme,
+            parts.netloc,
+            parts.path,
+            urlencode(redacted_pairs, doseq=True),
+            parts.fragment,
+        )
+    )
+    return redacted_url, query
+
+
+def _redact_response_text(value: Any) -> str:
+    if not isinstance(value, str) or not value:
+        return ""
+    return _redact_post_data(value[:_BODY_CAPTURE_CAP])
+
+
+def _redact_sensitive_fields(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            str(key): "<redacted>"
+            if _is_sensitive_field_name(str(key))
+            else _redact_sensitive_fields(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact_sensitive_fields(item) for item in value]
+    return value
+
+
+def _is_sensitive_field_name(name: str) -> bool:
+    normalized = name.strip().lower().replace("-", "_")
+    if normalized in _SENSITIVE_FIELD_NAMES:
+        return True
+    # Do not redact generic benchmark evidence like "ticket", "issue_key", or
+    # task-local "token" unless the field name clearly denotes credentials.
+    return any(marker in normalized for marker in _SENSITIVE_FIELD_SUBSTRINGS)
 
 
 def _cookies_from_headers(headers: dict[str, str]) -> list[dict[str, str]]:
@@ -170,13 +311,25 @@ def _cookies_from_headers(headers: dict[str, str]) -> list[dict[str, str]]:
         parsed.load(raw)
     except Exception:
         parsed = SimpleCookie()
-    for name in parsed:
-        cookies.append({"name": str(name), "value": "<redacted>"})
+    for name, morsel in parsed.items():
+        cookies.append({"name": str(name), "value": str(morsel.value)})
     if cookies:
         return cookies
     for match in re.finditer(r"(?:^|,\s*)([^=;,\s]+)=", raw):
-        cookies.append({"name": match.group(1).strip(), "value": "<redacted>"})
+        cookies.append({"name": match.group(1).strip(), "value": ""})
     return cookies
+
+
+def _redact_cookie_values(cookies: Any) -> list[dict[str, str]]:
+    if not isinstance(cookies, list):
+        return []
+    out: list[dict[str, str]] = []
+    for cookie in cookies:
+        if isinstance(cookie, dict):
+            name = str(cookie.get("name") or "")
+            if name:
+                out.append({"name": name, "value": "<redacted>"})
+    return out
 
 
 def validate_har_1_2_shape(har: dict[str, Any], *, require_real_entry: bool = False) -> None:
@@ -232,7 +385,9 @@ def _validate_har_entry(entry: Any) -> None:
     if post_data is not None:
         if not isinstance(post_data, dict):
             raise ValueError("HAR request.postData must be an object")
-        if not isinstance(post_data.get("mimeType"), str) or not isinstance(post_data.get("text"), str):
+        if not isinstance(post_data.get("mimeType"), str) or not isinstance(
+            post_data.get("text"), str
+        ):
             raise ValueError("HAR request.postData must contain string mimeType and text")
 
 
@@ -274,7 +429,7 @@ def _as_har(events: list[dict[str, Any]], *, started_at: float) -> dict[str, Any
                     "httpVersion": "HTTP/1.1",
                     "headers": _har_headers(event.get("response_headers")),
                     "cookies": event.get("response_cookies") or [],
-                    "content": {"size": 0, "mimeType": "", "text": ""},
+                    "content": _har_response_content(event),
                     "redirectURL": "",
                     "headersSize": -1,
                     "bodySize": -1,
@@ -294,7 +449,7 @@ def _har_headers(headers: Any) -> list[dict[str, str]]:
 
 def _har_post_data(event: dict[str, Any]) -> dict[str, Any]:
     text = event.get("post_data")
-    if not isinstance(text, str) or not text or text == "<redacted>":
+    if not isinstance(text, str) or not text:
         return {}
     mime = ""
     headers = event.get("request_headers")
@@ -304,6 +459,20 @@ def _har_post_data(event: dict[str, Any]) -> dict[str, Any]:
                 mime = str(value)
                 break
     return {"postData": {"mimeType": mime, "text": text}}
+
+
+def _har_response_content(event: dict[str, Any]) -> dict[str, Any]:
+    text = event.get("response_content")
+    if not isinstance(text, str):
+        text = ""
+    mime = ""
+    headers = event.get("response_headers")
+    if isinstance(headers, dict):
+        for key, value in headers.items():
+            if str(key).lower() == "content-type":
+                mime = str(value)
+                break
+    return {"size": len(text), "mimeType": mime, "text": text}
 
 
 def _har_datetime(value: Any) -> str:
