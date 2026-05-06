@@ -21,6 +21,19 @@ from worldsim.editors._registry import (
     iter_specs,
     method_spec,
 )
+from worldsim.phase_2.exposure_contract.constants import (
+    CREATE_CHILD_LISTING_KINDS,
+    DIRECT_KINDS,
+    LISTING_SOURCE_KINDS,
+    ORDERED_CREATED_CHILD_PRE_CALL_DELAY_S,
+    PREFERRED_PAYLOAD_ARGS,
+    PREFERRED_TOKEN_ORDER,
+    TRANSITIVE_EXISTING_SOURCE_KINDS,
+)
+from worldsim.phase_2.exposure_contract.signature import (
+    exposure_contract_signature,
+    signature_hash,
+)
 from worldsim.phases.phase_2_core_surfaces import (
     active_carrier_ineligible_reason,
     canonical_core_surface,
@@ -29,80 +42,10 @@ from worldsim.phases.phase_2_core_surfaces import (
 )
 from worldsim.phases.phase_2_text_fill import PAYLOAD_PLACEHOLDER
 
-PREFERRED_PAYLOAD_ARGS: tuple[str, ...] = ("body", "description", "message", "text", "content")
-PREFERRED_TOKEN_ORDER: tuple[str, ...] = (
-    "{benign_project_id}",
-    "{benign_project_path}",
-    "{benign_label_names}",
-    "{benign_issue_iid}",
-    "{benign_mr_iid}",
-    "{benign_milestone_iid}",
-    "{benign_submission_id}",
-    "{benign_forum_name}",
-    "{benign_snippet_id}",
-    "{benign_group_path}",
-    "{benign_user_handle}",
+_EXPOSURE_REEXPORTED_SIGNATURE_HELPERS = (
+    exposure_contract_signature,
+    signature_hash,
 )
-
-DIRECT_KINDS = frozenset(
-    {
-        "gitlab_issue",
-        "gitlab_mr",
-        "reddit_submission",
-        "gitlab_user_profile",
-        "gitlab_snippet",
-        "gitlab_project_milestone",
-        "gitlab_group",
-    }
-)
-LISTING_SOURCE_KINDS = frozenset(
-    {
-        "gitlab_search_result",
-        "gitlab_dashboard_list",
-        "reddit_forum",
-        "reddit_dashboard_list",
-        "gitlab_snippets_index",
-        "gitlab_project_labels",
-    }
-)
-TRANSITIVE_EXISTING_SOURCE_KINDS = frozenset(
-    {"gitlab_search_result", "gitlab_dashboard_list", "reddit_forum", "reddit_dashboard_list"}
-)
-CREATE_CHILD_LISTING_KINDS = frozenset({"reddit_forum"})
-ORDERED_CREATED_CHILD_PRE_CALL_DELAY_S = 1.25
-
-
-def exposure_contract_signature() -> dict[str, Any]:
-    """Fingerprint knobs whose change invalidates persisted Phase 2 plans."""
-    return {
-        "version": 18,
-        "modes": [
-            "direct_detail",
-            "inline_listing",
-            "inline_listing_created_child",
-            "bounded_transitive_existing",
-            "bounded_transitive_created_child",
-            "ineligible",
-        ],
-        "eligibility_policy": "seed_capability_and_phase4_exposure",
-        "phase4_exposure_schema_version": 1,
-        "payload_arg_preference": list(PREFERRED_PAYLOAD_ARGS),
-        "token_preference": list(PREFERRED_TOKEN_ORDER),
-        "surface_visibility_preference": ["always_shown", "conditional"],
-        "core_surface_policy": "path_a_canonical_core_ugc",
-        "created_child_target_source": "seed_metadata.created_resource.url",
-        "appended_comment_exposure_policy": "gitlab_exact_region_reddit_seed_specific_visibility_or_runtime_hook",
-        "visible_listing_title_preference": "prefer_payload_in_created_child_title_rows_when_rich_route_unproven",
-        "surface_route_metadata": "entry_seed_transition_capacity_v2",
-        "surface_candidate_policy": "enumerate_then_select_best_eligible_route",
-        "title_surface_policy": "requires_task_salient_title_content_or_row_action",
-        "ordered_append_guard": "created_children_and_appended_comments_pre_call_delay",
-    }
-
-
-def signature_hash() -> str:
-    payload = json.dumps(exposure_contract_signature(), sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
 
 
 def build_exposure_contract(
