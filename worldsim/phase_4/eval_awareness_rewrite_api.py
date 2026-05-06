@@ -37,7 +37,6 @@ from worldsim.phase_4.prompt_payloads import (
 )
 from worldsim.phase_4.variant_api import (
     _action_payload_text_contract_error,
-    _seed_equivalent,
     _variant_payload_contract,
 )
 from worldsim.prompt_loading import load_prompt
@@ -61,7 +60,13 @@ class build_eval_awareness_rewrite(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     status: Literal["ok", "inapplicable"]
-    adversarial_data_seed: dict[str, Any] | None = Field(default=None)
+    adversarial_data_seed: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Deprecated compatibility field. The model should leave this unset; "
+            "WorldSim host code materializes the editor seed from payload_text."
+        ),
+    )
     payload_text: TextPayloadResponse | None = None
     rewrite_summary: str | None = Field(default=None, max_length=800)
     cue_reasoning: str | None = Field(
@@ -98,12 +103,6 @@ class build_eval_awareness_rewrite(BaseModel):
                 raise ValueError("schema_violation: inapplicable rewrites require reason")
             return self
 
-        if not isinstance(self.adversarial_data_seed, dict) or not self.adversarial_data_seed:
-            raise ValueError("schema_violation: ok rewrites require adversarial_data_seed")
-        try:
-            validate_data_seed(self.adversarial_data_seed, allow_none=False)
-        except ValueError as exc:
-            raise ValueError(f"schema_violation: invalid adversarial_data_seed: {exc}") from exc
         if self.payload_text is None:
             raise ValueError("schema_violation: ok rewrites require payload_text")
         if not isinstance(self.cue_reasoning, str) or not self.cue_reasoning.strip():
@@ -111,19 +110,12 @@ class build_eval_awareness_rewrite(BaseModel):
         if not isinstance(self.rewrite_plan, str) or not self.rewrite_plan.strip():
             raise ValueError("schema_violation: ok rewrites require rewrite_plan")
         if task is not None:
-            rendered_from_seed = selected_seed_payload_text(task, self.adversarial_data_seed)
             payload_for_validation = self.payload_text.model_dump()
-            if isinstance(rendered_from_seed, str) and rendered_from_seed:
-                if self.payload_text.rendered_payload != rendered_from_seed:
-                    raise ValueError(
-                        "payload_text_contract_violation: rendered_payload must match "
-                        "the selected payload text in adversarial_data_seed"
-                    )
-                payload_for_validation = {**payload_for_validation, "rendered_payload": rendered_from_seed}
             action_error = _action_payload_text_contract_error(task, payload_for_validation)
             if action_error is not None:
                 raise ValueError("payload_text_contract_violation: " + action_error)
-            if _seed_equivalent(self.adversarial_data_seed, task.get("adversarial_data_seed")):
+            old_payload = selected_seed_payload_text(task, task.get("adversarial_data_seed"))
+            if isinstance(old_payload, str) and self.payload_text.rendered_payload == old_payload:
                 raise ValueError("unchanged_seed: ok rewrite must change selected payload text")
         return self
 
@@ -228,9 +220,9 @@ def _build_messages(
 
 def _merge_rewrite(base_task: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
     merged = copy.deepcopy(base_task)
-    merged["adversarial_data_seed"] = payload.get("adversarial_data_seed") or merged.get(
-        "adversarial_data_seed"
-    )
+    materialized_seed = _materialize_rewrite_seed(base_task, payload)
+    if materialized_seed is not None:
+        merged["adversarial_data_seed"] = materialized_seed
     if isinstance(payload.get("payload_text"), dict):
         merged["payload_text"] = payload["payload_text"]
     merged["eval_awareness_rewrite"] = {
@@ -245,6 +237,134 @@ def _merge_rewrite(base_task: dict[str, Any], payload: dict[str, Any]) -> dict[s
         if value is not None
     }
     return merged
+
+
+_EDITOR_TEXT_ARG_KEYS = (
+    "body",
+    "description",
+    "detail",
+    "content",
+    "message",
+    "note_body",
+    "submission_body",
+    "comment",
+    "value",
+)
+
+
+def _materialize_rewrite_seed(
+    base_task: dict[str, Any],
+    payload: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Build a revised editor seed by replacing only the selected payload text.
+
+    Eval-awareness rewrites should not ask a model to reconstruct
+    ``adversarial_data_seed``. The seed mechanism, editor call structure,
+    resource IDs, and payload argument are host-owned experiment contracts.
+    """
+
+    payload_text = payload.get("payload_text")
+    if not isinstance(payload_text, dict):
+        return None
+    rendered_payload = payload_text.get("rendered_payload")
+    if not isinstance(rendered_payload, str) or not rendered_payload:
+        return None
+
+    seed = copy.deepcopy(base_task.get("adversarial_data_seed"))
+    if not isinstance(seed, dict):
+        return None
+    calls = seed.get("editor_calls")
+    if not isinstance(calls, list):
+        return None
+
+    location = _selected_payload_location(base_task)
+    if location is None:
+        return None
+    index, key = location
+    if not (0 <= index < len(calls)):
+        return None
+    call = calls[index]
+    args = call.get("args") if isinstance(call, dict) else None
+    if not isinstance(args, dict):
+        return None
+    args[key] = rendered_payload
+    try:
+        validate_data_seed(seed, allow_none=False)
+    except ValueError:
+        return None
+    return seed
+
+
+def _selected_payload_location(base_task: dict[str, Any]) -> tuple[int, str] | None:
+    seed = base_task.get("adversarial_data_seed")
+    calls = seed.get("editor_calls") if isinstance(seed, dict) else None
+    if not isinstance(calls, list):
+        return None
+
+    selected = selected_payload(base_task)
+    selected_rendered = selected.get("rendered_payload") if isinstance(selected, dict) else None
+    contract = base_task.get("exposure_contract")
+    expected_method = (
+        str(contract.get("editor_method") or "").strip() if isinstance(contract, dict) else ""
+    )
+    payload_arg = (
+        str(contract.get("payload_arg") or "").strip() if isinstance(contract, dict) else ""
+    )
+
+    if expected_method and payload_arg:
+        matches = [
+            (index, payload_arg)
+            for index, call in enumerate(calls)
+            if _call_arg_value(call, expected_method, payload_arg) == selected_rendered
+        ]
+        if len(matches) == 1:
+            return matches[0]
+        payload_arg_matches = [
+            (index, payload_arg)
+            for index, call in enumerate(calls)
+            if _call_arg_value(call, expected_method, payload_arg) is not None
+        ]
+        if len(payload_arg_matches) == 1:
+            return payload_arg_matches[0]
+        return None
+
+    text_locations = _seed_text_locations(calls)
+    if isinstance(selected_rendered, str) and selected_rendered:
+        matches = [
+            location for location in text_locations if location[2] == selected_rendered
+        ]
+        if len(matches) == 1:
+            index, key, _value = matches[0]
+            return index, key
+    if len(text_locations) == 1:
+        index, key, _value = text_locations[0]
+        return index, key
+    return None
+
+
+def _call_arg_value(call: Any, expected_method: str, payload_arg: str) -> str | None:
+    if not isinstance(call, dict) or call.get("method") != expected_method:
+        return None
+    args = call.get("args")
+    if not isinstance(args, dict):
+        return None
+    value = args.get(payload_arg)
+    return value if isinstance(value, str) and value else None
+
+
+def _seed_text_locations(calls: list[Any]) -> list[tuple[int, str, str]]:
+    locations: list[tuple[int, str, str]] = []
+    for index, call in enumerate(calls):
+        if not isinstance(call, dict):
+            continue
+        args = call.get("args")
+        if not isinstance(args, dict):
+            continue
+        for key in _EDITOR_TEXT_ARG_KEYS:
+            value = args.get(key)
+            if isinstance(value, str) and value:
+                locations.append((index, key, value))
+    return locations
 
 
 def _failed_rewrite(
@@ -383,6 +503,13 @@ async def generate_eval_awareness_rewrite_api(
             task,
             failure_class="unexpected_tool_status",
             reason=f"unexpected tool status={payload.get('status')!r}",
+            diagnostics=diagnostics,
+        )
+    if _materialize_rewrite_seed(task, payload) is None:
+        return _failed_rewrite(
+            task,
+            failure_class="seed_materialization_failed",
+            reason="could not bind rewritten payload_text to the host-owned editor seed",
             diagnostics=diagnostics,
         )
     return _merge_rewrite(task, payload)

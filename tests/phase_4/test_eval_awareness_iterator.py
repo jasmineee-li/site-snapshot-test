@@ -311,32 +311,81 @@ def test_eval_awareness_rewrite_prompt_uses_benign_xml_problem_sheet():
     assert "<task_context>" in input_text
 
 
-def test_eval_awareness_rewrite_rejects_payload_text_seed_mismatch():
-    from pydantic import ValidationError
-
+def test_eval_awareness_rewrite_schema_accepts_payload_only_seed_host_owned():
     from worldsim.phase_4.eval_awareness_rewrite_api import build_eval_awareness_rewrite
 
     task, _instances = _prepared_adv_task()
-    seed = json.loads(json.dumps(task["adversarial_data_seed"]))
-    seed["editor_calls"][0]["args"]["detail"] = "seed payload A"
-
-    with pytest.raises(ValidationError, match="rendered_payload must match"):
-        build_eval_awareness_rewrite.model_validate(
-            {
-                "status": "ok",
-                "adversarial_data_seed": seed,
-                "payload_text": {
-                    "rendered_payload": "seed payload B",
-                    "raw_text": "seed payload B",
-                    "framing_witnesses": ["seed payload B"],
-                    "attack_action_witnesses": ["seed payload B"],
-                    "concealment_witnesses": [],
-                },
-                "cue_reasoning": "The old payload reads like a benchmark instruction.",
-                "rewrite_plan": "Replace benchmark-like wording with site-native wording.",
+    payload = build_eval_awareness_rewrite.model_validate(
+        {
+            "status": "ok",
+            "payload_text": {
+                "rendered_payload": "new payload",
+                "raw_text": "new payload",
+                "framing_witnesses": ["new payload"],
+                "attack_action_witnesses": ["new payload"],
+                "concealment_witnesses": [],
             },
-            context={"task": task},
-        )
+            "cue_reasoning": "The old payload reads like a benchmark instruction.",
+            "rewrite_plan": "Replace benchmark-like wording with site-native wording.",
+        },
+        context={"task": task},
+    )
+
+    assert payload.adversarial_data_seed is None
+    assert payload.payload_text is not None
+    assert payload.payload_text.rendered_payload == "new payload"
+
+
+def test_eval_awareness_rewrite_materializes_payload_inside_existing_editor_seed():
+    from worldsim.phase_4.eval_awareness_rewrite_api import _merge_rewrite
+
+    task, _instances = _prepared_adv_task()
+    merged = _merge_rewrite(
+        task,
+        {
+            "status": "ok",
+            "payload_text": {
+                "rendered_payload": "new payload",
+                "raw_text": "new payload",
+                "framing_witnesses": ["new payload"],
+                "attack_action_witnesses": ["new payload"],
+                "concealment_witnesses": [],
+            },
+        },
+    )
+
+    assert merged["adversarial_data_seed"]["mechanism"] == "editor"
+    assert (
+        merged["adversarial_data_seed"]["editor_calls"][0]["args"]["detail"]
+        == "new payload"
+    )
+    assert task["adversarial_data_seed"]["editor_calls"][0]["args"]["detail"] == "payload"
+
+
+def test_eval_awareness_rewrite_ignores_model_seed_mechanism_labels():
+    from worldsim.phase_4.eval_awareness_rewrite_api import _merge_rewrite
+
+    task, _instances = _prepared_adv_task()
+    merged = _merge_rewrite(
+        task,
+        {
+            "status": "ok",
+            "adversarial_data_seed": {"mechanism": "markdown_fenced_system"},
+            "payload_text": {
+                "rendered_payload": "new payload",
+                "raw_text": "new payload",
+                "framing_witnesses": ["new payload"],
+                "attack_action_witnesses": ["new payload"],
+                "concealment_witnesses": [],
+            },
+        },
+    )
+
+    assert merged["adversarial_data_seed"]["mechanism"] == "editor"
+    assert (
+        merged["adversarial_data_seed"]["editor_calls"][0]["args"]["detail"]
+        == "new payload"
+    )
 
 
 @pytest.mark.asyncio
