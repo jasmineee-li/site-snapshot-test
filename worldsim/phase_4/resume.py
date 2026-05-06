@@ -61,6 +61,7 @@ def _phase_4_state_metadata(
     agent_service_tier: str | None,
     max_tasks_per_site: int | None,
     sites: str | None,
+    adversarial_action_kind: str | None,
     benchmark_root: Path | None,
     allow_unknown_auth: bool,
     skip_host_bound_storage_state_auth: bool,
@@ -89,6 +90,8 @@ def _phase_4_state_metadata(
     }
     if sites is not None:
         metadata["sites"] = sites
+    if adversarial_action_kind is not None:
+        metadata["adversarial_action_kind"] = adversarial_action_kind
     if benchmark_root is not None:
         metadata["benchmark_path"] = str(benchmark_root)
     if phase_4_max_workers is not None:
@@ -311,6 +314,7 @@ def _phase_4_postprocess_fingerprint(
     variant_budget_preset: str | None = None,
     variant_system: str | None = None,
     eval_awareness_max_iterations: int | None = None,
+    agent_execution: dict[str, Any] | None = None,
 ) -> str:
     normalized_variant_system = _normalize_phase_4_variant_system(variant_system)
     return _fingerprint_payload(
@@ -333,6 +337,7 @@ def _phase_4_postprocess_fingerprint(
             "config_url_placeholders": _task_reachable_placeholders(task, config_url_placeholders),
             "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
             "sandbox_model": sandbox_model,
+            "agent_execution": agent_execution or {},
             "site_profile": site_profile,
             "variant_budget_preset": variant_budget_preset
             or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET,

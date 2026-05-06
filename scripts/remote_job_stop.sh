@@ -135,8 +135,14 @@ if not force:
     raise SystemExit(f"TERM timeout after {timeout}s; rerun with --force to send KILL")
 
 os.killpg(pgid, signal.SIGKILL)
-time.sleep(0.5)
-write_json(job_dir / "exit.json", {"status": "killed", "updated_at": now(), "pid": pid, "pgid": pgid, "signal": "KILL"})
-print(f"killed job {job_id} with KILL")
+deadline = time.time() + 5
+while time.time() < deadline:
+    if not alive():
+        write_json(job_dir / "exit.json", {"status": "killed", "updated_at": now(), "pid": pid, "pgid": pgid, "signal": "KILL"})
+        print(f"killed job {job_id} with KILL")
+        raise SystemExit(0)
+    time.sleep(0.5)
+write_json(job_dir / "stop.json", {"status": "kill_timeout", "updated_at": now(), "pid": pid, "pgid": pgid})
+raise SystemExit("KILL timeout after 5s; process group still appears alive")
 PY
 REMOTE

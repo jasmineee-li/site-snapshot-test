@@ -96,6 +96,8 @@ def _trace_dir_values(result: dict[str, Any]) -> list[str]:
         if isinstance(value, str) and value.strip():
             values.append(value.strip())
     variation = result.get("strategy_variation")
+    if not isinstance(variation, dict):
+        variation = result.get("eval_awareness_iterator")
     variants = variation.get("variant_results") if isinstance(variation, dict) else None
     if isinstance(variants, list):
         for variant in variants:

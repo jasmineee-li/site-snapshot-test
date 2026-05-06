@@ -98,6 +98,7 @@ async def run_strategy_variation(
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
     variant_budget_preset: str | None = None,
+    agent_execution: dict[str, Any] | None = None,
     progress_callback: Phase4ProgressCallback | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
@@ -138,6 +139,7 @@ async def run_strategy_variation(
         site_profile=site_profile,
         variant_budget_preset=variant_budget_preset,
         variant_system="strategy-variation",
+        agent_execution=agent_execution,
     )
     legacy_source_fingerprint = _fingerprint_payload(
         task,

@@ -107,6 +107,7 @@ rj_guard_runtime_instance_topology() {
     python3 - "$host_config" "$@" <<'PY'
 import os
 import re
+import shlex
 import sys
 from pathlib import Path
 
@@ -136,17 +137,73 @@ command_text = " ".join(" ".join(argv).split())
 if "worldsim.main" not in command_text:
     raise SystemExit(0)
 
+_KNOWN_PHASES = {"0", "0c", "1", "2", "2c", "3", "4"}
+_PHASE_BOOLEAN_OPTIONS = {
+    "--skip-feasibility",
+    "--generate-novel",
+    "--resume",
+    "--force",
+    "--quiet",
+    "--allow-unknown-auth",
+    "--skip-host-bound-storage-state-auth",
+}
+
+
+def _command_tokens() -> list[str]:
+    if len(argv) >= 3 and argv[0] == "bash" and argv[1] == "-lc":
+        try:
+            return shlex.split(argv[2])
+        except ValueError:
+            return argv
+    return argv
+
+
+def _phase_segments() -> list[list[str]]:
+    tokens = _command_tokens()
+    segments: list[list[str]] = []
+    index = 0
+    while index < len(tokens):
+        if tokens[index] != "worldsim.main" or index + 1 >= len(tokens) or tokens[index + 1] != "phase":
+            index += 1
+            continue
+        end = index + 2
+        while end < len(tokens):
+            if end > index + 2 and tokens[end] == "worldsim.main":
+                break
+            if tokens[end] in {"&&", "||", ";"}:
+                break
+            end += 1
+        segments.append(tokens[index:end])
+        index = end
+    return segments
+
+
+def _segment_phase(segment: list[str]) -> str | None:
+    skip_value = False
+    for token in segment[2:]:
+        if skip_value:
+            skip_value = False
+            continue
+        if token in _KNOWN_PHASES:
+            return token
+        if token.startswith("--"):
+            if "=" not in token and token not in _PHASE_BOOLEAN_OPTIONS:
+                skip_value = True
+            continue
+        if token.startswith("-"):
+            continue
+    return None
+
 
 def _runs_phase(phase: str) -> bool:
-    return bool(re.search(rf"\bworldsim\.main\s+phase\s+{re.escape(phase)}(?:\s|$)", command_text))
+    return any(_segment_phase(segment) == phase for segment in _phase_segments())
 
 
 def _phase_command(phase: str) -> str | None:
-    match = re.search(
-        rf"\bworldsim\.main\s+phase\s+{re.escape(phase)}(?:\s|$).*?(?=(?:\s+(?:&&|\|\||;)\s+.*?\bworldsim\.main\s+phase\s+)|$)",
-        command_text,
-    )
-    return match.group(0) if match else None
+    for segment in _phase_segments():
+        if _segment_phase(segment) == phase:
+            return " ".join(shlex.quote(token) for token in segment)
+    return None
 
 
 def _option_value(option: str) -> str | None:

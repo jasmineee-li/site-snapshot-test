@@ -1532,6 +1532,7 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         target == "phase_4"
         and phase_4_variant_system is None
         and "phase_4_variant_system" not in state
+        and state.get("step") == "phase_4"
     ):
         # Pre-iterator Phase 4 states did not persist this field. Preserve the
         # behavior those runs started with instead of silently resuming into the

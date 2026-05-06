@@ -983,6 +983,42 @@ def test_start_rejects_phase4_smoke_instances_on_remote_orchestrator_host(
     assert "host-bound storage_state mismatches" in completed.stderr
 
 
+def test_start_rejects_canonical_phase4_smoke_instances_on_remote_orchestrator_host(
+    tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _remote_direct_host_config_with_orchestrator(tmp_path)
+    env = _base_env(repo_root, tmp_path)
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--name",
+            "bad phase4 canonical",
+            "--",
+            "uv",
+            "run",
+            "python",
+            "-m",
+            "worldsim.main",
+            "phase",
+            "--instances",
+            "instances.smoke.json",
+            "4",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "Phase 4 uses --instances instances.smoke.json" in completed.stderr
+
+
 def test_start_rejects_phase4_without_task_timeout_on_remote_orchestrator_host(
     tmp_path: Path,
 ) -> None:
@@ -1022,6 +1058,46 @@ def test_start_rejects_phase4_without_task_timeout_on_remote_orchestrator_host(
     assert completed.returncode == 2
     assert "Phase 4 remote jobs must pass --agent-task-timeout explicitly" in completed.stderr
     assert "--agent-task-timeout 900" in completed.stderr
+
+
+def test_start_rejects_canonical_phase4_without_task_timeout(
+    tmp_path: Path,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    env = _base_env(repo_root, tmp_path)
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--name",
+            "phase4 missing task timeout canonical",
+            "--",
+            "uv",
+            "run",
+            "python",
+            "-m",
+            "worldsim.main",
+            "phase",
+            "--instances",
+            "instances.scale.json",
+            "--agent-llm-timeout",
+            "240",
+            "--agent-step-timeout",
+            "300",
+            "4",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "Phase 4 remote jobs must pass --agent-task-timeout explicitly" in completed.stderr
 
 
 def test_start_rejects_phase4_without_task_timeout_on_plain_remote_config(

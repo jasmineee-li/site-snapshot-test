@@ -72,11 +72,6 @@ def _attempt_record(
         "transcript_purpose_is_aware": result.get("transcript_purpose_is_aware"),
         "transcript_purpose_failure": result.get("transcript_purpose_failure"),
         "transcript_purpose_was_refused": result.get("transcript_purpose_was_refused"),
-        "verbalized_eval_awareness_classification": result.get(
-            "verbalized_eval_awareness_classification"
-        ),
-        "verbalized_eval_awareness_is_aware": result.get("verbalized_eval_awareness_is_aware"),
-        "verbalized_eval_awareness_failure": result.get("verbalized_eval_awareness_failure"),
     }
     if "variant_index" in result:
         record["variant_index"] = result.get("variant_index")
@@ -91,16 +86,15 @@ def _iterator_budget_report(
     iteration_records: list[dict[str, Any]],
     stop_reason: str,
 ) -> dict[str, Any]:
-    results = [
-        item.get("result")
-        for item in iteration_records
-        if isinstance(item.get("result"), dict)
-    ]
+    results = [item.get("result") for item in iteration_records if isinstance(item.get("result"), dict)]
+    consumed = [item for item in iteration_records if _iteration_consumes_budget(item)]
+    rejected = [item for item in iteration_records if item.get("status") in {"rewrite_failed", "rejected"}]
     return {
         "algorithm": "eval-awareness-iterator",
         "version": _PHASE_4_EVAL_AWARENESS_ITERATOR_VERSION,
         "max_rewrites": max_iterations,
-        "rewrites_attempted": len(iteration_records),
+        "rewrites_attempted": len(consumed),
+        "rejected_rewrites": len(rejected),
         "browser_evaluated": len(results),
         "pvpo_valid": sum(1 for result in results if _ecologically_valid(result)),
         "complied": sum(
@@ -111,16 +105,20 @@ def _iterator_budget_report(
         "tp_real": sum(
             1 for result in results if result.get("transcript_purpose_classification") == "Real"
         ),
-        "remaining_budget": max(0, max_iterations - len(iteration_records)),
+        "remaining_budget": max(0, max_iterations - len(consumed)),
         "stop_reason": stop_reason,
     }
 
 
 def _iteration_progress_counts(iteration_records: list[dict[str, Any]]) -> dict[str, int]:
+    consumed = [item for item in iteration_records if _iteration_consumes_budget(item)]
     return {
-        "generation_attempted": len(iteration_records),
+        "generation_attempted": len(consumed),
         "generation_generated": sum(
-            1 for item in iteration_records if isinstance(item.get("rewrite"), dict)
+            1
+            for item in iteration_records
+            if isinstance(item.get("rewrite"), dict)
+            and item.get("status") not in {"rewrite_failed", "rejected"}
         ),
         "generation_failed": sum(
             1 for item in iteration_records if item.get("status") in {"rewrite_failed", "rejected"}
@@ -143,6 +141,22 @@ def _iteration_progress_counts(iteration_records: list[dict[str, Any]]) -> dict[
     }
 
 
+def _iteration_consumes_budget(record: dict[str, Any]) -> bool:
+    if isinstance(record.get("result"), dict):
+        return True
+    if record.get("status") in {"rewrite_failed", "rejected"}:
+        return True
+    if isinstance(record.get("rewrite"), dict):
+        return True
+    return False
+
+
+def _iteration_is_terminal(record: dict[str, Any]) -> bool:
+    if isinstance(record.get("result"), dict):
+        return True
+    return record.get("status") in {"rewrite_failed", "rejected"}
+
+
 def _best_iterator_result(
     baseline: dict[str, Any],
     iteration_records: list[dict[str, Any]],
@@ -158,7 +172,7 @@ def _best_iterator_result(
         pvpo_valid = 1 if _ecologically_valid(result) else 0
         complied = 1 if pvpo_valid and result.get("outcome") == "complied" else 0
         tp_real = 1 if result.get("transcript_purpose_classification") == "Real" else 0
-        return (complied and tp_real, complied, tp_real and pvpo_valid, iteration)
+        return (complied and tp_real, complied, tp_real and pvpo_valid, pvpo_valid, iteration)
 
     best_iteration, best_result, best_kind = max(candidates, key=score)
     if best_kind == "baseline":
@@ -190,6 +204,7 @@ async def run_eval_awareness_iterator(
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
     max_iterations: int | None = None,
+    agent_execution: dict[str, Any] | None = None,
     progress_callback: Phase4ProgressCallback | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
@@ -227,6 +242,7 @@ async def run_eval_awareness_iterator(
         variant_budget_preset=None,
         variant_system="eval-awareness-iterator",
         eval_awareness_max_iterations=max_rewrites,
+        agent_execution=agent_execution,
     )
     checkpoint_path = _eval_awareness_checkpoint_path(task_dir_root, task_id)
     checkpoint = _load_json_dict(checkpoint_path) if resume else None
@@ -304,25 +320,39 @@ async def run_eval_awareness_iterator(
             },
         )
 
-    iteration_range = range(len(iteration_records) + 1, max_rewrites + 1) if not stop_reason else ()
-    for iteration in iteration_range:
+    while not stop_reason:
+        consumed_iterations = sum(1 for item in iteration_records if _iteration_consumes_budget(item))
+        if consumed_iterations >= max_rewrites:
+            break
         if not _tp_requires_iteration(current_result):
             stop_reason = "tp_real"
             break
 
-        record: dict[str, Any] = {
-            "iteration": iteration,
-            "parent_iteration": iteration - 1,
-            "trigger_source": _tp_trigger_source(current_result),
-            "status": "started",
-        }
-        iteration_records.append(record)
-        checkpoint["iterations"] = iteration_records
-        _write_json_atomic(
-            checkpoint_path,
-            checkpoint,
-            failpoint_base="phase_4.eval_awareness_iterator.checkpoint",
-        )
+        record: dict[str, Any] | None = None
+        if iteration_records:
+            candidate = iteration_records[-1]
+            if not _iteration_is_terminal(candidate):
+                record = candidate
+        if record is None:
+            iteration = consumed_iterations + 1
+            record = {
+                "iteration": iteration,
+                "parent_iteration": iteration - 1,
+                "trigger_source": _tp_trigger_source(current_result),
+                "status": "started",
+            }
+            iteration_records.append(record)
+            checkpoint["iterations"] = iteration_records
+            _write_json_atomic(
+                checkpoint_path,
+                checkpoint,
+                failpoint_base="phase_4.eval_awareness_iterator.checkpoint",
+            )
+        else:
+            iteration = int(record.get("iteration", consumed_iterations + 1) or consumed_iterations + 1)
+            record.setdefault("parent_iteration", iteration - 1)
+            record.setdefault("trigger_source", _tp_trigger_source(current_result))
+            record.setdefault("status", "started")
 
         from worldsim.phase_4.eval_awareness_cue_api import run_eval_awareness_cue_api
         from worldsim.phase_4.eval_awareness_rewrite_api import (

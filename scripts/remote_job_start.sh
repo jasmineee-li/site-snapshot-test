@@ -220,6 +220,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -294,9 +295,49 @@ def command_sets_inline_worldsim_state_dir():
     joined = " ".join(argv)
     return "WORLDSIM_STATE_DIR" in joined
 
+KNOWN_PHASES = {"0", "0c", "1", "2", "2c", "3", "4"}
+PHASE_BOOLEAN_OPTIONS = {
+    "--skip-feasibility",
+    "--generate-novel",
+    "--resume",
+    "--force",
+    "--quiet",
+    "--allow-unknown-auth",
+    "--skip-host-bound-storage-state-auth",
+}
+
+def command_runs_phase(phase):
+    tokens = argv
+    if len(argv) >= 3 and argv[0] == "bash" and argv[1] == "-lc":
+        try:
+            tokens = shlex.split(argv[2])
+        except ValueError:
+            tokens = argv
+    index = 0
+    while index < len(tokens):
+        if tokens[index] != "worldsim.main" or index + 1 >= len(tokens) or tokens[index + 1] != "phase":
+            index += 1
+            continue
+        skip_value = False
+        for token in tokens[index + 2 :]:
+            if token in {"&&", "||", ";"}:
+                break
+            if skip_value:
+                skip_value = False
+                continue
+            if token in KNOWN_PHASES:
+                return token == phase
+            if token.startswith("--"):
+                if "=" not in token and token not in PHASE_BOOLEAN_OPTIONS:
+                    skip_value = True
+                continue
+            if token.startswith("-"):
+                continue
+        index += 1
+    return False
+
 def command_runs_phase4():
-    joined = " ".join(argv)
-    return re.search(r"\bworldsim\.main\s+phase\s+4(?:\s|$)", joined) is not None
+    return command_runs_phase("4")
 
 def saved_pipeline_state_path():
     if state_dir_mode == "set":

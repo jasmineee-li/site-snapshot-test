@@ -562,6 +562,8 @@ def _followup_loop_outcome(result: Mapping[str, Any]) -> str:
     if result.get("final_status") == "success_on_variant":
         return "success_on_variant" if _final_strict_success(result) else "inconsistent"
     variation = result.get("strategy_variation")
+    if not isinstance(variation, Mapping):
+        variation = result.get("eval_awareness_iterator")
     if isinstance(variation, Mapping) and isinstance(
         variation.get("variant_results"), list
     ):

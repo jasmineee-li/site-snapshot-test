@@ -85,8 +85,6 @@ excludes=(
     "*.pyc"
     "node_modules/"
     "agent-tools/"
-    "typescript"
-    ".join(strategies)} | variants={"
     "*secret*"
     "*credentials*"
     "*.pem"
@@ -103,8 +101,6 @@ guarded_untracked=(
     "tmp"
     "*.sqlite"
     "*.sqlite3"
-    "typescript"
-    ".join(strategies)} | variants={"
     "scripts/smoke_phase_*.py"
 )
 
@@ -151,6 +147,11 @@ if root.exists():
             continue
         proc = proc_root / str(pid)
         if not proc.exists():
+            continue
+        try:
+            if proc.joinpath("stat").read_text().split()[2] == "Z":
+                continue
+        except Exception:
             continue
         start_ticks = str(metadata.get("process_start_ticks") or "").strip()
         if start_ticks:

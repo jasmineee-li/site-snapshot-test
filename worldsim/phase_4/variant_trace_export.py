@@ -175,13 +175,21 @@ def _build_task_row(
 
 
 def _variant_result_records(result: dict[str, Any]) -> list[dict[str, Any]]:
-    variation = result.get("strategy_variation")
+    variation = _variation_record(result)
     if not isinstance(variation, dict):
         return []
     raw_records = variation.get("variant_results")
     if not isinstance(raw_records, list):
         return []
     return [record for record in raw_records if isinstance(record, dict)]
+
+
+def _variation_record(result: dict[str, Any]) -> dict[str, Any] | None:
+    variation = result.get("strategy_variation")
+    if isinstance(variation, dict):
+        return variation
+    variation = result.get("eval_awareness_iterator")
+    return variation if isinstance(variation, dict) else None
 
 
 def _variant_result_by_index(
@@ -394,7 +402,7 @@ def _strategy_records(result: dict[str, Any], checkpoint: dict[str, Any]) -> lis
             for item in raw_generation
             if isinstance(item, dict)
         ]
-    variation = result.get("strategy_variation")
+    variation = _variation_record(result)
     if isinstance(variation, dict):
         raw_generation = variation.get("variant_generation_records")
         if not isinstance(raw_generation, list):
@@ -832,6 +840,9 @@ def _instruction_from_attempts(attempts: dict[int, list[dict[str, Any]]]) -> str
 def _load_checkpoint(initial_trace: Path | None) -> dict[str, Any]:
     if initial_trace is None:
         return {}
+    checkpoint = _load_json_dict(initial_trace / "eval_awareness_iterator_checkpoint.json")
+    if checkpoint:
+        return checkpoint
     return _load_json_dict(initial_trace / "strategy_variation_checkpoint.json")
 
 

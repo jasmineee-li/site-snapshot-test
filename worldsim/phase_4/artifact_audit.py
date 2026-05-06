@@ -200,7 +200,7 @@ def _strategy_name(value: Any) -> str:
 
 
 def _judge(result: dict[str, Any]) -> dict[str, Any]:
-    variation = result.get("strategy_variation")
+    variation = _variation_record(result)
     if not isinstance(variation, dict):
         return {}
     judge = variation.get("judge_diagnosis")
@@ -208,7 +208,7 @@ def _judge(result: dict[str, Any]) -> dict[str, Any]:
 
 
 def _variant_results(result: dict[str, Any]) -> list[dict[str, Any]]:
-    variation = result.get("strategy_variation")
+    variation = _variation_record(result)
     if not isinstance(variation, dict):
         return []
     raw = variation.get("variant_results")
@@ -218,13 +218,31 @@ def _variant_results(result: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _variant_generation_records(result: dict[str, Any]) -> list[dict[str, Any]]:
-    variation = result.get("strategy_variation")
+    variation = _variation_record(result)
     if not isinstance(variation, dict):
         return []
     raw = variation.get("variant_generation_records")
     if not isinstance(raw, list):
+        raw_rounds = variation.get("variant_rounds") or variation.get("adaptive_rounds")
+        if isinstance(raw_rounds, list):
+            raw = [
+                item
+                for round_record in raw_rounds
+                if isinstance(round_record, dict)
+                for item in round_record.get("variant_generation_records", [])
+                if isinstance(item, dict)
+            ]
+    if not isinstance(raw, list):
         return []
     return [item for item in raw if isinstance(item, dict)]
+
+
+def _variation_record(result: dict[str, Any]) -> dict[str, Any] | None:
+    variation = result.get("strategy_variation")
+    if isinstance(variation, dict):
+        return variation
+    variation = result.get("eval_awareness_iterator")
+    return variation if isinstance(variation, dict) else None
 
 
 def _generation_record_status(record: dict[str, Any]) -> str:
@@ -308,7 +326,7 @@ def _artifact_flags(
     evaluated: int,
 ) -> list[str]:
     flags: list[str] = []
-    has_variation = isinstance(result.get("strategy_variation"), dict)
+    has_variation = _variation_record(result) is not None
     if has_variation and not attempts:
         flags.append("missing_variant_generation_artifacts")
     if attempts and not any(attempt.get("has_failure_context") for attempt in attempts):
@@ -380,7 +398,7 @@ def build_variant_artifact_audit(
     repaired_failure_buckets: Counter[tuple[str, str, str, str, str]] = Counter()
     repaired_failure_examples: dict[tuple[str, str, str, str, str], str] = {}
     for result in results:
-        has_variation = isinstance(result.get("strategy_variation"), dict)
+        has_variation = _variation_record(result) is not None
         task_id = str(result.get("task_id") or "")
         attempts = artifacts_by_task.get(task_id, [])
         if not has_variation and not attempts:

@@ -221,6 +221,49 @@ def test_variant_artifact_audit_reconciles_results_and_attempt_files(tmp_path: P
     )
 
 
+def test_variant_artifact_audit_includes_eval_awareness_iterator_rows(tmp_path: Path):
+    task_id = "adv_novel_gitlab_1"
+    results = [
+        {
+            "task_id": task_id,
+            "final_status": "resistant",
+            "outcome_fine": "resistant_aware",
+            "encounter": {"max_coverage": 1.0},
+            "eval_awareness_iterator": {
+                "variant_rounds": [
+                    {
+                        "variant_generation_records": [
+                            {
+                                "index": 1,
+                                "global_variant_index": 1,
+                                "strategy": {"strategy": "eval_awareness_iterator"},
+                                "status": "evaluated",
+                            }
+                        ]
+                    }
+                ],
+                "variant_results": [
+                    {
+                        "strategy": "eval_awareness_iterator",
+                        "outcome": "refused_or_ignored",
+                        "encounter": {"max_coverage": 0.8},
+                    }
+                ],
+            },
+        }
+    ]
+
+    report = build_variant_artifact_audit(
+        results,
+        task_lookup={task_id: _task(task_id)},
+        phase4_dir=tmp_path / "phase_4",
+    )
+
+    row = report["task_rows"][0]
+    assert row["task_id"] == task_id
+    assert row["evaluated_variants"] == 1
+
+
 def test_variant_artifact_audit_separates_retry_repaired_host_failures(
     tmp_path: Path,
 ):

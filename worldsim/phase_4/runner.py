@@ -563,6 +563,15 @@ async def run(args: argparse.Namespace) -> int:
         "postprocessing",
         completed_initial_tasks=len(results),
     )
+    agent_execution_fingerprint = {
+        "agent_model": agent_model,
+        "agent_runner": agent_runner,
+        "agent_provider": agent_provider,
+        "agent_service_tier": agent_service_tier,
+        "agent_llm_timeout": agent_llm_timeout,
+        "agent_step_timeout": agent_step_timeout,
+        "agent_task_timeout": agent_task_timeout,
+    }
 
     async def _postprocess_one_task_with_progress(result: dict[str, Any]) -> dict[str, Any]:
         task_id = str(result.get("task_id", "unknown"))
@@ -594,6 +603,7 @@ async def run(args: argparse.Namespace) -> int:
                 variant_budget_preset=phase_4_variant_budget,
                 variant_system=phase_4_variant_system,
                 eval_awareness_max_iterations=phase_4_eval_awareness_max_iterations,
+                agent_execution=agent_execution_fingerprint,
                 progress_callback=_record_progress,
                 browser_worker_semaphore=browser_worker_semaphore,
             )

@@ -23,6 +23,7 @@ async def _postprocess_one_task(
     variant_budget_preset: str | None = None,
     variant_system: str | None = None,
     eval_awareness_max_iterations: int | None = None,
+    agent_execution: dict[str, Any] | None = None,
     progress_callback: Phase4ProgressCallback | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
@@ -53,6 +54,7 @@ async def _postprocess_one_task(
         variant_budget_preset=variant_budget_preset,
         variant_system=variant_system,
         eval_awareness_max_iterations=eval_awareness_max_iterations,
+        agent_execution=agent_execution,
     )
     if resume and processed_file.exists():
         try:
@@ -132,6 +134,7 @@ async def _process_adversarial_result(
     variant_budget_preset: str | None = None,
     variant_system: str | None = None,
     eval_awareness_max_iterations: int | None = None,
+    agent_execution: dict[str, Any] | None = None,
     progress_callback: Phase4ProgressCallback | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
@@ -247,6 +250,7 @@ async def _process_adversarial_result(
             sandbox_model=sandbox_model,
             site_profile=site_profile,
             variant_budget_preset=variant_budget_preset,
+            agent_execution=agent_execution,
             progress_callback=progress_callback,
             browser_worker_semaphore=browser_worker_semaphore,
         )
@@ -266,6 +270,7 @@ async def _process_adversarial_result(
             sandbox_model=sandbox_model,
             site_profile=site_profile,
             max_iterations=eval_awareness_max_iterations,
+            agent_execution=agent_execution,
             progress_callback=progress_callback,
             browser_worker_semaphore=browser_worker_semaphore,
         )

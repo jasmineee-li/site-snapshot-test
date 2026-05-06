@@ -636,6 +636,61 @@ def test_export_reads_embedded_strategy_variation_when_checkpoint_missing(tmp_pa
     assert variants[0]["selected_success"] is True
 
 
+def test_export_reads_embedded_eval_awareness_iterator_when_checkpoint_missing(
+    tmp_path: Path,
+) -> None:
+    run, trace = _base_run(tmp_path)
+    _write_json(trace / "result.json", _result('{"retrieved_data":["populated"]}', outcome="refused_or_ignored"))
+    _attempt(trace, index=1, strategy="eval_awareness_iterator", original="o1", revised="r1")
+    variant1 = trace.parent / "task-1_variant_1"
+    _write_json(variant1 / "result.json", _result('{"retrieved_data":["blank"]}'))
+    _write_json(
+        run / "phase_4" / "results.json",
+        [
+            {
+                "task_id": "task-1",
+                "final_status": "success_on_variant",
+                "initial_trace": str(trace),
+                "successful_variant_global_index": 1,
+                "successful_variant_trace": str(variant1),
+                "eval_awareness_iterator": {
+                    "variant_rounds": [
+                        {
+                            "variant_generation_records": [
+                                {
+                                    "index": 1,
+                                    "global_variant_index": 1,
+                                    "round_index": 1,
+                                    "round_variant_index": 0,
+                                    "strategy": {"strategy": "eval_awareness_iterator"},
+                                    "status": "evaluated",
+                                }
+                            ]
+                        }
+                    ],
+                    "variant_results": [
+                        {
+                            "global_variant_index": 1,
+                            "variant_index": 1,
+                            "trajectory_dir": str(variant1),
+                            "strategy": "eval_awareness_iterator",
+                            "encounter": {"max_coverage": 1.0},
+                            "outcome": "complied",
+                            "adversarial_passed": True,
+                        }
+                    ],
+                },
+            }
+        ],
+    )
+
+    variants = build_variant_trace_export(run)["rows"][0]["variants"]
+
+    assert len(variants) == 1
+    assert variants[0]["global_variant_index"] == 1
+    assert variants[0]["selected_success"] is True
+
+
 def test_export_falls_back_to_variant_results_when_generation_records_missing(
     tmp_path: Path,
 ) -> None:

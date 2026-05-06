@@ -412,6 +412,95 @@ async def test_eval_awareness_iterator_resume_respects_terminal_checkpoint(
 
 
 @pytest.mark.asyncio
+async def test_eval_awareness_iterator_resume_replays_started_record(
+    monkeypatch, tmp_path
+):
+    from worldsim.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
+
+    task, instances = _prepared_adv_task()
+    initial_result = {
+        "task_id": "adv-1",
+        "outcome": "refused_or_ignored",
+        "encounter": {"max_coverage": 0.5},
+        "trajectory_dir": str(tmp_path / "traj"),
+        "transcript_purpose_classification": "Capability Evaluation",
+    }
+    fingerprint = phase_4_adversarial._phase_4_postprocess_fingerprint(
+        task,
+        initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        config_url_placeholders=None,
+        benchmark_root=None,
+        sandbox_model="claude-sonnet-4-6",
+        site_profile=None,
+        variant_system="eval-awareness-iterator",
+        eval_awareness_max_iterations=3,
+    )
+    task_dir = tmp_path / safe_task_path_component(task["id"])
+    task_dir.mkdir(parents=True)
+    (task_dir / "eval_awareness_iterator_checkpoint.json").write_text(
+        json.dumps(
+            {
+                phase_4_adversarial._CHECKPOINT_FINGERPRINT_KEY: fingerprint,
+                "algorithm": "eval-awareness-iterator",
+                "version": phase_4_adversarial._PHASE_4_EVAL_AWARENESS_ITERATOR_VERSION,
+                "max_iterations": 3,
+                "baseline_attempt": {"iteration": 0, "kind": "baseline"},
+                "iterations": [{"iteration": 1, "parent_iteration": 0, "status": "started"}],
+            }
+        )
+    )
+
+    async def fake_cue(*args, **kwargs):
+        assert kwargs["iteration"] == 1
+        return {"status": "ok"}
+
+    async def fake_rewrite(*args, **kwargs):
+        assert kwargs["iteration"] == 1
+        rewritten = json.loads(json.dumps(task))
+        rewritten["adversarial_data_seed"]["editor_calls"][0]["args"]["detail"] = "resume payload"
+        rewritten["payload_text"] = {
+            "rendered_payload": "resume payload",
+            "raw_text": "resume payload",
+            "framing_witnesses": [],
+            "attack_action_witnesses": ["resume payload"],
+            "concealment_witnesses": [],
+        }
+        return rewritten
+
+    async def fake_evaluate(**kwargs):
+        assert kwargs["index"] == 1
+        return {
+            "task_id": "adv-1",
+            "outcome": "refused_or_ignored",
+            "encounter": {"max_coverage": 0.5},
+            "trajectory_dir": str(tmp_path / "adv-1_variant_1"),
+            "transcript_purpose_classification": "Real",
+        }
+
+    monkeypatch.setattr(eval_awareness_cue_api, "run_eval_awareness_cue_api", fake_cue)
+    monkeypatch.setattr(eval_awareness_rewrite_api, "generate_eval_awareness_rewrite_api", fake_rewrite)
+    monkeypatch.setattr(phase_4_adversarial, "build_variant_contract_qa", lambda *args, **kwargs: {"status": "pass", "failure_classes": []})
+    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fake_evaluate)
+
+    result = await phase_4_adversarial.run_eval_awareness_iterator(
+        task=task,
+        initial_result=initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        resume=True,
+        max_iterations=3,
+    )
+
+    assert result["variant_results"][0]["global_variant_index"] == 1
+    assert result["budget"]["rewrites_attempted"] == 1
+
+
+@pytest.mark.asyncio
 async def test_eval_awareness_zero_budget_is_resistant(monkeypatch, tmp_path):
     task, instances = _prepared_adv_task()
     initial_result = {

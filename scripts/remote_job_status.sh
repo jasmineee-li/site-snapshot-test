@@ -56,6 +56,7 @@ python3 - "$remote_dir" "$job_id" <<'PY'
 import json
 import os
 import re
+import shlex
 import sys
 import time
 from collections import Counter
@@ -156,8 +157,54 @@ def job_command_text() -> str:
         return " ".join(str(item) for item in command)
     return str(command)
 
+KNOWN_PHASES = {"0", "0c", "1", "2", "2c", "3", "4"}
+PHASE_BOOLEAN_OPTIONS = {
+    "--skip-feasibility",
+    "--generate-novel",
+    "--resume",
+    "--force",
+    "--quiet",
+    "--allow-unknown-auth",
+    "--skip-host-bound-storage-state-auth",
+}
+
+def job_command_tokens() -> list[str]:
+    command = metadata.get("original_command") or metadata.get("command") or []
+    tokens = [str(item) for item in command] if isinstance(command, list) else []
+    if len(tokens) >= 3 and tokens[0] == "bash" and tokens[1] == "-lc":
+        try:
+            return shlex.split(tokens[2])
+        except ValueError:
+            return tokens
+    return tokens
+
+def job_runs_phase(phase: str) -> bool:
+    tokens = job_command_tokens()
+    index = 0
+    while index < len(tokens):
+        if tokens[index] != "worldsim.main" or index + 1 >= len(tokens) or tokens[index + 1] != "phase":
+            index += 1
+            continue
+        skip_value = False
+        for token in tokens[index + 2:]:
+            if token in {"&&", "||", ";"}:
+                break
+            if skip_value:
+                skip_value = False
+                continue
+            if token in KNOWN_PHASES:
+                return token == phase
+            if token.startswith("--"):
+                if "=" not in token and token not in PHASE_BOOLEAN_OPTIONS:
+                    skip_value = True
+                continue
+            if token.startswith("-"):
+                continue
+        index += 1
+    return False
+
 def job_runs_phase4() -> bool:
-    return bool(re.search(r"\bworldsim\.main\s+phase\s+4(?:\s|$)", job_command_text()))
+    return job_runs_phase("4")
 
 def phase4_run_roots() -> list[Path]:
     roots: list[Path] = []
@@ -400,6 +447,9 @@ for candidate in phase4_progress_candidates():
     summary = summarize_phase4_progress(candidate)
     if summary is None:
         continue
+    if predates_job(candidate):
+        print(f"phase4_progress: stale {rel(candidate)} mtime={mtime_iso(candidate)}")
+        break
     if summary.get("error"):
         print(f"phase4_progress: present {rel(candidate)} error={summary['error']}")
         break
