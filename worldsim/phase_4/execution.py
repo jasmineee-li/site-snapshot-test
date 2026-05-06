@@ -7,6 +7,8 @@ from worldsim.phase_4._context import install_context
 
 install_context(globals())
 
+_REWARD_EVALUATION_TIMEOUT_S = float(os.environ.get("WORLDSIM_PHASE4_REWARD_TIMEOUT_S", "120"))
+
 
 async def _run_reward_function_safely(
     reward: dict[str, Any],
@@ -18,12 +20,26 @@ async def _run_reward_function_safely(
     reward_label: str,
 ) -> tuple[bool, str]:
     try:
-        return await asyncio.to_thread(
-            run_reward_function,
-            reward,
-            instance_dict,
-            result,
-            network_trace=network_trace,
+        return await asyncio.wait_for(
+            asyncio.to_thread(
+                run_reward_function,
+                reward,
+                instance_dict,
+                result,
+                network_trace=network_trace,
+            ),
+            timeout=_REWARD_EVALUATION_TIMEOUT_S,
+        )
+    except TimeoutError:
+        logger.error(
+            "Phase 4 reward evaluation timed out for task %r (%s) after %.1fs",
+            task_id,
+            reward_label,
+            _REWARD_EVALUATION_TIMEOUT_S,
+        )
+        return (
+            False,
+            f"reward evaluation timed out after {_REWARD_EVALUATION_TIMEOUT_S:.1f}s",
         )
     except Exception as exc:
         logger.exception(

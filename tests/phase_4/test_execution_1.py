@@ -3,6 +3,28 @@
 from ._fixtures import *  # noqa: F403,F401
 
 @pytest.mark.asyncio
+async def test_reward_evaluation_timeout_fails_closed(monkeypatch):
+    def hanging_reward(*args, **kwargs):
+        time.sleep(0.2)
+        return True, "late success"
+
+    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", hanging_reward)
+    monkeypatch.setattr(phase_4_adversarial, "_REWARD_EVALUATION_TIMEOUT_S", 0.01)
+
+    passed, message = await phase_4_adversarial._run_reward_function_safely(
+        {"type": "FinalStateEvaluator"},
+        {"site_url": "http://gitlab.test"},
+        SimpleNamespace(),
+        network_trace=[],
+        task_id="adv-timeout",
+        reward_label="adversarial_final_state",
+    )
+
+    assert passed is False
+    assert "timed out" in message
+
+
+@pytest.mark.asyncio
 async def test_run_adversarial_task_errors_when_benign_eval_is_non_interpretable(
     monkeypatch,
     tmp_path,
