@@ -114,23 +114,59 @@ def _history_entry(step: Any) -> dict[str, Any]:
 def _action_projection(action: Any) -> list[dict[str, Any]]:
     if action is None:
         return []
-    parsed = _parse_agentlab_action(action)
-    return [{parsed["name"]: parsed["arguments"]}]
+    return [{parsed["name"]: parsed["arguments"]} for parsed in _parse_agentlab_actions(action)]
 
 
 def _parse_agentlab_action(action: Any) -> dict[str, Any]:
+    parsed = _parse_agentlab_actions(action)
+    if parsed:
+        return parsed[0]
+    return {"name": "agentlab_action", "arguments": {"raw": str(action)}}
+
+
+def _parse_agentlab_actions(action: Any) -> list[dict[str, Any]]:
     if isinstance(action, dict) and action:
-        name = str(next(iter(action)))
-        raw_args = action.get(name)
-        arguments = raw_args if isinstance(raw_args, dict) else {"value": raw_args}
-        return {"name": name, "arguments": {**arguments, "raw": str(action)}}
+        parsed_actions = []
+        for name, raw_args in action.items():
+            arguments = raw_args if isinstance(raw_args, dict) else {"value": raw_args}
+            parsed_actions.append(
+                {"name": str(name), "arguments": {**arguments, "raw": str(action)}}
+            )
+        return parsed_actions
     raw = str(action)
+    parse_text = _strip_python_code_fence(raw)
     try:
-        node = ast.parse(raw, mode="eval").body
+        node = ast.parse(parse_text, mode="eval").body
     except SyntaxError:
-        return {"name": "agentlab_action", "arguments": {"raw": raw}}
+        return _parse_agentlab_statement_actions(raw, parse_text=parse_text)
     if not isinstance(node, ast.Call):
-        return {"name": "agentlab_action", "arguments": {"raw": raw}}
+        return [{"name": "agentlab_action", "arguments": {"raw": raw}}]
+    return [_parse_call_node(node, raw=raw)]
+
+
+def _strip_python_code_fence(raw: str) -> str:
+    stripped = raw.strip()
+    match = re.fullmatch(r"```(?:python|py)?\s*\n(.*?)\n```", stripped, re.DOTALL | re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    return raw
+
+
+def _parse_agentlab_statement_actions(raw: str, *, parse_text: str | None = None) -> list[dict[str, Any]]:
+    try:
+        module = ast.parse(raw if parse_text is None else parse_text, mode="exec")
+    except SyntaxError:
+        return [{"name": "agentlab_action", "arguments": {"raw": raw}}]
+    parsed: list[dict[str, Any]] = []
+    for statement in module.body:
+        node = statement.value if isinstance(statement, ast.Expr) else statement
+        if not isinstance(node, ast.Call):
+            continue
+        parsed.append(_parse_call_node(node, raw=raw))
+    return parsed or [{"name": "agentlab_action", "arguments": {"raw": raw}}]
+
+
+def _parse_call_node(node: ast.Call, *, raw: str) -> dict[str, Any]:
     if isinstance(node.func, ast.Name):
         name = node.func.id
     elif isinstance(node.func, ast.Attribute):

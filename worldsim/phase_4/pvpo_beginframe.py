@@ -14,6 +14,7 @@ import asyncio
 import contextlib
 import logging
 import os
+import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -28,8 +29,8 @@ _DRAIN_TIMEOUT_ENV = "WORLDSIM_PVPO_BEGINFRAME_DRAIN_TIMEOUT_S"
 _DEFAULT_PENDING_RETRIES = 2
 _DEFAULT_PENDING_BACKOFF_MS = 50.0
 _DEFAULT_DRAIN_TIMEOUT_S = 10.0
-_ENDPOINT_COORDINATORS: dict[tuple[int, str], BeginFrameCoordinator] = {}
-_ENDPOINT_LEASE_LOCKS: dict[tuple[int, str], asyncio.Lock] = {}
+_ENDPOINT_COORDINATORS: dict[str, BeginFrameCoordinator] = {}
+_ENDPOINT_LEASE_LOCKS: dict[str, AsyncThreadLock] = {}
 
 
 class BeginFrameTimeout(TimeoutError):
@@ -108,9 +109,40 @@ def _consume_task_result(task: asyncio.Task[Any]) -> None:
         pass
 
 
-def _endpoint_key(raw_url: str) -> tuple[int, str]:
-    loop = asyncio.get_running_loop()
-    return (id(loop), canonical_pvpo_endpoint_identity(raw_url))
+class AsyncThreadLock:
+    """Async context-manager wrapper around a thread-safe lock.
+
+    Endpoint-scoped PVPO state is shared by AgentLab sync bridges that run
+    separate asyncio loops in separate threads. Python's asyncio primitives are
+    intentionally not thread-safe, so endpoint serialization must use
+    ``threading`` and expose an awaitable acquire path to avoid blocking the
+    caller's event loop.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+
+    async def __aenter__(self) -> AsyncThreadLock:
+        await asyncio.to_thread(self._lock.acquire)
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+        self._lock.release()
+
+    def locked(self) -> bool:
+        return self._lock.locked()
+
+    @contextlib.contextmanager
+    def sync(self) -> Any:
+        self._lock.acquire()
+        try:
+            yield
+        finally:
+            self._lock.release()
+
+
+def _endpoint_key(raw_url: str) -> str:
+    return canonical_pvpo_endpoint_identity(raw_url)
 
 
 def coordinator_for_pvpo_endpoint(raw_url: str) -> BeginFrameCoordinator:
@@ -124,7 +156,7 @@ def coordinator_for_pvpo_endpoint(raw_url: str) -> BeginFrameCoordinator:
     key = _endpoint_key(raw_url)
     coordinator = _ENDPOINT_COORDINATORS.get(key)
     if coordinator is None:
-        coordinator = BeginFrameCoordinator(endpoint_identity=key[1])
+        coordinator = BeginFrameCoordinator(endpoint_identity=key)
         _ENDPOINT_COORDINATORS[key] = coordinator
     return coordinator
 
@@ -135,7 +167,7 @@ async def pvpo_endpoint_lease(raw_url: str) -> AsyncIterator[BeginFrameCoordinat
     key = _endpoint_key(raw_url)
     lock = _ENDPOINT_LEASE_LOCKS.get(key)
     if lock is None:
-        lock = asyncio.Lock()
+        lock = AsyncThreadLock()
         _ENDPOINT_LEASE_LOCKS[key] = lock
     async with lock:
         yield coordinator_for_pvpo_endpoint(raw_url)
@@ -153,10 +185,10 @@ class BeginFrameCoordinator:
     def __init__(
         self,
         *,
-        lock: asyncio.Lock | None = None,
+        lock: Any | None = None,
         endpoint_identity: str | None = None,
     ):
-        self.lock = lock or asyncio.Lock()
+        self.lock = lock or AsyncThreadLock()
         self.endpoint_identity = endpoint_identity
         self.timeout_count = 0
         self.pending_error_count = 0
@@ -175,11 +207,22 @@ class BeginFrameCoordinator:
 
     def reset_after_recycle(self) -> None:
         """Clear endpoint-local pending/dirty state after confirmed recycle."""
+        lock_sync = getattr(self.lock, "sync", None)
+        if callable(lock_sync):
+            with lock_sync():
+                self._reset_after_recycle_locked()
+            return
+        self._reset_after_recycle_locked()
+
+    def _reset_after_recycle_locked(self) -> None:
         inflight = self._inflight
         if inflight is not None and not inflight.done():
-            inflight.cancel()
             with contextlib.suppress(Exception):
-                inflight.add_done_callback(_consume_task_result)
+                loop = inflight.get_loop()
+                if loop.is_closed():
+                    inflight.cancel()
+                else:
+                    loop.call_soon_threadsafe(inflight.cancel)
         self._inflight = None
         self._dirty_reason = None
 
@@ -273,10 +316,19 @@ class BeginFrameCoordinator:
         if task is None:
             return
         if task.done():
+            self.prior_drain_count += 1
             _consume_task_result(task)
             if self._inflight is task:
                 self._inflight = None
             return
+        if task.get_loop() is not asyncio.get_running_loop():
+            self.prior_drain_timeout_count += 1
+            reason = (
+                f"prior pvpo beginFrame was still pending before {label} "
+                "on another event loop"
+            )
+            self.mark_dirty(reason)
+            raise BeginFrameTimeout(reason)
 
         self.prior_drain_count += 1
         drain_timeout_s = _drain_timeout_s() if timeout_s is None else timeout_s

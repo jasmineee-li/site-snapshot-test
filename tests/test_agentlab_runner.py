@@ -1138,6 +1138,35 @@ def test_agentlab_pvpo_beginframe_screenshot_returns_browsergym_rgb_array():
     assert runtime["browsergym_beginframe_screenshot_count"] == 1
 
 
+def test_agentlab_sync_pvpo_detaches_step_cdp_session():
+    sync_pvpo = _load_sidecar_module("sync_pvpo")
+    recorder = object.__new__(sync_pvpo.SyncPvpoRecorder)
+    recorder.payload_present = True
+    recorder.summary = {"steps_seen": 0}
+    recorder._save_summary = lambda: None
+
+    detached: list[bool] = []
+
+    class FakeSession:
+        def detach(self):
+            detached.append(True)
+
+    class FakeContext:
+        def new_cdp_session(self, page):
+            return FakeSession()
+
+    class FakeWorker:
+        def run(self, build):
+            return None
+
+    recorder._worker = FakeWorker()
+    page = SimpleNamespace(context=FakeContext())
+
+    recorder.capture_step(page, 0)
+
+    assert detached == [True]
+
+
 def test_trajectory_staging_skips_runtime_auth_subtree(tmp_path):
     (tmp_path / "auth").mkdir()
     (tmp_path / "auth" / "storage_state.json").write_text(
@@ -1190,7 +1219,7 @@ def test_phase4_timeout_result_redacts_captured_secret_output(monkeypatch, tmp_p
     persisted_result = json.loads((tmp_path / "agentlab_sidecar_result.json").read_text())
     serialized = json.dumps(persisted_result)
 
-    assert payload["status"] == "error"
+    assert payload["status"] == "timeout"
     assert payload["evidence_status"] == "timeout_placeholder"
     assert "history" in payload["artifacts"]
     assert "network_har" in payload["artifacts"]
@@ -1237,11 +1266,102 @@ def test_phase4_timeout_result_recovers_partial_artifacts(monkeypatch, tmp_path)
         timeout=3,
     )
 
-    assert payload["status"] == "error"
+    assert payload["status"] == "timeout"
     assert payload["steps"] == 1
     assert payload["final_result"] == "partial final"
     assert payload["network_trace"] == [{"url": "http://gitlab.test", "method": "GET"}]
     assert payload["evidence_status"] == "timeout_partial_artifacts"
+
+
+def test_phase4_timeout_result_does_not_recover_stale_prior_artifacts(monkeypatch, tmp_path):
+    (tmp_path / "history.json").write_text(
+        json.dumps({"history": [{"result": []}, {"result": [{"extracted_content": "stale"}]}]}),
+        encoding="utf-8",
+    )
+    (tmp_path / "network_trace.json").write_text(
+        json.dumps([{"url": "http://old.test", "method": "GET"}]),
+        encoding="utf-8",
+    )
+
+    def timeout_run(*args, **kwargs):
+        assert not (tmp_path / "history.json").exists()
+        assert not (tmp_path / "network_trace.json").exists()
+        raise subprocess.TimeoutExpired(cmd=args[0], timeout=3)
+
+    monkeypatch.setattr(agentlab_runner.subprocess, "run", timeout_run)
+
+    payload = agentlab_runner._run_sidecar_request(
+        {"task_id": "task-1"},
+        tmp_path,
+        subcommand="phase4-run",
+        timeout=3,
+    )
+
+    assert payload["status"] == "timeout"
+    assert payload["steps"] == 0
+    assert payload["final_result"] is None
+    assert payload["network_trace"] == []
+    assert payload["evidence_status"] == "timeout_placeholder"
+
+
+def test_phase4_nonzero_sidecar_result_writes_audit_artifacts(monkeypatch, tmp_path):
+    def failed_run(*args, **kwargs):
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=2,
+            stdout="",
+            stderr="failed with token secret-token",
+        )
+
+    monkeypatch.setattr(agentlab_runner.subprocess, "run", failed_run)
+
+    payload = agentlab_runner._run_sidecar_request(
+        {"task_id": "task-1", "api_token": "secret-token"},
+        tmp_path,
+        subcommand="phase4-run",
+        timeout=3,
+    )
+    persisted_result = json.loads((tmp_path / "agentlab_sidecar_result.json").read_text())
+    serialized = json.dumps(persisted_result)
+
+    assert payload["status"] == "error"
+    assert payload["evidence_status"] == "sidecar_error_placeholder"
+    assert "history" in payload["artifacts"]
+    assert "needham_trace" in payload["artifacts"]
+    assert "network_har" in payload["artifacts"]
+    assert "pvpo_summary" in payload["artifacts"]
+    assert "secret-token" not in serialized
+    assert "<redacted>" in serialized
+
+
+def test_phase4_invalid_json_sidecar_result_writes_audit_artifacts(monkeypatch, tmp_path):
+    def invalid_json_run(*args, **kwargs):
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=0,
+            stdout="not json token secret-token",
+            stderr="",
+        )
+
+    monkeypatch.setattr(agentlab_runner.subprocess, "run", invalid_json_run)
+
+    payload = agentlab_runner._run_sidecar_request(
+        {"task_id": "task-1", "api_token": "secret-token"},
+        tmp_path,
+        subcommand="phase4-run",
+        timeout=3,
+    )
+    persisted_result = json.loads((tmp_path / "agentlab_sidecar_result.json").read_text())
+    serialized = json.dumps(persisted_result)
+
+    assert payload["status"] == "error"
+    assert payload["evidence_status"] == "sidecar_error_placeholder"
+    assert "history" in payload["artifacts"]
+    assert "needham_trace" in payload["artifacts"]
+    assert "network_har" in payload["artifacts"]
+    assert "pvpo_summary" in payload["artifacts"]
+    assert "secret-token" not in serialized
+    assert "<redacted>" in serialized
 
 
 def test_agentlab_phase4_resume_requires_audit_artifacts(tmp_path):
@@ -1345,6 +1465,32 @@ def test_phase4_sidecar_helpers_normalize_final_message():
     assert final == "Finished"
 
 
+def test_phase4_sidecar_helpers_accept_content_form_final_message():
+    worldsim_task = _load_sidecar_module("worldsim_task")
+
+    final = worldsim_task.latest_assistant_message(
+        [
+            {"role": "user", "content": "task"},
+            {"role": "assistant", "content": "Finished from content"},
+        ]
+    )
+
+    assert final == "Finished from content"
+
+
+def test_phase4_sidecar_helpers_allow_scaffold_words_in_final_message():
+    worldsim_task = _load_sidecar_module("worldsim_task")
+
+    final = worldsim_task.latest_assistant_message(
+        [
+            {"role": "user", "message": "task"},
+            {"role": "assistant", "message": "Thought: the answer is complete."},
+        ]
+    )
+
+    assert final == "Thought: the answer is complete."
+
+
 def test_worldsim_task_validate_ignores_agentlab_llm_chat_messages():
     worldsim_task = _load_sidecar_module("worldsim_task")
     task = object.__new__(worldsim_task.WorldSimOpenEndedTask)
@@ -1385,6 +1531,68 @@ def test_worldsim_task_validate_ignores_message_form_action_turns():
     assert done is False
     assert message == ""
     assert info == {}
+
+
+def test_worldsim_task_validate_allows_final_answer_with_action_word():
+    worldsim_task = _load_sidecar_module("worldsim_task")
+    task = object.__new__(worldsim_task.WorldSimOpenEndedTask)
+
+    reward, done, message, info = task.validate(
+        None,
+        [
+            {"role": "user", "message": "observation"},
+            {"role": "assistant", "message": "Action: I created the issue comment."},
+        ],
+    )
+
+    assert reward == 0.0
+    assert done is True
+    assert message == ""
+    assert info == {"worldsim_final_result": "Action: I created the issue comment."}
+
+
+def test_agentlab_action_projection_preserves_multiline_tool_calls():
+    projection = _load_sidecar_module("trajectory_projection")
+
+    actions = projection._action_projection('click("a")\nfill("b", "c")')
+
+    assert [next(iter(action)) for action in actions] == ["click", "fill"]
+    assert actions[0]["click"]["args"] == ["a"]
+    assert actions[0]["click"]["raw"] == 'click("a")\nfill("b", "c")'
+    assert actions[1]["fill"]["args"] == ["b", "c"]
+    assert actions[1]["fill"]["raw"] == 'click("a")\nfill("b", "c")'
+
+
+def test_agentlab_action_projection_extracts_calls_from_mixed_statements():
+    projection = _load_sidecar_module("trajectory_projection")
+
+    raw = 'x = 1\nclick("a")\nfill("b", "c")'
+    actions = projection._action_projection(raw)
+
+    assert [next(iter(action)) for action in actions] == ["click", "fill"]
+    assert actions[0]["click"]["args"] == ["a"]
+    assert actions[0]["click"]["raw"] == raw
+    assert actions[1]["fill"]["args"] == ["b", "c"]
+    assert actions[1]["fill"]["raw"] == raw
+
+
+def test_agentlab_action_projection_extracts_calls_from_code_fence():
+    projection = _load_sidecar_module("trajectory_projection")
+
+    raw = '```python\nclick("a")\nfill("b", "c")\n```'
+    actions = projection._action_projection(raw)
+
+    assert [next(iter(action)) for action in actions] == ["click", "fill"]
+    assert actions[0]["click"]["raw"] == raw
+    assert actions[1]["fill"]["raw"] == raw
+
+
+def test_agentlab_action_projection_preserves_raw_fallback_without_calls():
+    projection = _load_sidecar_module("trajectory_projection")
+
+    actions = projection._action_projection("x = 1")
+
+    assert actions == [{"agentlab_action": {"raw": "x = 1"}}]
 
 
 def test_worldsim_task_uses_site_prompt_without_duplicate_goal():

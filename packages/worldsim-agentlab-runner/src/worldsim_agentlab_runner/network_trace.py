@@ -91,12 +91,15 @@ class NetworkTraceRecorder:
     def persist(self) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         raw_events = self.events
-        # WorldSim intentionally preserves benchmark request payloads in the
-        # public AgentLab trace artifacts. These runs are local controlled
-        # benchmarks, and ASR postmortems need the exact source-action URL,
-        # query, and body when GitLab/Reddit actions fail or duplicate. We
-        # still redact credential-bearing headers, cookies, and sensitive
-        # response fields so auth material does not leak into diagnostics.
+        # WorldSim intentionally preserves benchmark request payloads in local
+        # public AgentLab traces, matching Browser Use. These controlled
+        # WebArena-style runs need URL/query/body evidence for host-owned
+        # validators, especially Reddit/Postmill submit-comment attribution.
+        # Request-body evidence alone is not accepted as final state success;
+        # Reddit comment rewards still require attributed readback that excludes
+        # seeded carrier comments. Credential-bearing headers, cookies, and
+        # sensitive response fields remain redacted here, with raw copies kept
+        # only under reward_private/ at mode 0600 for reward evaluators.
         events = [_redact_event_with_options(event, redact_payloads=False) for event in raw_events]
         har = _as_har(events, started_at=self._started_at)
         validate_har_1_2_shape(har, require_real_entry=bool(events))
@@ -254,6 +257,12 @@ def _redact_event_with_options(
 def _redact_post_data(value: Any) -> str:
     if not isinstance(value, str) or not value:
         return ""
+    return "<redacted>"
+
+
+def _redact_response_post_like_text(value: Any) -> str:
+    if not isinstance(value, str) or not value:
+        return ""
     try:
         parsed = json.loads(value)
     except json.JSONDecodeError:
@@ -317,7 +326,7 @@ def _redact_url_and_query(url: str) -> tuple[str, dict[str, list[str]]]:
 def _redact_response_text(value: Any) -> str:
     if not isinstance(value, str) or not value:
         return ""
-    return _redact_post_data(value[:_BODY_CAPTURE_CAP])
+    return _redact_response_post_like_text(value[:_BODY_CAPTURE_CAP])
 
 
 def _redact_sensitive_fields(value: Any) -> Any:

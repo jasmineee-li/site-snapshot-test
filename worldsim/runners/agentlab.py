@@ -424,6 +424,7 @@ def _build_phase4_sidecar_request(
         "storage_state_aliases": storage_state_aliases,
         "scoped_auth": _scoped_auth_for_phase4(auth_mechanism, server_url=server_url),
         "env_overrides": _phase4_env_overrides(server_url, run_kwargs),
+        RESULT_FINGERPRINT_KEY: run_kwargs.get(RESULT_FINGERPRINT_KEY),
         "task_seed": None,
     }
 
@@ -488,6 +489,8 @@ def _run_sidecar_request(
         json.dumps(_redact_sidecar_payload(request), indent=2, sort_keys=True),
         encoding="utf-8",
     )
+    if subcommand == "phase4-run":
+        _clear_phase4_sidecar_artifacts(task_dir)
 
     try:
         with tempfile.TemporaryDirectory(prefix="worldsim-agentlab-request-") as runtime_dir:
@@ -523,10 +526,45 @@ def _run_sidecar_request(
     if proc.returncode != 0:
         detail = proc.stderr.strip() or proc.stdout.strip()
         detail = _redact_sidecar_text(detail, request)
+        if subcommand == "phase4-run":
+            payload = _phase4_sidecar_error_result(
+                request,
+                task_dir,
+                f"AgentLab sidecar failed with exit {proc.returncode}: {detail}",
+            )
+            response_path.write_text(
+                json.dumps(
+                    _redact_sidecar_payload(
+                        payload, secret_values=_secret_strings_from_payload(request)
+                    ),
+                    indent=2,
+                    sort_keys=True,
+                ),
+                encoding="utf-8",
+            )
+            return payload
         raise RuntimeError(f"AgentLab sidecar failed with exit {proc.returncode}: {detail}")
     try:
         payload = _sidecar_json_payload(proc.stdout)
     except json.JSONDecodeError as exc:
+        if subcommand == "phase4-run":
+            detail = _redact_sidecar_text(proc.stdout[:500], request)
+            payload = _phase4_sidecar_error_result(
+                request,
+                task_dir,
+                f"AgentLab sidecar returned invalid JSON: {detail}",
+            )
+            response_path.write_text(
+                json.dumps(
+                    _redact_sidecar_payload(
+                        payload, secret_values=_secret_strings_from_payload(request)
+                    ),
+                    indent=2,
+                    sort_keys=True,
+                ),
+                encoding="utf-8",
+            )
+            return payload
         raise RuntimeError(f"AgentLab sidecar returned invalid JSON: {proc.stdout[:500]}") from exc
     if not isinstance(payload, dict):
         raise RuntimeError("AgentLab sidecar returned a non-object JSON payload")
@@ -558,6 +596,91 @@ def _sidecar_json_payload(stdout: str) -> dict[str, Any]:
     return payload
 
 
+def _clear_phase4_sidecar_artifacts(task_dir: Path) -> None:
+    """Remove stale sidecar-owned artifacts before a fresh AgentLab attempt."""
+
+    files = (
+        "summary_info.json",
+        "history.json",
+        "final_response.json",
+        "needham_trace.json",
+        "needham_trace.xml",
+        "network_trace.json",
+        "network.har",
+        "network_evidence.json",
+        "navigation_trace.json",
+        "browser_runtime.json",
+        "agentlab_sidecar_result.json",
+        "phase4_sidecar_request.json",
+        "agentlab_native_exp_args.pkl",
+    )
+    dirs = ("reward_private",)
+    for name in files:
+        path = task_dir / name
+        try:
+            if path.exists() or path.is_symlink():
+                path.unlink()
+        except OSError:
+            logger.warning("could not remove stale AgentLab sidecar artifact %s", path)
+    for name in dirs:
+        path = task_dir / name
+        try:
+            if path.exists():
+                shutil.rmtree(path)
+        except OSError:
+            logger.warning("could not remove stale AgentLab sidecar artifact dir %s", path)
+
+
+def _phase4_sidecar_error_result(
+    request: dict[str, Any],
+    task_dir: Path,
+    message: str,
+) -> dict[str, Any]:
+    task_dir.mkdir(parents=True, exist_ok=True)
+    _write_minimal_timeout_artifacts(task_dir, request, message)
+    runtime = {
+        "runner": "agentlab",
+        "mode": "phase4",
+        "sidecar_error": True,
+        "cdp_url": request.get("pvpo_cdp_url"),
+    }
+    (task_dir / "browser_runtime.json").write_text(
+        json.dumps(runtime, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    payload = {
+        "schema_version": 1,
+        "mode": "phase4",
+        "task_id": request.get("task_id"),
+        "status": "error",
+        "passed": None,
+        "reward": 0.0,
+        "agentlab_reward": 0.0,
+        "steps": 0,
+        "is_done": False,
+        "final_result": None,
+        "elapsed": 0.0,
+        "errors": [message],
+        "error": message,
+        "network_trace": [],
+        "summary_info": {
+            "n_steps": 0,
+            "cum_reward": 0.0,
+            "cum_raw_reward": 0.0,
+            "err_msg": message,
+            "terminated": False,
+            "truncated": True,
+        },
+        "artifacts": _phase4_artifact_manifest(task_dir),
+        "evidence_status": "sidecar_error_placeholder",
+        "browser_runtime": runtime,
+    }
+    fingerprint = request.get(RESULT_FINGERPRINT_KEY)
+    if isinstance(fingerprint, str) and fingerprint.strip():
+        payload[RESULT_FINGERPRINT_KEY] = fingerprint
+    return payload
+
+
 def _phase4_timeout_result(
     request: dict[str, Any],
     task_dir: Path,
@@ -582,11 +705,11 @@ def _phase4_timeout_result(
         json.dumps(runtime, indent=2, sort_keys=True),
         encoding="utf-8",
     )
-    return {
+    payload = {
         "schema_version": 1,
         "mode": "phase4",
         "task_id": request.get("task_id"),
-        "status": "error",
+        "status": "timeout",
         "passed": None,
         "reward": 0.0,
         "agentlab_reward": 0.0,
@@ -617,6 +740,10 @@ def _phase4_timeout_result(
             request,
         ),
     }
+    fingerprint = request.get(RESULT_FINGERPRINT_KEY)
+    if isinstance(fingerprint, str) and fingerprint.strip():
+        payload[RESULT_FINGERPRINT_KEY] = fingerprint
+    return payload
 
 
 def _recover_phase4_timeout_artifacts(task_dir: Path) -> dict[str, Any]:

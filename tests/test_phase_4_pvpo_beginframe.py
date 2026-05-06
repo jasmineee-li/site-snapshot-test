@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from unittest.mock import AsyncMock
 
 import pytest
@@ -177,6 +178,90 @@ async def test_endpoint_coordinator_is_shared_by_canonical_cdp_url():
 
     assert first is second
     assert first is not other
+
+
+def test_endpoint_coordinator_is_shared_across_event_loops():
+    reset_pvpo_beginframe_state_for_tests()
+    dirty_reasons: list[str | None] = []
+
+    def _mark_dirty() -> None:
+        async def _run() -> None:
+            coordinator = coordinator_for_pvpo_endpoint("http://127.0.0.1:9222")
+            coordinator.mark_dirty("screenshot-timeout")
+
+        asyncio.run(_run())
+
+    def _read_dirty() -> None:
+        async def _run() -> None:
+            coordinator = coordinator_for_pvpo_endpoint("http://localhost:9222/")
+            dirty_reasons.append(coordinator.dirty_reason)
+
+        asyncio.run(_run())
+
+    first = threading.Thread(target=_mark_dirty)
+    second = threading.Thread(target=_read_dirty)
+    first.start()
+    first.join()
+    second.start()
+    second.join()
+
+    assert dirty_reasons == ["screenshot-timeout"]
+
+
+def test_endpoint_coordinator_serializes_contended_cross_loop_sends():
+    reset_pvpo_beginframe_state_for_tests()
+    coordinator = coordinator_for_pvpo_endpoint("http://127.0.0.1:9222")
+    first_inside = threading.Event()
+    release_first = threading.Event()
+    second_done = threading.Event()
+    calls: list[str] = []
+    errors: list[BaseException] = []
+
+    class FakeCdp:
+        def __init__(self, label: str) -> None:
+            self.label = label
+
+        async def send(self, method: str, params: dict):
+            assert method == "HeadlessExperimental.beginFrame"
+            calls.append(self.label)
+            if self.label == "first":
+                first_inside.set()
+                await asyncio.to_thread(release_first.wait)
+            return {"label": self.label}
+
+    def _run_first() -> None:
+        async def _run() -> None:
+            await coordinator.send(FakeCdp("first"), {}, timeout_s=1.0, label="first")
+
+        try:
+            asyncio.run(_run())
+        except BaseException as exc:
+            errors.append(exc)
+
+    def _run_second() -> None:
+        async def _run() -> None:
+            await coordinator.send(FakeCdp("second"), {}, timeout_s=1.0, label="second")
+
+        try:
+            asyncio.run(_run())
+        except BaseException as exc:
+            errors.append(exc)
+        finally:
+            second_done.set()
+
+    first = threading.Thread(target=_run_first)
+    second = threading.Thread(target=_run_second)
+    first.start()
+    assert first_inside.wait(timeout=1)
+    second.start()
+    assert not second_done.wait(timeout=0.05)
+    assert calls == ["first"]
+    release_first.set()
+    first.join(timeout=2)
+    second.join(timeout=2)
+
+    assert errors == []
+    assert calls == ["first", "second"]
 
 
 @pytest.mark.asyncio

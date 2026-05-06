@@ -120,6 +120,8 @@ def latest_assistant_message(chat_messages: Any) -> str | None:
         if message.get("role") != "assistant":
             continue
         text = message.get("message")
+        if not isinstance(text, str):
+            text = message.get("content")
         if not isinstance(text, str) or not text.strip():
             continue
         if text.startswith(_INITIAL_ASSISTANT_PREFIX):
@@ -134,16 +136,29 @@ def _looks_like_agentlab_action_turn(text: str) -> bool:
     stripped = text.strip()
     if not stripped:
         return False
-    lower = stripped.lower()
-    action_markers = (
-        "action:",
-        "thought:",
-        "observation:",
-        "memory:",
-        "next goal:",
-        "python code:",
-    )
-    return any(marker in lower for marker in action_markers)
+    lines = [line.strip() for line in stripped.splitlines() if line.strip()]
+    lowered = [line.lower() for line in lines]
+    for line in lowered:
+        if not line.startswith("action:"):
+            continue
+        action_body = line.split(":", 1)[1].strip()
+        if _looks_like_python_action(action_body):
+            return True
+    for index, line in enumerate(lowered):
+        if not line.startswith("python code:"):
+            continue
+        code_body = line.split(":", 1)[1].strip()
+        if _looks_like_python_action(code_body):
+            return True
+        if index + 1 < len(lowered) and _looks_like_python_action(lowered[index + 1]):
+            return True
+    return False
+
+
+def _looks_like_python_action(text: str) -> bool:
+    if not text:
+        return False
+    return "(" in text or text.startswith(("```", "click", "fill", "goto", "noop", "send_msg_to_user"))
 
 
 def _context_kwargs_from_request(request: dict[str, Any]) -> dict[str, Any]:

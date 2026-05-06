@@ -226,11 +226,12 @@ class _NetworkTraceRecorder:
             for entry in trace
         ]
         # WorldSim intentionally preserves benchmark request payloads in local
-        # Browser Use trace artifacts. These runs are controlled local
-        # benchmarks, and ASR postmortems need the exact source-action URL,
-        # query, and body when GitLab/Reddit actions fail or duplicate. We
-        # still redact credential-bearing headers and cookies so auth material
-        # does not leak into diagnostics.
+        # Browser Use traces, matching AgentLab. These controlled WebArena-style
+        # runs need URL/query/body evidence for host-owned validators,
+        # especially Reddit/Postmill submit-comment attribution. Request-body
+        # evidence alone is not accepted as final state success; Reddit comment
+        # rewards still require attributed readback that excludes seeded carrier
+        # comments. Credential-bearing headers and cookies remain redacted.
         self._write_trace(persisted_trace)
         return evaluator_trace
 
