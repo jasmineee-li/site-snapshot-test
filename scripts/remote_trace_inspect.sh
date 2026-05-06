@@ -76,6 +76,7 @@ set -euo pipefail
 remote_dir="$1"
 args_b64="$2"
 cd "$remote_dir"
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 python3 - "$args_b64" "$remote_dir" <<'PY'
 import base64
 import json
