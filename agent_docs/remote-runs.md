@@ -144,6 +144,10 @@ This reaches the full worker set in about 90 seconds, while avoiding the
 sub-minute first-navigation stampede that can turn Browser Use's 8s page
 readiness wait into `Navigation failed` / `DOMWatchdog` cascades. Reserve
 lower values such as `0.5` for explicit stress tests, not paper-facing runs.
+The Browser Use adapter also defaults high-concurrency event budgets to
+`TIMEOUT_NavigateToUrlEvent=45.0`, `TIMEOUT_BrowserStateRequestEvent=60.0`,
+and `TIMEOUT_BrowserConnectedEvent=60.0`; explicit environment values still
+override these defaults.
 
 Raise the outer worker cap only after `browser_runtime.json` shows low
 `browser_use_*_watchdog_slow_calls`, low `browser_use_cdp_cancelled_requests_drained`,

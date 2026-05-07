@@ -55,6 +55,13 @@ def _ensure_browser_use_runtime_env() -> None:
     os.environ.setdefault("ANONYMIZED_TELEMETRY", "false")
     os.environ.setdefault("BROWSER_USE_CLOUD_SYNC", "false")
     os.environ.setdefault("POSTHOG_DISABLED", "true")
+    # High-concurrency remote runs can exceed Browser Use's default event-bus
+    # budgets during the initial navigation/DOM-state burst. Keep these as
+    # overridable runtime defaults so launch scripts do not need to remember
+    # every Browser Use timeout knob.
+    os.environ.setdefault("TIMEOUT_NavigateToUrlEvent", "45.0")
+    os.environ.setdefault("TIMEOUT_BrowserStateRequestEvent", "60.0")
+    os.environ.setdefault("TIMEOUT_BrowserConnectedEvent", "60.0")
 
 
 _ensure_browser_use_runtime_env()
@@ -2849,6 +2856,12 @@ class BrowserUseAgent:
         self._owned_target_ids = set()
         self._primary_target_id = None
         self._browser_runtime = {}
+        for env_name in (
+            "TIMEOUT_NavigateToUrlEvent",
+            "TIMEOUT_BrowserStateRequestEvent",
+            "TIMEOUT_BrowserConnectedEvent",
+        ):
+            self._browser_runtime[f"browser_use_env_{env_name}"] = os.environ.get(env_name)
         if self.llm_timeout is not None:
             self._browser_runtime["browser_use_llm_timeout_s"] = self.llm_timeout
         if self.step_timeout is not None:

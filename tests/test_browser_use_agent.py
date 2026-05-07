@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from pathlib import Path
 from types import SimpleNamespace
 from typing import ClassVar
@@ -12,6 +13,29 @@ import pytest
 from worldsim import browser_use_agent
 from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator
 from worldsim.phase_4.pvpo_capture import Rect, StepCapture
+
+
+def test_browser_use_runtime_env_sets_high_concurrency_timeouts(monkeypatch):
+    for env_name in (
+        "TIMEOUT_NavigateToUrlEvent",
+        "TIMEOUT_BrowserStateRequestEvent",
+        "TIMEOUT_BrowserConnectedEvent",
+    ):
+        monkeypatch.delenv(env_name, raising=False)
+
+    browser_use_agent._ensure_browser_use_runtime_env()
+
+    assert os.environ["TIMEOUT_NavigateToUrlEvent"] == "45.0"
+    assert os.environ["TIMEOUT_BrowserStateRequestEvent"] == "60.0"
+    assert os.environ["TIMEOUT_BrowserConnectedEvent"] == "60.0"
+
+
+def test_browser_use_runtime_env_preserves_explicit_timeout_overrides(monkeypatch):
+    monkeypatch.setenv("TIMEOUT_NavigateToUrlEvent", "90.0")
+
+    browser_use_agent._ensure_browser_use_runtime_env()
+
+    assert os.environ["TIMEOUT_NavigateToUrlEvent"] == "90.0"
 
 
 class _FakeHistory:
