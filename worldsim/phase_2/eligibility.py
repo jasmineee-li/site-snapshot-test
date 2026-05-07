@@ -418,12 +418,14 @@ def _select_balanced_subset(
     remaining = dict(cell_targets)
     selected: list[dict] = []
     seen_benign: set[str] = set()
+    overfull_unique: list[dict] = []
     for task in validated_tasks:
         benign_task_id = str(task.get("benign_task_id", ""))
         if benign_task_id in seen_benign:
             continue
         cell = _cell_key(str(task.get("framing", "")), str(task.get("concealment", "")))
         if remaining.get(cell, 0) <= 0:
+            overfull_unique.append(task)
             continue
         selected.append(task)
         seen_benign.add(benign_task_id)
@@ -435,7 +437,22 @@ def _select_balanced_subset(
         )
         return validated_tasks
 
+    backfilled = 0
+    for task in overfull_unique:
+        benign_task_id = str(task.get("benign_task_id", ""))
+        if benign_task_id in seen_benign:
+            continue
+        selected.append(task)
+        seen_benign.add(benign_task_id)
+        backfilled += 1
+    if backfilled:
+        logger.info(
+            "Phase 2: balanced subset backfilled %d overfull-cell task(s) "
+            "to preserve one valid plan per benign task",
+            backfilled,
+        )
+
     dropped = len(validated_tasks) - len(selected)
     if dropped:
-        logger.info("Phase 2: balanced subset dropped %d overfull or duplicate tasks", dropped)
+        logger.info("Phase 2: balanced subset dropped %d duplicate task(s)", dropped)
     return selected

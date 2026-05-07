@@ -68,6 +68,18 @@ _IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0
 _PATH_PARAM_PATTERN = re.compile(r"\{([^}/]+)\}")
 _UNRESOLVED_TEMPLATE_TOKEN = re.compile(r"\{[^}/]+\}")
 _FORMAT_TOKEN_PATTERN = re.compile(r"(?<!\{)\{([A-Za-z_][A-Za-z0-9_\.]*)\}(?!\})")
+_FREE_TEXT_EDITOR_ARG_NAMES = frozenset(
+    {
+        "body",
+        "body_template",
+        "description",
+        "description_template",
+        "text",
+        "text_template",
+        "title",
+        "title_template",
+    }
+)
 
 
 class SeedCleanupHandle:
@@ -360,6 +372,58 @@ def _seed_placeholder_names(value: Any) -> set[str]:
     return names
 
 
+def _unresolved_structural_seed_placeholder_names(
+    value: Any,
+    *,
+    free_text_arg_names: frozenset[str] = _FREE_TEXT_EDITOR_ARG_NAMES,
+) -> set[str]:
+    names: set[str] = set()
+    if isinstance(value, str):
+        names.update(match.group(1) for match in _FORMAT_TOKEN_PATTERN.finditer(value))
+        return names
+    if isinstance(value, dict):
+        for key, item in value.items():
+            names.update(
+                _unresolved_structural_seed_placeholder_names(
+                    key,
+                    free_text_arg_names=free_text_arg_names,
+                )
+            )
+            if isinstance(key, str) and key in free_text_arg_names:
+                continue
+            names.update(
+                _unresolved_structural_seed_placeholder_names(
+                    item,
+                    free_text_arg_names=free_text_arg_names,
+                )
+            )
+        return names
+    if isinstance(value, list):
+        for item in value:
+            names.update(
+                _unresolved_structural_seed_placeholder_names(
+                    item,
+                    free_text_arg_names=free_text_arg_names,
+                )
+            )
+    return names
+
+
+def _editor_free_text_arg_names(editor_method: Any) -> frozenset[str]:
+    spec = getattr(editor_method, "_editor_method_spec", None)
+    if not isinstance(spec, dict):
+        return _FREE_TEXT_EDITOR_ARG_NAMES
+    bindings = spec.get("bindings")
+    if not isinstance(bindings, dict):
+        return _FREE_TEXT_EDITOR_ARG_NAMES
+    names = {
+        str(name)
+        for name, binding in bindings.items()
+        if getattr(binding, "kind", None) == "free_text"
+    }
+    return frozenset(names) if names else _FREE_TEXT_EDITOR_ARG_NAMES
+
+
 def _merge_seed_context(target: dict[str, Any], update: dict[str, Any]) -> None:
     for key, value in update.items():
         if value is None:
@@ -399,7 +463,12 @@ def preflight_editor_seed_calls(
                             editor_site_name=str(call.get("site", "")).strip() or "unknown",
                             method_name=str(method_name),
                         )
-                        unresolved = sorted(_seed_placeholder_names(args))
+                        unresolved = sorted(
+                            _unresolved_structural_seed_placeholder_names(
+                                args,
+                                free_text_arg_names=_editor_free_text_arg_names(editor_method),
+                            )
+                        )
                         if unresolved:
                             raise RuntimeError(
                                 "editor call has unresolved template placeholders: "
@@ -721,7 +790,12 @@ def _apply_editor_seed_call(
     args = _filter_editor_method_args(
         editor_method, args, editor_site_name=editor_site_name, method_name=method_name
     )
-    unresolved = sorted(_seed_placeholder_names(args))
+    unresolved = sorted(
+        _unresolved_structural_seed_placeholder_names(
+            args,
+            free_text_arg_names=_editor_free_text_arg_names(editor_method),
+        )
+    )
     if unresolved:
         raise RuntimeError(
             "editor call has unresolved template placeholders: " + ", ".join(unresolved)

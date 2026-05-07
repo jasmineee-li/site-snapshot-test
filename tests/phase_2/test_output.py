@@ -71,6 +71,25 @@ def test_merge_immutable_fields_redacts_sensitive_benign_data_seed():
     assert copied_seed["api_calls"][0]["body"]["token"] == "<redacted>"
     assert copied_seed["api_calls"][0]["headers"]["Authorization"] == "<redacted>"
 
+
+def test_merge_immutable_fields_copies_contract_bound_generation_metadata():
+    benign = _benign_task()
+    benign["contract_bound_generation"] = {
+        "abstract_purpose_tag": "bug_followup",
+        "style_tag": "bug_report",
+    }
+    benign["task_card_id"] = "gitlab_issue_description_public_followup_issue_paper"
+    adv = {"id": "adv-1", "benign_task_id": benign["id"], "adversarial_reward": {"type": "noop"}}
+
+    phase_2_injections._merge_immutable_fields([adv], [benign])
+
+    assert adv["contract_bound_generation"] == {
+        "abstract_purpose_tag": "bug_followup",
+        "style_tag": "bug_report",
+    }
+    assert adv["task_card_id"] == "gitlab_issue_description_public_followup_issue_paper"
+
+
 def test_sanitize_task_for_output_redacts_data_seed_and_cookie_session_fields():
     task = _benign_task()
     task["data_seed"] = {

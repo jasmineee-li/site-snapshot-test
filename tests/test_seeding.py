@@ -1588,6 +1588,41 @@ def test_apply_data_seed_rejects_unresolved_placeholders_in_supported_editor_kwa
         )
 
 
+def test_apply_data_seed_allows_identifier_braces_in_free_text_editor_body(monkeypatch):
+    _FakeEditor.instances.clear()
+    fake_session = _FakeSession([])
+    monkeypatch.setattr(seeding.requests, "Session", lambda: fake_session)
+    monkeypatch.setitem(seeding.EDITOR_REGISTRY, ("webarena_verified", "reddit"), _FakeEditor)
+
+    seeding.apply_data_seed(
+        {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "reddit",
+                    "method": "create_comment",
+                    "args": {
+                        "forum_name": "books",
+                        "submission_id": "42",
+                        "body": "Use key rate:{tenant_id}:{endpoint}:{ip} for the limiter.",
+                    },
+                }
+            ],
+        },
+        {"site_name": "reddit", "site_url": "http://reddit.test"},
+    )
+
+    assert _FakeEditor.instances[-1].calls[-1] == (
+        "create_comment",
+        {
+            "forum_name": "books",
+            "submission_id": "42",
+            "body": "Use key rate:{tenant_id}:{endpoint}:{ip} for the limiter.",
+        },
+    )
+
+
 def test_build_seed_context_surfaces_benign_anchors_from_target_resource():
     # Option A: seed context must carry the benign_* keys so
     # {benign_issue_iid} etc. resolve at seed-apply time.

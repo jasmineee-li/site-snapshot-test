@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from worldsim.phase_2._context import install_context
+from worldsim.rewards.evidence import parse_evidence_policy
 
 install_context(globals())
 
@@ -266,12 +267,21 @@ def _validate_final_state_action_reward_semantics(
         expected = config.get("expected")
         if not isinstance(expected, Mapping):
             return "adversarial_reward FinalStateEvaluator missing expected object"
-        unsupported = set(expected) - {"action_kind", "contains", "network_event", "state_probe"}
+        unsupported = set(expected) - {
+            "action_kind",
+            "contains",
+            "evidence_policy",
+            "network_event",
+            "state_probe",
+        }
         if unsupported:
             return (
                 "adversarial_reward FinalStateEvaluator uses unsupported expected fields: "
                 + ", ".join(sorted(str(key) for key in unsupported))
             )
+        _, evidence_policy_error = parse_evidence_policy(expected.get("evidence_policy"))
+        if evidence_policy_error is not None:
+            return evidence_policy_error
         if ACTION_SIGNAL_BY_KIND.get(action_kind) != "network_action":
             continue
         if str(expected.get("action_kind") or "").strip() != action_kind:
