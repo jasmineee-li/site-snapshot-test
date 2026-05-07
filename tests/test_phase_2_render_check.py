@@ -17,6 +17,7 @@ from worldsim.phases.phase_2_render_check import (
     _gitlab_issue_description_ryw_fastpath,
     _render_check_inputs_from_metadata,
     _strip_html,
+    _with_cache_buster,
     render_signature,
     render_signature_selection,
     verify_seed_renders,
@@ -28,6 +29,13 @@ def short_body_poll(monkeypatch: pytest.MonkeyPatch) -> None:
     from worldsim.phases import phase_2_render_check as rc
 
     monkeypatch.setattr(rc, "_BODY_POLL_TIMEOUT_MS", 1)
+
+
+def test_with_cache_buster_preserves_fragment_anchor():
+    url = _with_cache_buster("http://reddit.test/f/books/123#comment_9")
+
+    assert url.startswith("http://reddit.test/f/books/123?_=1")
+    assert url.endswith("#comment_9")
 
 
 # ---------------------------------------------------------------------------

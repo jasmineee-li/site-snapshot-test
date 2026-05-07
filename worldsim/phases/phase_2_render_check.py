@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote as urlquote
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit, urlunsplit
 
 from worldsim.agent_auth import playwright_storage_state
 
@@ -1492,8 +1492,10 @@ def _with_cache_buster(url: str) -> str:
     normally be fetched by this module — the render-check and
     reachability probe both navigate HTML pages.
     """
-    sep = "&" if "?" in url else "?"
-    return f"{url}{sep}_={int(time.time() * 1000)}"
+    parts = urlsplit(url)
+    query = f"{parts.query}&" if parts.query else ""
+    query = f"{query}{urlencode({'_': int(time.time() * 1000)})}"
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, query, parts.fragment))
 
 
 def _classify_failure(
