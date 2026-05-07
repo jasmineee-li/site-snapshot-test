@@ -8,6 +8,7 @@ from worldsim.phase_4.process_pool import (
     WorkerOutcome,
     _build_assignments,
     _merge_outcomes,
+    _rewrite_worker_paths,
     _worker_command,
 )
 
@@ -125,3 +126,31 @@ def test_merge_outcomes_fails_closed_on_missing_result(tmp_path):
     assert rc == 1
     assert (tmp_path / "out" / "phase_4" / "process_pool_summary.json").exists()
     assert not (tmp_path / "out" / "phase_4" / "results.json").exists()
+
+
+def test_rewrite_worker_paths_handles_absolute_and_relative_paths(tmp_path):
+    args = _pool_args(tmp_path, out_dir=tmp_path / "out")
+    config = _config(
+        tmp_path,
+        [
+            {
+                "site_name": "gitlab",
+                "site_url": "http://127.0.0.1:8023",
+                "pvpo_cdp_url": "http://127.0.0.1:9222",
+            }
+        ],
+    )
+    assignment = _build_assignments(args, config, [{"id": "adv-1", "site": "gitlab"}])[0]
+    worker_root = assignment.state_dir / "phase_4" / "20260507_000000"
+    worker_root.mkdir(parents=True)
+    task_root = args.out_dir / "phase_4" / "process_pool_tasks"
+
+    payload = {
+        "trajectory_dir": str(worker_root.resolve() / "adv-1"),
+        "relative_dir": str(worker_root / "adv-1"),
+    }
+
+    rewritten = _rewrite_worker_paths(payload, assignment, task_root)
+
+    assert rewritten["trajectory_dir"] == str(task_root.resolve() / "adv-1")
+    assert rewritten["relative_dir"] == str(task_root / "adv-1")

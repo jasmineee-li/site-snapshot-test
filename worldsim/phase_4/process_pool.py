@@ -555,11 +555,17 @@ def _copy_worker_task_artifacts(assignment: WorkerAssignment, task_root: Path) -
 
 def _rewrite_worker_paths(value: Any, assignment: WorkerAssignment, task_root: Path) -> Any:
     phase4_dir = assignment.state_dir / "phase_4"
-    replacements = (
-        [(str(child), str(task_root)) for child in phase4_dir.iterdir() if child.is_dir()]
-        if phase4_dir.exists()
-        else []
-    )
+    replacements: list[tuple[str, str]] = []
+    if phase4_dir.exists():
+        for child in phase4_dir.iterdir():
+            if not child.is_dir():
+                continue
+            replacements.extend(
+                [
+                    (str(child), str(task_root)),
+                    (str(child.resolve()), str(task_root.resolve())),
+                ]
+            )
     return _rewrite_string_values(value, replacements)
 
 
