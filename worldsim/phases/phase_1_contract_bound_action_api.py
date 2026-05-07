@@ -201,6 +201,16 @@ def compile_action_task_slot(
         task_id=task_id,
     )
     instruction = _compile_instruction(slot, contract=contract, anchor=anchor)
+    generation = {
+        "backend": "contract_bound_api",
+        "slot_slug": str(slot.get("task_slug") or ""),
+        "abstract_purpose_tag": str(slot.get("abstract_purpose_tag") or ""),
+        "style_tag": str(slot.get("style_tag") or ""),
+    }
+    visibility_evidence = _reddit_seed_comment_visibility_anchor_evidence(anchor)
+    if visibility_evidence is not None:
+        generation["reddit_seed_comment_visibility_anchor_evidence"] = visibility_evidence
+
     return {
         "id": task_id,
         "origin": "new_task",
@@ -231,12 +241,7 @@ def compile_action_task_slot(
                 }
             ]
         },
-        "contract_bound_generation": {
-            "backend": "contract_bound_api",
-            "slot_slug": str(slot.get("task_slug") or ""),
-            "abstract_purpose_tag": str(slot.get("abstract_purpose_tag") or ""),
-            "style_tag": str(slot.get("style_tag") or ""),
-        },
+        "contract_bound_generation": generation,
     }
 
 
@@ -636,6 +641,32 @@ def _assign_anchors(route: Mapping[str, Any], count: int) -> list[Mapping[str, A
             "contract-bound action generation requires host-assigned anchors"
         )
     return [anchors[index % len(anchors)] for index in range(count)]
+
+
+def _reddit_seed_comment_visibility_anchor_evidence(
+    anchor: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    if str(anchor.get("seeded_comment_visibility_candidate") or "").strip().lower() != "true":
+        return None
+    existing = _nonnegative_int(anchor.get("existing_comment_count"))
+    limit = _nonnegative_int(anchor.get("max_existing_comments_for_comment_seed"))
+    if existing is None or limit is None or existing > limit:
+        return None
+    return {
+        "source": "phase0c_empty_submission_inventory",
+        "existing_comment_count": existing,
+        "max_existing_comments_for_comment_seed": limit,
+    }
+
+
+def _nonnegative_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int) and value >= 0:
+        return value
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    return None
 
 
 def _allocate_counts(total: int, cells: int) -> list[int]:

@@ -79,7 +79,7 @@ def _task_failures(task: Mapping[str, Any]) -> list[str]:
     action = _action_kind(task)
     if action not in {"create_issue", "create_issue_note", "create_post", "submit_comment"}:
         failures.append(f"unsupported_or_missing_action_kind:{action or 'missing'}")
-    if action == "submit_comment":
+    if action == "submit_comment" and not _has_submit_comment_visibility_gate(task):
         failures.append("submit_comment_requires_explicit_visibility_gate")
     return failures
 
@@ -137,6 +137,30 @@ def _contains_agent_response_evaluator(task: Mapping[str, Any]) -> bool:
         and "AgentResponseEvaluator" in str(item.get("evaluator") or item.get("type") or "")
         for item in evals
     )
+
+
+def _has_submit_comment_visibility_gate(task: Mapping[str, Any]) -> bool:
+    generation = task.get("contract_bound_generation")
+    if not isinstance(generation, Mapping):
+        return False
+    evidence = generation.get("reddit_seed_comment_visibility_anchor_evidence")
+    if not isinstance(evidence, Mapping):
+        return False
+    if evidence.get("source") != "phase0c_empty_submission_inventory":
+        return False
+    existing = _nonnegative_int(evidence.get("existing_comment_count"))
+    limit = _nonnegative_int(evidence.get("max_existing_comments_for_comment_seed"))
+    return existing is not None and limit is not None and existing <= limit
+
+
+def _nonnegative_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int) and value >= 0:
+        return value
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    return None
 
 
 def _load_tasks(run_dir: Path) -> list[dict[str, Any]]:

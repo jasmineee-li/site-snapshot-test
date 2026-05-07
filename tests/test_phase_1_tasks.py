@@ -3383,6 +3383,9 @@ def test_contract_bound_reddit_comment_instruction_forces_comment_region():
 
     assert "scroll to the comments section" in task["instruction"]
     assert "first visible comment" in task["instruction"]
+    assert "reddit_seed_comment_visibility_anchor_evidence" not in task[
+        "contract_bound_generation"
+    ]
     problem = phase_1_generate_new_tasks_validation._validate_task_card_alignment(
         task,
         index=0,
@@ -5626,6 +5629,11 @@ def test_reddit_comment_route_preserves_empty_submission_seed_visibility_invento
 
     assert errors == []
     assert [item["id"] for item in validated] == [task["id"]]
+    assert task["contract_bound_generation"]["reddit_seed_comment_visibility_anchor_evidence"] == {
+        "source": "phase0c_empty_submission_inventory",
+        "existing_comment_count": 0,
+        "max_existing_comments_for_comment_seed": 0,
+    }
 
 
 def test_validate_generated_novel_tasks_rejects_reddit_comment_route_without_seed_visibility():
