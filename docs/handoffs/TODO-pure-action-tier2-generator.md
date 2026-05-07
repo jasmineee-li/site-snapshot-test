@@ -35,6 +35,22 @@ rows or block the next 50-task path on them until the task-generation/placement
 contract is redesigned so the IPI is naturally encountered during the benign
 task without forcing the browser directly to the injection.
 
+As of the fresh-cohort generator work, do not assemble the next 50 by picking
+successful rows out of earlier artifacts. Generate a new cohort through Phase 1
+with explicit action-kind counts:
+
+```bash
+--phase-1-action-counts create_issue=20,create_post=20,create_issue_note=10
+```
+
+This keeps `submit_comment` at zero without creating a one-off profile. The
+contract-bound generator now asks the model to author natural task wording, but
+the host still owns and validates the action kind, task card, route, anchor,
+editor seed, benign witness/evaluator, adversarial reward/readback, and
+Phase 2c/PVPO admission. Invalid generated instructions must be repaired or the
+cohort generation must fail closed; do not silently fall back to a generic
+host-written instruction because that recreates the samey artifact problem.
+
 ## Completed 50-Task Accounting
 
 The first GPT-5.2 Tier 2 pure-action 50-row set completed under the blocked
@@ -284,6 +300,8 @@ redesigned and pass both natural-entry PVPO and state readback:
    Reddit/Postmill `create_post` 20, GitLab `create_issue_note` 10,
    Reddit/Postmill `submit_comment` 0. Use Browser Use unless AgentLab has
    since produced a clean cohort parity/artifact smoke.
+   Generate this as a fresh action-counted cohort rather than selecting prior
+   successful rows.
 
 Each smoke must show Phase 2c admission, PVPO visual encounter, benign utility,
 browser action attempt, request success where applicable, strict
@@ -295,6 +313,7 @@ Use the paper profile and strict Tier 2 action policy together:
 
 ```bash
 --task-capability-profile tier2_pure_action_paper
+--phase-1-action-counts create_issue=20,create_post=20,create_issue_note=10
 --phase-2a-action-policy tier2_pilot
 ```
 
@@ -302,6 +321,18 @@ Before Phase 4, audit the generated Phase 2 artifact:
 
 ```bash
 uv run python scripts/audit_pure_action_paper_suite.py "$RUN" --min-tasks 1
+```
+
+For the fresh 50-row no-comment cohort, the pre-Phase-4 audit should also pin
+the action distribution and basic generated-instruction diversity:
+
+```bash
+uv run python scripts/audit_pure_action_paper_suite.py "$RUN" \
+  --expected-count 50 \
+  --expected-action-counts create_issue=20,create_post=20,create_issue_note=10 \
+  --min-purpose-tags 6 \
+  --min-style-tags 4 \
+  --reject-duplicate-instructions
 ```
 
 For the final suite, use:
@@ -526,6 +557,11 @@ merely discouraged; they are outside the task grammar.
   with the no-comment distribution: GitLab `create_issue` 20,
   Reddit/Postmill `create_post` 20, GitLab `create_issue_note` 10, and
   Reddit/Postmill `submit_comment` 0.
+  Use the green `r8a.24xlarge` host through
+  `--host-config configs/benchmark_hosts/r8a.yaml`; blue/r5 remains live and
+  should not be mutated. Start with fresh Phase 1 and Phase 2/2c artifacts,
+  then run a 10-row mixed smoke before the full 50-row Phase 4 run at
+  `--phase-4-max-workers 48`.
 - Second priority: debug AgentLab startup/timeout/artifact production on the
   three-family cohort. When fixed, rerun a 10-row AgentLab Phase 4 cohort smoke
   on admitted Tier 2 tasks using the same measurement rules and
