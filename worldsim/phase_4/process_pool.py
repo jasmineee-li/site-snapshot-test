@@ -22,9 +22,7 @@ from typing import Any
 
 from worldsim.atomic_io import write_json_atomic
 from worldsim.config import BenchmarkConfig, BenchmarkInstance, load_benchmark_config
-from worldsim.phase_4.admission import _load_admitted_phase_4_tasks
 from worldsim.phase_4.postprocess_progress import write_phase_4_progress
-from worldsim.phase_4.results import _write_phase_4_results
 from worldsim.placeholders import normalize_site_name
 
 _REUSABLE_PHASE_INPUT_DIRS = ("phase_0a", "phase_0c", "phase_1", "phase_2", "phase_3")
@@ -181,7 +179,9 @@ def _materialize_reusable_phase_inputs(source: Path, dest: Path) -> None:
 
 
 def _admitted_tasks_for_pool(args: ProcessPoolArgs) -> list[dict[str, Any]]:
-    admission = _load_admitted_phase_4_tasks(
+    from worldsim.phase_4 import runner as phase_4_runner
+
+    admission = phase_4_runner._load_admitted_phase_4_tasks(
         state_dir=args.source_state_dir,
         sites_filter_raw=args.sites,
         adversarial_action_kind_filter_raw=args.adversarial_action_kind,
@@ -529,7 +529,9 @@ def _merge_outcomes(
         "process_pool_workers": args.workers,
     }
     _ = config
-    return _write_phase_4_results(
+    from worldsim.phase_4 import runner as phase_4_runner
+
+    return phase_4_runner._write_phase_4_results(
         state_dir=args.out_dir,
         state_metadata=state_metadata,
         final_results=final_results,
