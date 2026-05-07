@@ -200,11 +200,14 @@ scripts/remote_job_start.sh \
 While the process pool is running, start with `scripts/remote_job_status.sh`.
 Its Phase 4 progress block includes active process-pool worker rows with worker
 id, task id, current AgentLab/Phase 4 step, task trace dir, worker state dir,
-and worker stderr path. Use `scripts/remote_job_tail.sh --worker-id <n>` (or
-`--task-id <id>` while the task is active) only after status points at a stale
-or failing worker. After completion, inspect `phase_4/process_pool_summary.json`
-for per-worker stdout/stderr paths, exit codes, timeouts, assigned instance
-indexes, and PVPO endpoints. The final
+and worker stderr path. Use `scripts/remote_job_tail.sh --worker-id <n>` or
+`--task-id <id>` only after status points at a stale or failing worker. Task-id
+tailing checks active `progress.json` first and completed
+`phase_4/process_pool_summary.json` / `partial_manifest.json` second, so it can
+tail completed process-pool workers after the summary is written. After
+completion, inspect `phase_4/process_pool_summary.json` for per-worker
+stdout/stderr paths, exit codes, timeouts, assigned instance indexes, and PVPO
+endpoints. The final
 `phase_4/results.json` is written only after every expected task has exactly
 one valid worker result; missing, duplicate, or mismatched task IDs fail closed
 instead of producing a partial canonical result. Failed process-pool runs may

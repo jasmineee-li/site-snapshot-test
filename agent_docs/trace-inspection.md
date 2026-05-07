@@ -56,7 +56,10 @@ Use this order:
 5. `task <task_id> --refs` when you need artifact paths and a compact artifact
    manifest for `history.json`, `result.json`, Needham XML, AgentLab
    status/timeline logs, TP/VEA raw responses, or PVPO summary.
-6. Only after that, open raw trajectory artifacts directly.
+6. For visual row-by-row review, export
+   `variant_trace_table.html`; AgentLab timeline summaries are surfaced there
+   as report-only observability with raw JSONL paths for drill-down.
+7. Only after that, open raw trajectory artifacts directly.
 
 Machine consumption:
 

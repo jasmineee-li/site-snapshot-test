@@ -30,6 +30,12 @@ def write_variant_trace_csv(export: dict[str, Any], path: Path) -> None:
         "post_resistance_variants_entered",
         "variant_loop_reason",
         "initial_answer_label",
+        "initial_agentlab_timeline_path",
+        "initial_agentlab_timeline_event_count",
+        "initial_agentlab_last_event",
+        "initial_agentlab_last_step",
+        "initial_agentlab_last_network_event_count",
+        "initial_agentlab_last_network_delta_count",
         "final_action_attempted",
         "final_action_attempt_status",
         "final_action_attempt_count",
@@ -54,6 +60,12 @@ def write_variant_trace_csv(export: dict[str, Any], path: Path) -> None:
         "attack_witness_offset",
         "variant_outcome",
         "variant_answer_label",
+        "variant_agentlab_timeline_path",
+        "variant_agentlab_timeline_event_count",
+        "variant_agentlab_last_event",
+        "variant_agentlab_last_step",
+        "variant_agentlab_last_network_event_count",
+        "variant_agentlab_last_network_delta_count",
         "variant_action_attempted",
         "variant_action_attempt_status",
         "variant_action_attempt_count",
@@ -89,6 +101,10 @@ def _csv_row(row: dict[str, Any], variant: dict[str, Any] | None) -> dict[str, A
     final_action = row.get("action_metrics")
     final_action = final_action if isinstance(final_action, dict) else {}
     variant_action = variant.get("action_metrics", {}) if isinstance(variant, dict) else {}
+    initial_timeline = _nested_get(row, "initial", "agentlab_timeline")
+    initial_timeline = initial_timeline if isinstance(initial_timeline, dict) else {}
+    variant_timeline = _nested_get(variant, "evaluation", "agentlab_timeline")
+    variant_timeline = variant_timeline if isinstance(variant_timeline, dict) else {}
     warnings = [
         *row.get("warnings", []),
         *(variant.get("warnings", []) if isinstance(variant, dict) else []),
@@ -109,6 +125,16 @@ def _csv_row(row: dict[str, Any], variant: dict[str, Any] | None) -> dict[str, A
         ),
         "variant_loop_reason": variant_loop.get("reason"),
         "initial_answer_label": _nested_get(row, "initial", "answer_label"),
+        "initial_agentlab_timeline_path": initial_timeline.get("path"),
+        "initial_agentlab_timeline_event_count": initial_timeline.get("event_count"),
+        "initial_agentlab_last_event": initial_timeline.get("last_event"),
+        "initial_agentlab_last_step": initial_timeline.get("last_step"),
+        "initial_agentlab_last_network_event_count": initial_timeline.get(
+            "last_network_event_count"
+        ),
+        "initial_agentlab_last_network_delta_count": initial_timeline.get(
+            "last_network_delta_count"
+        ),
         "final_action_attempted": final_action.get("attempted"),
         "final_action_attempt_status": final_action.get("attempt_status"),
         "final_action_attempt_count": final_action.get("attempt_count"),
@@ -143,6 +169,16 @@ def _csv_row(row: dict[str, Any], variant: dict[str, Any] | None) -> dict[str, A
         "attack_witness_offset": delta.get("attack_witness_offset"),
         "variant_outcome": evaluation.get("outcome"),
         "variant_answer_label": evaluation.get("answer_label"),
+        "variant_agentlab_timeline_path": variant_timeline.get("path"),
+        "variant_agentlab_timeline_event_count": variant_timeline.get("event_count"),
+        "variant_agentlab_last_event": variant_timeline.get("last_event"),
+        "variant_agentlab_last_step": variant_timeline.get("last_step"),
+        "variant_agentlab_last_network_event_count": variant_timeline.get(
+            "last_network_event_count"
+        ),
+        "variant_agentlab_last_network_delta_count": variant_timeline.get(
+            "last_network_delta_count"
+        ),
         "variant_action_attempted": variant_action.get("attempted"),
         "variant_action_attempt_status": variant_action.get("attempt_status"),
         "variant_action_attempt_count": variant_action.get("attempt_count"),
@@ -244,11 +280,12 @@ def _render_task_row(row: dict[str, Any]) -> str:
     warnings = "<br>".join(html.escape(warning) for warning in row.get("warnings", []))
     loop_note = _variant_loop_note(row)
     action_note = _action_note(row.get("action_metrics"))
+    agentlab_note = _agentlab_timeline_note(_nested_get(row, "initial", "agentlab_timeline"))
     return f"""
           <tr>
             <td class="mono">{html.escape(str(row.get("result_index")))}</td>
             <td><div class="mono">{html.escape(str(row.get("task_id")))}</div><div>{html.escape(str(row.get("instruction") or ""))}</div><div class="muted">{html.escape(str(row.get("final_status") or ""))} / {html.escape(str(row.get("outcome_fine") or ""))}</div><div class="stage">{html.escape(loop_note)}</div><div class="stage">{html.escape(action_note)}</div></td>
-            <td><span class="answer mono">{html.escape(str(_nested_get(row, "initial", "answer_label") or ""))}</span><div class="payload">{html.escape(str(compact_text(_nested_get(row, "initial", "final_result"), limit=220) or ""))}</div></td>
+            <td><span class="answer mono">{html.escape(str(_nested_get(row, "initial", "answer_label") or ""))}</span><div class="payload">{html.escape(str(compact_text(_nested_get(row, "initial", "final_result"), limit=220) or ""))}</div><div class="stage">{html.escape(agentlab_note)}</div>{_render_agentlab_tail(_nested_get(row, "initial", "agentlab_timeline"))}</td>
             {variant_cell}
             <td class="warnings">{warnings}</td>
           </tr>"""
@@ -259,6 +296,7 @@ def _render_variant_card(variant: dict[str, Any]) -> str:
     delta = variant.get("delta", {})
     generation = variant.get("generation", {})
     action = variant.get("action_metrics")
+    agentlab_note = _agentlab_timeline_note(_nested_get(variant, "evaluation", "agentlab_timeline"))
     css = "worked" if evaluation.get("worked") else "missed"
     if variant.get("selected_success"):
         css = "worked"
@@ -277,10 +315,47 @@ def _render_variant_card(variant: dict[str, Any]) -> str:
       <span class="answer mono">{html.escape(str(evaluation.get("answer_label") or ""))}</span>
       <div class="muted">{html.escape(str(evaluation.get("outcome") or ""))} | gen={html.escape(str(generation.get("status") or ""))} host={html.escape(str(generation.get("host_status") or ""))}</div>
       <div class="stage">{html.escape(_action_note(action))}</div>
+      <div class="stage">{html.escape(agentlab_note)}</div>
+      {_render_agentlab_tail(_nested_get(variant, "evaluation", "agentlab_timeline"))}
       <div class="payload">{html.escape(str(compact_text(delta.get("revised_payload"), limit=260) or ""))}</div>
       <div class="delta">chars {html.escape(str(delta.get("original_chars")))} → {html.escape(str(delta.get("revised_chars")))}; witness {html.escape(str(delta.get("attack_witness_offset")))}/{html.escape(str(delta.get("max_attack_witness_offset")))}</div>
       <div class="warnings">{html.escape(warnings)}</div>
     </div>"""
+
+
+def _agentlab_timeline_note(timeline: Any) -> str:
+    if not isinstance(timeline, dict) or not timeline.get("exists"):
+        return "AgentLab timeline: unavailable"
+    return (
+        "AgentLab timeline: "
+        f"events={timeline.get('event_count')} "
+        f"last={timeline.get('last_event')} "
+        f"step={timeline.get('last_step')} "
+        f"network={timeline.get('last_network_event_count')} "
+        f"delta={timeline.get('last_network_delta_count')} "
+        f"path={timeline.get('path')}"
+    )
+
+
+def _render_agentlab_tail(timeline: Any) -> str:
+    if not isinstance(timeline, dict) or not timeline.get("exists"):
+        return ""
+    rows = timeline.get("tail")
+    if not isinstance(rows, list) or not rows:
+        return ""
+    items = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        items.append(
+            "<div class=\"stage mono\">"
+            f"{html.escape(str(row.get('event') or ''))} "
+            f"step={html.escape(str(row.get('step') or ''))} "
+            f"delta={html.escape(str(row.get('network_delta_count') or ''))} "
+            f"url={html.escape(str(compact_text(row.get('url'), limit=90) or ''))}"
+            "</div>"
+        )
+    return "".join(items)
 
 
 def _action_note(action: Any) -> str:

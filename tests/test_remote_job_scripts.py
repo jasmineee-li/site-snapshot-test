@@ -1561,6 +1561,148 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
     assert "remote job child launch failed" in completed.stdout
 
 
+def test_tail_resolves_completed_process_pool_task_from_summary(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    remote_dir = tmp_path / "remote" / "browser-sim"
+    job_id = "20260507t000000z-phase4-abcdef"
+    job_dir = remote_dir / "logs" / "remote_jobs" / job_id
+    state_dir = remote_dir / "logs" / "phase4-run"
+    worker_dir = state_dir / "phase_4" / "process_pool_workers" / "worker_007"
+    worker_dir.mkdir(parents=True)
+    job_dir.mkdir(parents=True)
+    (job_dir / "metadata.json").write_text(
+        json.dumps({"job_id": job_id, "state_dir": str(state_dir)}),
+        encoding="utf-8",
+    )
+    (job_dir / "stdout.log").write_text("job stdout should not be tailed\n", encoding="utf-8")
+    (worker_dir / "stdout.log").write_text("worker stdout\n", encoding="utf-8")
+    (worker_dir / "stderr.log").write_text("worker stderr\n", encoding="utf-8")
+    (state_dir / "phase_4" / "progress.json").write_text(
+        json.dumps({"process_pool_active_workers": []}),
+        encoding="utf-8",
+    )
+    (state_dir / "phase_4" / "process_pool_summary.json").write_text(
+        json.dumps(
+            {
+                "outcomes": [
+                    {
+                        "worker_id": 7,
+                        "task_id": "adv-7",
+                        "stdout": str(worker_dir / "stdout.log"),
+                        "stderr": str(worker_dir / "stderr.log"),
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    _write_executable(
+        fakebin / "ssh",
+        """#!/usr/bin/env python3
+import subprocess
+import sys
+
+remote_cmd = sys.argv[-1]
+raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).returncode)
+""",
+    )
+
+    env = _base_env(repo_root, tmp_path)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_tail.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+            "--job-id",
+            job_id,
+            "--task-id",
+            "adv-7",
+            "--stderr",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout == "worker stderr\n"
+    assert "job stdout" not in completed.stdout
+
+
+def test_tail_task_id_miss_does_not_fall_back_to_job_stdout(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    remote_dir = tmp_path / "remote" / "browser-sim"
+    job_id = "20260507t000000z-phase4-abcdef"
+    job_dir = remote_dir / "logs" / "remote_jobs" / job_id
+    state_dir = remote_dir / "logs" / "phase4-run"
+    job_dir.mkdir(parents=True)
+    (state_dir / "phase_4").mkdir(parents=True)
+    (job_dir / "metadata.json").write_text(
+        json.dumps({"job_id": job_id, "state_dir": str(state_dir)}),
+        encoding="utf-8",
+    )
+    (job_dir / "stdout.log").write_text("job stdout should not be tailed\n", encoding="utf-8")
+    (state_dir / "phase_4" / "progress.json").write_text(
+        json.dumps(
+            {
+                "process_pool_active_workers": [
+                    {"worker_id": 1, "task_id": "other-task", "stdout": "x", "stderr": "y"}
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    _write_executable(
+        fakebin / "ssh",
+        """#!/usr/bin/env python3
+import subprocess
+import sys
+
+remote_cmd = sys.argv[-1]
+raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).returncode)
+""",
+    )
+
+    env = _base_env(repo_root, tmp_path)
+    env["PATH"] = f"{fakebin}:{env['PATH']}"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_tail.sh"),
+            "--host-config",
+            str(host_config),
+            "--remote-dir",
+            str(remote_dir),
+            "--job-id",
+            job_id,
+            "--task-id",
+            "missing-task",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "task id not found in process-pool worker logs: missing-task" in completed.stderr
+    assert "other-task (progress)" in completed.stderr
+    assert "job stdout" not in completed.stdout
+
+
 def test_status_surfaces_recent_health_warnings(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     host_config = _host_config(tmp_path)
@@ -1967,7 +2109,10 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
     assert completed.returncode == 0, completed.stderr
     assert "phase4_progress: present logs/custom_run/phase_4/progress.json" in completed.stdout
     assert "status=running stage=initial_evaluation" in completed.stdout
-    assert "initial=30/32 started=4/32 active=2 postprocessed=0/32" in completed.stdout
+    assert (
+        "initial=30/32 initial_started=0/32 initial_active=0 "
+        "started=4/32 active=2 postprocessed=0/32"
+    ) in completed.stdout
     assert "postprocess_attempted=3/32 postprocess_failed=1" in completed.stdout
     assert (
         "phase4_variant_progress: system=eval-awareness-iterator "

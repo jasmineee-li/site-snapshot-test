@@ -88,6 +88,53 @@ class NetworkTraceRecorder:
     def redacted_events(self) -> list[dict[str, Any]]:
         return [_redact_event(event) for event in self.events]
 
+    def mark(self) -> int:
+        """Return a cursor for request rows recorded so far."""
+
+        return len(self._ordered_ids)
+
+    def events_since(self, mark: int | None) -> list[dict[str, Any]]:
+        start = _bounded_mark(mark, len(self._ordered_ids))
+        return [self._events_by_request[key] for key in self._ordered_ids[start:]]
+
+    def redacted_events_since(self, mark: int | None) -> list[dict[str, Any]]:
+        return [_redact_event(event) for event in self.events_since(mark)]
+
+    def summarize_since(self, mark: int | None) -> dict[str, Any]:
+        """Summarize request rows initiated since ``mark`` without payload bodies."""
+
+        start = _bounded_mark(mark, len(self._ordered_ids))
+        end = len(self._ordered_ids)
+        events = self.redacted_events_since(start)
+        latest = events[-1] if events else {}
+        methods = sorted(
+            {
+                str(event.get("method"))
+                for event in events
+                if isinstance(event.get("method"), str) and event.get("method")
+            }
+        )
+        statuses = sorted(
+            {
+                int(event.get("response_status"))
+                for event in events
+                if isinstance(event.get("response_status"), int)
+            }
+        )
+        failed_count = sum(1 for event in events if event.get("failure"))
+        return {
+            "network_event_start": start,
+            "network_event_end": end,
+            "network_delta_count": len(events),
+            "network_delta_failed_count": failed_count,
+            "network_delta_methods": methods,
+            "network_delta_statuses": statuses,
+            "network_delta_latest_url": latest.get("url"),
+            "network_delta_latest_method": latest.get("method"),
+            "network_delta_latest_status": latest.get("response_status"),
+            "network_delta_latest_resource_type": latest.get("resource_type"),
+        }
+
     def persist(self) -> None:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         raw_events = self.events
@@ -206,6 +253,12 @@ def _safe_call(fn: Any) -> Any:
         )
     except Exception:
         return None
+
+
+def _bounded_mark(mark: int | None, length: int) -> int:
+    if not isinstance(mark, int):
+        return 0
+    return max(0, min(mark, length))
 
 
 def _redact_headers(headers: Any) -> dict[str, str]:

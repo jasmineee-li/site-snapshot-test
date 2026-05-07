@@ -59,6 +59,7 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
     episode_info: list[Any] = []
     env = None
     network = NetworkTraceRecorder(output_dir)
+    network_mark = 0
     runtime: dict[str, Any] = {
         "runner": "agentlab",
         "mode": "phase4",
@@ -151,7 +152,9 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
                         step_info=step_info,
                         network=network,
                         runtime=runtime,
+                        network_mark=network_mark,
                     )
+                    network_mark = network.mark()
                     _update_runtime_progress(
                         output_dir,
                         runtime,
@@ -192,7 +195,9 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
                             action=action,
                             network=network,
                             runtime=runtime,
+                            network_mark=network_mark,
                         )
+                        network_mark = network.mark()
                         if action is None:
                             step_info.truncated = True
                             break
@@ -228,7 +233,9 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
                             action=action,
                             network=network,
                             runtime=runtime,
+                            network_mark=network_mark,
                         )
+                        network_mark = network.mark()
                         _update_runtime_progress(
                             output_dir,
                             runtime,
@@ -437,11 +444,13 @@ def _append_step_timeline(
     network: NetworkTraceRecorder,
     runtime: dict[str, Any],
     action: Any = None,
+    network_mark: int | None = None,
 ) -> None:
     obs = getattr(step_info, "obs", None)
     if not isinstance(obs, dict):
         obs = {}
     step = getattr(step_info, "step", None)
+    network_summary = _network_delta_summary(network, network_mark)
     payload = {
         "schema_version": 1,
         "runner": "agentlab",
@@ -456,6 +465,7 @@ def _append_step_timeline(
         "action": str(action) if action is not None else None,
         "screenshot": f"screenshots/step_{step}.png",
         "network_event_count": len(network.events),
+        **network_summary,
         "reward": getattr(step_info, "reward", None),
         "raw_reward": getattr(step_info, "raw_reward", None),
         "terminated": getattr(step_info, "terminated", None),
@@ -472,7 +482,33 @@ def _append_step_timeline(
         url=payload["url"],
         action=payload["action"],
         network_event_count=payload["network_event_count"],
+        network_delta_count=payload.get("network_delta_count"),
     )
+
+
+def _network_delta_summary(
+    network: NetworkTraceRecorder,
+    network_mark: int | None,
+) -> dict[str, Any]:
+    summarize = getattr(network, "summarize_since", None)
+    if callable(summarize):
+        return summarize(network_mark)
+    events = getattr(network, "events", [])
+    count = len(events) if isinstance(events, list) else 0
+    start = network_mark if isinstance(network_mark, int) else 0
+    start = max(0, min(start, count))
+    return {
+        "network_event_start": start,
+        "network_event_end": count,
+        "network_delta_count": max(0, count - start),
+        "network_delta_failed_count": None,
+        "network_delta_methods": [],
+        "network_delta_statuses": [],
+        "network_delta_latest_url": None,
+        "network_delta_latest_method": None,
+        "network_delta_latest_status": None,
+        "network_delta_latest_resource_type": None,
+    }
 
 
 def _append_agentlab_event(output_dir: Path, event: str, **fields: Any) -> None:

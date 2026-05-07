@@ -130,6 +130,7 @@ def _build_task_row(
         "instruction": task.get("instruction") or _instruction_from_attempts(generation_attempts),
         "initial": {
             "trace": str(initial_trace) if initial_trace else None,
+            "agentlab_timeline": _agentlab_timeline_view(initial_trace),
             "outcome": initial_result.get("outcome") or result.get("initial_outcome"),
             "action_metrics": _raw_action_metrics_view(initial_result or result),
             "answer_label": answer_label(
@@ -140,6 +141,7 @@ def _build_task_row(
         },
         "current": {
             "trace": str(current_trace) if current_trace else None,
+            "agentlab_timeline": _agentlab_timeline_view(current_trace),
             "action_metrics": _final_action_metrics_view(result),
             "answer_label": answer_label(
                 result.get("primary_final_result") or result.get("current_final_result")
@@ -292,6 +294,7 @@ def _build_variant_row(
         "final_answer_excerpt": compact_text(variant_result.get("final_result"), limit=160),
         "evaluation": {
             "trace": str(variant_trace) if variant_trace else None,
+            "agentlab_timeline": _agentlab_timeline_view(variant_trace),
             "status": (
                 "not_evaluated_host_rejected"
                 if host_rejected and variant_trace is None
@@ -850,6 +853,61 @@ def _load_result_json(trace: Path | None) -> dict[str, Any]:
     if trace is None:
         return {}
     return _load_json_dict(trace / "result.json")
+
+
+def _agentlab_timeline_view(trace: Path | None, *, limit: int = 4) -> dict[str, Any]:
+    path = trace / "agentlab_step_timeline.jsonl" if trace is not None else None
+    if path is None:
+        return {"path": None, "exists": False, "event_count": 0, "tail": []}
+    rows = _load_jsonl_dicts(path)
+    last = rows[-1] if rows else {}
+    return {
+        "path": str(path),
+        "exists": path.exists(),
+        "event_count": len(rows),
+        "last_event": last.get("event"),
+        "last_step": last.get("step"),
+        "last_timestamp": last.get("timestamp"),
+        "last_url": last.get("url"),
+        "last_action": compact_text(last.get("action"), limit=140),
+        "last_network_event_count": last.get("network_event_count"),
+        "last_network_delta_count": last.get("network_delta_count"),
+        "tail": [_agentlab_timeline_tail_row(row) for row in rows[-limit:]],
+    }
+
+
+def _agentlab_timeline_tail_row(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "event": row.get("event"),
+        "step": row.get("step"),
+        "phase": row.get("phase"),
+        "timestamp": row.get("timestamp"),
+        "url": row.get("url"),
+        "action": compact_text(row.get("action"), limit=140),
+        "screenshot": row.get("screenshot"),
+        "network_event_count": row.get("network_event_count"),
+        "network_delta_count": row.get("network_delta_count"),
+        "terminated": row.get("terminated"),
+        "truncated": row.get("truncated"),
+    }
+
+
+def _load_jsonl_dicts(path: Path) -> list[dict[str, Any]]:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    rows: list[dict[str, Any]] = []
+    for line in lines:
+        if not line.strip():
+            continue
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            rows.append(payload)
+    return rows
 
 
 def _load_json_dict(path: Path) -> dict[str, Any]:

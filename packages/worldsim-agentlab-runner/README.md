@@ -87,6 +87,13 @@ metadata, `cache`, and `timings` fields for audit tooling. Persisted request
 copies and network artifacts redact auth headers, cookies, and token-like
 headers.
 
+`agentlab_step_timeline.jsonl` carries compact per-step network deltas for
+operator debugging. Delta fields use recorder row indexes and mean "request
+rows initiated since the previous timeline mark"; response and failure fields
+may enrich those rows later. The timeline keeps counts, methods, statuses, and
+redacted latest URLs only. Full request/response evidence stays in
+`network_trace.json`, `network.har`, and private reward traces.
+
 AgentLab actions stay AgentLab-native. The Phase 4 exporter may parse
 AgentLab's Python-call action strings into ordered tool-call records for
 Needham XML, TP/VEA, and outcome-taxonomy consumers, but it must preserve the

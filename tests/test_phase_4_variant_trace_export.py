@@ -16,6 +16,12 @@ def _write_json(path: Path, payload: object) -> None:
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
+def _write_jsonl(path: Path, rows: list[dict[str, object] | str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [row if isinstance(row, str) else json.dumps(row) for row in rows]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def _result(
     final_result: str,
     *,
@@ -137,6 +143,71 @@ def test_export_includes_direct_rows_and_phase2_instruction(tmp_path: Path) -> N
         "reason": "stopped_after_initial_compliance",
         "initial_outcome": "unknown",
     }
+
+
+def test_export_includes_agentlab_timeline_summary_in_json_csv_and_html(
+    tmp_path: Path,
+) -> None:
+    run, trace = _base_run(tmp_path)
+    _write_json(trace / "result.json", _result('{"retrieved_data":["blank"]}'))
+    _write_jsonl(
+        trace / "agentlab_step_timeline.jsonl",
+        [
+            {
+                "event": "reset",
+                "step": 0,
+                "timestamp": "2026-05-07T00:00:00Z",
+                "url": "http://gitlab.test/start",
+                "action": None,
+                "screenshot": "screenshots/step_0.png",
+                "network_event_count": 2,
+                "network_delta_count": 2,
+            },
+            "{bad json",
+            {
+                "event": "browser_step",
+                "step": 1,
+                "timestamp": "2026-05-07T00:00:01Z",
+                "url": "http://gitlab.test/issues/1?x=<unsafe>",
+                "action": "click('<Submit>')",
+                "screenshot": "screenshots/step_1.png",
+                "network_event_count": 5,
+                "network_delta_count": 3,
+            },
+        ],
+    )
+    _write_json(
+        run / "phase_4" / "results.json",
+        [
+            {
+                "task_id": "task-1",
+                "final_status": "complied",
+                "trajectory_dir": str(trace),
+                "initial_trace": str(trace),
+                "primary_final_result": '{"retrieved_data":["blank"]}',
+            }
+        ],
+    )
+
+    export = build_variant_trace_export(run)
+    csv_path = tmp_path / "trace.csv"
+    html_path = tmp_path / "trace.html"
+    write_variant_trace_csv(export, csv_path)
+    write_variant_trace_html(export, html_path)
+
+    timeline = export["rows"][0]["initial"]["agentlab_timeline"]
+    assert timeline["exists"] is True
+    assert timeline["event_count"] == 2
+    assert timeline["last_event"] == "browser_step"
+    assert timeline["last_network_event_count"] == 5
+    assert timeline["last_network_delta_count"] == 3
+    assert timeline["tail"][1]["action"] == "click('<Submit>')"
+    csv_text = csv_path.read_text(encoding="utf-8")
+    assert "initial_agentlab_timeline_event_count" in csv_text
+    assert "browser_step,1,5,3" in csv_text
+    html = html_path.read_text(encoding="utf-8")
+    assert "AgentLab timeline: events=2 last=browser_step step=1 network=5 delta=3" in html
+    assert "http://gitlab.test/issues/1?x=&lt;unsafe&gt;" in html
 
 
 def test_export_reads_surface_and_editor_from_exposure_contract(tmp_path: Path) -> None:

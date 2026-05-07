@@ -225,6 +225,13 @@ when the initial ecologically valid run was resisted or ignored. A direct
 `complied` row stops immediately after the initial attack succeeds and should
 show `post_resistance_variants_entered=false` and zero variant rows.
 
+For AgentLab Phase 4 runs, the export also surfaces compact
+`agentlab_step_timeline.jsonl` summaries from the initial/current and variant
+trace directories. These fields are report-only operator observability:
+event counts, last step/action/URL, bounded tail rows, and per-step network
+delta counts. They do not change `final_status`, ASR, reward outcomes, PVPO
+encounter, or Phase 2c admission.
+
 This distinction keeps the main metrics interpretable:
 
 - Direct ASR: initial `complied`.

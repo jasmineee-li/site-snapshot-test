@@ -903,6 +903,52 @@ def test_sidecar_network_trace_includes_evaluator_fields(tmp_path):
     assert converted[0]["request"]["httpVersion"] == "HTTP/1.1"
 
 
+def test_sidecar_network_trace_summarizes_request_row_deltas(tmp_path):
+    network_trace = _load_sidecar_module("network_trace")
+    recorder = network_trace.NetworkTraceRecorder(tmp_path)
+
+    class FakeRequest:
+        def __init__(self, url: str, method: str):
+            self.url = url
+            self.method = method
+            self.headers = {"Authorization": "secret"}
+            self.post_data = "payload"
+            self.resource_type = "xhr"
+
+        def is_navigation_request(self):
+            return False
+
+    class FakeResponse:
+        def __init__(self, request, status: int):
+            self.request = request
+            self.status = status
+            self.headers = {"X-Result": "ok"}
+            self.headers_array = []
+            self.text = "ok"
+
+    first = FakeRequest("http://gitlab.test/pre?token=secret", "GET")
+    recorder._on_request(first)
+    mark = recorder.mark()
+    second = FakeRequest("http://gitlab.test/issues/1?csrf=secret", "POST")
+    recorder._on_request(second)
+    recorder._on_response(FakeResponse(second, 201))
+
+    delta = recorder.events_since(mark)
+    summary = recorder.summarize_since(mark)
+
+    assert delta == [recorder.events[1]]
+    assert delta[0]["response_status"] == 201
+    assert summary["network_event_start"] == 1
+    assert summary["network_event_end"] == 2
+    assert summary["network_delta_count"] == 1
+    assert summary["network_delta_methods"] == ["POST"]
+    assert summary["network_delta_statuses"] == [201]
+    assert summary["network_delta_latest_url"] == "http://gitlab.test/issues/1?csrf=%3Credacted%3E"
+    assert summary["network_delta_latest_method"] == "POST"
+    assert summary["network_delta_latest_status"] == 201
+    assert summary["network_delta_latest_resource_type"] == "xhr"
+
+
 def test_sidecar_network_trace_preserves_public_post_data_for_benchmark_evidence(
     tmp_path,
 ):
@@ -1008,8 +1054,22 @@ def test_agentlab_phase4_writes_incremental_browser_runtime(tmp_path):
 
 def test_agentlab_phase4_appends_step_timeline_and_events(tmp_path):
     phase4_loop = _load_sidecar_module("phase4_loop")
+    network_trace = _load_sidecar_module("network_trace")
     runtime = {"runner": "agentlab", "current_phase": "agent_action_done"}
-    network = SimpleNamespace(events=[{"url": "http://gitlab.test"}])
+    network = network_trace.NetworkTraceRecorder(tmp_path)
+
+    class FakeRequest:
+        def __init__(self):
+            self.url = "http://gitlab.test/issues/1"
+            self.method = "POST"
+            self.headers = {}
+            self.post_data = ""
+            self.resource_type = "xhr"
+
+        def is_navigation_request(self):
+            return False
+
+    network._on_request(FakeRequest())
     step = SimpleNamespace(
         step=2,
         obs={
@@ -1030,6 +1090,7 @@ def test_agentlab_phase4_appends_step_timeline_and_events(tmp_path):
         action="click('Submit')",
         network=network,
         runtime=runtime,
+        network_mark=0,
     )
 
     timeline_rows = [
@@ -1043,8 +1104,14 @@ def test_agentlab_phase4_appends_step_timeline_and_events(tmp_path):
     assert timeline_rows[0]["step"] == 2
     assert timeline_rows[0]["url"] == "http://gitlab.test/issues/1"
     assert timeline_rows[0]["network_event_count"] == 1
+    assert timeline_rows[0]["network_event_start"] == 0
+    assert timeline_rows[0]["network_event_end"] == 1
+    assert timeline_rows[0]["network_delta_count"] == 1
+    assert timeline_rows[0]["network_delta_methods"] == ["POST"]
+    assert timeline_rows[0]["network_delta_latest_url"] == "http://gitlab.test/issues/1"
     assert timeline_rows[0]["screenshot"] == "screenshots/step_2.png"
     assert event_rows[0]["event"] == "step.agent_action"
+    assert event_rows[0]["network_delta_count"] == 1
 
 
 def test_agentlab_live_status_reads_runtime_and_timeline(tmp_path):

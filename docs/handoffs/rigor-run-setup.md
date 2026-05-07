@@ -109,7 +109,10 @@ zero hand-patching.
    runner isolation. If `phase_4/process_pool_summary.json` reports missing
    worker results, duplicate task IDs, task ID mismatches, or worker timeouts,
    treat the run as incomplete until the failed task set is rerun or the root
-   cause is classified.
+   cause is classified. After `process_pool_summary.json` or
+   `partial_manifest.json` exists, `scripts/remote_job_tail.sh --task-id <id>`
+   resolves the completed worker's stdout/stderr without needing the numeric
+   worker id.
 
 ## Remote job wrapper quickstart
 
