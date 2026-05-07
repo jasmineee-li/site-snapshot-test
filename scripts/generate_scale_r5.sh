@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 HOST_CONFIG="$REPO_ROOT/configs/benchmark_hosts/r5.yaml"
+SCALE_CONFIG="$REPO_ROOT/scripts/scale_config.yml"
 ARGS=()
 while (("$#")); do
   case "$1" in
@@ -14,6 +15,14 @@ while (("$#")); do
       HOST_CONFIG="${1#*=}"
       shift
       ;;
+    --scale-config)
+      SCALE_CONFIG="$2"
+      shift 2
+      ;;
+    --scale-config=*)
+      SCALE_CONFIG="${1#*=}"
+      shift
+      ;;
     *)
       ARGS+=("$1")
       shift
@@ -23,11 +32,14 @@ done
 if [[ "$HOST_CONFIG" != /* ]]; then
   HOST_CONFIG="$REPO_ROOT/$HOST_CONFIG"
 fi
+if [[ "$SCALE_CONFIG" != /* ]]; then
+  SCALE_CONFIG="$REPO_ROOT/$SCALE_CONFIG"
+fi
 OUT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/worldsim-scale.XXXXXX")"
 trap 'rm -rf "$OUT_DIR"' EXIT
 
 uv run python "$REPO_ROOT/scripts/generate_compose_scale.py" \
-  --config "$REPO_ROOT/scripts/scale_config.yml" \
+  --config "$SCALE_CONFIG" \
   --base-config "$REPO_ROOT/instances.json" \
   --host-config "$HOST_CONFIG" \
   --out-dir "$OUT_DIR" \
@@ -37,7 +49,7 @@ uv run python "$REPO_ROOT/scripts/generate_compose_scale.py" \
 SMOKE_OUT_DIR="$OUT_DIR/smoke"
 mkdir -p "$SMOKE_OUT_DIR"
 uv run python "$REPO_ROOT/scripts/generate_compose_scale.py" \
-  --config "$REPO_ROOT/scripts/scale_config.yml" \
+  --config "$SCALE_CONFIG" \
   --base-config "$REPO_ROOT/instances.json" \
   --host-config "$HOST_CONFIG" \
   --mode smoke \

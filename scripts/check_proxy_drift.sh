@@ -213,7 +213,11 @@ fi
 # Workers are respawned on reload, so the oldest one bounds when nginx last
 # applied config. A master-only stat would only tell us when nginx was
 # originally started — SIGHUPs do not replace the master.
-OLDEST_WORKER_PID=$(pgrep -f "nginx: worker" | head -1 || true)
+NGINX_MAIN_PID=$(systemctl show -p MainPID --value nginx 2>/dev/null || echo 0)
+OLDEST_WORKER_PID=""
+if [[ "$NGINX_MAIN_PID" =~ ^[0-9]+$ && "$NGINX_MAIN_PID" -gt 0 ]]; then
+    OLDEST_WORKER_PID=$(pgrep -P "$NGINX_MAIN_PID" -f "nginx: worker" | head -1 || true)
+fi
 if [[ -n "$OLDEST_WORKER_PID" ]]; then
     WORKER_START=$(stat -c %Y "/proc/$OLDEST_WORKER_PID" 2>/dev/null || echo 0)
     echo "WORKER_START=$WORKER_START"

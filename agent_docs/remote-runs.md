@@ -41,6 +41,15 @@ only for isolated experiments. Push required remote environment variables with
 `scripts/remote_env_push.sh`; do not paste secrets into job commands or
 hand-written shell history.
 
+Treat launch attempts and evidence runs as separate artifacts. If a remote job
+exits before it starts the measured phase, for example because auth, topology,
+or prerequisite artifacts are missing, keep its remote job registry for
+diagnostics but do not relaunch into the same state directory. Fix the
+precondition, materialize a fresh state directory from the verified Phase 1-3
+inputs, and start a new job whose `--expected-output` points at that fresh run.
+This keeps failed setup attempts from becoming part of the evidentiary run
+history and makes later summaries unambiguous.
+
 Canonical r5 Phase 4 launch shape:
 
 ```bash

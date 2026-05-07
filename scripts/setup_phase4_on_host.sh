@@ -28,6 +28,7 @@ HOST_CONFIG=""
 INSTANCES="${INSTANCES:-instances.scale.json}"
 ARTIFACTS_SOURCE=""
 BENCHMARK_ROOT="${WORLDSIM_BENCHMARK_ROOT:-/home/ubuntu/vendors/webarena-verified}"
+SCALE_CONFIG="${WORLDSIM_SCALE_CONFIG:-scripts/scale_config.yml}"
 SKIP_PVPO_CONTAINER=0
 SKIP_MAGENTO_SYNC=0
 SKIP_GITLAB_MINT=0
@@ -39,6 +40,7 @@ setup_phase4_on_host.sh
 Options:
   --host-config <path>       benchmark host YAML (required)
   --instances <path>         instances.json (default: instances.scale.json)
+  --scale-config <path>      scale topology YAML for regeneration (default: scripts/scale_config.yml)
   --artifacts-source <uri>   s3://, ssh://, or /local/path for phase_0c/2/3
   --benchmark-root <path>    WebArena Verified checkout (default: /home/ubuntu/vendors/webarena-verified)
   --skip-pvpo-container      skip step 3 (PVPO Docker container)
@@ -52,6 +54,7 @@ while (("$#")); do
     case "$1" in
         --host-config) HOST_CONFIG="$2"; shift 2 ;;
         --instances) INSTANCES="$2"; shift 2 ;;
+        --scale-config) SCALE_CONFIG="$2"; shift 2 ;;
         --artifacts-source) ARTIFACTS_SOURCE="$2"; shift 2 ;;
         --benchmark-root) BENCHMARK_ROOT="$2"; shift 2 ;;
         --skip-pvpo-container) SKIP_PVPO_CONTAINER=1; shift ;;
@@ -78,6 +81,7 @@ if [[ -z "$HOST_CONFIG" ]]; then
 fi
 HOST_CONFIG_PATH="$(abs_path "$HOST_CONFIG")"
 INSTANCES_PATH="$(abs_path "$INSTANCES")"
+SCALE_CONFIG_PATH="$(abs_path "$SCALE_CONFIG")"
 if [[ "$SKIP_MAGENTO_SYNC" -eq 1 ]]; then
     substep "--skip-magento-sync is deprecated; Magento left WASP scope on 2026-04-21"
 fi
@@ -97,7 +101,7 @@ uv lock --check >/dev/null 2>&1 || {
     echo "ERROR: pyproject.toml + uv.lock are out of sync; run 'uv lock' first" >&2
     exit 2
 }
-uv sync --locked
+uv sync --locked --extra dev
 (
     cd "$REPO_ROOT/packages/worldsim-webarena-verified"
     uv lock --check >/dev/null 2>&1 || {
@@ -127,9 +131,11 @@ substep "orchestrator_host=${ORCHESTRATOR_HOST} (from $HOST_CONFIG)"
 # patching the 62 fields that got bandaided on 2026-04-21. Also keeps
 # advertise_host ↔ control_host in sync with the host's actual topology.
 log "step 1b: regen $INSTANCES"
-"$REPO_ROOT/scripts/generate_scale_r5.sh" --host-config "$HOST_CONFIG_PATH" >/dev/null
+"$REPO_ROOT/scripts/generate_scale_r5.sh" \
+    --host-config "$HOST_CONFIG_PATH" \
+    --scale-config "$SCALE_CONFIG_PATH" >/dev/null
 INSTANCES_PATH="$(abs_path "$INSTANCES")"
-substep "regenerated $INSTANCES"
+substep "regenerated $INSTANCES from $SCALE_CONFIG"
 
 # ---------------------------------------------------------------------------
 # Step 2 — Playwright chromium + system libs (issue #3)

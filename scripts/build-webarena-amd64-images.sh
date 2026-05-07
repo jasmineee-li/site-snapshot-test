@@ -4,11 +4,10 @@
 # fallback in git.
 #
 # This replaces the old bring-up path that patched running containers on every
-# host boot. We build local amd64 images for the four stale upstream tags
-# (shopping, shopping_admin, gitlab, reddit) from the vendored
-# webarena-verified source tree in this repo. The vendored site files already
-# include the env-var fallback, so the fix survives `docker compose up
-# --force-recreate`.
+# host boot. Active WASP scope is GitLab + Reddit/Postmill only, so we build
+# local amd64 images only for those tags from the vendored webarena-verified
+# source tree in this repo. The vendored site files already include the env-var
+# fallback, so the fix survives `docker compose up --force-recreate`.
 #
 # Usage (ON the EC2 host):
 #   ./build-webarena-amd64-images.sh
@@ -21,8 +20,6 @@ WEBARENA_SOURCE_DIR="${WEBARENA_SOURCE_DIR:-}"
 FINGERPRINT_LABEL="worldsim.source_fingerprint"
 
 SITES=(
-    "shopping"
-    "shopping_admin"
     "gitlab"
     "reddit"
 )
@@ -54,7 +51,7 @@ for candidate in \
     "$HOME/vendors/webarena-verified" \
     "$HOME/webarena-verified"; do
     [[ -z "$candidate" ]] && continue
-    if [[ -f "$candidate/dev/environments/docker/sites/shopping/Dockerfile" ]]; then
+    if [[ -f "$candidate/dev/environments/docker/sites/gitlab/Dockerfile" ]]; then
         CONTEXT_DIR="$candidate"
         break
     fi

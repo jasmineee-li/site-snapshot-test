@@ -116,6 +116,10 @@ Failure recovery:
 
 - If the local SSH session dies, use `remote_job_status.sh --latest` or
   `remote_job_list.sh` to recover the job id; logs remain on the host.
+- If a job fails before the measured phase is underway, treat it as a setup
+  attempt, not as a partial evidence run. Preserve the remote job logs for the
+  root cause, fix the missing precondition, and relaunch into a fresh
+  `--state-dir` copied from the verified Phase 1-3 inputs.
 - If status says `running` but logs are quiet for more than 15 minutes, inspect
   `stderr.log` and expected outputs before deciding to stop.
 - If stop refuses to signal, the recorded PID was reused or no longer matches

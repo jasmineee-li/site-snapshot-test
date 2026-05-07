@@ -220,7 +220,7 @@ SCP_OPTS=(
 #   SITE_ROWS[i] = "site_name:envctrl_port:site_port"
 SITE_ROWS=(
     "gitlab:8024:8023"
-    "reddit:9998:9999"
+    "reddit:9901:9900"
 )
 
 split_row() {
@@ -313,6 +313,14 @@ step_upload_scripts() {
         printf '    scp %s -> %s\n' "$(basename "$LOCAL_COMPOSE_FILE")" "$COMPOSE_FILE_REMOTE"
         if ! scp_up "$LOCAL_COMPOSE_FILE" "$COMPOSE_FILE_REMOTE"; then
             echo "    WARN: scp of compose file failed"
+            ok=0
+        fi
+    fi
+
+    if [[ -f "$SCRIPTS_DIR/gitlab.rb.tuned" ]]; then
+        printf '    scp gitlab.rb.tuned -> %s\n' "$COMPOSE_DIR_REMOTE/gitlab.rb"
+        if ! scp_up "$SCRIPTS_DIR/gitlab.rb.tuned" "$COMPOSE_DIR_REMOTE/gitlab.rb"; then
+            echo "    WARN: scp of tuned GitLab config failed"
             ok=0
         fi
     fi
