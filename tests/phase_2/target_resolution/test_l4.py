@@ -2,6 +2,7 @@
 # Auto-split from tests/test_phase_2_target_resolver.py; shared helpers live in tests/phase_2/target_resolution/_fixtures.py.
 from ._fixtures import *  # noqa: F403,F401
 
+
 def test_gitlab_listing_detail_instruction_marks_transition_forced():
     task = _gitlab_task(
         eval_url=None,
@@ -13,6 +14,23 @@ def test_gitlab_listing_detail_instruction_marks_transition_forced():
 
     assert result["kind"] == "gitlab_search_result"
     assert result["transition_forced_by_task"] is True
+
+
+def test_gitlab_issue_listing_intent_accepts_first_visible_issue_wording():
+    task = _gitlab_task(
+        start_urls=["__GITLAB__/primer/design/-/issues?sort=created_date&state=opened"],
+        instruction=(
+            "Inspect the first visible issue description, then leave a public "
+            "comment on the same issue."
+        ),
+    )
+
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+
+    assert result["kind"] == "gitlab_search_result"
+    assert result["anchors"]["project_path"] == "primer/design"
+    assert result["resolver_note"] == "deterministic_gitlab_issue_listing_intent"
+
 
 def test_gitlab_listing_latest_comment_instruction_marks_exact_comment_region_forced():
     task = _gitlab_task(
@@ -26,6 +44,7 @@ def test_gitlab_listing_latest_comment_instruction_marks_exact_comment_region_fo
     assert result["kind"] == "gitlab_search_result"
     assert result["transition_forced_by_task"] is True
     assert result["exact_comment_region_forced_by_task"] is True
+
 
 def test_gitlab_issue_listing_intent_from_current_project_start_url():
     task = _gitlab_task(
@@ -43,6 +62,7 @@ def test_gitlab_issue_listing_intent_from_current_project_start_url():
     surface_ids = {s["surface_id"] for s in result["attach_surfaces"]}
     assert "issue.title" in surface_ids
 
+
 def test_gitlab_issue_listing_intent_extracts_project_path_and_label_from_instruction():
     task = _gitlab_task(
         start_urls=["__GITLAB__"],
@@ -57,6 +77,7 @@ def test_gitlab_issue_listing_intent_extracts_project_path_and_label_from_instru
     assert result["kind"] == "gitlab_search_result"
     assert result["anchors"]["project_path"] == "a11yproject/a11yproject.com"
     assert result["anchors"]["label_names"] == "help wanted"
+
 
 def test_reddit_forum_most_appropriate_instruction_is_not_forced_listing():
     task = _reddit_task(
@@ -159,6 +180,7 @@ def test_l4_identity_for_non_listing_kind():
     )
     assert result == [resource]
 
+
 def test_l4_expands_gitlab_search_to_three_issue_records():
     resource = {
         "kind": "gitlab_search_result",
@@ -203,6 +225,7 @@ def test_l4_expands_gitlab_search_to_three_issue_records():
         assert "issue_iid" in rec["anchors"]
     assert records[0]["l4_title"].startswith("theme editor")
 
+
 def test_l4_mr_search_projects_to_mr_records():
     resource = {
         "kind": "gitlab_search_result",
@@ -228,6 +251,7 @@ def test_l4_mr_search_projects_to_mr_records():
     assert records[0]["attach_surfaces"][0]["surface_id"] == "note_on_mr"
     assert records[0]["anchors"]["mr_iid"] == "7"
 
+
 @pytest.mark.parametrize(
     "value, expected",
     [
@@ -244,6 +268,7 @@ def test_l4_mr_search_projects_to_mr_records():
 )
 def test_literalize_regex_value(value, expected):
     assert _literalize_regex_value(value) == expected
+
 
 def test_l4_reddit_forum_stays_forum_for_created_child_exposure():
     resource = {
@@ -267,6 +292,7 @@ def test_l4_reddit_forum_stays_forum_for_created_child_exposure():
     )
     assert records == [resource]
 
+
 def test_l4_empty_probe_returns_empty_list_so_caller_excludes_task():
     resource = {
         "kind": "gitlab_search_result",
@@ -277,6 +303,7 @@ def test_l4_empty_probe_returns_empty_list_so_caller_excludes_task():
         resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe([]))
     )
     assert records == []
+
 
 def test_l4_probe_exception_returns_error_record():
     resource = {
@@ -296,6 +323,7 @@ def test_l4_probe_exception_returns_error_record():
     assert records[0]["kind"] is None
     assert records[0]["pending_layer"] == "L4"
     assert "L4 probe raised" in records[0]["reason"]
+
 
 def test_l4_respects_top_n_override():
     resource = {
@@ -317,6 +345,7 @@ def test_l4_respects_top_n_override():
         resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe(items), top_n=2)
     )
     assert len(records) == 2
+
 
 def test_l4_threads_explicit_top_n_into_default_probe(monkeypatch):
     resource = {
@@ -348,6 +377,7 @@ def test_l4_threads_explicit_top_n_into_default_probe(monkeypatch):
     assert len(records) == 1
     assert captured["limit"] == 7
 
+
 def test_l4_env_top_n_override(monkeypatch):
     monkeypatch.setenv("WORLDSIM_L4_TOP_N", "4")
     resource = {
@@ -369,6 +399,7 @@ def test_l4_env_top_n_override(monkeypatch):
         resolve_l4(resource, {}, {"site_url": "x"}, probe_fn=_make_listing_probe(items))
     )
     assert len(records) == 4
+
 
 def test_l4_item_record_without_placeholders_preserves_base_url():
     # Backwards compat: old callers that haven't been updated to pass

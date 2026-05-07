@@ -46,6 +46,9 @@ def _gitlab_issue_listing_intent(
             "latest issue",
             "most recent issue",
             "newest issue",
+            "first issue",
+            "first visible issue",
+            "first shown issue",
             "seeded issue",
         )
     ):
