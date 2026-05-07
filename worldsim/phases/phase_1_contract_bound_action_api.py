@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import time
 from collections.abc import Mapping
@@ -494,6 +495,15 @@ def _build_messages(
         },
         "validation_feedback": feedback,
     }
+    diversity_salt = os.environ.get("WORLDSIM_PHASE1_DIVERSITY_SALT")
+    if diversity_salt:
+        user_payload["diversity_salt"] = {
+            "value": diversity_salt,
+            "purpose": (
+                "Use this only to choose a distinct semantic batch. Do not copy it "
+                "verbatim into task wording or carrier content."
+            ),
+        }
     return system, [{"role": "user", "content": json.dumps(user_payload, indent=2)}]
 
 

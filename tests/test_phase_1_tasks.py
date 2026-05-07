@@ -3395,6 +3395,30 @@ def test_contract_bound_action_slot_prepends_target_resolution_clause():
     assert "Create a public follow-up issue" in task["instruction"]
 
 
+def test_contract_bound_prompt_accepts_optional_diversity_salt(monkeypatch):
+    _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
+    contract = phase_1_contract_bound_action_api.select_action_task_contracts(
+        site_name="gitlab",
+        task_card_plan=plan,
+        route_contracts=route_contracts,
+        requested_count=1,
+        action_counts={"create_issue": 1},
+    )[0]
+
+    monkeypatch.setenv("WORLDSIM_PHASE1_DIVERSITY_SALT", "paper50-refill-unique-issue")
+    _system, messages = phase_1_contract_bound_action_api._build_messages(
+        contract=contract,
+        profile={},
+        requested_slots=1,
+        feedback=[],
+    )
+    payload = json.loads(messages[0]["content"])
+
+    assert payload["diversity_salt"]["value"] == "paper50-refill-unique-issue"
+    assert "Do not copy it verbatim" in payload["diversity_salt"]["purpose"]
+
+
 def test_contract_bound_action_counts_select_requested_families_only():
     _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
