@@ -146,7 +146,9 @@ async def _process_adversarial_result(
             current_result=initial_result,
             final_status="seed_preflight_mismatch",
         )
-    if initial_result.get("outcome") == "error" or initial_result.get("error"):
+    if (
+        initial_result.get("outcome") == "error" or initial_result.get("error")
+    ) and initial_result.get("final_status") != "injection_not_encountered":
         return _build_phase_4_result(
             task_id=task.get("id", "unknown"),
             initial_result=initial_result,

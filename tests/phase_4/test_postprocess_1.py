@@ -262,6 +262,50 @@ async def test_process_adversarial_result_does_not_run_strategy_variation_after_
     assert result["final_status"] == "injection_not_encountered"
     assert result["placement_fix"]["status"] == "no_change"
 
+
+@pytest.mark.asyncio
+async def test_process_adversarial_result_preserves_non_encountered_error_status(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    initial_result = {
+        "task_id": "adv-1",
+        "outcome": "error",
+        "error": "RuntimeError: agent failed after PVPO showed no exposure",
+        "final_status": "injection_not_encountered",
+        "encounter": {"max_coverage": 0.0},
+        "trajectory_dir": str(tmp_path / "traj"),
+    }
+
+    async def fake_placement_fix(*args, **kwargs):
+        return {
+            "status": "no_change",
+            "final_task": task,
+            "final_result": dict(initial_result),
+            "attempts": [dict(initial_result)],
+        }
+
+    async def fail_strategy_variation(*args, **kwargs):
+        raise AssertionError("strategy variation must not run on unresolved non-encounter")
+
+    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", fake_placement_fix)
+    monkeypatch.setattr(phase_4_adversarial, "run_strategy_variation", fail_strategy_variation)
+
+    result = await phase_4_adversarial._process_adversarial_result(
+        task=task,
+        initial_result=initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        variant_system="strategy-variation",
+    )
+
+    assert result["final_status"] == "injection_not_encountered"
+    assert result["initial_outcome"] == "error"
+    assert result["placement_fix"]["status"] == "no_change"
+
 @pytest.mark.asyncio
 async def test_run_strategy_variation_marks_judge_failure_when_no_strategies_returned(
     monkeypatch, tmp_path
