@@ -60,6 +60,19 @@ history, final-response, screenshot, and resume artifacts before a live sweep is
 treated as parity data. Do not describe native `run` outputs as AgentLab
 Phase 4 parity results.
 
+Current proof boundary:
+
+- Local tests cover request controls, `service_workers="block"` context kwargs,
+  AgentLab-native action projection, Needham XML byte equivalence, timeout/error
+  placeholder artifacts, and resume completeness.
+- r5 live proof on 2026-05-07 completed one Reddit AgentLab `phase4-run` task
+  with PVPO, Needham, HAR/network evidence, private reward traces, and a
+  successful `result.json`.
+- A later r5 rerun proved parent whole-task timeout recovery and browser
+  recycle, but timed out before final sidecar runtime was written. The next
+  successful live proof must show
+  `browser_runtime.browsergym_context_kwargs.service_workers == "block"`.
+
 Phase 4 request controls intentionally use scoped interception rather than
 global Playwright headers. Storage-state auth is normalized and host-validated
 by root WorldSim before the sidecar sees it; origin rewrites are same-scheme and
@@ -78,8 +91,8 @@ Needham XML, TP/VEA, and outcome-taxonomy consumers, but it must preserve the
 raw AgentLab text and must not relabel those actions as Browser Use actions.
 
 AgentLab `phase4-run` parity should rely only on the whole-task subprocess
-timeout today. The sidecar accepts `llm_timeout` and `step_timeout` request
-fields for experimental deadline handling, but r5 live proof on 2026-05-07
-showed a stalled AgentLab step could run past `--agent-step-timeout 60` and was
-recovered only by `--agent-task-timeout 900`. Do not claim per-step deadline
-parity until a passing live proof exists.
+timeout today. The sidecar forwards `llm_timeout` to its model transport and
+wraps setup/action/browser steps with `step_timeout`, but r5 live proof on
+2026-05-07 showed a stalled AgentLab step could still run past
+`--agent-step-timeout 60` and was recovered only by `--agent-task-timeout 900`.
+Do not claim per-step deadline parity until a passing live proof exists.
