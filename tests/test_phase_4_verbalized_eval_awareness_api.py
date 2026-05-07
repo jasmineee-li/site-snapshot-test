@@ -152,8 +152,8 @@ async def test_unknown_classification_buckets_as_failure(patched_anthropic_clien
     )
     result = await run_verbalized_eval_awareness_api(_task(), tmp_path, _trajectory())
     assert result["verbalized_eval_awareness_failure"] == "vea_unrecognized_label"
-    assert result["verbalized_eval_awareness_classification"] is None
-    assert result["verbalized_eval_awareness_is_aware"] is None
+    assert result["verbalized_eval_awareness_classification"] == "Other"
+    assert result["verbalized_eval_awareness_is_aware"] is False
     assert result["verbalized_eval_awareness_evidence"] == []
 
 
@@ -164,8 +164,8 @@ async def test_malformed_json_failure_class(patched_anthropic_client, tmp_path):
     )
     result = await run_verbalized_eval_awareness_api(_task(), tmp_path, _trajectory())
     assert result["verbalized_eval_awareness_failure"] == "malformed_json"
-    assert result["verbalized_eval_awareness_classification"] is None
-    assert result["verbalized_eval_awareness_is_aware"] is None
+    assert result["verbalized_eval_awareness_classification"] == "Other"
+    assert result["verbalized_eval_awareness_is_aware"] is False
     assert result["verbalized_eval_awareness_evidence"] == []
     assert result["verbalized_eval_awareness_attempts"] == 3
     assert patched_anthropic_client.messages.create.call_count == 3
@@ -217,8 +217,8 @@ async def test_null_classification_buckets_as_malformed_json(patched_anthropic_c
     )
     result = await run_verbalized_eval_awareness_api(_task(), tmp_path, _trajectory())
     assert result["verbalized_eval_awareness_failure"] == "malformed_json"
-    assert result["verbalized_eval_awareness_classification"] is None
-    assert result["verbalized_eval_awareness_is_aware"] is None
+    assert result["verbalized_eval_awareness_classification"] == "Other"
+    assert result["verbalized_eval_awareness_is_aware"] is False
 
 
 @pytest.mark.asyncio
@@ -232,8 +232,8 @@ async def test_non_string_classification_buckets_as_malformed_json(
         )
         result = await run_verbalized_eval_awareness_api(_task(), tmp_path, _trajectory())
         assert result["verbalized_eval_awareness_failure"] == "malformed_json", bad_value
-        assert result["verbalized_eval_awareness_classification"] is None, bad_value
-        assert result["verbalized_eval_awareness_is_aware"] is None, bad_value
+        assert result["verbalized_eval_awareness_classification"] == "Other", bad_value
+        assert result["verbalized_eval_awareness_is_aware"] is False, bad_value
 
 
 @pytest.mark.asyncio
@@ -430,8 +430,8 @@ async def test_missing_classification_key_is_malformed_json(patched_anthropic_cl
     )
     result = await run_verbalized_eval_awareness_api(_task(), tmp_path, _trajectory())
     assert result["verbalized_eval_awareness_failure"] == "malformed_json"
-    assert result["verbalized_eval_awareness_classification"] is None
-    assert result["verbalized_eval_awareness_is_aware"] is None
+    assert result["verbalized_eval_awareness_classification"] == "Other"
+    assert result["verbalized_eval_awareness_is_aware"] is False
     assert result["verbalized_eval_awareness_evidence"] == []
 
 
@@ -440,6 +440,8 @@ async def test_empty_json_object_is_malformed_json(patched_anthropic_client, tmp
     patched_anthropic_client.messages.create = AsyncMock(return_value=_text_response("{}"))
     result = await run_verbalized_eval_awareness_api(_task(), tmp_path, _trajectory())
     assert result["verbalized_eval_awareness_failure"] == "malformed_json"
+    assert result["verbalized_eval_awareness_classification"] == "Other"
+    assert result["verbalized_eval_awareness_is_aware"] is False
 
 
 # ---------------------------------------------------------------------------
