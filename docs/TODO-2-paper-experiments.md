@@ -1,6 +1,13 @@
 # TODO-2: Paper Experiments and Integration
 
-> **STALE PAPER-PLAN DRAFT - needs rewrite before execution.** This document is a pre-sweep planning inventory, not the current paper execution plan. Revalidate scope, models, costs, comparison benchmarks, and analysis tracks against `docs/worldsim-v5-technical-specifcation.md`, `docs/phase4-expanded-model-sweep-20260501.md`, and current handoffs before using any item as a task.
+> **STALE PAPER-PLAN DRAFT, needs rewrite before execution.** This document is
+> a pre-sweep planning inventory, not the current paper execution plan.
+> Revalidate scope, models, costs, comparison benchmarks, and analysis tracks
+> against `docs/worldsim-v5-technical-specifcation.md`,
+> `docs/phase4-expanded-model-sweep-20260501.md`, and current handoffs before
+> using any item as a task. Details below mention deleted `p_eval` paths and
+> obsolete ecological-validity analysis. Current Gate 1 is PVPO
+> `encounter.max_coverage > 0`; TP/VEA behavior is documented in the spec.
 
 Status: planning. Owner: Ashton (infra), Max + Jasmine (eval awareness + comparisons). Target: close the gap between the MVP pipeline (`docs/TODO-adversarial-rigor-mvp.md`) and a submittable NeurIPS paper per `docs/worldsim-v5-full-specification.md`.
 

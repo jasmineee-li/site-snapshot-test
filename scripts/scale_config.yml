@@ -1,11 +1,11 @@
-# scale_config.yml - source of truth for r5.8xlarge scale-out.
+# scale_config.yml - source of truth for current r5 GitLab/Reddit scale-out.
 #
 # Read by scripts/generate_compose_scale.py, which emits:
 #   - docker-compose.yml (scale or smoke variant)
 #   - proxy_ports.conf   (nginx port map for deploy_benchmark_proxy.sh)
 #   - instances.json.fragment ("instances" array for instances.json)
 #
-# Port scheme (per docs/migration/r5-8xlarge-scale-migration-plan.md section 2):
+# Port scheme:
 #   real_web_port    = site.real_port_base + 10*i             (i = replica index)
 #   real_envctrl_port = real_web_port + 1
 #   proxy_port       = real_web_port + proxy_port_offset       (default 10000)

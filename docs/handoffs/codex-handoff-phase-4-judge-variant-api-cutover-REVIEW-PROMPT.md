@@ -1,5 +1,10 @@
 # Code Review Prompt — Phase 4 Judge + Variant-Gen API Cutover
 
+> **ARCHIVED REVIEW PROMPT.** This prompt reviews the old judge and
+> variant-generator cutover. It mentions ecoval-fix and placement-fix sandbox
+> paths that are no longer current. Use the technical spec for live review
+> prompts.
+
 Copy-paste the block below into a **fresh** Claude Code session (or any other reviewer agent) at the repo root. The prompt is self-contained, references only the handoff doc + the actual code, and is written to surface disagreements rather than endorse the author's framing.
 
 ---

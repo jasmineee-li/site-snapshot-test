@@ -9,7 +9,15 @@ zero hand-patching.
 1. **`scripts/bootstrap_r5.sh`** (or equivalent for the target host).
    Generates the scale compose, preflights the SG, brings benchmark
    containers up with env-ctrl responding.
-2. **`scripts/setup_phase4_on_host.sh`** — idempotent setup:
+2. **`scripts/setup_phase4_on_host.sh`** idempotent setup:
+
+   ```
+   scripts/setup_phase4_on_host.sh \
+       --host-config configs/benchmark_hosts/r5.yaml \
+       --instances instances.scale.json \
+       --artifacts-source s3://benchmark-archives/worldsim-runs/<run_id>/
+   ```
+
    1. uv + repo venv + evaluator venv (`packages/worldsim-webarena-verified`).
    2. Regenerate `instances.scale.json` / `instances.smoke.json` from
       `scripts/scale_config.yml` and the selected host config.
@@ -21,21 +29,38 @@ zero hand-patching.
       process after every task).
    5. Artifact sync (`logs/phase_0c`, `logs/phase_2/adversarial_tasks.json`,
       `logs/phase_3/contracts.json`). Prefer `aws s3 sync` from
-      `s3://benchmark-archives/worldsim-runs/<run_id>/` — same-region intra
-      -AWS transfer, no egress, no SSH key dependency.
+      `s3://benchmark-archives/worldsim-runs/<run_id>/`, same-region AWS
+      transfer, no egress, no SSH key dependency.
    6. Re-mint GitLab Phase 0d `storage_state.json` unconditionally so cookies
       bind to the current host topology.
-   7. `pytest -m preflight tests/preflight` — the pass/fail gate.
+   7. `pytest -m preflight tests/preflight`, the pass/fail gate.
 3. **Launch or resume**:
    ```
-   uv run python -m worldsim.main phase 4 \
-       --instances instances.scale.json
+   scripts/remote_job_start.sh \
+       --host-config configs/benchmark_hosts/r5.yaml \
+       --remote-dir /home/ubuntu/browser-sim \
+       --name phase4-rigor \
+       --state-dir logs/<run_name> \
+       --expected-output logs/<run_name>/phase_4/results.json \
+       -- \
+       uv run python -m worldsim.main phase 4 \
+           --instances instances.scale.json \
+           --phase-4-variant-system eval-awareness-iterator \
+           --agent-task-timeout 900
    ```
    To continue an interrupted pipeline from saved state, use the dedicated
-   resume subcommand instead of adding `--resume` to a phase command:
+   resume subcommand through the same remote job wrapper:
    ```
-   uv run python -m worldsim.main resume \
-       --instances instances.scale.json
+   scripts/remote_job_start.sh \
+       --host-config configs/benchmark_hosts/r5.yaml \
+       --remote-dir /home/ubuntu/browser-sim \
+       --name phase4-resume \
+       --state-dir logs/<run_name> \
+       --expected-output logs/<run_name>/phase_4/results.json \
+       -- \
+       uv run python -m worldsim.main resume \
+           --instances instances.scale.json \
+           --agent-task-timeout 900
    ```
 
 ## Remote job wrapper quickstart
@@ -81,11 +106,11 @@ or an operator stop. Status verifies the remote process instead of trusting
 metadata alone and warns when a live process has not written logs recently.
 
 State directory note: `remote_job_start.sh` does **not** set
-`WORLDSIM_STATE_DIR` by default because Phase 1/2/3/4 intentionally read and
-write canonical `logs/phase_*` artifacts. Use `--state-dir auto` only for
-isolated experiments that should write under
-`logs/remote_jobs/<job_id>/state`, or `--state-dir <path>` for an explicit
-remote path.
+`WORLDSIM_STATE_DIR` by default because Phase 1/2/3/4 often read and write
+canonical `logs/phase_*` artifacts. For named rigor runs, pass
+`--state-dir logs/<run_name>` and register the expected Phase 4 result file.
+Use `--state-dir auto` only for isolated experiments that should write under
+`logs/remote_jobs/<job_id>/state`.
 
 Failure recovery:
 
@@ -177,6 +202,8 @@ double-check the slug against the provider's current catalog.
 - `WORLDSIM_AUTO_MINT_STORAGE_STATE` — opt non-WebArena-Verified benchmarks in to runtime auto-heal. `true` is implicit for WebArena Verified.
 - `GITLAB_HOST` / `GITLAB_STORAGE_STATE_PATH` — override defaults for `scripts/login_gitlab_r5.py`.
 - `WORLDSIM_REPO_ROOT` — override sentinel-walk repo discovery.
+- `WORLDSIM_BENCHMARK_ROOT`, override the WebArena Verified checkout used by
+  `scripts/setup_phase4_on_host.sh` (default `/home/ubuntu/vendors/webarena-verified`).
 
 ## When something breaks mid-run
 

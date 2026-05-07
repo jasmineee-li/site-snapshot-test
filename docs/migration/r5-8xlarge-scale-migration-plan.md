@@ -5,6 +5,11 @@ Status: historical migration plan, partially implemented. Replaces the prior
 `docs/handoffs/rigor-run-setup.md`; this file is retained for design rationale
 and migration provenance.
 
+> **Historical topology.** The sections below describe a 6-site, 30-replica
+> migration plan. Current WASP scale topology is GitLab and Reddit/Postmill
+> only: 21 GitLab replicas and 10 Reddit replicas, with runtime settings
+> generated from `scripts/scale_config.yml` into `instances.scale.json`.
+
 Rewritten to absorb empirical probing of the live m5.xlarge: 30 replicas vs
 24, 1TB disk vs 2TB, ~$109/mo vs $189/mo, shared-RO hydration once rather
 than per replica. Do not run any step on m5.xlarge until the in-flight Phase

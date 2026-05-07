@@ -3,10 +3,16 @@
 Separate installable adapter that runs canonical `webarena_verified` evaluation
 for WorldSim in its own Python environment.
 
-Install this package in a dedicated virtualenv:
+Install this package in a dedicated virtualenv. From this directory:
 
 ```bash
 uv sync --locked
+```
+
+From the repo root:
+
+```bash
+uv sync --directory packages/worldsim-webarena-verified --locked
 ```
 
 Then point the core WorldSim process at that interpreter with

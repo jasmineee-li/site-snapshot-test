@@ -1,5 +1,10 @@
 # Orchestrator handoff — r5 migration + Phase 3/4 rerun
 
+> **HISTORICAL ONLY, DO NOT EXECUTE.** This handoff describes the paused
+> April 2026 migration and old public-IP/runtime-url assumptions. Use
+> `agent_docs/remote-runs.md`, `docs/handoffs/rigor-run-setup.md`, and
+> `configs/benchmark_hosts/r5.yaml` for current r5 operations.
+
 **Date:** 2026-04-16
 **Branch:** `feat/worldsim-v5`
 **Last commit:** `b2fbc00 feat: add migration tooling for r5 scale-out (30x replica config)`

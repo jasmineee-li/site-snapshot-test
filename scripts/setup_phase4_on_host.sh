@@ -27,6 +27,7 @@ cd "$REPO_ROOT"
 HOST_CONFIG=""
 INSTANCES="${INSTANCES:-instances.scale.json}"
 ARTIFACTS_SOURCE=""
+BENCHMARK_ROOT="${WORLDSIM_BENCHMARK_ROOT:-/home/ubuntu/vendors/webarena-verified}"
 SKIP_PVPO_CONTAINER=0
 SKIP_MAGENTO_SYNC=0
 SKIP_GITLAB_MINT=0
@@ -39,6 +40,7 @@ Options:
   --host-config <path>       benchmark host YAML (required)
   --instances <path>         instances.json (default: instances.scale.json)
   --artifacts-source <uri>   s3://, ssh://, or /local/path for phase_0c/2/3
+  --benchmark-root <path>    WebArena Verified checkout (default: /home/ubuntu/vendors/webarena-verified)
   --skip-pvpo-container      skip step 3 (PVPO Docker container)
   --skip-magento-sync        deprecated no-op (step 6 removed 2026-04-21)
   --skip-gitlab-mint         skip step 5 (Phase 0d storage_state mint)
@@ -51,6 +53,7 @@ while (("$#")); do
         --host-config) HOST_CONFIG="$2"; shift 2 ;;
         --instances) INSTANCES="$2"; shift 2 ;;
         --artifacts-source) ARTIFACTS_SOURCE="$2"; shift 2 ;;
+        --benchmark-root) BENCHMARK_ROOT="$2"; shift 2 ;;
         --skip-pvpo-container) SKIP_PVPO_CONTAINER=1; shift ;;
         --skip-magento-sync) SKIP_MAGENTO_SYNC=1; shift ;;
         --skip-gitlab-mint) SKIP_GITLAB_MINT=1; shift ;;
@@ -315,6 +318,11 @@ substep "wrote artifact manifest to $STATE_DIR/artifact_manifest.json"
 # Step 5 — Mint Phase 0d storage_state for gitlab (issue #7)
 # ---------------------------------------------------------------------------
 if [[ "$SKIP_GITLAB_MINT" -eq 0 ]]; then
+    if [[ ! -d "$BENCHMARK_ROOT" ]]; then
+        echo "ERROR: benchmark root not found: $BENCHMARK_ROOT" >&2
+        echo "Set WORLDSIM_BENCHMARK_ROOT or pass --benchmark-root." >&2
+        exit 2
+    fi
     # Always re-mint, regardless of whether a storage_state file is already
     # on disk. Stale cookies bound to the wrong advertise_host (laptop
     # loopback vs r5 public IP, or a previous host) are invisible at
@@ -322,7 +330,7 @@ if [[ "$SKIP_GITLAB_MINT" -eq 0 ]]; then
     # Re-minting costs ~30s; debugging a stale artifact costs a whole run.
     log "step 5: mint Phase 0d storage_state from $INSTANCES (unconditional)"
     uv run python -m worldsim.main phase 0d \
-        --benchmark "$REPO_ROOT/vendors/webarena-verified" \
+        --benchmark "$BENCHMARK_ROOT" \
         --instances "$INSTANCES_PATH"
 fi
 

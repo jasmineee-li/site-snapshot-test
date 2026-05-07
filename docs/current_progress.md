@@ -16,10 +16,13 @@ are historical or support plumbing unless the spec explicitly reopens scope.
 ## Current Gates
 
 - Phase 2c strict feasibility is admission for Phase 4.
-- Phase 4 varies adversarial strategy only; benign task contracts and rewards stay invariant.
+- Phase 4 keeps benign task contracts and rewards invariant across baseline,
+  eval-awareness iterator rewrites, and legacy strategy variants.
 - PVPO `max_coverage > 0` is the encounter gate.
-- Refusal judge measures attack effectiveness.
-- Transcript Purpose and VEA are observational metrics only.
+- Attack effectiveness stays reward/PVPO-grounded.
+- Transcript Purpose and VEA are observational in baseline scoring. The
+  explicit `eval-awareness-iterator` uses Transcript Purpose only as bounded
+  rewrite control; VEA stays report-only.
 
 ## Current Run Records
 

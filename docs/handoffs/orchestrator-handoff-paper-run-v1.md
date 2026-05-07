@@ -1,6 +1,13 @@
 # Handoff: Paper Run v1 -- Resume from Phase 3 (PVPO + API-path edition)
 
-> **SUPERSEDED (2026-04-19 Transcript Purpose cutover):** every reference to `P(eval)` / `p_eval_api.py` in this handoff is obsolete. The P(eval) family was replaced on 2026-04-19 by Apollo Research's Transcript Purpose classifier (`worldsim/phase_4/transcript_purpose_api.py`, verbatim prompts at `worldsim/prompts/transcript-purpose-guess.md` and `worldsim/prompts/transcript-purpose-classify.md` from `nix-apollo/38e0520c21bed0831d44019457d1833f`). The module table row "| Phase 4 P(eval) probe | **API** | `worldsim/phase_4/p_eval_api.py` |" should be read as "| Phase 4 Transcript Purpose | **API** | `worldsim/phase_4/transcript_purpose_api.py` |". Everything else in this handoff (PVPO, API-path refusal judge, variant, placement-fix, resume logic) remains current.
+> **HISTORICAL ONLY, DO NOT EXECUTE.** This handoff predates current
+> `--feasibility-instances`, strict GitLab/Reddit WASP scope, r5 locality
+> rules, and the default eval-awareness iterator. Use
+> `docs/worldsim-v5-technical-specifcation.md`,
+> `agent_docs/remote-runs.md`, and `docs/handoffs/rigor-run-setup.md` for
+> current operations.
+
+> **SUPERSEDED (2026-04-19 Transcript Purpose cutover):** every reference to `P(eval)` / `p_eval_api.py` in this handoff is obsolete. The P(eval) family was replaced on 2026-04-19 by Apollo Research's Transcript Purpose classifier (`worldsim/phase_4/transcript_purpose_api.py`, verbatim prompts at `worldsim/prompts/transcript-purpose-guess.md` and `worldsim/prompts/transcript-purpose-classify.md` from `nix-apollo/38e0520c21bed0831d44019457d1833f`). The module table row "| Phase 4 P(eval) probe | **API** | `worldsim/phase_4/p_eval_api.py` |" should be read as "| Phase 4 Transcript Purpose | **API** | `worldsim/phase_4/transcript_purpose_api.py` |". Later Phase 4, r5, and resume details also drifted; use current runbooks for execution.
 
 ## How to use this file
 
@@ -236,9 +243,9 @@ altering task count, and `validate_text_post_hoc` passes on all 174.
    exercising the shared `AsyncAnthropic`, `call_with_retry`,
    `classify_api_exception`, `get_api_semaphore`, `_synthesize_summary`
    infra). Worth adding someday, not a blocker.
-7. **Phase 2c `--feasibility-host-config` CLI flag.** Not implemented;
-   `configs/benchmark_hosts/r5.yaml` is wired via
-   `scripts/run_integration_tests.sh`.
+7. **Historical Phase 2c host-config flag idea.** The current CLI uses
+   `--feasibility-instances`; host topology is selected through generated
+   instances files and the integration wrapper.
 8. **Paper-grade Phase 4 run on the full 174-task dataset** has not
    started.
 

@@ -86,6 +86,17 @@ rigor commands so run intent is visible in job logs. For legacy `3+3+1`
 comparability, use `--phase-4-variant-system strategy-variation` and set
 `--phase-4-variant-budget adaptive-3-3-1` explicitly.
 
+Current r5 topology:
+
+- Runtime instances file: `instances.scale.json`
+- Modal/public smoke instances file: `instances.smoke.json`
+- Active sites: 21 GitLab replicas and 10 Reddit/Postmill replicas
+- Smoke coverage: one GitLab replica and one Reddit/Postmill replica
+- Runtime host view: `172.17.0.1`
+- Public/proxy host view: `3.12.221.9`
+- Proxy map has both web and envctrl listener rows, not one generic proxy port
+  per site.
+
 `remote_job_status.sh` is the first status surface. It reports process liveness,
 heartbeat age, expected-output presence, and Phase 4 progress when available.
 Tail logs only when status says output is stale or failed.
@@ -132,6 +143,11 @@ unless you have explicitly hydrated and verified the repo-local vendor tree.
 `remote_job_start.sh` blocks the repo-relative WebArena Verified path by default
 for this reason.
 
+Generated topology artifacts are host-local too. `instances.scale.json`,
+`instances.smoke.json`, their fragments, generated compose files, and proxy port
+maps are gitignored and should be regenerated on the host from the selected
+host config, not synced from a laptop checkout.
+
 `scripts/remote_job_start.sh` enforces this split on
 `remote_direct_restricted` hosts: it blocks Phase 2/2c/4 smoke inputs and
 blocks Phase 0/0c scale inputs. Override with
@@ -168,8 +184,17 @@ Before relying on checked-in task JSON, audit the host or run archive and follow
 Run this on any fresh host before Phase 4:
 
 ```bash
-scripts/setup_phase4_on_host.sh
+scripts/setup_phase4_on_host.sh \
+  --host-config configs/benchmark_hosts/r5.yaml \
+  --instances instances.scale.json \
+  --artifacts-source s3://benchmark-archives/worldsim-runs/<run_id>/
 ```
+
+If `--artifacts-source` is omitted, the script expects matching
+`phase_0c`, `phase_2`, and `phase_3` artifacts to already exist under the
+selected state directory. Use `/home/ubuntu/vendors/webarena-verified` as the
+benchmark source unless you have explicitly hydrated the repo-local
+`vendors/webarena-verified` tree on the host.
 
 Its preflight step runs `pytest -m preflight tests/preflight` and proves:
 
@@ -190,8 +215,16 @@ scripts/deploy_benchmark_proxy.sh
 Never hand-edit `/etc/nginx/conf.d/worldsim-proxy.conf` on the host. Verify parity with:
 
 ```bash
-scripts/check_proxy_drift.sh --verify-runtime
+scripts/check_proxy_drift.sh \
+  --host 3.12.221.9 \
+  --topology scale \
+  --insecure-http \
+  --verify-runtime
 ```
+
+If the drift checker grows full `--host-config` support, the runbook can switch
+back to that form. Until then, pass the host explicitly so the command cannot
+silently verify the wrong target.
 
 The proxy uses token auth (`X-Worldsim-Token`) and offset ports from `scripts/proxy_ports.conf`. Phase 0c may use the proxy for live verification; Phases 3 and 4 use real `site_url` and `reset_endpoint` values from the instances file.
 

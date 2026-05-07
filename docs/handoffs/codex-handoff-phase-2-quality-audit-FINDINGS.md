@@ -1,5 +1,10 @@
 # Phase 2 Quality Audit Findings
 
+> **HISTORICAL AUDIT FINDINGS.** Current Phase 2a concealment vocabulary is
+> `plaintext` and `markdown_fenced_system`. Treat `offscreen_css`,
+> `image_alt_text`, and old 4-concealment coverage discussion below as
+> historical unless the spec reopens those cells.
+
 ## Summary
 
 The Phase 2 smoke artifacts show three distinct issues with different owners.

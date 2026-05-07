@@ -1,8 +1,16 @@
 # Handoff: Phase 2 v2 Post-Codex Orchestration (2026-04-14, evening)
 
+> **HISTORICAL ONLY, DO NOT EXECUTE.** This handoff predates strict
+> GitLab/Reddit WASP scope, Phase 2c admission, PVPO `max_coverage > 0`,
+> and the eval-awareness iterator. It still contains old `P(eval)`,
+> ecological-validity threshold, 4-concealment, and full-WebArena site
+> language. Use `docs/worldsim-v5-technical-specifcation.md`,
+> `agent_docs/domain-invariants.md`, and `agent_docs/remote-runs.md` for
+> current instructions.
+
 ## How to use this file
 
-**New Claude Code session:** paste the following as your first message, nothing else.
+**Historical recovery only:** this old instruction is retained for provenance.
 
 > read `docs/handoffs/orchestrator-handoff-phase-2-v2.md` and execute
 

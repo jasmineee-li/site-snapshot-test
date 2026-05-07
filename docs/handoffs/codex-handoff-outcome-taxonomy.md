@@ -1,5 +1,11 @@
 # Codex handoff — Phase 4 outcome taxonomy refactor
 
+> **HISTORICAL DESIGN HANDOFF.** The outcome taxonomy landed, but old
+> `P(eval)`, `validity_score`, and ecological-validity wording below is
+> superseded. Current Gate 1 is PVPO `encounter.max_coverage > 0`; VEA never
+> gates, and Transcript Purpose only controls the explicit eval-awareness
+> iterator.
+
 **Branch to base off:** `feat/worldsim-v5`
 **Target branch:** `feat/worldsim-v5` (implementer committed directly; branch rename deferred)
 **Date:** 2026-04-17 (original); 2026-04-18 (v1 shipped, first-pass post-review fixes, then comprehensive B1/B2/S1 fixes applied in the same day).

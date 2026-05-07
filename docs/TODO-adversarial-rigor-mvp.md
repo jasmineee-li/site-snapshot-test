@@ -1,6 +1,12 @@
 # TODO: Adversarial Rigor MVP Upgrade
 
-> **SUPERSEDED PLANNING SNAPSHOT - preserve for design provenance only.** This MVP plan predates or partially predates the WASP-aligned GitLab/Reddit scope, editor-only seeding, strict Phase 2c admission, PVPO encounter science, and the May 2026 model-sweep runbooks. Do not treat unchecked TODOs or site/model counts below as current work items unless reconfirmed against `docs/worldsim-v5-technical-specifcation.md` and current Phase 4 docs.
+> **SUPERSEDED PLANNING SNAPSHOT, preserve for design provenance only.** This
+> MVP plan predates or partially predates the WASP-aligned GitLab/Reddit scope,
+> editor-only seeding, strict Phase 2c admission, PVPO encounter science, the
+> eval-awareness iterator, AgentLab runner wiring, and the May 2026 model-sweep
+> runbooks. Do not treat unchecked TODOs, site/model counts, `p_eval` paths, or
+> runner-wiring tasks below as current work items unless reconfirmed against
+> `docs/worldsim-v5-technical-specifcation.md` and current Phase 4 docs.
 
 Status: planning. Owner: Ashton. Target: an MVP that produces publication-defensible adversarial trajectory data for the NeurIPS 5/5 submission described in `docs/worldsim-v5-full-specification.md`. Jasmine and Max are working on the eval-awareness measurement instrument on a separate branch; see the integration section at the bottom of this doc.
 

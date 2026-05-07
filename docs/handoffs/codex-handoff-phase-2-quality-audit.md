@@ -1,5 +1,10 @@
 # Handoff: Phase 2 Quality Audit (cell coverage + markdown_fenced_system fail rate)
 
+> **HISTORICAL AUDIT HANDOFF.** Current Phase 2a concealment vocabulary is
+> `plaintext` and `markdown_fenced_system`; old 4-concealment readiness math and
+> full-WebArena site references below are historical unless the spec reopens
+> them.
+
 ## How to use this file
 
 **New Codex session:** paste the following as your first message, nothing else.

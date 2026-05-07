@@ -1,5 +1,10 @@
 # Codex handoff — Phase 2c feasibility verification (TODO)
 
+> **SHIPPED HISTORICAL HANDOFF.** Phase 2c strict admission is current, but
+> old site-scope details below predate the strict GitLab/Reddit WASP mainline.
+> Use `docs/worldsim-v5-technical-specifcation.md` and
+> `agent_docs/domain-invariants.md` for current Phase 2c scope and flags.
+
 **Branch to base off:** `feat/worldsim-v5`
 **Target branch:** `codex/phase-2c-feasibility`
 **Date:** 2026-04-17 (revised 2026-04-17 to align with actual code shape)

@@ -14,8 +14,9 @@ Current and target ownership should stay explicit:
   semantics still belong to the Phase 2 domain.
 - `worldsim.phase_2.text_fill`: host-side payload realization behavior split by
   API calls, prompt rendering, payload views, seeding, validation, and voice
-  exemplars. The legacy `worldsim.phases.phase_2_text_fill` path is only a
-  compatibility facade.
+  exemplars. The legacy `worldsim.phases.phase_2_text_fill` path remains a
+  patchable compatibility facade during migration; do not treat it as removable
+  until in-repo imports and hidden consumers have moved.
 - `worldsim.phase_2.phase_2c`: Phase 2c feasibility verification split by
   report types, constants, fingerprints, outcome stanzas, exposure projection,
   reddit attribution, admission guards, render/reachability probes,
@@ -85,7 +86,7 @@ types module.
 
 ## File Size
 
-The advisory review ceiling follows `scripts/readiness_audit.py`: 500 actual
+The advisory review ceiling follows `scripts/readiness_audit.py`: 550 actual
 lines is review debt and 1200 lines is urgent split debt. The 150-line floor is only a guard
 against over-splitting; small files are fine for entrypoints, adapters,
 protocols, `__init__` modules, and narrow local type holders.
@@ -147,12 +148,14 @@ sequencing reduces review risk:
   module and run the focused tests before deleting any facade or re-export.
   Priority order: Phase 2c feasibility, seeding execution, exposure contracts,
   Phase 4 result-summary, outcome taxonomy, Phase 1 validation, then CLI.
-- Then remove compatibility wrappers in a follow-up after downstream imports are
-  moved and one validation cycle has had a chance to reveal hidden consumers.
-  This is a narrow follow-up: update remaining internal and downstream imports
-  to canonical `worldsim.phase_2.*`, `worldsim.phase_4.*`, and
-  `worldsim.seed_contracts.*` paths, then delete the thin `worldsim.phases.*`
-  wrappers.
+- Then remove pure compatibility wrappers in follow-up changes after downstream
+  imports are moved and one validation cycle has had a chance to reveal hidden
+  consumers. Some `worldsim.phases.*` modules are still patchable compatibility
+  surfaces, not pure shims. Do not delete those wholesale. Update remaining
+  internal and downstream imports to canonical `worldsim.phase_2.*`,
+  `worldsim.phase_4.*`, and `worldsim.seed_contracts.*` paths, then delete only
+  wrappers that `scripts/readiness_audit.py` identifies as legacy import
+  modules.
 - Unwind linked-context modules after wrapper removal. The `_context.py`
   `install_context` / `link_modules` pattern is a transition mechanism that
   preserves old monolith global lookup and monkeypatch behavior during the

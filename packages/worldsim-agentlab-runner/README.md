@@ -15,8 +15,10 @@ uv run --project packages/worldsim-agentlab-runner \
   worldsim-agentlab-runner run /path/to/agentlab_request.json
 ```
 
-The command prints one JSON object to stdout. The parent WorldSim process owns
-conversion into canonical `result.json`.
+The command prints the canonical result as the final JSON object on stdout.
+Upstream BrowserGym/AgentLab may print informational lines before it. The
+parent WorldSim process parses the final JSON object and owns conversion into
+canonical `result.json`.
 
 WorldSim-v5 Phase 4 uses the sibling command:
 
@@ -90,9 +92,12 @@ AgentLab's Python-call action strings into ordered tool-call records for
 Needham XML, TP/VEA, and outcome-taxonomy consumers, but it must preserve the
 raw AgentLab text and must not relabel those actions as Browser Use actions.
 
-AgentLab `phase4-run` parity should rely only on the whole-task subprocess
-timeout today. The sidecar forwards `llm_timeout` to its model transport and
-wraps setup/action/browser steps with `step_timeout`, but r5 live proof on
-2026-05-07 showed a stalled AgentLab step could still run past
-`--agent-step-timeout 60` and was recovered only by `--agent-task-timeout 900`.
-Do not claim per-step deadline parity until a passing live proof exists.
+AgentLab `phase4-run` accepts the whole-task subprocess timeout, LLM-call
+timeout, and step timeout. The sidecar forwards `llm_timeout` to its model
+transport and wraps setup/action/browser steps with `step_timeout`.
+`--agent-task-timeout` remains the outer infrastructure guard for startup, CDP,
+and cleanup hangs, and it is still the deadline to rely on for remote-job
+failure recovery. r5 live proof on 2026-05-07 showed a stalled AgentLab step
+could still run past `--agent-step-timeout 60` and was recovered only by
+`--agent-task-timeout 900`, so report per-step deadline parity only after a
+passing live proof.

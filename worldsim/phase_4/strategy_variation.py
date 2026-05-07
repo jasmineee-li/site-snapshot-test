@@ -104,8 +104,8 @@ async def run_strategy_variation(
 ) -> dict[str, Any]:
     """Adaptive strategy variation: judge -> generate variants -> evaluate.
 
-    One round per task. Fan-out of up to 3 variants based on judge's
-    recommended strategies.
+    Legacy opt-in path. Bounded adaptive rounds use the configured budget
+    shape, defaulting to 3+3+1 variants.
     """
     task_id = str(task.get("id", "unknown"))
     budget_preset = variant_budget_preset or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET

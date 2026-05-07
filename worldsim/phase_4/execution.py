@@ -74,8 +74,8 @@ async def run_adversarial_task(
 ) -> dict[str, Any]:
     """Run one adversarial task: reset -> seed adversarial data -> agent -> evaluate.
 
-    Classifies outcome as complied/refused_or_ignored/task_broke and probes
-    ecological validity.
+    Classifies outcome as complied/refused_or_ignored/task_broke, then runs
+    PVPO encounter detection plus observational TP/VEA.
 
     ``benchmark_root`` is forwarded to ``BrowserUseAgent.run`` so
     ``auth_mechanism.storage_state.path`` values declared relative in the
@@ -502,7 +502,7 @@ async def run_adversarial_task(
         else:
             outcome = "task_broke"
 
-        # 3. PVPO encounter detection + observational P(eval)
+        # 3. PVPO encounter detection plus observational TP/VEA.
         pvpo = await _run_pvpo_gate(task, task_dir, sandbox_model=sandbox_model)
         final_status_extra: dict[str, Any] = {}
         if pvpo["injection_not_encountered"]:

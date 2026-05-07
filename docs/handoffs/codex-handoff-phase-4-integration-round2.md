@@ -1,5 +1,11 @@
 # Codex handoff — Phase 4 pivot to WASP-style editor architecture (round 2)
 
+> **HISTORICAL ONLY, DO NOT EXECUTE.** This handoff predates the current PVPO
+> encounter gate, strict Phase 2c admission contract, and default
+> eval-awareness iterator. Treat old `P(eval)`, ecological-validity, and
+> full-site scope details below as superseded unless reconfirmed against
+> `docs/worldsim-v5-technical-specifcation.md`.
+
 **Branch**: `feat/worldsim-v5`
 **Base commit**: `bd1778a8` (tonight's last commit, after item #14 + 4 followups)
 **Scope**: Replace the resolver package + target-dispatch contract + DB-postcondition machinery with a WASP-style per-site editor-class architecture. Produce demo-grade Phase 4 signal on the 6 adversarial tasks unlocked by tonight's 7 validated benigns.

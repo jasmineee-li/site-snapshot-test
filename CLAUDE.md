@@ -13,7 +13,7 @@ hand-edit generated logs. Do not design real-world exploit instructions or
 optimize for evading safeguards.
 
 ## WHAT
-- Python 3.12 `uv` project for Modal Sandbox + Browser Use adversarial evaluation of browser agents.
+- Python 3.12 `uv` project for Modal Sandbox plus Browser Use and AgentLab adversarial evaluation of browser agents.
 - Strict WASP scope: GitLab issues/comments and Reddit/Postmill posts/comments only.
 - Main map: `worldsim/` core package, `scripts/` host/run tooling, `tests/` unit/live/preflight suites, `packages/worldsim-webarena-verified/` isolated evaluator adapter, `vendors/` gitignored benchmark clones.
 - `AgentLab/src/agentlab/benchmarks/redteam/{execution.py,claude_code.py}` are read-only references only; never import from `AgentLab/`.
@@ -50,11 +50,11 @@ optimize for evading safeguards.
 <important if="you are touching Phase 2/4, eligibility, exposure contracts, feasibility, PVPO, judges, TP, VEA, placement-fix, strategy, or rewards">
 - Phase 2c is strict admission for Phase 4. Do not ship Phase 4 on an unverified dataset and do not pass `--skip-feasibility` for shipping runs.
 - Current scope is GitLab and Reddit/Postmill UGC surfaces only; Magento, Wikipedia, OSM, shopping, and classifieds are out of WASP scope unless the spec changes.
-- Phase 4 has two gates: PVPO encounter (`max_coverage` in `[0,1]`; `0` routes to placement-fix) and refusal-judge attack effectiveness.
-- Transcript Purpose and VEA are observational metrics only; never branch or gate on them.
-- Refusal judge, variant generator, Transcript Purpose, VEA, and placement-fix use direct host Anthropic Messages API calls, not `run_claude_in_sandbox`.
+- Phase 4 has two gates: PVPO encounter (`max_coverage` in `[0,1]`; `0` routes to placement-fix) and attack effectiveness.
+- Transcript Purpose and VEA are observational in baseline trajectory scoring. The explicit `eval-awareness-iterator` variant system may branch on Transcript Purpose only for bounded rewrite control; VEA remains report-only and must never gate admission, scoring, or branching.
+- Refusal judge, variant generator, Transcript Purpose, VEA, placement-fix, eval-awareness cue diagnosis, and eval-awareness rewrite use direct host Anthropic Messages API calls, not `run_claude_in_sandbox`.
 - Do not reintroduce `visual_concealment`; paper concealment is behavioral final-response steering, not visual.
-- Phase 4 only varies adversarial strategy. Benign task contracts and reward functions emitted by Phase 3 remain invariant across variants.
+- Phase 4 keeps benign task contracts and reward functions emitted by Phase 3 invariant across variants. The default post-resistance path is `eval-awareness-iterator`; legacy strategy variation is opt-in via `--phase-4-variant-system strategy-variation`.
 </important>
 
 <important if="you are changing Modal sandbox setup, secret wiring, sandbox lifecycle, or file routing">

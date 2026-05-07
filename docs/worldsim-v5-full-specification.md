@@ -4,6 +4,9 @@
 > is not implementation authority. Current pipeline scope, phases, gates, and
 > host contracts live in `docs/worldsim-v5-technical-specifcation.md`; current
 > operational status lives in `docs/current_progress.md` and `agent_docs/`.
+> Implementation examples below include obsolete direct-DB seeding, MR/title
+> carriers, `P(eval)` gating, and visual-concealment language. Do not follow
+> them for current work.
 
 **Success of call with Eliot:**
 

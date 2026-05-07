@@ -1,5 +1,5 @@
 """generate_compose_scale.py - Emit docker-compose + proxy + instances config
-from scripts/scale_config.yml for the r5.8xlarge 30-replica scale-out.
+from scripts/scale_config.yml for the current r5 GitLab/Reddit scale-out.
 
 Reads a canonical scale_config.yml (replica counts, port bases, volumes) plus a
 canonical base instances config and produces:
