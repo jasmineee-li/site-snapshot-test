@@ -3391,6 +3391,21 @@ def test_contract_bound_action_counts_reject_unavailable_family():
         )
 
 
+def test_contract_bound_action_counts_ignore_zero_count_unavailable_family():
+    _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
+
+    contracts = phase_1_contract_bound_action_api.select_action_task_contracts(
+        site_name="gitlab",
+        task_card_plan=plan,
+        route_contracts=route_contracts,
+        requested_count=1,
+        action_counts={"create_issue": 1, "create_post": 0},
+    )
+
+    assert [contract.action_kind for contract in contracts] == ["create_issue"]
+
+
 def test_contract_bound_action_slot_uses_valid_model_authored_instruction():
     profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})

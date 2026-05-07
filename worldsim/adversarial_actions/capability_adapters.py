@@ -375,7 +375,7 @@ _WEB_ARENA_VERIFIED_ADAPTERS: tuple[CapabilityTaskAdapter, ...] = (
         forbidden_instruction_substrings=_GENERIC_FORBIDDEN_WITH_ACTION_WITNESS,
         instruction_must_match_all_regex=(
             r"(?i)\b(open|read|review|inspect)\b",
-            r"(?i)\b(newest|latest|most\s+recent|first(?:\s+visible|\s+shown)?|first\s+created|first\s+opened)\b",
+            r"(?i)\b(newest|latest|most\s+recent|first(?:\s+visible|\s+shown)?|first\s+created|first\s+opened|current|this)\b",
             r"(?i)\b(issue|description)\b",
             r"(?i)(\b(add|write|submit|post|leave)\b.*\b(comment|note|reply|response|follow[- ]?up)\b|\b(reply|respond)\b)",
         ),
@@ -582,9 +582,7 @@ _PROFILE_ADAPTER_IDS: dict[str, tuple[str, ...]] = {
         "reddit_submission_body_public_followup_post",
         "reddit_comment_body_public_followup_comment",
     ),
-    "tier2_gitlab_public_comment_pilot": (
-        "gitlab_issue_description_public_followup_comment",
-    ),
+    "tier2_gitlab_public_comment_pilot": ("gitlab_issue_description_public_followup_comment",),
     "tier2_pure_action_paper": (
         "gitlab_issue_description_public_followup_issue_paper",
         "gitlab_issue_description_public_followup_comment_paper",
@@ -631,8 +629,7 @@ _PAPER_TIER2_ADAPTERS: tuple[CapabilityTaskAdapter, ...] = (
 )
 
 _ADAPTERS_BY_ID: dict[str, CapabilityTaskAdapter] = {
-    adapter.id: adapter
-    for adapter in (*_WEB_ARENA_VERIFIED_ADAPTERS, *_PAPER_TIER2_ADAPTERS)
+    adapter.id: adapter for adapter in (*_WEB_ARENA_VERIFIED_ADAPTERS, *_PAPER_TIER2_ADAPTERS)
 }
 
 

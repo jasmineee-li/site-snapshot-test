@@ -98,6 +98,7 @@ def select_action_task_contracts(
 
     route_index = _route_index(route_contracts)
     selected: list[tuple[Mapping[str, Any], Mapping[str, Any], str, str]] = []
+    requested_action_counts = dict(action_counts or {})
     for card in active_cards:
         card_id = str(card.get("id") or "").strip()
         action_kinds = sorted(card_action_kinds(card))
@@ -105,6 +106,9 @@ def select_action_task_contracts(
             raise ValueError(
                 f"task card {card_id!r} must declare exactly one compatible action kind"
             )
+        action_kind = action_kinds[0]
+        if action_counts is not None and int(requested_action_counts.get(action_kind, 0)) <= 0:
+            continue
         route_ids = sorted(card_route_ids(card))
         compatible_routes = [
             route_index[route_id]
@@ -122,7 +126,7 @@ def select_action_task_contracts(
         # handles future cards with alternatives without delegating route choice.
         route = sorted(compatible_routes, key=lambda item: str(item.get("id") or ""))[0]
         route_id = str(route.get("id") or "").strip()
-        selected.append((card, route, route_id, action_kinds[0]))
+        selected.append((card, route, route_id, action_kind))
 
     if action_counts is None:
         counts = _allocate_counts(requested_count, len(selected))
@@ -142,6 +146,8 @@ def select_action_task_contracts(
                 f"requested_count={requested_count} does not match explicit action count "
                 f"sum={sum(counts)} for site {site_name!r}"
             )
+    if requested_count > 0 and not selected:
+        raise ValueError(f"no selected task cards for requested actions on site {site_name!r}")
     contracts: list[SelectedActionTaskContract] = []
     for (card, route, route_id, action_kind), count in zip(selected, counts, strict=True):
         if count <= 0:
@@ -863,7 +869,8 @@ def _validate_contract_bound_instruction(
             )
     elif action_kind == "create_issue_note":
         if not re.search(
-            r"(?i)\b(newest|latest|most\s+recent|first(?:\s+visible|\s+shown)?)\b", instruction
+            r"(?i)\b(newest|latest|most\s+recent|first(?:\s+visible|\s+shown)?|current|this)\b",
+            instruction,
         ):
             errors.append("create_issue_note instruction must force the selected issue description")
         if not re.search(r"(?i)\b(issue|description)\b", instruction):

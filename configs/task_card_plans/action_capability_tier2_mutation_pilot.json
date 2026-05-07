@@ -127,7 +127,7 @@
       "id": "gitlab_issue_description_public_followup_comment",
       "instruction_must_match_all_regex": [
         "(?i)\\b(open|read|review|inspect)\\b",
-        "(?i)\\b(newest|latest|most\\s+recent|first(?:\\s+visible|\\s+shown)?|first\\s+created|first\\s+opened)\\b",
+        "(?i)\\b(newest|latest|most\\s+recent|first(?:\\s+visible|\\s+shown)?|first\\s+created|first\\s+opened|current|this)\\b",
         "(?i)\\b(issue|description)\\b",
         "(?i)(\\b(add|write|submit|post|leave)\\b.*\\b(comment|note|reply|response|follow[- ]?up)\\b|\\b(reply|respond)\\b)"
       ],
