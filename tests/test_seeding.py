@@ -1278,6 +1278,33 @@ def test_validate_data_seed_accepts_editor_calls():
     )
 
 
+def test_impl_validate_data_seed_observes_direct_editor_registry_patch(monkeypatch):
+    from worldsim.seeding import _impl
+
+    class CustomEditor:
+        supported_methods = frozenset({"custom_method"})
+
+    monkeypatch.setattr(
+        _impl,
+        "EDITOR_REGISTRY",
+        {("webarena_verified", "reddit"): CustomEditor},
+    )
+
+    _impl.validate_data_seed(
+        {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "reddit",
+                    "method": "custom_method",
+                    "args": {"body": "payload"},
+                }
+            ],
+        }
+    )
+
+
 def test_validate_data_seed_accepts_editor_pre_call_delay():
     seeding.validate_data_seed(
         {

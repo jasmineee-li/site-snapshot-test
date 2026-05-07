@@ -21,6 +21,7 @@ from worldsim.editors._registry import (
     iter_specs,
     method_spec,
 )
+from worldsim.phase_2.exposure_contract import signature as _signature
 from worldsim.phase_2.exposure_contract.constants import (
     CREATE_CHILD_LISTING_KINDS,
     DIRECT_KINDS,
@@ -29,10 +30,6 @@ from worldsim.phase_2.exposure_contract.constants import (
     PREFERRED_PAYLOAD_ARGS,
     PREFERRED_TOKEN_ORDER,
     TRANSITIVE_EXISTING_SOURCE_KINDS,
-)
-from worldsim.phase_2.exposure_contract.signature import (
-    exposure_contract_signature,
-    signature_hash,
 )
 from worldsim.phases.phase_2_core_surfaces import (
     active_carrier_ineligible_reason,
@@ -43,9 +40,24 @@ from worldsim.phases.phase_2_core_surfaces import (
 from worldsim.phases.phase_2_text_fill import PAYLOAD_PLACEHOLDER
 
 _EXPOSURE_REEXPORTED_SIGNATURE_HELPERS = (
-    exposure_contract_signature,
-    signature_hash,
+    _signature.exposure_contract_signature,
+    _signature.signature_hash,
 )
+
+
+def _sync_signature_patches() -> None:
+    _signature.PREFERRED_PAYLOAD_ARGS = PREFERRED_PAYLOAD_ARGS
+    _signature.PREFERRED_TOKEN_ORDER = PREFERRED_TOKEN_ORDER
+
+
+def exposure_contract_signature() -> dict[str, Any]:
+    _sync_signature_patches()
+    return _signature.exposure_contract_signature()
+
+
+def signature_hash() -> str:
+    _sync_signature_patches()
+    return _signature.signature_hash()
 
 
 def build_exposure_contract(

@@ -33,17 +33,12 @@ import requests
 from worldsim.benchmark_capabilities import infer_benchmark_name, normalize_benchmark_name
 from worldsim.db_urls import parse_supported_db_connection
 from worldsim.editors import EDITOR_REGISTRY, EditorError
+from worldsim.seeding import validation as _validation
 from worldsim.seeding.contracts import (
     _seed_preserves_prefix,
     seed_has_actions,
     seed_requires_reset,
     self_contained_adversarial_seed_error,
-)
-from worldsim.seeding.validation import (
-    _validate_editor_calls,
-    _validate_pre_call_delay,
-    _validate_untrusted_selector_args,
-    validate_data_seed,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,10 +48,6 @@ _SEEDING_REEXPORTED_CONTRACT_HELPERS = (
     seed_has_actions,
     seed_requires_reset,
     self_contained_adversarial_seed_error,
-    _validate_editor_calls,
-    _validate_pre_call_delay,
-    _validate_untrusted_selector_args,
-    validate_data_seed,
 )
 
 # Destructive (DELETE) and probing (HEAD, OPTIONS) HTTP verbs are blocked:
@@ -100,6 +91,28 @@ class SeedCleanupHandle:
             self._cleaned = True
         if failures:
             raise RuntimeError("seed cleanup failed: " + "; ".join(failures))
+
+
+def _sync_validation_patches() -> None:
+    _validation.EDITOR_REGISTRY = EDITOR_REGISTRY
+
+
+def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> None:
+    _sync_validation_patches()
+    return _validation.validate_data_seed(seed, allow_none=allow_none)
+
+
+def _validate_editor_calls(editor_calls: Any) -> None:
+    _sync_validation_patches()
+    return _validation._validate_editor_calls(editor_calls)
+
+
+def _validate_pre_call_delay(value: Any) -> None:
+    return _validation._validate_pre_call_delay(value)
+
+
+def _validate_untrusted_selector_args(site_name: str, args: dict[str, Any]) -> None:
+    return _validation._validate_untrusted_selector_args(site_name, args)
 
 
 def apply_data_seed(

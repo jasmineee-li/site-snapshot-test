@@ -578,6 +578,43 @@ def test_sync_stamp_commit_ignores_missing_or_invalid_stamp(tmp_path):
     assert feas._sync_stamp_commit(tmp_path) is None
 
 
+def test_git_head_short_preserves_worldsim_sync_stamp_lookup(monkeypatch, tmp_path):
+    observed: list[Path] = []
+
+    def fake_sync_stamp_commit(repo_root: Path) -> str | None:
+        observed.append(repo_root)
+        return "stamp12345678"
+
+    monkeypatch.delenv("WORLDSIM_EDITOR_COMMIT_OVERRIDE", raising=False)
+    monkeypatch.setattr(feas, "_sync_stamp_commit", fake_sync_stamp_commit)
+    monkeypatch.setattr(
+        "worldsim.phase_2.phase_2c.fingerprints._sync_stamp_commit",
+        fake_sync_stamp_commit,
+    )
+
+    assert feas._git_head_short() == "stamp12345678"
+    assert observed == [Path(__file__).resolve().parents[1] / "worldsim"]
+
+
+def test_safe_cleanup_observes_legacy_facade_editor_error_patch(monkeypatch):
+    class PatchedEditorError(Exception):
+        def __init__(self) -> None:
+            super().__init__("patched")
+            self.detail = "patched detail"
+
+    class Handle:
+        def cleanup(self) -> None:
+            raise PatchedEditorError()
+
+    monkeypatch.setattr(feas, "EditorError", PatchedEditorError)
+    feas._sync_legacy_patches()
+
+    warnings: list[str] = []
+    feas._safe_cleanup(Handle(), warnings, "task-1")
+
+    assert warnings == ["task=task-1 cleanup_failed: patched detail"]
+
+
 def test_resolve_benign_storage_state_path_prefers_nested_agent_auth(tmp_path):
     state_path = tmp_path / "gitlab-state.json"
     state_path.write_text(json.dumps({"cookies": []}))

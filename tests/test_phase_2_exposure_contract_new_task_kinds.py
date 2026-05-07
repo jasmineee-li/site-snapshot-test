@@ -122,3 +122,13 @@ def test_signature_version_bumped_to_18():
 
     sig = exposure_contract_signature()
     assert sig["version"] == 18
+
+
+def test_impl_signature_observes_direct_preferred_token_patch(monkeypatch):
+    from worldsim.phase_2.exposure_contract import _impl
+
+    monkeypatch.setattr(_impl, "PREFERRED_TOKEN_ORDER", ("{patched_token}",))
+
+    sig = _impl.exposure_contract_signature()
+
+    assert sig["token_preference"] == ["{patched_token}"]

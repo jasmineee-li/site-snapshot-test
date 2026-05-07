@@ -125,7 +125,7 @@ def _git_head_short() -> str:
     override = os.environ.get("WORLDSIM_EDITOR_COMMIT_OVERRIDE")
     if override:
         return override.strip()
-    repo_root = Path(__file__).resolve().parents[3]
+    repo_root = Path(__file__).resolve().parent.parent.parent
     sync_commit = _sync_stamp_commit(repo_root)
     if sync_commit:
         return sync_commit
