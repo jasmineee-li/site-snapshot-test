@@ -9,6 +9,7 @@ commands without depending on one browser library's transport shape.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from inspect import isawaitable
 from typing import Any
@@ -19,11 +20,15 @@ class CDPSessionAdapter:
     """Normalize Browser-Use or Playwright CDP sessions to ``send(method, params)``."""
 
     session: Any
+    thread_sync_send: bool = False
 
     async def send(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         direct_send = getattr(self.session, "send", None)
         if callable(direct_send):
-            result = direct_send(method, params or {})
+            if self.thread_sync_send:
+                result = await asyncio.to_thread(direct_send, method, params or {})
+            else:
+                result = direct_send(method, params or {})
             if isawaitable(result):
                 result = await result
             return result if isinstance(result, dict) else {}
@@ -58,9 +63,9 @@ class CDPSessionAdapter:
         return await command_sender(**kwargs)
 
 
-def normalize_cdp_session(session: Any) -> CDPSessionAdapter:
+def normalize_cdp_session(session: Any, *, thread_sync_send: bool = False) -> CDPSessionAdapter:
     """Return a thin adapter exposing ``send(method, params)``."""
-    return CDPSessionAdapter(session=session)
+    return CDPSessionAdapter(session=session, thread_sync_send=thread_sync_send)
 
 
 async def runtime_evaluate(

@@ -95,14 +95,22 @@ class SyncPvpoRecorder:
                 _pvpo_issue_message(exc, timeout_s=_pvpo_cdp_timeout_s()),
             )
             return
-        self._worker.run(
-            lambda pump: self._capture_step(
-                page,
-                step_idx,
-                cdp_session,
-                pump,
+        try:
+            self._worker.run(
+                lambda pump: self._capture_step(
+                    page,
+                    step_idx,
+                    cdp_session,
+                    pump,
+                )
             )
-        )
+        finally:
+            detach = getattr(cdp_session, "detach", None)
+            if callable(detach):
+                try:
+                    detach()
+                except Exception:
+                    logger.debug("pvpo: failed to detach CDP session", exc_info=True)
 
     def close(self) -> None:
         self._worker.close()
