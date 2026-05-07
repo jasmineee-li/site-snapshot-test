@@ -20,6 +20,10 @@ _PVPO_CDP_TIMEOUT_ENV = "WORLDSIM_PVPO_CDP_TIMEOUT_S"
 _PVPO_CDP_TIMEOUT_DEFAULT_S = 10.0
 
 
+class FatalPvpoCaptureError(RuntimeError):
+    """PVPO left AgentLab's sync browser path in an unsafe state."""
+
+
 class SyncPvpoRecorder:
     """Synchronous AgentLab bridge to WorldSim's canonical PVPO capture path.
 
@@ -47,6 +51,7 @@ class SyncPvpoRecorder:
         self._controller: Any = None
         self._warned_issue_classes: set[str] = set()
         self._pages_prepared: set[str] = set()
+        self.fatal_capture_error: FatalPvpoCaptureError | None = None
         self._worker = SyncCdpWorker(
             timeout_s=_pvpo_cdp_timeout_s(),
             name="worldsim-agentlab-pvpo",
@@ -111,6 +116,9 @@ class SyncPvpoRecorder:
                     detach()
                 except Exception:
                     logger.debug("pvpo: failed to detach CDP session", exc_info=True)
+        fatal_capture_error = getattr(self, "fatal_capture_error", None)
+        if fatal_capture_error is not None:
+            raise fatal_capture_error
 
     def close(self) -> None:
         self._worker.close()
@@ -209,6 +217,11 @@ class SyncPvpoRecorder:
         self.summary["last_issue_class"] = issue_class
         self.summary["last_issue_step"] = step_idx
         self.summary["last_issue_message"] = message
+        if issue_class == "capture_failed":
+            self.fatal_capture_error = FatalPvpoCaptureError(
+                "AgentLab PVPO capture failed; stopping sidecar before BrowserGym "
+                f"continues on a potentially corrupt CDP session: {message}"
+            )
         self._save_summary()
         if issue_class not in self._warned_issue_classes:
             self._warned_issue_classes.add(issue_class)

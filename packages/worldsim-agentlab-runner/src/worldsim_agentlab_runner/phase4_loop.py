@@ -16,7 +16,7 @@ from worldsim_agentlab_runner.cdp_browser import patched_chromium_launch
 from worldsim_agentlab_runner.model_args import model_args_from_request
 from worldsim_agentlab_runner.network_trace import NetworkTraceRecorder
 from worldsim_agentlab_runner.pvpo_screenshot_patch import patched_browsergym_screenshot_for_pvpo
-from worldsim_agentlab_runner.sync_pvpo import SyncPvpoRecorder
+from worldsim_agentlab_runner.sync_pvpo import FatalPvpoCaptureError, SyncPvpoRecorder
 from worldsim_agentlab_runner.trajectory_projection import (
     final_result_from_env,
     write_worldsim_artifacts,
@@ -69,6 +69,7 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
     steps_taken = 0
     final_result: str | None = None
     deadline_hit = False
+    skip_env_close_reason: str | None = None
     chat_model_args = model_args_from_request(request)
     agent_args = GenericAgentArgs(
         chat_model_args=chat_model_args,
@@ -151,6 +152,10 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
                     final_result = final_result_from_env(env)
     except Exception as exc:
         deadline_hit = isinstance(exc, TimeoutError)
+        if isinstance(exc, FatalPvpoCaptureError):
+            skip_env_close_reason = "pvpo_capture_failed"
+            runtime["pvpo_capture_fatal"] = True
+            runtime["pvpo_capture_fatal_error"] = f"{type(exc).__name__}: {exc}"
         status = "timeout" if deadline_hit else "error"
         errors.append(f"{type(exc).__name__}: {exc}")
         logger.exception("AgentLab Phase 4 sidecar failed")
@@ -179,7 +184,7 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
             runtime["network_persist_status"] = "failed"
             runtime["network_persist_error"] = f"{type(exc).__name__}: {exc}"
         try:
-            if env is not None and not deadline_hit:
+            if env is not None and not deadline_hit and skip_env_close_reason is None:
                 runtime["lifecycle_events"].append("env_close")
                 runtime["env_close_attempted"] = True
                 env.close()
@@ -187,8 +192,9 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
             elif env is not None:
                 runtime["env_close_attempted"] = False
                 runtime["env_close_status"] = "skipped"
-                runtime["env_close_skipped_reason"] = "sidecar_deadline"
-                errors.append("env close skipped after sidecar deadline")
+                reason = skip_env_close_reason or "sidecar_deadline"
+                runtime["env_close_skipped_reason"] = reason
+                errors.append(f"env close skipped after {reason}")
         except Exception as exc:
             errors.append(f"env close failed: {type(exc).__name__}: {exc}")
             status = "error"

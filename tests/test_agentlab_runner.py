@@ -1078,6 +1078,52 @@ def test_agentlab_pvpo_uses_canonical_capture_and_artifact_writer(monkeypatch, t
     assert "capture_implementation" not in summary
 
 
+def test_agentlab_pvpo_capture_failure_is_fatal_after_detach(monkeypatch, tmp_path):
+    sync_pvpo = _load_sidecar_module("sync_pvpo")
+    from worldsim.phase_4 import pvpo_capture
+
+    async def fail_atomic(_cdp_session, **_kwargs):
+        raise TimeoutError("pvpo beginFrame atomic-capture timed out after 10.00s")
+
+    monkeypatch.setattr(pvpo_capture, "atomic_capture_with_visibility", fail_atomic)
+
+    detached: list[bool] = []
+
+    class FakeCdp:
+        def send(self, method, params=None):
+            if method == "Runtime.evaluate" and "window.innerWidth" in str(
+                (params or {}).get("expression")
+            ):
+                return {"result": {"type": "object", "value": {"w": 1280, "h": 720}}}
+            return {"result": {"type": "object", "value": {}}}
+
+        def detach(self):
+            detached.append(True)
+
+    class FakeContext:
+        def new_cdp_session(self, page):
+            assert page is fake_page
+            return FakeCdp()
+
+    fake_page = SimpleNamespace(context=FakeContext(), url="http://gitlab.test/issue/1")
+    recorder = sync_pvpo.SyncPvpoRecorder(
+        tmp_path,
+        payload_text="PAYLOAD",
+        witness_texts=[{"id": "payload", "kind": "rendered_payload", "text": "PAYLOAD"}],
+        cdp_url="http://127.0.0.1:9222",
+    )
+
+    with pytest.raises(sync_pvpo.FatalPvpoCaptureError, match="stopping sidecar"):
+        recorder.capture_step(fake_page, 2)
+    recorder.close()
+
+    assert detached == [True]
+    summary = json.loads((tmp_path / "pvpo" / "capture_summary.json").read_text(encoding="utf-8"))
+    assert summary["status"] == "degraded"
+    assert summary["first_issue_class"] == "capture_failed"
+    assert summary["issue_counts"] == {"capture_failed": 1}
+
+
 def test_agentlab_pvpo_browsergym_screenshot_patch_replaces_imported_aliases(monkeypatch):
     screenshot_patch = _load_sidecar_module("pvpo_screenshot_patch")
 
