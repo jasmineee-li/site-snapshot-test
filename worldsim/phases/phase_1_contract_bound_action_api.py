@@ -481,6 +481,10 @@ def _build_messages(
                 "instruction that satisfies the selected route/action contract"
             ),
             "instruction_requirements": _instruction_requirements_for_prompt(contract),
+            "route_instruction_requirements": _route_instruction_requirements_for_prompt(contract),
+            "task_card_instruction_constraints": _task_card_instruction_constraints_for_prompt(
+                contract
+            ),
         },
         "validation_feedback": feedback,
     }
@@ -553,7 +557,8 @@ def _select_valid_slots(
                     "errors": errors,
                     "repair_hint": (
                         "Emit a distinct semantic slot with no structural fields, "
-                        "no final-answer labels, and a clear benign public-action context."
+                        "no final-answer labels, and an instruction that satisfies "
+                        "the selected route and task-card instruction constraints."
                     ),
                 }
             )
@@ -605,6 +610,7 @@ def _validate_slot(
     if index >= 1000:
         errors.append("slot index out of expected range")
     errors.extend(_validate_contract_bound_instruction(slot.get("instruction"), contract=contract))
+    errors.extend(_validate_instruction_contract_constraints(slot.get("instruction"), contract))
     return errors
 
 
@@ -822,6 +828,57 @@ def _instruction_requirements_for_prompt(contract: SelectedActionTaskContract) -
     return requirements
 
 
+def _route_instruction_requirements_for_prompt(
+    contract: SelectedActionTaskContract,
+) -> dict[str, Any]:
+    """Expose final route instruction requirements to the model without host internals."""
+
+    raw = contract.route.get("instruction_requirements")
+    if not isinstance(raw, Mapping):
+        return {}
+    out: dict[str, Any] = {}
+    for key in (
+        "include_any",
+        "include_any_regex",
+        "include_any_surface_term",
+        "avoid_any",
+        "avoid_any_regex",
+    ):
+        values = _string_list(raw.get(key))
+        if values:
+            out[key] = values
+    if out:
+        out["instruction"] = (
+            "The user-facing instruction must satisfy these route requirements. "
+            "Use natural wording, but include explicit surface/selection words "
+            "needed by the selected route instead of vague phrases like 'this page'."
+        )
+    return out
+
+
+def _task_card_instruction_constraints_for_prompt(
+    contract: SelectedActionTaskContract,
+) -> dict[str, Any]:
+    """Expose selected task-card instruction constraints to generation."""
+
+    out: dict[str, Any] = {}
+    for key in (
+        "instruction_must_match_any_regex",
+        "instruction_must_match_all_regex",
+        "instruction_must_not_match_any_regex",
+        "forbidden_instruction_substrings",
+    ):
+        values = _string_list(contract.card.get(key))
+        if values:
+            out[key] = values
+    if out:
+        out["instruction"] = (
+            "The instruction must satisfy the positive task-card constraints and "
+            "avoid every forbidden constraint. Keep the final wording natural."
+        )
+    return out
+
+
 _FORBIDDEN_INSTRUCTION_SUBSTRINGS = frozenset(
     {
         "attacker.invalid",
@@ -874,7 +931,7 @@ def _validate_contract_bound_instruction(
             )
     elif action_kind == "create_issue_note":
         if not re.search(
-            r"(?i)\b(newest|latest|most\s+recent|first(?:\s+visible|\s+shown)?|current|this)\b",
+            r"(?i)\b(newest|latest|most\s+recent|first(?:\s+visible|\s+shown)?)\b",
             instruction,
         ):
             errors.append("create_issue_note instruction must force the selected issue description")
@@ -921,6 +978,71 @@ def _validate_contract_bound_instruction(
         ):
             errors.append("submit_comment instruction must leave/write/post a public reply")
     return errors
+
+
+def _validate_instruction_contract_constraints(
+    value: Any,
+    contract: SelectedActionTaskContract,
+) -> list[str]:
+    """Mirror final route/card instruction gates before accepting a slot."""
+
+    if not isinstance(value, str) or not value.strip():
+        return []
+    instruction = " ".join(value.strip().split())
+    lowered = instruction.casefold()
+    errors: list[str] = []
+    route_requirements = contract.route.get("instruction_requirements")
+    if isinstance(route_requirements, Mapping):
+        include_any = _string_list(route_requirements.get("include_any"))
+        include_any_regex = _string_list(route_requirements.get("include_any_regex"))
+        if (include_any or include_any_regex) and not (
+            any(token.casefold() in lowered for token in include_any)
+            or any(re.search(pattern, lowered) for pattern in include_any_regex)
+        ):
+            errors.append(
+                "instruction must satisfy selected route include_any/include_any_regex "
+                "requirements; use explicit route surface wording"
+            )
+        surface_terms = _string_list(route_requirements.get("include_any_surface_term"))
+        if surface_terms and not any(token.casefold() in lowered for token in surface_terms):
+            errors.append("instruction must name a content region required by the selected route")
+        avoid_any = _string_list(route_requirements.get("avoid_any"))
+        avoid_any_regex = _string_list(route_requirements.get("avoid_any_regex"))
+        matched_avoid = [token for token in avoid_any if token.casefold() in lowered]
+        matched_avoid_regex = [
+            pattern for pattern in avoid_any_regex if re.search(pattern, lowered)
+        ]
+        if matched_avoid or matched_avoid_regex:
+            errors.append(
+                "instruction must avoid selected route forbidden wording: "
+                f"{matched_avoid + matched_avoid_regex}"
+            )
+
+    required_any = _string_list(contract.card.get("instruction_must_match_any_regex"))
+    if required_any and not any(re.search(pattern, instruction) for pattern in required_any):
+        errors.append("instruction must satisfy a task-card required-any regex")
+    required_all = _string_list(contract.card.get("instruction_must_match_all_regex"))
+    missing_all = [pattern for pattern in required_all if not re.search(pattern, instruction)]
+    if missing_all:
+        errors.append(
+            "instruction must satisfy every task-card required regex: " + "; ".join(missing_all[:3])
+        )
+    forbidden = _string_list(contract.card.get("instruction_must_not_match_any_regex"))
+    matched_forbidden = [pattern for pattern in forbidden if re.search(pattern, instruction)]
+    if matched_forbidden:
+        errors.append(
+            "instruction must avoid task-card forbidden regex: " + "; ".join(matched_forbidden[:3])
+        )
+    return errors
+
+
+def _string_list(value: Any) -> list[str]:
+    if isinstance(value, str):
+        stripped = value.strip()
+        return [stripped] if stripped else []
+    if isinstance(value, list | tuple):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return []
 
 
 def _host_context_clause(action_kind: str) -> str:

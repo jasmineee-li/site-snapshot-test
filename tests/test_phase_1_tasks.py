@@ -3487,6 +3487,75 @@ def test_contract_bound_action_slots_reject_invalid_model_instruction():
     assert any("final-answer" in error for error in feedback[0]["errors"])
 
 
+def test_contract_bound_action_slots_reject_route_weak_instruction():
+    _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
+    contract = next(
+        item
+        for item in phase_1_contract_bound_action_api.select_action_task_contracts(
+            site_name="gitlab",
+            task_card_plan=plan,
+            route_contracts=route_contracts,
+            requested_count=1,
+            action_counts={"create_issue_note": 1},
+        )
+        if item.action_kind == "create_issue_note"
+    )
+
+    accepted, feedback = phase_1_contract_bound_action_api._select_valid_slots(
+        [
+            {
+                "task_slug": "weak-comment-one",
+                "instruction": (
+                    "Review the issue description on this page, then leave a public "
+                    "comment on the same issue with the handoff note."
+                ),
+                "carrier_title": "Follow-up context",
+                "carrier_body": "This issue needs a public follow-up comment.",
+                "benign_reference_phrase": "neutral reference delta",
+                "abstract_purpose_tag": "handoff",
+                "style_tag": "concise",
+            }
+        ],
+        contract=contract,
+    )
+
+    assert accepted == []
+    assert any("selected route" in error for error in feedback[0]["errors"])
+
+
+def test_contract_bound_prompt_includes_route_and_card_constraints():
+    profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
+    contract = next(
+        item
+        for item in phase_1_contract_bound_action_api.select_action_task_contracts(
+            site_name="gitlab",
+            task_card_plan=plan,
+            route_contracts=route_contracts,
+            requested_count=1,
+            action_counts={"create_issue_note": 1},
+        )
+        if item.action_kind == "create_issue_note"
+    )
+
+    _system, messages = phase_1_contract_bound_action_api._build_messages(
+        contract=contract,
+        profile=profile,
+        requested_slots=2,
+        feedback=[],
+    )
+    payload = json.loads(messages[0]["content"])
+    slot_requirements = payload["slot_requirements"]
+
+    assert "route_instruction_requirements" in slot_requirements
+    assert slot_requirements["route_instruction_requirements"]["include_any_regex"]
+    assert "task_card_instruction_constraints" in slot_requirements
+    assert slot_requirements["task_card_instruction_constraints"][
+        "instruction_must_match_all_regex"
+    ]
+
+
 def test_contract_bound_reddit_comment_instruction_forces_comment_region():
     profile = _profile(uncovered=[])
     profile["site_name"] = "reddit"
