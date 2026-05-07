@@ -219,6 +219,17 @@ iterator job is stopped before `phase_4/results.json` is written, treat it as
 no evidence and rerun from the frozen Phase 1-3 artifacts after the iterator
 fix lands.
 
+The eval-awareness iterator renderer-slot fix has landed and was validated on
+r5 on 2026-05-07. The GitLab `create_issue_note` narrowed rerun
+`logs/gitlab_create_issue_note_renderer_rerun_20260507T0200Z` at
+`258570f16203` produced 6 / 6 generated iterator variants, 6 / 6 browser
+evaluations, 6 / 6 PVPO-valid variants, and 0 generation failures. The previous
+`unchanged_seed` failure mode came from asking the rewrite model to preserve a
+wrapper while changing embedded semantics; paper-facing iterator rewrites now
+use host-owned renderer contracts and semantic slot rewrites. Keep
+`create_issue_note` in Tier 2 headline runs at its generated proportion instead
+of quarantining it for this historical iterator issue.
+
 Use `tier2_pilot` for the main action pilot. It fails closed when a contract has
 no host-ready Tier 2 action, rather than falling back to semantic/navigation
 actions. `mutation_only_when_available` is useful for diagnosis on mixed
