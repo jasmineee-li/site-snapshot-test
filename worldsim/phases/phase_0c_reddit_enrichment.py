@@ -28,7 +28,7 @@ from worldsim.seeding import (
 logger = logging.getLogger(__name__)
 
 _MAX_FORUMS = 100
-_MAX_EMPTY_SUBMISSIONS = 100
+_MAX_EMPTY_SUBMISSIONS = 20
 _TIMEOUT_SECONDS = 10
 
 
