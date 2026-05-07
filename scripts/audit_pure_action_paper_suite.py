@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections import Counter
 from collections.abc import Mapping
@@ -41,6 +42,10 @@ def analyze_pure_action_paper_suite(
     expected_profile: str = PAPER_PROFILE,
     max_failures: int = 50,
     allow_missing_profile_metadata: bool = False,
+    expected_action_counts: Mapping[str, int] | None = None,
+    min_purpose_tags: int | None = None,
+    min_style_tags: int | None = None,
+    reject_duplicate_instructions: bool = False,
 ) -> dict[str, Any]:
     profile = _load_task_capability_profile(run_dir)
     suite_failures: list[str] = []
@@ -54,6 +59,9 @@ def analyze_pure_action_paper_suite(
     action_counts: Counter[str] = Counter()
     site_counts: Counter[str] = Counter()
     failure_counts: Counter[str] = Counter()
+    purpose_tags: Counter[str] = Counter()
+    style_tags: Counter[str] = Counter()
+    normalized_instructions: Counter[str] = Counter()
     for index, task in enumerate(tasks):
         failures = _task_failures(task)
         for failure in failures:
@@ -61,6 +69,13 @@ def analyze_pure_action_paper_suite(
         action_kind = _selected_action_kind(task) or "missing"
         action_counts[action_kind] += 1
         site_counts[str(task.get("site") or "unknown")] += 1
+        generation = task.get("contract_bound_generation")
+        if isinstance(generation, Mapping):
+            purpose_tags[str(generation.get("abstract_purpose_tag") or "missing")] += 1
+            style_tags[str(generation.get("style_tag") or "missing")] += 1
+        normalized_instruction = _normalize_instruction(task.get("instruction"))
+        if normalized_instruction:
+            normalized_instructions[normalized_instruction] += 1
         rows.append(
             {
                 "index": index,
@@ -73,6 +88,41 @@ def analyze_pure_action_paper_suite(
                 "failures": failures,
             }
         )
+
+    if expected_action_counts is not None:
+        actual = {kind: action_counts.get(kind, 0) for kind in expected_action_counts}
+        extra = {
+            kind: count
+            for kind, count in action_counts.items()
+            if count and kind not in expected_action_counts
+        }
+        if actual != dict(expected_action_counts) or extra:
+            suite_failures.append(
+                "action_count_mismatch:"
+                + json.dumps(
+                    {"expected": dict(expected_action_counts), "actual": dict(action_counts)},
+                    sort_keys=True,
+                )
+            )
+    if (
+        min_purpose_tags is not None
+        and len([k for k in purpose_tags if k != "missing"]) < min_purpose_tags
+    ):
+        suite_failures.append(
+            f"insufficient_purpose_tag_diversity:{len(purpose_tags)}<{min_purpose_tags}"
+        )
+    if (
+        min_style_tags is not None
+        and len([k for k in style_tags if k != "missing"]) < min_style_tags
+    ):
+        suite_failures.append(
+            f"insufficient_style_tag_diversity:{len(style_tags)}<{min_style_tags}"
+        )
+    duplicate_instructions = {
+        instruction: count for instruction, count in normalized_instructions.items() if count > 1
+    }
+    if reject_duplicate_instructions and duplicate_instructions:
+        suite_failures.append(f"duplicate_normalized_instructions:{len(duplicate_instructions)}")
 
     failed_rows = [row for row in rows if row["failures"]]
     return {
@@ -87,6 +137,12 @@ def analyze_pure_action_paper_suite(
         "failure_counts": dict(sorted(failure_counts.items())),
         "by_action_kind": dict(sorted(action_counts.items())),
         "by_site": dict(sorted(site_counts.items())),
+        "diversity": {
+            "by_abstract_purpose_tag": dict(sorted(purpose_tags.items())),
+            "by_style_tag": dict(sorted(style_tags.items())),
+            "duplicate_normalized_instructions": duplicate_instructions,
+            "unique_normalized_instructions": len(normalized_instructions),
+        },
         "failures": failed_rows[:max_failures],
     }
 
@@ -328,6 +384,36 @@ def _flatten_strings(value: Any) -> list[str]:
     return []
 
 
+def _normalize_instruction(value: Any) -> str:
+    if not isinstance(value, str):
+        return ""
+    text = " ".join(value.casefold().split())
+    text = re.sub(r"`[^`]+`", "`<witness>`", text)
+    text = re.sub(r"\b[0-9a-f]{8,}\b", "<hex>", text)
+    return text.strip()
+
+
+def _parse_action_counts(value: str | None) -> dict[str, int] | None:
+    if value is None:
+        return None
+    counts: dict[str, int] = {}
+    for raw_part in value.split(","):
+        part = raw_part.strip()
+        if not part:
+            continue
+        if "=" not in part:
+            raise SystemExit(f"invalid --expected-action-counts item {part!r}; expected KIND=N")
+        kind, raw_count = (item.strip() for item in part.split("=", 1))
+        try:
+            count = int(raw_count)
+        except ValueError as exc:
+            raise SystemExit(f"invalid count for {kind!r}: {raw_count!r}") from exc
+        if count < 0:
+            raise SystemExit(f"count for {kind!r} must be non-negative")
+        counts[kind] = count
+    return counts or None
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -344,6 +430,10 @@ def main(argv: list[str] | None = None) -> int:
         help="Allow auditing a standalone tasks file without Phase 1 profile metadata.",
     )
     parser.add_argument("--json", action="store_true", help="Print full JSON report.")
+    parser.add_argument("--expected-action-counts", default=None)
+    parser.add_argument("--min-purpose-tags", type=int, default=None)
+    parser.add_argument("--min-style-tags", type=int, default=None)
+    parser.add_argument("--reject-duplicate-instructions", action="store_true")
     args = parser.parse_args(argv)
 
     tasks_path, run_dir = _resolve_inputs(args.path)
@@ -360,6 +450,10 @@ def main(argv: list[str] | None = None) -> int:
         run_dir=run_dir,
         max_failures=args.max_failures,
         allow_missing_profile_metadata=args.allow_missing_profile_metadata,
+        expected_action_counts=_parse_action_counts(args.expected_action_counts),
+        min_purpose_tags=args.min_purpose_tags,
+        min_style_tags=args.min_style_tags,
+        reject_duplicate_instructions=args.reject_duplicate_instructions,
     )
     failed_gate = (
         bool(report["suite_failures"])

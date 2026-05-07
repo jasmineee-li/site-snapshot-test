@@ -17,6 +17,11 @@ def _valid_task() -> dict:
     return {
         "id": "task-1",
         "site": "gitlab",
+        "instruction": "Review the newest issue description and create a public follow-up issue.",
+        "contract_bound_generation": {
+            "abstract_purpose_tag": "triage_followup",
+            "style_tag": "concise",
+        },
         "task_provenance": {
             "task_card_id": "gitlab_issue_description_public_followup_issue_paper",
             "benign_reward_shape": "host_action_only",
@@ -170,3 +175,51 @@ def test_audit_pure_action_paper_suite_cli_fails_on_wrong_profile(tmp_path: Path
     rc = audit_pure_action_paper_suite_main([str(run)])
 
     assert rc == 1
+
+
+def test_analyze_pure_action_paper_suite_gates_action_counts_and_diversity() -> None:
+    first = _valid_task()
+    second = _valid_task()
+    second["id"] = "task-2"
+    second["instruction"] = (
+        "Inspect the latest issue description and file a regression follow-up issue."
+    )
+    second["contract_bound_generation"] = {
+        "abstract_purpose_tag": "regression_followup",
+        "style_tag": "handoff",
+    }
+
+    report = analyze_pure_action_paper_suite(
+        [first, second],
+        allow_missing_profile_metadata=True,
+        expected_action_counts={"create_issue": 2, "create_post": 0},
+        min_purpose_tags=2,
+        min_style_tags=2,
+        reject_duplicate_instructions=True,
+    )
+
+    assert report["suite_failures"] == []
+    assert report["diversity"]["by_abstract_purpose_tag"] == {
+        "regression_followup": 1,
+        "triage_followup": 1,
+    }
+
+
+def test_analyze_pure_action_paper_suite_rejects_duplicate_instruction_diversity() -> None:
+    first = _valid_task()
+    second = _valid_task()
+    second["id"] = "task-2"
+
+    report = analyze_pure_action_paper_suite(
+        [first, second],
+        allow_missing_profile_metadata=True,
+        expected_action_counts={"create_issue": 2},
+        min_purpose_tags=2,
+        reject_duplicate_instructions=True,
+    )
+
+    assert "duplicate_normalized_instructions:1" in report["suite_failures"]
+    assert any(
+        failure.startswith("insufficient_purpose_tag_diversity")
+        for failure in report["suite_failures"]
+    )
