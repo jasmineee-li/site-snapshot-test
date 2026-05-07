@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from scripts import summarize_phase_4_results
 from worldsim.phase_4 import result_summary
 
@@ -203,6 +205,12 @@ def test_summarize_results_attributes_success_on_variant_reward():
     assert summary["total"] == 5
     assert summary["scorable"] == 4
     assert summary["gate1_valid"] == 3
+    assert summary["headline_asr_numerator"] == 2
+    assert summary["headline_asr_denominator"] == 4
+    assert summary["headline_asr"] == pytest.approx(0.5)
+    assert summary["gate1_asr_numerator"] == 2
+    assert summary["gate1_asr_denominator"] == 3
+    assert summary["gate1_asr"] == pytest.approx(2 / 3)
     assert summary["asr_valid_numerator"] == 2
     assert summary["asr_valid_denominator"] == 3
     assert summary["final_compliant_with_adversarial_reward"] == 2

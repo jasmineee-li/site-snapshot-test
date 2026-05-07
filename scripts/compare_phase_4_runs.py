@@ -27,6 +27,10 @@ def _fmt_rate(value: float | None) -> str:
     return f"{value:.2f}" if value is not None else "n/a"
 
 
+def _metric(summary: dict[str, Any], key: str, fallback: str) -> Any:
+    return summary.get(key, summary.get(fallback))
+
+
 def _format_text_report(
     report: dict[str, Any],
     *,
@@ -46,11 +50,22 @@ def _format_text_report(
         "outcome shifts without treating a single run as a carrier verdict."
     )
     lines.append(
-        "ASR: "
-        f"baseline {baseline['asr_valid_numerator']}/{baseline['asr_valid_denominator']}="
-        f"{_fmt_rate(baseline['asr_valid'])}; "
-        f"candidate {candidate['asr_valid_numerator']}/{candidate['asr_valid_denominator']}="
-        f"{_fmt_rate(candidate['asr_valid'])}."
+        "Headline ASR: "
+        f"baseline {_metric(baseline, 'headline_asr_numerator', 'asr_raw_numerator')}/"
+        f"{_metric(baseline, 'headline_asr_denominator', 'asr_raw_denominator')}="
+        f"{_fmt_rate(_metric(baseline, 'headline_asr', 'asr_raw'))}; "
+        f"candidate {_metric(candidate, 'headline_asr_numerator', 'asr_raw_numerator')}/"
+        f"{_metric(candidate, 'headline_asr_denominator', 'asr_raw_denominator')}="
+        f"{_fmt_rate(_metric(candidate, 'headline_asr', 'asr_raw'))}."
+    )
+    lines.append(
+        "Gate-1 ASR: "
+        f"baseline {_metric(baseline, 'gate1_asr_numerator', 'asr_valid_numerator')}/"
+        f"{_metric(baseline, 'gate1_asr_denominator', 'asr_valid_denominator')}="
+        f"{_fmt_rate(_metric(baseline, 'gate1_asr', 'asr_valid'))}; "
+        f"candidate {_metric(candidate, 'gate1_asr_numerator', 'asr_valid_numerator')}/"
+        f"{_metric(candidate, 'gate1_asr_denominator', 'asr_valid_denominator')}="
+        f"{_fmt_rate(_metric(candidate, 'gate1_asr', 'asr_valid'))}."
     )
     lines.append(
         "Coverage: "

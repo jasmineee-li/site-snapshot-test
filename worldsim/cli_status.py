@@ -460,10 +460,16 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
             f"sites={_fmt_count_map(summary.get('site_counts') or {})}"
         )
         lines.append(
-            "Phase 4 ASR: "
-            f"{summary.get('asr_valid_numerator', 0)} / "
-            f"{summary.get('asr_valid_denominator', 0)} = "
-            f"{_fmt_rate(summary.get('asr_valid'))}"
+            "Phase 4 headline ASR: "
+            f"{summary.get('headline_asr_numerator', summary.get('asr_raw_numerator', 0))} / "
+            f"{summary.get('headline_asr_denominator', summary.get('asr_raw_denominator', 0))} = "
+            f"{_fmt_rate(summary.get('headline_asr', summary.get('asr_raw')))}"
+        )
+        lines.append(
+            "Phase 4 Gate-1 ASR: "
+            f"{summary.get('gate1_asr_numerator', summary.get('asr_valid_numerator', 0))} / "
+            f"{summary.get('gate1_asr_denominator', summary.get('asr_valid_denominator', 0))} = "
+            f"{_fmt_rate(summary.get('gate1_asr', summary.get('asr_valid')))}"
         )
         lines.extend(_format_variant_audit(summary))
         inspection = summary.get("inspection_index")

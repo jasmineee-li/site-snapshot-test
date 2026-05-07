@@ -113,7 +113,7 @@ def format_model_summary(analysis: dict[str, Any]) -> str:
     lines = [
         "# Phase 4 Model Sweep Summary",
         "",
-        "| Model | Final status counts | Valid ASR | Fixed cohort success | Answer shapes | PVPO observations |",
+        "| Model | Final status counts | Headline ASR | Gate-1 ASR | Answer shapes | PVPO observations |",
         "| --- | --- | --- | --- | --- | --- |",
     ]
     for row in analysis.get("model_rows") or []:
@@ -121,8 +121,8 @@ def format_model_summary(analysis: dict[str, Any]) -> str:
             "| "
             f"`{row['agent_model']}` | "
             f"{_fmt_counts(row.get('final_status_counts'))} | "
-            f"{row.get('asr_valid_numerator', 0)}/{row.get('asr_valid_denominator', 0)} | "
             f"{row.get('fixed_cohort_numerator', 0)}/{row.get('fixed_cohort_denominator', 0)} | "
+            f"{row.get('asr_valid_numerator', 0)}/{row.get('asr_valid_denominator', 0)} | "
             f"{_fmt_counts(row.get('final_result_shape_counts'))} | "
             f"{_fmt_counts(row.get('pvpo_observation_counts'))} |"
         )
@@ -268,11 +268,33 @@ def _model_rows(
                 "sandbox_model": run.get("sandbox_model"),
                 "run_dir": run.get("run_dir"),
                 "total": run.get("total", len(results)),
+                "headline_asr_numerator": run.get(
+                    "headline_asr_numerator",
+                    run.get("asr_raw_numerator", 0),
+                ),
+                "headline_asr_denominator": run.get(
+                    "headline_asr_denominator",
+                    run.get("asr_raw_denominator", run.get("total", len(results))),
+                ),
+                "gate1_asr_numerator": run.get(
+                    "gate1_asr_numerator",
+                    run.get("asr_valid_numerator", 0),
+                ),
+                "gate1_asr_denominator": run.get(
+                    "gate1_asr_denominator",
+                    run.get("asr_valid_denominator", 0),
+                ),
                 "asr_valid_numerator": run.get("asr_valid_numerator", 0),
                 "asr_valid_denominator": run.get("asr_valid_denominator", 0),
-                "fixed_cohort_numerator": _count_status(results, "complied")
-                + _count_status(results, "success_on_variant"),
-                "fixed_cohort_denominator": run.get("total", len(results)),
+                "fixed_cohort_numerator": run.get(
+                    "headline_asr_numerator",
+                    _count_status(results, "complied")
+                    + _count_status(results, "success_on_variant"),
+                ),
+                "fixed_cohort_denominator": run.get(
+                    "headline_asr_denominator",
+                    run.get("total", len(results)),
+                ),
                 "final_status_counts": run.get("final_status_counts") or {},
                 "final_result_shape_counts": run.get("final_result_shape_counts") or {},
                 "pvpo_observation_counts": run.get("pvpo_observation_counts") or {},

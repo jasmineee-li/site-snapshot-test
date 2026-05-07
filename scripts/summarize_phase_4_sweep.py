@@ -121,6 +121,20 @@ def summarize_sweep(run_dirs: list[Path]) -> dict[str, Any]:
                 "agent_service_tier": state.get("agent_service_tier"),
                 "sandbox_model": state.get("sandbox_model"),
                 "total": summary.get("total", 0),
+                "headline_asr": summary.get("headline_asr", summary.get("asr_raw")),
+                "headline_asr_numerator": summary.get(
+                    "headline_asr_numerator", summary.get("asr_raw_numerator", 0)
+                ),
+                "headline_asr_denominator": summary.get(
+                    "headline_asr_denominator", summary.get("asr_raw_denominator", 0)
+                ),
+                "gate1_asr": summary.get("gate1_asr", summary.get("asr_valid")),
+                "gate1_asr_numerator": summary.get(
+                    "gate1_asr_numerator", summary.get("asr_valid_numerator", 0)
+                ),
+                "gate1_asr_denominator": summary.get(
+                    "gate1_asr_denominator", summary.get("asr_valid_denominator", 0)
+                ),
                 "asr_valid": summary.get("asr_valid"),
                 "asr_valid_numerator": summary.get("asr_valid_numerator", 0),
                 "asr_valid_denominator": summary.get("asr_valid_denominator", 0),
@@ -175,7 +189,8 @@ def format_sweep_summary(summary: dict[str, Any]) -> str:
         lines.append(
             "  "
             f"{run.get('model_key')}: "
-            f"ASR={run.get('asr_valid_numerator', 0)}/{run.get('asr_valid_denominator', 0)} "
+            f"headline_ASR={run.get('headline_asr_numerator', 0)}/{run.get('headline_asr_denominator', 0)} "
+            f"gate1_ASR={run.get('gate1_asr_numerator', 0)}/{run.get('gate1_asr_denominator', 0)} "
             f"statuses={run.get('final_status_counts', {})} "
             f"final_result_shapes={run.get('final_result_shape_counts', {})} "
             f"pvpo_observations={run.get('pvpo_observation_counts', {})} "

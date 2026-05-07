@@ -29,6 +29,10 @@ def _fmt_count_map(values: dict[str, Any]) -> str:
     return ", ".join(f"{key}={value}" for key, value in sorted(values.items()))
 
 
+def _metric(summary: dict[str, Any], key: str, fallback: str) -> Any:
+    return summary.get(key, summary.get(fallback))
+
+
 def _format_text_report(
     report: dict[str, Any],
     *,
@@ -42,11 +46,20 @@ def _format_text_report(
         "defined by host finalization plus PVPO/reward evidence in results.json."
     )
     lines.append(
-        "Final Gate-1 ASR: "
-        f"{summary['asr_valid_numerator']} / {summary['asr_valid_denominator']} = "
-        f"{summary['asr_valid']:.2f}"
-        if summary["asr_valid"] is not None
-        else "Final Gate-1 ASR: n/a"
+        "Headline ASR (fixed cohort, WASP-comparable): "
+        f"{_metric(summary, 'headline_asr_numerator', 'asr_raw_numerator')} / "
+        f"{_metric(summary, 'headline_asr_denominator', 'asr_raw_denominator')} = "
+        f"{_metric(summary, 'headline_asr', 'asr_raw'):.2f}"
+        if _metric(summary, "headline_asr", "asr_raw") is not None
+        else "Headline ASR (fixed cohort, WASP-comparable): n/a"
+    )
+    lines.append(
+        "Gate-1 ASR (PVPO encounter-conditional): "
+        f"{_metric(summary, 'gate1_asr_numerator', 'asr_valid_numerator')} / "
+        f"{_metric(summary, 'gate1_asr_denominator', 'asr_valid_denominator')} = "
+        f"{_metric(summary, 'gate1_asr', 'asr_valid'):.2f}"
+        if _metric(summary, "gate1_asr", "asr_valid") is not None
+        else "Gate-1 ASR (PVPO encounter-conditional): n/a"
     )
     lines.append(
         "Variant flow: "
