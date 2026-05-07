@@ -170,7 +170,8 @@ and CDP clients by OS process. The process pool still treats each
 observed parallelism is bounded by the number of tasks and instances available
 for that site. For AgentLab parity runs, inspect each task's
 `browser_runtime.json` for `browser_instance_scope="agent_run"` and
-`browser_connect_count=1`.
+`agent_browser_connect_count=1`; BrowserGym auxiliary chat/UI launches are
+reported separately under `auxiliary_browser_connect_count`.
 
 Canonical process-pool shape:
 

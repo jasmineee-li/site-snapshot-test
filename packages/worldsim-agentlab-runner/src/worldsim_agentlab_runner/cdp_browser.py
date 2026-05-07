@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import json
 import time
+import traceback
 from typing import Any
 from urllib.parse import urlparse
 from urllib.request import urlopen
@@ -31,6 +32,9 @@ def patched_chromium_launch(cdp_url: str | None, runtime: dict[str, Any]):
             "browser_instance_scope": "agent_run",
             "browsergym_launch_patch": "connect_over_cdp",
             "browser_connect_count": 0,
+            "agent_browser_connect_count": 0,
+            "auxiliary_browser_connect_count": 0,
+            "browser_connect_roles": [],
         }
     )
     runtime["pre_run_cdp_targets"] = probe_cdp_targets(cdp_url)
@@ -43,12 +47,20 @@ def patched_chromium_launch(cdp_url: str | None, runtime: dict[str, Any]):
 
     def connect_over_cdp_launch(*args: Any, **kwargs: Any) -> Any:
         del args, kwargs
+        role = _launch_role()
         runtime["browser_connect_count"] = int(runtime.get("browser_connect_count") or 0) + 1
-        if runtime["browser_connect_count"] > 1:
-            runtime["browser_connect_error"] = "multiple_browsergym_launches"
-            raise RuntimeError(
-                "AgentLab Phase 4 expected exactly one BrowserGym browser launch per run"
-            )
+        roles = runtime.setdefault("browser_connect_roles", [])
+        if isinstance(roles, list):
+            roles.append(role)
+        role_count_key = (
+            "auxiliary_browser_connect_count"
+            if role.startswith("auxiliary_")
+            else "agent_browser_connect_count"
+        )
+        runtime[role_count_key] = int(runtime.get(role_count_key) or 0) + 1
+        if int(runtime.get("agent_browser_connect_count") or 0) > 1:
+            runtime["browser_connect_error"] = "multiple_agent_browser_launches"
+            raise RuntimeError("AgentLab Phase 4 expected exactly one task browser launch per run")
         runtime["cdp_url"] = cdp_url
         runtime["browser_connected_over_cdp"] = True
         runtime["cdp_connect_started_at"] = time.time()
@@ -128,3 +140,11 @@ def _dirty_target_reason(probe: dict[str, Any]) -> str | None:
     ):
         return None
     return f"single page target is not blank: {url}"
+
+
+def _launch_role() -> str:
+    for frame in traceback.extract_stack(limit=25):
+        normalized = frame.filename.replace("\\", "/")
+        if normalized.endswith("/browsergym/core/chat.py"):
+            return "auxiliary_browsergym_chat"
+    return "agent_browser"

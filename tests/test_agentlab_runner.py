@@ -1155,23 +1155,79 @@ def test_agentlab_cdp_launch_records_single_browser_instance(monkeypatch):
     monkeypatch.setitem(sys.modules, "browsergym", browsergym_pkg)
     monkeypatch.setitem(sys.modules, "browsergym.core", core_mod)
     monkeypatch.setattr(cdp_browser, "urlopen", fake_urlopen)
+    roles = iter(("agent_browser", "auxiliary_browsergym_chat"))
+    monkeypatch.setattr(cdp_browser, "_launch_role", lambda: next(roles))
 
     runtime: dict[str, object] = {}
     original_launch = fake_chromium.launch
     with cdp_browser.patched_chromium_launch("http://127.0.0.1:9222", runtime):
         assert fake_chromium.launch() == {"browser": 1}
-        with pytest.raises(RuntimeError, match="exactly one BrowserGym browser launch"):
-            fake_chromium.launch()
+        assert fake_chromium.launch() == {"browser": 2}
 
     assert fake_chromium.launch is original_launch
     assert runtime["browser_instance_scope"] == "agent_run"
     assert runtime["browsergym_launch_patch"] == "connect_over_cdp"
     assert runtime["browser_connected_over_cdp"] is True
     assert runtime["browser_connect_count"] == 2
-    assert runtime["browser_connect_error"] == "multiple_browsergym_launches"
+    assert runtime["agent_browser_connect_count"] == 1
+    assert runtime["auxiliary_browser_connect_count"] == 1
+    assert runtime["browser_connect_roles"] == ["agent_browser", "auxiliary_browsergym_chat"]
+    assert "browser_connect_error" not in runtime
     assert runtime["pre_run_cdp_clean"] is True
     assert runtime["pre_run_cdp_targets"]["page_urls"] == ["about:blank"]
     assert runtime["cdp_browser_version"] == {"Browser": "Chrome/127"}
+
+
+def test_agentlab_cdp_launch_rejects_multiple_task_browsers(monkeypatch):
+    cdp_browser = _load_sidecar_module("cdp_browser")
+
+    class FakeResponse:
+        def __init__(self, payload):
+            self.payload = payload
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read(self):
+            return json.dumps(self.payload).encode("utf-8")
+
+    class FakeChromium:
+        def __init__(self):
+            self.launch = lambda *args, **kwargs: "original"
+
+        def connect_over_cdp(self, cdp_url, timeout):
+            return {"cdp_url": cdp_url, "timeout": timeout}
+
+    fake_chromium = FakeChromium()
+    browsergym_pkg = type(sys)("browsergym")
+    core_mod = type(sys)("browsergym.core")
+    core_mod._get_global_playwright = lambda: SimpleNamespace(chromium=fake_chromium)
+    browsergym_pkg.core = core_mod
+    monkeypatch.setitem(sys.modules, "browsergym", browsergym_pkg)
+    monkeypatch.setitem(sys.modules, "browsergym.core", core_mod)
+    monkeypatch.setattr(
+        cdp_browser,
+        "urlopen",
+        lambda url, timeout=0: FakeResponse(
+            [{"type": "page", "url": "about:blank"}]
+            if str(url).endswith("/json/list")
+            else {"Browser": "Chrome/127"}
+        ),
+    )
+    monkeypatch.setattr(cdp_browser, "_launch_role", lambda: "agent_browser")
+
+    runtime: dict[str, object] = {}
+    with cdp_browser.patched_chromium_launch("http://127.0.0.1:9222", runtime):
+        fake_chromium.launch()
+        with pytest.raises(RuntimeError, match="exactly one task browser launch"):
+            fake_chromium.launch()
+
+    assert runtime["browser_connect_count"] == 2
+    assert runtime["agent_browser_connect_count"] == 2
+    assert runtime["browser_connect_error"] == "multiple_agent_browser_launches"
 
 
 def test_agentlab_cdp_launch_fails_closed_on_dirty_endpoint(monkeypatch):
