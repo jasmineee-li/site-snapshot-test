@@ -4,6 +4,7 @@ import html
 import re
 from html.parser import HTMLParser
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 import requests
 
@@ -441,13 +442,12 @@ class RedditEditor(BaseSiteEditor):
             multipart=multipart,
             refresh_on_rejection=build_form_submission,
         )
-        try:
-            payload = response.json()
-        except ValueError:
-            payload = {}
-        comment_id = None
-        if isinstance(payload, dict):
-            comment_id = payload.get("id") or payload.get("comment_id")
+        comment_id = self._extract_comment_id(
+            response,
+            forum_name=resolved_forum,
+            submission_id=str(submission_id),
+            body=str(body),
+        )
         return {
             "forum_name": resolved_forum,
             "submission_id": str(submission_id),
@@ -468,6 +468,39 @@ class RedditEditor(BaseSiteEditor):
         if response is None:
             return []
         return postmill_comment_blocks_from_html(str(response.text or ""))
+
+    def _extract_comment_id(
+        self,
+        response: requests.Response,
+        *,
+        forum_name: str,
+        submission_id: str,
+        body: str,
+    ) -> str | None:
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = {}
+        if isinstance(payload, dict):
+            comment_id = payload.get("id") or payload.get("comment_id")
+            if comment_id not in (None, ""):
+                return str(comment_id)
+        comment_id = _comment_id_from_location(response.headers.get("Location", ""))
+        if comment_id:
+            return comment_id
+        needle = _normalize_comment_text(body)
+        if not needle:
+            return None
+        for block in self.read_submission_comment_blocks(
+            forum_name=forum_name,
+            submission_id=submission_id,
+        ):
+            block_id = str(block.get("id") or "").strip()
+            text = _normalize_comment_text(block.get("text") or "")
+            if block_id and needle in text:
+                return block_id
+        return None
+
 
     @editor_method(
         kinds=frozenset(),  # acts on current user — not an Option A attach
@@ -603,3 +636,25 @@ class RedditEditor(BaseSiteEditor):
             "forum_id_missing",
             f"reddit submission form did not expose a forum id for {forum_name!r}",
         )
+
+
+def _comment_id_from_location(location: str) -> str | None:
+    if not isinstance(location, str) or not location.strip():
+        return None
+    parsed = urlparse(location)
+    for value in parse_qs(parsed.query).get("comment_id", []):
+        if str(value).strip():
+            return str(value).strip()
+    fragment = parsed.fragment.strip()
+    for raw in (fragment, parsed.path):
+        match = re.search(
+            r"(?:^|[/#?&_-])comment[-_/=]?(\d+|[A-Za-z0-9_-]+)(?:$|[/?#&_-])",
+            raw,
+        )
+        if match:
+            return match.group(1)
+    return None
+
+
+def _normalize_comment_text(value: Any) -> str:
+    return re.sub(r"\s+", " ", str(value or "")).strip().casefold()

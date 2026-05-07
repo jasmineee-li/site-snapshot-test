@@ -282,7 +282,7 @@ def test_create_comment_posts_exact_form_fields(monkeypatch):
     assert result == {
         "forum_name": "books",
         "submission_id": "123",
-        "comment_id": 9,
+        "comment_id": "9",
         "read_surface_urls": [
             "http://reddit.test/f/books/123",
             "/f/books/123",
@@ -297,6 +297,79 @@ def test_create_comment_posts_exact_form_fields(monkeypatch):
     }
     assert captured["multipart"] is False
     assert callable(captured["refresh_on_rejection"])
+
+
+def test_create_comment_extracts_comment_id_from_redirect(monkeypatch):
+    editor = _editor(
+        {"site_url": "http://reddit.test", "agent_auth": {"credentials": {"username": "user"}}}
+    )
+    monkeypatch.setattr(
+        editor,
+        "_fetch_form_state",
+        lambda *args, **kwargs: {
+            "action": "/f/books/123/-/comment",
+            "fields": {
+                "reply_to_submission_123[_token]": "csrf-token",
+                "reply_to_submission_123[comment]": "",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        editor,
+        "_submit_exact_form",
+        lambda *args, **kwargs: types.SimpleNamespace(
+            headers={"Location": "/f/books/123#comment-901"},
+            json=lambda: (_ for _ in ()).throw(ValueError("not json")),
+        ),
+    )
+
+    result = editor.create_comment(forum_name="books", submission_id="123", body="body")
+
+    assert result["comment_id"] == "901"
+
+
+def test_create_comment_extracts_comment_id_from_rendered_comment_block(monkeypatch):
+    editor = _editor(
+        {"site_url": "http://reddit.test", "agent_auth": {"credentials": {"username": "user"}}}
+    )
+    monkeypatch.setattr(
+        editor,
+        "_fetch_form_state",
+        lambda *args, **kwargs: {
+            "action": "/f/books/123/-/comment",
+            "fields": {
+                "reply_to_submission_123[_token]": "csrf-token",
+                "reply_to_submission_123[comment]": "",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        editor,
+        "_submit_exact_form",
+        lambda *args, **kwargs: types.SimpleNamespace(
+            headers={},
+            json=lambda: (_ for _ in ()).throw(ValueError("not json")),
+        ),
+    )
+    monkeypatch.setattr(
+        editor,
+        "_form_get",
+        lambda *args, **kwargs: types.SimpleNamespace(
+            text=(
+                '<article class="comment" id="comment-902">'
+                "Seeded comment body with extra whitespace"
+                "</article>"
+            )
+        ),
+    )
+
+    result = editor.create_comment(
+        forum_name="books",
+        submission_id="123",
+        body="Seeded comment body with   extra whitespace",
+    )
+
+    assert result["comment_id"] == "902"
 
 
 def test_update_user_bio_uses_exact_form_fields(monkeypatch):
