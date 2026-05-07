@@ -38,6 +38,7 @@ _EMIT_ACTION_TASK_SLOTS_TOOL_NAME = "emit_action_task_slots"
 _OVERGENERATION_MULTIPLIER = 1.5
 _MAX_SEMANTIC_RETRIES = 2
 _MAX_OUTPUT_TOKENS = 32768
+_STREAM_OUTPUT_TOKEN_THRESHOLD = 32768
 _HOST_ACTION_ONLY_PLACEHOLDER_EVALUATOR = "HostActionOnlyPlaceholder"
 _STRUCTURAL_SLOT_KEYS = {
     "data_seed",
@@ -384,15 +385,19 @@ async def _call_slots_api(
 
     async def _call() -> Any:
         async with get_api_semaphore():
-            return await client.messages.create(
-                model=normalized_model,
-                max_tokens=_MAX_OUTPUT_TOKENS,
-                system=system,
-                messages=messages,
-                tools=[tool],
-                tool_choice={"type": "tool", "name": _EMIT_ACTION_TASK_SLOTS_TOOL_NAME},
+            kwargs = {
+                "model": normalized_model,
+                "max_tokens": _MAX_OUTPUT_TOKENS,
+                "system": system,
+                "messages": messages,
+                "tools": [tool],
+                "tool_choice": {"type": "tool", "name": _EMIT_ACTION_TASK_SLOTS_TOOL_NAME},
                 **temperature_kwargs_for_model(normalized_model, 0.7),
-            )
+            }
+            if _MAX_OUTPUT_TOKENS >= _STREAM_OUTPUT_TOKEN_THRESHOLD:
+                async with client.messages.stream(**kwargs) as stream:
+                    return await stream.get_final_message()
+            return await client.messages.create(**kwargs)
 
     t0 = time.monotonic()
     try:
