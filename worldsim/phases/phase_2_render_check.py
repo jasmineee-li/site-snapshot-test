@@ -1019,6 +1019,7 @@ async def _reddit_seed_comment_visibility_probe(
                 }
                 const id = el.getAttribute && el.getAttribute("id");
                 if (id && id.startsWith("comment-")) return id.slice("comment-".length);
+                if (id && id.startsWith("comment_")) return id.slice("comment_".length);
                 if (id) return id;
                 const anchors = el.querySelectorAll ? el.querySelectorAll("a[href*='/comment/']") : [];
                 for (const anchor of anchors) {
@@ -1040,6 +1041,7 @@ async def _reddit_seed_comment_visibility_probe(
                   `[comment-id="${CSS.escape(id)}"]`,
                   `[data-id="${CSS.escape(id)}"]`,
                   `#comment-${CSS.escape(id)}`,
+                  `#comment_${CSS.escape(id)}`,
                   `a[href*="/comment/${CSS.escape(id)}"]`,
                 ];
                 for (const selector of selectors) {

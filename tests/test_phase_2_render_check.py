@@ -9,9 +9,11 @@ for end-to-end coverage with a real browser against r5.
 from __future__ import annotations
 
 import asyncio
+import inspect
 
 import pytest
 
+from worldsim.phases import phase_2_render_check as rc
 from worldsim.phases.phase_2_render_check import (
     RenderOutcome,
     _gitlab_issue_description_ryw_fastpath,
@@ -36,6 +38,13 @@ def test_with_cache_buster_preserves_fragment_anchor():
 
     assert url.startswith("http://reddit.test/f/books/123?_=1")
     assert url.endswith("#comment_9")
+
+
+def test_reddit_seed_visibility_probe_supports_postmill_comment_anchors():
+    source = inspect.getsource(rc._reddit_seed_comment_visibility_probe)
+
+    assert 'id.startsWith("comment_")' in source
+    assert "`#comment_${CSS.escape(id)}`" in source
 
 
 # ---------------------------------------------------------------------------
