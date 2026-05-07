@@ -41,6 +41,22 @@ only for isolated experiments. Push required remote environment variables with
 `scripts/remote_env_push.sh`; do not paste secrets into job commands or
 hand-written shell history.
 
+Modal-backed phases need two auth layers on remote hosts:
+
+- Provider/app secrets in the repo `.env` or pushed environment, such as
+  `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and auto-login values.
+- The Modal client token config readable by the remote `ubuntu` user, normally
+  `/home/ubuntu/.modal.toml` with mode `600`.
+
+Do not assume syncing the repo or `.env` configures the Modal client. Phase 0c
+and legacy sandbox-backed Phase 1 can pass project preflight yet still fail
+Modal image prebuild with `Token missing` if the client config is absent. Verify
+fresh hosts with a non-printing token check such as:
+
+```bash
+ssh ubuntu@<host> 'cd /home/ubuntu/browser-sim && uv run python -c "from modal.config import config; raise SystemExit(0 if config.get(\"token_id\") and config.get(\"token_secret\") else 1)"'
+```
+
 Treat launch attempts and evidence runs as separate artifacts. If a remote job
 exits before it starts the measured phase, for example because auth, topology,
 or prerequisite artifacts are missing, keep its remote job registry for

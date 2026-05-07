@@ -34,6 +34,18 @@ zero hand-patching.
    6. Re-mint GitLab Phase 0d `storage_state.json` unconditionally so cookies
       bind to the current host topology.
    7. `pytest -m preflight tests/preflight`, the pass/fail gate.
+
+   Before any Modal-backed Phase 0c or legacy sandbox-backed Phase 1 work,
+   verify the host has both layers of auth:
+
+   - repo/app environment such as `.env`, `OPENAI_API_KEY`,
+     `ANTHROPIC_API_KEY`, and login helper values;
+   - Modal client credentials for the remote user, normally
+     `/home/ubuntu/.modal.toml` with mode `600`.
+
+   Repo sync and `.env` sync do not install the Modal client config. A missing
+   client config can pass project-level key checks and then fail at Modal image
+   prebuild with `Token missing`.
 3. **Launch or resume**:
    ```
    scripts/remote_job_start.sh \
