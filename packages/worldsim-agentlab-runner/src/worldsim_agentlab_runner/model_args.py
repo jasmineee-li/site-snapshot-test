@@ -35,6 +35,7 @@ class WorldSimChatModelArgs:
     display_name: str = ""
     profile_key: str = ""
     metadata_path: str | None = None
+    llm_timeout: int | None = None
 
     def make_model(self) -> WorldSimChatModel:
         return WorldSimChatModel(
@@ -50,6 +51,7 @@ class WorldSimChatModelArgs:
             display_name=self.display_name,
             profile_key=self.profile_key,
             metadata_path=self.metadata_path,
+            llm_timeout=self.llm_timeout,
         )
 
     def prepare_server(self) -> None:
@@ -77,6 +79,7 @@ class WorldSimChatModel:
         display_name: str = "",
         profile_key: str = "",
         metadata_path: str | None = None,
+        llm_timeout: int | None = None,
     ):
         self.model_name = model_name
         self.transport = transport
@@ -90,6 +93,7 @@ class WorldSimChatModel:
         self.display_name = display_name
         self.profile_key = profile_key
         self.metadata_path = metadata_path
+        self.llm_timeout = llm_timeout
         self.retries = 0
         self.success = False
         self.error_types: list[str] = []
@@ -149,12 +153,15 @@ class WorldSimChatModel:
             client = OpenAI(
                 api_key=_env_value(self.required_env_var),
                 base_url="https://openrouter.ai/api/v1",
+                timeout=self.llm_timeout,
             )
             return client.chat.completions.create(**params)
 
         if self.transport == "litellm":
             from litellm import completion
 
+            if self.llm_timeout is not None:
+                params["timeout"] = self.llm_timeout
             return completion(**params, num_retries=5)
 
         raise ValueError(f"unknown WorldSim AgentLab model transport {self.transport!r}")
@@ -314,6 +321,7 @@ def model_args_from_request(request: dict[str, Any]) -> WorldSimChatModelArgs:
             display_name=_optional_profile_str(profile, "display_name") or "",
             profile_key=_optional_profile_str(profile, "key") or "",
             metadata_path=_optional_profile_str(request, "model_metadata_path"),
+            llm_timeout=_optional_int(request.get("llm_timeout"), None),
         )
 
     model = str(request.get("model") or "").strip()
@@ -338,6 +346,7 @@ def model_args_from_request(request: dict[str, Any]) -> WorldSimChatModelArgs:
         temperature=_default_temperature(model),
         vision_support=bool(request.get("vision_support", True)),
         metadata_path=_optional_profile_str(request, "model_metadata_path"),
+        llm_timeout=_optional_int(request.get("llm_timeout"), None),
     )
 
 

@@ -142,7 +142,7 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
                     final_result = final_result_from_env(env)
     except Exception as exc:
         deadline_hit = isinstance(exc, TimeoutError)
-        status = "error"
+        status = "timeout" if deadline_hit else "error"
         errors.append(f"{type(exc).__name__}: {exc}")
         logger.exception("AgentLab Phase 4 sidecar failed")
     finally:

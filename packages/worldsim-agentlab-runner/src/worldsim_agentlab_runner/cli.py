@@ -179,6 +179,7 @@ def _model_result(
         "required_env_var": getattr(chat_model_args, "required_env_var", None),
         "temperature": getattr(chat_model_args, "temperature", None),
         "max_new_tokens": getattr(chat_model_args, "max_new_tokens", None),
+        "llm_timeout": getattr(chat_model_args, "llm_timeout", None),
         "vision_support": getattr(chat_model_args, "vision_support", None),
         "extra_body": getattr(chat_model_args, "extra_body", None),
     }
