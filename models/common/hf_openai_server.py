@@ -357,7 +357,21 @@ def main() -> None:
     if max_memory is not None:
         model_kwargs["max_memory"] = max_memory
         print(f"Using max_memory={max_memory}", flush=True)
-    state.model = AutoModelForCausalLM.from_pretrained(args.model, **model_kwargs)
+    # Try AutoModelForCausalLM first (Qwen2.5-VL / OpenCUA work this way).
+    # Fall back to vision/multimodal classes for newer VL configs (Qwen3-VL /
+    # GUI-Owl-1.5) that AutoModelForCausalLM doesn't recognize.
+    try:
+        state.model = AutoModelForCausalLM.from_pretrained(args.model, **model_kwargs)
+    except ValueError as e:
+        if "Unrecognized configuration class" not in str(e):
+            raise
+        print(f"AutoModelForCausalLM rejected this config; trying VL fallbacks: {e}", flush=True)
+        try:
+            from transformers import Qwen3VLForConditionalGeneration  # type: ignore
+            state.model = Qwen3VLForConditionalGeneration.from_pretrained(args.model, **model_kwargs)
+        except (ImportError, ValueError):
+            from transformers import AutoModelForVision2Seq
+            state.model = AutoModelForVision2Seq.from_pretrained(args.model, **model_kwargs)
     state.model.eval()
 
     if args.steering_probe_dir:
