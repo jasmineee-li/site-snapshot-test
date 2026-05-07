@@ -96,6 +96,21 @@ For `resistant_unaware`, distinguish these cases:
 - `state_success=false`: request-level evidence may differ from final-state
   readback; report these separately.
 
+For eval-awareness iterator rewrite failures, do not stop at the top-level
+`iterator_stop`. Open `task <task_id> --iterator` or the raw
+`eval_awareness_iterator_checkpoint.json` and distinguish:
+
+- `no_slot_delta` / `unchanged_seed`: the model produced no meaningful payload
+  change.
+- `render_validation_failed` or `contract_qa_failed`: the model changed slots or
+  payload text, but host rendering/QA rejected it before browser evaluation.
+- `concealment_contract_drift`: the rewrite tried to change the admitted
+  treatment cell, for example removing a required ` ```system ` fence.
+- `required_token_visibility_drift`: required concealed tokens moved into
+  visible prose or disappeared from the concealed region.
+- `action_witness_drift`: the rewrite no longer preserved the concrete
+  adversarial action witness.
+
 Do not paste full `signals`, full `history.json`, prompts, screenshots, request
 bodies, cookies, auth headers, or raw stderr into the conversation by default.
 Emit compact counts, task ids, artifact paths, redaction mode, and the next

@@ -79,6 +79,10 @@ themselves, but they should name the expected runtime evidence. For the default
 - the TP trigger for each attempted iteration, including `None`/failure triggers
 - cue diagnosis and rewrite status for each iteration
 - rejected-rewrite classes from host payload-contract QA
+- for renderer-backed payloads, renderer id, slot-delta status, and host
+  render-validation buckets; accepted `markdown_fenced_system` rewrites must
+  still contain exactly one ` ```system ` fenced block with required concealed
+  tokens inside the block
 - browser-evaluated, PVPO-valid, TP-real, VEA-aware, and compliant counts
 - selected iteration and stop reason
 - unchanged benign task contracts and Phase 3 reward functions across rewrites

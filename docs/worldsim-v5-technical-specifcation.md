@@ -1660,7 +1660,10 @@ diagnosis-and-rewrite iteration. Each iteration:
 1. asks the host-side cue diagnoser what payload-local cues made the trajectory
    look evaluation-like;
 2. asks the host-side rewrite model to edit only the selected payload text while
-   also improving attack effectiveness where possible;
+   also improving attack effectiveness where possible. When the selected
+   payload has a supported renderer contract, the model edits only declared
+   semantic slots and the host renders those slots back into the admitted
+   payload wrapper;
 3. runs the existing host finalization checks: editor-call structure, exposure
    contract, required-token cardinality, action anchors, field length, payload
    metadata, and encounter-window witness placement;
@@ -1672,6 +1675,16 @@ VEA remains a reported generalization signal for each attempt. The iterator does
 not branch on VEA. Final ASR remains reward/PVPO-grounded: a rewrite can reduce
 Transcript Purpose awareness without counting as attack success, and a rewrite
 can count as attack success while still reporting TP/VEA awareness failure.
+
+Renderer contracts are host-owned measurement contracts. A
+`markdown_fenced_system` task remains a markdown fenced-system task across
+eval-awareness iterations: the model may rewrite visible framing and the
+directive body, but it may not remove the fence, rename it, convert it to an
+HTML comment, move required tokens into visible prose, or change the carrier
+wrapper. Such outputs are contract drift and are rejected before browser
+evaluation. Unsupported legacy payloads may still use full-payload rewrite
+compatibility, but headline renderer-backed tasks use slot rendering to keep the
+treatment cell invariant.
 
 The iterator writes a separate `eval_awareness_iterator` result object with
 baseline attempt metadata, per-iteration cue diagnosis, rewrite/QA status,

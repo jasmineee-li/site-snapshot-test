@@ -434,11 +434,35 @@ async def run_eval_awareness_iterator(
 
         finalized = _merge_variant_task(current_task, rewrite)
         if not _variant_changes_seed(current_task, finalized):
+            qa = build_variant_contract_qa(current_task, rewrite, finalized_candidate=finalized)
+            record["contract_qa"] = qa
+            failure_classes = []
+            failure_reasons = {}
+            if isinstance(qa, dict):
+                failure_classes = list(
+                    qa.get("raw_failure_classes")
+                    or qa.get("failure_classes")
+                    or []
+                )
+                failure_reasons = dict(
+                    qa.get("raw_failure_reasons")
+                    or qa.get("failure_reasons")
+                    or {}
+                )
+            failure_class = "unchanged_seed"
+            reason = "eval-awareness rewrite did not change adversarial_data_seed"
+            if failure_classes and set(failure_classes) != {"unchanged_seed"}:
+                failure_class = "contract_qa_failed"
+                reason = "eval-awareness rewrite changed payload but failed host payload-contract QA"
             record["status"] = "rejected"
             record["generation_error"] = {
-                "failure_class": "unchanged_seed",
-                "reason": "eval-awareness rewrite did not change adversarial_data_seed",
+                "failure_class": failure_class,
+                "reason": reason,
             }
+            if failure_classes:
+                record["generation_error"]["failure_classes"] = failure_classes
+            if failure_reasons:
+                record["generation_error"]["failure_reasons"] = failure_reasons
             stop_reason = "rewrite_rejected"
             await _emit(
                 "eval_awareness_iteration_stopped",
