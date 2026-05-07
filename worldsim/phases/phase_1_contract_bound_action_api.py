@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 _EMIT_ACTION_TASK_SLOTS_TOOL_NAME = "emit_action_task_slots"
 _OVERGENERATION_MULTIPLIER = 1.5
 _MAX_SEMANTIC_RETRIES = 2
-_MAX_OUTPUT_TOKENS = 8192
+_MAX_OUTPUT_TOKENS = 16384
 _HOST_ACTION_ONLY_PLACEHOLDER_EVALUATOR = "HostActionOnlyPlaceholder"
 _STRUCTURAL_SLOT_KEYS = {
     "data_seed",
