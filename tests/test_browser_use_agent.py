@@ -893,6 +893,67 @@ async def test_pvpo_screenshot_patch_returns_placeholder_when_browser_use_screen
 
 
 @pytest.mark.asyncio
+async def test_cdp_use_cancellation_patch_drains_late_response(monkeypatch: pytest.MonkeyPatch):
+    import cdp_use.client as cdp_client_module
+
+    monkeypatch.setattr(browser_use_agent, "_CDP_USE_CANCELLATION_PATCHED", False)
+    browser_use_agent._CDP_USE_RUNTIME_COUNTERS.clear()
+    original = cdp_client_module.CDPClient.send_raw
+
+    class FakeWs:
+        async def send(self, payload):
+            _ = payload
+
+    client = cdp_client_module.CDPClient("ws://example.test")
+    client.ws = FakeWs()
+    client._message_handler_task = object()
+
+    browser_use_agent._install_cdp_use_cancellation_patch()
+    try:
+        task = asyncio.create_task(client.send_raw("Runtime.evaluate", {}))
+        await asyncio.sleep(0)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        assert browser_use_agent._CDP_USE_RUNTIME_COUNTERS["cancelled_requests_drained"] == 1
+        drain = client.pending_requests[1]
+        assert not drain.done()
+        drain.set_result({"ok": True})
+        await asyncio.sleep(0)
+        assert browser_use_agent._CDP_USE_RUNTIME_COUNTERS["late_responses_consumed"] == 1
+    finally:
+        cdp_client_module.CDPClient.send_raw = original
+        browser_use_agent._CDP_USE_CANCELLATION_PATCHED = False
+        browser_use_agent._CDP_USE_RUNTIME_COUNTERS.clear()
+
+
+@pytest.mark.asyncio
+async def test_watchdog_telemetry_patch_records_pvpo_slow_call(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from browser_use.browser.watchdogs.dom_watchdog import DOMWatchdog
+
+    monkeypatch.setattr(browser_use_agent, "_PVPO_WATCHDOG_TELEMETRY_PATCHED", False)
+
+    async def original(self, event):
+        _ = event
+        await asyncio.sleep(0)
+        return "state"
+
+    monkeypatch.setattr(DOMWatchdog, "on_BrowserStateRequestEvent", original)
+    monkeypatch.setattr(browser_use_agent, "_browser_use_watchdog_slow_ms", lambda: 1)
+
+    browser_use_agent._install_pvpo_watchdog_telemetry_patch()
+    session = SimpleNamespace(cdp_url="http://127.0.0.1:9222")
+    watchdog = SimpleNamespace(browser_session=session)
+
+    assert await DOMWatchdog.on_BrowserStateRequestEvent(watchdog, object()) == "state"
+    assert session._worldsim_browser_use_dom_watchdog_calls == 1
+    assert session._worldsim_browser_use_dom_watchdog_max_elapsed_ms >= 0
+
+
+@pytest.mark.asyncio
 async def test_pvpo_navigation_tick_patch_sends_frames_during_browser_use_navigation(
     monkeypatch: pytest.MonkeyPatch,
 ):

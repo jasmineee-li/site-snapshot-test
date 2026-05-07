@@ -471,6 +471,8 @@ async def run(args: argparse.Namespace) -> int:
         active_ids = sorted(active_initial_task_ids)
         return {
             "initial_started_tasks": len(started_initial_task_ids),
+            "running_initial_browser_tasks": len(active_ids),
+            "running_initial_browser_task_ids": active_ids[:12],
             "active_initial_tasks": len(active_ids),
             "active_initial_task_ids": active_ids[:12],
             "failed_initial_tasks": len(failed_initial_task_ids),

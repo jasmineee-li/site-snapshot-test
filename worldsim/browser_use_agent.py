@@ -19,6 +19,7 @@ import re
 import shutil
 import tempfile
 import time
+from collections import Counter
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
@@ -102,6 +103,9 @@ _PVPO_NAVIGATION_TICK_STOP_GRACE_MIN_S = 2.0
 _PVPO_SCREENSHOT_PATCHED = False
 _PVPO_SCROLL_PATCHED = False
 _PVPO_NAVIGATION_TICK_PATCHED = False
+_PVPO_WATCHDOG_TELEMETRY_PATCHED = False
+_CDP_USE_CANCELLATION_PATCHED = False
+_CDP_USE_RUNTIME_COUNTERS: Counter[str] = Counter()
 _TRANSPARENT_PNG_BASE64 = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
 )
@@ -1515,6 +1519,21 @@ def _pvpo_navigation_tick_stop_grace_s() -> float:
     return max(_PVPO_NAVIGATION_TICK_STOP_GRACE_MIN_S, _pvpo_cdp_timeout_s() + 0.25)
 
 
+def _browser_use_watchdog_slow_ms() -> int:
+    raw = os.environ.get("WORLDSIM_BROWSER_USE_WATCHDOG_SLOW_MS", "").strip()
+    if not raw:
+        return 5000
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning(
+            "WORLDSIM_BROWSER_USE_WATCHDOG_SLOW_MS=%r is not an integer; using 5000ms",
+            raw,
+        )
+        return 5000
+    return max(1, value)
+
+
 def _pvpo_navigation_tick_beginframe_params() -> dict[str, Any]:
     """Return low-impact beginFrame params for navigation progress ticks."""
     return {"noDisplayUpdates": True}
@@ -1548,6 +1567,134 @@ def _install_pvpo_beginframe_screenshot_patch() -> None:
     _worldsim_on_screenshot_event.__name__ = "on_ScreenshotEvent"
     ScreenshotWatchdog.on_ScreenshotEvent = _worldsim_on_screenshot_event
     _PVPO_SCREENSHOT_PATCHED = True
+
+
+def _install_pvpo_watchdog_telemetry_patch() -> None:
+    """Record Browser Use watchdog latency/failure counters on PVPO sessions."""
+    global _PVPO_WATCHDOG_TELEMETRY_PATCHED
+    if _PVPO_WATCHDOG_TELEMETRY_PATCHED:
+        return
+
+    try:
+        from browser_use.browser.watchdogs.default_action_watchdog import (
+            DefaultActionWatchdog,
+        )
+        from browser_use.browser.watchdogs.dom_watchdog import DOMWatchdog
+        from browser_use.browser.watchdogs.screenshot_watchdog import ScreenshotWatchdog
+    except Exception as exc:  # pragma: no cover - optional dependency import guard
+        logger.debug("Browser Use watchdog telemetry patch unavailable: %s", exc)
+        return
+
+    def _session_for_watchdog(watchdog: Any) -> Any | None:
+        session = getattr(watchdog, "browser_session", None)
+        if getattr(session, "cdp_url", None):
+            return session
+        return None
+
+    def _wrap_watchdog_method(cls: Any, method_name: str, counter_prefix: str) -> None:
+        original = getattr(cls, method_name, None)
+        if original is None or getattr(original, "_worldsim_pvpo_telemetry_wrapped", False):
+            return
+
+        async def _worldsim_watchdog_wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+            session = _session_for_watchdog(self)
+            if session is None:
+                return await original(self, *args, **kwargs)
+            _increment_session_counter(session, f"_worldsim_{counter_prefix}_calls")
+            started = time.monotonic()
+            try:
+                result = await original(self, *args, **kwargs)
+            except TimeoutError:
+                _increment_session_counter(session, f"_worldsim_{counter_prefix}_timeouts")
+                raise
+            except Exception:
+                _increment_session_counter(session, f"_worldsim_{counter_prefix}_failures")
+                raise
+            finally:
+                elapsed_ms = int((time.monotonic() - started) * 1000)
+                _record_session_max(
+                    session,
+                    f"_worldsim_{counter_prefix}_max_elapsed_ms",
+                    elapsed_ms,
+                )
+                if elapsed_ms >= _browser_use_watchdog_slow_ms():
+                    _increment_session_counter(session, f"_worldsim_{counter_prefix}_slow_calls")
+            return result
+
+        _worldsim_watchdog_wrapper.__name__ = method_name
+        _worldsim_watchdog_wrapper._worldsim_pvpo_telemetry_wrapped = True  # type: ignore[attr-defined]
+        setattr(cls, method_name, _worldsim_watchdog_wrapper)
+
+    _wrap_watchdog_method(DOMWatchdog, "on_BrowserStateRequestEvent", "browser_use_dom_watchdog")
+    _wrap_watchdog_method(ScreenshotWatchdog, "on_ScreenshotEvent", "browser_use_screenshot_watchdog")
+
+    for method_name in (
+        "on_ClickCoordinateEvent",
+        "on_ClickElementEvent",
+        "on_GetDropdownOptionsEvent",
+        "on_GoBackEvent",
+        "on_GoForwardEvent",
+        "on_RefreshEvent",
+        "on_ScrollEvent",
+        "on_ScrollToTextEvent",
+        "on_SelectDropdownOptionEvent",
+        "on_SendKeysEvent",
+        "on_TypeTextEvent",
+        "on_UploadFileEvent",
+        "on_WaitEvent",
+    ):
+        _wrap_watchdog_method(
+            DefaultActionWatchdog,
+            method_name,
+            f"browser_use_default_action_{method_name.removeprefix('on_')}",
+        )
+
+    _PVPO_WATCHDOG_TELEMETRY_PATCHED = True
+
+
+def _install_cdp_use_cancellation_patch() -> None:
+    """Make cdp-use request cancellation consume late Chrome responses quietly.
+
+    Browser Use wraps many CDP calls in its own event deadlines. When those
+    deadlines cancel ``CDPClient.send_raw()``, the future stored in
+    ``pending_requests`` is left done/cancelled. Chrome may still answer later,
+    causing cdp-use to log a misleading duplicate-response warning. Replace the
+    abandoned future with a drain future so the message handler consumes that
+    late response as ordinary cleanup.
+    """
+    global _CDP_USE_CANCELLATION_PATCHED
+    if _CDP_USE_CANCELLATION_PATCHED:
+        return
+    try:
+        import cdp_use.client as cdp_client_module
+    except Exception as exc:  # pragma: no cover - optional dependency import guard
+        logger.debug("cdp-use cancellation patch unavailable: %s", exc)
+        return
+
+    CDPClient = cdp_client_module.CDPClient
+    original = CDPClient.send_raw
+    if getattr(original, "_worldsim_cancellation_patched", False):
+        _CDP_USE_CANCELLATION_PATCHED = True
+        return
+
+    async def _worldsim_send_raw(self: Any, method: str, params: Any = None, session_id: str | None = None) -> dict[str, Any]:
+        before_id = int(getattr(self, "msg_id", 0))
+        try:
+            return await original(self, method, params, session_id)
+        except asyncio.CancelledError:
+            request_id = int(getattr(self, "msg_id", before_id))
+            future = getattr(self, "pending_requests", {}).get(request_id)
+            if request_id > before_id and future is not None and future.done():
+                drain_future = asyncio.get_running_loop().create_future()
+                self.pending_requests[request_id] = drain_future
+                _CDP_USE_RUNTIME_COUNTERS["cancelled_requests_drained"] += 1
+                drain_future.add_done_callback(_consume_cdp_use_drain_future)
+            raise
+
+    _worldsim_send_raw.__name__ = "send_raw"
+    _worldsim_send_raw._worldsim_cancellation_patched = True  # type: ignore[attr-defined]
+    CDPClient.send_raw = _worldsim_send_raw
+    _CDP_USE_CANCELLATION_PATCHED = True
 
 
 def _install_pvpo_scroll_patch() -> None:
@@ -1634,6 +1781,12 @@ def _install_pvpo_navigation_tick_patch() -> None:
         )
         try:
             return await original(self, *args, **kwargs)
+        except TimeoutError:
+            _increment_session_counter(self, "_worldsim_browser_use_navigation_timeouts")
+            raise
+        except Exception:
+            _increment_session_counter(self, "_worldsim_browser_use_navigation_failures")
+            raise
         finally:
             await _stop_pvpo_navigation_tick(
                 self,
@@ -1931,6 +2084,17 @@ def _suppress_late_cdp_task_result(
             )
 
 
+def _consume_cdp_use_drain_future(future: asyncio.Future[Any]) -> None:
+    try:
+        future.result()
+    except asyncio.CancelledError:
+        _CDP_USE_RUNTIME_COUNTERS["drain_future_cancelled"] += 1
+    except Exception:
+        _CDP_USE_RUNTIME_COUNTERS["late_response_errors"] += 1
+    else:
+        _CDP_USE_RUNTIME_COUNTERS["late_responses_consumed"] += 1
+
+
 async def _pvpo_get_scroll_state(browser_session: Any, cdp_session: Any) -> _PvpoScrollState | None:
     cdp_client = cdp_session.cdp_client
     session_id = cdp_session.session_id
@@ -2086,6 +2250,14 @@ def _increment_session_counter(session: Any, name: str) -> int:
     updated = current + 1
     setattr(session, name, updated)
     return updated
+
+
+def _record_session_max(session: Any, name: str, value: int) -> None:
+    if session is None:
+        return
+    current = getattr(session, name, None)
+    if not isinstance(current, int) or value > current:
+        setattr(session, name, value)
 
 
 async def _drain_pvpo_beginframe_after_auxiliary_frame(
@@ -2595,6 +2767,8 @@ class BrowserUseAgent:
             _install_pvpo_beginframe_screenshot_patch()
             _install_pvpo_scroll_patch()
             _install_pvpo_navigation_tick_patch()
+            _install_pvpo_watchdog_telemetry_patch()
+            _install_cdp_use_cancellation_patch()
             from worldsim.phase_4.pvpo_beginframe import pvpo_endpoint_lease
 
             pvpo_endpoint_lease_cm = pvpo_endpoint_lease(resolved_pvpo_cdp_url)
@@ -2621,6 +2795,9 @@ class BrowserUseAgent:
                     self._session._worldsim_pvpo_beginframe_lock = asyncio.Lock()
                 self._session._worldsim_pvpo_disable_browser_use_screenshots = not bool(
                     self.use_vision
+                )
+                self._session._worldsim_browser_use_cdp_counter_start = dict(
+                    _CDP_USE_RUNTIME_COUNTERS
                 )
         except Exception:
             await _release_pvpo_endpoint_lease()
@@ -2794,6 +2971,18 @@ class BrowserUseAgent:
         if self._session is None:
             return
         counter_names = (
+            "_worldsim_browser_use_dom_watchdog_calls",
+            "_worldsim_browser_use_dom_watchdog_timeouts",
+            "_worldsim_browser_use_dom_watchdog_failures",
+            "_worldsim_browser_use_dom_watchdog_slow_calls",
+            "_worldsim_browser_use_dom_watchdog_max_elapsed_ms",
+            "_worldsim_browser_use_screenshot_watchdog_calls",
+            "_worldsim_browser_use_screenshot_watchdog_timeouts",
+            "_worldsim_browser_use_screenshot_watchdog_failures",
+            "_worldsim_browser_use_screenshot_watchdog_slow_calls",
+            "_worldsim_browser_use_screenshot_watchdog_max_elapsed_ms",
+            "_worldsim_browser_use_navigation_timeouts",
+            "_worldsim_browser_use_navigation_failures",
             "_worldsim_pvpo_scroll_wheel_successes",
             "_worldsim_pvpo_scroll_wheel_late_successes",
             "_worldsim_pvpo_scroll_wheel_timeouts",
@@ -2822,6 +3011,21 @@ class BrowserUseAgent:
             value = getattr(self._session, name, 0)
             if isinstance(value, int) and value > 0:
                 self._browser_runtime[name.removeprefix("_worldsim_")] = value
+        for attr_name in dir(self._session):
+            if not attr_name.startswith("_worldsim_browser_use_default_action_"):
+                continue
+            value = getattr(self._session, attr_name, 0)
+            if isinstance(value, int) and value > 0:
+                self._browser_runtime[attr_name.removeprefix("_worldsim_")] = value
+        start_counters = getattr(self._session, "_worldsim_browser_use_cdp_counter_start", {})
+        if isinstance(start_counters, dict):
+            for key, value in _CDP_USE_RUNTIME_COUNTERS.items():
+                start = start_counters.get(key, 0)
+                if not isinstance(start, int):
+                    start = 0
+                delta = int(value) - start
+                if delta > 0:
+                    self._browser_runtime[f"browser_use_cdp_{key}"] = delta
         try:
             from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator
 

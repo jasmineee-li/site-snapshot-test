@@ -101,10 +101,15 @@ async def recycle_pvpo_browser_after_task(
         return payload
 
     if requested_mode in {"auto", "docker"} and container_name:
+        before_probe = await _managed_container_process_probe(container_name)
         docker_payload = await _restart_managed_container(
             container_name,
             cdp_url,
             timeout_s=budget,
+        )
+        docker_payload["container_probe_before"] = before_probe
+        docker_payload["container_probe_after"] = await _managed_container_process_probe(
+            container_name
         )
         payload.update(docker_payload)
         if docker_payload.get("recycle_status") == "recycled":
@@ -284,6 +289,80 @@ async def _run_docker_restart(container_name: str, *, timeout_s: float) -> dict[
             "stdout": stdout.decode("utf-8", errors="replace").strip(),
             "stderr": (
                 stderr.decode("utf-8", errors="replace").strip() or "docker restart timed out"
+            ),
+        }
+    return {
+        "returncode": int(process.returncode or 0),
+        "stdout": stdout.decode("utf-8", errors="replace").strip(),
+        "stderr": stderr.decode("utf-8", errors="replace").strip(),
+    }
+
+
+async def _managed_container_process_probe(container_name: str) -> dict[str, Any]:
+    """Return lightweight process evidence for a managed PVPO Chrome container."""
+    if shutil.which("docker") is None:
+        return {"status": "unavailable", "reason": "docker executable not found"}
+    inspect_result = await _run_docker_command(
+        "inspect",
+        "-f",
+        "{{.State.Running}} {{.State.Pid}} {{.RestartCount}}",
+        container_name,
+        timeout_s=3.0,
+    )
+    top_result = await _run_docker_command(
+        "top",
+        container_name,
+        "-eo",
+        "pid,ppid,stat,comm",
+        timeout_s=3.0,
+    )
+    payload: dict[str, Any] = {
+        "status": "ok" if inspect_result["returncode"] == 0 else "failed",
+        "inspect_returncode": inspect_result["returncode"],
+        "inspect_stdout": inspect_result["stdout"][:200],
+        "inspect_stderr": inspect_result["stderr"][:200],
+        "top_returncode": top_result["returncode"],
+        "top_stderr": top_result["stderr"][:200],
+    }
+    process_lines = [
+        line
+        for line in top_result["stdout"].splitlines()
+        if line.strip() and not line.lower().startswith("pid")
+    ]
+    payload["process_count"] = len(process_lines)
+    payload["chrome_process_count"] = sum(
+        1 for line in process_lines if "chrome" in line.lower()
+    )
+    payload["process_sample"] = process_lines[:12]
+    parts = inspect_result["stdout"].split()
+    if len(parts) >= 3:
+        payload["container_running"] = parts[0].lower() == "true"
+        payload["container_init_pid"] = parts[1]
+        payload["container_restart_count"] = parts[2]
+    return payload
+
+
+async def _run_docker_command(*args: str, timeout_s: float) -> dict[str, Any]:
+    try:
+        process = await asyncio.create_subprocess_exec(
+            "docker",
+            *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    except OSError as exc:
+        return {"returncode": 127, "stdout": "", "stderr": str(exc)}
+    try:
+        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout_s)
+    except TimeoutError:
+        with contextlib.suppress(ProcessLookupError):
+            process.kill()
+        stdout, stderr = await process.communicate()
+        return {
+            "returncode": 124,
+            "stdout": stdout.decode("utf-8", errors="replace").strip(),
+            "stderr": (
+                stderr.decode("utf-8", errors="replace").strip() or "docker command timed out"
             ),
         }
     return {
