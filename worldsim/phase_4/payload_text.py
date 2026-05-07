@@ -242,10 +242,10 @@ def _synchronize_variant_payload_texts(
     merged_task: dict[str, Any],
     candidate_seed: dict[str, Any],
     candidate_payload_text: dict[str, Any] | None = None,
-) -> None:
+) -> bool:
     payload_texts = original_task.get("payload_texts")
     if not isinstance(payload_texts, list) or not payload_texts:
-        return
+        return True
     selected_index = original_task.get("selected_payload_index", 0)
     if not isinstance(selected_index, int) or not (0 <= selected_index < len(payload_texts)):
         logger.warning(
@@ -253,7 +253,7 @@ def _synchronize_variant_payload_texts(
             original_task.get("id", "unknown"),
             selected_index,
         )
-        return
+        return False
     rendered_payload = _extract_variant_rendered_payload(original_task, candidate_seed)
     if not isinstance(rendered_payload, str) or not rendered_payload:
         logger.warning(
@@ -261,7 +261,7 @@ def _synchronize_variant_payload_texts(
             "keeping original payload_texts",
             original_task.get("id", "unknown"),
         )
-        return
+        return False
     source_payload = (
         candidate_payload_text
         if isinstance(candidate_payload_text, dict)
@@ -274,11 +274,12 @@ def _synchronize_variant_payload_texts(
         rendered_payload,
     )
     if synced_entry is None:
-        return
+        return False
     merged_payloads = json.loads(json.dumps(payload_texts))
     merged_payloads[selected_index] = synced_entry
     merged_task["payload_texts"] = merged_payloads
     merged_task["payload_text"] = json.loads(json.dumps(synced_entry))
+    return True
 
 
 def _payload_arg(task: dict[str, Any]) -> str:

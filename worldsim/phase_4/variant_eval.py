@@ -57,12 +57,17 @@ def _merge_variant_task(
 
     merged["adversarial_data_seed"] = candidate_seed
     candidate_payload_text = candidate.get("payload_text")
-    _synchronize_variant_payload_texts(
+    if not _synchronize_variant_payload_texts(
         original_task,
         merged,
         candidate_seed,
         candidate_payload_text if isinstance(candidate_payload_text, dict) else None,
-    )
+    ):
+        logger.warning(
+            "Variant produced seed/payload_text mismatch for task %s; keeping original task",
+            original_task.get("id", "unknown"),
+        )
+        return json.loads(json.dumps(original_task))
     for field in ("applied_strategy", "placement_fix", "ecological_validity_fix"):
         if field in candidate:
             merged[field] = candidate[field]
