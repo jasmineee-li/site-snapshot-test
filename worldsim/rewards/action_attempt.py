@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from worldsim.rewards.final_state_webarena_verified_gitlab import (
+    _gitlab_mutation_source_event_valid,
+)
 from worldsim.rewards.network_trace import (
     _expected_http_methods,
     _network_event_expected_fields_match,
@@ -17,9 +20,9 @@ from worldsim.rewards.network_trace import (
 _NETWORK_EVENT_REWARD_TYPES = frozenset({"NetworkEventEvaluator", "network_event"})
 _FINAL_STATE_REWARD_TYPES = frozenset({"FinalStateEvaluator", "final_state"})
 
+
 def _is_network_event_evaluator_name(name: Any) -> bool:
     return isinstance(name, str) and name in _NETWORK_EVENT_REWARD_TYPES
-
 
 
 def extract_network_action_attempt(
@@ -90,7 +93,9 @@ def extract_network_action_attempt(
     }
 
 
-def _network_event_attempt_configs(reward: dict[str, Any]) -> list[tuple[int | None, dict[str, Any]]]:
+def _network_event_attempt_configs(
+    reward: dict[str, Any],
+) -> list[tuple[int | None, dict[str, Any]]]:
     if not isinstance(reward, dict):
         return []
     if "eval" in reward and isinstance(reward["eval"], list):
@@ -126,7 +131,11 @@ def _final_state_network_event_attempt_config(config: dict[str, Any]) -> dict[st
         return None
     return {
         "type": "NetworkEventEvaluator",
-        "expected": dict(network_event),
+        "expected": {
+            **dict(network_event),
+            "__worldsim_action_kind": expected.get("action_kind"),
+            "__worldsim_contains": expected.get("contains"),
+        },
         "last_event_only": False,
     }
 
@@ -172,6 +181,8 @@ def _network_action_attempt_evidence_for_config(
         )
         if matched_expected_url is None:
             continue
+        if not _source_action_event_valid_for_attempt(expected, event, instance):
+            continue
         fields_ok, field_reason = _network_event_expected_fields_match(event, expected)
         post_text = _network_event_post_text(event)
         evidence.append(
@@ -190,3 +201,22 @@ def _network_action_attempt_evidence_for_config(
     if not evidence:
         return [], f"no matching network event for {sorted(expected_methods)} {resolved_urls}"
     return evidence, None
+
+
+def _source_action_event_valid_for_attempt(
+    expected: dict[str, Any],
+    event: dict[str, Any],
+    instance: dict[str, Any],
+) -> bool:
+    site = str(instance.get("site_name") or "").strip().lower()
+    action_kind = str(expected.get("__worldsim_action_kind") or "").strip()
+    witness = str(expected.get("__worldsim_contains") or "").strip()
+    if site == "gitlab" and action_kind in {"create_issue", "create_issue_note"}:
+        return _gitlab_mutation_source_event_valid(
+            action_kind=action_kind,
+            witness=witness,
+            expected=expected,
+            event=event,
+            instance=instance,
+        )
+    return True

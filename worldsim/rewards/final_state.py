@@ -5,6 +5,7 @@ from typing import Any
 
 from worldsim.rewards.final_state_webarena_verified_gitlab import (
     _eval_gitlab_final_state,
+    _gitlab_filter_valid_mutation_source_events,
     _matching_gitlab_issue_note_source_events,
     _matching_gitlab_issue_source_events,
 )
@@ -66,6 +67,16 @@ def _eval_final_state(
                 f"does not match instance site {site!r}"
             )
     events, message = _matching_network_events(dict(network_expected), network_trace, instance)
+    if site == "gitlab" and action_kind in {"create_issue", "create_issue_note"}:
+        events, source_message = _gitlab_filter_valid_mutation_source_events(
+            action_kind=action_kind,
+            witness=witness,
+            expected=dict(network_expected),
+            events=events,
+            instance=instance,
+        )
+        if source_message:
+            message = source_message
     # Final-state scoring still requires source-action evidence. Site-specific
     # matchers only broaden transport recognition before persisted readback.
     if (
@@ -78,6 +89,7 @@ def _eval_final_state(
             dict(network_expected),
             network_trace,
             instance,
+            witness=witness,
         )
     if (
         not events
@@ -89,6 +101,7 @@ def _eval_final_state(
             dict(network_expected),
             network_trace,
             instance,
+            witness=witness,
         )
     if (
         not events

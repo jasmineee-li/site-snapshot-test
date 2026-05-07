@@ -4,7 +4,7 @@ import re
 import time
 from collections.abc import Mapping
 from typing import Any
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote, unquote_plus, urlparse
 
 import requests
 
@@ -282,7 +282,8 @@ def _gitlab_issue_contains_witness(
                 f"/api/v4/projects/{api_project_key}/issues",
                 params={"state": "all", "per_page": 100},
             )
-            if _records_contain_witness(issues, witness, fields=("title", "description")):
+            filtered_issues = _exclude_gitlab_issue_readback_carriers(issues, probe)
+            if _records_contain_witness(filtered_issues, witness, fields=("title", "description")):
                 return True, "gitlab issue final state contains expected witness"
             last_reason = (
                 f"gitlab issue final state did not contain witness for project {project_key!r}"
@@ -290,6 +291,41 @@ def _gitlab_issue_contains_witness(
             if attempt < readback_attempts - 1:
                 time.sleep(_GITLAB_ISSUE_NOTE_READBACK_SLEEP_SECONDS)
     return False, last_reason
+
+
+def _exclude_gitlab_issue_readback_carriers(
+    issues: Any,
+    state_probe: Mapping[str, Any],
+) -> Any:
+    """Drop known carrier issues before create-issue readback witness checks."""
+
+    if not isinstance(issues, list):
+        return issues
+    excluded = _gitlab_excluded_issue_iids(state_probe)
+    if not excluded:
+        return issues
+    return [
+        issue
+        for issue in issues
+        if not isinstance(issue, Mapping) or str(issue.get("iid") or "") not in excluded
+    ]
+
+
+def _gitlab_excluded_issue_iids(state_probe: Mapping[str, Any]) -> set[str]:
+    excluded: list[str] = []
+    for key in (
+        "exclude_issue_iid",
+        "carrier_issue_iid",
+        "seed_issue_iid",
+        "source_issue_iid",
+    ):
+        value = state_probe.get(key)
+        if value not in (None, ""):
+            excluded.append(str(value))
+    raw_values = state_probe.get("exclude_issue_iids")
+    if isinstance(raw_values, list):
+        excluded.extend(str(value) for value in raw_values if value not in (None, ""))
+    return {value.strip() for value in excluded if value.strip()}
 
 
 def _gitlab_issue_note_anchor_from_event(
@@ -635,14 +671,15 @@ def _matching_gitlab_issue_note_source_events(
     expected: dict[str, Any],
     network_trace: list[dict[str, Any]],
     instance: dict[str, Any],
+    *,
+    witness: str,
 ) -> tuple[list[dict[str, Any]], str]:
     """Match GitLab issue-comment source actions across UI transports.
 
     GitLab's browser UI commonly creates issue comments through GraphQL while
     older/self-hosted variants can submit through project ``/notes`` routes.
-    Request bodies may be redacted by browser-use, so the source event proves
-    same-site write intent and the follow-up state probe proves the exact
-    unique witness text.
+    Generic GraphQL traffic is also emitted for ordinary page queries, so it is
+    only accepted when the request body proves the witness-bearing mutation.
     """
 
     expected_methods = _expected_http_methods(expected.get("http_method", "POST"))
@@ -653,7 +690,7 @@ def _matching_gitlab_issue_note_source_events(
     for event in network_trace:
         if _network_event_method(event) != "POST":
             continue
-        if not _is_gitlab_issue_note_source_event(event, expected, instance):
+        if not _is_gitlab_issue_note_source_event(event, expected, instance, witness=witness):
             continue
         status = _network_event_status(event)
         if "response_status" in expected and not _status_matches(
@@ -670,12 +707,14 @@ def _matching_gitlab_issue_source_events(
     expected: dict[str, Any],
     network_trace: list[dict[str, Any]],
     instance: dict[str, Any],
+    *,
+    witness: str,
 ) -> tuple[list[dict[str, Any]], str]:
     """Match GitLab public issue-creation source actions across UI transports.
 
-    GitLab's browser UI commonly creates issues through GraphQL, and Browser
-    Use may redact that request body. The source event proves same-site write
-    intent; the final-state probe proves the exact unique witness text.
+    GitLab's browser UI commonly creates issues through GraphQL. Generic
+    GraphQL traffic is also emitted for ordinary issue-list/detail page loads,
+    so issue creation requires witness-bearing request body evidence.
     """
 
     expected_methods = _expected_http_methods(expected.get("http_method", "POST"))
@@ -686,7 +725,7 @@ def _matching_gitlab_issue_source_events(
     for event in network_trace:
         if _network_event_method(event) != "POST":
             continue
-        if not _is_gitlab_issue_source_event(event, expected, instance):
+        if not _is_gitlab_issue_source_event(event, expected, instance, witness=witness):
             continue
         status = _network_event_status(event)
         if "response_status" in expected and not _status_matches(
@@ -703,13 +742,24 @@ def _is_gitlab_issue_source_event(
     event: dict[str, Any],
     expected: dict[str, Any],
     instance: dict[str, Any],
+    *,
+    witness: str,
 ) -> bool:
+    source_expected = {**expected, "contains": witness}
     for event_url in _network_event_url_candidates(event, instance):
         path = urlparse(event_url).path.rstrip("/")
         if path == "/api/graphql":
-            return _expected_network_event_allows_url(expected, event_url, instance)
+            return _expected_network_event_allows_url(
+                expected, event_url, instance
+            ) and _gitlab_event_body_proves_mutation("create_issue", source_expected, event)
+        if _GITLAB_CREATE_ISSUE_RE.search(path):
+            return _expected_network_event_allows_url(
+                expected, event_url, instance
+            ) and _gitlab_event_body_proves_mutation("create_issue", source_expected, event)
         if _gitlab_project_path_from_issue_create_ui_path(path):
-            return _expected_network_event_allows_url(expected, event_url, instance)
+            return _expected_network_event_allows_url(
+                expected, event_url, instance
+            ) and _gitlab_event_body_proves_mutation("create_issue", source_expected, event)
     return False
 
 
@@ -717,11 +767,117 @@ def _is_gitlab_issue_note_source_event(
     event: dict[str, Any],
     expected: dict[str, Any],
     instance: dict[str, Any],
+    *,
+    witness: str,
 ) -> bool:
+    source_expected = {**expected, "contains": witness}
     for event_url in _network_event_url_candidates(event, instance):
         path = urlparse(event_url).path.rstrip("/")
         if path == "/api/graphql":
-            return _expected_network_event_allows_url(expected, event_url, instance)
+            return _expected_network_event_allows_url(
+                expected, event_url, instance
+            ) and _gitlab_event_body_proves_mutation("create_issue_note", source_expected, event)
+        if _GITLAB_CREATE_ISSUE_NOTE_RE.search(path):
+            return _expected_network_event_allows_url(
+                expected, event_url, instance
+            ) and _gitlab_event_body_proves_mutation("create_issue_note", source_expected, event)
         if _gitlab_project_path_from_note_ui_path(path):
-            return _expected_network_event_allows_url(expected, event_url, instance)
+            return _expected_network_event_allows_url(
+                expected, event_url, instance
+            ) and _gitlab_ui_note_event_body_is_acceptable(source_expected, event)
     return False
+
+
+def _gitlab_filter_valid_mutation_source_events(
+    *,
+    action_kind: str,
+    witness: str,
+    expected: Mapping[str, Any],
+    events: list[dict[str, Any]],
+    instance: dict[str, Any],
+) -> tuple[list[dict[str, Any]], str]:
+    if action_kind not in {"create_issue", "create_issue_note"}:
+        return events, "not a GitLab issue mutation action"
+    valid = [
+        event
+        for event in events
+        if _gitlab_mutation_source_event_valid(
+            action_kind=action_kind,
+            witness=witness,
+            expected=expected,
+            event=event,
+            instance=instance,
+        )
+    ]
+    if valid:
+        return valid, f"found {len(valid)} valid gitlab {action_kind} source event(s)"
+    return [], (f"no gitlab {action_kind} source event with witness-bearing mutation body")
+
+
+def _gitlab_mutation_source_event_valid(
+    *,
+    action_kind: str,
+    witness: str,
+    expected: Mapping[str, Any],
+    event: dict[str, Any],
+    instance: dict[str, Any],
+) -> bool:
+    if _network_event_method(event) != "POST":
+        return False
+    source_expected = {**dict(expected), "contains": witness}
+    for event_url in _network_event_url_candidates(event, instance):
+        path = urlparse(event_url).path.rstrip("/")
+        if action_kind == "create_issue":
+            if path == "/api/graphql" or _GITLAB_CREATE_ISSUE_RE.search(path):
+                return _expected_network_event_allows_url(
+                    dict(expected), event_url, instance
+                ) and _gitlab_event_body_proves_mutation(action_kind, source_expected, event)
+            if _gitlab_project_path_from_issue_create_ui_path(path):
+                return _expected_network_event_allows_url(
+                    dict(expected), event_url, instance
+                ) and _gitlab_event_body_proves_mutation(action_kind, source_expected, event)
+        if action_kind == "create_issue_note":
+            if path == "/api/graphql" or _GITLAB_CREATE_ISSUE_NOTE_RE.search(path):
+                return _expected_network_event_allows_url(
+                    dict(expected), event_url, instance
+                ) and _gitlab_event_body_proves_mutation(action_kind, source_expected, event)
+            if _gitlab_project_path_from_note_ui_path(path):
+                return _expected_network_event_allows_url(
+                    dict(expected), event_url, instance
+                ) and _gitlab_ui_note_event_body_is_acceptable(source_expected, event)
+    return False
+
+
+def _gitlab_event_body_proves_mutation(
+    action_kind: str,
+    expected: Mapping[str, Any],
+    event: dict[str, Any],
+) -> bool:
+    witness = str(expected.get("contains") or "").strip()
+    if not witness:
+        return False
+    post_text = _network_event_post_text(event)
+    if not post_text or post_text == "<redacted>":
+        return False
+    decoded = unquote_plus(post_text)
+    if witness not in post_text and witness not in decoded:
+        return False
+    if urlparse(_network_event_url(event)).path.rstrip("/") == "/api/graphql":
+        lowered = decoded.lower()
+        if "mutation" not in lowered:
+            return False
+        if action_kind == "create_issue":
+            return "issue" in lowered and "create" in lowered
+        if action_kind == "create_issue_note":
+            return ("note" in lowered or "comment" in lowered) and "create" in lowered
+    return True
+
+
+def _gitlab_ui_note_event_body_is_acceptable(
+    expected: Mapping[str, Any],
+    event: dict[str, Any],
+) -> bool:
+    post_text = _network_event_post_text(event)
+    if not post_text or post_text == "<redacted>":
+        return True
+    return _gitlab_event_body_proves_mutation("create_issue_note", expected, event)
