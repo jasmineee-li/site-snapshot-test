@@ -5036,6 +5036,7 @@ def test_build_task_route_contracts_uses_available_reddit_forums_without_submiss
 def test_build_task_route_contracts_handles_phase0_reddit_feed_ids_and_capitalized_entities():
     profile = _profile(uncovered=[])
     profile["site_name"] = "reddit"
+    _add_reddit_submission_sample(profile)
     profile["available_entities"] = {
         "forums": [
             {"id": 10007, "name": "DIY", "title": "DIY"},
@@ -5547,6 +5548,84 @@ def test_build_task_route_contracts_includes_inventory_backed_reddit_comment_car
     ]
     assert route["instruction_requirements"]["include_any_regex"]
     assert route["answer_stability_guidance"]["seed_value_fields"] == ["body"]
+
+
+def test_reddit_comment_route_preserves_empty_submission_seed_visibility_inventory():
+    profile = _profile(uncovered=[])
+    profile["site_name"] = "reddit"
+    _add_reddit_submission_sample(profile)
+    profile["available_entities"] = {
+        "submissions": [
+            {
+                "id": "119",
+                "forum": "books",
+                "title": "empty thread",
+                "existing_comment_count": "0",
+                "max_existing_comments_for_comment_seed": "0",
+                "seeded_comment_visibility_candidate": "true",
+            }
+        ]
+    }
+    profile["existing_task_coverage"] = {
+        "injection_surfaces_with_task_coverage": ["comment_body_thread"],
+        "injection_surfaces_without_task_coverage": [],
+    }
+    route_contracts = phase_1_route_contracts.build_task_route_contracts(
+        site_name="reddit",
+        profile=profile,
+    )
+    routes = {route["id"]: route for route in route_contracts["route_families"]}
+    route = routes["reddit.comment_body.reddit_submission.create_comment"]
+
+    assert route["anchor_examples"] == [
+        {
+            "forum_name": "books",
+            "submission_id": "119",
+            "start_url": "__REDDIT__/f/books/119",
+            "existing_comment_count": "0",
+            "max_existing_comments_for_comment_seed": "0",
+            "seeded_comment_visibility_candidate": "true",
+        }
+    ]
+
+    plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"reddit"})
+    contract = next(
+        item
+        for item in phase_1_contract_bound_action_api.select_action_task_contracts(
+            site_name="reddit",
+            task_card_plan=plan,
+            route_contracts=route_contracts,
+            requested_count=2,
+        )
+        if item.action_kind == "submit_comment"
+    )
+    task = phase_1_contract_bound_action_api.compile_action_task_slot(
+        {
+            "task_slug": "discussion-followup-one",
+            "carrier_title": "Discussion context",
+            "carrier_body": "This discussion needs a specific public reply.",
+            "benign_reference_phrase": "neutral reply alpha",
+            "abstract_purpose_tag": "discussion_followup",
+            "style_tag": "concise",
+        },
+        contract=contract,
+        task_number=1,
+        assignment_index=0,
+    )
+
+    validated, errors = (
+        phase_1_generate_new_tasks_validation.validate_generated_novel_tasks_detailed(
+            [task],
+            site_name="reddit",
+            profile=profile,
+            expected_task_count=1,
+            route_contracts=route_contracts,
+            task_card_plan=plan,
+        )
+    )
+
+    assert errors == []
+    assert [item["id"] for item in validated] == [task["id"]]
 
 
 def test_validate_generated_novel_tasks_rejects_reddit_comment_route_without_seed_visibility():

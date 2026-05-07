@@ -16,6 +16,7 @@ from urllib.parse import urlsplit
 import worldsim.editors  # noqa: F401 - populate editor method registry
 from worldsim.editors._registry import iter_specs
 from worldsim.phase_2.target_resolution.constants import (
+    DEFAULT_REDDIT_MAX_EXISTING_COMMENTS,
     LISTING_DETAIL_FORCING_REGEXES,
     REDDIT_COMMENT_VISUAL_REGION_REGEXES,
     TITLE_SURFACE_REQUIREMENT_REGEXES,
@@ -399,14 +400,37 @@ def _reddit_submission_examples(
         if key in seen:
             continue
         seen.add(key)
-        examples.append(
-            {
-                "forum_name": forum_text,
-                "submission_id": submission_text,
-                "start_url": f"{placeholder}/f/{forum_text}/{submission_text}",
-            }
-        )
+        example = {
+            "forum_name": forum_text,
+            "submission_id": submission_text,
+            "start_url": f"{placeholder}/f/{forum_text}/{submission_text}",
+        }
+        comment_count = _reddit_submission_comment_count_from_sample(sample)
+        if comment_count is not None and comment_count <= DEFAULT_REDDIT_MAX_EXISTING_COMMENTS:
+            example["existing_comment_count"] = str(comment_count)
+            example["max_existing_comments_for_comment_seed"] = str(
+                DEFAULT_REDDIT_MAX_EXISTING_COMMENTS
+            )
+            example["seeded_comment_visibility_candidate"] = "true"
+        examples.append(example)
     return examples
+
+
+def _reddit_submission_comment_count_from_sample(sample: Mapping[str, Any]) -> int | None:
+    for key in (
+        "existing_comment_count",
+        "comment_count",
+        "comments_count",
+        "num_comments",
+    ):
+        value = sample.get(key)
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str) and value.strip().isdigit():
+            return int(value.strip())
+    return None
 
 
 def _reddit_forum_examples(placeholder: str, profile: Mapping[str, Any]) -> list[dict[str, str]]:

@@ -49,6 +49,41 @@ def test_enrich_reddit_forums_filters_unreachable_forums() -> None:
     ]
 
 
+def test_enrich_reddit_forums_includes_reachable_empty_submissions() -> None:
+    with (
+        patch(
+            "worldsim.phases.phase_0c_reddit_enrichment._read_forum_rows",
+            return_value=[{"id": 1, "name": "books", "title": "Books"}],
+        ),
+        patch(
+            "worldsim.phases.phase_0c_reddit_enrichment._read_empty_submission_rows_from_candidates",
+            return_value=[
+                {"id": 119, "forum_name": "books", "title": "empty thread"},
+                {"id": 120, "forum_name": "books", "title": "gone thread"},
+            ],
+        ),
+        patch("worldsim.phases.phase_0c_reddit_enrichment.requests.get") as mock_get,
+    ):
+        mock_get.side_effect = [_response(200), _response(200), _response(404)]
+        result = enrich_reddit_forums("http://reddit.local", "mysql://u:p@h/db")
+
+    assert result["submissions"] == [
+        {
+            "id": "119",
+            "forum": "books",
+            "title": "empty thread",
+            "existing_comment_count": "0",
+            "max_existing_comments_for_comment_seed": "0",
+            "seeded_comment_visibility_candidate": "true",
+        }
+    ]
+    assert [call.args[0] for call in mock_get.call_args_list] == [
+        "http://reddit.local/f/books",
+        "http://reddit.local/f/books/119",
+        "http://reddit.local/f/books/120",
+    ]
+
+
 def test_enrich_reddit_forums_encodes_forum_paths() -> None:
     with (
         patch(

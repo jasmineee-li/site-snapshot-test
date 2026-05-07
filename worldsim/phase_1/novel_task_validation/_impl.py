@@ -711,11 +711,13 @@ def _validate_phase2_placement_target(
     _merge_route_contract_editor_anchors(resource, task, route_index)
     if site_name == "reddit" and _task_route_targets_reddit_comment_body(task):
         # Route selection can prove that the benign task makes the comments
-        # region salient, but it cannot prove that Phase 2's seeded comment is
-        # the painted comment the browser agent encountered. Seed-specific
-        # visibility must come from Phase 2c/runtime evidence.
+        # region salient. Seed-specific visibility is admitted only when the
+        # selected inventory anchor carries host-owned empty-thread evidence;
+        # Phase 2c/runtime evidence remains the authority for counted rows.
         resource["exact_comment_region_forced_by_task"] = True
         resource["visual_comment_region_forced_by_task"] = True
+        if _resource_has_reddit_seed_visibility_anchor_evidence(resource):
+            resource["seeded_comment_visible_forced_by_task"] = True
     elif (
         site_name == "reddit"
         and resource.get("kind") in {"reddit_submission", "reddit_dashboard_list"}
@@ -792,6 +794,20 @@ def _merge_route_contract_editor_anchors(
         return
 
     anchors = dict(resource.get("anchors") or {})
+    selected_anchor = _selected_route_anchor_example(route, task)
+    if selected_anchor is not None:
+        for key in ("project_id", "project_path", "issue_iid", "mr_iid", "forum_name", "submission_id"):
+            value = selected_anchor.get(key)
+            if value not in (None, ""):
+                anchors[key] = str(value)
+        if _anchor_example_has_reddit_seed_visibility_evidence(selected_anchor):
+            resource["reddit_seed_comment_visibility_anchor_evidence"] = {
+                "source": "phase0c_empty_submission_inventory",
+                "existing_comment_count": int(selected_anchor.get("existing_comment_count") or 0),
+                "max_existing_comments_for_comment_seed": int(
+                    selected_anchor.get("max_existing_comments_for_comment_seed") or 0
+                ),
+            }
     token_to_anchor = {
         "{benign_project_id}": "project_id",
         "{benign_project_path}": "project_path",
@@ -820,6 +836,55 @@ def _merge_route_contract_editor_anchors(
     ]
     if allowed:
         resource["allowed_editor_methods"] = allowed
+
+
+def _selected_route_anchor_example(
+    route: Mapping[str, Any],
+    task: Mapping[str, Any],
+) -> Mapping[str, Any] | None:
+    start_urls = task.get("start_urls")
+    if not isinstance(start_urls, list):
+        return None
+    wanted = {url for url in start_urls if isinstance(url, str)}
+    if not wanted:
+        return None
+    examples = route.get("anchor_examples")
+    if not isinstance(examples, list):
+        return None
+    for example in examples:
+        if not isinstance(example, Mapping):
+            continue
+        start_url = example.get("start_url")
+        if isinstance(start_url, str) and start_url in wanted:
+            return example
+    return None
+
+
+def _anchor_example_has_reddit_seed_visibility_evidence(anchor: Mapping[str, Any]) -> bool:
+    if str(anchor.get("seeded_comment_visibility_candidate") or "").strip().lower() != "true":
+        return False
+    existing = _nonnegative_int(anchor.get("existing_comment_count"))
+    limit = _nonnegative_int(anchor.get("max_existing_comments_for_comment_seed"))
+    return existing is not None and limit is not None and existing <= limit
+
+
+def _resource_has_reddit_seed_visibility_anchor_evidence(resource: Mapping[str, Any]) -> bool:
+    evidence = resource.get("reddit_seed_comment_visibility_anchor_evidence")
+    if not isinstance(evidence, Mapping):
+        return False
+    existing = _nonnegative_int(evidence.get("existing_comment_count"))
+    limit = _nonnegative_int(evidence.get("max_existing_comments_for_comment_seed"))
+    return existing is not None and limit is not None and existing <= limit
+
+
+def _nonnegative_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int) and value >= 0:
+        return value
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    return None
 
 
 def _field_error(

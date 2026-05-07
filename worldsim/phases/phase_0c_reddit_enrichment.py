@@ -28,6 +28,7 @@ from worldsim.seeding import (
 logger = logging.getLogger(__name__)
 
 _MAX_FORUMS = 100
+_MAX_EMPTY_SUBMISSIONS = 100
 _TIMEOUT_SECONDS = 10
 
 
@@ -78,7 +79,37 @@ def enrich_reddit_forums(
             if value not in (None, ""):
                 forum[key] = str(value).strip()
         forums.append(forum)
-    return {"forums": forums}
+    try:
+        submissions = _read_empty_submission_rows_from_candidates(
+            db_connection,
+            runtime_db_host=runtime_db_host,
+        )
+    except RedditInventoryEnrichmentError as exc:
+        logger.warning("Reddit empty submission enrichment failed: %s", exc)
+        submissions = []
+    empty_submissions: list[dict[str, str]] = []
+    for row in submissions:
+        forum_name = str(row.get("forum_name") or "").strip()
+        submission_id = str(row.get("id") or "").strip()
+        if not forum_name or not submission_id:
+            continue
+        if not _submission_page_reachable(base, forum_name, submission_id, timeout=timeout):
+            continue
+        item: dict[str, str] = {
+            "id": submission_id,
+            "forum": forum_name,
+            "existing_comment_count": "0",
+            "max_existing_comments_for_comment_seed": "0",
+            "seeded_comment_visibility_candidate": "true",
+        }
+        title = row.get("title")
+        if title not in (None, ""):
+            item["title"] = str(title).strip()
+        empty_submissions.append(item)
+    result: dict[str, list[dict[str, str]]] = {"forums": forums}
+    if empty_submissions:
+        result["submissions"] = empty_submissions
+    return result
 
 
 def _db_connection_candidates(
@@ -121,6 +152,9 @@ def merge_reddit_inventory_into_profile(
     forums = inventory.get("forums")
     if forums:
         available["forums"] = list(forums)
+    submissions = inventory.get("submissions")
+    if submissions:
+        available["submissions"] = list(submissions)
     if available:
         merged["available_entities"] = available
     return merged
@@ -155,7 +189,52 @@ def common_reddit_forum_inventory(
         out.append(
             {str(key): str(value) for key, value in forum.items() if value not in (None, "")}
         )
-    return {"forums": out}
+    result: dict[str, list[dict[str, str]]] = {"forums": out}
+    submissions = _common_reddit_submission_inventory(inventories)
+    if submissions:
+        result["submissions"] = submissions
+    return result
+
+
+def _common_reddit_submission_inventory(
+    inventories: list[Mapping[str, list[dict[str, str]]]],
+) -> list[dict[str, str]]:
+    submission_lists: list[list[dict[str, str]]] = []
+    for inventory in inventories:
+        submissions = inventory.get("submissions")
+        if not submissions:
+            return []
+        submission_lists.append(
+            [submission for submission in submissions if isinstance(submission, Mapping)]
+        )
+    key_sets = [
+        {
+            (
+                str(submission.get("forum") or submission.get("forum_name") or "").strip(),
+                str(submission.get("id") or submission.get("submission_id") or "").strip(),
+            )
+            for submission in submissions
+            if submission.get("id") or submission.get("submission_id")
+        }
+        for submissions in submission_lists
+    ]
+    common_keys = set.intersection(*key_sets) if key_sets else set()
+    if not common_keys:
+        return []
+    out: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for submission in submission_lists[0]:
+        key = (
+            str(submission.get("forum") or submission.get("forum_name") or "").strip(),
+            str(submission.get("id") or submission.get("submission_id") or "").strip(),
+        )
+        if not key[0] or not key[1] or key not in common_keys or key in seen:
+            continue
+        seen.add(key)
+        out.append(
+            {str(item_key): str(value) for item_key, value in submission.items() if value not in (None, "")}
+        )
+    return out
 
 
 def _read_forum_rows(db_connection: str) -> list[dict[str, Any]]:
@@ -217,6 +296,119 @@ def _read_forum_rows(db_connection: str) -> list[dict[str, Any]]:
     return result
 
 
+def _read_empty_submission_rows_from_candidates(
+    db_connection: str,
+    *,
+    runtime_db_host: str | None,
+) -> list[dict[str, Any]]:
+    errors: list[str] = []
+    for candidate in _db_connection_candidates(db_connection, runtime_db_host):
+        try:
+            return _read_empty_submission_rows(candidate)
+        except RedditInventoryEnrichmentError as exc:
+            errors.append(str(exc))
+    detail = "; ".join(errors) if errors else "no DB connection candidates"
+    raise RedditInventoryEnrichmentError(detail)
+
+
+def _read_empty_submission_rows(db_connection: str) -> list[dict[str, Any]]:
+    parsed = _parse_runtime_db_connection(
+        db_connection,
+        purpose="Reddit Phase 0c empty submission enrichment requires instance['db_connection']",
+    )
+    conn = None
+    try:
+        conn = _connect_db(parsed)
+        scheme = parsed.scheme.lower()
+        _configure_read_only_connection(conn, scheme)
+        submission_table = _quote_identifier(
+            _resolve_reddit_table_name(
+                conn,
+                scheme,
+                db_connection,
+                logical_name="submission",
+                candidates=("submissions", "submission"),
+            ),
+            scheme,
+        )
+        forum_table = _quote_identifier(
+            _resolve_reddit_table_name(
+                conn,
+                scheme,
+                db_connection,
+                logical_name="forum",
+                candidates=("forums", "forum"),
+            ),
+            scheme,
+        )
+        comment_table = _quote_identifier(
+            _resolve_reddit_table_name(
+                conn,
+                scheme,
+                db_connection,
+                logical_name="comment",
+                candidates=("comments", "comment"),
+            ),
+            scheme,
+        )
+        submission_id_col = _quote_identifier("id", scheme)
+        forum_id_col = _quote_identifier("forum_id", scheme)
+        title_col = _quote_identifier("title", scheme)
+        timestamp_col = _quote_identifier("timestamp", scheme)
+        forum_name_col = _quote_identifier("name", scheme)
+        comment_id_col = _quote_identifier("id", scheme)
+        comment_submission_id_col = _quote_identifier("submission_id", scheme)
+        query = (
+            f"SELECT s.{submission_id_col} AS id, s.{title_col} AS title, "
+            f"f.{forum_name_col} AS forum_name, COUNT(c.{comment_id_col}) AS comment_count "
+            f"FROM {submission_table} s "
+            f"JOIN {forum_table} f ON s.{forum_id_col} = f.{_quote_identifier('id', scheme)} "
+            f"LEFT JOIN {comment_table} c ON c.{comment_submission_id_col} = s.{submission_id_col} "
+            f"WHERE f.{forum_name_col} IS NOT NULL AND f.{forum_name_col} <> '' "
+            f"GROUP BY s.{submission_id_col}, s.{title_col}, f.{forum_name_col}, s.{timestamp_col} "
+            f"HAVING COUNT(c.{comment_id_col}) = 0 "
+            f"ORDER BY s.{timestamp_col} DESC "
+            f"LIMIT {_MAX_EMPTY_SUBMISSIONS}"
+        )
+        with conn.cursor() as cursor:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+    except Exception as exc:
+        raise RedditInventoryEnrichmentError(
+            f"failed to enumerate empty reddit submissions: {exc}"
+        ) from exc
+    finally:
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                logger.debug("Failed to rollback reddit submission enrichment lookup", exc_info=True)
+            conn.close()
+
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        if isinstance(row, Mapping):
+            result.append(
+                {
+                    "id": row.get("id"),
+                    "title": row.get("title"),
+                    "forum_name": row.get("forum_name"),
+                    "comment_count": row.get("comment_count"),
+                }
+            )
+            continue
+        values = list(row)
+        result.append(
+            {
+                "id": values[0] if len(values) > 0 else None,
+                "title": values[1] if len(values) > 1 else None,
+                "forum_name": values[2] if len(values) > 2 else None,
+                "comment_count": values[3] if len(values) > 3 else None,
+            }
+        )
+    return result
+
+
 def _forum_page_reachable(base_url: str, forum_name: str, *, timeout: int) -> bool:
     encoded = quote(forum_name.strip().strip("/"), safe="")
     if not encoded:
@@ -226,6 +418,26 @@ def _forum_page_reachable(base_url: str, forum_name: str, *, timeout: int) -> bo
         response = requests.get(url, timeout=timeout, allow_redirects=False)
     except requests.RequestException as exc:
         logger.debug("Reddit forum reachability probe failed for %s: %s", url, exc)
+        return False
+    return response.status_code == 200
+
+
+def _submission_page_reachable(
+    base_url: str,
+    forum_name: str,
+    submission_id: str,
+    *,
+    timeout: int,
+) -> bool:
+    encoded_forum = quote(forum_name.strip().strip("/"), safe="")
+    encoded_submission = quote(str(submission_id).strip().strip("/"), safe="")
+    if not encoded_forum or not encoded_submission:
+        return False
+    url = f"{base_url}/f/{encoded_forum}/{encoded_submission}"
+    try:
+        response = requests.get(url, timeout=timeout, allow_redirects=False)
+    except requests.RequestException as exc:
+        logger.debug("Reddit submission reachability probe failed for %s: %s", url, exc)
         return False
     return response.status_code == 200
 
