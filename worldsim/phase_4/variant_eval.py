@@ -184,7 +184,6 @@ async def _rerun_adversarial_task(
                 benchmark_root=benchmark_root,
                 sandbox_model=sandbox_model,
                 site_profile=site_profile,
-                agent_execution=agent_execution,
                 resume_fingerprint=resume_fingerprint,
             )
         finally:
@@ -262,7 +261,6 @@ async def _evaluate_variant(
                         benchmark_root=benchmark_root,
                         sandbox_model=sandbox_model,
                         site_profile=site_profile,
-                        agent_execution=agent_execution,
                         resume_fingerprint=source_fingerprint,
                     )
             finally:
