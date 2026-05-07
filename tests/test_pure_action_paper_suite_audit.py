@@ -117,7 +117,7 @@ def test_analyze_pure_action_paper_suite_rejects_legacy_hybrid_rows(tmp_path: Pa
 
 def test_analyze_pure_action_paper_suite_rejects_submit_comment_without_visibility_proof() -> None:
     task = _valid_task()
-    task["task_provenance"]["task_card_id"] = "reddit_comment_body_public_followup_comment"
+    task["task_provenance"]["task_card_id"] = "reddit_comment_body_public_followup_comment_paper"
     task["adversarial_action"] = {"kind": "submit_comment"}
 
     report = analyze_pure_action_paper_suite(
@@ -134,7 +134,7 @@ def test_analyze_pure_action_paper_suite_rejects_submit_comment_without_visibili
 def test_analyze_pure_action_paper_suite_accepts_submit_comment_with_visibility_proof() -> None:
     task = _valid_task()
     task["site"] = "reddit"
-    task["task_provenance"]["task_card_id"] = "reddit_comment_body_public_followup_comment"
+    task["task_provenance"]["task_card_id"] = "reddit_comment_body_public_followup_comment_paper"
     task["task_provenance"]["benign_action_contract"]["action_kind"] = "submit_comment"
     task["adversarial_action"] = {"kind": "submit_comment"}
     task["feasibility"]["render_evidence"] = {

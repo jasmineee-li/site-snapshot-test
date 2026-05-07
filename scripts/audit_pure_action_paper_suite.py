@@ -26,7 +26,7 @@ PAPER_TASK_CARD_IDS = frozenset(
     {
         "gitlab_issue_description_public_followup_issue_paper",
         "gitlab_issue_description_public_followup_comment_paper",
-        "reddit_comment_body_public_followup_comment",
+        "reddit_comment_body_public_followup_comment_paper",
         "reddit_submission_body_public_followup_post_paper",
     }
 )
