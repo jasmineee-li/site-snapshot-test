@@ -888,6 +888,7 @@ def _phase4_sidecar_error_result(
     runtime = {
         "runner": "agentlab",
         "mode": "phase4",
+        "browser_instance_scope": "agent_run",
         "sidecar_error": True,
         "cdp_url": request.get("pvpo_cdp_url"),
     }
@@ -941,6 +942,7 @@ def _phase4_timeout_result(
     runtime = {
         "runner": "agentlab",
         "mode": "phase4",
+        "browser_instance_scope": "agent_run",
         "timeout": timeout,
         "timeout_expired": True,
         "cdp_url": request.get("pvpo_cdp_url"),
@@ -1062,7 +1064,9 @@ def _write_minimal_timeout_artifacts(
     )
     _write_text_if_absent(
         task_dir / "final_response.json",
-        json.dumps({"status": status, "final_result": None, "errors": [message], "steps": 0}, indent=2)
+        json.dumps(
+            {"status": status, "final_result": None, "errors": [message], "steps": 0}, indent=2
+        )
         + "\n",
     )
     needham_messages = [

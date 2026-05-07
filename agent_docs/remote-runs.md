@@ -156,17 +156,21 @@ to baseline after recycle. Do not treat a completed run as W48-clean if
 duplicate CDP responses, DOM watchdog slow calls, or recycle process counts
 grow monotonically across tasks.
 
-For paper-facing W48 Browser Use runs, prefer process isolation over a single
-Phase 4 process with `--phase-4-max-workers 48` when the single process shows
-Browser Use event-bus/CDP contention. Use `scripts/run_phase4_process_pool.py`
-from the remote job wrapper. The supervisor launches normal
+For paper-facing W48 Browser Use or AgentLab Phase 4 runs, prefer process
+isolation over a single Phase 4 process with `--phase-4-max-workers 48` when
+the single process shows runner event-bus/CDP contention. Use
+`scripts/run_phase4_process_pool.py` from the remote job wrapper. The
+supervisor launches normal
 `worldsim.main phase 4` subprocesses, each with `--phase-4-max-workers 1`, a
 single `--phase-4-task-id`, and a one-instance config. This preserves Phase 4
 admission, seeding, PVPO, TP, VEA, eval-awareness iteration, rewards, and
-readback semantics while isolating Browser Use event loops and CDP clients by
-OS process. The process pool still treats each `pvpo_cdp_url` as an exclusive
-lease; if task distribution is site-skewed, observed parallelism is bounded by
-the number of tasks and instances available for that site.
+readback semantics while isolating Browser Use or AgentLab sidecar event loops
+and CDP clients by OS process. The process pool still treats each
+`pvpo_cdp_url` as an exclusive lease; if task distribution is site-skewed,
+observed parallelism is bounded by the number of tasks and instances available
+for that site. For AgentLab parity runs, inspect each task's
+`browser_runtime.json` for `browser_instance_scope="agent_run"` and
+`browser_connect_count=1`.
 
 Canonical process-pool shape:
 

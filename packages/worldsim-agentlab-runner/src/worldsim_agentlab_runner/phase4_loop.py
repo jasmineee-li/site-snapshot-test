@@ -62,6 +62,8 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
         "mode": "phase4",
         "cdp_url": request.get("pvpo_cdp_url"),
         "storage_state_aliases": request.get("storage_state_aliases") or {},
+        "browser_instance_scope": "agent_run",
+        "lifecycle_events": [],
     }
     steps_taken = 0
     final_result: str | None = None
@@ -148,35 +150,60 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
     finally:
         try:
             if episode_info:
+                runtime["lifecycle_events"].append("save_final_step")
                 episode_info[-1].save_step_info(
                     output_dir,
                     save_screenshot=True,
                     save_som=False,
                 )
+                runtime["final_step_save_status"] = "saved"
         except Exception as exc:
             errors.append(f"save_step_info failed: {type(exc).__name__}: {exc}")
             status = "error"
+            runtime["final_step_save_status"] = "failed"
+            runtime["final_step_save_error"] = f"{type(exc).__name__}: {exc}"
         try:
+            runtime["lifecycle_events"].append("persist_network")
             network.persist()
+            runtime["network_persist_status"] = "persisted"
         except Exception as exc:
             errors.append(f"network trace persist failed: {type(exc).__name__}: {exc}")
             status = "error"
+            runtime["network_persist_status"] = "failed"
+            runtime["network_persist_error"] = f"{type(exc).__name__}: {exc}"
         try:
             if env is not None and not deadline_hit:
+                runtime["lifecycle_events"].append("env_close")
+                runtime["env_close_attempted"] = True
                 env.close()
+                runtime["env_close_status"] = "closed"
             elif env is not None:
+                runtime["env_close_attempted"] = False
+                runtime["env_close_status"] = "skipped"
+                runtime["env_close_skipped_reason"] = "sidecar_deadline"
                 errors.append("env close skipped after sidecar deadline")
         except Exception as exc:
             errors.append(f"env close failed: {type(exc).__name__}: {exc}")
             status = "error"
+            runtime["env_close_status"] = "failed"
+            runtime["env_close_error"] = f"{type(exc).__name__}: {exc}"
         try:
+            runtime["lifecycle_events"].append("agent_args_close")
+            runtime["agent_args_close_attempted"] = True
             agent_args.close()
-        except Exception:
-            pass
+            runtime["agent_args_close_status"] = "closed"
+        except Exception as exc:
+            runtime["agent_args_close_status"] = "failed"
+            runtime["agent_args_close_error"] = f"{type(exc).__name__}: {exc}"
         try:
+            runtime["lifecycle_events"].append("pvpo_close")
+            runtime["pvpo_close_attempted"] = True
             pvpo.close()
-        except Exception:
-            pass
+            runtime["pvpo_close_status"] = "closed"
+        except Exception as exc:
+            runtime["pvpo_close_status"] = "failed"
+            runtime["pvpo_close_error"] = f"{type(exc).__name__}: {exc}"
+        runtime["lifecycle_events"].append("recycle_cdp_browser")
         runtime.update(_recycle_cdp_browser(str(request.get("pvpo_cdp_url") or "")))
         (output_dir / "browser_runtime.json").write_text(
             json.dumps(runtime, indent=2, sort_keys=True),

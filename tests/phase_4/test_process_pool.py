@@ -97,6 +97,27 @@ def test_worker_command_filters_to_single_task_and_worker(tmp_path):
     assert command[command.index("--agent-service-tier") + 1] == "priority"
 
 
+def test_worker_command_supports_agentlab_with_single_task_process(tmp_path):
+    args = _pool_args(tmp_path, runner="agentlab")
+    config = _config(
+        tmp_path,
+        [
+            {
+                "site_name": "gitlab",
+                "site_url": "http://127.0.0.1:8023",
+                "pvpo_cdp_url": "http://127.0.0.1:9222",
+            }
+        ],
+    )
+    assignment = _build_assignments(args, config, [{"id": "adv-1", "site": "gitlab"}])[0]
+
+    command = _worker_command(args, assignment)
+
+    assert command[command.index("--runner") + 1] == "agentlab"
+    assert command[command.index("--phase-4-task-id") + 1] == "adv-1"
+    assert command[command.index("--phase-4-max-workers") + 1] == "1"
+
+
 def test_merge_outcomes_fails_closed_on_missing_result(tmp_path):
     args = _pool_args(tmp_path, out_dir=tmp_path / "out")
     config = _config(
