@@ -130,6 +130,22 @@ Browser Use stderr. Remote Phase 4 commands must pass `--agent-task-timeout`
 explicitly; `--agent-llm-timeout` and `--agent-step-timeout` do not bound
 session-start, CDP, or cleanup deadlocks.
 
+High-concurrency Browser Use runs should cap expensive CDP state collection
+separately from the outer worker count. `--phase-4-max-workers 48` means up to
+48 live browser agents, but DOM snapshots and screenshots should not all hit
+CDP simultaneously. The runner applies these PVPO-only backpressure defaults:
+
+- `WORLDSIM_BROWSER_USE_DOM_STATE_CAP=16`
+- `WORLDSIM_BROWSER_USE_SCREENSHOT_CAP=8`
+- `WORLDSIM_BROWSER_USE_DEFAULT_ACTION_CAP=48`
+
+Raise the outer worker cap only after `browser_runtime.json` shows low
+`browser_use_*_watchdog_slow_calls`, low `browser_use_cdp_cancelled_requests_drained`,
+successful `pvpo_browser_recycle_status`, and container process counts returning
+to baseline after recycle. Do not treat a completed run as W48-clean if
+duplicate CDP responses, DOM watchdog slow calls, or recycle process counts
+grow monotonically across tasks.
+
 WorldSim uses two different network localities on r5. Treat the instances file
 as an execution-locality contract, not just a dataset selector:
 

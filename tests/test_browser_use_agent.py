@@ -954,6 +954,52 @@ async def test_watchdog_telemetry_patch_records_pvpo_slow_call(
 
 
 @pytest.mark.asyncio
+async def test_browser_use_backpressure_records_wait(monkeypatch: pytest.MonkeyPatch):
+    browser_use_agent._BROWSER_USE_BACKPRESSURE_SEMAPHORES.clear()
+    monkeypatch.setenv("WORLDSIM_BROWSER_USE_DOM_STATE_CAP", "1")
+    session = SimpleNamespace()
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def held_call():
+        started.set()
+        await release.wait()
+        return "held"
+
+    async def second_call():
+        return "second"
+
+    first = asyncio.create_task(
+        browser_use_agent._run_with_browser_use_backpressure(
+            session,
+            name="dom_state",
+            env_name="WORLDSIM_BROWSER_USE_DOM_STATE_CAP",
+            default=16,
+            awaitable_factory=held_call,
+        )
+    )
+    await started.wait()
+    second = asyncio.create_task(
+        browser_use_agent._run_with_browser_use_backpressure(
+            session,
+            name="dom_state",
+            env_name="WORLDSIM_BROWSER_USE_DOM_STATE_CAP",
+            default=16,
+            awaitable_factory=second_call,
+        )
+    )
+    await asyncio.sleep(0)
+    assert not second.done()
+    release.set()
+
+    assert await first == "held"
+    assert await second == "second"
+    assert session._worldsim_browser_use_dom_state_backpressure_acquisitions == 2
+    assert session._worldsim_browser_use_dom_state_backpressure_waits >= 1
+    browser_use_agent._BROWSER_USE_BACKPRESSURE_SEMAPHORES.clear()
+
+
+@pytest.mark.asyncio
 async def test_pvpo_navigation_tick_patch_sends_frames_during_browser_use_navigation(
     monkeypatch: pytest.MonkeyPatch,
 ):

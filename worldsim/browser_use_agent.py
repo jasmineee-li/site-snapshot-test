@@ -106,6 +106,13 @@ _PVPO_NAVIGATION_TICK_PATCHED = False
 _PVPO_WATCHDOG_TELEMETRY_PATCHED = False
 _CDP_USE_CANCELLATION_PATCHED = False
 _CDP_USE_RUNTIME_COUNTERS: Counter[str] = Counter()
+_BROWSER_USE_BACKPRESSURE_SEMAPHORES: dict[tuple[str, int, int], asyncio.Semaphore] = {}
+_BROWSER_USE_DOM_STATE_CAP_ENV = "WORLDSIM_BROWSER_USE_DOM_STATE_CAP"
+_BROWSER_USE_SCREENSHOT_CAP_ENV = "WORLDSIM_BROWSER_USE_SCREENSHOT_CAP"
+_BROWSER_USE_DEFAULT_ACTION_CAP_ENV = "WORLDSIM_BROWSER_USE_DEFAULT_ACTION_CAP"
+_BROWSER_USE_DOM_STATE_CAP_DEFAULT = 16
+_BROWSER_USE_SCREENSHOT_CAP_DEFAULT = 8
+_BROWSER_USE_DEFAULT_ACTION_CAP_DEFAULT = 48
 _TRANSPARENT_PNG_BASE64 = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
 )
@@ -1534,6 +1541,71 @@ def _browser_use_watchdog_slow_ms() -> int:
     return max(1, value)
 
 
+def _browser_use_backpressure_cap(env_name: str, default: int) -> int:
+    raw = os.environ.get(env_name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning("%s=%r is not an integer; using %d", env_name, raw, default)
+        return default
+    if value <= 0:
+        logger.warning("%s=%r disables Browser Use backpressure for that path", env_name, raw)
+        return 0
+    return value
+
+
+def _browser_use_backpressure_semaphore(
+    name: str,
+    *,
+    env_name: str,
+    default: int,
+) -> asyncio.Semaphore | None:
+    cap = _browser_use_backpressure_cap(env_name, default)
+    if cap <= 0:
+        return None
+    loop = asyncio.get_running_loop()
+    key = (name, cap, id(loop))
+    sem = _BROWSER_USE_BACKPRESSURE_SEMAPHORES.get(key)
+    if sem is None:
+        sem = asyncio.Semaphore(cap)
+        _BROWSER_USE_BACKPRESSURE_SEMAPHORES[key] = sem
+    return sem
+
+
+async def _run_with_browser_use_backpressure(
+    session: Any,
+    *,
+    name: str,
+    env_name: str,
+    default: int,
+    awaitable_factory: Any,
+) -> Any:
+    sem = _browser_use_backpressure_semaphore(name, env_name=env_name, default=default)
+    if sem is None:
+        return await awaitable_factory()
+    wait_started = time.monotonic()
+    observed_contention = sem.locked()
+    async with sem:
+        waited_ms = int((time.monotonic() - wait_started) * 1000)
+        if observed_contention or waited_ms > 0:
+            _increment_session_counter(
+                session,
+                f"_worldsim_browser_use_{name}_backpressure_waits",
+            )
+            _record_session_max(
+                session,
+                f"_worldsim_browser_use_{name}_backpressure_max_wait_ms",
+                waited_ms,
+            )
+        _increment_session_counter(
+            session,
+            f"_worldsim_browser_use_{name}_backpressure_acquisitions",
+        )
+        return await awaitable_factory()
+
+
 def _pvpo_navigation_tick_beginframe_params() -> dict[str, Any]:
     """Return low-impact beginFrame params for navigation progress ticks."""
     return {"noDisplayUpdates": True}
@@ -1625,8 +1697,84 @@ def _install_pvpo_watchdog_telemetry_patch() -> None:
         _worldsim_watchdog_wrapper._worldsim_pvpo_telemetry_wrapped = True  # type: ignore[attr-defined]
         setattr(cls, method_name, _worldsim_watchdog_wrapper)
 
-    _wrap_watchdog_method(DOMWatchdog, "on_BrowserStateRequestEvent", "browser_use_dom_watchdog")
-    _wrap_watchdog_method(ScreenshotWatchdog, "on_ScreenshotEvent", "browser_use_screenshot_watchdog")
+    def _wrap_backpressured_watchdog_method(
+        cls: Any,
+        method_name: str,
+        counter_prefix: str,
+        *,
+        backpressure_name: str,
+        env_name: str,
+        default: int,
+    ) -> None:
+        original = getattr(cls, method_name, None)
+        if original is None or getattr(original, "_worldsim_pvpo_telemetry_wrapped", False):
+            return
+
+        async def _worldsim_watchdog_wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+            session = _session_for_watchdog(self)
+            if session is None:
+                return await original(self, *args, **kwargs)
+            _increment_session_counter(session, f"_worldsim_{counter_prefix}_calls")
+            started = time.monotonic()
+
+            async def _call_original() -> Any:
+                return await original(self, *args, **kwargs)
+
+            try:
+                if (
+                    backpressure_name == "screenshot"
+                    and getattr(
+                        session,
+                        "_worldsim_pvpo_disable_browser_use_screenshots",
+                        False,
+                    )
+                ):
+                    result = await _call_original()
+                else:
+                    result = await _run_with_browser_use_backpressure(
+                        session,
+                        name=backpressure_name,
+                        env_name=env_name,
+                        default=default,
+                        awaitable_factory=_call_original,
+                    )
+            except TimeoutError:
+                _increment_session_counter(session, f"_worldsim_{counter_prefix}_timeouts")
+                raise
+            except Exception:
+                _increment_session_counter(session, f"_worldsim_{counter_prefix}_failures")
+                raise
+            finally:
+                elapsed_ms = int((time.monotonic() - started) * 1000)
+                _record_session_max(
+                    session,
+                    f"_worldsim_{counter_prefix}_max_elapsed_ms",
+                    elapsed_ms,
+                )
+                if elapsed_ms >= _browser_use_watchdog_slow_ms():
+                    _increment_session_counter(session, f"_worldsim_{counter_prefix}_slow_calls")
+            return result
+
+        _worldsim_watchdog_wrapper.__name__ = method_name
+        _worldsim_watchdog_wrapper._worldsim_pvpo_telemetry_wrapped = True  # type: ignore[attr-defined]
+        setattr(cls, method_name, _worldsim_watchdog_wrapper)
+
+    _wrap_backpressured_watchdog_method(
+        DOMWatchdog,
+        "on_BrowserStateRequestEvent",
+        "browser_use_dom_watchdog",
+        backpressure_name="dom_state",
+        env_name=_BROWSER_USE_DOM_STATE_CAP_ENV,
+        default=_BROWSER_USE_DOM_STATE_CAP_DEFAULT,
+    )
+    _wrap_backpressured_watchdog_method(
+        ScreenshotWatchdog,
+        "on_ScreenshotEvent",
+        "browser_use_screenshot_watchdog",
+        backpressure_name="screenshot",
+        env_name=_BROWSER_USE_SCREENSHOT_CAP_ENV,
+        default=_BROWSER_USE_SCREENSHOT_CAP_DEFAULT,
+    )
 
     for method_name in (
         "on_ClickCoordinateEvent",
@@ -2705,6 +2853,22 @@ class BrowserUseAgent:
             self._browser_runtime["browser_use_llm_timeout_s"] = self.llm_timeout
         if self.step_timeout is not None:
             self._browser_runtime["browser_use_step_timeout_s"] = self.step_timeout
+        self._browser_runtime.update(
+            {
+                "browser_use_dom_state_cap": _browser_use_backpressure_cap(
+                    _BROWSER_USE_DOM_STATE_CAP_ENV,
+                    _BROWSER_USE_DOM_STATE_CAP_DEFAULT,
+                ),
+                "browser_use_screenshot_cap": _browser_use_backpressure_cap(
+                    _BROWSER_USE_SCREENSHOT_CAP_ENV,
+                    _BROWSER_USE_SCREENSHOT_CAP_DEFAULT,
+                ),
+                "browser_use_default_action_cap": _browser_use_backpressure_cap(
+                    _BROWSER_USE_DEFAULT_ACTION_CAP_ENV,
+                    _BROWSER_USE_DEFAULT_ACTION_CAP_DEFAULT,
+                ),
+            }
+        )
         pvpo_endpoint_lease_cm: Any = None
         pvpo_beginframe_controller: Any = None
 
@@ -2976,11 +3140,17 @@ class BrowserUseAgent:
             "_worldsim_browser_use_dom_watchdog_failures",
             "_worldsim_browser_use_dom_watchdog_slow_calls",
             "_worldsim_browser_use_dom_watchdog_max_elapsed_ms",
+            "_worldsim_browser_use_dom_state_backpressure_acquisitions",
+            "_worldsim_browser_use_dom_state_backpressure_waits",
+            "_worldsim_browser_use_dom_state_backpressure_max_wait_ms",
             "_worldsim_browser_use_screenshot_watchdog_calls",
             "_worldsim_browser_use_screenshot_watchdog_timeouts",
             "_worldsim_browser_use_screenshot_watchdog_failures",
             "_worldsim_browser_use_screenshot_watchdog_slow_calls",
             "_worldsim_browser_use_screenshot_watchdog_max_elapsed_ms",
+            "_worldsim_browser_use_screenshot_backpressure_acquisitions",
+            "_worldsim_browser_use_screenshot_backpressure_waits",
+            "_worldsim_browser_use_screenshot_backpressure_max_wait_ms",
             "_worldsim_browser_use_navigation_timeouts",
             "_worldsim_browser_use_navigation_failures",
             "_worldsim_pvpo_scroll_wheel_successes",
