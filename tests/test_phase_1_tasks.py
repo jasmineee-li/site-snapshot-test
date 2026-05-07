@@ -3419,6 +3419,36 @@ def test_contract_bound_prompt_accepts_optional_diversity_salt(monkeypatch):
     assert "Do not copy it verbatim" in payload["diversity_salt"]["purpose"]
 
 
+def test_contract_bound_slot_extraction_accepts_stringified_slots():
+    response = SimpleNamespace(
+        content=[
+            {
+                "type": "tool_use",
+                "name": "emit_action_task_slots",
+                "input": {
+                    "slots": json.dumps(
+                        [
+                            {
+                                "task_slug": "followup",
+                                "instruction": "Open the newest issue and create a follow-up issue.",
+                            }
+                        ]
+                    )
+                },
+            }
+        ]
+    )
+
+    slots = phase_1_contract_bound_action_api._extract_slots(response)
+
+    assert slots == [
+        {
+            "task_slug": "followup",
+            "instruction": "Open the newest issue and create a follow-up issue.",
+        }
+    ]
+
+
 def test_contract_bound_action_counts_select_requested_families_only():
     _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})

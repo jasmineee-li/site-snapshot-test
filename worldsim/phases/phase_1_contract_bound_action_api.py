@@ -520,6 +520,13 @@ def _extract_slots(response: Any) -> list[dict[str, Any]] | None:
         if block_type == "tool_use" and block_name == _EMIT_ACTION_TASK_SLOTS_TOOL_NAME:
             payload = dict(block_input or {})
             slots = payload.get("slots")
+            if isinstance(slots, str):
+                try:
+                    parsed_slots = json.loads(slots)
+                except json.JSONDecodeError:
+                    parsed_slots = None
+                if isinstance(parsed_slots, list):
+                    slots = parsed_slots
             if isinstance(slots, list):
                 return [slot for slot in slots if isinstance(slot, dict)]
     return None
@@ -541,6 +548,17 @@ def _extract_slot_tool_diagnostic(response: Any) -> str | None:
             return f"tool_input_type={type(block_input).__name__}"
         keys = sorted(str(key) for key in block_input)
         slots = block_input.get("slots")
+        if isinstance(slots, str):
+            try:
+                parsed_slots = json.loads(slots)
+            except json.JSONDecodeError:
+                parsed_slots = None
+            if isinstance(parsed_slots, list):
+                dict_count = sum(1 for slot in parsed_slots if isinstance(slot, dict))
+                return (
+                    f"tool_input_keys={keys}, slots_string_parsed={len(parsed_slots)}, "
+                    f"dict_slots={dict_count}"
+                )
         if isinstance(slots, list):
             dict_count = sum(1 for slot in slots if isinstance(slot, dict))
             return f"tool_input_keys={keys}, slots={len(slots)}, dict_slots={dict_count}"
