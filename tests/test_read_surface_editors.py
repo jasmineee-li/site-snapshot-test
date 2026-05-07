@@ -47,6 +47,17 @@ def test_host_and_path_forms_emits_both_for_full_url():
     ]
 
 
+def test_host_and_path_forms_preserves_fragment_for_full_url():
+    forms = host_and_path_forms(
+        "http://reddit.test",
+        "http://reddit.test/f/books/123#comment_9",
+    )
+    assert forms == [
+        "http://reddit.test/f/books/123#comment_9",
+        "/f/books/123#comment_9",
+    ]
+
+
 def test_host_and_path_forms_path_only_attaches_host():
     forms = host_and_path_forms("http://reddit.test", "/f/books/59421")
     assert forms == ["http://reddit.test/f/books/59421", "/f/books/59421"]

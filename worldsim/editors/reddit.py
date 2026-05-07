@@ -452,8 +452,11 @@ class RedditEditor(BaseSiteEditor):
             "forum_name": resolved_forum,
             "submission_id": str(submission_id),
             "comment_id": comment_id,
-            "read_surface_urls": _reddit_surface_urls(
-                self._site_url(), [f"/f/{resolved_forum}/{submission_id}"]
+            "read_surface_urls": _reddit_comment_surface_urls(
+                self._site_url(),
+                forum_name=resolved_forum,
+                submission_id=str(submission_id),
+                comment_id=comment_id,
             ),
             "read_surface_provenance_source": "editor_constructed",
         }
@@ -658,3 +661,17 @@ def _comment_id_from_location(location: str) -> str | None:
 
 def _normalize_comment_text(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip().casefold()
+
+
+def _reddit_comment_surface_urls(
+    site_url: str,
+    *,
+    forum_name: str,
+    submission_id: str,
+    comment_id: str | None,
+) -> list[str]:
+    base = f"/f/{forum_name}/{submission_id}"
+    forms = [base]
+    if comment_id:
+        forms.insert(0, f"{base}#comment_{comment_id}")
+    return _reddit_surface_urls(site_url, forms)

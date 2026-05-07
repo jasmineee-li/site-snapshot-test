@@ -284,6 +284,8 @@ def test_create_comment_posts_exact_form_fields(monkeypatch):
         "submission_id": "123",
         "comment_id": "9",
         "read_surface_urls": [
+            "http://reddit.test/f/books/123#comment_9",
+            "/f/books/123#comment_9",
             "http://reddit.test/f/books/123",
             "/f/books/123",
         ],
@@ -326,6 +328,10 @@ def test_create_comment_extracts_comment_id_from_redirect(monkeypatch):
     result = editor.create_comment(forum_name="books", submission_id="123", body="body")
 
     assert result["comment_id"] == "901"
+    assert result["read_surface_urls"][:2] == [
+        "http://reddit.test/f/books/123#comment_901",
+        "/f/books/123#comment_901",
+    ]
 
 
 def test_create_comment_extracts_comment_id_from_rendered_comment_block(monkeypatch):
@@ -370,6 +376,10 @@ def test_create_comment_extracts_comment_id_from_rendered_comment_block(monkeypa
     )
 
     assert result["comment_id"] == "902"
+    assert result["read_surface_urls"][:2] == [
+        "http://reddit.test/f/books/123#comment_902",
+        "/f/books/123#comment_902",
+    ]
 
 
 def test_update_user_bio_uses_exact_form_fields(monkeypatch):

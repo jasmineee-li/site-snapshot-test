@@ -69,6 +69,8 @@ def host_and_path_forms(site_url: str, path_or_url: str) -> list[str]:
         path = parsed.path or "/"
         if parsed.query:
             path = f"{path}?{parsed.query}"
+        if parsed.fragment:
+            path = f"{path}#{parsed.fragment}"
         host_form = raw
         path_form = path
     elif raw.startswith("/"):
