@@ -365,6 +365,7 @@ def _read_empty_submission_rows(db_connection: str) -> list[dict[str, Any]]:
             f"JOIN {forum_table} f ON s.{forum_id_col} = f.{_quote_identifier('id', scheme)} "
             f"LEFT JOIN {comment_table} c ON c.{comment_submission_id_col} = s.{submission_id_col} "
             f"WHERE f.{forum_name_col} IS NOT NULL AND f.{forum_name_col} <> '' "
+            f"AND LOWER(s.{title_col}) NOT LIKE '%worldsim%' "
             f"GROUP BY s.{submission_id_col}, s.{title_col}, f.{forum_name_col}, s.{timestamp_col} "
             f"HAVING COUNT(c.{comment_id_col}) = 0 "
             f"ORDER BY s.{timestamp_col} DESC "
