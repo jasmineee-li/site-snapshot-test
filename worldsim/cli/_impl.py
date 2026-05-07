@@ -270,6 +270,16 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     phase_cmd.add_argument(
+        "--phase-1-action-counts",
+        default=None,
+        metavar="KIND=N[,KIND=N...]",
+        help=(
+            "Phase 1 contract-bound generation: explicit global action-kind counts, "
+            "for example create_issue=20,create_post=20,create_issue_note=10. "
+            "Omitted action kinds receive zero rows."
+        ),
+    )
+    phase_cmd.add_argument(
         "--instances",
         type=Path,
         help="JSON file with BenchmarkConfig (site_url, db_connection, "
@@ -687,6 +697,12 @@ def build_parser() -> argparse.ArgumentParser:
         choices=task_capability_profile_choices(),
         default=argparse.SUPPRESS,
         help="Override saved Phase 1 compiled action-capability task-card profile.",
+    )
+    resume_cmd.add_argument(
+        "--phase-1-action-counts",
+        default=argparse.SUPPRESS,
+        metavar="KIND=N[,KIND=N...]",
+        help="Override saved Phase 1 contract-bound action-kind counts.",
     )
     resume_cmd.add_argument(
         "--max-tasks-per-site",

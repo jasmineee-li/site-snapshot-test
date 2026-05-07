@@ -62,6 +62,11 @@ async def run(args: argparse.Namespace) -> int:
     task_card_plan_arg = getattr(args, "task_card_plan", None)
     task_card_plan_path = Path(task_card_plan_arg) if task_card_plan_arg else None
     task_capability_profile = getattr(args, "task_capability_profile", None)
+    try:
+        action_counts = _parse_phase_1_action_counts(getattr(args, "phase_1_action_counts", None))
+    except ValueError as exc:
+        logger.error("Phase 1 action-count gate failed: %s", exc)
+        return 1
     sites_filter_raw = getattr(args, "sites", None)
     sites_filter = _parse_sites_filter(sites_filter_raw)
 
@@ -219,6 +224,7 @@ async def run(args: argparse.Namespace) -> int:
             site_filter=sites_filter,
             novel_tasks_per_site=novel_tasks_per_site,
             task_card_plan=task_card_plan,
+            action_counts=action_counts,
         )
         if novel_tasks is None:
             return 1
@@ -236,6 +242,7 @@ async def run(args: argparse.Namespace) -> int:
             novel_tasks_per_site=novel_tasks_per_site,
             task_card_plan=task_card_plan,
             task_capability_profile=task_capability_profile,
+            action_counts=action_counts,
         )
 
     save_state(
@@ -252,6 +259,7 @@ async def run(args: argparse.Namespace) -> int:
         sandbox_model=sandbox_model,
         sites=sites_filter_raw,
         novel_tasks_per_site=novel_tasks_per_site,
+        action_counts=action_counts,
         task_card_plan_path=str(task_card_plan_path) if task_card_plan_path else None,
         task_capability_profile=task_capability_profile,
         task_card_plan_digest=task_card_digest,
@@ -289,6 +297,38 @@ def _parse_sites_filter(value: Any) -> set[str] | None:
         return parsed or None
     parsed = {str(site).strip() for site in value if str(site).strip()}
     return parsed or None
+
+
+def _parse_phase_1_action_counts(value: Any) -> dict[str, int] | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("--phase-1-action-counts must be a comma-separated string")
+    text = value.strip()
+    if not text:
+        return None
+    counts: dict[str, int] = {}
+    for raw_part in text.split(","):
+        part = raw_part.strip()
+        if not part:
+            continue
+        if "=" not in part:
+            raise ValueError(f"invalid action count {part!r}; expected KIND=N")
+        kind, raw_count = (item.strip() for item in part.split("=", 1))
+        if not kind:
+            raise ValueError(f"invalid action count {part!r}; missing action kind")
+        if kind in counts:
+            raise ValueError(f"duplicate action count for {kind!r}")
+        try:
+            count = int(raw_count)
+        except ValueError as exc:
+            raise ValueError(f"invalid count for {kind!r}: {raw_count!r}") from exc
+        if count < 0:
+            raise ValueError(f"action count for {kind!r} must be non-negative")
+        counts[kind] = count
+    if not counts or sum(counts.values()) <= 0:
+        raise ValueError("--phase-1-action-counts must request at least one row")
+    return counts
 
 
 def _resolve_benchmark_root(
@@ -414,6 +454,7 @@ async def _maybe_generate_new_tasks(
     site_filter: set[str] | None,
     novel_tasks_per_site: int,
     task_card_plan: dict[str, Any] | None,
+    action_counts: dict[str, int] | None = None,
 ) -> list[dict[str, Any]] | None:
     """Return generate-new-tasks output, reusing merged output when already present."""
     existing_novel_tasks = _reuse_existing_novel_tasks_if_valid(
@@ -426,6 +467,7 @@ async def _maybe_generate_new_tasks(
         site_filter=site_filter,
         novel_tasks_per_site=novel_tasks_per_site,
         task_card_plan=task_card_plan,
+        action_counts=action_counts,
     )
     if existing_novel_tasks is not None:
         return existing_novel_tasks
@@ -439,6 +481,7 @@ async def _maybe_generate_new_tasks(
             site_filter=site_filter,
             novel_tasks_per_site=novel_tasks_per_site,
             task_card_plan=task_card_plan,
+            action_counts=action_counts,
         )
     except Exception as exc:
         _save_phase_1_failure_state(
@@ -466,6 +509,7 @@ def _reuse_existing_novel_tasks_if_valid(
     site_filter: set[str] | None,
     novel_tasks_per_site: int,
     task_card_plan: dict[str, Any] | None,
+    action_counts: dict[str, int] | None = None,
 ) -> list[dict[str, Any]] | None:
     """Reuse merged generate-new-tasks output only on resume and only after provenance checks."""
     if not resume:
@@ -485,6 +529,7 @@ def _reuse_existing_novel_tasks_if_valid(
         eligible_sites=eligible_sites,
         expected_task_count=novel_tasks_per_site,
         task_card_plan=task_card_plan,
+        action_counts=action_counts,
     )
     if validation_errors:
         logger.warning(
@@ -498,12 +543,14 @@ def _reuse_existing_novel_tasks_if_valid(
         manifest=manifest,
         sandbox_model=sandbox_model,
         task_card_plan=task_card_plan,
+        action_counts=action_counts,
     )
     current_fingerprint = compute_generate_new_tasks_resume_fingerprint(
         shared_inputs_fingerprint=shared_inputs_fingerprint,
         eligible_sites=eligible_sites,
         novel_tasks_per_site=novel_tasks_per_site,
         task_card_plan=task_card_plan,
+        action_counts=action_counts,
     )
 
     metadata = _load_generate_new_tasks_resume_metadata(resume_metadata_path)
@@ -521,6 +568,7 @@ def _reuse_existing_novel_tasks_if_valid(
         shared_inputs_fingerprint=shared_inputs_fingerprint,
         novel_tasks_per_site=novel_tasks_per_site,
         task_card_plan=task_card_plan,
+        action_counts=action_counts,
     ):
         logger.info(
             "Phase 1 (generate-new-tasks): merged output already contains %d valid novel tasks and matches current per-site caches, skipping generation on resume",
@@ -544,6 +592,7 @@ def _write_generate_new_tasks_resume_metadata(
     novel_tasks_per_site: int,
     task_card_plan: dict[str, Any] | None,
     task_capability_profile: str | None = None,
+    action_counts: dict[str, int] | None = None,
 ) -> None:
     eligible_sites = _load_generate_new_tasks_eligible_sites(
         profiles_dir=get_state_dir() / "phase_0c",
@@ -557,10 +606,12 @@ def _write_generate_new_tasks_resume_metadata(
                 manifest=manifest,
                 sandbox_model=sandbox_model,
                 task_card_plan=task_card_plan,
+                action_counts=action_counts,
             ),
             eligible_sites=eligible_sites,
             novel_tasks_per_site=novel_tasks_per_site,
             task_card_plan=task_card_plan,
+            action_counts=action_counts,
         ),
         "benchmark_path": str(benchmark_root),
         "eligible_sites": [site.site_name for site in eligible_sites],
@@ -568,6 +619,7 @@ def _write_generate_new_tasks_resume_metadata(
         "novel_tasks_per_site": novel_tasks_per_site,
         "task_card_plan_digest": task_card_plan_digest(task_card_plan),
         "task_capability_profile": task_capability_profile,
+        "action_counts": action_counts,
     }
     metadata_path.write_text(json.dumps(payload, indent=2))
 
@@ -580,6 +632,7 @@ def _merged_output_matches_current_site_caches(
     shared_inputs_fingerprint: str,
     novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
     task_card_plan: dict[str, Any] | None = None,
+    action_counts: dict[str, int] | None = None,
 ) -> bool:
     cached_tasks: list[dict[str, Any]] = []
     for site in eligible_sites:
@@ -592,6 +645,7 @@ def _merged_output_matches_current_site_caches(
                 site=site,
                 novel_tasks_per_site=novel_tasks_per_site,
                 task_card_plan=task_card_plan,
+                action_counts=action_counts,
             ),
             expected_task_count=novel_tasks_per_site,
             task_card_plan=task_card_plan,
@@ -609,6 +663,8 @@ def _load_generate_new_tasks_resume_metadata(metadata_path: Path) -> dict[str, A
     try:
         payload = json.loads(metadata_path.read_text())
     except json.JSONDecodeError:
-        logger.warning("Phase 1 (generate-new-tasks): ignoring invalid resume metadata at %s", metadata_path)
+        logger.warning(
+            "Phase 1 (generate-new-tasks): ignoring invalid resume metadata at %s", metadata_path
+        )
         return {}
     return payload if isinstance(payload, dict) else {}

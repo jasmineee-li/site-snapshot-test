@@ -33,6 +33,7 @@ from worldsim.phases.phase_1_route_contracts import (
     route_contracts_digest,
 )
 from worldsim.phases.phase_1_task_cards import (
+    card_action_kinds,
     card_benign_reward_shape,
     task_card_plan_digest,
     task_card_plan_for_site,
@@ -84,6 +85,7 @@ async def run_generate_new_tasks(
     site_filter: Iterable[str] | None = None,
     novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
     task_card_plan: dict[str, Any] | None = None,
+    action_counts: dict[str, int] | None = None,
 ) -> list[dict[str, Any]]:
     """Generate novel tasks for eligible sites."""
     state_dir = get_state_dir()
@@ -114,6 +116,7 @@ async def run_generate_new_tasks(
         manifest=manifest,
         sandbox_model=sandbox_model,
         task_card_plan=task_card_plan,
+        action_counts=action_counts,
     )
     cached_results = _load_all_cached_site_results(
         eligible_sites=eligible_sites,
@@ -121,6 +124,7 @@ async def run_generate_new_tasks(
         shared_inputs_fingerprint=shared_inputs_fingerprint,
         novel_tasks_per_site=novel_tasks_per_site,
         task_card_plan=task_card_plan,
+        action_counts=action_counts,
     )
     if cached_results is not None:
         logger.info(
@@ -140,9 +144,12 @@ async def run_generate_new_tasks(
         site.site_name: task_card_plan_for_site(task_card_plan, site.site_name)
         for site in eligible_sites
     }
+    _fail_if_action_counts_unavailable(
+        site_plans=site_plans,
+        action_counts=action_counts,
+    )
     uses_sandbox = any(
-        not _use_contract_bound_action_api(site_plans[site.site_name])
-        for site in eligible_sites
+        not _use_contract_bound_action_api(site_plans[site.site_name]) for site in eligible_sites
     )
     benchmark_volume = None
     if uses_sandbox:
@@ -161,9 +168,14 @@ async def run_generate_new_tasks(
                     site=site,
                     novel_tasks_per_site=novel_tasks_per_site,
                     task_card_plan=task_card_plan,
+                    action_counts=action_counts,
                 ),
                 sandbox_model=sandbox_model,
                 novel_tasks_per_site=novel_tasks_per_site,
+                action_counts=_action_counts_for_site(
+                    site_plans[site.site_name],
+                    action_counts,
+                ),
                 task_card_plan=site_plans[site.site_name],
             )
             for site in eligible_sites
@@ -308,6 +320,7 @@ async def generate_new_tasks_for_site(
     cache_fingerprint: str,
     sandbox_model: str = "claude-sonnet-4-6",
     novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
+    action_counts: dict[str, int] | None = None,
     task_card_plan: dict[str, Any] | None = None,
 ) -> SiteGenerateNewTasksResult:
     """Generate and validate novel tasks for one site."""
@@ -321,6 +334,17 @@ async def generate_new_tasks_for_site(
     task_card_plan_path = output_dir / f"TASK_CARD_PLAN_{site.site_name}.json"
     if task_card_plan is not None:
         task_card_plan_path.write_text(json.dumps(task_card_plan, indent=2, sort_keys=True))
+    expected_task_count = _site_requested_count(
+        task_card_plan,
+        novel_tasks_per_site=novel_tasks_per_site,
+        action_counts=action_counts,
+    )
+    if expected_task_count <= 0:
+        logger.info(
+            "Phase 1 (generate-new-tasks): skipping site %r because explicit action counts request zero rows",
+            site.site_name,
+        )
+        return SiteGenerateNewTasksResult(site.site_name, [], [])
     if site.site_name in {"gitlab", "reddit"} and not route_contracts.get("route_families"):
         logger.info(
             "Phase 1 (generate-new-tasks): skipping site %r because no eligible route families remain after core-surface filtering",
@@ -333,7 +357,7 @@ async def generate_new_tasks_for_site(
         profile=site.profile,
         cache_fingerprint=cache_fingerprint,
         expected_agent_context=agent_context,
-        expected_task_count=novel_tasks_per_site,
+        expected_task_count=expected_task_count,
         route_contracts=route_contracts,
         task_card_plan=task_card_plan,
     )
@@ -351,7 +375,8 @@ async def generate_new_tasks_for_site(
                 task_card_plan=task_card_plan or {},
                 route_contracts=route_contracts,
                 profile=site.profile,
-                requested_count=novel_tasks_per_site,
+                requested_count=expected_task_count,
+                action_counts=action_counts,
                 sandbox_model=sandbox_model,
             )
         except ValueError as exc:
@@ -360,7 +385,7 @@ async def generate_new_tasks_for_site(
             generated_tasks,
             site_name=site.site_name,
             profile=site.profile,
-            expected_task_count=novel_tasks_per_site,
+            expected_task_count=expected_task_count,
             route_contracts=route_contracts,
             task_card_plan=task_card_plan,
         )
@@ -370,7 +395,9 @@ async def generate_new_tasks_for_site(
                 [],
                 [error.render() for error in detailed_errors],
             )
-        sorted_tasks = sort_novel_tasks(_attach_agent_context_to_tasks(validated_tasks, agent_context))
+        sorted_tasks = sort_novel_tasks(
+            _attach_agent_context_to_tasks(validated_tasks, agent_context)
+        )
         intermediate_path.write_text(json.dumps(sorted_tasks, indent=2))
         _write_site_cache_metadata(
             _site_cache_metadata_path(intermediate_path),
@@ -395,7 +422,7 @@ async def generate_new_tasks_for_site(
     )
     base_prompt = render_generate_benign_tasks_prompt(
         site_name=site.site_name,
-        num_tasks=novel_tasks_per_site,
+        num_tasks=expected_task_count,
         task_card_plan=task_card_plan,
     )
     prompt = base_prompt
@@ -443,7 +470,7 @@ async def generate_new_tasks_for_site(
             generated_tasks,
             site_name=site.site_name,
             profile=site.profile,
-            expected_task_count=novel_tasks_per_site,
+            expected_task_count=expected_task_count,
             route_contracts=route_contracts,
             task_card_plan=task_card_plan,
         )
@@ -589,6 +616,7 @@ def validate_existing_novel_tasks(
     eligible_sites: list[EligibleSiteProfile],
     expected_task_count: int = DEFAULT_NOVEL_TASKS_PER_SITE,
     task_card_plan: dict[str, Any] | None = None,
+    action_counts: dict[str, int] | None = None,
 ) -> list[str]:
     """Validate merged-output novel tasks against the current eligible-site set."""
     tasks_by_site: dict[str, list[dict[str, Any]]] = {}
@@ -607,6 +635,19 @@ def validate_existing_novel_tasks(
         )
 
     for site_name, site in eligible_by_site.items():
+        site_task_card_plan = task_card_plan_for_site(task_card_plan, site_name)
+        site_action_counts = _action_counts_for_site(site_task_card_plan, action_counts)
+        site_expected_count = _site_requested_count(
+            site_task_card_plan,
+            novel_tasks_per_site=expected_task_count,
+            action_counts=site_action_counts,
+        )
+        if site_expected_count <= 0:
+            if tasks_by_site.get(site_name):
+                errors.append(
+                    f"merged output contains novel tasks for site {site_name!r} with requested count 0"
+                )
+            continue
         site_tasks = tasks_by_site.get(site_name)
         if site_tasks is None:
             errors.append(f"merged output is missing novel tasks for eligible site {site_name!r}")
@@ -615,12 +656,12 @@ def validate_existing_novel_tasks(
             site_tasks,
             site_name=site_name,
             profile=site.profile,
-            expected_task_count=expected_task_count,
+            expected_task_count=site_expected_count,
             route_contracts=build_task_route_contracts(
                 site_name=site.site_name,
                 profile=site.profile,
             ),
-            task_card_plan=task_card_plan_for_site(task_card_plan, site_name),
+            task_card_plan=site_task_card_plan,
         )
         errors.extend(site_errors)
 
@@ -634,6 +675,7 @@ def _load_all_cached_site_results(
     shared_inputs_fingerprint: str,
     novel_tasks_per_site: int,
     task_card_plan: dict[str, Any] | None = None,
+    action_counts: dict[str, int] | None = None,
 ) -> list[SiteGenerateNewTasksResult] | None:
     """Return cached per-site results when every eligible site cache validates."""
     cached_results: list[SiteGenerateNewTasksResult] = []
@@ -641,6 +683,14 @@ def _load_all_cached_site_results(
         agent_context, agent_context_errors = _load_site_agent_context(site)
         if agent_context_errors:
             return None
+        site_task_card_plan = task_card_plan_for_site(task_card_plan, site.site_name)
+        site_expected_count = _site_requested_count(
+            site_task_card_plan,
+            novel_tasks_per_site=novel_tasks_per_site,
+            action_counts=_action_counts_for_site(site_task_card_plan, action_counts),
+        )
+        if site_expected_count <= 0:
+            continue
         cached_result = load_cached_novel_tasks(
             intermediate_path=output_dir / f"novel_tasks_{site.site_name}.json",
             site_name=site.site_name,
@@ -650,14 +700,15 @@ def _load_all_cached_site_results(
                 site=site,
                 novel_tasks_per_site=novel_tasks_per_site,
                 task_card_plan=task_card_plan,
+                action_counts=action_counts,
             ),
             expected_agent_context=agent_context,
-            expected_task_count=novel_tasks_per_site,
+            expected_task_count=site_expected_count,
             route_contracts=build_task_route_contracts(
                 site_name=site.site_name,
                 profile=site.profile,
             ),
-            task_card_plan=task_card_plan_for_site(task_card_plan, site.site_name),
+            task_card_plan=site_task_card_plan,
         )
         if cached_result is None:
             return None
@@ -698,6 +749,64 @@ def _task_card_plan_is_host_action_only(task_card_plan: dict[str, Any] | None) -
     )
 
 
+def _action_counts_for_site(
+    task_card_plan: dict[str, Any] | None,
+    action_counts: dict[str, int] | None,
+) -> dict[str, int] | None:
+    if action_counts is None:
+        return None
+    if not isinstance(task_card_plan, dict):
+        return {}
+    available: set[str] = set()
+    for card in task_card_plan.get("task_cards", []):
+        if not isinstance(card, dict) or str(card.get("status", "active")) != "active":
+            continue
+        available.update(card_action_kinds(card))
+    return {kind: count for kind, count in action_counts.items() if kind in available}
+
+
+def _fail_if_action_counts_unavailable(
+    *,
+    site_plans: dict[str, dict[str, Any] | None],
+    action_counts: dict[str, int] | None,
+) -> None:
+    if action_counts is None:
+        return
+    available: set[str] = set()
+    for plan in site_plans.values():
+        if not isinstance(plan, dict):
+            continue
+        for card in plan.get("task_cards", []):
+            if not isinstance(card, dict) or str(card.get("status", "active")) != "active":
+                continue
+            available.update(card_action_kinds(card))
+    unavailable = sorted(
+        kind for kind, count in action_counts.items() if count > 0 and kind not in available
+    )
+    if unavailable:
+        raise ValueError(
+            "requested action kind(s) unavailable for selected sites/task-card plan: "
+            + ", ".join(unavailable)
+        )
+
+
+def _site_requested_count(
+    task_card_plan: dict[str, Any] | None,
+    *,
+    novel_tasks_per_site: int,
+    action_counts: dict[str, int] | None,
+) -> int:
+    if action_counts is None:
+        return novel_tasks_per_site
+    return sum(_action_counts_for_site(task_card_plan, action_counts).values())
+
+
+def _normalize_action_counts(action_counts: dict[str, int] | None) -> dict[str, int] | None:
+    if action_counts is None:
+        return None
+    return {kind: int(action_counts[kind]) for kind in sorted(action_counts)}
+
+
 def _use_contract_bound_action_api(task_card_plan: dict[str, Any] | None) -> bool:
     """Return whether Phase 1 should use the contract-bound API backend."""
     if not _task_card_plan_is_host_action_only(task_card_plan):
@@ -736,6 +845,7 @@ def compute_generate_new_tasks_shared_inputs_fingerprint(
     manifest: dict[str, Any],
     sandbox_model: str = "claude-sonnet-4-6",
     task_card_plan: dict[str, Any] | None = None,
+    action_counts: dict[str, int] | None = None,
 ) -> str:
     """Return a content-based digest for shared generate-new-tasks generation inputs."""
     payload = {
@@ -753,6 +863,7 @@ def compute_generate_new_tasks_shared_inputs_fingerprint(
         "contract_bound_action_backend_env": os.environ.get(CONTRACT_BOUND_ACTION_API_ENV, ""),
         "sandbox_model": sandbox_model,
         "task_card_plan_digest": task_card_plan_digest(task_card_plan),
+        "action_counts": _normalize_action_counts(action_counts),
     }
     return _stable_json_digest(payload)
 
@@ -763,6 +874,7 @@ def compute_site_cache_fingerprint(
     site: EligibleSiteProfile,
     novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
     task_card_plan: dict[str, Any] | None = None,
+    action_counts: dict[str, int] | None = None,
 ) -> str:
     """Return a content-based digest for one site's cached novel-task output."""
     agent_context_path = site.profile_path.parent / f"AGENT_CONTEXT_{site.site_name}.json"
@@ -780,6 +892,12 @@ def compute_site_cache_fingerprint(
         ),
         "agent_context_digest": agent_context_digest,
         "task_count": novel_tasks_per_site,
+        "action_counts": _normalize_action_counts(
+            _action_counts_for_site(
+                task_card_plan_for_site(task_card_plan, site.site_name),
+                action_counts,
+            )
+        ),
         "task_card_plan_digest": task_card_plan_digest(
             task_card_plan_for_site(task_card_plan, site.site_name)
         ),
@@ -833,6 +951,7 @@ def compute_generate_new_tasks_resume_fingerprint(
     eligible_sites: list[EligibleSiteProfile],
     novel_tasks_per_site: int = DEFAULT_NOVEL_TASKS_PER_SITE,
     task_card_plan: dict[str, Any] | None = None,
+    action_counts: dict[str, int] | None = None,
 ) -> str:
     """Return a deterministic digest for merged-output resume reuse."""
     payload = {
@@ -845,6 +964,7 @@ def compute_generate_new_tasks_resume_fingerprint(
                     site=site,
                     novel_tasks_per_site=novel_tasks_per_site,
                     task_card_plan=task_card_plan,
+                    action_counts=action_counts,
                 ),
             }
             for site in sorted(eligible_sites, key=lambda item: item.site_name)

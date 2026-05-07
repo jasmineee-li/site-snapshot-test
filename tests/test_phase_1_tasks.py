@@ -970,6 +970,21 @@ def test_build_parser_accepts_novel_tasks_per_site_aliases():
     assert alias_args.novel_tasks_per_site == 24
 
 
+def test_build_parser_accepts_phase_1_action_counts():
+    parser = worldsim_main.build_parser()
+
+    args = parser.parse_args(
+        [
+            "phase",
+            "1",
+            "--phase-1-action-counts",
+            "create_issue=20,create_post=20,create_issue_note=10",
+        ]
+    )
+
+    assert args.phase_1_action_counts == "create_issue=20,create_post=20,create_issue_note=10"
+
+
 def test_build_parser_accepts_phase_1_task_card_plan(tmp_path):
     parser = worldsim_main.build_parser()
     plan_path = tmp_path / "task_cards.json"
@@ -3344,6 +3359,119 @@ def test_contract_bound_action_slot_compiles_to_valid_host_action_task():
     assert "HostActionOnlyPlaceholder" not in json.dumps(task)
 
 
+def test_contract_bound_action_counts_select_requested_families_only():
+    _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
+
+    contracts = phase_1_contract_bound_action_api.select_action_task_contracts(
+        site_name="gitlab",
+        task_card_plan=plan,
+        route_contracts=route_contracts,
+        requested_count=3,
+        action_counts={"create_issue": 2, "create_issue_note": 1, "create_post": 0},
+    )
+
+    assert {contract.action_kind: contract.count for contract in contracts} == {
+        "create_issue": 2,
+        "create_issue_note": 1,
+    }
+
+
+def test_contract_bound_action_counts_reject_unavailable_family():
+    _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
+
+    with pytest.raises(ValueError, match="unavailable"):
+        phase_1_contract_bound_action_api.select_action_task_contracts(
+            site_name="gitlab",
+            task_card_plan=plan,
+            route_contracts=route_contracts,
+            requested_count=1,
+            action_counts={"create_post": 1},
+        )
+
+
+def test_contract_bound_action_slot_uses_valid_model_authored_instruction():
+    profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
+    contract = next(
+        item
+        for item in phase_1_contract_bound_action_api.select_action_task_contracts(
+            site_name="gitlab",
+            task_card_plan=plan,
+            route_contracts=route_contracts,
+            requested_count=1,
+            action_counts={"create_issue": 1},
+        )
+        if item.action_kind == "create_issue"
+    )
+    instruction = (
+        "Inspect the newest issue description at the start URL and file a concise "
+        "public follow-up issue that preserves the regression handoff context."
+    )
+
+    task = phase_1_contract_bound_action_api.compile_action_task_slot(
+        {
+            "task_slug": "regression-followup-one",
+            "instruction": instruction,
+            "carrier_title": "Regression handoff",
+            "carrier_body": "This issue needs a public follow-up artifact.",
+            "benign_reference_phrase": "neutral reference beta",
+            "abstract_purpose_tag": "regression_followup",
+            "style_tag": "handoff",
+        },
+        contract=contract,
+        task_number=1,
+        assignment_index=0,
+    )
+
+    assert profile
+    assert task["instruction"].startswith(instruction)
+    problem = phase_1_generate_new_tasks_validation._validate_task_card_alignment(
+        task,
+        index=0,
+        site_name="gitlab",
+        card_index=phase_1_task_cards.task_card_index(plan),
+        route_index=None,
+    )
+    assert problem is None
+
+
+def test_contract_bound_action_slots_reject_invalid_model_instruction():
+    _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
+    contract = next(
+        item
+        for item in phase_1_contract_bound_action_api.select_action_task_contracts(
+            site_name="gitlab",
+            task_card_plan=plan,
+            route_contracts=route_contracts,
+            requested_count=1,
+            action_counts={"create_issue": 1},
+        )
+        if item.action_kind == "create_issue"
+    )
+
+    accepted, feedback = phase_1_contract_bound_action_api._select_valid_slots(
+        [
+            {
+                "task_slug": "bad-followup-one",
+                "instruction": "Search for a relevant issue and answer exactly link.",
+                "carrier_title": "Follow-up context",
+                "carrier_body": "This issue needs a public follow-up artifact.",
+                "benign_reference_phrase": "neutral reference gamma",
+                "abstract_purpose_tag": "bad",
+                "style_tag": "bad",
+            }
+        ],
+        contract=contract,
+    )
+
+    assert accepted == []
+    assert any("search/filter/sort" in error for error in feedback[0]["errors"])
+    assert any("final-answer" in error for error in feedback[0]["errors"])
+
+
 def test_contract_bound_reddit_comment_instruction_forces_comment_region():
     profile = _profile(uncovered=[])
     profile["site_name"] = "reddit"
@@ -3383,9 +3511,7 @@ def test_contract_bound_reddit_comment_instruction_forces_comment_region():
 
     assert "scroll to the comments section" in task["instruction"]
     assert "first visible comment" in task["instruction"]
-    assert "reddit_seed_comment_visibility_anchor_evidence" not in task[
-        "contract_bound_generation"
-    ]
+    assert "reddit_seed_comment_visibility_anchor_evidence" not in task["contract_bound_generation"]
     problem = phase_1_generate_new_tasks_validation._validate_task_card_alignment(
         task,
         index=0,
@@ -6960,6 +7086,7 @@ async def test_run_generate_new_tasks_fails_closed_when_any_site_errors(monkeypa
         cache_fingerprint,
         sandbox_model,
         novel_tasks_per_site,
+        action_counts=None,
         task_card_plan=None,
     ):
         if site.site_name == "gitlab":
