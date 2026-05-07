@@ -382,6 +382,16 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     phase_cmd.add_argument(
+        "--phase-4-task-id",
+        type=str,
+        default=None,
+        metavar="ID[,ID...]",
+        help=(
+            "Phase 4: restrict admitted tasks to explicit task IDs. Intended for "
+            "process-isolated worker orchestration; normal rigor runs should omit it."
+        ),
+    )
+    phase_cmd.add_argument(
         "--phase-4-variant-system",
         choices=phase_4_variant_system_choices(),
         default=None,

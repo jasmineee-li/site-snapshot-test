@@ -156,6 +156,48 @@ to baseline after recycle. Do not treat a completed run as W48-clean if
 duplicate CDP responses, DOM watchdog slow calls, or recycle process counts
 grow monotonically across tasks.
 
+For paper-facing W48 Browser Use runs, prefer process isolation over a single
+Phase 4 process with `--phase-4-max-workers 48` when the single process shows
+Browser Use event-bus/CDP contention. Use `scripts/run_phase4_process_pool.py`
+from the remote job wrapper. The supervisor launches normal
+`worldsim.main phase 4` subprocesses, each with `--phase-4-max-workers 1`, a
+single `--phase-4-task-id`, and a one-instance config. This preserves Phase 4
+admission, seeding, PVPO, TP, VEA, eval-awareness iteration, rewards, and
+readback semantics while isolating Browser Use event loops and CDP clients by
+OS process. The process pool still treats each `pvpo_cdp_url` as an exclusive
+lease; if task distribution is site-skewed, observed parallelism is bounded by
+the number of tasks and instances available for that site.
+
+Canonical process-pool shape:
+
+```bash
+scripts/remote_job_start.sh \
+  --host-config configs/benchmark_hosts/r8a.yaml \
+  --remote-dir /home/ubuntu/browser-sim \
+  --name phase4-tier2-exact50-browseruse-gpt52-p48-processpool \
+  --state-dir logs/<process_pool_run> \
+  --expected-output logs/<process_pool_run>/phase_4/results.json -- \
+  uv run python scripts/run_phase4_process_pool.py \
+    --source-state-dir logs/<verified_phase1_phase3_source> \
+    --instances instances.scale.json \
+    --workers 48 \
+    --runner browser_use \
+    --agent-provider openai \
+    --agent-model gpt-5.2 \
+    --agent-service-tier priority \
+    --agent-llm-timeout 240 \
+    --agent-step-timeout 300 \
+    --agent-task-timeout 2400 \
+    --phase-4-variant-system eval-awareness-iterator \
+    --phase-4-eval-awareness-max-iterations 3
+```
+
+Inspect `phase_4/process_pool_summary.json` for per-worker stdout/stderr paths,
+exit codes, timeouts, assigned instance indexes, and PVPO endpoints. The final
+`phase_4/results.json` is written only after every expected task has exactly
+one valid worker result; missing, duplicate, or mismatched task IDs fail closed
+instead of producing a partial canonical result.
+
 WorldSim uses two different network localities on r5. Treat the instances file
 as an execution-locality contract, not just a dataset selector:
 

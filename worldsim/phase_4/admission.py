@@ -37,9 +37,7 @@ def _filter_tasks_by_adversarial_action_kind(
 ) -> list[dict[str, Any]]:
     if not action_filter_raw:
         return tasks
-    action_filter = {
-        action.strip() for action in action_filter_raw.split(",") if action.strip()
-    }
+    action_filter = {action.strip() for action in action_filter_raw.split(",") if action.strip()}
     known_actions = {
         str((task.get("adversarial_action") or {}).get("kind", "")).strip()
         for task in tasks
@@ -55,8 +53,7 @@ def _filter_tasks_by_adversarial_action_kind(
     filtered = [
         task
         for task in tasks
-        if str((task.get("adversarial_action") or {}).get("kind", "")).strip()
-        in action_filter
+        if str((task.get("adversarial_action") or {}).get("kind", "")).strip() in action_filter
     ]
     logger.info(
         "%s: --adversarial-action-kind filter active, running only %s",
@@ -124,6 +121,7 @@ def _load_admitted_phase_4_tasks(
     adversarial_action_kind_filter_raw: str | None,
     max_tasks_per_site: int | None,
     state_metadata: dict[str, Any],
+    task_id_filter_raw: str | None = None,
 ) -> dict[str, Any]:
     def _admission_failure() -> dict[str, Any]:
         return {"return_code": 1, "tasks": [], "active_sites": set()}
@@ -143,6 +141,13 @@ def _load_admitted_phase_4_tasks(
     except ValueError as exc:
         logger.error("%s", exc)
         return _admission_failure()
+    task_id_filter_set = _parse_task_id_filter(task_id_filter_raw)
+    if task_id_filter_set is not None:
+        adversarial_tasks = [
+            task
+            for task in adversarial_tasks
+            if isinstance(task, dict) and str(task.get("id", "")).strip() in task_id_filter_set
+        ]
     try:
         adversarial_tasks = _filter_tasks_by_adversarial_action_kind(
             adversarial_tasks,
@@ -358,8 +363,33 @@ def _load_admitted_phase_4_tasks(
             post_cap_by_origin.get("new_task", 0),
         )
 
+    if task_id_filter_set is not None:
+        admitted_ids = {str(task.get("id", "")).strip() for task in tasks}
+        missing_ids = sorted(task_id_filter_set - admitted_ids)
+        if missing_ids:
+            logger.error(
+                "Phase 4 task-id filter requested %d task(s) not admitted: %s",
+                len(missing_ids),
+                ", ".join(missing_ids),
+            )
+            save_state(
+                "phase_4",
+                status="failed",
+                reason="task_id_filter_not_admitted",
+                missing_task_ids=missing_ids,
+                **state_metadata,
+            )
+            return _admission_failure()
+
     active_sites = {site for task in tasks for site in _task_reachable_sites(task)}
     return {"return_code": None, "tasks": tasks, "active_sites": active_sites}
+
+
+def _parse_task_id_filter(raw: str | None) -> set[str] | None:
+    if raw is None or not str(raw).strip():
+        return None
+    parsed = {item.strip() for item in str(raw).split(",") if item.strip()}
+    return parsed or None
 
 
 def _strict_feasibility_enabled() -> bool:

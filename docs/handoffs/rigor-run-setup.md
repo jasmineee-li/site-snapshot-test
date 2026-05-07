@@ -75,6 +75,42 @@ zero hand-patching.
            --agent-task-timeout 900
    ```
 
+   For high-concurrency Browser Use evidence runs, use the process-pool runner
+   when a single Phase 4 process shows Browser Use event-bus/CDP contention.
+   The process pool is orchestration-only: each subprocess invokes normal
+   `worldsim.main phase 4` with one task, one instance, and
+   `--phase-4-max-workers 1`, then the supervisor merges a canonical
+   `phase_4/results.json` after validating that every expected task has exactly
+   one result.
+
+   ```
+   scripts/remote_job_start.sh \
+       --host-config configs/benchmark_hosts/r8a.yaml \
+       --remote-dir /home/ubuntu/browser-sim \
+       --name phase4-rigor-p48-processpool \
+       --state-dir logs/<run_name> \
+       --expected-output logs/<run_name>/phase_4/results.json \
+       -- \
+       uv run python scripts/run_phase4_process_pool.py \
+           --source-state-dir logs/<verified_phase1_phase3_source> \
+           --instances instances.scale.json \
+           --workers 48 \
+           --runner browser_use \
+           --phase-4-variant-system eval-awareness-iterator \
+           --phase-4-eval-awareness-max-iterations 3 \
+           --agent-provider openai \
+           --agent-model gpt-5.2 \
+           --agent-service-tier priority \
+           --agent-task-timeout 2400
+   ```
+
+   Do not compare process-pool output to single-process W48 as an infrastructure
+   stress result; compare it as the same Phase 4 measurement core with safer
+   runner isolation. If `phase_4/process_pool_summary.json` reports missing
+   worker results, duplicate task IDs, task ID mismatches, or worker timeouts,
+   treat the run as incomplete until the failed task set is rerun or the root
+   cause is classified.
+
 ## Remote job wrapper quickstart
 
 Use the remote job scripts for any r5 command that may outlive an interactive

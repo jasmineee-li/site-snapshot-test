@@ -50,6 +50,7 @@ async def run(args: argparse.Namespace) -> int:
     max_tasks_per_site = getattr(args, "max_tasks_per_site", None)
     sites_filter_raw = getattr(args, "sites", None)
     adversarial_action_kind_filter_raw = getattr(args, "adversarial_action_kind", None)
+    task_id_filter_raw = getattr(args, "phase_4_task_id", None)
     instances_path = getattr(args, "instances", None)
     phase_4_max_workers = getattr(args, "phase_4_max_workers", None)
     phase_4_variant_budget = getattr(args, "phase_4_variant_budget", None)
@@ -76,6 +77,7 @@ async def run(args: argparse.Namespace) -> int:
         max_tasks_per_site=max_tasks_per_site,
         sites=sites_filter_raw,
         adversarial_action_kind=adversarial_action_kind_filter_raw,
+        task_id_filter=task_id_filter_raw,
         benchmark_root=benchmark_root,
         allow_unknown_auth=allow_unknown_auth,
         skip_host_bound_storage_state_auth=skip_host_bound_storage_state_auth,
@@ -91,6 +93,7 @@ async def run(args: argparse.Namespace) -> int:
         adversarial_action_kind_filter_raw=adversarial_action_kind_filter_raw,
         max_tasks_per_site=max_tasks_per_site,
         state_metadata=state_metadata,
+        task_id_filter_raw=task_id_filter_raw,
     )
     if admission["return_code"] is not None:
         return int(admission["return_code"])

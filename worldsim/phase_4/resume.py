@@ -65,6 +65,7 @@ def _phase_4_state_metadata(
     benchmark_root: Path | None,
     allow_unknown_auth: bool,
     skip_host_bound_storage_state_auth: bool,
+    task_id_filter: str | None = None,
     phase_4_max_workers: int | None = None,
     phase_4_variant_budget: str | None = None,
     phase_4_variant_system: str | None = None,
@@ -92,6 +93,8 @@ def _phase_4_state_metadata(
         metadata["sites"] = sites
     if adversarial_action_kind is not None:
         metadata["adversarial_action_kind"] = adversarial_action_kind
+    if task_id_filter is not None:
+        metadata["phase_4_task_id"] = task_id_filter
     if benchmark_root is not None:
         metadata["benchmark_path"] = str(benchmark_root)
     if phase_4_max_workers is not None:
