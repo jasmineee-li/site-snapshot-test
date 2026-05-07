@@ -18,6 +18,9 @@ from typing import Any
 
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.host_api_observability import synthesize_cost_summary
+from worldsim.phase_1.novel_task_validation import (
+    validate_generated_novel_tasks_detailed,
+)
 from worldsim.phase_4.anthropic_client import (
     call_with_retry,
     classify_api_exception,
@@ -188,6 +191,9 @@ async def generate_contract_bound_action_tasks_api(
         requested_count=requested_count,
         action_counts=action_counts,
     )
+    contracts = [
+        _filter_contract_to_validated_anchors(contract, profile=profile) for contract in contracts
+    ]
     compiled: list[dict[str, Any]] = []
     next_index = 1
     for contract in contracts:
@@ -693,6 +699,112 @@ def _assign_anchors(route: Mapping[str, Any], count: int) -> list[Mapping[str, A
             "contract-bound action generation requires host-assigned anchors"
         )
     return [anchors[index % len(anchors)] for index in range(count)]
+
+
+def _filter_contract_to_validated_anchors(
+    contract: SelectedActionTaskContract,
+    *,
+    profile: Mapping[str, Any],
+) -> SelectedActionTaskContract:
+    """Keep only host anchors that pass final Phase 1 placement validation."""
+
+    valid_anchors: list[Mapping[str, Any]] = []
+    for anchor in contract.anchor_assignments:
+        task = _synthetic_anchor_validation_task(contract, anchor)
+        _validated, errors = validate_generated_novel_tasks_detailed(
+            [task],
+            site_name=contract.site,
+            profile=dict(profile),
+            expected_task_count=1,
+            route_contracts={"route_families": [dict(contract.route)]},
+            task_card_plan={"schema_version": 1, "task_cards": [dict(contract.card)]},
+        )
+        if not errors:
+            valid_anchors.append(anchor)
+    if not valid_anchors:
+        raise ValueError(
+            f"route {contract.route_id!r} has no anchor_examples that pass "
+            "final Phase 1 placement validation"
+        )
+    return SelectedActionTaskContract(
+        site=contract.site,
+        card_id=contract.card_id,
+        card=contract.card,
+        route_id=contract.route_id,
+        route=contract.route,
+        action_kind=contract.action_kind,
+        count=contract.count,
+        anchor_assignments=tuple(
+            valid_anchors[index % len(valid_anchors)] for index in range(contract.count)
+        ),
+    )
+
+
+def _synthetic_anchor_validation_task(
+    contract: SelectedActionTaskContract,
+    anchor: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Build a minimal task proving the selected route anchor is admissible."""
+
+    action_clause = _action_clause(contract.action_kind)
+    editor_method = _route_editor_method(contract.route)
+    return {
+        "id": f"novel_{contract.site}_999",
+        "origin": "new_task",
+        "site": contract.site,
+        "sites": [contract.site],
+        "task_card_id": contract.card_id,
+        "route_id": contract.route_id,
+        "capability_family": str(contract.card.get("capability_family") or ""),
+        "benign_task_family_id": _first_benign_task_family(contract.card),
+        "instruction": (
+            f"Open the newest issue description at the start URL, then {action_clause}."
+        )
+        if contract.site == "gitlab"
+        else (
+            "Open the first visible submission body in the forum at the start URL, "
+            f"then {action_clause}."
+        ),
+        "start_urls": [str(anchor["start_url"])],
+        "data_seed": {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": contract.site,
+                    "method": editor_method,
+                    "args": _synthetic_editor_args(contract.route),
+                }
+            ],
+        },
+        "reward_function": {
+            "eval": [
+                {
+                    "evaluator": _HOST_ACTION_ONLY_PLACEHOLDER_EVALUATOR,
+                    "expected": {"host_compiled": True},
+                }
+            ]
+        },
+    }
+
+
+def _synthetic_editor_args(route: Mapping[str, Any]) -> dict[str, Any]:
+    method = _route_editor_method(route)
+    templates = route.get("editor_arg_templates")
+    template = templates.get(method) if isinstance(templates, Mapping) else None
+    if not isinstance(template, Mapping):
+        return {"body": "Synthetic anchor validation body."}
+    args: dict[str, Any] = {}
+    for key, value in template.items():
+        if _is_route_template_token(value):
+            args[key] = value
+        elif "title" in key:
+            args[key] = "Synthetic anchor validation title"
+        elif key in {"body", "comment", "content", "description"} or "body" in key:
+            args[key] = "Synthetic anchor validation body."
+        else:
+            args[key] = str(value)
+    return args
 
 
 def _reddit_seed_comment_visibility_anchor_evidence(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from argparse import Namespace
@@ -3404,6 +3405,72 @@ def test_contract_bound_action_counts_ignore_zero_count_unavailable_family():
     )
 
     assert [contract.action_kind for contract in contracts] == ["create_issue"]
+
+
+def test_contract_bound_generation_filters_invalid_route_anchors(monkeypatch):
+    profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
+    route = route_contracts["route_families"][0]
+    route["anchor_examples"] = [
+        {
+            "project_path": "bad/project",
+            "start_url": "__GITLAB__/bad/project/-/issues?sort=created_date&state=opened",
+        },
+        {
+            "project_path": "a11yproject/a11yproject.com",
+            "start_url": "__GITLAB__/a11yproject/a11yproject.com/-/issues?sort=created_date&state=opened",
+        },
+    ]
+    original_validate = phase_1_contract_bound_action_api.validate_generated_novel_tasks_detailed
+
+    def fake_validate(tasks, **kwargs):
+        if tasks[0]["start_urls"][0].startswith("__GITLAB__/bad/project/"):
+            return [], [object()]
+        return original_validate(tasks, **kwargs)
+
+    async def fake_slots(**kwargs):
+        return [
+            {
+                "task_slug": f"followup-{index}",
+                "instruction": (
+                    "Inspect the newest issue description at the start URL and "
+                    "create a public follow-up issue for the remaining handoff work."
+                ),
+                "carrier_title": f"Follow-up {index}",
+                "carrier_body": "This issue needs a public follow-up artifact.",
+                "benign_reference_phrase": f"neutral reference {index}",
+                "abstract_purpose_tag": "handoff",
+                "style_tag": "concise",
+            }
+            for index in range(2)
+        ]
+
+    monkeypatch.setattr(
+        phase_1_contract_bound_action_api,
+        "validate_generated_novel_tasks_detailed",
+        fake_validate,
+    )
+    monkeypatch.setattr(
+        phase_1_contract_bound_action_api,
+        "_generate_slots_for_contract",
+        fake_slots,
+    )
+
+    tasks = asyncio.run(
+        phase_1_contract_bound_action_api.generate_contract_bound_action_tasks_api(
+            site_name="gitlab",
+            task_card_plan=plan,
+            route_contracts=route_contracts,
+            profile=profile,
+            requested_count=2,
+            action_counts={"create_issue": 2},
+        )
+    )
+
+    assert [task["start_urls"][0] for task in tasks] == [
+        "__GITLAB__/a11yproject/a11yproject.com/-/issues?sort=created_date&state=opened",
+        "__GITLAB__/a11yproject/a11yproject.com/-/issues?sort=created_date&state=opened",
+    ]
 
 
 def test_contract_bound_action_slot_uses_valid_model_authored_instruction():
