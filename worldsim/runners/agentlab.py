@@ -21,8 +21,10 @@ import logging
 import os
 import shlex
 import shutil
+import signal
 import subprocess
 import tempfile
+import threading
 import time
 import uuid
 from collections.abc import Callable
@@ -58,6 +60,16 @@ _RESET_MAX_RETRIES = 2
 _RESET_RETRY_DELAY_S = 10
 _SIDECAR_CMD_ENV = "WORLDSIM_AGENTLAB_RUNNER_CMD"
 _SUPPORTED_ATTACK_MODES = frozenset({"comparison", "seeded_comparison"})
+_SIDECAR_TERMINATE_GRACE_S = 5.0
+
+
+@dataclass
+class _SidecarProcessResult:
+    returncode: int
+    stdout: str
+    stderr: str
+    timed_out: bool
+    elapsed: float
 
 
 @dataclass
@@ -485,6 +497,9 @@ def _run_sidecar_request(
         "agentlab_phase4_request.json" if subcommand == "phase4-run" else "agentlab_request.json"
     )
     response_path = task_dir / "agentlab_sidecar_result.json"
+    stdout_log_path = task_dir / "agentlab_sidecar_stdout.log"
+    stderr_log_path = task_dir / "agentlab_sidecar_stderr.log"
+    status_path = task_dir / "agentlab_sidecar_status.json"
     request_path.write_text(
         json.dumps(_redact_sidecar_payload(request), indent=2, sort_keys=True),
         encoding="utf-8",
@@ -500,11 +515,14 @@ def _run_sidecar_request(
                 encoding="utf-8",
             )
             runtime_request_path.chmod(0o600)
-            proc = subprocess.run(
+            proc = _run_sidecar_process_streaming(
                 [*_sidecar_command(subcommand), str(runtime_request_path)],
-                text=True,
-                capture_output=True,
-                check=False,
+                request=request,
+                task_dir=task_dir,
+                stdout_log_path=stdout_log_path,
+                stderr_log_path=stderr_log_path,
+                status_path=status_path,
+                subcommand=subcommand,
                 timeout=timeout,
             )
     except subprocess.TimeoutExpired as exc:
@@ -526,6 +544,20 @@ def _run_sidecar_request(
     if proc.returncode != 0:
         detail = proc.stderr.strip() or proc.stdout.strip()
         detail = _redact_sidecar_text(detail, request)
+        _write_sidecar_status(
+            status_path,
+            request=request,
+            subcommand=subcommand,
+            status="sidecar_error",
+            timeout=timeout,
+            stdout_log_path=stdout_log_path,
+            stderr_log_path=stderr_log_path,
+            returncode=proc.returncode,
+            elapsed=proc.elapsed,
+            timed_out=False,
+            stdout_bytes=len(proc.stdout.encode("utf-8")),
+            stderr_bytes=len(proc.stderr.encode("utf-8")),
+        )
         if subcommand == "phase4-run":
             payload = _phase4_sidecar_error_result(
                 request,
@@ -547,6 +579,20 @@ def _run_sidecar_request(
     try:
         payload = _sidecar_json_payload(proc.stdout)
     except json.JSONDecodeError as exc:
+        _write_sidecar_status(
+            status_path,
+            request=request,
+            subcommand=subcommand,
+            status="sidecar_invalid_json",
+            timeout=timeout,
+            stdout_log_path=stdout_log_path,
+            stderr_log_path=stderr_log_path,
+            returncode=proc.returncode,
+            elapsed=proc.elapsed,
+            timed_out=False,
+            stdout_bytes=len(proc.stdout.encode("utf-8")),
+            stderr_bytes=len(proc.stderr.encode("utf-8")),
+        )
         if subcommand == "phase4-run":
             detail = _redact_sidecar_text(proc.stdout[:500], request)
             payload = _phase4_sidecar_error_result(
@@ -577,6 +623,204 @@ def _run_sidecar_request(
         encoding="utf-8",
     )
     return payload
+
+
+def _run_sidecar_process_streaming(
+    cmd: list[str],
+    *,
+    request: dict[str, Any],
+    task_dir: Path,
+    stdout_log_path: Path,
+    stderr_log_path: Path,
+    status_path: Path,
+    subcommand: str,
+    timeout: int | None,
+) -> _SidecarProcessResult:
+    """Run the isolated AgentLab sidecar while teeing redacted diagnostics."""
+
+    started = time.monotonic()
+    task_dir.mkdir(parents=True, exist_ok=True)
+    stdout_log_path.write_text("", encoding="utf-8")
+    stderr_log_path.write_text("", encoding="utf-8")
+    _write_sidecar_status(
+        status_path,
+        request=request,
+        subcommand=subcommand,
+        status="sidecar_starting",
+        timeout=timeout,
+        stdout_log_path=stdout_log_path,
+        stderr_log_path=stderr_log_path,
+    )
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,
+        start_new_session=True,
+    )
+    _write_sidecar_status(
+        status_path,
+        request=request,
+        subcommand=subcommand,
+        status="sidecar_running",
+        timeout=timeout,
+        stdout_log_path=stdout_log_path,
+        stderr_log_path=stderr_log_path,
+        pid=proc.pid,
+        started_monotonic=started,
+    )
+    stdout_chunks: list[str] = []
+    stderr_chunks: list[str] = []
+
+    def _reader(stream, chunks: list[str], log_path: Path) -> None:
+        try:
+            for chunk in iter(stream.readline, ""):
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                with log_path.open("a", encoding="utf-8") as handle:
+                    handle.write(_redact_sidecar_text(chunk, request))
+                    handle.flush()
+        finally:
+            try:
+                stream.close()
+            except Exception:
+                pass
+
+    stdout_thread = threading.Thread(
+        target=_reader,
+        args=(proc.stdout, stdout_chunks, stdout_log_path),
+        daemon=True,
+    )
+    stderr_thread = threading.Thread(
+        target=_reader,
+        args=(proc.stderr, stderr_chunks, stderr_log_path),
+        daemon=True,
+    )
+    stdout_thread.start()
+    stderr_thread.start()
+    try:
+        returncode = proc.wait(timeout=timeout)
+        timed_out = False
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        _append_redacted_sidecar_log(
+            stderr_log_path,
+            f"\nworldsim: AgentLab sidecar exceeded task timeout {timeout}s; terminating\n",
+            request,
+        )
+        _terminate_sidecar_process(proc)
+        returncode = proc.returncode if proc.returncode is not None else -signal.SIGKILL
+    stdout_thread.join(timeout=1.0)
+    stderr_thread.join(timeout=1.0)
+    elapsed = time.monotonic() - started
+    stdout = "".join(stdout_chunks)
+    stderr = "".join(stderr_chunks)
+    status = "sidecar_timeout" if timed_out else "sidecar_completed"
+    _write_sidecar_status(
+        status_path,
+        request=request,
+        subcommand=subcommand,
+        status=status,
+        timeout=timeout,
+        stdout_log_path=stdout_log_path,
+        stderr_log_path=stderr_log_path,
+        pid=proc.pid,
+        returncode=returncode,
+        elapsed=elapsed,
+        timed_out=timed_out,
+        stdout_bytes=len(stdout.encode("utf-8")),
+        stderr_bytes=len(stderr.encode("utf-8")),
+    )
+    if timed_out:
+        raise subprocess.TimeoutExpired(cmd=cmd, timeout=timeout, output=stdout, stderr=stderr)
+    return _SidecarProcessResult(
+        returncode=int(returncode or 0),
+        stdout=stdout,
+        stderr=stderr,
+        timed_out=False,
+        elapsed=elapsed,
+    )
+
+
+def _terminate_sidecar_process(proc: subprocess.Popen[str]) -> None:
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    except Exception:
+        proc.terminate()
+    try:
+        proc.wait(timeout=_SIDECAR_TERMINATE_GRACE_S)
+        return
+    except subprocess.TimeoutExpired:
+        pass
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        return
+    except Exception:
+        proc.kill()
+    try:
+        proc.wait(timeout=1.0)
+    except subprocess.TimeoutExpired:
+        pass
+
+
+def _append_redacted_sidecar_log(path: Path, text: str, request: dict[str, Any]) -> None:
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(_redact_sidecar_text(text, request))
+        handle.flush()
+
+
+def _write_sidecar_status(
+    path: Path,
+    *,
+    request: dict[str, Any],
+    subcommand: str,
+    status: str,
+    timeout: int | None,
+    stdout_log_path: Path,
+    stderr_log_path: Path,
+    pid: int | None = None,
+    returncode: int | None = None,
+    elapsed: float | None = None,
+    timed_out: bool | None = None,
+    stdout_bytes: int | None = None,
+    stderr_bytes: int | None = None,
+    started_monotonic: float | None = None,
+) -> None:
+    payload: dict[str, Any] = {
+        "schema_version": 1,
+        "runner": "agentlab",
+        "mode": "phase4" if subcommand == "phase4-run" else "comparison",
+        "subcommand": subcommand,
+        "status": status,
+        "task_id": request.get("task_id"),
+        "timeout_s": timeout,
+        "stdout_log": str(stdout_log_path),
+        "stderr_log": str(stderr_log_path),
+        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    if pid is not None:
+        payload["pid"] = pid
+    if returncode is not None:
+        payload["returncode"] = returncode
+    if elapsed is not None:
+        payload["elapsed_s"] = round(max(0.0, elapsed), 3)
+    elif started_monotonic is not None:
+        payload["elapsed_s"] = round(max(0.0, time.monotonic() - started_monotonic), 3)
+    if timed_out is not None:
+        payload["timed_out"] = timed_out
+    if stdout_bytes is not None:
+        payload["stdout_bytes"] = stdout_bytes
+    if stderr_bytes is not None:
+        payload["stderr_bytes"] = stderr_bytes
+    path.write_text(
+        json.dumps(_redact_sidecar_payload(payload), indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
 
 
 def _sidecar_json_payload(stdout: str) -> dict[str, Any]:
@@ -611,6 +855,9 @@ def _clear_phase4_sidecar_artifacts(task_dir: Path) -> None:
         "navigation_trace.json",
         "browser_runtime.json",
         "agentlab_sidecar_result.json",
+        "agentlab_sidecar_status.json",
+        "agentlab_sidecar_stdout.log",
+        "agentlab_sidecar_stderr.log",
         "phase4_sidecar_request.json",
         "agentlab_native_exp_args.pkl",
     )
@@ -943,6 +1190,11 @@ def _phase4_artifact_manifest(output_dir: Path) -> dict[str, Any]:
         "network_evidence": output_dir / "network_evidence.json",
         "navigation_trace": output_dir / "navigation_trace.json",
         "browser_runtime": output_dir / "browser_runtime.json",
+        "agentlab_request": output_dir / "agentlab_phase4_request.json",
+        "agentlab_result": output_dir / "agentlab_sidecar_result.json",
+        "agentlab_status": output_dir / "agentlab_sidecar_status.json",
+        "agentlab_stdout": output_dir / "agentlab_sidecar_stdout.log",
+        "agentlab_stderr": output_dir / "agentlab_sidecar_stderr.log",
         "needham_trace": output_dir / "needham_trace.json",
         "needham_xml": output_dir / "needham_trace.xml",
         "pvpo_summary": output_dir / "pvpo" / "capture_summary.json",

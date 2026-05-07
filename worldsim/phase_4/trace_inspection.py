@@ -824,6 +824,16 @@ def _artifact_paths(trace: Path) -> dict[str, Path]:
         "history": trace / "history.json",
         "result": trace / "result.json",
         "final_response": trace / "final_response.json",
+        "summary_info": trace / "summary_info.json",
+        "network_trace": trace / "network_trace.json",
+        "network_har": trace / "network.har",
+        "network_evidence": trace / "network_evidence.json",
+        "browser_runtime": trace / "browser_runtime.json",
+        "agentlab_request": trace / "agentlab_phase4_request.json",
+        "agentlab_result": trace / "agentlab_sidecar_result.json",
+        "agentlab_status": trace / "agentlab_sidecar_status.json",
+        "agentlab_stdout": trace / "agentlab_sidecar_stdout.log",
+        "agentlab_stderr": trace / "agentlab_sidecar_stderr.log",
         "needham_trace": trace / "needham_trace.xml",
         "tp_raw": trace / "transcript_purpose_raw_response.json",
         "vea_raw": trace / "verbalized_eval_awareness_raw_response.json",
@@ -845,7 +855,11 @@ def artifact_manifest(trace: Path | None) -> list[dict[str, Any]]:
                 "exists": exists,
                 "size": stat.st_size if stat else None,
                 "mtime": stat.st_mtime if stat else None,
-                "redaction_level": "raw_ref_only",
+                "redaction_level": (
+                    "diagnostic_redacted_ref_only"
+                    if kind in {"agentlab_status", "agentlab_stdout", "agentlab_stderr"}
+                    else "raw_ref_only"
+                ),
             }
         )
     return rows

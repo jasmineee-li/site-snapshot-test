@@ -1224,20 +1224,57 @@ def _assert_agentlab_phase4_resume_sidecars(task_dir: Path) -> None:
     assert _has_phase_4_resume_artifacts({"outcome": "error"}, trajectory_dir=task_dir)
 
 
+def test_sidecar_streaming_writes_redacted_live_logs_and_status(tmp_path):
+    request = {"task_id": "task-1", "api_token": "secret-token"}
+    status_path = tmp_path / "agentlab_sidecar_status.json"
+    stdout_log = tmp_path / "agentlab_sidecar_stdout.log"
+    stderr_log = tmp_path / "agentlab_sidecar_stderr.log"
+
+    result = agentlab_runner._run_sidecar_process_streaming(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import json, sys; "
+                "print('noise secret-token', flush=True); "
+                "print('warn secret-token', file=sys.stderr, flush=True); "
+                "print(json.dumps({'status':'success','errors':[]}));"
+            ),
+        ],
+        request=request,
+        task_dir=tmp_path,
+        stdout_log_path=stdout_log,
+        stderr_log_path=stderr_log,
+        status_path=status_path,
+        subcommand="phase4-run",
+        timeout=5,
+    )
+
+    assert result.returncode == 0
+    assert "secret-token" in result.stdout
+    assert "secret-token" not in stdout_log.read_text(encoding="utf-8")
+    assert "secret-token" not in stderr_log.read_text(encoding="utf-8")
+    assert "<redacted>" in stdout_log.read_text(encoding="utf-8")
+    status = json.loads(status_path.read_text(encoding="utf-8"))
+    assert status["status"] == "sidecar_completed"
+    assert status["returncode"] == 0
+    assert status["stdout_bytes"] > 0
+
+
 def test_phase4_timeout_result_redacts_captured_secret_output(monkeypatch, tmp_path):
-    def timeout_run(*args, **kwargs):
-        request_path = Path(args[0][-1])
+    def timeout_run(cmd, **kwargs):
+        request_path = Path(cmd[-1])
         assert request_path.parent != tmp_path
         runtime_request = json.loads(request_path.read_text())
         assert runtime_request["scoped_auth"]["headers"]["Authorization"] == "Basic c2VjcmV0"
         raise subprocess.TimeoutExpired(
-            cmd=args[0],
+            cmd=cmd,
             timeout=3,
             output="stdout Basic c2VjcmV0 secret-token",
             stderr="stderr password=wonder Cookie: sid=abc",
         )
 
-    monkeypatch.setattr(agentlab_runner.subprocess, "run", timeout_run)
+    monkeypatch.setattr(agentlab_runner, "_run_sidecar_process_streaming", timeout_run)
     request = {
         "task_id": "task-1",
         "scoped_auth": {"headers": {"Authorization": "Basic c2VjcmV0", "Cookie": "sid=abc"}},
@@ -1278,7 +1315,7 @@ def test_phase4_timeout_result_redacts_captured_secret_output(monkeypatch, tmp_p
 
 
 def test_phase4_timeout_result_recovers_partial_artifacts(monkeypatch, tmp_path):
-    def timeout_run(*args, **kwargs):
+    def timeout_run(cmd, **kwargs):
         (tmp_path / "history.json").write_text(
             json.dumps(
                 {
@@ -1294,9 +1331,9 @@ def test_phase4_timeout_result_recovers_partial_artifacts(monkeypatch, tmp_path)
             json.dumps([{"url": "http://gitlab.test", "method": "GET"}]),
             encoding="utf-8",
         )
-        raise subprocess.TimeoutExpired(cmd=args[0], timeout=3)
+        raise subprocess.TimeoutExpired(cmd=cmd, timeout=3)
 
-    monkeypatch.setattr(agentlab_runner.subprocess, "run", timeout_run)
+    monkeypatch.setattr(agentlab_runner, "_run_sidecar_process_streaming", timeout_run)
 
     payload = agentlab_runner._run_sidecar_request(
         {"task_id": "task-1"},
@@ -1325,12 +1362,12 @@ def test_phase4_timeout_result_does_not_recover_stale_prior_artifacts(monkeypatc
         encoding="utf-8",
     )
 
-    def timeout_run(*args, **kwargs):
+    def timeout_run(cmd, **kwargs):
         assert not (tmp_path / "history.json").exists()
         assert not (tmp_path / "network_trace.json").exists()
-        raise subprocess.TimeoutExpired(cmd=args[0], timeout=3)
+        raise subprocess.TimeoutExpired(cmd=cmd, timeout=3)
 
-    monkeypatch.setattr(agentlab_runner.subprocess, "run", timeout_run)
+    monkeypatch.setattr(agentlab_runner, "_run_sidecar_process_streaming", timeout_run)
 
     payload = agentlab_runner._run_sidecar_request(
         {"task_id": "task-1"},
@@ -1348,15 +1385,16 @@ def test_phase4_timeout_result_does_not_recover_stale_prior_artifacts(monkeypatc
 
 
 def test_phase4_nonzero_sidecar_result_writes_audit_artifacts(monkeypatch, tmp_path):
-    def failed_run(*args, **kwargs):
-        return subprocess.CompletedProcess(
-            args=args[0],
+    def failed_run(cmd, **kwargs):
+        return agentlab_runner._SidecarProcessResult(
             returncode=2,
             stdout="",
             stderr="failed with token secret-token",
+            timed_out=False,
+            elapsed=0.0,
         )
 
-    monkeypatch.setattr(agentlab_runner.subprocess, "run", failed_run)
+    monkeypatch.setattr(agentlab_runner, "_run_sidecar_process_streaming", failed_run)
 
     payload = agentlab_runner._run_sidecar_request(
         {"task_id": "task-1", "api_token": "secret-token"},
@@ -1381,15 +1419,16 @@ def test_phase4_nonzero_sidecar_result_writes_audit_artifacts(monkeypatch, tmp_p
 
 
 def test_phase4_invalid_json_sidecar_result_writes_audit_artifacts(monkeypatch, tmp_path):
-    def invalid_json_run(*args, **kwargs):
-        return subprocess.CompletedProcess(
-            args=args[0],
+    def invalid_json_run(cmd, **kwargs):
+        return agentlab_runner._SidecarProcessResult(
             returncode=0,
             stdout="not json token secret-token",
             stderr="",
+            timed_out=False,
+            elapsed=0.0,
         )
 
-    monkeypatch.setattr(agentlab_runner.subprocess, "run", invalid_json_run)
+    monkeypatch.setattr(agentlab_runner, "_run_sidecar_process_streaming", invalid_json_run)
 
     payload = agentlab_runner._run_sidecar_request(
         {"task_id": "task-1", "api_token": "secret-token"},
@@ -1439,13 +1478,12 @@ def test_agentlab_phase4_resume_requires_audit_artifacts(tmp_path):
 
 
 def test_sidecar_result_redacts_request_secrets_echoed_in_logs(monkeypatch, tmp_path):
-    def completed_run(*args, **kwargs):
-        request_path = Path(args[0][-1])
+    def completed_run(cmd, **kwargs):
+        request_path = Path(cmd[-1])
         assert request_path.parent != tmp_path
         runtime_request = json.loads(request_path.read_text())
         assert runtime_request["scoped_auth"]["headers"]["Authorization"] == "Basic c2VjcmV0"
-        return subprocess.CompletedProcess(
-            args=args[0],
+        return agentlab_runner._SidecarProcessResult(
             returncode=0,
             stdout=json.dumps(
                 {
@@ -1466,9 +1504,11 @@ def test_sidecar_result_redacts_request_secrets_echoed_in_logs(monkeypatch, tmp_
                 }
             ),
             stderr="",
+            timed_out=False,
+            elapsed=0.0,
         )
 
-    monkeypatch.setattr(agentlab_runner.subprocess, "run", completed_run)
+    monkeypatch.setattr(agentlab_runner, "_run_sidecar_process_streaming", completed_run)
     request = {
         "task_id": "task-1",
         "scoped_auth": {"headers": {"Authorization": "Basic c2VjcmV0", "Cookie": "sid=abc"}},

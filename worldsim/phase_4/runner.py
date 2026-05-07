@@ -463,9 +463,23 @@ async def run(args: argparse.Namespace) -> int:
             logger.warning("Could not write Phase 4 progress heartbeat: %s", exc)
 
     progress_lock = asyncio.Lock()
+    started_initial_task_ids: set[str] = set()
+    active_initial_task_ids: set[str] = set()
+    failed_initial_task_ids: set[str] = set()
+
+    def _initial_progress_extra() -> dict[str, Any]:
+        active_ids = sorted(active_initial_task_ids)
+        return {
+            "initial_started_tasks": len(started_initial_task_ids),
+            "active_initial_tasks": len(active_ids),
+            "active_initial_task_ids": active_ids[:12],
+            "failed_initial_tasks": len(failed_initial_task_ids),
+        }
+
     _write_progress_safely(
         "initial_evaluation",
         completed_initial_tasks=len(completed_initial_task_ids),
+        extra=_initial_progress_extra(),
     )
 
     async def _record_initial_result(result: dict[str, Any]) -> None:
@@ -474,9 +488,11 @@ async def run(args: argparse.Namespace) -> int:
             return
         async with progress_lock:
             completed_initial_task_ids.add(task_id.strip())
+            active_initial_task_ids.discard(task_id.strip())
             _write_progress_safely(
                 "initial_evaluation",
                 completed_initial_tasks=len(completed_initial_task_ids),
+                extra=_initial_progress_extra(),
             )
 
     # Thread the benchmark codebase root through so BrowserUseAgent can validate
@@ -485,6 +501,15 @@ async def run(args: argparse.Namespace) -> int:
     # benchmark_root.
 
     async def _bound_run_adversarial_task(task, agent, instance, task_dir):
+        task_id = str(task.get("id", "unknown")).strip() or "unknown"
+        async with progress_lock:
+            started_initial_task_ids.add(task_id)
+            active_initial_task_ids.add(task_id)
+            _write_progress_safely(
+                "initial_evaluation",
+                completed_initial_tasks=len(completed_initial_task_ids),
+                extra=_initial_progress_extra(),
+            )
         run_kwargs: dict[str, Any] = {
             "benchmark_root": benchmark_root,
             "sandbox_model": sandbox_model,
@@ -512,13 +537,24 @@ async def run(args: argparse.Namespace) -> int:
             run_kwargs["reset_cache"] = reset_cache
         if callable_accepts_keyword(run_adversarial_task, "seed_probe_cache"):
             run_kwargs["seed_probe_cache"] = seed_probe_cache
-        return await run_adversarial_task(
-            task,
-            agent,
-            instance,
-            task_dir,
-            **run_kwargs,
-        )
+        try:
+            return await run_adversarial_task(
+                task,
+                agent,
+                instance,
+                task_dir,
+                **run_kwargs,
+            )
+        except Exception:
+            async with progress_lock:
+                active_initial_task_ids.discard(task_id)
+                failed_initial_task_ids.add(task_id)
+                _write_progress_safely(
+                    "initial_evaluation",
+                    completed_initial_tasks=len(completed_initial_task_ids),
+                    extra=_initial_progress_extra(),
+                )
+            raise
 
     # Initial adversarial run — run_tasks_by_site calls
     # prepare_tasks_for_execution internally, so no need to call it here.
