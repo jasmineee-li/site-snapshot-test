@@ -132,3 +132,24 @@ def test_impl_signature_observes_direct_preferred_token_patch(monkeypatch):
     sig = _impl.exposure_contract_signature()
 
     assert sig["token_preference"] == ["{patched_token}"]
+
+
+def test_package_signature_observes_impl_preferred_token_patch(monkeypatch):
+    import worldsim.phase_2.exposure_contract as package
+    from worldsim.phase_2.exposure_contract import _impl
+
+    monkeypatch.setattr(_impl, "PREFERRED_TOKEN_ORDER", ("{package_patched_token}",))
+
+    sig = package.exposure_contract_signature()
+
+    assert sig["token_preference"] == ["{package_patched_token}"]
+
+
+def test_legacy_signature_observes_facade_preferred_token_patch(monkeypatch):
+    from worldsim.phases import phase_2_exposure_contract as legacy
+
+    monkeypatch.setattr(legacy, "PREFERRED_TOKEN_ORDER", ("{legacy_patched_token}",))
+
+    sig = legacy.exposure_contract_signature()
+
+    assert sig["token_preference"] == ["{legacy_patched_token}"]

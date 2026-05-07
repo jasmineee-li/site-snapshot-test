@@ -25,6 +25,8 @@ _PATCHABLE_GLOBALS = (
     "is_core_surface",
     "active_carrier_ineligible_reason",
     "PAYLOAD_PLACEHOLDER",
+    "PREFERRED_PAYLOAD_ARGS",
+    "PREFERRED_TOKEN_ORDER",
 )
 
 

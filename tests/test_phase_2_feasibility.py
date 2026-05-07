@@ -587,10 +587,7 @@ def test_git_head_short_preserves_worldsim_sync_stamp_lookup(monkeypatch, tmp_pa
 
     monkeypatch.delenv("WORLDSIM_EDITOR_COMMIT_OVERRIDE", raising=False)
     monkeypatch.setattr(feas, "_sync_stamp_commit", fake_sync_stamp_commit)
-    monkeypatch.setattr(
-        "worldsim.phase_2.phase_2c.fingerprints._sync_stamp_commit",
-        fake_sync_stamp_commit,
-    )
+    feas._sync_legacy_patches()
 
     assert feas._git_head_short() == "stamp12345678"
     assert observed == [Path(__file__).resolve().parents[1] / "worldsim"]
@@ -613,6 +610,35 @@ def test_safe_cleanup_observes_legacy_facade_editor_error_patch(monkeypatch):
     feas._safe_cleanup(Handle(), warnings, "task-1")
 
     assert warnings == ["task=task-1 cleanup_failed: patched detail"]
+
+
+def test_impl_host_fingerprint_observes_direct_git_head_patch(monkeypatch):
+    from worldsim.phase_2.phase_2c import _impl
+
+    monkeypatch.setattr(_impl, "_git_head_short", lambda: "patchedhead12")
+
+    fingerprint = _impl._host_fingerprint("instances.test.json", [_gitlab_instance()])
+
+    assert fingerprint["editor_commit"] == "patchedhead12"
+    assert fingerprint["dataset_commit"] == "patchedhead12"
+
+
+def test_infeasible_task_observes_legacy_facade_first_method_patch(monkeypatch):
+    monkeypatch.setattr(feas, "_first_method", lambda task: "patched_method")
+    feas._sync_legacy_patches()
+
+    result = feas._infeasible_task(
+        {"id": "task-1", "adversarial_data_seed": {"editor_calls": []}},
+        kind="seed_failed",
+        detail="failed",
+        fingerprint={},
+        http_status=None,
+        response_snippet=None,
+        attempts=[],
+        timestamp="2026-05-06T00:00:00Z",
+    )
+
+    assert result["feasibility"]["errors"][0]["method"] == "patched_method"
 
 
 def test_resolve_benign_storage_state_path_prefers_nested_agent_auth(tmp_path):

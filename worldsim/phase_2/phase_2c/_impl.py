@@ -50,6 +50,8 @@ from worldsim.instance_selection import (
     replica_key,
     select_task_site_instance_dict_p2c,
 )
+from worldsim.phase_2.phase_2c import fingerprints as _fingerprints
+from worldsim.phase_2.phase_2c import outcomes as _outcomes
 from worldsim.phase_2.phase_2c.admission_guards import (
     _answer_target_collision_reason,
     _benign_agent_response_expected_strings,
@@ -71,19 +73,14 @@ from worldsim.phase_2.phase_2c.fingerprints import (
     _exposure_contract_fingerprint_projection,
     _fingerprints_match,
     _first_method,
-    _git_head_short,
-    _host_fingerprint,
     _hours_since,
     _idempotency_decision,
     _instances_digest,
-    _sync_stamp_commit,
     _task_content_hash,
 )
 from worldsim.phase_2.phase_2c.outcomes import (
-    _infeasible_task,
     _now_iso,
     _resolve_seed_site,
-    _safe_cleanup,
     skipped_task_stanza,
 )
 from worldsim.phase_2.phase_2c.reddit_attribution import (
@@ -117,10 +114,8 @@ _PHASE_2C_REEXPORTED_HELPERS = (
     _exposure_contract_fingerprint_projection,
     _fingerprints_match,
     _first_method,
-    _git_head_short,
     _hours_since,
     _instances_digest,
-    _sync_stamp_commit,
     _benign_agent_response_expected_strings,
     _flatten_string_values,
     _metadata_path_value,
@@ -137,6 +132,71 @@ _PHASE_2C_REEXPORTED_HELPERS = (
     _task_has_reddit_submit_comment_reward,
     _verification_target_url,
 )
+
+_ORIGINAL_OUTCOME_FUNCS = {
+    "_first_method": _outcomes._first_method,
+}
+
+
+def _sync_outcome_patches() -> None:
+    _outcomes.EditorError = EditorError
+    _outcomes.SeedCleanupHandle = SeedCleanupHandle
+    for name, original in _ORIGINAL_OUTCOME_FUNCS.items():
+        current = globals().get(name)
+        wrapper = _OUTCOME_WRAPPERS.get(name)
+        if current is wrapper:
+            setattr(_outcomes, name, original)
+        elif current is not None and current is not original:
+            setattr(_outcomes, name, current)
+
+
+def _host_fingerprint(instances_label: str, instances: list[dict[str, Any]]) -> dict[str, str]:
+    commit = _git_head_short()
+    return {
+        "host_config": instances_label,
+        "instances_digest": _instances_digest(instances),
+        "editor_commit": commit,
+        "dataset_commit": commit,
+    }
+
+
+def _git_head_short() -> str:
+    override = os.environ.get("WORLDSIM_EDITOR_COMMIT_OVERRIDE")
+    if override:
+        return override.strip()
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    sync_commit = _sync_stamp_commit(repo_root)
+    if sync_commit:
+        return sync_commit
+    try:
+        out = _fingerprints.subprocess.check_output(
+            ["git", "rev-parse", "--short=12", "HEAD"],
+            cwd=repo_root,
+            stderr=_fingerprints.subprocess.DEVNULL,
+            timeout=5,
+        )
+    except (OSError, _fingerprints.subprocess.SubprocessError):
+        return "unknown"
+    return out.decode("utf-8", errors="replace").strip() or "unknown"
+
+
+def _sync_stamp_commit(repo_root: Path) -> str | None:
+    return _fingerprints._sync_stamp_commit(repo_root)
+
+
+def _infeasible_task(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    _sync_outcome_patches()
+    return _outcomes._infeasible_task(*args, **kwargs)
+
+
+def _safe_cleanup(*args: Any, **kwargs: Any) -> None:
+    _sync_outcome_patches()
+    return _outcomes._safe_cleanup(*args, **kwargs)
+
+
+_OUTCOME_WRAPPERS = {
+    "_first_method": _first_method,
+}
 
 # Failpoint bases fired by ``write_json_atomic``. Callers wire these up so the
 # crash-resume tests can interrupt each write.

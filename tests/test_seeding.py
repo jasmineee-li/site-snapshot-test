@@ -1305,6 +1305,46 @@ def test_impl_validate_data_seed_observes_direct_editor_registry_patch(monkeypat
     )
 
 
+def test_impl_validate_data_seed_observes_direct_selector_guard_patch(monkeypatch):
+    from worldsim.seeding import _impl
+
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    def fake_selector_guard(site_name: str, args: dict[str, object]) -> None:
+        calls.append((site_name, args))
+
+    monkeypatch.setattr(_impl, "_validate_untrusted_selector_args", fake_selector_guard)
+
+    _impl.validate_data_seed(
+        {
+            "mechanism": "editor",
+            "editor_calls": [
+                {
+                    "benchmark": "webarena_verified",
+                    "site": "gitlab",
+                    "method": "create_issue_description",
+                    "args": {
+                        "project_id": "literal-project-id",
+                        "title": "title",
+                        "body": "payload",
+                    },
+                }
+            ],
+        }
+    )
+
+    assert calls == [
+        (
+            "gitlab",
+            {
+                "project_id": "literal-project-id",
+                "title": "title",
+                "body": "payload",
+            },
+        )
+    ]
+
+
 def test_validate_data_seed_accepts_editor_pre_call_delay():
     seeding.validate_data_seed(
         {

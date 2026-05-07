@@ -19,6 +19,12 @@ globals().update(
 )
 logger = logging.getLogger(__name__)
 
+_ORIGINAL_FACADE_PATCHES = {
+    "_first_method": globals().get("_first_method"),
+    "_git_head_short": globals().get("_git_head_short"),
+    "_sync_stamp_commit": globals().get("_sync_stamp_commit"),
+}
+
 _ORIGINAL_IMPL_FUNCS = {
     name: getattr(_legacy_impl, name)
     for name in (
@@ -69,6 +75,12 @@ def _sync_legacy_patches() -> None:
             setattr(_legacy_impl, name, globals()[name])
             if name in {"EditorError", "SeedCleanupHandle"}:
                 setattr(_outcomes, name, globals()[name])
+    for name, original in _ORIGINAL_FACADE_PATCHES.items():
+        current = globals().get(name)
+        if current is not None and current is not original:
+            setattr(_legacy_impl, name, current)
+            if name == "_first_method":
+                setattr(_outcomes, name, current)
     for name in (
         "_run_render_check",
         "_run_reachability_check",

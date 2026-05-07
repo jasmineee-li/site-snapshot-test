@@ -43,6 +43,12 @@ from worldsim.seeding.contracts import (
 
 logger = logging.getLogger(__name__)
 
+_ORIGINAL_VALIDATION_FUNCS = {
+    "_validate_editor_calls": _validation._validate_editor_calls,
+    "_validate_pre_call_delay": _validation._validate_pre_call_delay,
+    "_validate_untrusted_selector_args": _validation._validate_untrusted_selector_args,
+}
+
 _SEEDING_REEXPORTED_CONTRACT_HELPERS = (
     _seed_preserves_prefix,
     seed_has_actions,
@@ -95,6 +101,13 @@ class SeedCleanupHandle:
 
 def _sync_validation_patches() -> None:
     _validation.EDITOR_REGISTRY = EDITOR_REGISTRY
+    for name, original in _ORIGINAL_VALIDATION_FUNCS.items():
+        current = globals().get(name)
+        wrapper = _VALIDATION_WRAPPERS.get(name)
+        if current is wrapper:
+            setattr(_validation, name, original)
+        elif current is not None and current is not original:
+            setattr(_validation, name, current)
 
 
 def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> None:
@@ -113,6 +126,13 @@ def _validate_pre_call_delay(value: Any) -> None:
 
 def _validate_untrusted_selector_args(site_name: str, args: dict[str, Any]) -> None:
     return _validation._validate_untrusted_selector_args(site_name, args)
+
+
+_VALIDATION_WRAPPERS = {
+    "_validate_editor_calls": _validate_editor_calls,
+    "_validate_pre_call_delay": _validate_pre_call_delay,
+    "_validate_untrusted_selector_args": _validate_untrusted_selector_args,
+}
 
 
 def apply_data_seed(
