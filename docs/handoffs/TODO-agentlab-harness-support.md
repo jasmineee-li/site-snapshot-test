@@ -133,18 +133,33 @@ network/HAR, rewards, resume, and artifact manifests together on the rigor host.
 Smallest smoke:
 
 ```bash
-bash scripts/run_integration_tests.sh \
+scripts/sync_to_r5.sh --host-config configs/benchmark_hosts/r5.yaml
+scripts/remote_job_start.sh \
   --host-config configs/benchmark_hosts/r5.yaml \
-  --quiet \
-  --agent-runner agentlab \
-  --phase 4 \
-  --max-tasks-per-site 1
+  --name agentlab-parity-proof-current-reddit \
+  --source-log logs/<phase4-source-run> \
+  -- \
+  uv run python -m worldsim.main phase \
+    --instances instances.scale.json \
+    --sites reddit \
+    --task-origin new_task \
+    --max-tasks-per-site 1 \
+    --runner agentlab \
+    --phase-4-variant-system none \
+    --agent-provider openai \
+    --agent-model gpt-5.2 \
+    --agent-service-tier priority \
+    --agent-llm-timeout 240 \
+    --agent-step-timeout 60 \
+    --agent-task-timeout 900 \
+    --sandbox-model claude-sonnet-4-6 \
+    4
 ```
 
 Artifact audit:
 
 ```bash
-rg -n '"request_controls"|"service_workers"|"rewrite_hits"|"scoped_auth_hits"' logs/<run>/phase_4
+rg -n '"request_controls"|"browsergym_context_kwargs"|"service_workers"|"rewrite_hits"|"scoped_auth_hits"' logs/<run>/phase_4
 rg -n '"pvpo"|"beginframe"|"dirty"|"recycle"|"max_coverage"' logs/<run>/phase_4
 rg -n '"postData"|"method"|"url"|"status"' logs/<run>/phase_4/*/network.har
 rg -n '"format"|"needham-agentlab-v1"|"tool_calls"|"agentlab_action"' logs/<run>/phase_4/*/needham_trace.json
@@ -176,8 +191,10 @@ Pass criteria:
    confirm BrowserGym forwards it to Playwright and GitLab/Postmill workflows do
    not depend on service workers.
 3. **Timeout/crash artifacts.** Unit tests cover stale cleanup and placeholders;
-   live proof must exercise a short controlled timeout to prove partial
-   BrowserGym writes are recovered or replaced consistently.
+   r5 live proof on 2026-05-07 confirmed parent timeout artifact recovery and
+   browser recycle, but also showed `--agent-step-timeout 60` did not abort a
+   stalled AgentLab step. Treat per-step/LLM deadline parity as unproven until a
+   dedicated live proof passes.
 4. **PVPO lifecycle.** The coordinator and CDP detach paths are unit-covered,
    but r5 must prove screenshot patch, canonical PVPO capture, recycle reset,
    dirty endpoint semantics, and per-endpoint beginFrame serialization under
@@ -187,6 +204,26 @@ The PVPO item is not "okay sure" until live-proven because AgentLab has two
 sync CDP users in one process: BrowserGym screenshots and canonical PVPO
 capture. Local unit tests can simulate locks and dirty state; only r5 proves the
 actual CDP endpoint, browser recycle, and HeadlessExperimental.beginFrame path.
+
+### Latest Live Evidence - 2026-05-07
+
+- `20260507T021741Z-agentlab-parity-proof-current-reddit-b9fb3c` completed one
+  Reddit AgentLab `phase4-run` task on r5 at
+  `logs/agentlab_parity_proof_current_reddit_20260507Tlive`. It produced
+  PVPO captures, Needham artifacts, HAR/network evidence, reward-private traces
+  at mode `0600`, and `result.json` with `status=success`, `outcome=complied`.
+- `20260507T022003Z-agentlab-parity-proof-current-reddit-sw-40027b` reran after
+  BrowserGym context telemetry was added, but timed out through the parent
+  subprocess deadline. Parent recovery wrote complete timeout sidecars,
+  `final_response.json` reported `status=timeout`, PVPO was degraded but
+  present, and the browser recycle path succeeded.
+- The successful run predates `browser_runtime.browsergym_context_kwargs`; the
+  timeout rerun did not receive final sidecar runtime. A future successful r5
+  proof must show `browser_runtime.json` contains
+  `browsergym_context_kwargs.service_workers == "block"`.
+- Do not treat AgentLab `phase4-run` as full sweep-ready until per-step/LLM
+  deadline behavior is fixed or the run policy explicitly relies only on a
+  lower whole-task timeout.
 
 ## P2 Trajectory Risks And Proof
 
@@ -327,8 +364,9 @@ The operational rule is simple:
      AgentLab task dirs and reruns incomplete dirs.
    - Whole-task subprocess timeout writes minimal error artifacts and attempts
      PVPO browser recycle from the parent. `--agent-llm-timeout` and
-     `--agent-step-timeout` currently fail fast for AgentLab because they are not
-     wired into AgentLab model/step execution.
+     `--agent-step-timeout` are passed to AgentLab `phase4-run` request fields,
+     but live proof showed they are not sufficient deadline controls for a
+     stalled AgentLab step.
 
 ## Suggested Next PRs
 
@@ -355,10 +393,25 @@ bash scripts/verify_fast.sh
 Live gate before claiming AgentLab `phase4-run` WorldSim-v5 parity:
 
 ```bash
-bash scripts/run_integration_tests.sh \
+scripts/sync_to_r5.sh --host-config configs/benchmark_hosts/r5.yaml
+scripts/remote_job_start.sh \
   --host-config configs/benchmark_hosts/r5.yaml \
-  --quiet \
-  --agent-runner agentlab \
-  --phase 4 \
-  --max-tasks-per-site 1
+  --name agentlab-parity-proof-current-reddit \
+  --source-log logs/<phase4-source-run> \
+  -- \
+  uv run python -m worldsim.main phase \
+    --instances instances.scale.json \
+    --sites reddit \
+    --task-origin new_task \
+    --max-tasks-per-site 1 \
+    --runner agentlab \
+    --phase-4-variant-system none \
+    --agent-provider openai \
+    --agent-model gpt-5.2 \
+    --agent-service-tier priority \
+    --agent-llm-timeout 240 \
+    --agent-step-timeout 60 \
+    --agent-task-timeout 900 \
+    --sandbox-model claude-sonnet-4-6 \
+    4
 ```

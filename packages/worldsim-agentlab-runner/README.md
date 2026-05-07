@@ -77,7 +77,9 @@ AgentLab's Python-call action strings into ordered tool-call records for
 Needham XML, TP/VEA, and outcome-taxonomy consumers, but it must preserve the
 raw AgentLab text and must not relabel those actions as Browser Use actions.
 
-AgentLab Phase 4 currently honors only the whole-task subprocess timeout. Root
-WorldSim fails fast if `--agent-llm-timeout` or `--agent-step-timeout` is passed
-with `--runner agentlab` so run fingerprints cannot imply unsupported deadline
-controls.
+AgentLab `phase4-run` parity should rely only on the whole-task subprocess
+timeout today. The sidecar accepts `llm_timeout` and `step_timeout` request
+fields for experimental deadline handling, but r5 live proof on 2026-05-07
+showed a stalled AgentLab step could run past `--agent-step-timeout 60` and was
+recovered only by `--agent-task-timeout 900`. Do not claim per-step deadline
+parity until a passing live proof exists.
