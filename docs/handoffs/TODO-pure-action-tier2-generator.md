@@ -484,6 +484,74 @@ single forum/repo from dominating, require unique witness/attacker tokens, mix
 payload styles and scenario tags, and overgenerate/filter rather than
 hardcoding topical examples.
 
+## Deferred Pre-Evidence Warmup
+
+Defer this until after the active GPT-5.2 evidence run completes. Do not add
+or run warmup against a host while a paper Phase 4 job is using the same PVPO
+endpoints, unless the endpoints are explicitly isolated. The purpose is to
+turn accidental cold-start warming into a deliberate, discarded, recorded
+pre-evidence gate.
+
+Current `setup_phase4_on_host.sh` and `pytest -m preflight` prove readiness:
+PVPO CDP endpoints answer `/json/version`, PVPO containers are supervised,
+GitLab storage state exists, and the evaluator venv imports. They do not prove
+the full measured path is already warm: AgentLab imports, BrowserGym reset,
+first observation, patched screenshot capture, PVPO `beginFrame`, site/auth
+first navigation, and CDP recycle.
+
+Add a separate warmup command, not a default `setup_phase4_on_host.sh` step:
+
+```bash
+scripts/warm_phase4_host.sh \
+  --host-config configs/benchmark_hosts/r8a.yaml \
+  --remote-dir /home/ubuntu/browser-sim \
+  --instances instances.scale.json \
+  --runner agentlab \
+  --warmup-dir logs/warmups/<run_name> \
+  --pvpo-endpoints all \
+  --agentlab-sidecars 8 \
+  --site-sample all
+```
+
+The warmup should write a manifest such as
+`logs/warmups/<run_name>/warmup_report.json` with host config, instances path,
+git/sync stamp, endpoint counts, pass/fail state, and p50/p95 timings. Warmup
+artifacts are never counted as benchmark evidence and must stay outside Phase
+1-4 result summaries.
+
+Required checks:
+
+- import and version warmup for `worldsim`, AgentLab runner, BrowserGym, model
+  adapters, and the WebArena evaluator venv;
+- all unique `pvpo_cdp_url` endpoints answer `/json/version`;
+- every selected endpoint exercises the canonical PVPO capture path,
+  especially `HeadlessExperimental.beginFrame`, animation-killer injection,
+  screenshot capture, and browser recycle;
+- non-mutating GitLab/Reddit first navigation succeeds for selected replicas;
+- GitLab storage state loads an authenticated page without redirecting to
+  sign-in;
+- AgentLab warmup sidecars can apply benchmark config, reset BrowserGym,
+  capture the first observation, run one PVPO capture, close the environment,
+  and recycle CDP without making model calls or mutating benchmark state.
+
+Implementation sketch:
+
+- add `scripts/warm_phase4_host.sh` as the remote/local wrapper;
+- add `scripts/warm_phase4_host.py` for host-level orchestration and manifest
+  writing;
+- add `phase4-warmup` to
+  `packages/worldsim-agentlab-runner/src/worldsim_agentlab_runner/cli.py`;
+- keep runner-specific logic in a new
+  `packages/worldsim-agentlab-runner/src/worldsim_agentlab_runner/phase4_warmup.py`
+  so the warmup reuses the same patched Chromium, screenshot, PVPO, and
+  BrowserGym setup as real AgentLab Phase 4;
+- document the gate in `agent_docs/remote-runs.md` and
+  `docs/handoffs/rigor-run-setup.md` after implementation.
+
+Default behavior should fail closed if a registered remote job is active on
+the same host. A future `--allow-active-job` override must require explicit
+operator intent and should be used only with non-overlapping endpoint pools.
+
 ## Generator Architecture Note
 
 The reusable architecture is **contract-bound action generation**. "Paper" is
