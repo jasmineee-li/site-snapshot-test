@@ -879,7 +879,8 @@ def _clear_phase4_sidecar_artifacts(task_dir: Path) -> None:
         "phase4_sidecar_request.json",
         "agentlab_native_exp_args.pkl",
     )
-    dirs = ("reward_private",)
+    dirs = ("pvpo", "screenshots", "reward_private")
+    patterns = ("screenshot_step_*", "step_*.pkl.gz")
     for name in files:
         path = task_dir / name
         try:
@@ -890,10 +891,21 @@ def _clear_phase4_sidecar_artifacts(task_dir: Path) -> None:
     for name in dirs:
         path = task_dir / name
         try:
-            if path.exists():
+            if path.is_symlink():
+                path.unlink()
+            elif path.exists():
                 shutil.rmtree(path)
         except OSError:
             logger.warning("could not remove stale AgentLab sidecar artifact dir %s", path)
+    for pattern in patterns:
+        for path in task_dir.glob(pattern):
+            try:
+                if path.is_dir() and not path.is_symlink():
+                    shutil.rmtree(path)
+                else:
+                    path.unlink()
+            except OSError:
+                logger.warning("could not remove stale AgentLab sidecar artifact %s", path)
 
 
 def _phase4_sidecar_error_result(
@@ -915,6 +927,7 @@ def _phase4_sidecar_error_result(
     if existing_runtime:
         runtime.update(existing_runtime)
         runtime["sidecar_error"] = True
+    runtime["runtime_artifact_status"] = "sidecar_error"
     if fatal_capture:
         runtime["pvpo_capture_fatal"] = True
         runtime["pvpo_capture_fatal_details"] = fatal_capture
@@ -1251,6 +1264,7 @@ def _phase4_artifact_manifest(output_dir: Path) -> dict[str, Any]:
         "needham_trace": output_dir / "needham_trace.json",
         "needham_xml": output_dir / "needham_trace.xml",
         "pvpo_summary": output_dir / "pvpo" / "capture_summary.json",
+        "pvpo_fatal_capture": output_dir / "pvpo" / "fatal_capture.json",
     }
     screenshots = sorted(
         {str(path) for path in output_dir.glob("screenshot_step_*")}

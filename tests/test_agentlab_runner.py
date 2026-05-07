@@ -594,6 +594,7 @@ def test_sidecar_artifact_manifest_includes_phase4_outputs(tmp_path):
     (tmp_path / "pvpo").mkdir()
     (tmp_path / "pvpo" / "step_0.json").write_text("{}", encoding="utf-8")
     (tmp_path / "pvpo" / "capture_summary.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "pvpo" / "fatal_capture.json").write_text("{}", encoding="utf-8")
     (tmp_path / "screenshots").mkdir()
     (tmp_path / "screenshots" / "step_0.png").write_bytes(b"png")
     (tmp_path / "step_0.pkl.gz").write_bytes(b"x")
@@ -604,6 +605,7 @@ def test_sidecar_artifact_manifest_includes_phase4_outputs(tmp_path):
     assert manifest["network_har"] == str(tmp_path / "network.har")
     assert manifest["needham_xml"] == str(tmp_path / "needham_trace.xml")
     assert manifest["pvpo_summary"] == str(tmp_path / "pvpo" / "capture_summary.json")
+    assert manifest["pvpo_fatal_capture"] == str(tmp_path / "pvpo" / "fatal_capture.json")
     assert manifest["pvpo_steps"] == [str(tmp_path / "pvpo" / "step_0.json")]
     assert manifest["screenshots"] == [str(tmp_path / "screenshots" / "step_0.png")]
     assert manifest["steps"] == [str(tmp_path / "step_0.pkl.gz")]
@@ -1709,12 +1711,67 @@ def test_phase4_nonzero_sidecar_preserves_fatal_pvpo_runtime(monkeypatch, tmp_pa
     runtime = payload["browser_runtime"]
     assert payload["status"] == "error"
     assert payload["evidence_status"] == "sidecar_error_partial_artifacts"
+    assert payload["artifacts"]["pvpo_fatal_capture"] == str(
+        tmp_path / "pvpo" / "fatal_capture.json"
+    )
     assert runtime["agent_browser_connect_count"] == 1
     assert runtime["auxiliary_browser_connect_count"] == 1
+    assert runtime["runtime_artifact_status"] == "sidecar_error"
     assert runtime["pvpo_capture_fatal"] is True
     assert runtime["pvpo_capture_fatal_details"]["exit_code"] == 42
     assert runtime["recycle_status"] == "recycled"
     assert runtime["recycle_reason"] == "sidecar_error"
+
+
+def test_phase4_sidecar_retry_clears_stale_pvpo_artifacts(monkeypatch, tmp_path):
+    (tmp_path / "pvpo").mkdir()
+    (tmp_path / "pvpo" / "fatal_capture.json").write_text(
+        json.dumps(
+            {
+                "issue_class": "capture_failed",
+                "step": 9,
+                "message": "stale fatal",
+                "exit_code": 42,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "pvpo" / "step_9.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "screenshots").mkdir()
+    (tmp_path / "screenshots" / "step_9.png").write_bytes(b"old")
+    (tmp_path / "screenshot_step_9.png").write_bytes(b"old")
+    (tmp_path / "step_9.pkl.gz").write_bytes(b"old")
+    (tmp_path / "reward_private").mkdir()
+    (tmp_path / "reward_private" / "old.json").write_text("{}", encoding="utf-8")
+
+    def failed_run(cmd, **kwargs):
+        assert not (tmp_path / "pvpo" / "fatal_capture.json").exists()
+        assert not (tmp_path / "pvpo" / "step_9.json").exists()
+        assert not (tmp_path / "screenshots" / "step_9.png").exists()
+        assert not (tmp_path / "screenshot_step_9.png").exists()
+        assert not (tmp_path / "step_9.pkl.gz").exists()
+        assert not (tmp_path / "reward_private").exists()
+        return agentlab_runner._SidecarProcessResult(
+            returncode=1,
+            stdout="",
+            stderr="fresh sidecar failure",
+            timed_out=False,
+            elapsed=0.0,
+        )
+
+    monkeypatch.setattr(agentlab_runner, "_run_sidecar_process_streaming", failed_run)
+
+    payload = agentlab_runner._run_sidecar_request(
+        {"task_id": "task-1"},
+        tmp_path,
+        subcommand="phase4-run",
+        timeout=3,
+    )
+
+    assert payload["status"] == "error"
+    assert payload["evidence_status"] == "sidecar_error_placeholder"
+    assert "pvpo_capture_fatal" not in payload["browser_runtime"]
+    assert payload["browser_runtime"]["runtime_artifact_status"] == "sidecar_error"
 
 
 def test_phase4_invalid_json_sidecar_result_writes_audit_artifacts(monkeypatch, tmp_path):
