@@ -99,11 +99,7 @@ def _task_group_key(task: dict[str, Any]) -> tuple[str, str, str, str, str, str]
         str(task.get("site") or "unknown"),
         str(task.get("origin") or "unknown"),
         str(task.get("route_id") or "unknown"),
-        str(
-            task.get("target_surface_id")
-            or contract.get("target_surface_id")
-            or "unknown"
-        ),
+        str(task.get("target_surface_id") or contract.get("target_surface_id") or "unknown"),
         str(task.get("editor_method") or contract.get("editor_method") or "unknown"),
         f"{status}:{reason}",
     )
@@ -141,7 +137,9 @@ def summarize_phase2c(run_root: Path) -> dict[str, Any] | None:
     ineligible_path = phase_2 / "exposure_ineligible.json"
     no_contract_path = phase_2 / "dropped_no_contract.json"
 
-    if not any(path.exists() for path in (admitted_path, infeasible_path, dropped_path, report_path)):
+    if not any(
+        path.exists() for path in (admitted_path, infeasible_path, dropped_path, report_path)
+    ):
         return None
 
     admitted = _load_json_array_if_present(admitted_path)
@@ -383,8 +381,7 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
                     counts = {}
                 count_text = _fmt_count_map(counts)
                 parts.append(
-                    f"{site.get('site', 'unknown')}={site.get('status', 'unknown')}"
-                    f"({count_text})"
+                    f"{site.get('site', 'unknown')}={site.get('status', 'unknown')}({count_text})"
                 )
             if parts:
                 lines.append(f"Phase 0c reachability: {'; '.join(parts)}")
@@ -471,6 +468,12 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
             f"{summary.get('gate1_asr_denominator', summary.get('asr_valid_denominator', 0))} = "
             f"{_fmt_rate(summary.get('gate1_asr', summary.get('asr_valid')))}"
         )
+        lines.append(
+            "Phase 4 ASR (legacy Gate-1 label): "
+            f"{summary.get('gate1_asr_numerator', summary.get('asr_valid_numerator', 0))} / "
+            f"{summary.get('gate1_asr_denominator', summary.get('asr_valid_denominator', 0))} = "
+            f"{_fmt_rate(summary.get('gate1_asr', summary.get('asr_valid')))}"
+        )
         lines.extend(_format_variant_audit(summary))
         inspection = summary.get("inspection_index")
         if isinstance(inspection, list) and inspection and inspect_limit:
@@ -503,8 +506,7 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
             if isinstance(results_path, str):
                 run_root = str(Path(results_path).parent.parent)
                 lines.append(
-                    "Trace summary: "
-                    f"uv run python -m worldsim.main trace summary {run_root}"
+                    f"Trace summary: uv run python -m worldsim.main trace summary {run_root}"
                 )
                 lines.append(
                     "Trace resistant_unaware slice: "
@@ -543,11 +545,7 @@ def format_inspection_payload(payload: dict[str, Any]) -> str:
         raise ValueError("inspection payload missing task object")
     lines = [
         f"WorldSim task inspection: {task.get('task_id', 'unknown')}",
-        (
-            "Status: "
-            f"{task.get('final_status', 'missing')} "
-            f"({task.get('outcome_fine', 'missing')})"
-        ),
+        (f"Status: {task.get('final_status', 'missing')} ({task.get('outcome_fine', 'missing')})"),
         (
             "Surface: "
             f"{task.get('site', 'unknown')} "
@@ -572,7 +570,12 @@ def format_inspection_payload(payload: dict[str, Any]) -> str:
     successful_strategy = task.get("successful_strategy")
     if isinstance(successful_strategy, str) and successful_strategy:
         lines.append(f"Successful strategy: {successful_strategy}")
-    for key in ("initial_trace", "current_trace", "successful_variant_trace", "primary_inspection_trace"):
+    for key in (
+        "initial_trace",
+        "current_trace",
+        "successful_variant_trace",
+        "primary_inspection_trace",
+    ):
         value = task.get(key)
         if isinstance(value, str) and value:
             lines.append(f"{key}: {value}")

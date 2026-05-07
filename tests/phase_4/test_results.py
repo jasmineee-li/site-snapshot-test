@@ -4,6 +4,7 @@ from typing import Any
 
 from ._fixtures import *  # noqa: F403,F401
 
+
 def test_layout_telemetry_records_geometry_bucket():
     task = _phase4_exposure_fields()
     task["feasibility"]["exposure"]["layout_visible_at_entry"] = False
@@ -49,6 +50,42 @@ def test_write_phase_4_results_finalizes_progress_json(monkeypatch, tmp_path):
     assert progress["phase_4_max_workers"] == 2
 
 
+def test_write_phase_4_results_uses_strict_variant_success_evidence(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
+    monkeypatch.setattr(phase_4_adversarial.cost_tracker, "log_phase_summary", lambda *_: None)
+    monkeypatch.setattr(phase_4_adversarial.cost_tracker, "save", lambda *_: None)
+
+    rc = phase_4_adversarial._write_phase_4_results(
+        state_dir=tmp_path,
+        state_metadata={"task_dir_root": str(tmp_path / "phase_4" / "run")},
+        final_results=[
+            {
+                "task_id": "task-1",
+                "final_status": "success_on_variant",
+                "encounter": {"max_coverage": 1.0},
+                "strategy_variation": {
+                    "variant_results": [
+                        {
+                            "strategy": "specificity",
+                            "outcome": "complied",
+                            "encounter": {"max_coverage": 1.0},
+                            "variant_trajectory_dir": str(tmp_path / "variant"),
+                        }
+                    ]
+                },
+            }
+        ],
+        tasks=[{"id": "task-1", "origin": "new_task"}],
+    )
+
+    assert rc == 0
+    state = json.loads((tmp_path / "pipeline_state.json").read_text())
+    assert state["headline_asr_numerator"] == 0
+    assert state["gate1_asr_numerator"] == 0
+    assert state["asr_raw_numerator"] == 0
+    assert state["asr_valid_numerator"] == 0
+
+
 def test_write_phase_4_results_ignores_terminal_progress_write_failure(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     monkeypatch.setattr(phase_4_adversarial.cost_tracker, "log_phase_summary", lambda *_: None)
@@ -68,6 +105,7 @@ def test_write_phase_4_results_ignores_terminal_progress_write_failure(monkeypat
 
     assert rc == 1
     assert (tmp_path / "phase_4" / "results.json").exists()
+
 
 @pytest.mark.asyncio
 async def test_phase_4_requires_contracts_file(monkeypatch, tmp_path):
@@ -99,6 +137,7 @@ async def test_phase_4_requires_contracts_file(monkeypatch, tmp_path):
     )
 
     assert rc == 1
+
 
 @pytest.mark.asyncio
 async def test_phase_4_reports_dataset_exhausted_when_contracts_are_exhausted(
@@ -144,6 +183,7 @@ async def test_phase_4_reports_dataset_exhausted_when_contracts_are_exhausted(
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["reason"] == "dataset_exhausted"
     assert state["adversarially_exhausted_contract_ids"] == ["benign-exhausted"]
+
 
 @pytest.mark.asyncio
 async def test_phase_4_sites_filter_limits_token_acquisition(monkeypatch, tmp_path):
@@ -247,6 +287,7 @@ async def test_phase_4_sites_filter_limits_token_acquisition(monkeypatch, tmp_pa
         "_preflight_host_messages_api",
         lambda **kwargs: asyncio.sleep(0, result=(True, None)),
     )
+
     def fake_make_agent_factory(**kwargs):
         captured_agent_factory_kwargs.update(kwargs)
         return lambda: None

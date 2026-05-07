@@ -1,6 +1,9 @@
 # ruff: noqa
 # Auto-split from tests/test_phase_4_adversarial.py; shared helpers live in tests/phase_4/_fixtures.py.
+from typing import Any
+
 from ._fixtures import *  # noqa: F403,F401
+
 
 def test_phase_4_variant_fingerprint_changes_when_instance_auth_or_placeholders_change():
     task, instances = _prepared_adv_task()
@@ -43,6 +46,7 @@ def test_phase_4_variant_fingerprint_changes_when_instance_auth_or_placeholders_
         site_profile=None,
     )
 
+
 def test_phase_4_variant_fingerprint_changes_when_secondary_instances_change():
     task, instances = _prepared_adv_task()
     variant = json.loads(json.dumps(task))
@@ -77,6 +81,7 @@ def test_phase_4_variant_fingerprint_changes_when_secondary_instances_change():
         sandbox_model="claude-sonnet-4-6",
         site_profile=None,
     )
+
 
 def test_phase_4_result_fingerprint_ignores_unrelated_site_instances_and_placeholders():
     task, instances = _prepared_adv_task()
@@ -131,6 +136,7 @@ def test_phase_4_result_fingerprint_ignores_unrelated_site_instances_and_placeho
     )
 
     assert base == changed
+
 
 def test_phase_4_result_fingerprint_changes_when_resume_version_changes(monkeypatch):
     task, instances = _prepared_adv_task()
@@ -204,6 +210,7 @@ def test_phase_4_result_fingerprint_changes_when_agent_timeout_changes():
 
     assert base != changed
 
+
 def test_phase_4_variant_fingerprint_changes_when_agent_or_api_auth_changes():
     task, instances = _prepared_adv_task()
     variant = json.loads(json.dumps(task))
@@ -248,6 +255,7 @@ def test_phase_4_variant_fingerprint_changes_when_agent_or_api_auth_changes():
         sandbox_model="claude-sonnet-4-6",
         site_profile=None,
     )
+
 
 @pytest.mark.asyncio
 async def test_postprocess_one_task_resume_ignores_stale_processed_result(monkeypatch, tmp_path):
@@ -303,6 +311,57 @@ async def test_postprocess_one_task_resume_ignores_stale_processed_result(monkey
     assert calls["process"] == 1
     assert processed["final_status"] == "complied"
 
+
+@pytest.mark.asyncio
+async def test_postprocess_one_task_forwards_agent_execution_to_variant_fingerprints(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    result = {
+        "task_id": task["id"],
+        "outcome": "refused_or_ignored",
+        "encounter": {"max_coverage": 0.5},
+        "trajectory_dir": str(tmp_path / "traj"),
+    }
+    captured: dict[str, Any] = {}
+
+    async def fake_process_adversarial_result(**kwargs):
+        captured.update(kwargs)
+        return {
+            "task_id": task["id"],
+            "initial_outcome": "refused_or_ignored",
+            "encounter": {"max_coverage": 0.5},
+            "judge_diagnosis": None,
+            "strategies_attempted": [],
+            "final_status": "resistant",
+            "successful_strategy": None,
+        }
+
+    monkeypatch.setattr(
+        phase_4_adversarial,
+        "_process_adversarial_result",
+        fake_process_adversarial_result,
+    )
+    agent_execution = {
+        "agent_runner": "agentlab",
+        "agent_model": "openrouter/test",
+        "agent_task_timeout": 900,
+    }
+
+    await phase_4_adversarial._postprocess_one_task(
+        result=result,
+        task_by_id={task["id"]: task},
+        config=SimpleNamespace(instances=instances),
+        profiles_dir=tmp_path,
+        agent_factory=lambda: None,
+        task_dir_root=tmp_path,
+        resume=True,
+        agent_execution=agent_execution,
+    )
+
+    assert captured["agent_execution"] == agent_execution
+
+
 @pytest.mark.asyncio
 async def test_postprocess_one_task_resume_ignores_malformed_processed_result(
     monkeypatch, tmp_path
@@ -351,6 +410,7 @@ async def test_postprocess_one_task_resume_ignores_malformed_processed_result(
     assert calls["process"] == 1
     assert processed["final_status"] == "complied"
 
+
 def test_resume_fingerprint_result_includes_final_status_and_metrics():
     payload = {
         "task_id": "adv-1",
@@ -365,6 +425,7 @@ def test_resume_fingerprint_result_includes_final_status_and_metrics():
 
     assert projected["final_status"] == "injection_not_encountered"
     assert "transcript_purpose_classification" in projected
+
 
 @pytest.mark.asyncio
 async def test_run_adversarial_task_persists_resume_fingerprint(monkeypatch, tmp_path):
@@ -427,6 +488,7 @@ async def test_run_adversarial_task_persists_resume_fingerprint(monkeypatch, tmp
     assert saved["outcome_fine"] == "resistant_unaware"
     assert saved["classifier_version"] == "tax-v-test"
 
+
 @pytest.mark.asyncio
 async def test_evaluate_variant_resume_ignores_result_without_matching_metadata(
     monkeypatch, tmp_path
@@ -471,6 +533,7 @@ async def test_evaluate_variant_resume_ignores_result_without_matching_metadata(
 
     assert calls["run"] == 1
     assert result["outcome"] == "complied"
+
 
 @pytest.mark.asyncio
 async def test_evaluate_variant_resume_ignores_malformed_result_metadata_json(

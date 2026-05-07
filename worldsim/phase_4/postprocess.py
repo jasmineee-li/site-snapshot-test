@@ -100,6 +100,7 @@ async def _postprocess_one_task(
         variant_budget_preset=variant_budget_preset,
         variant_system=variant_system,
         eval_awareness_max_iterations=eval_awareness_max_iterations,
+        agent_execution=agent_execution,
         progress_callback=progress_callback,
         browser_worker_semaphore=browser_worker_semaphore,
     )
@@ -370,8 +371,7 @@ async def _process_adversarial_result(
         )
     selected_iteration = variation.get("selected_iteration")
     selected_trace = (
-        successful_variant.get("variant_trajectory_dir")
-        or successful_variant.get("trajectory_dir")
+        successful_variant.get("variant_trajectory_dir") or successful_variant.get("trajectory_dir")
         if isinstance(successful_variant, dict)
         else None
     )

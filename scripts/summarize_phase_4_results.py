@@ -372,6 +372,11 @@ def format_text_summary(
         f"{_fmt_rate(summary['gate1_asr'])}"
     )
     lines.append(
+        "Final Gate-1 ASR (legacy label): "
+        f"{summary['gate1_asr_numerator']} / {summary['gate1_asr_denominator']} = "
+        f"{_fmt_rate(summary['gate1_asr'])}"
+    )
+    lines.append(
         "Final compliant with adversarial reward: "
         f"{summary['final_compliant_with_adversarial_reward']} / "
         f"{summary['final_compliant_denominator']}"
@@ -488,8 +493,7 @@ def format_text_summary(
             reason = row.get("attempt_failed_reason") or ""
             suffix = f" reason={reason}" if reason else ""
             lines.append(
-                f"  {row['count']} {row['scenario_template']} "
-                f"{row['attempt_status']}{suffix}"
+                f"  {row['count']} {row['scenario_template']} {row['attempt_status']}{suffix}"
             )
 
     strategy_rows = summary.get("variant_strategy_outcomes") or []
