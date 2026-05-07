@@ -78,9 +78,42 @@ def _route_evidence_flags(kind: ResourceKind | str, task: Mapping[str, Any]) -> 
             flags["transition_forced_by_task"] = True
             flags["exact_comment_region_forced_by_task"] = True
             flags["visual_comment_region_forced_by_task"] = True
-            if not _task_already_seeds_reddit_comment_body(task):
+            if _task_has_reddit_seed_visibility_anchor_evidence(task):
+                flags["seeded_comment_visible_forced_by_task"] = True
+                flags["reddit_seed_comment_visibility_anchor_evidence"] = dict(
+                    task["contract_bound_generation"][
+                        "reddit_seed_comment_visibility_anchor_evidence"
+                    ]
+                )
+            elif not _task_already_seeds_reddit_comment_body(task):
                 flags["seeded_comment_visible_forced_by_task"] = True
     return flags
+
+
+def _task_has_reddit_seed_visibility_anchor_evidence(task: Mapping[str, Any]) -> bool:
+    generation = task.get("contract_bound_generation")
+    evidence = (
+        generation.get("reddit_seed_comment_visibility_anchor_evidence")
+        if isinstance(generation, Mapping)
+        else None
+    )
+    if not isinstance(evidence, Mapping):
+        return False
+    if str(evidence.get("source") or "").strip() != "phase0c_empty_submission_inventory":
+        return False
+    existing = _nonnegative_int(evidence.get("existing_comment_count"))
+    limit = _nonnegative_int(evidence.get("max_existing_comments_for_comment_seed"))
+    return existing is not None and limit is not None and existing <= limit
+
+
+def _nonnegative_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int) and value >= 0:
+        return value
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    return None
 
 
 def _task_already_seeds_reddit_comment_body(task: Mapping[str, Any]) -> bool:

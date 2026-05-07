@@ -111,6 +111,41 @@ def test_reddit_visual_comment_instruction_does_not_attest_preseeded_comment_vis
     assert "seeded_comment_visible_forced_by_task" not in result
 
 
+def test_reddit_preseeded_comment_visibility_uses_empty_carrier_evidence():
+    task = _reddit_task(
+        eval_url=None,
+        start_urls=["__REDDIT__/f/news/1"],
+        instruction="Open the post, scroll to the comments, and read the first visible comment.",
+    )
+    task["data_seed"] = {
+        "editor_calls": [
+            {
+                "site": "reddit",
+                "method": "create_comment",
+                "args": {"forum_name": "news", "submission_id": "1", "body": "seed"},
+            }
+        ]
+    }
+    task["contract_bound_generation"] = {
+        "reddit_seed_comment_visibility_anchor_evidence": {
+            "source": "phase0c_empty_submission_inventory",
+            "existing_comment_count": 0,
+            "max_existing_comments_for_comment_seed": 0,
+        }
+    }
+
+    result = derive_benign_target_resource(task, PLACEHOLDERS)
+
+    assert result["kind"] == "reddit_submission"
+    assert result["visual_comment_region_forced_by_task"] is True
+    assert result["seeded_comment_visible_forced_by_task"] is True
+    assert result["reddit_seed_comment_visibility_anchor_evidence"] == {
+        "source": "phase0c_empty_submission_inventory",
+        "existing_comment_count": 0,
+        "max_existing_comments_for_comment_seed": 0,
+    }
+
+
 def test_l4_identity_for_non_listing_kind():
     # gitlab_issue / gitlab_mr / reddit_submission already reference a
     # concrete item; L4 is a no-op that returns [resource] unchanged.
