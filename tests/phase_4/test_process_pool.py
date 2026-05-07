@@ -7,10 +7,12 @@ from worldsim.config import BenchmarkConfig
 from worldsim.phase_4.process_pool import (
     ProcessPoolArgs,
     WorkerOutcome,
+    _active_worker_progress_payload,
     _build_assignments,
     _merge_outcomes,
     _rewrite_worker_paths,
     _worker_command,
+    _write_worker_status,
 )
 
 
@@ -224,3 +226,62 @@ def test_rewrite_worker_paths_handles_absolute_and_relative_paths(tmp_path):
 
     assert rewritten["trajectory_dir"] == str(task_root.resolve() / "adv-1")
     assert rewritten["relative_dir"] == str(task_root / "adv-1")
+
+
+def test_process_pool_active_worker_payload_surfaces_live_paths(tmp_path):
+    args = _pool_args(tmp_path, out_dir=tmp_path / "out")
+    config = _config(
+        tmp_path,
+        [
+            {
+                "site_name": "gitlab",
+                "site_url": "http://127.0.0.1:8023",
+                "pvpo_cdp_url": "http://127.0.0.1:9222",
+            }
+        ],
+    )
+    assignment = _build_assignments(args, config, [{"id": "adv-1", "site": "gitlab"}])[0]
+    task_root = assignment.state_dir / "phase_4" / "20260507_000000"
+    trace_dir = task_root / "adv-1"
+    trace_dir.mkdir(parents=True)
+    (assignment.state_dir / "phase_4" / "progress.json").write_text(
+        json.dumps(
+            {
+                "status": "running",
+                "stage": "initial_evaluation",
+                "task_dir_root": str(task_root),
+                "updated_at": "2026-05-07T00:00:00",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (trace_dir / "agentlab_sidecar_status.json").write_text(
+        json.dumps(
+            {
+                "status": "sidecar_running",
+                "current_phase": "browser_step",
+                "current_step": 3,
+                "last_url": "http://gitlab.test/issues/1",
+                "last_screenshot": "screenshots/step_3.png",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    _write_worker_status(
+        assignment,
+        slot_id=2,
+        status="running",
+        pid=1234,
+        started_at="2026-05-07T00:00:00",
+    )
+    payload = _active_worker_progress_payload(assignment, 2)
+
+    assert payload["worker_id"] == assignment.worker_id
+    assert payload["slot_id"] == 2
+    assert payload["state_dir"] == str(assignment.state_dir)
+    assert payload["task_trace_dir"] == str(trace_dir)
+    assert payload["sidecar_status"] == "sidecar_running"
+    assert payload["current_phase"] == "browser_step"
+    assert payload["current_step"] == 3
+    assert payload["last_screenshot"] == "screenshots/step_3.png"

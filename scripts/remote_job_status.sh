@@ -346,6 +346,7 @@ def summarize_phase4_progress(path: Path) -> dict[str, object] | None:
         "postprocess_attempted_tasks": int_value("postprocess_attempted_tasks"),
         "postprocess_failed_tasks": int_value("postprocess_failed_tasks"),
         "variant_progress": data.get("variant_progress") if isinstance(data.get("variant_progress"), dict) else {},
+        "process_pool_active_workers": data.get("process_pool_active_workers") if isinstance(data.get("process_pool_active_workers"), list) else [],
         "age_seconds": age_seconds,
     }
 
@@ -502,6 +503,23 @@ for candidate in phase4_progress_candidates():
                     rendered.append(f"{task_id}:{event}")
             if rendered:
                 print("phase4_variant_active: " + ", ".join(rendered))
+    active_workers = summary.get("process_pool_active_workers")
+    if isinstance(active_workers, list) and active_workers:
+        print("phase4_process_pool_active_workers:")
+        for worker in active_workers[:8]:
+            if not isinstance(worker, dict):
+                continue
+            print(
+                "  "
+                f"worker={worker.get('worker_id')} "
+                f"slot={worker.get('slot_id')} "
+                f"task={worker.get('task_id')} "
+                f"status={worker.get('sidecar_status') or worker.get('status') or worker.get('child_phase4_status') or 'unknown'} "
+                f"step={worker.get('current_phase') or worker.get('current_step') or 'unknown'} "
+                f"trace={rel(Path(str(worker.get('task_trace_dir')))) if worker.get('task_trace_dir') else 'pending'} "
+                f"state={rel(Path(str(worker.get('state_dir')))) if worker.get('state_dir') else 'unknown'} "
+                f"stderr={rel(Path(str(worker.get('stderr')))) if worker.get('stderr') else 'unknown'}"
+            )
     break
 
 for candidate in phase4_results_candidates():

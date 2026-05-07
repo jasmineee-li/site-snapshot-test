@@ -116,6 +116,7 @@ Wrapper facts that matter:
 - AgentLab sidecar sync: `uv sync --directory packages/worldsim-agentlab-runner --locked`
 - Package Ruff: `uv run ruff check packages/worldsim-agentlab-runner/src packages/worldsim-webarena-verified/src`
 - AgentLab/WebArena adapter smoke: `uv run pytest tests/test_agentlab_runner.py tests/phase_4/test_process_pool.py tests/rewards/test_vendor_webarena.py -q`
+- AgentLab/trace-inspection observability: `uv run pytest tests/test_agentlab_runner.py tests/phase_4/test_process_pool.py tests/test_phase_4_trace_inspection.py -q`
 - CLI smoke: `uv run python -m worldsim.main --help`
 - Readiness metrics: `uv run python scripts/readiness_audit.py --json`
 - Phase 4 result audit: `uv run python scripts/summarize_phase_4_results.py logs/<run>`

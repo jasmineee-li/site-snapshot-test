@@ -197,8 +197,14 @@ scripts/remote_job_start.sh \
     --phase-4-eval-awareness-max-iterations 3
 ```
 
-Inspect `phase_4/process_pool_summary.json` for per-worker stdout/stderr paths,
-exit codes, timeouts, assigned instance indexes, and PVPO endpoints. The final
+While the process pool is running, start with `scripts/remote_job_status.sh`.
+Its Phase 4 progress block includes active process-pool worker rows with worker
+id, task id, current AgentLab/Phase 4 step, task trace dir, worker state dir,
+and worker stderr path. Use `scripts/remote_job_tail.sh --worker-id <n>` (or
+`--task-id <id>` while the task is active) only after status points at a stale
+or failing worker. After completion, inspect `phase_4/process_pool_summary.json`
+for per-worker stdout/stderr paths, exit codes, timeouts, assigned instance
+indexes, and PVPO endpoints. The final
 `phase_4/results.json` is written only after every expected task has exactly
 one valid worker result; missing, duplicate, or mismatched task IDs fail closed
 instead of producing a partial canonical result. Failed process-pool runs may

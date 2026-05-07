@@ -63,6 +63,8 @@ _RESET_RETRY_DELAY_S = 10
 _SIDECAR_CMD_ENV = "WORLDSIM_AGENTLAB_RUNNER_CMD"
 _SUPPORTED_ATTACK_MODES = frozenset({"comparison", "seeded_comparison"})
 _SIDECAR_TERMINATE_GRACE_S = 5.0
+_AGENTLAB_TIMELINE_ARTIFACT = "agentlab_step_timeline.jsonl"
+_AGENTLAB_EVENTS_ARTIFACT = "agentlab_events.jsonl"
 
 
 @dataclass
@@ -703,6 +705,24 @@ def _run_sidecar_process_streaming(
     )
     stdout_thread.start()
     stderr_thread.start()
+    stop_status = threading.Event()
+
+    def _status_heartbeat() -> None:
+        while not stop_status.wait(5.0):
+            _write_sidecar_status(
+                status_path,
+                request=request,
+                subcommand=subcommand,
+                status="sidecar_running",
+                timeout=timeout,
+                stdout_log_path=stdout_log_path,
+                stderr_log_path=stderr_log_path,
+                pid=proc.pid,
+                started_monotonic=started,
+            )
+
+    heartbeat_thread = threading.Thread(target=_status_heartbeat, daemon=True)
+    heartbeat_thread.start()
     try:
         returncode = proc.wait(timeout=timeout)
         timed_out = False
@@ -715,6 +735,8 @@ def _run_sidecar_process_streaming(
         )
         _terminate_sidecar_process(proc)
         returncode = proc.returncode if proc.returncode is not None else -signal.SIGKILL
+    stop_status.set()
+    heartbeat_thread.join(timeout=1.0)
     stdout_thread.join(timeout=1.0)
     stderr_thread.join(timeout=1.0)
     elapsed = time.monotonic() - started
@@ -835,10 +857,68 @@ def _write_sidecar_status(
         payload["stdout_bytes"] = stdout_bytes
     if stderr_bytes is not None:
         payload["stderr_bytes"] = stderr_bytes
+    payload.update(_live_agentlab_status(path.parent))
     path.write_text(
         json.dumps(_redact_sidecar_payload(payload), indent=2, sort_keys=True),
         encoding="utf-8",
     )
+
+
+def _live_agentlab_status(task_dir: Path) -> dict[str, Any]:
+    """Return compact sidecar-owned live fields for status/progress polling."""
+
+    runtime = _load_json_dict(task_dir / "browser_runtime.json")
+    timeline_tail = _tail_jsonl(task_dir / _AGENTLAB_TIMELINE_ARTIFACT)
+    fields: dict[str, Any] = {}
+    if runtime:
+        for key in (
+            "runtime_artifact_status",
+            "browser_instance_scope",
+            "current_phase",
+            "current_step",
+            "last_url",
+            "last_title",
+            "last_action",
+            "last_screenshot",
+            "last_network_event_count",
+            "last_updated_at",
+            "agent_browser_connect_count",
+            "auxiliary_browser_connect_count",
+            "recycle_status",
+            "pvpo_browser_recycle_status",
+        ):
+            if key in runtime:
+                fields[key] = runtime[key]
+    if timeline_tail:
+        fields["last_timeline_event"] = timeline_tail.get("event")
+        fields["last_timeline_step"] = timeline_tail.get("step")
+        fields["last_timeline_timestamp"] = timeline_tail.get("timestamp")
+        fields["timeline_path"] = str(task_dir / _AGENTLAB_TIMELINE_ARTIFACT)
+    return fields
+
+
+def _load_json_dict(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _tail_jsonl(path: Path) -> dict[str, Any]:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return {}
+    for line in reversed(lines):
+        if not line.strip():
+            continue
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        return payload if isinstance(payload, dict) else {}
+    return {}
 
 
 def _sidecar_json_payload(stdout: str) -> dict[str, Any]:
@@ -876,6 +956,8 @@ def _clear_phase4_sidecar_artifacts(task_dir: Path) -> None:
         "agentlab_sidecar_status.json",
         "agentlab_sidecar_stdout.log",
         "agentlab_sidecar_stderr.log",
+        _AGENTLAB_TIMELINE_ARTIFACT,
+        _AGENTLAB_EVENTS_ARTIFACT,
         "phase4_sidecar_request.json",
         "agentlab_native_exp_args.pkl",
     )
@@ -1094,6 +1176,10 @@ def _recover_phase4_timeout_artifacts(task_dir: Path) -> dict[str, Any]:
         network_trace = []
     if network_trace:
         evidence_status = "timeout_partial_artifacts"
+    timeline = _load_agentlab_timeline(task_dir)
+    if timeline:
+        evidence_status = "timeout_partial_artifacts"
+        steps = max(steps, _steps_from_agentlab_timeline(timeline))
     return {
         "steps": steps,
         "final_result": final_result,
@@ -1238,6 +1324,8 @@ def _write_minimal_timeout_artifacts(
         )
         + "\n",
     )
+    _write_text_if_absent(task_dir / _AGENTLAB_TIMELINE_ARTIFACT, "")
+    _write_text_if_absent(task_dir / _AGENTLAB_EVENTS_ARTIFACT, "")
 
 
 def _write_text_if_absent(path: Path, text: str) -> None:
@@ -1261,6 +1349,8 @@ def _phase4_artifact_manifest(output_dir: Path) -> dict[str, Any]:
         "agentlab_status": output_dir / "agentlab_sidecar_status.json",
         "agentlab_stdout": output_dir / "agentlab_sidecar_stdout.log",
         "agentlab_stderr": output_dir / "agentlab_sidecar_stderr.log",
+        "agentlab_timeline": output_dir / _AGENTLAB_TIMELINE_ARTIFACT,
+        "agentlab_events": output_dir / _AGENTLAB_EVENTS_ARTIFACT,
         "needham_trace": output_dir / "needham_trace.json",
         "needham_xml": output_dir / "needham_trace.xml",
         "pvpo_summary": output_dir / "pvpo" / "capture_summary.json",
@@ -1279,6 +1369,37 @@ def _phase4_artifact_manifest(output_dir: Path) -> dict[str, Any]:
         "steps": steps,
         "videos": videos,
     }
+
+
+def _load_agentlab_timeline(task_dir: Path) -> list[dict[str, Any]]:
+    path = task_dir / _AGENTLAB_TIMELINE_ARTIFACT
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    events: list[dict[str, Any]] = []
+    for line in lines:
+        if not line.strip():
+            continue
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            events.append(payload)
+    return events
+
+
+def _steps_from_agentlab_timeline(events: list[dict[str, Any]]) -> int:
+    steps = 0
+    for event in events:
+        try:
+            step = int(event.get("step"))
+        except (TypeError, ValueError):
+            continue
+        if event.get("event") in {"browser_step", "agent_action", "reset"}:
+            steps = max(steps, step)
+    return steps
 
 
 def _recycle_pvpo_browser_after_parent_timeout(cdp_url: str) -> dict[str, Any]:

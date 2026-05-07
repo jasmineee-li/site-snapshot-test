@@ -1003,6 +1003,77 @@ def test_agentlab_phase4_writes_incremental_browser_runtime(tmp_path):
     assert payload["browser_instance_scope"] == "agent_run"
     assert payload["agent_browser_connect_count"] == 1
     assert payload["runtime_artifact_status"] == "running"
+    assert "last_updated_at" in payload
+
+
+def test_agentlab_phase4_appends_step_timeline_and_events(tmp_path):
+    phase4_loop = _load_sidecar_module("phase4_loop")
+    runtime = {"runner": "agentlab", "current_phase": "agent_action_done"}
+    network = SimpleNamespace(events=[{"url": "http://gitlab.test"}])
+    step = SimpleNamespace(
+        step=2,
+        obs={
+            "url": "http://gitlab.test/issues/1",
+            "open_pages_titles": ["Issue 1"],
+            "active_page_index": 0,
+        },
+        reward=0.0,
+        raw_reward=0.0,
+        terminated=False,
+        truncated=False,
+    )
+
+    phase4_loop._append_step_timeline(
+        tmp_path,
+        event="agent_action",
+        step_info=step,
+        action="click('Submit')",
+        network=network,
+        runtime=runtime,
+    )
+
+    timeline_rows = [
+        json.loads(line)
+        for line in (tmp_path / "agentlab_step_timeline.jsonl").read_text().splitlines()
+    ]
+    event_rows = [
+        json.loads(line) for line in (tmp_path / "agentlab_events.jsonl").read_text().splitlines()
+    ]
+    assert timeline_rows[0]["event"] == "agent_action"
+    assert timeline_rows[0]["step"] == 2
+    assert timeline_rows[0]["url"] == "http://gitlab.test/issues/1"
+    assert timeline_rows[0]["network_event_count"] == 1
+    assert timeline_rows[0]["screenshot"] == "screenshots/step_2.png"
+    assert event_rows[0]["event"] == "step.agent_action"
+
+
+def test_agentlab_live_status_reads_runtime_and_timeline(tmp_path):
+    (tmp_path / "browser_runtime.json").write_text(
+        json.dumps(
+            {
+                "runtime_artifact_status": "running",
+                "current_phase": "browser_step",
+                "current_step": 3,
+                "last_url": "http://gitlab.test/issues/1",
+                "last_screenshot": "screenshots/step_3.png",
+                "last_network_event_count": 7,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "agentlab_step_timeline.jsonl").write_text(
+        json.dumps({"event": "browser_step", "step": 3, "timestamp": "2026-05-07T00:00:00Z"})
+        + "\n",
+        encoding="utf-8",
+    )
+
+    status = agentlab_runner._live_agentlab_status(tmp_path)
+
+    assert status["runtime_artifact_status"] == "running"
+    assert status["current_phase"] == "browser_step"
+    assert status["current_step"] == 3
+    assert status["last_timeline_event"] == "browser_step"
+    assert status["timeline_path"] == str(tmp_path / "agentlab_step_timeline.jsonl")
 
 
 def test_agentlab_pvpo_uses_canonical_capture_and_artifact_writer(monkeypatch, tmp_path):
@@ -1592,6 +1663,35 @@ def test_phase4_timeout_result_recovers_partial_artifacts(monkeypatch, tmp_path)
     _assert_agentlab_phase4_resume_sidecars(tmp_path)
     final_response = json.loads((tmp_path / "final_response.json").read_text())
     assert final_response["status"] == "timeout"
+
+
+def test_phase4_timeout_result_recovers_timeline_steps(monkeypatch, tmp_path):
+    def timeout_run(cmd, **kwargs):
+        (tmp_path / "agentlab_step_timeline.jsonl").write_text(
+            "\n".join(
+                [
+                    json.dumps({"event": "reset", "step": 0}),
+                    json.dumps({"event": "browser_step", "step": 4}),
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        raise subprocess.TimeoutExpired(cmd=cmd, timeout=3)
+
+    monkeypatch.setattr(agentlab_runner, "_run_sidecar_process_streaming", timeout_run)
+
+    payload = agentlab_runner._run_sidecar_request(
+        {"task_id": "task-1"},
+        tmp_path,
+        subcommand="phase4-run",
+        timeout=3,
+    )
+
+    assert payload["status"] == "timeout"
+    assert payload["steps"] == 4
+    assert payload["evidence_status"] == "timeout_partial_artifacts"
+    assert "agentlab_timeline" in payload["artifacts"]
 
 
 def test_phase4_timeout_result_does_not_recover_stale_prior_artifacts(monkeypatch, tmp_path):

@@ -359,6 +359,23 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
                 f"pvpo_valid={variant_progress.get('pvpo_valid', 0)} "
                 f"complied={variant_progress.get('complied', 0)}"
             )
+        active_workers = progress.get("process_pool_active_workers")
+        if isinstance(active_workers, list) and active_workers:
+            lines.append("Phase 4 process-pool active workers:")
+            for worker in active_workers[:8]:
+                if not isinstance(worker, dict):
+                    continue
+                lines.append(
+                    "  "
+                    f"worker={worker.get('worker_id')} "
+                    f"slot={worker.get('slot_id')} "
+                    f"task={worker.get('task_id')} "
+                    f"status={worker.get('sidecar_status') or worker.get('status') or worker.get('child_phase4_status') or 'unknown'} "
+                    f"step={worker.get('current_phase') or worker.get('current_step') or 'unknown'} "
+                    f"trace={worker.get('task_trace_dir') or 'pending'} "
+                    f"state={worker.get('state_dir')} "
+                    f"stderr={worker.get('stderr')}"
+                )
 
     manifest = payload.get("artifact_manifest")
     if isinstance(manifest, dict):

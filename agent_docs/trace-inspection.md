@@ -45,14 +45,17 @@ Use this order:
 1. `summary` for counts, awareness buckets, iterator stops, top reward messages,
    and representative task ids.
 2. `slice` for a compact task table with `--site`, `--action`, `--status`,
-   `--outcome`, `--limit`, and `--fields`.
+   `--outcome`, `--limit`, and `--fields`. For AgentLab runs, opt into fields
+   such as `runner`, `agentlab_status`, `runtime_artifact_status`,
+   `browser_instance_scope`, and `sidecar_status` before opening logs.
 3. `task <task_id> --iterator` when the question is about rewrite attempts,
    stop reason, or why contrasts did not work.
 4. `timeline <task_id>` when you need a compact event order across agent run,
-   PVPO, rewards, final-state readback, TP/VEA, and iterator attempts.
+   AgentLab sidecar/browser runtime, PVPO, rewards, final-state readback,
+   TP/VEA, and iterator attempts.
 5. `task <task_id> --refs` when you need artifact paths and a compact artifact
-   manifest for `history.json`, `result.json`, Needham XML, TP/VEA raw
-   responses, or PVPO summary.
+   manifest for `history.json`, `result.json`, Needham XML, AgentLab
+   status/timeline logs, TP/VEA raw responses, or PVPO summary.
 6. Only after that, open raw trajectory artifacts directly.
 
 Machine consumption:

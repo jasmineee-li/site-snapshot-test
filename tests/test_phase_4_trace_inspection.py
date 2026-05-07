@@ -39,6 +39,48 @@ def _run(tmp_path: Path) -> Path:
         {"final_result": '{"retrieved_data":["no-link"]}'},
     )
     _write_json(
+        trace / "summary_info.json",
+        {"n_steps": 4, "cum_reward": 0.0, "err_msg": None},
+    )
+    _write_json(
+        trace / "browser_runtime.json",
+        {
+            "runner": "agentlab",
+            "runtime_artifact_status": "complete",
+            "browser_instance_scope": "agent_run",
+            "agent_browser_connect_count": 1,
+            "auxiliary_browser_connect_count": 2,
+            "recycle_status": "recycled",
+        },
+    )
+    _write_json(
+        trace / "agentlab_sidecar_status.json",
+        {
+            "status": "sidecar_completed",
+            "returncode": 0,
+            "current_phase": "pvpo_captured",
+            "current_step": 4,
+            "last_url": "http://gitlab.test/issues/1",
+        },
+    )
+    _write_json(
+        trace / "agentlab_sidecar_result.json",
+        {"status": "success", "agentlab_reward": 0.0, "steps": 4},
+    )
+    (trace / "agentlab_step_timeline.jsonl").write_text(
+        json.dumps(
+            {
+                "event": "browser_step",
+                "phase": "browser_step_done",
+                "step": 4,
+                "url": "http://gitlab.test/issues/1",
+                "action": "click('Submit')",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    _write_json(
         trace / "eval_awareness_iterator_checkpoint.json",
         {
             "generation_errors": [
@@ -223,15 +265,46 @@ def test_worldsim_trace_timeline_and_jsonl(tmp_path: Path) -> None:
     )
     timeline_payload = json.loads(timeline.stdout)
     assert timeline_payload["schema_version"] == "phase4_trace_timeline_v1"
-    assert [event["kind"] for event in timeline_payload["events"][:3]] == [
-        "agent_run",
-        "pvpo_capture",
-        "reward_eval",
-    ]
+    event_kinds = [event["kind"] for event in timeline_payload["events"]]
+    assert event_kinds[0] == "agent_run"
+    assert "pvpo_capture" in event_kinds
+    assert "reward_eval" in event_kinds
     assert "iterator_generation_error" in [
         event["kind"] for event in timeline_payload["events"]
     ]
     assert "task_refs" in timeline_payload["next_commands"]
+    assert "agentlab_sidecar" in event_kinds
+    assert "browser_runtime" in event_kinds
+    assert "agentlab_browser_step" in event_kinds
+
+    agentlab_slice = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "worldsim.main",
+            "trace",
+            "slice",
+            str(run),
+            "--output",
+            "json",
+            "--fields",
+            "task_id,runner,agentlab_status,runtime_artifact_status,browser_instance_scope,sidecar_status",
+        ],
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    agentlab_payload = json.loads(agentlab_slice.stdout)
+    assert agentlab_payload["rows"] == [
+        {
+            "task_id": "task-1",
+            "runner": "agentlab",
+            "agentlab_status": "success",
+            "runtime_artifact_status": "complete",
+            "browser_instance_scope": "agent_run",
+            "sidecar_status": "sidecar_completed",
+        }
+    ]
 
     jsonl = subprocess.run(
         [

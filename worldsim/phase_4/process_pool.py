@@ -24,6 +24,7 @@ from worldsim.atomic_io import write_json_atomic
 from worldsim.config import BenchmarkConfig, BenchmarkInstance, load_benchmark_config
 from worldsim.phase_4.postprocess_progress import write_phase_4_progress
 from worldsim.placeholders import normalize_site_name
+from worldsim.task_paths import safe_task_path_component
 
 _REUSABLE_PHASE_INPUT_DIRS = ("phase_0a", "phase_0c", "phase_1", "phase_2", "phase_3")
 _WORKER_TIMEOUT_GRACE_S = 45
@@ -250,7 +251,7 @@ async def _run_assignments(
     outcomes: list[WorkerOutcome] = []
     lock = asyncio.Lock()
     instance_locks = {assignment.instance_index: asyncio.Lock() for assignment in assignments}
-    active: dict[int, WorkerAssignment] = {}
+    active: dict[int, tuple[WorkerAssignment, int]] = {}
     stop_heartbeat = asyncio.Event()
 
     async def _slot(slot_id: int) -> None:
@@ -261,7 +262,7 @@ async def _run_assignments(
                 return
             try:
                 async with lock:
-                    active[assignment.worker_id] = assignment
+                    active[assignment.worker_id] = (assignment, slot_id)
                     _write_pool_progress(
                         args,
                         assignments,
@@ -354,6 +355,13 @@ async def _run_one_worker(
             stdout=stdout,
             stderr=stderr,
         )
+        _write_worker_status(
+            assignment,
+            slot_id=slot_id,
+            status="running",
+            pid=proc.pid,
+            started_at=started_at,
+        )
         timed_out = False
         try:
             returncode = await asyncio.wait_for(proc.wait(), timeout=timeout)
@@ -366,20 +374,17 @@ async def _run_one_worker(
                 proc.kill()
                 returncode = await proc.wait()
     results, error = _load_worker_results(assignment)
-    status_payload = {
-        "worker_id": assignment.worker_id,
-        "slot_id": slot_id,
-        "task_id": assignment.task.get("id"),
-        "instance_index": assignment.instance_index,
-        "pvpo_cdp_url": assignment.instance.pvpo_cdp_url,
-        "returncode": returncode,
-        "timed_out": timed_out,
-        "result_count": len(results),
-        "error": error,
-        "started_at": started_at,
-        "finished_at": datetime.now().isoformat(),
-    }
-    write_json_atomic(assignment.state_dir / "process_pool_worker_status.json", status_payload)
+    status_payload = _write_worker_status(
+        assignment,
+        slot_id=slot_id,
+        status="timed_out" if timed_out else "completed",
+        returncode=returncode,
+        timed_out=timed_out,
+        result_count=len(results),
+        error=error,
+        started_at=started_at,
+        finished_at=datetime.now().isoformat(),
+    )
     return WorkerOutcome(
         assignment=assignment,
         returncode=returncode,
@@ -643,7 +648,7 @@ def _write_pool_progress(
     *,
     status: str,
     stage: str,
-    active_assignments: list[WorkerAssignment] | None = None,
+    active_assignments: list[tuple[WorkerAssignment, int]] | None = None,
 ) -> None:
     completed = len(outcomes)
     active_assignments = active_assignments or []
@@ -669,25 +674,144 @@ def _write_pool_progress(
             "active_initial_tasks": len(active_assignments),
             "active_initial_task_ids": [
                 str(assignment.task.get("id"))
-                for assignment in sorted(
+                for assignment, _slot_id in sorted(
                     active_assignments,
-                    key=lambda item: item.worker_id,
+                    key=lambda item: item[0].worker_id,
                 )[:12]
             ],
             "process_pool_active_workers": [
-                {
-                    "worker_id": assignment.worker_id,
-                    "task_id": assignment.task.get("id"),
-                    "instance_index": assignment.instance_index,
-                    "pvpo_cdp_url": assignment.instance.pvpo_cdp_url,
-                }
-                for assignment in sorted(
+                _active_worker_progress_payload(assignment, slot_id)
+                for assignment, slot_id in sorted(
                     active_assignments,
-                    key=lambda item: item.worker_id,
+                    key=lambda item: item[0].worker_id,
                 )[:12]
             ],
         },
     )
+
+
+def _write_worker_status(
+    assignment: WorkerAssignment,
+    *,
+    slot_id: int,
+    status: str,
+    started_at: str,
+    pid: int | None = None,
+    returncode: int | None = None,
+    timed_out: bool | None = None,
+    result_count: int | None = None,
+    error: str | None = None,
+    finished_at: str | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "schema_version": 1,
+        "status": status,
+        "worker_id": assignment.worker_id,
+        "slot_id": slot_id,
+        "task_id": assignment.task.get("id"),
+        "instance_index": assignment.instance_index,
+        "pvpo_cdp_url": assignment.instance.pvpo_cdp_url,
+        "state_dir": str(assignment.state_dir),
+        "stdout": str(assignment.stdout_log),
+        "stderr": str(assignment.stderr_log),
+        "worker_progress_path": str(_worker_progress_path(assignment)),
+        "started_at": started_at,
+        "updated_at": datetime.now().isoformat(),
+    }
+    if pid is not None:
+        payload["pid"] = pid
+    if returncode is not None:
+        payload["returncode"] = returncode
+    if timed_out is not None:
+        payload["timed_out"] = timed_out
+    if result_count is not None:
+        payload["result_count"] = result_count
+    if error is not None:
+        payload["error"] = error
+    if finished_at is not None:
+        payload["finished_at"] = finished_at
+    payload.update(_child_phase4_progress_fields(assignment))
+    write_json_atomic(assignment.state_dir / "process_pool_worker_status.json", payload)
+    return payload
+
+
+def _active_worker_progress_payload(
+    assignment: WorkerAssignment,
+    slot_id: int,
+) -> dict[str, Any]:
+    status = _load_json_dict(assignment.state_dir / "process_pool_worker_status.json")
+    payload: dict[str, Any] = {
+        "worker_id": assignment.worker_id,
+        "slot_id": slot_id,
+        "task_id": assignment.task.get("id"),
+        "instance_index": assignment.instance_index,
+        "pvpo_cdp_url": assignment.instance.pvpo_cdp_url,
+        "state_dir": str(assignment.state_dir),
+        "stdout": str(assignment.stdout_log),
+        "stderr": str(assignment.stderr_log),
+        "worker_progress_path": str(_worker_progress_path(assignment)),
+    }
+    if status:
+        for key in ("status", "pid", "started_at", "updated_at"):
+            if key in status:
+                payload[key] = status[key]
+    payload.update(_child_phase4_progress_fields(assignment))
+    return payload
+
+
+def _child_phase4_progress_fields(assignment: WorkerAssignment) -> dict[str, Any]:
+    child_progress = _load_json_dict(_worker_progress_path(assignment))
+    task_id = str(assignment.task.get("id") or "unknown")
+    fields: dict[str, Any] = {}
+    if child_progress:
+        task_root = str(child_progress.get("task_dir_root") or "")
+        fields["child_phase4_status"] = child_progress.get("status")
+        fields["current_step"] = child_progress.get("stage")
+        fields["child_progress_updated_at"] = child_progress.get("updated_at")
+        fields["child_task_dir_root"] = task_root
+        if task_root:
+            fields["task_trace_dir"] = str(Path(task_root) / safe_task_path_component(task_id))
+        fields["active_postprocess_task_ids"] = child_progress.get("active_postprocess_task_ids")
+        fields["active_initial_task_ids"] = child_progress.get("active_initial_task_ids")
+    else:
+        fields["current_step"] = "worker_subprocess_starting"
+    sidecar_status = _load_json_dict(_candidate_task_trace_dir(assignment) / "agentlab_sidecar_status.json")
+    if sidecar_status:
+        for key in (
+            "sidecar_status",
+            "current_phase",
+            "current_step",
+            "last_url",
+            "last_screenshot",
+            "last_network_event_count",
+            "timeline_path",
+        ):
+            source_key = "status" if key == "sidecar_status" else key
+            if source_key in sidecar_status:
+                fields[key] = sidecar_status[source_key]
+    return fields
+
+
+def _worker_progress_path(assignment: WorkerAssignment) -> Path:
+    return assignment.state_dir / "phase_4" / "progress.json"
+
+
+def _candidate_task_trace_dir(assignment: WorkerAssignment) -> Path:
+    progress = _load_json_dict(_worker_progress_path(assignment))
+    task_root = progress.get("task_dir_root")
+    if isinstance(task_root, str) and task_root.strip():
+        return Path(task_root) / safe_task_path_component(assignment.task.get("id"))
+    return assignment.state_dir / "phase_4" / "unknown" / safe_task_path_component(
+        assignment.task.get("id")
+    )
+
+
+def _load_json_dict(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
 
 
 def _write_process_pool_summary(

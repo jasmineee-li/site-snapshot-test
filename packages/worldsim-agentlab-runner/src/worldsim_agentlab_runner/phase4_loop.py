@@ -24,6 +24,8 @@ from worldsim_agentlab_runner.trajectory_projection import (
 from worldsim_agentlab_runner.worldsim_task import make_worldsim_browsergym_env
 
 logger = logging.getLogger(__name__)
+_TIMELINE_ARTIFACT = "agentlab_step_timeline.jsonl"
+_EVENTS_ARTIFACT = "agentlab_events.jsonl"
 
 
 def run_phase4_request_path(path: Path) -> dict[str, Any]:
@@ -65,6 +67,9 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
         "browser_instance_scope": "agent_run",
         "lifecycle_events": [],
         "runtime_artifact_status": "running",
+        "current_phase": "initializing",
+        "current_step": None,
+        "last_updated_at": _utc_now(),
     }
     steps_taken = 0
     final_result: str | None = None
@@ -91,6 +96,13 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
         cdp_url=str(request.get("pvpo_cdp_url") or ""),
     )
     _write_browser_runtime(output_dir, runtime)
+    _append_agentlab_event(
+        output_dir,
+        "sidecar.start",
+        runtime=runtime,
+        task_id=request.get("task_id"),
+        message="AgentLab Phase 4 sidecar started",
+    )
 
     try:
         save_package_versions(output_dir)
@@ -99,6 +111,13 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
             with patched_chromium_launch(cdp_url, runtime):
                 with patched_browsergym_screenshot_for_pvpo(cdp_url, runtime):
                     with _step_deadline(request, "setup and reset"):
+                        _update_runtime_progress(
+                            output_dir,
+                            runtime,
+                            phase="setup",
+                            step=0,
+                            network=network,
+                        )
                         benchmark_config = _apply_benchmark_config(agent_args, request)
                         agent_args.prepare()
                         agent = agent_args.make_agent()
@@ -117,21 +136,62 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
                             seed=_task_seed(request),
                             obs_preprocessor=agent.obs_preprocessor,
                         )
-                        _write_browser_runtime(output_dir, runtime)
+                        _update_runtime_progress(
+                            output_dir,
+                            runtime,
+                            phase="reset_observed",
+                            step_info=step_info,
+                            network=network,
+                        )
                     episode_info.append(step_info)
                     pvpo.capture_step(_pvpo_capture_page(env), step_info.step)
-                    _write_browser_runtime(output_dir, runtime)
+                    _append_step_timeline(
+                        output_dir,
+                        event="reset",
+                        step_info=step_info,
+                        network=network,
+                        runtime=runtime,
+                    )
+                    _update_runtime_progress(
+                        output_dir,
+                        runtime,
+                        phase="reset_captured",
+                        step_info=step_info,
+                        network=network,
+                    )
 
                     while not step_info.is_done and steps_taken < int(
                         request.get("max_steps") or 30
                     ):
                         with _step_deadline(request, f"action step {step_info.step}"):
+                            _update_runtime_progress(
+                                output_dir,
+                                runtime,
+                                phase="agent_action",
+                                step_info=step_info,
+                                network=network,
+                            )
                             action = step_info.from_action(agent)
-                            _write_browser_runtime(output_dir, runtime)
+                            _update_runtime_progress(
+                                output_dir,
+                                runtime,
+                                phase="agent_action_done",
+                                step_info=step_info,
+                                action=action,
+                                network=network,
+                            )
                         step_info.save_step_info(
                             output_dir,
                             save_screenshot=True,
                             save_som=False,
+                        )
+                        _append_step_timeline(
+                            output_dir,
+                            event="agent_action",
+                            step_info=step_info,
+                            action=action,
+                            network=network,
+                            runtime=runtime,
                         )
                         if action is None:
                             step_info.truncated = True
@@ -139,14 +199,44 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
 
                         next_step = StepInfo(step=step_info.step + 1)
                         with _step_deadline(request, f"browser step {next_step.step}"):
+                            _update_runtime_progress(
+                                output_dir,
+                                runtime,
+                                phase="browser_step",
+                                step=next_step.step,
+                                action=action,
+                                network=network,
+                            )
                             next_step.from_step(
                                 env, action, obs_preprocessor=agent.obs_preprocessor
                             )
-                            _write_browser_runtime(output_dir, runtime)
+                            _update_runtime_progress(
+                                output_dir,
+                                runtime,
+                                phase="browser_step_done",
+                                step_info=next_step,
+                                action=action,
+                                network=network,
+                            )
                         steps_taken += 1
                         episode_info.append(next_step)
                         pvpo.capture_step(_pvpo_capture_page(env), next_step.step)
-                        _write_browser_runtime(output_dir, runtime)
+                        _append_step_timeline(
+                            output_dir,
+                            event="browser_step",
+                            step_info=next_step,
+                            action=action,
+                            network=network,
+                            runtime=runtime,
+                        )
+                        _update_runtime_progress(
+                            output_dir,
+                            runtime,
+                            phase="pvpo_captured",
+                            step_info=next_step,
+                            action=action,
+                            network=network,
+                        )
                         step_info = next_step
 
                     final_result = final_result_from_env(env)
@@ -158,6 +248,13 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
             runtime["pvpo_capture_fatal_error"] = f"{type(exc).__name__}: {exc}"
         status = "timeout" if deadline_hit else "error"
         errors.append(f"{type(exc).__name__}: {exc}")
+        _append_agentlab_event(
+            output_dir,
+            "sidecar.error",
+            runtime=runtime,
+            task_id=request.get("task_id"),
+            error=f"{type(exc).__name__}: {exc}",
+        )
         logger.exception("AgentLab Phase 4 sidecar failed")
     finally:
         try:
@@ -217,6 +314,13 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
             runtime["pvpo_close_status"] = "failed"
             runtime["pvpo_close_error"] = f"{type(exc).__name__}: {exc}"
         runtime["lifecycle_events"].append("recycle_cdp_browser")
+        _update_runtime_progress(
+            output_dir,
+            runtime,
+            phase="recycle_cdp_browser",
+            step=steps_taken,
+            network=network,
+        )
         runtime.update(_recycle_cdp_browser(str(request.get("pvpo_cdp_url") or "")))
         runtime["runtime_artifact_status"] = "complete"
         _write_browser_runtime(output_dir, runtime)
@@ -288,10 +392,126 @@ def _write_phase4_request_copy(output_dir: Path, request: dict[str, Any], agent_
 
 
 def _write_browser_runtime(output_dir: Path, runtime: dict[str, Any]) -> None:
+    runtime["last_updated_at"] = _utc_now()
     (output_dir / "browser_runtime.json").write_text(
         json.dumps(runtime, indent=2, sort_keys=True),
         encoding="utf-8",
     )
+
+
+def _update_runtime_progress(
+    output_dir: Path,
+    runtime: dict[str, Any],
+    *,
+    phase: str,
+    step_info: Any | None = None,
+    step: int | None = None,
+    action: Any = None,
+    network: NetworkTraceRecorder | None = None,
+) -> None:
+    current_step = step if step is not None else getattr(step_info, "step", None)
+    runtime["current_phase"] = phase
+    runtime["current_step"] = current_step
+    if step_info is not None:
+        obs = getattr(step_info, "obs", None)
+        if isinstance(obs, dict):
+            runtime["last_url"] = _string_or_none(obs.get("url"))
+            runtime["last_title"] = _active_title_from_obs(obs)
+        runtime["last_screenshot"] = f"screenshots/step_{current_step}.png"
+        runtime["last_reward"] = getattr(step_info, "reward", None)
+        runtime["last_raw_reward"] = getattr(step_info, "raw_reward", None)
+        runtime["last_terminated"] = getattr(step_info, "terminated", None)
+        runtime["last_truncated"] = getattr(step_info, "truncated", None)
+    if action is not None:
+        runtime["last_action"] = str(action)
+    if network is not None:
+        runtime["last_network_event_count"] = len(network.events)
+    _write_browser_runtime(output_dir, runtime)
+
+
+def _append_step_timeline(
+    output_dir: Path,
+    *,
+    event: str,
+    step_info: Any,
+    network: NetworkTraceRecorder,
+    runtime: dict[str, Any],
+    action: Any = None,
+) -> None:
+    obs = getattr(step_info, "obs", None)
+    if not isinstance(obs, dict):
+        obs = {}
+    step = getattr(step_info, "step", None)
+    payload = {
+        "schema_version": 1,
+        "runner": "agentlab",
+        "mode": "phase4",
+        "event": event,
+        "timestamp": _utc_now(),
+        "monotonic_s": round(time.monotonic(), 6),
+        "step": step,
+        "phase": runtime.get("current_phase"),
+        "url": _string_or_none(obs.get("url")),
+        "title": _active_title_from_obs(obs),
+        "action": str(action) if action is not None else None,
+        "screenshot": f"screenshots/step_{step}.png",
+        "network_event_count": len(network.events),
+        "reward": getattr(step_info, "reward", None),
+        "raw_reward": getattr(step_info, "raw_reward", None),
+        "terminated": getattr(step_info, "terminated", None),
+        "truncated": getattr(step_info, "truncated", None),
+        "last_action_error": obs.get("last_action_error") if isinstance(obs, dict) else None,
+    }
+    _append_jsonl(output_dir / _TIMELINE_ARTIFACT, payload)
+    _append_agentlab_event(
+        output_dir,
+        f"step.{event}",
+        runtime=runtime,
+        step=step,
+        phase=runtime.get("current_phase"),
+        url=payload["url"],
+        action=payload["action"],
+        network_event_count=payload["network_event_count"],
+    )
+
+
+def _append_agentlab_event(output_dir: Path, event: str, **fields: Any) -> None:
+    payload = {
+        "schema_version": 1,
+        "runner": "agentlab",
+        "mode": "phase4",
+        "event": event,
+        "timestamp": _utc_now(),
+        "monotonic_s": round(time.monotonic(), 6),
+        **fields,
+    }
+    _append_jsonl(output_dir / _EVENTS_ARTIFACT, _redact_sidecar_payload(payload))
+
+
+def _append_jsonl(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, sort_keys=True, default=str) + "\n")
+
+
+def _active_title_from_obs(obs: dict[str, Any]) -> str | None:
+    titles = obs.get("open_pages_titles")
+    active = obs.get("active_page_index")
+    try:
+        index = int(active[0]) if hasattr(active, "__getitem__") else int(active)
+    except Exception:
+        index = 0
+    if isinstance(titles, (list, tuple)) and 0 <= index < len(titles):
+        return _string_or_none(titles[index])
+    return None
+
+
+def _string_or_none(value: Any) -> str | None:
+    return value if isinstance(value, str) else None
+
+
+def _utc_now() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
 @contextmanager

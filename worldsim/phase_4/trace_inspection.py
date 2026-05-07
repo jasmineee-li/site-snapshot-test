@@ -65,6 +65,18 @@ DETAIL_FIELDS = [
     "tp_aware",
     "vea_aware",
     "signals",
+    "runner",
+    "agentlab_status",
+    "agentlab_reward",
+    "agentlab_steps",
+    "agentlab_error",
+    "runtime_artifact_status",
+    "browser_instance_scope",
+    "agent_browser_connect_count",
+    "auxiliary_browser_connect_count",
+    "recycle_status",
+    "sidecar_status",
+    "sidecar_returncode",
 ]
 
 ALL_FIELDS = DETAIL_FIELDS
@@ -205,6 +217,7 @@ def task_row(
     signals = result.get("signals") if isinstance(result.get("signals"), dict) else {}
     max_coverage = _max_coverage(result)
     trajectory_dir = _primary_trace(result, phase4_dir=phase4_dir)
+    agentlab_fields = _agentlab_inspection_fields(result, trajectory_dir)
     row = {
         "task_id": task_id,
         "site": task_site(result, task),
@@ -236,6 +249,7 @@ def task_row(
         "trajectory_dir": str(trajectory_dir) if trajectory_dir else None,
         "answer_label": _answer_label_for_trace(trajectory_dir),
         "signals": _compact_signals(signals),
+        **agentlab_fields,
     }
     selected = fields or DEFAULT_FIELDS
     return {field: row.get(field) for field in selected}
@@ -320,6 +334,7 @@ def build_timeline(
     iterator = _iterator_record(result)
     events = [
         _event("agent_run", result.get("final_status"), result.get("outcome_fine"), trace),
+        *_agentlab_timeline_events(trace),
         _event("pvpo_capture", _pvpo_filter_value(result), f"max_coverage={_max_coverage(result)}", trace),
         _event("reward_eval", result.get("adversarial_passed"), result.get("adversarial_reward_message"), trace),
         _event(
@@ -677,6 +692,119 @@ def _compact_iterator(iterator: dict[str, Any], *, trace: Path | None = None) ->
     }
 
 
+def _agentlab_inspection_fields(
+    result: dict[str, Any],
+    trace: Path | None,
+) -> dict[str, Any]:
+    summary = load_json_or_empty(trace / "summary_info.json") if trace else {}
+    runtime = load_json_or_empty(trace / "browser_runtime.json") if trace else {}
+    status = load_json_or_empty(trace / "agentlab_sidecar_status.json") if trace else {}
+    sidecar_result = load_json_or_empty(trace / "agentlab_sidecar_result.json") if trace else {}
+    if not any(isinstance(item, dict) and item for item in (summary, runtime, status, sidecar_result)):
+        return {
+            "runner": result.get("runner") or result.get("agent_runner"),
+            "agentlab_status": result.get("agentlab_status"),
+            "agentlab_reward": result.get("agentlab_reward"),
+            "agentlab_steps": result.get("steps"),
+            "agentlab_error": result.get("error"),
+            "runtime_artifact_status": None,
+            "browser_instance_scope": None,
+            "agent_browser_connect_count": None,
+            "auxiliary_browser_connect_count": None,
+            "recycle_status": None,
+            "sidecar_status": None,
+            "sidecar_returncode": None,
+        }
+    return {
+        "runner": "agentlab" if runtime.get("runner") == "agentlab" or sidecar_result else result.get("runner"),
+        "agentlab_status": sidecar_result.get("status") or result.get("agentlab_status"),
+        "agentlab_reward": sidecar_result.get("agentlab_reward")
+        or result.get("agentlab_reward")
+        or summary.get("cum_reward"),
+        "agentlab_steps": sidecar_result.get("steps") or summary.get("n_steps") or result.get("steps"),
+        "agentlab_error": sidecar_result.get("error") or summary.get("err_msg") or result.get("error"),
+        "runtime_artifact_status": runtime.get("runtime_artifact_status"),
+        "browser_instance_scope": runtime.get("browser_instance_scope"),
+        "agent_browser_connect_count": runtime.get("agent_browser_connect_count"),
+        "auxiliary_browser_connect_count": runtime.get("auxiliary_browser_connect_count"),
+        "recycle_status": runtime.get("recycle_status") or runtime.get("pvpo_browser_recycle_status"),
+        "sidecar_status": status.get("status"),
+        "sidecar_returncode": status.get("returncode"),
+    }
+
+
+def _agentlab_timeline_events(trace: Path | None) -> list[dict[str, Any]]:
+    if trace is None:
+        return []
+    events: list[dict[str, Any]] = []
+    status = load_json_or_empty(trace / "agentlab_sidecar_status.json")
+    if status:
+        events.append(
+            {
+                "index": 0,
+                "kind": "agentlab_sidecar",
+                "status": status.get("status"),
+                "message": compact_text(
+                    f"step={status.get('current_step')} phase={status.get('current_phase')} "
+                    f"url={status.get('last_url')}",
+                    limit=180,
+                ),
+                "trace": str(trace),
+            }
+        )
+    runtime = load_json_or_empty(trace / "browser_runtime.json")
+    if runtime:
+        events.append(
+            {
+                "index": 0,
+                "kind": "browser_runtime",
+                "status": runtime.get("runtime_artifact_status"),
+                "message": compact_text(
+                    f"scope={runtime.get('browser_instance_scope')} "
+                    f"task_browsers={runtime.get('agent_browser_connect_count')} "
+                    f"aux_browsers={runtime.get('auxiliary_browser_connect_count')} "
+                    f"recycle={runtime.get('recycle_status') or runtime.get('pvpo_browser_recycle_status')}",
+                    limit=180,
+                ),
+                "trace": str(trace),
+            }
+        )
+    native_events = _load_agentlab_native_timeline(trace)
+    for item in native_events[-4:]:
+        events.append(
+            {
+                "index": 0,
+                "kind": f"agentlab_{item.get('event') or 'timeline'}",
+                "status": item.get("phase"),
+                "message": compact_text(
+                    f"step={item.get('step')} url={item.get('url')} action={item.get('action')}",
+                    limit=180,
+                ),
+                "trace": str(trace),
+            }
+        )
+    return events
+
+
+def _load_agentlab_native_timeline(trace: Path) -> list[dict[str, Any]]:
+    path = trace / "agentlab_step_timeline.jsonl"
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    rows: list[dict[str, Any]] = []
+    for line in lines:
+        if not line.strip():
+            continue
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            rows.append(payload)
+    return rows
+
+
 def _iterator_generation_errors(
     iterator: dict[str, Any],
     *,
@@ -834,6 +962,8 @@ def _artifact_paths(trace: Path) -> dict[str, Path]:
         "agentlab_status": trace / "agentlab_sidecar_status.json",
         "agentlab_stdout": trace / "agentlab_sidecar_stdout.log",
         "agentlab_stderr": trace / "agentlab_sidecar_stderr.log",
+        "agentlab_timeline": trace / "agentlab_step_timeline.jsonl",
+        "agentlab_events": trace / "agentlab_events.jsonl",
         "needham_trace": trace / "needham_trace.xml",
         "tp_raw": trace / "transcript_purpose_raw_response.json",
         "vea_raw": trace / "verbalized_eval_awareness_raw_response.json",
