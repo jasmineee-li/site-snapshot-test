@@ -7,7 +7,12 @@ from pathlib import Path
 import pytest
 
 from worldsim.config import BenchmarkInstance
-from worldsim.eval_worker_pool import _normalize_completed_result, load_completed_results, run_eval
+from worldsim.eval_worker_pool import (
+    _normalize_completed_result,
+    _worker_stagger_delay_s,
+    load_completed_results,
+    run_eval,
+)
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.task_paths import safe_task_path_component
 
@@ -22,6 +27,19 @@ class _NoopAgent:
 
     async def teardown(self) -> None:
         return None
+
+
+def test_worker_stagger_delay_accepts_env_override(monkeypatch):
+    monkeypatch.setenv("WORLDSIM_WORKER_STAGGER_DELAY_S", "2.0")
+
+    assert _worker_stagger_delay_s() == 2.0
+
+
+def test_worker_stagger_delay_rejects_negative_env_override(monkeypatch):
+    monkeypatch.setattr("worldsim.eval_worker_pool.STAGGER_DELAY", 5.0)
+    monkeypatch.setenv("WORLDSIM_WORKER_STAGGER_DELAY_S", "-0.5")
+
+    assert _worker_stagger_delay_s() == 5.0
 
 
 @pytest.mark.asyncio
