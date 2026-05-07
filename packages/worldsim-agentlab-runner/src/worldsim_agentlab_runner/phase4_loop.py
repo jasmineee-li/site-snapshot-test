@@ -64,6 +64,7 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
         "storage_state_aliases": request.get("storage_state_aliases") or {},
         "browser_instance_scope": "agent_run",
         "lifecycle_events": [],
+        "runtime_artifact_status": "running",
     }
     steps_taken = 0
     final_result: str | None = None
@@ -88,6 +89,7 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
         repo_root=_optional_path(request.get("worldsim_repo_root")),
         cdp_url=str(request.get("pvpo_cdp_url") or ""),
     )
+    _write_browser_runtime(output_dir, runtime)
 
     try:
         save_package_versions(output_dir)
@@ -114,14 +116,17 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
                             seed=_task_seed(request),
                             obs_preprocessor=agent.obs_preprocessor,
                         )
+                        _write_browser_runtime(output_dir, runtime)
                     episode_info.append(step_info)
                     pvpo.capture_step(_pvpo_capture_page(env), step_info.step)
+                    _write_browser_runtime(output_dir, runtime)
 
                     while not step_info.is_done and steps_taken < int(
                         request.get("max_steps") or 30
                     ):
                         with _step_deadline(request, f"action step {step_info.step}"):
                             action = step_info.from_action(agent)
+                            _write_browser_runtime(output_dir, runtime)
                         step_info.save_step_info(
                             output_dir,
                             save_screenshot=True,
@@ -136,9 +141,11 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
                             next_step.from_step(
                                 env, action, obs_preprocessor=agent.obs_preprocessor
                             )
+                            _write_browser_runtime(output_dir, runtime)
                         steps_taken += 1
                         episode_info.append(next_step)
                         pvpo.capture_step(_pvpo_capture_page(env), next_step.step)
+                        _write_browser_runtime(output_dir, runtime)
                         step_info = next_step
 
                     final_result = final_result_from_env(env)
@@ -205,10 +212,8 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
             runtime["pvpo_close_error"] = f"{type(exc).__name__}: {exc}"
         runtime["lifecycle_events"].append("recycle_cdp_browser")
         runtime.update(_recycle_cdp_browser(str(request.get("pvpo_cdp_url") or "")))
-        (output_dir / "browser_runtime.json").write_text(
-            json.dumps(runtime, indent=2, sort_keys=True),
-            encoding="utf-8",
-        )
+        runtime["runtime_artifact_status"] = "complete"
+        _write_browser_runtime(output_dir, runtime)
 
     if final_result is None:
         final_result = _final_result_from_episode(episode_info)
@@ -274,6 +279,13 @@ def _write_phase4_request_copy(output_dir: Path, request: dict[str, Any], agent_
             )
     except Exception:
         pass
+
+
+def _write_browser_runtime(output_dir: Path, runtime: dict[str, Any]) -> None:
+    (output_dir / "browser_runtime.json").write_text(
+        json.dumps(runtime, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
 
 
 @contextmanager

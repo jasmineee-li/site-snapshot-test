@@ -985,6 +985,24 @@ def test_agentlab_pvpo_capture_uses_latest_open_page():
     assert phase4_loop._pvpo_capture_page(env) is latest
 
 
+def test_agentlab_phase4_writes_incremental_browser_runtime(tmp_path):
+    phase4_loop = _load_sidecar_module("phase4_loop")
+
+    runtime = {
+        "runner": "agentlab",
+        "browser_instance_scope": "agent_run",
+        "agent_browser_connect_count": 1,
+        "runtime_artifact_status": "running",
+    }
+
+    phase4_loop._write_browser_runtime(tmp_path, runtime)
+
+    payload = json.loads((tmp_path / "browser_runtime.json").read_text(encoding="utf-8"))
+    assert payload["browser_instance_scope"] == "agent_run"
+    assert payload["agent_browser_connect_count"] == 1
+    assert payload["runtime_artifact_status"] == "running"
+
+
 def test_agentlab_pvpo_uses_canonical_capture_and_artifact_writer(monkeypatch, tmp_path):
     sync_pvpo = _load_sidecar_module("sync_pvpo")
     from worldsim.phase_4 import pvpo_capture
