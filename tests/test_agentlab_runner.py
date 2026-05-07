@@ -1078,50 +1078,34 @@ def test_agentlab_pvpo_uses_canonical_capture_and_artifact_writer(monkeypatch, t
     assert "capture_implementation" not in summary
 
 
-def test_agentlab_pvpo_capture_failure_is_fatal_after_detach(monkeypatch, tmp_path):
+def test_agentlab_pvpo_capture_failure_writes_sentinel_and_exits(monkeypatch, tmp_path):
     sync_pvpo = _load_sidecar_module("sync_pvpo")
-    from worldsim.phase_4 import pvpo_capture
+    recorder = object.__new__(sync_pvpo.SyncPvpoRecorder)
+    recorder.output_dir = tmp_path
+    recorder.summary = {
+        "status": "ok",
+        "issue_steps": 0,
+        "issue_counts": {},
+        "first_issue_class": None,
+    }
+    recorder._warned_issue_classes = set()
+    monkeypatch.setattr(sync_pvpo.os, "_exit", lambda code: (_ for _ in ()).throw(SystemExit(code)))
 
-    async def fail_atomic(_cdp_session, **_kwargs):
-        raise TimeoutError("pvpo beginFrame atomic-capture timed out after 10.00s")
+    with pytest.raises(SystemExit) as exc_info:
+        recorder._record_issue(
+            "capture_failed",
+            2,
+            "pvpo beginFrame atomic-capture timed out after 10.00s",
+        )
 
-    monkeypatch.setattr(pvpo_capture, "atomic_capture_with_visibility", fail_atomic)
-
-    detached: list[bool] = []
-
-    class FakeCdp:
-        def send(self, method, params=None):
-            if method == "Runtime.evaluate" and "window.innerWidth" in str(
-                (params or {}).get("expression")
-            ):
-                return {"result": {"type": "object", "value": {"w": 1280, "h": 720}}}
-            return {"result": {"type": "object", "value": {}}}
-
-        def detach(self):
-            detached.append(True)
-
-    class FakeContext:
-        def new_cdp_session(self, page):
-            assert page is fake_page
-            return FakeCdp()
-
-    fake_page = SimpleNamespace(context=FakeContext(), url="http://gitlab.test/issue/1")
-    recorder = sync_pvpo.SyncPvpoRecorder(
-        tmp_path,
-        payload_text="PAYLOAD",
-        witness_texts=[{"id": "payload", "kind": "rendered_payload", "text": "PAYLOAD"}],
-        cdp_url="http://127.0.0.1:9222",
-    )
-
-    with pytest.raises(sync_pvpo.FatalPvpoCaptureError, match="stopping sidecar"):
-        recorder.capture_step(fake_page, 2)
-    recorder.close()
-
-    assert detached == [True]
+    assert exc_info.value.code == 42
     summary = json.loads((tmp_path / "pvpo" / "capture_summary.json").read_text(encoding="utf-8"))
     assert summary["status"] == "degraded"
     assert summary["first_issue_class"] == "capture_failed"
     assert summary["issue_counts"] == {"capture_failed": 1}
+    fatal = json.loads((tmp_path / "pvpo" / "fatal_capture.json").read_text(encoding="utf-8"))
+    assert fatal["exit_code"] == 42
+    assert fatal["issue_class"] == "capture_failed"
 
 
 def test_agentlab_pvpo_browsergym_screenshot_patch_replaces_imported_aliases(monkeypatch):
@@ -1673,6 +1657,64 @@ def test_phase4_nonzero_sidecar_result_writes_audit_artifacts(monkeypatch, tmp_p
     _assert_agentlab_phase4_resume_sidecars(tmp_path)
     final_response = json.loads((tmp_path / "final_response.json").read_text())
     assert final_response["status"] == "error"
+
+
+def test_phase4_nonzero_sidecar_preserves_fatal_pvpo_runtime(monkeypatch, tmp_path):
+    def failed_run(cmd, **kwargs):
+        (tmp_path / "browser_runtime.json").write_text(
+            json.dumps(
+                {
+                    "browser_instance_scope": "agent_run",
+                    "agent_browser_connect_count": 1,
+                    "auxiliary_browser_connect_count": 1,
+                    "runtime_artifact_status": "running",
+                }
+            ),
+            encoding="utf-8",
+        )
+        (tmp_path / "pvpo").mkdir()
+        (tmp_path / "pvpo" / "fatal_capture.json").write_text(
+            json.dumps(
+                {
+                    "issue_class": "capture_failed",
+                    "step": 2,
+                    "message": "pvpo beginFrame atomic-capture timed out after 10.00s",
+                    "exit_code": 42,
+                }
+            ),
+            encoding="utf-8",
+        )
+        return agentlab_runner._SidecarProcessResult(
+            returncode=42,
+            stdout="",
+            stderr="fatal pvpo",
+            timed_out=False,
+            elapsed=0.0,
+        )
+
+    monkeypatch.setattr(agentlab_runner, "_run_sidecar_process_streaming", failed_run)
+    monkeypatch.setattr(
+        agentlab_runner,
+        "_recycle_pvpo_browser_after_parent_timeout",
+        lambda cdp_url: {"recycle_status": "recycled", "recycle_reason": "parent_timeout"},
+    )
+
+    payload = agentlab_runner._run_sidecar_request(
+        {"task_id": "task-1", "pvpo_cdp_url": "http://127.0.0.1:9222"},
+        tmp_path,
+        subcommand="phase4-run",
+        timeout=3,
+    )
+
+    runtime = payload["browser_runtime"]
+    assert payload["status"] == "error"
+    assert payload["evidence_status"] == "sidecar_error_partial_artifacts"
+    assert runtime["agent_browser_connect_count"] == 1
+    assert runtime["auxiliary_browser_connect_count"] == 1
+    assert runtime["pvpo_capture_fatal"] is True
+    assert runtime["pvpo_capture_fatal_details"]["exit_code"] == 42
+    assert runtime["recycle_status"] == "recycled"
+    assert runtime["recycle_reason"] == "sidecar_error"
 
 
 def test_phase4_invalid_json_sidecar_result_writes_audit_artifacts(monkeypatch, tmp_path):

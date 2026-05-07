@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 from pathlib import Path
@@ -18,6 +19,7 @@ _CDP_VIEWPORT_JS = """
 """
 _PVPO_CDP_TIMEOUT_ENV = "WORLDSIM_PVPO_CDP_TIMEOUT_S"
 _PVPO_CDP_TIMEOUT_DEFAULT_S = 10.0
+_PVPO_FATAL_EXIT_CODE = 42
 
 
 class FatalPvpoCaptureError(RuntimeError):
@@ -218,10 +220,16 @@ class SyncPvpoRecorder:
         self.summary["last_issue_step"] = step_idx
         self.summary["last_issue_message"] = message
         if issue_class == "capture_failed":
-            self.fatal_capture_error = FatalPvpoCaptureError(
+            fatal_error = FatalPvpoCaptureError(
                 "AgentLab PVPO capture failed; stopping sidecar before BrowserGym "
                 f"continues on a potentially corrupt CDP session: {message}"
             )
+            self.fatal_capture_error = fatal_error
+            self._save_summary()
+            self._write_fatal_capture_sentinel(issue_class, step_idx, message)
+            logger.error("%s", fatal_error)
+            logging.shutdown()
+            os._exit(_PVPO_FATAL_EXIT_CODE)
         self._save_summary()
         if issue_class not in self._warned_issue_classes:
             self._warned_issue_classes.add(issue_class)
@@ -248,6 +256,28 @@ class SyncPvpoRecorder:
         from worldsim.phase_4.pvpo_capture import save_capture_summary
 
         save_capture_summary(self.output_dir, self.summary)
+
+    def _write_fatal_capture_sentinel(
+        self,
+        issue_class: str,
+        step_idx: int,
+        message: str,
+    ) -> None:
+        fatal_path = self.output_dir / "pvpo" / "fatal_capture.json"
+        fatal_path.parent.mkdir(parents=True, exist_ok=True)
+        fatal_path.write_text(
+            json.dumps(
+                {
+                    "issue_class": issue_class,
+                    "step": step_idx,
+                    "message": message,
+                    "exit_code": _PVPO_FATAL_EXIT_CODE,
+                },
+                indent=2,
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
 
 
 def _normalize_payload_witness_specs(

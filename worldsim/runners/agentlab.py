@@ -902,6 +902,8 @@ def _phase4_sidecar_error_result(
     message: str,
 ) -> dict[str, Any]:
     task_dir.mkdir(parents=True, exist_ok=True)
+    existing_runtime = _load_phase4_runtime_artifact(task_dir)
+    fatal_capture = _load_phase4_fatal_capture(task_dir)
     _write_minimal_timeout_artifacts(task_dir, request, message, status="error")
     runtime = {
         "runner": "agentlab",
@@ -910,6 +912,17 @@ def _phase4_sidecar_error_result(
         "sidecar_error": True,
         "cdp_url": request.get("pvpo_cdp_url"),
     }
+    if existing_runtime:
+        runtime.update(existing_runtime)
+        runtime["sidecar_error"] = True
+    if fatal_capture:
+        runtime["pvpo_capture_fatal"] = True
+        runtime["pvpo_capture_fatal_details"] = fatal_capture
+    cdp_url = str(request.get("pvpo_cdp_url") or "")
+    if cdp_url:
+        runtime.update(_recycle_pvpo_browser_after_parent_timeout(cdp_url))
+        if runtime.get("recycle_reason") == "parent_timeout":
+            runtime["recycle_reason"] = "sidecar_error"
     (task_dir / "browser_runtime.json").write_text(
         json.dumps(runtime, indent=2, sort_keys=True),
         encoding="utf-8",
@@ -938,13 +951,31 @@ def _phase4_sidecar_error_result(
             "truncated": True,
         },
         "artifacts": _phase4_artifact_manifest(task_dir),
-        "evidence_status": "sidecar_error_placeholder",
+        "evidence_status": "sidecar_error_partial_artifacts"
+        if fatal_capture
+        else "sidecar_error_placeholder",
         "browser_runtime": runtime,
     }
     fingerprint = request.get(RESULT_FINGERPRINT_KEY)
     if isinstance(fingerprint, str) and fingerprint.strip():
         payload[RESULT_FINGERPRINT_KEY] = fingerprint
     return payload
+
+
+def _load_phase4_runtime_artifact(task_dir: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads((task_dir / "browser_runtime.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _load_phase4_fatal_capture(task_dir: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads((task_dir / "pvpo" / "fatal_capture.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
 
 
 def _phase4_timeout_result(
