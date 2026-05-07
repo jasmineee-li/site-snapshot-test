@@ -184,6 +184,15 @@ def _write_phase_4_results(
             ),
         }
     try:
+        progress_extra = compute_progress_extra(terminal_progress_state)
+        progress_extra.update(
+            {
+                "initial_started_tasks": len(final_results),
+                "active_initial_tasks": 0,
+                "active_initial_task_ids": [],
+                "failed_initial_tasks": max(0, len(tasks) - len(final_results)),
+            }
+        )
         write_phase_4_progress(
             state_dir,
             status=terminal_status,
@@ -198,7 +207,7 @@ def _write_phase_4_results(
             final_status_counts=Counter(
                 str(r.get("final_status", "missing")) for r in final_results
             ),
-            extra=compute_progress_extra(terminal_progress_state),
+            extra=progress_extra,
         )
     except Exception as exc:
         logger.warning("Could not write terminal Phase 4 progress heartbeat: %s", exc)

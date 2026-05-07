@@ -602,6 +602,7 @@ async def run(args: argparse.Namespace) -> int:
     _write_progress_safely(
         "postprocessing",
         completed_initial_tasks=len(results),
+        extra=_initial_progress_extra(),
     )
     agent_execution_fingerprint = {
         "agent_model": agent_model,
@@ -682,6 +683,7 @@ async def run(args: argparse.Namespace) -> int:
             postprocessed_tasks=len(final_results),
             postprocess_attempted_tasks=len(final_results) + len(postprocess_failures),
             postprocess_failed_tasks=len(postprocess_failures),
+            extra=_initial_progress_extra(),
         )
         save_state(
             "phase_4",
