@@ -1199,6 +1199,26 @@ def test_trajectory_staging_skips_runtime_auth_subtree(tmp_path):
     assert all("reward_private" not in path for path in files)
 
 
+def _assert_agentlab_phase4_resume_sidecars(task_dir: Path) -> None:
+    required = (
+        "history.json",
+        "final_response.json",
+        "needham_trace.json",
+        "needham_trace.xml",
+        "network_trace.json",
+        "network.har",
+        "network_evidence.json",
+        "browser_runtime.json",
+        "pvpo/capture_summary.json",
+    )
+    missing = [name for name in required if not (task_dir / name).exists()]
+    assert missing == []
+
+    from worldsim.phase_4.resume import _has_phase_4_resume_artifacts
+
+    assert _has_phase_4_resume_artifacts({"outcome": "error"}, trajectory_dir=task_dir)
+
+
 def test_phase4_timeout_result_redacts_captured_secret_output(monkeypatch, tmp_path):
     def timeout_run(*args, **kwargs):
         request_path = Path(args[0][-1])
@@ -1247,6 +1267,9 @@ def test_phase4_timeout_result_redacts_captured_secret_output(monkeypatch, tmp_p
     assert "wonder" not in serialized
     assert "sid=abc" not in serialized
     assert "<redacted>" in serialized
+    _assert_agentlab_phase4_resume_sidecars(tmp_path)
+    final_response = json.loads((tmp_path / "final_response.json").read_text())
+    assert final_response["status"] == "timeout"
 
 
 def test_phase4_timeout_result_recovers_partial_artifacts(monkeypatch, tmp_path):
@@ -1282,6 +1305,9 @@ def test_phase4_timeout_result_recovers_partial_artifacts(monkeypatch, tmp_path)
     assert payload["final_result"] == "partial final"
     assert payload["network_trace"] == [{"url": "http://gitlab.test", "method": "GET"}]
     assert payload["evidence_status"] == "timeout_partial_artifacts"
+    _assert_agentlab_phase4_resume_sidecars(tmp_path)
+    final_response = json.loads((tmp_path / "final_response.json").read_text())
+    assert final_response["status"] == "timeout"
 
 
 def test_phase4_timeout_result_does_not_recover_stale_prior_artifacts(monkeypatch, tmp_path):
@@ -1313,6 +1339,7 @@ def test_phase4_timeout_result_does_not_recover_stale_prior_artifacts(monkeypatc
     assert payload["final_result"] is None
     assert payload["network_trace"] == []
     assert payload["evidence_status"] == "timeout_placeholder"
+    _assert_agentlab_phase4_resume_sidecars(tmp_path)
 
 
 def test_phase4_nonzero_sidecar_result_writes_audit_artifacts(monkeypatch, tmp_path):
@@ -1343,6 +1370,9 @@ def test_phase4_nonzero_sidecar_result_writes_audit_artifacts(monkeypatch, tmp_p
     assert "pvpo_summary" in payload["artifacts"]
     assert "secret-token" not in serialized
     assert "<redacted>" in serialized
+    _assert_agentlab_phase4_resume_sidecars(tmp_path)
+    final_response = json.loads((tmp_path / "final_response.json").read_text())
+    assert final_response["status"] == "error"
 
 
 def test_phase4_invalid_json_sidecar_result_writes_audit_artifacts(monkeypatch, tmp_path):
@@ -1373,6 +1403,9 @@ def test_phase4_invalid_json_sidecar_result_writes_audit_artifacts(monkeypatch, 
     assert "pvpo_summary" in payload["artifacts"]
     assert "secret-token" not in serialized
     assert "<redacted>" in serialized
+    _assert_agentlab_phase4_resume_sidecars(tmp_path)
+    final_response = json.loads((tmp_path / "final_response.json").read_text())
+    assert final_response["status"] == "error"
 
 
 def test_agentlab_phase4_resume_requires_audit_artifacts(tmp_path):

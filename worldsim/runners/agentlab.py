@@ -637,7 +637,7 @@ def _phase4_sidecar_error_result(
     message: str,
 ) -> dict[str, Any]:
     task_dir.mkdir(parents=True, exist_ok=True)
-    _write_minimal_timeout_artifacts(task_dir, request, message)
+    _write_minimal_timeout_artifacts(task_dir, request, message, status="error")
     runtime = {
         "runner": "agentlab",
         "mode": "phase4",
@@ -689,7 +689,7 @@ def _phase4_timeout_result(
 ) -> dict[str, Any]:
     message = f"AgentLab sidecar exceeded task timeout {timeout}s"
     task_dir.mkdir(parents=True, exist_ok=True)
-    _write_minimal_timeout_artifacts(task_dir, request, message)
+    _write_minimal_timeout_artifacts(task_dir, request, message, status="timeout")
     recovered = _recover_phase4_timeout_artifacts(task_dir)
     runtime = {
         "runner": "agentlab",
@@ -791,7 +791,13 @@ def _recover_phase4_timeout_artifacts(task_dir: Path) -> dict[str, Any]:
     }
 
 
-def _write_minimal_timeout_artifacts(task_dir: Path, request: dict[str, Any], message: str) -> None:
+def _write_minimal_timeout_artifacts(
+    task_dir: Path,
+    request: dict[str, Any],
+    message: str,
+    *,
+    status: str,
+) -> None:
     _write_text_if_absent(
         task_dir / "history.json",
         json.dumps(
@@ -809,9 +815,7 @@ def _write_minimal_timeout_artifacts(task_dir: Path, request: dict[str, Any], me
     )
     _write_text_if_absent(
         task_dir / "final_response.json",
-        json.dumps(
-            {"status": "error", "final_result": None, "errors": [message], "steps": 0}, indent=2
-        )
+        json.dumps({"status": status, "final_result": None, "errors": [message], "steps": 0}, indent=2)
         + "\n",
     )
     needham_messages = [

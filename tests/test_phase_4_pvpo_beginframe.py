@@ -290,14 +290,26 @@ async def test_endpoint_lease_serializes_same_endpoint_but_not_distinct_endpoint
 
     active = 0
     peak = 0
+    distinct_inside = 0
+    both_distinct_inside = asyncio.Event()
+    release_distinct = asyncio.Event()
 
     async def _distinct_endpoint_worker(port: int):
-        nonlocal active, peak
+        nonlocal active, peak, distinct_inside
         async with pvpo_endpoint_lease(f"http://127.0.0.1:{port}"):
             active += 1
             peak = max(peak, active)
-            await asyncio.sleep(0)
+            distinct_inside += 1
+            if distinct_inside == 2:
+                both_distinct_inside.set()
+            await release_distinct.wait()
             active -= 1
 
-    await asyncio.gather(_distinct_endpoint_worker(9222), _distinct_endpoint_worker(9223))
+    distinct_tasks = [
+        asyncio.create_task(_distinct_endpoint_worker(9222)),
+        asyncio.create_task(_distinct_endpoint_worker(9223)),
+    ]
+    await both_distinct_inside.wait()
+    release_distinct.set()
+    await asyncio.gather(*distinct_tasks)
     assert peak == 2
