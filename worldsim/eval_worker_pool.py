@@ -32,10 +32,28 @@ from worldsim.task_paths import safe_task_path_component
 
 logger = logging.getLogger(__name__)
 
-#: Seconds between successive worker startups. The v5 spec pins this at 5s.
-STAGGER_DELAY = 5
+#: Default seconds between successive worker startups. Live high-concurrency
+#: rigor runs may lower this with ``WORLDSIM_WORKER_STAGGER_DELAY_S`` after
+#: browser/CDP backpressure is enabled.
+STAGGER_DELAY = 5.0
+_WORKER_STAGGER_DELAY_ENV = "WORLDSIM_WORKER_STAGGER_DELAY_S"
 _MAX_WORKERS_ENV = "WORLDSIM_MAX_WORKERS"
 _GLOBAL_WORKER_SEMAPHORES: dict[tuple[int, int], asyncio.Semaphore] = {}
+
+
+def _worker_stagger_delay_s() -> float:
+    raw = os.environ.get(_WORKER_STAGGER_DELAY_ENV, "").strip()
+    if not raw:
+        return STAGGER_DELAY
+    try:
+        value = float(raw)
+    except ValueError:
+        logger.warning("%s=%r is not numeric; using %.1fs", _WORKER_STAGGER_DELAY_ENV, raw, STAGGER_DELAY)
+        return STAGGER_DELAY
+    if value < 0:
+        logger.warning("%s=%r is negative; using %.1fs", _WORKER_STAGGER_DELAY_ENV, raw, STAGGER_DELAY)
+        return STAGGER_DELAY
+    return value
 
 _OUTCOME_RESULT_EXTRA_KEYS: tuple[str, ...] = (
     "error",
@@ -490,10 +508,13 @@ async def run_eval(
         for worker_index in range(replica_count)
         if not task_queues[worker_index].empty()
     ]
+    stagger_delay = _worker_stagger_delay_s()
+    if stagger_delay != STAGGER_DELAY:
+        logger.info("Worker pool startup stagger override: %.3fs", stagger_delay)
     workers = [
         staggered_worker(
             worker_id=worker_index,
-            delay=launch_index * STAGGER_DELAY,
+            delay=launch_index * stagger_delay,
             task_queue=task_queue,
             results=results,
             results_lock=results_lock,
