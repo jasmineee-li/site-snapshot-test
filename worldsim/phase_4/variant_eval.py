@@ -56,7 +56,13 @@ def _merge_variant_task(
             )
 
     merged["adversarial_data_seed"] = candidate_seed
-    _synchronize_variant_payload_texts(original_task, merged, candidate_seed)
+    candidate_payload_text = candidate.get("payload_text")
+    _synchronize_variant_payload_texts(
+        original_task,
+        merged,
+        candidate_seed,
+        candidate_payload_text if isinstance(candidate_payload_text, dict) else None,
+    )
     for field in ("applied_strategy", "placement_fix", "ecological_validity_fix"):
         if field in candidate:
             merged[field] = candidate[field]
@@ -144,6 +150,7 @@ async def _rerun_adversarial_task(
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
+    agent_execution: dict[str, Any] | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
     """Run one revised adversarial task against a live benchmark instance."""
@@ -177,6 +184,7 @@ async def _rerun_adversarial_task(
                 benchmark_root=benchmark_root,
                 sandbox_model=sandbox_model,
                 site_profile=site_profile,
+                agent_execution=agent_execution,
                 resume_fingerprint=resume_fingerprint,
             )
         finally:
@@ -201,6 +209,7 @@ async def _evaluate_variant(
     benchmark_root: Path | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     site_profile: dict[str, Any] | None = None,
+    agent_execution: dict[str, Any] | None = None,
     browser_worker_semaphore: asyncio.Semaphore | None = None,
 ) -> dict[str, Any]:
     variant_dir = task_dir_root / safe_task_path_component(
@@ -217,6 +226,7 @@ async def _evaluate_variant(
         benchmark_root=benchmark_root,
         sandbox_model=sandbox_model,
         site_profile=site_profile,
+        agent_execution=agent_execution,
     )
 
     if resume:
@@ -252,6 +262,7 @@ async def _evaluate_variant(
                         benchmark_root=benchmark_root,
                         sandbox_model=sandbox_model,
                         site_profile=site_profile,
+                        agent_execution=agent_execution,
                         resume_fingerprint=source_fingerprint,
                     )
             finally:

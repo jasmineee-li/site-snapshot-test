@@ -546,6 +546,7 @@ async def run_strategy_variation(
                         benchmark_root=benchmark_root,
                         sandbox_model=sandbox_model,
                         site_profile=site_profile,
+                        agent_execution=agent_execution,
                         browser_worker_semaphore=browser_worker_semaphore,
                     )
                     for i, (variant, strategy, record) in enumerate(batch)

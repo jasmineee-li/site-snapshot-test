@@ -486,6 +486,7 @@ async def run_eval_awareness_iterator(
             benchmark_root=benchmark_root,
             sandbox_model=sandbox_model,
             site_profile=site_profile,
+            agent_execution=agent_execution,
             browser_worker_semaphore=browser_worker_semaphore,
         )
         result.setdefault("iteration", iteration)

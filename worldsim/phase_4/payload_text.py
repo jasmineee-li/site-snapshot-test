@@ -130,6 +130,25 @@ def _extract_variant_rendered_payload(task: dict[str, Any], seed: dict[str, Any]
             return _seed_payload_candidates_from_mapping(container, body_field=body_field)
         return []
 
+    payload_arg = _payload_arg(task)
+    payload_indexes = _payload_call_indexes(
+        task,
+        expected_method=_editor_method(task),
+        payload_arg=payload_arg,
+    )
+    if len(payload_indexes) == 1:
+        resolved = _candidate_from_payload_call_index(
+            seed,
+            next(iter(payload_indexes)),
+            body_field=body_field,
+            payload_arg=payload_arg,
+            consider=consider,
+        )
+        if resolved is not None:
+            return resolved
+    if len(payload_indexes) > 1:
+        return None
+
     for call_list_key in ("editor_calls", "api_calls"):
         call_list = seed.get(call_list_key)
         if not isinstance(call_list, list):
@@ -222,6 +241,7 @@ def _synchronize_variant_payload_texts(
     original_task: dict[str, Any],
     merged_task: dict[str, Any],
     candidate_seed: dict[str, Any],
+    candidate_payload_text: dict[str, Any] | None = None,
 ) -> None:
     payload_texts = original_task.get("payload_texts")
     if not isinstance(payload_texts, list) or not payload_texts:
@@ -242,9 +262,15 @@ def _synchronize_variant_payload_texts(
             original_task.get("id", "unknown"),
         )
         return
+    source_payload = (
+        candidate_payload_text
+        if isinstance(candidate_payload_text, dict)
+        and candidate_payload_text.get("rendered_payload") == rendered_payload
+        else payload_texts[selected_index]
+    )
     synced_entry = _updated_payload_text_entry(
         merged_task,
-        payload_texts[selected_index],
+        source_payload,
         rendered_payload,
     )
     if synced_entry is None:
@@ -252,6 +278,76 @@ def _synchronize_variant_payload_texts(
     merged_payloads = json.loads(json.dumps(payload_texts))
     merged_payloads[selected_index] = synced_entry
     merged_task["payload_texts"] = merged_payloads
+    merged_task["payload_text"] = json.loads(json.dumps(synced_entry))
+
+
+def _payload_arg(task: dict[str, Any]) -> str:
+    contract = task.get("exposure_contract")
+    value = contract.get("payload_arg") if isinstance(contract, dict) else None
+    return value.strip() if isinstance(value, str) and value.strip() else ""
+
+
+def _editor_method(task: dict[str, Any]) -> str:
+    contract = task.get("exposure_contract")
+    value = contract.get("editor_method") if isinstance(contract, dict) else None
+    return value.strip() if isinstance(value, str) and value.strip() else ""
+
+
+def _payload_call_indexes(
+    task: dict[str, Any],
+    *,
+    expected_method: str,
+    payload_arg: str,
+) -> set[int]:
+    base_seed = task.get("adversarial_data_seed")
+    calls = base_seed.get("editor_calls") if isinstance(base_seed, dict) else None
+    selected = _selected_rendered_payload(task)
+    if not isinstance(calls, list) or not expected_method or not payload_arg:
+        return set()
+    indexes = {
+        index
+        for index, call in enumerate(calls)
+        if isinstance(call, dict)
+        and call.get("method") == expected_method
+        and isinstance(call.get("args"), dict)
+        and call["args"].get(payload_arg) == selected
+    }
+    if indexes:
+        return indexes
+    return {
+        index
+        for index, call in enumerate(calls)
+        if isinstance(call, dict)
+        and call.get("method") == expected_method
+        and isinstance(call.get("args"), dict)
+        and payload_arg in call["args"]
+    }
+
+
+def _candidate_from_payload_call_index(
+    seed: dict[str, Any],
+    index: int,
+    *,
+    body_field: str | None,
+    payload_arg: str,
+    consider: Any,
+) -> str | None:
+    calls = seed.get("editor_calls")
+    if not isinstance(calls, list) or not (0 <= index < len(calls)):
+        return None
+    call = calls[index]
+    if not isinstance(call, dict):
+        return None
+    args = call.get("args")
+    if not isinstance(args, dict):
+        return None
+    if payload_arg and isinstance(args.get(payload_arg), str):
+        return consider(args[payload_arg])
+    for candidate in _seed_payload_candidates_from_mapping(args, body_field=body_field):
+        resolved = consider(candidate)
+        if resolved is not None:
+            return resolved
+    return None
 
 
 def _adversarial_seed_equivalent(left: dict[str, Any], right: dict[str, Any]) -> bool:
