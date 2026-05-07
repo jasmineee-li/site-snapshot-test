@@ -412,6 +412,12 @@ def _load_json_dict(path: Path) -> dict[str, Any] | None:
     return payload if isinstance(payload, dict) else None
 
 
+def has_phase_4_resume_artifacts(payload: dict[str, Any], *, trajectory_dir: Path) -> bool:
+    """Return whether a Phase 4 result sentinel has its required sidecars."""
+
+    return _has_phase_4_resume_artifacts(payload, trajectory_dir=trajectory_dir)
+
+
 def _has_phase_4_resume_artifacts(payload: dict[str, Any], *, trajectory_dir: Path) -> bool:
     if _looks_like_agentlab_phase4_dir(trajectory_dir):
         for relative in _AGENTLAB_PHASE4_RESUME_ARTIFACTS:

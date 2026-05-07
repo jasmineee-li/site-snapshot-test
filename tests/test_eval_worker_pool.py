@@ -415,6 +415,24 @@ def test_load_completed_results_reuses_terminal_phase_4_result_without_sidecars(
     assert completed["adv-1"]["benign_passed"] is False
 
 
+def test_load_completed_results_rejects_agentlab_complied_without_audit_artifacts(tmp_path):
+    task_dir = tmp_path / "adv-1"
+    task_dir.mkdir()
+    (task_dir / "agentlab_phase4_request.json").write_text("{}", encoding="utf-8")
+    (task_dir / "result.json").write_text(
+        json.dumps(
+            {
+                "task_id": "adv-1",
+                "outcome": "complied",
+                "passed": False,
+                "encounter": {"max_coverage": 0.5},
+            }
+        )
+    )
+
+    assert load_completed_results(tmp_path) == {}
+
+
 def test_load_completed_results_requires_only_history_for_reprocessable_phase_4_result(tmp_path):
     task_dir = tmp_path / "adv-1"
     task_dir.mkdir()

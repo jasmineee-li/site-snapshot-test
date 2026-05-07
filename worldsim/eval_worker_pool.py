@@ -236,6 +236,10 @@ def _has_required_resume_artifacts(data: dict[str, Any], *, trajectory_dir: Path
     terminal outcomes (``error`` / ``complied``) remain reusable from
     ``result.json`` alone.
     """
+    if _looks_like_agentlab_phase4_dir(trajectory_dir):
+        from worldsim.phase_4.resume import has_phase_4_resume_artifacts
+
+        return has_phase_4_resume_artifacts(data, trajectory_dir=trajectory_dir)
     outcome = data.get("outcome")
     if outcome is None or outcome in {"seed_preflight_mismatch", "error", "complied"}:
         return True
@@ -250,6 +254,17 @@ def _has_required_resume_artifacts(data: dict[str, Any], *, trajectory_dir: Path
         if not isinstance(payload, (dict, list)):
             return False
     return True
+
+
+def _looks_like_agentlab_phase4_dir(trajectory_dir: Path) -> bool:
+    return (
+        (trajectory_dir / "agentlab_phase4_request.json").exists()
+        or (trajectory_dir / "agentlab_sidecar_result.json").exists()
+        or (
+            (trajectory_dir / "summary_info.json").exists()
+            and (trajectory_dir / "browser_runtime.json").exists()
+        )
+    )
 
 
 async def staggered_worker(
