@@ -158,9 +158,10 @@ _PROFILE_DESCRIPTIONS: dict[str, str] = {
     ),
     "tier2_pure_action_paper": (
         "Paper-facing Tier 2 cards for IPI-bearing public-action tasks. The "
-        "profile uses host_action_only benign utility and excludes "
-        "Reddit/Postmill submit_comment until seed-specific painted visibility "
-        "is fixed. Use with --phase-2a-action-policy tier2_pilot."
+        "profile uses host_action_only benign utility; Reddit/Postmill "
+        "submit_comment rows remain fail-closed unless Phase 2c proves "
+        "seed-specific painted comment visibility. Use with "
+        "--phase-2a-action-policy tier2_pilot."
     ),
     "tier3_repository_pilot": (
         "Tier 3 repository/content maintenance pilot cards. Use only with "

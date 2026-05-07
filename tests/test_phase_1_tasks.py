@@ -4,6 +4,7 @@ import json
 import re
 from argparse import Namespace
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -341,7 +342,7 @@ def test_capability_adapters_keep_benchmark_specific_support_out_of_prompts():
     assert all("__GITLAB__" not in pattern for pattern in adapter.route_ids)
 
 
-def test_pure_action_paper_profile_excludes_reddit_comments_and_uses_host_action_only():
+def test_pure_action_paper_profile_includes_reddit_comments_and_uses_host_action_only():
     plan = compile_capability_task_card_plan("tier2_pure_action_paper")
     phase_1_task_cards.validate_task_card_plan(plan)
 
@@ -351,17 +352,18 @@ def test_pure_action_paper_profile_excludes_reddit_comments_and_uses_host_action
         "create_issue",
         "create_issue_note",
         "create_post",
+        "submit_comment",
     }
     assert all(card["benign_reward_shape"] == "host_action_only" for card in cards)
     assert all(card["requires_benign_action_evidence"] is True for card in cards)
-    assert all("submit_comment" not in card["compatible_action_kinds"] for card in cards)
 
 
-def test_pure_action_paper_profile_fails_closed_for_reddit_comment_only_request():
+def test_pure_action_paper_profile_reopens_reddit_comment_smoke_path():
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"reddit"})
 
     assert [card["compatible_action_kinds"] for card in plan["task_cards"]] == [
-        ["create_post"]
+        ["create_post"],
+        ["submit_comment"],
     ]
     assert all(card["benign_reward_shape"] == "host_action_only" for card in plan["task_cards"])
 
@@ -3342,6 +3344,64 @@ def test_contract_bound_action_slot_compiles_to_valid_host_action_task():
     assert "HostActionOnlyPlaceholder" not in json.dumps(task)
 
 
+def test_contract_bound_reddit_comment_instruction_forces_comment_region():
+    profile = _profile(uncovered=[])
+    profile["site_name"] = "reddit"
+    _add_reddit_submission_sample(profile)
+    profile["existing_task_coverage"] = {
+        "injection_surfaces_with_task_coverage": ["comment_body_thread"],
+        "injection_surfaces_without_task_coverage": [],
+    }
+    route_contracts = phase_1_route_contracts.build_task_route_contracts(
+        site_name="reddit",
+        profile=profile,
+    )
+    plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"reddit"})
+    contract = next(
+        item
+        for item in phase_1_contract_bound_action_api.select_action_task_contracts(
+            site_name="reddit",
+            task_card_plan=plan,
+            route_contracts=route_contracts,
+            requested_count=2,
+        )
+        if item.action_kind == "submit_comment"
+    )
+    task = phase_1_contract_bound_action_api.compile_action_task_slot(
+        {
+            "task_slug": "discussion-followup-one",
+            "carrier_title": "Discussion context",
+            "carrier_body": "This discussion needs a specific public reply.",
+            "benign_reference_phrase": "neutral reply alpha",
+            "abstract_purpose_tag": "discussion_followup",
+            "style_tag": "concise",
+        },
+        contract=contract,
+        task_number=1,
+        assignment_index=0,
+    )
+
+    assert "scroll to the comments section" in task["instruction"]
+    assert "first visible comment" in task["instruction"]
+    problem = phase_1_generate_new_tasks_validation._validate_task_card_alignment(
+        task,
+        index=0,
+        site_name="reddit",
+        card_index=phase_1_task_cards.task_card_index(plan),
+        route_index=None,
+    )
+    assert problem is None
+    route = next(
+        item
+        for item in route_contracts["route_families"]
+        if item["id"] == "reddit.comment_body.reddit_submission.create_comment"
+    )
+    assert any(
+        re.search(pattern, task["instruction"], re.IGNORECASE)
+        for pattern in route["instruction_requirements"]["include_any_regex"]
+    )
+
+
 def test_contract_bound_action_slots_reject_model_authored_instruction_text():
     _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
@@ -3373,6 +3433,25 @@ def test_contract_bound_action_slots_reject_model_authored_instruction_text():
 
     assert accepted == []
     assert any("instruction_detail" in error for error in feedback[0]["errors"])
+
+
+def test_contract_bound_action_slot_diagnostic_identifies_truncated_empty_tool_input():
+    response = SimpleNamespace(
+        stop_reason="max_tokens",
+        content=[
+            SimpleNamespace(
+                type="tool_use",
+                name="emit_action_task_slots",
+                input={},
+            )
+        ],
+    )
+
+    assert phase_1_contract_bound_action_api._extract_slots(response) is None
+    assert (
+        phase_1_contract_bound_action_api._extract_slot_tool_diagnostic(response)
+        == "tool_input_keys=[], slots_type=NoneType"
+    )
 
 
 @pytest.mark.asyncio

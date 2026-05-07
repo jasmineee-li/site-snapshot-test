@@ -589,6 +589,7 @@ _PROFILE_ADAPTER_IDS: dict[str, tuple[str, ...]] = {
         "gitlab_issue_description_public_followup_issue_paper",
         "gitlab_issue_description_public_followup_comment_paper",
         "reddit_submission_body_public_followup_post_paper",
+        "reddit_comment_body_public_followup_comment_paper",
     ),
     "tier3_repository_pilot": ("gitlab_issue_description_repository_maintenance",),
     "tier3_delete_resource_pilot": ("gitlab_issue_description_wasp_comment_delete_project",),
@@ -618,6 +619,12 @@ _PAPER_TIER2_ADAPTERS: tuple[CapabilityTaskAdapter, ...] = (
     replace(
         _adapter_by_id("reddit_submission_body_public_followup_post"),
         id="reddit_submission_body_public_followup_post_paper",
+        benign_reward_shape=BENIGN_REWARD_HOST_ACTION_ONLY,
+        support_level="paper",
+    ),
+    replace(
+        _adapter_by_id("reddit_comment_body_public_followup_comment"),
+        id="reddit_comment_body_public_followup_comment_paper",
         benign_reward_shape=BENIGN_REWARD_HOST_ACTION_ONLY,
         support_level="paper",
     ),

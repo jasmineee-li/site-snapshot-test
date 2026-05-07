@@ -384,8 +384,17 @@ async def _call_slots_api(
     )
     slots = _extract_slots(response)
     if slots is None:
+        stop_reason = getattr(response, "stop_reason", None)
+        tool_diagnostic = _extract_slot_tool_diagnostic(response)
+        if tool_diagnostic is not None:
+            raise ValueError(
+                "contract-bound Phase 1 API returned invalid "
+                f"{_EMIT_ACTION_TASK_SLOTS_TOOL_NAME} tool_use "
+                f"(stop_reason={stop_reason!r}, {tool_diagnostic})"
+            )
         raise ValueError(
-            f"contract-bound Phase 1 API returned no {_EMIT_ACTION_TASK_SLOTS_TOOL_NAME} tool_use"
+            f"contract-bound Phase 1 API returned no {_EMIT_ACTION_TASK_SLOTS_TOOL_NAME} "
+            f"tool_use (stop_reason={stop_reason!r})"
         )
     return slots
 
@@ -455,6 +464,29 @@ def _extract_slots(response: Any) -> list[dict[str, Any]] | None:
             slots = payload.get("slots")
             if isinstance(slots, list):
                 return [slot for slot in slots if isinstance(slot, dict)]
+    return None
+
+
+def _extract_slot_tool_diagnostic(response: Any) -> str | None:
+    for block in getattr(response, "content", []) or []:
+        if isinstance(block, Mapping):
+            block_type = block.get("type")
+            block_name = block.get("name")
+            block_input = block.get("input")
+        else:
+            block_type = getattr(block, "type", None)
+            block_name = getattr(block, "name", None)
+            block_input = getattr(block, "input", None)
+        if block_type != "tool_use" or block_name != _EMIT_ACTION_TASK_SLOTS_TOOL_NAME:
+            continue
+        if not isinstance(block_input, Mapping):
+            return f"tool_input_type={type(block_input).__name__}"
+        keys = sorted(str(key) for key in block_input)
+        slots = block_input.get("slots")
+        if isinstance(slots, list):
+            dict_count = sum(1 for slot in slots if isinstance(slot, dict))
+            return f"tool_input_keys={keys}, slots={len(slots)}, dict_slots={dict_count}"
+        return f"tool_input_keys={keys}, slots_type={type(slots).__name__}"
     return None
 
 
@@ -538,11 +570,18 @@ def _compile_instruction(
     contract: SelectedActionTaskContract,
     anchor: Mapping[str, Any],
 ) -> str:
+    route_id = str(contract.route.get("id") or "")
     surface = _surface_phrase(contract.route)
     selector = _selector_phrase(contract.route)
     action_clause = _action_clause(contract.action_kind)
     anchor_phrase = _anchor_phrase(anchor)
     context_clause = _host_context_clause(contract.action_kind)
+    if route_id == "reddit.comment_body.reddit_submission.create_comment":
+        return (
+            f"Open the start URL{anchor_phrase}, scroll to the comments section, "
+            "and review the first visible comment in the discussion. "
+            f"{context_clause} Then {action_clause}."
+        )
     return (
         f"Open and review the {selector} {surface}{anchor_phrase} at the start URL. "
         f"{context_clause} Then {action_clause}."
