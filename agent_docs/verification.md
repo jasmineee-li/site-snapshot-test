@@ -97,8 +97,12 @@ For the legacy `3+3+1` adaptive strategy loop, verification evidence should show
 
 Wrapper facts that matter:
 
-- Default instances file is `instances.smoke.json`; pass `--instances` when
-  testing a different topology.
+- Without `--host-config`, the default instances file is the local
+  `instances.smoke.json`.
+- With `--host-config` and no explicit `--instances`, the wrapper generates a
+  temporary host-config-specific smoke instances file. This avoids stale local
+  ports after remote setup regenerates host-local topology artifacts.
+- Pass `--instances` only when intentionally testing a specific topology file.
 - `--host-view auto` chooses the right URL view for local vs remote execution;
   use `--host-view orchestrator` on r5 when checking host-local browser paths.
 - The wrapper sources `.env` when present and fails loudly when required live

@@ -190,6 +190,10 @@ class StepCapture:
     matched_witness_text: str | None = None
 
 
+def _runtime_evaluate_params(expression: str) -> dict[str, Any]:
+    return {"expression": expression, "returnByValue": True, "awaitPromise": True}
+
+
 async def atomic_capture_with_visibility(
     cdp_session: Any,
     *,
@@ -271,10 +275,7 @@ async def atomic_capture_with_visibility(
             await beginframe_controller.drain_prior(label="pre-atomic-capture")
         await _send("Emulation.setVirtualTimePolicy", {"policy": "pause"})
         virtual_time_paused = True
-        raw = await _send(
-            "Runtime.evaluate",
-            {"expression": query_js, "returnByValue": True, "awaitPromise": True},
-        )
+        raw = await _send("Runtime.evaluate", _runtime_evaluate_params(query_js))
         (
             visibility_vec,
             background_color,
@@ -375,6 +376,183 @@ async def atomic_capture_with_visibility(
         matched_witness_id=matched_witness_id,
         matched_witness_text=matched_witness_text,
     )
+
+
+async def surface_capture_with_stability(
+    cdp_session: Any,
+    *,
+    viewport_rect: Rect,
+    payload_text: str = "",
+    witness_texts: list[str | dict[str, Any]] | None = None,
+    scroll_to_match: bool = False,
+    capturing: asyncio.Event | None = None,
+    cdp_timeout_s: float | None = None,
+) -> StepCapture:
+    """Capture PVPO evidence with normal ``Page.captureScreenshot``.
+
+    This backend observes the agent's real browser without enabling Chromium
+    begin-frame-control.  Rigor comes from pairing the screenshot with stable
+    pre/post witness probes: if the witness, viewport, URL, background, or
+    character rects move across the screenshot boundary, the step is persisted
+    as degraded with an empty visibility vector so encounter detection fails
+    closed.
+    """
+    query_js = build_pvpo_query_js(
+        payload_text,
+        witness_texts=witness_texts,
+        scroll_to_match=scroll_to_match,
+    )
+    cdp = normalize_cdp_session(cdp_session)
+
+    async def _send(method: str, params: dict[str, Any]) -> dict[str, Any]:
+        request = cdp.send(method, params)
+        if cdp_timeout_s is None:
+            return await request
+        return await _await_cdp_deadline(
+            request,
+            timeout_s=cdp_timeout_s,
+            method=method,
+        )
+
+    if capturing is not None:
+        capturing.set()
+    try:
+        before_raw = await _send("Runtime.evaluate", _runtime_evaluate_params(query_js))
+        before = _unwrap_runtime_evaluate(before_raw)
+        screenshot_raw = await _send(
+            "Page.captureScreenshot",
+            {
+                "format": "png",
+                "fromSurface": True,
+                "captureBeyondViewport": False,
+                "clip": viewport_rect.as_cdp_clip(),
+            },
+        )
+        screenshot_png = _decode_page_screenshot(screenshot_raw)
+        after_raw = await _send("Runtime.evaluate", _runtime_evaluate_params(query_js))
+        after = _unwrap_runtime_evaluate(after_raw)
+    finally:
+        if capturing is not None:
+            capturing.clear()
+
+    (
+        visibility_vec,
+        background_color,
+        issue_class,
+        issue_message,
+        match_found,
+        match_offset,
+        matched_witness_id,
+        matched_witness_text,
+        page_url,
+    ) = before
+    stability_issue = _surface_stability_issue(before, after)
+    if stability_issue is not None:
+        issue_class = issue_class or stability_issue[0]
+        issue_message = issue_message or stability_issue[1]
+        visibility_vec = []
+        match_found = False
+        match_offset = -1
+
+    return StepCapture(
+        screenshot_png=screenshot_png,
+        visibility_vec=visibility_vec,
+        background_color=background_color,
+        has_damage=True,
+        clip=viewport_rect,
+        page_url=page_url,
+        issue_class=issue_class,
+        issue_message=issue_message,
+        match_found=match_found,
+        match_offset=match_offset,
+        matched_witness_id=matched_witness_id,
+        matched_witness_text=matched_witness_text,
+    )
+
+
+def _decode_page_screenshot(raw: dict[str, Any]) -> bytes:
+    data = raw.get("data")
+    if not isinstance(data, str) or not data:
+        raise RuntimeError("Page.captureScreenshot returned no data")
+    return base64.b64decode(data)
+
+
+def _surface_stability_issue(
+    before: tuple[
+        list[dict[str, Any]],
+        tuple[int, int, int],
+        str | None,
+        str | None,
+        bool,
+        int,
+        str | None,
+        str | None,
+        str | None,
+    ],
+    after: tuple[
+        list[dict[str, Any]],
+        tuple[int, int, int],
+        str | None,
+        str | None,
+        bool,
+        int,
+        str | None,
+        str | None,
+        str | None,
+    ],
+) -> tuple[str, str] | None:
+    before_entries, before_bg, *_before_rest = before
+    after_entries, after_bg, *_after_rest = after
+    before_match = before[4:9]
+    after_match = after[4:9]
+    if before_match != after_match:
+        return (
+            "surface_capture_unstable_witness",
+            "PVPO witness metadata changed across Page.captureScreenshot",
+        )
+    if before_bg != after_bg:
+        return (
+            "surface_capture_unstable_background",
+            "PVPO background color changed across Page.captureScreenshot",
+        )
+    if _entry_stability_signature(before_entries) != _entry_stability_signature(after_entries):
+        return (
+            "surface_capture_unstable_rects",
+            "PVPO witness geometry changed across Page.captureScreenshot",
+        )
+    return None
+
+
+def _entry_stability_signature(entries: list[dict[str, Any]]) -> list[tuple[Any, ...]]:
+    signature: list[tuple[Any, ...]] = []
+    for entry in entries:
+        rect = entry.get("liveRect") if isinstance(entry, dict) else None
+        if isinstance(rect, dict):
+            rect_sig: tuple[int | None, int | None, int | None, int | None] = (
+                _round_rect_value(rect.get("x")),
+                _round_rect_value(rect.get("y")),
+                _round_rect_value(rect.get("w")),
+                _round_rect_value(rect.get("h")),
+            )
+        else:
+            rect_sig = (None, None, None, None)
+        signature.append(
+            (
+                entry.get("i"),
+                entry.get("char"),
+                bool(entry.get("isSpace")),
+                bool(entry.get("layoutVisible")),
+                rect_sig,
+            )
+        )
+    return signature
+
+
+def _round_rect_value(value: Any) -> int | None:
+    try:
+        return round(float(value))
+    except (TypeError, ValueError):
+        return None
 
 
 _DEFAULT_BG: tuple[int, int, int] = (255, 255, 255)

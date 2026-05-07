@@ -20,6 +20,7 @@ from worldsim.phase_4.pvpo_capture import (
     atomic_capture_with_visibility,
     build_pvpo_query_js,
     save_step_artifacts,
+    surface_capture_with_stability,
 )
 
 
@@ -661,6 +662,100 @@ async def test_atomic_capture_accepts_browser_use_cdp_session_surface():
         "beginFrame",
         "setVirtualTimePolicy",
     ]
+
+
+@pytest.mark.asyncio
+async def test_surface_capture_uses_page_screenshot_and_stable_probe():
+    png = _png_bytes()
+    cdp = AsyncMock()
+
+    query_value = {
+        "entries": [_entry(0, "a", layout_visible=True, live=(10, 10, 5, 5))],
+        "backgroundColor": {"r": 250, "g": 251, "b": 252},
+        "matchFound": True,
+        "matchOffset": 12,
+        "matchedWitnessId": "required_url:0",
+        "matchedWitnessText": "attacker.invalid/a",
+        "pageUrl": "http://gitlab.test/issues/1",
+    }
+
+    async def _send(method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        if method == "Runtime.evaluate":
+            return {"result": {"type": "object", "value": query_value}}
+        if method == "Page.captureScreenshot":
+            assert params == {
+                "format": "png",
+                "fromSurface": True,
+                "captureBeyondViewport": False,
+                "clip": {"x": 0.0, "y": 0.0, "width": 200.0, "height": 100.0, "scale": 1.0},
+            }
+            return {"data": base64.b64encode(png).decode("ascii")}
+        raise AssertionError(f"unexpected CDP method {method}")
+
+    cdp.send = AsyncMock(side_effect=_send)
+
+    capture = await surface_capture_with_stability(
+        cdp,
+        viewport_rect=Rect(0, 0, 200, 100),
+    )
+
+    assert capture.screenshot_png == png
+    assert capture.visibility_vec[0]["char"] == "a"
+    assert capture.background_color == (250, 251, 252)
+    assert capture.has_damage is True
+    assert capture.match_found is True
+    assert capture.matched_witness_id == "required_url:0"
+    assert capture.issue_class is None
+    assert [c.args[0] for c in cdp.send.call_args_list] == [
+        "Runtime.evaluate",
+        "Page.captureScreenshot",
+        "Runtime.evaluate",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_surface_capture_fails_closed_when_probe_geometry_changes():
+    png = _png_bytes()
+    cdp = AsyncMock()
+    calls = {"runtime": 0}
+
+    def _query_value(x: int) -> dict[str, Any]:
+        return {
+            "entries": [_entry(0, "a", layout_visible=True, live=(x, 10, 5, 5))],
+            "backgroundColor": {"r": 255, "g": 255, "b": 255},
+            "matchFound": True,
+            "matchOffset": 0,
+            "matchedWitnessId": "witness:0",
+            "matchedWitnessText": "attack witness",
+            "pageUrl": "http://gitlab.test/issues/1",
+        }
+
+    async def _send(method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        if method == "Runtime.evaluate":
+            calls["runtime"] += 1
+            return {
+                "result": {
+                    "type": "object",
+                    "value": _query_value(10 if calls["runtime"] == 1 else 11),
+                }
+            }
+        if method == "Page.captureScreenshot":
+            return {"data": base64.b64encode(png).decode("ascii")}
+        raise AssertionError(method)
+
+    cdp.send = AsyncMock(side_effect=_send)
+
+    capture = await surface_capture_with_stability(
+        cdp,
+        viewport_rect=Rect(0, 0, 200, 100),
+    )
+
+    assert capture.screenshot_png == png
+    assert capture.visibility_vec == []
+    assert capture.match_found is False
+    assert capture.match_offset == -1
+    assert capture.issue_class == "surface_capture_unstable_rects"
+    assert "geometry changed" in (capture.issue_message or "")
 
 
 def test_save_step_artifacts_writes_both_files_with_bg(tmp_path: Path):

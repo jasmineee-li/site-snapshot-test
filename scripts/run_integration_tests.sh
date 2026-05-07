@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# If reddit-side tests fail with `Connection refused` on a smoke proxy port
-# (e.g. 19999), r5 is in scale topology. Regenerate `instances.scale.json` via
-# `bash scripts/generate_scale_r5.sh` and pass `--instances instances.scale.json`.
-# See agent_docs/remote-runs.md::Live Integration Command for the full recipe.
+# With --host-config and no explicit --instances, this wrapper materializes a
+# host-specific smoke instances file in a temp dir. Do not rely on the checked-in
+# instances.smoke.json for live host gates: remote setup regenerates instance
+# topology on the target host, while sync_to_r5.sh intentionally excludes those
+# generated files so local stale ports cannot overwrite host-local contracts.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -11,10 +12,23 @@ if [[ -n "${HOME:-}" ]]; then
 fi
 HOST_CONFIG=""
 INSTANCES_FILE="${REPO_ROOT}/instances.smoke.json"
+INSTANCES_FILE_EXPLICIT=0
 VERIFY_READ_SURFACE_URLS=""
 QUIET=""
 HOST_VIEW="auto"
 LIVE_INSTANCES_FILE=""
+GENERATED_INSTANCES_DIR=""
+TMP_OUTPUT=""
+
+cleanup() {
+    if [[ -n "$TMP_OUTPUT" ]]; then
+        rm -f "$TMP_OUTPUT"
+    fi
+    if [[ -n "$GENERATED_INSTANCES_DIR" ]]; then
+        rm -rf "$GENERATED_INSTANCES_DIR"
+    fi
+}
+trap cleanup EXIT
 
 if ! command -v uv >/dev/null 2>&1; then
     echo "ERROR: uv not found on PATH. Install uv or add it to PATH before running integration tests." >&2
@@ -33,6 +47,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --instances)
             INSTANCES_FILE="$2"
+            INSTANCES_FILE_EXPLICIT=1
             shift 2
             ;;
         --verify-read-surface-urls)
@@ -110,6 +125,18 @@ if [[ -n "$HOST_CONFIG" ]]; then
             exit 2
             ;;
     esac
+
+    if [[ "$INSTANCES_FILE_EXPLICIT" -eq 0 ]]; then
+        GENERATED_INSTANCES_DIR="$(mktemp -d -t worldsim-live-instances.XXXXXX)"
+        uv run python "$REPO_ROOT/scripts/generate_compose_scale.py" \
+            --config "$REPO_ROOT/scripts/scale_config.yml" \
+            --base-config "$REPO_ROOT/instances.json" \
+            --host-config "$HOST_CONFIG" \
+            --mode smoke \
+            --out-dir "$GENERATED_INSTANCES_DIR" \
+            --final-config-dir "$REPO_ROOT" >/dev/null
+        INSTANCES_FILE="$GENERATED_INSTANCES_DIR/instances.json"
+    fi
 fi
 
 eval "$(
@@ -235,7 +262,6 @@ else
     # context window). On failure, print the full captured output to stderr
     # and exit 2 so any Stop hook / wrapping harness re-engages.
     TMP_OUTPUT=$(mktemp -t worldsim_integration.XXXXXX)
-    trap 'rm -f "$TMP_OUTPUT"' EXIT
     if uv run pytest -m "integration or feasibility" tests/integration "$@" >"$TMP_OUTPUT" 2>&1; then
         # Pick out the final "N passed ..." line for the one-line summary.
         SUMMARY=$(grep -E '^[= ]+[0-9]+ (passed|skipped|deselected|warnings?)' "$TMP_OUTPUT" | tail -1)

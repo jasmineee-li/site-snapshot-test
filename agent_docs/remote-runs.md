@@ -345,18 +345,28 @@ scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml -
 ```
 
 Use `--quiet` for agent sessions. It prints a one-line pass summary or full failure output.
-On a laptop/public-proxy run, pass a public/proxy `--instances` file. On r5,
-use the host-local/orchestrator topology (`--host-view orchestrator` or the
-auto-selected equivalent) and do not reuse public smoke inputs for Phase 2c/4.
+With `--host-config` and no explicit `--instances`, the wrapper now generates a
+temporary host-config-specific smoke instances file from `scripts/scale_config.yml`
+and the selected host config. This is intentional: `sync_to_r5.sh` excludes
+generated topology artifacts, and host setup may regenerate `instances.smoke.json`
+with ports that differ from a stale laptop checkout. Pass `--instances` only
+when you intentionally want a specific public/proxy or scale topology file. On
+r5/r8 host-side Phase 2c/4 commands, continue using `instances.scale.json`.
 
 **Topology-mismatch symptom and fix.** If the wrapper fails reddit-side tests
-with `Connection refused` on a legacy smoke proxy port (typically `19999`,
-i.e. `9999 + 10000`), r5 is in scale topology and only proxies the per-replica
-ports `19900..19990` and `18023..18223`. Reddit is not down. Regenerate the
-scale fixture and re-run the wrapper against it:
+with `Connection refused` on a stale legacy smoke proxy port (for example
+`19999`, derived from old local `reddit:9999`), Reddit is usually not down.
+First rerun without an explicit `--instances` so the wrapper can generate the
+host-specific smoke file. If you are deliberately testing scale topology, pass
+the matching generated scale fixture:
 
 ```bash
-bash scripts/generate_scale_r5.sh    # writes instances.scale.json (gitignored)
+bash scripts/run_integration_tests.sh \
+    --host-config configs/benchmark_hosts/r5.yaml \
+    --quiet
+
+# Deliberate scale-topology check:
+bash scripts/generate_scale_r5.sh --host-config configs/benchmark_hosts/r5.yaml
 bash scripts/run_integration_tests.sh \
     --host-config configs/benchmark_hosts/r5.yaml \
     --instances instances.scale.json \

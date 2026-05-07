@@ -101,6 +101,13 @@ _CDP_VIEWPORT_JS = """
 """
 _PVPO_CDP_TIMEOUT_ENV = "WORLDSIM_PVPO_CDP_TIMEOUT_S"
 _PVPO_CDP_TIMEOUT_DEFAULT_S = 10.0
+_PVPO_CAPTURE_BACKEND_ENV = "WORLDSIM_PVPO_CAPTURE_BACKEND"
+_PVPO_CAPTURE_BACKEND_BEGINFRAME = "beginframe"
+_PVPO_CAPTURE_BACKEND_SURFACE = "page-surface-stable"
+_PVPO_CAPTURE_BACKENDS = {
+    _PVPO_CAPTURE_BACKEND_BEGINFRAME,
+    _PVPO_CAPTURE_BACKEND_SURFACE,
+}
 _PVPO_SCROLL_ACTION_TIMEOUT_ENV = "WORLDSIM_PVPO_SCROLL_ACTION_TIMEOUT_S"
 _PVPO_SCROLL_ACTION_TIMEOUT_DEFAULT_S = 1.0
 _PVPO_SCROLL_EPSILON_PX = 1.0
@@ -1528,6 +1535,28 @@ def _pvpo_navigation_tick_interval_s() -> float:
         return _PVPO_NAVIGATION_TICK_DEFAULT_MS / 1000.0
 
 
+def _pvpo_capture_backend() -> str:
+    raw = os.environ.get(_PVPO_CAPTURE_BACKEND_ENV, "").strip()
+    if not raw:
+        return _PVPO_CAPTURE_BACKEND_BEGINFRAME
+    value = raw.lower().replace("_", "-")
+    aliases = {
+        "surface": _PVPO_CAPTURE_BACKEND_SURFACE,
+        "page-surface": _PVPO_CAPTURE_BACKEND_SURFACE,
+        "stable-surface": _PVPO_CAPTURE_BACKEND_SURFACE,
+    }
+    value = aliases.get(value, value)
+    if value not in _PVPO_CAPTURE_BACKENDS:
+        logger.warning(
+            "%s=%r is invalid; using %s",
+            _PVPO_CAPTURE_BACKEND_ENV,
+            raw,
+            _PVPO_CAPTURE_BACKEND_BEGINFRAME,
+        )
+        return _PVPO_CAPTURE_BACKEND_BEGINFRAME
+    return value
+
+
 def _pvpo_navigation_tick_stop_grace_s() -> float:
     """Allow an in-flight navigation tick to finish on its CDP timeout budget."""
     return max(_PVPO_NAVIGATION_TICK_STOP_GRACE_MIN_S, _pvpo_cdp_timeout_s() + 0.25)
@@ -2884,6 +2913,8 @@ class BrowserUseAgent:
         )
         pvpo_endpoint_lease_cm: Any = None
         pvpo_beginframe_controller: Any = None
+        pvpo_capture_backend = _pvpo_capture_backend()
+        self._browser_runtime["pvpo_capture_backend"] = pvpo_capture_backend
 
         async def _release_pvpo_endpoint_lease() -> None:
             nonlocal pvpo_endpoint_lease_cm
@@ -2926,7 +2957,11 @@ class BrowserUseAgent:
         # PVPO integration: Phase 4 binds each worker to its own chrome-
         # headless-shell endpoint via the instance config. The shared global
         # WORLDSIM_PVPO_CDP_URL path is intentionally removed.
-        resolved_pvpo_cdp_url = _resolve_pvpo_cdp_url(pvpo_cdp_url or "")
+        resolved_pvpo_cdp_url = (
+            _resolve_pvpo_cdp_url(pvpo_cdp_url or "")
+            if pvpo_capture_backend == _PVPO_CAPTURE_BACKEND_BEGINFRAME
+            else ""
+        )
         self._pvpo_cdp_url = resolved_pvpo_cdp_url
         self._preserve_remote_auth_state = "storage_state" in session_auth_kwargs
         external_cdp_storage_state = (
@@ -3065,6 +3100,7 @@ class BrowserUseAgent:
                     payload_witnesses=payload_witnesses,
                     owned_target_ids=self._owned_target_ids,
                     capturing=capturing,
+                    capture_backend=pvpo_capture_backend,
                 )
                 agent_kwargs: dict[str, Any] = {
                     "task": task_text,
@@ -3757,6 +3793,7 @@ def _make_pvpo_step_callback(
     payload_witnesses: list[str | dict[str, Any]] | None = None,
     owned_target_ids: set[str] | None = None,
     capturing: asyncio.Event | None = None,
+    capture_backend: str | None = None,
 ):
     """Build the per-step callback that captures PVPO artifacts.
 
@@ -3806,6 +3843,7 @@ def _make_pvpo_step_callback(
         initial_capture_summary,
         save_capture_summary,
         save_step_artifacts,
+        surface_capture_with_stability,
     )
     from worldsim.phase_4.pvpo_cdp import runtime_evaluate_value
 
@@ -3816,6 +3854,7 @@ def _make_pvpo_step_callback(
     pages_prepared: set[str] = set()
     warned_issue_classes: set[str] = set()
     capture_summary = initial_capture_summary(payload_present=True)
+    selected_capture_backend = capture_backend or _pvpo_capture_backend()
     non_empty_witnesses = _normalize_payload_witness_specs(payload_witnesses)
     payload_text_present = isinstance(payload_text, str) and bool(payload_text)
     if non_empty_witnesses:
@@ -3839,6 +3878,7 @@ def _make_pvpo_step_callback(
             ],
             "payload_text_present": payload_text_present,
             "payload_text_length": len(payload_text) if isinstance(payload_text, str) else 0,
+            "capture_backend": selected_capture_backend,
         }
     )
     save_capture_summary(task_dir, capture_summary)
@@ -3968,7 +4008,12 @@ def _make_pvpo_step_callback(
                 w=int(viewport.get("w", 0)) or 1280,
                 h=int(viewport.get("h", 0)) or 720,
             )
-            capture = await atomic_capture_with_visibility(
+            capture_fn = (
+                surface_capture_with_stability
+                if selected_capture_backend == _PVPO_CAPTURE_BACKEND_SURFACE
+                else atomic_capture_with_visibility
+            )
+            capture = await capture_fn(
                 cdp_session,
                 viewport_rect=viewport_rect,
                 payload_text=payload_text,

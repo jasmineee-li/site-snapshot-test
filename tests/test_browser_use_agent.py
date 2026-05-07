@@ -633,6 +633,67 @@ async def test_pvpo_callback_writes_artifacts_on_browser_use_success_path(
 
 
 @pytest.mark.asyncio
+async def test_pvpo_callback_selects_surface_capture_backend(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    cdp_session = object()
+    page = SimpleNamespace(_target_id="target-1")
+
+    class BrowserUseLikeSession:
+        async def get_current_page(self):
+            return page
+
+        async def get_or_create_cdp_session(self, *, target_id=None, focus=False):
+            return cdp_session
+
+    capture = StepCapture(
+        screenshot_png=b"surface-png",
+        visibility_vec=[],
+        background_color=(255, 255, 255),
+        has_damage=True,
+        clip=Rect(x=0, y=0, w=640, h=480),
+    )
+
+    inject = AsyncMock()
+    viewport = AsyncMock(return_value={"w": 640, "h": 480})
+    atomic_capture = AsyncMock()
+    surface_capture = AsyncMock(return_value=capture)
+    monkeypatch.setattr("worldsim.phase_4.pvpo_browser_config.inject_animation_killer", inject)
+    monkeypatch.setattr("worldsim.phase_4.pvpo_cdp.runtime_evaluate_value", viewport)
+    monkeypatch.setattr(
+        "worldsim.phase_4.pvpo_capture.atomic_capture_with_visibility", atomic_capture
+    )
+    monkeypatch.setattr(
+        "worldsim.phase_4.pvpo_capture.surface_capture_with_stability", surface_capture
+    )
+
+    callback = browser_use_agent._make_pvpo_step_callback(
+        BrowserUseLikeSession(),
+        tmp_path,
+        "payload text",
+        capture_backend="page-surface-stable",
+    )
+
+    await callback(SimpleNamespace(), SimpleNamespace(), 1)
+
+    atomic_capture.assert_not_awaited()
+    surface_capture.assert_awaited_once_with(
+        cdp_session,
+        viewport_rect=Rect(x=0, y=0, w=640, h=480),
+        payload_text="payload text",
+        witness_texts=None,
+        scroll_to_match=False,
+        capturing=None,
+        cdp_timeout_s=10.0,
+    )
+
+    summary = json.loads((tmp_path / "pvpo" / "capture_summary.json").read_text())
+    assert summary["status"] == "ok"
+    assert summary["capture_backend"] == "page-surface-stable"
+    assert (tmp_path / "screenshots" / "step_1.png").read_bytes() == b"surface-png"
+
+
+@pytest.mark.asyncio
 async def test_pvpo_callback_records_empty_witness_fallback_telemetry(tmp_path):
     class BrokenSession:
         async def get_current_page(self):
