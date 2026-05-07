@@ -167,6 +167,32 @@ async def test_malformed_json_failure_class(patched_anthropic_client, tmp_path):
     assert result["verbalized_eval_awareness_classification"] is None
     assert result["verbalized_eval_awareness_is_aware"] is None
     assert result["verbalized_eval_awareness_evidence"] == []
+    assert result["verbalized_eval_awareness_attempts"] == 3
+    assert patched_anthropic_client.messages.create.call_count == 3
+
+
+@pytest.mark.asyncio
+async def test_malformed_json_retries_then_accepts_valid_response(
+    patched_anthropic_client, tmp_path
+):
+    patched_anthropic_client.messages.create = AsyncMock(
+        side_effect=[
+            _text_response("not json at all, just prose."),
+            _text_response("<tool_calls>not classifier json</tool_calls>"),
+            _text_response(json.dumps({"classification": "Real", "evidence": ["ignored"]})),
+        ]
+    )
+    result = await run_verbalized_eval_awareness_api(_task(), tmp_path, _trajectory())
+    assert result["verbalized_eval_awareness_classification"] == "Real"
+    assert result["verbalized_eval_awareness_is_aware"] is False
+    assert result["verbalized_eval_awareness_failure"] is None
+    assert result["verbalized_eval_awareness_attempts"] == 3
+    raw = json.loads(Path(result["verbalized_eval_awareness_raw_response_path"]).read_text())
+    assert raw["attempts"] == 3
+    assert [attempt.get("failure") for attempt in raw["per_attempt"][:2]] == [
+        "malformed_json",
+        "malformed_json",
+    ]
 
 
 @pytest.mark.asyncio

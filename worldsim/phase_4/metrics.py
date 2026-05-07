@@ -39,6 +39,7 @@ def _null_metric_keys() -> dict[str, Any]:
         "verbalized_eval_awareness_failure": None,
         "verbalized_eval_awareness_transcript_format": "needham-xml-v1",
         "verbalized_eval_awareness_raw_response_path": None,
+        "verbalized_eval_awareness_attempts": 0,
     }
 
 
