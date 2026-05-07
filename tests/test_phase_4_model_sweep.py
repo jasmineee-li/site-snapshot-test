@@ -318,6 +318,7 @@ def test_phase4_progress_line_is_parsed() -> None:
                 (
                     "phase4_progress: present logs/run/phase_4/progress.json "
                     "status=running stage=initial_evaluation initial=30/32 "
+                    "initial_started=31/32 initial_active=1 "
                     "postprocessed=0/32 age_seconds=901 "
                     "updated_at=2026-05-02T12:00:22.308663"
                 ),
@@ -329,6 +330,8 @@ def test_phase4_progress_line_is_parsed() -> None:
     assert parsed["phase4_progress_status"] == "running"
     assert parsed["phase4_progress_stage"] == "initial_evaluation"
     assert parsed["phase4_completed_initial_tasks"] == 30
+    assert parsed["phase4_initial_started_tasks"] == 31
+    assert parsed["phase4_active_initial_tasks"] == 1
     assert parsed["phase4_postprocessed_tasks"] == 0
     assert parsed["phase4_total_tasks"] == 32
     assert parsed["phase4_progress_quiet_seconds"] == 901

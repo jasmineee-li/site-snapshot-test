@@ -524,6 +524,13 @@ def parse_phase4_progress_line(line: str) -> dict[str, Any]:
     if initial:
         parsed["phase4_completed_initial_tasks"] = int(initial.group(1))
         parsed["phase4_total_tasks"] = int(initial.group(2))
+    initial_started = re.search(r"\binitial_started=([0-9]+)/([0-9]+)", line)
+    if initial_started:
+        parsed["phase4_initial_started_tasks"] = int(initial_started.group(1))
+        parsed.setdefault("phase4_total_tasks", int(initial_started.group(2)))
+    initial_active = re.search(r"\binitial_active=([0-9]+)\b", line)
+    if initial_active:
+        parsed["phase4_active_initial_tasks"] = int(initial_active.group(1))
     postprocessed = re.search(r"\bpostprocessed=([0-9]+)/([0-9]+)", line)
     if postprocessed:
         parsed["phase4_postprocessed_tasks"] = int(postprocessed.group(1))
