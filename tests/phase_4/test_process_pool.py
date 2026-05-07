@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -146,6 +147,54 @@ def test_merge_outcomes_fails_closed_on_missing_result(tmp_path):
 
     assert rc == 1
     assert (tmp_path / "out" / "phase_4" / "process_pool_summary.json").exists()
+    assert (tmp_path / "out" / "phase_4" / "results.partial.json").exists()
+    assert (tmp_path / "out" / "phase_4" / "partial_manifest.json").exists()
+    assert not (tmp_path / "out" / "phase_4" / "results.json").exists()
+
+
+def test_merge_outcomes_writes_partial_results_without_canonical_results(tmp_path):
+    args = _pool_args(tmp_path, out_dir=tmp_path / "out")
+    config = _config(
+        tmp_path,
+        [
+            {
+                "site_name": "gitlab",
+                "site_url": "http://127.0.0.1:8023",
+                "pvpo_cdp_url": "http://127.0.0.1:9222",
+            }
+        ],
+    )
+    tasks = [{"id": "adv-1", "site": "gitlab"}, {"id": "adv-2", "site": "gitlab"}]
+    assignments = _build_assignments(args, config, tasks)
+    outcomes = [
+        WorkerOutcome(
+            assignment=assignments[0],
+            returncode=0,
+            timed_out=False,
+            started_at="2026-05-07T00:00:00",
+            finished_at="2026-05-07T00:00:01",
+            results=[{"task_id": "adv-1", "outcome": "resistant"}],
+            error=None,
+        ),
+        WorkerOutcome(
+            assignment=assignments[1],
+            returncode=1,
+            timed_out=False,
+            started_at="2026-05-07T00:00:00",
+            finished_at="2026-05-07T00:00:01",
+            results=[],
+            error="missing worker results",
+        ),
+    ]
+
+    rc = _merge_outcomes(args, config, tasks, outcomes)
+
+    assert rc == 1
+    partial = json.loads((tmp_path / "out" / "phase_4" / "results.partial.json").read_text())
+    manifest = json.loads((tmp_path / "out" / "phase_4" / "partial_manifest.json").read_text())
+    assert partial == [{"task_id": "adv-1", "outcome": "resistant"}]
+    assert manifest["paper_eligible"] is False
+    assert manifest["missing_task_ids"] == ["adv-2"]
     assert not (tmp_path / "out" / "phase_4" / "results.json").exists()
 
 

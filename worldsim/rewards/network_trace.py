@@ -50,6 +50,9 @@ def _canonicalize_network_event_origin(url: str, instance: dict[str, Any]) -> st
     target_parsed = urlparse(target.strip().rstrip("/"))
     if not target_parsed.scheme or not target_parsed.netloc:
         return url
+    target_origin = f"{target_parsed.scheme}://{target_parsed.netloc}".rstrip("/")
+    if target_origin not in _allowed_rewrite_target_origins(instance):
+        return url
     return urlunparse(
         (
             target_parsed.scheme,
@@ -60,6 +63,30 @@ def _canonicalize_network_event_origin(url: str, instance: dict[str, Any]) -> st
             parsed.fragment,
         )
     )
+
+
+def _allowed_rewrite_target_origins(instance: Mapping[str, Any]) -> set[str]:
+    origins: set[str] = set()
+    for raw in [instance.get("site_url")]:
+        origin = _absolute_origin(raw)
+        if origin:
+            origins.add(origin)
+    placeholders = instance.get("url_placeholders")
+    if isinstance(placeholders, Mapping):
+        for raw in placeholders.values():
+            origin = _absolute_origin(raw)
+            if origin:
+                origins.add(origin)
+    return origins
+
+
+def _absolute_origin(raw: Any) -> str | None:
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    parsed = urlparse(raw.strip().rstrip("/"))
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    return f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
 
 
 def _network_event_method(event: dict[str, Any]) -> str:

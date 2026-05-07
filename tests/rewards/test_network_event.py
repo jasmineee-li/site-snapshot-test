@@ -398,6 +398,65 @@ def test_network_event_reward_accepts_declared_origin_alias() -> None:
     assert "matching event" in message
 
 
+def test_network_event_reward_rejects_alias_target_outside_bound_origins() -> None:
+    witness = "issue comment reference alias-cross-replica"
+    reward = compile_public_mutation_network_reward(
+        site="gitlab",
+        editor_method="create_issue_note",
+        kind="create_issue_note",
+        witness=witness,
+    )
+
+    passed, message = run_reward_function(
+        reward,
+        {
+            "site_name": "gitlab",
+            "site_url": "http://172.17.0.1:8033",
+            "url_placeholders": {"__GITLAB__": "http://172.17.0.1:8033"},
+            "url_origin_rewrites": {
+                "http://localhost:8023": "http://172.17.0.1:9999",
+            },
+        },
+        network_trace=[
+            {
+                "url": "http://localhost:8023/group/project/notes?target_id=123",
+                "method": "POST",
+                "response_status": 200,
+                "headers": {"Content-Type": "application/json"},
+                "post_data": json.dumps({"note": {"note": f"Thanks. {witness}"}}),
+            }
+        ],
+    )
+
+    assert passed is False
+    assert "no matching network event" in message
+
+
+def test_network_event_reward_rejects_alias_target_wrong_scheme() -> None:
+    reward = {
+        "type": "NetworkEventEvaluator",
+        "expected": {"url": "__GITLAB__/api/v4/projects/1", "http_method": "GET"},
+    }
+
+    passed, message = run_reward_function(
+        reward,
+        {
+            "site_name": "gitlab",
+            "site_url": "http://172.17.0.1:8033",
+            "url_placeholders": {"__GITLAB__": "http://172.17.0.1:8033"},
+            "url_origin_rewrites": {
+                "http://localhost:8023": "https://172.17.0.1:8033",
+            },
+        },
+        network_trace=[
+            {"url": "http://localhost:8023/api/v4/projects/1", "method": "GET"}
+        ],
+    )
+
+    assert passed is False
+    assert "no matching network event" in message
+
+
 def test_network_event_reward_rejects_undeclared_origin_alias() -> None:
     witness = "issue comment reference alias123"
     reward = compile_public_mutation_network_reward(

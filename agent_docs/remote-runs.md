@@ -200,7 +200,11 @@ Inspect `phase_4/process_pool_summary.json` for per-worker stdout/stderr paths,
 exit codes, timeouts, assigned instance indexes, and PVPO endpoints. The final
 `phase_4/results.json` is written only after every expected task has exactly
 one valid worker result; missing, duplicate, or mismatched task IDs fail closed
-instead of producing a partial canonical result.
+instead of producing a partial canonical result. Failed process-pool runs may
+write `phase_4/results.partial.json` and `phase_4/partial_manifest.json` for
+operator inspection. Those files are never paper-eligible, the run still exits
+nonzero, and only canonical `phase_4/results.json` counts as a complete Phase 4
+artifact.
 
 WorldSim uses two different network localities on r5. Treat the instances file
 as an execution-locality contract, not just a dataset selector:

@@ -492,6 +492,14 @@ def _merge_outcomes(
         errors.append(f"missing result(s): {', '.join(missing)}")
     _write_process_pool_summary(args, outcomes, errors)
     if errors:
+        _write_partial_process_pool_results(
+            args=args,
+            tasks=tasks,
+            final_results=final_results,
+            outcomes=outcomes,
+            errors=errors,
+            task_order=task_order,
+        )
         write_phase_4_progress(
             args.out_dir,
             status="failed",
@@ -537,6 +545,51 @@ def _merge_outcomes(
         final_results=final_results,
         tasks=tasks,
     )
+
+
+def _write_partial_process_pool_results(
+    *,
+    args: ProcessPoolArgs,
+    tasks: list[dict[str, Any]],
+    final_results: list[dict[str, Any]],
+    outcomes: list[WorkerOutcome],
+    errors: list[str],
+    task_order: dict[str, int],
+) -> None:
+    """Persist inspectable partial results while keeping canonical results absent."""
+
+    phase4_dir = args.out_dir / "phase_4"
+    phase4_dir.mkdir(parents=True, exist_ok=True)
+    final_results.sort(key=lambda result: task_order.get(str(result.get("task_id")), 10**9))
+    write_json_atomic(phase4_dir / "results.partial.json", final_results)
+    result_ids = {str(result.get("task_id")) for result in final_results}
+    expected_ids = [str(task.get("id")) for task in tasks]
+    manifest = {
+        "schema_version": 1,
+        "process_pool": True,
+        "paper_eligible": False,
+        "canonical_results_written": False,
+        "partial_results_path": str(phase4_dir / "results.partial.json"),
+        "expected_tasks": len(expected_ids),
+        "partial_results": len(final_results),
+        "missing_task_ids": [task_id for task_id in expected_ids if task_id not in result_ids],
+        "errors": errors,
+        "workers": [
+            {
+                "worker_id": outcome.assignment.worker_id,
+                "task_id": outcome.assignment.task.get("id"),
+                "returncode": outcome.returncode,
+                "timed_out": outcome.timed_out,
+                "result_count": len(outcome.results),
+                "error": outcome.error,
+                "stdout": str(outcome.assignment.stdout_log),
+                "stderr": str(outcome.assignment.stderr_log),
+                "state_dir": str(outcome.assignment.state_dir),
+            }
+            for outcome in sorted(outcomes, key=lambda item: item.assignment.worker_id)
+        ],
+    }
+    write_json_atomic(phase4_dir / "partial_manifest.json", manifest)
 
 
 def _copy_worker_task_artifacts(assignment: WorkerAssignment, task_root: Path) -> None:

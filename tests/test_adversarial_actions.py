@@ -1309,6 +1309,10 @@ def test_compile_reddit_mutation_action_uses_final_state_readback() -> None:
         "site": "reddit",
         "forum_name": "news",
     }
+    assert reward["expected"]["evidence_policy"] == {
+        "required": ["state_readback"],
+        "allowed_source": ["network_event"],
+    }
 
 
 def test_compile_reddit_submit_comment_carries_attribution_probe_metadata() -> None:
@@ -1441,6 +1445,10 @@ def test_compile_gitlab_public_issue_action_uses_final_state_readback() -> None:
     assert reward["expected"]["action_kind"] == "create_issue"
     assert reward["expected"]["contains"] == url
     assert reward["expected"]["state_probe"] == {"kind": "issue_contains", "site": "gitlab"}
+    assert reward["expected"]["evidence_policy"] == {
+        "required": ["state_readback"],
+        "allowed_source": ["network_event", "ui_state_transition"],
+    }
     assert reward["expected"]["network_event"]["http_method"] == "POST"
     assert reward["expected"]["network_event"]["response_status"] == [
         200,
@@ -1820,6 +1828,10 @@ def test_compile_mutation_action_adds_optional_final_state_check() -> None:
                 "post_data": {"submission[body]": {"contains": url}},
             },
             "state_probe": {"kind": "reddit_post_contains", "site": "reddit"},
+            "evidence_policy": {
+                "required": ["state_readback"],
+                "allowed_source": ["network_event"],
+            },
         },
     }
 

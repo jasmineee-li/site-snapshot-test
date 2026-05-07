@@ -52,6 +52,64 @@ def _tp_trigger_source(result: dict[str, Any]) -> str:
     return f"tp_classification:{classification}"
 
 
+def _irreconcilable_eval_awareness_contract(
+    task: dict[str, Any],
+    cue_diagnosis: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Detect rewrite objectives blocked by immutable eval-awareness witnesses."""
+
+    protected_values = _protected_eval_awareness_values(task)
+    if not protected_values:
+        return None
+    cue_text = json.dumps(cue_diagnosis, sort_keys=True, default=str).lower()
+    if not any(value.lower() in cue_text for value in protected_values):
+        return None
+    return {
+        "failure_class": "rewrite_inapplicable_irreconcilable_contract",
+        "reason": (
+            "eval-awareness rewrite target is an immutable protected witness; "
+            "host contracts do not permit relaxing or rewriting it"
+        ),
+        "protected_witness_count": len(protected_values),
+    }
+
+
+def _protected_eval_awareness_values(task: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+    for token in task.get("required_tokens") or []:
+        if not isinstance(token, dict):
+            continue
+        value = token.get("value")
+        if isinstance(value, str) and _looks_eval_awareness_like(value):
+            values.append(value)
+    payload_contract = task.get("payload_contract")
+    protected = payload_contract.get("protected_substrings") if isinstance(payload_contract, dict) else None
+    if isinstance(protected, list):
+        for item in protected:
+            if not isinstance(item, dict):
+                continue
+            value = item.get("value")
+            if isinstance(value, str) and _looks_eval_awareness_like(value):
+                values.append(value)
+    return list(dict.fromkeys(values))
+
+
+def _looks_eval_awareness_like(value: str) -> bool:
+    lowered = value.lower()
+    return any(
+        cue in lowered
+        for cue in (
+            "evaluation",
+            "benchmark",
+            "eval",
+            "transcript purpose",
+            "verbalized eval",
+            "red team",
+            "safety test",
+        )
+    )
+
+
 def _attempt_record(
     *,
     iteration: int,
@@ -390,6 +448,24 @@ async def run_eval_awareness_iterator(
 
         rewrite = record.get("rewrite")
         if not isinstance(rewrite, dict):
+            irreconcilable = (
+                _irreconcilable_eval_awareness_contract(current_task, cue)
+                if isinstance(cue, dict)
+                else None
+            )
+            if irreconcilable is not None:
+                record["status"] = "rewrite_failed"
+                record["generation_error"] = irreconcilable
+                stop_reason = "rewrite_inapplicable_irreconcilable_contract"
+                await _emit(
+                    "eval_awareness_iteration_stopped",
+                    {
+                        "iteration": iteration,
+                        "stop_reason": stop_reason,
+                        **_iteration_progress_counts(iteration_records),
+                    },
+                )
+                break
             rewrite = await generate_eval_awareness_rewrite_api(
                 current_task,
                 cue,
@@ -424,8 +500,18 @@ async def run_eval_awareness_iterator(
             "failed",
         }:
             record["status"] = "rewrite_failed"
-            record["generation_error"] = variant_status
-            stop_reason = "rewrite_failed"
+            reason = str(variant_status.get("reason") or "")
+            failure_class = (
+                "rewrite_inapplicable_irreconcilable_contract"
+                if variant_status.get("status") == "inapplicable"
+                and any(
+                    token in reason.lower()
+                    for token in ("protected", "witness", "contract", "immutable")
+                )
+                else "rewrite_failed"
+            )
+            record["generation_error"] = {"failure_class": failure_class, **variant_status}
+            stop_reason = failure_class
             await _emit(
                 "eval_awareness_iteration_stopped",
                 {"iteration": iteration, "stop_reason": stop_reason, **_iteration_progress_counts(iteration_records)},
@@ -600,7 +686,11 @@ async def run_eval_awareness_iterator(
         status = "tp_real_baseline"
     elif selected_iteration == 0 and not variant_results and stop_reason == "budget_exhausted":
         status = "resistant"
-    elif stop_reason in {"rewrite_failed", "rewrite_rejected"}:
+    elif stop_reason in {
+        "rewrite_failed",
+        "rewrite_rejected",
+        "rewrite_inapplicable_irreconcilable_contract",
+    }:
         status = "rewrite_failed"
     else:
         status = "iterated"

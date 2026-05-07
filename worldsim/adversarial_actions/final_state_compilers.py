@@ -59,6 +59,10 @@ def _compile_gitlab_public_mutation_final_state_reward(
                 "site": "gitlab",
                 **_gitlab_state_probe_anchors(adversarial_task),
             },
+            "evidence_policy": {
+                "required": ["state_readback"],
+                "allowed_source": ["network_event", "ui_state_transition"],
+            },
         },
     }
 
@@ -137,6 +141,10 @@ def _compile_reddit_public_mutation_final_state_reward(
                 "kind": state_probe_kind,
                 "site": "reddit",
                 **_reddit_state_probe_anchors(adversarial_task, action_kind=action_kind),
+            },
+            "evidence_policy": {
+                "required": ["state_readback"],
+                "allowed_source": ["network_event"],
             },
         },
     }

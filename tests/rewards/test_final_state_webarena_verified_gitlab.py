@@ -127,6 +127,127 @@ def test_final_state_evaluator_accepts_gitlab_ui_issue_readback(monkeypatch) -> 
     assert "gitlab issue final state contains expected witness" in message
 
 
+def test_final_state_evaluator_uses_explicit_state_evidence_policy_for_ui_issue(
+    monkeypatch,
+) -> None:
+    from worldsim.editors.gitlab import GitlabEditor
+
+    witness = "follow-up issue reference policy-create"
+
+    def fake_api_request_json(
+        self,
+        method,
+        path,
+        *,
+        json_body=None,
+        params=None,
+        allow_missing=False,
+    ):
+        assert method == "GET"
+        assert path == "/api/v4/projects/twbs%2Fbootstrap/issues"
+        return [{"iid": "38281", "title": "Follow-up", "description": witness}]
+
+    monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
+
+    passed, message = run_reward_function(
+        {
+            "type": "FinalStateEvaluator",
+            "expected": {
+                "action_kind": "create_issue",
+                "contains": witness,
+                "network_event": {
+                    "url": [r"^__GITLAB__/api/v4/projects/[^/?#]+/issues(?:[?#].*)?$"],
+                    "http_method": "POST",
+                    "response_status": [201],
+                    "post_data_contains": [witness],
+                },
+                "state_probe": {
+                    "kind": "issue_contains",
+                    "site": "gitlab",
+                    "project_path": "twbs/bootstrap",
+                    "exclude_issue_iid": "38280",
+                },
+                "evidence_policy": {
+                    "required": ["state_readback"],
+                    "allowed_source": ["network_event", "ui_state_transition"],
+                },
+            },
+        },
+        {
+            "site_name": "gitlab",
+            "site_url": "http://172.17.0.1:8063",
+            "url_placeholders": {"__GITLAB__": "http://172.17.0.1:8063"},
+            "url_origin_rewrites": {
+                "http://localhost:8023": "http://172.17.0.1:8063",
+            },
+        },
+        network_trace=[
+            {
+                "url": "http://localhost:8023/twbs/bootstrap/-/issues/new",
+                "method": "GET",
+                "response_status": 200,
+            },
+            {
+                "url": "http://localhost:8023/twbs/bootstrap/-/issues/38281",
+                "method": "GET",
+                "response_status": 200,
+            },
+        ],
+    )
+
+    assert passed is True
+    assert "proof_channel=state_readback" in message
+
+
+def test_final_state_evaluator_legacy_policy_still_requires_source_event(
+    monkeypatch,
+) -> None:
+    from worldsim.editors.gitlab import GitlabEditor
+
+    witness = "follow-up issue reference legacy-source"
+
+    def fake_api_request_json(
+        self,
+        method,
+        path,
+        *,
+        json_body=None,
+        params=None,
+        allow_missing=False,
+    ):
+        return [{"title": "Follow-up", "description": witness}]
+
+    monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
+
+    passed, message = run_reward_function(
+        {
+            "type": "FinalStateEvaluator",
+            "expected": {
+                "action_kind": "create_issue",
+                "contains": witness,
+                "network_event": {
+                    "url": [r"^__GITLAB__/api/v4/projects/[^/?#]+/issues(?:[?#].*)?$"],
+                    "http_method": "POST",
+                    "response_status": [201],
+                    "post_data_contains": [witness],
+                },
+                "state_probe": {"kind": "issue_contains", "site": "gitlab"},
+            },
+        },
+        {"site_name": "gitlab", "site_url": "http://gitlab.test"},
+        network_trace=[
+            {
+                "url": "http://gitlab.test/twbs/bootstrap/-/issues/38281",
+                "method": "GET",
+                "response_status": 200,
+            },
+        ],
+    )
+
+    assert passed is False
+    assert "final-state source event missing" in message
+
+
 def test_final_state_evaluator_accepts_gitlab_issue_note_readback(monkeypatch) -> None:
     from worldsim.editors.gitlab import GitlabEditor
 

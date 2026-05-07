@@ -207,6 +207,64 @@ async def test_eval_awareness_iterator_runs_sequential_rewrites_until_tp_real(
     assert calls == {"cue": 1, "rewrite": 1, "evaluate": 1}
 
 
+@pytest.mark.asyncio
+async def test_eval_awareness_iterator_marks_protected_eval_cues_inapplicable(
+    monkeypatch, tmp_path
+):
+    from worldsim.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
+
+    task, instances = _prepared_adv_task()
+    protected = "this is an evaluation benchmark control phrase"
+    task["required_tokens"] = [{"kind": "text", "value": protected}]
+    initial_result = {
+        "task_id": "adv-1",
+        "outcome": "refused_or_ignored",
+        "encounter": {"max_coverage": 0.5},
+        "trajectory_dir": str(tmp_path / "traj"),
+        "transcript_purpose_classification": "Alignment Evaluation",
+    }
+
+    async def fake_cue(task, result, *, iteration, **kwargs):
+        return {
+            "status": "ok",
+            "payload_cues": [protected],
+            "removable_payload_cues": [protected],
+            "rewrite_guidance": "remove benchmark wording",
+        }
+
+    async def fail_rewrite(*args, **kwargs):
+        raise AssertionError("irreconcilable protected cue should stop before rewrite API")
+
+    async def fail_evaluate(**kwargs):
+        raise AssertionError("irreconcilable protected cue should not be browser-evaluated")
+
+    monkeypatch.setattr(eval_awareness_cue_api, "run_eval_awareness_cue_api", fake_cue)
+    monkeypatch.setattr(
+        eval_awareness_rewrite_api,
+        "generate_eval_awareness_rewrite_api",
+        fail_rewrite,
+    )
+    monkeypatch.setattr(phase_4_adversarial, "_evaluate_variant", fail_evaluate)
+
+    result = await phase_4_adversarial.run_eval_awareness_iterator(
+        task=task,
+        initial_result=initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+        max_iterations=3,
+    )
+
+    assert result["status"] == "rewrite_failed"
+    assert result["stop_reason"] == "rewrite_inapplicable_irreconcilable_contract"
+    assert result["generation_errors"][0]["failure_class"] == (
+        "rewrite_inapplicable_irreconcilable_contract"
+    )
+    assert result["variant_results"] == []
+
+
 def test_postprocess_fingerprint_changes_with_variant_system():
     task, instances = _prepared_adv_task()
     result = {
