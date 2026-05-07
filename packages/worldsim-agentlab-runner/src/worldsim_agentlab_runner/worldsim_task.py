@@ -99,6 +99,8 @@ def make_worldsim_browsergym_env(
         runtime=runtime,
     )
     context_kwargs = _context_kwargs_from_request(request)
+    if runtime is not None:
+        runtime["browsergym_context_kwargs"] = _context_kwargs_runtime_summary(context_kwargs)
     env = BrowserEnv(
         task_entrypoint=task,
         headless=bool(request.get("headless", True)),
@@ -167,6 +169,16 @@ def _context_kwargs_from_request(request: dict[str, Any]) -> dict[str, Any]:
     if storage_state:
         kwargs["storage_state"] = storage_state
     return kwargs
+
+
+def _context_kwargs_runtime_summary(kwargs: dict[str, Any]) -> dict[str, Any]:
+    summary: dict[str, Any] = {}
+    service_workers = kwargs.get("service_workers")
+    if isinstance(service_workers, str):
+        summary["service_workers"] = service_workers
+    if "storage_state" in kwargs:
+        summary["storage_state"] = {"present": True, "runtime_only": True}
+    return summary
 
 
 def _goto_start_url(page: Any, url: str) -> None:

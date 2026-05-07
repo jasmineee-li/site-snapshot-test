@@ -488,6 +488,10 @@ def test_phase4_browsergym_context_kwargs_keep_storage_state_and_block_service_w
         "storage_state": str(storage_state),
         "service_workers": "block",
     }
+    assert worldsim_task._context_kwargs_runtime_summary(kwargs) == {
+        "service_workers": "block",
+        "storage_state": {"present": True, "runtime_only": True},
+    }
 
 
 def test_phase4_browsergym_context_kwargs_block_service_workers_without_storage_state():
@@ -496,6 +500,7 @@ def test_phase4_browsergym_context_kwargs_block_service_workers_without_storage_
     kwargs = worldsim_task._context_kwargs_from_request({})
 
     assert kwargs == {"service_workers": "block"}
+    assert worldsim_task._context_kwargs_runtime_summary(kwargs) == {"service_workers": "block"}
 
 
 def test_build_phase4_sidecar_request_resolves_nested_http_basic(tmp_path):
