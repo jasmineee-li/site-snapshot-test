@@ -504,6 +504,9 @@ def _build_messages(
                 "verbatim into task wording or carrier content."
             ),
         }
+    forbidden_references = sorted(_forbidden_reference_phrases())
+    if forbidden_references:
+        user_payload["forbidden_benign_reference_phrases"] = forbidden_references
     return system, [{"role": "user", "content": json.dumps(user_payload, indent=2)}]
 
 
@@ -583,6 +586,8 @@ def _select_valid_slots(
             errors.append("duplicate task_slug")
         if phrase and phrase in seen_phrases:
             errors.append("duplicate benign_reference_phrase")
+        if phrase and phrase in _forbidden_reference_phrases():
+            errors.append("benign_reference_phrase was already used by the cohort")
         if errors:
             feedback.append(
                 {
@@ -601,6 +606,11 @@ def _select_valid_slots(
         seen_slugs.add(slug)
         seen_phrases.add(phrase)
     return accepted, feedback
+
+
+def _forbidden_reference_phrases() -> set[str]:
+    raw = os.environ.get("WORLDSIM_PHASE1_FORBIDDEN_REFERENCES", "")
+    return {_normalize_key(value) for value in raw.split(",") if _normalize_key(value)}
 
 
 def _validate_slot(

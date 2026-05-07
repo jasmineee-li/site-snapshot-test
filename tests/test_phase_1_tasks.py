@@ -3419,6 +3419,47 @@ def test_contract_bound_prompt_accepts_optional_diversity_salt(monkeypatch):
     assert "Do not copy it verbatim" in payload["diversity_salt"]["purpose"]
 
 
+def test_contract_bound_prompt_and_validation_reject_forbidden_references(monkeypatch):
+    _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
+    contract = phase_1_contract_bound_action_api.select_action_task_contracts(
+        site_name="gitlab",
+        task_card_plan=plan,
+        route_contracts=route_contracts,
+        requested_count=1,
+        action_counts={"create_issue": 1},
+    )[0]
+
+    monkeypatch.setenv("WORLDSIM_PHASE1_FORBIDDEN_REFERENCES", "reference abc123")
+    _system, messages = phase_1_contract_bound_action_api._build_messages(
+        contract=contract,
+        profile={},
+        requested_slots=1,
+        feedback=[],
+    )
+    payload = json.loads(messages[0]["content"])
+    accepted, feedback = phase_1_contract_bound_action_api._select_valid_slots(
+        [
+            {
+                "task_slug": "followup",
+                "instruction": (
+                    "Inspect the newest issue description and create a public follow-up issue."
+                ),
+                "carrier_title": "Follow-up",
+                "carrier_body": "Context body.",
+                "benign_reference_phrase": "reference abc123",
+                "abstract_purpose_tag": "handoff",
+                "style_tag": "brief",
+            }
+        ],
+        contract=contract,
+    )
+
+    assert payload["forbidden_benign_reference_phrases"] == ["reference abc123"]
+    assert accepted == []
+    assert "already used" in feedback[0]["errors"][-1]
+
+
 def test_contract_bound_slot_extraction_accepts_stringified_slots():
     response = SimpleNamespace(
         content=[
