@@ -1124,7 +1124,8 @@ def test_summarize_phase4_cli_resolves_state_dir_and_prints_metrics(tmp_path, ca
 
     assert rc == 0
     out = capsys.readouterr().out
-    assert "Final Gate-1 ASR: 1 / 1 = 1.00" in out
+    assert "Headline ASR (fixed cohort, WASP-comparable): 1 / 1 = 1.00" in out
+    assert "Gate-1 ASR (PVPO encounter-conditional): 1 / 1 = 1.00" in out
     assert "Final compliant with adversarial reward: 1 / 1" in out
     assert (
         "Strategy variation entry: 1 task(s) entered the post-resistance loop; "

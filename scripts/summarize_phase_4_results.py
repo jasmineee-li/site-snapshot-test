@@ -362,9 +362,14 @@ def format_text_summary(
     lines = [f"Phase 4 results: {results_path}"]
     lines.append(f"Total: {summary['total']} tasks; scorable: {summary['scorable']}")
     lines.append(
-        "Final Gate-1 ASR: "
-        f"{summary['asr_valid_numerator']} / {summary['asr_valid_denominator']} = "
-        f"{_fmt_rate(summary['asr_valid'])}"
+        "Headline ASR (fixed cohort, WASP-comparable): "
+        f"{summary['headline_asr_numerator']} / {summary['headline_asr_denominator']} = "
+        f"{_fmt_rate(summary['headline_asr'])}"
+    )
+    lines.append(
+        "Gate-1 ASR (PVPO encounter-conditional): "
+        f"{summary['gate1_asr_numerator']} / {summary['gate1_asr_denominator']} = "
+        f"{_fmt_rate(summary['gate1_asr'])}"
     )
     lines.append(
         "Final compliant with adversarial reward: "
