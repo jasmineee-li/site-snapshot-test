@@ -4,6 +4,7 @@ import importlib.util
 import json
 import pickle
 import shutil
+import signal
 import stat
 import subprocess
 import sys
@@ -1413,6 +1414,42 @@ def test_sidecar_streaming_writes_redacted_live_logs_and_status(tmp_path):
     assert status["status"] == "sidecar_completed"
     assert status["returncode"] == 0
     assert status["stdout_bytes"] > 0
+
+
+def test_sidecar_preexec_sets_linux_parent_death_signal(monkeypatch):
+    calls: list[tuple[int, int]] = []
+
+    class FakeLibc:
+        def prctl(self, option, signal_value):
+            calls.append((option, signal_value))
+
+    monkeypatch.setattr(agentlab_runner.os, "name", "posix")
+    monkeypatch.setattr(agentlab_runner.sys, "platform", "linux")
+    monkeypatch.setattr(agentlab_runner.ctypes, "CDLL", lambda _name: FakeLibc())
+    monkeypatch.setattr(agentlab_runner.os, "getppid", lambda: 123)
+
+    agentlab_runner._sidecar_preexec()
+
+    assert calls == [(1, signal.SIGTERM)]
+
+
+def test_sidecar_preexec_self_terminates_if_parent_already_exited(monkeypatch):
+    killed: list[tuple[int, int]] = []
+
+    class FakeLibc:
+        def prctl(self, _option, _signal_value):
+            return 0
+
+    monkeypatch.setattr(agentlab_runner.os, "name", "posix")
+    monkeypatch.setattr(agentlab_runner.sys, "platform", "linux")
+    monkeypatch.setattr(agentlab_runner.ctypes, "CDLL", lambda _name: FakeLibc())
+    monkeypatch.setattr(agentlab_runner.os, "getppid", lambda: 1)
+    monkeypatch.setattr(agentlab_runner.os, "getpid", lambda: 456)
+    monkeypatch.setattr(agentlab_runner.os, "kill", lambda pid, sig: killed.append((pid, sig)))
+
+    agentlab_runner._sidecar_preexec()
+
+    assert killed == [(456, signal.SIGTERM)]
 
 
 def test_phase4_timeout_result_redacts_captured_secret_output(monkeypatch, tmp_path):

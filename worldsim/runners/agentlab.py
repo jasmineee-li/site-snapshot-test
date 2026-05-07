@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import ctypes
 import html
 import json
 import logging
@@ -23,6 +24,7 @@ import shlex
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -658,6 +660,7 @@ def _run_sidecar_process_streaming(
         text=True,
         bufsize=1,
         start_new_session=True,
+        preexec_fn=_sidecar_preexec,
     )
     _write_sidecar_status(
         status_path,
@@ -766,6 +769,21 @@ def _terminate_sidecar_process(proc: subprocess.Popen[str]) -> None:
         proc.wait(timeout=1.0)
     except subprocess.TimeoutExpired:
         pass
+
+
+def _sidecar_preexec() -> None:
+    """Make Linux tear down the sidecar if the worker process dies abruptly."""
+
+    if os.name != "posix" or not sys.platform.startswith("linux"):
+        return
+    try:
+        libc = ctypes.CDLL(None)
+        pr_set_pdeathsig = 1
+        libc.prctl(pr_set_pdeathsig, signal.SIGTERM)
+    except Exception:
+        return
+    if os.getppid() == 1:
+        os.kill(os.getpid(), signal.SIGTERM)
 
 
 def _append_redacted_sidecar_log(path: Path, text: str, request: dict[str, Any]) -> None:
