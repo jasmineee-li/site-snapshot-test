@@ -295,7 +295,15 @@ def _parse_args() -> argparse.Namespace:
         "--steering-layer",
         type=int,
         default=None,
-        help="Decoder layer to steer at. Defaults to probe.best_layer.",
+        help="Decoder layer to steer at. Defaults to probe.best_layer. "
+             "Mutually exclusive with --steering-layers.",
+    )
+    parser.add_argument(
+        "--steering-layers",
+        default=None,
+        help="Comma-separated list of decoder layers for multi-layer "
+             "steering (each gets alpha-per-layer = --steering-alpha). "
+             "Mutually exclusive with --steering-layer.",
     )
     parser.add_argument(
         "--steering-alpha",
@@ -324,6 +332,13 @@ async def _main_async(args: argparse.Namespace) -> None:
     extra_instr = args.extra_instructions or EXTRA_INSTRUCTION_PRESETS.get(
         args.extra_instructions_preset
     )
+    if args.steering_layer is not None and args.steering_layers is not None:
+        raise SystemExit(
+            "Pass exactly one of --steering-layer or --steering-layers."
+        )
+    steering_layers = None
+    if args.steering_layers:
+        steering_layers = [int(x.strip()) for x in args.steering_layers.split(",") if x.strip()]
     runner = build_tool_calling_runner(
         model_name=args.model_name,
         condition=args.condition,
@@ -336,6 +351,7 @@ async def _main_async(args: argparse.Namespace) -> None:
         backend=args.backend,
         probe_dir=args.probe_dir,
         steering_layer=args.steering_layer,
+        steering_layers=steering_layers,
         steering_alpha=args.steering_alpha,
     )
 
