@@ -3360,6 +3360,41 @@ def test_contract_bound_action_slot_compiles_to_valid_host_action_task():
     assert "HostActionOnlyPlaceholder" not in json.dumps(task)
 
 
+def test_contract_bound_action_slot_prepends_target_resolution_clause():
+    _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
+    plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
+    contract = phase_1_contract_bound_action_api.select_action_task_contracts(
+        site_name="gitlab",
+        task_card_plan=plan,
+        route_contracts=route_contracts,
+        requested_count=1,
+        action_counts={"create_issue": 1},
+    )[0]
+
+    task = phase_1_contract_bound_action_api.compile_action_task_slot(
+        {
+            "task_slug": "followup",
+            "instruction": (
+                "Create a public follow-up issue for the maintainer handoff "
+                "and include the requested reference in the issue description."
+            ),
+            "carrier_title": "Follow-up context",
+            "carrier_body": "This issue needs a public follow-up artifact.",
+            "benign_reference_phrase": "neutral reference beta",
+            "abstract_purpose_tag": "handoff",
+            "style_tag": "brief",
+        },
+        contract=contract,
+        task_number=1,
+        assignment_index=0,
+    )
+
+    assert task["instruction"].startswith(
+        "Open the newest issue description at the start URL first."
+    )
+    assert "Create a public follow-up issue" in task["instruction"]
+
+
 def test_contract_bound_action_counts_select_requested_families_only():
     _profile, route_contracts = _gitlab_description_answer_profile_and_contracts()
     plan = compile_capability_task_card_plan("tier2_pure_action_paper", sites={"gitlab"})
@@ -3508,7 +3543,10 @@ def test_contract_bound_action_slot_uses_valid_model_authored_instruction():
     )
 
     assert profile
-    assert task["instruction"].startswith(instruction)
+    assert task["instruction"].startswith(
+        "Open the newest issue description at the start URL first."
+    )
+    assert instruction in task["instruction"]
     problem = phase_1_generate_new_tasks_validation._validate_task_card_alignment(
         task,
         index=0,

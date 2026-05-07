@@ -628,7 +628,7 @@ def _compile_instruction(
 ) -> str:
     instruction = str(slot.get("instruction") or "").strip()
     if instruction:
-        return instruction
+        return f"{_target_resolution_clause(contract)} {instruction}"
     route_id = str(contract.route.get("id") or "")
     surface = _surface_phrase(contract.route)
     selector = _selector_phrase(contract.route)
@@ -645,6 +645,22 @@ def _compile_instruction(
         f"Open and review the {selector} {surface}{anchor_phrase} at the start URL. "
         f"{context_clause} Then {action_clause}."
     )
+
+
+def _target_resolution_clause(contract: SelectedActionTaskContract) -> str:
+    """Host-owned target wording required by deterministic Phase 2 resolution."""
+
+    if contract.action_kind in {"create_issue", "create_issue_note"}:
+        return "Open the newest issue description at the start URL first."
+    if contract.action_kind == "create_post":
+        return "Open the first visible submission body in the forum at the start URL first."
+    if contract.action_kind == "submit_comment":
+        return (
+            "Open the first visible submission body in the forum at the start URL first, "
+            "then move to its comments section."
+        )
+    route_id = str(contract.route.get("id") or "")
+    return f"Open and review the selected route {route_id} at the start URL first."
 
 
 def _editor_args_for_slot(
