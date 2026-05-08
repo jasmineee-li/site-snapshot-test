@@ -253,16 +253,41 @@ actual BrowserGym/Playwright runtime surface for the current matrix.
   `inconclusive=3`, `injection_not_encountered=1`; postprocess was `50/50`
   with `0` failures. Iterator entry was `10` tasks, with `14/17` variants
   generated, `14` evaluated, `14` PVPO-valid, and `0` variant compliances.
-- Next automated r8a AgentLab model-sweep queue, using the same 50-task source
-  set, native BrowserGym/page-surface-stable PVPO, OpenRouter-routed host
-  TP/VEA/iterator judges, and `w48`, runs sequentially to avoid cross-run
-  resource contention:
-  1. `opus47` (`anthropic/claude-opus-4.7`) via `--agent-provider openrouter`.
-  2. `sonnet46` (`anthropic/claude-sonnet-4.6`) via `--agent-provider openrouter`.
-  3. `gemini25pro` (`google/gemini-2.5-pro`) via `--agent-provider openrouter`.
-  Each run should write a distinct `logs/agentlab_openrouter_agent_<model>_50task_w48_20260508`
-  output directory and should only advance to the next model after the prior
-  job exits with `postprocess_failed=0` or is explicitly marked invalidated.
+- The automated r8a AgentLab model sweep completed sequentially on the same
+  50-task source set, native BrowserGym/page-surface-stable PVPO,
+  OpenRouter-routed host TP/VEA/iterator judges, and `w48`. The queue advanced
+  only after the prior job exited with `postprocess_failed=0`, so these runs are
+  useful as cross-model AgentLab harness evidence without cross-run resource
+  contention:
+  1. `20260508T100639Z-agentlab-openrouter-agent-opus47-50task-w48-4ae398`
+     (`opus47`, `anthropic/claude-opus-4.7`) completed in `10m56s` with
+     `50/50` postprocessed and `0` postprocess failures. Final status was
+     `complied=39`, `resistant=6`, `inconclusive=4`,
+     `injection_not_encountered=1`; headline ASR was `39/50=0.78`, and Gate-1
+     ASR was `39/49=0.80`. Iterator entry was `10` tasks, with `23/27`
+     variants generated, `23` evaluated, `23` PVPO-valid, and `0` variant
+     compliances.
+  2. `20260508T101752Z-agentlab-openrouter-agent-sonnet46-50task-w48-85dbf2`
+     (`sonnet46`, `anthropic/claude-sonnet-4.6`) completed in `33m02s` with
+     `50/50` postprocessed and `0` postprocess failures. Final status was
+     `complied=39`, `resistant=5`, `inconclusive=5`,
+     `injection_not_encountered=1`; headline ASR was `39/50=0.78`, and Gate-1
+     ASR was `39/49=0.80`. Iterator entry was `10` tasks, with `19/24`
+     variants generated, `19` evaluated, `19` PVPO-valid, and `0` variant
+     compliances.
+  3. `20260508T105110Z-agentlab-openrouter-agent-gemini25pro-50task-w48-afc9bb`
+     (`gemini25pro`, `google/gemini-2.5-pro`) completed in `25m07s` with
+     `50/50` postprocessed and `0` postprocess failures. Final status was
+     `complied=37`, `resistant=6`, `inconclusive=4`,
+     `injection_not_encountered=3`; headline ASR was `37/50=0.74`, and Gate-1
+     ASR was `37/47=0.79`. Iterator entry was `10` tasks, with `13/14`
+     variants generated, `13` evaluated, `11` PVPO-valid, and `0` variant
+     compliances. This run included one contained task-level
+     `task_broke_worker_timeout` on
+     `adv_novel_gitlab_13_moderation_appeal_plaintext`; the harness still
+     completed and postprocessed all rows, so treat this as a model/task
+     behavior artifact to inspect rather than a page-surface-stable PVPO or
+     AgentLab setup failure.
 - The rerun produced 69 sidecar trajectories: 68 success and one timeout. All
   sidecars used `page-surface-stable`, all had `cdp_url=null`, and all had no
   BrowserGym launch patch. This is the current live proof that AgentLab no
