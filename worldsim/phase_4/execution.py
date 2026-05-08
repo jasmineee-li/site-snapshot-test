@@ -17,10 +17,14 @@ def _pre_action_agentlab_infra_failure(result: Any) -> str | None:
         return None
     errors = [str(error) for error in (getattr(result, "errors", None) or [])]
     joined = "\n".join(errors)
+    if "AgentLab browser step" in joined and "exceeded step timeout" in joined:
+        return "infra_agentlab_browser_step_timeout"
     if "AgentLab setup and reset exceeded step timeout" in joined:
         return "infra_agentlab_setup_reset_timeout"
+    if "TimeoutError:" in joined and "Timeout" in joined and "exceeded" in joined:
+        return "infra_agentlab_browser_action_timeout"
     if "env close skipped after sidecar_deadline" in joined:
-        return "infra_agentlab_setup_reset_timeout"
+        return "infra_agentlab_sidecar_deadline"
     if "AgentLab sidecar exceeded task timeout" in joined:
         return "infra_agentlab_sidecar_timeout"
     if "BrowserType.launch: Executable doesn't exist" in joined:

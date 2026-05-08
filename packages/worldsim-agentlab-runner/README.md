@@ -107,10 +107,11 @@ only for explicit debugging with `WORLDSIM_AGENTLAB_LEGACY_CONNECT_OVER_CDP=1`.
 
 AgentLab `phase4-run` accepts the whole-task subprocess timeout, LLM-call
 timeout, and step timeout. The sidecar forwards `llm_timeout` to its model
-transport and wraps setup/action/browser steps with `step_timeout`.
-`--agent-task-timeout` remains the outer infrastructure guard for startup, CDP,
-and cleanup hangs, and it is still the deadline to rely on for remote-job
-failure recovery. r5 live proof on 2026-05-07 showed a stalled AgentLab step
-could still run past `--agent-step-timeout 60` and was recovered only by
-`--agent-task-timeout 900`, so report per-step deadline parity only after a
-passing live proof.
+transport and wraps setup/action/browser steps with `step_timeout`. It also
+sets BrowserGym's page and context default action/navigation deadlines so a
+single stuck Playwright action does not consume the full task timeout. Defaults
+are 60s for actions and 45s for navigations; override with
+`WORLDSIM_AGENTLAB_ACTION_TIMEOUT_S` and
+`WORLDSIM_AGENTLAB_NAVIGATION_TIMEOUT_S` only for debugging.
+`--agent-task-timeout` remains the outer infrastructure guard for startup and
+cleanup hangs.

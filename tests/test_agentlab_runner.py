@@ -519,6 +519,54 @@ def test_phase4_browsergym_context_kwargs_block_service_workers_without_storage_
     assert worldsim_task._context_kwargs_runtime_summary(kwargs) == {"service_workers": "block"}
 
 
+def test_worldsim_task_setup_installs_page_and_context_timeouts(monkeypatch):
+    worldsim_task = _load_sidecar_module("worldsim_task")
+
+    class FakeTarget:
+        def __init__(self):
+            self.default_timeout = None
+            self.default_navigation_timeout = None
+
+        def set_default_timeout(self, timeout_ms):
+            self.default_timeout = timeout_ms
+
+        def set_default_navigation_timeout(self, timeout_ms):
+            self.default_navigation_timeout = timeout_ms
+
+    class FakePage(FakeTarget):
+        def __init__(self):
+            super().__init__()
+            self.context = FakeTarget()
+
+        def bring_to_front(self):
+            raise AssertionError("no start URLs should be opened in this unit test")
+
+    monkeypatch.setenv("WORLDSIM_AGENTLAB_ACTION_TIMEOUT_S", "12.5")
+    monkeypatch.setenv("WORLDSIM_AGENTLAB_NAVIGATION_TIMEOUT_S", "9")
+    runtime = {}
+    task = object.__new__(worldsim_task.WorldSimOpenEndedTask)
+    task.start_urls = []
+    task.goal = "Do the task"
+    task.site_prompt = None
+    task.request = {}
+    task.network_recorder = None
+    task.runtime = runtime
+    page = FakePage()
+
+    goal, info = task.setup(page)
+
+    assert goal == "Do the task"
+    assert info == {"worldsim_start_urls": []}
+    assert page.default_timeout == 12_500
+    assert page.context.default_timeout == 12_500
+    assert page.default_navigation_timeout == 9_000
+    assert page.context.default_navigation_timeout == 9_000
+    assert runtime["browser_timeouts"] == {
+        "action_timeout_ms": 12_500,
+        "navigation_timeout_ms": 9_000,
+    }
+
+
 def test_build_phase4_sidecar_request_resolves_nested_http_basic(tmp_path):
     request = _build_phase4_sidecar_request(
         "Do the task",
