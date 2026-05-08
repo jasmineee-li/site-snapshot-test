@@ -115,3 +115,7 @@ are 60s for actions and 45s for navigations; override with
 `WORLDSIM_AGENTLAB_NAVIGATION_TIMEOUT_S` only for debugging.
 `--agent-task-timeout` remains the outer infrastructure guard for startup and
 cleanup hangs.
+
+At high worker fan-out, `phase4-run` serializes only the short BrowserGym
+benchmark metadata construction step behind a host-local file lock. This avoids
+transient empty metadata reads while keeping browser execution parallel.

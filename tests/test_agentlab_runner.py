@@ -638,6 +638,32 @@ def test_sidecar_applies_agentlab_benchmark_config(monkeypatch):
     assert len(agent_args.calls) == 1
 
 
+def test_sidecar_retries_transient_benchmark_metadata_error(monkeypatch):
+    module = _load_sidecar_cli_module()
+
+    class EmptyDataError(Exception):
+        pass
+
+    calls = []
+
+    class FakeBenchmark:
+        name = "webarena_verified"
+        is_multi_tab = False
+
+    def factory():
+        calls.append("factory")
+        if len(calls) == 1:
+            raise EmptyDataError("No columns to parse from file")
+        return FakeBenchmark()
+
+    monkeypatch.setattr(module.time, "sleep", lambda _seconds: None)
+
+    benchmark = module._make_benchmark_with_startup_guard(factory)
+
+    assert benchmark.name == "webarena_verified"
+    assert calls == ["factory", "factory"]
+
+
 def test_sidecar_artifact_manifest_includes_phase4_outputs(tmp_path):
     module = _load_sidecar_cli_module()
     for relative in (

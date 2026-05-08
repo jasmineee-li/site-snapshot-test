@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import pickle
+import tempfile
 import time
 from contextlib import contextmanager
 from importlib import metadata
@@ -147,7 +148,7 @@ def _apply_benchmark_config(agent_args: Any, request: dict[str, Any]) -> dict[st
     if not callable(factory):
         raise ValueError(f"AgentLab benchmark {benchmark_name!r} is not available in bgym")
 
-    benchmark = factory()
+    benchmark = _make_benchmark_with_startup_guard(factory)
     agent_args.set_benchmark(benchmark, demo_mode=bool(request.get("demo_mode", False)))
     action_args = getattr(getattr(agent_args, "flags", None), "action", None)
     action_set = getattr(action_args, "action_set", None)
@@ -160,6 +161,58 @@ def _apply_benchmark_config(agent_args: Any, request: dict[str, Any]) -> dict[st
         "action_set": repr(action_set),
         "action_set_type": type(action_set).__name__ if action_set is not None else None,
     }
+
+
+def _make_benchmark_with_startup_guard(factory: Any) -> Any:
+    """Serialize BrowserGym benchmark metadata loading across sidecars."""
+
+    last_exc: BaseException | None = None
+    lock_path = Path(tempfile.gettempdir()) / "worldsim_agentlab_benchmark_config.lock"
+    for attempt in range(3):
+        try:
+            with _file_lock(lock_path):
+                return factory()
+        except Exception as exc:
+            if not _is_transient_benchmark_metadata_error(exc):
+                raise
+            last_exc = exc
+            time.sleep(0.25 * (attempt + 1))
+    assert last_exc is not None
+    raise last_exc
+
+
+class _file_lock:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.handle: Any = None
+
+    def __enter__(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.handle = self.path.open("w", encoding="utf-8")
+        if os.name == "posix":
+            import fcntl
+
+            fcntl.flock(self.handle.fileno(), fcntl.LOCK_EX)
+
+    def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+        if self.handle is None:
+            return
+        try:
+            if os.name == "posix":
+                import fcntl
+
+                fcntl.flock(self.handle.fileno(), fcntl.LOCK_UN)
+        finally:
+            self.handle.close()
+            self.handle = None
+
+
+def _is_transient_benchmark_metadata_error(exc: BaseException) -> bool:
+    if type(exc).__name__ == "EmptyDataError":
+        return True
+    if isinstance(exc, AssertionError) and not str(exc):
+        return True
+    return False
 
 
 def _model_result(
