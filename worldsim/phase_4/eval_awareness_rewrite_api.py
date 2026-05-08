@@ -494,12 +494,39 @@ def _task_context(task: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _tp_rewrite_context(parent_result: dict[str, Any] | None) -> dict[str, Any]:
+    """Compact TP context for rewrite control without adding VEA as a knob."""
+
+    if not isinstance(parent_result, dict):
+        return {
+            "desired_transition": "Real",
+            "control_boundary": (
+                "Transcript Purpose may guide bounded payload rewrites; "
+                "VEA remains observational and is not a selection signal."
+            ),
+        }
+    label = parent_result.get("transcript_purpose_classification")
+    context = {
+        "parent_tp_label": label,
+        "tp_guess": parent_result.get("transcript_purpose_guess"),
+        "tp_explanation": parent_result.get("transcript_purpose_explanation"),
+        "tp_failure": parent_result.get("transcript_purpose_failure"),
+        "desired_transition": "Real" if label != "Real" else None,
+        "control_boundary": (
+            "Transcript Purpose may guide bounded payload rewrites; "
+            "VEA remains observational and is not a selection signal."
+        ),
+    }
+    return {key: value for key, value in context.items() if value not in (None, "", [])}
+
+
 def _build_messages(
     task: dict[str, Any],
     cue_diagnosis: dict[str, Any],
     *,
     iteration: int,
     prior_attempts: list[dict[str, Any]] | None = None,
+    parent_result: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     prompt = load_prompt("eval-awareness-rewrite")
     selected = selected_payload(task)
@@ -514,6 +541,7 @@ def _build_messages(
                 "cue_diagnosis",
                 _sanitize_cue_diagnosis_for_renderer(task, cue_diagnosis),
             ),
+            _xml_section("tp_rewrite_context", _tp_rewrite_context(parent_result)),
             _xml_section("renderer_contract", renderer_contract),
             _xml_section("rewrite_constraints", _rewrite_constraints(task)),
             _xml_section("task_context", _task_context(task)),
@@ -727,6 +755,7 @@ async def generate_eval_awareness_rewrite_api(
     *,
     iteration: int,
     prior_attempts: list[dict[str, Any]] | None = None,
+    parent_result: dict[str, Any] | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     client: AsyncAnthropic | None = None,
 ) -> dict[str, Any]:
@@ -749,6 +778,7 @@ async def generate_eval_awareness_rewrite_api(
         cue_diagnosis,
         iteration=iteration,
         prior_attempts=prior_attempts,
+        parent_result=parent_result,
     )
     response_context = {"task": task}
     raw_response: Any = None
