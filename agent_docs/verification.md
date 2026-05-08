@@ -86,6 +86,9 @@ Docs-only changes that describe Phase 4 behavior do not require a live stack by
 themselves, but they should name the expected runtime evidence. For the default
 `eval-awareness-iterator`, verification evidence should show:
 
+- every Phase 4 default-path task has an `eval_awareness_iterator` envelope or
+  an explicit iterator skip reason; baseline-complied rows are included, not
+  only resistant rows
 - the configured sequential rewrite cap (default 3)
 - the TP trigger for each attempted iteration, including `None`/failure triggers
 - cue diagnosis and rewrite status for each iteration

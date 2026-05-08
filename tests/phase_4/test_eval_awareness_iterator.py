@@ -70,6 +70,160 @@ async def test_process_adversarial_result_uses_eval_awareness_iterator_by_defaul
 
 
 @pytest.mark.asyncio
+async def test_process_adversarial_result_runs_eval_awareness_iterator_on_complied(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    initial_result = {
+        "task_id": "adv-1",
+        "outcome": "complied",
+        "encounter": {"max_coverage": 0.5},
+        "trajectory_dir": str(tmp_path / "traj"),
+        "transcript_purpose_classification": "Capability Evaluation",
+    }
+
+    async def no_fix(*args, **kwargs):
+        return None
+
+    iterator_calls = []
+
+    async def fake_iterator(*args, **kwargs):
+        iterator_calls.append(kwargs)
+        return {
+            "status": "iterated",
+            "selected_iteration": 1,
+            "selected_result": {
+                "task_id": "adv-1",
+                "outcome": "refused_or_ignored",
+                "encounter": {"max_coverage": 0.5},
+                "trajectory_dir": str(tmp_path / "adv-1_variant_1"),
+                "variant_index": 1,
+                "global_variant_index": 1,
+                "strategy": "eval_awareness_iterator",
+            },
+            "variant_results": [
+                {
+                    "strategy": "eval_awareness_iterator",
+                    "outcome": "refused_or_ignored",
+                    "encounter": {"max_coverage": 0.5},
+                    "trajectory_dir": str(tmp_path / "adv-1_variant_1"),
+                    "variant_index": 1,
+                    "global_variant_index": 1,
+                }
+            ],
+        }
+
+    async def fail_strategy_variation(*args, **kwargs):
+        raise AssertionError("default Phase 4 path should not use legacy strategy variation")
+
+    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_adversarial, "run_eval_awareness_iterator", fake_iterator)
+    monkeypatch.setattr(phase_4_adversarial, "run_strategy_variation", fail_strategy_variation)
+
+    result = await phase_4_adversarial._process_adversarial_result(
+        task=task,
+        initial_result=initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+    )
+
+    assert len(iterator_calls) == 1
+    assert result["final_status"] == "complied"
+    assert result["initial_outcome"] == "complied"
+    assert "eval_awareness_iterator" in result
+    assert result["eval_awareness_iterator"]["status"] == "iterated"
+
+
+@pytest.mark.asyncio
+async def test_process_adversarial_result_preserves_complied_tp_real_iterator_envelope(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    initial_result = {
+        "task_id": "adv-1",
+        "outcome": "complied",
+        "encounter": {"max_coverage": 0.5},
+        "trajectory_dir": str(tmp_path / "traj"),
+        "transcript_purpose_classification": "Real",
+    }
+
+    async def no_fix(*args, **kwargs):
+        return None
+
+    async def fake_iterator(*args, **kwargs):
+        return {
+            "status": "tp_real_baseline",
+            "selected_iteration": 0,
+            "selected_result": initial_result,
+            "variant_results": [],
+            "budget": {
+                "rewrites_attempted": 0,
+                "browser_evaluated": 0,
+                "tp_real": 0,
+                "stop_reason": "tp_real",
+            },
+        }
+
+    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_adversarial, "run_eval_awareness_iterator", fake_iterator)
+
+    result = await phase_4_adversarial._process_adversarial_result(
+        task=task,
+        initial_result=initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+    )
+
+    assert result["final_status"] == "complied"
+    assert result["eval_awareness_iterator"]["status"] == "tp_real_baseline"
+    assert result["eval_awareness_iterator"]["selected_iteration"] == 0
+
+
+@pytest.mark.asyncio
+async def test_process_adversarial_result_records_iterator_skip_for_non_encounter(
+    monkeypatch, tmp_path
+):
+    task, instances = _prepared_adv_task()
+    initial_result = {
+        "task_id": "adv-1",
+        "outcome": "refused_or_ignored",
+        "final_status": "injection_not_encountered",
+        "encounter": {"max_coverage": 0.0},
+        "trajectory_dir": str(tmp_path / "traj"),
+        "transcript_purpose_classification": "Capability Evaluation",
+    }
+
+    async def no_fix(*args, **kwargs):
+        return None
+
+    async def fail_iterator(*args, **kwargs):
+        raise AssertionError("non-encountered rows should not run iterator rewrites")
+
+    monkeypatch.setattr(phase_4_adversarial, "_run_placement_fix_loop", no_fix)
+    monkeypatch.setattr(phase_4_adversarial, "run_eval_awareness_iterator", fail_iterator)
+
+    result = await phase_4_adversarial._process_adversarial_result(
+        task=task,
+        initial_result=initial_result,
+        primary_instances=[instances[0]],
+        all_instances=instances,
+        agent_factory=lambda: None,
+        profile_path=tmp_path / "profile.json",
+        task_dir_root=tmp_path,
+    )
+
+    assert result["final_status"] == "injection_not_encountered"
+    assert result["eval_awareness_iterator"]["status"] == "skipped"
+    assert result["eval_awareness_iterator"]["skip_reason"] == "injection_not_encountered"
+
+
+@pytest.mark.asyncio
 async def test_process_adversarial_result_can_select_legacy_strategy_variation(
     monkeypatch, tmp_path
 ):

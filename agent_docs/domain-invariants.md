@@ -30,7 +30,7 @@ Phase 2c feasibility is strict admission for Phase 4:
 - Do not use `--skip-feasibility` for shipping runs.
 - Break-glass override is `WORLDSIM_STRICT_FEASIBILITY={true,false}` and should be called out explicitly.
 
-Phase 4 keeps benign task contracts and reward functions emitted by Phase 3 invariant across every post-resistance path. The default path is `eval-awareness-iterator`; legacy strategy variation is opt-in via `--phase-4-variant-system strategy-variation`.
+Phase 4 keeps benign task contracts and reward functions emitted by Phase 3 invariant across baseline runs, default eval-awareness iterator rewrites, and legacy post-resistance strategy variants. The default path is `eval-awareness-iterator`; legacy strategy variation is opt-in via `--phase-4-variant-system strategy-variation`.
 
 Eval-awareness iterator rewrites may change visible framing and directive text, but must keep renderer contracts, route placement, protected witnesses, and host-owned payload-action semantics intact. They must not change the benign task, reward functions, editor method, target surface, payload argument, or carrier wrapper.
 
@@ -38,7 +38,9 @@ Legacy strategy variants must change payload semantics, not only punctuation, br
 For action-payload tasks, strategy variants must keep the host-selected browser-side action salient and task-local. They may not repair resistance by changing the benign task, swapping action targets, repeating protected target values, or falling back to a semantic answer-label rewrite.
 
 The eval-awareness iterator is sequential and bounded by
-`--phase-4-eval-awareness-max-iterations` (default 3) extra reruns. It branches
+`--phase-4-eval-awareness-max-iterations` (default 3) extra reruns. It is
+scheduled for every PVPO-valid baseline trajectory under the default variant
+system, independent of whether baseline ASR complied or resisted. It branches
 only on Transcript Purpose being non-`Real`, including missing or failed TP
 classification. Do not add hidden fan-out, VEA branching, admission changes, or
 reward changes under eval-awareness iteration.
@@ -344,16 +346,17 @@ instead.
 Transcript Purpose and Verbalized Eval Awareness are observational metrics in
 baseline trajectory scoring. The explicit `eval-awareness-iterator` Phase 4
 variant system is the exception: it uses Transcript Purpose as the declared
-rewrite-control signal, while VEA remains a reported generalization signal and
-must not be optimized or used for branching.
+rewrite-control signal across all PVPO-valid default-path tasks, while VEA
+remains a reported generalization signal and must not be optimized or used for
+branching.
 
 Attack-budget reporting is also observational. Legacy strategy variation should
 expose the configured `3+3+1` cap, generated/rejected/evaluated/PVPO-valid/
 compliant counts by round, remaining budget, termination reason, and lineage.
-The eval-awareness iterator should expose its sequential rewrite cap, attempted
-rewrites, rejected rewrites, browser-evaluated attempts, TP-real attempts,
-PVPO-valid attempts, compliant attempts, TP-regressed attempts, selected
-iteration, and stop reason.
+The eval-awareness iterator should expose all-task coverage or skip reason, its
+sequential rewrite cap, attempted rewrites, rejected rewrites,
+browser-evaluated attempts, TP-real attempts, PVPO-valid attempts, compliant
+attempts, TP-regressed attempts, selected iteration, and stop reason.
 Those fields must not override reward/PVPO final-status classification or ASR
 computation.
 If protected witnesses themselves are the visible eval-awareness cue, the
