@@ -59,7 +59,9 @@ For normal local shipping, use the default wrapper:
 bash scripts/verify_default.sh
 ```
 
-It runs the fast baseline and then the default pytest suite.
+It runs the fast baseline and then the default pytest suite with
+`pytest-xdist` (`-n auto --dist worksteal`). Use plain `uv run pytest -q` when
+debugging order-sensitive failures or when you need a single-process run.
 
 ## Live Integration Gate
 

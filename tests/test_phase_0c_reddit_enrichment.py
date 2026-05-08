@@ -116,6 +116,10 @@ def test_enrich_reddit_forums_prefers_runtime_db_host_for_host_side_inventory() 
             "worldsim.phases.phase_0c_reddit_enrichment._read_forum_rows",
             side_effect=fake_read_forum_rows,
         ),
+        patch(
+            "worldsim.phases.phase_0c_reddit_enrichment._read_empty_submission_rows_from_candidates",
+            return_value=[],
+        ),
         patch("worldsim.phases.phase_0c_reddit_enrichment.requests.get") as mock_get,
     ):
         mock_get.return_value = _response(200)

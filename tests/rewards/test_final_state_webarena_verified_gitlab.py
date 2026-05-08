@@ -23,7 +23,6 @@ def test_final_state_evaluator_accepts_gitlab_issue_readback(monkeypatch) -> Non
         return [{"title": "Issue", "description": f"See {witness}"}]
 
     monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
-
     passed, message = run_reward_function(
         {
             "type": "FinalStateEvaluator",
@@ -73,7 +72,6 @@ def test_final_state_evaluator_accepts_gitlab_ui_issue_readback(monkeypatch) -> 
         return [{"title": "Follow-up", "description": f"Created from the UI. {witness}"}]
 
     monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
-
     passed, message = run_reward_function(
         {
             "type": "FinalStateEvaluator",
@@ -1163,6 +1161,10 @@ def test_final_state_evaluator_excludes_gitlab_carrier_issue_from_create_readbac
         ]
 
     monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
+    monkeypatch.setattr(
+        "worldsim.rewards.final_state_webarena_verified_gitlab._GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS",
+        1,
+    )
 
     passed, message = run_reward_function(
         {
