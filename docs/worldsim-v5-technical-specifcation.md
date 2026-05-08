@@ -83,8 +83,8 @@ For parallel evaluation, the user provides multiple instances of the same site
 instances is the user's responsibility, following the benchmark's own
 documentation. Phase 4 PVPO does not require a separate browser endpoint: the
 canonical page-surface-stable backend observes the same isolated browser session
-that the runner uses for the task. Historical instance files may still contain
-`pvpo_cdp_url`, but the canonical backend ignores it.
+that the runner uses for the task. Active instance files should not include
+`pvpo_cdp_url`.
 
 Instances-config variants live at the repo root and are selected via `--instances`:
 

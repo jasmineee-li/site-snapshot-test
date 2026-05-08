@@ -1,5 +1,11 @@
 # Codex Handoff — PVPO beginFrame / Page.navigate deadlock
 
+> **HISTORICAL AFTER PVPO HARD CUTOVER (2026-05-08):** This handoff describes
+> the removed beginFrame architecture. Active PVPO now uses page-surface-stable
+> capture on the runner-owned browser; `worldsim/phase_4/pvpo_frame_pump.py`,
+> the dedicated browser container, and related tests/scripts were removed in
+> commit `35ef05f3`. Do not follow this document for current setup.
+
 **Status:** RESOLVED. Fix landed on `feat/worldsim-v5` via the per-session `HeadlessExperimental.beginFrame` pump at `worldsim/phase_4/pvpo_frame_pump.py`, wired into `AgentRunner` in `worldsim/browser_use_agent.py` and gated against atomic PVPO capture through the new `capturing` `asyncio.Event` kwarg on `atomic_capture_with_visibility`. See the "Resolution" section at the bottom for the one-paragraph summary.
 
 **Symptom when this was open:** 85% of trajectories failed at step 1 with

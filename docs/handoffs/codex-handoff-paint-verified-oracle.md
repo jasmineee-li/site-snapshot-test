@@ -1,5 +1,12 @@
 # codex-handoff, Paint-Verified Payload Oracle + Historical API-Path Eval Judge
 
+> **HISTORICAL AFTER PVPO HARD CUTOVER (2026-05-08):** Active Phase 4 PVPO now
+> uses `page-surface-stable` capture on the runner-owned browser. Dedicated
+> browser containers, explicit compositor driving, `pvpo_cdp_url`, and the live
+> validation scripts/tests named in this handoff were removed in commit
+> `35ef05f3`. Preserve the design history below, but do not execute its setup
+> or validation commands for current rigor runs.
+
 > **SUPERSEDED AGAIN (2026-04-19 Transcript Purpose cutover; updated 2026-04-27 Needham-native metrics):** The `IPI-AER p(eval)` metric described in the first superseded block below was itself retired on 2026-04-19 in favour of Apollo Research's Transcript Purpose classifier (`worldsim/phase_4/transcript_purpose_api.py`, verbatim prompts at `worldsim/prompts/transcript-purpose-guess.md` and `worldsim/prompts/transcript-purpose-classify.md` from `nix-apollo/38e0520c21bed0831d44019457d1833f`). Transcript Purpose now consumes the same text-only Needham XML artifact as VEA (`needham_trace.json` / `needham_trace.xml`, format `"needham-xml-v1"`); PVPO screenshots are encounter evidence only unless an explicit screenshot ablation is run. Deleted in the original cutover: `ipi_aer_p_eval_api.py`, `ipi_aer_caption.py`, `prompts/ipi-aer-p-eval.md`, `prompts/ipi-aer-caption.md`, `--aer-reps` / `--aer-screenshot-mode` CLI flags, `.aer_inflight` sentinel. Cost bucket: `phase_4:aer` / `phase_4:aer:caption` → `phase_4:transcript_purpose`. Keep this document for historical context only.
 
 > **SUPERSEDED (2026-04-19, updated 2026-04-20):** The IPI-Screenshot P(eval) probe described throughout this handoff (the `run_p_eval_api` 5-probe vision call, `p_eval_api.py`, `prompts/p-eval.md`, `p_eval_score`/`p_eval_breakdown`/`p_eval_failure` output fields, and the `trajectory_slice.py` 30KB slicer used by the refusal judge and placement-fix) has been replaced. Phase 4 now computes two observational metrics in parallel:

@@ -22,11 +22,8 @@ zero hand-patching.
    2. Regenerate `instances.scale.json` / `instances.smoke.json` from
       `scripts/scale_config.yml` and the selected host config.
    3. Playwright Chromium + system libs when Playwright is installed.
-   4. One `pvpo-chrome` Docker container per configured `pvpo_cdp_url`
-      (content-hash stamped; rebuilds only when
-      `worldsim/docker/chrome-headless-shell.Dockerfile` changes; containers
-      are `--restart unless-stopped` because Phase 4 recycles the browser
-      process after every task).
+   4. Page-surface-stable PVPO requires no dedicated browser endpoint setup.
+      The runner-owned Browser Use or AgentLab browser is the capture surface.
    5. Artifact sync (`logs/phase_0c`, `logs/phase_2/adversarial_tasks.json`,
       `logs/phase_3/contracts.json`). Prefer `aws s3 sync` from
       `s3://benchmark-archives/worldsim-runs/<run_id>/`, same-region AWS
@@ -186,39 +183,28 @@ Failure recovery:
 
 | check | failure remediation |
 |---|---|
-| every configured `pvpo_cdp_url` reachable and unique | rerun setup step 4 |
-| each loopback `pvpo-chrome-<port>` has restart policy `unless-stopped` | rerun setup step 4 |
 | `logs/phase_0d/gitlab/storage_state.json` has cookies | rerun `login_gitlab_r5.py` or setup step 6 |
 | evaluator venv imports `webarena_verified` | rerun setup step 1 |
+| benchmark `site_url` and `reset_endpoint` values are reachable from the host | rerun host bootstrap or regenerate `instances.scale.json` |
 
 If preflight fails, the bash orchestrator exits non-zero and nothing is
 launched.
 
-## PVPO integration: why CDP connect (not local flags)
+## PVPO Integration
 
-The PVPO launch flags (`--enable-begin-frame-control`,
-`--run-all-compositor-stages-before-draw`, `--disable-checker-imaging`)
-pause default frame rendering; frames only commit when
-`HeadlessExperimental.beginFrame` is called explicitly. Applying them to
-the local Chromium that Browser-Use launches hangs every `page.goto`
-for 30s. The correct integration is the `chrome-headless-shell`
-container (flags in its `CMD`, beginFrame calls at capture time only);
-Browser-Use connects via `BrowserSession(cdp_url=...)`.
+Phase 4 uses page-surface-stable PVPO. The capture callback runs inside the
+same Browser Use or AgentLab browser session that is executing the task:
 
-Phase 4 no longer supports a shared remote PVPO browser. Each instance
-carries its own `pvpo_cdp_url`, and setup/preflight treat duplicate
-endpoint assignment as a hard error.
+1. evaluate the DOM witness probe;
+2. capture the visible viewport with normal CDP `Page.captureScreenshot`;
+3. evaluate the DOM witness probe again;
+4. accept the screenshot only when URL, witness, background, and geometry are
+   stable across the pre/post probes.
 
-Phase 4 also treats each dedicated PVPO browser as single-task-use. Browser
-Use sessions close tabs and contexts, but the remote `chrome-headless-shell`
-process survives the session. Under `--enable-begin-frame-control`, leaked
-renderer state can keep consuming CPU after the task ends. For managed loopback
-endpoints, the runner now restarts `pvpo-chrome-<port>` with `docker restart`
-at task teardown and waits for `/json/version` to return on the same port. CDP
-`Browser.close` is only a fallback for unmanaged endpoints; it does not reliably
-kill the supervised parent process on r5. Use `WORLDSIM_PVPO_BROWSER_RECYCLE=0`
-only for local smoke tests against a manually-started Chrome without restart
-supervision.
+Do not provision dedicated PVPO browser endpoints, `pvpo_cdp_url` values, or
+browser-recycle infrastructure for new rigor runs. If an old instances file
+contains `pvpo_cdp_url`, regenerate or edit the file before running Phase 4 so
+the active config reflects the hard cutover.
 
 ## Historical Magento Base-URL Drift
 

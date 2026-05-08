@@ -83,7 +83,7 @@ live benchmark host.
 Run:
 
 ```bash
-uv run pytest tests/test_agentlab_runner.py tests/test_phase_4_pvpo_beginframe.py tests/test_eval_worker_pool.py -q
+uv run pytest tests/test_agentlab_runner.py tests/test_phase_4_pvpo_capture.py tests/test_eval_worker_pool.py -q
 uv run pytest tests/rewards/test_final_state_webarena_verified_reddit.py tests/test_trace_redaction.py -q
 uvx ruff check packages/worldsim-agentlab-runner/src/worldsim_agentlab_runner tests/test_agentlab_runner.py
 ```
@@ -160,7 +160,7 @@ Artifact audit:
 
 ```bash
 rg -n '"request_controls"|"browsergym_context_kwargs"|"service_workers"|"rewrite_hits"|"scoped_auth_hits"' logs/<run>/phase_4
-rg -n '"pvpo"|"beginframe"|"dirty"|"recycle"|"max_coverage"' logs/<run>/phase_4
+rg -n '"pvpo"|"capture_summary"|"max_coverage"|"pvpo_capture_degraded"' logs/<run>/phase_4
 rg -n '"postData"|"method"|"url"|"status"' logs/<run>/phase_4/*/network.har
 rg -n '"format"|"needham-agentlab-v1"|"tool_calls"|"agentlab_action"' logs/<run>/phase_4/*/needham_trace.json
 rg -n '"status"|"final_result"|"result_fingerprint"|"_runner"' logs/<run>/phase_4/*/result.json logs/<run>/phase_4/*/processed_result.json
@@ -195,15 +195,16 @@ Pass criteria:
    browser recycle, but also showed `--agent-step-timeout 60` did not abort a
    stalled AgentLab step. Treat per-step/LLM deadline parity as unproven until a
    dedicated live proof passes.
-4. **PVPO lifecycle.** The coordinator and CDP detach paths are unit-covered,
-   but r5 must prove screenshot patch, canonical PVPO capture, recycle reset,
-   dirty endpoint semantics, and per-endpoint beginFrame serialization under
-   real headless-shell load.
+4. **PVPO lifecycle.** Unit tests cover canonical PVPO artifact writing and
+   capture degradation. r5 must prove AgentLab observes the runner-owned
+   browser with page-surface-stable capture, writes the same PVPO artifacts as
+   Browser Use, and preserves `max_coverage == 0` as non-encounter rather than
+   missing instrumentation.
 
-The PVPO item is not "okay sure" until live-proven because AgentLab has two
-sync CDP users in one process: BrowserGym screenshots and canonical PVPO
-capture. Local unit tests can simulate locks and dirty state; only r5 proves the
-actual CDP endpoint, browser recycle, and HeadlessExperimental.beginFrame path.
+The PVPO item is not "okay sure" until live-proven because AgentLab has
+BrowserGym and the WorldSim sidecar sharing one runner-owned browser process.
+Local unit tests can simulate artifacts and degraded capture; r5 proves the
+actual BrowserGym/Playwright runtime surface.
 
 ### Latest Live Evidence - 2026-05-07
 
@@ -335,9 +336,10 @@ The operational rule is simple:
      absolute URL back to the bound replica.
 
 3. **Browser instrumentation**
-   - AgentLab captures PVPO beginFrame screenshots and network events in the
-     sidecar. Browser Use still owns the mature async implementation; live
-     parity gates should compare artifact manifests and PVPO capture summaries.
+   - AgentLab captures page-surface-stable PVPO screenshots and network events
+     in the sidecar. Browser Use still owns the mature async implementation;
+     live parity gates should compare artifact manifests and PVPO capture
+     summaries.
 
 4. **Trajectory exporter**
    - AgentLab exports `history.json`, `final_response.json`, `needham_trace.*`,
@@ -353,10 +355,10 @@ The operational rule is simple:
      audit artifact rather than the evaluator input source of truth.
 
 6. **PVPO parity**
-   - AgentLab accepts `payload_text`, `payload_witnesses`, and `pvpo_cdp_url`,
-     and writes `pvpo/capture_summary.json`, per-step PVPO JSON, and paired
-     screenshots. `max_coverage == 0` must still mean non-encounter, not missing
-     instrumentation.
+   - AgentLab accepts `payload_text` and `payload_witnesses`, then writes
+     `pvpo/capture_summary.json`, per-step PVPO JSON, and paired screenshots
+     from the runner-owned browser. `max_coverage == 0` must still mean
+     non-encounter, not missing instrumentation.
 
 7. **Resume and provenance**
    - Phase 4 includes runner name in fingerprints and keeps `result.json` as

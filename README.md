@@ -102,7 +102,7 @@ uv run python -m worldsim.main phase 4 \
      - `postgresql://gitlab:...@HOST:5432/gitlabhq_production` or the generated GitLab DB URL from the host config
      - `postgresql://postmill:postmill@HOST:5432/postmill` for `reddit`
    - Shopping, shopping_admin, map/OSM, Magento, Wikipedia, and classifieds settings are historical full-benchmark/support plumbing and are not active IPI carriers unless the spec reopens scope.
-   - `pvpo_cdp_url` is required for shipping Phase 4 runs. Each execution instance needs its own dedicated local `chrome-headless-shell` CDP endpoint (for example `http://127.0.0.1:9222`, `http://127.0.0.1:9223`, ...). Do not point multiple workers at one shared browser.
+   - Phase 4 PVPO uses `page-surface-stable` capture on the runner-owned browser. Do not configure dedicated PVPO browser endpoints for new shipping runs; remove historical `pvpo_cdp_url` entries from active instance files.
 
 Phases 0, 1, 2a, and 2b only need the benchmark **codebase** on disk, not running instances. **Phase 2c requires a live dev instance** (defaults to the instances listed in `instances.smoke.json`): each adversarial task's `adversarial_data_seed` is POSTed against the live platform to prove feasibility. Pass `--skip-feasibility` only for fast dev iteration; unverified tasks are not suitable for shipping Phase 4 runs.
 

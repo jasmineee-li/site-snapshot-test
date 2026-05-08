@@ -53,6 +53,64 @@ host-written instruction because that recreates the samey artifact problem.
 
 ## Completed 50-Task Accounting
 
+### Fresh r8 No-Comment Cohort, 2026-05-07
+
+Current paper-facing source artifact:
+
+- Run dir: `logs/tier2_fresh50_exact50_latest_phase3_20260507Tregen5`
+- Remote job:
+  `20260507T213418Z-regen-tier2-exact50-latest-phase123-v5-51b482`
+- Code fix commit:
+  `5d047dc5 fix(phase2): preserve tier2 exact50 generation`
+
+This is the current source for Browser Use Phase 4 PVPO-overhead validation.
+It supersedes the earlier stale-source A/B canary because the old artifact was
+generated before the final-state `evidence_policy` fix and therefore produced
+`task_broke` rows even when the browser had actually created the expected
+GitLab issue.
+
+Validation results on r8:
+
+| Check | Result |
+| --- | --- |
+| Phase 2 task count | 50 |
+| Phase 3 contract count | 50 |
+| Action distribution | `create_issue=20`, `create_issue_note=10`, `create_post=20` |
+| Site distribution | GitLab 30, Reddit/Postmill 20 |
+| Phase 2c feasibility | 50 verified |
+| Paper-suite audit | no failures |
+| Evidence-policy audit | passed for 50/50 tasks |
+
+Root causes found while regenerating:
+
+1. Phase 2 plan validation rejected the new `FinalStateEvaluator.expected.evidence_policy`
+   field even though the runtime final-state evaluator already supported it.
+   The validator now accepts and parses the policy with the same helper as the
+   evaluator, while still rejecting malformed policy values.
+2. The Phase 2 cell-balancer silently dropped valid overfull-cell plans,
+   reducing a generated 50-task cohort to 43 tasks. The selector now satisfies
+   cell targets first, then backfills one valid plan per benign task, dropping
+   only duplicate plans for the same benign task.
+3. Phase 2 did not propagate `contract_bound_generation` and `task_card_id`
+   from Phase 1 benign tasks into final adversarial tasks. The tasks could run,
+   but the audit could not prove generated-instruction purpose/style diversity.
+4. Phase 2c treated identifier-shaped braces in free-text editor bodies, for
+   example `rate:{tenant_id}:{endpoint}:{ip}`, as unresolved seed templates.
+   Placeholder detection now uses editor-method `FreeText()` bindings to skip
+   natural-language fields while preserving strict checks on structural fields
+   such as `submission_id`, `project_path_template`, and `issue_iid`.
+
+Next proof step: run a post-cutover Browser Use canary against this exact source
+artifact, holding the task set, model, service tier, variant system, worker
+count, and timeouts fixed on the now-canonical page-surface-stable PVPO
+backend.
+
+The first post-cutover smoke should use working tasks from the fresh 50-row
+cohort. It must report PVPO capture status/coverage, benign utility, action
+attempt, state-confirmed ASR, task-broke count, wall time, and whether the
+run stayed free of dedicated CDP/recycle/frame-driving machinery. If the smoke
+produces working rows, scale to the full 50-task Phase 4 comparison.
+
 The first GPT-5.2 Tier 2 pure-action 50-row set completed under the blocked
 Reddit/Postmill comment distribution:
 
@@ -284,24 +342,36 @@ redesigned and pass both natural-entry PVPO and state readback:
 
 ## Smoke-Test Order
 
-1. Treat Reddit/Postmill `submit_comment` as deferred. The latest post-fix
+1. Use `logs/tier2_fresh50_exact50_latest_phase3_20260507Tregen5` as the
+   current fresh 50-task source artifact for PVPO overhead validation. Do not
+   reuse the stale two-task A/B canary source; it predates the
+   final-state-evidence policy fix and can produce `task_broke` rows unrelated
+   to PVPO.
+2. Run a Browser Use post-cutover PVPO canary on a small fixed subset from that
+   source with fixed task IDs, model, service tier, eval-awareness iterator cap,
+   worker count, and timeout. The canary is useful only if rows reach
+   meaningful task outcomes; `task_broke` rows do not prove ASR or PVPO parity.
+3. If the canary has working rows, scale the same configuration to the full
+   50-task source. The pass criterion is not identical LLM trajectories; live
+   LLM/browser runs are stochastic. The proof target is that page-surface-stable
+   PVPO captures encounter evidence and preserves reward/readback semantics
+   without dedicated PVPO CDP URLs, external frame driving, or browser recycle
+   patching.
+4. Treat Reddit/Postmill `submit_comment` as deferred. The latest post-fix
    smoke proved anchored Phase 2c visibility but failed natural-entry Phase 4
    PVPO (`dom_witness_seen_not_layout_visible`). Do not rerun comment rows for
    the GPT-5.2 50-task milestone unless the task/card is redesigned first.
-2. Use the refreshed GitLab `create_issue_note` smoke above as the current
+5. Use the refreshed GitLab `create_issue_note` smoke above as the current
    post-fix contrast gate. Rerun only if later code changes touch note
    readback, reward compilation, eval-awareness materialization, or Phase 4
    execution behavior.
-3. AgentLab 10-row cohort remains blocked by the startup/timeout/artifact issue
+6. AgentLab 10-row cohort remains blocked by the startup/timeout/artifact issue
    above. Rerun it only after fixing that blocker; do not wait on it for the
    Browser Use no-comment 50-task rerun.
-4. Rerun the GPT-5.2 50-task
-   Tier 2 set using the no-comment distribution: GitLab `create_issue` 20,
-   Reddit/Postmill `create_post` 20, GitLab `create_issue_note` 10,
-   Reddit/Postmill `submit_comment` 0. Use Browser Use unless AgentLab has
-   since produced a clean cohort parity/artifact smoke.
-   Generate this as a fresh action-counted cohort rather than selecting prior
-   successful rows.
+7. The old instruction to rerun the GPT-5.2 50-task source is complete as of
+   `logs/tier2_fresh50_exact50_latest_phase3_20260507Tregen5`. Regenerate only
+   if later source changes touch task generation, Phase 2 validation,
+   feasibility, reward compilation, or source-artifact provenance.
 
 Each smoke must show Phase 2c admission, PVPO visual encounter, benign utility,
 browser action attempt, request success where applicable, strict
@@ -487,17 +557,16 @@ hardcoding topical examples.
 ## Deferred Pre-Evidence Warmup
 
 Defer this until after the active GPT-5.2 evidence run completes. Do not add
-or run warmup against a host while a paper Phase 4 job is using the same PVPO
-endpoints, unless the endpoints are explicitly isolated. The purpose is to
+or run warmup against a host while a paper Phase 4 job is using the same
+benchmark instances, unless the instances are explicitly isolated. The purpose is to
 turn accidental cold-start warming into a deliberate, discarded, recorded
 pre-evidence gate.
 
 Current `setup_phase4_on_host.sh` and `pytest -m preflight` prove readiness:
-PVPO CDP endpoints answer `/json/version`, PVPO containers are supervised,
-GitLab storage state exists, and the evaluator venv imports. They do not prove
-the full measured path is already warm: AgentLab imports, BrowserGym reset,
-first observation, patched screenshot capture, PVPO `beginFrame`, site/auth
-first navigation, and CDP recycle.
+GitLab storage state exists, benchmark endpoints are reachable, and the
+evaluator venv imports. They do not prove the full measured path is already
+warm: AgentLab imports, BrowserGym reset, first observation,
+page-surface-stable PVPO capture, and site/auth first navigation.
 
 Add a separate warmup command, not a default `setup_phase4_on_host.sh` step:
 
@@ -508,14 +577,13 @@ scripts/warm_phase4_host.sh \
   --instances instances.scale.json \
   --runner agentlab \
   --warmup-dir logs/warmups/<run_name> \
-  --pvpo-endpoints all \
   --agentlab-sidecars 8 \
   --site-sample all
 ```
 
 The warmup should write a manifest such as
 `logs/warmups/<run_name>/warmup_report.json` with host config, instances path,
-git/sync stamp, endpoint counts, pass/fail state, and p50/p95 timings. Warmup
+git/sync stamp, pass/fail state, and p50/p95 timings. Warmup
 artifacts are never counted as benchmark evidence and must stay outside Phase
 1-4 result summaries.
 
@@ -523,10 +591,9 @@ Required checks:
 
 - import and version warmup for `worldsim`, AgentLab runner, BrowserGym, model
   adapters, and the WebArena evaluator venv;
-- all unique `pvpo_cdp_url` endpoints answer `/json/version`;
 - every selected endpoint exercises the canonical PVPO capture path,
-  especially `HeadlessExperimental.beginFrame`, animation-killer injection,
-  screenshot capture, and browser recycle;
+  especially animation-killer injection, screenshot capture, and stable
+  pre/post witness probes;
 - non-mutating GitLab/Reddit first navigation succeeds for selected replicas;
 - GitLab storage state loads an authenticated page without redirecting to
   sign-in;

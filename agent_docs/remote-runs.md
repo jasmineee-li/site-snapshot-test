@@ -165,10 +165,11 @@ single `--phase-4-task-id`, and a one-instance config. This preserves Phase 4
 admission, seeding, PVPO, TP, VEA, eval-awareness iteration, rewards, and
 readback semantics while isolating Browser Use or AgentLab sidecar event loops
 and CDP clients by OS process. Page-surface-stable PVPO observes each worker's
-normal browser session, so process-pool parallelism is no longer bounded by
-dedicated PVPO CDP endpoint leases. If task distribution is site-skewed,
-observed parallelism is still bounded by the number of tasks and benchmark
-instances available for that site. For AgentLab parity runs, inspect each task's
+normal browser session, so process-pool parallelism is bounded by the number of
+tasks, benchmark instances, runner browser/session capacity, and host CPU/RAM.
+If task distribution is site-skewed, observed parallelism is still bounded by
+the number of tasks and benchmark instances available for that site. For
+AgentLab parity runs, inspect each task's
 `browser_runtime.json` for `browser_instance_scope="agent_run"` and
 `agent_browser_connect_count=1`; BrowserGym auxiliary chat/UI launches are
 reported separately under `auxiliary_browser_connect_count`.
@@ -223,8 +224,8 @@ as an execution-locality contract, not just a dataset selector:
 | --- | --- | --- | --- |
 | Phase 0c profiling | Modal sandbox outside r5 | `instances.smoke.json` or equivalent public/proxy file | Modal cannot reach r5-only addresses such as `172.17.0.1`; it needs the authenticated public proxy. |
 | Phase 0c host-side inventory enrichment | r5 orchestrator process | `--host-inventory-instances instances.scale.json` | Reddit DB enumeration and GitLab project inventory run on the host, not in Modal; they need the orchestrator-local topology. |
-| Phase 2c render checks | r5 host / browser containers | `instances.scale.json` | AWS does not reliably hairpin public-IP traffic from the instance to itself; on-host browsers need `orchestrator_host`. |
-| Phase 4 agent/PVPO | r5 host / browser containers | `instances.scale.json` | Same on-host browser topology as Phase 2c; storage-state cookies are host-bound. |
+| Phase 2c render checks | r5 host / runner-owned browser sessions | `instances.scale.json` | AWS does not reliably hairpin public-IP traffic from the instance to itself; on-host browsers need `orchestrator_host`. |
+| Phase 4 agent/PVPO | r5 host / runner-owned browser sessions | `instances.scale.json` | Same on-host browser topology as Phase 2c; storage-state cookies are host-bound. |
 
 Do not collapse these into one rule. `instances.scale.json` is correct for
 Phase 2c/4 and wrong for Modal Phase 0c. `instances.smoke.json` is correct for
@@ -343,10 +344,9 @@ The proxy uses token auth (`X-Worldsim-Token`) and offset ports from `scripts/pr
 
 Phase 4 rigor runs use page-surface-stable PVPO. The runner captures the
 visible viewport from its own browser with normal CDP `Page.captureScreenshot`
-and accepts evidence only when pre/post DOM witness probes are stable. Dedicated
-dedicated compositor-driving browser containers are removed from the active run
-path; `pvpo_cdp_url` remains only for legacy remote-browser lifecycle
-compatibility.
+and accepts evidence only when pre/post DOM witness probes are stable.
+Dedicated compositor-driving browser containers and `pvpo_cdp_url` are removed
+from the active run path and should not be configured for new rigor runs.
 
 ## Live Integration Command
 
