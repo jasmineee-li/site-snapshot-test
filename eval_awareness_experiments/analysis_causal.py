@@ -1,10 +1,10 @@
-"""Analysis and plotting for ASR × eval-awareness causal experiments.
+"""Analysis and plotting for ASR x eval-awareness causal experiments.
 
 Loads JSONL results from trajectory_awareness experiments and generates:
 1. Bar chart: Eval awareness rate by benchmark (safety vs general)
-2. Scatter plot: ASR vs eval awareness rate per model × benchmark
+2. Scatter plot: ASR vs eval awareness rate per model x benchmark
 3. Grouped bar chart: ASR by injection condition, grouped by benchmark
-4. Heatmap: eval awareness × task performance cross-tabulation
+4. Heatmap: eval awareness x task performance cross-tabulation
 5. Line plot: ASR across models, faceted by condition
 
 Usage:
@@ -19,6 +19,15 @@ from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
+
+WASP_INTERMEDIATE_ASR_SOURCE = "wasp_post_hoc_action_classifier"
+
+
+def _canonical_attack_success(metadata: dict) -> bool | None:
+    """Return canonical ASR only, excluding WASP intermediate action metrics."""
+    if metadata.get("attack_success_source") == WASP_INTERMEDIATE_ASR_SOURCE:
+        return None
+    return metadata.get("attack_success")
 
 
 def load_trajectory_results(results_dir: Path) -> list[dict]:
@@ -73,9 +82,10 @@ def compute_awareness_rates(results: list[dict]) -> dict:
                 recognition_yes += 1
 
             # Attack success
-            if meta.get("attack_success") is not None:
+            attack_success = _canonical_attack_success(meta)
+            if attack_success is not None:
                 asr_total += 1
-                if meta["attack_success"]:
+                if attack_success:
                     asr_count += 1
 
         stats[benchmark] = {
@@ -93,7 +103,7 @@ def compute_awareness_rates(results: list[dict]) -> dict:
 
 
 def compute_causal_stats(results: list[dict]) -> dict:
-    """Compute ASR and awareness by injection condition × benchmark × model.
+    """Compute ASR and awareness by injection condition x benchmark x model.
 
     Returns nested dict: {benchmark: {condition: {model: {stats}}}}
     """
@@ -117,8 +127,11 @@ def compute_causal_stats(results: list[dict]) -> dict:
             1 for r in group
             if r.get("metadata", {}).get("model_awareness", {}).get("conclusion") in ("Yes", "Maybe")
         )
-        asr_total = sum(1 for r in group if r.get("metadata", {}).get("attack_success") is not None)
-        asr_count = sum(1 for r in group if r.get("metadata", {}).get("attack_success"))
+        canonical_asr = [
+            _canonical_attack_success(r.get("metadata", {})) for r in group
+        ]
+        asr_total = sum(1 for attack_success in canonical_asr if attack_success is not None)
+        asr_count = sum(1 for attack_success in canonical_asr if attack_success)
 
         stats[benchmark][condition][model] = {
             "n": n,

@@ -112,7 +112,7 @@ output dirs come out clean (`bare/`, `xml_safety/`, `xml_scenario/`).
 |---------------------|-------------------------|------------------------------------------------------------|
 | **VEA**             | `verbalized_awareness`  | JSON-schema structured-output LLM judge per trajectory transcript. Output → `trajectory_awareness_results.jsonl`. |
 | **Transcript Purpose** | `purpose_continue_5q` | 12-prompt 5PQ judge categorizing inferred purpose into Alignment/Capability/Other Eval/Real. |
-| **ASR**             | (no judge — post-hoc)   | DoomArena: `attack_summary_info.json` per task. WASP: JSON-schema structured-output post-hoc evaluator, aggregated as any classified `compromised` action per task. |
+| **ASR**             | (no judge — post-hoc)   | DoomArena: `attack_summary_info.json` per task. WASP: `asr_rate` is native/end-to-end attacker utility from final WASP artifacts; `intermediate_asr_rate` is the JSON-schema structured-output action evaluator, aggregated as any classified `compromised` action per task. |
 
 WASP ASR uses `eval_awareness_experiments.wasp_post_hoc_evaluator`.
 It preserves the data-import compatibility default of
@@ -121,6 +121,17 @@ judge transport errors, and `outright_refusal` are diagnostics, not ASR
 successes. The output sidecar remains `wasp_asr_<split>.jsonl`; summary rows
 record the schema/prompt version, per-step parse/schema failure counts, and
 `n_no_action_tasks`.
+
+WASP native end-to-end ASR is the headline `asr_rate`. If a cell preserves
+`wasp_final_asr_<split>.jsonl` or native `run_attacker_utility*.json`, the WASP
+summarizer emits `asr_rate`, `asr_success_count`, `asr_n`, and `asr_source` from
+that final utility artifact. If those artifacts are absent, `asr_rate` is blank
+rather than inferred from the action classifier.
+
+This is a semantic cutover: older data-import WASP tables used `asr_rate` for
+the post-hoc action/intermediate classifier. Regenerate WASP tables before
+comparing ASR across old and new runs. The old action metric is now retained as
+`intermediate_asr_rate`.
 
 ## What the other agent fixed since the broken run
 
