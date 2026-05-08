@@ -151,10 +151,9 @@ override these defaults.
 
 Raise the outer worker cap only after `browser_runtime.json` shows low
 `browser_use_*_watchdog_slow_calls`, low `browser_use_cdp_cancelled_requests_drained`,
-successful `pvpo_browser_recycle_status`, and container process counts returning
-to baseline after recycle. Do not treat a completed run as W48-clean if
-duplicate CDP responses, DOM watchdog slow calls, or recycle process counts
-grow monotonically across tasks.
+and stable PVPO capture summaries. Do not treat a completed run as W48-clean if
+duplicate CDP responses, DOM watchdog slow calls, or `pvpo_capture_degraded`
+rows grow monotonically across tasks.
 
 For paper-facing W48 Browser Use or AgentLab Phase 4 runs, prefer process
 isolation over a single Phase 4 process with `--phase-4-max-workers 48` when
@@ -165,10 +164,11 @@ supervisor launches normal
 single `--phase-4-task-id`, and a one-instance config. This preserves Phase 4
 admission, seeding, PVPO, TP, VEA, eval-awareness iteration, rewards, and
 readback semantics while isolating Browser Use or AgentLab sidecar event loops
-and CDP clients by OS process. The process pool still treats each
-`pvpo_cdp_url` as an exclusive lease; if task distribution is site-skewed,
-observed parallelism is bounded by the number of tasks and instances available
-for that site. For AgentLab parity runs, inspect each task's
+and CDP clients by OS process. Page-surface-stable PVPO observes each worker's
+normal browser session, so process-pool parallelism is no longer bounded by
+dedicated PVPO CDP endpoint leases. If task distribution is site-skewed,
+observed parallelism is still bounded by the number of tasks and benchmark
+instances available for that site. For AgentLab parity runs, inspect each task's
 `browser_runtime.json` for `browser_instance_scope="agent_run"` and
 `agent_browser_connect_count=1`; BrowserGym auxiliary chat/UI launches are
 reported separately under `auxiliary_browser_connect_count`.
@@ -309,7 +309,7 @@ benchmark source unless you have explicitly hydrated the repo-local
 
 Its preflight step runs `pytest -m preflight tests/preflight` and proves:
 
-- PVPO CDP endpoints are reachable and uniquely assigned.
+- Benchmark instance connectivity and page-surface-stable PVPO readiness.
 - GitLab Phase 0d `storage_state` exists with non-empty cookies.
 - The `worldsim-webarena-verified` evaluator venv resolves.
 
@@ -341,9 +341,12 @@ The proxy uses token auth (`X-Worldsim-Token`) and offset ports from `scripts/pr
 
 ## PVPO Rigor Requirement
 
-Phase 4 rigor runs need `chrome-headless-shell` Docker containers from `worldsim/docker/chrome-headless-shell.Dockerfile`. Native macOS Chrome does not support `HeadlessExperimental.beginFrame`; without the container, PVPO falls back to zero coverage and trajectories route to placement-fix.
-
-Each execution instance needs its own `pvpo_cdp_url`. Do not point multiple workers at one shared browser.
+Phase 4 rigor runs use page-surface-stable PVPO. The runner captures the
+visible viewport from its own browser with normal CDP `Page.captureScreenshot`
+and accepts evidence only when pre/post DOM witness probes are stable. Dedicated
+`chrome-headless-shell`/beginFrame containers and `pvpo_cdp_url` leases are
+legacy parity infrastructure, not required for canonical Browser Use or
+AgentLab runs.
 
 ## Live Integration Command
 

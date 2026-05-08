@@ -15,7 +15,6 @@ from typing import Any
 from worldsim_agentlab_runner.cdp_browser import patched_chromium_launch
 from worldsim_agentlab_runner.model_args import model_args_from_request
 from worldsim_agentlab_runner.network_trace import NetworkTraceRecorder
-from worldsim_agentlab_runner.pvpo_screenshot_patch import patched_browsergym_screenshot_for_pvpo
 from worldsim_agentlab_runner.sync_pvpo import FatalPvpoCaptureError, SyncPvpoRecorder
 from worldsim_agentlab_runner.trajectory_projection import (
     final_result_from_env,
@@ -63,6 +62,7 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
     runtime: dict[str, Any] = {
         "runner": "agentlab",
         "mode": "phase4",
+        "pvpo_capture_backend": str(request.get("pvpo_capture_backend") or "page-surface-stable"),
         "cdp_url": request.get("pvpo_cdp_url"),
         "storage_state_aliases": request.get("storage_state_aliases") or {},
         "browser_instance_scope": "agent_run",
@@ -110,46 +110,127 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
         with _patched_env(_string_env(request.get("env_overrides"))):
             cdp_url = str(request.get("pvpo_cdp_url") or "")
             with patched_chromium_launch(cdp_url, runtime):
-                with patched_browsergym_screenshot_for_pvpo(cdp_url, runtime):
-                    with _step_deadline(request, "setup and reset"):
+                with _step_deadline(request, "setup and reset"):
+                    _update_runtime_progress(
+                        output_dir,
+                        runtime,
+                        phase="setup",
+                        step=0,
+                        network=network,
+                    )
+                    benchmark_config = _apply_benchmark_config(agent_args, request)
+                    agent_args.prepare()
+                    agent = agent_args.make_agent()
+                    if hasattr(agent, "set_task_name"):
+                        agent.set_task_name("worldsim.phase4")
+                    env = make_worldsim_browsergym_env(
+                        request,
+                        action_mapping=agent.action_set.to_python_code,
+                        exp_dir=output_dir,
+                        network_recorder=network,
+                        runtime=runtime,
+                    )
+                    step_info = StepInfo(step=0)
+                    step_info.from_reset(
+                        env,
+                        seed=_task_seed(request),
+                        obs_preprocessor=agent.obs_preprocessor,
+                    )
+                    _update_runtime_progress(
+                        output_dir,
+                        runtime,
+                        phase="reset_observed",
+                        step_info=step_info,
+                        network=network,
+                    )
+
+                episode_info.append(step_info)
+                pvpo.capture_step(_pvpo_capture_page(env), step_info.step)
+                _append_step_timeline(
+                    output_dir,
+                    event="reset",
+                    step_info=step_info,
+                    network=network,
+                    runtime=runtime,
+                    network_mark=network_mark,
+                )
+                network_mark = network.mark()
+                _update_runtime_progress(
+                    output_dir,
+                    runtime,
+                    phase="reset_captured",
+                    step_info=step_info,
+                    network=network,
+                )
+
+                while not step_info.is_done and steps_taken < int(
+                    request.get("max_steps") or 30
+                ):
+                    with _step_deadline(request, f"action step {step_info.step}"):
                         _update_runtime_progress(
                             output_dir,
                             runtime,
-                            phase="setup",
-                            step=0,
-                            network=network,
-                        )
-                        benchmark_config = _apply_benchmark_config(agent_args, request)
-                        agent_args.prepare()
-                        agent = agent_args.make_agent()
-                        if hasattr(agent, "set_task_name"):
-                            agent.set_task_name("worldsim.phase4")
-                        env = make_worldsim_browsergym_env(
-                            request,
-                            action_mapping=agent.action_set.to_python_code,
-                            exp_dir=output_dir,
-                            network_recorder=network,
-                            runtime=runtime,
-                        )
-                        step_info = StepInfo(step=0)
-                        step_info.from_reset(
-                            env,
-                            seed=_task_seed(request),
-                            obs_preprocessor=agent.obs_preprocessor,
-                        )
-                        _update_runtime_progress(
-                            output_dir,
-                            runtime,
-                            phase="reset_observed",
+                            phase="agent_action",
                             step_info=step_info,
                             network=network,
                         )
-                    episode_info.append(step_info)
-                    pvpo.capture_step(_pvpo_capture_page(env), step_info.step)
+                        action = step_info.from_action(agent)
+                        _update_runtime_progress(
+                            output_dir,
+                            runtime,
+                            phase="agent_action_done",
+                            step_info=step_info,
+                            action=action,
+                            network=network,
+                        )
+                    step_info.save_step_info(
+                        output_dir,
+                        save_screenshot=True,
+                        save_som=False,
+                    )
                     _append_step_timeline(
                         output_dir,
-                        event="reset",
+                        event="agent_action",
                         step_info=step_info,
+                        action=action,
+                        network=network,
+                        runtime=runtime,
+                        network_mark=network_mark,
+                    )
+                    network_mark = network.mark()
+                    if action is None:
+                        step_info.truncated = True
+                        break
+
+                    next_step = StepInfo(step=step_info.step + 1)
+                    with _step_deadline(request, f"browser step {next_step.step}"):
+                        _update_runtime_progress(
+                            output_dir,
+                            runtime,
+                            phase="browser_step",
+                            step=next_step.step,
+                            action=action,
+                            network=network,
+                        )
+                        next_step.from_step(
+                            env, action, obs_preprocessor=agent.obs_preprocessor
+                        )
+                        _update_runtime_progress(
+                            output_dir,
+                            runtime,
+                            phase="browser_step_done",
+                            step_info=next_step,
+                            action=action,
+                            network=network,
+                        )
+                    steps_taken += 1
+                    episode_info.append(next_step)
+                    pvpo.capture_step(_pvpo_capture_page(env), next_step.step)
+                    _append_step_timeline(
+                        output_dir,
+                        event="browser_step",
+                        step_info=next_step,
+                        action=action,
                         network=network,
                         runtime=runtime,
                         network_mark=network_mark,
@@ -158,95 +239,14 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
                     _update_runtime_progress(
                         output_dir,
                         runtime,
-                        phase="reset_captured",
-                        step_info=step_info,
+                        phase="pvpo_captured",
+                        step_info=next_step,
+                        action=action,
                         network=network,
                     )
+                    step_info = next_step
 
-                    while not step_info.is_done and steps_taken < int(
-                        request.get("max_steps") or 30
-                    ):
-                        with _step_deadline(request, f"action step {step_info.step}"):
-                            _update_runtime_progress(
-                                output_dir,
-                                runtime,
-                                phase="agent_action",
-                                step_info=step_info,
-                                network=network,
-                            )
-                            action = step_info.from_action(agent)
-                            _update_runtime_progress(
-                                output_dir,
-                                runtime,
-                                phase="agent_action_done",
-                                step_info=step_info,
-                                action=action,
-                                network=network,
-                            )
-                        step_info.save_step_info(
-                            output_dir,
-                            save_screenshot=True,
-                            save_som=False,
-                        )
-                        _append_step_timeline(
-                            output_dir,
-                            event="agent_action",
-                            step_info=step_info,
-                            action=action,
-                            network=network,
-                            runtime=runtime,
-                            network_mark=network_mark,
-                        )
-                        network_mark = network.mark()
-                        if action is None:
-                            step_info.truncated = True
-                            break
-
-                        next_step = StepInfo(step=step_info.step + 1)
-                        with _step_deadline(request, f"browser step {next_step.step}"):
-                            _update_runtime_progress(
-                                output_dir,
-                                runtime,
-                                phase="browser_step",
-                                step=next_step.step,
-                                action=action,
-                                network=network,
-                            )
-                            next_step.from_step(
-                                env, action, obs_preprocessor=agent.obs_preprocessor
-                            )
-                            _update_runtime_progress(
-                                output_dir,
-                                runtime,
-                                phase="browser_step_done",
-                                step_info=next_step,
-                                action=action,
-                                network=network,
-                            )
-                        steps_taken += 1
-                        episode_info.append(next_step)
-                        pvpo.capture_step(_pvpo_capture_page(env), next_step.step)
-                        _append_step_timeline(
-                            output_dir,
-                            event="browser_step",
-                            step_info=next_step,
-                            action=action,
-                            network=network,
-                            runtime=runtime,
-                            network_mark=network_mark,
-                        )
-                        network_mark = network.mark()
-                        _update_runtime_progress(
-                            output_dir,
-                            runtime,
-                            phase="pvpo_captured",
-                            step_info=next_step,
-                            action=action,
-                            network=network,
-                        )
-                        step_info = next_step
-
-                    final_result = final_result_from_env(env)
+                final_result = final_result_from_env(env)
     except Exception as exc:
         deadline_hit = isinstance(exc, TimeoutError)
         if isinstance(exc, FatalPvpoCaptureError):
@@ -686,14 +686,10 @@ def _required_str(payload: dict[str, Any], key: str) -> str:
 
 def _recycle_cdp_browser(cdp_url: str) -> dict[str, Any]:
     try:
-        from worldsim.phase_4.pvpo_beginframe import coordinator_for_pvpo_endpoint
         from worldsim.phase_4.pvpo_browser_lifecycle import recycle_pvpo_browser_after_task
 
         async def _recycle() -> dict[str, Any]:
-            payload = await recycle_pvpo_browser_after_task(None, cdp_url)
-            if payload.get("recycle_status") == "recycled":
-                coordinator_for_pvpo_endpoint(cdp_url).reset_after_recycle()
-            return payload
+            return await recycle_pvpo_browser_after_task(None, cdp_url)
 
         return _run_async_in_thread(_recycle())
     except Exception as exc:

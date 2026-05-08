@@ -420,6 +420,7 @@ def _build_phase4_sidecar_request(
         "benchmark_root": str(benchmark_root) if benchmark_root is not None else None,
         "payload_text": run_kwargs.get("payload_text"),
         "payload_witnesses": run_kwargs.get("payload_witnesses") or [],
+        "pvpo_capture_backend": "page-surface-stable",
         "pvpo_cdp_url": run_kwargs.get("pvpo_cdp_url"),
         "url_origin_rewrites": url_origin_rewrites,
         "worldsim_repo_root": str(Path(__file__).resolve().parents[2]),

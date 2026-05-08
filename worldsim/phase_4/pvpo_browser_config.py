@@ -1,19 +1,9 @@
 """Browser configuration for the Paint-Verified Payload Oracle.
 
-This module provides the two one-time setup primitives PVPO needs after the
-ink-occupancy cutover:
-
-1. ``PVPO_LAUNCH_FLAGS`` — the Chromium command-line flags
-   ``chrome-headless-shell`` must be started with so
-   ``HeadlessExperimental.beginFrame`` works and the screenshot accurately
-   reflects the committed paint frame.
-2. ``inject_animation_killer`` — page-level CSS that eliminates the
-   residual compositor-thread-animation race after
-   ``setVirtualTimePolicy("pause")``.
-
-The capture step itself (virtual-time pause, beginFrame, per-char
-visibility + bg-color query) lives in ``pvpo_capture.py``; host-side
-ink-occupancy verification lives in ``ink_occupancy.py``.
+This module provides page-level CSS that reduces the residual animation race
+between the pre-probe, page-surface screenshot, and post-probe used by PVPO.
+The capture step itself lives in ``pvpo_capture.py``; host-side ink-occupancy
+verification lives in ``ink_occupancy.py``.
 
 See ``docs/handoffs/codex-handoff-paint-verified-oracle.md`` §3 for the
 original design. The hidden reference container (handoff §3.2b) and the
@@ -28,18 +18,7 @@ from typing import Any
 
 from worldsim.phase_4.pvpo_cdp import runtime_evaluate
 
-# Chromium launch flags. The binary is ``chrome-headless-shell`` from Chrome
-# for Testing (see ``worldsim/docker/chrome-headless-shell.Dockerfile``).
-# Flag audit: these three are required and active in 2026 Chromium; three
-# flags that appeared in earlier proposals
-# (``--enable-surface-synchronization``, ``--disable-threaded-scrolling``,
-# ``--disable-threaded-animation``) were dropped after verifying they are
-# no-ops or removed in current Chromium.
-PVPO_LAUNCH_FLAGS: tuple[str, ...] = (
-    "--enable-begin-frame-control",
-    "--run-all-compositor-stages-before-draw",
-    "--disable-checker-imaging",
-)
+PVPO_LAUNCH_FLAGS: tuple[str, ...] = ()
 
 
 # Public DOM-attribute name used by the JS visibility query to locate the
@@ -83,14 +62,10 @@ _INJECT_ANIMATION_KILLER_FALLBACK_EVAL = f"""() => {{
 async def inject_animation_killer(page: Any, cdp_session: Any | None = None) -> None:
     """Idempotently install the animation-killer stylesheet.
 
-    The stylesheet forces all CSS ``animation`` and ``transition``
-    properties to zero duration, which prevents off-main-thread
-    compositor-thread animations from advancing between the visibility
-    query and the ``beginFrame`` capture. Combined with
-    ``Emulation.setVirtualTimePolicy("pause")`` (called per-step by
-    :func:`worldsim.phase_4.pvpo_capture.atomic_capture_with_visibility`),
-    this closes the theoretical race flagged by Chromium's own
-    compositor-animation tests (marked "Flaky on all platforms").
+    The stylesheet forces all CSS ``animation`` and ``transition`` properties
+    to zero duration, which reduces page movement between the pre-probe,
+    screenshot, and post-probe. If geometry still changes, page-surface-stable
+    capture records degraded evidence and encounter detection fails closed.
 
     Args:
         page: page-like object used only when no ``cdp_session`` is

@@ -102,10 +102,8 @@ _CDP_VIEWPORT_JS = """
 _PVPO_CDP_TIMEOUT_ENV = "WORLDSIM_PVPO_CDP_TIMEOUT_S"
 _PVPO_CDP_TIMEOUT_DEFAULT_S = 10.0
 _PVPO_CAPTURE_BACKEND_ENV = "WORLDSIM_PVPO_CAPTURE_BACKEND"
-_PVPO_CAPTURE_BACKEND_BEGINFRAME = "beginframe"
 _PVPO_CAPTURE_BACKEND_SURFACE = "page-surface-stable"
 _PVPO_CAPTURE_BACKENDS = {
-    _PVPO_CAPTURE_BACKEND_BEGINFRAME,
     _PVPO_CAPTURE_BACKEND_SURFACE,
 }
 _PVPO_SCROLL_ACTION_TIMEOUT_ENV = "WORLDSIM_PVPO_SCROLL_ACTION_TIMEOUT_S"
@@ -1538,7 +1536,7 @@ def _pvpo_navigation_tick_interval_s() -> float:
 def _pvpo_capture_backend() -> str:
     raw = os.environ.get(_PVPO_CAPTURE_BACKEND_ENV, "").strip()
     if not raw:
-        return _PVPO_CAPTURE_BACKEND_BEGINFRAME
+        return _PVPO_CAPTURE_BACKEND_SURFACE
     value = raw.lower().replace("_", "-")
     aliases = {
         "surface": _PVPO_CAPTURE_BACKEND_SURFACE,
@@ -1551,9 +1549,9 @@ def _pvpo_capture_backend() -> str:
             "%s=%r is invalid; using %s",
             _PVPO_CAPTURE_BACKEND_ENV,
             raw,
-            _PVPO_CAPTURE_BACKEND_BEGINFRAME,
+            _PVPO_CAPTURE_BACKEND_SURFACE,
         )
-        return _PVPO_CAPTURE_BACKEND_BEGINFRAME
+        return _PVPO_CAPTURE_BACKEND_SURFACE
     return value
 
 
@@ -2911,18 +2909,8 @@ class BrowserUseAgent:
                 ),
             }
         )
-        pvpo_endpoint_lease_cm: Any = None
-        pvpo_beginframe_controller: Any = None
         pvpo_capture_backend = _pvpo_capture_backend()
         self._browser_runtime["pvpo_capture_backend"] = pvpo_capture_backend
-
-        async def _release_pvpo_endpoint_lease() -> None:
-            nonlocal pvpo_endpoint_lease_cm
-            if pvpo_endpoint_lease_cm is None:
-                return
-            lease = pvpo_endpoint_lease_cm
-            pvpo_endpoint_lease_cm = None
-            await lease.__aexit__(None, None, None)
 
         # Resolve the declared auth_mechanism into BrowserSession kwargs +
         # deferred post-start actions. Errors here surface before we spin up a
@@ -2954,65 +2942,27 @@ class BrowserUseAgent:
                 "open multiple start_urls because new-tab first requests may precede "
                 "CDP Fetch attachment"
             )
-        # PVPO integration: Phase 4 binds each worker to its own chrome-
-        # headless-shell endpoint via the instance config. The shared global
-        # WORLDSIM_PVPO_CDP_URL path is intentionally removed.
-        resolved_pvpo_cdp_url = (
-            _resolve_pvpo_cdp_url(pvpo_cdp_url or "")
-            if pvpo_capture_backend == _PVPO_CAPTURE_BACKEND_BEGINFRAME
-            else ""
-        )
+        # PVPO is captured from the normal agent browser via page-surface-stable.
+        # Historical instance files may still carry pvpo_cdp_url, but the
+        # canonical backend intentionally ignores dedicated beginFrame endpoints.
+        del pvpo_cdp_url
+        resolved_pvpo_cdp_url = ""
         self._pvpo_cdp_url = resolved_pvpo_cdp_url
         self._preserve_remote_auth_state = "storage_state" in session_auth_kwargs
-        external_cdp_storage_state = (
-            session_auth_kwargs.get("storage_state")
-            if resolved_pvpo_cdp_url and isinstance(session_auth_kwargs.get("storage_state"), str)
-            else None
-        )
         session_kwargs: dict[str, Any] = {
             "headless": self.headless,
             "keep_alive": False,
             **session_auth_kwargs,
         }
-        if resolved_pvpo_cdp_url:
-            session_kwargs["cdp_url"] = resolved_pvpo_cdp_url
-            _install_pvpo_beginframe_screenshot_patch()
-            _install_pvpo_scroll_patch()
-            _install_pvpo_navigation_tick_patch()
-            _install_pvpo_watchdog_telemetry_patch()
-            _install_cdp_use_cancellation_patch()
-            from worldsim.phase_4.pvpo_beginframe import pvpo_endpoint_lease
-
-            pvpo_endpoint_lease_cm = pvpo_endpoint_lease(resolved_pvpo_cdp_url)
-            pvpo_beginframe_controller = await pvpo_endpoint_lease_cm.__aenter__()
-            self._browser_runtime.update(pvpo_beginframe_controller.stats())
-        else:
-            session_kwargs["args"] = [
-                "--disable-gpu",
-                "--disable-extensions",
-                "--no-sandbox",  # required for Chrome on EC2/Docker/root
-                "--disable-software-rasterizer",  # reduce CPU when GPU unavailable
-            ]
+        session_kwargs["args"] = [
+            "--disable-gpu",
+            "--disable-extensions",
+            "--no-sandbox",  # required for Chrome on EC2/Docker/root
+            "--disable-software-rasterizer",  # reduce CPU when GPU unavailable
+        ]
         try:
             self._session = BrowserSession(**session_kwargs)
-            if resolved_pvpo_cdp_url:
-                if pvpo_beginframe_controller is not None:
-                    self._session._worldsim_pvpo_beginframe_controller = (
-                        pvpo_beginframe_controller
-                    )
-                    self._session._worldsim_pvpo_beginframe_lock = (
-                        pvpo_beginframe_controller.lock
-                    )
-                else:
-                    self._session._worldsim_pvpo_beginframe_lock = asyncio.Lock()
-                self._session._worldsim_pvpo_disable_browser_use_screenshots = not bool(
-                    self.use_vision
-                )
-                self._session._worldsim_browser_use_cdp_counter_start = dict(
-                    _CDP_USE_RUNTIME_COUNTERS
-                )
         except Exception:
-            await _release_pvpo_endpoint_lease()
             raise
 
         # Retry browser startup with linear backoff for transient failures
@@ -3035,10 +2985,8 @@ class BrowserUseAgent:
                         )
                         await asyncio.sleep(delay)
         except Exception:
-            await _release_pvpo_endpoint_lease()
             raise
         if last_exc is not None:
-            await _release_pvpo_endpoint_lease()
             raise last_exc
 
         history = None
@@ -3050,13 +2998,6 @@ class BrowserUseAgent:
         extra_errors: list[str] = []
         task_text = site_prompt if site_prompt else task
         try:
-            if self._pvpo_cdp_url:
-                await self._reset_remote_browser_for_task(self._session)
-                if external_cdp_storage_state:
-                    await _restore_external_cdp_storage_state(
-                        self._session, external_cdp_storage_state
-                    )
-
             # Run any deferred auth actions (e.g. future form_login flow) after
             # session.start() succeeds and after any remote-browser reset has
             # produced a fresh task-owned target. No-op for the first batch
@@ -3078,20 +3019,8 @@ class BrowserUseAgent:
             await network_recorder.start()
 
             initial_actions = _build_initial_actions(start_urls or [])
-            # ``frame_pump`` now owns only the shared capture event/coordinator
-            # context in production. Browser Use navigation gets compositor
-            # frames from the PVPO navigation-tick patch above, scoped to
-            # _navigate_and_wait instead of a broad background clock.
-            from worldsim.phase_4.pvpo_frame_pump import frame_pump
-
-            frame_pump_interval_s = 0.0
-            async with frame_pump(self._session, interval_s=frame_pump_interval_s) as capturing:
-                self._session._worldsim_pvpo_beginframe_lock = getattr(
-                    capturing, "beginframe_lock", None
-                )
-                self._session._worldsim_pvpo_beginframe_controller = getattr(
-                    capturing, "beginframe_controller", None
-                )
+            capturing = asyncio.Event()
+            try:
                 self._session._worldsim_pvpo_capturing_event = capturing
                 pvpo_hook = _make_pvpo_step_callback(
                     self._session,
@@ -3141,6 +3070,9 @@ class BrowserUseAgent:
                     extra_errors.append(str(e))
                     history = getattr(agent, "history", None)
                     logger.exception("Agent run failed for %s", task_dir)
+            finally:
+                with suppress(AttributeError):
+                    delattr(self._session, "_worldsim_pvpo_capturing_event")
         finally:
             if network_recorder is not None:
                 network_trace = await network_recorder.stop()
@@ -3166,7 +3098,7 @@ class BrowserUseAgent:
                 else:
                     _write_browser_runtime_artifact(task_dir, self._browser_runtime)
             finally:
-                await _release_pvpo_endpoint_lease()
+                pass
 
         steps, is_done, final_result, history_errors = _extract_history_state(history)
         return AgentResult(
@@ -3245,16 +3177,6 @@ class BrowserUseAgent:
                 delta = int(value) - start
                 if delta > 0:
                     self._browser_runtime[f"browser_use_cdp_{key}"] = delta
-        try:
-            from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator
-
-            controller = getattr(self._session, "_worldsim_pvpo_beginframe_controller", None)
-            if isinstance(controller, BeginFrameCoordinator):
-                for key, value in controller.stats().items():
-                    if value not in (None, "", 0, False):
-                        self._browser_runtime[f"pvpo_{key}"] = value
-        except Exception:
-            return
 
     async def teardown(self) -> None:
         if self._session is not None:
@@ -3803,16 +3725,15 @@ def _make_pvpo_step_callback(
 
     1. Idempotently inject the animation-killer stylesheet on the current
        page (once per page load).
-    2. Pause virtual time, run the per-char visibility query (which locates
-       ``payload_text`` in the live DOM by substring match), capture a
-       deterministic ``HeadlessExperimental.beginFrame`` screenshot, and
-       write ``pvpo/step_{N}.json`` + ``screenshots/step_{N}.png``.
+    2. Run the per-char visibility query (which locates ``payload_text`` in
+       the live DOM by substring match), capture the visible page surface with
+       ``Page.captureScreenshot``, re-run the query, and write
+       ``pvpo/step_{N}.json`` + ``screenshots/step_{N}.png`` only with stable
+       evidence.
 
-    The callback is intentionally best-effort: any CDP failure (the most
-    common is ``beginFrame`` being unsupported on native macOS Chrome, which
-    is why rigor runs use the ``chrome-headless-shell`` Docker container)
-    logs at debug and returns without raising. Trajectories without PVPO
-    artifacts fall back to the legacy screenshot-copy path via
+    The callback is intentionally best-effort: any CDP failure logs at debug
+    and returns without raising. Trajectories without PVPO artifacts fall back
+    to the legacy screenshot-copy path via
     ``_copy_history_screenshots`` after the agent finishes, and encounter
     detection reports zero coverage — routing to placement-fix.
 
@@ -3839,7 +3760,6 @@ def _make_pvpo_step_callback(
     from worldsim.phase_4.pvpo_browser_config import inject_animation_killer
     from worldsim.phase_4.pvpo_capture import (
         Rect,
-        atomic_capture_with_visibility,
         initial_capture_summary,
         save_capture_summary,
         save_step_artifacts,
@@ -3970,11 +3890,6 @@ def _make_pvpo_step_callback(
             )
             return
 
-        dirty_reason = _pvpo_beginframe_dirty_reason(session)
-        if dirty_reason:
-            _record_issue("beginframe_endpoint_dirty", step_idx, dirty_reason)
-            return
-
         try:
             if target_id not in pages_prepared:
                 await _await_pvpo_cdp(
@@ -4008,12 +3923,7 @@ def _make_pvpo_step_callback(
                 w=int(viewport.get("w", 0)) or 1280,
                 h=int(viewport.get("h", 0)) or 720,
             )
-            capture_fn = (
-                surface_capture_with_stability
-                if selected_capture_backend == _PVPO_CAPTURE_BACKEND_SURFACE
-                else atomic_capture_with_visibility
-            )
-            capture = await capture_fn(
+            capture = await surface_capture_with_stability(
                 cdp_session,
                 viewport_rect=viewport_rect,
                 payload_text=payload_text,

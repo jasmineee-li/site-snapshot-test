@@ -194,10 +194,10 @@ async def test_pump_yields_beginframe_lock_on_capturing_event():
     session = _FakeSession()
     async with frame_pump(session, interval_s=0.01) as capturing:
         lock = getattr(capturing, "beginframe_lock", None)
-        assert isinstance(lock, asyncio.Lock), (
-            "frame_pump must attach an asyncio.Lock to the yielded Event; "
-            "without it atomic_capture_with_visibility cannot serialize beginFrame"
+        assert lock is not None, (
+            "legacy frame_pump must attach a lock-like object to the yielded Event"
         )
+        assert hasattr(lock, "__aenter__") and hasattr(lock, "__aexit__")
         assert not lock.locked()
         assert isinstance(
             getattr(capturing, "beginframe_controller", None),

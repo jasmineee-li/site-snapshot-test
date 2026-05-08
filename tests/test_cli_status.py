@@ -229,7 +229,7 @@ def test_worldsim_status_prints_operator_card(tmp_path: Path, capsys) -> None:
     assert "Pipeline: step=phase_4 status=complete" in out
     assert (
         "Phase 4 progress: status=complete stage=complete initial=1/1 "
-        "started=1/1 active=0 postprocessed=1/1"
+        "initial_started=0/1 initial_active=0 started=1/1 active=0 postprocessed=1/1"
     ) in out
     assert "postprocess_attempted=1/1 postprocess_failed=0" in out
     assert "Phase 4 variant progress: budget=adaptive-3-3-1 entered=1 active=0" in out

@@ -1,8 +1,6 @@
 import json
 from pathlib import Path
 
-import pytest
-
 from worldsim.config import BenchmarkConfig
 from worldsim.phase_4.process_pool import (
     ProcessPoolArgs,
@@ -55,7 +53,7 @@ def _config(tmp_path: Path, instances: list[dict]) -> BenchmarkConfig:
     )
 
 
-def test_build_assignments_rejects_duplicate_pvpo(tmp_path):
+def test_build_assignments_allows_duplicate_legacy_pvpo_urls(tmp_path):
     args = _pool_args(tmp_path)
     config = _config(
         tmp_path,
@@ -73,8 +71,9 @@ def test_build_assignments_rejects_duplicate_pvpo(tmp_path):
         ],
     )
 
-    with pytest.raises(SystemExit, match="duplicate pvpo_cdp_url"):
-        _build_assignments(args, config, [{"id": "adv-1", "site": "gitlab"}])
+    assignments = _build_assignments(args, config, [{"id": "adv-1", "site": "gitlab"}])
+
+    assert len(assignments) == 1
 
 
 def test_worker_command_filters_to_single_task_and_worker(tmp_path):

@@ -11,11 +11,12 @@ from urllib.request import urlopen
 
 @contextlib.contextmanager
 def patched_chromium_launch(cdp_url: str | None, runtime: dict[str, Any]):
-    """Route BrowserGym's Chromium launch through a dedicated CDP endpoint.
+    """Optionally route BrowserGym's Chromium launch through a CDP endpoint.
 
-    BrowserGym launches Chromium internally. Phase 4 assigns each worker a
-    dedicated chrome-headless-shell endpoint instead. Patching the launch call
-    keeps BrowserGym/AgentLab unmodified while preserving WorldSim locality.
+    BrowserGym launches Chromium internally. Canonical page-surface-stable PVPO
+    works with that normal browser. This patch remains for legacy configs that
+    explicitly provide a CDP endpoint; it keeps BrowserGym/AgentLab unmodified
+    while preserving WorldSim locality.
     """
 
     if not cdp_url:

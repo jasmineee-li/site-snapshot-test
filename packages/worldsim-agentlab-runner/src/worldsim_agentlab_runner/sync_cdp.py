@@ -90,9 +90,9 @@ class PumpedSyncCdpSession:
 class SyncCdpWorker:
     """Persistent async worker for sync Playwright CDP calls.
 
-    Playwright's sync API must be called from the owning thread. The worker keeps
-    async PVPO state, especially the beginFrame coordinator, on one event loop
-    while the caller thread services actual sync ``session.send`` calls.
+    Playwright's sync API must be called from the owning thread. The worker lets
+    async PVPO capture code share one event loop while the caller thread services
+    actual sync ``session.send`` calls.
     """
 
     def __init__(self, *, timeout_s: float, name: str) -> None:

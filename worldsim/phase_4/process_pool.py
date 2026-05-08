@@ -206,13 +206,7 @@ def _build_assignments(
     tasks: list[dict[str, Any]],
 ) -> list[WorkerAssignment]:
     instances_by_site: dict[str, deque[tuple[int, BenchmarkInstance]]] = {}
-    seen_cdp: set[str] = set()
     for index, instance in enumerate(config.instances):
-        cdp = str(instance.pvpo_cdp_url or "").strip()
-        if cdp:
-            if cdp in seen_cdp:
-                raise SystemExit(f"duplicate pvpo_cdp_url in instances config: {cdp}")
-            seen_cdp.add(cdp)
         instances_by_site.setdefault(normalize_site_name(instance.site_name), deque()).append(
             (index, instance)
         )

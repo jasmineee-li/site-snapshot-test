@@ -593,11 +593,11 @@ async def test_pvpo_callback_writes_artifacts_on_browser_use_success_path(
 
     inject = AsyncMock()
     viewport = AsyncMock(return_value={"w": 640, "h": 480})
-    atomic_capture = AsyncMock(return_value=capture)
+    surface_capture = AsyncMock(return_value=capture)
     monkeypatch.setattr("worldsim.phase_4.pvpo_browser_config.inject_animation_killer", inject)
     monkeypatch.setattr("worldsim.phase_4.pvpo_cdp.runtime_evaluate_value", viewport)
     monkeypatch.setattr(
-        "worldsim.phase_4.pvpo_capture.atomic_capture_with_visibility", atomic_capture
+        "worldsim.phase_4.pvpo_capture.surface_capture_with_stability", surface_capture
     )
 
     callback = browser_use_agent._make_pvpo_step_callback(
@@ -610,7 +610,7 @@ async def test_pvpo_callback_writes_artifacts_on_browser_use_success_path(
 
     inject.assert_awaited_once_with(page, cdp_session)
     viewport.assert_awaited_once()
-    atomic_capture.assert_awaited_once_with(
+    surface_capture.assert_awaited_once_with(
         cdp_session,
         viewport_rect=Rect(x=0, y=0, w=640, h=480),
         payload_text="payload text",
@@ -1821,9 +1821,6 @@ async def test_pvpo_scroll_patch_skips_js_when_timed_out_wheel_already_moved(
 
 
 def test_record_browser_use_patch_runtime_persists_scroll_counters():
-    coordinator = BeginFrameCoordinator(endpoint_identity="127.0.0.1:9222")
-    coordinator.send_count = 2
-    coordinator.pending_error_count = 1
     agent = browser_use_agent.BrowserUseAgent(llm=object())
     agent._session = SimpleNamespace(
         _worldsim_pvpo_scroll_wheel_successes=2,
@@ -1833,7 +1830,6 @@ def test_record_browser_use_patch_runtime_persists_scroll_counters():
         _worldsim_pvpo_scroll_js_fallbacks=3,
         _worldsim_pvpo_scroll_js_failures=0,
         _worldsim_pvpo_scroll_js_noops=1,
-        _worldsim_pvpo_beginframe_controller=coordinator,
         _worldsim_pvpo_navigation_tick_navigations=1,
         _worldsim_pvpo_navigation_tick_frames=4,
         _worldsim_pvpo_navigation_tick_failures=0,
@@ -1858,10 +1854,7 @@ def test_record_browser_use_patch_runtime_persists_scroll_counters():
         "pvpo_browser_use_screenshot_drain_failures": 1,
         "pvpo_cdp_timeouts": 2,
         "pvpo_cdp_late_completions": 1,
-        "pvpo_beginframe_sends": 2,
-        "pvpo_beginframe_pending_errors": 1,
-        "pvpo_beginframe_endpoint_identity": "127.0.0.1:9222",
-    }
+        }
 
 
 def test_record_browser_use_patch_runtime_preserves_explicit_timeout_metadata():
@@ -1929,11 +1922,11 @@ async def test_pvpo_callback_adopts_new_task_target(tmp_path, monkeypatch: pytes
     )
     inject = AsyncMock()
     viewport = AsyncMock(return_value={"w": 640, "h": 480})
-    atomic_capture = AsyncMock(return_value=capture)
+    surface_capture = AsyncMock(return_value=capture)
     monkeypatch.setattr("worldsim.phase_4.pvpo_browser_config.inject_animation_killer", inject)
     monkeypatch.setattr("worldsim.phase_4.pvpo_cdp.runtime_evaluate_value", viewport)
     monkeypatch.setattr(
-        "worldsim.phase_4.pvpo_capture.atomic_capture_with_visibility", atomic_capture
+        "worldsim.phase_4.pvpo_capture.surface_capture_with_stability", surface_capture
     )
 
     owned_target_ids = {"target-1"}
@@ -2432,10 +2425,8 @@ async def test_run_storage_state_remote_pvpo_reaches_session_start(monkeypatch, 
     )
 
     assert result.status == "success"
-    runner._reset_remote_browser_for_task.assert_awaited_once()
-    restore.assert_awaited_once()
-    assert restore.await_args.args[0] is runner._reset_remote_browser_for_task.await_args.args[0]
-    assert restore.await_args.args[1] == "/tmp/state.json"
+    runner._reset_remote_browser_for_task.assert_not_awaited()
+    restore.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -2483,21 +2474,8 @@ async def test_run_uses_pvpo_capture_context_without_continuous_frame_pump(
         async def kill(self):
             return None
 
-    class FakeFramePump:
-        def __init__(self, session, *, interval_s=None):
-            observed["frame_pump_interval_s"] = interval_s
-
-        async def __aenter__(self):
-            capturing = asyncio.Event()
-            capturing.beginframe_lock = asyncio.Lock()  # type: ignore[attr-defined]
-            return capturing
-
-        async def __aexit__(self, exc_type, exc, tb):
-            return False
-
     monkeypatch.setattr(browser_use, "Agent", FakeAgent)
     monkeypatch.setattr(browser_use, "BrowserSession", FakeBrowserSession)
-    monkeypatch.setattr("worldsim.phase_4.pvpo_frame_pump.frame_pump", FakeFramePump)
     monkeypatch.setattr(
         browser_use_agent.BrowserUseAgent,
         "_reset_remote_browser_for_task",
@@ -2534,7 +2512,6 @@ async def test_run_uses_pvpo_capture_context_without_continuous_frame_pump(
 
     assert result.status == "success"
     assert observed["agent_use_vision"] is False
-    assert observed["frame_pump_interval_s"] == 0.0
 
 
 @pytest.mark.asyncio
@@ -2645,12 +2622,12 @@ async def test_run_writes_browser_runtime_after_cleanup(monkeypatch: pytest.Monk
     )
 
     assert result.status == "success"
-    assert observed["target_filter"] == {"owned-1"}
+    assert observed["target_filter"] == set()
 
     runtime = json.loads((tmp_path / "task" / "browser_runtime.json").read_text())
-    assert runtime["cleanup_closed_targets"] == 1
-    assert runtime["cleanup_target_ids"] == ["owned-1"]
-    assert runtime["cleanup_origins"] == ["https://example.test"]
+    assert runtime["pvpo_capture_backend"] == "page-surface-stable"
+    assert "cleanup_closed_targets" not in runtime
+    assert "pvpo_browser_recycle_status" not in runtime
 
 
 @pytest.mark.asyncio
@@ -2673,7 +2650,7 @@ async def test_run_rejects_authenticated_off_origin_start_url(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_run_cleans_up_session_when_remote_reset_fails(
+async def test_run_cleans_up_session_when_agent_start_fails(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ):
     import browser_use
@@ -2689,13 +2666,13 @@ async def test_run_cleans_up_session_when_remote_reset_fails(
         async def start(self):
             return None
 
+    class FailingAgent:
+        def __init__(self, **kwargs):
+            _ = kwargs
+            raise RuntimeError("agent boom")
+
     monkeypatch.setattr(browser_use, "BrowserSession", FakeBrowserSession)
-    monkeypatch.setattr(browser_use, "Agent", object)
-    monkeypatch.setattr(
-        browser_use_agent.BrowserUseAgent,
-        "_reset_remote_browser_for_task",
-        AsyncMock(side_effect=RuntimeError("reset boom")),
-    )
+    monkeypatch.setattr(browser_use, "Agent", FailingAgent)
     monkeypatch.setattr(
         browser_use_agent.BrowserUseAgent,
         "_recycle_external_pvpo_browser",
@@ -2703,7 +2680,7 @@ async def test_run_cleans_up_session_when_remote_reset_fails(
     )
 
     agent = browser_use_agent.BrowserUseAgent(llm=object())
-    with pytest.raises(RuntimeError, match="reset boom"):
+    with pytest.raises(RuntimeError, match="agent boom"):
         await agent.run(
             task="Open the page",
             server_url="https://example.test",

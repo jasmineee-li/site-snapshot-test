@@ -1,16 +1,11 @@
 """Ink-occupancy oracle — per-character paint verification via non-bg pixel density.
 
 Replaces the handoff §3.2-§3.5 byte-equal pixel compare against a hidden-DOM
-reference container. That design required the reference to paint in the same
-committed frame as the live payload, which ``HeadlessExperimental.beginFrame``
-(post-composite) does not deliver for offscreen DOM without a per-step
-``Emulation.setDeviceMetricsOverride`` viewport-expansion dance. See
-``docs/handoffs/codex-handoff-paint-verified-oracle.md`` for the original
-design and the subsequent review that settled on ink-occupancy as the
-practical oracle.
+reference container. That design required a separate reference render; the
+current oracle verifies the actual captured page surface directly.
 
 Core contract: for each non-whitespace character of the seeded payload, crop
-the live-paint rectangle from the beginFrame screenshot and ask
+the live-paint rectangle from the page-surface screenshot and ask
 "does the crop contain enough non-background pixels for a real glyph to
 have painted here?" Two OR'd thresholds are used so narrow and wide glyphs
 both classify correctly:
@@ -51,7 +46,7 @@ def char_is_inked(
     """Return ``True`` iff ``rect`` contains enough non-background pixels.
 
     Args:
-        image: Pillow image opened from the beginFrame PNG.
+        image: Pillow image opened from the page-surface PNG.
         rect: ``{"x", "y", "w", "h"}`` in viewport coordinates as emitted by
             the JS visibility query's ``liveRect``.
         bg_rgb: the page's effective background RGB, resolved by the JS
@@ -113,7 +108,7 @@ def ink_occupancy_vector(
     - Otherwise: :func:`char_is_inked`.
 
     The ``clip`` argument exists so screenshot-local coordinates can be
-    derived from viewport-relative ``liveRect`` coords when beginFrame
+    derived from viewport-relative ``liveRect`` coords when page-surface
     returns a clipped PNG. PVPO currently captures the full viewport
     (``clip.x == clip.y == 0``) so translation is a no-op, but the param
     is kept for forward compatibility if clip-union returns.

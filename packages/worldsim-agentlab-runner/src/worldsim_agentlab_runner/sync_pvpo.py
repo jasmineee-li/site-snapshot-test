@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import os
@@ -31,8 +30,8 @@ class SyncPvpoRecorder:
 
     AgentLab/BrowserGym exposes Playwright's sync API, while Browser Use uses an
     async CDP surface. This bridge owns only the sync-to-async boundary; the
-    capture algorithm, query JS, beginFrame retries, metadata shape, and artifact
-    writer all come from ``worldsim.phase_4.pvpo_capture``.
+    capture algorithm, query JS, metadata shape, and artifact writer all come
+    from ``worldsim.phase_4.pvpo_capture``.
     """
 
     def __init__(
@@ -50,7 +49,6 @@ class SyncPvpoRecorder:
         self.repo_root = repo_root
         self.cdp_url = cdp_url
         self.payload_present = bool(payload_text or witness_texts)
-        self._controller: Any = None
         self._warned_issue_classes: set[str] = set()
         self._pages_prepared: set[str] = set()
         self.fatal_capture_error: FatalPvpoCaptureError | None = None
@@ -135,8 +133,8 @@ class SyncPvpoRecorder:
         from worldsim.phase_4.pvpo_browser_config import inject_animation_killer
         from worldsim.phase_4.pvpo_capture import (
             Rect,
-            atomic_capture_with_visibility,
             save_step_artifacts,
+            surface_capture_with_stability,
         )
         from worldsim.phase_4.pvpo_cdp import runtime_evaluate_value
 
@@ -167,15 +165,14 @@ class SyncPvpoRecorder:
                 w=int(viewport.get("w", 0)) or 1280,
                 h=int(viewport.get("h", 0)) or 720,
             )
-            capturing = self._capturing_event()
             witnesses = _normalize_payload_witness_specs(self.witness_texts)
-            capture = await atomic_capture_with_visibility(
+            capture = await surface_capture_with_stability(
                 cdp_session,
                 viewport_rect=viewport_rect,
                 payload_text=self.payload_text,
                 witness_texts=witnesses if self.witness_texts is not None else None,
                 scroll_to_match=False,
-                capturing=capturing,
+                capturing=None,
                 cdp_timeout_s=timeout_s,
             )
             save_step_artifacts(self.output_dir, step_idx, capture)
@@ -191,22 +188,6 @@ class SyncPvpoRecorder:
                 "capture_failed", step_idx, _pvpo_issue_message(exc, timeout_s=timeout_s)
             )
 
-    def _capturing_event(self) -> asyncio.Event:
-        from worldsim.phase_4.pvpo_beginframe import (
-            BeginFrameCoordinator,
-            coordinator_for_pvpo_endpoint,
-        )
-
-        capturing = asyncio.Event()
-        if self._controller is None:
-            if self.cdp_url:
-                self._controller = coordinator_for_pvpo_endpoint(self.cdp_url)
-            else:
-                self._controller = BeginFrameCoordinator()
-        capturing.beginframe_lock = self._controller.lock  # type: ignore[attr-defined]
-        capturing.beginframe_controller = self._controller  # type: ignore[attr-defined]
-        return capturing
-
     def _record_issue(self, issue_class: str, step_idx: int, message: str) -> None:
         self.summary["status"] = "degraded"
         self.summary["issue_steps"] += 1
@@ -219,7 +200,7 @@ class SyncPvpoRecorder:
         self.summary["last_issue_class"] = issue_class
         self.summary["last_issue_step"] = step_idx
         self.summary["last_issue_message"] = message
-        if issue_class == "capture_failed":
+        if issue_class == "capture_failed" and "HeadlessExperimental.beginFrame" in message:
             fatal_error = FatalPvpoCaptureError(
                 "AgentLab PVPO capture failed; stopping sidecar before BrowserGym "
                 f"continues on a potentially corrupt CDP session: {message}"

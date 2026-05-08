@@ -1,26 +1,21 @@
-"""Paint-Verified Payload Oracle — atomic CDP capture.
+"""Paint-Verified Payload Oracle — page-surface-stable CDP capture.
 
-Per-step capture (handoff §3.3, with the ink-occupancy simplification from
-the post-handoff review that dropped the hidden reference container):
+Per-step capture:
 
-  1. ``Emulation.setVirtualTimePolicy({"policy": "pause"})``
-  2. ``Runtime.evaluate(PVPO_QUERY_JS, returnByValue=True)`` — per-char
-     visibility vector (layout-visible, in-viewport, not occluded) plus
-     the page's effective background RGB resolved via an ancestor walk.
-  3. ``HeadlessExperimental.beginFrame`` with ``screenshot.clip`` covering
-     the visible viewport. Host-side ink-occupancy verification
-     (:mod:`worldsim.phase_4.ink_occupancy`) measures non-background pixel
-     density inside each character's live rect, which is strictly stronger
-     than layout-visibility alone and correct under
-     ``beginFrame``'s post-composite semantics (no offscreen DOM needed).
-  4. ``Emulation.setVirtualTimePolicy({"policy": "advance"})``
+  1. ``Runtime.evaluate(PVPO_QUERY_JS, returnByValue=True)`` — per-char
+     visibility vector (layout-visible, in-viewport, not occluded) plus the
+     page's effective background RGB resolved via an ancestor walk.
+  2. ``Page.captureScreenshot(fromSurface=true, captureBeyondViewport=false)``
+     clipped to the visible viewport.
+  3. ``Runtime.evaluate(PVPO_QUERY_JS, returnByValue=True)`` again.
+  4. Accept the screenshot only when pre/post probes agree on URL, witness,
+     background, and geometry; otherwise persist degraded evidence with empty
+     visibility so encounter detection fails closed.
 
-The prior byte-equal reference-container oracle was removed in the clean
-cutover: it required the reference to paint in the same composited frame
-as the live payload, which is not achievable without per-step
-``Emulation.setDeviceMetricsOverride`` viewport expansion. See
-``docs/handoffs/codex-handoff-paint-verified-oracle.md`` and the
-subsequent review.
+Host-side ink-occupancy verification
+(:mod:`worldsim.phase_4.ink_occupancy`) measures non-background pixel density
+inside each character's live rect, which is strictly stronger than
+layout-visibility alone.
 """
 
 from __future__ import annotations
@@ -162,7 +157,7 @@ class Rect:
         return cls(x=int(d["x"]), y=int(d["y"]), w=int(d["w"]), h=int(d["h"]))
 
     def as_cdp_clip(self, scale: float = 1.0) -> dict[str, Any]:
-        """Shape expected by ``HeadlessExperimental.beginFrame.screenshot.clip``."""
+        """Shape expected by CDP screenshot ``clip`` parameters."""
         return {
             "x": float(self.x),
             "y": float(self.y),

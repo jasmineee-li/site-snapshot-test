@@ -170,23 +170,9 @@ async def run(args: argparse.Namespace) -> int:
                 **state_metadata,
             )
             return 1
-    pvpo_endpoint_errors = _pvpo_endpoint_preflight_errors(
-        active_instances,
-        active_sites=active_sites,
-    )
-    if pvpo_endpoint_errors:
-        logger.error(
-            "Phase 4 PVPO endpoint preflight failed:\n%s",
-            "\n".join(f"  - {error}" for error in pvpo_endpoint_errors),
-        )
-        save_state(
-            "phase_4",
-            status="failed",
-            reason="pvpo_endpoint_preflight_error",
-            pvpo_endpoint_errors=pvpo_endpoint_errors,
-            **state_metadata,
-        )
-        return 1
+    # page-surface-stable PVPO observes the normal runner-owned browser.
+    # Historical configs may still contain pvpo_cdp_url values, but the
+    # canonical backend no longer requires a dedicated beginFrame endpoint.
     from worldsim.storage_state_preflight import ensure_storage_state
 
     healed_any = False

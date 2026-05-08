@@ -3,8 +3,8 @@
 Reads the per-step artifacts written by
 :func:`worldsim.phase_4.pvpo_capture.save_step_artifacts`:
 
-    trajectory_dir / pvpo        / step_{N}.json   # visibility_vec + bg + clip + hasDamage
-    trajectory_dir / screenshots / step_{N}.png    # atomic beginFrame PNG
+    trajectory_dir / pvpo        / step_{N}.json   # visibility_vec + bg + clip + stability metadata
+    trajectory_dir / screenshots / step_{N}.png    # page-surface PNG
 
 For each step, runs :func:`worldsim.phase_4.ink_occupancy.ink_occupancy_vector`
 over the ``(png, visibility_vec, background_color, clip)`` tuple, producing

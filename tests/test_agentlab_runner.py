@@ -10,6 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
@@ -1149,7 +1150,7 @@ def test_agentlab_pvpo_uses_canonical_capture_and_artifact_writer(monkeypatch, t
 
     captured: dict[str, object] = {}
 
-    async def fake_atomic(cdp_session, **kwargs):
+    async def fake_surface(cdp_session, **kwargs):
         captured["cdp_session"] = cdp_session
         captured["kwargs"] = kwargs
         return pvpo_capture.StepCapture(
@@ -1165,7 +1166,7 @@ def test_agentlab_pvpo_uses_canonical_capture_and_artifact_writer(monkeypatch, t
             matched_witness_text="PAYLOAD",
         )
 
-    monkeypatch.setattr(pvpo_capture, "atomic_capture_with_visibility", fake_atomic)
+    monkeypatch.setattr(pvpo_capture, "surface_capture_with_stability", fake_surface)
 
     class FakeCdp:
         def __init__(self):
@@ -1207,7 +1208,7 @@ def test_agentlab_pvpo_uses_canonical_capture_and_artifact_writer(monkeypatch, t
     assert kwargs["scroll_to_match"] is False
     assert kwargs["cdp_timeout_s"] == 10.0
     assert kwargs["viewport_rect"] == pvpo_capture.Rect(0, 0, 1440, 900)
-    assert hasattr(kwargs["capturing"], "beginframe_controller")
+    assert kwargs["capturing"] is None
     assert (tmp_path / "screenshots" / "step_7.png").read_bytes() == b"png"
     step = json.loads((tmp_path / "pvpo" / "step_7.json").read_text(encoding="utf-8"))
     assert step["matched_witness_id"] == "payload"
@@ -1218,7 +1219,7 @@ def test_agentlab_pvpo_uses_canonical_capture_and_artifact_writer(monkeypatch, t
     assert "capture_implementation" not in summary
 
 
-def test_agentlab_pvpo_capture_failure_writes_sentinel_and_exits(monkeypatch, tmp_path):
+def test_agentlab_pvpo_capture_failure_degrades_without_sidecar_exit(monkeypatch, tmp_path):
     sync_pvpo = _load_sidecar_module("sync_pvpo")
     recorder = object.__new__(sync_pvpo.SyncPvpoRecorder)
     recorder.output_dir = tmp_path
@@ -1229,23 +1230,21 @@ def test_agentlab_pvpo_capture_failure_writes_sentinel_and_exits(monkeypatch, tm
         "first_issue_class": None,
     }
     recorder._warned_issue_classes = set()
-    monkeypatch.setattr(sync_pvpo.os, "_exit", lambda code: (_ for _ in ()).throw(SystemExit(code)))
+    exit_mock = Mock(side_effect=AssertionError("surface-stable capture must not exit"))
+    monkeypatch.setattr(sync_pvpo.os, "_exit", exit_mock)
 
-    with pytest.raises(SystemExit) as exc_info:
-        recorder._record_issue(
-            "capture_failed",
-            2,
-            "pvpo beginFrame atomic-capture timed out after 10.00s",
-        )
+    recorder._record_issue(
+        "capture_failed",
+        2,
+        "Page.captureScreenshot returned no data",
+    )
 
-    assert exc_info.value.code == 42
+    exit_mock.assert_not_called()
     summary = json.loads((tmp_path / "pvpo" / "capture_summary.json").read_text(encoding="utf-8"))
     assert summary["status"] == "degraded"
     assert summary["first_issue_class"] == "capture_failed"
     assert summary["issue_counts"] == {"capture_failed": 1}
-    fatal = json.loads((tmp_path / "pvpo" / "fatal_capture.json").read_text(encoding="utf-8"))
-    assert fatal["exit_code"] == 42
-    assert fatal["issue_class"] == "capture_failed"
+    assert not (tmp_path / "pvpo" / "fatal_capture.json").exists()
 
 
 def test_agentlab_pvpo_browsergym_screenshot_patch_replaces_imported_aliases(monkeypatch):
