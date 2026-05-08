@@ -94,9 +94,9 @@ def _usage(in_tok: int = 1000, out_tok: int = 100) -> SimpleNamespace:
     )
 
 
-def _tool_use_response(tool_input: dict, stop_reason: str = "tool_use") -> SimpleNamespace:
+def _structured_response(payload: dict, stop_reason: str = "end_turn") -> SimpleNamespace:
     return SimpleNamespace(
-        content=[SimpleNamespace(type="tool_use", name="classify_refusal", input=tool_input)],
+        content=[SimpleNamespace(type="text", text=json.dumps(payload))],
         stop_reason=stop_reason,
         usage=_usage(),
         id="msg_x",
@@ -106,7 +106,7 @@ def _tool_use_response(tool_input: dict, stop_reason: str = "tool_use") -> Simpl
 
 @pytest.mark.asyncio
 async def test_happy_path_actionable(patched_anthropic_client, trajectory_dir, sample_task):
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(
+    patched_anthropic_client.messages.create.return_value = _structured_response(
         {
             "refusal_trigger": "suspicion",
             "confidence": "high",
@@ -126,14 +126,15 @@ async def test_happy_path_actionable(patched_anthropic_client, trajectory_dir, s
     # Raw response persisted.
     raw = json.loads((trajectory_dir / "judge_raw_response.json").read_text())
     assert raw["task_id"] == "adv_shopping_admin_002"
-    assert raw["tool_use"]["refusal_trigger"] == "suspicion"
+    assert raw["structured_output"]["refusal_trigger"] == "suspicion"
+    assert raw["tool_use"] is None
 
 
 @pytest.mark.asyncio
 async def test_distracted_is_actionable_after_pvpo_encounter(
     patched_anthropic_client, trajectory_dir, sample_task
 ):
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(
+    patched_anthropic_client.messages.create.return_value = _structured_response(
         {
             "refusal_trigger": "distracted",
             "confidence": "high",
@@ -157,7 +158,7 @@ async def test_distracted_is_actionable_after_pvpo_encounter(
 async def test_binary_label_task_uses_task_aware_strategy_mapping(
     patched_anthropic_client, trajectory_dir, binary_sample_task
 ):
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(
+    patched_anthropic_client.messages.create.return_value = _structured_response(
         {
             "refusal_trigger": "distracted",
             "confidence": "high",
@@ -215,7 +216,7 @@ async def test_all_partial_steps_fail_closed_without_api_call(
 async def test_invalid_taxonomy_returns_failure(
     patched_anthropic_client, trajectory_dir, sample_task
 ):
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(
+    patched_anthropic_client.messages.create.return_value = _structured_response(
         {"refusal_trigger": "not_a_real_trigger", "confidence": "low"}
     )
     result = await run_judge_api(sample_task, trajectory_dir)
@@ -227,7 +228,7 @@ async def test_invalid_taxonomy_returns_failure(
 async def test_invalid_confidence_returns_schema_violation(
     patched_anthropic_client, trajectory_dir, sample_task
 ):
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(
+    patched_anthropic_client.messages.create.return_value = _structured_response(
         {
             "refusal_trigger": "suspicion",
             "confidence": "certain",
@@ -245,7 +246,7 @@ async def test_invalid_confidence_returns_schema_violation(
 async def test_overlong_notes_are_truncated_not_schema_violation(
     patched_anthropic_client, trajectory_dir, sample_task
 ):
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(
+    patched_anthropic_client.messages.create.return_value = _structured_response(
         {
             "refusal_trigger": "distracted",
             "confidence": "high",
@@ -265,7 +266,7 @@ async def test_overlong_notes_are_truncated_not_schema_violation(
 async def test_bool_evidence_step_returns_schema_violation(
     patched_anthropic_client, trajectory_dir, sample_task
 ):
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(
+    patched_anthropic_client.messages.create.return_value = _structured_response(
         {
             "refusal_trigger": "suspicion",
             "confidence": "high",
@@ -283,7 +284,7 @@ async def test_bool_evidence_step_returns_schema_violation(
 async def test_out_of_range_evidence_step_returns_schema_violation(
     patched_anthropic_client, trajectory_dir, sample_task
 ):
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(
+    patched_anthropic_client.messages.create.return_value = _structured_response(
         {
             "refusal_trigger": "suspicion",
             "confidence": "high",
@@ -298,8 +299,8 @@ async def test_out_of_range_evidence_step_returns_schema_violation(
 
 
 @pytest.mark.asyncio
-async def test_no_tool_use_block(patched_anthropic_client, trajectory_dir, sample_task):
-    # Response has only text, no tool_use.
+async def test_no_structured_output_block(patched_anthropic_client, trajectory_dir, sample_task):
+    # Response has text, but not valid JSON matching structured output.
     patched_anthropic_client.messages.create.return_value = SimpleNamespace(
         content=[SimpleNamespace(type="text", text="I won't help with this.")],
         stop_reason="end_turn",
@@ -309,7 +310,7 @@ async def test_no_tool_use_block(patched_anthropic_client, trajectory_dir, sampl
     )
     result = await run_judge_api(sample_task, trajectory_dir)
     assert result["status"] == "judge_failed"
-    assert result["failure_class"] == "no_tool_use"
+    assert result["failure_class"] == "json_parse_error"
 
 
 @pytest.mark.asyncio
@@ -376,7 +377,7 @@ async def test_judge_prompt_strips_auth_bearing_task_fields(
             "site_prompt": "ok",
         },
     }
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(
+    patched_anthropic_client.messages.create.return_value = _structured_response(
         {
             "refusal_trigger": "suspicion",
             "confidence": "high",
@@ -395,6 +396,9 @@ async def test_judge_prompt_strips_auth_bearing_task_fields(
     assert "admin:admin1234" not in prompt_text
     assert "<redacted>" in prompt_text
     assert "```json" not in prompt_text
+    assert "tools" not in kwargs
+    assert "tool_choice" not in kwargs
+    assert kwargs["extra_body"]["output_config"]["format"]["type"] == "json_schema"
 
 
 @pytest.mark.asyncio

@@ -423,6 +423,22 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     phase_cmd.add_argument(
+        "--skip-intermediate-asr",
+        action="store_true",
+        help="Phase 4: skip post-hoc structured intermediate ASR classification.",
+    )
+    phase_cmd.add_argument(
+        "--intermediate-asr-max-steps-per-task",
+        type=_positive_int,
+        default=None,
+        metavar="N",
+        help=(
+            "Phase 4 post-hoc intermediate ASR: classify at most N action steps "
+            "per trajectory. Omit to classify all steps. Use 10 only for "
+            "data-import default-cap compatibility."
+        ),
+    )
+    phase_cmd.add_argument(
         "--max-tasks-per-site",
         type=_positive_int,
         default=None,
@@ -680,6 +696,19 @@ def build_parser() -> argparse.ArgumentParser:
         choices=phase_4_variant_budget_choices(),
         default=argparse.SUPPRESS,
         help="Override the saved legacy Phase 4 strategy-variation budget.",
+    )
+    resume_cmd.add_argument(
+        "--skip-intermediate-asr",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Override the saved Phase 4 run to skip post-hoc intermediate ASR.",
+    )
+    resume_cmd.add_argument(
+        "--intermediate-asr-max-steps-per-task",
+        type=_positive_int,
+        default=argparse.SUPPRESS,
+        metavar="N",
+        help="Override the saved Phase 4 intermediate-ASR step cap.",
     )
     resume_cmd.add_argument(
         "--generate-novel",
@@ -1521,6 +1550,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
     phase_4_eval_awareness_max_iterations = getattr(
         args, "phase_4_eval_awareness_max_iterations", None
     )
+    skip_intermediate_asr = getattr(args, "skip_intermediate_asr", None)
+    intermediate_asr_max_steps_per_task = getattr(args, "intermediate_asr_max_steps_per_task", None)
     generate_novel = getattr(args, "generate_novel", None)
     novel_tasks_per_site = getattr(args, "novel_tasks_per_site", None)
     task_card_plan = getattr(args, "task_card_plan", None)
@@ -1583,6 +1614,10 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         phase_4_variant_system = "strategy-variation"
     if phase_4_eval_awareness_max_iterations is None:
         phase_4_eval_awareness_max_iterations = state.get("phase_4_eval_awareness_max_iterations")
+    if skip_intermediate_asr is None:
+        skip_intermediate_asr = state.get("skip_intermediate_asr", False)
+    if intermediate_asr_max_steps_per_task is None:
+        intermediate_asr_max_steps_per_task = state.get("intermediate_asr_max_steps_per_task")
     if generate_novel is None:
         generate_novel = state.get("generate_novel", False)
     if novel_tasks_per_site is None:
@@ -1655,6 +1690,8 @@ def _dispatch_resume(args: argparse.Namespace) -> int:
         phase_4_variant_budget=phase_4_variant_budget,
         phase_4_variant_system=phase_4_variant_system,
         phase_4_eval_awareness_max_iterations=phase_4_eval_awareness_max_iterations,
+        skip_intermediate_asr=skip_intermediate_asr,
+        intermediate_asr_max_steps_per_task=intermediate_asr_max_steps_per_task,
         generate_novel=generate_novel,
         novel_tasks_per_site=novel_tasks_per_site,
         task_card_plan=task_card_plan,
