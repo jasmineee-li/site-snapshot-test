@@ -64,6 +64,7 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
         "mode": "phase4",
         "pvpo_capture_backend": str(request.get("pvpo_capture_backend") or "page-surface-stable"),
         "cdp_url": request.get("pvpo_cdp_url"),
+        "browsergym_reset_seed": _task_seed(request),
         "storage_state_aliases": request.get("storage_state_aliases") or {},
         "browser_instance_scope": "agent_run",
         "lifecycle_events": [],

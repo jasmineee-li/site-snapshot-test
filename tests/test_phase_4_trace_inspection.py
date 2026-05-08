@@ -260,6 +260,9 @@ def test_cli_slice_json_fields(tmp_path: Path) -> None:
         }
     ]
 
+    assert filter_results(results, task_lookup, missing_artifact="network_har") == results
+    assert filter_results(results, task_lookup, missing_artifact="browser_runtime") == []
+
     completed = subprocess.run(
         [
             sys.executable,

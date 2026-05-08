@@ -41,6 +41,17 @@ def _pre_action_agentlab_infra_failure(result: Any) -> str | None:
     return None
 
 
+def _pvpo_artifact_failure_extra(pvpo: dict[str, Any]) -> dict[str, Any]:
+    if not pvpo.get("pvpo_artifact_failure"):
+        return {}
+    return {
+        "final_status": "error",
+        "infra_failure_class": str(
+            pvpo.get("infra_failure_class") or "infra_pvpo_artifact_inconsistent"
+        ),
+    }
+
+
 async def _run_reward_function_safely(
     reward: dict[str, Any],
     instance_dict: dict[str, Any],
@@ -317,6 +328,9 @@ async def run_adversarial_task(
                 run_kwargs["pvpo_cdp_url"] = instance_dict["pvpo_cdp_url"]
             if instance_dict.get("url_origin_rewrites"):
                 run_kwargs["url_origin_rewrites"] = instance_dict["url_origin_rewrites"]
+            for seed_key in ("agentlab_task_seed", "task_seed"):
+                if task.get(seed_key) not in (None, ""):
+                    run_kwargs[seed_key] = task[seed_key]
             if site_prompt is not None:
                 run_kwargs["site_prompt"] = site_prompt
             # Auth from instances.json — single source of truth. No fallback to
@@ -384,7 +398,10 @@ async def run_adversarial_task(
             # payload never rendered". ``_process_adversarial_result`` still
             # short-circuits on ``outcome="error"`` — this stamp is telemetry.
             error_final_status_extra: dict[str, Any] = {}
-            if infra_failure_class is not None:
+            pvpo_artifact_extra = _pvpo_artifact_failure_extra(pvpo)
+            if pvpo_artifact_extra:
+                error_final_status_extra.update(pvpo_artifact_extra)
+            elif infra_failure_class is not None:
                 error_final_status_extra["final_status"] = "error"
                 error_final_status_extra["infra_failure_class"] = infra_failure_class
             elif pvpo["injection_not_encountered"]:
@@ -448,7 +465,10 @@ async def run_adversarial_task(
             if resume_fingerprint is not None:
                 extra[RESULT_FINGERPRINT_KEY] = resume_fingerprint
             nonint_final_status_extra: dict[str, Any] = {}
-            if pvpo["injection_not_encountered"]:
+            pvpo_artifact_extra = _pvpo_artifact_failure_extra(pvpo)
+            if pvpo_artifact_extra:
+                nonint_final_status_extra.update(pvpo_artifact_extra)
+            elif pvpo["injection_not_encountered"]:
                 nonint_final_status_extra["final_status"] = "injection_not_encountered"
             reward_signal_fields = _adversarial_reward_signal_fields(
                 task,
@@ -543,6 +563,47 @@ async def run_adversarial_task(
 
         # 3. PVPO encounter detection plus observational TP/VEA.
         pvpo = await _run_pvpo_gate(task, task_dir, sandbox_model=sandbox_model)
+        pvpo_artifact_extra = _pvpo_artifact_failure_extra(pvpo)
+        if pvpo_artifact_extra:
+            tier3_cleanup_fields = await _tier3_action_cleanup_fields(task, instance_dict)
+            extra: dict[str, Any] = {}
+            if resume_fingerprint is not None:
+                extra[RESULT_FINGERPRINT_KEY] = resume_fingerprint
+            save_result(
+                task_dir,
+                task,
+                result,
+                False,
+                "PVPO artifact failure",
+                outcome="error",
+                encounter=pvpo["encounter"],
+                trajectory_dir=str(task_dir),
+                benign_passed=bool(benign_passed),
+                benign_reward_message=benign_message,
+                adversarial_passed=False,
+                adversarial_reward_message=adv_message,
+                **reward_signal_fields,
+                **tier3_cleanup_fields,
+                **_pvpo_metric_payload(pvpo),
+                **pvpo_artifact_extra,
+                **extra,
+            )
+            return {
+                "task_id": task_id,
+                "outcome": "error",
+                "error": "PVPO artifact failure",
+                "encounter": pvpo["encounter"],
+                "benign_passed": bool(benign_passed),
+                "adversarial_passed": False,
+                "adversarial_reward_message": adv_message,
+                **reward_signal_fields,
+                **tier3_cleanup_fields,
+                "trajectory_dir": str(task_dir),
+                "elapsed": result.elapsed,
+                "steps": result.steps,
+                **_pvpo_metric_payload(pvpo),
+                **pvpo_artifact_extra,
+            }
         final_status_extra: dict[str, Any] = {}
         if pvpo["injection_not_encountered"]:
             final_status_extra["final_status"] = "injection_not_encountered"

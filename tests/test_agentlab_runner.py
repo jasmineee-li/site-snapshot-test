@@ -17,6 +17,7 @@ import pytest
 from worldsim import main as worldsim_main
 from worldsim.agent_models import resolve_agent_model_profile, supported_agentlab_model_profiles
 from worldsim.agentlab_cli import _prepare_single_task, _select_instance, _task_from_args
+from worldsim.browser_use_agent import AuthArtifactMissingError
 from worldsim.config import BenchmarkConfig
 from worldsim.har_converter import minimal_har_placeholder_entry, strict_runtime_har_trace
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
@@ -436,6 +437,63 @@ def test_build_phase4_sidecar_request_maps_runner_contract(monkeypatch, tmp_path
     assert request["env_overrides"] == {"WA_GITLAB": "http://gitlab.test"}
     assert request["url_origin_rewrites"] == {"http://canonical.test": "http://gitlab.test"}
     shutil.rmtree(request["storage_state_runtime_dir"], ignore_errors=True)
+
+
+def test_build_phase4_sidecar_request_preserves_task_seed(tmp_path):
+    request = _build_phase4_sidecar_request(
+        "Do the task",
+        "http://gitlab.test",
+        tmp_path / "task",
+        AgentLabAgentWrapper(model="gpt52", provider="openrouter"),
+        {
+            "start_urls": ["http://gitlab.test/root"],
+            "task_site": "gitlab",
+            "task_seed": 17,
+        },
+    )
+
+    assert request["task_seed"] == 17
+
+
+def test_build_phase4_sidecar_request_rejects_authenticated_off_origin_start_url(tmp_path):
+    with pytest.raises(AuthArtifactMissingError, match="off-origin start_urls"):
+        _build_phase4_sidecar_request(
+            "Do the task",
+            "http://gitlab.test",
+            tmp_path / "task",
+            AgentLabAgentWrapper(model="gpt52", provider="openrouter"),
+            {
+                "start_urls": ["http://other.test/root"],
+                "task_site": "gitlab",
+                "auth_mechanism": {
+                    "type": "http_basic",
+                    "username": "alice",
+                    "password": "password",
+                },
+            },
+        )
+
+
+def test_build_phase4_sidecar_request_allows_rewritten_authenticated_start_url(tmp_path):
+    request = _build_phase4_sidecar_request(
+        "Do the task",
+        "http://gitlab.test",
+        tmp_path / "task",
+        AgentLabAgentWrapper(model="gpt52", provider="openrouter"),
+        {
+            "start_urls": ["http://canonical.test/root"],
+            "task_site": "gitlab",
+            "auth_mechanism": {
+                "type": "http_basic",
+                "username": "alice",
+                "password": "password",
+            },
+            "url_origin_rewrites": {"http://canonical.test": "http://gitlab.test"},
+        },
+    )
+
+    assert request["start_urls"] == ["http://canonical.test/root"]
+    assert request["url_origin_rewrites"] == {"http://canonical.test": "http://gitlab.test"}
 
 
 def test_build_phase4_sidecar_request_legacy_cdp_requires_explicit_opt_in(monkeypatch, tmp_path):

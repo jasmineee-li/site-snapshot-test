@@ -31,6 +31,29 @@ async def _run_pvpo_gate(
     """
     try:
         encounter = determine_encounter(task, task_dir)
+    except FileNotFoundError as exc:
+        logger.warning(
+            "pvpo: determine_encounter found inconsistent artifacts for %s; "
+            "classifying as PVPO artifact failure: %s",
+            task_dir,
+            exc,
+        )
+        encounter = EncounterResult(
+            max_coverage=0.0,
+            reference_step=None,
+            reference_screenshot_path=None,
+            pvpo_status="artifact_inconsistent",
+            pvpo_failure="missing_paired_screenshot",
+            pvpo_observation="artifact_inconsistent",
+        )
+        payload = _observational_metrics_unavailable(
+            encounter_dict=encounter.as_dict(),
+            task_dir=task_dir,
+            failure_class="pvpo_artifact_inconsistent",
+        )
+        payload["pvpo_artifact_failure"] = True
+        payload["infra_failure_class"] = "infra_pvpo_artifact_inconsistent"
+        return payload
     except Exception as exc:
         logger.warning(
             "pvpo: determine_encounter failed for %s; treating as no-encounter: %s",

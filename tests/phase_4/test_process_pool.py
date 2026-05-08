@@ -7,6 +7,7 @@ from worldsim.phase_4.process_pool import (
     WorkerOutcome,
     _active_worker_progress_payload,
     _build_assignments,
+    _copy_worker_task_artifacts,
     _load_worker_results,
     _merge_outcomes,
     _rewrite_worker_paths,
@@ -294,6 +295,87 @@ def test_load_worker_results_salvages_eval_awareness_checkpoint(tmp_path):
     assert results[0]["final_status"] == "resistant"
     assert results[0]["eval_awareness_iterator"]["salvaged"] is True
     assert results[0]["eval_awareness_iterator"]["variant_results"] == [variant]
+
+
+def test_merge_outcomes_fails_closed_for_salvaged_timed_out_worker(tmp_path):
+    args = _pool_args(tmp_path, out_dir=tmp_path / "out")
+    config = _config(
+        tmp_path,
+        [
+            {
+                "site_name": "gitlab",
+                "site_url": "http://127.0.0.1:8023",
+                "pvpo_cdp_url": "http://127.0.0.1:9222",
+            }
+        ],
+    )
+    task = {"id": "adv-1", "site": "gitlab"}
+    assignment = _build_assignments(args, config, [task])[0]
+    outcome = WorkerOutcome(
+        assignment=assignment,
+        returncode=-9,
+        timed_out=True,
+        started_at="2026-05-08T00:00:00",
+        finished_at="2026-05-08T00:40:00",
+        results=[
+            {
+                "task_id": "adv-1",
+                "outcome": "refused_or_ignored",
+                "final_status": "resistant",
+                "encounter": {"max_coverage": 1.0},
+                "eval_awareness_iterator": {
+                    "salvaged": True,
+                    "salvage_reason": "process_pool_worker_timeout",
+                },
+            }
+        ],
+        error=(
+            "salvaged missing worker results from iterator checkpoint: "
+            "/tmp/worker/state/phase_4/results.json"
+        ),
+    )
+
+    rc = _merge_outcomes(args, config, [task], [outcome])
+
+    assert rc == 1
+    assert (tmp_path / "out" / "phase_4" / "results.partial.json").exists()
+    assert (tmp_path / "out" / "phase_4" / "partial_manifest.json").exists()
+    assert not (tmp_path / "out" / "phase_4" / "results.json").exists()
+
+
+def test_process_pool_copy_and_rewrite_preserves_colliding_trace_dirs(tmp_path):
+    args = _pool_args(tmp_path, out_dir=tmp_path / "out")
+    config = _config(
+        tmp_path,
+        [
+            {
+                "site_name": "gitlab",
+                "site_url": "http://127.0.0.1:8023",
+                "pvpo_cdp_url": "http://127.0.0.1:9222",
+            }
+        ],
+    )
+    assignment = _build_assignments(args, config, [{"id": "adv-1", "site": "gitlab"}])[0]
+    first = assignment.state_dir / "phase_4" / "20260508_000000" / "adv-1"
+    second = assignment.state_dir / "phase_4" / "20260508_000001" / "adv-1"
+    first.mkdir(parents=True)
+    second.mkdir(parents=True)
+    (first / "marker.txt").write_text("first", encoding="utf-8")
+    (second / "marker.txt").write_text("second", encoding="utf-8")
+    task_root = args.out_dir / "phase_4" / "process_pool_tasks"
+    task_root.mkdir(parents=True)
+
+    replacements = _copy_worker_task_artifacts(assignment, task_root)
+    rewritten = _rewrite_worker_paths(
+        {"baseline": str(first), "rerun": str(second)},
+        assignment,
+        task_root,
+        replacements,
+    )
+
+    assert (Path(rewritten["baseline"]) / "marker.txt").read_text(encoding="utf-8") == "first"
+    assert (Path(rewritten["rerun"]) / "marker.txt").read_text(encoding="utf-8") == "second"
+    assert rewritten["baseline"] != rewritten["rerun"]
 
 
 def test_rewrite_worker_paths_handles_absolute_and_relative_paths(tmp_path):

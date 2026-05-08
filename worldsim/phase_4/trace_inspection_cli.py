@@ -164,7 +164,30 @@ def _add_filters(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--attack-success", type=_bool_arg)
     parser.add_argument("--state-success", type=_bool_arg)
     parser.add_argument("--has-trace", type=_bool_arg)
-    parser.add_argument("--missing-artifact", choices=("history", "result", "pvpo_summary"))
+    parser.add_argument(
+        "--missing-artifact",
+        choices=(
+            "history",
+            "result",
+            "final_response",
+            "summary_info",
+            "network_trace",
+            "network_har",
+            "network_evidence",
+            "browser_runtime",
+            "agentlab_request",
+            "agentlab_result",
+            "agentlab_status",
+            "agentlab_stdout",
+            "agentlab_stderr",
+            "agentlab_timeline",
+            "agentlab_events",
+            "needham_trace",
+            "tp_raw",
+            "vea_raw",
+            "pvpo_summary",
+        ),
+    )
     parser.add_argument("--reward-contains")
 
 

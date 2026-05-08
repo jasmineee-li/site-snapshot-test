@@ -148,6 +148,7 @@ _PVPO_METRIC_KEYS: frozenset[str] = frozenset(
     {
         "pvpo_status",
         "pvpo_failure",
+        "pvpo_artifact_failure",
         "transcript_purpose_classification",
         "transcript_purpose_is_aware",
         "transcript_purpose_was_refused",

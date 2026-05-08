@@ -48,6 +48,7 @@ from worldsim.browser_use_agent import (
     _storage_state_context_value,
     _storage_state_site_error,
 )
+from worldsim.config import has_effective_agent_auth
 from worldsim.har_converter import minimal_har_placeholder_entry
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.seeding import apply_data_seed_async
@@ -283,6 +284,33 @@ def _scoped_auth_for_phase4(
     return {}
 
 
+def _validate_phase4_authenticated_start_urls(
+    *,
+    auth_mechanism: dict[str, Any] | None,
+    server_url: str,
+    start_urls: list[str],
+    url_origin_rewrites: dict[str, str],
+) -> None:
+    if not has_effective_agent_auth(auth_mechanism):
+        return
+    trusted_origin = _origin_from_url(server_url)
+    if not trusted_origin:
+        return
+    off_origin: list[str] = []
+    for url in start_urls:
+        origin = _origin_from_url(url)
+        if not origin:
+            continue
+        effective_origin = url_origin_rewrites.get(origin, origin)
+        if effective_origin != trusted_origin:
+            off_origin.append(origin)
+    if off_origin:
+        raise AuthArtifactMissingError(
+            "authenticated AgentLab Phase 4 run received off-origin start_urls: "
+            f"{sorted(set(off_origin))}"
+        )
+
+
 def _browsergym_env_overrides(instance_dict: dict[str, Any]) -> dict[str, str]:
     """Map WorldSim instance URLs to BrowserGym WebArena env vars where possible."""
 
@@ -384,6 +412,13 @@ def _build_phase4_sidecar_request(
     task_site = run_kwargs.get("task_site")
     instance_id = run_kwargs.get("instance_id")
     url_origin_rewrites = _same_scheme_origin_rewrites(run_kwargs.get("url_origin_rewrites"))
+    start_urls = _string_list(run_kwargs.get("start_urls"))
+    _validate_phase4_authenticated_start_urls(
+        auth_mechanism=auth_mechanism,
+        server_url=server_url,
+        start_urls=start_urls,
+        url_origin_rewrites=url_origin_rewrites,
+    )
     storage_state: str | None = None
     storage_state_aliases: dict[str, Any] = {}
     storage_runtime_dir: str | None = None
@@ -418,7 +453,7 @@ def _build_phase4_sidecar_request(
         "output_dir": str(task_dir),
         "task": task,
         "server_url": server_url,
-        "start_urls": _string_list(run_kwargs.get("start_urls")),
+        "start_urls": start_urls,
         "site_prompt": run_kwargs.get("site_prompt"),
         "task_site": run_kwargs.get("task_site"),
         "instance_id": run_kwargs.get("instance_id"),
@@ -448,7 +483,7 @@ def _build_phase4_sidecar_request(
         "scoped_auth": _scoped_auth_for_phase4(auth_mechanism, server_url=server_url),
         "env_overrides": _phase4_env_overrides(server_url, run_kwargs),
         RESULT_FINGERPRINT_KEY: run_kwargs.get(RESULT_FINGERPRINT_KEY),
-        "task_seed": None,
+        "task_seed": run_kwargs.get("agentlab_task_seed", run_kwargs.get("task_seed")),
     }
 
 

@@ -595,6 +595,8 @@ def _merge_outcomes(
             outcome.error
             and outcome.error.startswith("salvaged missing worker results from iterator checkpoint")
         )
+        if salvaged_timeout:
+            errors.append(f"{expected_id}: {outcome.error}")
         if outcome.returncode != 0 and not salvaged_timeout:
             errors.append(f"{expected_id}: worker exited {outcome.returncode}")
         if outcome.timed_out and not salvaged_timeout:
@@ -613,8 +615,10 @@ def _merge_outcomes(
             errors.append(f"{task_id}: duplicate result")
             continue
         seen.add(task_id)
-        _copy_worker_task_artifacts(outcome.assignment, task_root)
-        final_results.append(_rewrite_worker_paths(result, outcome.assignment, task_root))
+        path_replacements = _copy_worker_task_artifacts(outcome.assignment, task_root)
+        final_results.append(
+            _rewrite_worker_paths(result, outcome.assignment, task_root, path_replacements)
+        )
     missing = sorted(set(task_order) - seen)
     if missing:
         errors.append(f"missing result(s): {', '.join(missing)}")
@@ -720,8 +724,12 @@ def _write_partial_process_pool_results(
     write_json_atomic(phase4_dir / "partial_manifest.json", manifest)
 
 
-def _copy_worker_task_artifacts(assignment: WorkerAssignment, task_root: Path) -> None:
+def _copy_worker_task_artifacts(
+    assignment: WorkerAssignment,
+    task_root: Path,
+) -> list[tuple[str, str]]:
     phase4_dir = assignment.state_dir / "phase_4"
+    replacements: list[tuple[str, str]] = []
     for child in phase4_dir.iterdir() if phase4_dir.exists() else []:
         if not child.is_dir():
             continue
@@ -730,24 +738,61 @@ def _copy_worker_task_artifacts(assignment: WorkerAssignment, task_root: Path) -
                 continue
             target = task_root / artifact_dir.name
             if target.exists():
-                continue
+                target = _unique_process_pool_artifact_target(
+                    task_root,
+                    assignment=assignment,
+                    run_dir=child,
+                    artifact_dir=artifact_dir,
+                )
             shutil.copytree(artifact_dir, target, symlinks=True)
+            replacements.extend(
+                [
+                    (str(artifact_dir), str(target)),
+                    (str(artifact_dir.resolve()), str(target.resolve())),
+                ]
+            )
+    return replacements
 
 
-def _rewrite_worker_paths(value: Any, assignment: WorkerAssignment, task_root: Path) -> Any:
+def _unique_process_pool_artifact_target(
+    task_root: Path,
+    *,
+    assignment: WorkerAssignment,
+    run_dir: Path,
+    artifact_dir: Path,
+) -> Path:
+    base = (
+        f"worker_{assignment.worker_id:03d}__"
+        f"{safe_task_path_component(run_dir.name)}__"
+        f"{artifact_dir.name}"
+    )
+    target = task_root / base
+    suffix = 1
+    while target.exists():
+        target = task_root / f"{base}__{suffix}"
+        suffix += 1
+    return target
+
+
+def _rewrite_worker_paths(
+    value: Any,
+    assignment: WorkerAssignment,
+    task_root: Path,
+    replacements: list[tuple[str, str]] | None = None,
+) -> Any:
     phase4_dir = assignment.state_dir / "phase_4"
-    replacements: list[tuple[str, str]] = []
+    path_replacements: list[tuple[str, str]] = list(replacements or [])
     if phase4_dir.exists():
         for child in phase4_dir.iterdir():
             if not child.is_dir():
                 continue
-            replacements.extend(
+            path_replacements.extend(
                 [
                     (str(child), str(task_root)),
                     (str(child.resolve()), str(task_root.resolve())),
                 ]
             )
-    return _rewrite_string_values(value, replacements)
+    return _rewrite_string_values(value, path_replacements)
 
 
 def _rewrite_string_values(value: Any, replacements: list[tuple[str, str]]) -> Any:
