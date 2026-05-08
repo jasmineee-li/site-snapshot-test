@@ -41,6 +41,10 @@ _REJECTED_QA_CLASSES = frozenset(
 )
 
 
+def _ecologically_valid(result: dict[str, Any]) -> bool:
+    return phase4_result_summary.ecologically_valid(result)
+
+
 def _eval_awareness_checkpoint_path(task_dir_root: Path, task_id: str) -> Path:
     return task_dir_root / safe_task_path_component(task_id) / _ITERATOR_CHECKPOINT
 
@@ -404,6 +408,147 @@ def _best_iterator_result(
     else:
         reason = "latest_valid_attempt"
     return best_result, best_iteration, reason
+
+
+def build_eval_awareness_iterator_result_from_checkpoint(
+    *,
+    initial_result: dict[str, Any],
+    checkpoint: dict[str, Any],
+    max_iterations: int | None = None,
+    stop_reason_override: str | None = None,
+) -> dict[str, Any] | None:
+    """Build the iterator result envelope from a persisted checkpoint.
+
+    This is used by the normal iterator return path and by process-pool salvage
+    when an outer worker timeout fires after some variants have already been
+    evaluated. It intentionally preserves only completed iteration records as
+    variant results; an in-flight variant without a result remains diagnostic
+    metadata, not a scored browser evaluation.
+    """
+
+    if not isinstance(checkpoint, dict):
+        return None
+    max_rewrites = _normalize_eval_awareness_max_iterations(
+        max_iterations or checkpoint.get("max_iterations")
+    )
+    iteration_records = [
+        item for item in checkpoint.get("iterations", []) if isinstance(item, dict)
+    ]
+    stop_reason = str(
+        stop_reason_override
+        or checkpoint.get("stop_reason")
+        or (
+            _STOP_REWRITE_LIMIT_REACHED
+            if _tp_requires_iteration(checkpoint.get("current_result") or initial_result)
+            else "tp_real"
+        )
+    )
+    variant_results = [
+        item["result"] for item in iteration_records if isinstance(item.get("result"), dict)
+    ]
+    generation_errors = [
+        {
+            "iteration": item.get("iteration"),
+            **(
+                item.get("generation_error")
+                if isinstance(item.get("generation_error"), dict)
+                else {"reason": item.get("status")}
+            ),
+        }
+        for item in iteration_records
+        if item.get("status") in {"rewrite_failed", "rejected", _STOP_TP_REGRESSION}
+    ]
+    if stop_reason_override:
+        generation_errors.append(
+            {
+                "failure_class": stop_reason_override,
+                "reason": "process-pool worker timed out after completed iterator variants",
+            }
+        )
+    best_result, selected_iteration, selection_reason = _best_iterator_result(
+        initial_result,
+        iteration_records,
+    )
+    if selected_iteration == 0 and not variant_results and stop_reason == "tp_real":
+        status = "tp_real_baseline"
+    elif (
+        selected_iteration == 0
+        and not variant_results
+        and stop_reason == _STOP_REWRITE_LIMIT_REACHED
+    ):
+        status = "resistant"
+    elif stop_reason in {
+        "rewrite_failed",
+        "rewrite_rejected",
+        "rewrite_inapplicable_irreconcilable_contract",
+        "rewrite_inapplicable_trajectory_only",
+        "rewrite_inapplicable_insufficient_causal_evidence",
+        _STOP_TP_REGRESSION,
+    }:
+        status = "rewrite_failed"
+    else:
+        status = "iterated"
+    budget = _iterator_budget_report(
+        max_iterations=max_rewrites,
+        iteration_records=iteration_records,
+        stop_reason=stop_reason,
+    )
+    return {
+        "status": status,
+        "algorithm": "eval-awareness-iterator",
+        "version": _PHASE_4_EVAL_AWARENESS_ITERATOR_VERSION,
+        "attempts": [initial_result],
+        "baseline_attempt": checkpoint.get("baseline_attempt"),
+        "iterations": iteration_records,
+        "variant_results": variant_results,
+        "variant_rounds": [
+            {
+                "round_index": item.get("iteration"),
+                "round_kind": "eval_awareness_iteration",
+                "planned_strategies": [_ITERATOR_STRATEGY],
+                "variant_generation_records": [
+                    {
+                        "index": item.get("iteration"),
+                        "global_variant_index": item.get("iteration"),
+                        "round_index": item.get("iteration"),
+                        "round_kind": "eval_awareness_iteration",
+                        "round_variant_index": 0,
+                        "strategy": _ITERATOR_STRATEGY,
+                        "variant": item.get("finalized_task"),
+                        "status": item.get("status"),
+                        "cue_diagnosis": item.get("cue_diagnosis"),
+                        "contract_qa": item.get("contract_qa"),
+                        "tp_transition": item.get("tp_transition"),
+                    }
+                ],
+                "variant_generation_errors": [
+                    item.get("generation_error")
+                ]
+                if isinstance(item.get("generation_error"), dict)
+                else [],
+                "variant_results": [item["result"]] if isinstance(item.get("result"), dict) else [],
+                "variant_results_complete": isinstance(item.get("result"), dict),
+                "stop_reason": item.get("status"),
+            }
+            for item in iteration_records
+        ],
+        "adaptive_budget": {
+            "preset": "eval-awareness-iterator",
+            "shape": [1] * max_rewrites,
+            "max_browser_variants": max_rewrites,
+            "generated": len(iteration_records),
+            "remaining_budget": budget["remaining_budget"],
+            "stop_reason": stop_reason,
+            "rounds": [],
+        },
+        "budget": budget,
+        "generation_errors": generation_errors,
+        "variant_generation_errors": generation_errors,
+        "selected_iteration": selected_iteration,
+        "selected_result": best_result,
+        "selection_reason": selection_reason,
+        "stop_reason": stop_reason,
+    }
 
 
 async def run_eval_awareness_iterator(
@@ -871,113 +1016,27 @@ async def run_eval_awareness_iterator(
             _STOP_REWRITE_LIMIT_REACHED if _tp_requires_iteration(current_result) else "tp_real"
         )
 
-    variant_results = [
-        item["result"] for item in iteration_records if isinstance(item.get("result"), dict)
-    ]
-    generation_errors = [
-        {
-            "iteration": item.get("iteration"),
-            **(
-                item.get("generation_error")
-                if isinstance(item.get("generation_error"), dict)
-                else {"reason": item.get("status")}
-            ),
-        }
-        for item in iteration_records
-        if item.get("status") in {"rewrite_failed", "rejected", _STOP_TP_REGRESSION}
-    ]
-    best_result, selected_iteration, selection_reason = _best_iterator_result(
-        initial_result,
-        iteration_records,
-    )
-    if selected_iteration == 0 and not variant_results and stop_reason == "tp_real":
-        status = "tp_real_baseline"
-    elif (
-        selected_iteration == 0
-        and not variant_results
-        and stop_reason == _STOP_REWRITE_LIMIT_REACHED
-    ):
-        status = "resistant"
-    elif stop_reason in {
-        "rewrite_failed",
-        "rewrite_rejected",
-        "rewrite_inapplicable_irreconcilable_contract",
-        "rewrite_inapplicable_trajectory_only",
-        "rewrite_inapplicable_insufficient_causal_evidence",
-        _STOP_TP_REGRESSION,
-    }:
-        status = "rewrite_failed"
-    else:
-        status = "iterated"
-    budget = _iterator_budget_report(
+    result = build_eval_awareness_iterator_result_from_checkpoint(
+        initial_result=initial_result,
+        checkpoint={**checkpoint, "iterations": iteration_records, "stop_reason": stop_reason},
         max_iterations=max_rewrites,
-        iteration_records=iteration_records,
-        stop_reason=stop_reason,
     )
-    result = {
-        "status": status,
-        "algorithm": "eval-awareness-iterator",
-        "version": _PHASE_4_EVAL_AWARENESS_ITERATOR_VERSION,
-        "attempts": [initial_result],
-        "baseline_attempt": checkpoint.get("baseline_attempt"),
-        "iterations": iteration_records,
-        "variant_results": variant_results,
-        "variant_rounds": [
-            {
-                "round_index": item.get("iteration"),
-                "round_kind": "eval_awareness_iteration",
-                "planned_strategies": [_ITERATOR_STRATEGY],
-                "variant_generation_records": [
-                    {
-                        "index": item.get("iteration"),
-                        "global_variant_index": item.get("iteration"),
-                        "round_index": item.get("iteration"),
-                        "round_kind": "eval_awareness_iteration",
-                        "round_variant_index": 0,
-                        "strategy": _ITERATOR_STRATEGY,
-                        "variant": item.get("finalized_task"),
-                        "status": item.get("status"),
-                        "cue_diagnosis": item.get("cue_diagnosis"),
-                        "contract_qa": item.get("contract_qa"),
-                        "tp_transition": item.get("tp_transition"),
-                    }
-                ],
-                "variant_generation_errors": [
-                    item.get("generation_error")
-                ]
-                if isinstance(item.get("generation_error"), dict)
-                else [],
-                "variant_results": [item["result"]] if isinstance(item.get("result"), dict) else [],
-                "variant_results_complete": isinstance(item.get("result"), dict),
-                "stop_reason": item.get("status"),
-            }
-            for item in iteration_records
-        ],
-        "adaptive_budget": {
-            "preset": "eval-awareness-iterator",
-            "shape": [1] * max_rewrites,
-            "max_browser_variants": max_rewrites,
-            "generated": len(iteration_records),
-            "remaining_budget": budget["remaining_budget"],
-            "stop_reason": stop_reason,
-            "rounds": [],
-        },
-        "budget": budget,
-        "generation_errors": generation_errors,
-        "variant_generation_errors": generation_errors,
-        "selected_iteration": selected_iteration,
-        "selected_result": best_result,
-        "selection_reason": selection_reason,
-        "stop_reason": stop_reason,
-    }
+    if result is None:
+        result = {
+            "status": "rewrite_failed",
+            "attempts": [initial_result],
+            "variant_results": [],
+            "iterations": iteration_records,
+            "stop_reason": "checkpoint_unavailable",
+        }
     checkpoint.update(
         {
             "stop_reason": stop_reason,
-            "selected_iteration": selected_iteration,
-            "selection_reason": selection_reason,
-            "budget": budget,
-            "variant_results": variant_results,
-            "generation_errors": generation_errors,
+            "selected_iteration": result.get("selected_iteration"),
+            "selection_reason": result.get("selection_reason"),
+            "budget": result.get("budget"),
+            "variant_results": result.get("variant_results"),
+            "generation_errors": result.get("generation_errors"),
         }
     )
     _write_json_atomic(
@@ -988,4 +1047,4 @@ async def run_eval_awareness_iterator(
     return result
 
 
-__all__ = ["run_eval_awareness_iterator"]
+__all__ = ["build_eval_awareness_iterator_result_from_checkpoint", "run_eval_awareness_iterator"]

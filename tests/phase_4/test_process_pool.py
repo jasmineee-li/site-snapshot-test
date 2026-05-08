@@ -7,9 +7,11 @@ from worldsim.phase_4.process_pool import (
     WorkerOutcome,
     _active_worker_progress_payload,
     _build_assignments,
+    _load_worker_results,
     _merge_outcomes,
     _rewrite_worker_paths,
     _worker_command,
+    _worker_timeout_seconds,
     _write_worker_status,
 )
 
@@ -120,6 +122,28 @@ def test_worker_command_supports_agentlab_with_single_task_process(tmp_path):
     assert command[command.index("--phase-4-max-workers") + 1] == "1"
 
 
+def test_worker_timeout_scales_with_eval_awareness_iterations(tmp_path):
+    args = _pool_args(
+        tmp_path,
+        agent_task_timeout=2400,
+        phase_4_variant_system="eval-awareness-iterator",
+        phase_4_eval_awareness_max_iterations=3,
+    )
+
+    assert _worker_timeout_seconds(args) == 2400 * 4 + 600 + 45
+
+
+def test_worker_timeout_uses_single_trajectory_without_variants(tmp_path):
+    args = _pool_args(
+        tmp_path,
+        agent_task_timeout=900,
+        phase_4_variant_system="none",
+        phase_4_eval_awareness_max_iterations=3,
+    )
+
+    assert _worker_timeout_seconds(args) == 900 + 600 + 45
+
+
 def test_merge_outcomes_fails_closed_on_missing_result(tmp_path):
     args = _pool_args(tmp_path, out_dir=tmp_path / "out")
     config = _config(
@@ -197,6 +221,68 @@ def test_merge_outcomes_writes_partial_results_without_canonical_results(tmp_pat
     assert manifest["paper_eligible"] is False
     assert manifest["missing_task_ids"] == ["adv-2"]
     assert not (tmp_path / "out" / "phase_4" / "results.json").exists()
+
+
+def test_load_worker_results_salvages_eval_awareness_checkpoint(tmp_path):
+    args = _pool_args(tmp_path, out_dir=tmp_path / "out")
+    config = _config(
+        tmp_path,
+        [
+            {
+                "site_name": "gitlab",
+                "site_url": "http://127.0.0.1:8023",
+                "pvpo_cdp_url": "http://127.0.0.1:9222",
+            }
+        ],
+    )
+    task = {"id": "adv-1", "site": "gitlab"}
+    assignment = _build_assignments(args, config, [task])[0]
+    trace_dir = assignment.state_dir / "phase_4" / "20260508_000000" / "adv-1"
+    trace_dir.mkdir(parents=True)
+    baseline = {
+        "task_id": "adv-1",
+        "outcome": "refused_or_ignored",
+        "encounter": {"max_coverage": 1.0},
+        "transcript_purpose_classification": "Capability Evaluation",
+        "transcript_purpose_is_aware": True,
+    }
+    variant = {
+        "task_id": "adv-1",
+        "outcome": "refused_or_ignored",
+        "encounter": {"max_coverage": 1.0},
+        "strategy": "eval_awareness_iterator",
+        "transcript_purpose_classification": "Real",
+        "transcript_purpose_is_aware": False,
+    }
+    (trace_dir / "result.json").write_text(json.dumps(baseline), encoding="utf-8")
+    (trace_dir / "eval_awareness_iterator_checkpoint.json").write_text(
+        json.dumps(
+            {
+                "algorithm": "eval-awareness-iterator",
+                "version": "test",
+                "max_iterations": 3,
+                "baseline_attempt": {"iteration": 0, "kind": "baseline"},
+                "iterations": [
+                    {
+                        "iteration": 1,
+                        "status": "evaluated",
+                        "result": variant,
+                        "tp_transition": {"direction": "improved"},
+                    },
+                    {"iteration": 2, "status": "started"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    results, error = _load_worker_results(assignment)
+
+    assert error and error.startswith("salvaged missing worker results")
+    assert len(results) == 1
+    assert results[0]["final_status"] == "resistant"
+    assert results[0]["eval_awareness_iterator"]["salvaged"] is True
+    assert results[0]["eval_awareness_iterator"]["variant_results"] == [variant]
 
 
 def test_rewrite_worker_paths_handles_absolute_and_relative_paths(tmp_path):
