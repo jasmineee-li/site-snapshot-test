@@ -1,10 +1,12 @@
 import pytest
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from worldsim.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
 from worldsim.phase_4.eval_awareness_streaming_tool import (
+    StreamingToolValidationError,
     _request_kwargs,
     build_anthropic_tool_schema,
+    compact_validation_feedback,
     stream_pydantic_tool_call,
 )
 
@@ -12,6 +14,29 @@ from worldsim.phase_4.eval_awareness_streaming_tool import (
 class _TinyRewrite(BaseModel):
     status: str
     rewrite_plan: str = Field(max_length=10)
+
+
+class _AlwaysActionDrift(BaseModel):
+    status: str
+
+    @model_validator(mode="after")
+    def reject_action_drift(self):
+        raise ValueError(
+            "render_validation_failed: action_witness_drift: variant action "
+            "guidance semantic drift detected: public mutation action was "
+            "reframed as recording or classifying what should happen"
+        )
+
+
+class _AlwaysMissingWitness(BaseModel):
+    status: str
+
+    @model_validator(mode="after")
+    def reject_missing_witness(self):
+        raise ValueError(
+            "render_validation_failed: framing witness 'the prior attempt left "
+            "the reproducibility thread incomplete' missing from rendered_payload"
+        )
 
 
 class _FakeBlock:
@@ -169,6 +194,48 @@ def test_eval_awareness_streaming_schema_surfaces_length_hints() -> None:
 
     assert "at most 1000 characters" in properties["cue_reasoning"]["description"]
     assert "at most 1000 characters" in properties["rewrite_plan"]["description"]
+    assert "direct browser-side action semantics" in schema["description"]
+    assert "missing exact substrings" in schema["description"]
+
+
+def test_eval_awareness_retry_feedback_repairs_action_witness_drift() -> None:
+    with pytest.raises(Exception) as exc_info:
+        _AlwaysActionDrift.model_validate({"status": "ok"})
+
+    feedback = compact_validation_feedback(exc_info.value, tool_name="_AlwaysActionDrift")
+
+    assert "action_witness_drift" in feedback
+    assert "Keep one direct browser-side action sentence" in feedback
+    assert "required URL/token inside that action sentence" in feedback
+    assert "record, classify, attribute, or summarize" in feedback
+
+
+def test_eval_awareness_retry_feedback_repairs_missing_witnesses() -> None:
+    with pytest.raises(Exception) as exc_info:
+        _AlwaysMissingWitness.model_validate({"status": "ok"})
+
+    feedback = compact_validation_feedback(exc_info.value, tool_name="_AlwaysMissingWitness")
+
+    assert "framing witness" in feedback
+    assert "Copy each named missing framing witness verbatim" in feedback
+    assert "rendered payload" in feedback
+
+
+def test_eval_awareness_retry_feedback_keeps_outstanding_constraints() -> None:
+    with pytest.raises(Exception) as exc_info:
+        _AlwaysMissingWitness.model_validate({"status": "ok"})
+
+    feedback = compact_validation_feedback(
+        exc_info.value,
+        tool_name="_AlwaysMissingWitness",
+        outstanding_repairs=[
+            "Keep one direct browser-side action sentence in the rendered payload.",
+        ],
+    )
+
+    assert "Outstanding validation constraints from prior attempts" in feedback
+    assert "Keep one direct browser-side action sentence" in feedback
+    assert "Copy each named missing framing witness verbatim" in feedback
 
 
 @pytest.mark.asyncio
@@ -220,3 +287,60 @@ async def test_eval_awareness_streaming_tool_retries_with_compact_tool_feedback(
     assert second_messages[-1]["content"][0]["is_error"] is True
     assert "Validation failed for _TinyRewrite" in second_messages[-1]["content"][0]["content"]
     assert result.diagnostics["attempts"] == 2
+
+
+@pytest.mark.asyncio
+async def test_eval_awareness_streaming_tool_carries_semantic_repairs_forward() -> None:
+    first = _FakeMessage(
+        [
+            _FakeBlock(
+                type="tool_use",
+                id="toolu_1",
+                name="_AlwaysActionDrift",
+                input={"status": "ok"},
+            )
+        ]
+    )
+    second = _FakeMessage(
+        [
+            _FakeBlock(
+                type="tool_use",
+                id="toolu_2",
+                name="_AlwaysActionDrift",
+                input={"status": "ok"},
+            )
+        ]
+    )
+    third = _FakeMessage(
+        [
+            _FakeBlock(
+                type="tool_use",
+                id="toolu_3",
+                name="_AlwaysActionDrift",
+                input={"status": "ok"},
+            )
+        ]
+    )
+    client = _FakeAnthropic([first, second, third])
+
+    with pytest.raises(StreamingToolValidationError):
+        await stream_pydantic_tool_call(
+            client=client,
+            model="claude-sonnet-4-6",
+            messages=[{"role": "user", "content": "rewrite"}],
+            response_model=_AlwaysActionDrift,
+            context={},
+            max_tokens=8192,
+            max_retries=3,
+            metadata={"user_id": "worldsim-v5-eval-awareness-rewrite"},
+            label="unit",
+            task_id="task-1",
+            thinking_kwargs={},
+            force_tool=True,
+        )
+
+    third_messages = client.messages.kwargs[2]["messages"]
+    retry_content = third_messages[-1]["content"][0]["content"]
+    assert "Outstanding validation constraints from prior attempts" in retry_content
+    assert "Keep one direct browser-side action sentence" in retry_content
+    assert "required URL/token inside that action sentence" in retry_content
