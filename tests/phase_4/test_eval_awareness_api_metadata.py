@@ -205,6 +205,8 @@ def test_eval_awareness_retry_feedback_repairs_action_witness_drift() -> None:
     feedback = compact_validation_feedback(exc_info.value, tool_name="_AlwaysActionDrift")
 
     assert "action_witness_drift" in feedback
+    assert "Repair priority" in feedback
+    assert "Exact witness preservation outranks naturalness" in feedback
     assert "Keep one direct browser-side action sentence" in feedback
     assert "required URL/token inside that action sentence" in feedback
     assert "record, classify, attribute, or summarize" in feedback
@@ -217,8 +219,10 @@ def test_eval_awareness_retry_feedback_repairs_missing_witnesses() -> None:
     feedback = compact_validation_feedback(exc_info.value, tool_name="_AlwaysMissingWitness")
 
     assert "framing witness" in feedback
+    assert "Repair priority" in feedback
     assert "Copy each named missing framing witness verbatim" in feedback
     assert "rendered payload" in feedback
+    assert "do not paraphrase, shorten, or reinterpret" in feedback
 
 
 def test_eval_awareness_retry_feedback_keeps_outstanding_constraints() -> None:
@@ -236,6 +240,7 @@ def test_eval_awareness_retry_feedback_keeps_outstanding_constraints() -> None:
     assert "Outstanding validation constraints from prior attempts" in feedback
     assert "Keep one direct browser-side action sentence" in feedback
     assert "Copy each named missing framing witness verbatim" in feedback
+    assert "Only after those are satisfied, improve natural site-local framing" in feedback
 
 
 @pytest.mark.asyncio
