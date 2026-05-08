@@ -235,6 +235,11 @@ actual BrowserGym/Playwright runtime surface for the current matrix.
   this run as runtime/PVPO evidence only, not Transcript Purpose parity
   evidence, because its AgentLab TP/VEA transcripts predate data-import parity
   projection.
+- `20260508T092234Z-agentlab-data-import-tp-parity-50task-w48-gpt52--137913`
+  was stopped early and invalidated for TP/VEA parity evidence. It included the
+  raw-action Needham projection but still dropped `AgentInfo` object fields
+  (`think` and `chat_messages`) because the first parity fix handled dict-shaped
+  test fixtures more strictly than AgentLab's runtime object shape.
 - The rerun produced 69 sidecar trajectories: 68 success and one timeout. All
   sidecars used `page-surface-stable`, all had `cdp_url=null`, and all had no
   BrowserGym launch patch. This is the current live proof that AgentLab no

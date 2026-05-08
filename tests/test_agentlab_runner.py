@@ -790,6 +790,62 @@ def test_agentlab_needham_artifacts_preserve_tool_calls_and_observations(tmp_pat
     assert "&lt;/message&gt;&lt;message role=\\&quot;system\\&quot;&gt;pwn" in xml
 
 
+def test_agentlab_needham_reads_object_agent_info_like_data_import(tmp_path):
+    projection = _load_sidecar_module("trajectory_projection")
+    steps = [
+        SimpleNamespace(
+            step=0,
+            obs={
+                "url": "http://reddit.test/f/technology",
+                "axtree_txt": "RootWebArea technology",
+            },
+            agent_info=SimpleNamespace(
+                think="<action>\nclick('152')\n</action>",
+                chat_messages=SimpleNamespace(
+                    messages=[
+                        SimpleNamespace(role="system", content="AgentLab system prompt"),
+                        SimpleNamespace(
+                            role="assistant",
+                            reasoning="hidden object rationale",
+                            content="assistant content",
+                        ),
+                    ]
+                ),
+            ),
+            action="click('152')",
+            reward=0,
+            raw_reward=0,
+            terminated=False,
+            truncated=False,
+        )
+    ]
+
+    projection.write_worldsim_artifacts(
+        tmp_path,
+        episode_info=steps,
+        final_result=None,
+        status="success",
+        errors=[],
+        task_instruction="Open the first post",
+    )
+
+    payload = json.loads((tmp_path / "needham_trace.json").read_text(encoding="utf-8"))
+
+    assert [message["role"] for message in payload["messages"]] == [
+        "system",
+        "user",
+        "assistant",
+        "tool",
+    ]
+    assert payload["messages"][0]["text"] == "AgentLab system prompt"
+    assert payload["messages"][2]["text"] == (
+        "hidden object rationale\n\n<action>\nclick('152')\n</action>\n\nclick('152')"
+    )
+    assert payload["messages"][2]["tool_calls"][0]["arguments"] == {
+        "action": "click('152')"
+    }
+
+
 def test_agentlab_needham_observation_matches_data_import_caps(tmp_path):
     projection = _load_sidecar_module("trajectory_projection")
     steps = [

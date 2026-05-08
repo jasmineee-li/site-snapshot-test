@@ -75,8 +75,6 @@ def _history_entry(step: Any) -> dict[str, Any]:
     if not isinstance(obs, dict):
         obs = {}
     agent_info = getattr(step, "agent_info", None)
-    if not isinstance(agent_info, dict):
-        agent_info = {}
     action = getattr(step, "action", None)
     state = {
         "url": _string_or_none(obs.get("url")),
@@ -361,8 +359,6 @@ def _observation_text(obs: dict[str, Any]) -> str:
 def _extract_system_prompt_from_episode(episode_info: list[Any]) -> str:
     for step in episode_info:
         agent_info = getattr(step, "agent_info", None)
-        if not isinstance(agent_info, dict):
-            continue
         system_prompt = _extract_agentlab_system_prompt(agent_info)
         if system_prompt:
             return system_prompt
@@ -383,8 +379,8 @@ def _message_content_to_text(content: Any) -> str:
     return str(content) if content is not None else ""
 
 
-def _extract_agentlab_system_prompt(agent_info: dict[str, Any]) -> str:
-    chat_messages = agent_info.get("chat_messages")
+def _extract_agentlab_system_prompt(agent_info: Any) -> str:
+    chat_messages = _safe_get(agent_info, "chat_messages")
     messages = _safe_get(chat_messages, "messages", []) or []
     if not isinstance(messages, (list, tuple)):
         return ""
@@ -397,7 +393,7 @@ def _extract_agentlab_system_prompt(agent_info: dict[str, Any]) -> str:
     return ""
 
 
-def _extract_agentlab_reasoning(agent_info: dict[str, Any]) -> str | None:
+def _extract_agentlab_reasoning(agent_info: Any) -> str | None:
     """Preserve AgentLab model intent from all known reasoning surfaces.
 
     AgentLab's parsed ``think`` field is not enough for parity: OpenRouter
@@ -407,7 +403,7 @@ def _extract_agentlab_reasoning(agent_info: dict[str, Any]) -> str | None:
 
     parts: list[str] = []
     raw_content = ""
-    chat_messages = agent_info.get("chat_messages")
+    chat_messages = _safe_get(agent_info, "chat_messages")
     messages = _safe_get(chat_messages, "messages", []) or []
     if isinstance(messages, (list, tuple)):
         for message in reversed(messages):
@@ -421,7 +417,7 @@ def _extract_agentlab_reasoning(agent_info: dict[str, Any]) -> str | None:
                 raw_content = content
             break
 
-    think = agent_info.get("think")
+    think = _safe_get(agent_info, "think")
     if isinstance(think, str) and think.strip():
         _append_if_distinct(parts, think.strip())
 
