@@ -253,6 +253,11 @@ actual BrowserGym/Playwright runtime surface for the current matrix.
   `inconclusive=3`, `injection_not_encountered=1`; postprocess was `50/50`
   with `0` failures. Iterator entry was `10` tasks, with `14/17` variants
   generated, `14` evaluated, `14` PVPO-valid, and `0` variant compliances.
+  **2026-05-08 VEA structured-output hardening note:** this run remains useful
+  for AgentLab browser/PVPO/reward/Transcript Purpose parity, but its VEA rows
+  predate the inert-transcript + structured-output + fail-closed parser cutover.
+  Do not mix its VEA rates with post-cutover VEA without regenerating the VEA
+  slice.
 - The automated r8a AgentLab model sweep completed sequentially on the same
   50-task source set, native BrowserGym/page-surface-stable PVPO,
   OpenRouter-routed host TP/VEA/iterator judges, and `w48`. The queue advanced
