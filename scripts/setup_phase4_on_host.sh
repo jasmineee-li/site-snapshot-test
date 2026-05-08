@@ -160,7 +160,7 @@ fi
 # Step 3 — PVPO browser capture
 # ---------------------------------------------------------------------------
 log "step 3: PVPO page-surface-stable capture"
-substep "no dedicated chrome-headless-shell or pvpo_cdp_url endpoints required"
+substep "no dedicated PVPO browser endpoints required"
 
 # ---------------------------------------------------------------------------
 # Step 4 — Phase artifact sync (issues #4, #5, #6)

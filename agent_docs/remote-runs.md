@@ -344,9 +344,9 @@ The proxy uses token auth (`X-Worldsim-Token`) and offset ports from `scripts/pr
 Phase 4 rigor runs use page-surface-stable PVPO. The runner captures the
 visible viewport from its own browser with normal CDP `Page.captureScreenshot`
 and accepts evidence only when pre/post DOM witness probes are stable. Dedicated
-`chrome-headless-shell`/beginFrame containers and `pvpo_cdp_url` leases are
-legacy parity infrastructure, not required for canonical Browser Use or
-AgentLab runs.
+dedicated compositor-driving browser containers are removed from the active run
+path; `pvpo_cdp_url` remains only for legacy remote-browser lifecycle
+compatibility.
 
 ## Live Integration Command
 

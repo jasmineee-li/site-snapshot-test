@@ -1247,60 +1247,6 @@ def test_agentlab_pvpo_capture_failure_degrades_without_sidecar_exit(monkeypatch
     assert not (tmp_path / "pvpo" / "fatal_capture.json").exists()
 
 
-def test_agentlab_pvpo_browsergym_screenshot_patch_replaces_imported_aliases(monkeypatch):
-    screenshot_patch = _load_sidecar_module("pvpo_screenshot_patch")
-
-    browsergym_pkg = type(sys)("browsergym")
-    core_pkg = type(sys)("browsergym.core")
-    observation_mod = type(sys)("browsergym.core.observation")
-    env_mod = type(sys)("browsergym.core.env")
-
-    def original_screenshot(page):
-        return page
-
-    observation_mod.extract_screenshot = original_screenshot
-    env_mod.extract_screenshot = original_screenshot
-    browsergym_pkg.core = core_pkg
-    core_pkg.observation = observation_mod
-    core_pkg.env = env_mod
-    monkeypatch.setitem(sys.modules, "browsergym", browsergym_pkg)
-    monkeypatch.setitem(sys.modules, "browsergym.core", core_pkg)
-    monkeypatch.setitem(sys.modules, "browsergym.core.observation", observation_mod)
-    monkeypatch.setitem(sys.modules, "browsergym.core.env", env_mod)
-    monkeypatch.setattr(
-        screenshot_patch,
-        "_extract_beginframe_screenshot",
-        lambda page, runtime, cdp_url="", timeout_s=0, worker=None: (
-            "beginframe",
-            page,
-            cdp_url,
-            timeout_s,
-            worker is not None,
-        ),
-    )
-
-    runtime: dict[str, object] = {}
-    with screenshot_patch.patched_browsergym_screenshot_for_pvpo("http://127.0.0.1:9222", runtime):
-        assert observation_mod.extract_screenshot("page") == (
-            "beginframe",
-            "page",
-            "http://127.0.0.1:9222",
-            10.0,
-            True,
-        )
-        assert env_mod.extract_screenshot("page") == (
-            "beginframe",
-            "page",
-            "http://127.0.0.1:9222",
-            10.0,
-            True,
-        )
-        assert runtime["browsergym_screenshot_patch"] == "headless_beginframe"
-
-    assert observation_mod.extract_screenshot is original_screenshot
-    assert env_mod.extract_screenshot is original_screenshot
-
-
 def test_agentlab_cdp_launch_records_single_browser_instance(monkeypatch):
     cdp_browser = _load_sidecar_module("cdp_browser")
 
@@ -1453,47 +1399,6 @@ def test_agentlab_cdp_launch_fails_closed_on_dirty_endpoint(monkeypatch):
     assert runtime["pre_run_cdp_dirty_reason"] == (
         "single page target is not blank: http://gitlab.test/dirty"
     )
-
-
-def test_agentlab_pvpo_beginframe_screenshot_returns_browsergym_rgb_array():
-    screenshot_patch = _load_sidecar_module("pvpo_screenshot_patch")
-
-    # 1x1 red PNG.
-    png = (
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/"
-        "pLvAAAAAElFTkSuQmCC"
-    )
-    calls: list[tuple[str, dict[str, object]]] = []
-
-    class FakeCdp:
-        def send(self, method, params=None):
-            calls.append((method, params or {}))
-            if method == "HeadlessExperimental.beginFrame":
-                return {"screenshotData": png}
-            return {}
-
-        def detach(self):
-            calls.append(("detach", {}))
-
-    class FakeContext:
-        def new_cdp_session(self, page):
-            assert page is fake_page
-            return FakeCdp()
-
-    fake_page = SimpleNamespace(
-        context=FakeContext(),
-        viewport_size={"width": 1280, "height": 720},
-    )
-    runtime: dict[str, object] = {}
-
-    screenshot = screenshot_patch._extract_beginframe_screenshot(fake_page, runtime, timeout_s=1.0)
-
-    assert screenshot.shape == (1, 1, 3)
-    assert screenshot.dtype.name == "uint8"
-    assert tuple(int(item) for item in screenshot[0][0]) == (255, 0, 0)
-    assert ("HeadlessExperimental.beginFrame", {"screenshot": {"format": "png"}}) in calls
-    assert not any(method == "Page.captureScreenshot" for method, _params in calls)
-    assert runtime["browsergym_beginframe_screenshot_count"] == 1
 
 
 def test_agentlab_sync_pvpo_detaches_step_cdp_session():
@@ -1846,7 +1751,7 @@ def test_phase4_nonzero_sidecar_preserves_fatal_pvpo_runtime(monkeypatch, tmp_pa
                 {
                     "issue_class": "capture_failed",
                     "step": 2,
-                    "message": "pvpo beginFrame atomic-capture timed out after 10.00s",
+                    "message": "Page.captureScreenshot timed out after 10.00s",
                     "exit_code": 42,
                 }
             ),

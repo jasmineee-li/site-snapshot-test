@@ -33,18 +33,11 @@ abandoned or cancelled its wait before Chrome replied.
 
 WorldSim treats CDP timeouts as local deadlines, not protocol cancellation. For
 PVPO-owned CDP calls it now uses `asyncio.wait_for(asyncio.shield(task), ...)`,
-then attaches a done callback to consume any late result or exception. Stateful
-`HeadlessExperimental.beginFrame` calls remain serialized by
-`BeginFrameCoordinator`; read/probe calls may be abandoned locally but still
-drained when Chrome replies.
-
-`HeadlessExperimental.beginFrame` has one extra invariant: a timed-out frame may
-still be pending inside Chrome even after the local deadline fires. WorldSim
-therefore exposes explicit quiescence points around non-measurement frame use
-(navigation ticks and Browser Use screenshots) and before atomic PVPO capture.
-If the prior frame drains, measurement proceeds. If it remains pending past the
-drain budget, the endpoint is marked dirty and the task is treated as degraded
-runtime evidence that must be rerun after browser recycle.
+then attaches a done callback to consume any late result or exception.
+WorldSim no longer drives the browser compositor externally. This patch is still
+relevant because Browser Use can cancel ordinary CDP requests under event
+deadlines; the late protocol response must be consumed so it does not poison
+unrelated browser-use traffic.
 
 This preserves research semantics: a timeout is observable runtime telemetry,
 not a reason to mutate the task, weaken PVPO, or hand-edit an outcome.

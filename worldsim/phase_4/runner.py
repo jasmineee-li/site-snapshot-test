@@ -172,7 +172,7 @@ async def run(args: argparse.Namespace) -> int:
             return 1
     # page-surface-stable PVPO observes the normal runner-owned browser.
     # Historical configs may still contain pvpo_cdp_url values, but the
-    # canonical backend no longer requires a dedicated beginFrame endpoint.
+    # canonical backend no longer requires a dedicated PVPO browser endpoint.
     from worldsim.storage_state_preflight import ensure_storage_state
 
     healed_any = False

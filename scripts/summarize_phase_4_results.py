@@ -158,8 +158,6 @@ def summarize_browser_runtime(
     seen_paths: set[Path] = set()
     seen_final_response_paths: set[Path] = set()
     scroll_counters: Counter[str] = Counter()
-    beginframe_counters: Counter[str] = Counter()
-    navigation_tick_counters: Counter[str] = Counter()
     pvpo_cdp_counters: Counter[str] = Counter()
     browser_use_step_errors = 0
     browser_use_traces_with_step_errors = 0
@@ -184,10 +182,6 @@ def summarize_browser_runtime(
                 if value > 0:
                     if isinstance(key, str) and key.startswith("pvpo_scroll_"):
                         scroll_counters[key] += value
-                    elif isinstance(key, str) and key.startswith("pvpo_beginframe_"):
-                        beginframe_counters[key] += value
-                    elif isinstance(key, str) and key.startswith("pvpo_navigation_tick_"):
-                        navigation_tick_counters[key] += value
                     elif isinstance(key, str) and key.startswith("pvpo_cdp_"):
                         pvpo_cdp_counters[key] += value
             final_response_path = _resolve_trace_artifact_path(
@@ -220,8 +214,6 @@ def summarize_browser_runtime(
         "traces_scanned": traces_scanned,
         "runtime_artifacts": len(seen_paths),
         "pvpo_scroll_counters": dict(sorted(scroll_counters.items())),
-        "pvpo_beginframe_counters": dict(sorted(beginframe_counters.items())),
-        "pvpo_navigation_tick_counters": dict(sorted(navigation_tick_counters.items())),
         "pvpo_cdp_counters": dict(sorted(pvpo_cdp_counters.items())),
         "browser_use_step_errors": browser_use_step_errors,
         "browser_use_traces_with_step_errors": browser_use_traces_with_step_errors,
@@ -446,14 +438,6 @@ def format_text_summary(
         pvpo_scroll_counters = browser_runtime.get("pvpo_scroll_counters")
         if isinstance(pvpo_scroll_counters, dict) and pvpo_scroll_counters:
             lines.append(f"  PVPO scroll: {_fmt_count_map(pvpo_scroll_counters)}")
-        pvpo_beginframe_counters = browser_runtime.get("pvpo_beginframe_counters")
-        if isinstance(pvpo_beginframe_counters, dict) and pvpo_beginframe_counters:
-            lines.append(f"  PVPO beginFrame: {_fmt_count_map(pvpo_beginframe_counters)}")
-        pvpo_navigation_tick_counters = browser_runtime.get("pvpo_navigation_tick_counters")
-        if isinstance(pvpo_navigation_tick_counters, dict) and pvpo_navigation_tick_counters:
-            lines.append(
-                f"  PVPO navigation ticks: {_fmt_count_map(pvpo_navigation_tick_counters)}"
-            )
         pvpo_cdp_counters = browser_runtime.get("pvpo_cdp_counters")
         if isinstance(pvpo_cdp_counters, dict) and pvpo_cdp_counters:
             lines.append(f"  PVPO CDP deadlines: {_fmt_count_map(pvpo_cdp_counters)}")

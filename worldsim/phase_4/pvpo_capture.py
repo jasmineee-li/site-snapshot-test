@@ -30,7 +30,6 @@ from pathlib import Path
 from typing import Any
 
 from worldsim.atomic_io import write_json_atomic
-from worldsim.phase_4.pvpo_beginframe import BeginFrameCoordinator
 from worldsim.phase_4.pvpo_cdp import normalize_cdp_session
 
 logger = logging.getLogger(__name__)
@@ -40,7 +39,6 @@ _PVPO_QUERY_JS_TEMPLATE: str = (Path(__file__).parent / "pvpo_query.js").read_te
 _PAYLOAD_SUBSTITUTION_TOKEN = "__WORLDSIM_WITNESSES_JSON__"
 _SCROLL_TO_MATCH_SUBSTITUTION_TOKEN = "__WORLDSIM_SCROLL_TO_MATCH__"
 _PVPO_CAPTURE_SUMMARY_FILENAME = "capture_summary.json"
-_BEGINFRAME_EMPTY_SCREENSHOT_RETRIES = 1
 
 
 def _consume_late_cdp_result(task: asyncio.Future[Any]) -> None:
@@ -187,190 +185,6 @@ class StepCapture:
 
 def _runtime_evaluate_params(expression: str) -> dict[str, Any]:
     return {"expression": expression, "returnByValue": True, "awaitPromise": True}
-
-
-async def atomic_capture_with_visibility(
-    cdp_session: Any,
-    *,
-    viewport_rect: Rect,
-    payload_text: str = "",
-    witness_texts: list[str | dict[str, Any]] | None = None,
-    scroll_to_match: bool = False,
-    capturing: asyncio.Event | None = None,
-    cdp_timeout_s: float | None = None,
-) -> StepCapture:
-    """Run the virtual-time-paused visibility query + ``beginFrame`` screenshot.
-
-    Args:
-        cdp_session: CDP session object. Supports either Playwright's
-            ``send(method, params)`` surface or Browser-Use 0.12.6's
-            ``cdp_client.send.<Domain>.<method>(..., session_id=...)`` surface.
-        viewport_rect: the visual viewport in page coordinates. The
-            screenshot is clipped to this rect; post-composite capture
-            means anything outside the viewport would not be in the frame
-            even if the clip were larger.
-        payload_text: legacy fallback witness. Prefer ``witness_texts``.
-        witness_texts: ordered attack-specific witnesses. The JS query
-            normalized-substring matches these against text nodes in the DOM
-            to locate the rendered payload — no HTML wrapper or data-attribute
-            is required.
-        capturing: optional :class:`asyncio.Event` shared with the Browser-Use
-            PVPO compatibility layer. It marks atomic capture as active so any
-            scoped beginFrame ticker can stand down, and it carries the
-            endpoint coordinator used to serialize screenshot beginFrames. Set
-            on entry, cleared in ``finally`` regardless of success.
-        cdp_timeout_s: optional timeout applied to each CDP command. The
-            Phase 4 Browser-Use callback sets this so saturated hosts degrade
-            PVPO capture instead of spending the whole 180s Browser-Use step.
-
-    Returns:
-        :class:`StepCapture` with decoded PNG bytes, the raw visibility
-        vector, the resolved ``background_color`` tuple, the ``hasDamage``
-        flag, and the clip rect. Host-side ink-occupancy verification runs
-        downstream in ``encounter_detection`` using these fields.
-
-    Note on ``hasDamage: false``:
-        The visibility query is read-only and the compositor may skip the
-        commit. The prior frame's pixels are still semantically correct
-        (no layout mutation occurred). We trust them and log for
-        observability — scope locked per handoff §9.
-    """
-    query_js = build_pvpo_query_js(
-        payload_text,
-        witness_texts=witness_texts,
-        scroll_to_match=scroll_to_match,
-    )
-    cdp = normalize_cdp_session(cdp_session)
-
-    async def _send(method: str, params: dict[str, Any]) -> dict[str, Any]:
-        request = cdp.send(method, params)
-        if cdp_timeout_s is None:
-            return await request
-        return await _await_cdp_deadline(
-            request,
-            timeout_s=cdp_timeout_s,
-            method=method,
-        )
-
-    # The Browser-Use PVPO compatibility context attaches a
-    # BeginFrameCoordinator to the capturing Event so atomic capture,
-    # navigation ticks, and Browser-Use screenshot fallbacks share one
-    # timeout-safe beginFrame serialization path. Older callers that passed
-    # only a bare Event/lock still work; they just don't get pending-frame
-    # draining.
-    beginframe_controller = (
-        getattr(capturing, "beginframe_controller", None) if capturing is not None else None
-    )
-    beginframe_lock = getattr(capturing, "beginframe_lock", None) if capturing is not None else None
-    if capturing is not None:
-        capturing.set()
-    virtual_time_paused = False
-    try:
-        if isinstance(beginframe_controller, BeginFrameCoordinator):
-            await beginframe_controller.drain_prior(label="pre-atomic-capture")
-        await _send("Emulation.setVirtualTimePolicy", {"policy": "pause"})
-        virtual_time_paused = True
-        raw = await _send("Runtime.evaluate", _runtime_evaluate_params(query_js))
-        (
-            visibility_vec,
-            background_color,
-            issue_class,
-            issue_message,
-            match_found,
-            match_offset,
-            matched_witness_id,
-            matched_witness_text,
-            page_url,
-        ) = _unwrap_runtime_evaluate(raw)
-        if issue_class is not None:
-            logger.warning(
-                "pvpo: Runtime.evaluate returned malformed visibility payload (%s); "
-                "defaulting missing fields and continuing",
-                issue_message or issue_class,
-            )
-
-        begin_frame_params = {
-            "screenshot": {
-                "format": "png",
-                "quality": 100,
-                "clip": viewport_rect.as_cdp_clip(),
-            },
-        }
-
-        async def _capture_frame() -> tuple[dict[str, Any], bytes]:
-            if isinstance(beginframe_controller, BeginFrameCoordinator):
-                frame = await beginframe_controller.send(
-                    cdp,
-                    begin_frame_params,
-                    timeout_s=cdp_timeout_s,
-                    label="atomic-capture",
-                )
-            else:
-                frame = await _send("HeadlessExperimental.beginFrame", begin_frame_params)
-            png_b64 = frame.get("screenshotData") or ""
-            return frame, base64.b64decode(png_b64) if png_b64 else b""
-
-        frame: dict[str, Any] = {}
-        screenshot_png = b""
-        attempts = _BEGINFRAME_EMPTY_SCREENSHOT_RETRIES + 1
-        if isinstance(beginframe_controller, BeginFrameCoordinator):
-            for attempt in range(attempts):
-                frame, screenshot_png = await _capture_frame()
-                if screenshot_png:
-                    break
-                if attempt < attempts - 1:
-                    await asyncio.sleep(0)
-        elif beginframe_lock is not None:
-            async with beginframe_lock:
-                for attempt in range(attempts):
-                    frame, screenshot_png = await _capture_frame()
-                    if screenshot_png:
-                        break
-                    if attempt < attempts - 1:
-                        await asyncio.sleep(0)
-        else:
-            for attempt in range(attempts):
-                frame, screenshot_png = await _capture_frame()
-                if screenshot_png:
-                    break
-                if attempt < attempts - 1:
-                    await asyncio.sleep(0)
-
-        has_damage = bool(frame.get("hasDamage", True))
-        if not has_damage:
-            logger.debug(
-                "pvpo beginFrame hasDamage=False; trusting prior frame pixels "
-                "(read-only visibility query should not dirty the compositor)"
-            )
-        if not screenshot_png:
-            issue_class = "begin_frame_empty_screenshot"
-            issue_message = (
-                "HeadlessExperimental.beginFrame returned empty screenshotData "
-                f"after {attempts} attempt(s)"
-            )
-    finally:
-        if virtual_time_paused:
-            try:
-                await _send("Emulation.setVirtualTimePolicy", {"policy": "advance"})
-            except Exception as exc:
-                logger.warning("pvpo: failed to resume virtual time after capture: %s", exc)
-        if capturing is not None:
-            capturing.clear()
-
-    return StepCapture(
-        screenshot_png=screenshot_png,
-        visibility_vec=visibility_vec,
-        background_color=background_color,
-        has_damage=has_damage,
-        clip=viewport_rect,
-        page_url=page_url,
-        issue_class=issue_class,
-        issue_message=issue_message,
-        match_found=match_found,
-        match_offset=match_offset,
-        matched_witness_id=matched_witness_id,
-        matched_witness_text=matched_witness_text,
-    )
 
 
 async def surface_capture_with_stability(

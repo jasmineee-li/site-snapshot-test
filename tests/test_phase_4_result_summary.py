@@ -1368,10 +1368,6 @@ def test_summarize_phase4_results_reports_browser_runtime_scroll_counters(tmp_pa
             "pvpo_scroll_wheel_timeouts": 2,
             "pvpo_scroll_wheel_late_successes": 1,
             "pvpo_scroll_js_fallbacks": 1,
-            "pvpo_beginframe_pending_errors": 2,
-            "pvpo_beginframe_prior_drain_timeouts": 1,
-            "pvpo_navigation_tick_frames": 7,
-            "pvpo_navigation_tick_navigations": 2,
             "pvpo_cdp_timeouts": 3,
             "pvpo_cdp_late_completions": 2,
             "network_trace_entries": 14,
@@ -1395,12 +1391,6 @@ def test_summarize_phase4_results_reports_browser_runtime_scroll_counters(tmp_pa
     assert "pvpo_scroll_wheel_timeouts=2" in out
     assert "pvpo_scroll_wheel_late_successes=1" in out
     assert "pvpo_scroll_js_fallbacks=1" in out
-    assert "PVPO beginFrame:" in out
-    assert "pvpo_beginframe_pending_errors=2" in out
-    assert "pvpo_beginframe_prior_drain_timeouts=1" in out
-    assert "PVPO navigation ticks:" in out
-    assert "pvpo_navigation_tick_frames=7" in out
-    assert "pvpo_navigation_tick_navigations=2" in out
     assert "PVPO CDP deadlines:" in out
     assert "pvpo_cdp_timeouts=3" in out
     assert "pvpo_cdp_late_completions=2" in out

@@ -1405,14 +1405,11 @@ def _steps_from_agentlab_timeline(events: list[dict[str, Any]]) -> int:
 
 def _recycle_pvpo_browser_after_parent_timeout(cdp_url: str) -> dict[str, Any]:
     try:
-        from worldsim.phase_4.pvpo_beginframe import coordinator_for_pvpo_endpoint
         from worldsim.phase_4.pvpo_browser_lifecycle import recycle_pvpo_browser_after_task
 
         async def _recycle() -> dict[str, Any]:
             payload = await recycle_pvpo_browser_after_task(None, cdp_url)
             payload["recycle_reason"] = "parent_timeout"
-            if payload.get("recycle_status") == "recycled":
-                coordinator_for_pvpo_endpoint(cdp_url).reset_after_recycle()
             return payload
 
         return asyncio.run(_recycle())

@@ -371,7 +371,7 @@
   }
 
   /**
-   * Bring an offscreen witness into the viewport before the beginFrame
+   * Bring an offscreen witness into the viewport before the capture
    * screenshot. This does not satisfy Gate 1 by itself; host-side ink
    * occupancy still requires non-background pixels inside the returned rects.
    *

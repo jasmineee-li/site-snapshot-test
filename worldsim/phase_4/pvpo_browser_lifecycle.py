@@ -1,4 +1,4 @@
-"""Lifecycle controls for dedicated PVPO chrome-headless-shell endpoints.
+"""Lifecycle controls for legacy dedicated PVPO browser endpoints.
 
 Phase 4 assigns each worker a dedicated external CDP endpoint.  Browser Use
 sessions are task-scoped, but the remote Chrome process behind ``cdp_url``
@@ -77,7 +77,7 @@ async def recycle_pvpo_browser_after_task(
     Rigor hosts manage loopback PVPO endpoints as ``pvpo-chrome-<port>`` Docker
     containers.  For those endpoints, the authoritative reset is
     ``docker restart``; CDP ``Browser.close`` can disconnect clients without
-    terminating the supervised ``chrome-headless-shell`` parent process.  CDP
+    terminating the supervised browser parent process.  CDP
     close remains a fallback for unmanaged/non-Docker endpoints.
 
     Returns a small artifact payload suitable for ``browser_runtime.json``.

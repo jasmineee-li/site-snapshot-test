@@ -342,8 +342,8 @@ class BenchmarkInstance(BaseModel):
     )
     pvpo_cdp_url: str | None = Field(
         None,
-        description="Worker-exclusive chrome-headless-shell CDP endpoint used by "
-        "Phase 4 PVPO/browser execution, e.g. 'http://127.0.0.1:9222'.",
+        description="Optional worker-exclusive external CDP endpoint for legacy "
+        "remote-browser Phase 4 execution, e.g. 'http://127.0.0.1:9222'.",
     )
 
     @field_validator("db_connection")

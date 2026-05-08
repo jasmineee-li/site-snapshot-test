@@ -200,17 +200,6 @@ class SyncPvpoRecorder:
         self.summary["last_issue_class"] = issue_class
         self.summary["last_issue_step"] = step_idx
         self.summary["last_issue_message"] = message
-        if issue_class == "capture_failed" and "HeadlessExperimental.beginFrame" in message:
-            fatal_error = FatalPvpoCaptureError(
-                "AgentLab PVPO capture failed; stopping sidecar before BrowserGym "
-                f"continues on a potentially corrupt CDP session: {message}"
-            )
-            self.fatal_capture_error = fatal_error
-            self._save_summary()
-            self._write_fatal_capture_sentinel(issue_class, step_idx, message)
-            logger.error("%s", fatal_error)
-            logging.shutdown()
-            os._exit(_PVPO_FATAL_EXIT_CODE)
         self._save_summary()
         if issue_class not in self._warned_issue_classes:
             self._warned_issue_classes.add(issue_class)
