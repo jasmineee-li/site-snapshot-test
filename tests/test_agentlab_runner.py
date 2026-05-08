@@ -431,11 +431,25 @@ def test_build_phase4_sidecar_request_maps_runner_contract(monkeypatch, tmp_path
     assert request["storage_state_aliases"]["origins_added"] == 1
     assert request["payload_text"] == "payload"
     assert request["payload_witnesses"] == [{"id": "w", "text": "payload"}]
-    assert request["pvpo_cdp_url"] == "http://127.0.0.1:9222"
+    assert request["pvpo_cdp_url"] is None
     assert request["max_steps"] == 9
     assert request["env_overrides"] == {"WA_GITLAB": "http://gitlab.test"}
     assert request["url_origin_rewrites"] == {"http://canonical.test": "http://gitlab.test"}
     shutil.rmtree(request["storage_state_runtime_dir"], ignore_errors=True)
+
+
+def test_build_phase4_sidecar_request_legacy_cdp_requires_explicit_opt_in(monkeypatch, tmp_path):
+    monkeypatch.setenv("WORLDSIM_AGENTLAB_LEGACY_CONNECT_OVER_CDP", "1")
+
+    request = _build_phase4_sidecar_request(
+        "Do the task",
+        "http://gitlab.test",
+        tmp_path / "task",
+        AgentLabAgentWrapper(model="gpt52", provider="openrouter", max_steps=9),
+        {"pvpo_cdp_url": "http://127.0.0.1:9222"},
+    )
+
+    assert request["pvpo_cdp_url"] == "http://127.0.0.1:9222"
 
 
 def test_build_phase4_sidecar_request_filters_cross_scheme_rewrites(tmp_path):

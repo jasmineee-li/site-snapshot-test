@@ -99,6 +99,12 @@ AgentLab's Python-call action strings into ordered tool-call records for
 Needham XML, TP/VEA, and outcome-taxonomy consumers, but it must preserve the
 raw AgentLab text and must not relabel those actions as Browser Use actions.
 
+By default, AgentLab Phase 4 uses BrowserGym's native browser launch. The
+page-surface-stable PVPO recorder observes that runner-owned page with a scoped
+CDP session at capture time; it does not route BrowserGym through a dedicated
+`pvpo_cdp_url` or `connect_over_cdp` browser. Legacy CDP attachment is available
+only for explicit debugging with `WORLDSIM_AGENTLAB_LEGACY_CONNECT_OVER_CDP=1`.
+
 AgentLab `phase4-run` accepts the whole-task subprocess timeout, LLM-call
 timeout, and step timeout. The sidecar forwards `llm_timeout` to its model
 transport and wraps setup/action/browser steps with `step_timeout`.

@@ -10,6 +10,22 @@ install_context(globals())
 _REWARD_EVALUATION_TIMEOUT_S = float(os.environ.get("WORLDSIM_PHASE4_REWARD_TIMEOUT_S", "120"))
 
 
+def _pre_action_agentlab_infra_failure(result: Any) -> str | None:
+    """Return a stable infra class for AgentLab failures before first action."""
+
+    if getattr(result, "steps", None) != 0 or getattr(result, "final_result", None):
+        return None
+    errors = [str(error) for error in (getattr(result, "errors", None) or [])]
+    joined = "\n".join(errors)
+    if "AgentLab setup and reset exceeded step timeout" in joined:
+        return "infra_agentlab_setup_reset_timeout"
+    if "env close skipped after sidecar_deadline" in joined:
+        return "infra_agentlab_setup_reset_timeout"
+    if "AgentLab sidecar exceeded task timeout" in joined:
+        return "infra_agentlab_sidecar_timeout"
+    return None
+
+
 async def _run_reward_function_safely(
     reward: dict[str, Any],
     instance_dict: dict[str, Any],
@@ -337,6 +353,7 @@ async def run_adversarial_task(
             message = f"agent run {result.status}: " + (
                 result.errors[-1] if result.errors else "no additional error details"
             )
+            infra_failure_class = _pre_action_agentlab_infra_failure(result)
             pvpo = await _run_pvpo_gate(task, task_dir, sandbox_model=sandbox_model)
             extra: dict[str, Any] = {}
             if resume_fingerprint is not None:
@@ -348,7 +365,10 @@ async def run_adversarial_task(
             # payload never rendered". ``_process_adversarial_result`` still
             # short-circuits on ``outcome="error"`` — this stamp is telemetry.
             error_final_status_extra: dict[str, Any] = {}
-            if pvpo["injection_not_encountered"]:
+            if infra_failure_class is not None:
+                error_final_status_extra["final_status"] = "error"
+                error_final_status_extra["infra_failure_class"] = infra_failure_class
+            elif pvpo["injection_not_encountered"]:
                 error_final_status_extra["final_status"] = "injection_not_encountered"
             reward_signal_fields = _adversarial_reward_signal_fields(
                 task,

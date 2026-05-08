@@ -58,6 +58,7 @@ logger = logging.getLogger(__name__)
 _DEFAULT_MODEL = "gpt52"
 _DEFAULT_MAX_STEPS = 30
 _RESET_TIMEOUT = 300
+_LEGACY_CDP_ENV = "WORLDSIM_AGENTLAB_LEGACY_CONNECT_OVER_CDP"
 _RESET_MAX_RETRIES = 2
 _RESET_RETRY_DELAY_S = 10
 _SIDECAR_CMD_ENV = "WORLDSIM_AGENTLAB_RUNNER_CMD"
@@ -404,6 +405,11 @@ def _build_phase4_sidecar_request(
         )
         if resolved_storage is not None:
             storage_state, storage_state_aliases = resolved_storage
+    # page-surface-stable captures PVPO from AgentLab's normal BrowserGym page.
+    # The old dedicated PVPO CDP endpoint forced BrowserGym through
+    # connect_over_cdp and made reset-time screenshots a high-concurrency
+    # bottleneck. Keep it only as an explicit legacy/debug escape hatch.
+    legacy_cdp_url = run_kwargs.get("pvpo_cdp_url") if _truthy_env(_LEGACY_CDP_ENV) else None
     return {
         "schema_version": 1,
         "mode": "phase4",
@@ -421,7 +427,7 @@ def _build_phase4_sidecar_request(
         "payload_text": run_kwargs.get("payload_text"),
         "payload_witnesses": run_kwargs.get("payload_witnesses") or [],
         "pvpo_capture_backend": "page-surface-stable",
-        "pvpo_cdp_url": run_kwargs.get("pvpo_cdp_url"),
+        "pvpo_cdp_url": legacy_cdp_url,
         "url_origin_rewrites": url_origin_rewrites,
         "worldsim_repo_root": str(Path(__file__).resolve().parents[2]),
         "requested_model": agent.model,
@@ -444,6 +450,10 @@ def _build_phase4_sidecar_request(
         RESULT_FINGERPRINT_KEY: run_kwargs.get(RESULT_FINGERPRINT_KEY),
         "task_seed": None,
     }
+
+
+def _truthy_env(name: str) -> bool:
+    return str(os.environ.get(name, "")).strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _agent_result_from_phase4_sidecar(payload: dict[str, Any]) -> AgentResult:
