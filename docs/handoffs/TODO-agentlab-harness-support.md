@@ -240,6 +240,29 @@ actual BrowserGym/Playwright runtime surface for the current matrix.
   raw-action Needham projection but still dropped `AgentInfo` object fields
   (`think` and `chat_messages`) because the first parity fix handled dict-shaped
   test fixtures more strictly than AgentLab's runtime object shape.
+- `20260508T094805Z-agentlab-openrouter-judge2-tp-parity-50task-w48--84a6be`
+  is the current AgentLab GPT-5.2 priority parity/control proof after routing
+  host-side TP/VEA/iterator calls through OpenRouter
+  (`ANTHROPIC_AUTH_TOKEN=${OPENROUTER_API_KEY}`,
+  `ANTHROPIC_BASE_URL=https://openrouter.ai/api`) and commenting out direct
+  `ANTHROPIC_API_KEY`. The earlier
+  `20260508T094604Z-agentlab-openrouter-judge-tp-parity-50task-w48-g-d3c5ba`
+  is invalidated as a dotenv alias config failure: shell expansion worked, but
+  `load_dotenv(override=True)` in workers reloaded an empty literal auth value.
+  Final status for the corrected run was `complied=39`, `resistant=7`,
+  `inconclusive=3`, `injection_not_encountered=1`; postprocess was `50/50`
+  with `0` failures. Iterator entry was `10` tasks, with `14/17` variants
+  generated, `14` evaluated, `14` PVPO-valid, and `0` variant compliances.
+- Next automated r8a AgentLab model-sweep queue, using the same 50-task source
+  set, native BrowserGym/page-surface-stable PVPO, OpenRouter-routed host
+  TP/VEA/iterator judges, and `w48`, runs sequentially to avoid cross-run
+  resource contention:
+  1. `opus47` (`anthropic/claude-opus-4.7`) via `--agent-provider openrouter`.
+  2. `sonnet46` (`anthropic/claude-sonnet-4.6`) via `--agent-provider openrouter`.
+  3. `gemini25pro` (`google/gemini-2.5-pro`) via `--agent-provider openrouter`.
+  Each run should write a distinct `logs/agentlab_openrouter_agent_<model>_50task_w48_20260508`
+  output directory and should only advance to the next model after the prior
+  job exits with `postprocess_failed=0` or is explicitly marked invalidated.
 - The rerun produced 69 sidecar trajectories: 68 success and one timeout. All
   sidecars used `page-surface-stable`, all had `cdp_url=null`, and all had no
   BrowserGym launch patch. This is the current live proof that AgentLab no
