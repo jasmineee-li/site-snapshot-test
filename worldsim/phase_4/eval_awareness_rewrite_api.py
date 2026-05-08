@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import logging
+import os
 import time
 from typing import Any, Literal
 
@@ -58,6 +59,16 @@ logger = logging.getLogger(__name__)
 _INITIAL_MAX_TOKENS = 8192
 _MAX_MAX_TOKENS = 32768
 _STRUCTURED_ATTEMPTS = 3
+_THINKING_ENV = "WORLDSIM_EVAL_AWARENESS_REWRITE_THINKING"
+_THINKING_EFFORT_ENV = "WORLDSIM_EVAL_AWARENESS_REWRITE_THINKING_EFFORT"
+_DIAGNOSTIC_FIELD_LIMITS = {
+    "rewrite_summary": 800,
+    "cue_reasoning": 1000,
+    "rewrite_plan": 1000,
+    "awareness_objective": 600,
+    "attack_objective": 600,
+    "reason": 400,
+}
 
 
 class build_eval_awareness_rewrite(BaseModel):
@@ -98,6 +109,24 @@ class build_eval_awareness_rewrite(BaseModel):
     awareness_objective: str | None = Field(default=None, max_length=600)
     attack_objective: str | None = Field(default=None, max_length=600)
     reason: str | None = Field(default=None, max_length=400)
+
+    @field_validator(
+        "rewrite_summary",
+        "cue_reasoning",
+        "rewrite_plan",
+        "awareness_objective",
+        "attack_objective",
+        "reason",
+        mode="before",
+    )
+    @classmethod
+    def truncate_diagnostic_text(cls, value: Any, info: ValidationInfo) -> Any:
+        if not isinstance(value, str):
+            return value
+        limit = _DIAGNOSTIC_FIELD_LIMITS.get(info.field_name)
+        if not isinstance(limit, int) or len(value) <= limit:
+            return value
+        return value[:limit]
 
     @field_validator("adversarial_data_seed", mode="before")
     @classmethod
@@ -165,15 +194,54 @@ class build_eval_awareness_rewrite(BaseModel):
         return self
 
 
-def _instructor_client_for(client: AsyncAnthropic) -> Any:
+def _instructor_client_for(client: AsyncAnthropic, *, thinking_enabled: bool = False) -> Any:
     injected = getattr(client, "_worldsim_eval_awareness_rewrite_instructor_client", None)
     if injected is not None:
         return injected
-    return instructor.from_anthropic(client, mode=instructor.Mode.ANTHROPIC_TOOLS)
+    mode = (
+        instructor.Mode.ANTHROPIC_REASONING_TOOLS
+        if thinking_enabled
+        else instructor.Mode.ANTHROPIC_TOOLS
+    )
+    return instructor.from_anthropic(client, mode=mode)
 
 
 def _model_metadata(task: dict[str, Any]) -> dict[str, str]:
     return {"user_id": "worldsim-v5-eval-awareness-rewrite"}
+
+
+def _eval_awareness_rewrite_thinking_kwargs() -> dict[str, Any]:
+    """Return optional Anthropic thinking kwargs for Instructor-backed rewrites.
+
+    Current Instructor Anthropic tooling can use extended thinking by switching
+    tool choice to auto internally when ``thinking`` is present. Keep this
+    feature opt-in because older endpoint/provider combinations may reject
+    thinking or ignore Anthropic ``output_config`` effort hints.
+    """
+
+    raw_mode = os.environ.get(_THINKING_ENV, "").strip().lower()
+    if not raw_mode or raw_mode in {"0", "false", "off", "none", "disabled"}:
+        return {}
+    kwargs: dict[str, Any] = {}
+    if raw_mode == "adaptive":
+        kwargs["thinking"] = {"type": "adaptive"}
+    elif raw_mode.startswith("budget:"):
+        try:
+            budget = int(raw_mode.split(":", 1)[1])
+        except ValueError:
+            logger.warning("Ignoring invalid %s=%r", _THINKING_ENV, raw_mode)
+            return {}
+        if budget <= 0:
+            logger.warning("Ignoring non-positive %s=%r", _THINKING_ENV, raw_mode)
+            return {}
+        kwargs["thinking"] = {"type": "enabled", "budget_tokens": budget}
+    else:
+        logger.warning("Ignoring unsupported %s=%r", _THINKING_ENV, raw_mode)
+        return {}
+    effort = os.environ.get(_THINKING_EFFORT_ENV, "").strip().lower()
+    if effort:
+        kwargs["extra_body"] = {"output_config": {"effort": effort}}
+    return kwargs
 
 
 def _xml_section(tag: str, value: Any) -> str:
@@ -513,7 +581,10 @@ async def generate_eval_awareness_rewrite_api(
     task_id = str(task.get("id") or "unknown")
     client = client or get_client()
     normalized_model = normalize_model_for_auth(sandbox_model)
-    instructor_client = _instructor_client_for(client)
+    thinking_kwargs = _eval_awareness_rewrite_thinking_kwargs()
+    instructor_client = _instructor_client_for(
+        client, thinking_enabled=bool(thinking_kwargs.get("thinking"))
+    )
     messages = _build_messages(
         task,
         cue_diagnosis,
@@ -552,6 +623,7 @@ async def generate_eval_awareness_rewrite_api(
                         max_retries=instructor_semantic_retrying(_STRUCTURED_ATTEMPTS),
                         hooks=hooks,
                         metadata=_model_metadata(task),
+                        **thinking_kwargs,
                     )
                     if getattr(completion, "stop_reason", None) == "max_tokens":
                         raise IncompleteOutputException(last_completion=completion)

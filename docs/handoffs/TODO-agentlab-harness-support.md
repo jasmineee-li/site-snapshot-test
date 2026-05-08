@@ -463,7 +463,20 @@ The operational rule is simple:
      PVPO browser recycle from the parent. `--agent-llm-timeout` and
      `--agent-step-timeout` are passed to AgentLab `phase4-run` request fields,
      but live proof showed they are not sufficient deadline controls for a
-     stalled AgentLab step.
+   stalled AgentLab step.
+
+8. **Eval-awareness rewrite structured-output hardening**
+   - Instructor/Pydantic remains the default structured retry layer for
+     eval-awareness rewrite. Anthropic extended thinking is now available only
+     behind `WORLDSIM_EVAL_AWARENESS_REWRITE_THINKING` because thinking requires
+     Anthropic auto tool choice instead of forced tool choice.
+   - r8a generation-only smoke over the 30 iterator-entered AgentLab cases:
+     baseline/off produced `29/30` valid rewrites after diagnostic-field
+     truncation. Thinking arms were lower (`26-27/30`) and therefore should not
+     be enabled by default without a browser-evaluated TP/VEA benefit proof.
+   - This smoke replays cue diagnosis, rewrite generation, merge, and host
+     contract QA only. It does not rerun AgentLab or produce new TP/VEA values;
+     TP/VEA deltas require browser-evaluated Phase 4 variants.
 
 ## Suggested Next PRs
 

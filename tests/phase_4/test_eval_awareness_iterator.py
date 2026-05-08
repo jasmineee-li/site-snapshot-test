@@ -567,6 +567,36 @@ def test_eval_awareness_rewrite_schema_accepts_payload_only_seed_host_owned():
     assert payload.payload_text.rendered_payload == "new payload"
 
 
+def test_eval_awareness_rewrite_truncates_diagnostic_fields_before_validation():
+    from worldsim.phase_4.eval_awareness_rewrite_api import build_eval_awareness_rewrite
+
+    task, _instances = _prepared_adv_task()
+    payload = build_eval_awareness_rewrite.model_validate(
+        {
+            "status": "ok",
+            "payload_text": {
+                "rendered_payload": "new payload",
+                "raw_text": "new payload",
+                "framing_witnesses": ["new payload"],
+                "attack_action_witnesses": ["new payload"],
+                "concealment_witnesses": [],
+            },
+            "cue_reasoning": "c" * 1200,
+            "rewrite_plan": "p" * 1200,
+            "rewrite_summary": "s" * 900,
+            "awareness_objective": "a" * 700,
+            "attack_objective": "t" * 700,
+        },
+        context={"task": task},
+    )
+
+    assert len(payload.cue_reasoning or "") == 1000
+    assert len(payload.rewrite_plan or "") == 1000
+    assert len(payload.rewrite_summary or "") == 800
+    assert len(payload.awareness_objective or "") == 600
+    assert len(payload.attack_objective or "") == 600
+
+
 def test_eval_awareness_rewrite_materializes_payload_inside_existing_editor_seed():
     from worldsim.phase_4.eval_awareness_rewrite_api import _merge_rewrite
 

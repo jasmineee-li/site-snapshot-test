@@ -87,6 +87,8 @@ def test_instructor_hooks_record_compact_trace():
     hooks.emit_completion_arguments(
         model="model",
         max_tokens=2048,
+        thinking={"type": "adaptive"},
+        extra_body={"output_config": {"effort": "high"}},
         messages=[{"role": "user", "content": "prompt"}],
     )
     hooks.emit_completion_response(response)
@@ -94,6 +96,10 @@ def test_instructor_hooks_record_compact_trace():
 
     diagnostics = trace.to_diagnostics()
     assert diagnostics["attempts"] == 1
+    assert diagnostics["completion_kwargs"][0]["thinking"] == {"type": "adaptive"}
+    assert diagnostics["completion_kwargs"][0]["extra_body"] == {
+        "output_config": {"effort": "high"}
+    }
     assert diagnostics["completion_responses"][0]["id"] == "msg_1"
     assert diagnostics["parse_errors"][0]["type"] == "ValueError"
 

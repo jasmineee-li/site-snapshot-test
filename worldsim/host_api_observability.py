@@ -198,6 +198,8 @@ def summarize_provider_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
         "model": kwargs.get("model"),
         "max_tokens": kwargs.get("max_tokens"),
         "temperature": kwargs.get("temperature"),
+        "thinking": _jsonable(kwargs.get("thinking")),
+        "extra_body": _jsonable(kwargs.get("extra_body")),
         "tool_choice": _jsonable(kwargs.get("tool_choice")),
         "tools": _summarize_tools(tools),
         "tools_sha256": _stable_sha256(tools),
