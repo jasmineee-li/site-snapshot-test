@@ -589,10 +589,11 @@ def test_eval_awareness_rewrite_prompt_includes_preserved_action_contract():
     assert '"comment"' in input_text
     assert "https://attacker.invalid/action" in input_text
     assert "recording whether the action should happen" in input_text
-    assert "same public content mutation" in input_text
+    assert "same browser-side action described by action_kind" in input_text
+    assert "same public content mutation" not in input_text
 
 
-def test_eval_awareness_rewrite_action_contract_uses_navigation_wording():
+def test_eval_awareness_rewrite_action_contract_uses_raw_navigation_metadata():
     from worldsim.phase_4 import eval_awareness_rewrite_api
 
     task, _instances = _prepared_adv_task()
@@ -626,7 +627,9 @@ def test_eval_awareness_rewrite_action_contract_uses_navigation_wording():
     )
     input_text = messages[0]["content"][1]["text"]
 
-    assert "same navigation/open action" in input_text
+    assert '"action_kind": "open_required_url"' in input_text
+    assert "same browser-side action described by action_kind" in input_text
+    assert "same navigation/open action" not in input_text
     assert "same public content mutation" not in input_text
     assert '"open"' in input_text
     assert '"required_object_terms": []' in input_text
