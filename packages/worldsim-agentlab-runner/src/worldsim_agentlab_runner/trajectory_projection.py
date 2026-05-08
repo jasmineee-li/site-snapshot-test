@@ -60,6 +60,7 @@ def write_worldsim_artifacts(
         task_instruction=task_instruction,
         history=history,
         final_result=final_result,
+        system_prompt=_extract_system_prompt_from_episode(episode_info),
     )
 
 
@@ -107,6 +108,7 @@ def _history_entry(step: Any) -> dict[str, Any]:
             "terminated": getattr(step, "terminated", None),
             "truncated": getattr(step, "truncated", None),
             "observation_text": _observation_text(obs),
+            "raw_action": str(action) if action is not None else "",
         },
     }
 
@@ -235,34 +237,40 @@ def _write_needham_trace(
     task_instruction: str,
     history: list[dict[str, Any]],
     final_result: str | None,
+    system_prompt: str = "",
 ) -> None:
-    messages: list[dict[str, Any]] = [{"role": "user", "text": task_instruction}]
-    next_tool_id = 0
+    messages: list[dict[str, Any]] = []
+    if system_prompt:
+        messages.append({"role": "system", "text": system_prompt})
+    messages.append({"role": "user", "text": task_instruction})
     for index, step in enumerate(history):
         model_output = step.get("model_output") if isinstance(step, dict) else {}
-        action_items = model_output.get("action") if isinstance(model_output, dict) else []
-        tool_calls = []
-        if isinstance(action_items, list):
-            for action in action_items:
-                if isinstance(action, dict) and action:
-                    function = str(next(iter(action)))
-                    arguments = action.get(function)
-                    if not isinstance(arguments, dict):
-                        arguments = {"value": arguments}
-                    tool_calls.append(
-                        {
-                            "id": str(next_tool_id),
-                            "function": function,
-                            "arguments": arguments,
-                        }
-                    )
-                    next_tool_id += 1
-        text = model_output.get("thinking") if isinstance(model_output, dict) else ""
+        agentlab = step.get("agentlab") if isinstance(step, dict) else {}
+        raw_action = agentlab.get("raw_action") if isinstance(agentlab, dict) else ""
+        raw_action = raw_action if isinstance(raw_action, str) else ""
+        function = _tool_function_from_action(raw_action)
+        tool_calls = (
+            [
+                {
+                    "id": str(index),
+                    "function": function,
+                    "arguments": {"action": raw_action},
+                }
+            ]
+            if raw_action
+            else None
+        )
+        text = _compose_needham_assistant_text(
+            model_output.get("thinking") if isinstance(model_output, dict) else "",
+            raw_action,
+        )
+        if not text and not tool_calls:
+            continue
         messages.append(
             {
                 "role": "assistant",
-                "text": text or "",
-                "tool_calls": tool_calls or None,
+                "text": text,
+                "tool_calls": tool_calls,
                 "provenance": {"source": "agentlab_history", "source_step": index},
             }
         )
@@ -272,7 +280,7 @@ def _write_needham_trace(
                 {
                     "role": "tool",
                     "text": result_text,
-                    "function": tool_calls[0]["function"] if tool_calls else "agentlab_action",
+                    "function": function,
                     "provenance": {"source": "agentlab_history", "source_step": index},
                 }
             )
@@ -306,6 +314,24 @@ def _write_needham_trace(
     (output_dir / "needham_trace.xml").write_text(xml, encoding="utf-8")
 
 
+def _compose_needham_assistant_text(thinking: Any, raw_action: str) -> str:
+    parts = []
+    if isinstance(thinking, str) and thinking.strip():
+        parts.append(thinking.strip())
+    if raw_action.strip():
+        parts.append(raw_action.strip())
+    return "\n\n".join(parts)
+
+
+def _tool_function_from_action(action: str) -> str:
+    stripped = (action or "").strip()
+    if not stripped:
+        return "action"
+    head = stripped.split("(", 1)[0].split(None, 1)[0].strip()
+    safe = "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in head)
+    return safe or "action"
+
+
 def _needham_tool_result_text(step: dict[str, Any]) -> str:
     agentlab = step.get("agentlab") if isinstance(step, dict) else {}
     if isinstance(agentlab, dict):
@@ -328,8 +354,47 @@ def _needham_tool_result_text(step: dict[str, Any]) -> str:
 def _observation_text(obs: dict[str, Any]) -> str:
     axtree = obs.get("axtree_txt")
     if isinstance(axtree, str) and axtree:
-        return axtree
+        return axtree[:5000]
     return _state_message(obs)
+
+
+def _extract_system_prompt_from_episode(episode_info: list[Any]) -> str:
+    for step in episode_info:
+        agent_info = getattr(step, "agent_info", None)
+        if not isinstance(agent_info, dict):
+            continue
+        system_prompt = _extract_agentlab_system_prompt(agent_info)
+        if system_prompt:
+            return system_prompt
+    return ""
+
+
+def _message_content_to_text(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, dict) and item.get("type") == "text":
+                parts.append(str(item.get("text", "")))
+            elif isinstance(item, str):
+                parts.append(item)
+        return "".join(parts)
+    return str(content) if content is not None else ""
+
+
+def _extract_agentlab_system_prompt(agent_info: dict[str, Any]) -> str:
+    chat_messages = agent_info.get("chat_messages")
+    messages = _safe_get(chat_messages, "messages", []) or []
+    if not isinstance(messages, (list, tuple)):
+        return ""
+    for message in messages:
+        role = _safe_get(message, "role")
+        if role != "system":
+            continue
+        content = _safe_get(message, "content", "")
+        return _message_content_to_text(content)
+    return ""
 
 
 def _extract_agentlab_reasoning(agent_info: dict[str, Any]) -> str | None:

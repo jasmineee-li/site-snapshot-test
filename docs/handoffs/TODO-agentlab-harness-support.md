@@ -231,7 +231,10 @@ actual BrowserGym/Playwright runtime surface for the current matrix.
   reran the 50-task r8a GPT-5.2 priority sweep at `w48` after the metadata
   guard. Final status was `complied=40`, `resistant=6`, `inconclusive=3`,
   `injection_not_encountered=1`; headline ASR was `40/50=0.80`, and Gate-1 ASR
-  was `40/49=0.82`.
+  was `40/49=0.82`. After the AgentLab Needham projection parity fix, treat
+  this run as runtime/PVPO evidence only, not Transcript Purpose parity
+  evidence, because its AgentLab TP/VEA transcripts predate data-import parity
+  projection.
 - The rerun produced 69 sidecar trajectories: 68 success and one timeout. All
   sidecars used `page-surface-stable`, all had `cdp_url=null`, and all had no
   BrowserGym launch patch. This is the current live proof that AgentLab no
