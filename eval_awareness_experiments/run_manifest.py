@@ -1,7 +1,7 @@
 """Scan results directories and emit a JSON manifest of completed runs.
 
 Used by the matrix runner to skip cells already complete and by the
-dashboard to render the (benchmark × arm × model) coverage grid.
+dashboard to render the (benchmark x arm x model) coverage grid.
 
 The new pilot layout is `<results_root>/<benchmark>/<arm>/<model>/...`
 where each cell directory contains the run output (a `<benchmark>/<split>/`
@@ -34,7 +34,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -161,7 +161,7 @@ def _aggregate_judge_results(jsonl_path: Path) -> dict[str, Any]:
     """Pull headline metrics from the trajectory_awareness_results JSONL.
 
     Returns:
-        n_vea: count of trajectories with verbalized_awareness judgment
+        n_vea: count of trajectories with valid verbalized_awareness judgment
         n_5pq: count of trajectories with purpose_continue_5q judgment
         vea_count: count of non-Real verbalized_awareness classifications
         align_share: mean share of Alignment Eval across 5PQ prompts (mean over tasks)
@@ -171,6 +171,7 @@ def _aggregate_judge_results(jsonl_path: Path) -> dict[str, Any]:
     if not rows:
         return {
             "n_samples": 0, "n_vea": 0, "n_5pq": 0, "vea_count": 0,
+            "n_vea_errors": 0,
             "align_share": None, "any_eval_share": None,
             "n_attack_samples": 0, "n_attacks": 0,
             "n_pass_samples": 0, "n_passes": 0,
@@ -178,12 +179,14 @@ def _aggregate_judge_results(jsonl_path: Path) -> dict[str, Any]:
 
     sample_ids = {key for r in rows if (key := _sample_key(r))}
     rows_vea = [r for r in rows if r.get("experiment_type") == "trajectory_verbalized_awareness"]
+    valid_rows_vea = [r for r in rows_vea if not (r.get("metadata") or {}).get("error")]
     rows_5pq = [r for r in rows if r.get("experiment_type") == "trajectory_purpose_continue_5q"]
     metrics = _aggregate_metadata_metrics(rows)
 
     vea_count = sum(
         1 for r in rows_vea
-        if (r.get("classification") or "").strip().lower() not in ("real", "", None)
+        if not (r.get("metadata") or {}).get("error")
+        and (r.get("classification") or "").strip().lower() not in ("real", "", None)
     )
 
     # 5PQ: per-task mean across variants of "is this an alignment eval"
@@ -209,7 +212,8 @@ def _aggregate_judge_results(jsonl_path: Path) -> dict[str, Any]:
 
     return {
         "n_samples": len(sample_ids),
-        "n_vea": len(rows_vea),
+        "n_vea": len(valid_rows_vea),
+        "n_vea_errors": len(rows_vea) - len(valid_rows_vea),
         "n_5pq": len(rows_5pq),
         "vea_count": vea_count,
         "align_share": align_share,
@@ -300,6 +304,7 @@ def _scan_cell(
         "n_pass_samples": 0,
         "n_judged_samples": 0,
         "n_vea": 0,
+        "n_vea_errors": 0,
         "n_5pq": 0,
         "vea_count": 0,
         "align_share": None,
@@ -333,6 +338,7 @@ def _scan_cell(
                 split_entry["n_passes"] = agg["n_passes"]
             cell["n_judged_samples"] += agg["n_samples"]
             cell["n_vea"] += agg["n_vea"]
+            cell["n_vea_errors"] += agg.get("n_vea_errors", 0)
             cell["n_5pq"] += agg["n_5pq"]
             cell["vea_count"] += agg["vea_count"]
             # For align/any_eval, we average across splits — usually only one
@@ -358,7 +364,7 @@ def _scan_cell(
                 pass
 
     if last_mtime:
-        cell["last_modified"] = datetime.fromtimestamp(last_mtime, tz=timezone.utc).isoformat()
+        cell["last_modified"] = datetime.fromtimestamp(last_mtime, tz=UTC).isoformat()
 
     # Strict completeness: every expected split must be present and, when
     # `--tasks-per-split` is known, must have at least that many unique judged
@@ -455,7 +461,7 @@ def scan(
                     )
                     cells.append(cell)
     return {
-        "scanned_at": datetime.now(timezone.utc).isoformat(),
+        "scanned_at": datetime.now(UTC).isoformat(),
         "results_dir": str(results_dir),
         "cells": cells,
     }

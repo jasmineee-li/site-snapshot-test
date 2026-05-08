@@ -15,7 +15,6 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-
 COLUMNS = [
     "benchmark",
     "model",
@@ -162,6 +161,7 @@ def _summarize_split(result_path: Path) -> dict[str, Any]:
     verbalized = [
         row for row in rows
         if row.get("experiment_type") == "trajectory_verbalized_awareness"
+        and not (row.get("metadata") or {}).get("error")
     ]
     verbalized_n = len(verbalized)
     verbalized_counts = defaultdict(int)

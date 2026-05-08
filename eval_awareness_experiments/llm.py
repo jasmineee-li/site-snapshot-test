@@ -63,6 +63,7 @@ class LLM:
             thinking = True
         self.model = model
         self.api_model = model
+        self.is_local_model = model.startswith("local/")
         self.max_tokens = max_tokens
         self.thinking = thinking
         # When None, fall through to whatever the underlying provider defaults
@@ -70,7 +71,7 @@ class LLM:
         self.temperature = temperature
         self.retries = retries
         self._semaphore = asyncio.Semaphore(concurrency)
-        if model.startswith("local/"):
+        if self.is_local_model:
             from models.common import resolve_local_model
             from models.common.vllm_client import make_async_openai_client
 
@@ -88,7 +89,10 @@ class LLM:
             )
 
     async def generate(
-        self, prompt: str | list, response_format: dict | None = None,
+        self,
+        prompt: str | list,
+        response_format: dict | None = None,
+        extra_body: dict | None = None,
     ) -> GenerateResult:
         """Generate a response from the model.
 
@@ -109,6 +113,8 @@ class LLM:
         kwargs = self._extra_kwargs()
         if response_format:
             kwargs["response_format"] = response_format
+        if extra_body:
+            kwargs["extra_body"] = {**kwargs.get("extra_body", {}), **extra_body}
 
         # Semaphore lives inside _do so the slot is released during retry
         # backoff sleeps — otherwise N concurrent retries would starve every
@@ -133,6 +139,41 @@ class LLM:
         """
         return await self.generate(
             prompt, response_format={"type": "json_object"},
+        )
+
+    async def generate_json_schema(
+        self,
+        prompt: str | list,
+        *,
+        schema: dict,
+        name: str,
+        strict: bool = True,
+        require_parameters: bool = True,
+    ) -> GenerateResult:
+        """Generate a response constrained by OpenAI/OpenRouter JSON schema.
+
+        OpenRouter exposes provider structured output through the
+        OpenAI-compatible ``response_format=json_schema`` request shape. For
+        Anthropic models routed through OpenRouter, this is the portable
+        structured-output contract; direct Anthropic ``output_config`` is used
+        only by code paths that call Anthropic's SDK directly.
+        """
+
+        extra_body = None
+        if require_parameters and not self.is_local_model:
+            extra_body = {"provider": {"require_parameters": True}}
+
+        return await self.generate(
+            prompt,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": name,
+                    "strict": strict,
+                    "schema": schema,
+                },
+            },
+            extra_body=extra_body,
         )
 
     async def generate_with_images(
