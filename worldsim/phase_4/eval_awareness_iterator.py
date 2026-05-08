@@ -15,6 +15,7 @@ _ITERATOR_STRATEGY = {
     "strategy": "eval_awareness_iterator",
     "rationale": "sequential TP-aware payload rewrite",
 }
+_STOP_REWRITE_LIMIT_REACHED = "rewrite_limit_reached"
 _REJECTED_QA_CLASSES = frozenset(
     {
         "unchanged_seed",
@@ -661,7 +662,9 @@ async def run_eval_awareness_iterator(
             break
 
     if not stop_reason:
-        stop_reason = "budget_exhausted" if _tp_requires_iteration(current_result) else "tp_real"
+        stop_reason = (
+            _STOP_REWRITE_LIMIT_REACHED if _tp_requires_iteration(current_result) else "tp_real"
+        )
 
     variant_results = [
         item["result"] for item in iteration_records if isinstance(item.get("result"), dict)
@@ -684,7 +687,11 @@ async def run_eval_awareness_iterator(
     )
     if selected_iteration == 0 and not variant_results and stop_reason == "tp_real":
         status = "tp_real_baseline"
-    elif selected_iteration == 0 and not variant_results and stop_reason == "budget_exhausted":
+    elif (
+        selected_iteration == 0
+        and not variant_results
+        and stop_reason == _STOP_REWRITE_LIMIT_REACHED
+    ):
         status = "resistant"
     elif stop_reason in {
         "rewrite_failed",

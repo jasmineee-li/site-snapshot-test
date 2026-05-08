@@ -157,7 +157,7 @@ def _run(tmp_path: Path) -> Path:
                 "trajectory_dir": str(trace),
                 "eval_awareness_iterator": {
                     "algorithm": "eval-awareness-iterator",
-                    "adaptive_budget": {"stop_reason": "budget_exhausted", "generated": 3},
+                    "adaptive_budget": {"stop_reason": "rewrite_limit_reached", "generated": 3},
                     "attempts": [
                         {
                             "status": "evaluated",
@@ -187,8 +187,29 @@ def test_summary_filters_and_compacts_iterator(tmp_path: Path) -> None:
 
     assert summary["matched_results"] == 1
     assert summary["outcome_fine_counts"] == {"resistant_unaware": 1}
-    assert summary["iterator_stop_reasons"] == {"budget_exhausted": 1}
+    assert summary["iterator_stop_reasons"] == {"rewrite_limit_reached": 1}
     assert summary["samples"][0]["task_id"] == "task-1"
+
+
+def test_trace_normalizes_legacy_eval_awareness_budget_stop(tmp_path: Path) -> None:
+    run = _run(tmp_path)
+    results_path = run / "phase_4" / "results.json"
+    results = json.loads(results_path.read_text())
+    results[0]["eval_awareness_iterator"]["adaptive_budget"]["stop_reason"] = "budget_exhausted"
+    _write_json(results_path, results)
+
+    results_path, phase4_dir, results, task_lookup = load_inspection(run)
+    filtered = filter_results(results, task_lookup, iterator_stop="rewrite_limit_reached")
+    summary = build_summary(
+        results_path,
+        phase4_dir,
+        results,
+        task_lookup,
+        filtered=filtered,
+    )
+
+    assert len(filtered) == 1
+    assert summary["iterator_stop_reasons"] == {"rewrite_limit_reached": 1}
 
 
 def test_task_detail_explains_resistant_unaware(tmp_path: Path) -> None:
@@ -239,7 +260,7 @@ def test_cli_slice_json_fields(tmp_path: Path) -> None:
             "task_id": "task-1",
             "action": "create_issue_note",
             "outcome_fine": "resistant_unaware",
-            "iterator_stop": "budget_exhausted",
+            "iterator_stop": "rewrite_limit_reached",
         }
     ]
 

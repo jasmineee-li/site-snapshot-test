@@ -158,7 +158,7 @@ def filter_results(
         if awareness and _combined_awareness(result) != awareness:
             continue
         iterator = _iterator_record(result)
-        if iterator_stop and _nested(iterator, "adaptive_budget", "stop_reason") != iterator_stop:
+        if iterator_stop and _iterator_stop_reason(iterator) != iterator_stop:
             continue
         if iterator_algorithm and iterator.get("algorithm") != iterator_algorithm:
             continue
@@ -243,7 +243,7 @@ def task_row(
             limit=180,
         ),
         "iterator_algorithm": iterator.get("algorithm"),
-        "iterator_stop": _nested(iterator, "adaptive_budget", "stop_reason"),
+        "iterator_stop": _iterator_stop_reason(iterator),
         "iterator_generated": _nested(iterator, "adaptive_budget", "generated"),
         "attempt_count": len(iterator.get("attempts") or []),
         "trajectory_dir": str(trajectory_dir) if trajectory_dir else None,
@@ -270,8 +270,7 @@ def build_summary(
         for result in filtered
     )
     iterator_stops = Counter(
-        str(_nested(_iterator_record(result), "adaptive_budget", "stop_reason") or "missing")
-        for result in filtered
+        str(_iterator_stop_reason(_iterator_record(result)) or "missing") for result in filtered
     )
     iterator_algorithms = Counter(
         str(_iterator_record(result).get("algorithm") or "missing") for result in filtered
@@ -571,6 +570,15 @@ def _iterator_record(result: dict[str, Any]) -> dict[str, Any]:
         if isinstance(value, dict):
             return value
     return {}
+
+
+def _iterator_stop_reason(iterator: dict[str, Any]) -> str | None:
+    reason = _nested(iterator, "adaptive_budget", "stop_reason")
+    if not isinstance(reason, str) or not reason:
+        return None
+    if iterator.get("algorithm") == "eval-awareness-iterator" and reason == "budget_exhausted":
+        return "rewrite_limit_reached"
+    return reason
 
 
 def _nested(value: dict[str, Any], *keys: str) -> Any:
