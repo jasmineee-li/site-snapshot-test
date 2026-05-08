@@ -1,4 +1,63 @@
+import pytest
+from pydantic import BaseModel, Field
+
 from worldsim.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
+from worldsim.phase_4.eval_awareness_streaming_tool import (
+    _request_kwargs,
+    build_anthropic_tool_schema,
+    stream_pydantic_tool_call,
+)
+
+
+class _TinyRewrite(BaseModel):
+    status: str
+    rewrite_plan: str = Field(max_length=10)
+
+
+class _FakeBlock:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+    def model_dump(self, **_kwargs):
+        return dict(self.__dict__)
+
+
+class _FakeMessage:
+    def __init__(self, content, *, stop_reason="tool_use"):
+        self.id = "msg_fake"
+        self.model = "claude-sonnet-4-6"
+        self.stop_reason = stop_reason
+        self.content = content
+        self.usage = None
+
+
+class _FakeStream:
+    def __init__(self, message):
+        self._message = message
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_args):
+        return None
+
+    async def get_final_message(self):
+        return self._message
+
+
+class _FakeMessages:
+    def __init__(self, responses):
+        self._responses = list(responses)
+        self.kwargs = []
+
+    def stream(self, **kwargs):
+        self.kwargs.append(kwargs)
+        return _FakeStream(self._responses.pop(0))
+
+
+class _FakeAnthropic:
+    def __init__(self, responses):
+        self.messages = _FakeMessages(responses)
 
 
 def test_eval_awareness_rewrite_metadata_uses_anthropic_allowed_keys_only() -> None:
@@ -39,43 +98,125 @@ def test_eval_awareness_rewrite_thinking_kwargs_manual_budget(monkeypatch) -> No
     }
 
 
-def test_eval_awareness_rewrite_uses_reasoning_tools_mode_for_thinking(monkeypatch) -> None:
-    captured = {}
+def test_eval_awareness_rewrite_rejects_too_small_manual_budget(monkeypatch) -> None:
+    monkeypatch.setenv("WORLDSIM_EVAL_AWARENESS_REWRITE_THINKING", "budget:512")
 
-    def fake_from_anthropic(client, *, mode):
-        captured["client"] = client
-        captured["mode"] = mode
-        return "wrapped"
+    try:
+        eval_awareness_rewrite_api._eval_awareness_rewrite_thinking_kwargs()
+    except ValueError as exc:
+        assert "requires N >= 1024" in str(exc)
+    else:
+        raise AssertionError("small manual thinking budgets must be rejected")
 
-    monkeypatch.setattr(eval_awareness_rewrite_api.instructor, "from_anthropic", fake_from_anthropic)
-    client = object()
 
-    assert (
-        eval_awareness_rewrite_api._instructor_client_for(client, thinking_enabled=True)
-        == "wrapped"
+def test_eval_awareness_rewrite_manual_budget_selects_room_for_tool_json(monkeypatch) -> None:
+    monkeypatch.setenv("WORLDSIM_EVAL_AWARENESS_REWRITE_THINKING", "budget:32768")
+    thinking = eval_awareness_rewrite_api._eval_awareness_rewrite_thinking_kwargs()
+
+    assert eval_awareness_rewrite_api._initial_max_tokens_for_rewrite(thinking) == 36864
+
+
+def test_eval_awareness_rewrite_adaptive_thinking_uses_streaming_headroom(monkeypatch) -> None:
+    monkeypatch.setenv("WORLDSIM_EVAL_AWARENESS_REWRITE_THINKING", "adaptive")
+    thinking = eval_awareness_rewrite_api._eval_awareness_rewrite_thinking_kwargs()
+
+    assert eval_awareness_rewrite_api._initial_max_tokens_for_rewrite(thinking) == 32768
+
+
+def test_eval_awareness_streaming_tool_choice_is_auto_for_thinking() -> None:
+    tool = {"name": "build_eval_awareness_rewrite", "input_schema": {"type": "object"}}
+
+    kwargs = _request_kwargs(
+        model="claude-sonnet-4-6",
+        max_tokens=32768,
+        messages=[],
+        tool=tool,
+        tool_name="build_eval_awareness_rewrite",
+        metadata={"user_id": "worldsim-v5-eval-awareness-rewrite"},
+        thinking_kwargs={"thinking": {"type": "enabled", "budget_tokens": 16384}},
+        force_tool=False,
     )
-    assert captured == {
-        "client": client,
-        "mode": eval_awareness_rewrite_api.instructor.Mode.ANTHROPIC_REASONING_TOOLS,
-    }
+
+    assert kwargs["tool_choice"] == {"type": "auto"}
+    assert kwargs["thinking"] == {"type": "enabled", "budget_tokens": 16384}
+    assert "Return only the build_eval_awareness_rewrite tool call" in kwargs["system"][0]["text"]
 
 
-def test_eval_awareness_rewrite_uses_forced_tools_mode_by_default(monkeypatch) -> None:
-    captured = {}
+def test_eval_awareness_streaming_tool_choice_is_forced_without_thinking() -> None:
+    tool = {"name": "build_eval_awareness_rewrite", "input_schema": {"type": "object"}}
 
-    def fake_from_anthropic(client, *, mode):
-        captured["client"] = client
-        captured["mode"] = mode
-        return "wrapped"
-
-    monkeypatch.setattr(eval_awareness_rewrite_api.instructor, "from_anthropic", fake_from_anthropic)
-    client = object()
-
-    assert (
-        eval_awareness_rewrite_api._instructor_client_for(client, thinking_enabled=False)
-        == "wrapped"
+    kwargs = _request_kwargs(
+        model="claude-sonnet-4-6",
+        max_tokens=8192,
+        messages=[],
+        tool=tool,
+        tool_name="build_eval_awareness_rewrite",
+        metadata={"user_id": "worldsim-v5-eval-awareness-rewrite"},
+        thinking_kwargs={},
+        force_tool=True,
     )
-    assert captured == {
-        "client": client,
-        "mode": eval_awareness_rewrite_api.instructor.Mode.ANTHROPIC_TOOLS,
+
+    assert kwargs["tool_choice"] == {
+        "type": "tool",
+        "name": "build_eval_awareness_rewrite",
     }
+    assert "system" not in kwargs
+
+
+def test_eval_awareness_streaming_schema_surfaces_length_hints() -> None:
+    schema = build_anthropic_tool_schema(eval_awareness_rewrite_api.build_eval_awareness_rewrite)
+    properties = schema["input_schema"]["properties"]
+
+    assert "at most 1000 characters" in properties["cue_reasoning"]["description"]
+    assert "at most 1000 characters" in properties["rewrite_plan"]["description"]
+
+
+@pytest.mark.asyncio
+async def test_eval_awareness_streaming_tool_retries_with_compact_tool_feedback() -> None:
+    first = _FakeMessage(
+        [
+            _FakeBlock(type="thinking", thinking="draft"),
+            _FakeBlock(
+                type="tool_use",
+                id="toolu_1",
+                name="_TinyRewrite",
+                input={"status": "ok", "rewrite_plan": "this is too long"},
+            ),
+        ]
+    )
+    second = _FakeMessage(
+        [
+            _FakeBlock(
+                type="tool_use",
+                id="toolu_2",
+                name="_TinyRewrite",
+                input={"status": "ok", "rewrite_plan": "short"},
+            )
+        ]
+    )
+    client = _FakeAnthropic([first, second])
+
+    result = await stream_pydantic_tool_call(
+        client=client,
+        model="claude-sonnet-4-6",
+        messages=[{"role": "user", "content": "rewrite"}],
+        response_model=_TinyRewrite,
+        context={},
+        max_tokens=32768,
+        max_retries=2,
+        metadata={"user_id": "worldsim-v5-eval-awareness-rewrite"},
+        label="unit",
+        task_id="task-1",
+        thinking_kwargs={"thinking": {"type": "enabled", "budget_tokens": 8192}},
+        force_tool=False,
+    )
+
+    assert result.parsed.rewrite_plan == "short"
+    assert len(client.messages.kwargs) == 2
+    second_messages = client.messages.kwargs[1]["messages"]
+    assert second_messages[-2]["role"] == "assistant"
+    assert second_messages[-2]["content"][0]["type"] == "thinking"
+    assert second_messages[-1]["content"][0]["type"] == "tool_result"
+    assert second_messages[-1]["content"][0]["is_error"] is True
+    assert "Validation failed for _TinyRewrite" in second_messages[-1]["content"][0]["content"]
+    assert result.diagnostics["attempts"] == 2

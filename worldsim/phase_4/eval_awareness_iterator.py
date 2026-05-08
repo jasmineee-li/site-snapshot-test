@@ -90,33 +90,21 @@ def _cue_applicability_failure(
             "failure_class": "rewrite_inapplicable_insufficient_causal_evidence",
             "reason": "cue diagnosis was unavailable; no reliable payload-local rewrite target",
         }
-    removable = _string_list(cue_diagnosis.get("removable_payload_cues"))
-    payload_cues = _string_list(cue_diagnosis.get("payload_cues"))
+    mutable = _string_list(cue_diagnosis.get("mutable_payload_cues"))
+    protected_payload_cues = _string_list(cue_diagnosis.get("protected_payload_cues"))
     trajectory_cues = _string_list(cue_diagnosis.get("trajectory_cues"))
-    protected_values = _protected_payload_values(task)
-    protected_matches = _protected_cue_matches(removable + payload_cues, protected_values)
-    if protected_matches and (
-        not removable
-        or not [cue for cue in removable if not _cue_mentions_any(cue, protected_matches)]
-    ):
+    if protected_payload_cues and not mutable:
         return {
             "failure_class": "rewrite_inapplicable_irreconcilable_contract",
             "reason": (
                 "cue diagnosis only identified protected payload cues; host contracts "
                 "do not permit relaxing or rewriting them"
             ),
-            "protected_witness_count": len(protected_matches),
-            "protected_witness_kinds": sorted(
-                {
-                    item.get("kind", "unknown")
-                    for item in protected_values
-                    if item.get("value") in protected_matches
-                }
-            ),
+            "protected_witness_count": len(protected_payload_cues),
         }
-    if removable:
+    if mutable:
         return None
-    if trajectory_cues and not payload_cues:
+    if trajectory_cues and not protected_payload_cues:
         return {
             "failure_class": "rewrite_inapplicable_trajectory_only",
             "reason": "cue diagnosis found only task/trajectory cues, not removable payload cues",
@@ -127,10 +115,51 @@ def _cue_applicability_failure(
     }
 
 
+def _normalize_eval_awareness_cue_diagnosis(
+    task: dict[str, Any],
+    cue_diagnosis: dict[str, Any],
+) -> dict[str, Any]:
+    """Host-normalize cue mutability before rewrite control.
+
+    The model can propose cue classes, but WorldSim owns the treatment-cell
+    contract. Any cue that mentions a required token, protected substring,
+    renderer wrapper, or action witness becomes protected before rewrite.
+    """
+
+    normalized = json.loads(json.dumps(cue_diagnosis, default=str))
+    mutable = _string_list(normalized.get("mutable_payload_cues"))
+    protected = _string_list(normalized.get("protected_payload_cues"))
+    protected_values = _protected_payload_values(task)
+    still_mutable: list[str] = []
+    moved: list[str] = []
+    for cue in mutable:
+        matches = _protected_cue_matches([cue], protected_values)
+        if matches:
+            moved.append(cue)
+        else:
+            still_mutable.append(cue)
+    normalized["mutable_payload_cues"] = still_mutable
+    normalized["protected_payload_cues"] = _dedupe_strings([*protected, *moved])
+    if moved:
+        normalized["host_mutability_normalization"] = {
+            "moved_mutable_to_protected": moved,
+            "reason": "cue mentioned host-protected payload values",
+        }
+    return normalized
+
+
 def _string_list(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, str) and item.strip()]
+
+
+def _dedupe_strings(values: list[str]) -> list[str]:
+    out: list[str] = []
+    for value in values:
+        if value not in out:
+            out.append(value)
+    return out
 
 
 def _protected_eval_awareness_values(task: dict[str, Any]) -> list[str]:
@@ -570,6 +599,8 @@ async def run_eval_awareness_iterator(
                 ],
                 sandbox_model=sandbox_model,
             )
+            if isinstance(cue, dict):
+                cue = _normalize_eval_awareness_cue_diagnosis(current_task, cue)
             record["cue_diagnosis"] = cue
             checkpoint["iterations"] = iteration_records
             _write_json_atomic(

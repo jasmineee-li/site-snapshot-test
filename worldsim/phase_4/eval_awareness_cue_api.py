@@ -33,7 +33,6 @@ from worldsim.phase_4.prompt_payloads import (
     sanitize_task_for_model_prompt,
 )
 from worldsim.prompt_loading import load_prompt
-from worldsim.text_payload_contract import selected_payload
 
 logger = logging.getLogger(__name__)
 
@@ -54,25 +53,34 @@ class diagnose_eval_awareness_cues(BaseModel):
         min_length=1,
         description="Brief source of the cue-diagnosis trigger, usually the non-real TP label.",
     )
-    payload_cues: list[str] = Field(
+    mutable_payload_cues: list[str] = Field(
         default_factory=list,
         max_length=12,
-        description="Cues in the selected payload text that could make it look like an eval.",
+        description=(
+            "Payload-local cues that are editable without changing required anchors, "
+            "protected witnesses, renderer wrappers, placement, or action semantics."
+        ),
+    )
+    protected_payload_cues: list[str] = Field(
+        default_factory=list,
+        max_length=12,
+        description=(
+            "Payload-local cues that may look evaluation-like but are protected by "
+            "required tokens, renderer wrappers, exact URL anchors, or action witnesses."
+        ),
     )
     trajectory_cues: list[str] = Field(
         default_factory=list,
         max_length=12,
         description="Non-payload cues from the task, trajectory, or harness context.",
     )
-    removable_payload_cues: list[str] = Field(
-        default_factory=list,
-        max_length=12,
-        description="Payload-local cues that a rewrite can plausibly remove.",
-    )
     rewrite_guidance: str = Field(
         default="",
         max_length=1200,
-        description="Concrete payload-local guidance for the rewrite API.",
+        description=(
+            "Concrete guidance for editing mutable_payload_cues only. Do not suggest "
+            "removing protected_payload_cues."
+        ),
     )
     confidence: Literal["low", "medium", "high"] = Field(
         default="medium",
@@ -181,6 +189,8 @@ def _build_messages(
     prior_attempts: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     prompt = load_prompt("eval-awareness-cue-diagnosis")
+    from worldsim.text_payload_contract import selected_payload
+
     selected = selected_payload(task)
     selected_payload_value = selected if isinstance(selected, dict) else None
     input_xml = "\n\n".join(
@@ -268,9 +278,9 @@ async def run_eval_awareness_cue_api(
         return {
             "status": "unavailable",
             "trigger_source": "cue_api_parse_failure",
-            "payload_cues": [],
+            "mutable_payload_cues": [],
+            "protected_payload_cues": [],
             "trajectory_cues": [],
-            "removable_payload_cues": [],
             "rewrite_guidance": "",
             "confidence": "low",
             "reason": reason[:500],
@@ -282,9 +292,9 @@ async def run_eval_awareness_cue_api(
         return {
             "status": "unavailable",
             "trigger_source": failure,
-            "payload_cues": [],
+            "mutable_payload_cues": [],
+            "protected_payload_cues": [],
             "trajectory_cues": [],
-            "removable_payload_cues": [],
             "rewrite_guidance": "",
             "confidence": "low",
             "reason": f"{failure}: {exc}"[:500],

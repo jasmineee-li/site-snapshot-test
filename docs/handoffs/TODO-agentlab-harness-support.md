@@ -471,14 +471,20 @@ The operational rule is simple:
    stalled AgentLab step.
 
 8. **Eval-awareness rewrite structured-output hardening**
-   - Instructor/Pydantic remains the default structured retry layer for
-     eval-awareness rewrite. Anthropic extended thinking is now available only
-     behind `WORLDSIM_EVAL_AWARENESS_REWRITE_THINKING` because thinking requires
-     Anthropic auto tool choice instead of forced tool choice.
-   - r8a generation-only smoke over the 30 iterator-entered AgentLab cases:
-     baseline/off produced `29/30` valid rewrites after diagnostic-field
-     truncation. Thinking arms were lower (`26-27/30`) and therefore should not
-     be enabled by default without a browser-evaluated TP/VEA benefit proof.
+   - Eval-awareness rewrite now uses the feature-local native Anthropic
+     streaming tool transport instead of Instructor. The default/no-thinking
+     path still forces the schema tool; thinking paths use Anthropic auto tool
+     choice, preserve assistant thinking/tool blocks on retry, and validate with
+     the same host Pydantic model.
+   - Cue diagnosis now hard-cuts cue mutability into
+     `mutable_payload_cues`, `protected_payload_cues`, and `trajectory_cues`.
+     Host normalization moves any cue that mentions required/protected payload
+     values out of mutable before rewrite control.
+   - r8a generation-only smoke over the 30 iterator-entered AgentLab cases
+     should be rerun after this cutover before enabling thinking by default.
+     Earlier pre-cutover smoke showed baseline/off had the best schema pass
+     rate, so thinking remains opt-in pending browser-evaluated TP/VEA benefit
+     proof.
    - This smoke replays cue diagnosis, rewrite generation, merge, and host
      contract QA only. It does not rerun AgentLab or produce new TP/VEA values;
      TP/VEA deltas require browser-evaluated Phase 4 variants.

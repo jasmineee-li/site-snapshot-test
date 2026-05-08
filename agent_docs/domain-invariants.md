@@ -453,7 +453,19 @@ one path.
 
 No Phase 4 trajectory step routes through `run_claude_in_sandbox`. Refusal judge, variant generator, Transcript Purpose, VEA, placement-fix, eval-awareness cue diagnosis, and eval-awareness rewrite all use direct host Anthropic Messages API calls.
 
-Instructor/Pydantic structured calls are allowed for bounded host-side helper steps such as Phase 2b text fill and eval-awareness rewrite, but they must preserve WorldSim observability: transport retries stay in `worldsim/phase_4/anthropic_client.py::call_with_retry`, semantic retries are limited to parse/validation failures, and diagnostics must record compact request/response metadata, thinking mode, and provider extra-body mode without full prompts or secrets. Anthropic extended thinking for eval-awareness rewrite is opt-in only; because Anthropic thinking is incompatible with forced tool choice, that path relies on a single schema tool, auto tool choice, Pydantic validation, and bounded retries rather than making thinking the default.
+Structured host-side helper calls must preserve WorldSim observability:
+transport retries stay in `worldsim/phase_4/anthropic_client.py::call_with_retry`,
+semantic retries are limited to parse/validation failures, and diagnostics must
+record compact request/response metadata, thinking mode, and provider
+extra-body mode without full prompts or secrets. Bounded helpers such as Phase
+2b text fill may use Instructor/Pydantic. Eval-awareness rewrite uses the
+feature-local native streaming tool transport in
+`worldsim/phase_4/eval_awareness_streaming_tool.py` so high-budget Anthropic
+thinking can coexist with host-side Pydantic validation and semantic retries.
+Anthropic extended thinking for eval-awareness rewrite is opt-in only; because
+thinking is incompatible with forced tool choice, that path uses a single
+schema tool, auto tool choice, compact validation feedback, and bounded retries
+rather than making thinking the default.
 
 Modal sandbox scope is based on explicit inclusion with `image.add_local_file` / `image.add_local_dir`. Ignore-file patterns are not an isolation boundary.
 
