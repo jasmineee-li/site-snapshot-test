@@ -207,6 +207,7 @@ def _call_openrouter(prompt: str, model: str) -> str:
             "temperature": 0.7,
             "messages": [{"role": "user", "content": prompt}],
             "response_format": {"type": "json_object"},
+            "provider": {"require_parameters": True},
         },
         timeout=90,
     )

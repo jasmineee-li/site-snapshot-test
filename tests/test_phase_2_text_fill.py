@@ -6,6 +6,7 @@ import pytest
 from tenacity import AsyncRetrying
 
 from worldsim.adversarial_actions.tier3 import tier3_payload_action_contract
+from worldsim.phase_2.text_fill import api as text_fill_api
 from worldsim.phases import phase_2_text_fill
 from worldsim.text_payload_contract import (
     TEXT_PAYLOAD_VALIDATOR_CONTEXT_KEY,
@@ -859,6 +860,33 @@ def test_text_fill_max_tokens_respects_field_capacity():
         phase_2_text_fill._text_fill_max_tokens(concealed)
         == phase_2_text_fill._TEXT_FILL_EXPANDED_MAX_TOKENS
     )
+
+
+def test_call_openrouter_requires_structured_parameters(monkeypatch):
+    captured: dict = {}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"choices": [{"message": {"content": '{"ok": true}'}}]}
+
+    def fake_post(*args, **kwargs):
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+        return FakeResponse()
+
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://openrouter.ai/api")
+    monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "token")
+    monkeypatch.setattr(text_fill_api.requests, "post", fake_post)
+
+    raw = phase_2_text_fill._call_openrouter("compose JSON", "anthropic/claude-sonnet-4-6")
+
+    assert raw == '{"ok": true}'
+    body = captured["kwargs"]["json"]
+    assert body["response_format"] == {"type": "json_object"}
+    assert body["provider"] == {"require_parameters": True}
 
 
 @pytest.mark.asyncio
