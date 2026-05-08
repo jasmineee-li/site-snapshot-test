@@ -112,7 +112,10 @@ sets BrowserGym's page and context default action/navigation deadlines so a
 single stuck Playwright action does not consume the full task timeout. Defaults
 are 60s for actions and 45s for navigations; override with
 `WORLDSIM_AGENTLAB_ACTION_TIMEOUT_S` and
-`WORLDSIM_AGENTLAB_NAVIGATION_TIMEOUT_S` only for debugging.
+`WORLDSIM_AGENTLAB_NAVIGATION_TIMEOUT_S` only for debugging. Browser steps are
+also capped independently at 120s by default via
+`WORLDSIM_AGENTLAB_BROWSER_STEP_TIMEOUT_S`, while setup and LLM action calls can
+still use the larger `--agent-step-timeout`.
 `--agent-task-timeout` remains the outer infrastructure guard for startup and
 cleanup hangs.
 

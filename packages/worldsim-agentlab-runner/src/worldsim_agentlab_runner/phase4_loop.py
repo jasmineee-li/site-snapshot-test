@@ -203,7 +203,11 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
                         break
 
                     next_step = StepInfo(step=step_info.step + 1)
-                    with _step_deadline(request, f"browser step {next_step.step}"):
+                    with _step_deadline(
+                        request,
+                        f"browser step {next_step.step}",
+                        timeout_s=_browser_step_timeout_s(request),
+                    ):
                         _update_runtime_progress(
                             output_dir,
                             runtime,
@@ -551,8 +555,14 @@ def _utc_now() -> str:
 
 
 @contextmanager
-def _step_deadline(request: dict[str, Any], label: str):
-    timeout_s = _optional_positive_float(request.get("step_timeout"))
+def _step_deadline(
+    request: dict[str, Any],
+    label: str,
+    *,
+    timeout_s: float | None = None,
+):
+    if timeout_s is None:
+        timeout_s = _optional_positive_float(request.get("step_timeout"))
     if timeout_s is None:
         yield
         return
@@ -578,6 +588,22 @@ def _step_deadline(request: dict[str, Any], label: str):
                 max(0.001, previous_remaining - elapsed),
                 float(previous_timer[1] or 0),
             )
+
+
+def _browser_step_timeout_s(request: dict[str, Any]) -> float | None:
+    explicit = _optional_positive_float(request.get("browser_step_timeout_s"))
+    if explicit is not None:
+        return explicit
+    import os
+
+    env_value = _optional_positive_float(os.environ.get("WORLDSIM_AGENTLAB_BROWSER_STEP_TIMEOUT_S"))
+    if env_value is not None:
+        return env_value
+    step_timeout = _optional_positive_float(request.get("step_timeout"))
+    default = 120.0
+    if step_timeout is None:
+        return default
+    return min(step_timeout, default)
 
 
 def _redact_sidecar_payload(value: Any) -> Any:

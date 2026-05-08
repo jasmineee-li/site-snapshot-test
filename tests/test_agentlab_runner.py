@@ -1141,6 +1141,17 @@ def test_agentlab_phase4_writes_incremental_browser_runtime(tmp_path):
     assert "last_updated_at" in payload
 
 
+def test_phase4_browser_step_timeout_is_capped_below_agent_step_timeout(monkeypatch):
+    phase4_loop = _load_sidecar_module("phase4_loop")
+
+    assert phase4_loop._browser_step_timeout_s({"step_timeout": 900}) == 120.0
+    assert phase4_loop._browser_step_timeout_s({"browser_step_timeout_s": 75}) == 75
+
+    monkeypatch.setenv("WORLDSIM_AGENTLAB_BROWSER_STEP_TIMEOUT_S", "33")
+
+    assert phase4_loop._browser_step_timeout_s({"step_timeout": 900}) == 33
+
+
 def test_agentlab_phase4_appends_step_timeline_and_events(tmp_path):
     phase4_loop = _load_sidecar_module("phase4_loop")
     network_trace = _load_sidecar_module("network_trace")
