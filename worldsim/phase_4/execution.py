@@ -23,6 +23,10 @@ def _pre_action_agentlab_infra_failure(result: Any) -> str | None:
         return "infra_agentlab_setup_reset_timeout"
     if "AgentLab sidecar exceeded task timeout" in joined:
         return "infra_agentlab_sidecar_timeout"
+    if "BrowserType.launch: Executable doesn't exist" in joined:
+        return "infra_agentlab_browser_executable_missing"
+    if "playwright install" in joined and "BrowserType.launch" in joined:
+        return "infra_agentlab_browser_executable_missing"
     return None
 
 
