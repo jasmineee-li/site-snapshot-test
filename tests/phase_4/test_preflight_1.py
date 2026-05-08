@@ -156,7 +156,7 @@ def test_seed_target_benchmark_uses_instance_metadata_fallback():
         == "webarena_verified"
     )
 
-def test_pvpo_endpoint_preflight_errors_require_dedicated_urls_for_active_sites():
+def test_pvpo_endpoint_preflight_errors_allow_missing_and_duplicate_legacy_urls():
     instances = [
         BenchmarkInstance(
             site_name="shopping",
@@ -183,8 +183,7 @@ def test_pvpo_endpoint_preflight_errors_require_dedicated_urls_for_active_sites(
         active_sites={"shopping", "gitlab"},
     )
 
-    assert any("duplicate pvpo_cdp_url" in error for error in errors)
-    assert not any("gitlab[0]" in error for error in errors)
+    assert errors == []
 
 def test_pvpo_endpoint_preflight_errors_ignore_inactive_sites():
     instances = [
@@ -210,7 +209,7 @@ def test_pvpo_endpoint_preflight_errors_ignore_inactive_sites():
         == []
     )
 
-def test_pvpo_endpoint_preflight_errors_reject_loopback_alias_duplicates():
+def test_pvpo_endpoint_preflight_errors_accept_loopback_alias_duplicates():
     instances = [
         BenchmarkInstance(
             site_name="shopping",
@@ -231,7 +230,7 @@ def test_pvpo_endpoint_preflight_errors_reject_loopback_alias_duplicates():
         active_sites={"shopping"},
     )
 
-    assert any("duplicate pvpo_cdp_url" in error for error in errors)
+    assert errors == []
 
 def test_benchmark_instance_rejects_invalid_pvpo_port():
     with pytest.raises(ValueError, match="invalid port"):

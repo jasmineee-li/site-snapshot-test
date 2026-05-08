@@ -67,7 +67,13 @@ def _pvpo_endpoint_preflight_errors(
     *,
     active_sites: set[str] | None = None,
 ) -> list[str]:
-    """Validate per-instance PVPO endpoint assignment for Phase 4."""
+    """Validate legacy PVPO endpoint syntax when endpoints are configured.
+
+    Current page-surface-stable Phase 4 captures from the runner-owned browser
+    and does not require dedicated ``pvpo_cdp_url`` instances. Historical
+    instance files may still carry those URLs; keep validating their shape so
+    explicit legacy/debug use fails closed without making them mandatory.
+    """
     relevant_instances = [
         instance
         for instance in instances
@@ -77,12 +83,11 @@ def _pvpo_endpoint_preflight_errors(
         return []
 
     errors: list[str] = []
-    seen_urls: dict[str, str] = {}
     for instance in relevant_instances:
         label = instance.replica_name or f"{instance.site_name}[{instance.replica_index}]"
         raw_url = instance.pvpo_cdp_url
         try:
-            normalized_url = validate_pvpo_cdp_url(
+            validate_pvpo_cdp_url(
                 raw_url,
                 field_name=f"BenchmarkInstance(site={label}).pvpo_cdp_url",
                 allow_empty=True,
@@ -90,17 +95,6 @@ def _pvpo_endpoint_preflight_errors(
         except ValueError as exc:
             errors.append(str(exc))
             continue
-        if normalized_url is None:
-            continue
-        endpoint_identity = canonical_pvpo_endpoint_identity(normalized_url)
-        prior = seen_urls.get(endpoint_identity)
-        if prior is not None:
-            errors.append(
-                f"duplicate pvpo_cdp_url {normalized_url!r} for instances {prior!r} and {label!r}; "
-                "Phase 4 requires one dedicated PVPO browser endpoint per worker"
-            )
-        else:
-            seen_urls[endpoint_identity] = label
     return errors
 
 def _save_seed_preflight_result(

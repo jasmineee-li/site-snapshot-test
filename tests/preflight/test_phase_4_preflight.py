@@ -2,9 +2,10 @@
 
 The setup script ``scripts/setup_phase4_on_host.sh`` drives these tests as
 the final gate after bootstrapping uv/playwright/docker/artifacts. A green
-preflight proves: every configured PVPO CDP endpoint is reachable and
-uniquely assigned, the GitLab Phase 0d artifact exists, and the
-WebArena-Verified evaluator venv resolves.
+preflight proves: any configured legacy PVPO CDP endpoints are reachable, the
+GitLab Phase 0d artifact exists, and the WebArena-Verified evaluator venv
+resolves. Current page-surface-stable Phase 4 does not require dedicated PVPO
+browser containers.
 
 Inputs (setup script exports these):
 - ``WORLDSIM_PREFLIGHT_INSTANCES`` — path to instances.json
@@ -42,8 +43,8 @@ def _load_instances_config() -> dict | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def test_pvpo_cdp_endpoints_reachable_and_unique() -> None:
-    """Every configured worker PVPO endpoint must answer /json/version and be unique."""
+def test_configured_legacy_pvpo_cdp_endpoints_reachable() -> None:
+    """Any configured legacy PVPO endpoint must answer /json/version."""
     config = _load_instances_config()
     if config is None:
         pytest.skip("WORLDSIM_PREFLIGHT_INSTANCES unset or missing")
@@ -56,14 +57,14 @@ def test_pvpo_cdp_endpoints_reachable_and_unique() -> None:
     parsed = BenchmarkConfig.model_validate(config)
     errors = _pvpo_endpoint_preflight_errors(parsed.instances)
     assert not errors, (
-        "PVPO endpoint config invalid — each Phase 4 worker needs a unique "
-        "BenchmarkInstance.pvpo_cdp_url. Errors:\n  " + "\n  ".join(errors)
+        "PVPO endpoint config invalid. Errors:\n  " + "\n  ".join(errors)
     )
 
     checked: set[str] = set()
     for instance in parsed.instances:
         url = instance.pvpo_cdp_url
-        assert url is not None
+        if url is None:
+            continue
         if url in checked:
             continue
         checked.add(url)
@@ -80,7 +81,7 @@ def test_pvpo_cdp_endpoints_reachable_and_unique() -> None:
 
 
 def test_pvpo_cdp_containers_are_restart_supervised() -> None:
-    """Managed PVPO containers must support per-task docker restart recycling."""
+    """Configured legacy local PVPO containers must support restart recycling."""
     config = _load_instances_config()
     if config is None:
         pytest.skip("WORLDSIM_PREFLIGHT_INSTANCES unset or missing")
@@ -93,7 +94,8 @@ def test_pvpo_cdp_containers_are_restart_supervised() -> None:
     checked_ports: set[int] = set()
     for instance in parsed.instances:
         raw_url = instance.pvpo_cdp_url
-        assert raw_url is not None
+        if raw_url is None:
+            continue
         parsed_url = urlparse(raw_url)
         host = (parsed_url.hostname or "").lower()
         if host not in {"127.0.0.1", "localhost", "::1"}:

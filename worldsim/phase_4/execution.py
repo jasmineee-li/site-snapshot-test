@@ -11,10 +11,13 @@ _REWARD_EVALUATION_TIMEOUT_S = float(os.environ.get("WORLDSIM_PHASE4_REWARD_TIME
 
 
 def _pre_action_agentlab_infra_failure(result: Any) -> str | None:
-    """Return a stable infra class for AgentLab failures before first action."""
+    """Return a stable infra class for known AgentLab infrastructure failures.
 
-    if getattr(result, "steps", None) != 0 or getattr(result, "final_result", None):
-        return None
+    AgentLab timeouts can preserve partial trajectory evidence. Those artifacts
+    are useful for inspection, but they should not turn a known sidecar/runtime
+    failure into a scoreable Phase 4 trajectory.
+    """
+
     errors = [str(error) for error in (getattr(result, "errors", None) or [])]
     joined = "\n".join(errors)
     if "AgentLab browser step" in joined and "exceeded step timeout" in joined:
@@ -361,11 +364,15 @@ async def run_adversarial_task(
             else:
                 reset_cache.mark_clean(task, extra_bindings=reset_cache_bindings)
 
-        if result.status != "success" and not _has_scoreable_agent_output(result):
+        infra_failure_class = (
+            _pre_action_agentlab_infra_failure(result) if result.status != "success" else None
+        )
+        if result.status != "success" and (
+            infra_failure_class is not None or not _has_scoreable_agent_output(result)
+        ):
             message = f"agent run {result.status}: " + (
                 result.errors[-1] if result.errors else "no additional error details"
             )
-            infra_failure_class = _pre_action_agentlab_infra_failure(result)
             pvpo = await _run_pvpo_gate(task, task_dir, sandbox_model=sandbox_model)
             extra: dict[str, Any] = {}
             if resume_fingerprint is not None:

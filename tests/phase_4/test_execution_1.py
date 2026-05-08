@@ -481,6 +481,69 @@ async def test_run_adversarial_task_marks_agentlab_browser_step_timeout_as_infra
 
 
 @pytest.mark.asyncio
+async def test_run_adversarial_task_keeps_agentlab_timeout_infra_with_partial_artifacts(
+    monkeypatch,
+    tmp_path,
+):
+    task, instances = _prepared_adv_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+    reward_called = False
+
+    async def fake_reset(task):
+        return None
+
+    async def fake_apply_seed(seed, instance):
+        return None, {}
+
+    def fake_determine(task, trajectory_dir):
+        from worldsim.phase_4.encounter_detection import EncounterResult
+
+        return EncounterResult(
+            max_coverage=1.0,
+            reference_step=1,
+            reference_screenshot_path=str(tmp_path / "screenshots" / "step_1.png"),
+        )
+
+    def fake_reward_function(*args, **kwargs):
+        nonlocal reward_called
+        reward_called = True
+        return True, "unexpected reward evaluation"
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, *, start_urls=None):
+            return AgentResult(
+                elapsed=900.0,
+                steps=2,
+                is_done=False,
+                final_result="partial answer recovered before timeout",
+                status="timeout",
+                errors=["AgentLab sidecar exceeded task timeout 900s"],
+                network_trace=[{"url": "http://gitlab.test/issues/1", "method": "GET"}],
+            )
+
+    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_reward_function)
+
+    result = await phase_4_adversarial.run_adversarial_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path,
+    )
+
+    assert reward_called is False
+    assert result["outcome"] == "error"
+    assert result["final_status"] == "error"
+    assert result["infra_failure_class"] == "infra_agentlab_sidecar_timeout"
+    assert result["steps"] == 2
+    saved = json.loads((tmp_path / "result.json").read_text())
+    assert saved["final_result"] == "partial answer recovered before timeout"
+    assert saved["infra_failure_class"] == "infra_agentlab_sidecar_timeout"
+
+
+@pytest.mark.asyncio
 async def test_run_adversarial_task_marks_agentlab_metadata_load_as_infra_error(
     monkeypatch,
     tmp_path,
