@@ -22,6 +22,7 @@ from typing import Any
 
 from worldsim.atomic_io import write_json_atomic
 from worldsim.config import BenchmarkConfig, BenchmarkInstance, load_benchmark_config
+from worldsim.phase_4._context import _normalize_phase_4_variant_system
 from worldsim.phase_4.postprocess_progress import write_phase_4_progress
 from worldsim.placeholders import normalize_site_name
 from worldsim.task_paths import safe_task_path_component
@@ -448,9 +449,10 @@ def _worker_timeout_seconds(args: ProcessPoolArgs) -> int | None:
     if not args.agent_task_timeout:
         return None
     trajectory_budget = int(args.agent_task_timeout)
+    variant_system = _normalize_phase_4_variant_system(args.phase_4_variant_system)
     variant_runs = 0
-    if args.phase_4_variant_system and args.phase_4_variant_system != "none":
-        if args.phase_4_variant_system == "eval-awareness-iterator":
+    if variant_system != "none":
+        if variant_system == "eval-awareness-iterator":
             variant_runs = max(0, int(args.phase_4_eval_awareness_max_iterations or 3))
         else:
             variant_runs = 3

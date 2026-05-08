@@ -133,6 +133,17 @@ def test_worker_timeout_scales_with_eval_awareness_iterations(tmp_path):
     assert _worker_timeout_seconds(args) == 2400 * 4 + 600 + 45
 
 
+def test_worker_timeout_defaults_to_eval_awareness_iterator_budget(tmp_path):
+    args = _pool_args(
+        tmp_path,
+        agent_task_timeout=10,
+        phase_4_variant_system=None,
+        phase_4_eval_awareness_max_iterations=3,
+    )
+
+    assert _worker_timeout_seconds(args) == 10 * 4 + 600 + 45
+
+
 def test_worker_timeout_uses_single_trajectory_without_variants(tmp_path):
     args = _pool_args(
         tmp_path,
