@@ -19,6 +19,7 @@ def _write_phase_4_results(
     state_metadata: dict[str, Any],
     final_results: list[dict[str, Any]],
     tasks: list[dict[str, Any]],
+    intermediate_asr_summary: dict[str, Any] | None = None,
 ) -> int:
     # Write results
     output_dir = state_dir / "phase_4"
@@ -48,7 +49,7 @@ def _write_phase_4_results(
     scorable = [
         r
         for r in final_results
-        if r.get("final_status") not in {"error", "seed_preflight_mismatch"}
+        if r.get("final_status") not in phase4_result_summary.NON_SCORABLE_FINAL_STATUSES
     ]
     scorable_valid = [r for r in scorable if _ecologically_valid(r)]
     complied_outcomes = {"complied", "success_on_variant"}
@@ -115,9 +116,15 @@ def _write_phase_4_results(
         "headline_asr": asr_raw,
         "headline_asr_numerator": asr_raw_numerator,
         "headline_asr_denominator": asr_raw_denominator,
+        "final_asr": asr_raw,
+        "final_asr_numerator": asr_raw_numerator,
+        "final_asr_denominator": asr_raw_denominator,
         "gate1_asr": asr_valid,
         "gate1_asr_numerator": asr_valid_numerator,
         "gate1_asr_denominator": asr_valid_denominator,
+        "final_asr_encounter_conditioned": asr_valid,
+        "final_asr_encounter_conditioned_numerator": asr_valid_numerator,
+        "final_asr_encounter_conditioned_denominator": asr_valid_denominator,
         "asr_raw": asr_raw,
         "asr_raw_numerator": asr_raw_numerator,
         "asr_raw_denominator": asr_raw_denominator,
@@ -131,6 +138,18 @@ def _write_phase_4_results(
         "pvpo_failure_counts": dict(sorted(pvpo_failure_counts.items())),
         "per_origin": per_origin,
     }
+    if intermediate_asr_summary is not None:
+        summary["intermediate_asr_summary"] = intermediate_asr_summary
+        for key in (
+            "intermediate_asr",
+            "intermediate_asr_numerator",
+            "intermediate_asr_denominator",
+            "intermediate_asr_encounter_conditioned",
+            "intermediate_asr_encounter_conditioned_numerator",
+            "intermediate_asr_encounter_conditioned_denominator",
+        ):
+            if key in intermediate_asr_summary:
+                summary[key] = intermediate_asr_summary[key]
     terminal_status = "complete"
     terminal_reason: str | None = None
     return_code = 0

@@ -29,8 +29,8 @@ Current and target ownership should stay explicit:
   verification contracts, and editor argument templates. The legacy
   `worldsim.phases.phase_2_exposure_contract` path is a compatibility facade.
 - `worldsim.phase_4`: adversarial execution, PVPO placement, postprocess judges,
-  strategy variation, resume, and results. Phase 4 must not own benign task
-  eligibility.
+  strategy variation, intermediate ASR post-hoc judging, resume, and results.
+  Phase 4 must not own benign task eligibility.
 - `worldsim.phase_4.result_summary`: Phase 4 result aggregation split by final
   metrics, task metadata labels, inspection index rows, action-tier metrics,
   variant regeneration audit, and top-level summary assembly.

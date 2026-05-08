@@ -197,7 +197,25 @@ def build_status_payload(path: Path | None = None) -> dict[str, Any]:
         if not isinstance(results, list):
             raise ValueError(f"{results_path} must contain a list of result objects")
         task_lookup = load_task_lookup(run_root)
-        payload["phase4_summary"] = summarize_results(results, task_lookup=task_lookup)
+        phase4_summary = summarize_results(results, task_lookup=task_lookup)
+        intermediate_path = results_path.parent / "intermediate_asr_summary.json"
+        if intermediate_path.exists():
+            intermediate = load_json(intermediate_path)
+            if isinstance(intermediate, dict):
+                payload["phase4_intermediate_asr_path"] = str(intermediate_path)
+                payload["phase4_intermediate_asr"] = intermediate
+                phase4_summary["intermediate_asr_summary"] = intermediate
+                for key in (
+                    "intermediate_asr",
+                    "intermediate_asr_numerator",
+                    "intermediate_asr_denominator",
+                    "intermediate_asr_encounter_conditioned",
+                    "intermediate_asr_encounter_conditioned_numerator",
+                    "intermediate_asr_encounter_conditioned_denominator",
+                ):
+                    if key in intermediate:
+                        phase4_summary[key] = intermediate[key]
+        payload["phase4_summary"] = phase4_summary
     if cost_path.exists():
         cost = load_json(cost_path)
         if isinstance(cost, dict):
@@ -477,23 +495,30 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
             f"sites={_fmt_count_map(summary.get('site_counts') or {})}"
         )
         lines.append(
-            "Phase 4 headline ASR: "
-            f"{summary.get('headline_asr_numerator', summary.get('asr_raw_numerator', 0))} / "
-            f"{summary.get('headline_asr_denominator', summary.get('asr_raw_denominator', 0))} = "
-            f"{_fmt_rate(summary.get('headline_asr', summary.get('asr_raw')))}"
+            "Phase 4 final ASR: "
+            f"{summary.get('final_asr_numerator', summary.get('headline_asr_numerator', summary.get('asr_raw_numerator', 0)))} / "
+            f"{summary.get('final_asr_denominator', summary.get('headline_asr_denominator', summary.get('asr_raw_denominator', 0)))} = "
+            f"{_fmt_rate(summary.get('final_asr', summary.get('headline_asr', summary.get('asr_raw'))))}"
         )
         lines.append(
-            "Phase 4 Gate-1 ASR: "
-            f"{summary.get('gate1_asr_numerator', summary.get('asr_valid_numerator', 0))} / "
-            f"{summary.get('gate1_asr_denominator', summary.get('asr_valid_denominator', 0))} = "
-            f"{_fmt_rate(summary.get('gate1_asr', summary.get('asr_valid')))}"
+            "Phase 4 final ASR, encounter-conditioned: "
+            f"{summary.get('final_asr_encounter_conditioned_numerator', summary.get('gate1_asr_numerator', summary.get('asr_valid_numerator', 0)))} / "
+            f"{summary.get('final_asr_encounter_conditioned_denominator', summary.get('gate1_asr_denominator', summary.get('asr_valid_denominator', 0)))} = "
+            f"{_fmt_rate(summary.get('final_asr_encounter_conditioned', summary.get('gate1_asr', summary.get('asr_valid'))))}"
         )
-        lines.append(
-            "Phase 4 ASR (legacy Gate-1 label): "
-            f"{summary.get('gate1_asr_numerator', summary.get('asr_valid_numerator', 0))} / "
-            f"{summary.get('gate1_asr_denominator', summary.get('asr_valid_denominator', 0))} = "
-            f"{_fmt_rate(summary.get('gate1_asr', summary.get('asr_valid')))}"
-        )
+        if "intermediate_asr" in summary:
+            lines.append(
+                "Phase 4 intermediate ASR: "
+                f"{summary.get('intermediate_asr_numerator', 0)} / "
+                f"{summary.get('intermediate_asr_denominator', 0)} = "
+                f"{_fmt_rate(summary.get('intermediate_asr'))}"
+            )
+            lines.append(
+                "Phase 4 intermediate ASR, encounter-conditioned: "
+                f"{summary.get('intermediate_asr_encounter_conditioned_numerator', 0)} / "
+                f"{summary.get('intermediate_asr_encounter_conditioned_denominator', 0)} = "
+                f"{_fmt_rate(summary.get('intermediate_asr_encounter_conditioned'))}"
+            )
         lines.extend(_format_variant_audit(summary))
         inspection = summary.get("inspection_index")
         if isinstance(inspection, list) and inspection and inspect_limit:

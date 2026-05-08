@@ -121,9 +121,9 @@ def _good_payload() -> dict:
     }
 
 
-def _tool_use_response(tool_input: dict, stop_reason: str = "tool_use") -> SimpleNamespace:
+def _structured_response(payload: dict, stop_reason: str = "end_turn") -> SimpleNamespace:
     return SimpleNamespace(
-        content=[SimpleNamespace(type="tool_use", name="propose_placement_fix", input=tool_input)],
+        content=[SimpleNamespace(type="text", text=json.dumps(payload))],
         stop_reason=stop_reason,
         usage=_usage(),
         id="msg_pf_x",
@@ -176,7 +176,7 @@ def test_placement_prompt_task_view_omits_host_contract_internals(sample_task):
 async def test_happy_path_returns_merged_task(
     patched_anthropic_client, trajectory_dir, sample_task
 ):
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(_good_payload())
+    patched_anthropic_client.messages.create.return_value = _structured_response(_good_payload())
 
     result = await run_placement_api(sample_task, trajectory_dir)
 
@@ -203,13 +203,14 @@ async def test_happy_path_returns_merged_task(
 async def test_happy_path_persists_raw_response(
     patched_anthropic_client, trajectory_dir, sample_task
 ):
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(_good_payload())
+    patched_anthropic_client.messages.create.return_value = _structured_response(_good_payload())
 
     await run_placement_api(sample_task, trajectory_dir)
 
     raw = json.loads((trajectory_dir / "placement_raw_response.json").read_text())
     assert raw["task_id"] == "adv_shopping_001"
-    assert raw["tool_use"]["confidence"] == "medium"
+    assert raw["structured_output"]["confidence"] == "medium"
+    assert raw["tool_use"] is None
     assert raw["usage"]["input_tokens"] == 1000
 
 
@@ -255,7 +256,7 @@ async def test_partial_trajectory_fails_closed_without_api_call(
 
 
 @pytest.mark.asyncio
-async def test_no_tool_use_returns_failure_and_persists_raw(
+async def test_no_structured_output_returns_failure_and_persists_raw(
     patched_anthropic_client, trajectory_dir, sample_task
 ):
     patched_anthropic_client.messages.create.return_value = SimpleNamespace(
@@ -269,7 +270,7 @@ async def test_no_tool_use_returns_failure_and_persists_raw(
     result = await run_placement_api(sample_task, trajectory_dir)
 
     assert result["status"] == "failed"
-    assert result["failure_class"] == "no_tool_use"
+    assert result["failure_class"] == "json_parse_error"
     assert result["new_task"] is None
     raw = json.loads((trajectory_dir / "placement_raw_response.json").read_text())
     assert raw["tool_use"] is None
@@ -281,7 +282,7 @@ async def test_schema_violation_missing_seed_field(
 ):
     bad = _good_payload()
     bad.pop("new_adversarial_data_seed")
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(bad)
+    patched_anthropic_client.messages.create.return_value = _structured_response(bad)
 
     result = await run_placement_api(sample_task, trajectory_dir)
 
@@ -295,7 +296,7 @@ async def test_schema_violation_invalid_seed_shape(
 ):
     bad = _good_payload()
     bad["new_adversarial_data_seed"] = {"mechanism": "editor"}
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(bad)
+    patched_anthropic_client.messages.create.return_value = _structured_response(bad)
 
     result = await run_placement_api(sample_task, trajectory_dir)
 
@@ -312,7 +313,7 @@ async def test_schema_violation_rejects_mechanism_change(
         "mechanism": "api",
         "api_calls": [{"method": "POST", "path": "/x", "body": {"y": 1}}],
     }
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(bad)
+    patched_anthropic_client.messages.create.return_value = _structured_response(bad)
 
     result = await run_placement_api(sample_task, trajectory_dir)
 
@@ -326,7 +327,7 @@ async def test_schema_violation_invalid_confidence_enum(
 ):
     bad = _good_payload()
     bad["confidence"] = "supremely confident"
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(bad)
+    patched_anthropic_client.messages.create.return_value = _structured_response(bad)
 
     result = await run_placement_api(sample_task, trajectory_dir)
 
@@ -343,7 +344,7 @@ async def test_schema_violation_bool_confidence_rejected(
     alone."""
     bad = _good_payload()
     bad["confidence"] = True
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(bad)
+    patched_anthropic_client.messages.create.return_value = _structured_response(bad)
 
     result = await run_placement_api(sample_task, trajectory_dir)
 
@@ -357,7 +358,7 @@ async def test_schema_violation_overlong_justification(
 ):
     bad = _good_payload()
     bad["justification"] = "x" * 301
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(bad)
+    patched_anthropic_client.messages.create.return_value = _structured_response(bad)
 
     result = await run_placement_api(sample_task, trajectory_dir)
 
@@ -371,7 +372,7 @@ async def test_schema_violation_missing_placement_fix_subfield(
 ):
     bad = _good_payload()
     bad["placement_fix"].pop("why")
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(bad)
+    patched_anthropic_client.messages.create.return_value = _structured_response(bad)
 
     result = await run_placement_api(sample_task, trajectory_dir)
 
@@ -385,7 +386,7 @@ async def test_schema_violation_rejects_extra_placement_fix_field(
 ):
     bad = _good_payload()
     bad["placement_fix"]["extra"] = "unexpected"
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(bad)
+    patched_anthropic_client.messages.create.return_value = _structured_response(bad)
 
     result = await run_placement_api(sample_task, trajectory_dir)
 
@@ -455,23 +456,19 @@ async def test_quota_exceeded_buckets_through(
 
 
 @pytest.mark.asyncio
-async def test_tool_choice_forces_propose_placement_fix(
+async def test_structured_output_schema_configured(
     patched_anthropic_client, trajectory_dir, sample_task
 ):
-    """The tool registration and forced tool_choice are part of the
-    contract — a regression that loosens either would let the model
-    return free-form text on a refusal-prone framing, reintroducing the
-    very class of failure that motivated the API cutover."""
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(_good_payload())
+    patched_anthropic_client.messages.create.return_value = _structured_response(_good_payload())
 
     await run_placement_api(sample_task, trajectory_dir)
 
     call = patched_anthropic_client.messages.create.call_args
     assert call is not None
     kwargs = call.kwargs
-    assert kwargs["tool_choice"] == {"type": "tool", "name": "propose_placement_fix"}
-    assert len(kwargs["tools"]) == 1
-    assert kwargs["tools"][0]["name"] == "propose_placement_fix"
+    assert "tool_choice" not in kwargs
+    assert "tools" not in kwargs
+    assert kwargs["extra_body"]["output_config"]["format"]["type"] == "json_schema"
 
 
 @pytest.mark.asyncio
@@ -490,7 +487,7 @@ async def test_placement_prompt_strips_auth_bearing_task_fields(
             "description": "Use header X-M2-Admin-Auto-Login: admin:admin1234 for login.",
         },
     }
-    patched_anthropic_client.messages.create.return_value = _tool_use_response(_good_payload())
+    patched_anthropic_client.messages.create.return_value = _structured_response(_good_payload())
 
     await run_placement_api(task, trajectory_dir)
 

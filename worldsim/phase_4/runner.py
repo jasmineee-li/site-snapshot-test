@@ -60,6 +60,8 @@ async def run(args: argparse.Namespace) -> int:
     phase_4_eval_awareness_max_iterations = _normalize_eval_awareness_max_iterations(
         getattr(args, "phase_4_eval_awareness_max_iterations", None)
     )
+    skip_intermediate_asr = bool(getattr(args, "skip_intermediate_asr", False))
+    intermediate_asr_max_steps_per_task = getattr(args, "intermediate_asr_max_steps_per_task", None)
 
     _sweep_orphan_inflight_sentinels(task_dir_root)
 
@@ -85,6 +87,8 @@ async def run(args: argparse.Namespace) -> int:
         phase_4_variant_budget=phase_4_variant_budget,
         phase_4_variant_system=phase_4_variant_system,
         phase_4_eval_awareness_max_iterations=phase_4_eval_awareness_max_iterations,
+        skip_intermediate_asr=skip_intermediate_asr,
+        intermediate_asr_max_steps_per_task=intermediate_asr_max_steps_per_task,
     )
 
     admission = _load_admitted_phase_4_tasks(
@@ -685,11 +689,35 @@ async def run(args: argparse.Namespace) -> int:
         )
         return 1
 
+    intermediate_asr_summary: dict[str, Any] | None = None
+    try:
+        from worldsim.phase_4.intermediate_asr import (
+            evaluate_intermediate_asr,
+            task_lookup_from_tasks,
+        )
+
+        intermediate_asr_summary = await evaluate_intermediate_asr(
+            phase4_dir=state_dir / "phase_4",
+            results=final_results,
+            task_lookup=task_lookup_from_tasks(tasks),
+            sandbox_model=sandbox_model,
+            max_steps_per_task=intermediate_asr_max_steps_per_task,
+            enabled=not skip_intermediate_asr,
+        )
+    except Exception as exc:
+        logger.warning("Phase 4 intermediate ASR post-hoc evaluation failed: %s", exc)
+        intermediate_asr_summary = {
+            "status": "failed",
+            "failure_class": "intermediate_asr_exception",
+            "diagnosis": str(exc),
+        }
+
     return _write_phase_4_results(
         state_dir=state_dir,
         state_metadata=state_metadata,
         final_results=final_results,
         tasks=tasks,
+        intermediate_asr_summary=intermediate_asr_summary,
     )
 
 

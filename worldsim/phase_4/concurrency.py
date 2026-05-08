@@ -4,7 +4,8 @@ Current pipeline fan-out: `_postprocess_one_task` gathers across every task,
 each of which may trigger one judge + up to three variant calls. At scale
 that's O(100s) of concurrent API calls. Anthropic handles this easily, but
 an unbounded fan-out on a runaway resume could still saturate the org's
-RPM. `Semaphore(250)` is bounded-but-non-blocking at realistic scale.
+RPM. `Semaphore(512)` is bounded-but-non-blocking at realistic scale and
+matches the high-throughput post-hoc intermediate-ASR judge path.
 
 The semaphore is lazy-initialized via `get_api_semaphore()` so it binds to
 whichever event loop is live when first accessed. A module-level
@@ -30,7 +31,7 @@ def get_api_semaphore() -> asyncio.Semaphore:
     """
     global _semaphore
     if _semaphore is None:
-        _semaphore = asyncio.Semaphore(250)
+        _semaphore = asyncio.Semaphore(512)
     return _semaphore
 
 
