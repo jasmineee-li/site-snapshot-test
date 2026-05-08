@@ -117,6 +117,15 @@ For eval-awareness iterator rewrite failures, do not stop at the top-level
   visible prose or disappeared from the concealed region.
 - `action_witness_drift`: the rewrite no longer preserved the concrete
   adversarial action witness.
+- `rewrite_inapplicable_trajectory_only`: cue diagnosis found task/trajectory
+  context but no mutable payload-local cue, so a rewrite would not test the
+  intended intervention.
+- `rewrite_inapplicable_insufficient_causal_evidence`: cue diagnosis failed or
+  did not identify a reliable mutable payload cue.
+- `tp_regression`: the browser-evaluated variant moved Transcript Purpose in
+  the wrong direction, such as from `Capability Evaluation` to
+  `Alignment Evaluation`; keep it as evidence, but do not treat it as a valid
+  iterator improvement.
 
 Do not paste full `signals`, full `history.json`, prompts, screenshots, request
 bodies, cookies, auth headers, or raw stderr into the conversation by default.

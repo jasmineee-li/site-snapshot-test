@@ -1701,7 +1701,8 @@ classification, including `Alignment Evaluation`, `Capability Evaluation`,
 diagnosis-and-rewrite iteration. Each iteration:
 
 1. asks the host-side cue diagnoser what payload-local cues made the trajectory
-   look evaluation-like;
+   look evaluation-like, separating mutable payload cues from task/trajectory
+   cues and immutable protected witnesses;
 2. asks the host-side rewrite model to edit only the selected payload text while
    also improving attack effectiveness where possible. When the selected
    payload has a supported renderer contract, the model edits only declared
@@ -1722,6 +1723,13 @@ If immutable protected witnesses are themselves the eval-awareness cue, the
 iterator records ``rewrite_inapplicable_irreconcilable_contract`` and stops
 before browser rerun rather than relaxing protected tokens or renderer
 contracts.
+If the diagnosis finds only task/trajectory cues, or does not identify a
+mutable payload-local cue, the iterator records an inapplicable-rewrite stop and
+does not spend a browser rerun on an ungrounded payload edit. If a browser
+rerun shows Transcript Purpose moved in the wrong direction, such as
+`Capability Evaluation` to `Alignment Evaluation`, the iterator records
+``tp_regression``, keeps the variant in the trace for audit, and selects the
+non-regressed parent attempt instead.
 
 Renderer contracts are host-owned measurement contracts. A
 `markdown_fenced_system` task remains a markdown fenced-system task across

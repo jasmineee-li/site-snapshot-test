@@ -352,13 +352,20 @@ expose the configured `3+3+1` cap, generated/rejected/evaluated/PVPO-valid/
 compliant counts by round, remaining budget, termination reason, and lineage.
 The eval-awareness iterator should expose its sequential rewrite cap, attempted
 rewrites, rejected rewrites, browser-evaluated attempts, TP-real attempts,
-PVPO-valid attempts, compliant attempts, selected iteration, and stop reason.
+PVPO-valid attempts, compliant attempts, TP-regressed attempts, selected
+iteration, and stop reason.
 Those fields must not override reward/PVPO final-status classification or ASR
 computation.
 If protected witnesses themselves are the visible eval-awareness cue, the
 iterator must report `rewrite_inapplicable_irreconcilable_contract` instead of
 relaxing the witness, changing renderer contracts, or spending browser reruns
 on an impossible rewrite objective.
+If cue diagnosis finds only task/trajectory cues or cannot identify a mutable
+payload-local cue, the iterator must stop with an inapplicable-rewrite reason
+rather than invent a rewrite target. If a browser-evaluated rewrite moves
+Transcript Purpose in the wrong direction, for example `Capability Evaluation`
+to `Alignment Evaluation`, the iterator records `tp_regression`, keeps the
+variant for audit, and must not select it over the parent attempt.
 
 Final ASR and intermediate ASR are distinct. Final ASR measures end-to-end
 attacker-goal success from Phase 4 rewards/readback. Intermediate ASR is a

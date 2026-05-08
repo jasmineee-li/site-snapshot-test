@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 from worldsim.phase_4._context import install_context
+from worldsim.phase_4.eval_awareness_tp_transition import classify_tp_transition
+from worldsim.phase_4.payload_rendering import build_payload_renderer_contract
 from worldsim.phase_4.postprocess_progress import Phase4ProgressCallback
 from worldsim.phase_4.variant_contract_qa import build_variant_contract_qa
+from worldsim.text_payload_contract import build_text_payload_contract
 
 install_context(globals())
 
@@ -16,6 +19,7 @@ _ITERATOR_STRATEGY = {
     "rationale": "sequential TP-aware payload rewrite",
 }
 _STOP_REWRITE_LIMIT_REACHED = "rewrite_limit_reached"
+_STOP_TP_REGRESSION = "tp_regression"
 _REJECTED_QA_CLASSES = frozenset(
     {
         "unchanged_seed",
@@ -75,24 +79,116 @@ def _irreconcilable_eval_awareness_contract(
     }
 
 
+def _cue_applicability_failure(
+    task: dict[str, Any],
+    cue_diagnosis: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Detect cue diagnoses that do not provide a mutable payload rewrite target."""
+
+    if cue_diagnosis.get("status") != "ok":
+        return {
+            "failure_class": "rewrite_inapplicable_insufficient_causal_evidence",
+            "reason": "cue diagnosis was unavailable; no reliable payload-local rewrite target",
+        }
+    removable = _string_list(cue_diagnosis.get("removable_payload_cues"))
+    payload_cues = _string_list(cue_diagnosis.get("payload_cues"))
+    trajectory_cues = _string_list(cue_diagnosis.get("trajectory_cues"))
+    protected_values = _protected_payload_values(task)
+    protected_matches = _protected_cue_matches(removable + payload_cues, protected_values)
+    if protected_matches and (
+        not removable
+        or not [cue for cue in removable if not _cue_mentions_any(cue, protected_matches)]
+    ):
+        return {
+            "failure_class": "rewrite_inapplicable_irreconcilable_contract",
+            "reason": (
+                "cue diagnosis only identified protected payload cues; host contracts "
+                "do not permit relaxing or rewriting them"
+            ),
+            "protected_witness_count": len(protected_matches),
+            "protected_witness_kinds": sorted(
+                {
+                    item.get("kind", "unknown")
+                    for item in protected_values
+                    if item.get("value") in protected_matches
+                }
+            ),
+        }
+    if removable:
+        return None
+    if trajectory_cues and not payload_cues:
+        return {
+            "failure_class": "rewrite_inapplicable_trajectory_only",
+            "reason": "cue diagnosis found only task/trajectory cues, not removable payload cues",
+        }
+    return {
+        "failure_class": "rewrite_inapplicable_insufficient_causal_evidence",
+        "reason": "cue diagnosis did not identify a removable payload cue",
+    }
+
+
+def _string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str) and item.strip()]
+
+
 def _protected_eval_awareness_values(task: dict[str, Any]) -> list[str]:
+    return [
+        item["value"]
+        for item in _protected_payload_values(task)
+        if _looks_eval_awareness_like(item["value"])
+    ]
+
+
+def _protected_payload_values(task: dict[str, Any]) -> list[dict[str, str]]:
     values: list[str] = []
+    records: list[dict[str, str]] = []
+
+    def add(value: Any, kind: str) -> None:
+        if isinstance(value, str) and value and value not in values:
+            values.append(value)
+            records.append({"kind": kind, "value": value})
+
     for token in task.get("required_tokens") or []:
         if not isinstance(token, dict):
             continue
         value = token.get("value")
-        if isinstance(value, str) and _looks_eval_awareness_like(value):
-            values.append(value)
-    payload_contract = task.get("payload_contract")
+        add(value, "required_token")
+    payload_contract = build_text_payload_contract(task) or task.get("payload_contract")
     protected = payload_contract.get("protected_substrings") if isinstance(payload_contract, dict) else None
     if isinstance(protected, list):
         for item in protected:
             if not isinstance(item, dict):
                 continue
             value = item.get("value")
-            if isinstance(value, str) and _looks_eval_awareness_like(value):
-                values.append(value)
-    return list(dict.fromkeys(values))
+            add(value, str(item.get("kind") or "protected_substring"))
+    renderer_contract = build_payload_renderer_contract(task)
+    if isinstance(renderer_contract, dict):
+        renderer_id = str(renderer_contract.get("renderer_id") or "")
+        locked_template = str(renderer_contract.get("locked_template") or "")
+        if renderer_id == "markdown_fenced_system_v1":
+            add("```system", "renderer_locked_wrapper")
+        if locked_template:
+            for marker in ("```system", "```"):
+                if marker in locked_template:
+                    add(marker, "renderer_locked_wrapper")
+    return records
+
+
+def _protected_cue_matches(cues: list[str], protected_values: list[dict[str, str]]) -> list[str]:
+    matches: list[str] = []
+    for cue in cues:
+        for item in protected_values:
+            value = item.get("value", "")
+            if value and value.lower() in cue.lower() and value not in matches:
+                matches.append(value)
+    return matches
+
+
+def _cue_mentions_any(cue: str, values: list[str]) -> bool:
+    lowered = cue.lower()
+    return any(value.lower() in lowered for value in values)
 
 
 def _looks_eval_awareness_like(value: str) -> bool:
@@ -147,7 +243,11 @@ def _iterator_budget_report(
 ) -> dict[str, Any]:
     results = [item.get("result") for item in iteration_records if isinstance(item.get("result"), dict)]
     consumed = [item for item in iteration_records if _iteration_consumes_budget(item)]
-    rejected = [item for item in iteration_records if item.get("status") in {"rewrite_failed", "rejected"}]
+    rejected = [
+        item
+        for item in iteration_records
+        if item.get("status") in {"rewrite_failed", "rejected", _STOP_TP_REGRESSION}
+    ]
     return {
         "algorithm": "eval-awareness-iterator",
         "version": _PHASE_4_EVAL_AWARENESS_ITERATOR_VERSION,
@@ -163,6 +263,11 @@ def _iterator_budget_report(
         ),
         "tp_real": sum(
             1 for result in results if result.get("transcript_purpose_classification") == "Real"
+        ),
+        "tp_regressed": sum(
+            1
+            for item in iteration_records
+            if _tp_transition_direction(item) == "regressed"
         ),
         "remaining_budget": max(0, max_iterations - len(consumed)),
         "stop_reason": stop_reason,
@@ -180,7 +285,9 @@ def _iteration_progress_counts(iteration_records: list[dict[str, Any]]) -> dict[
             and item.get("status") not in {"rewrite_failed", "rejected"}
         ),
         "generation_failed": sum(
-            1 for item in iteration_records if item.get("status") in {"rewrite_failed", "rejected"}
+            1
+            for item in iteration_records
+            if item.get("status") in {"rewrite_failed", "rejected", _STOP_TP_REGRESSION}
         ),
         "evaluated": len(
             [item for item in iteration_records if isinstance(item.get("result"), dict)]
@@ -197,13 +304,18 @@ def _iteration_progress_counts(iteration_records: list[dict[str, Any]]) -> dict[
             and _ecologically_valid(item["result"])
             and item["result"].get("outcome") == "complied"
         ),
+        "tp_regressed": sum(
+            1
+            for item in iteration_records
+            if _tp_transition_direction(item) == "regressed"
+        ),
     }
 
 
 def _iteration_consumes_budget(record: dict[str, Any]) -> bool:
     if isinstance(record.get("result"), dict):
         return True
-    if record.get("status") in {"rewrite_failed", "rejected"}:
+    if record.get("status") in {"rewrite_failed", "rejected", _STOP_TP_REGRESSION}:
         return True
     if isinstance(record.get("rewrite"), dict):
         return True
@@ -213,7 +325,21 @@ def _iteration_consumes_budget(record: dict[str, Any]) -> bool:
 def _iteration_is_terminal(record: dict[str, Any]) -> bool:
     if isinstance(record.get("result"), dict):
         return True
-    return record.get("status") in {"rewrite_failed", "rejected"}
+    return record.get("status") in {"rewrite_failed", "rejected", _STOP_TP_REGRESSION}
+
+
+def _tp_transition_direction(record: dict[str, Any]) -> str | None:
+    transition = record.get("tp_transition")
+    if isinstance(transition, dict):
+        direction = transition.get("direction")
+        return direction if isinstance(direction, str) else None
+    result = record.get("result")
+    if isinstance(result, dict):
+        transition = result.get("transcript_purpose_transition")
+        if isinstance(transition, dict):
+            direction = transition.get("direction")
+            return direction if isinstance(direction, str) else None
+    return None
 
 
 def _best_iterator_result(
@@ -222,6 +348,8 @@ def _best_iterator_result(
 ) -> tuple[dict[str, Any], int, str]:
     candidates: list[tuple[int, dict[str, Any], str]] = [(0, baseline, "baseline")]
     for record in iteration_records:
+        if _tp_transition_direction(record) == "regressed":
+            continue
         result = record.get("result")
         if isinstance(result, dict):
             candidates.append((int(record.get("iteration", 0) or 0), result, "iteration"))
@@ -359,7 +487,10 @@ async def run_eval_awareness_iterator(
                     1 for item in iteration_records if isinstance(item.get("rewrite"), dict)
                 ),
                 "generation_failed": sum(
-                    1 for item in iteration_records if item.get("status") in {"rewrite_failed", "rejected"}
+                    1
+                    for item in iteration_records
+                    if item.get("status")
+                    in {"rewrite_failed", "rejected", _STOP_TP_REGRESSION}
                 ),
                 "evaluated": len(
                     [item for item in iteration_records if isinstance(item.get("result"), dict)]
@@ -449,15 +580,24 @@ async def run_eval_awareness_iterator(
 
         rewrite = record.get("rewrite")
         if not isinstance(rewrite, dict):
+            cue_failure = (
+                _cue_applicability_failure(current_task, cue)
+                if isinstance(cue, dict)
+                else {
+                    "failure_class": "rewrite_inapplicable_insufficient_causal_evidence",
+                    "reason": "cue diagnosis was not available",
+                }
+            )
             irreconcilable = (
                 _irreconcilable_eval_awareness_contract(current_task, cue)
                 if isinstance(cue, dict)
                 else None
             )
-            if irreconcilable is not None:
+            rewrite_failure = irreconcilable or cue_failure
+            if rewrite_failure is not None:
                 record["status"] = "rewrite_failed"
-                record["generation_error"] = irreconcilable
-                stop_reason = "rewrite_inapplicable_irreconcilable_contract"
+                record["generation_error"] = rewrite_failure
+                stop_reason = str(rewrite_failure.get("failure_class") or "rewrite_failed")
                 await _emit(
                     "eval_awareness_iteration_stopped",
                     {
@@ -607,7 +747,38 @@ async def run_eval_awareness_iterator(
         result.setdefault("global_variant_index", iteration)
         result.setdefault("parent_global_variant_index", iteration - 1 if iteration > 1 else None)
         result.setdefault("strategy", _ITERATOR_STRATEGY["strategy"])
+        tp_transition = classify_tp_transition(
+            current_result.get("transcript_purpose_classification"),
+            result.get("transcript_purpose_classification"),
+        )
+        result.setdefault("transcript_purpose_transition", tp_transition)
+        record["tp_transition"] = tp_transition
         record["result"] = result
+        if tp_transition.get("direction") == "regressed":
+            record["status"] = _STOP_TP_REGRESSION
+            record["generation_error"] = {
+                "failure_class": _STOP_TP_REGRESSION,
+                "reason": (
+                    "eval-awareness rewrite increased Transcript Purpose evaluation salience"
+                ),
+                "tp_transition": tp_transition,
+            }
+            stop_reason = _STOP_TP_REGRESSION
+            checkpoint["iterations"] = iteration_records
+            _write_json_atomic(
+                checkpoint_path,
+                checkpoint,
+                failpoint_base="phase_4.eval_awareness_iterator.checkpoint",
+            )
+            await _emit(
+                "eval_awareness_iteration_stopped",
+                {
+                    "iteration": iteration,
+                    "stop_reason": stop_reason,
+                    **_iteration_progress_counts(iteration_records),
+                },
+            )
+            break
         record["status"] = "evaluated"
         current_task = finalized
         current_result = result
@@ -629,7 +800,10 @@ async def run_eval_awareness_iterator(
                     1 for item in iteration_records if isinstance(item.get("rewrite"), dict)
                 ),
                 "generation_failed": sum(
-                    1 for item in iteration_records if item.get("status") in {"rewrite_failed", "rejected"}
+                    1
+                    for item in iteration_records
+                    if item.get("status")
+                    in {"rewrite_failed", "rejected", _STOP_TP_REGRESSION}
                 ),
                 "evaluated": len(
                     [item for item in iteration_records if isinstance(item.get("result"), dict)]
@@ -679,7 +853,7 @@ async def run_eval_awareness_iterator(
             ),
         }
         for item in iteration_records
-        if item.get("status") in {"rewrite_failed", "rejected"}
+        if item.get("status") in {"rewrite_failed", "rejected", _STOP_TP_REGRESSION}
     ]
     best_result, selected_iteration, selection_reason = _best_iterator_result(
         initial_result,
@@ -697,6 +871,9 @@ async def run_eval_awareness_iterator(
         "rewrite_failed",
         "rewrite_rejected",
         "rewrite_inapplicable_irreconcilable_contract",
+        "rewrite_inapplicable_trajectory_only",
+        "rewrite_inapplicable_insufficient_causal_evidence",
+        _STOP_TP_REGRESSION,
     }:
         status = "rewrite_failed"
     else:
@@ -731,6 +908,7 @@ async def run_eval_awareness_iterator(
                         "status": item.get("status"),
                         "cue_diagnosis": item.get("cue_diagnosis"),
                         "contract_qa": item.get("contract_qa"),
+                        "tp_transition": item.get("tp_transition"),
                     }
                 ],
                 "variant_generation_errors": [
