@@ -300,7 +300,6 @@ def _write_needham_trace(
                 "xml": xml,
             },
             indent=2,
-            sort_keys=True,
         ),
         encoding="utf-8",
     )

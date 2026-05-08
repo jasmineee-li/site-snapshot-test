@@ -2257,6 +2257,7 @@ def test_agentlab_action_projection_preserves_raw_fallback_without_calls():
 def test_agentlab_needham_xml_matches_canonical_serializer(tmp_path):
     projection = _load_sidecar_module("trajectory_projection")
     from worldsim.phase_4.needham_chat_types import ChatMessage, ToolCall
+    from worldsim.phase_4.needham_trace import dicts_to_messages
     from worldsim.phase_4.needham_xml import format_xml
 
     step = SimpleNamespace(
@@ -2316,6 +2317,7 @@ def test_agentlab_needham_xml_matches_canonical_serializer(tmp_path):
     assert trace["transcript_format"] == "needham-xml-v1"
     assert (tmp_path / "needham_trace.xml").read_text() == expected
     assert trace["xml"] == expected
+    assert format_xml(dicts_to_messages(trace["messages"])) == expected
 
 
 def test_worldsim_task_uses_site_prompt_without_duplicate_goal():
