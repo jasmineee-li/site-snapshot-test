@@ -35,6 +35,15 @@ print(shlex.quote(sys.argv[1]))
 PY
 }
 
+rj_shell_quote_many() {
+    python3 - "$@" <<'PY'
+import shlex
+import sys
+
+print(" ".join(shlex.quote(arg) for arg in sys.argv[1:]))
+PY
+}
+
 rj_json_b64() {
     python3 - "$@" <<'PY'
 import base64
@@ -439,10 +448,9 @@ rj_ssh() {
 rj_ssh_bash() {
     local remote_cmd
     remote_cmd='tmp=$(mktemp /tmp/worldsim-remote-job.XXXXXX); cat > "$tmp"; bash "$tmp"'
-    local arg
-    for arg in "$@"; do
-        remote_cmd+=" $(rj_shell_quote "$arg")"
-    done
+    if (($# > 0)); then
+        remote_cmd+=" $(rj_shell_quote_many "$@")"
+    fi
     remote_cmd+='; rc=$?; rm -f "$tmp"; exit "$rc"'
     "$RJ_SSH_BIN" "${RJ_SSH_OPTS[@]}" "$RJ_SSH_TARGET" "$remote_cmd"
 }

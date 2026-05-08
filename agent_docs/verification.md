@@ -32,6 +32,9 @@ It runs scoped Ruff over `worldsim tests scripts`, pytest collection, and the
 tracked-file readiness audit through `scripts/lib/run_silent.sh`. Use it before
 broader validation and before handing off agent-authored changes.
 
+`bash scripts/verify_fast.sh --skip-collect` is reserved for wrappers that run
+pytest immediately afterward and would otherwise pay collection twice.
+
 `logs/` is runtime output, not source. Regenerate Phase artifacts through the
 pipeline commands instead of committing files under `logs/`. See
 `agent_docs/artifacts.md` for artifact traceability, recovery, and fixture
@@ -51,6 +54,9 @@ The default pytest config excludes live or expensive markers:
 not integration and not feasibility and not preflight and not live_l3 and not crash_resume
 ```
 
+Default pytest also uses `--strict-markers`; add new markers to
+`pyproject.toml` before using them in tests.
+
 Run excluded markers explicitly only when the task requires them.
 
 For normal local shipping, use the default wrapper:
@@ -59,9 +65,12 @@ For normal local shipping, use the default wrapper:
 bash scripts/verify_default.sh
 ```
 
-It runs the fast baseline and then the default pytest suite with
-`pytest-xdist` (`-n auto --dist worksteal`). Use plain `uv run pytest -q` when
-debugging order-sensitive failures or when you need a single-process run.
+It runs the fast Ruff/readiness checks via `verify_fast.sh --skip-collect`,
+then runs the default pytest suite with `pytest-xdist`
+(`-n auto --dist worksteal`). The wrapper skips the standalone collection check
+because the following pytest run collects the same default suite. Use plain
+`uv run pytest -q` when debugging order-sensitive failures or when you need a
+single-process run.
 
 ## Live Integration Gate
 

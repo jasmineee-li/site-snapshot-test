@@ -210,10 +210,10 @@ compose stack to the local amd64 tags plus the correct
 Use the repo wrappers for deterministic, context-efficient local validation:
 
 ```bash
-# Fast agent baseline: scoped lint plus pytest collection
+# Fast agent baseline: scoped lint, pytest collection, readiness audit
 bash scripts/verify_fast.sh
 
-# Default local shipping gate: fast baseline plus default pytest
+# Default local shipping gate: fast checks without duplicate collection, plus parallel default pytest
 bash scripts/verify_default.sh
 ```
 

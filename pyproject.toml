@@ -119,7 +119,7 @@ quote-style = "double"
 indent-style = "space"
 
 [tool.pytest.ini_options]
-addopts = "-m 'not integration and not feasibility and not preflight and not live_l3 and not crash_resume'"
+addopts = "--strict-markers -m 'not integration and not feasibility and not preflight and not live_l3 and not crash_resume'"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [

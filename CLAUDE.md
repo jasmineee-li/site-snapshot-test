@@ -42,7 +42,7 @@ optimize for evading safeguards.
 - Do not generate or serve web applications from this repo.
 
 <important if="you are changing tests, lint, CI hooks, or verification flow">
-- Default pytest excludes `integration`, `feasibility`, `preflight`, `live_l3`, and `crash_resume`; opt into those markers deliberately.
+- Default pytest runs with `--strict-markers` and excludes `integration`, `feasibility`, `preflight`, `live_l3`, and `crash_resume`; register any new marker in `pyproject.toml` and opt into excluded markers deliberately.
 - `.claude/hooks/ruff-autofix.sh` formats edited Python files; `.claude/hooks/stop-verify.sh` checks changed tracked Python files only.
 - For changes touching editors, seeding, Phase 2c, Phase 4, PVPO, or host-API prompts, unit tests are insufficient; run the live integration wrapper when a stack is available.
 </important>

@@ -8,8 +8,10 @@ from pathlib import Path
 from worldsim.phase_4.trace_inspection import (
     build_summary,
     build_task_detail,
+    build_timeline,
     filter_results,
     load_inspection,
+    task_row,
 )
 
 
@@ -238,10 +240,32 @@ def test_task_detail_explains_resistant_unaware(tmp_path: Path) -> None:
 def test_cli_slice_json_fields(tmp_path: Path) -> None:
     run = _run(tmp_path)
 
+    results_path, phase4_dir, results, task_lookup = load_inspection(run)
+    rows = [
+        task_row(
+            result,
+            task_lookup,
+            phase4_dir=phase4_dir,
+            fields=["task_id", "action", "outcome_fine", "iterator_stop"],
+        )
+        for result in filter_results(results, task_lookup)
+    ]
+
+    assert rows == [
+        {
+            "task_id": "task-1",
+            "action": "create_issue_note",
+            "outcome_fine": "resistant_unaware",
+            "iterator_stop": "rewrite_limit_reached",
+        }
+    ]
+
     completed = subprocess.run(
         [
             sys.executable,
-            "scripts/inspect_phase4_traces.py",
+            "-m",
+            "worldsim.main",
+            "trace",
             "slice",
             str(run),
             "--output",
@@ -255,6 +279,7 @@ def test_cli_slice_json_fields(tmp_path: Path) -> None:
     )
     payload = json.loads(completed.stdout)
 
+    assert payload["results_path"] == str(results_path)
     assert payload["rows"] == [
         {
             "task_id": "task-1",
@@ -268,23 +293,8 @@ def test_cli_slice_json_fields(tmp_path: Path) -> None:
 def test_worldsim_trace_timeline_and_jsonl(tmp_path: Path) -> None:
     run = _run(tmp_path)
 
-    timeline = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "worldsim.main",
-            "trace",
-            "timeline",
-            str(run),
-            "task-1",
-            "--output",
-            "json",
-        ],
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    timeline_payload = json.loads(timeline.stdout)
+    _, phase4_dir, results, task_lookup = load_inspection(run)
+    timeline_payload = build_timeline(results[0], phase4_dir=phase4_dir)
     assert timeline_payload["schema_version"] == "phase4_trace_timeline_v1"
     event_kinds = [event["kind"] for event in timeline_payload["events"]]
     assert event_kinds[0] == "agent_run"
@@ -298,25 +308,20 @@ def test_worldsim_trace_timeline_and_jsonl(tmp_path: Path) -> None:
     assert "browser_runtime" in event_kinds
     assert "agentlab_browser_step" in event_kinds
 
-    agentlab_slice = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "worldsim.main",
-            "trace",
-            "slice",
-            str(run),
-            "--output",
-            "json",
-            "--fields",
-            "task_id,runner,agentlab_status,runtime_artifact_status,browser_instance_scope,sidecar_status",
+    agentlab_row = task_row(
+        results[0],
+        task_lookup,
+        phase4_dir=phase4_dir,
+        fields=[
+            "task_id",
+            "runner",
+            "agentlab_status",
+            "runtime_artifact_status",
+            "browser_instance_scope",
+            "sidecar_status",
         ],
-        check=True,
-        text=True,
-        capture_output=True,
     )
-    agentlab_payload = json.loads(agentlab_slice.stdout)
-    assert agentlab_payload["rows"] == [
+    assert [agentlab_row] == [
         {
             "task_id": "task-1",
             "runner": "agentlab",
@@ -327,26 +332,13 @@ def test_worldsim_trace_timeline_and_jsonl(tmp_path: Path) -> None:
         }
     ]
 
-    jsonl = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "worldsim.main",
-            "trace",
-            "slice",
-            str(run),
-            "--pvpo",
-            "encountered",
-            "--attack-attempted",
-            "false",
-            "--output",
-            "jsonl",
-            "--fields",
-            "task_id,pvpo,attack_attempted",
-        ],
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    rows = [json.loads(line) for line in jsonl.stdout.splitlines()]
+    rows = [
+        task_row(
+            result,
+            task_lookup,
+            phase4_dir=phase4_dir,
+            fields=["task_id", "pvpo", "attack_attempted"],
+        )
+        for result in filter_results(results, task_lookup, pvpo="encountered", attack_attempted=False)
+    ]
     assert rows == [{"attack_attempted": False, "pvpo": "pvpo_no_artifacts", "task_id": "task-1"}]

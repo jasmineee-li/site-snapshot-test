@@ -941,7 +941,7 @@ async def test_pvpo_scroll_patch_falls_back_to_js_when_wheel_times_out(
     monkeypatch.setenv("WORLDSIM_PVPO_SCROLL_ACTION_TIMEOUT_S", "0.01")
 
     async def hanging_wheel(**kwargs):
-        await asyncio.sleep(10)
+        await asyncio.Future()
 
     runtime_evaluate = AsyncMock(
         side_effect=[
@@ -988,7 +988,11 @@ async def test_pvpo_scroll_patch_falls_back_to_js_when_wheel_times_out(
 
     assert result is True
     cdp_session.cdp_client.send.Input.dispatchMouseEvent.assert_awaited_once()
-    assert runtime_evaluate.await_count == 3
+    assert runtime_evaluate.await_count >= 2
+    assert any(
+        "window.scrollBy" in call.kwargs["params"]["expression"]
+        for call in runtime_evaluate.await_args_list
+    )
     assert browser_session._worldsim_pvpo_scroll_wheel_timeouts == 1
     assert browser_session._worldsim_pvpo_scroll_js_fallbacks == 1
 

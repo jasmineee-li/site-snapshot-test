@@ -1352,7 +1352,7 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
             "--",
             sys.executable,
             "-c",
-            "import time; time.sleep(1)",
+            "pass",
         ],
         cwd=repo_root,
         env=env,

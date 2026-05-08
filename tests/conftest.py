@@ -13,6 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+_PHASE_4_MODULES_WITH_GET_CLIENT: list[Any] | None = None
+
 
 def _make_tool_use_response(
     tool_name: str,
@@ -252,13 +254,19 @@ def patched_anthropic_client(monkeypatch):
     def _get_client_stub() -> Any:
         return mock_client
 
-    patched_any = False
-    for mod_info in pkgutil.iter_modules(phase_4_pkg.__path__):
-        mod = importlib.import_module(f"worldsim.phase_4.{mod_info.name}")
-        if hasattr(mod, "get_client"):
-            monkeypatch.setattr(mod, "get_client", _get_client_stub)
-            patched_any = True
-    assert patched_any, (
+    global _PHASE_4_MODULES_WITH_GET_CLIENT
+    if _PHASE_4_MODULES_WITH_GET_CLIENT is None:
+        modules = []
+        for mod_info in pkgutil.iter_modules(phase_4_pkg.__path__):
+            mod = importlib.import_module(f"worldsim.phase_4.{mod_info.name}")
+            if hasattr(mod, "get_client"):
+                modules.append(mod)
+        _PHASE_4_MODULES_WITH_GET_CLIENT = modules
+
+    for mod in _PHASE_4_MODULES_WITH_GET_CLIENT:
+        monkeypatch.setattr(mod, "get_client", _get_client_stub)
+
+    assert _PHASE_4_MODULES_WITH_GET_CLIENT, (
         "patched_anthropic_client fixture found no phase_4 module binding "
         "get_client; the fixture is stale — did the module layout change?"
     )
