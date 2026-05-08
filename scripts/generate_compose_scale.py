@@ -46,6 +46,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import yaml
 
+from worldsim.browser_ports import is_chromium_restricted_port
 from worldsim.config import BenchmarkConfig
 from worldsim.host_config import BenchmarkHostConfig, load_host_config
 
@@ -55,6 +56,34 @@ from worldsim.placeholders import placeholder_for_site
 # ---------------------------------------------------------------------------
 # Replica expansion
 # ---------------------------------------------------------------------------
+
+
+def _browser_safe_web_ports(
+    *,
+    site_name: str,
+    real_base: int,
+    replica_count: int,
+    port_step: int,
+    proxy_port_offset: int,
+) -> list[int]:
+    ports: list[int] = []
+    candidate = real_base
+    attempts = 0
+    max_attempts = max(replica_count * 100, 100)
+    while len(ports) < replica_count:
+        attempts += 1
+        if attempts > max_attempts:
+            raise ValueError(
+                f"could not allocate {replica_count} Chromium-safe browser ports "
+                f"for {site_name!r} from base {real_base} step {port_step}"
+            )
+        proxy_candidate = candidate + proxy_port_offset if proxy_port_offset else candidate
+        if not is_chromium_restricted_port(candidate) and not is_chromium_restricted_port(
+            proxy_candidate
+        ):
+            ports.append(candidate)
+        candidate += port_step
+    return ports
 
 
 def expand_site(
@@ -75,8 +104,15 @@ def expand_site(
     db_port_base = site_cfg.get("db_port_base")
     db_port_step = int(site_cfg.get("db_port_step", 1))
 
-    for i in range(replica_count):
-        real_web = real_base + i * port_step
+    web_ports = _browser_safe_web_ports(
+        site_name=site_name,
+        real_base=real_base,
+        replica_count=replica_count,
+        port_step=port_step,
+        proxy_port_offset=proxy_port_offset,
+    )
+
+    for i, real_web in enumerate(web_ports):
         real_envctrl = real_web + 1
         proxy_port = real_web + proxy_port_offset
 

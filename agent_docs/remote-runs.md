@@ -260,6 +260,13 @@ Generated topology artifacts are host-local too. `instances.scale.json`,
 maps are gitignored and should be regenerated on the host from the selected
 host config, not synced from a laptop checkout.
 
+Scale generation also owns browser-port safety. Browser-facing `site_url`
+ports must avoid Chromium's restricted-port list, such as `10080`; the
+generator skips restricted candidates and `BenchmarkConfig` rejects stale
+instance files that still advertise them. Do not repair this inside task seeds
+or placement-fix variants, because the seeded data, auth state, reset endpoint,
+and evaluator origin must all stay on the same replica.
+
 `scripts/remote_job_start.sh` enforces this split on
 `remote_direct_restricted` hosts: it blocks Phase 2/2c/4 smoke inputs and
 blocks Phase 0/0c scale inputs. Override with

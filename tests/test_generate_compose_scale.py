@@ -7,6 +7,9 @@ from pathlib import Path
 
 import yaml
 
+from scripts.generate_compose_scale import expand_site, make_ip_allocator
+from worldsim.config import BenchmarkConfig
+
 
 def _write_host_config(tmp_path: Path, **overrides: object) -> Path:
     host_config = {
@@ -1057,3 +1060,117 @@ def test_generate_compose_scale_orchestrator_host_defaults_to_advertise_host(
     assert gitlab_0["site_url"] == "http://203.0.113.10:8023"
     assert gitlab_0["reset_endpoint"] == "http://203.0.113.10:8024/init"
     assert gitlab_0["db_connection"].startswith("postgresql://u:p@203.0.113.10:5433/")
+
+
+def test_generate_compose_scale_skips_chromium_restricted_browser_ports(
+    tmp_path: Path,
+) -> None:
+    base_config = {
+        "benchmark_name": "WebArena Verified",
+        "benchmark_codebase": "vendors/webarena-verified",
+        "instances": [
+            {
+                "site_name": "reddit",
+                "site_url": "http://old:9900",
+                "reset_endpoint": "http://old:9901/init",
+                "agent_auth": {"type": "none"},
+            }
+        ],
+    }
+    scale_config = {
+        "network": {"name": "worldsim-bench", "subnet": "172.20.0.0/20"},
+        "proxy_port_offset": 10000,
+        "smoke_test_replicas": {"reddit": 1},
+        "sites": {
+            "reddit": {
+                "image": "example/reddit@sha256:" + "e" * 64,
+                "replicas": 20,
+                "real_port_base": 9900,
+                "container_web_port": 80,
+                "port_step": 10,
+                "db_port_base": 5500,
+                "db_port_step": 1,
+            },
+        },
+    }
+    base_path = tmp_path / "instances.base.json"
+    config_path = tmp_path / "scale.yml"
+    base_path.write_text(json.dumps(base_config))
+    config_path.write_text(json.dumps(scale_config))
+    host_config_path = _write_host_config(
+        tmp_path,
+        advertise_host="3.12.221.9",
+        orchestrator_host="172.17.0.1",
+    )
+
+    repo_root = Path(__file__).resolve().parents[1]
+    script_path = repo_root / "scripts" / "generate_compose_scale.py"
+    subprocess.run(
+        [
+            sys.executable,
+            str(script_path),
+            "--config",
+            str(config_path),
+            "--base-config",
+            str(base_path),
+            "--host-config",
+            str(host_config_path),
+            "--out-dir",
+            str(tmp_path),
+        ],
+        check=True,
+        cwd=repo_root,
+    )
+
+    instances_config = json.loads((tmp_path / "instances.json").read_text())
+    reddit_urls = [instance["site_url"] for instance in instances_config["instances"]]
+    assert "http://172.17.0.1:10080" not in reddit_urls
+    assert "http://172.17.0.1:10090" in reddit_urls
+    assert reddit_urls[-1] == "http://172.17.0.1:10100"
+
+    proxy_ports = (tmp_path / "proxy_ports.conf").read_text().splitlines()
+    assert "reddit_18:10090:20090" in proxy_ports
+    assert "reddit_19:10100:20100" in proxy_ports
+
+
+def test_benchmark_config_rejects_chromium_restricted_site_url() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    payload = {
+        "benchmark_name": "WebArena Verified",
+        "benchmark_codebase": str(repo_root / "vendors" / "webarena-verified"),
+        "instances": [
+            {
+                "site_name": "reddit",
+                "site_url": "http://172.17.0.1:10080",
+                "agent_auth": {"type": "none"},
+            }
+        ],
+    }
+
+    try:
+        BenchmarkConfig.model_validate(payload)
+    except ValueError as exc:
+        assert "Chromium-restricted browser port 10080" in str(exc)
+    else:
+        raise AssertionError("expected Chromium-restricted site_url to be rejected")
+
+
+def test_generate_compose_scale_skips_restricted_proxy_browser_ports() -> None:
+    records = expand_site(
+        site_name="reddit",
+        site_cfg={
+            "image": "example/reddit@sha256:" + "f" * 64,
+            "real_port_base": 80,
+            "container_web_port": 80,
+            "port_step": 10,
+        },
+        replica_count=1,
+        orchestrator_host="127.0.0.1",
+        bind_host="127.0.0.1",
+        db_bind_host="127.0.0.1",
+        proxy_port_offset=10000,
+        ip_allocator=make_ip_allocator("172.20.0.0/20"),
+    )
+
+    assert records[0]["real_web_port"] == 90
+    assert records[0]["proxy_port"] == 10090

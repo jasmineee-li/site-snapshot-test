@@ -21,6 +21,7 @@ from worldsim.benchmark_capabilities import (
     infer_instances_config_benchmark,
     normalize_benchmark_name,
 )
+from worldsim.browser_ports import chromium_restricted_port_for_url
 from worldsim.db_urls import parse_supported_db_connection
 from worldsim.placeholders import merge_placeholder_maps
 from worldsim.pvpo_endpoint import validate_pvpo_cdp_url
@@ -360,6 +361,12 @@ class BenchmarkInstance(BaseModel):
         parsed = urlsplit(value)
         if parsed.username is not None or parsed.password is not None:
             raise ValueError("BenchmarkInstance.site_url must not include credentials")
+        restricted_port = chromium_restricted_port_for_url(value)
+        if restricted_port is not None:
+            raise ValueError(
+                "BenchmarkInstance.site_url uses Chromium-restricted browser port "
+                f"{restricted_port}; regenerate the scale topology with a browser-safe port"
+            )
         return value.strip()
 
     @field_validator("auth", "api_auth")

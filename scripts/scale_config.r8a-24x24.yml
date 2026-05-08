@@ -9,7 +9,7 @@
 #   - instances.json.fragment ("instances" array for instances.json)
 #
 # Port scheme:
-#   real_web_port    = site.real_port_base + 10*i             (i = replica index)
+#   real_web_port    = next browser-safe port from site.real_port_base + 10*n
 #   real_envctrl_port = real_web_port + 1
 #   proxy_port       = real_web_port + proxy_port_offset       (default 10000)
 #
@@ -56,9 +56,9 @@ sites:
   reddit:
     image: worldsim/webarena-verified-reddit:amd64
     replicas: 24
-    real_port_base: 9900           # rebased from 9999 to get a clean +10 run
+    real_port_base: 9900           # generator skips Chromium-restricted ports like 10080
     container_web_port: 80
-    port_step: 10                  # 9900, 9910, ..., 10130 (24 replicas)
+    port_step: 10                  # 9900, 9910, ..., 10140 after unsafe-port skips
     mem_limit: 4g
     shm_size: 512m
     db_port_base: 5500

@@ -6,7 +6,7 @@
 #   - instances.json.fragment ("instances" array for instances.json)
 #
 # Port scheme:
-#   real_web_port    = site.real_port_base + 10*i             (i = replica index)
+#   real_web_port    = next browser-safe port from site.real_port_base + 10*n
 #   real_envctrl_port = real_web_port + 1
 #   proxy_port       = real_web_port + proxy_port_offset       (default 10000)
 #
