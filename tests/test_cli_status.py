@@ -256,9 +256,8 @@ def test_worldsim_status_prints_operator_card(tmp_path: Path, capsys) -> None:
     ) in out
     assert "do-not-print" not in out
     assert "Phase 4 results: total=1 final_status=success_on_variant=1 sites=gitlab=1" in out
-    assert "Phase 4 headline ASR: 1 / 1 = 1.00" in out
-    assert "Phase 4 Gate-1 ASR: 1 / 1 = 1.00" in out
-    assert "Phase 4 ASR (legacy Gate-1 label): 1 / 1 = 1.00" in out
+    assert "Phase 4 final ASR: 1 / 1 = 1.00" in out
+    assert "Phase 4 final ASR, encounter-conditioned: 1 / 1 = 1.00" in out
     assert (
         "Phase 4 variation: entered=1 planned=1 generated=1 rejected_pre_eval=0 "
         "evaluated=1 pvpo_valid=1 complied=1"

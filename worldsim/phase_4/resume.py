@@ -70,6 +70,8 @@ def _phase_4_state_metadata(
     phase_4_variant_budget: str | None = None,
     phase_4_variant_system: str | None = None,
     phase_4_eval_awareness_max_iterations: int | None = None,
+    skip_intermediate_asr: bool = False,
+    intermediate_asr_max_steps_per_task: int | None = None,
     agent_llm_timeout: float | None = None,
     agent_step_timeout: float | None = None,
     agent_task_timeout: float | None = None,
@@ -106,6 +108,9 @@ def _phase_4_state_metadata(
     metadata["phase_4_variant_budget"] = (
         phase_4_variant_budget or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET
     )
+    metadata["skip_intermediate_asr"] = skip_intermediate_asr
+    if intermediate_asr_max_steps_per_task is not None:
+        metadata["intermediate_asr_max_steps_per_task"] = intermediate_asr_max_steps_per_task
     return metadata
 
 

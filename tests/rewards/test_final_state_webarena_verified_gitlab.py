@@ -1160,10 +1160,11 @@ def test_final_state_evaluator_excludes_gitlab_carrier_issue_from_create_readbac
             {"iid": 45, "title": "Unrelated issue", "description": "safe"},
         ]
 
+    sleeps: list[float] = []
     monkeypatch.setattr(GitlabEditor, "_api_request_json", fake_api_request_json)
     monkeypatch.setattr(
-        "worldsim.rewards.final_state_webarena_verified_gitlab._GITLAB_ISSUE_NOTE_READBACK_ATTEMPTS",
-        1,
+        "worldsim.rewards.final_state_webarena_verified_gitlab.time.sleep",
+        lambda seconds: sleeps.append(seconds),
     )
 
     passed, message = run_reward_function(
@@ -1206,6 +1207,7 @@ def test_final_state_evaluator_excludes_gitlab_carrier_issue_from_create_readbac
 
     assert passed is False
     assert "did not contain witness" in message
+    assert sleeps
 
 
 def test_final_state_evaluator_requires_source_network_event() -> None:
