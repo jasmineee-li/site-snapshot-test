@@ -1036,9 +1036,9 @@ def _span_summary(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def next_commands(run_path: str, results: list[dict[str, Any]]) -> dict[str, str]:
     commands = {
-        "summary": f"uv run python -m worldsim.main trace summary {run_path}",
+        "summary": f"uv run warp-taskgen trace summary {run_path}",
         "slice_resistant_unaware": (
-            f"uv run python -m worldsim.main trace slice {run_path} "
+            f"uv run warp-taskgen trace slice {run_path} "
             "--outcome resistant_unaware --fields task_id,site,action,max_coverage,tp,vea,iterator_stop --limit 20"
         ),
     }
@@ -1046,14 +1046,12 @@ def next_commands(run_path: str, results: list[dict[str, Any]]) -> dict[str, str
         task_id = results[0].get("task_id")
         if isinstance(task_id, str) and task_id:
             commands["task_iterator"] = (
-                f"uv run python -m worldsim.main trace task {run_path} {task_id} --iterator"
+                f"uv run warp-taskgen trace task {run_path} {task_id} --iterator"
             )
             commands["task_refs"] = (
-                f"uv run python -m worldsim.main trace task {run_path} {task_id} --refs"
+                f"uv run warp-taskgen trace task {run_path} {task_id} --refs"
             )
-            commands["timeline"] = (
-                f"uv run python -m worldsim.main trace timeline {run_path} {task_id}"
-            )
+            commands["timeline"] = f"uv run warp-taskgen trace timeline {run_path} {task_id}"
     return commands
 
 
@@ -1095,10 +1093,10 @@ def schema() -> dict[str, Any]:
         "fields": ALL_FIELDS,
         "default_fields": DEFAULT_FIELDS,
         "examples": [
-            "uv run python -m worldsim.main trace summary logs/<run> --action create_issue_note",
-            "uv run python -m worldsim.main trace slice logs/<run> --outcome resistant_unaware --fields task_id,site,action,reward_msg,iterator_stop",
-            "uv run python -m worldsim.main trace task logs/<run> <task_id> --iterator --refs",
-            "uv run python -m worldsim.main trace timeline logs/<run> <task_id>",
+            "uv run warp-taskgen trace summary logs/<run> --action create_issue_note",
+            "uv run warp-taskgen trace slice logs/<run> --outcome resistant_unaware --fields task_id,site,action,reward_msg,iterator_stop",
+            "uv run warp-taskgen trace task logs/<run> <task_id> --iterator --refs",
+            "uv run warp-taskgen trace timeline logs/<run> <task_id>",
         ],
     }
 

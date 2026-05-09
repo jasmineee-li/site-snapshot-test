@@ -88,7 +88,7 @@ scripts/remote_job_start.sh \
     for d in phase_0c phase_1 phase_2 phase_3; do
       cp -a "$SOURCE/$d" "$RUN/$d"
     done
-    uv run python -m worldsim.main phase \
+    uv run warp-taskgen phase \
       --instances instances.scale.json \
       --sites reddit \
       --task-origin new_task \
@@ -156,7 +156,7 @@ duplicate CDP responses, DOM watchdog slow calls, or `pvpo_capture_degraded`
 rows grow monotonically across tasks.
 
 For paper-facing W48 Browser Use or AgentLab Phase 4 runs, top-level
-`worldsim.main phase 4` commands must use `--phase-4-max-workers 48`. Do not
+`warp-taskgen phase 4` commands must use `--phase-4-max-workers 48`. Do not
 use `--workers 48` there; the remote launch guard rejects it.
 
 Prefer process isolation over a single Phase 4 process with
@@ -164,7 +164,7 @@ Prefer process isolation over a single Phase 4 process with
 event-bus/CDP contention. In that case, use `scripts/run_phase4_process_pool.py`
 from the remote job wrapper. The process-pool wrapper owns its own `--workers`
 flag. The supervisor launches normal
-`worldsim.main phase 4` subprocesses, each with `--phase-4-max-workers 1`, a
+`warp-taskgen phase 4` subprocesses, each with `--phase-4-max-workers 1`, a
 single `--phase-4-task-id`, and a one-instance config. This preserves Phase 4
 admission, seeding, PVPO, TP, VEA, eval-awareness iteration, rewards, and
 readback semantics while isolating Browser Use or AgentLab sidecar event loops
@@ -179,7 +179,7 @@ AgentLab parity runs, inspect each task's
 reported separately under `auxiliary_browser_connect_count`.
 
 Canonical process-pool shape. The `--workers 48` flag below belongs to
-`scripts/run_phase4_process_pool.py`, not to top-level `worldsim.main phase 4`:
+`scripts/run_phase4_process_pool.py`, not to top-level `warp-taskgen phase 4`:
 
 ```bash
 scripts/remote_job_start.sh \
@@ -221,6 +221,16 @@ write `phase_4/results.partial.json` and `phase_4/partial_manifest.json` for
 operator inspection. Those files are never paper-eligible, the run still exits
 nonzero, and only canonical `phase_4/results.json` counts as a complete Phase 4
 artifact.
+
+If the failed task set is rerun successfully, use
+`scripts/repair_process_pool_partial.py` to build a separate repaired run rather
+than editing the partial artifacts. The repair tool combines the original partial
+run with targeted retry runs, writes canonical `phase_4/results.json`, stamps
+`phase_4/process_pool_repair_manifest.json`, and marks
+`paper_eligible="operator_review_required"` so the operator explicitly reviews
+which rows were replaced. Iterator-checkpoint timeout salvage rows are useful for
+inspection, but they do not make the original process-pool run canonical; the
+merge still fails closed and writes partial artifacts until repaired or rerun.
 
 WorldSim uses two different network localities on r5. Treat the instances file
 as an execution-locality contract, not just a dataset selector:
@@ -357,8 +367,11 @@ The proxy uses token auth (`X-Worldsim-Token`) and offset ports from `scripts/pr
 Phase 4 rigor runs use page-surface-stable PVPO. The runner captures the
 visible viewport from its own browser with normal CDP `Page.captureScreenshot`
 and accepts evidence only when pre/post DOM witness probes are stable.
-Dedicated compositor-driving browser containers and `pvpo_cdp_url` are removed
-from the active run path and should not be configured for new rigor runs.
+Dedicated compositor-driving browser containers are removed from the active run
+path and should not be configured for new rigor runs. Some generated
+legacy-compatible instance files still carry `pvpo_cdp_url`; canonical
+page-surface-stable PVPO ignores that metadata unless an explicit legacy
+debugging path is enabled.
 
 ## Live Integration Command
 

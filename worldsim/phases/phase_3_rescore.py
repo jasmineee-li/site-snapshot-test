@@ -19,13 +19,16 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import subprocess
 from pathlib import Path
 from typing import Any
 
 from worldsim.agent_response_transform import detect_strategy, transform_agent_response
-from worldsim.rewards.vendor_webarena import WEBARENA_EVAL_MODULE, WEBARENA_EVAL_PYTHON_ENV
+from worldsim.rewards.vendor_webarena import (
+    WEBARENA_EVAL_MODULE,
+    WEBARENA_EVAL_PYTHON_ENV,
+    webarena_eval_python_override,
+)
 from worldsim.rewards.webarena_sites import build_supported_webarena_environments
 
 logger = logging.getLogger(__name__)
@@ -259,7 +262,7 @@ def _select_evaluator_runner(
     ``"inprocess"`` and ``handle`` is either the python executable path
     (subprocess) or a prepared ``WebArenaVerified`` evaluator (in-process).
     """
-    subprocess_python = os.environ.get(WEBARENA_EVAL_PYTHON_ENV, "").strip()
+    subprocess_python = webarena_eval_python_override()
     if not subprocess_python:
         # Look for the vendored venv as a default.
         repo_root = Path(__file__).resolve().parents[2]

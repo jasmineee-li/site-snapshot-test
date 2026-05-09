@@ -179,7 +179,9 @@ def _gate_phase_2c_benchmark(
         )
     capabilities = get_benchmark_capabilities(task_benchmark)
     if not capabilities.phase_2_feasibility_supported:
-        raise ValueError(f"benchmark {task_benchmark!r} does not support WorldSim v5 Phase 2c")
+        raise ValueError(
+            f"benchmark {task_benchmark!r} does not support WARP Taskgen Phase 2c"
+        )
     return capabilities.canonical_name
 
 
@@ -190,9 +192,9 @@ def _gate_phase_2_skip_benchmark(task_records: list[dict[str, Any]]) -> str:
     )
     capabilities = get_benchmark_capabilities(benchmark)
     if not capabilities.phase_2_supported:
-        raise ValueError(f"benchmark {benchmark!r} does not support WorldSim v5 Phase 2")
+        raise ValueError(f"benchmark {benchmark!r} does not support WARP Taskgen Phase 2")
     if not capabilities.phase_2_feasibility_supported:
-        raise ValueError(f"benchmark {benchmark!r} does not support WorldSim v5 Phase 2c")
+        raise ValueError(f"benchmark {benchmark!r} does not support WARP Taskgen Phase 2c")
     return capabilities.canonical_name
 
 

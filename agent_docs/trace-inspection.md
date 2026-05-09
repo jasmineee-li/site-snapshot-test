@@ -8,7 +8,7 @@ or failed under the eval-awareness iterator.
 Start with the compact inspector instead of hand-written `python -c` JSON dumps:
 
 ```bash
-uv run python -m worldsim.main trace summary logs/<run>
+uv run warp-taskgen trace summary logs/<run>
 ```
 
 For r5 artifacts, run the same inspector remotely:
@@ -33,7 +33,7 @@ scripts/remote_trace_inspect.sh \
 Add narrow filters before increasing detail:
 
 ```bash
-uv run python -m worldsim.main trace summary logs/<run> \
+uv run warp-taskgen trace summary logs/<run> \
   --site gitlab \
   --action create_issue_note
 ```
@@ -64,7 +64,7 @@ Use this order:
 Machine consumption:
 
 ```bash
-uv run python -m worldsim.main trace slice logs/<run> \
+uv run warp-taskgen trace slice logs/<run> \
   --outcome resistant_unaware \
   --fields task_id,site,action,final_status,reward_msg,iterator_stop \
   --output json
@@ -76,9 +76,9 @@ For large slices, use `--output jsonl` with a bounded `--limit`, or pass
 Discoverable surfaces:
 
 ```bash
-uv run python -m worldsim.main trace schema --output json
-uv run python -m worldsim.main trace fields
-uv run python -m worldsim.main trace examples
+uv run warp-taskgen trace schema --output json
+uv run warp-taskgen trace fields
+uv run warp-taskgen trace examples
 ```
 
 Useful filters include `--surface`, `--origin`, `--route`, `--pvpo`,
@@ -118,6 +118,18 @@ default-path rows, not only resistant rows:
   score: TP transition/explanation fields identify remaining eval-awareness
   cues, while PVPO/action/readback and contract-QA fields identify guardrails
   that the next rewrite must preserve or repair. VEA is intentionally absent.
+- For cross-run summaries, prefer semantic iterator accounting fields when
+  present: `rewrite_attempted`, `variant_evaluated`, `pre_browser_rejections`,
+  `post_eval_rejections`, `schema_validation_failures`,
+  `tp_regression_rejections`, and `contract_inapplicable_rejections`. These
+  explain where rewrite attempts were filtered better than old budget counters
+  alone.
+
+For AgentLab runs, a safe browser-step timeout retry may leave
+`agentlab_infra_retries.json` in the task trace. The retry is only valid when the
+timed-out attempt had no mutating network evidence; otherwise treat the timeout
+as a task/runtime failure and inspect the sidecar status plus network artifacts
+before counting the row.
 
 For eval-awareness iterator rewrite failures, do not stop at the top-level
 `iterator_stop`. Open `task <task_id> --iterator` or the raw

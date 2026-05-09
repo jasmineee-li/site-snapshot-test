@@ -6,7 +6,7 @@ The comparison runner therefore crosses a JSON subprocess boundary into
 ``packages/worldsim-agentlab-runner``.
 
 The sidecar has two entrypoints: benchmark-native comparison runs and the
-WorldSim-v5 Phase 4 runtime. The Phase 4 path preserves WorldSim-owned
+WARP Taskgen Phase 4 runtime. The Phase 4 path preserves WARP Taskgen-owned
 admission, seeding, rewards, PVPO gates, judges, variants, and summaries while
 delegating only the browser-agent episode to AgentLab/BrowserGym.
 """
@@ -62,7 +62,8 @@ _RESET_TIMEOUT = 300
 _LEGACY_CDP_ENV = "WORLDSIM_AGENTLAB_LEGACY_CONNECT_OVER_CDP"
 _RESET_MAX_RETRIES = 2
 _RESET_RETRY_DELAY_S = 10
-_SIDECAR_CMD_ENV = "WORLDSIM_AGENTLAB_RUNNER_CMD"
+_SIDECAR_CMD_ENV = "WARP_TASKGEN_AGENTLAB_RUNNER_CMD"
+_LEGACY_SIDECAR_CMD_ENV = "WORLDSIM_AGENTLAB_RUNNER_CMD"
 _SUPPORTED_ATTACK_MODES = frozenset({"comparison", "seeded_comparison"})
 _SIDECAR_TERMINATE_GRACE_S = 5.0
 _AGENTLAB_TIMELINE_ARTIFACT = "agentlab_step_timeline.jsonl"
@@ -513,21 +514,23 @@ def _agent_result_from_phase4_sidecar(payload: dict[str, Any]) -> AgentResult:
 def _default_sidecar_command(subcommand: str = "run") -> list[str]:
     repo_root = Path(__file__).resolve().parents[2]
     project_dir = repo_root / "packages" / "worldsim-agentlab-runner"
-    venv_entrypoint = project_dir / ".venv" / "bin" / "worldsim-agentlab-runner"
-    if venv_entrypoint.is_file() and os.access(venv_entrypoint, os.X_OK):
-        return [str(venv_entrypoint), subcommand]
+    venv_bin = project_dir / ".venv" / "bin"
+    for script_name in ("warp-taskgen-agentlab-runner", "worldsim-agentlab-runner"):
+        venv_entrypoint = venv_bin / script_name
+        if venv_entrypoint.is_file() and os.access(venv_entrypoint, os.X_OK):
+            return [str(venv_entrypoint), subcommand]
     return [
         "uv",
         "run",
         "--project",
         str(project_dir),
-        "worldsim-agentlab-runner",
+        "warp-taskgen-agentlab-runner",
         subcommand,
     ]
 
 
 def _sidecar_command(subcommand: str = "run") -> list[str]:
-    raw = os.environ.get(_SIDECAR_CMD_ENV)
+    raw = os.environ.get(_SIDECAR_CMD_ENV) or os.environ.get(_LEGACY_SIDECAR_CMD_ENV)
     if raw and raw.strip():
         parts = shlex.split(raw)
         if parts and parts[-1] in {"run", "phase4-run"}:

@@ -119,7 +119,7 @@ _PLACEMENT_SCHEMA: dict[str, Any] = {
 
 def _model_metadata() -> dict[str, str]:
     # Stable non-PII identifier for Anthropic retention filtering.
-    return {"user_id": "worldsim-v5-placement-fix"}
+    return {"user_id": "warp-taskgen-placement-fix"}
 
 
 def _persist_raw_response(trajectory_dir: Path, payload: dict[str, Any]) -> None:

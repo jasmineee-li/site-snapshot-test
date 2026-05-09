@@ -20,6 +20,7 @@ from worldsim.agentlab_cli import _prepare_single_task, _select_instance, _task_
 from worldsim.browser_use_agent import AuthArtifactMissingError
 from worldsim.config import BenchmarkConfig
 from worldsim.har_converter import minimal_har_placeholder_entry, strict_runtime_har_trace
+from worldsim.phase_4 import runner as phase4_runner
 from worldsim.resume_metadata import RESULT_FINGERPRINT_KEY
 from worldsim.runners import agentlab as agentlab_runner
 from worldsim.runners import available_runners, get_runner_module
@@ -112,6 +113,10 @@ def _load_sidecar_module(module_name: str):
 def test_runner_registry_exposes_agentlab_without_importing_optional_deps():
     assert "agentlab" in available_runners()
     assert get_runner_module("agentlab") is agentlab_runner
+
+
+def test_agentlab_phase4_preflight_uses_sidecar_lock_not_vendor_checkout():
+    assert phase4_runner._agentlab_phase4_preflight_errors() == []
 
 
 @pytest.mark.asyncio
@@ -290,6 +295,14 @@ def test_sidecar_command_can_be_overridden(monkeypatch):
 
     assert _sidecar_command() == ["custom-runner", "run"]
     assert _sidecar_command("phase4-run") == ["custom-runner", "phase4-run"]
+
+
+def test_sidecar_command_prefers_warp_taskgen_override(monkeypatch):
+    monkeypatch.setenv("WARP_TASKGEN_AGENTLAB_RUNNER_CMD", "canonical-runner run")
+    monkeypatch.setenv("WORLDSIM_AGENTLAB_RUNNER_CMD", "legacy-runner run")
+
+    assert _sidecar_command() == ["canonical-runner", "run"]
+    assert _sidecar_command("phase4-run") == ["canonical-runner", "phase4-run"]
 
 
 def test_sidecar_json_payload_accepts_browsergym_stdout_noise():

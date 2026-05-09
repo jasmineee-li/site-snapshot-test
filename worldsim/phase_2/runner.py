@@ -166,7 +166,9 @@ async def run(args: argparse.Namespace) -> int:
         )
         capabilities = get_benchmark_capabilities(benchmark_name)
         if not capabilities.phase_2_supported:
-            raise ValueError(f"benchmark {benchmark_name!r} does not support WorldSim v5 Phase 2")
+            raise ValueError(
+                f"benchmark {benchmark_name!r} does not support WARP Taskgen Phase 2"
+            )
     except ValueError as exc:
         logger.error("Phase 2 benchmark gate failed: %s", exc)
         save_state(

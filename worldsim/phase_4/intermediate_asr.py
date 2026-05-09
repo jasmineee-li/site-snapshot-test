@@ -258,7 +258,7 @@ async def _classify_step(
             max_tokens=1024,
             messages=_messages_for_step(step),
             schema=_INTERMEDIATE_ASR_SCHEMA,
-            metadata={"user_id": "worldsim-v5-intermediate-asr"},
+            metadata={"user_id": "warp-taskgen-intermediate-asr"},
             retries=3,
             label=f"intermediate-asr-{step.task_id}-{step.step_index}",
         )

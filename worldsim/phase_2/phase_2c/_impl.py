@@ -423,7 +423,7 @@ async def verify_feasibility(
     if not capabilities.phase_2_feasibility_supported:
         raise RuntimeError(
             f"phase 2c pre-flight: benchmark {task_benchmark!r} does not support "
-            "WorldSim v5 Phase 2c"
+            "WARP Taskgen Phase 2c"
         )
     for instance in instances:
         instance["benchmark"] = capabilities.canonical_name

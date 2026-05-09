@@ -20,7 +20,7 @@ import modal
 
 logger = logging.getLogger(__name__)
 
-APP_NAME = "worldsim-v5"
+APP_NAME = "warp-taskgen"
 
 CLAUDE_ALLOWED_ENV_VARS: tuple[str, ...] = (
     "ANTHROPIC_API_KEY",
@@ -29,7 +29,8 @@ CLAUDE_ALLOWED_ENV_VARS: tuple[str, ...] = (
     "CLAUDE_CODE_OAUTH_TOKEN",
 )
 
-NAMED_SECRET_ENV_VAR = "WORLDSIM_CLAUDE_MODAL_SECRET"
+NAMED_SECRET_ENV_VAR = "WARP_TASKGEN_CLAUDE_MODAL_SECRET"
+LEGACY_NAMED_SECRET_ENV_VAR = "WORLDSIM_CLAUDE_MODAL_SECRET"
 SANDBOX_WATCHDOG_SILENCE_SECONDS = 20 * 60
 SANDBOX_WATCHDOG_POLL_SECONDS = 15
 SANDBOX_RATE_LIMIT_GRACE_SECONDS = 90
@@ -139,7 +140,10 @@ def _build_claude_secrets() -> list[modal.Secret]:
     (especially Claude Code sessions) often pre-set auth vars to ``""``
     which would otherwise pass ``os.environ.get(key)`` truthiness checks.
     """
-    named = os.environ.get(NAMED_SECRET_ENV_VAR, "").strip()
+    named = (
+        os.environ.get(NAMED_SECRET_ENV_VAR, "").strip()
+        or os.environ.get(LEGACY_NAMED_SECRET_ENV_VAR, "").strip()
+    )
     if named:
         logger.info("Using named Modal secret %r for Claude Code auth", named)
         return [modal.Secret.from_name(named)]
@@ -177,7 +181,8 @@ def _build_claude_secrets() -> list[modal.Secret]:
             "      ANTHROPIC_BASE_URL=https://openrouter.ai/api\n"
             "    ANTHROPIC_API_KEY=sk-ant-...              # direct Anthropic API\n"
             "  Or point at an existing named Modal secret:\n"
-            f"    {NAMED_SECRET_ENV_VAR}=<secret-name>"
+            f"    {NAMED_SECRET_ENV_VAR}=<secret-name> "
+            f"(or legacy {LEGACY_NAMED_SECRET_ENV_VAR}=<secret-name>)"
         )
 
     # OAuth wins: Claude Code's own precedence puts API key above OAuth,
@@ -745,7 +750,7 @@ def _content_addressed_volume_name(local_dir: Path) -> str:
         or "benchmark"
     )
     digest = _hash_directory(local_dir)[:12]
-    return f"worldsim-{stem[:24]}-{digest}"
+    return f"warp-taskgen-{stem[:24]}-{digest}"
 
 
 def _hash_directory(local_dir: Path) -> str:

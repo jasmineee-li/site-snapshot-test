@@ -137,7 +137,9 @@ async def run(args: argparse.Namespace) -> int:
         return 1
     capabilities = get_benchmark_capabilities(run_benchmark or config.benchmark_name)
     if capabilities.phase_4_mode != "worldsim_v5":
-        message = f"benchmark {capabilities.canonical_name!r} does not support WorldSim v5 Phase 4"
+        message = (
+            f"benchmark {capabilities.canonical_name!r} does not support WARP Taskgen Phase 4"
+        )
         logger.error("Phase 4 benchmark metadata gate failed: %s", message)
         save_state(
             "phase_4",
@@ -727,9 +729,9 @@ def _agentlab_phase4_preflight_errors() -> list[str]:
     sidecar = repo_root / "packages" / "worldsim-agentlab-runner"
     if not sidecar.is_dir():
         errors.append(f"missing AgentLab sidecar package at {sidecar}")
-    vendor = repo_root / "vendors" / "AgentLab-upstream"
-    if not vendor.is_dir():
-        errors.append(f"missing vendored AgentLab checkout at {vendor}")
+    lockfile = sidecar / "uv.lock"
+    if not lockfile.is_file():
+        errors.append(f"missing AgentLab sidecar lockfile at {lockfile}")
     return errors
 
 

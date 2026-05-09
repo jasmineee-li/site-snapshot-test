@@ -9,7 +9,8 @@ resolution-markers = [
 
 [[package]]
 name = "agentlab"
-source = { editable = "../../vendors/AgentLab-upstream" }
+version = "0.4.3.dev2+gcbc35a9bc"
+source = { git = "https://github.com/ServiceNow/AgentLab.git?rev=cbc35a9bc0facaf731bc858c5825edbe757c719f#cbc35a9bc0facaf731bc858c5825edbe757c719f" }
 dependencies = [
     { name = "anthropic" },
     { name = "browsergym" },
@@ -35,51 +36,6 @@ dependencies = [
     { name = "requests" },
     { name = "tiktoken" },
     { name = "torch" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "anthropic", specifier = ">=0.62.0" },
-    { name = "browsergym", specifier = ">=0.7.1" },
-    { name = "contexttimer" },
-    { name = "dask" },
-    { name = "distributed" },
-    { name = "gitpython" },
-    { name = "gradio", specifier = ">=5.5" },
-    { name = "gymnasium", specifier = ">=0.27" },
-    { name = "huggingface-hub" },
-    { name = "ipython" },
-    { name = "joblib", specifier = ">=1.2.0" },
-    { name = "litellm", specifier = ">=1.75.3" },
-    { name = "matplotlib" },
-    { name = "openai", specifier = ">=1.7,<2" },
-    { name = "pandas" },
-    { name = "pillow" },
-    { name = "pydantic", specifier = "~=2.9" },
-    { name = "python-dotenv", specifier = ">=1.1.1" },
-    { name = "python-slugify" },
-    { name = "pyyaml", specifier = ">=6" },
-    { name = "ray", extras = ["default"] },
-    { name = "requests" },
-    { name = "sentence-transformers", marker = "extra == 'hint'", specifier = ">=5.0.0" },
-    { name = "tiktoken" },
-    { name = "torch", specifier = ">=2.2.2" },
-    { name = "transformers", marker = "extra == 'transformers'", specifier = ">=4.38.2" },
-]
-provides-extras = ["hint", "transformers"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "black", extras = ["jupyter"], specifier = ">=24.2.0" },
-    { name = "blacken-docs" },
-    { name = "darglint", specifier = ">=1.8.1" },
-    { name = "flaky" },
-    { name = "ipykernel", specifier = ">=6.30.1" },
-    { name = "pip", specifier = ">=25.2" },
-    { name = "pre-commit" },
-    { name = "pytest", specifier = "==7.3.2" },
-    { name = "pytest-playwright" },
-    { name = "pytest-xdist" },
 ]
 
 [[package]]
@@ -2259,7 +2215,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess" },
+    { name = "ptyprocess", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
@@ -3566,6 +3522,17 @@ wheels = [
 ]
 
 [[package]]
+name = "warp-taskgen-agentlab-runner"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "agentlab" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "agentlab", git = "https://github.com/ServiceNow/AgentLab.git?rev=cbc35a9bc0facaf731bc858c5825edbe757c719f" }]
+
+[[package]]
 name = "wcwidth"
 version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3660,17 +3627,6 @@ name = "word2number"
 version = "1.1"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/4a/29/a31940c848521f0725f0df6b25dca8917f13a2025b0e8fcbe5d0457e45e6/word2number-1.1.zip", hash = "sha256:70e27a5d387f67b04c71fbb7621c05930b19bfd26efd6851e6e0f9969dcde7d0", size = 9723, upload-time = "2017-06-02T15:45:14.488Z" }
-
-[[package]]
-name = "worldsim-agentlab-runner"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "agentlab" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "agentlab", editable = "../../vendors/AgentLab-upstream" }]
 
 [[package]]
 name = "wrapt"

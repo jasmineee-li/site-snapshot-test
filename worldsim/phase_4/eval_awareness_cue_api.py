@@ -146,7 +146,7 @@ def _instructor_client_for(client: AsyncAnthropic) -> Any:
 
 
 def _model_metadata(task: dict[str, Any]) -> dict[str, str]:
-    return {"user_id": "worldsim-v5-eval-awareness-cue"}
+    return {"user_id": "warp-taskgen-eval-awareness-cue"}
 
 
 def _compact_result(result: dict[str, Any]) -> dict[str, Any]:

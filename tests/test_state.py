@@ -25,6 +25,20 @@ def test_state_dir_honors_runtime_env_override(monkeypatch, tmp_path):
     assert load_state()["status"] == "running"
 
 
+def test_state_dir_prefers_warp_taskgen_env_override(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    canonical_logs = tmp_path / "canonical"
+    legacy_logs = tmp_path / "legacy"
+    monkeypatch.setenv("WARP_TASKGEN_STATE_DIR", str(canonical_logs))
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(legacy_logs))
+
+    save_state("phase_1", status="running", benchmark_path="/tmp/benchmark")
+
+    assert get_state_dir() == canonical_logs
+    assert (canonical_logs / "pipeline_state.json").is_file()
+    assert not (legacy_logs / "pipeline_state.json").exists()
+
+
 def test_load_state_follows_resume_pointer_without_env_override(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     custom_logs = tmp_path / "custom-logs"

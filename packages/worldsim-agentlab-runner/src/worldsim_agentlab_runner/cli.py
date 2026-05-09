@@ -13,13 +13,13 @@ from typing import Any
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="WorldSim AgentLab sidecar runner")
+    parser = argparse.ArgumentParser(description="WARP Taskgen AgentLab sidecar runner")
     subparsers = parser.add_subparsers(dest="command", required=True)
     run_parser = subparsers.add_parser("run", help="Run one AgentLab request JSON")
     run_parser.add_argument("request", type=Path)
     phase4_parser = subparsers.add_parser(
         "phase4-run",
-        help="Run one WorldSim Phase 4 AgentLab request JSON",
+        help="Run one WARP Taskgen Phase 4 AgentLab request JSON",
     )
     phase4_parser.add_argument("request", type=Path)
     args = parser.parse_args(argv)

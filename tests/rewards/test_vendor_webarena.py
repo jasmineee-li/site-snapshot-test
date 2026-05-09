@@ -7,9 +7,11 @@ import types
 import worldsim.rewards.vendor_webarena as vendor_webarena
 from worldsim.rewards import run_reward_function
 from worldsim.rewards.vendor_webarena import (
+    LEGACY_WEBARENA_EVAL_PYTHON_ENV,
     WEBARENA_EVAL_MODULE,
     WEBARENA_EVAL_PYTHON_ENV,
     _apply_webarena_vendor_shims,
+    webarena_eval_python_override,
 )
 
 
@@ -23,6 +25,7 @@ def test_webarena_eval_fails_closed_without_vendor_package(monkeypatch):
 
     monkeypatch.setattr(builtins, "__import__", fake_import)
     monkeypatch.delenv(WEBARENA_EVAL_PYTHON_ENV, raising=False)
+    monkeypatch.delenv(LEGACY_WEBARENA_EVAL_PYTHON_ENV, raising=False)
     monkeypatch.setattr(vendor_webarena, "_default_eval_python", lambda: "")
 
     passed, message = run_reward_function(
@@ -66,6 +69,13 @@ def test_webarena_eval_uses_separate_python_when_configured(monkeypatch):
     ]
     assert captured["payload"]["task_id"] == "123"
     assert captured["payload"]["environments"]["gitlab"] == ["http://gitlab.test"]
+
+
+def test_webarena_eval_python_override_prefers_warp_taskgen_env(monkeypatch):
+    monkeypatch.setenv(WEBARENA_EVAL_PYTHON_ENV, "/tmp/canonical-python")
+    monkeypatch.setenv(LEGACY_WEBARENA_EVAL_PYTHON_ENV, "/tmp/legacy-python")
+
+    assert webarena_eval_python_override() == "/tmp/canonical-python"
 
 
 def test_webarena_vendor_shims_normalize_network_event_alias():

@@ -229,7 +229,7 @@ def _build_step_2_messages(guess: str) -> list[dict[str, Any]]:
 
 
 def _model_metadata() -> dict[str, str]:
-    return {"user_id": "worldsim-v5-transcript-purpose"}
+    return {"user_id": "warp-taskgen-transcript-purpose"}
 
 
 def _synthesize_summary(response: Any, *, sandbox_model: str, elapsed_s: float) -> str:

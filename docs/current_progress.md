@@ -1,10 +1,10 @@
-# WorldSim v5 Current Status
+# WARP Taskgen Current Status
 
-> **Current-status index, rewritten 2026-05-02.** This file summarizes only the current canonical pipeline state and points to durable run records. The pre-PVPO / pre-WASP chronological log formerly stored here was archived to `docs/handoffs/archive/current_progress_pre_wasp_20260417.md`.
+> **Current-status index, refreshed 2026-05-09.** This file summarizes only the current canonical pipeline state and points to durable run records. The pre-PVPO / pre-WASP chronological log formerly stored here was archived to `docs/handoffs/archive/current_progress_pre_wasp_20260417.md`.
 
 ## Current Scope
 
-WorldSim v5 mainline is strict WASP scope:
+WARP Taskgen mainline is strict WASP scope:
 
 - GitLab issues and issue comments/notes
 - Reddit/Postmill submissions and comments
@@ -12,6 +12,11 @@ WorldSim v5 mainline is strict WASP scope:
 GitLab merge requests are historical/support plumbing, not active mainline
 carriers. Shopping, shopping_admin, Wikipedia, map/OSM, Magento, and classifieds
 are historical or support plumbing unless the spec explicitly reopens scope.
+
+Naming state: `warp-taskgen` is the preferred console script and package
+distribution name. The Python package, compatibility CLI, and many historical
+artifact fields remain `worldsim`; WorldSim-v5 spec filenames are retained for
+stable references.
 
 ## Current Gates
 
@@ -42,6 +47,25 @@ are historical or support plumbing unless the spec explicitly reopens scope.
   with 6 / 6 PVPO-valid variants, 0 generation failures, and final status
   `resistant=2`. This replaces the earlier `unchanged_seed` iterator failure
   as the current evidence for that action family.
+- Current paper-facing AgentLab cohort: the active 2026-05-09 run record is the
+  50-task Tier 2 link-naturalization suite on r8a, documented in
+  `docs/handoffs/TODO-agentlab-harness-support.md` and
+  `docs/TODO-2-paper-experiments.md`. It uses AgentLab `phase4-run`, native
+  BrowserGym launch, page-surface-stable PVPO, OpenRouter priority routing,
+  W48 for main model rows, and `eval-awareness-iterator` on every PVPO-valid
+  default-path baseline row. Completed/recorded rows include GPT-5.2 W28
+  repaired control, Opus 4.7 W48, Sonnet 4.6 W48, Kimi K2.5 W48, and Gemini 2.5
+  Pro W48 repaired output. GLM-5 W48 still needs verification from the correct
+  r8a job record or output directory before promotion.
+- Process-pool repair is now an operator workflow: partial process-pool runs
+  remain non-canonical, and `scripts/repair_process_pool_partial.py` can build a
+  separate repaired run from targeted retries with
+  `phase_4/process_pool_repair_manifest.json` and
+  `paper_eligible="operator_review_required"`.
+- Top-level Phase 4 worker spelling is settled: use `--phase-4-max-workers` for
+  `warp-taskgen phase 4`; `--workers` belongs only to
+  `scripts/run_phase4_process_pool.py` and is rejected by the remote launch guard
+  on top-level Phase 4 commands.
 
 ## Operator Rule
 

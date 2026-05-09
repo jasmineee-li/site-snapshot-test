@@ -1,4 +1,4 @@
-"""Read-only operator status and inspection helpers for WorldSim runs."""
+"""Read-only operator status and inspection helpers for WARP Taskgen runs."""
 
 from __future__ import annotations
 
@@ -328,7 +328,7 @@ def _format_phase2c_rows(label: str, rows: list[dict[str, Any]], *, limit: int) 
 
 
 def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) -> str:
-    lines = [f"WorldSim status: {payload['run_root']}"]
+    lines = [f"WARP Taskgen status: {payload['run_root']}"]
     state = payload.get("pipeline_state")
     if isinstance(state, dict):
         lines.append(
@@ -603,7 +603,7 @@ def format_inspection_payload(payload: dict[str, Any]) -> str:
     if not isinstance(task, dict):
         raise ValueError("inspection payload missing task object")
     lines = [
-        f"WorldSim task inspection: {task.get('task_id', 'unknown')}",
+        f"WARP Taskgen task inspection: {task.get('task_id', 'unknown')}",
         (f"Status: {task.get('final_status', 'missing')} ({task.get('outcome_fine', 'missing')})"),
         (
             "Surface: "

@@ -1,4 +1,4 @@
-"""WorldSim v5 CLI entrypoint.
+"""WARP Taskgen CLI entrypoint.
 
 See ``docs/worldsim-v5-technical-specifcation.md`` for the full pipeline
 and ``README.md`` for prerequisites.
@@ -6,10 +6,10 @@ and ``README.md`` for prerequisites.
 Usage::
 
     # Phase 0 reconnaissance against a benchmark codebase on disk
-    uv run python -m worldsim.main phase 0 --benchmark vendors/webarena-verified
+    uv run warp-taskgen phase 0 --benchmark vendors/webarena-verified
 
     # Resume from the last saved checkpoint
-    uv run python -m worldsim.main resume
+    uv run warp-taskgen resume
 """
 
 from __future__ import annotations
@@ -48,6 +48,18 @@ _PHASE4_ASYNC_SHUTDOWN_TIMEOUT_ENV = "WORLDSIM_PHASE4_ASYNC_SHUTDOWN_TIMEOUT_S"
 _PHASE4_ASYNC_SHUTDOWN_TIMEOUT_DEFAULT_S = 10.0
 
 
+def _normalize_compat_env_aliases() -> None:
+    """Mirror canonical WARP Taskgen env vars into legacy names for older helpers."""
+    aliases = {
+        "WARP_TASKGEN_STATE_DIR": "WORLDSIM_STATE_DIR",
+        "WARP_TASKGEN_WEBARENA_EVAL_PYTHON": "WORLDSIM_WEBARENA_EVAL_PYTHON",
+        "WARP_TASKGEN_AGENTLAB_RUNNER_CMD": "WORLDSIM_AGENTLAB_RUNNER_CMD",
+    }
+    for canonical, legacy in aliases.items():
+        if os.environ.get(canonical) and not os.environ.get(legacy):
+            os.environ[legacy] = os.environ[canonical]
+
+
 class Phase4AlreadyRunning(RuntimeError):
     """Raised when the per-state-dir Phase 4 run lock is held."""
 
@@ -80,7 +92,7 @@ def _phase4_async_shutdown_timeout() -> float:
 def _run_phase4_with_bounded_async_shutdown(coro: Any, *, shutdown_timeout_s: float) -> Any:
     """Run Phase 4 without letting third-party background tasks hang process exit.
 
-    Browser Use can leave storage-state/watchdog tasks alive after WorldSim has
+    Browser Use can leave storage-state/watchdog tasks alive after WARP Taskgen has
     written complete Phase 4 artifacts. ``asyncio.run`` waits indefinitely for
     cancellation during shutdown, which keeps registered r5 jobs marked
     ``running`` and prevents post-run exporters from executing. Phase 4 owns
@@ -201,8 +213,7 @@ def _non_negative_int(value: str) -> int:
 def build_parser() -> argparse.ArgumentParser:
     """Construct the CLI parser used by ``main()`` and tests."""
     parser = argparse.ArgumentParser(
-        prog="worldsim",
-        description="WorldSim v5 adversarial evaluation pipeline",
+        description="WARP Taskgen task-generation and admission pipeline",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     from worldsim.phase_4.trace_inspection_cli import add_trace_parser
@@ -292,7 +303,7 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Browser-agent harness for execution phases. WebArena Verified "
             "Phase 4 supports Browser Use and the isolated AgentLab sidecar; "
-            "non-WorldSim-v5 benchmarks use AgentLab only for comparison runs."
+            "non-WARP-Taskgen benchmarks use AgentLab only for comparison runs."
         ),
     )
     phase_cmd.add_argument(
@@ -365,7 +376,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         metavar="SECONDS",
         help=(
-            "Phase 4: explicit WorldSim wall-clock timeout for one Browser Use "
+            "Phase 4: explicit WARP Taskgen wall-clock timeout for one Browser Use "
             "task. Omit to preserve Browser Use's long-running default. This is "
             "an infrastructure guard for stuck sessions, not an action-step limit."
         ),
@@ -396,10 +407,11 @@ def build_parser() -> argparse.ArgumentParser:
         choices=phase_4_variant_system_choices(),
         default=None,
         help=(
-            "Phase 4 post-resistance rewrite system. Defaults to "
-            "eval-awareness-iterator; use strategy-variation for the legacy "
-            "refusal-judge strategy fan-out, or none to stop after the initial "
-            "encountered refusal."
+            "Phase 4 variant/iterator system. Defaults to eval-awareness-iterator, "
+            "which records an envelope for every PVPO-valid baseline row and only "
+            "rewrites when Transcript Purpose calls for it; use strategy-variation "
+            "for the legacy post-resistance refusal-judge strategy fan-out, or none "
+            "to stop after the baseline trajectory."
         ),
     )
     phase_cmd.add_argument(
@@ -532,8 +544,10 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=False,
         help="Phase 2c: skip live feasibility verification. Tasks are stamped "
-        "feasibility.status='unverified' and Phase 4 runs in grace mode. Use "
-        "only for fast dev iteration; shipping runs must not bypass 2c.",
+        "feasibility.status='unverified'. Strict Phase 4 admission skips "
+        "unverified tasks unless WORLDSIM_STRICT_FEASIBILITY=false is set as a "
+        "development break-glass. Use only for fast dev iteration; shipping runs "
+        "must not bypass 2c.",
     )
     phase_cmd.add_argument(
         "--feasibility-only",
@@ -598,7 +612,7 @@ def build_parser() -> argparse.ArgumentParser:
         "resume",
         help="Resume from the last saved checkpoint",
         description=(
-            "Resume from the last saved checkpoint. When resuming Phase 2, WorldSim "
+            "Resume from the last saved checkpoint. When resuming Phase 2, WARP Taskgen "
             "re-enters the saved internal sub-stage automatically: 2a planning or "
             "2b text fill. There are no separate --phase-2a-only or "
             "--phase-2b-only flags."
@@ -682,7 +696,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--phase-4-variant-system",
         choices=phase_4_variant_system_choices(),
         default=argparse.SUPPRESS,
-        help="Override the saved Phase 4 post-resistance rewrite system.",
+        help="Override the saved Phase 4 variant/iterator system.",
     )
     resume_cmd.add_argument(
         "--phase-4-eval-awareness-max-iterations",
@@ -901,14 +915,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     status_cmd = subparsers.add_parser(
         "status",
-        help="Show a read-only operator summary for a WorldSim run.",
+        help="Show a read-only operator summary for a WARP Taskgen run.",
     )
     status_cmd.add_argument(
         "path",
         type=Path,
         nargs="?",
         default=None,
-        help="Run state dir, phase_4/results.json, or pipeline_state.json. Defaults to WORLDSIM_STATE_DIR/logs.",
+        help=(
+            "Run state dir, phase_4/results.json, or pipeline_state.json. "
+            "Defaults to WARP_TASKGEN_STATE_DIR/logs, with WORLDSIM_STATE_DIR "
+            "accepted as a legacy alias."
+        ),
     )
     status_cmd.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
     status_cmd.add_argument(
@@ -928,7 +946,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         nargs="?",
         default=None,
-        help="Run state dir, phase_4/results.json, or pipeline_state.json. Defaults to WORLDSIM_STATE_DIR/logs.",
+        help=(
+            "Run state dir, phase_4/results.json, or pipeline_state.json. "
+            "Defaults to WARP_TASKGEN_STATE_DIR/logs, with WORLDSIM_STATE_DIR "
+            "accepted as a legacy alias."
+        ),
     )
     inspect_cmd.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
 
@@ -939,7 +961,7 @@ def build_parser() -> argparse.ArgumentParser:
     agentlab_sub = agentlab_cmd.add_subparsers(dest="agentlab_command", required=True)
     agentlab_models = agentlab_sub.add_parser(
         "models",
-        help="List named WorldSim AgentLab model profiles.",
+        help="List named WARP Taskgen AgentLab model profiles.",
     )
     agentlab_models.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
     agentlab_run = agentlab_sub.add_parser(
@@ -950,7 +972,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--task-json",
         type=Path,
         default=None,
-        help="WorldSim task JSON object. Lists are accepted only when they contain one task.",
+        help="WARP Taskgen task JSON object. Lists are accepted only when they contain one task.",
     )
     agentlab_run.add_argument(
         "--browsergym-task-name",
@@ -1041,7 +1063,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--path",
         type=Path,
         default=None,
-        help="Task-bank JSONL path. Defaults to WORLDSIM_STATE_DIR/task_bank/events.jsonl.",
+        help=(
+            "Task-bank JSONL path. Defaults to "
+            "WARP_TASKGEN_STATE_DIR/task_bank/events.jsonl, with "
+            "WORLDSIM_STATE_DIR accepted as a legacy alias."
+        ),
     )
     task_bank_sub = task_bank_cmd.add_subparsers(dest="task_bank_command", required=True)
 
@@ -1053,7 +1079,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--run-dir",
         type=Path,
         required=True,
-        help="WorldSim run dir containing phase_2/adversarial_tasks.json.",
+        help="WARP Taskgen run dir containing phase_2/adversarial_tasks.json.",
     )
     task_bank_append.add_argument(
         "--source",
@@ -1233,6 +1259,7 @@ def _resolve_verification_proxy_token(proxy_data: dict[str, object], *, config_p
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entrypoint. See module docstring for usage."""
+    _normalize_compat_env_aliases()
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",

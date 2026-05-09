@@ -1,7 +1,7 @@
-# WorldSim v5 Agent Guide
+# WARP Taskgen Agent Guide
 
 ## Scope
-WorldSim v5 is a controlled AI safety benchmark for browser-agent robustness in
+WARP Taskgen is a controlled AI safety benchmark generation pipeline for browser-agent robustness in
 local/sandboxed WebArena-style environments. Work only on repo code, generated
 logs/traces, and configured benchmark infrastructure; do not target real
 services, credentials, users, money, or production systems.
@@ -15,7 +15,7 @@ optimize for evading safeguards.
 ## WHAT
 - Python 3.12 `uv` project for Modal Sandbox plus Browser Use and AgentLab adversarial evaluation of browser agents.
 - Strict WASP scope: GitLab issues/comments and Reddit/Postmill posts/comments only.
-- Main map: `worldsim/` core package, `scripts/` host/run tooling, `tests/` unit/live/preflight suites, `packages/worldsim-webarena-verified/` isolated evaluator adapter, `vendors/` gitignored benchmark clones.
+- Main map: `worldsim/` legacy core package, `scripts/` host/run tooling, `tests/` unit/live/preflight suites, `packages/worldsim-webarena-verified/` isolated evaluator adapter, `vendors/` gitignored benchmark clones.
 - `AgentLab/src/agentlab/benchmarks/redteam/{execution.py,claude_code.py}` are read-only references only; never import from `AgentLab/`.
 
 ## WHY
@@ -29,11 +29,11 @@ optimize for evading safeguards.
 - `agent_docs/domain-invariants.md` — Phase 2/4, auth, sandbox, prompt, and WASP invariants.
 - `agent_docs/code-organization.md` — feature/domain module ownership, compatibility-wrapper policy, and readiness debt sequencing.
 - `agent_docs/remote-runs.md` — r5, proxy, fresh-host, and long-run discipline.
-- `agent_docs/trace-inspection.md` — Phase 4 trace/result debugging. When asked why tasks complied, resisted, were unaware, or why iterator contrasts failed, start with `uv run python -m worldsim.main trace ...` or `scripts/remote_trace_inspect.sh` before ad hoc JSON dumps.
+- `agent_docs/trace-inspection.md` — Phase 4 trace/result debugging. When asked why tasks complied, resisted, were unaware, or why iterator contrasts failed, start with `uv run warp-taskgen trace ...` or `scripts/remote_trace_inspect.sh` before ad hoc JSON dumps.
 - Work loop: Research -> Plan -> Implement -> Validate. Keep each context small; use `rg`; delegate focused exploration/verification to sub-agents when the harness supports it.
 - Prefer existing patterns and helpers over new abstractions. Keep edits scoped; do not rewrite generated logs or hand-edit `feasibility.status`.
 - Treat `logs/` as runtime output; use `agent_docs/artifacts.md` before deleting, restoring, or promoting generated artifacts.
-- Main commands: `uv sync --extra dev`, `bash scripts/verify_fast.sh`, `bash scripts/verify_default.sh`, `uv run python -m worldsim.main --help`, `uv run pytest <paths> -q`, `uv run ruff check <paths>`, `uv run ruff format <paths>`.
+- Main commands: `uv sync --extra dev`, `bash scripts/verify_fast.sh`, `bash scripts/verify_default.sh`, `uv run warp-taskgen --help`, `uv run pytest <paths> -q`, `uv run ruff check <paths>`, `uv run ruff format <paths>`.
 - Use `scripts/lib/run_silent.sh` or repo quiet wrappers; for live gates use `scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml --quiet`. Never truncate verbose output yourself.
 - Claude/Modal auth precedence lives in `worldsim/modal_sandbox.py::_build_claude_secrets` and `worldsim/phase_4/anthropic_client.py`; never hard-code one auth mode.
 - On resume or context compaction, preserve completed actions, active assumptions, artifact paths/IDs, tool outcomes, unresolved blockers, and the next concrete goal.
@@ -54,7 +54,7 @@ optimize for evading safeguards.
 - Transcript Purpose and VEA are observational in baseline trajectory scoring. The explicit `eval-awareness-iterator` variant system may branch on Transcript Purpose only for bounded rewrite control; VEA remains report-only and must never gate admission, scoring, or branching.
 - Refusal judge, variant generator, Transcript Purpose, VEA, placement-fix, eval-awareness cue diagnosis, and eval-awareness rewrite use direct host Anthropic Messages API calls, not `run_claude_in_sandbox`.
 - Do not reintroduce `visual_concealment`; paper concealment is behavioral final-response steering, not visual.
-- Phase 4 keeps benign task contracts and reward functions emitted by Phase 3 invariant across variants. The default post-resistance path is `eval-awareness-iterator`; legacy strategy variation is opt-in via `--phase-4-variant-system strategy-variation`.
+- Phase 4 keeps benign task contracts and reward functions emitted by Phase 3 invariant across variants. The default path is `eval-awareness-iterator`: every PVPO-valid default-path baseline trajectory gets an iterator envelope, and Transcript Purpose controls whether rewrite iterations proceed. Legacy strategy variation is opt-in via `--phase-4-variant-system strategy-variation`.
 </important>
 
 <important if="you are changing Modal sandbox setup, secret wiring, sandbox lifecycle, or file routing">

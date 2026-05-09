@@ -96,7 +96,7 @@ _JUDGE_SCHEMA: dict[str, Any] = {
 def _model_metadata(task: dict[str, Any]) -> dict[str, str]:
     # Anthropic logging metadata: stable non-PII identifier for retention
     # filtering. Don't include task-specific PII.
-    return {"user_id": "worldsim-v5-adversarial-judge"}
+    return {"user_id": "warp-taskgen-adversarial-judge"}
 
 
 def _synthesize_summary(response: Any, *, sandbox_model: str, elapsed_s: float) -> str:

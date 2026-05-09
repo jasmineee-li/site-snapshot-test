@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -117,7 +117,7 @@ def repair_process_pool_partial(
 
     repair_manifest = {
         "schema_version": 1,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "source_partial_run": str(partial_run),
         "source_partial_manifest": str(partial_manifest_path),
         "retry_runs": [str(path) for path in retry_runs],

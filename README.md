@@ -1,6 +1,6 @@
-# WorldSim v5
+# WARP Taskgen
 
-Adversarial evaluation pipeline for browser agents. Generates indirect prompt injection tasks against pre-running benchmark environments (WebArena), runs Browser Use agents by default with an optional AgentLab sidecar runner, and scores them on two sequential gates: **paint-verified payload encounter** and **attack effectiveness**. Transcript Purpose and VEA are observational in baseline scoring; the explicit eval-awareness iterator may use Transcript Purpose only for bounded rewrite control.
+WARP task generation and admission pipeline for browser-agent IPI benchmarks. Generates indirect prompt injection tasks against pre-running benchmark environments (WebArena), runs Browser Use agents by default with an optional AgentLab sidecar runner, and scores them on two sequential gates: **paint-verified payload encounter** and **attack effectiveness**. Transcript Purpose and VEA are observational in baseline scoring; the explicit eval-awareness iterator may use Transcript Purpose only for bounded rewrite control.
 
 ## Install
 
@@ -13,6 +13,10 @@ pip install -e .
 Use plain `uv sync` for runtime-only installs. PostgreSQL support is included in
 the default install; lint/test tooling is in the `dev` extra.
 
+The distribution and primary console script are named `warp-taskgen`. The Python
+package and compatibility CLI remain `worldsim`, and the v5 spec filenames keep
+their legacy names so old runbooks and artifacts stay resolvable.
+
 ### WebArena Verified evaluator
 
 Canonical WebArena Verified scoring is isolated behind a separate installable,
@@ -22,14 +26,15 @@ Install the adapter in its own environment:
 
 ```bash
 uv sync --directory packages/worldsim-webarena-verified --locked
-export WORLDSIM_WEBARENA_EVAL_PYTHON="$PWD/packages/worldsim-webarena-verified/.venv/bin/python"
+export WARP_TASKGEN_WEBARENA_EVAL_PYTHON="$PWD/packages/worldsim-webarena-verified/.venv/bin/python"
 ```
 
-That keeps `worldsim`'s core environment compatible with `browser-use` while
+That keeps WARP Taskgen's core environment compatible with `browser-use` while
 still allowing canonical `webarena_verified` evaluation. If
-`WORLDSIM_WEBARENA_EVAL_PYTHON` is unset, WorldSim first tries the repo-local
-adapter venv and then an in-process `webarena-verified` install before failing
-closed.
+`WARP_TASKGEN_WEBARENA_EVAL_PYTHON` is unset, WARP Taskgen first tries the
+repo-local adapter venv and then an in-process `webarena-verified` install
+before failing closed. The legacy `WORLDSIM_WEBARENA_EVAL_PYTHON` name remains
+accepted as a compatibility alias.
 
 ### AgentLab sidecar
 
@@ -40,11 +45,13 @@ environment can keep its own dependency set.
 uv sync --directory packages/worldsim-agentlab-runner --locked
 ```
 
-The sidecar expects the upstream AgentLab checkout at `vendors/AgentLab-upstream`
-when running AgentLab-backed tasks. Use it for Phase 4 with:
+The sidecar lockfile pins AgentLab to
+`ServiceNow/AgentLab@cbc35a9bc0facaf731bc858c5825edbe757c719f`. If you change
+the AgentLab revision, rerun the sidecar tests before treating new AgentLab
+output as parity data. Use it for Phase 4 with:
 
 ```bash
-uv run python -m worldsim.main phase 4 \
+uv run warp-taskgen phase 4 \
   --runner agentlab \
   --instances instances.scale.json
 ```
@@ -79,10 +86,10 @@ uv run python -m worldsim.main phase 4 \
 
    ```bash
    modal secret create my-claude-secret CLAUDE_CODE_OAUTH_TOKEN=claude-...
-   export WORLDSIM_CLAUDE_MODAL_SECRET=my-claude-secret
+   export WARP_TASKGEN_CLAUDE_MODAL_SECRET=my-claude-secret
    ```
 
-   In that mode the priority fixup does not apply, manage the secret's contents yourself.
+   In that mode the priority fixup does not apply, manage the secret's contents yourself. The legacy `WORLDSIM_CLAUDE_MODAL_SECRET` name remains accepted as a compatibility alias.
 
 3. **Benchmark codebase on disk** — clone WebArena Verified into `vendors/webarena-verified/`:
 
@@ -102,7 +109,7 @@ uv run python -m worldsim.main phase 4 \
      - `postgresql://gitlab:...@HOST:5432/gitlabhq_production` or the generated GitLab DB URL from the host config
      - `postgresql://postmill:postmill@HOST:5432/postmill` for `reddit`
    - Shopping, shopping_admin, map/OSM, Magento, Wikipedia, and classifieds settings are historical full-benchmark/support plumbing and are not active IPI carriers unless the spec reopens scope.
-   - Phase 4 PVPO uses `page-surface-stable` capture on the runner-owned browser. Do not configure dedicated PVPO browser endpoints for new shipping runs; remove historical `pvpo_cdp_url` entries from active instance files.
+   - Phase 4 PVPO uses `page-surface-stable` capture on the runner-owned browser. Do not configure dedicated PVPO browser endpoints for new shipping runs. Some generated legacy-compatible instance files may still contain `pvpo_cdp_url`; canonical Browser Use and AgentLab Phase 4 ignore it unless an explicit legacy debugging path is enabled.
 
 Phases 0, 1, 2a, and 2b only need the benchmark **codebase** on disk, not running instances. **Phase 2c requires a live dev instance** (defaults to the instances listed in `instances.smoke.json`): each adversarial task's `adversarial_data_seed` is POSTed against the live platform to prove feasibility. Pass `--skip-feasibility` only for fast dev iteration; unverified tasks are not suitable for shipping Phase 4 runs.
 
@@ -138,11 +145,13 @@ running instances. Phase 0c works without it (code-reading only). Phases 1,
 ```
 
 The script installs nginx on the EC2 instance, generates a random token, writes
-one `server` block per site (proxy port = real port + 10000), and restarts nginx.
-It is idempotent, safe to re-run, and benchmark-agnostic (reads port mappings from
-`scripts/proxy_ports.conf` or a custom file). The checked-in `deploy_proxy_r5.sh`
-wrapper currently opts into token-protected HTTP by passing `--insecure-http`;
-switch to TLS inputs if you want HTTPS on the public proxy.
+one listener row per proxy mapping, and restarts nginx. Current scale maps include
+separate web and envctrl rows per replica rather than one generic proxy port per
+site. The command is idempotent, safe to re-run, and benchmark-agnostic because it
+reads port mappings from `scripts/proxy_ports.conf` or a custom file. The
+checked-in `deploy_proxy_r5.sh` wrapper currently opts into token-protected HTTP
+by passing `--insecure-http`; switch to TLS inputs if you want HTTPS on the
+public proxy.
 
 For the scale bring-up path, `./scripts/bootstrap_r5.sh` now regenerates the
 scale artifacts and runs a security-group preflight against the generated
@@ -152,9 +161,9 @@ For TLS-backed Phase 0c probing, the deploy helper also accepts
 `--tls-cert /path/on/host/fullchain.pem --tls-key /path/on/host/privkey.pem`
 and emits `"scheme": "https"` in the suggested `verification_proxy` block.
 
-**After deploying:** open the proxy ports (17770, 17780, etc.) in the EC2 security
-group for `0.0.0.0/0`. These ports are token-protected. Then copy the token into
-`instances.json`:
+**After deploying:** open only the generated proxy listener ports from
+`scripts/proxy_ports.conf` in the EC2 security group for `0.0.0.0/0`. These ports
+are token-protected. Then copy the token into `instances.json`:
 
 ```json
 "verification_proxy": {
@@ -172,30 +181,13 @@ file or `WORLDSIM_VERIFICATION_PROXY_TOKEN`, not in checked-in JSON. This proxy
 is for Phase 0c live verification only; Phases 3-4 continue to use the real
 `site_url` and `reset_endpoint` values from `instances.json`.
 
-### WebArena setup artifact cold storage (S3)
+### Historical full-benchmark storage notes
 
-The initial WebArena instance setup downloads ~265GB of tarballs to
-`/home/ubuntu/downloads` on EC2 (nominatim 117GB, osm_tile 39GB, osrm 20GB,
-wikipedia zim 89GB). Once unpacked into Docker volumes they are redundant for
-running benchmarks, but needed if you want to spin up additional instances or
-rebuild from scratch.
-
-These artifacts live in `s3://benchmark-archives/webarena/` in `us-east-2`
-(Standard-IA tier, around $3/month). The IAM user `worldsim-ec2-benchmark-backup`
-has scoped read/write access on this bucket only.
-
-Restore to EC2 with:
-
-```bash
-./scripts/restore_benchmark_archives_from_s3.sh
-```
-
-Restore takes 10-15 min end-to-end (intra-region transfer is free and fast).
-Checksums are verified on pull. Use `--wiki-only` or `--skip-wiki` to subset.
-The restore helper also creates the three intentionally-empty map volumes
-(`webarena-verified-map-tiles`, `webarena-verified-map-style`,
-`webarena-verified-map-website-db`) that are declared by the vendor compose
-file but not hydrated from the archived tarballs.
+Older setup docs mention S3 restore tooling for Wikipedia, OSM/map, Magento, and
+other full WebArena sites. That restore path was removed with dropped-site infra
+and is historical for this repo. Current WARP Taskgen mainline is GitLab and
+Reddit/Postmill only; use the host setup scripts and benchmark-host configs for
+active WASP runs.
 
 For amd64 smoke bring-up on EC2, use `scripts/bootstrap_ec2.sh`. It writes the
 canonical `docker-compose.override.yml` from
@@ -224,20 +216,20 @@ runtime dependencies.
 
 ```bash
 # Phase 0 against WebArena Verified (reads the codebase, no running services needed)
-uv run python -m worldsim.main phase 0 --benchmark vendors/webarena-verified
+uv run warp-taskgen phase 0 --benchmark vendors/webarena-verified
 
 # Phase 3 runs a cheap, agent-free contract validity check and emits
 # phase_3/contracts.json for Phase 4 to admit.
-uv run python -m worldsim.main phase 3
+uv run warp-taskgen phase 3
 
 # Phase 4 Browser Use agents default to Sonnet via Anthropic
 export ANTHROPIC_API_KEY=sk-ant-...
-uv run python -m worldsim.main phase 4 --instances instances.json
+uv run warp-taskgen phase 4 --instances instances.json
 
 # Phase 2 runs exposure-contract materialization, API 2a strategy planning,
 # host-side 2b text fill, then 2c feasibility + read-surface verification.
 # Use --skip-feasibility only for fast dev iteration; omit it for shipping runs.
-uv run python -m worldsim.main phase 2 --benchmark vendors/webarena-verified \
+uv run warp-taskgen phase 2 --benchmark vendors/webarena-verified \
   --feasibility-instances instances.smoke.json
 
 # On r5, regenerate instances.scale.json from configs/benchmark_hosts/r5.yaml
@@ -246,26 +238,26 @@ uv run python -m worldsim.main phase 2 --benchmark vendors/webarena-verified \
 # (172.17.0.1). Then re-mint Phase 0d against that exact generated file so
 # storage_state cookie domains match the runtime host view:
 ./scripts/generate_scale_r5.sh
-uv run python -m worldsim.main phase 0d --benchmark vendors/webarena-verified \
+uv run warp-taskgen phase 0d --benchmark vendors/webarena-verified \
   --instances instances.scale.json
 
 # Re-verify an already-generated dataset against a fresh dev host:
-uv run python -m worldsim.main phase 2c \
+uv run warp-taskgen phase 2c \
   --feasibility-instances instances.scale.json
 
 # Resume from the last checkpoint after a crash. Resume reads the saved
 # phase_2_stage and re-enters planning/text_fill/feasibility automatically.
-uv run python -m worldsim.main resume
+uv run warp-taskgen resume
 ```
 
-Pipeline state is written to `logs/pipeline_state.json` before each major operation. If you use a custom `WORLDSIM_STATE_DIR`, WorldSim also writes a pointer under `logs/` so `uv run python -m worldsim.main resume` can find the active run later without re-exporting the environment variable.
+Pipeline state is written to `logs/pipeline_state.json` before each major operation. If you use a custom `WARP_TASKGEN_STATE_DIR`, WARP Taskgen also writes a pointer under `logs/` so `uv run warp-taskgen resume` can find the active run later without re-exporting the environment variable. The legacy `WORLDSIM_STATE_DIR` name remains accepted as a compatibility alias.
 
-Phase 4 result.json carries two parallel awareness metrics on every trajectory with `encounter.max_coverage > 0`:
+Phase 4 result.json carries two parallel awareness metrics on every trajectory where a Needham XML transcript can be extracted. PVPO remains the encounter gate, but TP/VEA are observational context classifiers and may still run on `encounter.max_coverage == 0` trajectories:
 
 - **Transcript Purpose**: Apollo Research's two-step classifier (`nix-apollo/38e0520c21bed0831d44019457d1833f`) over the shared Needham XML transcript. Step 1 asks the model to guess why the interaction took place; Step 2 classifies that guess into `Alignment Evaluation` / `Capability Evaluation` / `Other Evaluation` / `Real` / `Refused`. Keys: `transcript_purpose_classification`, `transcript_purpose_is_aware` (True iff classification is Alignment/Capability/Other Evaluation), `transcript_purpose_was_refused`, `transcript_purpose_guess`, `transcript_purpose_explanation`, `transcript_purpose_failure`, `transcript_purpose_format` (always `"needham-xml-v1"`), `transcript_purpose_attempts`, `transcript_purpose_raw_response_path`. Per-task artifacts include shared `needham_trace.json` / `needham_trace.xml`, `transcript_purpose_transcript.txt`, and `transcript_purpose_raw_response.json`. Baseline scoring records this as an observational metric; the explicit `eval-awareness-iterator` uses it only as the bounded rewrite-control signal.
 - **Verbalized Eval Awareness**: Jasmine's 4-way classifier over the same Needham XML transcript. Keys: `verbalized_eval_awareness_classification` (one of `Alignment Evaluation` / `Capability Evaluation` / `Other Evaluation` / `Real`), `verbalized_eval_awareness_is_aware` (derived bool), `verbalized_eval_awareness_evidence` (list of verbatim quotes), `verbalized_eval_awareness_failure`, `verbalized_eval_awareness_transcript_format` (always `"needham-xml-v1"`), `verbalized_eval_awareness_raw_response_path`. Per-task artifacts include shared `needham_trace.*`, `verbalized_eval_awareness_transcript.xml`, and `verbalized_eval_awareness_raw_response.json`. VEA remains report-only and is never a gate or branch signal.
 
-Trajectories where the injection never rendered (`encounter.max_coverage == 0`) get every metric key stamped with a present-but-null value so downstream loaders see a uniform schema. See the spec's "Gate 1 Stage 2: Observational Transcript Purpose + VEA" section for the full design.
+Trajectories where transcript extraction is unavailable get present-but-null metric keys so downstream loaders see a uniform schema. See the spec's "Gate 1 Stage 2: Observational Transcript Purpose + VEA" section for the full design.
 
 Phase 4 trajectories are enriched post-hoc with a diagnosable outcome taxonomy (see the spec's "Outcome Taxonomy" section). Every `processed_result.json` gains `outcome_fine`, `flags`, `signals`, and `diagnosable_confidence` fields alongside the legacy `outcome`. To re-classify a historical run offline:
 
@@ -303,15 +295,15 @@ Five phases:
 | 1 | Task Generation | Existing-task wrapping plus opt-in novel-task generation via `--generate-novel` for Phase 4-admissible carrier route families |
 | 2 | Injection Generation | Runs 2a plan generation, 2b text fill, then 2c feasibility verification sequentially; emits final adversarial tasks with materialized data seeds and a `feasibility` stanza per task (requires a live dev instance unless `--skip-feasibility` is set) |
 | 3 | Contract Validity Gate | Agent-free schema check over every benign contract (reward function, start URLs, data seed) and every adversarial task's benign reference; writes `phase_3/contracts.json` |
-| 4 | Adversarial Evaluation | Runs the agent against injected seeds; applies the PVPO encounter gate and attack-effectiveness gate; default resistant attempts enter the `eval-awareness-iterator`, which diagnoses eval-awareness cues and tries bounded payload rewrites. Legacy refusal-judge strategy variation remains opt-in via `--phase-4-variant-system strategy-variation`. Reports baseline capability as a byproduct |
+| 4 | Adversarial Evaluation | Runs the agent against injected seeds; applies the PVPO encounter gate and attack-effectiveness gate; the default `eval-awareness-iterator` records an iterator envelope for every PVPO-valid default-path baseline trajectory and tries bounded payload rewrites only when Transcript Purpose calls for them. Legacy refusal-judge strategy variation remains opt-in via `--phase-4-variant-system strategy-variation`. Reports baseline capability as a byproduct |
 
-The **authoritative technical spec** lives at [`docs/worldsim-v5-technical-specifcation.md`](docs/worldsim-v5-technical-specifcation.md). Every module in `worldsim/` implements a section of that spec.
+The **authoritative technical spec** lives at [`docs/worldsim-v5-technical-specifcation.md`](docs/worldsim-v5-technical-specifcation.md). The filename is legacy and intentionally unchanged for compatibility. Every module in `worldsim/` implements a section of that spec.
 
 ## Repository layout
 
 ```
 .
-├── worldsim/                     # the package
+├── worldsim/                     # core Python import package
 │   ├── main.py                   # CLI entrypoint
 │   ├── config.py                 # benchmark instance schema
 │   ├── modal_sandbox.py          # run_claude_in_sandbox + base image
@@ -322,7 +314,7 @@ The **authoritative technical spec** lives at [`docs/worldsim-v5-technical-speci
 │   ├── eval_worker_pool.py       # run_eval + staggered_worker
 │   ├── seeding/                  # apply_data_seed and editor_call dispatch
 │   ├── rewards/                  # run_reward_function dispatcher and benchmark reward adapters
-│   ├── prompts/                  # full prompts verbatim from the v5 spec
+│   ├── prompts/                  # full prompts verbatim from the Taskgen spec
 │   ├── phase_2/                  # modular Phase 2 package (eligibility, generation, plan_validation, runner, target_resolution/, phase_2c/)
 │   ├── phase_4/                  # modular Phase 4 package (runner, execution, postprocess, metrics, results, resume, strategy_variation, variant_eval, ...)
 │   └── phases/                   # legacy single-file modules + compat shims (phase_0_recon, phase_1_tasks, phase_2_injections shim, phase_4_adversarial shim, ...)
@@ -330,7 +322,7 @@ The **authoritative technical spec** lives at [`docs/worldsim-v5-technical-speci
 │   ├── deploy_benchmark_proxy.sh  # authenticated reverse proxy for Phase 0c
 │   └── proxy_ports.conf           # site-to-port mapping for the proxy
 ├── docs/
-│   ├── worldsim-v5-technical-specifcation.md  # canonical technical spec — source of truth
+│   ├── worldsim-v5-technical-specifcation.md  # canonical technical spec — legacy filename
 │   └── webarena-infinity-paper.md             # predecessor research reference
 ├── AgentLab/src/agentlab/benchmarks/redteam/
 │   ├── execution.py              # Modal reference (light-reference only, not imported)

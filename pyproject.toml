@@ -1,7 +1,7 @@
 [project]
-name = "worldsim"
+name = "warp-taskgen"
 version = "0.1.0"
-description = "WorldSim v5 — Modal-Sandbox + Browser-Use adversarial eval pipeline for browser agents"
+description = "WARP task generation pipeline for browser-agent IPI benchmark construction"
 requires-python = ">=3.12"
 readme = "README.md"
 dependencies = [
@@ -62,6 +62,7 @@ override-dependencies = [
 ]
 
 [project.scripts]
+warp-taskgen = "worldsim.main:main"
 worldsim = "worldsim.main:main"
 
 [build-system]

@@ -28,7 +28,7 @@ Explore by reading:
 `BENCHMARK_MANIFEST.json` must be valid JSON with this shape:
 
 The sample below is an example of top-level benchmark discovery only. Active
-WASP carrier admission happens later through WorldSim exposure contracts and is
+WASP carrier admission happens later through WARP Taskgen exposure contracts and is
 currently GitLab/Reddit-only.
 
 ```json

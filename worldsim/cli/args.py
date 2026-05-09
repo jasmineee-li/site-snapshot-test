@@ -1,4 +1,4 @@
-"""WorldSim CLI parser export."""
+"""WARP Taskgen CLI parser export."""
 
 from __future__ import annotations
 

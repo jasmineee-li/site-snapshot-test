@@ -1,9 +1,10 @@
 """Pipeline state persistence.
 
 Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` "State Persistence and Resume".
+The filename is legacy; the spec now describes WARP Taskgen.
 
 The orchestrator writes a single JSON state file before each major operation.
-On crash, ``worldsim --resume`` reads this file and skips completed phases.
+On crash, ``warp-taskgen resume`` reads this file and skips completed phases.
 """
 
 from __future__ import annotations
@@ -22,6 +23,8 @@ logger = logging.getLogger(__name__)
 _DEFAULT_STATE_DIR = Path("logs")
 _RESUME_POINTER = _DEFAULT_STATE_DIR / "last_run_state.json"
 _PATHISH_METADATA_KEYS = {"feasibility_instances"}
+STATE_DIR_ENV = "WARP_TASKGEN_STATE_DIR"
+LEGACY_STATE_DIR_ENV = "WORLDSIM_STATE_DIR"
 
 
 @dataclass(frozen=True)
@@ -34,7 +37,7 @@ class _StateCandidate:
 
 def get_state_dir() -> Path:
     """Return the current pipeline state directory."""
-    return _canonical_path(os.environ.get("WORLDSIM_STATE_DIR", _DEFAULT_STATE_DIR))
+    return _canonical_path(_state_dir_override() or _DEFAULT_STATE_DIR)
 
 
 def get_state_file() -> Path:
@@ -75,7 +78,7 @@ def load_state() -> dict[str, Any] | None:
     """Return the last saved state, or ``None`` if no state file exists."""
     primary = _load_state_candidate(get_state_file(), source="authoritative state")
     mirror_candidates = _load_resume_pointer_candidates()
-    if os.environ.get("WORLDSIM_STATE_DIR"):
+    if _state_dir_override():
         return _select_best_state(
             [candidate for candidate in [primary, *mirror_candidates] if candidate is not None],
             expected_logs_dir=get_state_dir(),
@@ -84,6 +87,11 @@ def load_state() -> dict[str, Any] | None:
     return _select_best_state(
         [candidate for candidate in [primary, *mirror_candidates] if candidate is not None]
     )
+
+
+def _state_dir_override() -> str | None:
+    """Return the canonical state-dir override, falling back to legacy env."""
+    return os.environ.get(STATE_DIR_ENV) or os.environ.get(LEGACY_STATE_DIR_ENV)
 
 
 def _write_resume_pointer(state: dict[str, Any]) -> None:

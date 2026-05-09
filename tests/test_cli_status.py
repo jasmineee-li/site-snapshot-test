@@ -225,7 +225,7 @@ def test_worldsim_status_prints_operator_card(tmp_path: Path, capsys) -> None:
 
     assert rc == 0
     out = capsys.readouterr().out
-    assert f"WorldSim status: {tmp_path}" in out
+    assert f"WARP Taskgen status: {tmp_path}" in out
     assert "Pipeline: step=phase_4 status=complete" in out
     assert (
         "Phase 4 progress: status=complete stage=complete initial=1/1 "
@@ -350,7 +350,7 @@ def test_worldsim_inspect_prints_task_artifacts(tmp_path: Path, capsys) -> None:
 
     assert rc == 0
     out = capsys.readouterr().out
-    assert "WorldSim task inspection: adv_variant" in out
+    assert "WARP Taskgen task inspection: adv_variant" in out
     assert "Status: success_on_variant (resistant_aware)" in out
     assert "Surface: gitlab issue.title create_issue_title route=project_issue_list" in out
     assert "PVPO: max_coverage=0.75 initial_max_coverage=1.0 reference_step=3" in out

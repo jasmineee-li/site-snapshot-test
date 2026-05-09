@@ -500,7 +500,7 @@ async def test_rejects_unsupported_benchmark_before_api_call(monkeypatch: pytest
     client = _mock_client_returning([_sample_plan()])
     monkeypatch.setattr(phase_2_injections_api, "get_client", lambda: client)
 
-    with pytest.raises(ValueError, match="does not support WorldSim v5 Phase 2"):
+    with pytest.raises(ValueError, match="does not support WARP Taskgen Phase 2"):
         await generate_phase_2a_plans_api(
             benign_tasks=[{"id": "benign_1", "site": "gitlab", "benchmark": "wasp"}],
             benign_target_resources={"benign_1": {"kind": "gitlab_issue"}},

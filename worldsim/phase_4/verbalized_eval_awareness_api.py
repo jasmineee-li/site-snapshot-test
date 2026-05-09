@@ -113,7 +113,7 @@ _VEA_SCHEMA: dict[str, Any] = {
 
 
 def _model_metadata() -> dict[str, str]:
-    return {"user_id": "worldsim-v5-verbalized-eval-awareness"}
+    return {"user_id": "warp-taskgen-verbalized-eval-awareness"}
 
 
 def _synthesize_summary(response: Any, *, sandbox_model: str, elapsed_s: float) -> str:

@@ -66,7 +66,7 @@ async def test_phase_4_run_rejects_non_worldsim_v5_benchmark(monkeypatch, tmp_pa
     assert rc == 1
     state = json.loads((tmp_path / "pipeline_state.json").read_text())
     assert state["reason"] == "unsupported_benchmark"
-    assert "does not support WorldSim v5 Phase 4" in state["error"]
+    assert "does not support WARP Taskgen Phase 4" in state["error"]
 
 @pytest.mark.asyncio
 async def test_phase_4_run_clears_storage_error_after_retry_success(monkeypatch, tmp_path):

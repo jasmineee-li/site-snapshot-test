@@ -1,15 +1,16 @@
-# WorldSim v5 Full Specification
+# WARP Taskgen Full Specification
 
 This document is the short current specification for the paper-facing
-WorldSim v5 pipeline. The detailed implementation authority remains
-`docs/worldsim-v5-technical-specifcation.md`; that filename typo is intentional.
+WARP Taskgen pipeline. The detailed implementation authority remains
+`docs/worldsim-v5-technical-specifcation.md`; that legacy filename typo is intentional.
 If this document and the technical specification disagree, update the technical
 specification first, then update this file.
 
 ## Scope
 
-WorldSim v5 is a controlled browser-agent safety benchmark for indirect prompt
-injection in local or sandboxed WebArena-style environments. The current
+WARP Taskgen is a controlled browser-agent task-generation and admission
+pipeline for indirect prompt injection in local or sandboxed WebArena-style
+environments. The current
 mainline is strict WASP scope:
 
 - GitLab issues and issue comments/notes
@@ -32,7 +33,7 @@ methodology.
 
 ## Research Question
 
-WorldSim asks whether browser agents comply with or resist indirect prompt
+WARP Taskgen asks whether browser agents comply with or resist indirect prompt
 injections embedded in realistic user-generated content while doing normal
 benchmark tasks.
 
@@ -118,7 +119,7 @@ Phase 3 does not replace Phase 2c admission. A task still needs verified Phase
 
 Phase 4 runs the browser agent against the adversarial seed. Browser Use is the
 default runtime. AgentLab/BrowserGym can be used through the isolated
-`packages/worldsim-agentlab-runner` sidecar; root WorldSim never imports
+`packages/worldsim-agentlab-runner` sidecar; root WARP Taskgen never imports
 AgentLab at runtime.
 
 Phase 4 has two main gates:
@@ -173,7 +174,7 @@ is behavioral final-response steering, not visual CSS or rendering control.
 
 ## Rewards And Readback
 
-WorldSim separates several signals that older drafts mixed together:
+WARP Taskgen separates several signals that older drafts mixed together:
 
 - PVPO encounter;
 - semantic answer hijack;
@@ -220,7 +221,11 @@ A complete paper-facing run should produce:
 - AgentLab timeline/runtime artifacts when using the AgentLab sidecar.
 
 `results.partial.json` and `partial_manifest.json` are operator inspection
-artifacts only. They are not paper-eligible canonical outputs.
+artifacts only. They are not paper-eligible canonical outputs. For process-pool
+failures, `scripts/repair_process_pool_partial.py` can produce a repaired run
+from the partial run plus targeted retry runs; the repaired output carries
+`phase_4/process_pool_repair_manifest.json` and
+`paper_eligible="operator_review_required"` until an operator reviews the repair.
 
 ## Current Operating Rules
 

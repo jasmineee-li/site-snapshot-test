@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""In-sandbox output validator for WorldSim v5.
+"""In-sandbox output validator for WARP Taskgen.
 
 This script runs INSIDE a Modal sandbox at /workspace/_validate.py.
 It validates Claude Code's output before the sandbox exits, catching
@@ -3818,7 +3818,7 @@ def cmd_agent_context(args: argparse.Namespace) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Validate WorldSim v5 sandbox output files.",
+        description="Validate WARP Taskgen sandbox output files.",
     )
     subparsers = parser.add_subparsers(dest="schema", required=True)
 

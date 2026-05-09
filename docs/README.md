@@ -1,11 +1,11 @@
-# WorldSim Docs
+# WARP Taskgen Docs
 
 Start here when deciding which document to trust.
 
 ## Source Of Truth
 
 - `worldsim-v5-technical-specifcation.md` is the detailed implementation
-  authority. The filename typo is intentional.
+  authority. The legacy filename typo is intentional.
 - `worldsim-v5-full-specification.md` is the short current overview.
 - `current_progress.md` records the current project state.
 - `agent_docs/` contains operating rules for agents and runbooks.
@@ -13,9 +13,17 @@ Start here when deciding which document to trust.
 If docs and code disagree, update the technical specification first, then align
 the overview, runbooks, and handoffs.
 
+## Naming
+
+The current project/distribution name is WARP Taskgen and the preferred console
+script is `warp-taskgen`. The Python package, compatibility CLI, and many
+artifact fields remain `worldsim`; spec filenames also keep their legacy
+WorldSim-v5 names for compatibility. Do not infer that a doc is stale from the
+word `worldsim` alone.
+
 ## Current Scope
 
-WorldSim v5 is strict WASP scope:
+WARP Taskgen is strict WASP scope:
 
 - GitLab issues and issue comments/notes
 - Reddit/Postmill submissions and comments
@@ -32,6 +40,8 @@ explicitly reopens them.
 - Attack effectiveness is Gate 2.
 - Transcript Purpose and VEA are observational in baseline scoring.
 - The default variant system is `eval-awareness-iterator`.
+- Default iterator runs record an envelope for every PVPO-valid baseline row;
+  Transcript Purpose controls whether rewrite iterations proceed.
 - Legacy `strategy-variation` is opt-in only.
 - VEA is never a branching or admission signal.
 
@@ -45,26 +55,28 @@ uv run pytest <paths> -q
 uv run ruff check <paths>
 ```
 
-Current top-level Phase 4 shape:
+Default top-level Phase 4 shape:
 
 ```bash
-uv run python -m worldsim.main phase 4 \
+uv run warp-taskgen phase 4 \
   --instances instances.scale.json \
-  --runner agentlab \
   --phase-4-max-workers 48 \
   --phase-4-variant-system eval-awareness-iterator \
   --phase-4-eval-awareness-max-iterations 3
 ```
+
+For AgentLab parity runs, add `--runner agentlab` and validate the sidecar
+artifact/PVPO/network/auth/resume gates for that host/model matrix.
 
 ## Worker Flags
 
 For top-level Phase 4 runs:
 
 ```bash
-uv run python -m worldsim.main phase 4 --phase-4-max-workers 48
+uv run warp-taskgen phase 4 --phase-4-max-workers 48
 ```
 
-Do not use `--workers 48` with top-level `worldsim.main phase 4`; the remote
+Do not use `--workers 48` with top-level `warp-taskgen phase 4`; the remote
 job guard rejects it.
 
 `--workers` is only for `scripts/run_phase4_process_pool.py`, whose child
@@ -84,8 +96,11 @@ only when they say they are current, and cross-check against:
 
 `results.partial.json` and `partial_manifest.json` are inspection artifacts.
 They are useful for repair and debugging, but they are not paper-eligible
-canonical outputs. Paper-facing Phase 4 runs need `phase_4/results.json` and a
-completed summary.
+canonical outputs. For process-pool failures, `scripts/repair_process_pool_partial.py`
+can combine a partial run with targeted retry runs into a repaired run that
+writes `phase_4/results.json`, `phase_4/process_pool_repair_manifest.json`, and
+`paper_eligible="operator_review_required"`. Paper-facing promotion still needs
+operator review of the repair manifest and a completed summary.
 
 ## Updating Docs
 

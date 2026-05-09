@@ -1,4 +1,4 @@
-"""Public package surface for the WorldSim CLI."""
+"""Public package surface for the WARP Taskgen CLI."""
 
 from __future__ import annotations
 

@@ -538,5 +538,5 @@ def _infer_api_benchmark(
         raise ValueError("Phase 2a API tasks are missing benchmark metadata")
     capabilities = get_benchmark_capabilities(benchmark)
     if not capabilities.phase_2_supported:
-        raise ValueError(f"benchmark {benchmark!r} does not support WorldSim v5 Phase 2")
+        raise ValueError(f"benchmark {benchmark!r} does not support WARP Taskgen Phase 2")
     return capabilities.canonical_name

@@ -58,7 +58,7 @@ def test_phase_2c_gate_accepts_instances_top_level_benchmark():
 
 
 def test_phase_2c_gate_rejects_unsupported_benchmark():
-    with pytest.raises(ValueError, match="does not support WorldSim v5 Phase 2c"):
+    with pytest.raises(ValueError, match="does not support WARP Taskgen Phase 2c"):
         phase_2_injections._gate_phase_2c_benchmark(
             task_records=[{"id": "task-1", "benchmark": "wasp"}],
             raw_instances={"benchmark_name": "wasp", "instances": [{"site_name": "gitlab"}]},

@@ -271,7 +271,7 @@ def _sentence_containing(text: str, needle: str) -> str | None:
 
 
 def _model_metadata(task: dict[str, Any]) -> dict[str, str]:
-    return {"user_id": "worldsim-v5-eval-awareness-rewrite"}
+    return {"user_id": "warp-taskgen-eval-awareness-rewrite"}
 
 
 def _eval_awareness_rewrite_thinking_kwargs() -> dict[str, Any]:

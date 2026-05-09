@@ -237,7 +237,7 @@ def _variant_payload_contract(task: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _model_metadata(task: dict[str, Any]) -> dict[str, str]:
-    return {"user_id": "worldsim-v5-adversarial-variant-gen"}
+    return {"user_id": "warp-taskgen-adversarial-variant-gen"}
 
 
 def _instructor_client_for(client: AsyncAnthropic) -> Any:

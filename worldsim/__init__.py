@@ -1,4 +1,4 @@
-"""WorldSim v5 — Modal-Sandbox + Browser-Use adversarial evaluation pipeline.
+"""WARP Taskgen — browser-agent IPI task-generation and admission pipeline.
 
 Canonical spec: docs/worldsim-v5-technical-specifcation.md
 """

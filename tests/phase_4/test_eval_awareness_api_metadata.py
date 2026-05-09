@@ -1,7 +1,15 @@
 import pytest
 from pydantic import BaseModel, Field, model_validator
 
-from worldsim.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
+from worldsim.phase_4 import (
+    eval_awareness_cue_api,
+    eval_awareness_rewrite_api,
+    judge_api,
+    placement_api,
+    transcript_purpose_api,
+    variant_api,
+    verbalized_eval_awareness_api,
+)
 from worldsim.phase_4.eval_awareness_streaming_tool import (
     StreamingToolTruncatedError,
     StreamingToolValidationError,
@@ -91,13 +99,31 @@ class _FakeAnthropic:
 
 def test_eval_awareness_rewrite_metadata_uses_anthropic_allowed_keys_only() -> None:
     assert eval_awareness_rewrite_api._model_metadata({"id": "task-1"}) == {
-        "user_id": "worldsim-v5-eval-awareness-rewrite"
+        "user_id": "warp-taskgen-eval-awareness-rewrite"
     }
 
 
 def test_eval_awareness_cue_metadata_uses_anthropic_allowed_keys_only() -> None:
     assert eval_awareness_cue_api._model_metadata({"id": "task-1"}) == {
-        "user_id": "worldsim-v5-eval-awareness-cue"
+        "user_id": "warp-taskgen-eval-awareness-cue"
+    }
+
+
+def test_phase_4_model_metadata_uses_warp_taskgen_ids() -> None:
+    assert transcript_purpose_api._model_metadata() == {
+        "user_id": "warp-taskgen-transcript-purpose"
+    }
+    assert verbalized_eval_awareness_api._model_metadata() == {
+        "user_id": "warp-taskgen-verbalized-eval-awareness"
+    }
+    assert placement_api._model_metadata() == {
+        "user_id": "warp-taskgen-placement-fix"
+    }
+    assert judge_api._model_metadata({"id": "task-1"}) == {
+        "user_id": "warp-taskgen-adversarial-judge"
+    }
+    assert variant_api._model_metadata({"id": "task-1"}) == {
+        "user_id": "warp-taskgen-adversarial-variant-gen"
     }
 
 
@@ -186,7 +212,7 @@ def test_eval_awareness_streaming_tool_choice_is_auto_for_thinking() -> None:
         messages=[],
         tool=tool,
         tool_name="build_eval_awareness_rewrite",
-        metadata={"user_id": "worldsim-v5-eval-awareness-rewrite"},
+        metadata={"user_id": "warp-taskgen-eval-awareness-rewrite"},
         thinking_kwargs={"thinking": {"type": "enabled", "budget_tokens": 16384}},
         force_tool=False,
     )
@@ -205,7 +231,7 @@ def test_eval_awareness_streaming_tool_choice_is_forced_without_thinking() -> No
         messages=[],
         tool=tool,
         tool_name="build_eval_awareness_rewrite",
-        metadata={"user_id": "worldsim-v5-eval-awareness-rewrite"},
+        metadata={"user_id": "warp-taskgen-eval-awareness-rewrite"},
         thinking_kwargs={},
         force_tool=True,
     )
@@ -307,7 +333,7 @@ async def test_eval_awareness_streaming_tool_retries_with_compact_tool_feedback(
         context={},
         max_tokens=32768,
         max_retries=2,
-        metadata={"user_id": "worldsim-v5-eval-awareness-rewrite"},
+        metadata={"user_id": "warp-taskgen-eval-awareness-rewrite"},
         label="unit",
         task_id="task-1",
         thinking_kwargs={"thinking": {"type": "enabled", "budget_tokens": 8192}},
@@ -359,7 +385,7 @@ async def test_eval_awareness_streaming_restarts_after_invalid_thinking_signatur
         context={},
         max_tokens=32768,
         max_retries=3,
-        metadata={"user_id": "worldsim-v5-eval-awareness-rewrite"},
+        metadata={"user_id": "warp-taskgen-eval-awareness-rewrite"},
         label="unit",
         task_id="task-1",
         thinking_kwargs={"thinking": {"type": "enabled", "budget_tokens": 8192}},
@@ -395,7 +421,7 @@ async def test_eval_awareness_streaming_raises_truncated_before_schema_retry() -
             context={},
             max_tokens=8192,
             max_retries=3,
-            metadata={"user_id": "worldsim-v5-eval-awareness-rewrite"},
+            metadata={"user_id": "warp-taskgen-eval-awareness-rewrite"},
             label="unit",
             task_id="task-1",
             thinking_kwargs={},
@@ -450,7 +476,7 @@ async def test_eval_awareness_streaming_tool_carries_semantic_repairs_forward() 
             context={},
             max_tokens=8192,
             max_retries=3,
-            metadata={"user_id": "worldsim-v5-eval-awareness-rewrite"},
+            metadata={"user_id": "warp-taskgen-eval-awareness-rewrite"},
             label="unit",
             task_id="task-1",
             thinking_kwargs={},
