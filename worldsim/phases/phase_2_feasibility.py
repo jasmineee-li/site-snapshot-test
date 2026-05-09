@@ -8,6 +8,7 @@ from typing import Any
 # ruff: noqa: F403
 from worldsim.phase_2.phase_2c import *
 from worldsim.phase_2.phase_2c import _impl as _legacy_impl
+from worldsim.phase_2.phase_2c import auth_preflight as _auth_preflight
 from worldsim.phase_2.phase_2c import outcomes as _outcomes
 
 globals().update(
@@ -73,6 +74,8 @@ def _sync_legacy_patches() -> None:
     for name in _PATCHABLE_GLOBALS:
         if name in globals():
             setattr(_legacy_impl, name, globals()[name])
+            if hasattr(_auth_preflight, name):
+                setattr(_auth_preflight, name, globals()[name])
             if name in {"EditorError", "SeedCleanupHandle"}:
                 setattr(_outcomes, name, globals()[name])
     for name, original in _ORIGINAL_FACADE_PATCHES.items():
