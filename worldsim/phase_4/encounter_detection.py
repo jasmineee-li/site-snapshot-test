@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 
 
 _STEP_FILENAME_RE = re.compile(r"^step_(\d+)\.json$")
+_SCREENSHOT_FILENAME_RE = re.compile(r"^step_(\d+)\.png$")
 _DEFAULT_BG: tuple[int, int, int] = (255, 255, 255)
 
 
@@ -163,6 +164,7 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
     pvpo_dir = trajectory_dir / "pvpo"
     screenshots_dir = trajectory_dir / "screenshots"
     step_files = _enumerate_step_files(pvpo_dir)
+    _raise_for_unpaired_screenshots(step_files, screenshots_dir, pvpo_dir)
     capture_summary = load_capture_summary(trajectory_dir) or {}
     steps_seen = _summary_int(capture_summary, "steps_seen")
     steps_captured = _summary_int(capture_summary, "steps_captured")
@@ -187,18 +189,19 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
                 f"pvpo artifact {pvpo_path} exists but paired screenshot "
                 f"{png_path} is missing; capture is inconsistent"
             )
+        if png_path.stat().st_size == 0:
+            raise FileNotFoundError(
+                f"pvpo artifact {pvpo_path} exists but paired screenshot "
+                f"{png_path} is empty; capture is inconsistent"
+            )
 
         try:
             pvpo_json = json.loads(pvpo_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            logger.warning(
-                "pvpo: skipping step %d — could not parse %s: %s",
-                step_idx,
-                pvpo_path,
-                exc,
-            )
-            skipped_steps += 1
-            continue
+            raise FileNotFoundError(
+                f"pvpo artifact {pvpo_path} could not be parsed ({exc}); "
+                "capture is inconsistent"
+            ) from exc
 
         visibility_vec = pvpo_json.get("visibility_vec") or []
         match_found = bool(pvpo_json.get("match_found"))
@@ -228,14 +231,10 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
                 png_bytes, visibility_vec, background_color=bg, clip=clip
             )
         except (OSError, ValueError) as exc:
-            logger.warning(
-                "pvpo: skipping step %d — could not decode %s: %s",
-                step_idx,
-                png_path,
-                exc,
-            )
-            skipped_steps += 1
-            continue
+            raise FileNotFoundError(
+                f"screenshot artifact {png_path} could not be decoded ({exc}); "
+                "capture is inconsistent"
+            ) from exc
 
         per_char_visibility.append(paint_vec)
         rendered = sum(1 for v in paint_vec if v)
@@ -353,28 +352,14 @@ def determine_encounter(task: dict[str, Any], trajectory_dir: Path) -> Encounter
         if is_real_file and reference_bytes:
             reference_path = candidate
         else:
-            if is_real_file and not reference_bytes:
-                # Strict checks passed but the file was empty; treat the same
-                # as a vanished / escaped-dir file for downstream routing.
-                logger.warning(
-                    "pvpo: reference screenshot %s validated but is empty; "
-                    "forcing max_coverage=0 to route to placement-fix",
-                    candidate,
-                )
-            else:
-                logger.warning(
-                    "pvpo: reference screenshot %s is not a regular file inside %s "
-                    "(symlink / dangling / vanished / escaped dir); forcing "
-                    "max_coverage=0 to route to placement-fix",
-                    candidate,
-                    screenshots_root,
-                )
-            max_coverage = 0.0
-            reference_step = None
-            reference_path = None
-            reference_bytes = None
-            status = "degraded"
-            failure = "reference_screenshot_invalid"
+            detail = (
+                "validated but is empty"
+                if is_real_file and not reference_bytes
+                else f"is not a regular file inside {screenshots_root}"
+            )
+            raise FileNotFoundError(
+                f"pvpo artifact {candidate} {detail}; capture is inconsistent"
+            )
     else:
         reference_step = None
         reference_path = None
@@ -524,6 +509,26 @@ def _enumerate_step_files(pvpo_dir: Path) -> list[tuple[int, Path]]:
         pairs.append((int(m.group(1)), entry))
     pairs.sort(key=lambda p: p[0])
     return pairs
+
+
+def _raise_for_unpaired_screenshots(
+    step_files: list[tuple[int, Path]],
+    screenshots_dir: Path,
+    pvpo_dir: Path,
+) -> None:
+    if not screenshots_dir.is_dir():
+        return
+    pvpo_steps = {step for step, _path in step_files}
+    for entry in screenshots_dir.iterdir():
+        match = _SCREENSHOT_FILENAME_RE.match(entry.name)
+        if not match:
+            continue
+        step = int(match.group(1))
+        if step not in pvpo_steps:
+            raise FileNotFoundError(
+                f"screenshot artifact {entry} exists but paired pvpo artifact "
+                f"{pvpo_dir / f'step_{step}.json'} is missing; capture is inconsistent"
+            )
 
 
 def _parse_clip(clip: dict[str, Any] | None) -> Rect | None:

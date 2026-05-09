@@ -193,6 +193,34 @@ def test_summary_filters_and_compacts_iterator(tmp_path: Path) -> None:
     assert summary["samples"][0]["task_id"] == "task-1"
 
 
+def test_missing_artifact_filter_resolves_relative_trace_paths(tmp_path: Path) -> None:
+    run = tmp_path / "run"
+    trace = run / "phase_4" / "20260506_000000" / "task-relative"
+    _write_json(
+        run / "phase_4" / "results.json",
+        [
+            {
+                "task_id": "task-relative",
+                "trajectory_dir": "20260506_000000/task-relative",
+            }
+        ],
+    )
+    _write_json(trace / "browser_runtime.json", {"runner": "agentlab"})
+    results_path, phase4_dir, results, task_lookup = load_inspection(run)
+
+    assert results_path == run / "phase_4" / "results.json"
+    assert (
+        filter_results(
+            results,
+            task_lookup,
+            phase4_dir=phase4_dir,
+            missing_artifact="browser_runtime",
+        )
+        == []
+    )
+    assert filter_results(results, task_lookup, missing_artifact="browser_runtime") == results
+
+
 def test_trace_normalizes_legacy_eval_awareness_budget_stop(tmp_path: Path) -> None:
     run = _run(tmp_path)
     results_path = run / "phase_4" / "results.json"

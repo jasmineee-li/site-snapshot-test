@@ -215,7 +215,7 @@ def _dispatch_trace(args: argparse.Namespace) -> int:
         return 2
 
     if command in {"task", "timeline"}:
-        filtered = filter_results(results, task_lookup, task_id=args.task_id)
+        filtered = filter_results(results, task_lookup, phase4_dir=phase4_dir, task_id=args.task_id)
         if not filtered:
             print(f"task not found: {args.task_id}", file=sys.stderr)
             return 1
@@ -235,7 +235,7 @@ def _dispatch_trace(args: argparse.Namespace) -> int:
         payload["results_path"] = str(results_path)
         return _emit(payload, output=output, command="task")
 
-    filtered = filter_results(results, task_lookup, **_filter_kwargs(args))
+    filtered = filter_results(results, task_lookup, phase4_dir=phase4_dir, **_filter_kwargs(args))
     if command == "summary":
         return _emit(
             build_summary(

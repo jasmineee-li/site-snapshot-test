@@ -104,6 +104,7 @@ def filter_results(
     results: list[dict[str, Any]],
     task_lookup: dict[str, dict[str, Any]],
     *,
+    phase4_dir: Path | None = None,
     site: str | None = None,
     action: str | None = None,
     status: str | None = None,
@@ -181,10 +182,15 @@ def filter_results(
             and final_metric_success(result, "state_confirmed_action_success") is not state_success
         ):
             continue
-        trace = _primary_trace(result, phase4_dir=Path("."))
+        resolved_phase4_dir = phase4_dir or Path(".")
+        trace = _primary_trace(result, phase4_dir=resolved_phase4_dir)
         if has_trace is not None and (trace is not None) is not has_trace:
             continue
-        if missing_artifact and not _artifact_missing(result, missing_artifact):
+        if missing_artifact and not _artifact_missing(
+            result,
+            missing_artifact,
+            phase4_dir=resolved_phase4_dir,
+        ):
             continue
         if reward_contains:
             reward = str(result.get("adversarial_reward_message") or "")
@@ -636,8 +642,8 @@ def _combined_awareness(result: dict[str, Any]) -> str:
     return "none"
 
 
-def _artifact_missing(result: dict[str, Any], kind: str) -> bool:
-    trace = _primary_trace(result, phase4_dir=Path("."))
+def _artifact_missing(result: dict[str, Any], kind: str, *, phase4_dir: Path | None = None) -> bool:
+    trace = _primary_trace(result, phase4_dir=phase4_dir or Path("."))
     if trace is None:
         return True
     refs = _artifact_paths(trace)

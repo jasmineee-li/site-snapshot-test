@@ -494,7 +494,7 @@ def _salvage_worker_results_from_iterator_checkpoint(
         return []
     task_id = str(assignment.task.get("id") or "")
     task_slug = safe_task_path_component(task_id)
-    for run_dir in sorted([item for item in phase4_dir.iterdir() if item.is_dir()]):
+    for run_dir in sorted([item for item in phase4_dir.iterdir() if item.is_dir()], reverse=True):
         trace_dir = run_dir / task_slug
         checkpoint_path = trace_dir / "eval_awareness_iterator_checkpoint.json"
         baseline_result_path = trace_dir / "result.json"

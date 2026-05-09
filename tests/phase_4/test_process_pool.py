@@ -297,6 +297,69 @@ def test_load_worker_results_salvages_eval_awareness_checkpoint(tmp_path):
     assert results[0]["eval_awareness_iterator"]["variant_results"] == [variant]
 
 
+def test_load_worker_results_salvages_newest_eval_awareness_checkpoint(tmp_path):
+    args = _pool_args(tmp_path, out_dir=tmp_path / "out")
+    config = _config(
+        tmp_path,
+        [
+            {
+                "site_name": "gitlab",
+                "site_url": "http://127.0.0.1:8023",
+                "pvpo_cdp_url": "http://127.0.0.1:9222",
+            }
+        ],
+    )
+    task = {"id": "adv-1", "site": "gitlab"}
+    assignment = _build_assignments(args, config, [task])[0]
+    older_trace = assignment.state_dir / "phase_4" / "20260508_000000" / "adv-1"
+    newer_trace = assignment.state_dir / "phase_4" / "20260508_000001" / "adv-1"
+    older_trace.mkdir(parents=True)
+    newer_trace.mkdir(parents=True)
+    baseline = {
+        "task_id": "adv-1",
+        "outcome": "refused_or_ignored",
+        "encounter": {"max_coverage": 1.0},
+    }
+    older_variant = {
+        "task_id": "adv-1",
+        "outcome": "complied",
+        "encounter": {"max_coverage": 1.0},
+        "strategy": "eval_awareness_iterator",
+    }
+    newer_variant = {
+        "task_id": "adv-1",
+        "outcome": "refused_or_ignored",
+        "encounter": {"max_coverage": 1.0},
+        "strategy": "eval_awareness_iterator",
+    }
+    for trace, variant in ((older_trace, older_variant), (newer_trace, newer_variant)):
+        (trace / "result.json").write_text(json.dumps(baseline), encoding="utf-8")
+        (trace / "eval_awareness_iterator_checkpoint.json").write_text(
+            json.dumps(
+                {
+                    "algorithm": "eval-awareness-iterator",
+                    "version": "test",
+                    "max_iterations": 3,
+                    "baseline_attempt": {"iteration": 0, "kind": "baseline"},
+                    "iterations": [
+                        {
+                            "iteration": 1,
+                            "status": "evaluated",
+                            "result": variant,
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    results, error = _load_worker_results(assignment)
+
+    assert error and error.startswith("salvaged missing worker results")
+    assert results[0]["final_status"] == "resistant"
+    assert results[0]["eval_awareness_iterator"]["variant_results"] == [newer_variant]
+
+
 def test_merge_outcomes_fails_closed_for_salvaged_timed_out_worker(tmp_path):
     args = _pool_args(tmp_path, out_dir=tmp_path / "out")
     config = _config(

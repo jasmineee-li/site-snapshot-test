@@ -41,6 +41,26 @@ def _pre_action_agentlab_infra_failure(result: Any) -> str | None:
     return None
 
 
+def _is_agentlab_agent(agent: Any) -> bool:
+    for cls in type(agent).__mro__:
+        module = str(getattr(cls, "__module__", ""))
+        name = str(getattr(cls, "__name__", ""))
+        if "agentlab" in module.lower() or name == "AgentLabAgentWrapper":
+            return True
+    return False
+
+
+def _agentlab_non_success_infra_failure(result: Any, agent: Any) -> str | None:
+    if getattr(result, "status", None) == "success":
+        return None
+    known_failure = _pre_action_agentlab_infra_failure(result)
+    if known_failure is not None:
+        return known_failure
+    if _is_agentlab_agent(agent):
+        return "infra_agentlab_runtime_error"
+    return None
+
+
 def _pvpo_artifact_failure_extra(pvpo: dict[str, Any]) -> dict[str, Any]:
     if not pvpo.get("pvpo_artifact_failure"):
         return {}
@@ -378,9 +398,7 @@ async def run_adversarial_task(
             else:
                 reset_cache.mark_clean(task, extra_bindings=reset_cache_bindings)
 
-        infra_failure_class = (
-            _pre_action_agentlab_infra_failure(result) if result.status != "success" else None
-        )
+        infra_failure_class = _agentlab_non_success_infra_failure(result, agent)
         if result.status != "success" and (
             infra_failure_class is not None or not _has_scoreable_agent_output(result)
         ):
