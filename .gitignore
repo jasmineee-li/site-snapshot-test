@@ -57,6 +57,7 @@ scripts/proxy_ports.conf
 .vscode/
 .idea/
 .cursor/
+.codex-worktrees/
 .claude/*
 !.claude/settings.json
 !.claude/hooks
