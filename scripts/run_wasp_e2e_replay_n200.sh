@@ -95,10 +95,8 @@ reset_stack_for_task_dir() {
     echo "=== reset stack=$stack gitlab_port=$gitlab_port reddit_port=$reddit_port ==="
     echo "reset_log=$reset_log"
     {
-        echo "=== cleanup $(date -Is) ==="
-        "$REPO/scripts/wasp_cleanup_full_stack.sh" "$stack" "$gitlab_port" "$reddit_port"
-        echo "=== plant $(date -Is) ==="
-        "$REPO/scripts/wasp_plant_full_stack.sh" "$stack" "$gitlab_port" "$reddit_port"
+        echo "=== reset/recreate/plant $(date -Is) ==="
+        "$REPO/scripts/wasp_reset_stack.sh" "$stack" "$gitlab_port" "$reddit_port"
     } 2>&1 | tee "$reset_log"
 }
 

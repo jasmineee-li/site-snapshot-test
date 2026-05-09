@@ -4,6 +4,7 @@
 #
 # Usage:
 #   ./scripts/wasp_reset_stack.sh gpt 9231 8231
+#   ./scripts/wasp_reset_stack.sh default 9001 8080
 
 set -euo pipefail
 
@@ -17,8 +18,13 @@ if [ -z "$STACK" ] || [ -z "$GITLAB_PORT" ] || [ -z "$REDDIT_PORT" ]; then
     exit 1
 fi
 
-GITLAB_CONTAINER="gitlab_wasp_${STACK}"
-FORUM_CONTAINER="forum_wasp_${STACK}"
+if [ "$STACK" = "default" ]; then
+    GITLAB_CONTAINER="gitlab"
+    FORUM_CONTAINER="forum"
+else
+    GITLAB_CONTAINER="gitlab_wasp_${STACK}"
+    FORUM_CONTAINER="forum_wasp_${STACK}"
+fi
 GITLAB_URL="http://localhost:${GITLAB_PORT}"
 REDDIT_URL="http://localhost:${REDDIT_PORT}"
 RESET_LOCK="${WASP_DOCKER_RESET_LOCK:-/tmp/wasp_docker_reset.lock}"
