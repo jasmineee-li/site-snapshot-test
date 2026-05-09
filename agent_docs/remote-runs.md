@@ -336,7 +336,7 @@ benchmark source unless you have explicitly hydrated the repo-local
 Its preflight step runs `pytest -m preflight tests/preflight` and proves:
 
 - GitLab Phase 0d `storage_state` exists with non-empty cookies.
-- The `warp-taskgen-webarena-verified` evaluator venv resolves from the repo-local `packages/worldsim-webarena-verified` environment.
+- The `warp-taskgen-webarena-verified` evaluator venv resolves from the repo-local `packages/warp-taskgen-webarena-verified` environment.
 
 Current page-surface-stable PVPO does not require dedicated PVPO browser
 containers, and this preflight does not prove live benchmark task connectivity.

@@ -12,7 +12,7 @@ uv sync --locked
 From the repo root:
 
 ```bash
-uv sync --directory packages/worldsim-webarena-verified --locked
+uv sync --directory packages/warp-taskgen-webarena-verified --locked
 ```
 
 Then point the core WARP Taskgen process at that interpreter with
@@ -24,3 +24,10 @@ Verified tasks that carry a benchmark `task_id`. Task-id-less novel WARP Taskgen
 tasks use WARP Taskgen's own reward evaluators instead of canonical benchmark
 lookup. If `WARP_TASKGEN_WEBARENA_EVAL_PYTHON` is unset, the core process
 auto-detects this repo-local `.venv` before trying an in-process install.
+
+The adapter protocol is process-local JSON: root WARP Taskgen invokes
+`python -m warp_taskgen_webarena_verified.evaluate`, writes one request JSON object
+to stdin, and reads one result JSON object from stdout. The console script
+`warp-taskgen-webarena-eval` exposes the same protocol for smoke checks; the
+legacy `worldsim-webarena-eval` script and
+`worldsim_webarena_verified.evaluate` module path are compatibility aliases.

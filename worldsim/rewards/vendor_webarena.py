@@ -19,7 +19,8 @@ logger = logging.getLogger(__name__)
 
 WEBARENA_EVAL_PYTHON_ENV = "WARP_TASKGEN_WEBARENA_EVAL_PYTHON"
 LEGACY_WEBARENA_EVAL_PYTHON_ENV = "WORLDSIM_WEBARENA_EVAL_PYTHON"
-WEBARENA_EVAL_MODULE = "worldsim_webarena_verified.evaluate"
+WEBARENA_EVAL_MODULE = "warp_taskgen_webarena_verified.evaluate"
+LEGACY_WEBARENA_EVAL_MODULE = "worldsim_webarena_verified.evaluate"
 
 
 def _is_network_event_evaluator_name(name: Any) -> bool:
@@ -41,7 +42,9 @@ def _default_eval_python() -> str:
         root = find_repo_root()
     except RuntimeError:
         return ""
-    candidate = root / "packages" / "worldsim-webarena-verified" / ".venv" / "bin" / "python"
+    candidate = (
+        root / "packages" / "warp-taskgen-webarena-verified" / ".venv" / "bin" / "python"
+    )
     if candidate.is_file() and os.access(candidate, os.X_OK):
         return str(candidate)
     return ""

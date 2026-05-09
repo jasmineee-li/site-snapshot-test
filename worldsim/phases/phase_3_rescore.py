@@ -267,7 +267,12 @@ def _select_evaluator_runner(
         # Look for the vendored venv as a default.
         repo_root = Path(__file__).resolve().parents[2]
         candidate = (
-            repo_root / "packages" / "worldsim-webarena-verified" / ".venv" / "bin" / "python"
+            repo_root
+            / "packages"
+            / "warp-taskgen-webarena-verified"
+            / ".venv"
+            / "bin"
+            / "python"
         )
         if candidate.exists():
             subprocess_python = str(candidate)

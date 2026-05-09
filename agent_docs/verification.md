@@ -131,9 +131,9 @@ Wrapper facts that matter:
 
 - Phase 4 fresh-host preflight: `uv run pytest -m preflight tests/preflight -q`
 - Crash/resume behavior: `uv run pytest -m crash_resume tests/test_crash_resume_*.py -q`
-- WebArena evaluator adapter: `uv sync --directory packages/worldsim-webarena-verified --locked`
+- WebArena evaluator adapter: `uv sync --directory packages/warp-taskgen-webarena-verified --locked`
 - AgentLab sidecar sync: `uv sync --directory packages/worldsim-agentlab-runner --locked`
-- Package Ruff: `uv run ruff check packages/worldsim-agentlab-runner/src packages/worldsim-webarena-verified/src`
+- Package Ruff: `uv run ruff check packages/worldsim-agentlab-runner/src packages/warp-taskgen-webarena-verified/src`
 - AgentLab/WebArena adapter smoke: `uv run pytest tests/test_agentlab_runner.py tests/phase_4/test_process_pool.py tests/rewards/test_vendor_webarena.py -q`
 - AgentLab/trace-inspection observability: `uv run pytest tests/test_agentlab_runner.py tests/phase_4/test_process_pool.py tests/test_phase_4_trace_inspection.py -q`
 - CLI smoke: `uv run warp-taskgen --help`

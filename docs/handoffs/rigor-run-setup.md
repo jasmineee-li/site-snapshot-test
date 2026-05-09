@@ -18,7 +18,7 @@ host-config driven for current r5/r8a runs.
        --artifacts-source s3://benchmark-archives/worldsim-runs/<run_id>/
    ```
 
-   1. uv + repo venv + evaluator venv (`packages/worldsim-webarena-verified`).
+   1. uv + repo venv + evaluator venv (`packages/warp-taskgen-webarena-verified`).
    2. Regenerate `instances.scale.json` / `instances.smoke.json` from the
       selected scale config and host config. Use
       `--scale-config scripts/scale_config.r8a-24x24.yml` for the r8a 24x24
@@ -259,7 +259,7 @@ double-check the slug against the provider's current catalog.
 
 - `WARP_TASKGEN_WEBARENA_EVAL_PYTHON` — override evaluator venv Python
   (default is repo-relative
-  `packages/worldsim-webarena-verified/.venv/bin/python`).
+  `packages/warp-taskgen-webarena-verified/.venv/bin/python`).
 - `WORLDSIM_WEBARENA_EVAL_PYTHON` — legacy alias for the same evaluator
   override.
 - `WORLDSIM_AUTO_MINT_STORAGE_STATE` — opt non-WebArena-Verified benchmarks in to runtime auto-heal. `true` is implicit for WebArena Verified.
@@ -279,7 +279,7 @@ double-check the slug against the provider's current catalog.
   `browser_runtime.json` for runner-owned browser lifecycle fields, slow CDP
   calls, timeout counts, and degraded PVPO capture summaries.
 - **Evaluator subprocess error in rewards**: the evaluator venv isn't
-  synced. `cd packages/worldsim-webarena-verified && uv sync --locked`.
+  synced. `cd packages/warp-taskgen-webarena-verified && uv sync --locked`.
 - **Gitlab task fails with `AuthArtifactMissingError`**: the auto-heal
   didn't kick in. Check the `WORLDSIM_AUTO_MINT_STORAGE_STATE` env var
   and that the site has `form_login` configured in `instances.json`.

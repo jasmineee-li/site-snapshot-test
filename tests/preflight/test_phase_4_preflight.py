@@ -58,7 +58,7 @@ def test_eval_venv_reachable() -> None:
     python_exe = webarena_eval_python_override() or _default_eval_python()
     if not python_exe:
         pytest.fail(
-            "no evaluator Python resolved. Run `cd packages/worldsim-webarena-verified "
+            "no evaluator Python resolved. Run `cd packages/warp-taskgen-webarena-verified "
             "&& uv sync --locked` (setup_phase4_on_host.sh step 1)."
         )
     completed = subprocess.run(

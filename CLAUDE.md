@@ -15,7 +15,7 @@ optimize for evading safeguards.
 ## WHAT
 - Python 3.12 `uv` project for Modal Sandbox plus Browser Use and AgentLab adversarial evaluation of browser agents.
 - Strict WASP scope: GitLab issues/comments and Reddit/Postmill posts/comments only.
-- Main map: `worldsim/` legacy core package, `scripts/` host/run tooling, `tests/` unit/live/preflight suites, `packages/worldsim-webarena-verified/` isolated evaluator adapter, `vendors/` gitignored benchmark clones.
+- Main map: `worldsim/` legacy core package, `scripts/` host/run tooling, `tests/` unit/live/preflight suites, `packages/warp-taskgen-webarena-verified/` isolated evaluator adapter, `vendors/` gitignored benchmark clones.
 - `AgentLab/src/agentlab/benchmarks/redteam/{execution.py,claude_code.py}` are read-only references only; never import from `AgentLab/`.
 
 ## WHY

@@ -25,8 +25,8 @@ similar to benchmark-specific packages in BrowserGym.
 Install the adapter in its own environment:
 
 ```bash
-uv sync --directory packages/worldsim-webarena-verified --locked
-export WARP_TASKGEN_WEBARENA_EVAL_PYTHON="$PWD/packages/worldsim-webarena-verified/.venv/bin/python"
+uv sync --directory packages/warp-taskgen-webarena-verified --locked
+export WARP_TASKGEN_WEBARENA_EVAL_PYTHON="$PWD/packages/warp-taskgen-webarena-verified/.venv/bin/python"
 ```
 
 That keeps WARP Taskgen's core environment compatible with `browser-use` while
