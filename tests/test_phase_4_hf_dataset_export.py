@@ -34,9 +34,7 @@ def test_hf_dataset_export_writes_queryable_splits_and_bundle(tmp_path: Path) ->
                     "kind": "gitlab_search_result",
                     "anchors": {"project_path": "primer/design"},
                 },
-                "task_provenance": {
-                    "scenario_template": {"id": "gitlab_issue_public_followup"}
-                },
+                "task_provenance": {"scenario_template": {"id": "gitlab_issue_public_followup"}},
             }
         ],
     )
@@ -98,8 +96,22 @@ def test_hf_dataset_export_writes_queryable_splits_and_bundle(tmp_path: Path) ->
     assert manifest["splits"]["tasks"]["rows"] == 1
     assert manifest["splits"]["variants"]["rows"] == 2
     readme = (out / "README.md").read_text(encoding="utf-8")
-    assert "pretty_name: \"WARP Taskgen Generated IPI Tasks 50\"" in readme
+    assert readme.startswith("---\n")
+    assert 'pretty_name: "WARP Taskgen Generated IPI Tasks 50"' in readme
     assert "# WARP Taskgen Generated IPI Tasks 50" in readme
+    assert '"ash256/warp-taskgen-generated-ipi-tasks-50"' in readme
+    for section in (
+        "## Dataset Summary",
+        "## Dataset Structure",
+        "## Metric Definitions",
+        "## Outcome Labels",
+        "## Column Dictionary",
+        "## Artifact Bundles",
+        "## Intended Uses",
+        "## Safety And Scope",
+    ):
+        assert section in readme
+    assert "WebArena GitLab and Postmill (Reddit)" in readme
     task = _read_jsonl(out / "tasks.jsonl")[0]
     assert task["model_key"] == "test_model"
     assert task["is_complied"] is True
