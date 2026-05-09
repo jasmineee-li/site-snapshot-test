@@ -18,9 +18,7 @@ from worldsim.rewards.webarena_sites import build_supported_webarena_environment
 logger = logging.getLogger(__name__)
 
 WEBARENA_EVAL_PYTHON_ENV = "WARP_TASKGEN_WEBARENA_EVAL_PYTHON"
-LEGACY_WEBARENA_EVAL_PYTHON_ENV = "WORLDSIM_WEBARENA_EVAL_PYTHON"
 WEBARENA_EVAL_MODULE = "warp_taskgen_webarena_verified.evaluate"
-LEGACY_WEBARENA_EVAL_MODULE = "worldsim_webarena_verified.evaluate"
 
 
 def _is_network_event_evaluator_name(name: Any) -> bool:
@@ -32,9 +30,8 @@ def _default_eval_python() -> str:
 
     WARP Taskgen runs the WebArena Verified evaluator in its own venv
     (conflicting deps vs. the root pyproject; uv workspaces are explicitly
-    contraindicated for conflicting deps). When neither the canonical
-    ``WARP_TASKGEN_WEBARENA_EVAL_PYTHON`` nor legacy
-    ``WORLDSIM_WEBARENA_EVAL_PYTHON`` is set, fall back to the
+    contraindicated for conflicting deps). When
+    ``WARP_TASKGEN_WEBARENA_EVAL_PYTHON`` is unset, fall back to the
     conventional repo-relative location. POSIX only; Windows would need
     ``.venv/Scripts/python.exe``.
     """
@@ -51,11 +48,8 @@ def _default_eval_python() -> str:
 
 
 def webarena_eval_python_override() -> str:
-    """Return canonical or legacy evaluator Python override."""
-    return (
-        os.environ.get(WEBARENA_EVAL_PYTHON_ENV, "").strip()
-        or os.environ.get(LEGACY_WEBARENA_EVAL_PYTHON_ENV, "").strip()
-    )
+    """Return the configured evaluator Python override."""
+    return os.environ.get(WEBARENA_EVAL_PYTHON_ENV, "").strip()
 
 
 def _apply_webarena_vendor_shims(eval_configs: list[dict]) -> list[dict]:
@@ -152,15 +146,14 @@ def _run_webarena_verified_eval(
         from webarena_verified.types.task import WebArenaSite
     except ImportError:
         logger.error(
-            "webarena_verified package not installed and %s/%s are unset; refusing non-canonical evaluation",
+            "webarena_verified package not installed and %s is unset; refusing non-canonical evaluation",
             WEBARENA_EVAL_PYTHON_ENV,
-            LEGACY_WEBARENA_EVAL_PYTHON_ENV,
         )
         return (
             False,
             "canonical WebArena Verified evaluation unavailable: configure a separate "
             "WebArena Verified adapter environment via "
-            f"{WEBARENA_EVAL_PYTHON_ENV} or legacy {LEGACY_WEBARENA_EVAL_PYTHON_ENV}, "
+            f"{WEBARENA_EVAL_PYTHON_ENV}, "
             "or install 'webarena-verified' in the current environment",
         )
 

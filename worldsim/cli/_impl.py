@@ -52,7 +52,6 @@ def _normalize_compat_env_aliases() -> None:
     """Mirror canonical WARP Taskgen env vars into legacy names for older helpers."""
     aliases = {
         "WARP_TASKGEN_STATE_DIR": "WORLDSIM_STATE_DIR",
-        "WARP_TASKGEN_WEBARENA_EVAL_PYTHON": "WORLDSIM_WEBARENA_EVAL_PYTHON",
         "WARP_TASKGEN_AGENTLAB_RUNNER_CMD": "WORLDSIM_AGENTLAB_RUNNER_CMD",
     }
     for canonical, legacy in aliases.items():
