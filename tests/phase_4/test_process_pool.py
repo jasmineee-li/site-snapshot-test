@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from scripts.repair_process_pool_partial import repair_process_pool_partial
 from worldsim.config import BenchmarkConfig
 from worldsim.phase_4.process_pool import (
     ProcessPoolArgs,
@@ -233,6 +234,86 @@ def test_merge_outcomes_writes_partial_results_without_canonical_results(tmp_pat
     assert manifest["paper_eligible"] is False
     assert manifest["missing_task_ids"] == ["adv-2"]
     assert not (tmp_path / "out" / "phase_4" / "results.json").exists()
+
+
+def test_repair_process_pool_partial_replaces_failed_retry_result(tmp_path):
+    partial_run = tmp_path / "partial"
+    retry_run = tmp_path / "retry"
+    out_dir = tmp_path / "repaired"
+    partial_phase4 = partial_run / "phase_4"
+    retry_phase4 = retry_run / "phase_4"
+    partial_phase4.mkdir(parents=True)
+    retry_trace = retry_phase4 / "20260509_000000" / "adv-2"
+    retry_trace.mkdir(parents=True)
+    (retry_trace / "result.json").write_text(
+        json.dumps({"task_id": "adv-2", "outcome": "complied"}),
+        encoding="utf-8",
+    )
+    (partial_phase4 / "results.partial.json").write_text(
+        json.dumps(
+            [
+                {"task_id": "adv-1", "final_status": "resistant"},
+                {
+                    "task_id": "adv-2",
+                    "final_status": "error",
+                    "trajectory_dir": str(partial_phase4 / "old" / "adv-2"),
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (partial_phase4 / "partial_manifest.json").write_text(
+        json.dumps(
+            {
+                "expected_tasks": 2,
+                "errors": ["adv-2: worker exited 1"],
+                "paper_eligible": False,
+                "canonical_results_written": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (partial_phase4 / "progress.json").write_text(
+        json.dumps({"status": "failed", "stage": "process_pool_merge_failed"}),
+        encoding="utf-8",
+    )
+    (retry_phase4 / "results.json").write_text(
+        json.dumps(
+            [
+                {
+                    "task_id": "adv-2",
+                    "final_status": "complied",
+                    "outcome": "complied",
+                    "trajectory_dir": str(retry_trace),
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    manifest = repair_process_pool_partial(
+        partial_run=partial_run,
+        retry_runs=[retry_run],
+        out_dir=out_dir,
+    )
+
+    repaired = json.loads((out_dir / "phase_4" / "results.json").read_text())
+    progress = json.loads((out_dir / "phase_4" / "progress.json").read_text())
+    repair_manifest = json.loads(
+        (out_dir / "phase_4" / "process_pool_repair_manifest.json").read_text()
+    )
+
+    assert manifest["replaced_task_ids"] == ["adv-2"]
+    assert [row["task_id"] for row in repaired] == ["adv-1", "adv-2"]
+    assert repaired[1]["final_status"] == "complied"
+    assert repaired[1]["process_pool_repair"]["repair_reason"]
+    assert repaired[1]["trajectory_dir"].startswith(
+        str((out_dir / "phase_4" / "process_pool_tasks" / "retry__adv-2").resolve())
+    )
+    assert progress["status"] == "complete"
+    assert progress["stage"] == "complete_repaired"
+    assert progress["postprocess_failed_tasks"] == 0
+    assert repair_manifest["paper_eligible"] == "operator_review_required"
 
 
 def test_load_worker_results_salvages_eval_awareness_checkpoint(tmp_path):
