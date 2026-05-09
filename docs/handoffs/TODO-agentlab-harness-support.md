@@ -44,14 +44,16 @@ browser-runtime artifacts.
   the Phase 4 runner path.
 - `--runner` is plumbed into CLI state and Phase 4 resume fingerprints.
 - Phase 4 accepts `--runner agentlab` when the isolated sidecar package and
-  vendored AgentLab checkout are present. Root WorldSim serializes the task to
-  `worldsim-agentlab-runner phase4-run`; the sidecar owns AgentLab/BrowserGym
-  imports, launches the browser through BrowserGym natively, and writes
-  WorldSim-compatible PVPO, network, history, and final response artifacts.
+  `packages/worldsim-agentlab-runner/uv.lock` are present. Root WorldSim
+  serializes the task to `worldsim-agentlab-runner phase4-run`; the sidecar owns
+  AgentLab/BrowserGym imports, launches the browser through BrowserGym natively,
+  and writes WorldSim-compatible PVPO, network, history, and final response
+  artifacts.
 - AgentLab is not declared as a root `pyproject.toml` extra because current
   AgentLab releases require `openai<2`, while Browser Use 0.12.6 requires
-  `openai==2.16.0`. The sidecar package resolves AgentLab from
-  `vendors/AgentLab-upstream` with its own environment.
+  `openai==2.16.0`. The sidecar package pins AgentLab by git revision in its own
+  `pyproject.toml`/`uv.lock`; `vendors/AgentLab-upstream` is reference material,
+  not a Phase 4 runtime prerequisite.
 
 ## Architecture Decision
 
@@ -432,13 +434,11 @@ iterator analysis.
   subprocess deadline. Parent recovery wrote complete timeout sidecars,
   `final_response.json` reported `status=timeout`, PVPO was degraded but
   present, and the browser recycle path succeeded.
-- The successful run predates `browser_runtime.browsergym_context_kwargs`; the
-  timeout rerun did not receive final sidecar runtime. A future successful r5
-  proof must show `browser_runtime.json` contains
-  `browsergym_context_kwargs.service_workers == "block"`.
-- Do not treat AgentLab `phase4-run` as full sweep-ready until per-step/LLM
-  deadline behavior is fixed or the run policy explicitly relies only on a
-  lower whole-task timeout.
+- The successful r5 run predates `browser_runtime.browsergym_context_kwargs`;
+  later r8a W48 proof moved the active evidence boundary forward. Current sweeps
+  should still verify each target matrix's `browser_runtime.json` includes
+  `browsergym_context_kwargs.service_workers == "block"` and inspect
+  `agentlab_infra_retries.json` when safe browser-step retries occurred.
 
 ## P2 Trajectory Risks And Proof
 

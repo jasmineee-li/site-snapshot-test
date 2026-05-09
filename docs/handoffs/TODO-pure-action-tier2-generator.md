@@ -15,7 +15,8 @@ readback, without Tier 1 binary final-answer utility probes.
 Immediate execution target: build a **50-task Tier 2 pure-action set** for the
 paper-facing GPT-5.2 condition, across GitLab and Reddit/Postmill WASP-scope
 public-action workflows. Every counted row must use the eval-awareness iterator
-with three rewrite attempts for post-resistance analysis:
+with a three-rewrite cap. The iterator records an envelope for every PVPO-valid
+baseline row; Transcript Purpose controls whether rewrite iterations proceed:
 
 ```bash
 --phase-4-variant-system eval-awareness-iterator
@@ -506,7 +507,7 @@ missing-classifier signal and must not be counted as ASR.
 
 Do not pass `--phase-4-variant-budget smoke-3-probe` for paper-facing iterator
 runs. That knob belongs to the legacy strategy-variation loop and makes
-post-resistance evidence ambiguous. Direct baseline ASR rows from prior smokes
+legacy variant evidence ambiguous. Direct baseline ASR rows from prior smokes
 remain useful, but any post-resistance variant evidence from legacy
 `strategy_variation` should be labeled as legacy development evidence.
 

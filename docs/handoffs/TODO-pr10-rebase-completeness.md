@@ -1,5 +1,13 @@
 # TODO: Prove PR #10 rebase completeness (everything except live r5)
 
+> **CLOSED HISTORICAL TODO.** This file records the PR #10 rebase proof state as
+> of 2026-05-05. Do not use its Phase 4 iterator wording as current policy. The
+> active default `eval-awareness-iterator` records an envelope for every
+> PVPO-valid default-path baseline trajectory and branches only on Transcript
+> Purpose for bounded rewrite control. Use
+> `docs/worldsim-v5-technical-specifcation.md` and `agent_docs/domain-invariants.md`
+> for current invariants.
+
 Status: closed (Gap 4 + Gap 13 + Gap 15 resolved 2026-05-05; rebased onto `feat/worldsim-v5@446ff6cc`)
 Owner: unassigned
 Worktree: `/Users/ashtonchew/projects/browser-sim/.codex-worktrees/agent-readiness-standardized` (branch `feat/agent-readiness-standardized`, bug-hunt baseline head `dab75522`, base `origin/feat/worldsim-v5@446ff6cc`)

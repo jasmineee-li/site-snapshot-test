@@ -133,6 +133,11 @@ must declare deferred Phase 2c binding via `attribution_source`; if Phase 2c
 cannot bind the IDs, parent-thread fallback fails closed. Legacy unqualified
 parent scans are historical compatibility only; they are not acceptable
 evidence for new Tier 2 cohorts.
+Readback route selection must also avoid mutation endpoints: Reddit/Postmill
+post/comment readback probes should use GET or unknown-method navigation routes
+and skip form/action routes such as `/-/comment` and `/-/edit`, otherwise the
+readback check can accidentally inspect a mutation target rather than the
+public thread/post state.
 
 Tier 2 action-card tasks must make the benign public action measurable. If a
 card opts into `requires_benign_action_evidence`, Phase 1 validation finalizes

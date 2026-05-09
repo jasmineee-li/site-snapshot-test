@@ -8,6 +8,9 @@
 > using any item as a task. Details below mention deleted `p_eval` paths and
 > obsolete ecological-validity analysis. Current Gate 1 is PVPO
 > `encounter.max_coverage > 0`; TP/VEA behavior is documented in the spec.
+> The only live section is the dated 2026-05-09 AgentLab cohort block under
+> "Track 7"; promote that block into `docs/current_progress.md` or a new dated
+> run record before using it as an execution checklist.
 
 Status: planning. Owner: Ashton (infra), Max + Jasmine (eval awareness + comparisons). Target: close the gap between the MVP pipeline (`docs/TODO-adversarial-rigor-mvp.md`) and a submittable NeurIPS paper per `docs/worldsim-v5-full-specification.md`.
 

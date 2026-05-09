@@ -117,6 +117,14 @@ zero hand-patching.
    resolves the completed worker's stdout/stderr without needing the numeric
    worker id.
 
+   If the failed rows are rerun successfully, build a separate repaired run with
+   `scripts/repair_process_pool_partial.py` instead of editing partial artifacts.
+   The repair output must include `phase_4/process_pool_repair_manifest.json`
+   and `paper_eligible="operator_review_required"` so the row replacements are
+   reviewed before any paper-facing promotion. Iterator-checkpoint timeout
+   salvage remains inspection evidence only; it does not make a failed
+   process-pool merge canonical.
+
 ## Remote job wrapper quickstart
 
 Use the remote job scripts for any r5 command that may outlive an interactive
@@ -207,10 +215,10 @@ same Browser Use or AgentLab browser session that is executing the task:
 4. accept the screenshot only when URL, witness, background, and geometry are
    stable across the pre/post probes.
 
-Do not provision dedicated PVPO browser endpoints, `pvpo_cdp_url` values, or
-browser-recycle infrastructure for new rigor runs. If an old instances file
-contains `pvpo_cdp_url`, regenerate or edit the file before running Phase 4 so
-the active config reflects the hard cutover.
+Do not provision dedicated PVPO browser endpoints or browser-recycle
+infrastructure for new rigor runs. Some generated legacy-compatible instance
+files still contain `pvpo_cdp_url`; canonical page-surface-stable PVPO ignores
+that metadata unless an explicit legacy debugging path is enabled.
 
 ## Historical Magento Base-URL Drift
 
@@ -256,14 +264,14 @@ double-check the slug against the provider's current catalog.
 
 - **PVPO `max_coverage == 0` on every trajectory**: one or more per-instance
   containers are not reachable or the instances file points multiple workers
-  at the same endpoint. Check `pytest -m preflight tests/preflight`, then
-  inspect the corresponding `docker logs pvpo-chrome-<port> | tail -40` and
-  `curl http://127.0.0.1:<port>/json/version`.
-- **Host load climbs after each completed trajectory**: check
-  `browser_runtime.json` for `pvpo_browser_recycle_status`. Anything other
-  than `recycled` means the browser process was not restarted cleanly; rerun
-  setup step 3 and inspect the `pvpo-chrome-<port>` restart policy plus
-  `docker_restart_*` fields in the runtime artifact.
+  at the same endpoint. Check `pytest -m preflight tests/preflight`, then inspect
+  per-task `pvpo/capture_summary.json`, `browser_runtime.json`, reset endpoint
+  reachability, and the site/envctrl container logs for the affected instance.
+- **Host load climbs after each completed trajectory**: inspect
+  `browser_runtime.json` for runner-owned browser lifecycle fields, slow CDP
+  calls, timeout counts, and degraded PVPO capture summaries. Dedicated
+  `pvpo-chrome-*` recycle fields are historical and are not expected on
+  page-surface-stable runs.
 - **Evaluator subprocess error in rewards**: the evaluator venv isn't
   synced. `cd packages/worldsim-webarena-verified && uv sync --locked`.
 - **Gitlab task fails with `AuthArtifactMissingError`**: the auto-heal
