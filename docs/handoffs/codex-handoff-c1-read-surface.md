@@ -1,5 +1,9 @@
 # Codex handoff — C1 engagement signal: benchmark-agnostic read-surface detection
 
+> **SHIPPED HISTORICAL DESIGN.** C1a was removed after PVPO; use this only for
+> read-surface provenance, not current encounter policy. Current Gate 1 is PVPO
+> `encounter.max_coverage > 0`.
+
 **Branch to base off:** `feat/worldsim-v5`
 **Target branch:** `feat/c1-read-surface` (new)
 **Date:** 2026-04-18

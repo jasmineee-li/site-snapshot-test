@@ -1,16 +1,14 @@
 # TODO-2: Paper Experiments and Integration
 
-> **STALE PAPER-PLAN DRAFT, needs rewrite before execution.** This document is
-> a pre-sweep planning inventory, not the current paper execution plan.
-> Revalidate scope, models, costs, comparison benchmarks, and analysis tracks
-> against `docs/worldsim-v5-technical-specifcation.md`,
-> `docs/phase4-expanded-model-sweep-20260501.md`, and current handoffs before
-> using any item as a task. Details below mention deleted `p_eval` paths and
-> obsolete ecological-validity analysis. Current Gate 1 is PVPO
-> `encounter.max_coverage > 0`; TP/VEA behavior is documented in the spec.
-> The only live section is the dated 2026-05-09 AgentLab cohort block under
-> "Track 7"; promote that block into `docs/current_progress.md` or a new dated
-> run record before using it as an execution checklist.
+> **MIXED STATUS: stale paper-plan draft with one live 2026-05-09 AgentLab
+> cohort block.** Do not execute this file as a checklist. Most tracks are
+> pre-sweep planning inventory and mention deleted `p_eval` paths, obsolete
+> ecological-validity analysis, old comparison plans, or superseded runner
+> wiring. Current Gate 1 is PVPO `encounter.max_coverage > 0`; TP/VEA and the
+> eval-awareness iterator are defined in
+> `docs/worldsim-v5-technical-specifcation.md`. Use only the dated AgentLab
+> cohort block under "Track 7" after cross-checking `docs/current_progress.md`
+> and the target host/model live gates.
 
 Status: planning. Owner: Ashton (infra), Max + Jasmine (eval awareness + comparisons). Target: close the gap between the MVP pipeline (`docs/TODO-adversarial-rigor-mvp.md`) and a submittable NeurIPS paper per `docs/worldsim-v5-full-specification.md`.
 

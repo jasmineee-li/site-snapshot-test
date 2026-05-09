@@ -1,5 +1,10 @@
 # TODO: Capability-Aligned IPI Strategy Handoff
 
+> **ACTIVE STRATEGY SNAPSHOT AS OF 2026-05-07.** Use this for Tier 2
+> capability-aligned rationale and terminology. Verify run IDs, model cohorts,
+> and current execution status against `docs/current_progress.md` before using
+> any item below as an execution checklist.
+
 > Active status snapshot: May 7, 2026. Branch: `feat/worldsim-v5`.
 >
 > This handoff is intended for an autonomous coding/research agent. It is

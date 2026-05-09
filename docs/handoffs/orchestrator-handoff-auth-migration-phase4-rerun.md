@@ -1,5 +1,12 @@
 # Handoff: Phase 2 Rerun Required After Auth Migration
 
+> **HISTORICAL ONLY, DO NOT EXECUTE.** Auth migration and Phase 2 rerun issues
+> below are superseded by current Phase 2c admission, PVPO encounter gating,
+> strict GitLab/Reddit WASP scope, and AgentLab/Browser Use runbooks. Use
+> `docs/worldsim-v5-technical-specifcation.md`,
+> `agent_docs/domain-invariants.md`, and `agent_docs/remote-runs.md` for
+> current instructions.
+
 ## How to use this file
 
 **New session:** paste the following as your first message, nothing else.

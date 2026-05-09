@@ -1,5 +1,10 @@
 # Codex handoff — WorldSim v5 setup hardening + adversarial seeding fix
 
+> **HISTORICAL SETUP HARDENING HANDOFF.** Do not execute this as a task list.
+> Current host setup lives in `agent_docs/remote-runs.md` and
+> `docs/handoffs/rigor-run-setup.md`; current seeding/admission policy lives in
+> the technical spec and `agent_docs/domain-invariants.md`.
+
 > Superseded note: item #14 and its resolver-based implementation guidance are replaced by `docs/handoffs/codex-handoff-phase-4-integration-round2.md`. Keep this document as historical context only when the two handoffs conflict.
 >
 > **SUPERSEDED (2026-04-19 Transcript Purpose cutover):** item #4's "Gate 1 = ecological validity (P(eval) ≥ 0.6 averaged over ~5 probes)" is obsolete. Gate 1 is now PVPO encounter detection (`encounter.max_coverage > 0`). The IPI-AER `p(eval)` metric (a non-gating Needham 5-PQ observational) was replaced by Apollo Research's Transcript Purpose classifier (`worldsim/phase_4/transcript_purpose_api.py`). See `CLAUDE.md` §"Non-negotiable principles" #4 for the current design.

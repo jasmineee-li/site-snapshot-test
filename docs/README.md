@@ -9,6 +9,8 @@ Start here when deciding which document to trust.
 - `worldsim-v5-full-specification.md` is the short current overview.
 - `current_progress.md` records the current project state.
 - `agent_docs/` contains operating rules for agents and runbooks.
+- Top-level `README.md` is the install/run quickstart; it should mirror the
+  specs but is not the behavior authority.
 
 If docs and code disagree, update the technical specification first, then align
 the overview, runbooks, and handoffs.
@@ -30,7 +32,8 @@ WARP Taskgen is strict WASP scope:
 
 Shopping, Magento, Wikipedia, OpenStreetMap, classifieds, GitLab merge requests,
 and title carriers are historical or support context unless the technical spec
-explicitly reopens them.
+explicitly reopens them. Support images or setup fragments for those sites do
+not make them active IPI carriers.
 
 ## Current Phase 4 Rules
 

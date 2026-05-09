@@ -1,5 +1,9 @@
 # Research Report: Seed Target Abstraction for Browser-Agent Adversarial Eval
 
+> **HISTORICAL RESEARCH NOTE.** Preserved for seed-target design rationale; do
+> not treat resolver recommendations as current implementation work without
+> checking current code and the technical spec.
+
 Author: research subagent (opus), 2026-04-17
 Context: background research for item #14 in `docs/handoffs/codex-handoff-setup-hardening.md`
 Trigger: after #13 (seed template resolution) landed in commit `a5bf5af`, Phase 4 on r5 still 7/7 errored with concrete-ID 404/400/401s. Proposed fix was a constraint-based target resolver layer (~2500-3000 LOC, 2-3 days). This report investigates whether that scope is right.

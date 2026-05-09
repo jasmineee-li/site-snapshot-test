@@ -1,5 +1,10 @@
 # AgentLab Harness Support Plan
 
+> **ACTIVE AGENTLAB PARITY RUNBOOK, refreshed 2026-05-09.** Use this for
+> AgentLab `phase4-run` parity only after checking `docs/current_progress.md`
+> and the target host/model live artifact, PVPO, network, auth, timeout/retry,
+> resume, and result gates.
+
 Status: comparison-runner slice exists; WorldSim-v5 AgentLab Phase 4 runner is
 implemented behind the isolated sidecar. On 2026-05-08, r8a GPT-5.2 priority
 live evidence proved the hard cut to native BrowserGym launch plus

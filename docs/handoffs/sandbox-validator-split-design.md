@@ -1,5 +1,9 @@
 # Sandbox Validator Split Design
 
+> **ACTIVE DESIGN NOTE.** This is the current safe split plan for
+> `worldsim/_sandbox_validator.py`; preserve sandbox stdlib-only behavior and
+> Modal staging contracts.
+
 This is the next reviewable slice for the `worldsim/_sandbox_validator.py`
 large-file debt. Do not split it as part of the transition-wrapper cleanup.
 The validator has a stricter runtime contract than normal `worldsim` modules,

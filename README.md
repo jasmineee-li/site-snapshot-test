@@ -109,7 +109,7 @@ uv run warp-taskgen phase 4 \
      - `postgresql://gitlab:...@HOST:5432/gitlabhq_production` or the generated GitLab DB URL from the host config
      - `postgresql://postmill:postmill@HOST:5432/postmill` for `reddit`
    - Shopping, shopping_admin, map/OSM, Magento, Wikipedia, and classifieds settings are historical full-benchmark/support plumbing and are not active IPI carriers unless the spec reopens scope.
-   - Phase 4 PVPO uses `page-surface-stable` capture on the runner-owned browser. Do not configure dedicated PVPO browser endpoints for new shipping runs. Some generated legacy-compatible instance files may still contain `pvpo_cdp_url`; canonical Browser Use and AgentLab Phase 4 ignore it unless an explicit legacy debugging path is enabled.
+   - Phase 4 PVPO uses `page-surface-stable` capture on the runner-owned browser for both Browser Use and AgentLab. Do not configure dedicated PVPO browser endpoints for new shipping runs. Legacy instance files may still contain `pvpo_cdp_url`; canonical Phase 4 treats it as inert unless an explicit legacy debugging path is enabled.
 
 Phases 0, 1, 2a, and 2b only need the benchmark **codebase** on disk, not running instances. **Phase 2c requires a live dev instance** (defaults to the instances listed in `instances.smoke.json`): each adversarial task's `adversarial_data_seed` is POSTed against the live platform to prove feasibility. Pass `--skip-feasibility` only for fast dev iteration; unverified tasks are not suitable for shipping Phase 4 runs.
 
@@ -163,7 +163,7 @@ and emits `"scheme": "https"` in the suggested `verification_proxy` block.
 
 **After deploying:** open only the generated proxy listener ports from
 `scripts/proxy_ports.conf` in the EC2 security group for `0.0.0.0/0`. These ports
-are token-protected. Then copy the token into `instances.json`:
+are token-protected. Then reference the token from `instances.json`:
 
 ```json
 "verification_proxy": {
@@ -176,18 +176,23 @@ are token-protected. Then copy the token into `instances.json`:
 
 Phase 0c reads this config, rewrites site URLs to proxy ports, and includes
 `X-Worldsim-Token` in all sandbox curl requests. Without a non-empty token the
-proxy is treated as disabled. Tokens should live in the gitignored `.proxy_token`
-file or `WORLDSIM_VERIFICATION_PROXY_TOKEN`, not in checked-in JSON. This proxy
-is for Phase 0c live verification only; Phases 3-4 continue to use the real
-`site_url` and `reset_endpoint` values from `instances.json`.
+proxy is treated as disabled. Phase 0c resolves proxy tokens from a literal
+`token` only for generated or ephemeral configs, then from `token_env`, then from
+`token_file`. Checked-in configs should not use literal `token`; prefer
+`token_env` or a gitignored `token_file`. Relative `token_file` paths are
+resolved relative to the instances config file. This proxy is for Phase 0c live
+verification only; Phases 3-4 continue to use the real `site_url` and
+`reset_endpoint` values from `instances.json`.
 
 ### Historical full-benchmark storage notes
 
-Older setup docs mention S3 restore tooling for Wikipedia, OSM/map, Magento, and
-other full WebArena sites. That restore path was removed with dropped-site infra
-and is historical for this repo. Current WARP Taskgen mainline is GitLab and
-Reddit/Postmill only; use the host setup scripts and benchmark-host configs for
-active WASP runs.
+Older setup docs mention S3 restore tooling and amd64 images for Wikipedia,
+OSM/map, Magento, and other full WebArena sites. That path is
+historical/support plumbing only. A Wikipedia support image may still appear in
+old smoke or full-benchmark setup notes, but Wikipedia is not an active WARP
+Taskgen IPI carrier unless the technical spec explicitly reopens scope. Current
+WARP Taskgen mainline is GitLab and Reddit/Postmill only; use the host setup
+scripts and benchmark-host configs for active WASP runs.
 
 For amd64 smoke bring-up on EC2, use `scripts/bootstrap_ec2.sh`. It writes the
 canonical `docker-compose.override.yml` from

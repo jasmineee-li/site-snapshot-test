@@ -1,5 +1,9 @@
 # Placement-Fix Cutover — Live r5 Integration Test Record
 
+> **HISTORICAL INTEGRATION RECORD.** This predates strict GitLab/Reddit WASP
+> scope and contains shopping/shopping_admin failure evidence. Keep it for
+> placement-fix provenance only; use current runbooks for active Phase 4 setup.
+
 **Date:** 2026-04-19
 **HEAD at test time:** `5c4aad9b` (feat(phase4): wire placement-fix API path; delete sandbox path)
 **Gate:** CLAUDE.md integration-test requirement for `worldsim/phase_4/**`, `worldsim/prompts/placement-fix.md`, and `worldsim/phases/phase_4_adversarial.py` changes.

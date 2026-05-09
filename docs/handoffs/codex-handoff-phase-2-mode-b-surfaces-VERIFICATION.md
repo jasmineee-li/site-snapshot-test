@@ -1,5 +1,9 @@
 # Phase 2 Mode B surfaces — final verification runbook
 
+> **SHIPPED HISTORICAL VERIFICATION RECORD.** Use this for Mode B provenance
+> only; cross-check current surface scope, no-title policy, and admission rules
+> against the technical spec before applying any guidance.
+
 This commit completes the Mode B surface admission work
 (`docs/handoffs/codex-handoff-phase-2-mode-b-surfaces.md`). Six commits
 landed on `feat/worldsim-v5`:
