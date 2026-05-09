@@ -1,5 +1,9 @@
 # PR #13: Agent Readiness Wrapper Cutover
 
+> **COMPLETED PR RECORD.** PR #13 cutover landed; use this for provenance only.
+> Pending live gates must be checked in `docs/current_progress.md` and current
+> runbooks.
+
 ## Summary
 
 - Removes the six temporary Phase 2, Phase 2c helper, target-resolution, and Phase 4 compatibility wrappers under `worldsim.phases.*` after PR #11 restored them for one migration cycle.

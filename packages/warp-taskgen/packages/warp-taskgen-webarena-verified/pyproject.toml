@@ -10,7 +10,6 @@ dependencies = [
 
 [project.scripts]
 warp-taskgen-webarena-eval = "warp_taskgen_webarena_verified.evaluate:main"
-worldsim-webarena-eval = "worldsim_webarena_verified.evaluate:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -19,5 +18,4 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = [
     "src/warp_taskgen_webarena_verified",
-    "src/worldsim_webarena_verified",
 ]

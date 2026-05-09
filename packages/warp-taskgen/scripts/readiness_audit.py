@@ -105,6 +105,13 @@ class LegacyImportFinding:
 
 
 @dataclass(frozen=True)
+class ActiveFacadeImportFinding:
+    path: str
+    line: int
+    module: str
+
+
+@dataclass(frozen=True)
 class Audit:
     tracked_files: int
     code_files: int
@@ -115,6 +122,7 @@ class Audit:
     deferred_tracked_generated: list[str]
     token_findings: list[TokenFinding]
     legacy_phase_imports: list[LegacyImportFinding]
+    active_facade_imports: list[ActiveFacadeImportFinding]
 
 
 LEGACY_PHASE_IMPORT_MODULES = frozenset(
@@ -134,6 +142,20 @@ LEGACY_PHASE_IMPORT_MODULES = frozenset(
 # this cutover narrows scope to the six wrappers that are pure shims.
 
 LEGACY_PHASE_IMPORT_ALLOWED_PREFIXES = (
+    "docs/",
+    "tests/",
+)
+
+ACTIVE_COMPAT_FACADE_MODULES = frozenset(
+    {
+        "worldsim.main",
+        "worldsim.phases.phase_1_generate_new_tasks_validation",
+        "worldsim.phases.phase_2_exposure_contract",
+        "worldsim.phases.phase_2_feasibility",
+        "worldsim.phases.phase_2_text_fill",
+    }
+)
+ACTIVE_COMPAT_FACADE_ALLOWED_PREFIXES = (
     "docs/",
     "tests/",
 )
@@ -205,9 +227,36 @@ def _token_findings(paths: list[str]) -> list[TokenFinding]:
 
 
 def _legacy_phase_import_findings(paths: list[str]) -> list[LegacyImportFinding]:
+    return [
+        LegacyImportFinding(finding.path, finding.line, finding.module)
+        for finding in _module_import_findings(
+            paths,
+            modules=LEGACY_PHASE_IMPORT_MODULES,
+            allowed_prefixes=LEGACY_PHASE_IMPORT_ALLOWED_PREFIXES,
+        )
+    ]
+
+
+def _active_facade_import_findings(paths: list[str]) -> list[ActiveFacadeImportFinding]:
+    return [
+        ActiveFacadeImportFinding(finding.path, finding.line, finding.module)
+        for finding in _module_import_findings(
+            paths,
+            modules=ACTIVE_COMPAT_FACADE_MODULES,
+            allowed_prefixes=ACTIVE_COMPAT_FACADE_ALLOWED_PREFIXES,
+        )
+    ]
+
+
+def _module_import_findings(
+    paths: list[str],
+    *,
+    modules: frozenset[str],
+    allowed_prefixes: tuple[str, ...],
+) -> list[LegacyImportFinding]:
     findings: list[LegacyImportFinding] = []
     for path in paths:
-        if not path.endswith(".py") or path.startswith(LEGACY_PHASE_IMPORT_ALLOWED_PREFIXES):
+        if not path.endswith(".py") or path.startswith(allowed_prefixes):
             continue
         try:
             source = Path(path).read_text(encoding="utf-8", errors="ignore")
@@ -218,7 +267,7 @@ def _legacy_phase_import_findings(paths: list[str]) -> list[LegacyImportFinding]
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    if _is_legacy_phase_module(alias.name):
+                    if _is_tracked_module(alias.name, modules):
                         findings.append(LegacyImportFinding(path, node.lineno, alias.name))
             elif isinstance(node, ast.ImportFrom):
                 level = node.level or 0
@@ -228,26 +277,26 @@ def _legacy_phase_import_findings(paths: list[str]) -> list[LegacyImportFinding]
                         continue
                     if node.module:
                         resolved = f"{base}.{node.module}"
-                        if _is_legacy_phase_module(resolved):
+                        if _is_tracked_module(resolved, modules):
                             findings.append(LegacyImportFinding(path, node.lineno, resolved))
                             continue
                         for alias in node.names:
                             child = f"{resolved}.{alias.name}"
-                            if _is_legacy_phase_module(child):
+                            if _is_tracked_module(child, modules):
                                 findings.append(LegacyImportFinding(path, node.lineno, child))
                     else:
                         for alias in node.names:
                             child = f"{base}.{alias.name}"
-                            if _is_legacy_phase_module(child):
+                            if _is_tracked_module(child, modules):
                                 findings.append(LegacyImportFinding(path, node.lineno, child))
                     continue
                 module = node.module or ""
-                if _is_legacy_phase_module(module):
+                if _is_tracked_module(module, modules):
                     findings.append(LegacyImportFinding(path, node.lineno, module))
-                elif module == "worldsim.phases":
+                elif module in _parent_modules(modules):
                     for alias in node.names:
                         imported = f"{module}.{alias.name}"
-                        if _is_legacy_phase_module(imported):
+                        if _is_tracked_module(imported, modules):
                             findings.append(LegacyImportFinding(path, node.lineno, imported))
     return findings
 
@@ -271,10 +320,18 @@ def _resolve_relative_anchor(path: str, level: int) -> str | None:
 
 
 def _is_legacy_phase_module(module: str) -> bool:
+    return _is_tracked_module(module, LEGACY_PHASE_IMPORT_MODULES)
+
+
+def _is_tracked_module(module: str, modules: frozenset[str]) -> bool:
     return any(
-        module == legacy_module or module.startswith(f"{legacy_module}.")
-        for legacy_module in LEGACY_PHASE_IMPORT_MODULES
+        module == tracked_module or module.startswith(f"{tracked_module}.")
+        for tracked_module in modules
     )
+
+
+def _parent_modules(modules: frozenset[str]) -> frozenset[str]:
+    return frozenset(module.rsplit(".", 1)[0] for module in modules if "." in module)
 
 
 def _looks_like_secret_value(value: str) -> bool:
@@ -378,6 +435,7 @@ def build_audit() -> Audit:
         deferred_tracked_generated=deferred,
         token_findings=_token_findings(files),
         legacy_phase_imports=_legacy_phase_import_findings(files),
+        active_facade_imports=_active_facade_import_findings(files),
     )
 
 
@@ -391,6 +449,7 @@ def _print_text(audit: Audit) -> None:
     print(f"deferred_tracked_generated={len(audit.deferred_tracked_generated)}")
     print(f"token_findings={len(audit.token_findings)}")
     print(f"legacy_phase_imports={len(audit.legacy_phase_imports)}")
+    print(f"active_facade_imports={len(audit.active_facade_imports)}")
     if audit.files_over_1200_loc:
         print("largest_files:")
         for item in audit.files_over_1200_loc[:10]:
@@ -419,10 +478,19 @@ def _print_text(audit: Audit) -> None:
             print(f"  {finding.path}:{finding.line} {finding.module}")
         if len(audit.legacy_phase_imports) > 25:
             print(f"  ... {len(audit.legacy_phase_imports) - 25} more")
+    if audit.active_facade_imports:
+        print("active_facade_imports:")
+        for finding in audit.active_facade_imports[:25]:
+            print(f"  {finding.path}:{finding.line} {finding.module}")
+        if len(audit.active_facade_imports) > 25:
+            print(f"  ... {len(audit.active_facade_imports) - 25} more")
 
 
 def _json_default(value: Any) -> Any:
-    if isinstance(value, LargeFile | LargeFileExemption | TokenFinding | LegacyImportFinding):
+    if isinstance(
+        value,
+        LargeFile | LargeFileExemption | TokenFinding | LegacyImportFinding | ActiveFacadeImportFinding,
+    ):
         return asdict(value)
     raise TypeError(f"cannot serialize {type(value)!r}")
 

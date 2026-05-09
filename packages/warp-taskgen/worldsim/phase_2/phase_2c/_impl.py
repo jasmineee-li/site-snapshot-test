@@ -25,19 +25,6 @@ from pathlib import Path
 from typing import Any
 
 from worldsim._async_utils import retrying
-from worldsim.agent_auth import (
-    cookie_domain_matches_host,
-    playwright_storage_state,
-    playwright_storage_state_payload,
-    read_storage_state_payload,
-    resolve_agent_auth,
-    resolve_agent_auth_headers,
-    resolve_storage_state_path,
-    storage_state_cookie_hosts,
-    storage_state_origin_hosts,
-    storage_state_preflight_error_for_payload,
-    storage_state_recorded_hosts,
-)
 from worldsim.auth_tokens import acquire_tokens_for_instances
 from worldsim.benchmark_capabilities import (
     get_benchmark_capabilities,
@@ -50,8 +37,10 @@ from worldsim.instance_selection import (
     replica_key,
     select_task_site_instance_dict_p2c,
 )
+from worldsim.phase_2.phase_2c import auth_preflight as _auth_preflight
 from worldsim.phase_2.phase_2c import fingerprints as _fingerprints
 from worldsim.phase_2.phase_2c import outcomes as _outcomes
+from worldsim.phase_2.phase_2c import source_data_preflight as _source_data_preflight
 from worldsim.phase_2.phase_2c.admission_guards import (
     _answer_target_collision_reason,
     _benign_agent_response_expected_strings,
@@ -107,6 +96,20 @@ from worldsim.phases.phase_2_render_check import (
     verify_seed_renders,
 )
 from worldsim.seeding import SeedCleanupHandle, UnboundTokenError, apply_data_seed_async
+
+cookie_domain_matches_host = _auth_preflight.cookie_domain_matches_host
+playwright_storage_state = _auth_preflight.playwright_storage_state
+playwright_storage_state_payload = _auth_preflight.playwright_storage_state_payload
+read_storage_state_payload = _auth_preflight.read_storage_state_payload
+resolve_agent_auth = _auth_preflight.resolve_agent_auth
+resolve_agent_auth_headers = _auth_preflight.resolve_agent_auth_headers
+resolve_storage_state_path = _auth_preflight.resolve_storage_state_path
+storage_state_cookie_hosts = _auth_preflight.storage_state_cookie_hosts
+storage_state_origin_hosts = _auth_preflight.storage_state_origin_hosts
+storage_state_preflight_error_for_payload = (
+    _auth_preflight.storage_state_preflight_error_for_payload
+)
+storage_state_recorded_hosts = _auth_preflight.storage_state_recorded_hosts
 
 logger = logging.getLogger(__name__)
 
@@ -230,7 +233,7 @@ _PER_REPLICA_CAP_FALLBACK = 6
 # number of concurrent Chromium processes globally gives each renderer
 # ~2 vCPU headroom and eliminates the nav-failed tail.
 _BROWSER_PROBE_CAP = 8
-_PREFLIGHT_AUTH_REFRESH_LOCKS: dict[str, asyncio.Lock] = {}
+_PREFLIGHT_AUTH_REFRESH_LOCKS = _source_data_preflight._PREFLIGHT_AUTH_REFRESH_LOCKS
 
 # RenderOutcome.kind value the render-check sets when the seed wrote OK
 # but the signature was not visible in any read-surface URL within the
@@ -1205,30 +1208,14 @@ def _preflight_request_context_options(
     *,
     benchmark_root: Path | None = None,
 ) -> tuple[dict[str, Any], str | None]:
-    """Build Playwright APIRequestContext auth options for source-data preflight.
-
-    Returns ``({}, reason)`` when declared auth is unusable. The caller then
-    skips source-data quarantine for that instance instead of probing
-    anonymously and falsely classifying private pages as source-data drops.
-    """
-    agent_auth = instance.get("agent_auth")
-    resolved = resolve_agent_auth(
-        agent_auth if isinstance(agent_auth, dict) else None,
-        site_name=str(instance.get("site_name") or ""),
-        site_url=str(instance.get("site_url") or ""),
+    return _auth_preflight._preflight_request_context_options(
+        instance,
         benchmark_root=benchmark_root,
-        storage_state_override=instance.get("storage_state_path"),
     )
-    if resolved.unusable_reason is not None:
-        return {}, resolved.unusable_reason
-    return dict(resolved.api_request_context_kwargs), None
 
 
 def _agent_auth_type(instance: dict[str, Any]) -> str:
-    agent_auth = instance.get("agent_auth")
-    if not isinstance(agent_auth, dict):
-        return ""
-    return str(agent_auth.get("type") or "").strip()
+    return _auth_preflight._agent_auth_type(instance)
 
 
 def _instance_benchmark_or_none(instance: dict[str, Any]) -> str | None:
@@ -1277,20 +1264,17 @@ def _infer_records_benchmark(records: list[dict[str, Any]], *, label: str) -> st
 
 
 def _resolve_agent_auth_headers(agent_auth: dict[str, Any]) -> dict[str, str]:
-    return resolve_agent_auth_headers(agent_auth)
+    return _auth_preflight._resolve_agent_auth_headers(agent_auth)
 
 
 def _storage_state_preflight_error(path: str, instance: dict[str, Any]) -> str | None:
-    payload, error = _read_storage_state_payload_for_preflight(path)
-    if error is not None:
-        return error
-    return _storage_state_preflight_error_for_payload(Path(path), payload, instance)
+    return _auth_preflight._storage_state_preflight_error(path, instance)
 
 
 def _read_storage_state_payload_for_preflight(
     path: str,
 ) -> tuple[dict[str, Any], str | None]:
-    return read_storage_state_payload(path)
+    return _auth_preflight._read_storage_state_payload_for_preflight(path)
 
 
 def _storage_state_preflight_error_for_payload(
@@ -1298,46 +1282,62 @@ def _storage_state_preflight_error_for_payload(
     payload: dict[str, Any],
     instance: dict[str, Any],
 ) -> str | None:
-    return storage_state_preflight_error_for_payload(
+    return _auth_preflight._storage_state_preflight_error_for_payload(
         path_obj,
         payload,
-        str(instance.get("site_url") or ""),
+        instance,
     )
 
 
 def _playwright_storage_state_for_preflight(path: str) -> tuple[str | dict[str, Any], str | None]:
-    """Return a Playwright-compatible storage state for preflight.
-
-    Phase 0d artifacts may come from non-Playwright browser APIs whose
-    cookie ``sameSite`` values use CDP names such as ``no_restriction``.
-    Normalize known equivalents in memory so auth remains usable. Unknown
-    shapes keep the existing auth-unusable path, which makes preflight skip
-    this instance instead of probing private surfaces anonymously.
-    """
-    return playwright_storage_state(path)
+    return _auth_preflight._playwright_storage_state_for_preflight(path)
 
 
 def _playwright_storage_state_payload_for_preflight(
     path_obj: Path,
     payload: dict[str, Any],
 ) -> tuple[dict[str, Any], str | None]:
-    return playwright_storage_state_payload(path_obj, payload)
+    return _auth_preflight._playwright_storage_state_payload_for_preflight(
+        path_obj,
+        payload,
+    )
 
 
 def _storage_state_recorded_hosts(payload: dict[str, Any]) -> set[str]:
-    return storage_state_recorded_hosts(payload)
+    return _auth_preflight._storage_state_recorded_hosts(payload)
 
 
 def _storage_state_cookie_hosts(payload: dict[str, Any]) -> set[str]:
-    return storage_state_cookie_hosts(payload)
+    return _auth_preflight._storage_state_cookie_hosts(payload)
 
 
 def _storage_state_origin_hosts(payload: dict[str, Any]) -> set[str]:
-    return storage_state_origin_hosts(payload)
+    return _auth_preflight._storage_state_origin_hosts(payload)
 
 
 def _cookie_domain_matches_host(domain: str, host: str) -> bool:
-    return cookie_domain_matches_host(domain, host)
+    return _auth_preflight._cookie_domain_matches_host(domain, host)
+
+
+def _sync_source_data_preflight_patches() -> None:
+    for name in (
+        "_PREFLIGHT_AUTH_REFRESH_LOCKS",
+        "_agent_auth_type",
+        "_preflight_request_context_options",
+        "infer_benchmark_name",
+        "logger",
+    ):
+        current = globals().get(name)
+        wrapper = _SOURCE_DATA_PREFLIGHT_WRAPPERS.get(name)
+        if wrapper is not None and current is wrapper:
+            current = getattr(_auth_preflight, name)
+        setattr(_source_data_preflight, name, current)
+
+
+_SOURCE_DATA_PREFLIGHT_WRAPPERS = {
+    "_agent_auth_type": _agent_auth_type,
+    "_preflight_request_context_options": _preflight_request_context_options,
+}
 
 
 async def _run_preflight_and_filter_raw(
@@ -1346,310 +1346,30 @@ async def _run_preflight_and_filter_raw(
     instances_by_site: dict[str, list[dict[str, Any]]],
     benchmark_root: Path | None = None,
 ) -> list[dict[str, Any]]:
-    """Probe every task and mutate ``raw`` in place to drop quarantined tasks.
-
-    Uses a lazy Playwright ``APIRequestContext`` per (site, auth-context)
-    pair — shares Playwright's TLS/proxy setup with the render_check path
-    without importing httpx. Returns the list of dropped records with
-    ``source_data_issue`` metadata attached; the caller routes this list
-    to the ``adversarial_tasks.dropped_source_data.json`` sidecar.
-
-    Skips silently if Playwright is not importable (development without
-    Playwright installed); mirrors the render_check skip-envvar shape.
-    """
-    from worldsim.phases.phase_2c_preflight import (
-        auth_self_test_path,
-        preflight_benign_targets,
-        self_test_preflight_auth,
-    )
-
+    source_data_state = _source_data_preflight._patchable_globals()
+    _sync_source_data_preflight_patches()
     try:
-        from playwright.async_api import async_playwright
-    except ImportError:
-        logger.info(
-            "phase 2c preflight: playwright not importable; skipping source-"
-            "data quarantine for this run."
-        )
-        return []
-
-    pw_handle = await async_playwright().start()
-    contexts_created: list[Any] = []
-
-    async def _factory(context_options: dict[str, Any] | None) -> Any:
-        kwargs: dict[str, Any] = {}
-        if isinstance(context_options, dict):
-            for key in ("storage_state", "extra_http_headers", "http_credentials"):
-                value = context_options.get(key)
-                if value:
-                    kwargs[key] = value
-        ctx = await pw_handle.request.new_context(**kwargs)
-        contexts_created.append(ctx)
-        return ctx
-
-    async def _self_test_context_options(
-        *,
-        site: str,
-        instance: dict[str, Any],
-        context_options: dict[str, Any],
-    ) -> Any:
-        benchmark = _instance_benchmark_or_none(instance)
-        if benchmark is None:
-            return None
-        ctx = await _factory(context_options)
-        try:
-            return await self_test_preflight_auth(
-                request_context=ctx,
-                site=site,
-                site_url=str(instance.get("site_url") or ""),
-                benchmark=benchmark,
-            )
-        finally:
-            try:
-                await ctx.dispose()
-            except Exception:
-                logger.debug(
-                    "phase 2c preflight: auth self-test context dispose failed",
-                    exc_info=True,
-                )
-
-    async def _ensure_live_storage_state_options(
-        *,
-        site: str,
-        instance: dict[str, Any],
-        context_options: dict[str, Any],
-        skip_reason: str | None,
-    ) -> tuple[dict[str, Any], str | None]:
-        benchmark = _instance_benchmark_or_none(instance)
-        if benchmark is None:
-            return context_options, skip_reason
-        if (
-            auth_self_test_path(site, benchmark=benchmark) is None
-            or _agent_auth_type(instance) != "storage_state"
-        ):
-            return context_options, skip_reason
-
-        if skip_reason is None:
-            classification = await _self_test_context_options(
-                site=site,
-                instance=instance,
-                context_options=context_options,
-            )
-            if classification is None or classification.kind == "reachable":
-                return context_options, None
-            if classification.kind not in {"login_redirect", "auth_missing"}:
-                raise RuntimeError(
-                    "phase 2c preflight: auth self-test for "
-                    f"{site} at {instance.get('site_url')!r} was inconclusive: "
-                    f"{classification.kind} ({classification.detail})"
-                )
-            logger.warning(
-                "phase 2c preflight: storage_state auth for %s at %s is stale: %s; "
-                "reacquiring via Phase 0d",
-                site,
-                instance.get("site_url"),
-                classification.detail,
-            )
-        else:
-            logger.warning(
-                "phase 2c preflight: storage_state auth for %s at %s is unusable: %s; "
-                "reacquiring via Phase 0d",
-                site,
-                instance.get("site_url"),
-                skip_reason,
-            )
-
-        lock_key = f"{site}:{instance.get('site_url')}"
-        lock = _PREFLIGHT_AUTH_REFRESH_LOCKS.setdefault(lock_key, asyncio.Lock())
-        async with lock:
-            from worldsim.phases.phase_0d_auth_bootstrap import (
-                AuthBootstrapError,
-                reacquire_storage_state,
-            )
-
-            try:
-                refreshed_path = await reacquire_storage_state(
-                    site_name=site,
-                    instance=instance,
-                    benchmark_root=benchmark_root,
-                )
-            except AuthBootstrapError as exc:
-                reason = (
-                    "storage_state refresh failed; source-data quarantine skipped "
-                    f"for this instance ({exc})"
-                )
-                logger.warning(
-                    "phase 2c preflight: %s at %s: %s",
-                    site,
-                    instance.get("site_url"),
-                    reason,
-                )
-                return {}, reason
-            instance["storage_state_path"] = str(refreshed_path)
-            agent_auth = instance.get("agent_auth")
-            if isinstance(agent_auth, dict):
-                updated_auth = dict(agent_auth)
-                storage_state = updated_auth.get("storage_state")
-                if isinstance(storage_state, dict):
-                    updated_storage_state = dict(storage_state)
-                else:
-                    updated_storage_state = {}
-                updated_storage_state["path"] = str(refreshed_path)
-                updated_auth["storage_state"] = updated_storage_state
-                instance["agent_auth"] = updated_auth
-
-        refreshed_options, refreshed_skip = _preflight_request_context_options(
-            instance,
+        return await _source_data_preflight._run_preflight_and_filter_raw(
+            raw,
+            instances_by_site=instances_by_site,
             benchmark_root=benchmark_root,
         )
-        if refreshed_skip is not None:
-            reason = (
-                "reacquired storage_state is unusable; source-data quarantine skipped "
-                f"for this instance ({refreshed_skip})"
-            )
-            logger.warning(
-                "phase 2c preflight: %s at %s: %s",
-                site,
-                instance.get("site_url"),
-                reason,
-            )
-            return {}, reason
-        refreshed_classification = await _self_test_context_options(
-            site=site,
-            instance=instance,
-            context_options=refreshed_options,
-        )
-        if refreshed_classification is None or refreshed_classification.kind == "reachable":
-            logger.info(
-                "phase 2c preflight: refreshed storage_state auth for %s at %s",
-                site,
-                instance.get("site_url"),
-            )
-            return refreshed_options, None
-        if refreshed_classification.kind in {"login_redirect", "auth_missing"}:
-            reason = (
-                "storage_state refresh did not authenticate; source-data quarantine "
-                f"skipped for this instance ({refreshed_classification.kind}: "
-                f"{refreshed_classification.detail})"
-            )
-            logger.warning(
-                "phase 2c preflight: %s at %s: %s",
-                site,
-                instance.get("site_url"),
-                reason,
-            )
-            return {}, reason
-        raise RuntimeError(
-            "phase 2c preflight: storage_state refresh for "
-            f"{site} at {instance.get('site_url')!r} did not authenticate: "
-            f"{refreshed_classification.kind} ({refreshed_classification.detail})"
-        )
-
-    try:
-        preflight_instances_by_site: dict[str, list[dict[str, Any]]] = {}
-        for site, site_instances in instances_by_site.items():
-            resolved_instances: list[dict[str, Any]] = []
-            for instance in site_instances:
-                resolved = dict(instance)
-                context_options, skip_reason = _preflight_request_context_options(
-                    instance,
-                    benchmark_root=benchmark_root,
-                )
-                context_options, skip_reason = await _ensure_live_storage_state_options(
-                    site=site,
-                    instance=resolved,
-                    context_options=context_options,
-                    skip_reason=skip_reason,
-                )
-                if resolved.get("storage_state_path"):
-                    instance["storage_state_path"] = resolved["storage_state_path"]
-                if isinstance(resolved.get("agent_auth"), dict):
-                    instance["agent_auth"] = resolved["agent_auth"]
-                if skip_reason is not None:
-                    resolved["preflight_auth_skip_reason"] = skip_reason
-                else:
-                    resolved["preflight_request_context"] = context_options
-                resolved_instances.append(resolved)
-            preflight_instances_by_site[site] = resolved_instances
-        keep, dropped = await preflight_benign_targets(
-            raw,
-            instances_by_site=preflight_instances_by_site,
-            request_context_factory=_factory,
-        )
     finally:
-        for ctx in contexts_created:
-            try:
-                await ctx.dispose()
-            except Exception:
-                logger.debug(
-                    "phase 2c preflight: request context dispose failed",
-                    exc_info=True,
-                )
-        try:
-            await pw_handle.stop()
-        except Exception:
-            logger.debug("phase 2c preflight: playwright stop failed", exc_info=True)
-
-    if dropped:
-        kept_ids = {id(t) for t in keep}
-        raw[:] = [t for t in raw if id(t) in kept_ids]
-    return dropped
+        _source_data_preflight._restore_patchable_globals(source_data_state)
 
 
 def _resolve_benign_storage_state_path(instance: dict[str, Any]) -> str | None:
-    """Return the Phase-0d-bootstrapped storage_state.json path for this site.
-
-    Under Option A (alpha) identity the seed writer and the reachability
-    probe both act as the benign user, so threading those cookies into
-    Playwright lets the probe reach private projects + authed-only
-    pages. Falls back to ``None`` when no artifact is present (public
-    content still works in an anonymous context).
-    """
-    agent_auth = instance.get("agent_auth")
-    if not isinstance(agent_auth, dict) or agent_auth.get("type") != "storage_state":
-        return None
-    path = resolve_storage_state_path(
-        agent_auth,
-        site_name=str(instance.get("site_name") or ""),
-        storage_state_override=instance.get("storage_state_path"),
-        benchmark_root=Path(str(instance["benchmark_root"]))
-        if instance.get("benchmark_root")
-        else None,
-    )
-    return str(path) if path is not None else None
+    return _auth_preflight._resolve_benign_storage_state_path(instance)
 
 
 def _resolve_benign_browser_context_auth(
     instance: dict[str, Any],
 ) -> tuple[dict[str, Any], str | None]:
-    """Return browser context auth kwargs for Phase 2c browser probes.
-
-    No configured ``agent_auth`` preserves the legacy anonymous probe path.
-    Declared-but-unusable auth returns an explicit reason so callers fail
-    closed instead of silently probing as an anonymous visitor.
-    """
-    agent_auth = instance.get("agent_auth")
-    if not isinstance(agent_auth, dict) or not str(agent_auth.get("type") or "").strip():
-        return {}, None
-    benchmark_root = (
-        Path(str(instance["benchmark_root"])) if instance.get("benchmark_root") else None
-    )
-    resolved = resolve_agent_auth(
-        agent_auth,
-        site_name=str(instance.get("site_name") or ""),
-        site_url=str(instance.get("site_url") or ""),
-        benchmark_root=benchmark_root,
-        storage_state_override=instance.get("storage_state_path"),
-    )
-    if resolved.unusable_reason is not None:
-        return {}, resolved.unusable_reason
-    return dict(resolved.browser_context_kwargs), None
+    return _auth_preflight._resolve_benign_browser_context_auth(instance)
 
 
 def _auth_probe_failure_kind(reason: str) -> str:
-    lowered = reason.lower()
-    if "missing" in lowered or "not found" in lowered or "no usable artifact" in lowered:
-        return "auth_missing"
-    return "auth_unusable"
+    return _auth_preflight._auth_probe_failure_kind(reason)
 
 
 async def _run_render_check(

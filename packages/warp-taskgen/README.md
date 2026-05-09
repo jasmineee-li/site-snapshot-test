@@ -33,8 +33,7 @@ That keeps WARP Taskgen's core environment compatible with `browser-use` while
 still allowing canonical `webarena_verified` evaluation. If
 `WARP_TASKGEN_WEBARENA_EVAL_PYTHON` is unset, WARP Taskgen first tries the
 repo-local adapter venv and then an in-process `webarena-verified` install
-before failing closed. The legacy `WORLDSIM_WEBARENA_EVAL_PYTHON` name remains
-accepted as a compatibility alias.
+before failing closed.
 
 ### AgentLab sidecar
 

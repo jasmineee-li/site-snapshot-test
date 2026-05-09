@@ -64,16 +64,16 @@ before Phase 2. That is a cohort-construction bug, not a useful ASR signal.
 
 ## Remote Discipline
 
-Use r5 wrappers only. Before syncing or launching, check for active registered
-jobs:
+Use the selected-host wrappers only. Before syncing or launching, check for
+active registered jobs:
 
 ```bash
 scripts/remote_job_status.sh --host-config configs/benchmark_hosts/r5.yaml --remote-dir /home/ubuntu/browser-sim --all
 ```
 
 Do not sync while a registered job is running unless intentionally overriding
-and documenting why. For fresh Phase 0/1/2 chains on r5, use both network
-localities:
+and documenting why. For fresh Phase 0/1/2 chains on r5/r8a, use both network
+localities from the selected host config:
 
 - Modal Phase 0c: `--instances instances.smoke.json`
 - Host inventory and on-host browser checks: `--host-inventory-instances instances.scale.json`

@@ -1,6 +1,6 @@
 """Trajectory artifact loader for Phase 3/4 diagnosis sandboxes.
 
-Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` "Trajectory Artifacts and
+Canonical source: ``docs/warp-taskgen-technical-spec.md`` "Trajectory Artifacts and
 Diagnosis Sandboxes".
 
 Per-task trajectory layout::

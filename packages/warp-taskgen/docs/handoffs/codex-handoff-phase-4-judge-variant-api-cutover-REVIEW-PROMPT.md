@@ -28,7 +28,7 @@ Read these files IN FULL before forming opinions. Do not skim.
 2. CLAUDE.md
    — Project invariants. Look for any the PR violates.
 
-3. docs/worldsim-v5-technical-specifcation.md (section "Adaptive Strategy
+3. docs/warp-taskgen-technical-spec.md (section "Adaptive Strategy
    Variation" and "Sandbox model" bullet at ~line 187)
    — The spec is the source of truth per CLAUDE.md line 11. If the PR diverges,
    the spec is right — unless the spec itself was updated in this PR, in which

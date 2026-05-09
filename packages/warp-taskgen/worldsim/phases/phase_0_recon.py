@@ -1,6 +1,6 @@
 """Phase 0: Benchmark reconnaissance.
 
-Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` "Phase 0: Benchmark
+Canonical source: ``docs/warp-taskgen-technical-spec.md`` "Phase 0: Benchmark
 Reconnaissance" section.
 
 Phase 0 has three sub-steps:

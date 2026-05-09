@@ -1,6 +1,6 @@
 """Phase 0d: Storage-state auth artifact bootstrap.
 
-Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` "Phase 0d"
+Canonical source: ``docs/warp-taskgen-technical-spec.md`` "Phase 0d"
 subsection. Runs once between Phase 0c and Phase 3 to materialize
 ``storage_state`` artifacts declared in each site's ``auth_mechanism``.
 

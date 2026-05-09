@@ -3,12 +3,12 @@
 > **ARCHIVED EXTERNAL RESEARCH MEMO.** This memo was generated for the
 > pre-WASP/pre-PVPO planning window. Use it only as external-reference
 > provenance; revalidate any integration idea against
-> `docs/worldsim-v5-technical-specifcation.md` and current code before turning
+> `docs/warp-taskgen-technical-spec.md` and current code before turning
 > it into work.
 
 **Generated**: 2026-04-14
 **Source**: ChatGPT Deep Research
-**Prompt context**: see `docs/TODO-adversarial-rigor-mvp.md` and `docs/TODO-2-paper-experiments.md`
+**Prompt context**: see `docs/archive/TODO-adversarial-rigor-mvp.md` and `docs/TODO-2-paper-experiments.md`
 **Purpose**: surface external code patterns, prompts, libraries, and gotchas that the team can port or reference for ICML CUA (4/24) and NeurIPS (5/5) submissions.
 
 ---
@@ -231,7 +231,7 @@ flattened (rows-per-policy) export:
   stwebagentbench/test.csv @ 688af42c10adff8fdabdb5a687cba3dfafa62bdf
 ```
 
-The `test.raw.json` file is the most “complete” representation (task-level `sites`, `intent`, and task `policies`). citeturn13view2turn14view1
+The `test.raw.json` file is the most “complete” representation (task-level `sites`, `intent`, and task `policies`). citeturn13view2turn14view1  
 The `test.csv` file is a convenient flattened export that’s explicitly updated to cover the full 375-task inventory. citeturn12view0turn14view0
 
 ### Practical implication for your “5-site overlap” goal
@@ -393,8 +393,8 @@ They define five “Probe Questions (PQs)” for evaluation-identification (Tabl
 
 Minimal “shape” you can port:
 
-- **Input**: a transcript (chat or agentic trajectory)
-- **Question**: a binary forced-choice about whether the transcript is an evaluation
+- **Input**: a transcript (chat or agentic trajectory)  
+- **Question**: a binary forced-choice about whether the transcript is an evaluation  
 - **Output format**: XML-ish tags with an explanation and a label (e.g., `<label>YES</label>`) citeturn22view0
 
 If you want to lift the *exact* PQ strings programmatically, the public reproduction codebase includes a dedicated prompt file:
@@ -494,7 +494,7 @@ For prereg quality control (especially inclusion/exclusion criteria and analytic
 
 ### Concrete AI-safety-adjacent examples that explicitly claim pre-registration
 
-- “IatroBench: Pre-Registered Evidence of Iatrogenic Harm …” is a recent AI-safety flavored benchmark paper that explicitly foregrounds preregistration in its positioning. citeturn32search2
+- “IatroBench: Pre-Registered Evidence of Iatrogenic Harm …” is a recent AI-safety flavored benchmark paper that explicitly foregrounds preregistration in its positioning. citeturn32search2  
 - “How Evaluation Conditions Shape Measured Safety” is another recent safety-measurement paper that explicitly lists **pre-registration** among its methodological elements. citeturn32search26
 
 One-line finding (as requested): **I did not find publicly linked OSF/OpenReview prereg PDF artifacts for these papers from the sources above (i.e., no direct prereg document URL exposed in the pages I could access).** citeturn32search2turn32search26

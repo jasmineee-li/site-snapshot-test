@@ -548,7 +548,7 @@ def validate_data_seed(seed: object, *, allow_none: bool = False) -> list[str]:
             f"data_seed.mechanism={mechanism!r} is deprecated; use mechanism='editor' "
             "with editor_calls referencing site editor methods. The api/form/state_push "
             "paths were removed in the editor migration; see "
-            "docs/handoffs/researcher-handoff-project-status.md."
+            "docs/handoffs/archive/current_progress_pre_wasp_20260417.md."
         )
         return errors
 
@@ -3581,7 +3581,7 @@ def validate_agent_context(data: object, *, site_name: str) -> list[str]:
             errors.append("authentication missing 'description' string")
 
     # auth_mechanism (optional, additive — machine-readable auth contract).
-    # Schema: see docs/worldsim-v5-technical-specifcation.md + plan §1.
+    # Schema: see docs/warp-taskgen-technical-spec.md + plan §1.
     if "auth_mechanism" in data:
         mech = data.get("auth_mechanism")
         errors.extend(_validate_auth_mechanism(mech))

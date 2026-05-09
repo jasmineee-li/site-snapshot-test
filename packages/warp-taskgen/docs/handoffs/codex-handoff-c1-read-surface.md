@@ -1,5 +1,9 @@
 # Codex handoff — C1 engagement signal: benchmark-agnostic read-surface detection
 
+> **SHIPPED HISTORICAL DESIGN.** C1a was removed after PVPO; use this only for
+> read-surface provenance, not current encounter policy. Current Gate 1 is PVPO
+> `encounter.max_coverage > 0`.
+
 **Branch to base off:** `feat/worldsim-v5`
 **Target branch:** `feat/c1-read-surface` (new)
 **Date:** 2026-04-18
@@ -707,7 +711,7 @@ Re-run Phase 4 on a 5-task smoke set on r5. Expected:
 
 Construct three synthetic benchmarks with fake URL shapes that don't match WebArena's conventions:
 - Platform Alpha: PDPs at `/item/{id}/detail`
-- Platform Beta: issues at `/tickets/{uuid}/view`
+- Platform Beta: issues at `/tickets/{uuid}/view`  
 - Platform Gamma: posts at `/threads/{hash}`
 
 Confirm C1a (canary token) fires for all three without any classifier code changes. This is the benchmark-agnostic claim under direct test.

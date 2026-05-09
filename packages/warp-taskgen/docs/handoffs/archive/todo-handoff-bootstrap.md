@@ -8,7 +8,7 @@ Launch up to 3 Explore subagents in parallel to read:
 
 **Subagent 1 — spec + principles:**
 - `CLAUDE.md` (non-negotiable principles, what NOT to do)
-- `docs/worldsim-v5-technical-specifcation.md` (the source of truth — every phase, prompt, schema, code pattern)
+- `docs/warp-taskgen-technical-spec.md` (the source of truth — every phase, prompt, schema, code pattern)
 
 **Subagent 2 — working primitives:**
 - `worldsim/modal_sandbox.py` (the one function every phase calls: `run_claude_in_sandbox`)
@@ -96,4 +96,4 @@ async def run_strategy_variation(task, initial_result, instances, agent_factory,
 - `vendors/webarena-verified/` is the benchmark codebase for Phase 0
 - `vendors/` is gitignored — it's a local clone, not tracked
 - Run everything via `uv run python -m worldsim.main phase {0|1|2|3|4} --benchmark vendors/webarena-verified`
-> **ARCHIVED 2026-05-02 - superseded bootstrap handoff.** This document describes the initial Phases 0-4 implementation plan from before the Phase 3 validity-gate cutover, Phase 2c admission, PVPO encounter detection, WASP-aligned GitLab/Reddit scope, and editor-only seeding model. Do not use it as implementation guidance. Use `docs/worldsim-v5-technical-specifcation.md`, `AGENTS.md`, and current handoffs instead.
+> **ARCHIVED 2026-05-02 - superseded bootstrap handoff.** This document describes the initial Phases 0-4 implementation plan from before the Phase 3 validity-gate cutover, Phase 2c admission, PVPO encounter detection, WASP-aligned GitLab/Reddit scope, and editor-only seeding model. Do not use it as implementation guidance. Use `docs/warp-taskgen-technical-spec.md`, `AGENTS.md`, and current handoffs instead.

@@ -1,6 +1,6 @@
 """Pipeline state persistence.
 
-Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` "State Persistence and Resume".
+Canonical source: ``docs/warp-taskgen-technical-spec.md`` "State Persistence and Resume".
 The filename is legacy; the spec now describes WARP Taskgen.
 
 The orchestrator writes a single JSON state file before each major operation.

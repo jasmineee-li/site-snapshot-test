@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 
+import worldsim.browser_use_agent as browser_use_agent
 from worldsim.browser_use_agent import _NetworkTraceRecorder
 from worldsim.har_converter import (
     NetworkTraceUnavailableError,
@@ -427,6 +428,24 @@ def test_write_trace_preserves_flat_entries_in_network_trace_json(tmp_path):
     assert persisted == flat_trace
     assert "request" not in persisted[0]
     assert "response" not in persisted[0]
+
+
+def test_write_trace_preserves_browser_use_agent_writer_patch(monkeypatch, tmp_path):
+    recorder = _make_recorder(tmp_path)
+    writes = []
+
+    def fake_write_json_atomic(path, payload):
+        writes.append((Path(path).name, payload))
+
+    monkeypatch.setattr(browser_use_agent, "write_json_atomic", fake_write_json_atomic)
+
+    recorder._write_trace([{"url": "http://shopping.test", "method": "GET"}])
+
+    assert [name for name, _payload in writes] == [
+        "network_trace.json",
+        "navigation_trace.json",
+        "network.har",
+    ]
 
 
 def test_write_trace_empty_trace_writes_empty_entries_no_placeholder(tmp_path):

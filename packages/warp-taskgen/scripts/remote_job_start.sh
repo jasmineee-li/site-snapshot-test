@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start a detached WorldSim command on a benchmark host with file-backed logs.
+# Start a detached WARP Taskgen command on a benchmark host with file-backed logs.
 
 set -euo pipefail
 
@@ -25,15 +25,15 @@ Options:
   --remote-dir <path>         remote checkout dir (default: <compose_dir_remote>/browser-sim)
   --ssh-key <path>            SSH private key (default: $SSH_KEY or ~/.ssh/webarena-key.pem)
   --expected-output <path>    expected output path relative to remote dir (repeatable)
-  --state-dir auto|<path>     set WORLDSIM_STATE_DIR; auto uses logs/remote_jobs/<job_id>/state
-  --no-state-dir              do not set WORLDSIM_STATE_DIR (default)
+  --state-dir auto|<path>     set WARP_TASKGEN_STATE_DIR and WORLDSIM_STATE_DIR; auto uses logs/remote_jobs/<job_id>/state
+  --no-state-dir              do not set a state-dir env (default)
   -h, --help                  show this help
 
 Command follows after --, for example:
   scripts/remote_job_start.sh --host-config configs/benchmark_hosts/r5.yaml \
     --name phase1-route-diversity --remote-dir /home/ubuntu/browser-sim \
     --expected-output logs/phase_1/benign_tasks.json -- \
-    uv run python -m worldsim.main phase 1 --generate-novel
+    uv run warp-taskgen phase 1 --generate-novel
 USAGE
 }
 
@@ -289,13 +289,18 @@ def is_smoke_instances(value):
 
 def command_runs_resume():
     joined = " ".join(argv)
-    return "worldsim.main" in joined and re.search(r"(^|\s)resume(\s|$)", joined) is not None
+    return (
+        re.search(r"(^|\s)(?:warp-taskgen|worldsim)\s+resume(?:\s|$)", joined) is not None
+        or re.search(r"(^|\s)python\s+-m\s+worldsim\.main\s+resume(?:\s|$)", joined) is not None
+        or re.search(r"(^|\s)worldsim\.main\s+resume(?:\s|$)", joined) is not None
+    )
 
-def command_sets_inline_worldsim_state_dir():
+def command_sets_inline_state_dir():
     joined = " ".join(argv)
-    return "WORLDSIM_STATE_DIR" in joined
+    return "WORLDSIM_STATE_DIR" in joined or "WARP_TASKGEN_STATE_DIR" in joined
 
 KNOWN_PHASES = {"0", "0c", "1", "2", "2c", "3", "4"}
+ENTRYPOINTS = {"warp-taskgen", "worldsim", "worldsim.main"}
 PHASE_BOOLEAN_OPTIONS = {
     "--skip-feasibility",
     "--generate-novel",
@@ -306,6 +311,22 @@ PHASE_BOOLEAN_OPTIONS = {
     "--skip-host-bound-storage-state-auth",
 }
 
+def is_python_module_entrypoint(tokens, index):
+    return (
+        tokens[index] == "python"
+        and index + 2 < len(tokens)
+        and tokens[index + 1] == "-m"
+        and tokens[index + 2] == "worldsim.main"
+    )
+
+def entrypoint_at(tokens, index):
+    token = tokens[index]
+    if token in ENTRYPOINTS:
+        return index + 1
+    if is_python_module_entrypoint(tokens, index):
+        return index + 3
+    return None
+
 def command_runs_phase(phase):
     tokens = argv
     if len(argv) >= 3 and argv[0] == "bash" and argv[1] == "-lc":
@@ -315,11 +336,12 @@ def command_runs_phase(phase):
             tokens = argv
     index = 0
     while index < len(tokens):
-        if tokens[index] != "worldsim.main" or index + 1 >= len(tokens) or tokens[index + 1] != "phase":
+        command_index = entrypoint_at(tokens, index)
+        if command_index is None or command_index >= len(tokens) or tokens[command_index] != "phase":
             index += 1
             continue
         skip_value = False
-        for token in tokens[index + 2 :]:
+        for token in tokens[command_index + 1 :]:
             if token in {"&&", "||", ";"}:
                 break
             if skip_value:
@@ -379,10 +401,10 @@ if (
             )
 
 if command_runs_phase4() and state_dir_mode != "set" and not expected_outputs:
-    if command_sets_inline_worldsim_state_dir():
+    if command_sets_inline_state_dir():
         raise SystemExit(
             "remote job phase4 observability guard blocked this command: "
-            "WORLDSIM_STATE_DIR is set inside the shell command, but metadata cannot "
+            "a state-dir env is set inside the shell command, but metadata cannot "
             "reliably discover that path. Pass --state-dir <path> or register "
             "--expected-output <run>/phase_4/results.json so remote_job_status.sh "
             "can report fresh progress/results."
@@ -460,6 +482,7 @@ env["WORLDSIM_ADVERTISE_HOST"] = {advertise_host!r}
 env["WORLDSIM_ORCHESTRATOR_HOST"] = {orchestrator_host!r}
 if state_dir:
     env["WORLDSIM_STATE_DIR"] = state_dir
+    env.setdefault("WARP_TASKGEN_STATE_DIR", state_dir)
 
 stdout = open(job_dir / "stdout.log", "ab", buffering=0)
 stderr = open(job_dir / "stderr.log", "ab", buffering=0)

@@ -1,5 +1,10 @@
 # Pure Action Tier 2 Generator Plan
 
+> **ACTIVE TIER 2 GENERATOR PLAN AS OF 2026-05-07.** Use only after
+> reconciling with `docs/current_progress.md` and the latest AgentLab/Browser
+> Use cohort records. The policy and measurement principles remain useful; run
+> IDs, counts, and execution queues may have moved.
+
 ## Research Goal
 
 WorldSim v5 should be a generator/compiler/evaluator for realistic

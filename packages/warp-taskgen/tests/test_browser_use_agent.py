@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from types import SimpleNamespace
 from typing import ClassVar
-from unittest.mock import AsyncMock, call
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -1330,75 +1330,6 @@ async def test_pvpo_callback_adopts_new_task_target(tmp_path, monkeypatch: pytes
     )
 
 
-def test_resolve_pvpo_cdp_url_rejects_remote_without_override(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.delenv("WORLDSIM_ALLOW_REMOTE_PVPO_CDP_URL", raising=False)
-    with pytest.raises(ValueError, match="loopback"):
-        browser_use_agent._resolve_pvpo_cdp_url("http://203.0.113.9:9222")
-
-
-def test_resolve_pvpo_cdp_url_allows_remote_with_override(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("WORLDSIM_ALLOW_REMOTE_PVPO_CDP_URL", "1")
-    assert (
-        browser_use_agent._resolve_pvpo_cdp_url("http://203.0.113.9:9222")
-        == "http://203.0.113.9:9222"
-    )
-
-
-@pytest.mark.asyncio
-async def test_cleanup_external_cdp_state_clears_storage_cookies_and_page(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    agent = browser_use_agent.BrowserUseAgent(llm=object())
-    agent._pvpo_cdp_url = "http://127.0.0.1:9222"
-    agent._owned_target_ids = {"target-1"}
-    agent._task_origins = {"https://closed.example"}
-    page_one = SimpleNamespace(_target_id="target-1")
-    page_two = SimpleNamespace(_target_id="target-2")
-    cdp_session = object()
-    clear_data_for_origin = AsyncMock()
-
-    class _StorageSender:
-        clearDataForOrigin = clear_data_for_origin
-
-    class _SendRoot:
-        Storage = _StorageSender()
-
-    class _CDPClient:
-        send = _SendRoot()
-
-    class FakeSession:
-        get_pages = AsyncMock(return_value=[page_one, page_two])
-        get_or_create_cdp_session = AsyncMock(side_effect=[cdp_session, cdp_session])
-        clear_cookies = AsyncMock()
-        close_page = AsyncMock()
-        cdp_client = _CDPClient()
-
-    runtime_eval = AsyncMock(return_value=True)
-    monkeypatch.setattr("worldsim.phase_4.pvpo_cdp.runtime_evaluate", runtime_eval)
-    page_one.get_url = AsyncMock(return_value="https://one.example/path")
-    page_two.get_url = AsyncMock(return_value="https://two.example/other")
-
-    session = FakeSession()
-    await agent._cleanup_external_cdp_state(session)
-
-    session.get_pages.assert_awaited_once()
-    assert session.get_or_create_cdp_session.await_args_list == [
-        call(target_id="target-1", focus=False),
-        call(target_id="target-2", focus=False),
-    ]
-    assert runtime_eval.await_count == 2
-    assert clear_data_for_origin.await_args_list == [
-        call(params={"origin": "https://closed.example", "storageTypes": "all"}),
-        call(params={"origin": "https://one.example", "storageTypes": "all"}),
-        call(params={"origin": "https://two.example", "storageTypes": "all"}),
-    ]
-    session.clear_cookies.assert_awaited_once()
-    assert session.close_page.await_args_list == [
-        call(page_one),
-        call(page_two),
-    ]
-
-
 @pytest.mark.asyncio
 async def test_network_trace_recorder_adopts_new_page_targets():
     adopted_targets = {"target-1"}
@@ -1530,98 +1461,6 @@ async def test_network_trace_stop_returns_evaluator_trace_with_auth_headers_reda
 
 
 @pytest.mark.asyncio
-async def test_reset_remote_browser_for_task_closes_old_pages_and_creates_fresh_target():
-    agent = browser_use_agent.BrowserUseAgent(llm=object())
-    agent._pvpo_cdp_url = "http://127.0.0.1:9222"
-    old_one = SimpleNamespace(_target_id="old-1")
-    old_two = SimpleNamespace(_target_id="old-2", goto=AsyncMock())
-    cdp_session = object()
-
-    class FakeSession:
-        get_pages = AsyncMock(return_value=[old_one, old_two])
-        get_current_page = AsyncMock(return_value=old_two)
-        get_or_create_cdp_session = AsyncMock(side_effect=[cdp_session, cdp_session, cdp_session])
-        clear_cookies = AsyncMock()
-        close_page = AsyncMock()
-        new_page = AsyncMock()
-        cdp_client = SimpleNamespace(
-            send=SimpleNamespace(Storage=SimpleNamespace(clearDataForOrigin=AsyncMock()))
-        )
-
-    session = FakeSession()
-    await agent._reset_remote_browser_for_task(session)
-
-    old_two.goto.assert_awaited_once_with("about:blank")
-    session.close_page.assert_awaited_once_with(old_one)
-    session.clear_cookies.assert_awaited_once()
-    session.new_page.assert_not_awaited()
-    session.get_or_create_cdp_session.assert_any_await(target_id="old-2", focus=True)
-    assert agent._owned_target_ids == {"old-2"}
-    assert agent._primary_target_id == "old-2"
-
-
-@pytest.mark.asyncio
-async def test_reset_remote_browser_for_task_closes_failed_retained_page_before_replacing():
-    agent = browser_use_agent.BrowserUseAgent(llm=object())
-    agent._pvpo_cdp_url = "http://127.0.0.1:9222"
-    broken_page = SimpleNamespace(
-        _target_id="old-1", goto=AsyncMock(side_effect=RuntimeError("boom"))
-    )
-    fresh = SimpleNamespace(_target_id="fresh-1")
-    cdp_session = object()
-
-    class FakeSession:
-        get_pages = AsyncMock(return_value=[broken_page])
-        get_or_create_cdp_session = AsyncMock(return_value=cdp_session)
-        clear_cookies = AsyncMock()
-        close_page = AsyncMock()
-        new_page = AsyncMock(return_value=fresh)
-        cdp_client = SimpleNamespace(
-            send=SimpleNamespace(Storage=SimpleNamespace(clearDataForOrigin=AsyncMock()))
-        )
-
-    session = FakeSession()
-    await agent._reset_remote_browser_for_task(session)
-
-    session.close_page.assert_awaited_once_with(broken_page)
-    session.new_page.assert_awaited_once_with("about:blank")
-    session.get_or_create_cdp_session.assert_any_await(target_id="fresh-1", focus=True)
-    assert agent._owned_target_ids == {"fresh-1"}
-    assert agent._primary_target_id == "fresh-1"
-
-
-@pytest.mark.asyncio
-async def test_reset_remote_browser_for_task_preserves_storage_state_auth():
-    agent = browser_use_agent.BrowserUseAgent(llm=object())
-    agent._pvpo_cdp_url = "http://127.0.0.1:9222"
-    agent._preserve_remote_auth_state = True
-    focused = SimpleNamespace(_target_id="focused-1", goto=AsyncMock())
-    extra = SimpleNamespace(_target_id="extra-1")
-    cdp_session = object()
-    clear_storage = AsyncMock()
-
-    class FakeSession:
-        get_pages = AsyncMock(return_value=[extra, focused])
-        get_current_page = AsyncMock(return_value=focused)
-        get_or_create_cdp_session = AsyncMock(return_value=cdp_session)
-        clear_cookies = AsyncMock()
-        close_page = AsyncMock()
-        new_page = AsyncMock()
-        cdp_client = SimpleNamespace(
-            send=SimpleNamespace(Storage=SimpleNamespace(clearDataForOrigin=clear_storage))
-        )
-
-    session = FakeSession()
-    await agent._reset_remote_browser_for_task(session)
-
-    focused.goto.assert_awaited_once_with("about:blank")
-    session.close_page.assert_awaited_once_with(extra)
-    session.clear_cookies.assert_not_awaited()
-    clear_storage.assert_not_awaited()
-    assert agent._browser_runtime["reset_preserved_auth_state"] is True
-
-
-@pytest.mark.asyncio
 async def test_restore_external_cdp_storage_state_sets_cookies_after_target_exists(tmp_path):
     state = tmp_path / "storage_state.json"
     state.write_text(
@@ -1667,58 +1506,6 @@ async def test_restore_external_cdp_storage_state_sets_cookies_after_target_exis
             }
         ]
     }
-
-
-@pytest.mark.asyncio
-async def test_cleanup_external_cdp_state_clears_storage_state_auth_after_task():
-    agent = browser_use_agent.BrowserUseAgent(llm=object())
-    agent._pvpo_cdp_url = "http://127.0.0.1:9222"
-    agent._preserve_remote_auth_state = True
-    agent._task_origins = {"http://example.test"}
-    page = SimpleNamespace(
-        _target_id="target-1", get_url=AsyncMock(return_value="http://example.test/path")
-    )
-    clear_storage = AsyncMock()
-
-    class FakeSession:
-        get_pages = AsyncMock(return_value=[page])
-        clear_cookies = AsyncMock()
-        close_page = AsyncMock()
-        cdp_client = SimpleNamespace(
-            send=SimpleNamespace(Storage=SimpleNamespace(clearDataForOrigin=clear_storage))
-        )
-
-    session = FakeSession()
-    await agent._cleanup_external_cdp_state(session)
-
-    clear_storage.assert_awaited_once_with(
-        params={"origin": "http://example.test", "storageTypes": "all"}
-    )
-    session.clear_cookies.assert_awaited_once()
-    session.close_page.assert_awaited_once_with(page)
-    assert agent._browser_runtime["cleanup_preserved_auth_state"] is False
-
-
-@pytest.mark.asyncio
-async def test_recycle_external_pvpo_browser_updates_runtime(monkeypatch: pytest.MonkeyPatch):
-    agent = browser_use_agent.BrowserUseAgent(llm=object())
-    agent._pvpo_cdp_url = "http://127.0.0.1:9222"
-    expected = {"recycle_status": "recycled", "recycle_up_observed": True}
-
-    async def recycle(session, cdp_url):
-        assert session == "session"
-        assert cdp_url == "http://127.0.0.1:9222"
-        return expected
-
-    monkeypatch.setattr(
-        "worldsim.phase_4.pvpo_browser_lifecycle.recycle_pvpo_browser_after_task",
-        recycle,
-    )
-
-    await agent._recycle_external_pvpo_browser("session")
-
-    assert agent._browser_runtime["pvpo_browser_recycle"] == expected
-    assert agent._browser_runtime["pvpo_browser_recycle_status"] == "recycled"
 
 
 @pytest.mark.asyncio
@@ -1769,11 +1556,6 @@ async def test_run_storage_state_remote_pvpo_reaches_session_start(monkeypatch, 
         "_resolve_auth",
         lambda *args, **kwargs: ({"storage_state": "/tmp/state.json"}, []),
     )
-    monkeypatch.setattr(
-        runner,
-        "_reset_remote_browser_for_task",
-        AsyncMock(),
-    )
     restore = AsyncMock()
     monkeypatch.setattr(browser_use_agent, "_restore_external_cdp_storage_state", restore)
     monkeypatch.setattr(
@@ -1786,17 +1568,6 @@ async def test_run_storage_state_remote_pvpo_reaches_session_start(monkeypatch, 
         "stop",
         AsyncMock(return_value=[]),
     )
-    monkeypatch.setattr(
-        runner,
-        "_cleanup_external_cdp_state",
-        AsyncMock(return_value=None),
-    )
-    monkeypatch.setattr(
-        runner,
-        "_recycle_external_pvpo_browser",
-        AsyncMock(return_value=None),
-    )
-
     result = await runner.run(
         task="task",
         server_url="http://example.test",
@@ -1806,7 +1577,6 @@ async def test_run_storage_state_remote_pvpo_reaches_session_start(monkeypatch, 
     )
 
     assert result.status == "success"
-    runner._reset_remote_browser_for_task.assert_not_awaited()
     restore.assert_not_awaited()
 
 
@@ -1858,11 +1628,6 @@ async def test_run_uses_page_surface_pvpo_without_external_frame_driver(
     monkeypatch.setattr(browser_use, "Agent", FakeAgent)
     monkeypatch.setattr(browser_use, "BrowserSession", FakeBrowserSession)
     monkeypatch.setattr(
-        browser_use_agent.BrowserUseAgent,
-        "_reset_remote_browser_for_task",
-        AsyncMock(),
-    )
-    monkeypatch.setattr(
         browser_use_agent._NetworkTraceRecorder,
         "start",
         AsyncMock(return_value=None),
@@ -1872,17 +1637,6 @@ async def test_run_uses_page_surface_pvpo_without_external_frame_driver(
         "stop",
         AsyncMock(return_value=[]),
     )
-    monkeypatch.setattr(
-        browser_use_agent.BrowserUseAgent,
-        "_cleanup_external_cdp_state",
-        AsyncMock(return_value=None),
-    )
-    monkeypatch.setattr(
-        browser_use_agent.BrowserUseAgent,
-        "_recycle_external_pvpo_browser",
-        AsyncMock(return_value=None),
-    )
-
     runner = browser_use_agent.BrowserUseAgent(llm=object(), use_vision=False)
     result = await runner.run(
         task="task",
@@ -1987,12 +1741,6 @@ async def test_run_writes_browser_runtime_after_cleanup(monkeypatch: pytest.Monk
         "_make_pvpo_step_callback",
         lambda *args, **kwargs: AsyncMock(),
     )
-    monkeypatch.setattr(
-        browser_use_agent.BrowserUseAgent,
-        "_recycle_external_pvpo_browser",
-        AsyncMock(return_value=None),
-    )
-
     agent = browser_use_agent.BrowserUseAgent(llm=object())
     result = await agent.run(
         task="Open the page",
@@ -2008,7 +1756,6 @@ async def test_run_writes_browser_runtime_after_cleanup(monkeypatch: pytest.Monk
     runtime = json.loads((tmp_path / "task" / "browser_runtime.json").read_text())
     assert runtime["pvpo_capture_backend"] == "page-surface-stable"
     assert "cleanup_closed_targets" not in runtime
-    assert "pvpo_browser_recycle_status" not in runtime
 
 
 @pytest.mark.asyncio
@@ -2054,12 +1801,6 @@ async def test_run_cleans_up_session_when_agent_start_fails(
 
     monkeypatch.setattr(browser_use, "BrowserSession", FakeBrowserSession)
     monkeypatch.setattr(browser_use, "Agent", FailingAgent)
-    monkeypatch.setattr(
-        browser_use_agent.BrowserUseAgent,
-        "_recycle_external_pvpo_browser",
-        AsyncMock(return_value=None),
-    )
-
     agent = browser_use_agent.BrowserUseAgent(llm=object())
     with pytest.raises(RuntimeError, match="agent boom"):
         await agent.run(
@@ -2072,31 +1813,6 @@ async def test_run_cleans_up_session_when_agent_start_fails(
 
     session = observed["session"]
     session.kill.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_teardown_skips_duplicate_kill_after_browser_use_disconnect(
-    monkeypatch: pytest.MonkeyPatch,
-):
-    agent = browser_use_agent.BrowserUseAgent(llm=object())
-    session = SimpleNamespace(
-        _cdp_client_root=None,
-        session_manager=None,
-        kill=AsyncMock(),
-    )
-    agent._session = session
-    agent._pvpo_cdp_url = "http://127.0.0.1:9222"
-    cleanup = AsyncMock()
-    recycle = AsyncMock()
-    monkeypatch.setattr(agent, "_cleanup_external_cdp_state", cleanup)
-    monkeypatch.setattr(agent, "_recycle_external_pvpo_browser", recycle)
-
-    await agent.teardown()
-
-    cleanup.assert_not_awaited()
-    recycle.assert_awaited_once_with(session)
-    session.kill.assert_not_awaited()
-    assert agent._session is None
 
 
 @pytest.mark.asyncio

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared helpers for remote WorldSim job scripts.
+# Shared helpers for remote WARP Taskgen job scripts.
 
 set -euo pipefail
 
@@ -143,8 +143,7 @@ topology_sensitive = (
 )
 
 command_text = " ".join(" ".join(argv).split())
-if "worldsim.main" not in command_text:
-    raise SystemExit(0)
+_ENTRYPOINTS = {"warp-taskgen", "worldsim", "worldsim.main"}
 
 _KNOWN_PHASES = {"0", "0c", "1", "2", "2c", "3", "4"}
 _PHASE_BOOLEAN_OPTIONS = {
@@ -167,17 +166,42 @@ def _command_tokens() -> list[str]:
     return argv
 
 
+def _is_python_module_entrypoint(tokens: list[str], index: int) -> bool:
+    return (
+        tokens[index] == "python"
+        and index + 2 < len(tokens)
+        and tokens[index + 1] == "-m"
+        and tokens[index + 2] == "worldsim.main"
+    )
+
+
+def _entrypoint_at(tokens: list[str], index: int) -> tuple[str, int] | None:
+    token = tokens[index]
+    if token in _ENTRYPOINTS:
+        return token, index + 1
+    if _is_python_module_entrypoint(tokens, index):
+        return "worldsim.main", index + 3
+    return None
+
+
+def _contains_taskgen_entrypoint(tokens: list[str]) -> bool:
+    return any(_entrypoint_at(tokens, index) is not None for index in range(len(tokens)))
+
+
 def _phase_segments() -> list[list[str]]:
     tokens = _command_tokens()
     segments: list[list[str]] = []
+    if not _contains_taskgen_entrypoint(tokens):
+        raise SystemExit(0)
     index = 0
     while index < len(tokens):
-        if tokens[index] != "worldsim.main" or index + 1 >= len(tokens) or tokens[index + 1] != "phase":
+        entrypoint = _entrypoint_at(tokens, index)
+        if entrypoint is None or entrypoint[1] >= len(tokens) or tokens[entrypoint[1]] != "phase":
             index += 1
             continue
-        end = index + 2
+        end = entrypoint[1] + 1
         while end < len(tokens):
-            if end > index + 2 and tokens[end] == "worldsim.main":
+            if end > entrypoint[1] + 1 and _entrypoint_at(tokens, end) is not None:
                 break
             if tokens[end] in {"&&", "||", ";"}:
                 break
@@ -188,8 +212,11 @@ def _phase_segments() -> list[list[str]]:
 
 
 def _segment_phase(segment: list[str]) -> str | None:
+    entrypoint = _entrypoint_at(segment, 0)
+    if entrypoint is None:
+        return None
     skip_value = False
-    for token in segment[2:]:
+    for token in segment[entrypoint[1] + 1 :]:
         if skip_value:
             skip_value = False
             continue
@@ -259,7 +286,11 @@ phase2_live = _runs_phase("2") and "--skip-feasibility" not in command_text
 phase2c_live = _runs_phase("2c")
 phase4_live = _runs_phase("4")
 phase1_command = _phase_command("1")
-resume_live = bool(re.search(r"\bworldsim\.main\s+resume(?:\s|$)", command_text))
+resume_live = bool(
+    re.search(r"\b(?:warp-taskgen|worldsim)\s+resume(?:\s|$)", command_text)
+    or re.search(r"\bpython\s+-m\s+worldsim\.main\s+resume(?:\s|$)", command_text)
+    or re.search(r"\bworldsim\.main\s+resume(?:\s|$)", command_text)
+)
 resume_phase2c = (
     resume_live
     and "--feasibility-only" in command_text
@@ -326,7 +357,7 @@ if topology_sensitive and phase4_live:
 phase4_command = _phase_command("4") or command_text
 if phase4_live and _has_option(phase4_command, "--workers"):
     issues.append(
-        "Top-level worldsim.main phase 4 does not use --workers. "
+        "Top-level Phase 4 does not use --workers. "
         "Use --phase-4-max-workers for browser-agent concurrency. "
         "--workers is reserved for scripts/run_phase4_process_pool.py."
     )

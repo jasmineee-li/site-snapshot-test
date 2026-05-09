@@ -642,7 +642,7 @@ def _inject_token(instance: Any, field: str, token: str) -> None:
 # These helpers were previously private to worldsim.seeding (where the
 # legacy api/form seed dispatch lived). After the editor migration the
 # editors are the sole callers, so they live here adjacent to bearer-token
-# resolution. See docs/handoffs/researcher-handoff-project-status.md for
+# resolution. See docs/handoffs/archive/current_progress_pre_wasp_20260417.md for
 # the editor-only seed mechanism rationale.
 
 _BLOCKED_CALL_HEADER_NAMES = frozenset(

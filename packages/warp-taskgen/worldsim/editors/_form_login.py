@@ -3,7 +3,7 @@
 These helpers used to live as private symbols in :mod:`worldsim.seeding`
 because the legacy api/form seed dispatch was their other caller. After
 the api/form sunset (see
-``docs/handoffs/researcher-handoff-project-status.md``) the editors are
+``docs/handoffs/archive/current_progress_pre_wasp_20260417.md``) the editors are
 the sole callers, so the helpers moved here.
 
 Layering: this module depends on :mod:`worldsim.auth_tokens` for the

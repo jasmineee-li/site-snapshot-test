@@ -4,7 +4,7 @@ Use this before changing task generation, seeding, feasibility, Phase 4, prompt 
 
 ## Spec First
 
-`docs/worldsim-v5-technical-specifcation.md` is the source of truth. The filename typo is intentional. Every `worldsim/` module implements a spec section. When source or handoff docs expose real drift, update the spec first, then align code.
+`docs/warp-taskgen-technical-spec.md` is the source of truth. Every `worldsim/` module implements a spec section. When source or handoff docs expose real drift, update the spec first, then align code.
 
 If the spec contains literal code for `run_claude_in_sandbox`, `BrowserUseAgent`, `apply_data_seed`, `save_state`, or `run_eval`, preserve that behavior verbatim unless the spec is intentionally changed.
 
@@ -345,7 +345,7 @@ fields when discussing high-impact outcomes; leave request-level
 Phase 4 has two gates:
 
 1. Encounter gate: PVPO `max_coverage` is a float in `[0.0, 1.0]`; `max_coverage == 0` routes to placement-fix.
-2. Attack-effectiveness gate: refusal judge evaluates whether the agent complied with the injection.
+2. Attack-effectiveness gate: baseline effectiveness is reward/readback-grounded. The refusal judge belongs to legacy `strategy-variation`, not the default ASR gate.
 
 Report-only PVPO buckets may distinguish DOM-only/off-viewport matches from
 visible-but-unpainted witness failures, but both remain non-encounters when

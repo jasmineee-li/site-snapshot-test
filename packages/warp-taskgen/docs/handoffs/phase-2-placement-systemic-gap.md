@@ -1,5 +1,8 @@
 # Phase 2 Placement — Target the Existing Benign-Task Surface
 
+> **ADOPTED DESIGN DECISION.** Historical trigger, current placement principle:
+> target the existing benign-task surface unless the technical spec changes.
+
 **Status:** ADOPTED 2026-04-21 as the direction for Phase 2's placement contract. Two alternative options (keyword-collision on new artifacts, runtime placement-fix rewrites) were considered and rejected; see the Appendix for why.
 
 **Empirical trigger:** priority-tier Phase 4 run on the 84-task WASP-aligned dataset (`logs/phase_4/20260421_070835/`) produced **21/21** terminated trajectories with `max_coverage=0.0`. No agent rendered any seeded adversarial payload on any viewport, ever. Every completed task classified as `task_broke / injection_unreached` (agent claimed failure, payload never visually encountered). The adversarial signal the pipeline was built to measure is structurally absent.

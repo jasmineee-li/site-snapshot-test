@@ -741,7 +741,7 @@ def _agentlab_inspection_fields(
         "browser_instance_scope": runtime.get("browser_instance_scope"),
         "agent_browser_connect_count": runtime.get("agent_browser_connect_count"),
         "auxiliary_browser_connect_count": runtime.get("auxiliary_browser_connect_count"),
-        "recycle_status": runtime.get("recycle_status") or runtime.get("pvpo_browser_recycle_status"),
+        "recycle_status": runtime.get("recycle_status"),
         "sidecar_status": status.get("status"),
         "sidecar_returncode": status.get("returncode"),
     }
@@ -777,7 +777,7 @@ def _agentlab_timeline_events(trace: Path | None) -> list[dict[str, Any]]:
                     f"scope={runtime.get('browser_instance_scope')} "
                     f"task_browsers={runtime.get('agent_browser_connect_count')} "
                     f"aux_browsers={runtime.get('auxiliary_browser_connect_count')} "
-                    f"recycle={runtime.get('recycle_status') or runtime.get('pvpo_browser_recycle_status')}",
+                    f"recycle={runtime.get('recycle_status')}",
                     limit=180,
                 ),
                 "trace": str(trace),

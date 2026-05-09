@@ -4,10 +4,10 @@
 > runtime, or instruction to generate/serve web apps from this repo. Current
 > WorldSim mainline remains WebArena Verified GitLab/Reddit WASP carriers.
 
-**Source:** https://webarena.dev/webarena-infinity/
+**Source:** https://webarena.dev/webarena-infinity/  
 **GitHub:** https://github.com/web-arena-x/webarena-infinity
-**Title:** *WebArena-Infinity: Generating Browser Environments with Verifiable Tasks at Scale*
-**Author:** Shuyan Zhou
+**Title:** *WebArena-Infinity: Generating Browser Environments with Verifiable Tasks at Scale*  
+**Author:** Shuyan Zhou  
 **Date:** March 2026
 
 ---

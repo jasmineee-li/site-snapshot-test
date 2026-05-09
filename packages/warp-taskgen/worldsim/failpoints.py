@@ -33,3 +33,4 @@ def crash_if_enabled(name: str) -> None:
         return
     logger.warning("Crash failpoint triggered: %s", name)
     os._exit(FAILPOINT_EXIT_CODE)
+

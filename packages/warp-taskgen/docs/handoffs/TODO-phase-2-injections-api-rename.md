@@ -1,5 +1,8 @@
 # TODO: rename `worldsim.phases.phase_2_injections_api` to `worldsim.phase_2.runner_api`
 
+> **ACTIVE DEFERRED RENAME TODO.** Structural rename only; no Phase 2 behavior,
+> admission, or Phase 4 changes belong in this task.
+
 ## Status
 
 **Deferred from PR #11 and PR #13.** Both PRs explicitly punted this rename to a later migration cycle so the cutover blast radius stayed scoped to the six pure-shim wrappers.

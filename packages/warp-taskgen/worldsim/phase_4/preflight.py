@@ -72,7 +72,7 @@ def _pvpo_endpoint_preflight_errors(
     Current page-surface-stable Phase 4 captures from the runner-owned browser
     and does not require dedicated ``pvpo_cdp_url`` instances. Historical
     instance files may still carry those URLs; keep validating their shape so
-    explicit legacy/debug use fails closed without making them mandatory.
+    stale metadata cannot silently point at a remote browser endpoint.
     """
     relevant_instances = [
         instance

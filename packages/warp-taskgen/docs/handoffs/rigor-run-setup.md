@@ -260,8 +260,6 @@ double-check the slug against the provider's current catalog.
 - `WARP_TASKGEN_WEBARENA_EVAL_PYTHON` — override evaluator venv Python
   (default is repo-relative
   `packages/warp-taskgen-webarena-verified/.venv/bin/python`).
-- `WORLDSIM_WEBARENA_EVAL_PYTHON` — legacy alias for the same evaluator
-  override.
 - `WORLDSIM_AUTO_MINT_STORAGE_STATE` — opt non-WebArena-Verified benchmarks in to runtime auto-heal. `true` is implicit for WebArena Verified.
 - `GITLAB_HOST` / `GITLAB_STORAGE_STATE_PATH` — override defaults for `scripts/login_gitlab_r5.py`.
 - `WORLDSIM_REPO_ROOT` — override sentinel-walk repo discovery.

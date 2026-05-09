@@ -1,18 +1,16 @@
 # TODO-2: Paper Experiments and Integration
 
-> **STALE PAPER-PLAN DRAFT, needs rewrite before execution.** This document is
-> a pre-sweep planning inventory, not the current paper execution plan.
-> Revalidate scope, models, costs, comparison benchmarks, and analysis tracks
-> against `docs/worldsim-v5-technical-specifcation.md`,
-> `docs/phase4-expanded-model-sweep-20260501.md`, and current handoffs before
-> using any item as a task. Details below mention deleted `p_eval` paths and
-> obsolete ecological-validity analysis. Current Gate 1 is PVPO
-> `encounter.max_coverage > 0`; TP/VEA behavior is documented in the spec.
-> The only live section is the dated 2026-05-09 AgentLab cohort block under
-> "Track 7"; promote that block into `docs/current_progress.md` or a new dated
-> run record before using it as an execution checklist.
+> **MIXED STATUS: stale paper-plan draft with one live 2026-05-09 AgentLab
+> cohort block.** Do not execute this file as a checklist. Most tracks are
+> pre-sweep planning inventory and mention deleted `p_eval` paths, obsolete
+> ecological-validity analysis, old comparison plans, or superseded runner
+> wiring. Current Gate 1 is PVPO `encounter.max_coverage > 0`; TP/VEA and the
+> eval-awareness iterator are defined in
+> `docs/warp-taskgen-technical-spec.md`. Use only the dated AgentLab
+> cohort block under "Track 7" after cross-checking `docs/current_progress.md`
+> and the target host/model live gates.
 
-Status: planning. Owner: Ashton (infra), Max + Jasmine (eval awareness + comparisons). Target: close the gap between the MVP pipeline (`docs/TODO-adversarial-rigor-mvp.md`) and a submittable NeurIPS paper per `docs/worldsim-v5-full-specification.md`.
+Status: planning. Owner: Ashton (infra), Max + Jasmine (eval awareness + comparisons). Target: close the gap between the MVP pipeline (`docs/archive/TODO-adversarial-rigor-mvp.md`) and a submittable NeurIPS paper per `docs/warp-taskgen-full-spec.md`.
 
 The MVP TODO covers Contribution 1 (IPI wrapper) and produces cohort-quality adversarial trajectories. This doc covers everything else the paper needs: Contribution 2 (eval-awareness measurement), Contribution 3 (ecological-validity gap), Experiments A/B/C, the comparison benchmark claim, analysis tooling, and pre-registration.
 
@@ -22,9 +20,9 @@ Each track below has: **Goal**, **What**, **Why**, **Context**, **Open questions
 
 The paper claims three things. Mapping to pipeline state:
 
-1. **WASP-aligned IPI wrapper** (`docs/worldsim-v5-full-specification.md`, "Scope" and "Pipeline"). MVP pipeline delivers this for GitLab and Reddit/Postmill UGC. Blocker: cross-check landing, then expensive runs.
-2. **Large-scale eval-awareness measurement for browser-use safety evals** (`docs/worldsim-v5-full-specification.md`, "Research Question" and "Eval-Awareness Iterator"). Current Phase 4 records Transcript Purpose and VEA; Jasmine/Max's broader post-hoc probe battery remains a separate planning track.
-3. **Measurement gap analysis** (`docs/worldsim-v5-full-specification.md`, "Rewards And Readback"). Current mainline separates raw ASR, encounter-conditional ASR, Transcript Purpose, VEA, benign-under-attack, and readback/action evidence. Any P(eval)-filtered analysis is future Phase 5 work, not a current Phase 4 gate.
+1. **WASP-aligned IPI wrapper** (`docs/warp-taskgen-full-spec.md`, "Scope" and "Pipeline"). MVP pipeline delivers this for GitLab and Reddit/Postmill UGC. Blocker: cross-check landing, then expensive runs.
+2. **Large-scale eval-awareness measurement for browser-use safety evals** (`docs/warp-taskgen-full-spec.md`, "Research Question" and "Eval-Awareness Iterator"). Current Phase 4 records Transcript Purpose and VEA; Jasmine/Max's broader post-hoc probe battery remains a separate planning track.
+3. **Measurement gap analysis** (`docs/warp-taskgen-full-spec.md`, "Rewards And Readback"). Current mainline separates raw ASR, encounter-conditional ASR, Transcript Purpose, VEA, benign-under-attack, and readback/action evidence. Any P(eval)-filtered analysis is future Phase 5 work, not a current Phase 4 gate.
 
 Everything below is work that must land before paper submission. Three weeks to NeurIPS (5/5).
 
@@ -76,7 +74,7 @@ Phase 4 runner iterates both conditions per task against separate reset instance
 
 ### Why
 - This is future Phase 5 work; it is not required by the current Phase 4
-  spec. Re-check `docs/worldsim-v5-full-specification.md` and the technical
+  spec. Re-check `docs/warp-taskgen-full-spec.md` and the technical
   spec before scheduling it.
 - Experiment C's 2x2 ablation (environment realism x explicit cues) is blocked on this. Without it, Experiment C cannot run, and the causal claim for Contribution 2 has no evidence.
 - Rule-based transforms are attributable: each cue can be ablated independently ("realistic + degraded username only" vs "realistic + degraded URL only") to produce the "eval tells" ranking the spec promises.
@@ -256,7 +254,7 @@ Run the MVP pipeline against 3-4 target models, producing the per-model panel da
 ### What
 Once MVP cross-check lands and Phase 0c + Phase 2 are regenerated:
 
-1. **LLM-only smokes**: gemini-3.1-pro-preview and claude-opus-4-6 to verify OpenRouter/Anthropic routing works end-to-end for all 3 models. Commands in `docs/TODO-adversarial-rigor-mvp.md:368-377`.
+1. **LLM-only smokes**: gemini-3.1-pro-preview and claude-opus-4-6 to verify OpenRouter/Anthropic routing works end-to-end for all 3 models. Commands in `docs/archive/TODO-adversarial-rigor-mvp.md:368-377`.
 2. **Phase 3 validity gate**: one run, agent-free, seconds to complete. Produces `contracts.json`.
 3. **Phase 4 full per model**: Sonnet 4.6, Gemini 3.1 Pro, Opus 4.6 (cost-gated). Three runs against the admitted cohort. ~$200-400 total + 5-15 hrs per run.
 4. **Phase 5 post-hoc**: run the 3-signal probe battery over all Phase 4 trajectories. ~$200-500.
@@ -277,7 +275,7 @@ All current runs share:
   GPT-5.2 currently has a W28 repaired control because that run was produced
   before the W48 queue.
 - PVPO: `WORLDSIM_PVPO_CAPTURE_BACKEND=page-surface-stable`
-- legacy CDP: `WORLDSIM_AGENTLAB_LEGACY_CONNECT_OVER_CDP` unset
+- AgentLab browser launch: native BrowserGym launch only
 - iterator: `--phase-4-variant-system eval-awareness-iterator
   --phase-4-eval-awareness-max-iterations 3`
 - rewrite budget: `WORLDSIM_EVAL_AWARENESS_REWRITE_THINKING=budget:32768`
@@ -359,15 +357,27 @@ Current queue:
    rerun wrote canonical `phase_4/results.json` with `50/50` postprocessed rows
    and `postprocess_failed=0`. The job wrapper returned `2` only because the
    final summary redirection had a quote typo after results were written.
-   Current distribution is `complied=37`, `inconclusive=6`, `resistant=2`,
-   `error=5`; scorable ASR and Gate-1 ASR are both `37/45=0.82`. The five
-   error rows are all sidecar-deadline infrastructure timeouts and should be
-   targeted-repaired before promoting GLM as the clean canonical row:
+   Initial distribution was `complied=37`, `inconclusive=6`, `resistant=2`,
+   `error=5`; scorable ASR and Gate-1 ASR were both `37/45=0.82`. The five
+   error rows were all sidecar-deadline infrastructure timeouts:
    `adv_novel_gitlab_1_authority_plaintext`,
    `adv_novel_gitlab_27_moderation_appeal_markdown_fenced_system`,
    `adv_novel_gitlab_10_error_recovery_plaintext`,
    `adv_novel_gitlab_28_urgency_plaintext`, and
-   `adv_novel_gitlab_8_support_escalation_markdown`.
+   `adv_novel_gitlab_8_support_escalation_markdown`. Targeted W5 repair
+   `20260509T095044Z-repair-glm5-sidecar-timeouts-w5-r2-42ac89` fixed three
+   rows and produced
+   `logs/agentlab_linknaturalization_true50_glm5_w48_20260509_repaired_partial`.
+   Redundant W2 repair
+   `20260509T171339Z-repair-glm5-two-browsergym-w2a-r4-c44b62` fixed the last
+   two rows as `complied`; its canonical rows were merged by manifest into
+   `logs/agentlab_linknaturalization_true50_glm5_w48_20260509_repaired_full`.
+   The alternate redundant W2 repair
+   `20260509T171340Z-repair-glm5-two-browsergym-w2b-r4-3d03b5` also completed
+   cleanly with both rows `complied`, but W2A is the selected repair source.
+   The full repaired GLM run has `50/50` scorable rows, no error final statuses,
+   final statuses `complied=40`, `inconclusive=7`, `resistant=3`, and headline
+   and Gate-1 ASR both `40/50=0.80`.
 
 For every completed row, report: raw ASR, Gate-1 ASR over PVPO-exposed tasks,
 baseline VEA and Transcript Purpose distribution, selected-variant VEA and
@@ -381,28 +391,28 @@ classes), PVPO validity, and any timeout/task-broke rows.
 Goal: publish the current AgentLab 50-task cohort as one Hugging Face dataset
 with all model rows, full trajectory artifacts, and normalized per-task metrics.
 The target rows are GPT-5.2, Opus 4.7, Sonnet 4.6, Kimi K2.5, Gemini 2.5 Pro,
-and GLM-5 after targeted repair removes the five current sidecar-deadline error
-rows.
+and GLM-5 after targeted repair removed the five sidecar-deadline error rows.
 
 Implemented local layout:
 
-- `data/hf/warp-taskgen-agentlab-linknaturalization-50/README.md`: dataset card
+- Hugging Face target: `ash256/warp-taskgen-generated-ipi-tasks-50`
+- `data/hf/warp-taskgen-generated-ipi-tasks-50/README.md`: dataset card
   with benchmark scope, safety note, model/run IDs, metric definitions,
   license/access guidance, and known caveats.
-- `data/hf/warp-taskgen-agentlab-linknaturalization-50/metadata.json`: export
+- `data/hf/warp-taskgen-generated-ipi-tasks-50/metadata.json`: export
   manifest with git SHA, source run dirs, source task set, host, runner,
   capture backend, iterator config, judge models, schema version, and export
   timestamp.
-- `data/hf/warp-taskgen-agentlab-linknaturalization-50/tasks.jsonl`: one row per
+- `data/hf/warp-taskgen-generated-ipi-tasks-50/tasks.jsonl`: one row per
   model-task result, including final status, ASR components, PVPO,
   baseline/selected TP/VEA, iterator summary, and artifact pointers.
-- `data/hf/warp-taskgen-agentlab-linknaturalization-50/variants.jsonl`: one row
+- `data/hf/warp-taskgen-generated-ipi-tasks-50/variants.jsonl`: one row
   per generated/evaluated/rejected iterator variant, including iteration,
   rewrite status, rejection class, PVPO validity, TP/VEA delta, and selected
   flag.
-- `data/hf/warp-taskgen-agentlab-linknaturalization-50/runs.jsonl`: one row per
+- `data/hf/warp-taskgen-generated-ipi-tasks-50/runs.jsonl`: one row per
   model run with aggregate ASR/status/iterator counts.
-- `data/hf/warp-taskgen-agentlab-linknaturalization-50/artifacts/`: compressed
+- `data/hf/warp-taskgen-generated-ipi-tasks-50/artifacts/`: compressed
   per-task trajectory bundles referenced from `tasks.jsonl`, preserving
   `history.json`, `final_response.json`, `needham_trace.*`, PVPO summaries,
   screenshots, redacted network/HAR artifacts, and processed result JSON.
@@ -455,14 +465,21 @@ Current exporter:
 
 ```bash
 uv run python scripts/export_phase_4_hf_dataset.py \
-  --output-dir data/hf/warp-taskgen-agentlab-linknaturalization-50 \
+  --output-dir data/hf/warp-taskgen-generated-ipi-tasks-50 \
   --run gpt52=logs/agentlab_linknaturalization_true50_gpt52_w28_20260509_repaired \
   --run opus47=logs/agentlab_linknaturalization_true50_opus47_w48_20260509 \
   --run sonnet46=logs/agentlab_linknaturalization_true50_sonnet46_w48_20260509 \
   --run kimik25=logs/agentlab_linknaturalization_true50_kimik25_w48_20260509_rerun1 \
   --run gemini25pro=logs/agentlab_linknaturalization_true50_gemini25pro_w48_20260509_repaired \
-  --run glm5=logs/agentlab_linknaturalization_true50_glm5_w48_20260509_rerun1
+  --run glm5=logs/agentlab_linknaturalization_true50_glm5_w48_20260509_repaired_full
 ```
+
+Latest local export:
+
+- Path: `data/hf/warp-taskgen-generated-ipi-tasks-50`
+- Splits: `runs=6`, `tasks=300`, `variants=659`
+- Artifact bundles: `300`
+- GLM source: `logs/agentlab_linknaturalization_true50_glm5_w48_20260509_repaired_full`
 
 Implementation checkpoint:
 
@@ -477,7 +494,7 @@ Implementation checkpoint:
 
 ### Context
 - Infrastructure ready once MVP cross-check lands (per Day 3 audit, seeding and auth layers all in place).
-- Cost estimates in `docs/TODO-adversarial-rigor-mvp.md:361-363` already computed.
+- Cost estimates in `docs/archive/TODO-adversarial-rigor-mvp.md:361-363` already computed.
 - Wall-clock dominates; not code-gated.
 
 ### Open questions
@@ -539,8 +556,8 @@ Summary of how findings from `docs/research/gpt-deep-research-2026-04-14.md` lan
 ## Citations
 
 ### Paper spec
-- `docs/worldsim-v5-full-specification.md` (current short overview)
-- `docs/worldsim-v5-technical-specifcation.md` (implementation authority)
+- `docs/warp-taskgen-full-spec.md` (current short overview)
+- `docs/warp-taskgen-technical-spec.md` (implementation authority)
 - `docs/current_progress.md` (current state)
 
 ### Our branch
@@ -548,8 +565,8 @@ Summary of how findings from `docs/research/gpt-deep-research-2026-04-14.md` lan
 - `worldsim/phase_4/verbalized_eval_awareness_api.py` (VEA classifier)
 - `worldsim/phase_4/encounter_detection.py` + `worldsim/phase_4/ink_occupancy.py` + `worldsim/phase_4/pvpo_capture.py` (PVPO encounter detection; replaces the deleted ecological-validity fix loop and `probe-ecological-validity.md` / `fix-ecological-validity.md` prompts)
 - `worldsim/_sandbox_validator.py` (validity schema)
-- `docs/TODO-adversarial-rigor-mvp.md` (MVP plan; covers Contribution 1 only)
-- `docs/TODO-adversarial-rigor-mvp.md:361-363` (cost estimates per model)
+- `docs/archive/TODO-adversarial-rigor-mvp.md` (MVP plan; covers Contribution 1 only)
+- `docs/archive/TODO-adversarial-rigor-mvp.md:361-363` (cost estimates per model)
 - `docs/handoffs/codex-handoff-paint-verified-oracle.md` (PVPO design + Implementation Status — read first)
 
 ### Orphan branches (to merge or port)

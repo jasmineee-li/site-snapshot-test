@@ -12,7 +12,6 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from worldsim_agentlab_runner.cdp_browser import patched_chromium_launch
 from worldsim_agentlab_runner.model_args import model_args_from_request
 from worldsim_agentlab_runner.network_trace import NetworkTraceRecorder
 from worldsim_agentlab_runner.sync_pvpo import FatalPvpoCaptureError, SyncPvpoRecorder
@@ -63,7 +62,7 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
         "runner": "agentlab",
         "mode": "phase4",
         "pvpo_capture_backend": str(request.get("pvpo_capture_backend") or "page-surface-stable"),
-        "cdp_url": request.get("pvpo_cdp_url"),
+        "cdp_url": None,
         "browsergym_reset_seed": _task_seed(request),
         "storage_state_aliases": request.get("storage_state_aliases") or {},
         "browser_instance_scope": "agent_run",
@@ -95,7 +94,7 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
         payload_text=str(request.get("payload_text") or ""),
         witness_texts=_witnesses(request.get("payload_witnesses")),
         repo_root=_optional_path(request.get("worldsim_repo_root")),
-        cdp_url=str(request.get("pvpo_cdp_url") or ""),
+        cdp_url="",
     )
     _write_browser_runtime(output_dir, runtime)
     _append_agentlab_event(
@@ -109,41 +108,39 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
     try:
         save_package_versions(output_dir)
         with _patched_env(_string_env(request.get("env_overrides"))):
-            cdp_url = str(request.get("pvpo_cdp_url") or "")
-            with patched_chromium_launch(cdp_url, runtime):
-                with _step_deadline(request, "setup and reset"):
-                    _update_runtime_progress(
-                        output_dir,
-                        runtime,
-                        phase="setup",
-                        step=0,
-                        network=network,
-                    )
-                    benchmark_config = _apply_benchmark_config(agent_args, request)
-                    agent_args.prepare()
-                    agent = agent_args.make_agent()
-                    if hasattr(agent, "set_task_name"):
-                        agent.set_task_name("worldsim.phase4")
-                    env = make_worldsim_browsergym_env(
-                        request,
-                        action_mapping=agent.action_set.to_python_code,
-                        exp_dir=output_dir,
-                        network_recorder=network,
-                        runtime=runtime,
-                    )
-                    step_info = StepInfo(step=0)
-                    step_info.from_reset(
-                        env,
-                        seed=_task_seed(request),
-                        obs_preprocessor=agent.obs_preprocessor,
-                    )
-                    _update_runtime_progress(
-                        output_dir,
-                        runtime,
-                        phase="reset_observed",
-                        step_info=step_info,
-                        network=network,
-                    )
+            with _step_deadline(request, "setup and reset"):
+                _update_runtime_progress(
+                    output_dir,
+                    runtime,
+                    phase="setup",
+                    step=0,
+                    network=network,
+                )
+                benchmark_config = _apply_benchmark_config(agent_args, request)
+                agent_args.prepare()
+                agent = agent_args.make_agent()
+                if hasattr(agent, "set_task_name"):
+                    agent.set_task_name("worldsim.phase4")
+                env = make_worldsim_browsergym_env(
+                    request,
+                    action_mapping=agent.action_set.to_python_code,
+                    exp_dir=output_dir,
+                    network_recorder=network,
+                    runtime=runtime,
+                )
+                step_info = StepInfo(step=0)
+                step_info.from_reset(
+                    env,
+                    seed=_task_seed(request),
+                    obs_preprocessor=agent.obs_preprocessor,
+                )
+                _update_runtime_progress(
+                    output_dir,
+                    runtime,
+                    phase="reset_observed",
+                    step_info=step_info,
+                    network=network,
+                )
 
                 episode_info.append(step_info)
                 pvpo.capture_step(_pvpo_capture_page(env), step_info.step)
@@ -325,15 +322,6 @@ def run_phase4_request(request: dict[str, Any]) -> dict[str, Any]:
         except Exception as exc:
             runtime["pvpo_close_status"] = "failed"
             runtime["pvpo_close_error"] = f"{type(exc).__name__}: {exc}"
-        runtime["lifecycle_events"].append("recycle_cdp_browser")
-        _update_runtime_progress(
-            output_dir,
-            runtime,
-            phase="recycle_cdp_browser",
-            step=steps_taken,
-            network=network,
-        )
-        runtime.update(_recycle_cdp_browser(str(request.get("pvpo_cdp_url") or "")))
         runtime["runtime_artifact_status"] = "complete"
         _write_browser_runtime(output_dir, runtime)
 
@@ -709,23 +697,6 @@ def _required_str(payload: dict[str, Any], key: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"request missing required string field {key!r}")
     return value
-
-
-def _recycle_cdp_browser(cdp_url: str) -> dict[str, Any]:
-    try:
-        from worldsim.phase_4.pvpo_browser_lifecycle import recycle_pvpo_browser_after_task
-
-        async def _recycle() -> dict[str, Any]:
-            return await recycle_pvpo_browser_after_task(None, cdp_url)
-
-        return _run_async_in_thread(_recycle())
-    except Exception as exc:
-        return {
-            "recycle_enabled": bool(cdp_url),
-            "recycle_status": "failed",
-            "recycle_method": "shared_lifecycle",
-            "recycle_failure": f"{type(exc).__name__}: {exc}",
-        }
 
 
 def _run_async_in_thread(coro: Any) -> Any:
