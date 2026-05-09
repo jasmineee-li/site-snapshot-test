@@ -33,6 +33,11 @@ aws-credentials.*
 # WorldSim runtime
 logs/
 pipeline_outputs/
+data/hf/**
+!data/
+!data/hf/
+!data/.gitkeep
+!data/hf/.gitkeep
 *.sqlite
 *.sqlite3
 
