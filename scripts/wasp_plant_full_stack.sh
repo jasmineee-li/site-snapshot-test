@@ -4,10 +4,11 @@
 # Usage:
 #   STACK=glm GITLAB_PORT=9201 REDDIT_PORT=8201 ./scripts/wasp_plant_full_stack.sh
 #   ./scripts/wasp_plant_full_stack.sh glm 9201 8201
+#   ./scripts/wasp_plant_full_stack.sh default 9001 8080
 #
 # Output defaults:
-#   /tmp/wasp_full_plant_<stack>/
-#   /tmp/wasp_full_<stack>/
+#   default stack: /tmp/wasp_full_plant/ and /tmp/wasp_full/
+#   named stacks: /tmp/wasp_full_plant_<stack>/ and /tmp/wasp_full_<stack>/
 
 set -euo pipefail
 
@@ -23,8 +24,13 @@ fi
 
 REPO="${REPO:-/local_data/temp/max/browser-sim}"
 WASP="${WASP:-$REPO/external_benchmarks/wasp/webarena_prompt_injections}"
-PLANT_ROOT="${PLANT_ROOT:-/tmp/wasp_full_plant_${STACK}}"
-FINAL="${FINAL:-/tmp/wasp_full_${STACK}}"
+if [ "$STACK" = "default" ]; then
+    PLANT_ROOT="${PLANT_ROOT:-/tmp/wasp_full_plant}"
+    FINAL="${FINAL:-/tmp/wasp_full}"
+else
+    PLANT_ROOT="${PLANT_ROOT:-/tmp/wasp_full_plant_${STACK}}"
+    FINAL="${FINAL:-/tmp/wasp_full_${STACK}}"
+fi
 RAW_CONFIG="${RAW_CONFIG:-$WASP/configs/experiment_config.raw.json}"
 GITLAB_URL="http://localhost:${GITLAB_PORT}"
 REDDIT_URL="http://localhost:${REDDIT_PORT}"

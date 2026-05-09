@@ -42,6 +42,24 @@ containers and must be planted separately:
 | gpt | GPT-5.2 | gitlab_wasp_gpt :9231 | forum_wasp_gpt :8231 | /tmp/wasp_full_gpt |
 | gemini25 | Gemini-2.5-Pro | gitlab_wasp_gemini25 :9241 | forum_wasp_gemini25 :8241 | /tmp/wasp_full_gemini25 |
 | kimi25 | Kimi-K2.5 | gitlab_wasp_kimi25 :9251 | forum_wasp_kimi25 :8251 | /tmp/wasp_full_kimi25 |
+| w01 | generic worker | gitlab_wasp_w01 :9301 | forum_wasp_w01 :8301 | /tmp/wasp_full_w01 |
+| w02 | generic worker | gitlab_wasp_w02 :9311 | forum_wasp_w02 :8311 | /tmp/wasp_full_w02 |
+| w03 | generic worker | gitlab_wasp_w03 :9321 | forum_wasp_w03 :8321 | /tmp/wasp_full_w03 |
+| w04 | generic worker | gitlab_wasp_w04 :9331 | forum_wasp_w04 :8331 | /tmp/wasp_full_w04 |
+| w05 | generic worker | gitlab_wasp_w05 :9341 | forum_wasp_w05 :8341 | /tmp/wasp_full_w05 |
+| w06 | generic worker | gitlab_wasp_w06 :9351 | forum_wasp_w06 :8351 | /tmp/wasp_full_w06 |
+| w07 | generic worker | gitlab_wasp_w07 :9361 | forum_wasp_w07 :8361 | /tmp/wasp_full_w07 |
+| w08 | generic worker | gitlab_wasp_w08 :9371 | forum_wasp_w08 :8371 | /tmp/wasp_full_w08 |
+| w09 | generic worker | gitlab_wasp_w09 :9381 | forum_wasp_w09 :8381 | /tmp/wasp_full_w09 |
+| w10 | generic worker | gitlab_wasp_w10 :9391 | forum_wasp_w10 :8391 | /tmp/wasp_full_w10 |
+| w11 | generic worker | gitlab_wasp_w11 :9401 | forum_wasp_w11 :8401 | /tmp/wasp_full_w11 |
+| w12 | generic worker | gitlab_wasp_w12 :9411 | forum_wasp_w12 :8411 | /tmp/wasp_full_w12 |
+| w13 | generic worker | gitlab_wasp_w13 :9421 | forum_wasp_w13 :8421 | /tmp/wasp_full_w13 |
+| w14 | generic worker | gitlab_wasp_w14 :9431 | forum_wasp_w14 :8431 | /tmp/wasp_full_w14 |
+| w15 | generic worker | gitlab_wasp_w15 :9441 | forum_wasp_w15 :8441 | /tmp/wasp_full_w15 |
+| w16 | generic worker | gitlab_wasp_w16 :9451 | forum_wasp_w16 :8451 | /tmp/wasp_full_w16 |
+| w17 | generic worker | gitlab_wasp_w17 :9461 | forum_wasp_w17 :8461 | /tmp/wasp_full_w17 |
+| w18 | generic worker | gitlab_wasp_w18 :9471 | forum_wasp_w18 :8471 | /tmp/wasp_full_w18 |
 
 ## Env var routing
 
@@ -119,6 +137,13 @@ export GITLAB="http://localhost:9251"
 export REDDIT="http://localhost:8251"
 export WASP_TASK_DIR="/tmp/wasp_full_kimi25"
 ```
+
+Extra WASP workers `w01` through `w18` are generic queue workers, not
+additional models. `launch_wasp_per_model.sh` keeps the six model list separate
+from the worker stack list, so `WORKER_STACK_FILTER=all` gives 24 workers for
+the 24 model x arm cells without duplicating model cells. With
+`RESET_STACK_BEFORE_CELL=1`, each worker recreates and replants its own task
+pool before running the cell.
 
 ## How the new launcher uses these
 

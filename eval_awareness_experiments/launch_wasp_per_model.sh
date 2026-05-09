@@ -19,6 +19,10 @@
 #     WORKER_STACK_FILTER="gpt gemini25 kimi25" \
 #     ARM_FILTER="xml_control" \
 #     ./eval_awareness_experiments/launch_wasp_per_model.sh
+#
+# Set RESET_STACK_BEFORE_CELL=1 for clean paper reruns. This recreates the
+# worker's WASP GitLab/forum containers and replants the task pool before each
+# model x arm cell.
 
 set -euo pipefail
 
@@ -41,6 +45,7 @@ BROWSER_STAGE1_TIMEOUT="${BROWSER_STAGE1_TIMEOUT:-}"
 BROWSER_RELAUNCH_INCOMPLETE="${BROWSER_RELAUNCH_INCOMPLETE:-0}"
 SKIP_EXISTING="${SKIP_EXISTING:-1}"
 WASP_TASK_DIR_BASE="${WASP_TASK_DIR_BASE:-/tmp/wasp_full}"
+RESET_STACK_BEFORE_CELL="${RESET_STACK_BEFORE_CELL:-0}"
 
 DRY_RUN=""
 if [ "${1:-}" = "--dry-run" ]; then
@@ -51,13 +56,40 @@ fi
 
 mkdir -p "$LOG_DIR"
 
-MODEL_STACKS=(
-    "z-ai/glm-5:thinking|glm|9201|8201"
-    "anthropic/claude-sonnet-4.6:thinking|sonnet|9211|8211"
-    "anthropic/claude-opus-4.7:thinking|opus|9221|8221"
-    "openai/gpt-5.2:thinking|gpt|9231|8231"
-    "google/gemini-2.5-pro:thinking|gemini25|9241|8241"
-    "moonshotai/kimi-k2.5:thinking|kimi25|9251|8251"
+MODEL_SPECS=(
+    "z-ai/glm-5:thinking|glm"
+    "anthropic/claude-sonnet-4.6:thinking|sonnet"
+    "anthropic/claude-opus-4.7:thinking|opus"
+    "openai/gpt-5.2:thinking|gpt"
+    "google/gemini-2.5-pro:thinking|gemini25"
+    "moonshotai/kimi-k2.5:thinking|kimi25"
+)
+
+WORKER_STACKS=(
+    "glm|9201|8201"
+    "sonnet|9211|8211"
+    "opus|9221|8221"
+    "gpt|9231|8231"
+    "gemini25|9241|8241"
+    "kimi25|9251|8251"
+    "w01|9301|8301"
+    "w02|9311|8311"
+    "w03|9321|8321"
+    "w04|9331|8331"
+    "w05|9341|8341"
+    "w06|9351|8351"
+    "w07|9361|8361"
+    "w08|9371|8371"
+    "w09|9381|8381"
+    "w10|9391|8391"
+    "w11|9401|8401"
+    "w12|9411|8411"
+    "w13|9421|8421"
+    "w14|9431|8431"
+    "w15|9441|8441"
+    "w16|9451|8451"
+    "w17|9461|8461"
+    "w18|9471|8471"
 )
 
 ARMS=(
@@ -98,6 +130,7 @@ fi
 echo "  browser_relaunch_incomplete=$BROWSER_RELAUNCH_INCOMPLETE"
 echo "  skip_existing=$SKIP_EXISTING"
 echo "  wasp_task_dir_base=$WASP_TASK_DIR_BASE"
+echo "  reset_stack_before_cell=$RESET_STACK_BEFORE_CELL"
 if [ -n "$JUDGES" ]; then
     echo "  judges=$JUDGES"
 else
@@ -112,11 +145,15 @@ N_SELECTED_ARMS=0
 SELECTED_MODELS=()
 SELECTED_WORKERS=()
 
-for entry in "${MODEL_STACKS[@]}"; do
-    IFS='|' read -r MODEL STACK GITLAB_PORT REDDIT_PORT <<< "$entry"
+for entry in "${MODEL_SPECS[@]}"; do
+    IFS='|' read -r MODEL STACK <<< "$entry"
     if contains_word "$STACK" "$MODEL_STACK_FILTER"; then
         SELECTED_MODELS+=("$MODEL")
     fi
+done
+
+for entry in "${WORKER_STACKS[@]}"; do
+    IFS='|' read -r STACK GITLAB_PORT REDDIT_PORT <<< "$entry"
     if contains_word "$STACK" "$WORKER_STACK_FILTER"; then
         SELECTED_WORKERS+=("$entry")
     fi
@@ -180,7 +217,7 @@ next_cell() {
 }
 
 for entry in "${SELECTED_WORKERS[@]}"; do
-    IFS='|' read -r _ STACK GITLAB_PORT REDDIT_PORT <<< "$entry"
+    IFS='|' read -r STACK GITLAB_PORT REDDIT_PORT <<< "$entry"
     task_dir="${WASP_TASK_DIR_BASE}_${STACK}"
     log="$LOG_DIR/${STACK}.log"
     echo "  worker=$STACK -> gitlab=:$GITLAB_PORT reddit=:$REDDIT_PORT task_dir=$task_dir -> $log"
@@ -190,7 +227,7 @@ for entry in "${SELECTED_WORKERS[@]}"; do
         continue
     fi
 
-    if [ ! -d "$task_dir/webarena_tasks" ]; then
+    if [ "$RESET_STACK_BEFORE_CELL" != "1" ] && [ ! -d "$task_dir/webarena_tasks" ]; then
         echo "Missing planted WASP task dir for worker $STACK: $task_dir/webarena_tasks" >&2
         exit 1
     fi
@@ -205,6 +242,10 @@ for entry in "${SELECTED_WORKERS[@]}"; do
             fi
             IFS='|' read -r MODEL ARM PRESET FRAME judges <<< "$cell"
             echo "[$STACK] === model=$MODEL arm=$ARM preset=$PRESET frame=$FRAME ===" >&2
+            if [ "$RESET_STACK_BEFORE_CELL" = "1" ]; then
+                echo "[$STACK] resetting WASP docker stack before cell" >&2
+                ./scripts/wasp_reset_stack.sh "$STACK" "$GITLAB_PORT" "$REDDIT_PORT"
+            fi
             set +e
             cmd=(
                 "$PYTHON" -m eval_awareness_experiments.run_causal_experiment

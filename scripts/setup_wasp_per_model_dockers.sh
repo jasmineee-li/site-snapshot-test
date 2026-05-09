@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Spin up WASP-only docker stacks so WASP can run one stream per model
+# Spin up WASP-only docker stacks so WASP can run multiple isolated cells
 # without sharing GitLab/forum state with the original WASP stack or the
-# active DoomArena stacks.
+# active DoomArena stacks. The first six stacks are named after models;
+# w01-w18 are generic extra workers.
 #
 # This script does not touch:
 #   - original WASP containers: gitlab (:9001), forum (:8080)
@@ -12,10 +13,12 @@
 #   ./scripts/setup_wasp_per_model_dockers.sh health
 #   ./scripts/setup_wasp_per_model_dockers.sh stop
 #   ./scripts/setup_wasp_per_model_dockers.sh rm
+#   WASP_STACK_FILTER="w01 w02" ./scripts/setup_wasp_per_model_dockers.sh up
 
 set -euo pipefail
 
 ACTION="${1:-up}"
+WASP_STACK_FILTER="${WASP_STACK_FILTER:-all}"
 
 # stack | gitlab_port | forum_port
 STACKS=(
@@ -25,7 +28,38 @@ STACKS=(
     "gpt       9231 8231"
     "gemini25  9241 8241"
     "kimi25    9251 8251"
+    "w01       9301 8301"
+    "w02       9311 8311"
+    "w03       9321 8321"
+    "w04       9331 8331"
+    "w05       9341 8341"
+    "w06       9351 8351"
+    "w07       9361 8361"
+    "w08       9371 8371"
+    "w09       9381 8381"
+    "w10       9391 8391"
+    "w11       9401 8401"
+    "w12       9411 8411"
+    "w13       9421 8421"
+    "w14       9431 8431"
+    "w15       9441 8441"
+    "w16       9451 8451"
+    "w17       9461 8461"
+    "w18       9471 8471"
 )
+
+contains_word() {
+    local needle=$1 haystack=$2
+    if [ "$haystack" = "all" ]; then
+        return 0
+    fi
+    for word in $haystack; do
+        if [ "$word" = "$needle" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
 
 container_name() {
     local svc=$1 slug=$2
@@ -136,7 +170,10 @@ rm_stack() {
 case "$ACTION" in
     up|"")
         echo "=== bringing up WASP per-model docker stacks ==="
+        echo "filter=$WASP_STACK_FILTER"
         for stack in "${STACKS[@]}"; do
+            read -r slug _ <<< "$stack"
+            contains_word "$slug" "$WASP_STACK_FILTER" || continue
             up_stack $stack
         done
         echo
@@ -145,8 +182,11 @@ case "$ACTION" in
         ;;
     health)
         echo "=== WASP per-model docker health ==="
+        echo "filter=$WASP_STACK_FILTER"
         status=0
         for stack in "${STACKS[@]}"; do
+            read -r slug _ <<< "$stack"
+            contains_word "$slug" "$WASP_STACK_FILTER" || continue
             if ! health_stack $stack; then
                 status=1
             fi
@@ -157,6 +197,7 @@ case "$ACTION" in
         echo "=== stopping WASP per-model docker stacks ==="
         for stack in "${STACKS[@]}"; do
             slug="${stack%% *}"
+            contains_word "$slug" "$WASP_STACK_FILTER" || continue
             echo "[$slug]"
             stop_stack "$slug"
         done
@@ -165,6 +206,7 @@ case "$ACTION" in
         echo "=== removing WASP per-model docker stacks ==="
         for stack in "${STACKS[@]}"; do
             slug="${stack%% *}"
+            contains_word "$slug" "$WASP_STACK_FILTER" || continue
             echo "[$slug]"
             rm_stack "$slug"
         done

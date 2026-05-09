@@ -7,6 +7,7 @@
 # Usage:
 #   ./scripts/wasp_plant_per_model_dockers.sh
 #   MODEL_STACK_FILTER="gpt gemini25 kimi25" ./scripts/wasp_plant_per_model_dockers.sh
+#   MODEL_STACK_FILTER="w01 w02" ./scripts/wasp_plant_per_model_dockers.sh
 #   PARALLEL=1 ./scripts/wasp_plant_per_model_dockers.sh
 
 set -euo pipefail
@@ -24,6 +25,24 @@ STACKS=(
     "gpt       9231 8231"
     "gemini25  9241 8241"
     "kimi25    9251 8251"
+    "w01       9301 8301"
+    "w02       9311 8311"
+    "w03       9321 8321"
+    "w04       9331 8331"
+    "w05       9341 8341"
+    "w06       9351 8351"
+    "w07       9361 8361"
+    "w08       9371 8371"
+    "w09       9381 8381"
+    "w10       9391 8391"
+    "w11       9401 8401"
+    "w12       9411 8411"
+    "w13       9421 8421"
+    "w14       9431 8431"
+    "w15       9441 8441"
+    "w16       9451 8451"
+    "w17       9461 8461"
+    "w18       9471 8471"
 )
 
 contains_word() {
