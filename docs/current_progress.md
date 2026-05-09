@@ -65,7 +65,7 @@ stable references.
 - Top-level Phase 4 worker spelling is settled: use `--phase-4-max-workers` for
   `warp-taskgen phase 4`; `--workers` belongs only to
   `scripts/run_phase4_process_pool.py` and is rejected by the remote launch guard
-  on top-level Phase 4 commands.
+  on top-level Phase 4 commands, including legacy `worldsim.main` spellings.
 
 ## Operator Rule
 

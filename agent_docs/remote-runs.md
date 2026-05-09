@@ -33,11 +33,11 @@ and surfaced by `remote_job_status.sh`.
 
 Use `--expected-output <path>` for the artifact that proves the job did real
 work. For named Phase 1/2/3/4 runs, pass an explicit
-`--state-dir logs/<run_name>` to `remote_job_start.sh`; that sets
-`WORLDSIM_STATE_DIR` for the detached process and is how `worldsim.main` chooses
-where `phase_*` artifacts are written. Do not pass `--output-dir` to
-`worldsim.main phase`; the phase CLI is state-dir based. Use `--state-dir auto`
-only for isolated experiments. Push required remote environment variables with
+`--state-dir logs/<run_name>` to `remote_job_start.sh`; the wrapper currently
+sets `WORLDSIM_STATE_DIR` for the detached process, and `warp-taskgen` accepts
+`WARP_TASKGEN_STATE_DIR` as the canonical alias while preserving that legacy
+env. Do not pass `--output-dir` to `warp-taskgen phase`; the phase CLI is
+state-dir based. Use `--state-dir auto` only for isolated experiments. Push required remote environment variables with
 `scripts/remote_env_push.sh`; do not paste secrets into job commands or
 hand-written shell history.
 
@@ -157,7 +157,8 @@ rows grow monotonically across tasks.
 
 For paper-facing W48 Browser Use or AgentLab Phase 4 runs, top-level
 `warp-taskgen phase 4` commands must use `--phase-4-max-workers 48`. Do not
-use `--workers 48` there; the remote launch guard rejects it.
+use `--workers 48` there; the remote launch guard rejects that spelling for
+top-level Phase 4. `--workers` is only for `scripts/run_phase4_process_pool.py`.
 
 Prefer process isolation over a single Phase 4 process with
 `--phase-4-max-workers 48` only when the single process shows runner
@@ -232,8 +233,8 @@ which rows were replaced. Iterator-checkpoint timeout salvage rows are useful fo
 inspection, but they do not make the original process-pool run canonical; the
 merge still fails closed and writes partial artifacts until repaired or rerun.
 
-WorldSim uses two different network localities on r5. Treat the instances file
-as an execution-locality contract, not just a dataset selector:
+WARP Taskgen uses two different network localities on r5. Treat the instances
+file as an execution-locality contract, not just a dataset selector:
 
 | Phase / caller | Where traffic originates | Correct r5 instances file | Why |
 | --- | --- | --- | --- |

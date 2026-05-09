@@ -52,7 +52,7 @@ zero hand-patching.
        --state-dir logs/<run_name> \
        --expected-output logs/<run_name>/phase_4/results.json \
        -- \
-       uv run python -m worldsim.main phase 4 \
+       uv run warp-taskgen phase 4 \
            --instances instances.scale.json \
            --phase-4-variant-system eval-awareness-iterator \
            --agent-task-timeout 900
@@ -67,17 +67,18 @@ zero hand-patching.
        --state-dir logs/<run_name> \
        --expected-output logs/<run_name>/phase_4/results.json \
        -- \
-       uv run python -m worldsim.main resume \
+       uv run warp-taskgen resume \
            --instances instances.scale.json \
            --agent-task-timeout 900
    ```
 
    For high-concurrency Browser Use evidence runs, top-level
-   `worldsim.main phase 4` commands use `--phase-4-max-workers`, not
-   `--workers`. Use the process-pool runner only when a single Phase 4 process
-   shows Browser Use event-bus/CDP contention. The process pool is
-   orchestration-only: each subprocess invokes normal `worldsim.main phase 4`
-   with one task, one instance, and
+   `warp-taskgen phase 4` commands use `--phase-4-max-workers`, not
+   `--workers`. The legacy `python -m worldsim.main phase 4` path is accepted
+   for compatibility, but runbooks should prefer `warp-taskgen`. Use the
+   process-pool runner only when a single Phase 4 process shows Browser Use
+   event-bus/CDP contention. The process pool is orchestration-only: each
+   subprocess invokes normal Phase 4 with one task, one instance, and
    `--phase-4-max-workers 1`, then the supervisor merges a canonical
    `phase_4/results.json` after validating that every expected task has exactly
    one result.
@@ -104,8 +105,8 @@ zero hand-patching.
    ```
 
    In this command, `--workers 48` belongs to `scripts/run_phase4_process_pool.py`.
-   Do not use it with top-level `worldsim.main phase 4`; the remote job guard
-   rejects that spelling.
+   Do not use it with top-level `warp-taskgen phase 4`; the remote job guard
+   rejects that spelling for top-level Phase 4.
 
    Do not compare process-pool output to single-process W48 as an infrastructure
    stress result; compare it as the same Phase 4 measurement core with safer
@@ -149,7 +150,7 @@ a registry under `<remote-dir>/logs/remote_jobs/<job_id>/`.
        --name phase1-route-diversity \
        --expected-output logs/phase_1/benign_tasks.json \
        -- \
-       uv run python -m worldsim.main phase 1 --generate-novel
+       uv run warp-taskgen phase 1 --generate-novel
    ```
 
 3. Inspect, tail, and stop by registry id:
@@ -167,12 +168,13 @@ Each job directory contains `metadata.json`, `command.argv.json`, `stdout.log`,
 or an operator stop. Status verifies the remote process instead of trusting
 metadata alone and warns when a live process has not written logs recently.
 
-State directory note: `remote_job_start.sh` does **not** set
-`WORLDSIM_STATE_DIR` by default because Phase 1/2/3/4 often read and write
-canonical `logs/phase_*` artifacts. For named rigor runs, pass
-`--state-dir logs/<run_name>` and register the expected Phase 4 result file.
-Use `--state-dir auto` only for isolated experiments that should write under
-`logs/remote_jobs/<job_id>/state`.
+State directory note: `remote_job_start.sh` does **not** set a state dir by
+default because Phase 1/2/3/4 often read and write canonical `logs/phase_*`
+artifacts. For named rigor runs, pass `--state-dir logs/<run_name>`; the
+wrapper currently injects `WORLDSIM_STATE_DIR` for compatibility, and the CLI
+also accepts `WARP_TASKGEN_STATE_DIR` as the canonical state-dir env alias.
+Register the expected Phase 4 result file. Use `--state-dir auto` only for
+isolated experiments that should write under `logs/remote_jobs/<job_id>/state`.
 
 Failure recovery:
 
@@ -253,7 +255,11 @@ double-check the slug against the provider's current catalog.
 
 ## Env vars this runbook uses
 
-- `WORLDSIM_WEBARENA_EVAL_PYTHON` — override evaluator venv Python (default is repo-relative `packages/worldsim-webarena-verified/.venv/bin/python`).
+- `WARP_TASKGEN_WEBARENA_EVAL_PYTHON` — override evaluator venv Python
+  (default is repo-relative
+  `packages/worldsim-webarena-verified/.venv/bin/python`).
+- `WORLDSIM_WEBARENA_EVAL_PYTHON` — legacy alias for the same evaluator
+  override.
 - `WORLDSIM_AUTO_MINT_STORAGE_STATE` — opt non-WebArena-Verified benchmarks in to runtime auto-heal. `true` is implicit for WebArena Verified.
 - `GITLAB_HOST` / `GITLAB_STORAGE_STATE_PATH` — override defaults for `scripts/login_gitlab_r5.py`.
 - `WORLDSIM_REPO_ROOT` — override sentinel-walk repo discovery.
