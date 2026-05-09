@@ -155,11 +155,15 @@ and stable PVPO capture summaries. Do not treat a completed run as W48-clean if
 duplicate CDP responses, DOM watchdog slow calls, or `pvpo_capture_degraded`
 rows grow monotonically across tasks.
 
-For paper-facing W48 Browser Use or AgentLab Phase 4 runs, prefer process
-isolation over a single Phase 4 process with `--phase-4-max-workers 48` when
-the single process shows runner event-bus/CDP contention. Use
-`scripts/run_phase4_process_pool.py` from the remote job wrapper. The
-supervisor launches normal
+For paper-facing W48 Browser Use or AgentLab Phase 4 runs, top-level
+`worldsim.main phase 4` commands must use `--phase-4-max-workers 48`. Do not
+use `--workers 48` there; the remote launch guard rejects it.
+
+Prefer process isolation over a single Phase 4 process with
+`--phase-4-max-workers 48` only when the single process shows runner
+event-bus/CDP contention. In that case, use `scripts/run_phase4_process_pool.py`
+from the remote job wrapper. The process-pool wrapper owns its own `--workers`
+flag. The supervisor launches normal
 `worldsim.main phase 4` subprocesses, each with `--phase-4-max-workers 1`, a
 single `--phase-4-task-id`, and a one-instance config. This preserves Phase 4
 admission, seeding, PVPO, TP, VEA, eval-awareness iteration, rewards, and
@@ -174,7 +178,8 @@ AgentLab parity runs, inspect each task's
 `agent_browser_connect_count=1`; BrowserGym auxiliary chat/UI launches are
 reported separately under `auxiliary_browser_connect_count`.
 
-Canonical process-pool shape:
+Canonical process-pool shape. The `--workers 48` flag below belongs to
+`scripts/run_phase4_process_pool.py`, not to top-level `worldsim.main phase 4`:
 
 ```bash
 scripts/remote_job_start.sh \

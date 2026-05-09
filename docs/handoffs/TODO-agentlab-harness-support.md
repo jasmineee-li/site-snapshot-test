@@ -321,10 +321,11 @@ Common command settings:
 - instances: `instances.scale.json`
 - runner: `--runner agentlab`
 - provider/tier: `--agent-provider openrouter --agent-service-tier priority`
-- workers: `--phase-4-max-workers 48` for `worldsim.main phase 4`
-  AgentLab/browser-agent runs. `--workers` belongs to
-  `scripts/run_phase4_process_pool.py`; the remote launch guard rejects it for
-  top-level `worldsim.main phase 4` commands before starting a job.
+- workers: `--phase-4-max-workers 48` for top-level
+  `worldsim.main phase 4` AgentLab/browser-agent runs. Do not use
+  `--workers 48` there; the remote launch guard rejects it before starting a
+  job. `--workers` is only for `scripts/run_phase4_process_pool.py`, whose
+  child subprocesses run Phase 4 with `--phase-4-max-workers 1`.
 - timeouts: `--agent-llm-timeout 240 --agent-step-timeout 900
   --agent-task-timeout 2400`
 - variant system: `--phase-4-variant-system eval-awareness-iterator
@@ -357,7 +358,7 @@ Run queue:
    `variant_evaluated=72`, `pre_browser_rejections=42`,
    `post_eval_rejections=6`, `schema_validation_failures=5`,
    `tp_regression_rejections=5`, and `contract_inapplicable_rejections=37`.
-4. **Kimi K2.5 W48**: running as
+4. **Kimi K2.5 W48**: completed rerun
    `20260509T061814Z-agentlab-linknaturalization-true50-kimik25-w48-r-302c2f`
    with `--agent-model kimik25` and output
    `logs/agentlab_linknaturalization_true50_kimik25_w48_20260509_rerun1`.
@@ -395,15 +396,20 @@ Run queue:
    `pre_browser_rejections=17`, `post_eval_rejections=15`,
    `schema_validation_failures=3`, `tp_regression_rejections=10`, and
    `contract_inapplicable_rejections=14`.
-6. **GLM-5 W48**: running as
+6. **GLM-5 W48**: status needs verification from the correct r8a job record or
+   output directory. The last recorded rerun is
    `20260509T082006Z-agentlab-linknaturalization-true50-glm5-w48-reru-3314ff`
    with `--agent-model glm5` and output
    `logs/agentlab_linknaturalization_true50_glm5_w48_20260509_rerun1`.
    The earlier launch
    `20260509T081920Z-agentlab-linknaturalization-true50-glm5-w48-d22293`
-   failed before any task execution because it used the stale `--workers 48`
-   spelling. Use `--phase-4-max-workers 48` in canonical run commands; the
-   remote launch guard now rejects the mismatch before starting a job.
+   failed before any task execution because it used the stale top-level
+   `--workers 48` spelling. Use `--phase-4-max-workers 48` in canonical
+   top-level run commands; `--workers` is reserved for
+   `scripts/run_phase4_process_pool.py`. The remote launch guard now rejects the
+   mismatch before starting a job. This workspace does not contain the current
+   2026-05-09 W48 artifacts, and `scripts/remote_job_status.sh` did not find
+   the recorded rerun name.
 
 Best practice for this queue is sequential W48 execution, not parallel
 model-level execution. Within each run, `--phase-4-max-workers 48` already

@@ -72,10 +72,12 @@ zero hand-patching.
            --agent-task-timeout 900
    ```
 
-   For high-concurrency Browser Use evidence runs, use the process-pool runner
-   when a single Phase 4 process shows Browser Use event-bus/CDP contention.
-   The process pool is orchestration-only: each subprocess invokes normal
-   `worldsim.main phase 4` with one task, one instance, and
+   For high-concurrency Browser Use evidence runs, top-level
+   `worldsim.main phase 4` commands use `--phase-4-max-workers`, not
+   `--workers`. Use the process-pool runner only when a single Phase 4 process
+   shows Browser Use event-bus/CDP contention. The process pool is
+   orchestration-only: each subprocess invokes normal `worldsim.main phase 4`
+   with one task, one instance, and
    `--phase-4-max-workers 1`, then the supervisor merges a canonical
    `phase_4/results.json` after validating that every expected task has exactly
    one result.
@@ -100,6 +102,10 @@ zero hand-patching.
            --agent-service-tier priority \
            --agent-task-timeout 2400
    ```
+
+   In this command, `--workers 48` belongs to `scripts/run_phase4_process_pool.py`.
+   Do not use it with top-level `worldsim.main phase 4`; the remote job guard
+   rejects that spelling.
 
    Do not compare process-pool output to single-process W48 as an infrastructure
    stress result; compare it as the same Phase 4 measurement core with safer

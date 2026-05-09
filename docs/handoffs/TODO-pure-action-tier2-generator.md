@@ -696,10 +696,13 @@ merely discouraged; they are outside the task grammar.
   `--host-config configs/benchmark_hosts/r8a.yaml`; blue/r5 remains live and
   should not be mutated. Start with fresh Phase 1 and Phase 2/2c artifacts,
   then run a 10-row mixed smoke before the full 50-row Phase 4 run.
-  If single-process Browser Use W48 shows DOM watchdog, navigation timeout,
-  or duplicate-CDP cascades, use `scripts/run_phase4_process_pool.py` with
-  `--workers 48` instead of forcing one Phase 4 process to own all Browser Use
-  agents. The process pool launches normal one-task Phase 4 subprocesses with
+  Top-level Phase 4 W48 commands must use `--phase-4-max-workers 48`, not
+  `--workers 48`. If single-process Browser Use W48 shows DOM watchdog,
+  navigation timeout, or duplicate-CDP cascades, use
+  `scripts/run_phase4_process_pool.py` with `--workers 48` instead of forcing
+  one Phase 4 process to own all Browser Use agents. In that command,
+  `--workers` belongs to the process-pool wrapper. The process pool launches
+  normal one-task Phase 4 subprocesses with
   one assigned instance each and merges `phase_4/results.json` only after
   validating exact one-result-per-task coverage, so measurement semantics stay
   comparable while Browser Use event loops and CDP clients are isolated by OS

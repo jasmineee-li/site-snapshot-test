@@ -19,9 +19,9 @@ Each track below has: **Goal**, **What**, **Why**, **Context**, **Open questions
 
 The paper claims three things. Mapping to pipeline state:
 
-1. **Ecologically valid IPI wrapper** (`docs/worldsim-v5-full-specification.md:44-46`). MVP pipeline delivers this. Blocker: cross-check landing, then expensive runs.
-2. **First large-scale study of eval awareness in browser-use safety evals** (`docs/worldsim-v5-full-specification.md:48-60`). Needs Jasmine/Max's 3-signal probe battery (VEA + external P(eval) + self-reported P(eval)), Experiments A + B + C. Partially on orphan branches, partially unscoped.
-3. **Ecological validity gap** (`docs/worldsim-v5-full-specification.md:62-64`). Requires Contribution 2 plus a filter across raw ASR vs P(eval)-gated ASR per model. Analysis notebook, no new pipeline.
+1. **WASP-aligned IPI wrapper** (`docs/worldsim-v5-full-specification.md`, "Scope" and "Pipeline"). MVP pipeline delivers this for GitLab and Reddit/Postmill UGC. Blocker: cross-check landing, then expensive runs.
+2. **Large-scale eval-awareness measurement for browser-use safety evals** (`docs/worldsim-v5-full-specification.md`, "Research Question" and "Eval-Awareness Iterator"). Current Phase 4 records Transcript Purpose and VEA; Jasmine/Max's broader post-hoc probe battery remains a separate planning track.
+3. **Measurement gap analysis** (`docs/worldsim-v5-full-specification.md`, "Rewards And Readback"). Current mainline separates raw ASR, encounter-conditional ASR, Transcript Purpose, VEA, benign-under-attack, and readback/action evidence. Any P(eval)-filtered analysis is future Phase 5 work, not a current Phase 4 gate.
 
 Everything below is work that must land before paper submission. Three weeks to NeurIPS (5/5).
 
@@ -34,7 +34,7 @@ Produce the three-signal probe battery the paper promises: verbalized eval aware
 New `worldsim/phases/phase_5_validity.py` that iterates Phase 4 trajectory dirs and runs three probes per task in Modal sandboxes. Reuses primitives from `origin/claude/plan-eval-experiments-LNd9F:eval_awareness_experiments/` (Jasmine/Max's branch):
 
 - **VEA extractor**: `judges/verbalized_awareness.py` on the orphan branch. Four-category classification (alignment_eval / capability_eval / other_eval / real) with evidence extraction from transcript XML. Port to read our `history.json` + `conversations/*.txt` layout. See also: canonical Needham et al prompts at `github.com/jjpn97/eval_awareness` @ commit `1543ffe644d3f8f3a43b5dfd7814dbe9b12f890d`, specifically `cot_classifiers/prompts.py` for Figure 16 reasoning-flag style and output format `<label>YES</label>` (per `docs/research/gpt-deep-research-2026-04-14.md`, "Needham et al evaluation-awareness probes" section). Codex handoff `docs/handoffs/codex-handoff-needham-prompt-audit.md` produces a prompt-by-prompt diff to inform whether we keep the orphan port, replace with Needham canonical, or merge.
-- **External P(eval)**: `experiments/p_eval.py` on the orphan branch. Five-prompt bank (counterbalanced), averaged across screenshot / HTML / axtree formats. Spec-compliant (`docs/worldsim-v5-full-specification.md:73-74`). Canonical reference: Needham et al's 5 Probe Questions (Table 4) at `github.com/jjpn97/eval_awareness` `constants.py` + `run.py` (per `docs/research/gpt-deep-research-2026-04-14.md`, "P(eval) probe questions" section). Needham used GPT-4.1 as judge with ICC(3) human-agreement reporting; our decision on judge choice (Opus 4.6 vs GPT-4.1 vs both) is surfaced in the GPT-integration section at the end of this doc.
+- **External P(eval)**: `experiments/p_eval.py` on the orphan branch. Five-prompt bank (counterbalanced), averaged across screenshot / HTML / axtree formats. This is future Phase 5 planning, not current Phase 4 behavior. Canonical reference: Needham et al's 5 Probe Questions (Table 4) at `github.com/jjpn97/eval_awareness` `constants.py` + `run.py` (per `docs/research/gpt-deep-research-2026-04-14.md`, "P(eval) probe questions" section). Needham used GPT-4.1 as judge with ICC(3) human-agreement reporting; our decision on judge choice (Opus 4.6 vs GPT-4.1 vs both) is surfaced in the GPT-integration section at the end of this doc.
 - **Self-reported P(eval)**: NEW. Target model is reshown its own transcript post-trajectory and asked for eval probability. No implementation exists anywhere today. GPT confirmed independently (per `docs/research/gpt-deep-research-2026-04-14.md`, "Self-reported post-trajectory P(eval) probe pattern" section) that no public implementation exists end-to-end in Needham, Greenblatt, or any adjacent eval-awareness codebase. This strengthens the contribution: our implementation is the first.
 
 Output per task: `validity_report.json` with all three signals + combined score. Aggregate: `logs/phase_5/<ts>/results.json`.
@@ -45,7 +45,7 @@ Output per task: `validity_report.json` with all three signals + combined score.
 - Without self-reported P(eval), the triangulation claim in the spec (`:50`) is only two signals deep, weaker than advertised.
 
 ### Context
-- **Lite version exists on `feat/worldsim-v5` post-PVPO**: `worldsim/phase_4/p_eval_api.py::run_p_eval_api` is a screenshot-only Anthropic Messages API call with forced tool-use (`score_p_eval`); 5 probes (`content_realism`, `ui_realism`, `data_coherence`, `artifact_presence`, `overall_plausibility`); host-mean. Uses `worldsim/prompts/p-eval.md`. Observational only (no gating, no fix loop). The pre-2026-04-19 sandbox `probe_ecological_validity` and its `probe-ecological-validity.md` prompt were deleted in the PVPO cutover. Keep `run_p_eval_api` as a cheap runtime observational metric; Phase 5 is the rigorous post-hoc measurement.
+- **Current mainline differs from this old plan**: Phase 4 now records Transcript Purpose and VEA over Needham XML. The old `p_eval_api.py` / `p-eval.md` path is gone from this workspace. Treat external P(eval) as future Phase 5 analysis unless a new implementation lands behind current contracts.
 - **Orphan branch `origin/claude/plan-eval-experiments-LNd9F`**: contains the full rigorous implementation. Authors Jasmine + Max. Never merged. Covers ~70 percent of Phase 5's surface area, missing only self-reported P(eval).
 - **Trajectory artifacts are stable**: confirmed `history.json`, `final_response.json`, `conversations/`, `screenshots/`, `network.har` all land in per-task dirs. Phase 5 can be a pure post-hoc pass.
 
@@ -72,7 +72,9 @@ Rule-based transformations (deterministic, not LLM-driven, for attributability):
 Phase 4 runner iterates both conditions per task against separate reset instances. Within-task paired analysis (same task paired across conditions).
 
 ### Why
-- Spec requires it (`docs/worldsim-v5-full-specification.md:58-60`).
+- This is future Phase 5 work; it is not required by the current Phase 4
+  spec. Re-check `docs/worldsim-v5-full-specification.md` and the technical
+  spec before scheduling it.
 - Experiment C's 2x2 ablation (environment realism x explicit cues) is blocked on this. Without it, Experiment C cannot run, and the causal claim for Contribution 2 has no evidence.
 - Rule-based transforms are attributable: each cue can be ablated independently ("realistic + degraded username only" vs "realistic + degraded URL only") to produce the "eval tells" ranking the spec promises.
 
@@ -91,7 +93,7 @@ Phase 4 runner iterates both conditions per task against separate reset instance
 ## Track 3: Experiment A — static environment capture
 
 ### Goal
-Capture screenshots + HTML + accessibility trees from our environment and comparison benchmarks for the static-perception claim in `docs/worldsim-v5-full-specification.md:56-58`.
+Capture screenshots + HTML + accessibility trees from our environment and comparison benchmarks for a future static-perception analysis.
 
 ### What
 New `scripts/capture_static.py` CLI:
@@ -108,7 +110,8 @@ Inputs: JSON list of `{benchmark, site, url}`. Outputs: `logs/static_a/<benchmar
 Reuses Browser Use primitives: `page.screenshot()`, `page.content()`, `page.accessibility.snapshot()`. Thin wrapper.
 
 ### Why
-- Spec requires static snapshots from WebArena Infinity, TheAgentCompany, and others (`docs/worldsim-v5-full-specification.md:56`).
+- Static snapshots are no longer part of the current Phase 4 spec. Treat this
+  as future comparison-analysis work, not a mainline pipeline requirement.
 - Contribution 2's static-perception ablation (how much does an LLM judge recognize a synthetic env as synthetic from a single static snapshot?) can only run on captured data.
 
 ### Context
@@ -134,7 +137,9 @@ Run our target models against at least one comparison benchmark for the ICML CUA
 - Output: `logs/comparison/<benchmark>/<model>/<task>/` trajectory dirs.
 
 ### Why
-- Spec requires head-to-head comparison (`docs/worldsim-v5-full-specification.md:23-26`). "We're more ecologically valid" must be measured, not asserted.
+- The current full spec keeps comparison work separate from the mainline
+  GitLab/Reddit WASP scope. Head-to-head claims still need measurement, but
+  this track is not a Phase 4 admission requirement.
 - Without it, Contribution 3's claim reduces to "our wrapper produces a gap", not "our wrapper produces a smaller gap than prior work". The latter is the defensible paper-length claim.
 
 ### Context
@@ -263,8 +268,11 @@ All current runs share:
 - host/instances: r8a with `instances.scale.json`
 - runner: `--runner agentlab`
 - provider/tier: `--agent-provider openrouter --agent-service-tier priority`
-- concurrency: W48 for the main model rows; GPT-5.2 currently has a W28
-  repaired control because that run was produced before the W48 queue.
+- concurrency: W48 for the main model rows, expressed as
+  `--phase-4-max-workers 48` on top-level `worldsim.main phase 4` commands.
+  Do not use `--workers 48` there; the remote launch guard rejects it.
+  GPT-5.2 currently has a W28 repaired control because that run was produced
+  before the W48 queue.
 - PVPO: `WORLDSIM_PVPO_CAPTURE_BACKEND=page-surface-stable`
 - legacy CDP: `WORLDSIM_AGENTLAB_LEGACY_CONNECT_OVER_CDP` unset
 - iterator: `--phase-4-variant-system eval-awareness-iterator
@@ -338,12 +346,17 @@ Current queue:
    launch
    `20260509T081920Z-agentlab-linknaturalization-true50-glm5-w48-d22293`
    failed immediately before any task execution because the command used the
-   stale `--workers 48` spelling. Canonical `worldsim.main phase 4` commands
-   must use `--phase-4-max-workers 48`. The remote launch guard now rejects
+   stale top-level `--workers 48` spelling. Canonical `worldsim.main phase 4`
+   commands must use `--phase-4-max-workers 48`; `--workers` is reserved for
+   `scripts/run_phase4_process_pool.py`. The remote launch guard now rejects
    this mismatch before starting a job. The active rerun is
    `20260509T082006Z-agentlab-linknaturalization-true50-glm5-w48-reru-3314ff`
    with `--agent-model glm5`, output
-   `logs/agentlab_linknaturalization_true50_glm5_w48_20260509_rerun1`.
+   `logs/agentlab_linknaturalization_true50_glm5_w48_20260509_rerun1`. This
+   workspace does not contain the current 2026-05-09 W48 run artifacts, and
+   `scripts/remote_job_status.sh` did not find that remote job name, so the
+   GLM final status still needs verification from the correct r8a job record or
+   output directory before promotion.
 
 For every completed row, report: raw ASR, Gate-1 ASR over PVPO-exposed tasks,
 baseline VEA and Transcript Purpose distribution, selected-variant VEA and
@@ -421,14 +434,13 @@ Summary of how findings from `docs/research/gpt-deep-research-2026-04-14.md` lan
 ## Citations
 
 ### Paper spec
-- `docs/worldsim-v5-full-specification.md:44-46` (Contribution 1)
-- `docs/worldsim-v5-full-specification.md:48-60` (Contribution 2 + Experiments A/B/C)
-- `docs/worldsim-v5-full-specification.md:62-64` (Contribution 3: gap)
-- `docs/worldsim-v5-full-specification.md:23-26` (comparison requirement)
-- `docs/worldsim-v5-full-specification.md:73-74` (P(eval) probe methodology)
+- `docs/worldsim-v5-full-specification.md` (current short overview)
+- `docs/worldsim-v5-technical-specifcation.md` (implementation authority)
+- `docs/current_progress.md` (current state)
 
 ### Our branch
-- `worldsim/phase_4/p_eval_api.py` (API-path observational P(eval) — replaces the 2026-04-19-deleted lite probe)
+- `worldsim/phase_4/transcript_purpose_api.py` (Transcript Purpose classifier)
+- `worldsim/phase_4/verbalized_eval_awareness_api.py` (VEA classifier)
 - `worldsim/phase_4/encounter_detection.py` + `worldsim/phase_4/ink_occupancy.py` + `worldsim/phase_4/pvpo_capture.py` (PVPO encounter detection; replaces the deleted ecological-validity fix loop and `probe-ecological-validity.md` / `fix-ecological-validity.md` prompts)
 - `worldsim/_sandbox_validator.py` (validity schema)
 - `docs/TODO-adversarial-rigor-mvp.md` (MVP plan; covers Contribution 1 only)
