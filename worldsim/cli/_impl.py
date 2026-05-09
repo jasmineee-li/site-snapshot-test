@@ -1,6 +1,6 @@
 """WARP Taskgen CLI entrypoint.
 
-See ``docs/worldsim-v5-technical-specifcation.md`` for the full pipeline
+See ``docs/warp-taskgen-technical-spec.md`` for the full pipeline
 and ``README.md`` for prerequisites.
 
 Usage::

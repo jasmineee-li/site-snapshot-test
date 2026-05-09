@@ -16,7 +16,7 @@
 >
 > `trajectory_slice.py` was replaced by `aer_trajectory_extract.py` (typed dataclasses, no byte budget under Sonnet 4.6's 1M-context variant). The force-include-refusal heuristic and all field truncation were deleted as unnecessary under 1M context. The outcome-taxonomy D1 signal migrated from the legacy `ecologically_valid` key to `encounter.max_coverage > 0`.
 >
-> See `docs/worldsim-v5-technical-specifcation.md` §"Gate 1 Stage 2: Observational Transcript Purpose + VEA" for the current design. The original PVPO encounter-detection sections below (Paint-Verified Payload Oracle, ink-occupancy, caption frame = max-coverage) remain current.
+> See `docs/warp-taskgen-technical-spec.md` §"Gate 1 Stage 2: Observational Transcript Purpose + VEA" for the current design. The original PVPO encounter-detection sections below (Paint-Verified Payload Oracle, ink-occupancy, caption frame = max-coverage) remain current.
 
 **Status:** Shipped on `feat/worldsim-v5` through commit `cd757ca4`. See the Implementation Status section immediately below for what landed vs. what the original design prescribed — the shipped paint-verification mechanism is **ink-occupancy** (not the byte-equal reference-container compare described in §3.5 below) and the shipped encounter-detection mechanism additionally locates the payload on the delivery page by **content-match** against rendered DOM text (not via a `<span data-worldsim-payload>` HTML attribute). The original design text is preserved for historical context; new readers should read the Implementation Status first.
 **Branch:** `feat/worldsim-v5`. All commits landed directly on the v5 integration branch; no separate feature branch. The earlier `feat/c1-read-surface` work was fast-forward-merged into `feat/worldsim-v5` before this series began, so the starting state included the C1 read-surface migration and the two-signal C1 triangulation (c1b url / c1c payload).
@@ -87,7 +87,7 @@ Full chain exercised per site: `chrome-headless-shell` Docker container → CDP 
 
 ---
 
-A follow-up agent should perform a separate pass to check all other docs for consistency (CLAUDE.md, worldsim-v5-technical-specifcation.md, docs/handoffs/codex-handoff-outcome-taxonomy.md §14.3 closure note, TODO-adversarial-rigor-mvp.md) and update anything that references the current probe or encounter detection. That pass is explicitly NOT in this handoff's scope.
+A follow-up agent should perform a separate pass to check all other docs for consistency (CLAUDE.md, warp-taskgen-technical-spec.md, docs/handoffs/codex-handoff-outcome-taxonomy.md §14.3 closure note, docs/archive/TODO-adversarial-rigor-mvp.md) and update anything that references the current probe or encounter detection. That pass is explicitly NOT in this handoff's scope.
 
 ---
 
@@ -743,7 +743,7 @@ Seven commits, each in chronological dependency order. Work lands directly on `f
 **Files modified:**
 - `docs/handoffs/codex-handoff-outcome-taxonomy.md` §14.3 closure note: add a pointer to PVPO as the primary encounter signal; keep C1b/C1c/C2/C3/C4 definitions intact (they're still used for outcome classification independently).
 - `docs/handoffs/codex-handoff-paint-verified-oracle.md` — this file, already created.
-- `docs/worldsim-v5-technical-specifcation.md` — if the spec references the current probe design, update the section in place (leave other sections alone).
+- `docs/warp-taskgen-technical-spec.md` — if the spec references the current probe design, update the section in place (leave other sections alone).
 
 **Files NOT modified in this commit:**
 - Anything outside the probe/encounter scope. The separate docs-audit pass handles repo-wide consistency.
@@ -791,7 +791,7 @@ Seven commits, each in chronological dependency order. Work lands directly on `f
 - `CLAUDE.md` — integration-test gate list, probe framing, Docker requirement.
 - `scripts/run_integration_tests.sh` — add new integration tests.
 - `docs/handoffs/codex-handoff-outcome-taxonomy.md` §14.3 — PVPO pointer.
-- `docs/worldsim-v5-technical-specifcation.md` — probe section update in place.
+- `docs/warp-taskgen-technical-spec.md` — probe section update in place.
 
 ### Deleted
 - `worldsim/prompts/probe-ecological-validity.md` — superseded by `p-eval.md`.

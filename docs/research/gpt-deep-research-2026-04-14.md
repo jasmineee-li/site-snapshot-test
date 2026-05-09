@@ -3,12 +3,12 @@
 > **ARCHIVED EXTERNAL RESEARCH MEMO.** This memo was generated for the
 > pre-WASP/pre-PVPO planning window. Use it only as external-reference
 > provenance; revalidate any integration idea against
-> `docs/worldsim-v5-technical-specifcation.md` and current code before turning
+> `docs/warp-taskgen-technical-spec.md` and current code before turning
 > it into work.
 
 **Generated**: 2026-04-14
 **Source**: ChatGPT Deep Research
-**Prompt context**: see `docs/TODO-adversarial-rigor-mvp.md` and `docs/TODO-2-paper-experiments.md`
+**Prompt context**: see `docs/archive/TODO-adversarial-rigor-mvp.md` and `docs/TODO-2-paper-experiments.md`
 **Purpose**: surface external code patterns, prompts, libraries, and gotchas that the team can port or reference for ICML CUA (4/24) and NeurIPS (5/5) submissions.
 
 ---

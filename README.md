@@ -109,9 +109,9 @@ uv run warp-taskgen phase 4 \
      - `postgresql://gitlab:...@HOST:5432/gitlabhq_production` or the generated GitLab DB URL from the host config
      - `postgresql://postmill:postmill@HOST:5432/postmill` for `reddit`
    - Shopping, shopping_admin, map/OSM, Magento, Wikipedia, and classifieds settings are historical full-benchmark/support plumbing and are not active IPI carriers unless the spec reopens scope.
-   - Phase 4 PVPO uses `page-surface-stable` capture on the runner-owned browser for both Browser Use and AgentLab. Do not configure dedicated PVPO browser endpoints for new shipping runs. Legacy instance files may still contain `pvpo_cdp_url`; canonical Phase 4 treats it as inert unless an explicit legacy debugging path is enabled.
+   - Phase 4 PVPO uses `page-surface-stable` capture on the runner-owned browser for both Browser Use and AgentLab. Do not configure dedicated PVPO browser endpoints for new shipping runs. Legacy instance files may still contain `pvpo_cdp_url`; canonical Phase 4 treats it as inert metadata.
 
-Phases 0, 1, 2a, and 2b only need the benchmark **codebase** on disk, not running instances. **Phase 2c requires a live dev instance** (defaults to the instances listed in `instances.smoke.json`): each adversarial task's `adversarial_data_seed` is POSTed against the live platform to prove feasibility. Pass `--skip-feasibility` only for fast dev iteration; unverified tasks are not suitable for shipping Phase 4 runs.
+Phases 0, 1, 2a, and 2b only need the benchmark **codebase** on disk, not running instances. **Phase 2c requires a live dev instance** (local defaults use `instances.smoke.json`): each adversarial task's `adversarial_data_seed` is POSTed against the live platform to prove feasibility. On remote benchmark hosts such as r5/r8a, use the host-local `instances.scale.json` for Phase 2c and Phase 4 so browser traffic uses the orchestrator host view. Pass `--skip-feasibility` only for fast dev iteration; unverified tasks are not suitable for shipping Phase 4 runs.
 
 ### Proxy Setup (Phase 0c live verification)
 
@@ -132,8 +132,11 @@ running instances. Phase 0c works without it (code-reading only). Phases 1,
 # Canonical r5 path (scale port map + explicit HTTP opt-in):
 ./scripts/deploy_proxy_r5.sh
 
-# Generic path:
-./scripts/deploy_benchmark_proxy.sh --host-config configs/benchmark_hosts/r5.yaml
+# Generic path with explicit topology and HTTP opt-in:
+./scripts/deploy_benchmark_proxy.sh \
+    --host-config configs/benchmark_hosts/r5.yaml \
+    --topology scale \
+    --insecure-http
 
 # With explicit arguments:
 ./scripts/deploy_benchmark_proxy.sh \
@@ -227,9 +230,13 @@ uv run warp-taskgen phase 0 --benchmark vendors/webarena-verified
 # phase_3/contracts.json for Phase 4 to admit.
 uv run warp-taskgen phase 3
 
-# Phase 4 Browser Use agents default to Sonnet via Anthropic
+# Phase 4 Browser Use agents default to Sonnet via Anthropic.
+# On remote hosts, use the generated host-local scale topology.
 export ANTHROPIC_API_KEY=sk-ant-...
-uv run warp-taskgen phase 4 --instances instances.json
+uv run warp-taskgen phase 4 \
+  --instances instances.scale.json \
+  --phase-4-max-workers 48 \
+  --phase-4-variant-system eval-awareness-iterator
 
 # Phase 2 runs exposure-contract materialization, API 2a strategy planning,
 # host-side 2b text fill, then 2c feasibility + read-surface verification.
@@ -237,7 +244,7 @@ uv run warp-taskgen phase 4 --instances instances.json
 uv run warp-taskgen phase 2 --benchmark vendors/webarena-verified \
   --feasibility-instances instances.smoke.json
 
-# On r5, regenerate instances.scale.json from configs/benchmark_hosts/r5.yaml
+# On r5/r8a, regenerate instances.scale.json from the selected host config
 # instead of hand-editing IPs. The generated scale file carries host_access
 # metadata and binds site_url/reset_endpoint/placeholders to orchestrator_host
 # (172.17.0.1). Then re-mint Phase 0d against that exact generated file so
@@ -280,7 +287,7 @@ The reclassifier is idempotent (skips rows already at the current `classifier_ve
 0 3 * * * cd /path/to/browser-sim && bash scripts/nightly_feasibility_check.sh >> logs/cron/nightly_feasibility.log 2>&1
 ```
 
-Override `INSTANCES_FILE` (default `instances.smoke.json`), `TTL_HOURS` (default `24`), or `FEASIBILITY_CONCURRENCY` (default `10`) via env var.
+Override `INSTANCES_FILE` (default `instances.smoke.json`), `TTL_HOURS` (default `24`), or `FEASIBILITY_CONCURRENCY` (default `10`) via env var. For remote host-local checks, set `INSTANCES_FILE=instances.scale.json`; `instances.smoke.json` is for local/public smoke topology.
 
 ## Architecture
 
@@ -302,7 +309,7 @@ Five phases:
 | 3 | Contract Validity Gate | Agent-free schema check over every benign contract (reward function, start URLs, data seed) and every adversarial task's benign reference; writes `phase_3/contracts.json` |
 | 4 | Adversarial Evaluation | Runs the agent against injected seeds; applies the PVPO encounter gate and attack-effectiveness gate; the default `eval-awareness-iterator` records an iterator envelope for every PVPO-valid default-path baseline trajectory and tries bounded payload rewrites only when Transcript Purpose calls for them. Legacy refusal-judge strategy variation remains opt-in via `--phase-4-variant-system strategy-variation`. Reports baseline capability as a byproduct |
 
-The **authoritative technical spec** lives at [`docs/worldsim-v5-technical-specifcation.md`](docs/worldsim-v5-technical-specifcation.md). The filename is legacy and intentionally unchanged for compatibility. Every module in `worldsim/` implements a section of that spec.
+The **authoritative technical spec** lives at [`docs/warp-taskgen-technical-spec.md`](docs/warp-taskgen-technical-spec.md). Every module in `worldsim/` implements a section of that spec.
 
 ## Repository layout
 
@@ -327,7 +334,7 @@ The **authoritative technical spec** lives at [`docs/worldsim-v5-technical-speci
 │   ├── deploy_benchmark_proxy.sh  # authenticated reverse proxy for Phase 0c
 │   └── proxy_ports.conf           # site-to-port mapping for the proxy
 ├── docs/
-│   ├── worldsim-v5-technical-specifcation.md  # canonical technical spec — legacy filename
+│   ├── warp-taskgen-technical-spec.md  # canonical technical spec
 │   └── webarena-infinity-paper.md             # predecessor research reference
 ├── AgentLab/src/agentlab/benchmarks/redteam/
 │   ├── execution.py              # Modal reference (light-reference only, not imported)

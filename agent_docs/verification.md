@@ -107,6 +107,11 @@ For the legacy `3+3+1` adaptive strategy loop, verification evidence should show
 - per-round generated, host-rejected, browser-evaluated, PVPO-valid, and compliant counts
 - round lineage for each variant (`root_attempt_id`, `parent_attempt_id`, `round_index`, `round_variant_index`, selected strategy, refusal trigger)
 - unchanged benign task contracts and Phase 3 reward functions across variants
+
+For Phase 4 summary/reporting changes, check `agent_docs/phase4-reporting-metrics.md`
+and verify that output distinguishes fixed-cohort `Headline ASR` from
+PVPO-encounter-conditional `Gate-1 ASR`. Legacy aliases are acceptable only as
+compatibility fields or explicitly labeled historical output.
 - termination reason (`success`, no actionable lineage, no viable generation, or budget exhausted)
 
 Wrapper facts that matter:

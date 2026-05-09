@@ -18,7 +18,8 @@ Last updated: 2026-04-17
 
 ## 2026-04-14 evening session update (newest first)
 
-For the full handoff, see `docs/handoffs/orchestrator-handoff-phase-2-v2.md`. Summary:
+The full Phase 2 v2 orchestrator handoff was deleted during the WARP Taskgen
+docs cleanup because it was superseded. Summary:
 
 ### What shipped this session
 
@@ -42,7 +43,7 @@ Phase 2 single-shot design is auth-coupled to OAuth because the prompt asks the 
 - **Phase 2a — Plan.** Pure schema work: `target_surface_id`, `framing`, `concealment`, `delivery_mechanism`, `delivery_channel`, `attack_objective`, `required_tokens`, `length_budget`, `reward_function`. NO payload text. Runs under Claude Code in Modal, OAuth-or-OpenRouter compatible (no refusal because no harm-adjacent content is emitted).
 - **Phase 2b — Text fill.** Parallel structured-output API calls (not Claude Code). Per-plan: one async call that composes UGC in the plan's declared voice with required tokens. Self-healing 3-variant retry loop (`standard`, `creative_writing`, `testing_compliance`) + OAuth fallback. Empirically: OpenRouter Sonnet 4.5 ACCEPTS 3 of 4 tested framings for UGC composition.
 
-Comprehensive spec with acceptance criteria, implementation order, and voice-exemplar design is now in `docs/TODO-adversarial-rigor-mvp.md:639+`. Codex is implementing this next. The new handoff (`2026-04-14-phase-2-v2-handoff.md`) includes a ready-made subagent verification prompt the orchestrator runs before executing anything.
+Comprehensive spec with acceptance criteria, implementation order, and voice-exemplar design is now in `docs/archive/TODO-adversarial-rigor-mvp.md:639+`. Codex is implementing this next. The new handoff (`2026-04-14-phase-2-v2-handoff.md`) includes a ready-made subagent verification prompt the orchestrator runs before executing anything.
 
 ### Empirical smoke test result (OpenRouter refusal asymmetry)
 
@@ -57,7 +58,7 @@ Mechanism unproven; behavior reproducible. Justifies the Phase 2b decomposition 
 
 ### Immediate next action
 
-**Codex implements Phase 2 v2 per `docs/TODO-adversarial-rigor-mvp.md:639+`.** After Codex commits, the next orchestrator follows `docs/handoffs/orchestrator-handoff-phase-2-v2.md`, starting with the subagent verification check.
+**Codex implements Phase 2 v2 per `docs/archive/TODO-adversarial-rigor-mvp.md:639+`.** The deleted Phase 2 v2 orchestrator handoff originally started from the subagent verification check.
 
 ### Open sequence (after Codex completes)
 
@@ -376,7 +377,7 @@ model upgrades.
    sessions (none on the current roadmap but cheap to add).
 5. **Push Phase 0c sandbox scope fix + Phase 4 results back through the
    pipeline.** After Phase 4 lands clean, doc a canonical cost curve per
-   benchmark in `docs/worldsim-v5-technical-specifcation.md`.
+   benchmark in `docs/warp-taskgen-technical-spec.md`.
 
 ## Cost Summary
 
@@ -420,7 +421,7 @@ Fix-loop rejection cost is tracked in-line with diagnosis cost; retries surface 
 
 | File | Purpose |
 |------|---------|
-| `docs/worldsim-v5-technical-specifcation.md` | Source of truth. Updated to match tiered Phase 0c and `agent_context` propagation. |
+| `docs/warp-taskgen-technical-spec.md` | Source of truth. Updated to match tiered Phase 0c and `agent_context` propagation. |
 | `docs/current_progress.md` | This file. Historical proof vs current canonical rerun state. |
 | `worldsim/modal_sandbox.py` | The core sandbox primitive, secret wiring, and Modal execution path. |
 | `worldsim/_sandbox_runner.py` | Runs inside Modal. Drives `claude-agent-sdk` with the Claude Code preset. |

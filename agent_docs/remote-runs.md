@@ -1,13 +1,13 @@
 # Remote Runs and Host Ops
 
-Use this before fresh-host setup, benchmark proxy work, r5 runs, Phase 4 rigor runs, or debugging live benchmark infrastructure.
+Use this before fresh-host setup, benchmark proxy work, selected-host runs such as r5/r8a, Phase 4 rigor runs, or debugging live benchmark infrastructure.
 
 ## Operator Flow
 
 Read `docs/handoffs/rigor-run-setup.md` for the full runbook. The short version:
 
-1. Prepare or validate the host config, usually `configs/benchmark_hosts/r5.yaml`.
-2. Sync code with `scripts/sync_to_r5.sh`.
+1. Prepare or validate the host config, for example `configs/benchmark_hosts/r5.yaml` or `configs/benchmark_hosts/r8a.yaml`.
+2. Sync code with `scripts/sync_to_r5.sh` or the selected-host equivalent.
 3. Start long jobs with `scripts/remote_job_start.sh` and a job id.
 4. Monitor with `scripts/remote_job_status.sh` or `scripts/remote_job_tail.sh`.
 5. Stop only with `scripts/remote_job_stop.sh --job-id <id>`.
@@ -61,12 +61,14 @@ Treat launch attempts and evidence runs as separate artifacts. If a remote job
 exits before it starts the measured phase, for example because auth, topology,
 or prerequisite artifacts are missing, keep its remote job registry for
 diagnostics but do not relaunch into the same state directory. Fix the
-precondition, materialize a fresh state directory from the verified Phase 1-3
-inputs, and start a new job whose `--expected-output` points at that fresh run.
+precondition, materialize a fresh state directory from the verified Phase
+0c/1/2/3 inputs, and start a new job whose `--expected-output` points at that fresh run.
 This keeps failed setup attempts from becoming part of the evidentiary run
 history and makes later summaries unambiguous.
 
-Canonical r5 Phase 4 launch shape:
+Canonical selected-host Phase 4 launch shape. Keep r5 as the example below;
+for r8a paper-facing AgentLab/process-pool runs, use
+`configs/benchmark_hosts/r8a.yaml` and the matching generated topology.
 
 ```bash
 RUN=logs/<phase4_run_name>
@@ -190,7 +192,7 @@ scripts/remote_job_start.sh \
   --state-dir logs/<process_pool_run> \
   --expected-output logs/<process_pool_run>/phase_4/results.json -- \
   uv run python scripts/run_phase4_process_pool.py \
-    --source-state-dir logs/<verified_phase1_phase3_source> \
+    --source-state-dir logs/<source_with_phase_2_adversarial_tasks_and_phase_3_contracts> \
     --instances instances.scale.json \
     --workers 48 \
     --runner browser_use \
@@ -333,9 +335,11 @@ benchmark source unless you have explicitly hydrated the repo-local
 
 Its preflight step runs `pytest -m preflight tests/preflight` and proves:
 
-- Benchmark instance connectivity and page-surface-stable PVPO readiness.
 - GitLab Phase 0d `storage_state` exists with non-empty cookies.
-- The `worldsim-webarena-verified` evaluator venv resolves.
+- The `warp-taskgen-webarena-verified` evaluator venv resolves from the repo-local `packages/worldsim-webarena-verified` environment.
+
+Current page-surface-stable PVPO does not require dedicated PVPO browser
+containers, and this preflight does not prove live benchmark task connectivity.
 
 Do not skip this before rigor runs.
 

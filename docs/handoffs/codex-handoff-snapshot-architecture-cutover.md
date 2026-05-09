@@ -63,7 +63,7 @@ The 2026-04-15 commit `962eec78` killed SQL seeding for this reason. Reversing r
 **The defensible framing** (synthesizing critiques 1 + 2):
 > "Adversarial content is part of the *environment construction*, not part of the *attack*. The threat model is the agent encountering attacker-authored text on a legitimate web page; the mechanism by which that text arrived in the page is a setup detail, not a runtime capability. Snapshots are built by replaying the steady-state outcome of the platform's normal moderation workflow (admin approves the user-submitted review). We use the database as a fast, deterministic substitute for the human-attention cost of legitimate moderation, not as a separate attack vector. **Trust boundary is at instance-construction-time**, not at runtime. Cite: WASP §3.2 (Evtimov et al., 2025) for the user-as-attacker framing; ST-WebAgentBench (Levy et al., ICLR 2026) for the snapshot-load precedent; WebArena §4.1 for the environment-construction tradition."
 
-**Decision required from operator before Stage 1.** Spec amendment in `docs/worldsim-v5-technical-specifcation.md` AND CLAUDE.md Principle #1 must land in the same commit as Stage 1 — not after.
+**Decision required from operator before Stage 1.** Spec amendment in `docs/warp-taskgen-technical-spec.md` AND CLAUDE.md Principle #1 must land in the same commit as Stage 1 — not after.
 
 ---
 
@@ -185,7 +185,7 @@ Default proposal: **B** for Stage 1–2 (works without env-ctrl mods), with oper
 **Artifacts:**
 1. Operator decision on Showstopper 1 (Phase 3 strategy): A / B / C.
 2. Operator decision on Showstopper 2 (reset semantics): A / B / C.
-3. Threat-model amendment commit (Showstopper 3) — `CLAUDE.md` + `docs/worldsim-v5-technical-specifcation.md` updated with the WASP-style writeup. **Lands as a docs-only commit BEFORE Stage 1 code.**
+3. Threat-model amendment commit (Showstopper 3) — `CLAUDE.md` + `docs/warp-taskgen-technical-spec.md` updated with the WASP-style writeup. **Lands as a docs-only commit BEFORE Stage 1 code.**
 4. Tag `pre-snapshot-cutover` on current `feat/worldsim-v5` HEAD as the rollback target.
 5. Cross-branch coordination — written confirmation from owners of `feat/multi-benchmark`, `feat/multi-benchmark-v5-integration-codex`, `multi-benchmark-rebased`, `pr-6-review-*` (5 variants), `feat/app-generation-infra` that they will rebase or abandon. Per critique #3: "9 active branches + 8 codex worktrees, all carrying pre-cutover seeding code; Stage 3 deletion creates merge catastrophe without coordination."
 
@@ -460,7 +460,7 @@ Before Stage 3 deletion is safe, ALL of these must exist and pass:
 7. **Cross-branch coordination** — written confirmation from `feat/multi-benchmark*`, `pr-6-review-*`, `feat/app-generation-infra` owners.
 8. **CLAUDE.md updated in the same commit as Stage 3** (not after).
 9. **Snapshot build script unit tests** — round-trip per platform (shopping, shopping_admin, gitlab, reddit).
-10. **Documented threat-model statement** in `docs/worldsim-v5-technical-specifcation.md` AND `CLAUDE.md` Principle #1.
+10. **Documented threat-model statement** in `docs/warp-taskgen-technical-spec.md` AND `CLAUDE.md` Principle #1.
 11. **`scripts/inspect_snapshot.py`** + **`scripts/diff_snapshot.py`** + **`scripts/rollback_snapshot.py`** exist and tested.
 12. **Snapshot admission preflight** in `worldsim/phase_4/snapshot_admission.py` + `tests/preflight/`.
 

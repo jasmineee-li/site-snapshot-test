@@ -4,9 +4,9 @@ Start here when deciding which document to trust.
 
 ## Source Of Truth
 
-- `worldsim-v5-technical-specifcation.md` is the detailed implementation
-  authority. The legacy filename typo is intentional.
-- `worldsim-v5-full-specification.md` is the short current overview.
+- `warp-taskgen-technical-spec.md` is the detailed implementation
+  authority.
+- `warp-taskgen-full-spec.md` is the short current overview.
 - `current_progress.md` records the current project state.
 - `agent_docs/` contains operating rules for agents and runbooks.
 - Top-level `README.md` is the install/run quickstart; it should mirror the
@@ -19,9 +19,9 @@ the overview, runbooks, and handoffs.
 
 The current project/distribution name is WARP Taskgen and the preferred console
 script is `warp-taskgen`. The Python package, compatibility CLI, and many
-artifact fields remain `worldsim`; spec filenames also keep their legacy
-WorldSim-v5 names for compatibility. Do not infer that a doc is stale from the
-word `worldsim` alone.
+artifact fields remain `worldsim`, but active spec filenames use WARP Taskgen
+names. Do not infer that code or artifacts are stale from the word `worldsim`
+alone.
 
 ## Current Scope
 
@@ -90,10 +90,15 @@ processes each run normal Phase 4 with `--phase-4-max-workers 1`.
 Files under `docs/handoffs/` are usually point-in-time working notes. Trust them
 only when they say they are current, and cross-check against:
 
-- `worldsim-v5-technical-specifcation.md`
+- `warp-taskgen-technical-spec.md`
 - `current_progress.md`
 - the relevant `agent_docs/` file
 - the actual run directory or remote job status
+
+Keep active handoffs short and actionable. Move superseded handoffs to
+`docs/handoffs/archive/` with a warning banner instead of letting old commands
+look current. Keep dated evidence and replication notes under `docs/runs/`;
+they are useful provenance, but they are not runbooks.
 
 ## Partial Results
 

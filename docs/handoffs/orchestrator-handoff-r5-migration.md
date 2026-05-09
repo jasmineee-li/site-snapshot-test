@@ -404,7 +404,6 @@ stale, needs reset before next Phase 3.
 
 - Do not `docker compose up` on r5 until user confirms generator fixes (§2)
 - Do not re-add SQL seeding (architectural decision — see `962eec7`)
-- Do not "fix" the `worldsim-v5-technical-specifcation.md` typo (load-bearing)
 - Do not import from `AgentLab/` (dead predecessor code, kept read-only)
 - Do not manage benchmark environment lifecycles from the orchestrator
   (reset_endpoint between tasks is the one exception)
@@ -435,7 +434,7 @@ stale, needs reset before next Phase 3.
 
 ## 10. References
 
-- Spec: `docs/worldsim-v5-technical-specifcation.md`
+- Spec: `docs/warp-taskgen-technical-spec.md`
 - Migration runbook: `docs/migration/r5-8xlarge-scale-migration-plan.md`
 - Memory: `reference_benchmark_archives_s3.md`, `reference_webarena_aws.md`
 - Proxy setup: `README.md` §"Proxy Setup (Phase 0c live verification)"

@@ -102,7 +102,7 @@ contains one of each.
 
 ### Spec doc
 
-`docs/worldsim-v5-technical-specifcation.md`: add a "Scope" section near the top with the WASP citation and the methodological rationale.
+`docs/warp-taskgen-technical-spec.md`: add a "Scope" section near the top with the WASP citation and the methodological rationale.
 
 ## What stays
 
@@ -160,7 +160,7 @@ The shopping/Magento editors are used **only** by `webarena_verified`. The other
 - This file (`docs/handoffs/wasp-aligned-scoping-decision.md`)
 - "SUPERSEDED" header on `docs/handoffs/codex-handoff-snapshot-architecture-cutover.md`
 - `CLAUDE.md` Principle #1 update + WASP citation
-- `docs/worldsim-v5-technical-specifcation.md` Scope section
+- `docs/warp-taskgen-technical-spec.md` Scope section
 
 **Commit 2:** `feat(scope): drop Magento from adversarial dataset and instances`
 - Filter `logs/phase_2/adversarial_tasks.json` (87 → 87 tasks, removing shopping)

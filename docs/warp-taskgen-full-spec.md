@@ -2,7 +2,7 @@
 
 This document is the short current specification for the paper-facing
 WARP Taskgen pipeline. The detailed implementation authority remains
-`docs/worldsim-v5-technical-specifcation.md`; that legacy filename typo is intentional.
+`docs/warp-taskgen-technical-spec.md`.
 If this document and the technical specification disagree, update the technical
 specification first, then update this file.
 
@@ -130,7 +130,7 @@ Phase 4 has two main gates:
 1. **PVPO encounter.** The page-surface-stable PVPO checks whether the payload
    was painted in the runner-owned browser. Browser Use and AgentLab both use
    the runner-owned browser; canonical Phase 4 does not route PVPO through a
-   dedicated `pvpo_cdp_url` or `connect_over_cdp` browser.
+   dedicated browser endpoint.
    `max_coverage == 0` means `injection_not_encountered`; that is not model
    resistance.
 2. **Attack effectiveness.** Rewards and readback determine whether the
@@ -235,7 +235,7 @@ from the partial run plus targeted retry runs; the repaired output carries
 
 ## Current Operating Rules
 
-- Update `docs/worldsim-v5-technical-specifcation.md` first when behavior and
+- Update `docs/warp-taskgen-technical-spec.md` first when behavior and
   docs diverge.
 - Keep current scope to GitLab and Reddit/Postmill UGC carriers.
 - Preserve Phase 2c as strict admission for Phase 4.

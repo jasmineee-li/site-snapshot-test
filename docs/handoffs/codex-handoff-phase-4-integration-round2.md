@@ -4,7 +4,7 @@
 > encounter gate, strict Phase 2c admission contract, and default
 > eval-awareness iterator. Treat old `P(eval)`, ecological-validity, and
 > full-site scope details below as superseded unless reconfirmed against
-> `docs/worldsim-v5-technical-specifcation.md`.
+> `docs/warp-taskgen-technical-spec.md`.
 
 **Branch**: `feat/worldsim-v5`
 **Base commit**: `bd1778a8` (tonight's last commit, after item #14 + 4 followups)
@@ -519,7 +519,6 @@ The inventory flagged WASP's own weaknesses. Carry these improvements through:
 - Don't re-add SQL seeding. Editors use `api` / `form` channels only.
 - Don't `import` from `AgentLab/`.
 - Don't manage benchmark environment lifecycles. `reset_endpoint` between tasks is the one exception.
-- Don't "fix" the `worldsim-v5-technical-specifcation.md` typo.
 - Don't preserve `ResolvedCall` / `ResolverError` / `get_resolver` — they're artifacts of the old contract; clean deletion is the point.
 - Don't add a "universal editor DSL" or any other abstraction layer over the editor classes. Hand-rolled per-site methods ARE the design.
 - Don't re-add DB postcondition verification under a different name. HTTP 2xx is the postcondition.

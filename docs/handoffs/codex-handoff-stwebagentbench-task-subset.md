@@ -67,7 +67,7 @@ Also re-run `uv run pytest` to confirm the script does not break any existing te
 - Do NOT port the STWebAgentBench adapter from `feat/multi-benchmark` into `feat/worldsim-v5`. That is separate work tracked in TODO-2 Track 4 "Migration steps (ordered)".
 - Do NOT stand up SuiteCRM. It is explicitly out of scope for ICML.
 - Do NOT modify the `feat/multi-benchmark` worktree or any file under `.claude/worktrees/`.
-- Do NOT modify `docs/worldsim-v5-full-specification.md` or `docs/TODO-adversarial-rigor-mvp.md`.
+- Do NOT modify `docs/warp-taskgen-full-spec.md` or `docs/archive/TODO-adversarial-rigor-mvp.md`.
 
 ## Operating constraints
 

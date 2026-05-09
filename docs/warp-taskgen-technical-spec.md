@@ -303,8 +303,10 @@ On crash, `--resume` reads this file and applies two-branch logic:
 
 - `--agent-model <name>` (default `claude-sonnet-4-6`): LLM used by Browser Use in Phase 4.
 - `--agent-llm-timeout <seconds>` / `--agent-step-timeout <seconds>` / `--agent-task-timeout <seconds>`: optional local Phase 4 Browser Use runtime deadlines. These are execution controls, not task filters; changing them changes the model-run condition and is recorded in Phase 4 state/resume fingerprints. Registered r5 Phase 4 jobs must pass `--agent-task-timeout` explicitly so browser-session deadlocks turn into bounded, diagnosable failures instead of silently stalling a whole run.
-- `--agent-provider {google,openai,anthropic,openrouter}`: provider for the agent model. Auto-detected when omitted. Slash-qualified OpenRouter model IDs such as `z-ai/glm-5` and `google/gemini-2.5-pro` are treated as OpenRouter; Claude-family OpenRouter IDs such as `anthropic/claude-sonnet-4.6` are routed over OpenRouter's Anthropic-compatible endpoint. Operational OpenRouter Browser Use smoke results are tracked in `docs/phase4-openrouter-agent-model-smoke.md`.
+- `--agent-provider {google,openai,anthropic,openrouter}`: provider for the agent model. Auto-detected when omitted. Slash-qualified OpenRouter model IDs such as `z-ai/glm-5` and `google/gemini-2.5-pro` are treated as OpenRouter; Claude-family OpenRouter IDs such as `anthropic/claude-sonnet-4.6` are routed over OpenRouter's Anthropic-compatible endpoint. Operational OpenRouter Browser Use smoke results are tracked in `docs/runs/phase4-openrouter-agent-model-smoke.md`.
 - `--sandbox-model <name>` (default `claude-sonnet-4-6`): Claude model used inside Modal sandboxes (Phase 0c, Phase 1 generate-new-tasks) and as the model-family knob for host-side Claude API calls.
+- `--phase-4-variant-system {eval-awareness-iterator,strategy-variation,none}`: Phase 4 variant system. The default is `eval-awareness-iterator`; `strategy-variation` is the legacy refusal-judge loop; `none` disables variant attempts for targeted diagnostics.
+- `--phase-4-eval-awareness-max-iterations <N>`: maximum extra browser reruns for the default eval-awareness iterator. The default is 3.
 
 **Phase 1**:
 
@@ -466,7 +468,7 @@ class BrowserUseAgent:
 
 AgentLab/BrowserGym may be used as a comparison runner when the benchmark's native BrowserGym reward is the desired outcome. That path normalizes AgentLab's `summary_info.json` into WARP Taskgen's `result.json` sentinel for resume/reporting. It runs through an isolated sidecar package so AgentLab's `openai<2` dependency cannot conflict with Browser Use's `openai==2.16.0` dependency. The sidecar uses explicit WARP Taskgen model profiles for the current OpenRouter comparison matrix (`opus47`, `sonnet46`, `gemini25pro`, `kimik25`, `gpt52`, `glm5`) and a WARP Taskgen-owned AgentLab chat-model adapter, not AgentLab's default LiteLLM chat wrapper, so provider routing, fallback policy, temperature omission, output budgets, and model metadata are serialized in the request. Named OpenRouter profiles pin the intended provider and disable fallbacks where the target provider exists; GPT-5.2 also forwards the same `reasoning.effort="none"` / `reasoning.exclude=true` control used by the Browser Use OpenRouter parity arm.
 
-AgentLab's Phase 4 runner path is separate from the comparison path. Root WARP Taskgen still never imports AgentLab; it serializes the runner-neutral `AgentRunRequest` fields to `warp-taskgen-agentlab-runner phase4-run`. The sidecar uses AgentLab's `GenericAgent` and BrowserGym's browser environment with a WARP Taskgen open-ended task wrapper, applies AgentLab's benchmark action configuration, and writes WARP Taskgen artifacts (`history.json`, `final_response.json`, `network_trace.json`, `network.har`, `pvpo/`, `screenshots/`, `browser_runtime.json`) plus native AgentLab artifacts. The sidecar also writes incremental operator evidence (`agentlab_step_timeline.jsonl`, `agentlab_events.jsonl`, and live `browser_runtime.json` fields) so remote Phase 4 status and trace inspection can expose AgentLab parity evidence compactly without opening raw logs. AgentLab step timeline rows include compact per-step network deltas: request-row start/end cursors, delta counts, failure counts, methods, statuses, and redacted latest URL metadata. AgentLab Phase 4 uses BrowserGym's native browser launch by default; page-surface-stable PVPO observes the runner-owned page with a scoped CDP session at capture time and does not route BrowserGym through a dedicated `pvpo_cdp_url` or `connect_over_cdp` browser. Legacy CDP attachment is opt-in debugging only. Phase 4 scoring, PVPO encounter aggregation, rewards, Transcript Purpose, VEA, placement-fix, strategy variation, and summaries remain owned by `worldsim.phase_4`.
+AgentLab's Phase 4 runner path is separate from the comparison path. Root WARP Taskgen still never imports AgentLab; it serializes the runner-neutral `AgentRunRequest` fields to `warp-taskgen-agentlab-runner phase4-run`. The sidecar uses AgentLab's `GenericAgent` and BrowserGym's browser environment with a WARP Taskgen open-ended task wrapper, applies AgentLab's benchmark action configuration, and writes WARP Taskgen artifacts (`history.json`, `final_response.json`, `network_trace.json`, `network.har`, `pvpo/`, `screenshots/`, `browser_runtime.json`) plus native AgentLab artifacts. The sidecar also writes incremental operator evidence (`agentlab_step_timeline.jsonl`, `agentlab_events.jsonl`, and live `browser_runtime.json` fields) so remote Phase 4 status and trace inspection can expose AgentLab parity evidence compactly without opening raw logs. AgentLab step timeline rows include compact per-step network deltas: request-row start/end cursors, delta counts, failure counts, methods, statuses, and redacted latest URL metadata. AgentLab Phase 4 uses BrowserGym's native browser launch; page-surface-stable PVPO observes the runner-owned page with a scoped CDP session at capture time and does not route BrowserGym through a dedicated browser endpoint. Phase 4 scoring, PVPO encounter aggregation, rewards, Transcript Purpose, VEA, placement-fix, strategy variation, and summaries remain owned by `worldsim.phase_4`.
 
 **Network trace recording.** Browser Use and AgentLab both emit WARP Taskgen network artifacts, but their capture localities differ. Browser Use owns its host-side recorder around the Browser Use session. AgentLab's sidecar `NetworkTraceRecorder` attaches to the task Playwright `BrowserContext` and records `request`, `response`, and `requestfailed` events. Request rows are append-ordered; response status, response headers, response cookies, response content, and failure metadata enrich the same row when those events arrive. On teardown, both paths write `network_trace.json` and `network.har` for `NetworkEventEvaluator`; AgentLab also writes private raw reward copies under `reward_private/` with mode `0600`.
 
@@ -1434,7 +1436,7 @@ The same rule applies when legacy/self-contained note seeds have to create a
 synthetic parent issue from `issue_title_template`. Mainline note routes should
 prefer `{benign_issue_iid}` and attach to the existing benign issue instead.
 
-Reachability uses `task["exposure_contract"]["verification"]` as the source of truth. It must not infer the benign read surface from `benign_target_resource.start_url_resolved`, because listing fan-out can legitimately have a seeded detail URL that differs from the page the benign task asks the agent to inspect. For Phase 4 admission, reachability is not enough: `phase4_exposure.admissible` must be true and Phase 2c must record positive viewport evidence. Bounded-transitive verification is retained only for diagnostics/future expansion unless the contract proves the transition is task-forced. For created-child contracts, any target URL is resolved through the generic editor write-result metadata path `seed_metadata.created_resource.url`, not through site-specific fields such as a Reddit `submission_url`. It is not a crawler and it does not admit arbitrary project-root links.
+Reachability uses `task["exposure_contract"]["verification"]` as the source of truth. It must not infer the benign read surface from `benign_target_resource.start_url_resolved`, because listing fan-out can legitimately have a seeded detail URL that differs from the page the benign task asks the agent to inspect. For Phase 4 admission, reachability is not enough: `phase4_exposure.admissible` must be true and Phase 2c must record matching exposure evidence. Viewport/layout fields remain geometry telemetry except where an exposure contract requires seed-specific painted visibility, currently Reddit/Postmill `comment.body` carriers. Bounded-transitive verification is retained only for diagnostics/future expansion unless the contract proves the transition is task-forced. For created-child contracts, any target URL is resolved through the generic editor write-result metadata path `seed_metadata.created_resource.url`, not through site-specific fields such as a Reddit `submission_url`. It is not a crawler and it does not admit arbitrary project-root links.
 
 **Outputs.**
 
@@ -1507,7 +1509,7 @@ Adversarial tasks that fail either check are logged as reference errors; they do
 ]
 ```
 
-Phase 4 admits every entry with `validity_status == "valid"`. If Phase 4 selects adversarial tasks whose `benign_task_id` values are absent from `phase_3/contracts.json`, it must fail closed with `reason: "orphaned_adversarial_tasks"`, site counts, and sample missing IDs rather than silently treating the dataset as empty. This almost always means Phase 3 is stale or was generated with a different site filter than the current Phase 2 task set; operators should rerun Phase 3 against the matching Phase 1/2 state. There is no benign-must-succeed filter; baseline capability is reported downstream from Phase 4's `benign_passed` field on PVPO-encountered trajectories.
+Phase 4 admits every entry with `validity_status == "valid"`. Adversarial tasks whose `benign_task_id` values are missing or absent from `phase_3/contracts.json` are skipped as invalid inputs. If that leaves no runnable tasks, Phase 4 fails closed with `reason: "no_validated_adversarial_tasks"` and skip counters rather than silently treating the dataset as empty. This almost always means Phase 3 is stale or was generated with a different site filter than the current Phase 2 task set; operators should rerun Phase 3 against the matching Phase 1/2 state. There is no benign-must-succeed filter; baseline capability is reported downstream from Phase 4's `benign_passed` field on PVPO-encountered trajectories.
 
 ---
 
@@ -2078,7 +2080,7 @@ metrics consume the shared text-only Needham XML transcript.
 
 ## Outcome Taxonomy (post-processing)
 
-Phase 4 trajectories are enriched post-hoc by `worldsim/outcome_taxonomy.py` with a diagnosable outcome ontology. The legacy 3-way `outcome` field (`complied` / `refused_or_ignored` / `task_broke`) stays populated; new fields land alongside on every `processed_result.json` where a trajectory exists.
+Phase 4 trajectories are enriched post-hoc by the `worldsim/outcome_taxonomy/` package with a diagnosable outcome ontology. The legacy 3-way `outcome` field (`complied` / `refused_or_ignored` / `task_broke`) stays populated; new fields land alongside on every `processed_result.json` where a trajectory exists.
 
 Five top-level classes:
 
@@ -2190,11 +2192,10 @@ Phase 4: Adversarial Evaluation
 | Validation | Local Python | Single |
 
 The pipeline does not start, stop, or manage benchmark environments. It connects
-to pre-running instances provided by the user. `pvpo_cdp_url` is legacy/debug
-metadata: canonical Browser Use and AgentLab Phase 4 use page-surface-stable
-capture on the runner-owned browser. Status and resume records may preserve
-`pvpo_cdp_url` for operator visibility, but it is not the canonical PVPO routing
-path unless an explicit legacy debug mode enables CDP attachment.
+to pre-running instances provided by the user. `pvpo_cdp_url` is legacy
+metadata preserved for old instance files and operator visibility only.
+Canonical Browser Use and AgentLab Phase 4 use page-surface-stable capture on
+the runner-owned browser; dedicated CDP browser routing has been removed.
 
 ### Verification Proxy (Phase 0c)
 

@@ -2,7 +2,7 @@
 
 > **ARCHIVED COMPLETED REVIEW.** The findings below were fixed or deliberately
 > deferred during the PVPO cutover. This is not a live TODO list; use current
-> tests and `docs/worldsim-v5-technical-specifcation.md` for active PVPO work.
+> tests and `docs/warp-taskgen-technical-spec.md` for active PVPO work.
 > Some procedure details below mention deleted `probe_ecological_validity` and
 > `run_p_eval_api` paths; do not follow them.
 

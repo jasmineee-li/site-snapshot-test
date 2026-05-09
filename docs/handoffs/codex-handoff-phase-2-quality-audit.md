@@ -25,9 +25,9 @@ You are auditing THREE quality issues surfaced during the 2026-04-15 Phase 2 v2 
 
 **Read first:**
 1. `CLAUDE.md` — project non-negotiables (especially the threat-model constraint + Phase 2 v2 framing)
-2. `docs/TODO-adversarial-rigor-mvp.md:639+` — Phase 2 v2 spec
+2. `docs/archive/TODO-adversarial-rigor-mvp.md:639+` — Phase 2 v2 spec
 3. `docs/current_progress.md` — session state
-4. `docs/worldsim-v5-technical-specifcation.md` (typo load-bearing — do not "fix")
+4. `docs/warp-taskgen-technical-spec.md`
 5. `logs/phase_2/adversarial_tasks.json` + `logs/phase_2/adversarial_plans.json` + `logs/phase_2/text_fill_diagnostics.json` — the smoke-run artifacts you're auditing
 
 ---

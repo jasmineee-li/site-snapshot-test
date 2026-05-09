@@ -7,7 +7,7 @@
 > path became `eval-awareness-iterator`. Treat "what stays on sandbox" and
 > `P(eval)` details below as historical. See
 > [`codex-handoff-paint-verified-oracle.md`](./codex-handoff-paint-verified-oracle.md)
-> and `docs/worldsim-v5-technical-specifcation.md` for current state.
+> and `docs/warp-taskgen-technical-spec.md` for current state.
 
 **Date:** 2026-04-18
 **Branch:** `feat/worldsim-v5`
@@ -130,11 +130,11 @@ Refusal taxonomy: **7** (added `distracted` and `unknown`).
 | `worldsim/prompts/generate-variant.md` | **Rewritten.** Authorization preamble; dual-objective (tool + concealment) framing; 22-strategy pool reference; concealment-steering strategies explicitly deferred; `inapplicable` return path |
 | `worldsim/phases/phase_4_adversarial.py` | `_ALLOWED_STRATEGIES` imported from `strategy_catalog` (5 → 22); `run_judge` and `generate_variant` are thin wrappers over new API modules; `run_strategy_variation` understands `judge_ok_actionable`/`judge_ok_unactionable`/`judge_failed` |
 | `CLAUDE.md` | "Claude Code steps always run in Modal sandboxes" qualified with Phase 4 judge/variant carve-out; integration-test trigger list includes both prompt files; "What NOT to do" list adds routing prohibition and `visual_concealment` ban |
-| `docs/worldsim-v5-technical-specifcation.md` | 6 edits (S1-S6 in plan file): drop `visual_concealment`, replace judge prompt block, update pseudocode to show host-side lookup, update execution table |
+| `docs/warp-taskgen-technical-spec.md` | 6 edits (S1-S6 in plan file): drop `visual_concealment`, replace judge prompt block, update pseudocode to show host-side lookup, update execution table |
 | `README.md` | Prerequisites: `ANTHROPIC_API_KEY` also needed host-side; architecture table Phase 4 row |
 | `docs/current_progress.md` | Phase 4 paragraph + prompt table entries |
-| `docs/handoffs/researcher-handoff-project-status.md` | Phase 4 paragraph |
-| `docs/todo-handoff.md` | "judge sandbox" → "judge API call"; carve-out in `run_claude_in_sandbox` mandate |
+| `docs/handoffs/archive/current_progress_pre_wasp_20260417.md` | Phase 4 paragraph |
+| `docs/handoffs/archive/todo-handoff-bootstrap.md` | "judge sandbox" → "judge API call"; carve-out in `run_claude_in_sandbox` mandate |
 | `.env.example` | Documents that all three auth paths work for both sandbox AND host API; empty-string env convention documented |
 | `tests/conftest.py` | `patched_anthropic_client` fixture that cross-patches `get_client` in all phase_4 modules; `fake_anthropic_response` factory |
 | `tests/test_phase_4_adversarial.py` | Sandbox-based `test_generate_variant_reads_variant_output_path` rewritten to test the API wrapper against a patched `generate_variant_api` |

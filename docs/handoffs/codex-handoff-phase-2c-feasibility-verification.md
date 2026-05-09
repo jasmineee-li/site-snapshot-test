@@ -2,7 +2,7 @@
 
 > **SHIPPED HISTORICAL HANDOFF.** Phase 2c strict admission is current, but
 > old site-scope details below predate the strict GitLab/Reddit WASP mainline.
-> Use `docs/worldsim-v5-technical-specifcation.md` and
+> Use `docs/warp-taskgen-technical-spec.md` and
 > `agent_docs/domain-invariants.md` for current Phase 2c scope and flags.
 
 **Branch to base off:** `feat/worldsim-v5`
@@ -136,7 +136,7 @@ scripts/cleanup_webagent_test_resources.sh    # touched: add `webagent-verify-` 
 tests/test_phase_2_feasibility.py             # new, ~400 LOC unit tests (FakeSession pattern)
 tests/integration/test_phase_2_feasibility_live.py  # new, ~180 LOC live
 tests/integration/fixtures/feasibility/<site>/{good,oversize,policy}.json  # new, ~12 fixtures
-docs/worldsim-v5-technical-specifcation.md    # touched: §Phase 2c subsection (~700 words)
+docs/warp-taskgen-technical-spec.md    # touched: §Phase 2c subsection (~700 words)
 README.md                                      # touched: CLI flags + prerequisites note
 CLAUDE.md                                      # touched: integration-test trigger list
 ```
@@ -624,11 +624,11 @@ Every commit in this work updates these in lockstep with the code changes (no "d
 
 | File | Change |
 |---|---|
-| `docs/worldsim-v5-technical-specifcation.md` | Add §Phase 2c subsection (~700 words) covering threat-model alignment, error taxonomy, idempotency, output schema. Update §Phase 2 intro to say "three internal stages: 2a planning, 2b text fill, 2c feasibility verification". Update §Phase 4 admission section to note the `feasibility.status == "verified"` gate post-grace-period. Update Pipeline Dependency Graph to include 2c. **Do NOT "fix" the filename typo.** |
+| `docs/warp-taskgen-technical-spec.md` | Add §Phase 2c subsection (~700 words) covering threat-model alignment, error taxonomy, idempotency, output schema. Update §Phase 2 intro to say "three internal stages: 2a planning, 2b text fill, 2c feasibility verification". Update §Phase 4 admission section to note the `feasibility.status == "verified"` gate post-grace-period. Update Pipeline Dependency Graph to include 2c. |
 | `README.md` | Phase 2 invocation example gains `--skip-feasibility` mention. Prerequisites section gains a one-line note that 2c (unlike 2a/2b) requires a live dev instance. Resume section gains a note that 2c is intra-Phase-2 and idempotent. |
 | `CLAUDE.md` | Extend the "Integration test requirement" block (lines 24–26) to include `worldsim/phases/phase_2_feasibility.py` in the trigger list. Add to "What NOT to do": "Do not bypass 2c (`--skip-feasibility`) on shipping runs", "Do not hand-edit `feasibility.status`; trust the gate or re-run 2c". |
 | `docs/handoffs/codex-handoff-phase-4-integration-round2.md` | Append a one-line cross-reference footnote: "Update 2026-04-XX: feasibility verification added in Phase 2c — see codex-handoff-phase-2c-feasibility-verification.md". |
-| `docs/handoffs/researcher-handoff-project-status.md` | Add 2c to the "what's next" / "what's verified" tables when the work lands. |
+| `docs/handoffs/archive/current_progress_pre_wasp_20260417.md` | Add 2c to the "what's next" / "what's verified" tables when the work lands. |
 
 ---
 
@@ -803,7 +803,7 @@ What ships:
 - scripts/{run_integration_tests,cleanup_webagent_test_resources}.sh — updates
 
 Docs touched (in this commit, not a follow-up):
-- docs/worldsim-v5-technical-specifcation.md (§Phase 2c added)
+- docs/warp-taskgen-technical-spec.md (§Phase 2c added)
 - README.md (CLI flags + prerequisites)
 - CLAUDE.md (integration-test trigger; what NOT to do)
 - docs/handoffs/codex-handoff-phase-4-integration-round2.md (cross-reference footnote)
@@ -833,7 +833,6 @@ Test evidence:
 - Don't import from `AgentLab/`. Feasibility is brand-new code, not a port.
 - Don't make 2c block Phase 4 on the grace-period commits — the migration plan is explicit that commits 1+2 admit unverified tasks.
 - Don't skip hooks (`--no-verify`) or force-push.
-- Don't "fix" the `worldsim-v5-technical-specifcation.md` filename typo.
 
 ---
 

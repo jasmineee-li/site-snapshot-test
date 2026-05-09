@@ -18,7 +18,7 @@
 
 ## Context
 
-WorldSim v5 is a Modal-Sandbox + Browser-Use adversarial evaluation pipeline for browser agents. It evaluates whether browser agents resist indirect prompt injection embedded in realistic WebArena Verified environments. See `CLAUDE.md` and `docs/worldsim-v5-technical-specifcation.md` (typo is load-bearing, do not "fix").
+WorldSim v5 is a Modal-Sandbox + Browser-Use adversarial evaluation pipeline for browser agents. It evaluates whether browser agents resist indirect prompt injection embedded in realistic WebArena Verified environments. See `CLAUDE.md` and `docs/warp-taskgen-technical-spec.md`.
 
 We spent a session migrating from m5.xlarge to r5.4xlarge (`3.12.221.9`, us-east-2, instance `i-03acfc08597207960`), bringing up a 6-container smoke stack, and completing Phase 3 cleanly. Phase 4 then failed at the adversarial data-seed step (item #13 below). Phase 3 produced `logs/phase_3/validated_tasks.json` with 7 validated benign tasks across 5 sites (gitlab 3, shopping/shopping_admin/reddit/map 1 each, wikipedia 0) out of 50 attempts. Infra is solid; the remaining issues are all in our scripts and code.
 
@@ -682,7 +682,6 @@ Pick one after a proper design discussion; out of scope tonight.
 - Don't re-add SQL seeding (removed in `962eec7`, architectural decision).
 - Don't `import` from `AgentLab/`.
 - Don't manage benchmark environment lifecycles (start/stop/snapshot). `reset_endpoint` per task is the one exception.
-- Don't "fix" the `worldsim-v5-technical-specifcation.md` typo.
 - Don't hard-code `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` — let `worldsim/modal_sandbox.py:_build_claude_secrets` decide.
 - Don't skip hooks (`--no-verify`) when committing.
 - Don't force-push.
@@ -710,7 +709,7 @@ Open a PR to `feat/worldsim-v5` from `codex/setup-hardening`. Include in the PR 
 ## Reference files to read
 
 - `CLAUDE.md` — invariants.
-- `docs/worldsim-v5-technical-specifcation.md` — authoritative spec.
+- `docs/warp-taskgen-technical-spec.md` — authoritative spec.
 - `docs/handoffs/orchestrator-handoff-r5-migration.md` — prior-state context.
 - `docs/migration/r5-8xlarge-scale-migration-plan.md` — migration runbook (r5.4xlarge in practice; quota = 16 vCPU).
 - `worldsim/seeding.py` — where #13 lives.

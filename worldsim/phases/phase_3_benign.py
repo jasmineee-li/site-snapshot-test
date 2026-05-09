@@ -1,6 +1,6 @@
 """Phase 3: contract validity gate.
 
-Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` "Phase 3".
+Canonical source: ``docs/warp-taskgen-technical-spec.md`` "Phase 3".
 
 Validates each benign task's contract (reward function, start URLs, data seed)
 and each adversarial task's reference to a benign task. Writes

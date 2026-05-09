@@ -155,7 +155,7 @@ Phase 4's stratification reader at `phase_4_adversarial.py:1585` defaults missin
 
 ### Documentation references
 
-`docs/worldsim-v5-technical-specifcation.md` (the load-bearing-typo spec, memory: *Spec Filename Typo*) references "Mode A" and "Mode B" several times. Update those references in lockstep. CLAUDE.md, READMEs, and other handoffs reference Mode A/B too; update each in the same commit as the rename.
+`docs/warp-taskgen-technical-spec.md` references "Mode A" and "Mode B" several times. Update those references in lockstep. CLAUDE.md, READMEs, and other handoffs reference Mode A/B too; update each in the same commit as the rename.
 
 ---
 
@@ -276,7 +276,7 @@ Acceptance: `git grep '"mode_a"\|"mode_b"' worldsim/` returns zero hits.
 - A 6-task Phase 4 smoke against `origin == "new_task"` tasks reports `max_coverage > 0` on the majority of trajectories. (Conditional on PVPO infra being healthy. If PVPO is the failing layer, document and stop.)
 - `git grep -i '\bmode_a\b\|\bmode_b\b' worldsim/ tests/ docs/handoffs/codex-handoff-phase-1-mode-b-implementation.md` returns only this handoff.
 - The Rename Plan table in this doc is fully reflected in the codebase.
-- A short note appended to `docs/handoffs/researcher-handoff-project-status.md` recording that Mode A → existing_task / Mode B → new_task is now the canonical naming, with the rename commit SHA.
+- A short note appended to `docs/handoffs/archive/current_progress_pre_wasp_20260417.md` recording that Mode A → existing_task / Mode B → new_task is now the canonical naming, with the rename commit SHA.
 
 ---
 

@@ -229,7 +229,7 @@ cannot do Tier 2." It may have been a **measurement fidelity false negative**.
 
 Read these before making non-trivial changes:
 
-- `docs/worldsim-v5-technical-specifcation.md`
+- `docs/warp-taskgen-technical-spec.md`
 - `agent_docs/domain-invariants.md`
 - `worldsim/adversarial_actions/scenario_templates.py`
 - `worldsim/adversarial_actions/capability_adapters.py`

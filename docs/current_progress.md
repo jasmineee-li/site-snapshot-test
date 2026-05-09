@@ -15,8 +15,7 @@ are historical or support plumbing unless the spec explicitly reopens scope.
 
 Naming state: `warp-taskgen` is the preferred console script and package
 distribution name. The Python package, compatibility CLI, and many historical
-artifact fields remain `worldsim`; WorldSim-v5 spec filenames are retained for
-stable references.
+artifact fields remain `worldsim`; active spec filenames use WARP Taskgen names.
 
 ## Current Gates
 
@@ -33,13 +32,13 @@ stable references.
 
 ## Current Run Records
 
-- Technical source of truth: `docs/worldsim-v5-technical-specifcation.md`
+- Technical source of truth: `docs/warp-taskgen-technical-spec.md`
 - Domain invariants: `agent_docs/domain-invariants.md`
 - r5 and rigor runbook: `docs/handoffs/rigor-run-setup.md`
 - Phase 2c floor: `docs/handoffs/phase-2c-admission-floor.md`
-- Expanded Phase 4 sweep, title-inclusive historical cohort: `docs/phase4-expanded-model-sweep-20260501.md`
+- Expanded Phase 4 sweep, title-inclusive historical cohort: `docs/runs/phase4-expanded-model-sweep-20260501.md`
 - No-title mainline sweep config: `configs/phase4_model_sweeps/phase4_20260502_no_title.json`
-- OpenRouter smoke matrix: `docs/phase4-openrouter-agent-model-smoke.md`
+- OpenRouter smoke matrix: `docs/runs/phase4-openrouter-agent-model-smoke.md`
 - Phase 4 eval-awareness iterator renderer fix: validated 2026-05-07 on r5 in
   `logs/gitlab_create_issue_note_renderer_rerun_20260507T0200Z` at
   `258570f16203`. The narrowed GitLab `create_issue_note` Tier 2 rerun

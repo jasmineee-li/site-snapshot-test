@@ -1,6 +1,6 @@
 """Data seeding dispatchers.
 
-Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` "Phase 3 / Evaluation
+Canonical source: ``docs/warp-taskgen-technical-spec.md`` "Phase 3 / Evaluation
 Infrastructure" section.
 
 The only supported seed mechanism is ``editor``: each ``editor_calls`` entry
@@ -8,7 +8,7 @@ dispatches to a per-site editor method in ``worldsim/editors/`` which performs
 the underlying HTTP write against ``instance["site_url"]``. ``mechanism: "none"``
 is allowed for navigate-only tasks. ``api``, ``form``, and ``state_push`` were
 deprecated in the editor migration and are rejected at the validator boundary;
-see ``docs/handoffs/researcher-handoff-project-status.md``.
+see ``docs/handoffs/archive/current_progress_pre_wasp_20260417.md``.
 
 SQL seeding was evaluated and excluded from the methodology because it violates
 the threat model (a regular authenticated user cannot write to the database

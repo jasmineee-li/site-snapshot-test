@@ -116,8 +116,10 @@ than from compatibility wrappers once a package split exists.
 
 When moving public or widely imported modules, keep the old import path as a
 thin compatibility wrapper for one migration cycle. Wrappers may delegate and
-re-export canonical names, but they should not own behavior, monkeypatch
-dependencies, or contain a second implementation.
+re-export canonical names, but they should not own behavior or contain a second
+implementation. They also should not monkeypatch dependencies, except for the
+explicitly documented patchable compatibility surfaces that preserve old test
+and hidden-consumer behavior during the current migration window.
 
 Update in-repo imports to the canonical feature package during the same change.
 Remove wrappers in a follow-up cleanup once hidden consumers have had a chance

@@ -47,7 +47,7 @@ def validate_data_seed(seed: dict[str, Any], *, allow_none: bool = False) -> Non
             f"data_seed.mechanism={mechanism!r} is deprecated; use mechanism='editor' "
             "with editor_calls referencing site editor methods. The api/form/state_push "
             "paths were removed in the editor migration; see "
-            "docs/handoffs/researcher-handoff-project-status.md."
+            "docs/handoffs/archive/current_progress_pre_wasp_20260417.md."
         )
 
     raise ValueError(f"unknown data seed mechanism: {mechanism!r}")

@@ -436,7 +436,7 @@ Stratification is the real payoff — the headline ASR number is conditioned on 
   - Writes new fields in-place; preserves old fields
 
 ### Docs
-- `docs/worldsim-v5-technical-specifcation.md` — add §Outcome Taxonomy subsection
+- `docs/warp-taskgen-technical-spec.md` — add §Outcome Taxonomy subsection
 - `CLAUDE.md` — no change required; this is pure post-processing
 - `README.md` — brief mention of classifier + reclassify script
 
@@ -581,7 +581,7 @@ Keep it minimal: one new test under `tests/integration/` that re-runs `classify`
    - The stratified summary table showing ASR conditioning
    - Any tasks flagged `diagnosable_confidence=low` with the manual-review disposition
    - Cross-references to this handoff and to the Phase 2c handoff.
-6. `docs/worldsim-v5-technical-specifcation.md` §Outcome Taxonomy exists and documents the ontology.
+6. `docs/warp-taskgen-technical-spec.md` §Outcome Taxonomy exists and documents the ontology.
 
 ---
 
@@ -595,7 +595,6 @@ Keep it minimal: one new test under `tests/integration/` that re-runs `classify`
 - Don't change PVPO `max_coverage` semantics or the `injection_not_encountered` stamp. The threshold-based `VALIDITY_THRESHOLD` comparison was deleted in the PVPO cutover (2026-04-19) — see [`codex-handoff-paint-verified-oracle.md`](./codex-handoff-paint-verified-oracle.md) §5.
 - Don't re-run any agent to re-classify — classification is offline-only.
 - Don't skip hooks or force-push.
-- Don't "fix" the `worldsim-v5-technical-specifcation.md` filename typo.
 
 ---
 

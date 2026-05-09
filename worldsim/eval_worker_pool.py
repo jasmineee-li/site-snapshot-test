@@ -1,6 +1,6 @@
 """Parallel evaluation worker pool.
 
-Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` "Parallel Evaluation" section.
+Canonical source: ``docs/warp-taskgen-technical-spec.md`` "Parallel Evaluation" section.
 
 Each worker is pinned to one pre-running benchmark instance. Tasks are
 deterministically partitioned onto per-instance queues before startup so the
