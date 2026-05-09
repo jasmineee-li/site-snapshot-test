@@ -17,6 +17,8 @@ from typing import Any
 import pytest
 
 from worldsim.editors import EditorError
+from worldsim.phase_2.phase_2c import _impl as phase_2c_impl
+from worldsim.phase_2.phase_2c import source_data_preflight, source_preflight
 from worldsim.phases import phase_2_feasibility as feas
 from worldsim.phases import phase_2c_preflight
 
@@ -1592,6 +1594,272 @@ async def test_preflight_context_creation_failure_does_not_probe_anonymously(tmp
     storage_state = fake_request.calls[0]["storage_state"]
     assert isinstance(storage_state, dict)
     assert storage_state["cookies"][0]["sameSite"] == "Lax"
+
+
+@pytest.mark.asyncio
+async def test_preflight_uses_facade_patched_request_context_options(monkeypatch):
+    task = _task("AT-patch", feasibility={"status": "verified"})
+    task["benign_target_resource"] = {
+        "kind": "gitlab_issue",
+        "start_url_resolved": "https://gitlab.local/project/-/issues/1",
+    }
+    seen_context_options: list[dict[str, Any] | None] = []
+
+    def fake_context_options(instance, *, benchmark_root=None):
+        assert benchmark_root == Path("/tmp/benchmark-root")
+        assert instance["site_name"] == "gitlab"
+        return {"extra_http_headers": {"X-Test": "patched"}}, None
+
+    async def fake_preflight_benign_targets(tasks, *, instances_by_site, request_context_factory):
+        seen_context_options.append(instances_by_site["gitlab"][0]["preflight_request_context"])
+        return tasks, []
+
+    class _FakeRequest:
+        async def new_context(self, **_kwargs):
+            raise AssertionError("fake preflight should not create request contexts")
+
+    class _FakePlaywright:
+        request = _FakeRequest()
+
+        async def stop(self):
+            return None
+
+    class _FakePlaywrightStarter:
+        async def start(self):
+            return _FakePlaywright()
+
+    monkeypatch.setattr(feas, "_preflight_request_context_options", fake_context_options)
+    monkeypatch.setattr(
+        phase_2c_preflight, "preflight_benign_targets", fake_preflight_benign_targets
+    )
+    monkeypatch.setattr(
+        "playwright.async_api.async_playwright",
+        lambda: _FakePlaywrightStarter(),
+    )
+
+    dropped = await feas._run_preflight_and_filter_raw(
+        [task],
+        instances_by_site={"gitlab": [_gitlab_instance(agent_auth={"type": "none"})]},
+        benchmark_root=Path("/tmp/benchmark-root"),
+    )
+
+    assert dropped == []
+    assert seen_context_options == [{"extra_http_headers": {"X-Test": "patched"}}]
+
+
+@pytest.mark.asyncio
+async def test_source_preflight_export_uses_patched_request_context_options(monkeypatch):
+    task = _task("AT-source-patch", feasibility={"status": "verified"})
+    task["benign_target_resource"] = {
+        "kind": "gitlab_issue",
+        "start_url_resolved": "https://gitlab.local/project/-/issues/1",
+    }
+    seen_context_options: list[dict[str, Any] | None] = []
+
+    def fake_context_options(instance, *, benchmark_root=None):
+        assert benchmark_root == Path("/tmp/benchmark-root")
+        assert instance["site_name"] == "gitlab"
+        return {"extra_http_headers": {"X-Source": "patched"}}, None
+
+    async def fake_preflight_benign_targets(tasks, *, instances_by_site, request_context_factory):
+        seen_context_options.append(instances_by_site["gitlab"][0]["preflight_request_context"])
+        return tasks, []
+
+    class _FakeRequest:
+        async def new_context(self, **_kwargs):
+            raise AssertionError("fake preflight should not create request contexts")
+
+    class _FakePlaywright:
+        request = _FakeRequest()
+
+        async def stop(self):
+            return None
+
+    class _FakePlaywrightStarter:
+        async def start(self):
+            return _FakePlaywright()
+
+    monkeypatch.setattr(
+        source_preflight,
+        "_preflight_request_context_options",
+        fake_context_options,
+    )
+    monkeypatch.setattr(
+        phase_2c_preflight, "preflight_benign_targets", fake_preflight_benign_targets
+    )
+    monkeypatch.setattr(
+        "playwright.async_api.async_playwright",
+        lambda: _FakePlaywrightStarter(),
+    )
+
+    dropped = await source_preflight._run_preflight_and_filter_raw(
+        [task],
+        instances_by_site={"gitlab": [_gitlab_instance(agent_auth={"type": "none"})]},
+        benchmark_root=Path("/tmp/benchmark-root"),
+    )
+
+    assert dropped == []
+    assert seen_context_options == [{"extra_http_headers": {"X-Source": "patched"}}]
+
+
+@pytest.mark.asyncio
+async def test_facade_preflight_uses_impl_patched_request_context_options(monkeypatch):
+    task = _task("AT-impl-patch", feasibility={"status": "verified"})
+    task["benign_target_resource"] = {
+        "kind": "gitlab_issue",
+        "start_url_resolved": "https://gitlab.local/project/-/issues/1",
+    }
+    seen_context_options: list[dict[str, Any] | None] = []
+
+    def fake_context_options(instance, *, benchmark_root=None):
+        assert benchmark_root == Path("/tmp/benchmark-root")
+        assert instance["site_name"] == "gitlab"
+        return {"extra_http_headers": {"X-Impl": "patched"}}, None
+
+    async def fake_preflight_benign_targets(tasks, *, instances_by_site, request_context_factory):
+        seen_context_options.append(instances_by_site["gitlab"][0]["preflight_request_context"])
+        return tasks, []
+
+    class _FakeRequest:
+        async def new_context(self, **_kwargs):
+            raise AssertionError("fake preflight should not create request contexts")
+
+    class _FakePlaywright:
+        request = _FakeRequest()
+
+        async def stop(self):
+            return None
+
+    class _FakePlaywrightStarter:
+        async def start(self):
+            return _FakePlaywright()
+
+    monkeypatch.setattr(
+        phase_2c_impl,
+        "_preflight_request_context_options",
+        fake_context_options,
+    )
+    monkeypatch.setattr(
+        phase_2c_preflight, "preflight_benign_targets", fake_preflight_benign_targets
+    )
+    monkeypatch.setattr(
+        "playwright.async_api.async_playwright",
+        lambda: _FakePlaywrightStarter(),
+    )
+
+    dropped = await feas._run_preflight_and_filter_raw(
+        [task],
+        instances_by_site={"gitlab": [_gitlab_instance(agent_auth={"type": "none"})]},
+        benchmark_root=Path("/tmp/benchmark-root"),
+    )
+
+    assert dropped == []
+    assert seen_context_options == [{"extra_http_headers": {"X-Impl": "patched"}}]
+
+
+@pytest.mark.asyncio
+async def test_impl_preflight_uses_impl_patched_benchmark_inference(monkeypatch):
+    task = _task("AT-impl-infer", feasibility={"status": "verified"})
+    task["benign_target_resource"] = {
+        "kind": "gitlab_issue",
+        "start_url_resolved": "https://gitlab.local/project/-/issues/1",
+    }
+    infer_calls: list[list[Any]] = []
+
+    def fake_infer_benchmark_name(values):
+        infer_calls.append(list(values))
+        return None
+
+    async def fake_preflight_benign_targets(tasks, *, instances_by_site, request_context_factory):
+        return tasks, []
+
+    class _FakeRequest:
+        async def new_context(self, **_kwargs):
+            raise AssertionError("fake preflight should not create request contexts")
+
+    class _FakePlaywright:
+        request = _FakeRequest()
+
+        async def stop(self):
+            return None
+
+    class _FakePlaywrightStarter:
+        async def start(self):
+            return _FakePlaywright()
+
+    monkeypatch.setattr(phase_2c_impl, "infer_benchmark_name", fake_infer_benchmark_name)
+    monkeypatch.setattr(
+        phase_2c_preflight, "preflight_benign_targets", fake_preflight_benign_targets
+    )
+    monkeypatch.setattr(
+        "playwright.async_api.async_playwright",
+        lambda: _FakePlaywrightStarter(),
+    )
+
+    dropped = await phase_2c_impl._run_preflight_and_filter_raw(
+        [task],
+        instances_by_site={"gitlab": [_gitlab_instance(agent_auth={"type": "none"})]},
+    )
+
+    assert dropped == []
+    assert infer_calls
+
+
+@pytest.mark.asyncio
+async def test_facade_preflight_patch_does_not_leak_into_source_data_direct_call(monkeypatch):
+    task = _task("AT-no-leak", feasibility={"status": "verified"})
+    task["benign_target_resource"] = {
+        "kind": "gitlab_issue",
+        "start_url_resolved": "https://gitlab.local/project/-/issues/1",
+    }
+    seen_context_options: list[dict[str, Any] | None] = []
+
+    def fake_context_options(instance, *, benchmark_root=None):
+        return {"extra_http_headers": {"X-Leak": "patched"}}, None
+
+    async def fake_preflight_benign_targets(tasks, *, instances_by_site, request_context_factory):
+        seen_context_options.append(instances_by_site["gitlab"][0]["preflight_request_context"])
+        return tasks, []
+
+    class _FakeRequest:
+        async def new_context(self, **_kwargs):
+            raise AssertionError("fake preflight should not create request contexts")
+
+    class _FakePlaywright:
+        request = _FakeRequest()
+
+        async def stop(self):
+            return None
+
+    class _FakePlaywrightStarter:
+        async def start(self):
+            return _FakePlaywright()
+
+    monkeypatch.setattr(
+        phase_2c_preflight, "preflight_benign_targets", fake_preflight_benign_targets
+    )
+    monkeypatch.setattr(
+        "playwright.async_api.async_playwright",
+        lambda: _FakePlaywrightStarter(),
+    )
+
+    with monkeypatch.context() as patch_context:
+        patch_context.setattr(feas, "_preflight_request_context_options", fake_context_options)
+        dropped = await feas._run_preflight_and_filter_raw(
+            [task],
+            instances_by_site={"gitlab": [_gitlab_instance(agent_auth={"type": "none"})]},
+        )
+
+    assert dropped == []
+    assert seen_context_options == [{"extra_http_headers": {"X-Leak": "patched"}}]
+
+    dropped = await source_data_preflight._run_preflight_and_filter_raw(
+        [task],
+        instances_by_site={"gitlab": [_gitlab_instance(agent_auth={"type": "none"})]},
+    )
+
+    assert dropped == []
+    assert seen_context_options == [{"extra_http_headers": {"X-Leak": "patched"}}, {}]
 
 
 @pytest.mark.asyncio

@@ -205,6 +205,49 @@ def test_legacy_import_audit_relative_import_resolution_drops_levels() -> None:
     assert readiness_audit._resolve_relative_anchor("worldsim/phases/foo.py", 5) is None
 
 
+def test_active_facade_import_audit_flags_patchable_compat_paths(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "worldsim" / "consumer.py"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "\n".join(
+            [
+                "import worldsim.main",
+                "from worldsim.phases.phase_2_text_fill import validate_text_post_hoc",
+                "from worldsim.phases import phase_2_feasibility",
+            ]
+        )
+    )
+
+    findings = readiness_audit._active_facade_import_findings(["worldsim/consumer.py"])
+
+    assert [finding.module for finding in findings] == [
+        "worldsim.main",
+        "worldsim.phases.phase_2_text_fill",
+        "worldsim.phases.phase_2_feasibility",
+    ]
+
+
+def test_active_facade_import_audit_is_advisory_for_tests(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    test_path = tmp_path / "tests" / "consumer.py"
+    test_path.parent.mkdir(parents=True)
+    test_path.write_text("from worldsim.phases import phase_2_text_fill\n")
+
+    docs_path = tmp_path / "docs" / "consumer.py"
+    docs_path.parent.mkdir(parents=True)
+    docs_path.write_text("from worldsim.phases import phase_2_text_fill\n")
+
+    assert (
+        readiness_audit._active_facade_import_findings(
+            ["tests/consumer.py", "docs/consumer.py"]
+        )
+        == []
+    )
+
+
 def test_generated_artifact_detection_covers_r5_copy_outputs(monkeypatch) -> None:
     paths = [
         "instances.scale.json",
