@@ -671,11 +671,14 @@ def parse_eia_trajectory(
 
     # SeeAct step entries: {"thought", "action", "target_element", "observation"}
     # Fall back to other common key names if EIA used different ones.
-    raw_steps = (
-        traj_data.get("steps")
-        or traj_data.get("history")
-        or (traj_data if isinstance(traj_data, list) else [])
-    )
+    if isinstance(traj_data, dict):
+        raw_steps = traj_data.get("steps") or traj_data.get("history") or []
+        traj_agent = traj_data.get("agent")
+        final_answer = traj_data.get("final_answer", "")
+    else:
+        raw_steps = traj_data if isinstance(traj_data, list) else []
+        traj_agent = None
+        final_answer = ""
     steps = []
     for entry in raw_steps:
         if not isinstance(entry, dict):
@@ -701,17 +704,20 @@ def parse_eia_trajectory(
         )
 
     attack_meta = task_data.get("attack_metadata") or {}
+    attack_success = attack_meta.get("attack_success")
+    if attack_success is None:
+        attack_success = task_data.get("attack_success")
 
     return StandardizedTrajectory(
         id=f"eia_{task_data.get('task_id', trajectory_dir.name)}",
         benchmark="eia",
         task_instruction=task_data.get("instruction", ""),
-        agent=traj_data.get("agent") or task_data.get("agent", "seeact"),
+        agent=traj_agent or task_data.get("agent", "seeact"),
         steps=steps,
-        final_answer=traj_data.get("final_answer", "") or (steps[-1].action if steps else ""),
+        final_answer=final_answer or (steps[-1].action if steps else ""),
         passed=task_data.get("passed"),
         attack_type="environmental_injection",
-        attack_success=attack_meta.get("attack_success"),
+        attack_success=attack_success,
         safety_category="vision_web_injection",
         injection_condition="baseline",
         metadata={

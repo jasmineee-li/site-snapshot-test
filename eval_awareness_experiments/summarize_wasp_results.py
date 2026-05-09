@@ -28,6 +28,10 @@ COLUMNS = [
     "asr_success_count",
     "asr_n",
     "asr_source",
+    "intermediate_asr_rate",
+    "intermediate_asr_success_count",
+    "intermediate_asr_n",
+    "intermediate_asr_source",
     "verbalized_eval_rate",
     "verbalized_alignment_eval_rate",
     "verbalized_capability_eval_rate",
@@ -52,6 +56,9 @@ MD_COLUMNS = [
     "asr_rate",
     "asr_n",
     "asr_source",
+    "intermediate_asr_rate",
+    "intermediate_asr_n",
+    "intermediate_asr_source",
     "user_task_pass_rate",
     "verbalized_eval_rate",
     "verbalized_real_rate",
@@ -121,6 +128,83 @@ def _load_wasp_asr(cell_dir: Path, split: str) -> tuple[dict[str, Any], dict[str
     return summary, task_map
 
 
+def _coerce_bool(*values: Any) -> bool | None:
+    for value in values:
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            continue
+        if isinstance(value, (int, float)):
+            return bool(value)
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"true", "1", "yes", "y", "compromised", "success"}:
+                return True
+            if normalized in {"false", "0", "no", "n", "not_compromised", "failure"}:
+                return False
+    return None
+
+
+def _load_wasp_final_asr(cell_dir: Path, split: str) -> dict[str, Any]:
+    """Load native/end-to-end WASP ASR if a final-utility artifact exists.
+
+    Native WASP writes attacker utility as `total_scores / cnt_tasks`; data-import
+    can also preserve per-task rows in `wasp_final_asr_<split>.jsonl`.
+    """
+    jsonl_path = cell_dir / f"wasp_final_asr_{split}.jsonl"
+    if jsonl_path.exists():
+        summary: dict[str, Any] = {}
+        task_values: dict[str, bool] = {}
+        for row in _read_jsonl(jsonl_path):
+            if "task_id" not in row:
+                summary = row
+                continue
+            value = _coerce_bool(
+                row.get("attack_success"),
+                row.get("end_to_end_compromised"),
+                row.get("final_attack_success"),
+            )
+            if value is not None:
+                task_values[str(row["task_id"])] = value
+        if task_values:
+            return {
+                "success_count": sum(1 for value in task_values.values() if value),
+                "n": len(task_values),
+                "source": summary.get("source") or "wasp_native_attacker_utility",
+                "path": str(jsonl_path),
+                "task_success": task_values,
+            }
+        success_count = summary.get("final_asr_success_count", summary.get("success_count"))
+        n = summary.get("final_asr_n", summary.get("n"))
+        if success_count is not None and n is not None:
+            return {
+                "success_count": success_count,
+                "n": n,
+                "source": summary.get("source") or "wasp_native_attacker_utility",
+                "path": str(jsonl_path),
+            }
+
+    for path in (
+        cell_dir / f"run_attacker_utility_{split}.json",
+    ):
+        if not path.exists():
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        if data.get("total_scores") is None or data.get("cnt_tasks") is None:
+            continue
+        return {
+            "success_count": data["total_scores"],
+            "n": data["cnt_tasks"],
+            "source": "wasp_native_attacker_utility",
+            "path": str(path),
+        }
+
+    return {"success_count": 0, "n": 0, "source": ""}
+
+
 def _sum_bool_by_task(rows: list[dict[str, Any]], field: str) -> dict[str, bool]:
     out: dict[str, bool] = {}
     for row in rows:
@@ -145,15 +229,16 @@ def _summarize_split(result_path: Path) -> dict[str, Any]:
     task_pass = _sum_bool_by_task(rows, "task_passed")
     metadata_asr = _sum_bool_by_task(rows, "attack_success")
     asr_summary, sidecar_asr = _load_wasp_asr(cell_dir, split)
+    final_asr = _load_wasp_final_asr(cell_dir, split)
     if sidecar_asr:
-        asr_map = sidecar_asr
-        asr_source = "wasp_post_hoc_action_classifier"
+        intermediate_asr_map = sidecar_asr
+        intermediate_asr_source = "wasp_post_hoc_action_classifier"
     elif metadata_asr:
-        asr_map = metadata_asr
-        asr_source = "judge_metadata"
+        intermediate_asr_map = metadata_asr
+        intermediate_asr_source = "judge_metadata"
     else:
-        asr_map = {}
-        asr_source = ""
+        intermediate_asr_map = {}
+        intermediate_asr_source = ""
 
     judge_error_rows = sum(1 for row in rows if (row.get("metadata") or {}).get("error"))
     expected_judge_rows = len(task_ids) * 2
@@ -189,8 +274,16 @@ def _summarize_split(result_path: Path) -> dict[str, Any]:
             refused_share_sum += float(metadata.get("refused_share") or 0.0)
             share_n += 1
 
-    asr_n = len(asr_map)
-    asr_success = sum(1 for v in asr_map.values() if v)
+    n_tasks = len(task_ids) or int(asr_summary.get("n_tasks") or 0)
+    asr_success = final_asr.get("success_count") or 0
+    asr_n = final_asr.get("n") or 0
+    asr_source = final_asr.get("source") or ""
+    if asr_source and asr_n < n_tasks:
+        asr_success = 0
+        asr_n = 0
+        asr_source = "partial_missing_final_artifacts"
+    intermediate_asr_n = len(intermediate_asr_map)
+    intermediate_asr_success = sum(1 for v in intermediate_asr_map.values() if v)
     pass_n = len(task_pass)
     pass_success = sum(1 for v in task_pass.values() if v)
     purpose_eval_count = sum(purpose_counts[label] for label in EVAL_LABELS)
@@ -200,12 +293,15 @@ def _summarize_split(result_path: Path) -> dict[str, Any]:
         "model": _model_from_slug(model_slug),
         "arm": arm,
         "split": split,
-        "n_tasks": len(task_ids) or int(asr_summary.get("n_tasks") or 0),
+        "n_tasks": n_tasks,
         "user_task_pass_count": pass_success,
         "user_task_pass_n": pass_n,
         "asr_success_count": asr_success,
         "asr_n": asr_n,
         "asr_source": asr_source,
+        "intermediate_asr_success_count": intermediate_asr_success,
+        "intermediate_asr_n": intermediate_asr_n,
+        "intermediate_asr_source": intermediate_asr_source,
         "verbalized_n": verbalized_n,
         "verbalized_eval_count": sum(
             count for label, count in verbalized_counts.items()
@@ -234,6 +330,10 @@ def _finalize(row: dict[str, Any]) -> dict[str, Any]:
     row = dict(row)
     row["user_task_pass_rate"] = _rate(row["user_task_pass_count"], row["user_task_pass_n"])
     row["asr_rate"] = _rate(row["asr_success_count"], row["asr_n"])
+    row["intermediate_asr_rate"] = _rate(
+        row["intermediate_asr_success_count"],
+        row["intermediate_asr_n"],
+    )
     row["verbalized_eval_rate"] = _rate(row["verbalized_eval_count"], row["verbalized_n"])
     row["verbalized_alignment_eval_rate"] = _rate(
         row["verbalized_alignment_eval_count"],
@@ -287,6 +387,8 @@ def _aggregate(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         "user_task_pass_n",
         "asr_success_count",
         "asr_n",
+        "intermediate_asr_success_count",
+        "intermediate_asr_n",
         "verbalized_n",
         "verbalized_eval_count",
         "verbalized_alignment_eval_count",
@@ -315,6 +417,7 @@ def _aggregate(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "arm": row["arm"],
                 "split": "all",
                 "asr_source": row.get("asr_source") or "",
+                "intermediate_asr_source": row.get("intermediate_asr_source") or "",
                 **{field: 0 for field in sum_fields},
             }
         agg = groups[key]
@@ -322,6 +425,13 @@ def _aggregate(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             agg[field] += row.get(field) or 0
         if agg["asr_source"] != (row.get("asr_source") or ""):
             agg["asr_source"] = "mixed"
+        if agg["intermediate_asr_source"] != (row.get("intermediate_asr_source") or ""):
+            agg["intermediate_asr_source"] = "mixed"
+    for agg in groups.values():
+        if agg["asr_n"] < agg["n_tasks"]:
+            agg["asr_success_count"] = 0
+            agg["asr_n"] = 0
+            agg["asr_source"] = "partial_missing_final_artifacts"
     return sorted(groups.values(), key=lambda r: (r["model"], r["arm"]))
 
 
@@ -366,9 +476,13 @@ def summarize(results_dir: Path, output_dir: Path) -> None:
     _write_md(output_dir / "wasp_summary_by_model_arm.md", aggregate_rows)
     (output_dir / "wasp_summary_notes.md").write_text(
         "# WASP N200 Summary Tables\n\n"
-        "- `asr_rate` is the WASP post-hoc action-only ASR classifier when "
-        "`asr_source=wasp_post_hoc_action_classifier`; otherwise it falls back "
-        "to boolean `metadata.attack_success` if present.\n"
+        "- `asr_rate` is native/end-to-end WASP attacker utility when "
+        "`asr_source=wasp_native_attacker_utility`; it is blank for runs that "
+        "did not preserve a final attacker-utility artifact. This is a semantic "
+        "cutover from older tables where `asr_rate` meant action/intermediate ASR.\n"
+        "- `intermediate_asr_rate` is the WASP post-hoc action-only/intermediate "
+        "classifier when `intermediate_asr_source=wasp_post_hoc_action_classifier`; "
+        "it falls back to boolean `metadata.attack_success` only for legacy rows.\n"
         "- `user_task_pass_rate` is from `metadata.task_passed` in the "
         "trajectory-awareness rows.\n"
         "- `verbalized_*` columns summarize `verbalized_awareness` headline "

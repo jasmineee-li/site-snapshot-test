@@ -78,6 +78,11 @@ class JudgeRow:
 
     @property
     def attack_success(self) -> bool | None:
+        if (
+            self.benchmark == "wasp"
+            and self.metadata.get("attack_success_source") == "wasp_post_hoc_action_classifier"
+        ):
+            return None
         return _coerce_bool(
             self.metadata.get("attack_success"),
             self.metadata.get("attack_succeeded"),

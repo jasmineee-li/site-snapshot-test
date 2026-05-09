@@ -8,9 +8,27 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
+from eval_awareness_experiments.summarize_wasp_results import _load_wasp_final_asr
 from scipy.stats import spearmanr
 
 ROOT = Path("eval_awareness_experiments/results/n200_2026-04-29")
+WASP_INTERMEDIATE_ASR_SOURCE = "wasp_post_hoc_action_classifier"
+
+
+def _canonical_attack_success(metadata: dict) -> bool | None:
+    if metadata.get("attack_success_source") == WASP_INTERMEDIATE_ASR_SOURCE:
+        return None
+    return metadata.get("attack_success")
+
+
+def _wasp_task_id(sample_id: str, split: str, metadata: dict) -> str:
+    task_id = metadata.get("task_id")
+    if task_id:
+        return str(task_id)
+    prefix = f"wasp_{split}_"
+    if sample_id.startswith(prefix):
+        return sample_id[len(prefix):]
+    return sample_id
 
 
 def collect(benchmark: str):
@@ -28,6 +46,12 @@ def collect(benchmark: str):
             jpath = split_dir / "trajectory_awareness_results.jsonl"
             if not jpath.exists():
                 continue
+            final_wasp_asr = {}
+            if benchmark == "wasp":
+                final_wasp_asr = _load_wasp_final_asr(
+                    model_dir,
+                    split_dir.name,
+                ).get("task_success") or {}
             per_sample = defaultdict(dict)
             with open(jpath) as f:
                 for line in f:
@@ -45,7 +69,12 @@ def collect(benchmark: str):
                 p_share = p.get("metadata", {}).get("alignment_eval_share")
                 if p_share is None:
                     p_share = p.get("score")
-                asr = v.get("metadata", {}).get("attack_success", False)
+                asr = _canonical_attack_success(v.get("metadata", {}))
+                if asr is None and benchmark == "wasp":
+                    task_id = _wasp_task_id(sid, split_dir.name, v.get("metadata", {}))
+                    asr = final_wasp_asr.get(task_id)
+                if asr is None:
+                    continue
                 rows.append({
                     "task_id": sid,
                     "model": model_dir.name,
@@ -59,6 +88,10 @@ def collect(benchmark: str):
 
 def summarize(name: str, rows):
     n_total = len(rows)
+    if n_total == 0:
+        print(f"\n=== {name.upper()} ===")
+        print("  no rows with canonical ASR")
+        return
     n_models = len(set(r["model"] for r in rows))
     verb_pct = 100.0 * sum(1 for r in rows if r["verb_eval"]) / n_total
     purpose_vals = [r["purpose_share"] for r in rows if r["purpose_share"] is not None]

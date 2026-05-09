@@ -126,10 +126,12 @@ def _aggregate_metadata_metrics(rows: list[dict[str, Any]]) -> dict[str, int]:
             continue
         metadata = row.get("metadata") or {}
         metrics = by_sample.setdefault(key, {})
-        attack_success = _first_bool(
-            metadata.get("attack_success"),
-            metadata.get("attack_succeeded"),
-        )
+        attack_success = None
+        if metadata.get("attack_success_source") != "wasp_post_hoc_action_classifier":
+            attack_success = _first_bool(
+                metadata.get("attack_success"),
+                metadata.get("attack_succeeded"),
+            )
         task_passed = _first_bool(
             metadata.get("task_passed"),
             metadata.get("passed"),
