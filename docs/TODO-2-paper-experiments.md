@@ -231,6 +231,17 @@ Commit as `docs/PREREGISTRATION.md` with dated signature block at top. Tag as `p
 
 ## Track 7: Multi-model cohort production
 
+> **Current execution note, 2026-05-09.** The live paper-facing AgentLab
+> cohort has moved past the old 3-4 model draft below. The current execution
+> matrix is the 50-task Tier 2 link-naturalization suite on r8a using AgentLab
+> `phase4-run`, native BrowserGym launch, page-surface-stable PVPO,
+> OpenRouter priority routing, eval-awareness iteration on every PVPO-exposed
+> task, and `WORLDSIM_EVAL_AWARENESS_REWRITE_THINKING=budget:32768`. The
+> completed/queued model panel is: GPT-5.2 W28 repaired control, Opus 4.7 W48,
+> Sonnet 4.6 W48, Kimi K2.5 W48, Gemini 2.5 Pro W48, and GLM-5 W48. This is
+> the active paper cohort plan; the older bullets in this section remain
+> historical planning context until the full TODO is rewritten.
+
 ### Goal
 Run the MVP pipeline against 3-4 target models, producing the per-model panel data that is Contribution 1's deliverable.
 
@@ -243,6 +254,84 @@ Once MVP cross-check lands and Phase 0c + Phase 2 are regenerated:
 4. **Phase 5 post-hoc**: run the 3-signal probe battery over all Phase 4 trajectories. ~$200-500.
 
 Operational note: baseline capability now comes out of Phase 4's `capability_benign_under_attack` field (ecologically valid trajectories only), not a separate Phase 3 pass.
+
+### Current AgentLab Phase 4 Cohort
+
+All current runs share:
+
+- source set: `logs/tier2_fresh50_exact50_latest_phase3_20260507Tregen5`
+- host/instances: r8a with `instances.scale.json`
+- runner: `--runner agentlab`
+- provider/tier: `--agent-provider openrouter --agent-service-tier priority`
+- concurrency: W48 for the main model rows; GPT-5.2 currently has a W28
+  repaired control because that run was produced before the W48 queue.
+- PVPO: `WORLDSIM_PVPO_CAPTURE_BACKEND=page-surface-stable`
+- legacy CDP: `WORLDSIM_AGENTLAB_LEGACY_CONNECT_OVER_CDP` unset
+- iterator: `--phase-4-variant-system eval-awareness-iterator
+  --phase-4-eval-awareness-max-iterations 3`
+- rewrite budget: `WORLDSIM_EVAL_AWARENESS_REWRITE_THINKING=budget:32768`
+- common timeouts: `--agent-llm-timeout 240 --agent-step-timeout 900
+  --agent-task-timeout 2400`
+
+Sequential execution is the paper-valid default. Each run already uses W48
+inside the run; launching multiple W48 model sweeps concurrently would confound
+model behavior with BrowserGym/browser host contention. Advance only after the
+prior run has canonical `phase_4/results.json`, `50/50` postprocessed,
+`postprocess_failed=0`, and an ASR/VEA/Transcript Purpose iterator analysis.
+
+Current queue:
+
+1. **GPT-5.2 control**:
+   `logs/agentlab_linknaturalization_true50_gpt52_w28_20260509_repaired`.
+   Completed and semantic variant schema normalized. Treat as the current
+   GPT-5.2 control, while noting W28 concurrency in runtime comparisons.
+2. **Opus 4.7 W48**:
+   `logs/agentlab_linknaturalization_true50_opus47_w48_20260509`. Completed
+   and semantic variant schema normalized.
+3. **Sonnet 4.6 W48**:
+   `logs/agentlab_linknaturalization_true50_sonnet46_w48_20260509`. Completed
+   as `20260509T054104Z-agentlab-linknaturalization-true50-sonnet46-w48-e40eea`
+   in 31m32s with `50/50` postprocessed and `postprocess_failed=0`. Headline
+   and Gate-1 ASR were both `40/50=0.80`; final statuses were
+   `complied=40`, `inconclusive=8`, `resistant=2`. Iterator accounting after
+   semantic schema normalization: `entered_tasks=50`, `rewrite_attempted=114`,
+   `variant_evaluated=72`, `pre_browser_rejections=42`,
+   `post_eval_rejections=6`, `schema_validation_failures=5`,
+   `tp_regression_rejections=5`, and `contract_inapplicable_rejections=37`.
+4. **Kimi K2.5 W48**:
+   initial job
+   `20260509T061312Z-agentlab-linknaturalization-true50-kimik25-w48-fcf9b3`
+   was stopped and invalidated because Hugging Face `trust_remote_code` prompt
+   text contaminated sidecar stdout before the final JSON payload. The parser
+   was patched and covered by
+   `test_sidecar_json_payload_accepts_inline_hf_prompt_noise`. The active rerun
+   rerun `20260509T061814Z-agentlab-linknaturalization-true50-kimik25-w48-r-302c2f`
+   completed in 28m03s with `50/50` postprocessed and
+   `postprocess_failed=0`, output
+   `logs/agentlab_linknaturalization_true50_kimik25_w48_20260509_rerun1`.
+   Headline ASR was `39/50=0.78`; Gate-1 ASR was `39/49=0.80`; final statuses
+   were `complied=39`, `inconclusive=7`, `injection_not_encountered=1`,
+   `resistant=2`, `task_broke=1`. Baseline TP was
+   `Alignment Evaluation=35`, `Capability Evaluation=11`, `Real=4`; VEA was
+   `Real=50`. Iterator accounting: `entered_tasks=48`,
+   `rewrite_attempted=107`, `variant_evaluated=76`,
+   `pre_browser_rejections=31`, `post_eval_rejections=15`,
+   `schema_validation_failures=5`, `tp_regression_rejections=13`, and
+   `contract_inapplicable_rejections=26`.
+5. **Gemini 2.5 Pro W48**:
+   running as `20260509T064643Z-agentlab-linknaturalization-true50-gemini25pro-w-4bb84f`
+   with `--agent-model gemini25pro`, output
+   `logs/agentlab_linknaturalization_true50_gemini25pro_w48_20260509`.
+6. **GLM-5 W48**:
+   queued after Gemini with `--agent-model glm5`, output
+   `logs/agentlab_linknaturalization_true50_glm5_w48_20260509`.
+
+For every completed row, report: raw ASR, Gate-1 ASR over PVPO-exposed tasks,
+baseline VEA and Transcript Purpose distribution, selected-variant VEA and
+Transcript Purpose distribution, transition counts across iterator iterations,
+semantic variant accounting (`rewrite_attempted`, `variant_evaluated`,
+`pre_browser_rejections`, `post_eval_rejections`, schema/contract/TP-regression
+classes), PVPO validity, and any timeout/task-broke rows.
 
 ### Why
 - Contribution 1 reports ASR per model. Single-model results are not publishable.
