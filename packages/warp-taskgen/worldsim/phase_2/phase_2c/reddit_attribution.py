@@ -87,10 +87,16 @@ def _patch_reddit_submit_comment_state_probes(
 def _attach_gitlab_issue_note_state_probe_anchors(
     task: dict[str, Any],
     metadata: dict[str, Any],
+    *,
+    overwrite: bool = False,
 ) -> None:
     if not _task_has_gitlab_create_issue_note_reward(task):
         return
-    anchors = _gitlab_issue_note_anchors_from_seed_metadata(task, metadata)
+    anchors = _gitlab_issue_note_anchors_from_seed_metadata(
+        task,
+        metadata,
+        prefer_metadata=overwrite,
+    )
     if not anchors:
         return
     exposure_contract = task.get("exposure_contract")
@@ -98,7 +104,7 @@ def _attach_gitlab_issue_note_state_probe_anchors(
         contract_anchors = exposure_contract.setdefault("anchors", {})
         if isinstance(contract_anchors, dict):
             for key, value in anchors.items():
-                contract_anchors.setdefault(key, value)
+                _set_gitlab_issue_note_anchor(contract_anchors, key, value, overwrite=overwrite)
     for config in _iter_final_state_reward_configs(task.get("reward_function")):
         expected = config.get("expected")
         if not isinstance(expected, dict):
@@ -111,7 +117,18 @@ def _attach_gitlab_issue_note_state_probe_anchors(
         if str(state_probe.get("kind") or "") != "issue_note_contains":
             continue
         for key, value in anchors.items():
-            state_probe.setdefault(key, value)
+            _set_gitlab_issue_note_anchor(state_probe, key, value, overwrite=overwrite)
+
+
+def _set_gitlab_issue_note_anchor(
+    target: dict[str, Any],
+    key: str,
+    value: str,
+    *,
+    overwrite: bool,
+) -> None:
+    if overwrite or key not in target:
+        target[key] = value
 
 
 def _task_has_gitlab_create_issue_note_reward(task: dict[str, Any]) -> bool:
@@ -133,13 +150,10 @@ def _task_has_gitlab_create_issue_note_reward(task: dict[str, Any]) -> bool:
 def _gitlab_issue_note_anchors_from_seed_metadata(
     task: dict[str, Any],
     metadata: dict[str, Any],
+    *,
+    prefer_metadata: bool = False,
 ) -> dict[str, str]:
     anchors: dict[str, str] = {}
-    exposure_contract = task.get("exposure_contract")
-    if isinstance(exposure_contract, dict):
-        contract_anchors = exposure_contract.get("anchors")
-        if isinstance(contract_anchors, dict):
-            _copy_gitlab_issue_note_anchor_fields(anchors, contract_anchors)
     _copy_gitlab_issue_note_anchor_fields(anchors, metadata)
     records = metadata.get("editor_call_results")
     if isinstance(records, list):
@@ -151,6 +165,18 @@ def _gitlab_issue_note_anchors_from_seed_metadata(
             write_tokens = record.get("write_tokens")
             if isinstance(write_tokens, dict):
                 _copy_gitlab_issue_note_anchor_fields(anchors, write_tokens)
+    exposure_contract = task.get("exposure_contract")
+    if isinstance(exposure_contract, dict):
+        contract_anchors = exposure_contract.get("anchors")
+        if isinstance(contract_anchors, dict):
+            if prefer_metadata:
+                _copy_gitlab_issue_note_anchor_fields(anchors, contract_anchors)
+            else:
+                contract_first: dict[str, str] = {}
+                _copy_gitlab_issue_note_anchor_fields(contract_first, contract_anchors)
+                for key, value in anchors.items():
+                    contract_first.setdefault(key, value)
+                anchors = contract_first
     return anchors
 
 
@@ -183,6 +209,7 @@ def _iter_final_state_reward_configs(reward_function: Any) -> list[dict[str, Any
                     == "FinalStateEvaluator"
                 )
     return configs
+
 
 __all__ = [
     "_attach_gitlab_issue_note_state_probe_anchors",

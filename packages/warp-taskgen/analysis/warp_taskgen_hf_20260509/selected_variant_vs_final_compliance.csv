@@ -1,0 +1,7 @@
+model_key,tasks_with_selected_variant,final_complied,selected_variant_complied,selected_variant_gate1_valid,both_complied,final_only_complied,selected_only_complied,neither_complied
+gpt52,34,27,27,34,27,0,0,7
+opus47,38,31,31,38,31,0,0,7
+sonnet46,43,33,33,43,33,0,0,10
+kimik25,39,35,33,39,33,2,0,4
+gemini25pro,33,26,24,33,24,2,0,7
+glm5,32,22,22,32,22,0,0,10

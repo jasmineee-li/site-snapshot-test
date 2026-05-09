@@ -58,6 +58,9 @@ PRIVATE_TRAJECTORY_PARTS = {
 class RunSpec:
     model_key: str
     run_dir: Path
+    agent_model: str | None = None
+    agent_provider: str | None = None
+    agent_service_tier: str | None = None
 
 
 def export_hf_dataset(
@@ -83,6 +86,7 @@ def export_hf_dataset(
     run_rows: list[dict[str, Any]] = []
     task_rows: list[dict[str, Any]] = []
     variant_rows: list[dict[str, Any]] = []
+    manifest_runs: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
 
     for spec in runs:
@@ -98,6 +102,19 @@ def export_hf_dataset(
         progress = _load_json_or_empty(run_root / "phase_4" / "progress.json")
         model_key = spec.model_key
         run_id = _run_id(run_root)
+        agent_metadata = _agent_metadata(
+            model_key=model_key,
+            spec=spec,
+            pipeline_state=pipeline_state,
+            progress=progress,
+        )
+        manifest_runs.append(
+            {
+                "model_key": model_key,
+                "run_dir": _relpath(run_root, root),
+                **agent_metadata,
+            }
+        )
 
         run_rows.append(
             _run_row(
@@ -108,12 +125,14 @@ def export_hf_dataset(
                 summary=summary,
                 pipeline_state=pipeline_state,
                 progress=progress,
+                agent_metadata=agent_metadata,
             )
         )
         for result_index, result in enumerate(results):
             row, row_warnings = _task_row(
                 model_key=model_key,
                 run_id=run_id,
+                agent_metadata=agent_metadata,
                 run_root=run_root,
                 root=root,
                 result_index=result_index,
@@ -128,6 +147,7 @@ def export_hf_dataset(
                 _variant_rows(
                     model_key=model_key,
                     run_id=run_id,
+                    agent_metadata=agent_metadata,
                     task_row=row,
                     result=result,
                     root=root,
@@ -147,13 +167,7 @@ def export_hf_dataset(
             "tasks": {"path": "tasks.jsonl", "rows": len(task_rows)},
             "variants": {"path": "variants.jsonl", "rows": len(variant_rows)},
         },
-        "runs": [
-            {
-                "model_key": spec.model_key,
-                "run_dir": _relpath(_resolve_run_dir(spec.run_dir, root=root), root),
-            }
-            for spec in runs
-        ],
+        "runs": manifest_runs,
         "warnings": warnings,
     }
     _write_json(output_dir / "metadata.json", manifest)
@@ -170,6 +184,7 @@ def _run_row(
     summary: dict[str, Any],
     pipeline_state: dict[str, Any],
     progress: dict[str, Any],
+    agent_metadata: dict[str, str | None],
 ) -> dict[str, Any]:
     return {
         "schema_version": DATASET_SCHEMA_VERSION,
@@ -177,9 +192,7 @@ def _run_row(
         "run_id": run_id,
         "run_dir": _relpath(run_root, root),
         "runner": pipeline_state.get("runner") or _maybe(progress, "runner") or "agentlab",
-        "agent_model": pipeline_state.get("agent_model") or model_key,
-        "agent_provider": pipeline_state.get("agent_provider"),
-        "agent_service_tier": pipeline_state.get("agent_service_tier"),
+        **agent_metadata,
         "phase_4_variant_system": pipeline_state.get("phase_4_variant_system")
         or progress.get("variant_progress", {}).get("variant_system"),
         "phase_4_eval_awareness_max_iterations": pipeline_state.get(
@@ -205,10 +218,47 @@ def _run_row(
     }
 
 
+def _clean_metadata_value(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _agent_metadata(
+    *,
+    model_key: str,
+    spec: RunSpec,
+    pipeline_state: dict[str, Any],
+    progress: dict[str, Any],
+) -> dict[str, str | None]:
+    """Return run-level browser-agent metadata with explicit overrides first."""
+
+    return {
+        "agent_model": (
+            _clean_metadata_value(spec.agent_model)
+            or _clean_metadata_value(pipeline_state.get("agent_model"))
+            or _clean_metadata_value(progress.get("agent_model"))
+            or model_key
+        ),
+        "agent_provider": (
+            _clean_metadata_value(spec.agent_provider)
+            or _clean_metadata_value(pipeline_state.get("agent_provider"))
+            or _clean_metadata_value(progress.get("agent_provider"))
+        ),
+        "agent_service_tier": (
+            _clean_metadata_value(spec.agent_service_tier)
+            or _clean_metadata_value(pipeline_state.get("agent_service_tier"))
+            or _clean_metadata_value(progress.get("agent_service_tier"))
+        ),
+    }
+
+
 def _task_row(
     *,
     model_key: str,
     run_id: str,
+    agent_metadata: dict[str, str | None],
     run_root: Path,
     root: Path,
     result_index: int,
@@ -253,6 +303,7 @@ def _task_row(
             "schema_version": DATASET_SCHEMA_VERSION,
             "model_key": model_key,
             "run_id": run_id,
+            **agent_metadata,
             "result_index": result_index,
             "task_id": task_id,
             "site": result_summary.task_site(result, task),
@@ -370,6 +421,7 @@ def _variant_rows(
     *,
     model_key: str,
     run_id: str,
+    agent_metadata: dict[str, str | None],
     task_row: dict[str, Any],
     result: dict[str, Any],
     root: Path,
@@ -387,6 +439,7 @@ def _variant_rows(
                 "schema_version": DATASET_SCHEMA_VERSION,
                 "model_key": model_key,
                 "run_id": run_id,
+                **agent_metadata,
                 "task_id": task_row["task_id"],
                 "variant_id": vid,
                 "variant_index": index,
@@ -422,6 +475,7 @@ def _variant_rows(
                 "schema_version": DATASET_SCHEMA_VERSION,
                 "model_key": model_key,
                 "run_id": run_id,
+                **agent_metadata,
                 "task_id": task_row["task_id"],
                 "variant_id": str(error.get("global_variant_index") or error.get("index") or index),
                 "variant_index": error.get("index", index),
@@ -535,6 +589,25 @@ def _write_dataset_card(path: Path, *, manifest: dict[str, Any]) -> None:
         if isinstance(run, dict) and run.get("model_key")
     ]
     model_list = ", ".join(f"`{model}`" for model in model_keys) or "see `runs.jsonl`"
+    routing_rows = []
+    for run in manifest.get("runs", []):
+        if not isinstance(run, dict):
+            continue
+        routing_rows.append(
+            "| {model_key} | {agent_model} | {agent_provider} | {agent_service_tier} |".format(
+                model_key=f"`{run.get('model_key')}`",
+                agent_model=f"`{run.get('agent_model')}`"
+                if run.get("agent_model") is not None
+                else "",
+                agent_provider=f"`{run.get('agent_provider')}`"
+                if run.get("agent_provider") is not None
+                else "",
+                agent_service_tier=f"`{run.get('agent_service_tier')}`"
+                if run.get("agent_service_tier") is not None
+                else "",
+            )
+        )
+    model_routing_table = "\n".join(routing_rows) or "| see `runs.jsonl` | | | |"
     dataset_id = str(manifest["dataset_id"])
     hub_repo_id = dataset_id if "/" in dataset_id else f"{DEFAULT_HF_REPO_OWNER}/{dataset_id}"
     text = f"""---
@@ -585,6 +658,12 @@ Current export:
 - Iterator variant/rejection rows: `{variants_rows}`
 - Model keys: {model_list}
 - Schema version: `{manifest["schema_version"]}`
+
+## Model Routing
+
+| Model key | Agent model | Agent provider | Service tier |
+|---|---|---|---|
+{model_routing_table}
 
 ## Dataset Structure
 
@@ -685,6 +764,10 @@ adversarial judgment, instead of silently dropping those rows.
 | Column | Definition |
 |---|---|
 | `model_key` | Model/run family for this trajectory row. |
+| `run_id` | Source run identifier. |
+| `agent_model` | Agent model configured for the browser-agent run. |
+| `agent_provider` | Provider configured for the agent model, when recorded. |
+| `agent_service_tier` | Service tier configured for the agent model, when recorded. |
 | `task_id` | Generated IPI task identifier. |
 | `site` | Benchmark site, such as GitLab or Postmill. |
 | `origin` | Task-origin label from generation/admission metadata. |
@@ -736,6 +819,10 @@ adversarial judgment, instead of silently dropping those rows.
 | Column | Definition |
 |---|---|
 | `model_key` | Model/run family for the parent task. |
+| `run_id` | Source run identifier. |
+| `agent_model` | Agent model configured for the browser-agent run. |
+| `agent_provider` | Provider configured for the agent model, when recorded. |
+| `agent_service_tier` | Service tier configured for the agent model, when recorded. |
 | `task_id` | Parent generated IPI task id. |
 | `variant_id` | Variant identifier within the parent task. |
 | `variant_index` | Zero-based variant index in the exported list. |
@@ -820,11 +907,31 @@ def parse_run_specs(values: list[str]) -> list[RunSpec]:
             raise ValueError(f"--run must be MODEL=RUN_DIR, got {value!r}")
         model, raw_path = value.split("=", 1)
         model = model.strip()
-        raw_path = raw_path.strip()
+        raw_path, metadata = _parse_run_metadata(raw_path)
         if not model or not raw_path:
             raise ValueError(f"--run must be MODEL=RUN_DIR, got {value!r}")
-        specs.append(RunSpec(model_key=model, run_dir=Path(raw_path)))
+        specs.append(RunSpec(model_key=model, run_dir=Path(raw_path), **metadata))
     return specs
+
+
+def _parse_run_metadata(raw_path: str) -> tuple[str, dict[str, str]]:
+    parts = [part.strip() for part in raw_path.strip().split(",") if part.strip()]
+    if not parts:
+        return "", {}
+    metadata: dict[str, str] = {}
+    allowed = {"agent_model", "agent_provider", "agent_service_tier"}
+    for part in parts[1:]:
+        if "=" not in part:
+            raise ValueError(
+                "optional --run metadata must use key=value after the run dir, "
+                f"got {part!r}"
+            )
+        key, value = [item.strip() for item in part.split("=", 1)]
+        if key not in allowed:
+            raise ValueError(f"unknown --run metadata key {key!r}; allowed: {sorted(allowed)}")
+        if value:
+            metadata[key] = value
+    return parts[0], metadata
 
 
 def _write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:

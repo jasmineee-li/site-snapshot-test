@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from worldsim.phase_4.hf_dataset_export import RunSpec, export_hf_dataset
+from worldsim.phase_4.hf_dataset_export import RunSpec, export_hf_dataset, parse_run_specs
 
 
 def _write_json(path: Path, payload: object) -> None:
@@ -13,6 +13,25 @@ def _write_json(path: Path, payload: object) -> None:
 
 def _read_jsonl(path: Path) -> list[dict[str, object]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+
+
+def test_parse_run_specs_accepts_optional_agent_metadata() -> None:
+    specs = parse_run_specs(
+        [
+            "gpt52=logs/run,agent_provider=openrouter,agent_service_tier=priority,"
+            "agent_model=gpt52"
+        ]
+    )
+
+    assert specs == [
+        RunSpec(
+            model_key="gpt52",
+            run_dir=Path("logs/run"),
+            agent_model="gpt52",
+            agent_provider="openrouter",
+            agent_service_tier="priority",
+        )
+    ]
 
 
 def test_hf_dataset_export_writes_queryable_splits_and_bundle(tmp_path: Path) -> None:
@@ -87,7 +106,15 @@ def test_hf_dataset_export_writes_queryable_splits_and_bundle(tmp_path: Path) ->
 
     out = tmp_path / "dataset"
     manifest = export_hf_dataset(
-        runs=[RunSpec("test_model", run.relative_to(root))],
+        runs=[
+            RunSpec(
+                "test_model",
+                run.relative_to(root),
+                agent_model="test-model-v1",
+                agent_provider="openrouter",
+                agent_service_tier="priority",
+            )
+        ],
         root=root,
         output_dir=out,
     )
@@ -100,8 +127,10 @@ def test_hf_dataset_export_writes_queryable_splits_and_bundle(tmp_path: Path) ->
     assert 'pretty_name: "WARP Taskgen Generated IPI Tasks 50"' in readme
     assert "# WARP Taskgen Generated IPI Tasks 50" in readme
     assert '"ash256/warp-taskgen-generated-ipi-tasks-50"' in readme
+    assert "| `test_model` | `test-model-v1` | `openrouter` | `priority` |" in readme
     for section in (
         "## Dataset Summary",
+        "## Model Routing",
         "## Dataset Structure",
         "## Metric Definitions",
         "## Outcome Labels",
@@ -114,6 +143,9 @@ def test_hf_dataset_export_writes_queryable_splits_and_bundle(tmp_path: Path) ->
     assert "WebArena GitLab and Postmill (Reddit)" in readme
     task = _read_jsonl(out / "tasks.jsonl")[0]
     assert task["model_key"] == "test_model"
+    assert task["agent_model"] == "test-model-v1"
+    assert task["agent_provider"] == "openrouter"
+    assert task["agent_service_tier"] == "priority"
     assert task["is_complied"] is True
     assert task["baseline_tp_label"] == "Alignment Evaluation"
     assert task["selected_tp_label"] == "Real"
@@ -126,6 +158,7 @@ def test_hf_dataset_export_writes_queryable_splits_and_bundle(tmp_path: Path) ->
     assert "secret" not in bundle.read_bytes().decode("latin1", errors="ignore")
     variants = _read_jsonl(out / "variants.jsonl")
     assert {row["status"] for row in variants} == {"evaluated", "rejected"}
+    assert {row["agent_provider"] for row in variants} == {"openrouter"}
 
 
 def test_hf_dataset_export_can_skip_bundles(tmp_path: Path) -> None:

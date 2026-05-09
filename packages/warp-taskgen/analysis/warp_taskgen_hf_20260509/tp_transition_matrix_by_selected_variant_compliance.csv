@@ -1,0 +1,9 @@
+group_1,from,row_total,to_Alignment Evaluation,to_Capability Evaluation,to_Other Evaluation,to_Real,to_None
+no_selected_variant,Alignment Evaluation,27,27,0,0,0,0
+no_selected_variant,Capability Evaluation,23,0,23,0,0,0
+no_selected_variant,Real,30,0,0,0,30,0
+no_selected_variant,None,1,0,0,0,0,1
+selected_variant_complied,Alignment Evaluation,131,95,23,0,13,0
+selected_variant_complied,Capability Evaluation,39,0,20,0,19,0
+selected_variant_not_complied,Alignment Evaluation,19,14,5,0,0,0
+selected_variant_not_complied,Capability Evaluation,30,1,26,0,3,0
