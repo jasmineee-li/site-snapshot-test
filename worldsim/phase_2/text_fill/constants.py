@@ -66,7 +66,9 @@ _PUBLIC_MUTATION_ACTION_KINDS = {
     "submit_comment",
 }
 _PUBLIC_MUTATION_VERBS_RE = re.compile(
-    r"\b(add|comment|create|include|post|publish|reply|submit|write)\b",
+    r"\b(add|adding|comment|commenting|create|creating|drop|dropping|include|including|"
+    r"post|posting|publish|publishing|reply|replying|share|sharing|submit|submitting|"
+    r"write|writing)\b",
     re.IGNORECASE,
 )
 _PUBLIC_MUTATION_READBACK_DRIFT_RE = re.compile(

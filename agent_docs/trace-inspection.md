@@ -113,6 +113,11 @@ default-path rows, not only resistant rows:
   as unresolved `injection_not_encountered` or `task_broke`.
 - A TP-`Real` baseline can have zero rewrite attempts; that is a completed
   iterator envelope, not missing postprocessing.
+- For second and later rewrites, inspect `prior_iteration_feedback` in the
+  prompt/checkpoint context when available. It is compact prompt context, not a
+  score: TP transition/explanation fields identify remaining eval-awareness
+  cues, while PVPO/action/readback and contract-QA fields identify guardrails
+  that the next rewrite must preserve or repair. VEA is intentionally absent.
 
 For eval-awareness iterator rewrite failures, do not stop at the top-level
 `iterator_stop`. Open `task <task_id> --iterator` or the raw

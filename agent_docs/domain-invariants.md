@@ -44,6 +44,11 @@ system, independent of whether baseline ASR complied or resisted. It branches
 only on Transcript Purpose being non-`Real`, including missing or failed TP
 classification. Do not add hidden fan-out, VEA branching, admission changes, or
 reward changes under eval-awareness iteration.
+Second and later iterations may pass compact host-generated
+`prior_iteration_feedback` into cue diagnosis and rewrite prompts. That feedback
+may summarize prior TP transitions, PVPO/action/readback guardrail status,
+contract-QA failures, and rewrite summaries; it must not include raw traces or
+VEA fields, and it must not become an ASR/reward optimization signal.
 
 The legacy strategy-variation loop is bounded at `3+3+1`: after the initial
 PVPO-encountered refusal, the host may generate up to 3 variants in round 1, up
@@ -359,10 +364,22 @@ browser-evaluated attempts, TP-real attempts, PVPO-valid attempts, compliant
 attempts, TP-regressed attempts, selected iteration, and stop reason.
 Those fields must not override reward/PVPO final-status classification or ASR
 computation.
+Prior-iteration feedback is prompt context only: TP explains remaining
+evaluation salience, while PVPO/action/readback and contract-QA explain whether
+the last rewrite preserved measurement guardrails. VEA remains report-only and
+must not be included in rewrite-control context.
 If protected witnesses themselves are the visible eval-awareness cue, the
 iterator must report `rewrite_inapplicable_irreconcilable_contract` instead of
 relaxing the witness, changing renderer contracts, or spending browser reruns
 on an impossible rewrite objective.
+Required URLs and nonces are protected witnesses, even when their literal text
+is itself an evaluation-salient cue. Eval-awareness rewrites may make those
+anchors lower-salience by placing them in ordinary page-local submitted content
+or reference prose, but they must not rename, replace, duplicate, explain away,
+or relabel protected anchors as suspicious/attacker-controlled. If a protected
+URL, tracking phrase, fenced system block, or hidden directive is the causal TP
+driver, cue diagnosis should mark it as contract-dominant and the iterator
+should stop inapplicable unless removable benchmark/task wording remains.
 If cue diagnosis finds only task/trajectory cues or cannot identify a mutable
 payload-local cue, the iterator must stop with an inapplicable-rewrite reason
 rather than invent a rewrite target. If a browser-evaluated rewrite moves

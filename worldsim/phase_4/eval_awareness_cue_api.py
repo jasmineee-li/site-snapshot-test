@@ -9,8 +9,8 @@ from typing import Any, Literal
 
 import instructor
 from anthropic import AsyncAnthropic
-from instructor.core.exceptions import InstructorRetryException
-from pydantic import BaseModel, ConfigDict, Field
+from instructor.core.exceptions import IncompleteOutputException, InstructorRetryException
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from worldsim.cost_tracker import tracker as cost_tracker
 from worldsim.host_api_observability import (
@@ -36,9 +36,11 @@ from worldsim.prompt_loading import load_prompt
 
 logger = logging.getLogger(__name__)
 
-_MAX_TOKENS = 2048
+_INITIAL_MAX_TOKENS = 8192
+_MAX_TOKENS = 256_000
 _STRUCTURED_RETRIES = 2
 _TEMPERATURE = 0.2
+_CUE_ITEM_LIMIT = 400
 
 
 class diagnose_eval_awareness_cues(BaseModel):
@@ -115,6 +117,25 @@ class diagnose_eval_awareness_cues(BaseModel):
         max_length=500,
         description="Reason when status is unavailable, or a short caveat when confidence is low.",
     )
+
+    @field_validator(
+        "mutable_payload_cues",
+        "protected_payload_cues",
+        "capability_eval_cues",
+        "trajectory_cues",
+        "do_not_change",
+        mode="after",
+    )
+    @classmethod
+    def truncate_cue_items(cls, value: list[str]) -> list[str]:
+        truncated: list[str] = []
+        for item in value:
+            text = " ".join(str(item).split())
+            if len(text) > _CUE_ITEM_LIMIT:
+                text = text[: _CUE_ITEM_LIMIT - 1].rstrip() + "…"
+            if text:
+                truncated.append(text)
+        return truncated
 
 
 def _instructor_client_for(client: AsyncAnthropic) -> Any:
@@ -211,6 +232,7 @@ def _build_messages(
     *,
     iteration: int,
     prior_attempts: list[dict[str, Any]] | None = None,
+    prior_feedback: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     prompt = load_prompt("eval-awareness-cue-diagnosis")
     from worldsim.text_payload_contract import selected_payload
@@ -227,6 +249,7 @@ def _build_messages(
             _xml_section("rewrite_constraints", _rewrite_constraints(task)),
             _xml_section("task_context", sanitize_task_for_model_prompt(task)),
             _xml_section("previous_iterations", prior_attempts or []),
+            _xml_section("prior_iteration_feedback", prior_feedback or []),
             "</eval_awareness_cue_diagnosis>",
         ]
     )
@@ -254,6 +277,7 @@ async def run_eval_awareness_cue_api(
     *,
     iteration: int,
     prior_attempts: list[dict[str, Any]] | None = None,
+    prior_feedback: list[dict[str, Any]] | None = None,
     sandbox_model: str = "claude-sonnet-4-6",
     client: AsyncAnthropic | None = None,
 ) -> dict[str, Any]:
@@ -262,7 +286,13 @@ async def run_eval_awareness_cue_api(
     client = client or get_client()
     normalized_model = normalize_model_for_auth(sandbox_model)
     instructor_client = _instructor_client_for(client)
-    messages = _build_messages(task, result, iteration=iteration, prior_attempts=prior_attempts)
+    messages = _build_messages(
+        task,
+        result,
+        iteration=iteration,
+        prior_attempts=prior_attempts,
+        prior_feedback=prior_feedback,
+    )
     trace = InstructorCallTrace(
         phase="phase_4",
         label="eval-awareness-cue",
@@ -273,30 +303,62 @@ async def run_eval_awareness_cue_api(
     hooks = build_instructor_hooks(trace)
     t0 = time.monotonic()
     raw_response: Any = None
+    max_tokens = _INITIAL_MAX_TOKENS
+    attempts = 0
+    last_truncation_diagnostics: dict[str, Any] | None = None
     try:
+        while attempts < 2:
+            attempts += 1
 
-        async def _attempt() -> tuple[diagnose_eval_awareness_cues, Any]:
-            async with get_api_semaphore():
-                parsed, completion = await instructor_client.messages.create_with_completion(
-                    model=normalized_model,
-                    max_tokens=_MAX_TOKENS,
-                    messages=messages,
-                    response_model=diagnose_eval_awareness_cues,
-                    max_retries=instructor_semantic_retrying(_STRUCTURED_RETRIES),
-                    hooks=hooks,
-                    metadata=_model_metadata(task),
-                    **temperature_kwargs_for_model(normalized_model, _TEMPERATURE),
+            async def _attempt(mt: int = max_tokens) -> tuple[diagnose_eval_awareness_cues, Any]:
+                async with get_api_semaphore():
+                    parsed, completion = await instructor_client.messages.create_with_completion(
+                        model=normalized_model,
+                        max_tokens=mt,
+                        messages=messages,
+                        response_model=diagnose_eval_awareness_cues,
+                        max_retries=instructor_semantic_retrying(_STRUCTURED_RETRIES),
+                        hooks=hooks,
+                        metadata=_model_metadata(task),
+                        **temperature_kwargs_for_model(normalized_model, _TEMPERATURE),
+                    )
+                    if getattr(completion, "stop_reason", None) == "max_tokens":
+                        raise IncompleteOutputException(last_completion=completion)
+                    return parsed, completion
+
+            try:
+                parsed, raw_response = await call_with_retry(
+                    _attempt,
+                    retries=3,
+                    label=f"eval-awareness-cue-{task.get('id', 'unknown')}-i{iteration}",
                 )
-                return parsed, completion
-
-        parsed, raw_response = await call_with_retry(
-            _attempt,
-            retries=3,
-            label=f"eval-awareness-cue-{task.get('id', 'unknown')}-i{iteration}",
-        )
+                break
+            except IncompleteOutputException as exc:
+                last_truncation_diagnostics = trace.to_diagnostics()
+                last_truncation_diagnostics["selected_max_tokens"] = max_tokens
+                last_truncation_diagnostics["incomplete_output"] = {
+                    "last_completion": getattr(exc, "last_completion", None) is not None,
+                }
+                if max_tokens < _MAX_TOKENS:
+                    max_tokens = _MAX_TOKENS
+                    continue
+                return {
+                    "status": "unavailable",
+                    "trigger_source": "response_truncated",
+                    "mutable_payload_cues": [],
+                    "protected_payload_cues": [],
+                    "trajectory_cues": [],
+                    "rewrite_guidance": "",
+                    "confidence": "low",
+                    "reason": f"response_truncated at max_tokens ceiling {_MAX_TOKENS}",
+                    "api_diagnostics": last_truncation_diagnostics,
+                }
+        else:
+            raise RuntimeError("eval-awareness cue diagnosis exhausted attempts")
         payload = parsed.model_dump(exclude_none=True)
     except InstructorRetryException as exc:
         diagnostics = instructor_retry_exception_diagnostics(exc)
+        diagnostics["selected_max_tokens"] = max_tokens
         reason = str(exc).splitlines()[0] if str(exc).strip() else type(exc).__name__
         logger.warning("eval-awareness cue diagnosis parse failed for %s: %s", task.get("id"), reason)
         return {

@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from worldsim.phase_4 import eval_awareness_cue_api, eval_awareness_rewrite_api
 from worldsim.phase_4.eval_awareness_streaming_tool import (
+    StreamingToolTruncatedError,
     StreamingToolValidationError,
     _request_kwargs,
     build_anthropic_tool_schema,
@@ -77,7 +78,10 @@ class _FakeMessages:
 
     def stream(self, **kwargs):
         self.kwargs.append(kwargs)
-        return _FakeStream(self._responses.pop(0))
+        response = self._responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return _FakeStream(response)
 
 
 class _FakeAnthropic:
@@ -145,7 +149,32 @@ def test_eval_awareness_rewrite_adaptive_thinking_uses_streaming_headroom(monkey
     monkeypatch.setenv("WORLDSIM_EVAL_AWARENESS_REWRITE_THINKING", "adaptive")
     thinking = eval_awareness_rewrite_api._eval_awareness_rewrite_thinking_kwargs()
 
-    assert eval_awareness_rewrite_api._initial_max_tokens_for_rewrite(thinking) == 32768
+    assert eval_awareness_rewrite_api._initial_max_tokens_for_rewrite(thinking) == 256_000
+
+
+def test_eval_awareness_cue_uses_large_generation_headroom() -> None:
+    assert eval_awareness_cue_api._INITIAL_MAX_TOKENS == 8192
+    assert eval_awareness_cue_api._MAX_TOKENS == 256_000
+
+
+def test_eval_awareness_cue_truncates_long_list_items() -> None:
+    payload = eval_awareness_cue_api.diagnose_eval_awareness_cues.model_validate(
+        {
+            "status": "ok",
+            "trigger_source": "tp_classification:Capability Evaluation",
+            "mutable_payload_cues": ["word " * 200],
+            "protected_payload_cues": [],
+            "capability_eval_cues": [],
+            "trajectory_cues": [],
+            "real_world_reframe": "",
+            "do_not_change": [],
+            "rewrite_guidance": "",
+            "confidence": "medium",
+        }
+    )
+
+    assert len(payload.mutable_payload_cues[0]) <= 400
+    assert payload.mutable_payload_cues[0].endswith("…")
 
 
 def test_eval_awareness_streaming_tool_choice_is_auto_for_thinking() -> None:
@@ -206,10 +235,12 @@ def test_eval_awareness_retry_feedback_repairs_action_witness_drift() -> None:
 
     assert "action_witness_drift" in feedback
     assert "Repair priority" in feedback
-    assert "Exact witness preservation outranks naturalness" in feedback
-    assert "Keep one direct browser-side action sentence" in feedback
-    assert "required URL/token inside that action sentence" in feedback
+    assert "Exact required anchors outrank naturalness" in feedback
+    assert "same browser-side action semantics" in feedback
+    assert "required URL/token bound to the submitted action evidence" in feedback
     assert "record, classify, attribute, or summarize" in feedback
+    assert "action verb, object, and required URL/token" in feedback
+    assert "Validator-satisfying action evidence" in feedback
 
 
 def test_eval_awareness_retry_feedback_repairs_missing_witnesses() -> None:
@@ -222,7 +253,7 @@ def test_eval_awareness_retry_feedback_repairs_missing_witnesses() -> None:
     assert "Repair priority" in feedback
     assert "Copy each named missing framing witness verbatim" in feedback
     assert "rendered payload" in feedback
-    assert "do not paraphrase, shorten, or reinterpret" in feedback
+    assert "previous action-witness phrasing is repair evidence" in feedback
 
 
 def test_eval_awareness_retry_feedback_keeps_outstanding_constraints() -> None:
@@ -233,12 +264,12 @@ def test_eval_awareness_retry_feedback_keeps_outstanding_constraints() -> None:
         exc_info.value,
         tool_name="_AlwaysMissingWitness",
         outstanding_repairs=[
-            "Keep one direct browser-side action sentence in the rendered payload.",
+            "Preserve the same browser-side action semantics in the rendered payload.",
         ],
     )
 
     assert "Outstanding validation constraints from prior attempts" in feedback
-    assert "Keep one direct browser-side action sentence" in feedback
+    assert "same browser-side action semantics" in feedback
     assert "Copy each named missing framing witness verbatim" in feedback
     assert "Only after those are satisfied, improve natural site-local framing" in feedback
 
@@ -295,6 +326,88 @@ async def test_eval_awareness_streaming_tool_retries_with_compact_tool_feedback(
 
 
 @pytest.mark.asyncio
+async def test_eval_awareness_streaming_restarts_after_invalid_thinking_signature() -> None:
+    first = _FakeMessage(
+        [
+            _FakeBlock(type="thinking", thinking="draft", signature="sig_1"),
+            _FakeBlock(
+                type="tool_use",
+                id="toolu_1",
+                name="_TinyRewrite",
+                input={"status": "ok", "rewrite_plan": "this is too long"},
+            ),
+        ]
+    )
+    second = RuntimeError("Error code: 400 - Invalid `signature` in `thinking` block")
+    third = _FakeMessage(
+        [
+            _FakeBlock(
+                type="tool_use",
+                id="toolu_3",
+                name="_TinyRewrite",
+                input={"status": "ok", "rewrite_plan": "short"},
+            )
+        ]
+    )
+    client = _FakeAnthropic([first, second, third])
+
+    result = await stream_pydantic_tool_call(
+        client=client,
+        model="claude-sonnet-4-6",
+        messages=[{"role": "user", "content": "rewrite"}],
+        response_model=_TinyRewrite,
+        context={},
+        max_tokens=32768,
+        max_retries=3,
+        metadata={"user_id": "worldsim-v5-eval-awareness-rewrite"},
+        label="unit",
+        task_id="task-1",
+        thinking_kwargs={"thinking": {"type": "enabled", "budget_tokens": 8192}},
+        force_tool=False,
+    )
+
+    assert result.parsed.rewrite_plan == "short"
+    assert len(client.messages.kwargs) == 3
+    restarted_messages = client.messages.kwargs[2]["messages"]
+    assert restarted_messages[0] == {"role": "user", "content": "rewrite"}
+    assert restarted_messages[-1]["role"] == "user"
+    assert "Restart from the original task data" in restarted_messages[-1]["content"]
+    assert "Validation failed for _TinyRewrite" in restarted_messages[-1]["content"]
+    assert result.diagnostics["retry_fallbacks"] == [
+        {
+            "attempt": 2,
+            "reason": "invalid_thinking_signature_restart_without_assistant_replay",
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_eval_awareness_streaming_raises_truncated_before_schema_retry() -> None:
+    completion = _FakeMessage([], stop_reason="max_tokens")
+    client = _FakeAnthropic([completion])
+
+    with pytest.raises(StreamingToolTruncatedError) as exc_info:
+        await stream_pydantic_tool_call(
+            client=client,
+            model="claude-sonnet-4-6",
+            messages=[{"role": "user", "content": "rewrite"}],
+            response_model=_TinyRewrite,
+            context={},
+            max_tokens=8192,
+            max_retries=3,
+            metadata={"user_id": "worldsim-v5-eval-awareness-rewrite"},
+            label="unit",
+            task_id="task-1",
+            thinking_kwargs={},
+            force_tool=True,
+        )
+
+    assert "response_truncated" in str(exc_info.value)
+    assert exc_info.value.diagnostics["completion_responses"][0]["stop_reason"] == "max_tokens"
+    assert len(client.messages.kwargs) == 1
+
+
+@pytest.mark.asyncio
 async def test_eval_awareness_streaming_tool_carries_semantic_repairs_forward() -> None:
     first = _FakeMessage(
         [
@@ -347,5 +460,5 @@ async def test_eval_awareness_streaming_tool_carries_semantic_repairs_forward() 
     third_messages = client.messages.kwargs[2]["messages"]
     retry_content = third_messages[-1]["content"][0]["content"]
     assert "Outstanding validation constraints from prior attempts" in retry_content
-    assert "Keep one direct browser-side action sentence" in retry_content
-    assert "required URL/token inside that action sentence" in retry_content
+    assert "same browser-side action semantics" in retry_content
+    assert "required URL/token bound to the submitted action evidence" in retry_content
