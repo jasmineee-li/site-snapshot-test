@@ -103,9 +103,9 @@ uv lock --check >/dev/null 2>&1 || {
 }
 uv sync --locked --extra dev
 (
-    cd "$REPO_ROOT/packages/worldsim-webarena-verified"
+    cd "$REPO_ROOT/packages/warp-taskgen-webarena-verified"
     uv lock --check >/dev/null 2>&1 || {
-        echo "ERROR: packages/worldsim-webarena-verified lock drift" >&2
+        echo "ERROR: packages/warp-taskgen-webarena-verified lock drift" >&2
         exit 2
     }
     uv sync --locked
@@ -249,4 +249,4 @@ fi
 export WORLDSIM_PREFLIGHT_INSTANCES="$INSTANCES_PATH"
 uv run pytest "${PYTEST_ARGS[@]}"
 
-log "Phase 4 setup complete. Next: uv run python -m worldsim.main resume --instances $INSTANCES"
+log "Phase 4 setup complete. Next: uv run warp-taskgen resume --instances $INSTANCES"

@@ -107,6 +107,11 @@ For the legacy `3+3+1` adaptive strategy loop, verification evidence should show
 - per-round generated, host-rejected, browser-evaluated, PVPO-valid, and compliant counts
 - round lineage for each variant (`root_attempt_id`, `parent_attempt_id`, `round_index`, `round_variant_index`, selected strategy, refusal trigger)
 - unchanged benign task contracts and Phase 3 reward functions across variants
+
+For Phase 4 summary/reporting changes, check `agent_docs/phase4-reporting-metrics.md`
+and verify that output distinguishes fixed-cohort `Headline ASR` from
+PVPO-encounter-conditional `Gate-1 ASR`. Legacy aliases are acceptable only as
+compatibility fields or explicitly labeled historical output.
 - termination reason (`success`, no actionable lineage, no viable generation, or budget exhausted)
 
 Wrapper facts that matter:
@@ -126,9 +131,9 @@ Wrapper facts that matter:
 
 - Phase 4 fresh-host preflight: `uv run pytest -m preflight tests/preflight -q`
 - Crash/resume behavior: `uv run pytest -m crash_resume tests/test_crash_resume_*.py -q`
-- WebArena evaluator adapter: `uv sync --directory packages/worldsim-webarena-verified --locked`
+- WebArena evaluator adapter: `uv sync --directory packages/warp-taskgen-webarena-verified --locked`
 - AgentLab sidecar sync: `uv sync --directory packages/worldsim-agentlab-runner --locked`
-- Package Ruff: `uv run ruff check packages/worldsim-agentlab-runner/src packages/worldsim-webarena-verified/src`
+- Package Ruff: `uv run ruff check packages/worldsim-agentlab-runner/src packages/warp-taskgen-webarena-verified/src`
 - AgentLab/WebArena adapter smoke: `uv run pytest tests/test_agentlab_runner.py tests/phase_4/test_process_pool.py tests/rewards/test_vendor_webarena.py -q`
 - AgentLab/trace-inspection observability: `uv run pytest tests/test_agentlab_runner.py tests/phase_4/test_process_pool.py tests/test_phase_4_trace_inspection.py -q`
 - CLI smoke: `uv run warp-taskgen --help`

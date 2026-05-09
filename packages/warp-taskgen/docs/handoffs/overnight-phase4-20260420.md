@@ -46,7 +46,7 @@ Full infrastructure was built up on r5 tonight. This is NOT trivial to reproduce
 6. **Magento base_url hand-set to `http://127.0.0.1:PORT/`** for all 8 Magento replicas. Shopping_0 and shopping_3 silently revert after `cache:flush` — re-applied right before run launch. Pattern suggests an init hook or config-cache re-read that isn't documented.
 7. **Magento health check patched** (`worldsim/phase_4/magento_health.py` on r5) to decode Luma's `\uXXXX` JS escapes in rendered BASE_URL. Was a real regex bug — should be upstreamed.
 8. **gitlab storage_state minted** via `scripts/login_gitlab_r5.py` (patched HOST to 127.0.0.1:8023). Copied to `/home/ubuntu/.build/webarena-verified/logs/phase_0d/gitlab/` so the benchmark-root path check finds it. `--skip-host-bound-storage-state-auth` required since one storage_state covers 4 replicas.
-9. **WORLDSIM_WEBARENA_EVAL_PYTHON** path in `.env` fixed from laptop path to r5 path (`/home/ubuntu/browser-sim/packages/worldsim-webarena-verified/.venv/bin/python`). Separate venv created for the eval package.
+9. **WORLDSIM_WEBARENA_EVAL_PYTHON** path in `.env` fixed from laptop path to r5 path (`/home/ubuntu/browser-sim/packages/warp-taskgen-webarena-verified/.venv/bin/python`). Separate venv created for the eval package.
 10. **instances.trimmed.json** built from the generator output with `verification_proxy` removed (no proxy deployed) and `map` entry removed (no map tasks, no storage_state).
 11. **Model slug:** `openai/gpt-5.4-mini` via OpenRouter returns 404 ("no endpoints handle these parameters") — browser-use's tool_choice/response_format params aren't supported for that slug today. Swapped to `gemini-3-flash-preview` which does work.
 

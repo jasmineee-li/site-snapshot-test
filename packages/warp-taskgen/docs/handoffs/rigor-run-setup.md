@@ -1,8 +1,8 @@
 # Rigor-run setup runbook
 
 One-page reference for going from a fresh EC2 host to a Phase 4 rigor run.
-Codifies the manual r5 setup from 2026-04-20 so the next host runs with
-zero hand-patching.
+Codifies the manual r5 setup from 2026-04-20 while keeping the commands
+host-config driven for current r5/r8a runs.
 
 ## Sequence
 
@@ -18,9 +18,11 @@ zero hand-patching.
        --artifacts-source s3://benchmark-archives/worldsim-runs/<run_id>/
    ```
 
-   1. uv + repo venv + evaluator venv (`packages/worldsim-webarena-verified`).
-   2. Regenerate `instances.scale.json` / `instances.smoke.json` from
-      `scripts/scale_config.yml` and the selected host config.
+   1. uv + repo venv + evaluator venv (`packages/warp-taskgen-webarena-verified`).
+   2. Regenerate `instances.scale.json` / `instances.smoke.json` from the
+      selected scale config and host config. Use
+      `--scale-config scripts/scale_config.r8a-24x24.yml` for the r8a 24x24
+      topology.
    3. Playwright Chromium + system libs when Playwright is installed.
    4. Page-surface-stable PVPO requires no dedicated browser endpoint setup.
       The runner-owned Browser Use or AgentLab browser is the capture surface.
@@ -52,7 +54,7 @@ zero hand-patching.
        --state-dir logs/<run_name> \
        --expected-output logs/<run_name>/phase_4/results.json \
        -- \
-       uv run python -m worldsim.main phase 4 \
+       uv run warp-taskgen phase 4 \
            --instances instances.scale.json \
            --phase-4-variant-system eval-awareness-iterator \
            --agent-task-timeout 900
@@ -67,17 +69,18 @@ zero hand-patching.
        --state-dir logs/<run_name> \
        --expected-output logs/<run_name>/phase_4/results.json \
        -- \
-       uv run python -m worldsim.main resume \
+       uv run warp-taskgen resume \
            --instances instances.scale.json \
            --agent-task-timeout 900
    ```
 
    For high-concurrency Browser Use evidence runs, top-level
-   `worldsim.main phase 4` commands use `--phase-4-max-workers`, not
-   `--workers`. Use the process-pool runner only when a single Phase 4 process
-   shows Browser Use event-bus/CDP contention. The process pool is
-   orchestration-only: each subprocess invokes normal `worldsim.main phase 4`
-   with one task, one instance, and
+   `warp-taskgen phase 4` commands use `--phase-4-max-workers`, not
+   `--workers`. The legacy `python -m worldsim.main phase 4` path is accepted
+   for compatibility, but runbooks should prefer `warp-taskgen`. Use the
+   process-pool runner only when a single Phase 4 process shows Browser Use
+   event-bus/CDP contention. The process pool is orchestration-only: each
+   subprocess invokes normal Phase 4 with one task, one instance, and
    `--phase-4-max-workers 1`, then the supervisor merges a canonical
    `phase_4/results.json` after validating that every expected task has exactly
    one result.
@@ -91,7 +94,7 @@ zero hand-patching.
        --expected-output logs/<run_name>/phase_4/results.json \
        -- \
        uv run python scripts/run_phase4_process_pool.py \
-           --source-state-dir logs/<verified_phase1_phase3_source> \
+           --source-state-dir logs/<source_with_phase_2_adversarial_tasks_and_phase_3_contracts> \
            --instances instances.scale.json \
            --workers 48 \
            --runner browser_use \
@@ -104,8 +107,8 @@ zero hand-patching.
    ```
 
    In this command, `--workers 48` belongs to `scripts/run_phase4_process_pool.py`.
-   Do not use it with top-level `worldsim.main phase 4`; the remote job guard
-   rejects that spelling.
+   Do not use it with top-level `warp-taskgen phase 4`; the remote job guard
+   rejects that spelling for top-level Phase 4.
 
    Do not compare process-pool output to single-process W48 as an infrastructure
    stress result; compare it as the same Phase 4 measurement core with safer
@@ -149,7 +152,7 @@ a registry under `<remote-dir>/logs/remote_jobs/<job_id>/`.
        --name phase1-route-diversity \
        --expected-output logs/phase_1/benign_tasks.json \
        -- \
-       uv run python -m worldsim.main phase 1 --generate-novel
+       uv run warp-taskgen phase 1 --generate-novel
    ```
 
 3. Inspect, tail, and stop by registry id:
@@ -167,12 +170,13 @@ Each job directory contains `metadata.json`, `command.argv.json`, `stdout.log`,
 or an operator stop. Status verifies the remote process instead of trusting
 metadata alone and warns when a live process has not written logs recently.
 
-State directory note: `remote_job_start.sh` does **not** set
-`WORLDSIM_STATE_DIR` by default because Phase 1/2/3/4 often read and write
-canonical `logs/phase_*` artifacts. For named rigor runs, pass
-`--state-dir logs/<run_name>` and register the expected Phase 4 result file.
-Use `--state-dir auto` only for isolated experiments that should write under
-`logs/remote_jobs/<job_id>/state`.
+State directory note: `remote_job_start.sh` does **not** set a state dir by
+default because Phase 1/2/3/4 often read and write canonical `logs/phase_*`
+artifacts. For named rigor runs, pass `--state-dir logs/<run_name>`; the
+wrapper currently injects `WORLDSIM_STATE_DIR` for compatibility, and the CLI
+also accepts `WARP_TASKGEN_STATE_DIR` as the canonical state-dir env alias.
+Register the expected Phase 4 result file. Use `--state-dir auto` only for
+isolated experiments that should write under `logs/remote_jobs/<job_id>/state`.
 
 Failure recovery:
 
@@ -199,10 +203,10 @@ Failure recovery:
 |---|---|
 | `logs/phase_0d/gitlab/storage_state.json` has cookies | rerun `login_gitlab_r5.py` or setup step 6 |
 | evaluator venv imports `webarena_verified` | rerun setup step 1 |
-| benchmark `site_url` and `reset_endpoint` values are reachable from the host | rerun host bootstrap or regenerate `instances.scale.json` |
 
 If preflight fails, the bash orchestrator exits non-zero and nothing is
-launched.
+launched. Current Phase 4 does not require dedicated PVPO CDP endpoints, so
+preflight does not inspect or supervise legacy PVPO browser containers.
 
 ## PVPO Integration
 
@@ -218,7 +222,7 @@ same Browser Use or AgentLab browser session that is executing the task:
 Do not provision dedicated PVPO browser endpoints or browser-recycle
 infrastructure for new rigor runs. Some generated legacy-compatible instance
 files still contain `pvpo_cdp_url`; canonical page-surface-stable PVPO ignores
-that metadata unless an explicit legacy debugging path is enabled.
+that metadata.
 
 ## Historical Magento Base-URL Drift
 
@@ -253,7 +257,11 @@ double-check the slug against the provider's current catalog.
 
 ## Env vars this runbook uses
 
-- `WORLDSIM_WEBARENA_EVAL_PYTHON` — override evaluator venv Python (default is repo-relative `packages/worldsim-webarena-verified/.venv/bin/python`).
+- `WARP_TASKGEN_WEBARENA_EVAL_PYTHON` — override evaluator venv Python
+  (default is repo-relative
+  `packages/warp-taskgen-webarena-verified/.venv/bin/python`).
+- `WORLDSIM_WEBARENA_EVAL_PYTHON` — legacy alias for the same evaluator
+  override.
 - `WORLDSIM_AUTO_MINT_STORAGE_STATE` — opt non-WebArena-Verified benchmarks in to runtime auto-heal. `true` is implicit for WebArena Verified.
 - `GITLAB_HOST` / `GITLAB_STORAGE_STATE_PATH` — override defaults for `scripts/login_gitlab_r5.py`.
 - `WORLDSIM_REPO_ROOT` — override sentinel-walk repo discovery.
@@ -262,18 +270,16 @@ double-check the slug against the provider's current catalog.
 
 ## When something breaks mid-run
 
-- **PVPO `max_coverage == 0` on every trajectory**: one or more per-instance
-  containers are not reachable or the instances file points multiple workers
-  at the same endpoint. Check `pytest -m preflight tests/preflight`, then inspect
-  per-task `pvpo/capture_summary.json`, `browser_runtime.json`, reset endpoint
+- **PVPO `max_coverage == 0` on every trajectory**: the runner-owned browser is
+  not reaching the seeded surface, the instances file points workers at the
+  wrong host view, or reset/envctrl is drifting between tasks. Inspect per-task
+  `pvpo/capture_summary.json`, `browser_runtime.json`, reset endpoint
   reachability, and the site/envctrl container logs for the affected instance.
 - **Host load climbs after each completed trajectory**: inspect
   `browser_runtime.json` for runner-owned browser lifecycle fields, slow CDP
-  calls, timeout counts, and degraded PVPO capture summaries. Dedicated
-  `pvpo-chrome-*` recycle fields are historical and are not expected on
-  page-surface-stable runs.
+  calls, timeout counts, and degraded PVPO capture summaries.
 - **Evaluator subprocess error in rewards**: the evaluator venv isn't
-  synced. `cd packages/worldsim-webarena-verified && uv sync --locked`.
+  synced. `cd packages/warp-taskgen-webarena-verified && uv sync --locked`.
 - **Gitlab task fails with `AuthArtifactMissingError`**: the auto-heal
   didn't kick in. Check the `WORLDSIM_AUTO_MINT_STORAGE_STATE` env var
   and that the site has `form_login` configured in `instances.json`.

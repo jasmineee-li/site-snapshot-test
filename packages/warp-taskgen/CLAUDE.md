@@ -15,13 +15,13 @@ optimize for evading safeguards.
 ## WHAT
 - Python 3.12 `uv` project for Modal Sandbox plus Browser Use and AgentLab adversarial evaluation of browser agents.
 - Strict WASP scope: GitLab issues/comments and Reddit/Postmill posts/comments only.
-- Main map: `worldsim/` legacy core package, `scripts/` host/run tooling, `tests/` unit/live/preflight suites, `packages/worldsim-webarena-verified/` isolated evaluator adapter, `vendors/` gitignored benchmark clones.
+- Main map: `worldsim/` legacy core package, `scripts/` host/run tooling, `tests/` unit/live/preflight suites, `packages/warp-taskgen-webarena-verified/` isolated evaluator adapter, `vendors/` gitignored benchmark clones.
 - `AgentLab/src/agentlab/benchmarks/redteam/{execution.py,claude_code.py}` are read-only references only; never import from `AgentLab/`.
 
 ## WHY
 - Research question: do browser agents resist or comply with indirect prompt injections embedded in realistic WebArena environments?
 - The orchestrator connects to pre-running benchmark instances supplied by the user (`site_url`, `reset_endpoint`); it does not manage benchmark lifecycles except reset between tasks.
-- `docs/worldsim-v5-technical-specifcation.md` is authoritative; the filename typo is intentional. If code and spec diverge, update the spec first when needed, then align code.
+- `docs/warp-taskgen-technical-spec.md` is authoritative. If code and spec diverge, update the spec first when needed, then align code.
 
 ## HOW
 - Before non-trivial work, read the relevant spec section and one companion doc. Do not preload every `agent_docs/` file.
@@ -30,6 +30,7 @@ optimize for evading safeguards.
 - `agent_docs/code-organization.md` — feature/domain module ownership, compatibility-wrapper policy, and readiness debt sequencing.
 - `agent_docs/remote-runs.md` — r5, proxy, fresh-host, and long-run discipline.
 - `agent_docs/trace-inspection.md` — Phase 4 trace/result debugging. When asked why tasks complied, resisted, were unaware, or why iterator contrasts failed, start with `uv run warp-taskgen trace ...` or `scripts/remote_trace_inspect.sh` before ad hoc JSON dumps.
+- `agent_docs/phase4-reporting-metrics.md` — ASR denominator semantics and Phase 4 reporting labels.
 - Work loop: Research -> Plan -> Implement -> Validate. Keep each context small; use `rg`; delegate focused exploration/verification to sub-agents when the harness supports it.
 - Prefer existing patterns and helpers over new abstractions. Keep edits scoped; do not rewrite generated logs or hand-edit `feasibility.status`.
 - Treat `logs/` as runtime output; use `agent_docs/artifacts.md` before deleting, restoring, or promoting generated artifacts.

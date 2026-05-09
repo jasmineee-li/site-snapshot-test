@@ -2,14 +2,13 @@
 
 The setup script ``scripts/setup_phase4_on_host.sh`` drives these tests as
 the final gate after bootstrapping uv/playwright/docker/artifacts. A green
-preflight proves: any configured legacy PVPO CDP endpoints are reachable, the
-GitLab Phase 0d artifact exists, and the WebArena-Verified evaluator venv
-resolves. Current page-surface-stable Phase 4 does not require dedicated PVPO
+preflight proves: the GitLab Phase 0d artifact exists and the WebArena-Verified
+evaluator venv resolves. Current page-surface-stable Phase 4 captures from the
+runner-owned browser and does not require dedicated PVPO CDP endpoints or
 browser containers.
 
-Inputs (setup script exports these):
-- ``WORLDSIM_PREFLIGHT_INSTANCES`` — path to instances.json
-- ``WORLDSIM_PREFLIGHT_HOST_CONFIG`` — optional host YAML
+Inputs:
+- ``WORLDSIM_STATE_DIR`` — optional state directory containing Phase 0d artifacts
 
 Each test fails loudly with a clear remediation if its precondition is
 unmet. Exit code from pytest is the gate the bash orchestrator checks.
@@ -21,115 +20,10 @@ import json
 import os
 import subprocess
 from pathlib import Path
-from urllib.parse import urlparse
-from urllib.request import urlopen
 
 import pytest
 
 pytestmark = pytest.mark.preflight
-
-
-def _instances_path() -> Path | None:
-    raw = os.environ.get("WORLDSIM_PREFLIGHT_INSTANCES", "").strip()
-    if not raw:
-        return None
-    return Path(raw)
-
-
-def _load_instances_config() -> dict | None:
-    path = _instances_path()
-    if path is None or not path.exists():
-        return None
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def test_configured_legacy_pvpo_cdp_endpoints_reachable() -> None:
-    """Any configured legacy PVPO endpoint must answer /json/version."""
-    config = _load_instances_config()
-    if config is None:
-        pytest.skip("WORLDSIM_PREFLIGHT_INSTANCES unset or missing")
-    try:
-        from worldsim.config import BenchmarkConfig
-        from worldsim.phase_4.runner import _pvpo_endpoint_preflight_errors
-    except ImportError as exc:
-        pytest.skip(f"worldsim modules unavailable: {exc}")
-
-    parsed = BenchmarkConfig.model_validate(config)
-    errors = _pvpo_endpoint_preflight_errors(parsed.instances)
-    assert not errors, (
-        "PVPO endpoint config invalid. Errors:\n  " + "\n  ".join(errors)
-    )
-
-    checked: set[str] = set()
-    for instance in parsed.instances:
-        url = instance.pvpo_cdp_url
-        if url is None:
-            continue
-        if url in checked:
-            continue
-        checked.add(url)
-        version_url = f"{url.rstrip('/')}/json/version"
-        try:
-            with urlopen(version_url, timeout=3) as resp:
-                assert resp.status == 200
-        except Exception as exc:
-            host = urlparse(url).netloc or url
-            pytest.fail(
-                f"pvpo-chrome CDP endpoint not reachable at {host}: {exc}. "
-                "Rerun setup_phase4_on_host.sh step 3 to (re)start the per-instance containers."
-            )
-
-
-def test_pvpo_cdp_containers_are_restart_supervised() -> None:
-    """Configured legacy local PVPO containers must support restart recycling."""
-    config = _load_instances_config()
-    if config is None:
-        pytest.skip("WORLDSIM_PREFLIGHT_INSTANCES unset or missing")
-    try:
-        from worldsim.config import BenchmarkConfig
-    except ImportError as exc:
-        pytest.skip(f"worldsim modules unavailable: {exc}")
-
-    parsed = BenchmarkConfig.model_validate(config)
-    checked_ports: set[int] = set()
-    for instance in parsed.instances:
-        raw_url = instance.pvpo_cdp_url
-        if raw_url is None:
-            continue
-        parsed_url = urlparse(raw_url)
-        host = (parsed_url.hostname or "").lower()
-        if host not in {"127.0.0.1", "localhost", "::1"}:
-            continue
-        assert parsed_url.port is not None
-        if parsed_url.port in checked_ports:
-            continue
-        checked_ports.add(parsed_url.port)
-        container_name = f"pvpo-chrome-{parsed_url.port}"
-        try:
-            completed = subprocess.run(
-                [
-                    "docker",
-                    "inspect",
-                    "--format",
-                    "{{.HostConfig.RestartPolicy.Name}}",
-                    container_name,
-                ],
-                capture_output=True,
-                text=True,
-                timeout=5,
-                check=False,
-            )
-        except FileNotFoundError:
-            pytest.fail("docker is not installed; rerun setup_phase4_on_host.sh step 3")
-        assert completed.returncode == 0, (
-            f"PVPO container {container_name} is missing. Rerun setup_phase4_on_host.sh step 3."
-        )
-        assert completed.stdout.strip() == "unless-stopped", (
-            f"PVPO container {container_name} has restart policy "
-            f"{completed.stdout.strip()!r}; expected 'unless-stopped'. "
-            "Rerun setup_phase4_on_host.sh step 3 so Phase 4 can recycle "
-            "the browser after each task without losing the endpoint."
-        )
 
 
 # test_magento_base_urls_resolved removed 2026-04-21 with the WASP-aligned
@@ -164,7 +58,7 @@ def test_eval_venv_reachable() -> None:
     python_exe = webarena_eval_python_override() or _default_eval_python()
     if not python_exe:
         pytest.fail(
-            "no evaluator Python resolved. Run `cd packages/worldsim-webarena-verified "
+            "no evaluator Python resolved. Run `cd packages/warp-taskgen-webarena-verified "
             "&& uv sync --locked` (setup_phase4_on_host.sh step 1)."
         )
     completed = subprocess.run(

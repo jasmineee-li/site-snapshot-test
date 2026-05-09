@@ -1,13 +1,13 @@
 # Remote Runs and Host Ops
 
-Use this before fresh-host setup, benchmark proxy work, r5 runs, Phase 4 rigor runs, or debugging live benchmark infrastructure.
+Use this before fresh-host setup, benchmark proxy work, selected-host runs such as r5/r8a, Phase 4 rigor runs, or debugging live benchmark infrastructure.
 
 ## Operator Flow
 
 Read `docs/handoffs/rigor-run-setup.md` for the full runbook. The short version:
 
-1. Prepare or validate the host config, usually `configs/benchmark_hosts/r5.yaml`.
-2. Sync code with `scripts/sync_to_r5.sh`.
+1. Prepare or validate the host config, for example `configs/benchmark_hosts/r5.yaml` or `configs/benchmark_hosts/r8a.yaml`.
+2. Sync code with `scripts/sync_to_r5.sh` or the selected-host equivalent.
 3. Start long jobs with `scripts/remote_job_start.sh` and a job id.
 4. Monitor with `scripts/remote_job_status.sh` or `scripts/remote_job_tail.sh`.
 5. Stop only with `scripts/remote_job_stop.sh --job-id <id>`.
@@ -33,11 +33,11 @@ and surfaced by `remote_job_status.sh`.
 
 Use `--expected-output <path>` for the artifact that proves the job did real
 work. For named Phase 1/2/3/4 runs, pass an explicit
-`--state-dir logs/<run_name>` to `remote_job_start.sh`; that sets
-`WORLDSIM_STATE_DIR` for the detached process and is how `worldsim.main` chooses
-where `phase_*` artifacts are written. Do not pass `--output-dir` to
-`worldsim.main phase`; the phase CLI is state-dir based. Use `--state-dir auto`
-only for isolated experiments. Push required remote environment variables with
+`--state-dir logs/<run_name>` to `remote_job_start.sh`; the wrapper currently
+sets `WORLDSIM_STATE_DIR` for the detached process, and `warp-taskgen` accepts
+`WARP_TASKGEN_STATE_DIR` as the canonical alias while preserving that legacy
+env. Do not pass `--output-dir` to `warp-taskgen phase`; the phase CLI is
+state-dir based. Use `--state-dir auto` only for isolated experiments. Push required remote environment variables with
 `scripts/remote_env_push.sh`; do not paste secrets into job commands or
 hand-written shell history.
 
@@ -61,12 +61,14 @@ Treat launch attempts and evidence runs as separate artifacts. If a remote job
 exits before it starts the measured phase, for example because auth, topology,
 or prerequisite artifacts are missing, keep its remote job registry for
 diagnostics but do not relaunch into the same state directory. Fix the
-precondition, materialize a fresh state directory from the verified Phase 1-3
-inputs, and start a new job whose `--expected-output` points at that fresh run.
+precondition, materialize a fresh state directory from the verified Phase
+0c/1/2/3 inputs, and start a new job whose `--expected-output` points at that fresh run.
 This keeps failed setup attempts from becoming part of the evidentiary run
 history and makes later summaries unambiguous.
 
-Canonical r5 Phase 4 launch shape:
+Canonical selected-host Phase 4 launch shape. Keep r5 as the example below;
+for r8a paper-facing AgentLab/process-pool runs, use
+`configs/benchmark_hosts/r8a.yaml` and the matching generated topology.
 
 ```bash
 RUN=logs/<phase4_run_name>
@@ -157,7 +159,8 @@ rows grow monotonically across tasks.
 
 For paper-facing W48 Browser Use or AgentLab Phase 4 runs, top-level
 `warp-taskgen phase 4` commands must use `--phase-4-max-workers 48`. Do not
-use `--workers 48` there; the remote launch guard rejects it.
+use `--workers 48` there; the remote launch guard rejects that spelling for
+top-level Phase 4. `--workers` is only for `scripts/run_phase4_process_pool.py`.
 
 Prefer process isolation over a single Phase 4 process with
 `--phase-4-max-workers 48` only when the single process shows runner
@@ -189,7 +192,7 @@ scripts/remote_job_start.sh \
   --state-dir logs/<process_pool_run> \
   --expected-output logs/<process_pool_run>/phase_4/results.json -- \
   uv run python scripts/run_phase4_process_pool.py \
-    --source-state-dir logs/<verified_phase1_phase3_source> \
+    --source-state-dir logs/<source_with_phase_2_adversarial_tasks_and_phase_3_contracts> \
     --instances instances.scale.json \
     --workers 48 \
     --runner browser_use \
@@ -232,8 +235,8 @@ which rows were replaced. Iterator-checkpoint timeout salvage rows are useful fo
 inspection, but they do not make the original process-pool run canonical; the
 merge still fails closed and writes partial artifacts until repaired or rerun.
 
-WorldSim uses two different network localities on r5. Treat the instances file
-as an execution-locality contract, not just a dataset selector:
+WARP Taskgen uses two different network localities on r5. Treat the instances
+file as an execution-locality contract, not just a dataset selector:
 
 | Phase / caller | Where traffic originates | Correct r5 instances file | Why |
 | --- | --- | --- | --- |
@@ -332,9 +335,11 @@ benchmark source unless you have explicitly hydrated the repo-local
 
 Its preflight step runs `pytest -m preflight tests/preflight` and proves:
 
-- Benchmark instance connectivity and page-surface-stable PVPO readiness.
 - GitLab Phase 0d `storage_state` exists with non-empty cookies.
-- The `worldsim-webarena-verified` evaluator venv resolves.
+- The `warp-taskgen-webarena-verified` evaluator venv resolves from the repo-local `packages/warp-taskgen-webarena-verified` environment.
+
+Current page-surface-stable PVPO does not require dedicated PVPO browser
+containers, and this preflight does not prove live benchmark task connectivity.
 
 Do not skip this before rigor runs.
 
