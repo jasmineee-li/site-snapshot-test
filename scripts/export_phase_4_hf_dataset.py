@@ -22,7 +22,9 @@ def main(argv: list[str] | None = None) -> int:
         metavar="MODEL=RUN_DIR",
         help=(
             "Model key and Phase 4 run directory. Repeat once per model, e.g. "
-            "--run sonnet46=logs/agentlab_linknaturalization_true50_sonnet46_w48_20260509"
+            "--run sonnet46=logs/agentlab_linknaturalization_true50_sonnet46_w48_20260509. "
+            "Optional comma-separated metadata is supported after RUN_DIR, e.g. "
+            "...,agent_provider=openrouter,agent_service_tier=priority."
         ),
     )
     parser.add_argument(

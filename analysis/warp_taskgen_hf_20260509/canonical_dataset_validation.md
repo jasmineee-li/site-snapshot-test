@@ -75,3 +75,30 @@ All five downloaded index files matched the local SHA-256 digests. The remote
 split has the same final status counts, ASR numerators/denominators, and
 per-run status counts as the local canonical export. Remote `metadata.json` has
 no repair/correction provenance field.
+
+## Agent Metadata Refresh
+
+The dataset was refreshed on Hugging Face after adding browser-agent provenance
+to every split. Remote commit:
+
+`https://huggingface.co/datasets/anonymous-dataset-submission-warp/warp-taskgen-generated-ipi-tasks-50/commit/c2633205edd67891c9ae80665cc6c655646d75d3`
+
+Remote readback downloaded the five index files to
+`/private/tmp/warp-taskgen-hf-agent-metadata-check`. SHA-256 digests matched
+the local files:
+
+| file | sha256 |
+|---|---|
+| `README.md` | `0bb7885ad8d173a147fa3f8343ec9a2079b73d46adc3897c01795ab9da1f3799` |
+| `metadata.json` | `23e003296a0847a047e7b1d3229f41bc70e6c6972b501879de83984597ccaf1c` |
+| `runs.jsonl` | `e6e6b4cf2e53a18fd935d93f4b641e04de7f403a0874af4361fdd82191e19ca1` |
+| `tasks.jsonl` | `4c40b547fc38eb5698f483ddebbb32bd832929f7250cab523f8064372a2cea27` |
+| `variants.jsonl` | `2d6d362bab248dcd18845a104f98309f4e4fda2b3c34148d2f44b5888516a550` |
+
+Agent metadata readback:
+
+| split | rows | `agent_provider` | `agent_service_tier` |
+|---|---:|---|---|
+| `runs.jsonl` | 6 | `openrouter=6` | `priority=6` |
+| `tasks.jsonl` | 300 | `openrouter=300` | `priority=300` |
+| `variants.jsonl` | 659 | `openrouter=659` | `priority=659` |
