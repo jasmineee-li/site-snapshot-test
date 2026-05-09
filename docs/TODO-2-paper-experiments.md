@@ -6,11 +6,11 @@
 > ecological-validity analysis, old comparison plans, or superseded runner
 > wiring. Current Gate 1 is PVPO `encounter.max_coverage > 0`; TP/VEA and the
 > eval-awareness iterator are defined in
-> `docs/worldsim-v5-technical-specifcation.md`. Use only the dated AgentLab
+> `docs/warp-taskgen-technical-spec.md`. Use only the dated AgentLab
 > cohort block under "Track 7" after cross-checking `docs/current_progress.md`
 > and the target host/model live gates.
 
-Status: planning. Owner: Ashton (infra), Max + Jasmine (eval awareness + comparisons). Target: close the gap between the MVP pipeline (`docs/TODO-adversarial-rigor-mvp.md`) and a submittable NeurIPS paper per `docs/worldsim-v5-full-specification.md`.
+Status: planning. Owner: Ashton (infra), Max + Jasmine (eval awareness + comparisons). Target: close the gap between the MVP pipeline (`docs/archive/TODO-adversarial-rigor-mvp.md`) and a submittable NeurIPS paper per `docs/warp-taskgen-full-spec.md`.
 
 The MVP TODO covers Contribution 1 (IPI wrapper) and produces cohort-quality adversarial trajectories. This doc covers everything else the paper needs: Contribution 2 (eval-awareness measurement), Contribution 3 (ecological-validity gap), Experiments A/B/C, the comparison benchmark claim, analysis tooling, and pre-registration.
 
@@ -20,9 +20,9 @@ Each track below has: **Goal**, **What**, **Why**, **Context**, **Open questions
 
 The paper claims three things. Mapping to pipeline state:
 
-1. **WASP-aligned IPI wrapper** (`docs/worldsim-v5-full-specification.md`, "Scope" and "Pipeline"). MVP pipeline delivers this for GitLab and Reddit/Postmill UGC. Blocker: cross-check landing, then expensive runs.
-2. **Large-scale eval-awareness measurement for browser-use safety evals** (`docs/worldsim-v5-full-specification.md`, "Research Question" and "Eval-Awareness Iterator"). Current Phase 4 records Transcript Purpose and VEA; Jasmine/Max's broader post-hoc probe battery remains a separate planning track.
-3. **Measurement gap analysis** (`docs/worldsim-v5-full-specification.md`, "Rewards And Readback"). Current mainline separates raw ASR, encounter-conditional ASR, Transcript Purpose, VEA, benign-under-attack, and readback/action evidence. Any P(eval)-filtered analysis is future Phase 5 work, not a current Phase 4 gate.
+1. **WASP-aligned IPI wrapper** (`docs/warp-taskgen-full-spec.md`, "Scope" and "Pipeline"). MVP pipeline delivers this for GitLab and Reddit/Postmill UGC. Blocker: cross-check landing, then expensive runs.
+2. **Large-scale eval-awareness measurement for browser-use safety evals** (`docs/warp-taskgen-full-spec.md`, "Research Question" and "Eval-Awareness Iterator"). Current Phase 4 records Transcript Purpose and VEA; Jasmine/Max's broader post-hoc probe battery remains a separate planning track.
+3. **Measurement gap analysis** (`docs/warp-taskgen-full-spec.md`, "Rewards And Readback"). Current mainline separates raw ASR, encounter-conditional ASR, Transcript Purpose, VEA, benign-under-attack, and readback/action evidence. Any P(eval)-filtered analysis is future Phase 5 work, not a current Phase 4 gate.
 
 Everything below is work that must land before paper submission. Three weeks to NeurIPS (5/5).
 
@@ -74,7 +74,7 @@ Phase 4 runner iterates both conditions per task against separate reset instance
 
 ### Why
 - This is future Phase 5 work; it is not required by the current Phase 4
-  spec. Re-check `docs/worldsim-v5-full-specification.md` and the technical
+  spec. Re-check `docs/warp-taskgen-full-spec.md` and the technical
   spec before scheduling it.
 - Experiment C's 2x2 ablation (environment realism x explicit cues) is blocked on this. Without it, Experiment C cannot run, and the causal claim for Contribution 2 has no evidence.
 - Rule-based transforms are attributable: each cue can be ablated independently ("realistic + degraded username only" vs "realistic + degraded URL only") to produce the "eval tells" ranking the spec promises.
@@ -254,7 +254,7 @@ Run the MVP pipeline against 3-4 target models, producing the per-model panel da
 ### What
 Once MVP cross-check lands and Phase 0c + Phase 2 are regenerated:
 
-1. **LLM-only smokes**: gemini-3.1-pro-preview and claude-opus-4-6 to verify OpenRouter/Anthropic routing works end-to-end for all 3 models. Commands in `docs/TODO-adversarial-rigor-mvp.md:368-377`.
+1. **LLM-only smokes**: gemini-3.1-pro-preview and claude-opus-4-6 to verify OpenRouter/Anthropic routing works end-to-end for all 3 models. Commands in `docs/archive/TODO-adversarial-rigor-mvp.md:368-377`.
 2. **Phase 3 validity gate**: one run, agent-free, seconds to complete. Produces `contracts.json`.
 3. **Phase 4 full per model**: Sonnet 4.6, Gemini 3.1 Pro, Opus 4.6 (cost-gated). Three runs against the admitted cohort. ~$200-400 total + 5-15 hrs per run.
 4. **Phase 5 post-hoc**: run the 3-signal probe battery over all Phase 4 trajectories. ~$200-500.
@@ -494,7 +494,7 @@ Implementation checkpoint:
 
 ### Context
 - Infrastructure ready once MVP cross-check lands (per Day 3 audit, seeding and auth layers all in place).
-- Cost estimates in `docs/TODO-adversarial-rigor-mvp.md:361-363` already computed.
+- Cost estimates in `docs/archive/TODO-adversarial-rigor-mvp.md:361-363` already computed.
 - Wall-clock dominates; not code-gated.
 
 ### Open questions
@@ -556,8 +556,8 @@ Summary of how findings from `docs/research/gpt-deep-research-2026-04-14.md` lan
 ## Citations
 
 ### Paper spec
-- `docs/worldsim-v5-full-specification.md` (current short overview)
-- `docs/worldsim-v5-technical-specifcation.md` (implementation authority)
+- `docs/warp-taskgen-full-spec.md` (current short overview)
+- `docs/warp-taskgen-technical-spec.md` (implementation authority)
 - `docs/current_progress.md` (current state)
 
 ### Our branch
@@ -565,8 +565,8 @@ Summary of how findings from `docs/research/gpt-deep-research-2026-04-14.md` lan
 - `worldsim/phase_4/verbalized_eval_awareness_api.py` (VEA classifier)
 - `worldsim/phase_4/encounter_detection.py` + `worldsim/phase_4/ink_occupancy.py` + `worldsim/phase_4/pvpo_capture.py` (PVPO encounter detection; replaces the deleted ecological-validity fix loop and `probe-ecological-validity.md` / `fix-ecological-validity.md` prompts)
 - `worldsim/_sandbox_validator.py` (validity schema)
-- `docs/TODO-adversarial-rigor-mvp.md` (MVP plan; covers Contribution 1 only)
-- `docs/TODO-adversarial-rigor-mvp.md:361-363` (cost estimates per model)
+- `docs/archive/TODO-adversarial-rigor-mvp.md` (MVP plan; covers Contribution 1 only)
+- `docs/archive/TODO-adversarial-rigor-mvp.md:361-363` (cost estimates per model)
 - `docs/handoffs/codex-handoff-paint-verified-oracle.md` (PVPO design + Implementation Status — read first)
 
 ### Orphan branches (to merge or port)
