@@ -19,7 +19,7 @@ Everything here is ops plumbing. The v5 orchestrator connects to pre-running ben
 
 **Rigor runs need the chrome-headless-shell container.** `HeadlessExperimental.beginFrame` is unsupported on native macOS Chrome builds; without the container, PVPO capture falls back to zero coverage per step, every trajectory routes to placement-fix, and results are useless for rigor analysis. Each Phase 4 execution instance carries its own `pvpo_cdp_url` (typically `127.0.0.1:9222`, `127.0.0.1:9223`, …). Browser-Use connects to the instance-bound endpoint, not a shared one.
 
-**Fresh hosts must pass preflight before a Phase 4 launch.** `scripts/setup_phase4_on_host.sh` step 7 runs `pytest -m preflight tests/preflight` and proves: every configured PVPO CDP endpoint is reachable and uniquely assigned, gitlab Phase 0d `storage_state` exists with non-empty cookies, and the `worldsim-webarena-verified` evaluator venv resolves. Skipping preflight is the failure mode that ate most of 2026-04-20.
+**Fresh hosts must pass preflight before a Phase 4 launch.** `scripts/setup_phase4_on_host.sh` step 7 runs `pytest -m preflight tests/preflight` and proves: every configured PVPO CDP endpoint is reachable and uniquely assigned, gitlab Phase 0d `storage_state` exists with non-empty cookies, and the `warp-taskgen-webarena-verified` evaluator venv resolves. Skipping preflight is the failure mode that ate most of 2026-04-20.
 
 ## Script index
 

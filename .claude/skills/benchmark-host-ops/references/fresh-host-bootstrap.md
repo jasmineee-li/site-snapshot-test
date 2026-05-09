@@ -7,7 +7,7 @@ From a bare r5 instance to Phase-4-ready requires a specific order. `scripts/set
 Order matters:
 
 1. **Bootstrap.** `scripts/bootstrap_r5.sh` (or `bootstrap_ec2.sh` on older instances) installs system deps, pulls the benchmark Docker images, and starts env-ctrl on the instance. This is a prerequisite; `setup_phase4_on_host.sh` assumes it has already run and all benchmark containers are up with env-ctrl responding.
-2. **uv + venvs.** The orchestrator uses `uv`; the WebArena-Verified evaluator ships as its own package with its own venv (`worldsim-webarena-verified`). Both must resolve before anything downstream works.
+2. **uv + venvs.** The orchestrator uses `uv`; the WebArena-Verified evaluator ships as its own package with its own venv (`warp-taskgen-webarena-verified`). Both must resolve before anything downstream works.
 3. **Playwright system deps.** Browser-Use runs Playwright against chromium; Playwright needs libnss3, libxss1, etc. on Linux.
 4. **pvpo-chrome container.** The `chrome-headless-shell` Docker container (see `rigor-containers.md`) must be built and running with the right flags before Phase 4 can compute non-zero PVPO coverage.
 5. **Artifact sync.** Phase 0c / Phase 2 / Phase 3 artifacts (task lists, AGENT_CONTEXT, adversarial task JSON) have to land on the host. `--artifacts-source s3://benchmark-archives/worldsim-runs/<run-id>/` pulls them; if omitted, the script looks locally and fails loudly if anything's missing.
@@ -15,7 +15,7 @@ Order matters:
 7. **Preflight gate.** `pytest -m preflight tests/preflight`. This must pass before the script exits green. What it proves, from `tests/preflight/test_phase_4_preflight.py`:
    - Every configured PVPO CDP endpoint is reachable and uniquely assigned (no two instances sharing `127.0.0.1:9222`).
    - GitLab `storage_state.json` exists and has non-empty cookies.
-   - The `worldsim-webarena-verified` evaluator venv resolves.
+   - The `warp-taskgen-webarena-verified` evaluator venv resolves.
 
 The script accepts `--skip-pvpo-container` / `--skip-gitlab-mint` flags for partial re-runs during debugging. Don't use them on a fresh green-field setup.
 
