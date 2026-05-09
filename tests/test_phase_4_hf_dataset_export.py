@@ -94,8 +94,12 @@ def test_hf_dataset_export_writes_queryable_splits_and_bundle(tmp_path: Path) ->
         output_dir=out,
     )
 
+    assert manifest["dataset_id"] == "warp-taskgen-generated-ipi-tasks-50"
     assert manifest["splits"]["tasks"]["rows"] == 1
     assert manifest["splits"]["variants"]["rows"] == 2
+    readme = (out / "README.md").read_text(encoding="utf-8")
+    assert "pretty_name: \"WARP Taskgen Generated IPI Tasks 50\"" in readme
+    assert "# WARP Taskgen Generated IPI Tasks 50" in readme
     task = _read_jsonl(out / "tasks.jsonl")[0]
     assert task["model_key"] == "test_model"
     assert task["is_complied"] is True

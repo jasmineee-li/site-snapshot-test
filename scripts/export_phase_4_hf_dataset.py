@@ -6,7 +6,11 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from worldsim.phase_4.hf_dataset_export import export_hf_dataset, parse_run_specs
+from worldsim.phase_4.hf_dataset_export import (
+    DEFAULT_DATASET_ID,
+    export_hf_dataset,
+    parse_run_specs,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -30,12 +34,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("data/hf/warp-taskgen-agentlab-linknaturalization-50"),
+        default=Path(f"data/hf/{DEFAULT_DATASET_ID}"),
         help="Output dataset directory.",
     )
     parser.add_argument(
         "--dataset-id",
-        default="warp-taskgen-agentlab-linknaturalization-50",
+        default=DEFAULT_DATASET_ID,
         help="Dataset id written into metadata and README.",
     )
     parser.add_argument(

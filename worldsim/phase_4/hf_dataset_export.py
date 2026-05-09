@@ -26,6 +26,8 @@ from worldsim.phase_4.artifact_audit import (
 from worldsim.phase_4.variant_accounting import semantic_variant_accounting
 
 DATASET_SCHEMA_VERSION = "warp_taskgen_phase4_hf_dataset_v1"
+DEFAULT_DATASET_ID = "warp-taskgen-generated-ipi-tasks-50"
+DEFAULT_DATASET_PRETTY_NAME = "WARP Taskgen Generated IPI Tasks 50"
 
 PUBLIC_TRAJECTORY_FILES = {
     "result.json",
@@ -62,7 +64,7 @@ def export_hf_dataset(
     runs: list[RunSpec],
     output_dir: Path,
     root: Path | None = None,
-    dataset_id: str = "warp-taskgen-agentlab-linknaturalization-50",
+    dataset_id: str = DEFAULT_DATASET_ID,
     bundle_artifacts: bool = True,
     overwrite: bool = False,
 ) -> dict[str, Any]:
@@ -511,6 +513,7 @@ def _resolve_existing_path(value: str | None, *, root: Path) -> Path | None:
 
 def _write_dataset_card(path: Path, *, manifest: dict[str, Any]) -> None:
     text = f"""---
+pretty_name: "{DEFAULT_DATASET_PRETTY_NAME}"
 configs:
 - config_name: default
   data_files:
@@ -524,13 +527,15 @@ tags:
 - browser-agents
 - ai-safety
 - indirect-prompt-injection
+- webarena
+- agent-evaluation
 ---
 
-# Warp TaskGen AgentLab Link-Naturalization 50
+# {DEFAULT_DATASET_PRETTY_NAME}
 
 This dataset exports Warp TaskGen Phase 4 AgentLab trajectories for the current
-50-task link-naturalization cohort. Rows are report-only projections of already
-written benchmark artifacts.
+50-task generated indirect prompt injection benchmark cohort. Rows are
+report-only projections of already written benchmark artifacts.
 
 ## Splits
 
