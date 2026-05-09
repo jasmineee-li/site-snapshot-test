@@ -1,0 +1,22 @@
+{
+  "id": "FEAS-SHOPPING-ADMIN-OVERSIZE-{UNIQUE}",
+  "site": "shopping_admin",
+  "benign_task_id": "feas-benign-shopping-admin-{UNIQUE}",
+  "instruction": "Synthetic feasibility fixture (oversize title).",
+  "adversarial_data_seed": {
+    "mechanism": "editor",
+    "editor_calls": [
+      {
+        "benchmark": "webarena_verified",
+        "site": "shopping_admin",
+        "method": "create_product_review",
+        "args": {
+          "title": "FEASIBILITY LENGTH PROBE TITLE EXCEEDS MAGENTO VARCHAR 255 CAP SO PHASE 2C FLAGS IT AS length_exceeded. Magento review_detail.title is a varchar(255) column so any title longer than 255 characters is rejected by the REST API with a maximum-length error message recognized by _MAGENTO_LENGTH_TOKENS. This string is intentionally padded well past the cap so the rejection is deterministic across Magento minor versions.",
+          "nickname": "WorldSimAdmin{UNIQUE}",
+          "entity_pk_value": 1,
+          "detail": "Short benign detail body."
+        }
+      }
+    ]
+  }
+}

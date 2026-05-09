@@ -1,0 +1,20 @@
+{
+  "id": "FEAS-GITLAB-OVERSIZE-{UNIQUE}",
+  "site": "gitlab",
+  "benign_task_id": "feas-benign-gitlab-{UNIQUE}",
+  "instruction": "Synthetic feasibility fixture (oversize).",
+  "adversarial_data_seed": {
+    "mechanism": "editor",
+    "editor_calls": [
+      {
+        "benchmark": "webarena_verified",
+        "site": "gitlab",
+        "method": "create_group",
+        "args": {
+          "name_template": "webagent-verify-grp-{UNIQUE}",
+          "description_template": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Additional padding to guarantee length exceeds the 255-character column cap on gitlab groups.description so Phase 2c reliably classifies this as length_exceeded."
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,55 @@
+# docker-compose.override.yml for WebArena Verified environments.
+#
+# Deployed by scripts/patch_webarena_containers.sh into
+# vendors/webarena-verified/docker-compose.override.yml.
+#
+# Sets WA_ENV_CTRL_EXTERNAL_SITE_URL for each site so that POST /init
+# on the env-ctrl HTTP server can resolve the base_url without it being
+# passed in the request body.
+#
+# Also exposes internal database ports for postcondition verification and
+# final-state/readback checks (see instances.json db_connection fields). The host
+# must provide explicit bind targets; there is no broad default. After
+# `docker compose up -d`, run scripts/configure_db_access.sh to grant
+# remote DB access inside the recreated containers.
+#
+# The host must provide:
+#   * WORLDSIM_ADVERTISE_HOST for runtime URLs / WA_ENV_CTRL_EXTERNAL_SITE_URL
+#   * WORLDSIM_BIND_HOST for site + env-ctrl port publishing
+#   * WORLDSIM_DB_BIND_HOST for DB port publishing
+#
+# bootstrap_ec2.sh writes these into `/home/ubuntu/.env` from a checked-in
+# host config so smoke/vendor bring-up uses the same contract as the scale
+# generator.
+#
+# Override at compose time:
+#   WORLDSIM_ADVERTISE_HOST=1.2.3.4 WORLDSIM_BIND_HOST=0.0.0.0 \
+#   WORLDSIM_DB_BIND_HOST=0.0.0.0 docker compose up -d
+
+services:
+  gitlab:
+    image: worldsim/webarena-verified-gitlab:amd64
+    platform: linux/amd64
+    environment:
+      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${WORLDSIM_ADVERTISE_HOST:?set WORLDSIM_ADVERTISE_HOST}:${WA_GITLAB_PORT:-8023}
+      # Skip reconfigure on init -- the image is pre-configured with the correct
+      # external_url. Reconfigure takes 3-5 minutes and can cause 502 errors.
+      - WA_ENV_CTRL_SKIP_RECONFIGURE=true
+    ports:
+      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_GITLAB_PORT:-8023}:8023"
+      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_GITLAB_ENV_CTRL_PORT:-8024}:8877"
+      - "${WORLDSIM_DB_BIND_HOST:?set WORLDSIM_DB_BIND_HOST}:${WA_GITLAB_DB_PORT:-5433}:5432"
+
+  reddit:
+    image: worldsim/webarena-verified-reddit:amd64
+    platform: linux/amd64
+    environment:
+      - WA_ENV_CTRL_EXTERNAL_SITE_URL=http://${WORLDSIM_ADVERTISE_HOST:?set WORLDSIM_ADVERTISE_HOST}:${WA_REDDIT_PORT:-9999}
+    ports:
+      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_REDDIT_PORT:-9999}:80"
+      - "${WORLDSIM_BIND_HOST:?set WORLDSIM_BIND_HOST}:${WA_REDDIT_ENV_CTRL_PORT:-9998}:8877"
+      - "${WORLDSIM_DB_BIND_HOST:?set WORLDSIM_DB_BIND_HOST}:${WA_REDDIT_DB_PORT:-5434}:5432"
+
+# shopping/shopping_admin/wikipedia/map service blocks + map-volume name
+# overrides removed 2026-04-21 with the WASP-aligned scoping decision.
+# See docs/handoffs/wasp-aligned-scoping-decision.md.

@@ -1,0 +1,20 @@
+{
+  "id": "FEAS-GITLAB-GOOD-{UNIQUE}",
+  "site": "gitlab",
+  "benign_task_id": "feas-benign-gitlab-{UNIQUE}",
+  "instruction": "Synthetic feasibility fixture.",
+  "adversarial_data_seed": {
+    "mechanism": "editor",
+    "editor_calls": [
+      {
+        "benchmark": "webarena_verified",
+        "site": "gitlab",
+        "method": "create_project",
+        "args": {
+          "name_template": "webagent-verify-{UNIQUE}",
+          "description_template": "Synthetic feasibility fixture for Phase 2c."
+        }
+      }
+    ]
+  }
+}

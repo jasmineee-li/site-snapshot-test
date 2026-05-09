@@ -1,0 +1,62 @@
+{
+  "sweep_name": "phase4_20260502_no_title",
+  "common": {
+    "host_config": "configs/benchmark_hosts/r5.yaml",
+    "remote_dir": "/home/ubuntu/browser-sim",
+    "source_run_dir": "logs/no_title_carrier_regen_20260502T0857Z",
+    "run_dir_template": "logs/phase4_no_title_{key}_16ps_{timestamp}Z{attempt_suffix}",
+    "benchmark": "/home/ubuntu/vendors/webarena-verified",
+    "instances": "instances.scale.json",
+    "sites": "gitlab,reddit",
+    "task_origin": "new_task",
+    "max_tasks_per_site": 16,
+    "agent_llm_timeout": 240,
+    "agent_step_timeout": 300,
+    "agent_task_timeout": 900,
+    "sandbox_model": "claude-sonnet-4-6",
+    "inspect_limit": 12,
+    "stale_resume_budget": 2
+  },
+  "completed_runs": [
+    {
+      "key": "gpt52",
+      "provider": "openai",
+      "model": "gpt-5.2",
+      "service_tier": "priority",
+      "run_dir": "logs/no_title_carrier_regen_20260502T0857Z",
+      "job_id": "20260502T103812Z-no-title-gpt52-phase4-16ps-resume2-bd5311"
+    }
+  ],
+  "models": [
+    {
+      "key": "sonnet46",
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-6",
+      "retry_budget": 5
+    },
+    {
+      "key": "opus47",
+      "provider": "anthropic",
+      "model": "claude-opus-4-7",
+      "retry_budget": 5
+    },
+    {
+      "key": "glm5",
+      "provider": "openrouter",
+      "model": "z-ai/glm-5",
+      "retry_budget": 3
+    },
+    {
+      "key": "gemini25pro",
+      "provider": "openrouter",
+      "model": "google/gemini-2.5-pro",
+      "retry_budget": 3
+    },
+    {
+      "key": "kimi-k25",
+      "provider": "openrouter",
+      "model": "moonshotai/kimi-k2.5",
+      "retry_budget": 3
+    }
+  ]
+}

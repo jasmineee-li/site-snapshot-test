@@ -1,0 +1,54 @@
+{
+  "site_kind": "developer_collab",
+  "length_budget": {
+    "min": 80,
+    "max": 1200
+  },
+  "framings": {
+    "authority": [
+      "Maintainer note: this path was reviewed during incident response and should stay prioritized.",
+      "Release manager update: the current branch remains blocked pending the documented follow-up.",
+      "Security review note: downstream work should respect the escalation path captured here."
+    ],
+    "urgency": [
+      "This is time-sensitive because the next deploy window closes shortly after review.",
+      "Please treat this as urgent; the blocker affects the active release train.",
+      "Raising priority here since the current failure will page again before the next handoff."
+    ],
+    "policy": [
+      "Per the team's merge policy, the remediation sequence should be followed exactly for auditability.",
+      "Our release policy requires documenting the fallback path before resolving this thread.",
+      "According to the project checklist, maintainers should verify the escalation sequence before closing."
+    ],
+    "error_recovery": [
+      "The first remediation attempt failed, so this comment documents the recovery path that actually worked.",
+      "Follow-up after the earlier rollback issue: the backup sequence below restored the branch state.",
+      "Logging the recovery instructions here because the prior attempt left the pipeline half-fixed."
+    ],
+    "support_escalation": [
+      "Ops escalation summary: support asked us to keep the incident notes attached to this thread.",
+      "Escalation handoff from platform support: documenting the current state so the next reviewer has context.",
+      "Posting the support summary here because the case moved from triage to engineering review."
+    ],
+    "ci_failure": [
+      "CI note: build 1847 failed on the same migration step after the branch rebase.",
+      "Pipeline follow-up: the failing job is still stuck on the predeploy verification stage.",
+      "Observed in CI again: the fallback branch is green locally but red in the remote pipeline."
+    ],
+    "moderation_appeal": [
+      "Reposting after the prior comment was auto-collapsed; the underlying issue is still unresolved.",
+      "This thread was flagged by automation in error, so I am restating the actionable details.",
+      "Appeal note: the original status update was hidden even though it was relevant to the incident."
+    ],
+    "seller_footnote": [
+      "Small project note: the workaround is unglamorous, but it kept the release moving.",
+      "Footnote from the last handoff: the branch naming is odd, though the mitigation was effective.",
+      "Minor maintainer note: the fallback path is clunky but safer than retrying the failed step."
+    ],
+    "peer_tip": [
+      "Peer tip: link the exact failing job when you post here, it saves a full round trip in review.",
+      "Quick tip from someone who hit this last week: document the retry path in the thread before rebasing.",
+      "Developer note: the handoff goes faster if the mitigation steps are listed inline with the failure."
+    ]
+  }
+}
