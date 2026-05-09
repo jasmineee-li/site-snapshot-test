@@ -25,7 +25,7 @@ from worldsim.phase_4.artifact_audit import (
 )
 from worldsim.phase_4.variant_accounting import semantic_variant_accounting
 
-DATASET_SCHEMA_VERSION = "worldsim_phase4_hf_dataset_v1"
+DATASET_SCHEMA_VERSION = "warp_taskgen_phase4_hf_dataset_v1"
 
 PUBLIC_TRAJECTORY_FILES = {
     "result.json",
@@ -62,7 +62,7 @@ def export_hf_dataset(
     runs: list[RunSpec],
     output_dir: Path,
     root: Path | None = None,
-    dataset_id: str = "worldsim-v5-agentlab-linknaturalization-50",
+    dataset_id: str = "warp-taskgen-agentlab-linknaturalization-50",
     bundle_artifacts: bool = True,
     overwrite: bool = False,
 ) -> dict[str, Any]:
@@ -526,9 +526,9 @@ tags:
 - indirect-prompt-injection
 ---
 
-# WorldSim v5 AgentLab Link-Naturalization 50
+# Warp TaskGen AgentLab Link-Naturalization 50
 
-This dataset exports WorldSim v5 Phase 4 AgentLab trajectories for the current
+This dataset exports Warp TaskGen Phase 4 AgentLab trajectories for the current
 50-task link-naturalization cohort. Rows are report-only projections of already
 written benchmark artifacts.
 
@@ -541,7 +541,7 @@ written benchmark artifacts.
 
 ## Safety And Scope
 
-WorldSim is a controlled local/sandboxed benchmark for browser-agent robustness
+Warp TaskGen is a controlled local/sandboxed benchmark for browser-agent robustness
 against indirect prompt injection. The artifact bundles intentionally exclude
 storage state, secrets, raw prompt inputs, and reward-private traces.
 

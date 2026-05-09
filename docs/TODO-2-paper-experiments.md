@@ -386,23 +386,23 @@ rows.
 
 Implemented local layout:
 
-- `data/hf/worldsim-v5-agentlab-linknaturalization-50/README.md`: dataset card
+- `data/hf/warp-taskgen-agentlab-linknaturalization-50/README.md`: dataset card
   with benchmark scope, safety note, model/run IDs, metric definitions,
   license/access guidance, and known caveats.
-- `data/hf/worldsim-v5-agentlab-linknaturalization-50/metadata.json`: export
+- `data/hf/warp-taskgen-agentlab-linknaturalization-50/metadata.json`: export
   manifest with git SHA, source run dirs, source task set, host, runner,
   capture backend, iterator config, judge models, schema version, and export
   timestamp.
-- `data/hf/worldsim-v5-agentlab-linknaturalization-50/tasks.jsonl`: one row per
+- `data/hf/warp-taskgen-agentlab-linknaturalization-50/tasks.jsonl`: one row per
   model-task result, including final status, ASR components, PVPO,
   baseline/selected TP/VEA, iterator summary, and artifact pointers.
-- `data/hf/worldsim-v5-agentlab-linknaturalization-50/variants.jsonl`: one row
+- `data/hf/warp-taskgen-agentlab-linknaturalization-50/variants.jsonl`: one row
   per generated/evaluated/rejected iterator variant, including iteration,
   rewrite status, rejection class, PVPO validity, TP/VEA delta, and selected
   flag.
-- `data/hf/worldsim-v5-agentlab-linknaturalization-50/runs.jsonl`: one row per
+- `data/hf/warp-taskgen-agentlab-linknaturalization-50/runs.jsonl`: one row per
   model run with aggregate ASR/status/iterator counts.
-- `data/hf/worldsim-v5-agentlab-linknaturalization-50/artifacts/`: compressed
+- `data/hf/warp-taskgen-agentlab-linknaturalization-50/artifacts/`: compressed
   per-task trajectory bundles referenced from `tasks.jsonl`, preserving
   `history.json`, `final_response.json`, `needham_trace.*`, PVPO summaries,
   screenshots, redacted network/HAR artifacts, and processed result JSON.
@@ -455,7 +455,7 @@ Current exporter:
 
 ```bash
 uv run python scripts/export_phase_4_hf_dataset.py \
-  --output-dir data/hf/worldsim-v5-agentlab-linknaturalization-50 \
+  --output-dir data/hf/warp-taskgen-agentlab-linknaturalization-50 \
   --run gpt52=logs/agentlab_linknaturalization_true50_gpt52_w28_20260509_repaired \
   --run opus47=logs/agentlab_linknaturalization_true50_opus47_w48_20260509 \
   --run sonnet46=logs/agentlab_linknaturalization_true50_sonnet46_w48_20260509 \

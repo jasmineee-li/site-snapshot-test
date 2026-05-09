@@ -30,12 +30,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("data/hf/worldsim-v5-agentlab-linknaturalization-50"),
+        default=Path("data/hf/warp-taskgen-agentlab-linknaturalization-50"),
         help="Output dataset directory.",
     )
     parser.add_argument(
         "--dataset-id",
-        default="worldsim-v5-agentlab-linknaturalization-50",
+        default="warp-taskgen-agentlab-linknaturalization-50",
         help="Dataset id written into metadata and README.",
     )
     parser.add_argument(
