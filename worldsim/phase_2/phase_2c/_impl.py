@@ -40,6 +40,7 @@ from worldsim.instance_selection import (
 from worldsim.phase_2.phase_2c import auth_preflight as _auth_preflight
 from worldsim.phase_2.phase_2c import fingerprints as _fingerprints
 from worldsim.phase_2.phase_2c import outcomes as _outcomes
+from worldsim.phase_2.phase_2c import probes as _probes
 from worldsim.phase_2.phase_2c import source_data_preflight as _source_data_preflight
 from worldsim.phase_2.phase_2c.admission_guards import (
     _answer_target_collision_reason,
@@ -49,15 +50,7 @@ from worldsim.phase_2.phase_2c.admission_guards import (
     _seed_surface_values,
     _strings_overlap,
 )
-from worldsim.phase_2.phase_2c.exposure import (
-    _first_rendered_payload,
-    _metadata_path_value,
-    _phase4_exposure_inadmissible_reason,
-    _reachability_resource_for_task,
-    _required_url_token,
-    _selected_rendered_payload,
-    _verification_target_url,
-)
+from worldsim.phase_2.phase_2c.exposure import _metadata_path_value, _verification_target_url
 from worldsim.phase_2.phase_2c.fingerprints import (
     _exposure_contract_fingerprint_projection,
     _fingerprints_match,
@@ -85,15 +78,9 @@ from worldsim.phase_2.phase_2c.reddit_attribution import (
 )
 from worldsim.phases.phase_2_reachability import (
     ReachabilityOutcome,
-    derive_second_witness,
-    verify_reachable,
 )
 from worldsim.phases.phase_2_render_check import (
     RenderOutcome,
-    _render_check_inputs_from_metadata,
-    render_signature,
-    render_signature_selection,
-    verify_seed_renders,
 )
 from worldsim.seeding import SeedCleanupHandle, UnboundTokenError, apply_data_seed_async
 
@@ -208,13 +195,6 @@ FAILPOINT_QUARANTINE = "phase_2.output.feasibility_quarantine"
 FAILPOINT_REPORT = "phase_2.output.feasibility_report"
 FAILPOINT_DROPPED_SOURCE_DATA = "phase_2.output.feasibility_dropped_source_data"
 
-# Phase 2c render verification is a hard gate by default. The env-var opt-out
-# is intended for unit tests that mock the seed flow and don't need a browser,
-# and for development hosts without Playwright installed. Production runs MUST
-# leave this unset — the 2026-04-21 Magento review-pending bug shipped 174
-# tasks under the "verified == HTTP 2xx only" lie this gate now closes.
-_SKIP_RENDER_CHECK_ENV = "WORLDSIM_PHASE_2C_SKIP_RENDER_CHECK"
-
 # Per-replica in-flight caps for Phase 2c. Derived from live container
 # inspection on 2026-04-22 (webarena-verified-gitlab_3): puma runs 4
 # workers x 4 threads = 16 HTTP slots with worker_timeout 60 s. Cap 10
@@ -232,62 +212,31 @@ _PER_REPLICA_CAP_FALLBACK = 6
 # timeout even on a healthy replica returning in <1.4 s. Capping the
 # number of concurrent Chromium processes globally gives each renderer
 # ~2 vCPU headroom and eliminates the nav-failed tail.
-_BROWSER_PROBE_CAP = 8
 _PREFLIGHT_AUTH_REFRESH_LOCKS = _source_data_preflight._PREFLIGHT_AUTH_REFRESH_LOCKS
-
-# RenderOutcome.kind value the render-check sets when the seed wrote OK
-# but the signature was not visible in any read-surface URL within the
-# body-poll window. Hoisted as a constant so the retry-once gate below
-# stays grep-friendly and tests can pin the kind without importing
-# verify_seed_renders' classifier internals.
-_RENDER_UNVERIFIED_KIND = "render_unverified"
-# Single retry breather for the render-check on its first miss. Targets
-# GitLab's slow write-to-visible tail (sidekiq + page-cache invalidation)
-# under Phase 2c's 16-way renderer contention. 3 s is short enough not
-# to balloon Phase 2c wall time on the 1-3 task-per-run flake band, long
-# enough to clear the typical sidekiq queue depth observed on r5.
-_RENDER_UNVERIFIED_RETRY_DELAY_S = 3.0
-
-# Launch flags applied to every per-task Chromium. ``--disable-dev-shm-usage``
-# moves shared memory from ``/dev/shm`` (64 MiB Docker default) to
-# ``/tmp``; harmless on bare-metal Linux and essential in containers —
-# Playwright issue #22676 documents shm OOM surfacing as nav timeouts.
-# ``--disable-gpu`` drops the GPU process per renderer under headless.
-# ``--no-sandbox`` is acceptable here because Phase 2c hits only the
-# internal WASP replicas (``http://172.17.0.1:8xxx``) whose content we
-# control; it is the standard recommendation for containerized CI and
-# avoids the /proc/*/ns/user setup cost per launch.
-_PROBE_LAUNCH_ARGS: tuple[str, ...] = (
-    "--disable-dev-shm-usage",
-    "--disable-gpu",
-    "--no-sandbox",
-)
-
-
-async def _ensure_playwright_chromium_ready(async_playwright_factory: Any) -> None:
-    """Fail once, before worker fan-out, when the browser bundle is missing."""
-
-    pw_handle: Any = None
-    try:
-        pw_handle = await async_playwright_factory().start()
-        chromium = getattr(pw_handle, "chromium", None)
-        executable_raw = str(getattr(chromium, "executable_path", "") or "")
-        executable = Path(executable_raw) if executable_raw else None
-        if executable is None or not executable.is_file():
-            missing = executable_raw or "<unknown>"
-            raise RuntimeError(
-                "phase 2c render verification requires the Playwright Chromium "
-                "browser bundle. Missing executable: "
-                f"{missing}. Run: uv run python -m playwright install chromium. "
-                "On fresh Linux hosts, also run: sudo $(command -v uv) run "
-                "python -m playwright install-deps chromium."
-            )
-    finally:
-        if pw_handle is not None:
-            try:
-                await pw_handle.stop()
-            except Exception:
-                logger.debug("phase 2c: failed to stop playwright readiness handle", exc_info=True)
+_BROWSER_PROBE_CAP = _probes._BROWSER_PROBE_CAP
+_PROBE_LAUNCH_ARGS = _probes._PROBE_LAUNCH_ARGS
+_RENDER_UNVERIFIED_KIND = _probes._RENDER_UNVERIFIED_KIND
+_RENDER_UNVERIFIED_RETRY_DELAY_S = _probes._RENDER_UNVERIFIED_RETRY_DELAY_S
+_SKIP_RENDER_CHECK_ENV = _probes._SKIP_RENDER_CHECK_ENV
+derive_second_witness = _probes.derive_second_witness
+render_signature = _probes.render_signature
+render_signature_selection = _probes.render_signature_selection
+verify_reachable = _probes.verify_reachable
+verify_seed_renders = _probes.verify_seed_renders
+_first_rendered_payload = _probes._first_rendered_payload
+_phase4_exposure_inadmissible_reason = _probes._phase4_exposure_inadmissible_reason
+_reachability_resource_for_task = _probes._reachability_resource_for_task
+_render_check_inputs_from_metadata = _probes._render_check_inputs_from_metadata
+_required_url_token = _probes._required_url_token
+_selected_rendered_payload = _probes._selected_rendered_payload
+_ORIGINAL_PROBE_PATCHES = {
+    name: getattr(_probes, name)
+    for name in (
+        "_auth_probe_failure_kind",
+        "_instance_benchmark_or_none",
+        "_resolve_benign_browser_context_auth",
+    )
+}
 
 
 def _per_replica_cap(site_name: str) -> int:
@@ -1105,102 +1054,32 @@ async def _verify_one(
     return result
 
 
-async def _run_reachability_check(
-    *,
-    browser: Any,
-    render_semaphore: asyncio.Semaphore | None,
-    task: dict[str, Any],
-    seed: dict[str, Any],
-    metadata: dict[str, Any],
-    instance: dict[str, Any],
-    render_outcome: RenderOutcome,
-) -> ReachabilityOutcome:
-    """Run the Option A reachability probe guarded by the same semaphore.
+def _sync_probe_patches() -> None:
+    for name in _probes._PATCHABLE_GLOBAL_NAMES:
+        current = globals().get(name)
+        if current is not None:
+            wrapper = _PROBE_WRAPPERS.get(name)
+            if wrapper is not None and current is wrapper:
+                current = _ORIGINAL_PROBE_PATCHES[name]
+            setattr(_probes, name, current)
 
-    Signature is derived from the seed so the reachability DOM grep has a
-    DOM-stable witness. We deliberately do NOT reuse
-    ``render_outcome.matched_signature`` because the GitLab note RYW
-    fastpath (phase_2_render_check._gitlab_note_ryw_fastpath) returns a
-    synthetic ``note_id=<N>`` marker that exists only in the
-    ``/discussions.json`` JSON response — never in DOM text. Greping the
-    page body for it would always miss, even on correctly rendered and
-    authenticated pages. render_signature() returns the same value
-    matched_signature would have for DOM-text passes and a DOM-stable
-    substring for RYW passes. Second witness is derived from the seed
-    body text via ``phase_2_reachability.derive_second_witness``.
-    """
-    phase4_exposure_error = _phase4_exposure_inadmissible_reason(task.get("exposure_contract"))
-    if phase4_exposure_error is not None:
-        return ReachabilityOutcome.unreachable(
-            kind=f"phase4_exposure_{phase4_exposure_error}",
-            detail=(
-                "exposure contract is seedable but not admissible for current "
-                f"Phase 4 encounter semantics: {phase4_exposure_error}"
-            ),
-            url=str(instance.get("site_url") or ""),
-        )
 
-    benign_target_resource = _reachability_resource_for_task(task, metadata=metadata)
-    site_url = str(instance.get("site_url") or "").strip()
-    url_token = _required_url_token(task)
-    payload_source = (
-        _selected_rendered_payload(task)
-        or _first_rendered_payload(seed)
-        or (render_outcome.rendered_body_text if render_outcome is not None else None)
-    )
-    if url_token is not None:
-        signature = url_token
-        stable_signature = render_signature(seed, metadata)
-        normalized_url = url_token.casefold()
-        normalized_stable = stable_signature.casefold() if stable_signature else ""
-        if (
-            stable_signature
-            and normalized_stable != normalized_url
-            and normalized_stable not in normalized_url
-            and normalized_url not in normalized_stable
-        ):
-            second_witness = stable_signature
-        else:
-            second_witness = derive_second_witness(payload_source, signature)
-    else:
-        signature = render_signature(seed, metadata)
-        second_witness = derive_second_witness(payload_source, signature)
-    browser_context_kwargs, auth_error = _resolve_benign_browser_context_auth(instance)
-    if auth_error is not None:
-        return ReachabilityOutcome.unreachable(
-            kind=_auth_probe_failure_kind(auth_error),
-            detail=auth_error,
-            url=site_url,
-            witnesses_missing=tuple(
-                witness
-                for witness in (signature, second_witness)
-                if isinstance(witness, str) and witness
-            ),
-        )
+async def _ensure_playwright_chromium_ready(async_playwright_factory: Any) -> None:
+    probe_state = _probes._patchable_globals()
+    _sync_probe_patches()
+    try:
+        return await _probes._ensure_playwright_chromium_ready(async_playwright_factory)
+    finally:
+        _probes._restore_patchable_globals(probe_state)
 
-    async def _do() -> ReachabilityOutcome:
-        try:
-            outcome = await verify_reachable(
-                browser=browser,
-                benign_target_resource=benign_target_resource,
-                instance_site_url=site_url,
-                signature=signature,
-                second_witness=second_witness,
-                browser_context_kwargs=browser_context_kwargs,
-            )
-            return outcome
-        except Exception as exc:  # pragma: no cover - defensive
-            logger.exception("phase 2c reachability probe crashed")
-            return ReachabilityOutcome.unreachable(
-                kind="probe_raised",
-                detail=f"{exc.__class__.__name__}: {exc}",
-                url=site_url,
-            )
 
-    if render_semaphore is None:
-        return await _do()
-    async with render_semaphore:
-        return await _do()
+async def _run_reachability_check(*args: Any, **kwargs: Any) -> ReachabilityOutcome:
+    probe_state = _probes._patchable_globals()
+    _sync_probe_patches()
+    try:
+        return await _probes._run_reachability_check(*args, **kwargs)
+    finally:
+        _probes._restore_patchable_globals(probe_state)
 
 
 def _preflight_request_context_options(
@@ -1219,15 +1098,12 @@ def _agent_auth_type(instance: dict[str, Any]) -> str:
 
 
 def _instance_benchmark_or_none(instance: dict[str, Any]) -> str | None:
-    values = [
-        instance.get("benchmark"),
-        instance.get("benchmark_name"),
-        instance.get("benchmark_adapter"),
-    ]
+    probe_state = _probes._patchable_globals()
+    _sync_probe_patches()
     try:
-        return infer_benchmark_name(values)
-    except ValueError:
-        return None
+        return _probes._instance_benchmark_or_none(instance)
+    finally:
+        _probes._restore_patchable_globals(probe_state)
 
 
 def _infer_records_benchmark(records: list[dict[str, Any]], *, label: str) -> str:
@@ -1365,66 +1241,34 @@ def _resolve_benign_storage_state_path(instance: dict[str, Any]) -> str | None:
 def _resolve_benign_browser_context_auth(
     instance: dict[str, Any],
 ) -> tuple[dict[str, Any], str | None]:
-    return _auth_preflight._resolve_benign_browser_context_auth(instance)
+    probe_state = _probes._patchable_globals()
+    _sync_probe_patches()
+    try:
+        return _probes._resolve_benign_browser_context_auth(instance)
+    finally:
+        _probes._restore_patchable_globals(probe_state)
 
 
 def _auth_probe_failure_kind(reason: str) -> str:
-    return _auth_preflight._auth_probe_failure_kind(reason)
+    probe_state = _probes._patchable_globals()
+    _sync_probe_patches()
+    try:
+        return _probes._auth_probe_failure_kind(reason)
+    finally:
+        _probes._restore_patchable_globals(probe_state)
 
 
-async def _run_render_check(
-    *,
-    browser: Any,
-    render_semaphore: asyncio.Semaphore | None,
-    seed: dict[str, Any],
-    metadata: dict[str, Any],
-    instance: dict[str, Any],
-) -> RenderOutcome:
-    selection = render_signature_selection(seed, metadata)
-    if isinstance(metadata, dict):
-        urls, write_tokens, render_diagnostics = _render_check_inputs_from_metadata(
-            metadata=metadata,
-            selection=selection,
-        )
-    else:
-        urls = []
-        write_tokens = {}
-        render_diagnostics = {}
-    site_name = str(instance.get("site_name", "")).strip().lower()
-    site_url = str(instance.get("site_url", "")).rstrip("/")
-    signature = selection.signature if selection is not None else render_signature(seed, metadata)
+async def _run_render_check(*args: Any, **kwargs: Any) -> RenderOutcome:
+    probe_state = _probes._patchable_globals()
+    _sync_probe_patches()
+    try:
+        return await _probes._run_render_check(*args, **kwargs)
+    finally:
+        _probes._restore_patchable_globals(probe_state)
 
-    browser_context_kwargs, auth_error = _resolve_benign_browser_context_auth(instance)
-    if auth_error is not None:
-        return RenderOutcome.failed(
-            kind=_auth_probe_failure_kind(auth_error),
-            detail=auth_error,
-            urls_tried=[],
-            per_url_errors={},
-        )
 
-    async def _do() -> RenderOutcome:
-        try:
-            return await verify_seed_renders(
-                browser=browser,
-                urls=urls,
-                site_name=site_name,
-                site_url=site_url,
-                signature=signature,
-                browser_context_kwargs=browser_context_kwargs,
-                write_tokens=write_tokens or None,
-                diagnostics=render_diagnostics or None,
-            )
-        except Exception as exc:  # pragma: no cover - defensive
-            logger.exception("phase 2c render check crashed")
-            return RenderOutcome.failed(
-                kind="render_check_error",
-                detail=f"render check raised {exc.__class__.__name__}: {exc}",
-                urls_tried=urls,
-                per_url_errors={},
-            )
-
-    if render_semaphore is None:
-        return await _do()
-    async with render_semaphore:
-        return await _do()
+_PROBE_WRAPPERS = {
+    "_auth_probe_failure_kind": _auth_probe_failure_kind,
+    "_instance_benchmark_or_none": _instance_benchmark_or_none,
+    "_resolve_benign_browser_context_auth": _resolve_benign_browser_context_auth,
+}

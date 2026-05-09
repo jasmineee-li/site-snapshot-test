@@ -18,7 +18,7 @@ import pytest
 
 from worldsim.editors import EditorError
 from worldsim.phase_2.phase_2c import _impl as phase_2c_impl
-from worldsim.phase_2.phase_2c import source_data_preflight, source_preflight
+from worldsim.phase_2.phase_2c import probes, source_data_preflight, source_preflight
 from worldsim.phases import phase_2_feasibility as feas
 from worldsim.phases import phase_2c_preflight
 
@@ -772,6 +772,165 @@ async def test_run_render_check_passes_resolved_agent_auth(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_probes_render_check_uses_canonical_patch(monkeypatch):
+    captured: dict[str, Any] = {}
+
+    async def fake_verify_seed_renders(**kwargs):
+        captured.update(kwargs)
+        return probes.RenderOutcome.passed(
+            url="https://gitlab.example/project/-/issues/1",
+            signature="canonical body",
+            snippet="canonical body",
+        )
+
+    monkeypatch.setattr(probes, "verify_seed_renders", fake_verify_seed_renders)
+
+    outcome = await probes._run_render_check(
+        browser=object(),
+        render_semaphore=None,
+        seed={
+            "editor_calls": [
+                {
+                    "site": "gitlab",
+                    "method": "create_issue_note",
+                    "args": {"note_body": "canonical body"},
+                }
+            ]
+        },
+        metadata={"read_surface_urls": ["https://gitlab.example/project/-/issues/1"]},
+        instance=_gitlab_instance(),
+    )
+
+    assert outcome.ok
+    assert captured["signature"] == "canonical body"
+
+
+@pytest.mark.asyncio
+async def test_impl_render_check_uses_impl_patch(monkeypatch):
+    captured: dict[str, Any] = {}
+
+    async def fake_verify_seed_renders(**kwargs):
+        captured.update(kwargs)
+        return phase_2c_impl.RenderOutcome.passed(
+            url="https://gitlab.example/project/-/issues/1",
+            signature="impl body",
+            snippet="impl body",
+        )
+
+    monkeypatch.setattr(phase_2c_impl, "verify_seed_renders", fake_verify_seed_renders)
+
+    outcome = await phase_2c_impl._run_render_check(
+        browser=object(),
+        render_semaphore=None,
+        seed={
+            "editor_calls": [
+                {
+                    "site": "gitlab",
+                    "method": "create_issue_note",
+                    "args": {"note_body": "impl body"},
+                }
+            ]
+        },
+        metadata={"read_surface_urls": ["https://gitlab.example/project/-/issues/1"]},
+        instance=_gitlab_instance(),
+    )
+
+    assert outcome.ok
+    assert captured["signature"] == "impl body"
+
+
+@pytest.mark.asyncio
+async def test_concurrent_impl_render_checks_keep_scoped_impl_patch(monkeypatch):
+    calls: list[str] = []
+
+    async def fake_verify_seed_renders(**kwargs):
+        calls.append(str(kwargs["signature"]))
+        await asyncio.sleep(0)
+        return phase_2c_impl.RenderOutcome.passed(
+            url="https://gitlab.example/project/-/issues/1",
+            signature=str(kwargs["signature"]),
+            snippet=str(kwargs["signature"]),
+        )
+
+    async def canonical_should_not_run(**kwargs):
+        raise AssertionError("canonical verifier should not replace scoped impl patch")
+
+    monkeypatch.setattr(phase_2c_impl, "verify_seed_renders", fake_verify_seed_renders)
+    monkeypatch.setattr(probes, "verify_seed_renders", canonical_should_not_run)
+
+    semaphore = asyncio.Semaphore(1)
+
+    async def call(body: str):
+        return await phase_2c_impl._run_render_check(
+            browser=object(),
+            render_semaphore=semaphore,
+            seed={
+                "editor_calls": [
+                    {
+                        "site": "gitlab",
+                        "method": "create_issue_note",
+                        "args": {"note_body": body},
+                    }
+                ]
+            },
+            metadata={"read_surface_urls": ["https://gitlab.example/project/-/issues/1"]},
+            instance=_gitlab_instance(),
+        )
+
+    outcomes = await asyncio.gather(call("first body"), call("second body"))
+
+    assert [outcome.ok for outcome in outcomes] == [True, True]
+    assert calls == ["first body", "second body"]
+
+
+@pytest.mark.asyncio
+async def test_facade_render_patch_does_not_leak_to_canonical_probes(monkeypatch):
+    calls: list[str] = []
+
+    async def facade_verify_seed_renders(**kwargs):
+        calls.append("facade")
+        return feas.RenderOutcome.passed(
+            url="https://gitlab.example/project/-/issues/1",
+            signature=str(kwargs["signature"]),
+            snippet=str(kwargs["signature"]),
+        )
+
+    async def canonical_verify_seed_renders(**kwargs):
+        calls.append("canonical")
+        return probes.RenderOutcome.passed(
+            url="https://gitlab.example/project/-/issues/1",
+            signature=str(kwargs["signature"]),
+            snippet=str(kwargs["signature"]),
+        )
+
+    monkeypatch.setattr(feas, "verify_seed_renders", facade_verify_seed_renders)
+    monkeypatch.setattr(probes, "verify_seed_renders", canonical_verify_seed_renders)
+
+    kwargs = {
+        "browser": object(),
+        "render_semaphore": None,
+        "seed": {
+            "editor_calls": [
+                {
+                    "site": "gitlab",
+                    "method": "create_issue_note",
+                    "args": {"note_body": "body"},
+                }
+            ]
+        },
+        "metadata": {"read_surface_urls": ["https://gitlab.example/project/-/issues/1"]},
+        "instance": _gitlab_instance(),
+    }
+
+    facade_outcome = await feas._run_render_check(**kwargs)
+    canonical_outcome = await probes._run_render_check(**kwargs)
+
+    assert facade_outcome.ok
+    assert canonical_outcome.ok
+    assert calls == ["facade", "canonical"]
+
+
+@pytest.mark.asyncio
 async def test_run_reachability_check_fails_closed_on_unusable_declared_auth(tmp_path, monkeypatch):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "state"))
     missing = tmp_path / "missing.json"
@@ -892,6 +1051,207 @@ async def test_run_reachability_check_ignores_ryw_pseudo_signature(monkeypatch):
     second_witness = captured["second_witness"]
     assert second_witness is not None
     assert second_witness.lower() in seed_body.lower()
+
+
+@pytest.mark.asyncio
+async def test_probes_reachability_check_uses_canonical_patch(monkeypatch):
+    captured: dict[str, Any] = {}
+
+    async def fake_verify_reachable(**kwargs):
+        captured.update(kwargs)
+        return probes.ReachabilityOutcome.direct(
+            url=str(kwargs["instance_site_url"]),
+            witnesses_matched=(kwargs["signature"],),
+        )
+
+    monkeypatch.setattr(probes, "verify_reachable", fake_verify_reachable)
+
+    outcome = await probes._run_reachability_check(
+        browser=object(),
+        render_semaphore=None,
+        task={
+            "benign_target_resource": {
+                "kind": "gitlab_issue",
+                "start_url_resolved": "https://gitlab.example/project/-/issues/1",
+            }
+        },
+        seed={
+            "editor_calls": [
+                {
+                    "site": "gitlab",
+                    "method": "create_issue_note",
+                    "args": {"note_body": "canonical reachability"},
+                }
+            ]
+        },
+        metadata={},
+        instance=_gitlab_instance(),
+        render_outcome=probes.RenderOutcome.passed(
+            url="https://gitlab.example/project/-/issues/1",
+            signature="canonical reachability",
+            snippet="canonical reachability",
+        ),
+    )
+
+    assert outcome.reachability == "reachable_direct"
+    assert captured["signature"] == "canonical reachability"
+
+
+@pytest.mark.asyncio
+async def test_impl_reachability_check_uses_impl_patch(monkeypatch):
+    captured: dict[str, Any] = {}
+
+    async def fake_verify_reachable(**kwargs):
+        captured.update(kwargs)
+        return phase_2c_impl.ReachabilityOutcome.direct(
+            url=str(kwargs["instance_site_url"]),
+            witnesses_matched=(kwargs["signature"],),
+        )
+
+    monkeypatch.setattr(phase_2c_impl, "verify_reachable", fake_verify_reachable)
+
+    outcome = await phase_2c_impl._run_reachability_check(
+        browser=object(),
+        render_semaphore=None,
+        task={
+            "benign_target_resource": {
+                "kind": "gitlab_issue",
+                "start_url_resolved": "https://gitlab.example/project/-/issues/1",
+            }
+        },
+        seed={
+            "editor_calls": [
+                {
+                    "site": "gitlab",
+                    "method": "create_issue_note",
+                    "args": {"note_body": "impl reachability"},
+                }
+            ]
+        },
+        metadata={},
+        instance=_gitlab_instance(),
+        render_outcome=phase_2c_impl.RenderOutcome.passed(
+            url="https://gitlab.example/project/-/issues/1",
+            signature="impl reachability",
+            snippet="impl reachability",
+        ),
+    )
+
+    assert outcome.reachability == "reachable_direct"
+    assert captured["signature"] == "impl reachability"
+
+
+@pytest.mark.asyncio
+async def test_concurrent_impl_reachability_checks_keep_scoped_impl_patch(monkeypatch):
+    calls: list[str] = []
+
+    async def fake_verify_reachable(**kwargs):
+        calls.append(str(kwargs["signature"]))
+        await asyncio.sleep(0)
+        return phase_2c_impl.ReachabilityOutcome.direct(
+            url=str(kwargs["instance_site_url"]),
+            witnesses_matched=(kwargs["signature"],),
+        )
+
+    async def canonical_should_not_run(**kwargs):
+        raise AssertionError("canonical verifier should not replace scoped impl patch")
+
+    monkeypatch.setattr(phase_2c_impl, "verify_reachable", fake_verify_reachable)
+    monkeypatch.setattr(probes, "verify_reachable", canonical_should_not_run)
+
+    semaphore = asyncio.Semaphore(1)
+
+    async def call(body: str):
+        return await phase_2c_impl._run_reachability_check(
+            browser=object(),
+            render_semaphore=semaphore,
+            task={
+                "benign_target_resource": {
+                    "kind": "gitlab_issue",
+                    "start_url_resolved": "https://gitlab.example/project/-/issues/1",
+                }
+            },
+            seed={
+                "editor_calls": [
+                    {
+                        "site": "gitlab",
+                        "method": "create_issue_note",
+                        "args": {"note_body": body},
+                    }
+                ]
+            },
+            metadata={},
+            instance=_gitlab_instance(),
+            render_outcome=phase_2c_impl.RenderOutcome.passed(
+                url="https://gitlab.example/project/-/issues/1",
+                signature=body,
+                snippet=body,
+            ),
+        )
+
+    outcomes = await asyncio.gather(call("first reachability"), call("second reachability"))
+
+    assert [outcome.reachability for outcome in outcomes] == [
+        "reachable_direct",
+        "reachable_direct",
+    ]
+    assert calls == ["first reachability", "second reachability"]
+
+
+@pytest.mark.asyncio
+async def test_facade_reachability_patch_does_not_leak_to_canonical_probes(monkeypatch):
+    calls: list[str] = []
+
+    async def facade_verify_reachable(**kwargs):
+        calls.append("facade")
+        return feas.ReachabilityOutcome.direct(
+            url=str(kwargs["instance_site_url"]),
+            witnesses_matched=(kwargs["signature"],),
+        )
+
+    async def canonical_verify_reachable(**kwargs):
+        calls.append("canonical")
+        return probes.ReachabilityOutcome.direct(
+            url=str(kwargs["instance_site_url"]),
+            witnesses_matched=(kwargs["signature"],),
+        )
+
+    monkeypatch.setattr(feas, "verify_reachable", facade_verify_reachable)
+    monkeypatch.setattr(probes, "verify_reachable", canonical_verify_reachable)
+
+    kwargs = {
+        "browser": object(),
+        "render_semaphore": None,
+        "task": {
+            "benign_target_resource": {
+                "kind": "gitlab_issue",
+                "start_url_resolved": "https://gitlab.example/project/-/issues/1",
+            }
+        },
+        "seed": {
+            "editor_calls": [
+                {
+                    "site": "gitlab",
+                    "method": "create_issue_note",
+                    "args": {"note_body": "reachability body"},
+                }
+            ]
+        },
+        "metadata": {},
+        "instance": _gitlab_instance(),
+        "render_outcome": probes.RenderOutcome.passed(
+            url="https://gitlab.example/project/-/issues/1",
+            signature="reachability body",
+            snippet="reachability body",
+        ),
+    }
+
+    facade_outcome = await feas._run_reachability_check(**kwargs)
+    canonical_outcome = await probes._run_reachability_check(**kwargs)
+
+    assert facade_outcome.reachability == "reachable_direct"
+    assert canonical_outcome.reachability == "reachable_direct"
+    assert calls == ["facade", "canonical"]
 
 
 @pytest.mark.asyncio
