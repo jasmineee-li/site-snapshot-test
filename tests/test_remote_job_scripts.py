@@ -2118,7 +2118,8 @@ raise SystemExit(subprocess.run(["bash", "-lc", remote_cmd], stdin=sys.stdin).re
         "phase4_variant_progress: system=eval-awareness-iterator "
         "budget=smoke-3-probe eval_awareness_max_iterations=3 entered=2 active=2"
     ) in completed.stdout
-    assert "generated=5/6 generation_failed=1 evaluated=3 pvpo_valid=3 complied=0" in completed.stdout
+    assert "rewrite_attempted=6 variant_evaluated=3 rejection_records=1" in completed.stdout
+    assert "legacy_generated=5/6 evaluated=3 pvpo_valid=3 complied=0" in completed.stdout
     assert "phase4_variant_active: adv-1:variant_evaluation_started:round1" in completed.stdout
     assert "age_seconds=" in completed.stdout
     assert "updated_at=2026-05-02T12:00:22.308663" in completed.stdout

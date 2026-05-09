@@ -365,14 +365,28 @@ def format_status_payload(payload: dict[str, Any], *, inspect_limit: int = 5) ->
         )
         variant_progress = progress.get("variant_progress")
         if isinstance(variant_progress, dict) and variant_progress:
+            rewrite_attempted = variant_progress.get(
+                "rewrite_attempted", variant_progress.get("generation_attempted", 0)
+            )
+            variant_evaluated = variant_progress.get(
+                "variant_evaluated", variant_progress.get("evaluated", 0)
+            )
+            rejection_records = variant_progress.get(
+                "variant_rejection_records", variant_progress.get("generation_failed", 0)
+            )
             lines.append(
                 "Phase 4 variant progress: "
                 f"budget={variant_progress.get('budget_preset', 'unknown')} "
                 f"entered={variant_progress.get('entered_tasks', 0)} "
                 f"active={variant_progress.get('active_tasks', 0)} "
-                f"generated={variant_progress.get('generation_generated', 0)}/"
+                f"rewrite_attempted={rewrite_attempted} "
+                f"variant_evaluated={variant_evaluated} "
+                f"rejection_records={rejection_records} "
+                f"pre_browser_rejections={variant_progress.get('pre_browser_rejections', 0)} "
+                f"post_eval_rejections={variant_progress.get('post_eval_rejections', 0)} "
+                f"schema_validation_failures={variant_progress.get('schema_validation_failures', 0)} "
+                f"legacy_generated={variant_progress.get('generation_generated', 0)}/"
                 f"{variant_progress.get('generation_attempted', 0)} "
-                f"failed={variant_progress.get('generation_failed', 0)} "
                 f"evaluated={variant_progress.get('evaluated', 0)} "
                 f"pvpo_valid={variant_progress.get('pvpo_valid', 0)} "
                 f"complied={variant_progress.get('complied', 0)}"

@@ -243,10 +243,25 @@ def format_variant_regeneration_audit(summary: dict[str, Any]) -> list[str]:
         f"{audit.get('planned_attempts', 0)} strategy attempt(s) planned; "
         f"{audit.get('generated_attempts', 0)} generated; "
         f"{audit.get('rejected_before_eval', 0)} rejected before browser eval; "
+        f"{audit.get('rejected_after_eval', 0)} rejected after browser eval; "
         f"{audit.get('evaluated_attempts', 0)} evaluated; "
         f"{audit.get('gate1_valid_evaluations', 0)} PVPO-valid; "
         f"{audit.get('compliant_evaluations', 0)} complied with adversarial reward."
     )
+    if any(
+        audit.get(key, 0)
+        for key in (
+            "schema_validation_failures",
+            "tp_regression_rejections",
+            "contract_inapplicable_rejections",
+        )
+    ):
+        lines.append(
+            "  Rejection classes: "
+            f"schema_validation_failures={audit.get('schema_validation_failures', 0)}; "
+            f"tp_regression_rejections={audit.get('tp_regression_rejections', 0)}; "
+            f"contract_inapplicable_rejections={audit.get('contract_inapplicable_rejections', 0)}."
+        )
     lines.append(
         "  Judge: "
         f"statuses={_fmt_count_map(audit.get('judge_status_counts') or {})}; "
@@ -276,6 +291,7 @@ def format_variant_regeneration_audit(summary: dict[str, Any]) -> list[str]:
                 f"planned={row.get('planned', 0)} "
                 f"generated={row.get('generated', 0)} "
                 f"rejected={row.get('rejected', 0)} "
+                f"post_eval_rejected={row.get('post_eval_rejected', 0)} "
                 f"evaluated={row.get('evaluated', 0)} "
                 f"gate1_valid={row.get('gate1_valid', 0)} "
                 f"complied={row.get('complied', 0)}"

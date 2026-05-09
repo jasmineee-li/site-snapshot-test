@@ -37,6 +37,7 @@ from worldsim.phase_4._context import (
     _normalize_phase_4_variant_system,
     _phase_4_variant_budget_shape,
 )
+from worldsim.phase_4.variant_accounting import semantic_variant_accounting
 
 _PHASE_4_PROGRESS_ACTIVE_TASK_LIMIT = 12
 
@@ -116,6 +117,16 @@ def compute_progress_extra(state: Phase4ProgressState) -> dict[str, Any]:
         max_iterations = None
         budget_preset = state.phase_4_variant_budget or _DEFAULT_PHASE_4_VARIANT_BUDGET_PRESET
         budget_shape = list(_phase_4_variant_budget_shape(state.phase_4_variant_budget))
+    semantic_keys = (
+        "rewrite_attempted",
+        "variant_evaluated",
+        "variant_rejection_records",
+        "pre_browser_rejections",
+        "post_eval_rejections",
+        "tp_regression_rejections",
+        "schema_validation_failures",
+        "contract_inapplicable_rejections",
+    )
     variant_progress = {
         "schema_version": 1,
         "variant_system": variant_system,
@@ -136,6 +147,10 @@ def compute_progress_extra(state: Phase4ProgressState) -> dict[str, Any]:
         "evaluated": sum(int(progress.get("evaluated") or 0) for progress in variant_tasks),
         "pvpo_valid": sum(int(progress.get("pvpo_valid") or 0) for progress in variant_tasks),
         "complied": sum(int(progress.get("complied") or 0) for progress in variant_tasks),
+        **{
+            key: sum(int(progress.get(key) or 0) for progress in variant_tasks)
+            for key in semantic_keys
+        },
         "task_samples": active_variant_tasks[:_PHASE_4_PROGRESS_ACTIVE_TASK_LIMIT],
     }
     return {
@@ -231,6 +246,7 @@ async def record_variant_progress(
                 "evaluated": 0,
                 "pvpo_valid": 0,
                 "complied": 0,
+                **semantic_variant_accounting(variant_results=[], generation_errors=[]),
             },
         )
         progress["event"] = event

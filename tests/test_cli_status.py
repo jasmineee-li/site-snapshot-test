@@ -233,7 +233,11 @@ def test_worldsim_status_prints_operator_card(tmp_path: Path, capsys) -> None:
     ) in out
     assert "postprocess_attempted=1/1 postprocess_failed=0" in out
     assert "Phase 4 variant progress: budget=adaptive-3-3-1 entered=1 active=0" in out
-    assert "generated=3/3 failed=0 evaluated=3 pvpo_valid=3 complied=0" in out
+    assert (
+        "rewrite_attempted=3 variant_evaluated=3 rejection_records=0 "
+        "pre_browser_rejections=0 post_eval_rejections=0 schema_validation_failures=0"
+    ) in out
+    assert "legacy_generated=3/3 evaluated=3 pvpo_valid=3 complied=0" in out
     assert "Artifact provenance: source=s3://bucket/run" in out
     assert (
         "Phase 0c reachability: gitlab=verified(verified=2); reddit=unverified(unverified=3)"

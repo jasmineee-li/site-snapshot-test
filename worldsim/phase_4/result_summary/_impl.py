@@ -14,6 +14,10 @@ from typing import Any
 
 from worldsim.adversarial_actions.capability_contracts import benign_reward_shape_from_task
 from worldsim.phase_4.pvpo_observations import pvpo_observation_bucket
+from worldsim.phase_4.variant_accounting import (
+    is_post_eval_rejection,
+    semantic_variant_accounting,
+)
 from worldsim.text_payload_contract import (
     binary_answer_contract,
     payload_content_capacity_contract,
@@ -986,6 +990,10 @@ def variant_regeneration_audit(results: list[dict[str, Any]]) -> dict[str, Any]:
     gate1_valid_evaluations = 0
     compliant_evaluations = 0
     rejected_before_eval = 0
+    rejected_after_eval = 0
+    schema_validation_failures = 0
+    tp_regression_rejections = 0
+    contract_inapplicable_rejections = 0
     tasks_with_adaptive_rounds = 0
     max_rounds_observed = 0
     max_budget_observed = 0
@@ -1001,6 +1009,8 @@ def variant_regeneration_audit(results: list[dict[str, Any]]) -> dict[str, Any]:
     for result in results:
         variation = _variation_record(result)
         if not isinstance(variation, dict):
+            continue
+        if variation.get("status") == "skipped":
             continue
         tasks_entered += 1
         judge = variation.get("judge_diagnosis")
@@ -1021,6 +1031,10 @@ def variant_regeneration_audit(results: list[dict[str, Any]]) -> dict[str, Any]:
         )
         raw_generation_errors = variation.get("variant_generation_errors")
         generation_errors = raw_generation_errors if isinstance(raw_generation_errors, list) else []
+        accounting = semantic_variant_accounting(
+            variant_results=variant_results,
+            generation_errors=generation_errors,
+        )
         raw_generation_records = variation.get("variant_generation_records")
         generation_records = (
             [record for record in raw_generation_records if isinstance(record, dict)]
@@ -1063,6 +1077,7 @@ def variant_regeneration_audit(results: list[dict[str, Any]]) -> dict[str, Any]:
 
         generated_for_task = 0
         rejected_for_task = 0
+        post_eval_rejected_for_task = 0
         if generation_records:
             for record in generation_records:
                 name = _strategy_name(record.get("strategy"))
@@ -1082,18 +1097,30 @@ def variant_regeneration_audit(results: list[dict[str, Any]]) -> dict[str, Any]:
             generated_attempts += len(variant_results)
             generated_for_task += len(variant_results)
             generation_status_counts["generated"] += len(variant_results)
-            rejected_before_eval += len(generation_errors)
-            rejected_for_task += len(generation_errors)
-            if generation_errors:
-                generation_status_counts["rejected"] += len(generation_errors)
+            rejected_before_eval += accounting["pre_browser_rejections"]
+            rejected_after_eval += accounting["post_eval_rejections"]
+            schema_validation_failures += accounting["schema_validation_failures"]
+            tp_regression_rejections += accounting["tp_regression_rejections"]
+            contract_inapplicable_rejections += accounting["contract_inapplicable_rejections"]
+            rejected_for_task += accounting["pre_browser_rejections"]
+            post_eval_rejected_for_task += accounting["post_eval_rejections"]
+            if accounting["pre_browser_rejections"]:
+                generation_status_counts["pre_browser_rejected"] += accounting[
+                    "pre_browser_rejections"
+                ]
+            if accounting["post_eval_rejections"]:
+                generation_status_counts["post_eval_rejected"] += accounting[
+                    "post_eval_rejections"
+                ]
             for variant in variant_results:
                 trigger_strategy_rows[
                     (trigger, _strategy_name(variant.get("strategy")), "generated")
                 ] += 1
             for error in generation_errors:
                 if isinstance(error, dict):
+                    metric = "post_eval_rejected" if is_post_eval_rejection(error) else "rejected"
                     trigger_strategy_rows[
-                        (trigger, _strategy_name(error.get("strategy")), "rejected")
+                        (trigger, _strategy_name(error.get("strategy")), metric)
                     ] += 1
 
         evaluated_attempts += len(variant_results)
@@ -1131,6 +1158,7 @@ def variant_regeneration_audit(results: list[dict[str, Any]]) -> dict[str, Any]:
                 "stop_reason": str(variation.get("stop_reason") or "unknown"),
                 "generated": generated_for_task,
                 "rejected_before_eval": rejected_for_task,
+                "rejected_after_eval": post_eval_rejected_for_task,
                 "evaluated": len(variant_results),
                 "variant_outcomes": dict(
                     sorted(
@@ -1167,6 +1195,10 @@ def variant_regeneration_audit(results: list[dict[str, Any]]) -> dict[str, Any]:
         "planned_attempts": planned_attempts,
         "generated_attempts": generated_attempts,
         "rejected_before_eval": rejected_before_eval,
+        "rejected_after_eval": rejected_after_eval,
+        "schema_validation_failures": schema_validation_failures,
+        "tp_regression_rejections": tp_regression_rejections,
+        "contract_inapplicable_rejections": contract_inapplicable_rejections,
         "evaluated_attempts": evaluated_attempts,
         "gate1_valid_evaluations": gate1_valid_evaluations,
         "compliant_evaluations": compliant_evaluations,

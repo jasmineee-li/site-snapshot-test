@@ -51,6 +51,14 @@ def test_compute_progress_extra_emits_cli_status_schema_keys(tmp_path):
         "evaluated": 2,
         "pvpo_valid": 1,
         "complied": 1,
+        "rewrite_attempted": 2,
+        "variant_evaluated": 2,
+        "variant_rejection_records": 1,
+        "pre_browser_rejections": 0,
+        "post_eval_rejections": 1,
+        "tp_regression_rejections": 1,
+        "schema_validation_failures": 0,
+        "contract_inapplicable_rejections": 0,
     }
 
     extra = compute_progress_extra(state)
@@ -71,6 +79,14 @@ def test_compute_progress_extra_emits_cli_status_schema_keys(tmp_path):
         "evaluated",
         "pvpo_valid",
         "complied",
+        "rewrite_attempted",
+        "variant_evaluated",
+        "variant_rejection_records",
+        "pre_browser_rejections",
+        "post_eval_rejections",
+        "tp_regression_rejections",
+        "schema_validation_failures",
+        "contract_inapplicable_rejections",
         "task_samples",
     ):
         assert key in variant, f"variant_progress missing {key!r}"
@@ -82,6 +98,12 @@ def test_compute_progress_extra_emits_cli_status_schema_keys(tmp_path):
     assert variant["evaluated"] == 2
     assert variant["pvpo_valid"] == 1
     assert variant["complied"] == 1
+    assert variant["rewrite_attempted"] == 2
+    assert variant["variant_evaluated"] == 2
+    assert variant["variant_rejection_records"] == 1
+    assert variant["pre_browser_rejections"] == 0
+    assert variant["post_eval_rejections"] == 1
+    assert variant["tp_regression_rejections"] == 1
 
 
 def test_write_postprocess_progress_persists_atomic_schema_v1(tmp_path):
@@ -188,6 +210,12 @@ def test_record_variant_progress_accumulates_event_payload_keys(tmp_path):
                 "generation_attempted": 2,
                 "generation_generated": 2,
                 "generation_failed": 0,
+                "rewrite_attempted": 2,
+                "variant_evaluated": 2,
+                "variant_rejection_records": 0,
+                "pre_browser_rejections": 0,
+                "post_eval_rejections": 0,
+                "schema_validation_failures": 0,
             },
         )
         await record_variant_progress(
@@ -211,6 +239,9 @@ def test_record_variant_progress_accumulates_event_payload_keys(tmp_path):
     assert progress["generation_attempted"] == 2
     assert progress["generation_generated"] == 2
     assert progress["generation_failed"] == 0
+    assert progress["rewrite_attempted"] == 2
+    assert progress["variant_evaluated"] == 2
+    assert progress["variant_rejection_records"] == 0
     assert progress["evaluated"] == 2
     assert progress["pvpo_valid"] == 2
     assert progress["complied"] == 1
@@ -220,6 +251,8 @@ def test_record_variant_progress_accumulates_event_payload_keys(tmp_path):
     variant = payload["variant_progress"]
     assert variant["generation_attempted"] == 2
     assert variant["generation_generated"] == 2
+    assert variant["rewrite_attempted"] == 2
+    assert variant["variant_evaluated"] == 2
     assert variant["evaluated"] == 2
     assert variant["pvpo_valid"] == 2
     assert variant["complied"] == 1

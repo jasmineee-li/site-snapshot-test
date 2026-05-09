@@ -9,6 +9,7 @@ from worldsim.phase_4.postprocess_progress import (
     compute_progress_extra,
     write_phase_4_progress,
 )
+from worldsim.phase_4.variant_accounting import semantic_variant_accounting
 
 install_context(globals())
 
@@ -24,6 +25,23 @@ def _write_phase_4_results(
     # Write results
     output_dir = state_dir / "phase_4"
     output_dir.mkdir(parents=True, exist_ok=True)
+    for result in final_results:
+        variation = result.get("eval_awareness_iterator")
+        if not isinstance(variation, dict):
+            variation = result.get("strategy_variation")
+        if not isinstance(variation, dict):
+            continue
+        if variation.get("status") == "skipped":
+            continue
+        variant_results = variation.get("variant_results")
+        variant_results = variant_results if isinstance(variant_results, list) else []
+        generation_errors = variation.get("variant_generation_errors")
+        generation_errors = generation_errors if isinstance(generation_errors, list) else []
+        semantic_accounting = semantic_variant_accounting(
+            variant_results=[item for item in variant_results if isinstance(item, dict)],
+            generation_errors=generation_errors,
+        )
+        variation.setdefault("variant_outcome_accounting", {"schema_version": 1, **semantic_accounting})
     write_json_atomic(
         output_dir / "results.json",
         final_results,
@@ -183,10 +201,17 @@ def _write_phase_4_results(
             variation = result.get("strategy_variation")
         if not isinstance(variation, dict):
             continue
+        if variation.get("status") == "skipped":
+            continue
         variant_results = variation.get("variant_results")
         variant_results = variant_results if isinstance(variant_results, list) else []
         generation_errors = variation.get("variant_generation_errors")
         generation_errors = generation_errors if isinstance(generation_errors, list) else []
+        semantic_accounting = semantic_variant_accounting(
+            variant_results=[item for item in variant_results if isinstance(item, dict)],
+            generation_errors=generation_errors,
+        )
+        variation.setdefault("variant_outcome_accounting", {"schema_version": 1, **semantic_accounting})
         terminal_progress_state.variant_progress_by_task[task_id] = {
             "task_id": task_id,
             "event": "terminal",
@@ -201,6 +226,7 @@ def _write_phase_4_results(
                 for item in variant_results
                 if _ecologically_valid(item) and item.get("outcome") == "complied"
             ),
+            **semantic_accounting,
         }
     try:
         progress_extra = compute_progress_extra(terminal_progress_state)

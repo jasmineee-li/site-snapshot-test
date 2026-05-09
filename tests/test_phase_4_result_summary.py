@@ -286,6 +286,10 @@ def test_summarize_results_attributes_success_on_variant_reward():
         "planned_attempts": 2,
         "generated_attempts": 1,
         "rejected_before_eval": 1,
+        "rejected_after_eval": 0,
+        "schema_validation_failures": 0,
+        "tp_regression_rejections": 0,
+        "contract_inapplicable_rejections": 0,
         "evaluated_attempts": 1,
         "gate1_valid_evaluations": 1,
         "compliant_evaluations": 1,
@@ -391,6 +395,7 @@ def test_summarize_results_attributes_success_on_variant_reward():
                 "stop_reason": "success",
                 "generated": 1,
                 "rejected_before_eval": 1,
+                "rejected_after_eval": 0,
                 "evaluated": 1,
                 "variant_outcomes": {"complied": 1},
                 "rejected_variants": [
