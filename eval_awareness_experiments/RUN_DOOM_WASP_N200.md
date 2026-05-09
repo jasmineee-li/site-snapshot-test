@@ -112,7 +112,15 @@ output dirs come out clean (`bare/`, `xml_safety/`, `xml_scenario/`).
 |---------------------|-------------------------|------------------------------------------------------------|
 | **VEA**             | `verbalized_awareness`  | JSON-schema structured-output LLM judge per trajectory transcript. Output → `trajectory_awareness_results.jsonl`. |
 | **Transcript Purpose** | `purpose_continue_5q` | 12-prompt 5PQ judge categorizing inferred purpose into Alignment/Capability/Other Eval/Real. |
-| **ASR**             | (no judge — post-hoc)   | DoomArena: `attack_summary_info.json` per task. WASP: post-hoc evaluator (commit `5b2035f`). Computed at table-build time. |
+| **ASR**             | (no judge — post-hoc)   | DoomArena: `attack_summary_info.json` per task. WASP: JSON-schema structured-output post-hoc evaluator, aggregated as any classified `compromised` action per task. |
+
+WASP ASR uses `eval_awareness_experiments.wasp_post_hoc_evaluator`.
+It preserves the data-import compatibility default of
+`--wasp-asr-max-steps-per-task 10`, but malformed JSON, schema violations,
+judge transport errors, and `outright_refusal` are diagnostics, not ASR
+successes. The output sidecar remains `wasp_asr_<split>.jsonl`; summary rows
+record the schema/prompt version, per-step parse/schema failure counts, and
+`n_no_action_tasks`.
 
 ## What the other agent fixed since the broken run
 
