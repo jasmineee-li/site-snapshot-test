@@ -545,10 +545,6 @@ size_categories:
 - n<1K
 source_datasets:
 - original
-language_creators:
-- machine-generated
-annotations_creators:
-- machine-generated
 task_categories:
 - text-generation
 configs:
