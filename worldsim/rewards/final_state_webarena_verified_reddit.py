@@ -309,7 +309,14 @@ def _reddit_comment_block_matches_actor(block: Mapping[str, str], actor: str) ->
 
 
 def _reddit_path_contains(editor: Any, path: str, witness: str) -> bool:
-    response = editor._form_get(path, allow_missing=True)
+    from worldsim.editors.base import EditorError
+
+    try:
+        response = editor._form_get(path, allow_missing=True)
+    except EditorError as exc:
+        if exc.http_status == 405:
+            return False
+        raise
     return bool(response is not None and witness in response.text)
 
 
@@ -332,12 +339,14 @@ def _reddit_created_post_paths_from_trace(
 ) -> list[str]:
     paths: list[str] = []
     for event in network_trace:
+        if _network_event_method(event) not in {"", "GET"}:
+            continue
         path = urlparse(_network_event_url(event)).path
         match = _REDDIT_SLUG_DETAIL_RE.search(path)
         if not match:
             continue
         matched_forum, _submission_id = match.groups()
-        if "/comment/" in path:
+        if _reddit_is_mutation_route(path) or "/comment/" in path:
             continue
         if forum and matched_forum != forum:
             continue
@@ -353,6 +362,8 @@ def _reddit_comment_detail_paths_from_trace(
 ) -> list[str]:
     paths: list[str] = []
     for event in network_trace:
+        if _network_event_method(event) not in {"", "GET"}:
+            continue
         path = urlparse(_network_event_url(event)).path
         match = _REDDIT_COMMENT_DETAIL_RE.search(path)
         if not match:
@@ -364,6 +375,19 @@ def _reddit_comment_detail_paths_from_trace(
             continue
         paths.append(path.rstrip("/"))
     return _dedupe_strings(paths)
+
+
+def _network_event_method(event: Mapping[str, Any]) -> str:
+    method = event.get("method")
+    if not isinstance(method, str):
+        request = event.get("request")
+        if isinstance(request, Mapping):
+            method = request.get("method")
+    return method.upper() if isinstance(method, str) else ""
+
+
+def _reddit_is_mutation_route(path: str) -> bool:
+    return bool(re.search(r"/-/[^/?#]+(?:/|$)", path))
 
 
 def _reddit_detail_paths_from_forum(editor: Any, forum: str) -> list[str]:
