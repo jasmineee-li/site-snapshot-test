@@ -36,18 +36,25 @@ the sandbox. The script writes per-task rows plus a final summary row containing
 
 Important reset behavior: BrowserGym's per-task reset does not restore the
 backing GitLab/Reddit database state. `program_html` replays mutate issues,
-posts, comments, and reactions, so production replay runs should reset the
-corresponding WASP stack before each cell:
+posts, comments, and reactions, so production replay runs hard-reset the
+corresponding WASP stack before each cell by default:
 
 ```bash
-RESET_STACK_BEFORE_CELL=1 ./scripts/run_wasp_e2e_replay_n200.sh
+./scripts/run_wasp_e2e_replay_n200.sh
 ```
 
 The launcher maps `/tmp/wasp_full` and `/tmp/wasp_full_<stack>` task pools to
-their GitLab/Reddit ports, runs `wasp_cleanup_full_stack.sh`, then replants the
-same stack with `wasp_plant_full_stack.sh` before scoring that cell. Leaving
-`RESET_STACK_BEFORE_CELL=0` is only appropriate for dry-runs, exfil-only checks,
-or quick browser smoke tests on disposable state.
+their GitLab/Reddit ports, recreates the matching Docker containers from the
+populated images, disables forum rate limits, waits for site readiness, and
+replants that stack with `wasp_plant_full_stack.sh` before scoring that cell.
+Leaving `RESET_STACK_BEFORE_CELL=0` is only appropriate for dry-runs,
+exfil-only checks, or quick browser smoke tests on disposable state.
+
+Do not run targeted WASP cleanup or replant between individual tasks unless you
+also regenerate the task JSONs. The task JSONs contain URLs and object IDs
+created during planting, so deleting those objects between tasks invalidates
+later tasks. WebArena `env-ctrl /init`-style hooks are only config/cache
+refreshes; they are not a database or planted-object reset for WASP.
 
 For per-model planted stacks, pass the matching task pool, e.g.
 `--task-dir /tmp/wasp_full_gpt`. The script infers the corresponding

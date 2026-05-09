@@ -6,7 +6,11 @@
 #   ARMS=bare ./scripts/run_wasp_e2e_replay_n200.sh
 #   ARMS="bare xml_safety" MODELS="openai_gpt-5.2_thinking" ./scripts/run_wasp_e2e_replay_n200.sh
 #   MAX_TASKS=10 ./scripts/run_wasp_e2e_replay_n200.sh
-#   RESET_STACK_BEFORE_CELL=1 ./scripts/run_wasp_e2e_replay_n200.sh
+#   RESET_STACK_BEFORE_CELL=0 ./scripts/run_wasp_e2e_replay_n200.sh  # smoke/dry runs only
+#
+# Production replay follows WASP's planted-environment lifecycle: hard recreate
+# and replant the relevant GitLab/forum stack once per model x arm cell, then
+# keep those planted objects alive for every replayed task in the cell.
 #
 # Browser replay needs Playwright/Chromium access, so run outside Codex's
 # sandbox, or via an approved escalated tmux command.
@@ -25,7 +29,7 @@ MODELS="${MODELS:-anthropic_claude-opus-4.7_thinking anthropic_claude-sonnet-4.6
 MAX_TASKS="${MAX_TASKS:-}"
 DRY_RUN="${DRY_RUN:-0}"
 SINGLE_SITE="${SINGLE_SITE:-}"
-RESET_STACK_BEFORE_CELL="${RESET_STACK_BEFORE_CELL:-0}"
+RESET_STACK_BEFORE_CELL="${RESET_STACK_BEFORE_CELL:-1}"
 
 mkdir -p "$OUT_DIR" "$OUT_DIR/logs"
 

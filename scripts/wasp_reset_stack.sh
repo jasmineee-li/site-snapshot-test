@@ -28,6 +28,7 @@ fi
 GITLAB_URL="http://localhost:${GITLAB_PORT}"
 REDDIT_URL="http://localhost:${REDDIT_PORT}"
 RESET_LOCK="${WASP_DOCKER_RESET_LOCK:-/tmp/wasp_docker_reset.lock}"
+GITLAB_READY_EXTRA_SLEEP="${GITLAB_READY_EXTRA_SLEEP:-30}"
 
 wait_for_http() {
     local label=$1
@@ -49,6 +50,30 @@ wait_for_http() {
     done
 
     echo "  [error] $label did not become ready at $url" >&2
+    return 1
+}
+
+wait_for_http_body() {
+    local label=$1
+    local url=$2
+    local pattern=$3
+    local max_attempts=${4:-120}
+    local sleep_seconds=${5:-5}
+    local body
+
+    for attempt in $(seq 1 "$max_attempts"); do
+        body="$(curl -fsSL --max-time 15 "$url" 2>/dev/null || true)"
+        if printf '%s' "$body" | grep -q "$pattern"; then
+            echo "  [ok] $label ready at $url"
+            return 0
+        fi
+        if [ "$attempt" -eq 1 ] || [ $((attempt % 12)) -eq 0 ]; then
+            echo "  [wait] $label content not ready yet at $url (attempt $attempt/$max_attempts)"
+        fi
+        sleep "$sleep_seconds"
+    done
+
+    echo "  [error] $label did not expose expected content at $url" >&2
     return 1
 }
 
@@ -122,6 +147,12 @@ echo "=== reset WASP stack=$STACK gitlab=$GITLAB_URL reddit=$REDDIT_URL ==="
 recreate_containers
 wait_for_http "forum" "${REDDIT_URL}/"
 wait_for_http "gitlab" "${GITLAB_URL}/help" 180 5
+wait_for_http_body "gitlab sign-in form" "${GITLAB_URL}/users/sign_in" "user_login" 120 5
+
+if [ "$GITLAB_READY_EXTRA_SLEEP" != "0" ]; then
+    echo "=== waiting ${GITLAB_READY_EXTRA_SLEEP}s after GitLab readiness before WASP planting ==="
+    sleep "$GITLAB_READY_EXTRA_SLEEP"
+fi
 
 echo "=== planting WASP task pool into fresh stack=$STACK ==="
 "$(dirname "$0")/wasp_plant_full_stack.sh" "$STACK" "$GITLAB_PORT" "$REDDIT_PORT"
