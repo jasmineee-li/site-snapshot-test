@@ -363,6 +363,41 @@ def test_start_rejects_phase2c_smoke_instances_on_remote_orchestrator_host(
     assert "instances.scale.json" in completed.stderr
 
 
+def test_start_rejects_top_level_phase4_workers_flag(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    host_config = _host_config(tmp_path)
+    env = _base_env(repo_root, tmp_path)
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "remote_job_start.sh"),
+            "--host-config",
+            str(host_config),
+            "--name",
+            "bad workers flag",
+            "--",
+            "bash",
+            "-lc",
+            (
+                "uv run python -m worldsim.main phase 4 "
+                "--instances instances.scale.json "
+                "--workers 48 "
+                "--agent-task-timeout 2400"
+            ),
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode != 0
+    assert "instance-topology guard blocked" in completed.stderr
+    assert "Top-level worldsim.main phase 4 does not use --workers" in completed.stderr
+    assert "--phase-4-max-workers" in completed.stderr
+
+
 def test_start_rejects_shell_wrapped_resume_with_saved_smoke_instances_on_remote_host(
     tmp_path: Path,
 ) -> None:

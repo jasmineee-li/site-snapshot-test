@@ -324,6 +324,13 @@ if topology_sensitive and phase4_live:
         )
 
 phase4_command = _phase_command("4") or command_text
+if phase4_live and _has_option(phase4_command, "--workers"):
+    issues.append(
+        "Top-level worldsim.main phase 4 does not use --workers. "
+        "Use --phase-4-max-workers for browser-agent concurrency. "
+        "--workers is reserved for scripts/run_phase4_process_pool.py."
+    )
+
 if (phase4_live or resume_phase4) and not _has_option(phase4_command, "--agent-task-timeout"):
     issues.append(
         "Phase 4 remote jobs must pass --agent-task-timeout explicitly. "

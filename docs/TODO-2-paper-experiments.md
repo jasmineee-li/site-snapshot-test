@@ -338,9 +338,9 @@ Current queue:
    launch
    `20260509T081920Z-agentlab-linknaturalization-true50-glm5-w48-d22293`
    failed immediately before any task execution because the command used the
-   stale `--workers 48` spelling before the top-level CLI compatibility alias
-   existed. Canonical `worldsim.main phase 4` commands should use
-   `--phase-4-max-workers 48`. The active rerun is
+   stale `--workers 48` spelling. Canonical `worldsim.main phase 4` commands
+   must use `--phase-4-max-workers 48`. The remote launch guard now rejects
+   this mismatch before starting a job. The active rerun is
    `20260509T082006Z-agentlab-linknaturalization-true50-glm5-w48-reru-3314ff`
    with `--agent-model glm5`, output
    `logs/agentlab_linknaturalization_true50_glm5_w48_20260509_rerun1`.

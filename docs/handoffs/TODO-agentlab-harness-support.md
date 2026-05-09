@@ -323,8 +323,8 @@ Common command settings:
 - provider/tier: `--agent-provider openrouter --agent-service-tier priority`
 - workers: `--phase-4-max-workers 48` for `worldsim.main phase 4`
   AgentLab/browser-agent runs. `--workers` belongs to
-  `scripts/run_phase4_process_pool.py`; the top-level Phase 4 CLI accepts it
-  only as a deprecated compatibility alias.
+  `scripts/run_phase4_process_pool.py`; the remote launch guard rejects it for
+  top-level `worldsim.main phase 4` commands before starting a job.
 - timeouts: `--agent-llm-timeout 240 --agent-step-timeout 900
   --agent-task-timeout 2400`
 - variant system: `--phase-4-variant-system eval-awareness-iterator
@@ -402,8 +402,8 @@ Run queue:
    The earlier launch
    `20260509T081920Z-agentlab-linknaturalization-true50-glm5-w48-d22293`
    failed before any task execution because it used the stale `--workers 48`
-   spelling before the CLI compatibility alias existed. Use
-   `--phase-4-max-workers 48` in canonical run commands.
+   spelling. Use `--phase-4-max-workers 48` in canonical run commands; the
+   remote launch guard now rejects the mismatch before starting a job.
 
 Best practice for this queue is sequential W48 execution, not parallel
 model-level execution. Within each run, `--phase-4-max-workers 48` already
