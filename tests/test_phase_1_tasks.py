@@ -1141,6 +1141,14 @@ def test_build_parser_accepts_phase_4_task_timeout_override():
     assert args.phase_4_max_workers == 5
 
 
+def test_build_parser_accepts_deprecated_phase_4_workers_alias():
+    parser = worldsim_main.build_parser()
+
+    args = parser.parse_args(["phase", "4", "--workers", "5"])
+
+    assert args.phase_4_max_workers == 5
+
+
 def test_dispatch_resume_preserves_saved_phase_2_l1_l2_mode(monkeypatch, tmp_path):
     monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path))
     save_state(

@@ -382,6 +382,14 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     phase_cmd.add_argument(
+        "--workers",
+        type=_positive_int,
+        default=None,
+        dest="phase_4_max_workers",
+        metavar="N",
+        help=argparse.SUPPRESS,
+    )
+    phase_cmd.add_argument(
         "--phase-4-task-id",
         type=str,
         default=None,

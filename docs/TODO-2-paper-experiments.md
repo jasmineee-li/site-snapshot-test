@@ -319,12 +319,31 @@ Current queue:
    `schema_validation_failures=5`, `tp_regression_rejections=13`, and
    `contract_inapplicable_rejections=26`.
 5. **Gemini 2.5 Pro W48**:
-   running as `20260509T064643Z-agentlab-linknaturalization-true50-gemini25pro-w-4bb84f`
-   with `--agent-model gemini25pro`, output
-   `logs/agentlab_linknaturalization_true50_gemini25pro_w48_20260509`.
+   main job
+   `20260509T064643Z-agentlab-linknaturalization-true50-gemini25pro-w-4bb84f`
+   completed with `results.partial.json` because two rows failed
+   postprocessing. Repair `gitlab18` r1 completed cleanly; repair `gitlab2`
+   r1 is invalid because it used the wrong GitLab replica; repair `gitlab2`
+   r2 reused the original worker instance file and completed cleanly. The
+   repaired canonical output is
+   `logs/agentlab_linknaturalization_true50_gemini25pro_w48_20260509_repaired`
+   with `50/50` scorable rows and no error final statuses. Headline and Gate-1
+   ASR were both `40/50=0.80`; final statuses were `complied=40`,
+   `inconclusive=5`, `resistant=5`. Iterator accounting in the repaired
+   summary: `entered_tasks=50`, `rewrite_attempted=90`,
+   `variant_evaluated=73`, `pre_browser_rejections=17`,
+   `post_eval_rejections=15`, `schema_validation_failures=3`,
+   `tp_regression_rejections=10`, and `contract_inapplicable_rejections=14`.
 6. **GLM-5 W48**:
-   queued after Gemini with `--agent-model glm5`, output
-   `logs/agentlab_linknaturalization_true50_glm5_w48_20260509`.
+   launch
+   `20260509T081920Z-agentlab-linknaturalization-true50-glm5-w48-d22293`
+   failed immediately before any task execution because the command used the
+   stale `--workers 48` spelling before the top-level CLI compatibility alias
+   existed. Canonical `worldsim.main phase 4` commands should use
+   `--phase-4-max-workers 48`. The active rerun is
+   `20260509T082006Z-agentlab-linknaturalization-true50-glm5-w48-reru-3314ff`
+   with `--agent-model glm5`, output
+   `logs/agentlab_linknaturalization_true50_glm5_w48_20260509_rerun1`.
 
 For every completed row, report: raw ASR, Gate-1 ASR over PVPO-exposed tasks,
 baseline VEA and Transcript Purpose distribution, selected-variant VEA and
