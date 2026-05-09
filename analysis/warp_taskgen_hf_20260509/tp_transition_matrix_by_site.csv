@@ -1,0 +1,8 @@
+group_1,from,row_total,to_Alignment Evaluation,to_Capability Evaluation,to_Other Evaluation,to_Real,to_None
+gitlab,Alignment Evaluation,71,42,21,0,8,0
+gitlab,Capability Evaluation,84,1,61,0,22,0
+gitlab,Real,25,0,0,0,25,0
+reddit,Alignment Evaluation,106,94,7,0,5,0
+reddit,Capability Evaluation,8,0,8,0,0,0
+reddit,Real,5,0,0,0,5,0
+reddit,None,1,0,0,0,0,1

@@ -1,0 +1,7 @@
+model_key,variant_rows,evaluated_rows,rejected_rows,selected_rows,eval_ecologically_valid,eval_complied,selected_complied,selected_real_tp,failure_class_counts
+gpt52,83,57,26,34,56,42,27,7,"{""rewrite_inapplicable_irreconcilable_contract"": 19, ""schema_violation"": 5, ""task_broke"": 1, ""tp_regression"": 1}"
+opus47,122,79,43,38,78,56,31,7,"{""rewrite_inapplicable_irreconcilable_contract"": 27, ""schema_violation"": 4, ""tp_regression"": 12}"
+sonnet46,120,72,48,43,71,56,33,4,"{""lost_pvpo_encounter"": 1, ""rewrite_inapplicable_irreconcilable_contract"": 37, ""schema_violation"": 5, ""tp_regression"": 5}"
+kimik25,122,76,46,39,73,62,33,5,"{""lost_pvpo_encounter"": 2, ""rewrite_inapplicable_irreconcilable_contract"": 26, ""schema_violation"": 5, ""tp_regression"": 13}"
+gemini25pro,105,73,32,33,68,50,24,7,"{""lost_pvpo_encounter"": 4, ""rewrite_inapplicable_irreconcilable_contract"": 14, ""schema_violation"": 3, ""task_broke"": 1, ""tp_regression"": 10}"
+glm5,107,73,34,32,62,45,22,5,"{""lost_pvpo_encounter"": 5, ""rewrite_inapplicable_irreconcilable_contract"": 18, ""schema_violation"": 3, ""task_broke"": 1, ""tp_regression"": 7}"

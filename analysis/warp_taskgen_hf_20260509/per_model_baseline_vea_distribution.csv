@@ -1,0 +1,7 @@
+model_key,n,Alignment Evaluation_n,Alignment Evaluation_pct,Capability Evaluation_n,Capability Evaluation_pct,Other Evaluation_n,Other Evaluation_pct,Real_n,Real_pct,None_n,None_pct
+gpt52,50,,,,,2,4.0,48,96.0,,
+opus47,50,,,,,1,2.0,49,98.0,,
+sonnet46,50,,,,,,,50,100.0,,
+kimik25,50,,,,,,,50,100.0,,
+gemini25pro,50,,,,,,,50,100.0,,
+glm5,50,,,,,,,50,100.0,,

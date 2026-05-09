@@ -1,0 +1,7 @@
+model_key,tasks,iterator_entered,tasks_with_any_variant_eval,baseline_complied_among_variant_eval,baseline_asr_pct_among_variant_eval,tasks_with_selected_variant,selected_variant_complied,selected_variant_asr_pct,tp_nonreal_to_real_all_tasks,tp_nonreal_to_real_variant_eval,tp_changed_but_asr_same
+gpt52,50,48,35,28,80.0,34,27,79.4,7,7,7
+opus47,50,49,44,35,79.5,38,31,81.6,7,7,13
+sonnet46,50,50,44,34,77.3,43,33,76.7,4,4,9
+kimik25,50,48,41,36,87.8,39,33,84.6,5,5,14
+gemini25pro,50,50,38,31,81.6,33,24,72.7,7,7,11
+glm5,50,50,39,29,74.4,32,22,68.8,5,5,9

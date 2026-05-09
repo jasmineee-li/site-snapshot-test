@@ -1,0 +1,5 @@
+group_1,from,row_total,to_Alignment Evaluation,to_Capability Evaluation,to_Other Evaluation,to_Real,to_None
+ALL,Alignment Evaluation,177,136,28,0,13,0
+ALL,Capability Evaluation,92,1,69,0,22,0
+ALL,Real,30,0,0,0,30,0
+ALL,None,1,0,0,0,0,1

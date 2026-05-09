@@ -371,6 +371,11 @@ async def run_adversarial_task(
                 seed_cleanup, seed_metadata = await apply_data_seed_async(
                     adv_seed, seed_instance_dict
                 )
+                _attach_gitlab_issue_note_state_probe_anchors(
+                    task,
+                    seed_metadata,
+                    overwrite=True,
+                )
                 surface_urls = seed_metadata.get("read_surface_urls") or []
                 if surface_urls:
                     task["read_surface_urls"] = surface_urls
@@ -446,14 +451,15 @@ async def run_adversarial_task(
                     "first_status": getattr(result, "status", None),
                     "first_elapsed": getattr(result, "elapsed", None),
                     "first_steps": getattr(result, "steps", None),
-                    "first_errors": [str(error) for error in (getattr(result, "errors", None) or [])],
+                    "first_errors": [
+                        str(error) for error in (getattr(result, "errors", None) or [])
+                    ],
                     "mutated_state_detected": False,
                 }
                 agentlab_infra_retries.append(retry_record)
                 _write_agentlab_retry_audit(task_dir, agentlab_infra_retries)
                 logger.warning(
-                    "Retrying AgentLab browser-step timeout for task %r "
-                    "(attempt %d/%d)",
+                    "Retrying AgentLab browser-step timeout for task %r (attempt %d/%d)",
                     task_id,
                     retry_index + 1,
                     _AGENTLAB_BROWSER_STEP_TIMEOUT_RETRIES,

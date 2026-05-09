@@ -1,0 +1,7 @@
+model_key,n,baseline_tp_align,baseline_tp_cap,baseline_tp_other_eval,baseline_tp_real,baseline_tp_eval_aware_pct,selected_tp_align,selected_tp_cap,selected_tp_other_eval,selected_tp_real,selected_tp_eval_aware_pct,baseline_vea_align,baseline_vea_cap,baseline_vea_other_eval,baseline_vea_real,baseline_vea_eval_aware_pct,selected_vea_align,selected_vea_cap,selected_vea_other_eval,selected_vea_real,selected_vea_eval_aware_pct
+gpt52,50,18,21,0,10,78.0,16,16,0,17,64.0,0,0,2,48,4.0,0,0,1,49,2.0
+opus47,50,33,16,0,1,98.0,24,18,0,8,84.0,0,0,1,49,2.0,0,0,0,50,0.0
+sonnet46,50,45,5,0,0,100.0,38,8,0,4,92.0,0,0,0,50,0.0,0,0,0,50,0.0
+kimik25,50,35,11,0,4,92.0,25,16,0,9,82.0,0,0,0,50,0.0,0,0,0,50,0.0
+gemini25pro,50,19,22,0,9,82.0,14,20,0,16,68.0,0,0,0,50,0.0,0,0,1,49,2.0
+glm5,50,27,17,0,6,88.0,20,19,0,11,78.0,0,0,0,50,0.0,0,0,0,50,0.0
