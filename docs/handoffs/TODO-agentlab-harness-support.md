@@ -338,7 +338,7 @@ Common command settings:
 - variant system: `--phase-4-variant-system eval-awareness-iterator
   --phase-4-eval-awareness-max-iterations 3`
 - PVPO backend: `WORLDSIM_PVPO_CAPTURE_BACKEND=page-surface-stable`
-- legacy CDP: unset `WORLDSIM_AGENTLAB_LEGACY_CONNECT_OVER_CDP`
+- AgentLab browser launch: native BrowserGym launch only
 - post-run requirement: write `phase_4/summary.txt`, normalize semantic
   variant accounting if the run predates current schema fields, then analyze
   baseline/variant ASR, VEA, Transcript Purpose transitions, iterator rejection

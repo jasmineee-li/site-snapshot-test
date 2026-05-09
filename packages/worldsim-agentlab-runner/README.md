@@ -1,9 +1,10 @@
 # WARP Taskgen AgentLab Runner
 
 Isolated sidecar for AgentLab/BrowserGym comparison runs and the experimental
-WARP Taskgen Phase 4 AgentLab runner. The sidecar distribution and console
-script remain `worldsim-agentlab-runner` for compatibility with existing run
-artifacts and operator scripts.
+WARP Taskgen Phase 4 AgentLab runner. The primary sidecar distribution and
+console script are `warp-taskgen-agentlab-runner`; the legacy
+`worldsim-agentlab-runner` entrypoint remains as a compatibility alias for
+existing run artifacts and operator scripts.
 
 This package intentionally has its own dependency graph. Root WARP Taskgen uses
 Browser Use 0.12.6, which requires `openai==2.16.0`; current AgentLab requires
@@ -106,8 +107,7 @@ raw AgentLab text and must not relabel those actions as Browser Use actions.
 By default, AgentLab Phase 4 uses BrowserGym's native browser launch. The
 page-surface-stable PVPO recorder observes that runner-owned page with a scoped
 CDP session at capture time; it does not route BrowserGym through a dedicated
-`pvpo_cdp_url` or `connect_over_cdp` browser. Legacy CDP attachment is available
-only for explicit debugging with `WORLDSIM_AGENTLAB_LEGACY_CONNECT_OVER_CDP=1`.
+browser endpoint. Use native BrowserGym launch for Phase 4 runs.
 
 AgentLab `phase4-run` accepts the whole-task subprocess timeout, LLM-call
 timeout, and step timeout. The sidecar forwards `llm_timeout` to its model

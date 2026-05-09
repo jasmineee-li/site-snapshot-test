@@ -249,4 +249,4 @@ fi
 export WORLDSIM_PREFLIGHT_INSTANCES="$INSTANCES_PATH"
 uv run pytest "${PYTEST_ARGS[@]}"
 
-log "Phase 4 setup complete. Next: uv run python -m worldsim.main resume --instances $INSTANCES"
+log "Phase 4 setup complete. Next: uv run warp-taskgen resume --instances $INSTANCES"

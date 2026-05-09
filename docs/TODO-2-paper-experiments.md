@@ -275,7 +275,7 @@ All current runs share:
   GPT-5.2 currently has a W28 repaired control because that run was produced
   before the W48 queue.
 - PVPO: `WORLDSIM_PVPO_CAPTURE_BACKEND=page-surface-stable`
-- legacy CDP: `WORLDSIM_AGENTLAB_LEGACY_CONNECT_OVER_CDP` unset
+- AgentLab browser launch: native BrowserGym launch only
 - iterator: `--phase-4-variant-system eval-awareness-iterator
   --phase-4-eval-awareness-max-iterations 3`
 - rewrite budget: `WORLDSIM_EVAL_AWARENESS_REWRITE_THINKING=budget:32768`

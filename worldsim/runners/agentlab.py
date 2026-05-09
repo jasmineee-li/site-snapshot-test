@@ -59,7 +59,6 @@ logger = logging.getLogger(__name__)
 _DEFAULT_MODEL = "gpt52"
 _DEFAULT_MAX_STEPS = 30
 _RESET_TIMEOUT = 300
-_LEGACY_CDP_ENV = "WORLDSIM_AGENTLAB_LEGACY_CONNECT_OVER_CDP"
 _RESET_MAX_RETRIES = 2
 _RESET_RETRY_DELAY_S = 10
 _SIDECAR_CMD_ENV = "WARP_TASKGEN_AGENTLAB_RUNNER_CMD"
@@ -441,11 +440,6 @@ def _build_phase4_sidecar_request(
         )
         if resolved_storage is not None:
             storage_state, storage_state_aliases = resolved_storage
-    # page-surface-stable captures PVPO from AgentLab's normal BrowserGym page.
-    # The old dedicated PVPO CDP endpoint forced BrowserGym through
-    # connect_over_cdp and made reset-time screenshots a high-concurrency
-    # bottleneck. Keep it only as an explicit legacy/debug escape hatch.
-    legacy_cdp_url = run_kwargs.get("pvpo_cdp_url") if _truthy_env(_LEGACY_CDP_ENV) else None
     return {
         "schema_version": 1,
         "mode": "phase4",
@@ -463,7 +457,7 @@ def _build_phase4_sidecar_request(
         "payload_text": run_kwargs.get("payload_text"),
         "payload_witnesses": run_kwargs.get("payload_witnesses") or [],
         "pvpo_capture_backend": "page-surface-stable",
-        "pvpo_cdp_url": legacy_cdp_url,
+        "pvpo_cdp_url": None,
         "url_origin_rewrites": url_origin_rewrites,
         "worldsim_repo_root": str(Path(__file__).resolve().parents[2]),
         "requested_model": agent.model,
@@ -934,7 +928,6 @@ def _live_agentlab_status(task_dir: Path) -> dict[str, Any]:
             "agent_browser_connect_count",
             "auxiliary_browser_connect_count",
             "recycle_status",
-            "pvpo_browser_recycle_status",
         ):
             if key in runtime:
                 fields[key] = runtime[key]
@@ -1068,7 +1061,7 @@ def _phase4_sidecar_error_result(
         "mode": "phase4",
         "browser_instance_scope": "agent_run",
         "sidecar_error": True,
-        "cdp_url": request.get("pvpo_cdp_url"),
+        "cdp_url": None,
     }
     if existing_runtime:
         runtime.update(existing_runtime)
@@ -1077,11 +1070,6 @@ def _phase4_sidecar_error_result(
     if fatal_capture:
         runtime["pvpo_capture_fatal"] = True
         runtime["pvpo_capture_fatal_details"] = fatal_capture
-    cdp_url = str(request.get("pvpo_cdp_url") or "")
-    if cdp_url:
-        runtime.update(_recycle_pvpo_browser_after_parent_timeout(cdp_url))
-        if runtime.get("recycle_reason") == "parent_timeout":
-            runtime["recycle_reason"] = "sidecar_error"
     (task_dir / "browser_runtime.json").write_text(
         json.dumps(runtime, indent=2, sort_keys=True),
         encoding="utf-8",
@@ -1153,11 +1141,8 @@ def _phase4_timeout_result(
         "browser_instance_scope": "agent_run",
         "timeout": timeout,
         "timeout_expired": True,
-        "cdp_url": request.get("pvpo_cdp_url"),
+        "cdp_url": None,
     }
-    runtime.update(
-        _recycle_pvpo_browser_after_parent_timeout(str(request.get("pvpo_cdp_url") or ""))
-    )
     (task_dir / "browser_runtime.json").write_text(
         json.dumps(runtime, indent=2, sort_keys=True),
         encoding="utf-8",
@@ -1464,26 +1449,6 @@ def _steps_from_agentlab_timeline(events: list[dict[str, Any]]) -> int:
         if event.get("event") in {"browser_step", "agent_action", "reset"}:
             steps = max(steps, step)
     return steps
-
-
-def _recycle_pvpo_browser_after_parent_timeout(cdp_url: str) -> dict[str, Any]:
-    try:
-        from worldsim.phase_4.pvpo_browser_lifecycle import recycle_pvpo_browser_after_task
-
-        async def _recycle() -> dict[str, Any]:
-            payload = await recycle_pvpo_browser_after_task(None, cdp_url)
-            payload["recycle_reason"] = "parent_timeout"
-            return payload
-
-        return asyncio.run(_recycle())
-    except Exception as recycle_exc:
-        return {
-            "recycle_enabled": bool(cdp_url),
-            "recycle_status": "failed",
-            "recycle_method": "shared_lifecycle",
-            "recycle_reason": "parent_timeout",
-            "recycle_failure": f"{type(recycle_exc).__name__}: {recycle_exc}",
-        }
 
 
 def _redact_sidecar_payload(value: Any, *, secret_values: set[str] | None = None) -> Any:

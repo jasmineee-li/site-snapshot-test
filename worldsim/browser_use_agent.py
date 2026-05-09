@@ -1,6 +1,6 @@
 """Browser Use agent runner.
 
-Canonical source: ``docs/worldsim-v5-technical-specifcation.md`` "Browser Use Integration".
+Canonical source: ``docs/warp-taskgen-technical-spec.md`` "Browser Use Integration".
 
 We use Browser Use as an async Python library (not a subprocess) for running
 browser agents against pre-running benchmark environments. Each worker owns
@@ -36,7 +36,6 @@ from worldsim.agent_auth import (
 from worldsim.agent_runtime import AgentResult, AgentRunner
 from worldsim.atomic_io import write_json_atomic
 from worldsim.config import has_configured_agent_auth, has_effective_agent_auth
-from worldsim.pvpo_endpoint import validate_pvpo_cdp_url
 
 logger = logging.getLogger(__name__)
 
@@ -130,15 +129,6 @@ class _PvpoScrollState:
     x: float
     y: float
     max_y: float
-_CLEAR_PAGE_STORAGE_JS = """
-(() => {
-  try { window.localStorage.clear(); } catch (_) {}
-  try { window.sessionStorage.clear(); } catch (_) {}
-  return true;
-})()
-"""
-
-
 class _NetworkTraceRecorder:
     """Task-scoped CDP network recorder.
 
@@ -832,16 +822,6 @@ def _phase_0d_fallback_path(
     if not artifact_path.exists() or not completion_path.exists():
         return None
     return artifact_path
-
-
-def _resolve_pvpo_cdp_url(raw_url: str) -> str:
-    """Validate the optional external CDP endpoint for PVPO."""
-    resolved = validate_pvpo_cdp_url(
-        raw_url,
-        field_name="WORLDSIM_PVPO_CDP_URL",
-        allow_empty=True,
-    )
-    return resolved or ""
 
 
 def _origin_from_url(raw_url: str) -> str | None:
@@ -2436,7 +2416,6 @@ class BrowserUseAgent:
         self.step_timeout = step_timeout
         self.headless = headless
         self._session: Any = None
-        self._pvpo_cdp_url: str = ""
         self._task_origins: set[str] = set()
         self._owned_target_ids: set[str] = set()
         self._primary_target_id: str | None = None
@@ -2460,7 +2439,6 @@ class BrowserUseAgent:
         # Browser sessions are task-scoped so trajectory artifacts remain
         # isolated per task directory.
         self._session = None
-        self._pvpo_cdp_url = ""
         self._task_origins = set()
         self._owned_target_ids = set()
         self._primary_target_id = None
@@ -2560,12 +2538,7 @@ class BrowserUseAgent:
                 "open multiple start_urls because new-tab first requests may precede "
                 "CDP Fetch attachment"
             )
-        # PVPO is captured from the normal agent browser via page-surface-stable.
-        # Historical instance files may still carry pvpo_cdp_url, but the
-        # canonical backend intentionally ignores dedicated PVPO browser endpoints.
         del pvpo_cdp_url
-        resolved_pvpo_cdp_url = ""
-        self._pvpo_cdp_url = resolved_pvpo_cdp_url
         self._preserve_remote_auth_state = "storage_state" in session_auth_kwargs
         session_kwargs: dict[str, Any] = {
             "headless": self.headless,
@@ -2816,21 +2789,6 @@ class BrowserUseAgent:
             if disconnected:
                 self._browser_runtime["browser_session_disconnect_observed"] = True
 
-            if self._pvpo_cdp_url and disconnected:
-                self._browser_runtime["cleanup_skipped_reason"] = (
-                    "browser_use_session_already_disconnected"
-                )
-            else:
-                try:
-                    await self._cleanup_external_cdp_state(session)
-                except Exception as e:
-                    logger.warning("Remote PVPO browser cleanup failed: %s", e)
-
-            try:
-                await self._recycle_external_pvpo_browser(session)
-            except Exception as e:
-                logger.warning("Remote PVPO browser recycle failed: %s", e)
-
             if disconnected:
                 self._browser_runtime["browser_session_kill_skipped_reason"] = (
                     "browser_use_session_already_disconnected"
@@ -2850,7 +2808,6 @@ class BrowserUseAgent:
             if task_dir is not None:
                 _write_browser_runtime_artifact(task_dir, self._browser_runtime)
             self._session = None
-            self._pvpo_cdp_url = ""
             self._task_origins = set()
             self._owned_target_ids = set()
             self._primary_target_id = None
@@ -2905,177 +2862,6 @@ class BrowserUseAgent:
         finally:
             with suppress(AttributeError):
                 delattr(self._session, "_worldsim_scoped_header_auth")
-
-    async def _reset_remote_browser_for_task(self, session: Any) -> None:
-        """Reset a worker-owned remote browser to one fresh blank target."""
-        pages = await _session_pages(session)
-        initial_targets = sorted(
-            target_id for target_id in (_target_id_for_page(page) for page in pages) if target_id
-        )
-        focused_page = None
-        get_current_page = getattr(session, "get_current_page", None)
-        if callable(get_current_page):
-            try:
-                focused_page = await get_current_page()
-            except Exception as exc:
-                logger.debug("PVPO reset: could not resolve focused page: %s", exc)
-        focused_target_id = _target_id_for_page(focused_page) if focused_page is not None else None
-
-        retained_page = None
-        extra_pages: list[Any] = []
-        for page in pages:
-            target_id = _target_id_for_page(page)
-            if retained_page is None and (
-                focused_target_id is None or target_id == focused_target_id
-            ):
-                retained_page = page
-                continue
-            extra_pages.append(page)
-        if retained_page is None and extra_pages:
-            retained_page = extra_pages.pop(0)
-        if pages:
-            if not self._preserve_remote_auth_state:
-                await self._clear_page_storage(session, pages=pages, origins=set())
-            if retained_page is not None:
-                try:
-                    await retained_page.goto("about:blank")
-                except Exception as exc:
-                    logger.debug("PVPO reset: could not reuse existing page: %s", exc)
-                    try:
-                        await self._close_pages(session, [retained_page])
-                    except Exception:
-                        logger.debug(
-                            "PVPO reset: could not close failed retained page", exc_info=True
-                        )
-                    retained_page = None
-            if extra_pages:
-                await self._close_pages(session, extra_pages)
-
-        if not self._preserve_remote_auth_state:
-            await self._clear_browser_cookies(session)
-
-        if retained_page is None:
-            retained_page = await session.new_page("about:blank")
-        new_target_id = _target_id_for_page(retained_page)
-        if not new_target_id:
-            raise RuntimeError("remote PVPO browser reset created a page without a target id")
-        await session.get_or_create_cdp_session(target_id=new_target_id, focus=True)
-        self._owned_target_ids = {new_target_id}
-        self._primary_target_id = new_target_id
-        self._browser_runtime.update(
-            {
-                "pvpo_cdp_url": self._pvpo_cdp_url,
-                "reset_initial_targets": initial_targets,
-                "reset_closed_targets": len(extra_pages),
-                "primary_target_id": new_target_id,
-                "reset_preserved_auth_state": self._preserve_remote_auth_state,
-            }
-        )
-
-    async def _cleanup_external_cdp_state(self, session: Any) -> None:
-        """Clean up worker-owned remote browser state between task-scoped runs."""
-        if not self._pvpo_cdp_url:
-            return
-
-        pages = await _session_pages(session)
-        closed_target_ids = sorted(
-            target_id for target_id in (_target_id_for_page(page) for page in pages) if target_id
-        )
-        await self._clear_page_storage(session, pages=pages, origins=set(self._task_origins))
-        await self._clear_browser_cookies(session)
-        await self._close_pages(session, pages)
-        self._browser_runtime.update(
-            {
-                "cleanup_closed_targets": len(closed_target_ids),
-                "cleanup_target_ids": closed_target_ids,
-                "cleanup_origins": sorted(self._task_origins),
-                "cleanup_preserved_auth_state": False,
-            }
-        )
-
-    async def _recycle_external_pvpo_browser(self, session: Any) -> None:
-        """Hard-reset the dedicated PVPO browser process after task cleanup."""
-        if not self._pvpo_cdp_url:
-            return
-        from worldsim.phase_4.pvpo_browser_lifecycle import recycle_pvpo_browser_after_task
-
-        recycle_artifact = await recycle_pvpo_browser_after_task(session, self._pvpo_cdp_url)
-        self._browser_runtime.update(
-            {
-                "pvpo_browser_recycle": recycle_artifact,
-                "pvpo_browser_recycle_status": recycle_artifact.get("recycle_status"),
-            }
-        )
-
-    async def _clear_page_storage(
-        self, session: Any, *, pages: list[Any], origins: set[str]
-    ) -> None:
-        from worldsim.phase_4.pvpo_cdp import runtime_evaluate
-
-        resolved_origins = set(origins)
-        for page in pages:
-            get_url = getattr(page, "get_url", None)
-            if callable(get_url):
-                try:
-                    origin = _origin_from_url(await get_url())
-                except Exception as exc:
-                    logger.debug("PVPO cleanup: could not read page URL: %s", exc)
-                else:
-                    if origin:
-                        resolved_origins.add(origin)
-
-        cdp_client = getattr(session, "cdp_client", None)
-        storage_sender = getattr(getattr(cdp_client, "send", None), "Storage", None)
-        clear_data_for_origin = getattr(storage_sender, "clearDataForOrigin", None)
-        if callable(clear_data_for_origin):
-            for origin in sorted(resolved_origins):
-                try:
-                    await clear_data_for_origin(
-                        params={
-                            "origin": origin,
-                            "storageTypes": "all",
-                        }
-                    )
-                except Exception as exc:
-                    logger.debug(
-                        "PVPO cleanup: could not clear data for origin %s: %s", origin, exc
-                    )
-
-        seen_target_ids: set[str] = set()
-        for page in pages:
-            target_id = _target_id_for_page(page)
-            if not target_id or target_id in seen_target_ids:
-                continue
-            seen_target_ids.add(target_id)
-            try:
-                cdp_session = await session.get_or_create_cdp_session(
-                    target_id=target_id, focus=False
-                )
-                await runtime_evaluate(cdp_session, _CLEAR_PAGE_STORAGE_JS)
-            except Exception as exc:
-                logger.debug(
-                    "PVPO cleanup: could not clear storage for target %s: %s",
-                    target_id,
-                    exc,
-                )
-
-    async def _clear_browser_cookies(self, session: Any) -> None:
-        clear_cookies = getattr(session, "clear_cookies", None)
-        if callable(clear_cookies):
-            try:
-                await clear_cookies()
-            except Exception as exc:
-                logger.debug("PVPO cleanup: could not clear cookies: %s", exc)
-
-    async def _close_pages(self, session: Any, pages: list[Any]) -> None:
-        close_page = getattr(session, "close_page", None)
-        if not callable(close_page):
-            return
-        for page in pages:
-            try:
-                await close_page(page)
-            except Exception as exc:
-                logger.debug("PVPO cleanup: could not close page: %s", exc)
 
     @staticmethod
     def _cleanup_temp_profile(session: Any) -> None:
