@@ -8,6 +8,9 @@ from worldsim.phase_4._context import install_context
 install_context(globals())
 
 _REWARD_EVALUATION_TIMEOUT_S = float(os.environ.get("WORLDSIM_PHASE4_REWARD_TIMEOUT_S", "120"))
+_AGENTLAB_BROWSER_STEP_TIMEOUT_RETRIES = int(
+    os.environ.get("WORLDSIM_AGENTLAB_BROWSER_STEP_TIMEOUT_RETRIES", "1")
+)
 
 
 def _pre_action_agentlab_infra_failure(result: Any) -> str | None:
@@ -59,6 +62,53 @@ def _agentlab_non_success_infra_failure(result: Any, agent: Any) -> str | None:
     if _is_agentlab_agent(agent):
         return "infra_agentlab_runtime_error"
     return None
+
+
+def _should_retry_agentlab_browser_step_timeout(
+    result: Any,
+    agent: Any,
+    task: dict[str, Any],
+) -> bool:
+    """Return whether a failed AgentLab browser step is safe to retry once.
+
+    BrowserGym can occasionally wedge while extracting the post-action
+    observation even though the browser/network action completed quickly. Retry
+    only the narrow class we can identify, and only when the partial evidence
+    does not indicate that the benchmark state was already mutated.
+    """
+
+    if _AGENTLAB_BROWSER_STEP_TIMEOUT_RETRIES <= 0:
+        return False
+    if _agentlab_non_success_infra_failure(result, agent) != "infra_agentlab_browser_step_timeout":
+        return False
+    return not _agent_result_has_mutating_network(result)
+
+
+def _agent_result_has_mutating_network(result: Any) -> bool:
+    network_trace = getattr(result, "network_trace", None)
+    if not isinstance(network_trace, list):
+        return False
+    for entry in network_trace:
+        if not isinstance(entry, dict):
+            continue
+        method = str(entry.get("method") or "").strip().upper()
+        if method in {"POST", "PUT", "PATCH", "DELETE"}:
+            return True
+    return False
+
+
+def _agentlab_retry_extra(retries: list[dict[str, Any]]) -> dict[str, Any]:
+    return {"agentlab_infra_retries": retries} if retries else {}
+
+
+def _write_agentlab_retry_audit(task_dir: Any, retries: list[dict[str, Any]]) -> None:
+    if not retries:
+        return
+    try:
+        path = Path(task_dir) / "agentlab_infra_retries.json"
+        path.write_text(json.dumps(retries, indent=2, sort_keys=True), encoding="utf-8")
+    except Exception:
+        logger.warning("could not write AgentLab retry audit for %s", task_dir)
 
 
 def _pvpo_artifact_failure_extra(pvpo: dict[str, Any]) -> dict[str, Any]:
@@ -380,12 +430,51 @@ async def run_adversarial_task(
             payload_witnesses = witness_texts_for_task(task)
             if payload_witnesses:
                 run_kwargs["payload_witnesses"] = payload_witnesses
+            agentlab_infra_retries: list[dict[str, Any]] = []
             result = await agent.run(
                 instruction,
                 instance.site_url,
                 task_dir,
                 **run_kwargs,
             )
+            for retry_index in range(_AGENTLAB_BROWSER_STEP_TIMEOUT_RETRIES):
+                if not _should_retry_agentlab_browser_step_timeout(result, agent, task):
+                    break
+                retry_record: dict[str, Any] = {
+                    "attempt": retry_index + 1,
+                    "reason": "infra_agentlab_browser_step_timeout",
+                    "first_status": getattr(result, "status", None),
+                    "first_elapsed": getattr(result, "elapsed", None),
+                    "first_steps": getattr(result, "steps", None),
+                    "first_errors": [str(error) for error in (getattr(result, "errors", None) or [])],
+                    "mutated_state_detected": False,
+                }
+                agentlab_infra_retries.append(retry_record)
+                _write_agentlab_retry_audit(task_dir, agentlab_infra_retries)
+                logger.warning(
+                    "Retrying AgentLab browser-step timeout for task %r "
+                    "(attempt %d/%d)",
+                    task_id,
+                    retry_index + 1,
+                    _AGENTLAB_BROWSER_STEP_TIMEOUT_RETRIES,
+                )
+                result = await agent.run(
+                    instruction,
+                    instance.site_url,
+                    task_dir,
+                    **run_kwargs,
+                )
+                retry_record.update(
+                    {
+                        "retry_status": getattr(result, "status", None),
+                        "retry_elapsed": getattr(result, "elapsed", None),
+                        "retry_steps": getattr(result, "steps", None),
+                        "retry_errors": [
+                            str(error) for error in (getattr(result, "errors", None) or [])
+                        ],
+                    }
+                )
+                _write_agentlab_retry_audit(task_dir, agentlab_infra_retries)
         except Exception:
             if reset_cache is not None:
                 reset_cache.mark_dirty(task, extra_bindings=reset_cache_bindings)
@@ -409,6 +498,7 @@ async def run_adversarial_task(
             extra: dict[str, Any] = {}
             if resume_fingerprint is not None:
                 extra[RESULT_FINGERPRINT_KEY] = resume_fingerprint
+            extra.update(_agentlab_retry_extra(agentlab_infra_retries))
             # Mirror the main scoreable path: if PVPO reported zero coverage,
             # stamp ``final_status="injection_not_encountered"`` alongside
             # ``outcome="error"`` so downstream analysis can distinguish
@@ -461,6 +551,7 @@ async def run_adversarial_task(
                 "steps": result.steps,
                 **_pvpo_metric_payload(pvpo),
                 **error_final_status_extra,
+                **_agentlab_retry_extra(agentlab_infra_retries),
             }
 
         # 1. Evaluate both benign and adversarial rewards (always, before validity)
@@ -482,6 +573,7 @@ async def run_adversarial_task(
             extra: dict[str, Any] = {}
             if resume_fingerprint is not None:
                 extra[RESULT_FINGERPRINT_KEY] = resume_fingerprint
+            extra.update(_agentlab_retry_extra(agentlab_infra_retries))
             nonint_final_status_extra: dict[str, Any] = {}
             pvpo_artifact_extra = _pvpo_artifact_failure_extra(pvpo)
             if pvpo_artifact_extra:
@@ -525,6 +617,7 @@ async def run_adversarial_task(
                 "steps": result.steps,
                 **_pvpo_metric_payload(pvpo),
                 **nonint_final_status_extra,
+                **_agentlab_retry_extra(agentlab_infra_retries),
             }
         adv_passed, adv_message = (
             await _run_reward_function_safely(
@@ -651,6 +744,7 @@ async def run_adversarial_task(
         extra: dict[str, Any] = {}
         if resume_fingerprint is not None:
             extra[RESULT_FINGERPRINT_KEY] = resume_fingerprint
+        extra.update(_agentlab_retry_extra(agentlab_infra_retries))
         save_result(
             task_dir,
             task,
@@ -690,6 +784,7 @@ async def run_adversarial_task(
             **_pvpo_metric_payload(pvpo),
             **final_status_extra,
             **taxonomy_fields,
+            **_agentlab_retry_extra(agentlab_infra_retries),
         }
     finally:
         if seed_cleanup is not None:

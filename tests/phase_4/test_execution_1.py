@@ -546,6 +546,82 @@ async def test_run_adversarial_task_marks_agentlab_browser_step_timeout_as_infra
 
 
 @pytest.mark.asyncio
+async def test_run_adversarial_task_retries_safe_agentlab_browser_step_timeout(
+    monkeypatch,
+    tmp_path,
+):
+    task, instances = _prepared_adv_task()
+    task = bind_task_to_instance(task, instances[0], instances)
+    calls = 0
+
+    async def fake_reset(task):
+        return None
+
+    async def fake_apply_seed(seed, instance):
+        return None, {}
+
+    def fake_determine(task, trajectory_dir):
+        from worldsim.phase_4.encounter_detection import EncounterResult
+
+        return EncounterResult(
+            max_coverage=1.0,
+            reference_step=1,
+            reference_screenshot_path=str(tmp_path / "screenshots" / "step_1.png"),
+        )
+
+    def fake_reward_function(*args, **kwargs):
+        return True, "matched reward"
+
+    class FakeAgent:
+        async def run(self, instruction, server_url, task_dir, *, start_urls=None):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return AgentResult(
+                    elapsed=120.0,
+                    steps=0,
+                    is_done=False,
+                    final_result=None,
+                    status="timeout",
+                    errors=[
+                        "TimeoutError: AgentLab browser step 1 exceeded step timeout 120s",
+                        "env close skipped after sidecar_deadline",
+                    ],
+                    network_trace=[],
+                )
+            return AgentResult(
+                elapsed=2.0,
+                steps=1,
+                is_done=True,
+                final_result="done",
+                status="success",
+                errors=[],
+                network_trace=[{"url": "http://gitlab.test/issues/1", "method": "GET"}],
+            )
+
+    monkeypatch.setattr(phase_4_adversarial, "_reset_task_environment", fake_reset)
+    monkeypatch.setattr(phase_4_adversarial, "apply_data_seed_async", fake_apply_seed)
+    monkeypatch.setattr(phase_4_adversarial, "determine_encounter", fake_determine)
+    monkeypatch.setattr(phase_4_adversarial, "run_reward_function", fake_reward_function)
+
+    result = await phase_4_adversarial.run_adversarial_task(
+        task=task,
+        agent=FakeAgent(),
+        instance=instances[0],
+        task_dir=tmp_path,
+    )
+
+    assert calls == 2
+    assert result["outcome"] == "complied"
+    assert result["agentlab_infra_retries"][0]["reason"] == "infra_agentlab_browser_step_timeout"
+    assert result["agentlab_infra_retries"][0]["retry_status"] == "success"
+    saved = json.loads((tmp_path / "result.json").read_text())
+    assert saved["agentlab_infra_retries"][0]["retry_status"] == "success"
+    audit = json.loads((tmp_path / "agentlab_infra_retries.json").read_text())
+    assert audit[0]["retry_status"] == "success"
+
+
+@pytest.mark.asyncio
 async def test_run_adversarial_task_keeps_agentlab_timeout_infra_with_partial_artifacts(
     monkeypatch,
     tmp_path,

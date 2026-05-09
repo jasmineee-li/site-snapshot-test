@@ -968,6 +968,7 @@ def _tail_jsonl(path: Path) -> dict[str, Any]:
 
 
 def _sidecar_json_payload(stdout: str) -> dict[str, Any]:
+    decoder = json.JSONDecoder()
     try:
         payload = json.loads(stdout)
     except json.JSONDecodeError:
@@ -978,7 +979,21 @@ def _sidecar_json_payload(stdout: str) -> dict[str, Any]:
             payload = json.loads(candidate)
             break
         else:
-            raise
+            payload = None
+            for marker in ('{"agentlab_reward"', '{"status"', '{"artifacts"'):
+                index = stdout.find(marker)
+                if index < 0:
+                    continue
+                try:
+                    candidate, end = decoder.raw_decode(stdout[index:])
+                except json.JSONDecodeError:
+                    continue
+                if stdout[index + end :].strip():
+                    continue
+                payload = candidate
+                break
+            if payload is None:
+                raise
     if not isinstance(payload, dict):
         raise RuntimeError("AgentLab sidecar returned a non-object JSON payload")
     return payload

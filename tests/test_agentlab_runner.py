@@ -300,6 +300,16 @@ def test_sidecar_json_payload_accepts_browsergym_stdout_noise():
     assert payload == {"status": "error", "steps": 0}
 
 
+def test_sidecar_json_payload_accepts_inline_hf_prompt_noise():
+    payload = _sidecar_json_payload(
+        "The repository moonshotai/kimi-k2.5 contains custom code.\n"
+        "Do you wish to run the custom code? [y/N] "
+        '{"agentlab_reward": 0.0, "status": "success", "steps": 10}\n'
+    )
+
+    assert payload == {"agentlab_reward": 0.0, "status": "success", "steps": 10}
+
+
 def test_build_sidecar_request_maps_worldsim_inputs(tmp_path):
     request = _build_sidecar_request(
         {
