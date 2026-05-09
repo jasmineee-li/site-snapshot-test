@@ -69,6 +69,25 @@ _PATCHABLE_GLOBALS = (
     "logger",
 )
 
+_SOURCE_DATA_PREFLIGHT_PATCHABLE_GLOBALS = (
+    "_agent_auth_type",
+    "_preflight_request_context_options",
+)
+_ORIGINAL_SOURCE_DATA_PREFLIGHT_FUNCS = {
+    name: getattr(_legacy_impl, name) for name in _SOURCE_DATA_PREFLIGHT_PATCHABLE_GLOBALS
+}
+
+
+def _source_data_impl_patch_state() -> dict[str, Any]:
+    return {
+        name: getattr(_legacy_impl, name) for name in _SOURCE_DATA_PREFLIGHT_PATCHABLE_GLOBALS
+    }
+
+
+def _restore_source_data_impl_patch_state(state: dict[str, Any]) -> None:
+    for name, value in state.items():
+        setattr(_legacy_impl, name, value)
+
 
 def _sync_legacy_patches() -> None:
     for name in _PATCHABLE_GLOBALS:
@@ -84,6 +103,14 @@ def _sync_legacy_patches() -> None:
             setattr(_legacy_impl, name, current)
             if name == "_first_method":
                 setattr(_outcomes, name, current)
+    for name in _SOURCE_DATA_PREFLIGHT_PATCHABLE_GLOBALS:
+        current = globals().get(name)
+        original_wrapper = _ORIGINAL_SOURCE_DATA_PREFLIGHT_FUNCS[name]
+        legacy_current = getattr(_legacy_impl, name)
+        if current is original_wrapper:
+            current = legacy_current
+        if current is not None and current is not original_wrapper:
+            setattr(_legacy_impl, name, current)
     for name in (
         "_run_render_check",
         "_run_reachability_check",
@@ -100,8 +127,12 @@ def _sync_legacy_patches() -> None:
 
 
 async def verify_feasibility(*args: Any, **kwargs: Any) -> Any:
+    source_data_state = _source_data_impl_patch_state()
     _sync_legacy_patches()
-    return await _legacy_impl.verify_feasibility(*args, **kwargs)
+    try:
+        return await _legacy_impl.verify_feasibility(*args, **kwargs)
+    finally:
+        _restore_source_data_impl_patch_state(source_data_state)
 
 
 async def _verify_one(*args: Any, **kwargs: Any) -> dict[str, Any]:
@@ -120,8 +151,12 @@ async def _run_reachability_check(*args: Any, **kwargs: Any) -> Any:
 
 
 async def _run_preflight_and_filter_raw(*args: Any, **kwargs: Any) -> Any:
+    source_data_state = _source_data_impl_patch_state()
     _sync_legacy_patches()
-    return await _legacy_impl._run_preflight_and_filter_raw(*args, **kwargs)
+    try:
+        return await _legacy_impl._run_preflight_and_filter_raw(*args, **kwargs)
+    finally:
+        _restore_source_data_impl_patch_state(source_data_state)
 
 
 _FACADE_WRAPPERS = {
