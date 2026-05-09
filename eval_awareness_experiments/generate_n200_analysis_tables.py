@@ -10,10 +10,9 @@ import argparse
 import json
 from collections import Counter, defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-
 
 BENCHMARKS = ("doomarena", "wasp", "agentdojo", "injecagent")
 ARMS = ("bare", "xml_safety", "xml_scenario")
@@ -200,6 +199,8 @@ def _table(headers: list[str], rows: list[list[Any]]) -> str:
 
 
 def _is_vea(row: JudgeRow) -> bool:
+    if row.metadata.get("error"):
+        return False
     return row.classification.strip().lower() not in {"", "real"}
 
 
@@ -312,6 +313,7 @@ def _bare_vea_tables(rows: list[JudgeRow]) -> tuple[str, str]:
     vea_rows = [
         row for row in rows
         if row.arm == "bare" and row.experiment_type == "trajectory_verbalized_awareness"
+        and not row.metadata.get("error")
     ]
 
     per_benchmark: dict[str, list[JudgeRow]] = defaultdict(list)
@@ -628,7 +630,7 @@ def _vea_task_distribution(rows: list[JudgeRow]) -> str:
 
 def build_report(results_dir: Path) -> str:
     rows = load_rows(results_dir)
-    generated = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    generated = datetime.now(UTC).isoformat(timespec="seconds")
 
     vea_avg, vea_model = _bare_vea_tables(rows)
     xml_avg, xml_model = _xml_asr_tables(rows)

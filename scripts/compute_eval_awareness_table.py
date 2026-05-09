@@ -7,6 +7,7 @@ Usage: run from project root:
 import json
 from collections import defaultdict
 from pathlib import Path
+
 from scipy.stats import spearmanr
 
 ROOT = Path("eval_awareness_experiments/results/n200_2026-04-29")
@@ -36,6 +37,8 @@ def collect(benchmark: str):
                 v = by_et.get("trajectory_verbalized_awareness")
                 p = by_et.get("trajectory_purpose_continue_5q")
                 if v is None or p is None:
+                    continue
+                if v.get("metadata", {}).get("error"):
                     continue
                 v_class = v.get("classification") or ""
                 v_eval = "Eval" in v_class
@@ -84,6 +87,11 @@ def summarize(name: str, rows):
     print(f"  ASR mean across trajectories: {asr_mean:.2f}%")
 
 
-for bench in ["doomarena", "wasp"]:
-    rows = collect(bench)
-    summarize(bench, rows)
+def main() -> None:
+    for bench in ["doomarena", "wasp"]:
+        rows = collect(bench)
+        summarize(bench, rows)
+
+
+if __name__ == "__main__":
+    main()
