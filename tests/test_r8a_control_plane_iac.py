@@ -1,0 +1,249 @@
+from __future__ import annotations
+
+import os
+import subprocess
+from pathlib import Path
+
+import yaml
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[1]
+
+
+class _CloudFormationLoader(yaml.SafeLoader):
+    pass
+
+
+def _construct_cloudformation_tag(loader: yaml.SafeLoader, tag_suffix: str, node: yaml.Node):
+    if isinstance(node, yaml.ScalarNode):
+        return {tag_suffix: loader.construct_scalar(node)}
+    if isinstance(node, yaml.SequenceNode):
+        return {tag_suffix: loader.construct_sequence(node)}
+    if isinstance(node, yaml.MappingNode):
+        return {tag_suffix: loader.construct_mapping(node)}
+    raise TypeError(f"unsupported CloudFormation node: {node!r}")
+
+
+_CloudFormationLoader.add_multi_constructor("!", _construct_cloudformation_tag)
+
+
+def _load_template() -> dict:
+    return yaml.load(
+        (_repo_root() / "infra" / "cloudformation" / "r8a-control-plane.yaml").read_text(),
+        Loader=_CloudFormationLoader,
+    )
+
+
+def test_r8a_control_plane_template_manages_eip_and_ssh_ingress() -> None:
+    template = _load_template()
+
+    resources = template["Resources"]
+    assert resources["CanonicalElasticIp"]["Type"] == "AWS::EC2::EIP"
+    assert resources["CanonicalElasticIpAssociation"]["Type"] == "AWS::EC2::EIPAssociation"
+    assert resources["OperatorSshIngress1"]["Type"] == "AWS::EC2::SecurityGroupIngress"
+    assert resources["OperatorSshIngress1"]["Properties"]["FromPort"] == 22
+    assert resources["OperatorSshIngress1"]["Properties"]["ToPort"] == 22
+
+
+def test_r8a_control_plane_template_has_no_world_open_ssh_default() -> None:
+    template = _load_template()
+
+    params = template["Parameters"]
+    assert "Default" not in params["OperatorSshCidr1"]
+    for name in ("OperatorSshCidr2", "OperatorSshCidr3", "OperatorSshCidr4", "OperatorSshCidr5"):
+        assert params[name]["Default"] == ""
+
+    rendered = str(template)
+    assert "0.0.0.0/0" not in rendered
+    assert "::/0" not in rendered
+
+
+def test_deploy_r8a_control_plane_requires_operator_cidr() -> None:
+    repo_root = _repo_root()
+    env = os.environ.copy()
+    env["HOME"] = str(repo_root)
+
+    completed = subprocess.run(
+        ["bash", str(repo_root / "scripts" / "deploy_r8a_control_plane.sh")],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "--operator-cidr is required" in completed.stderr
+
+
+def test_deploy_r8a_control_plane_rejects_world_open_operator_cidr(tmp_path: Path) -> None:
+    repo_root = _repo_root()
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    aws = fakebin / "aws"
+    aws.write_text("#!/bin/sh\nexit 0\n")
+    aws.chmod(0o755)
+
+    env = os.environ.copy()
+    env["HOME"] = str(repo_root)
+    env["PATH"] = f"{fakebin}:{env.get('PATH', '')}"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "deploy_r8a_control_plane.sh"),
+            "--operator-cidr",
+            "0.0.0.0/0",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "refusing world-open SSH CIDR" in completed.stderr
+
+
+def test_deploy_r8a_control_plane_refuses_to_move_attached_eip_without_force(
+    tmp_path: Path,
+) -> None:
+    repo_root = _repo_root()
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    aws = fakebin / "aws"
+    aws.write_text(
+        """#!/bin/sh
+if [ "$1" = "ec2" ] && [ "$2" = "describe-addresses" ]; then
+  printf 'i-old-r5\\n'
+  exit 0
+fi
+printf 'unexpected aws call: %s\\n' "$*" >&2
+exit 99
+"""
+    )
+    aws.chmod(0o755)
+
+    env = os.environ.copy()
+    env["HOME"] = str(repo_root)
+    env["PATH"] = f"{fakebin}:{env.get('PATH', '')}"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "deploy_r8a_control_plane.sh"),
+            "--operator-cidr",
+            "203.0.113.10/32",
+            "--instance-id",
+            "i-r8a",
+            "--existing-allocation-id",
+            "eipalloc-r5",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "is attached to i-old-r5" in completed.stderr
+    assert "--allow-reassociate-existing-eip" in completed.stderr
+
+
+def test_deploy_r8a_control_plane_accepts_attached_eip_with_force(tmp_path: Path) -> None:
+    repo_root = _repo_root()
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    aws = fakebin / "aws"
+    calls = tmp_path / "aws.calls"
+    aws.write_text(
+        f"""#!/bin/sh
+printf '%s\\n' "$*" >> {calls}
+if [ "$1" = "ec2" ] && [ "$2" = "describe-addresses" ]; then
+  printf 'i-old-r5\\n'
+  exit 0
+fi
+if [ "$1" = "cloudformation" ] && [ "$2" = "deploy" ]; then
+  exit 0
+fi
+if [ "$1" = "cloudformation" ] && [ "$2" = "describe-stacks" ]; then
+  printf '[{{"OutputKey":"ElasticIp","OutputValue":""}},{{"OutputKey":"AllocationId","OutputValue":"eipalloc-r5"}},{{"OutputKey":"InstanceId","OutputValue":"i-r8a"}}]\\n'
+  exit 0
+fi
+if [ "$1" = "ec2" ] && [ "$2" = "describe-instances" ]; then
+  printf '198.51.100.40\\n'
+  exit 0
+fi
+printf 'unexpected aws call: %s\\n' "$*" >&2
+exit 99
+"""
+    )
+    aws.chmod(0o755)
+
+    env = os.environ.copy()
+    env["HOME"] = str(repo_root)
+    env["PATH"] = f"{fakebin}:{env.get('PATH', '')}"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "deploy_r8a_control_plane.sh"),
+            "--operator-cidr",
+            "203.0.113.10/32",
+            "--instance-id",
+            "i-r8a",
+            "--existing-allocation-id",
+            "eipalloc-r5",
+            "--allow-reassociate-existing-eip",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0
+    assert "WARNING: moving EIP eipalloc-r5 from i-old-r5 to i-r8a" in completed.stderr
+    assert "public_ip:   198.51.100.40" in completed.stdout
+    assert "cloudformation deploy" in calls.read_text()
+
+
+def test_audit_r8a_control_plane_passes_when_eip_stack_and_config_match(tmp_path: Path) -> None:
+    repo_root = _repo_root()
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    aws = fakebin / "aws"
+    aws.write_text(
+        """#!/bin/sh
+if [ "$1" = "ec2" ] && [ "$2" = "describe-instances" ]; then
+  printf 'i-r8a\\n'
+  exit 0
+fi
+if [ "$1" = "ec2" ] && [ "$2" = "describe-network-interfaces" ]; then
+  printf '{"PublicIp":"18.218.124.135","AllocationId":"eipalloc-r8a","Groups":["sg-08792057943b27a65"]}\\n'
+  exit 0
+fi
+if [ "$1" = "cloudformation" ] && [ "$2" = "describe-stacks" ]; then
+  printf '[{"OutputKey":"AllocationId","OutputValue":"eipalloc-r8a"}]\\n'
+  exit 0
+fi
+printf 'unexpected aws call: %s\\n' "$*" >&2
+exit 99
+"""
+    )
+    aws.chmod(0o755)
+
+    env = os.environ.copy()
+    env["HOME"] = str(repo_root)
+    env["PATH"] = f"{fakebin}:{env.get('PATH', '')}"
+
+    completed = subprocess.run(
+        ["bash", str(repo_root / "scripts" / "audit_r8a_control_plane.sh")],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0
+    assert "r8a_control_plane=ok" in completed.stdout
