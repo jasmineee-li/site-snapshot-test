@@ -58,13 +58,18 @@ ssh ubuntu@<host> 'cd /home/ubuntu/browser-sim && uv run python -c "from modal.c
 ```
 
 r8a is the canonical scale/smoke host for current paper-facing work. Its
-durable AWS identity is managed by a narrow CloudFormation control-plane stack:
+canonical scale topology is 24 GitLab replicas plus 24 Reddit/Postmill
+replicas, generated from `scripts/scale_config.r8a-24x24.yml`; local ignored
+copies of `instances.scale.json`, `instances.smoke.json`, proxy maps, or
+generated compose files may be absent or stale. Its durable AWS identity is
+managed by a narrow CloudFormation control-plane stack:
 `infra/cloudformation/r8a-control-plane.yaml`. Use
 `scripts/deploy_r8a_control_plane.sh` for EIP association and operator SSH
 ingress, then run `scripts/audit_r8a_control_plane.sh` before starting or
 stopping the host. Do not hand-associate an Elastic IP or add ad hoc SSH ingress
 unless the stack is being repaired; otherwise drift detection loses value. The
-stack does not manage generated benchmark topology. After an EIP change, rerun:
+stack does not manage generated benchmark topology. After an EIP change or local
+cleanup of generated topology artifacts, rerun:
 
 ```bash
 scripts/setup_phase4_on_host.sh \

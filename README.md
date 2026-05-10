@@ -250,11 +250,12 @@ uv run warp-taskgen phase 2 --benchmark vendors/webarena-verified \
   --feasibility-instances instances.smoke.json
 
 # On r5/r8a, regenerate instances.scale.json from the selected host config
-# instead of hand-editing IPs. The generated scale file carries host_access
-# metadata and binds site_url/reset_endpoint/placeholders to orchestrator_host
-# (172.17.0.1). Then re-mint Phase 0d against that exact generated file so
-# storage_state cookie domains match the runtime host view:
-./scripts/generate_scale_r5.sh
+# instead of hand-editing IPs. Generated instance/proxy/compose files are
+# gitignored host-local scratch. For canonical r8a runs, use the 24x24 scale
+# config: 24 GitLab replicas + 24 Reddit/Postmill replicas.
+./scripts/generate_scale_r5.sh \
+  --host-config configs/benchmark_hosts/r8a.yaml \
+  --scale-config scripts/scale_config.r8a-24x24.yml
 uv run warp-taskgen phase 0d --benchmark vendors/webarena-verified \
   --instances instances.scale.json
 

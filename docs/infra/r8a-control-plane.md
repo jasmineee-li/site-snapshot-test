@@ -4,6 +4,12 @@ r8a is the canonical WARP Taskgen benchmark host. Its AWS control-plane
 identity should be managed declaratively; benchmark runtime state remains
 generated on the host.
 
+The canonical r8a scale topology is 24 GitLab replicas plus 24 Reddit/Postmill
+replicas, generated from `scripts/scale_config.r8a-24x24.yml`. W48 runs use
+that 48-instance pool with top-level `warp-taskgen phase 4
+--phase-4-max-workers 48`; `--workers 48` belongs only to
+`scripts/run_phase4_process_pool.py`.
+
 ## Boundary
 
 CloudFormation owns:
@@ -23,6 +29,11 @@ Existing scripts own:
 
 This split keeps durable AWS resources drift-detectable without pretending that
 per-run benchmark topology is static infrastructure.
+
+Local generated files are scratch. It is normal for a laptop checkout to have
+missing or stale `instances.scale.json`, `instances.smoke.json`,
+`scripts/proxy_ports.conf`, and generated compose files. Regenerate them for the
+selected host instead of treating the local copies as source of truth.
 
 ## Deploy
 
@@ -72,6 +83,18 @@ scripts/setup_phase4_on_host.sh \
   --host-config configs/benchmark_hosts/r8a.yaml \
   --instances instances.scale.json \
   --scale-config scripts/scale_config.r8a-24x24.yml
+```
+
+For local inspection only, regenerate into a temp directory instead of writing
+ignored root artifacts:
+
+```bash
+uv run python scripts/generate_compose_scale.py \
+  --config scripts/scale_config.r8a-24x24.yml \
+  --base-config instances.json \
+  --host-config configs/benchmark_hosts/r8a.yaml \
+  --out-dir /tmp/r8a-gen-audit \
+  --final-config-dir "$PWD"
 ```
 
 ## Audit
