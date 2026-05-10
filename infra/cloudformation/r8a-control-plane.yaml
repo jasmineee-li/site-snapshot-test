@@ -1,0 +1,172 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  WARP Taskgen canonical r8a benchmark host control plane. This stack owns the
+  stable Elastic IP association and operator SSH ingress for an existing EC2
+  instance; benchmark containers and generated topology remain script-managed.
+
+Parameters:
+  HostName:
+    Type: String
+    Default: r8a
+    AllowedPattern: "^[a-z0-9-]+$"
+    Description: Short benchmark host label used for tags and rule descriptions.
+
+  InstanceId:
+    Type: AWS::EC2::Instance::Id
+    Description: Existing benchmark EC2 instance to make canonical.
+
+  SecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Existing security group that should receive managed SSH ingress.
+
+  CreateElasticIp:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Create a new EIP unless importing an existing allocation.
+
+  ExistingAllocationId:
+    Type: String
+    Default: ""
+    Description: Existing EIP allocation ID to associate when CreateElasticIp=false.
+
+  OperatorSshCidr1:
+    Type: String
+    AllowedPattern: "^([0-9]{1,3}\\.){3}[0-9]{1,3}/(3[0-2]|[12]?[0-9])$"
+    ConstraintDescription: Must be an IPv4 CIDR such as 203.0.113.10/32.
+    Description: Primary operator IPv4 CIDR allowed to SSH.
+
+  OperatorSshCidr2:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^([0-9]{1,3}\\.){3}[0-9]{1,3}/(3[0-2]|[12]?[0-9])$"
+    ConstraintDescription: Must be blank or an IPv4 CIDR.
+    Description: Optional secondary operator IPv4 CIDR allowed to SSH.
+
+  OperatorSshCidr3:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^([0-9]{1,3}\\.){3}[0-9]{1,3}/(3[0-2]|[12]?[0-9])$"
+    ConstraintDescription: Must be blank or an IPv4 CIDR.
+    Description: Optional tertiary operator IPv4 CIDR allowed to SSH.
+
+  OperatorSshCidr4:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^([0-9]{1,3}\\.){3}[0-9]{1,3}/(3[0-2]|[12]?[0-9])$"
+    ConstraintDescription: Must be blank or an IPv4 CIDR.
+    Description: Optional fourth operator IPv4 CIDR allowed to SSH.
+
+  OperatorSshCidr5:
+    Type: String
+    Default: ""
+    AllowedPattern: "^$|^([0-9]{1,3}\\.){3}[0-9]{1,3}/(3[0-2]|[12]?[0-9])$"
+    ConstraintDescription: Must be blank or an IPv4 CIDR.
+    Description: Optional fifth operator IPv4 CIDR allowed to SSH.
+
+Conditions:
+  CreateNewElasticIp: !Equals [!Ref CreateElasticIp, "true"]
+  HasOperatorSshCidr2: !Not [!Equals [!Ref OperatorSshCidr2, ""]]
+  HasOperatorSshCidr3: !Not [!Equals [!Ref OperatorSshCidr3, ""]]
+  HasOperatorSshCidr4: !Not [!Equals [!Ref OperatorSshCidr4, ""]]
+  HasOperatorSshCidr5: !Not [!Equals [!Ref OperatorSshCidr5, ""]]
+
+Resources:
+  CanonicalElasticIp:
+    Type: AWS::EC2::EIP
+    Condition: CreateNewElasticIp
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "worldsim-${HostName}-canonical-eip"
+        - Key: Project
+          Value: warp-taskgen
+        - Key: Role
+          Value: canonical-benchmark-host
+        - Key: ManagedBy
+          Value: cloudformation
+
+  CanonicalElasticIpAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !If
+        - CreateNewElasticIp
+        - !GetAtt CanonicalElasticIp.AllocationId
+        - !Ref ExistingAllocationId
+      InstanceId: !Ref InstanceId
+
+  OperatorSshIngress1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref SecurityGroupId
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: !Ref OperatorSshCidr1
+      Description: !Sub "worldsim-${HostName} operator SSH 1"
+
+  OperatorSshIngress2:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasOperatorSshCidr2
+    Properties:
+      GroupId: !Ref SecurityGroupId
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: !Ref OperatorSshCidr2
+      Description: !Sub "worldsim-${HostName} operator SSH 2"
+
+  OperatorSshIngress3:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasOperatorSshCidr3
+    Properties:
+      GroupId: !Ref SecurityGroupId
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: !Ref OperatorSshCidr3
+      Description: !Sub "worldsim-${HostName} operator SSH 3"
+
+  OperatorSshIngress4:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasOperatorSshCidr4
+    Properties:
+      GroupId: !Ref SecurityGroupId
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: !Ref OperatorSshCidr4
+      Description: !Sub "worldsim-${HostName} operator SSH 4"
+
+  OperatorSshIngress5:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasOperatorSshCidr5
+    Properties:
+      GroupId: !Ref SecurityGroupId
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: !Ref OperatorSshCidr5
+      Description: !Sub "worldsim-${HostName} operator SSH 5"
+
+Outputs:
+  HostName:
+    Description: Benchmark host label.
+    Value: !Ref HostName
+
+  InstanceId:
+    Description: EC2 instance associated with the canonical EIP.
+    Value: !Ref InstanceId
+
+  ElasticIp:
+    Description: Stable public IPv4 address for the canonical benchmark host.
+    Value: !If [CreateNewElasticIp, !Ref CanonicalElasticIp, ""]
+
+  AllocationId:
+    Description: EIP allocation ID used by this stack.
+    Value: !If [CreateNewElasticIp, !GetAtt CanonicalElasticIp.AllocationId, !Ref ExistingAllocationId]
+
+  SecurityGroupId:
+    Description: Security group receiving managed operator SSH ingress.
+    Value: !Ref SecurityGroupId
