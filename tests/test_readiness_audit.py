@@ -252,6 +252,7 @@ def test_generated_artifact_detection_covers_r5_copy_outputs(monkeypatch) -> Non
     paths = [
         "instances.scale.json",
         "instances.scale.json.fragment",
+        "instances.smoke.example.json",
         "instances.smoke.json",
         "instances.smoke.json.fragment",
         "scripts/docker-compose.scale.yml",
@@ -263,7 +264,7 @@ def test_generated_artifact_detection_covers_r5_copy_outputs(monkeypatch) -> Non
     audit = readiness_audit.build_audit()
 
     assert audit.tracked_generated == sorted(
-        path for path in paths if path != "instances.smoke.json"
+        path for path in paths if path != "instances.smoke.example.json"
     )
 
 

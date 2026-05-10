@@ -158,14 +158,14 @@ def test_dump_verification_proxy_config_omits_resolved_external_token(monkeypatc
     }
 
 
-def test_checked_in_smoke_config_is_token_safe_and_loadable(monkeypatch):
-    monkeypatch.delenv("WORLDSIM_VERIFICATION_PROXY_TOKEN", raising=False)
+def test_checked_in_smoke_example_config_is_token_safe_and_loadable(monkeypatch):
+    monkeypatch.delenv("WARP_TASKGEN_VERIFICATION_PROXY_TOKEN", raising=False)
     repo_root = Path(__file__).resolve().parents[1]
-    config_path = repo_root / "instances.smoke.json"
+    config_path = repo_root / "instances.smoke.example.json"
     payload = json.loads(config_path.read_text())
 
     assert payload["verification_proxy"] == {
-        "token_env": "WORLDSIM_VERIFICATION_PROXY_TOKEN",
+        "token_env": "WARP_TASKGEN_VERIFICATION_PROXY_TOKEN",
         "token_file": ".proxy_token",
         "port_offset": 10000,
     }
