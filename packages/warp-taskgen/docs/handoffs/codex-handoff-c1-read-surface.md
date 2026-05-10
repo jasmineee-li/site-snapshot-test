@@ -711,7 +711,7 @@ Re-run Phase 4 on a 5-task smoke set on r5. Expected:
 
 Construct three synthetic benchmarks with fake URL shapes that don't match WebArena's conventions:
 - Platform Alpha: PDPs at `/item/{id}/detail`
-- Platform Beta: issues at `/tickets/{uuid}/view`  
+- Platform Beta: issues at `/tickets/{uuid}/view`
 - Platform Gamma: posts at `/threads/{hash}`
 
 Confirm C1a (canary token) fires for all three without any classifier code changes. This is the benchmark-agnostic claim under direct test.

@@ -642,7 +642,7 @@ step_print_summary() {
     echo ""
     echo '    "verification_proxy": {'
     printf '      "token_file": "%s",\n' "$TOKEN_FILE"
-    echo '      "token_env": "WORLDSIM_VERIFICATION_PROXY_TOKEN",'
+    echo '      "token_env": "WARP_TASKGEN_VERIFICATION_PROXY_TOKEN",'
     printf '      "scheme": "%s",\n' "$current_proxy_scheme"
     if [[ "$current_proxy_scheme" == "https" ]]; then
         printf '      "verify_host": "%s",\n' "$TLS_VERIFY_HOST"

@@ -83,4 +83,3 @@ async def create_structured_message(
             )
 
     return await call_with_retry(_call, retries=retries, label=label)
-

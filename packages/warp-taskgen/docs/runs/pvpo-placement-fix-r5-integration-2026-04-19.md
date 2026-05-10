@@ -78,4 +78,3 @@ surfaces only. For present-day Phase 4 setup and live-run procedure, use:
 - `agent_docs/remote-runs.md`
 - `docs/handoffs/rigor-run-setup.md`
 - `docs/warp-taskgen-technical-spec.md`
-

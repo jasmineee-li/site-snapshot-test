@@ -9,8 +9,9 @@ Start here when deciding which document to trust.
 - `warp-taskgen-full-spec.md` is the short current overview.
 - `current_progress.md` records the current project state.
 - `agent_docs/` contains operating rules for agents and runbooks.
-- Top-level `README.md` is the install/run quickstart; it should mirror the
-  specs but is not the behavior authority.
+- The package `README.md` is the install/run quickstart; it should mirror the
+  specs but is not the behavior authority. In a vendored/package snapshot, this
+  may live under `packages/warp-taskgen/README.md`.
 
 If docs and code disagree, update the technical specification first, then align
 the overview, runbooks, and handoffs.

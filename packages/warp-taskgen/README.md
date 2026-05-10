@@ -104,7 +104,7 @@ uv run warp-taskgen phase 4 \
    it to a local generated config such as `instances.json` or
    `instances.smoke.json`, and fill in your host URLs and credentials there.
    Runtime instance configs are gitignored so host-specific values do not drift
-   into the package snapshot.
+   into source control.
 
    Current WASP mainline carrier scope is GitLab and Reddit/Postmill UGC only. Keep instance auth and DB connectivity explicit in your instances config:
 
