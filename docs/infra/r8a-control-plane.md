@@ -85,6 +85,11 @@ scripts/setup_phase4_on_host.sh \
   --scale-config scripts/scale_config.r8a-24x24.yml
 ```
 
+`setup_phase4_on_host.sh` runs the r8a control-plane audit before regenerating
+runtime topology, so a stale `advertise_host`, missing EIP association, wrong
+security group, or missing SSH rule fails before new instance files or storage
+state are minted.
+
 For local inspection only, regenerate into a temp directory instead of writing
 ignored root artifacts:
 
@@ -124,4 +129,5 @@ attached, or if the CloudFormation stack allocation does not match the ENI.
   safe; terminate is data destructive unless volume retention is changed first.
 - **Multiple r8a instances match the tag.** Pass `--instance-id` explicitly.
 - **Collaborator IP drift.** Re-run the stack with the new `/32` CIDR. Do not
-  open SSH to `0.0.0.0/0`; the deploy script refuses that value.
+  open SSH to `0.0.0.0/0` or broad network ranges; the deploy script
+  canonicalizes operator IPs to `/32` and rejects broader CIDRs.

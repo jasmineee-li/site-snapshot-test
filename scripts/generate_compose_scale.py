@@ -1,7 +1,7 @@
 """generate_compose_scale.py - Emit docker-compose + proxy + instances config
-from scripts/scale_config.yml for the current r5 GitLab/Reddit scale-out.
+from a selected scale topology and benchmark host config.
 
-Reads a canonical scale_config.yml (replica counts, port bases, volumes) plus a
+Reads a scale_config YAML (replica counts, port bases, volumes) plus a
 canonical base instances config and produces:
   - <out_dir>/compose.scale.yml        - all replicas per scale_config
   - <out_dir>/compose.smoke.yml        - 1-per-site smoke-test subset
@@ -22,9 +22,9 @@ Important contract:
 
 Usage:
   python scripts/generate_compose_scale.py \
-      --config scripts/scale_config.yml \
+      --config scripts/scale_config.r8a-24x24.yml \
       --base-config instances.json \
-      --host-config configs/benchmark_hosts/r5.yaml \
+      --host-config configs/benchmark_hosts/r8a.yaml \
       --proxy-token ab12... \
       --mode scale \
       --out-dir /tmp

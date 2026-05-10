@@ -2,8 +2,9 @@
 # setup_phase4_on_host.sh — bring a fresh host from bootstrap-complete to
 # Phase-4-ready state. Idempotent: safe to rerun; exits 0 if already green.
 #
-# Prereq: ``bootstrap_r5.sh`` (or equivalent) has run and all benchmark
-# containers are up with env-ctrl responding.
+# Prereq: ``bootstrap_r8a.sh`` for canonical r8a runs, or the selected-host
+# equivalent, has run and all benchmark containers are up with env-ctrl
+# responding.
 #
 # The script codifies everything the operator had to do by hand on the
 # 2026-04-20 r5 setup. Run order matters: uv/venvs → playwright system
@@ -29,6 +30,7 @@ INSTANCES="${INSTANCES:-instances.scale.json}"
 ARTIFACTS_SOURCE=""
 BENCHMARK_ROOT="${WORLDSIM_BENCHMARK_ROOT:-/home/ubuntu/vendors/webarena-verified}"
 SCALE_CONFIG="${WORLDSIM_SCALE_CONFIG:-}"
+R8A_CONTROL_PLANE_AUDIT="${WORLDSIM_R8A_CONTROL_PLANE_AUDIT:-$REPO_ROOT/scripts/audit_r8a_control_plane.sh}"
 SCALE_CONFIG_EXPLICIT=0
 if [[ -n "$SCALE_CONFIG" ]]; then
     SCALE_CONFIG_EXPLICIT=1
@@ -44,7 +46,8 @@ setup_phase4_on_host.sh
 Options:
   --host-config <path>       benchmark host YAML (required)
   --instances <path>         instances.json (default: instances.scale.json)
-  --scale-config <path>      scale topology YAML for regeneration (default: scripts/scale_config.yml)
+  --scale-config <path>      scale topology YAML for regeneration (default: host-sensitive;
+                             r8a uses scripts/scale_config.r8a-24x24.yml)
   --artifacts-source <uri>   s3://, ssh://, or /local/path for phase_0c/2/3
   --benchmark-root <path>    WebArena Verified checkout (default: /home/ubuntu/vendors/webarena-verified)
   --skip-pvpo-container      deprecated no-op; page-surface-stable PVPO needs no Docker container
@@ -131,6 +134,11 @@ uv sync --locked --extra dev
     }
     uv sync --locked
 )
+
+if [[ "$HOST_NAME" == "r8a" ]]; then
+    log "step 1a: r8a control-plane audit"
+    "$R8A_CONTROL_PLANE_AUDIT" --host-config "$HOST_CONFIG_PATH"
+fi
 
 # Resolve orchestrator_host from the host config once (needed by step 5 to
 # mint storage_state against the same host site_url uses). Phase 0d cookies

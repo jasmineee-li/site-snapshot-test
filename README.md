@@ -134,18 +134,18 @@ running instances. Phase 0c works without it (code-reading only). Phases 1,
 **Deploy the proxy:**
 
 ```bash
-# Canonical r5 path (scale port map + explicit HTTP opt-in):
-./scripts/deploy_proxy_r5.sh
+# Canonical r8a path (audited EIP/SSH control plane + scale port map):
+./scripts/deploy_proxy_r8a.sh
 
 # Generic path with explicit topology and HTTP opt-in:
 ./scripts/deploy_benchmark_proxy.sh \
-    --host-config configs/benchmark_hosts/r5.yaml \
+    --host-config configs/benchmark_hosts/r8a.yaml \
     --topology scale \
     --insecure-http
 
 # With explicit arguments:
 ./scripts/deploy_benchmark_proxy.sh \
-    --host-config configs/benchmark_hosts/r5.yaml \
+    --host-config configs/benchmark_hosts/r8a.yaml \
     --topology scale \
     --insecure-http \
     --ssh-key ~/.ssh/webarena-key.pem \
@@ -156,14 +156,15 @@ The script installs nginx on the EC2 instance, generates a random token, writes
 one listener row per proxy mapping, and restarts nginx. Current scale maps include
 separate web and envctrl rows per replica rather than one generic proxy port per
 site. The command is idempotent, safe to re-run, and benchmark-agnostic because it
-reads port mappings from `scripts/proxy_ports.conf` or a custom file. The
-checked-in `deploy_proxy_r5.sh` wrapper currently opts into token-protected HTTP
-by passing `--insecure-http`; switch to TLS inputs if you want HTTPS on the
-public proxy.
+reads port mappings from `scripts/proxy_ports.conf` or a custom file. The r8a
+wrapper first runs the control-plane audit, then opts into token-protected HTTP by
+passing `--insecure-http`; switch to TLS inputs if you want HTTPS on the public
+proxy. `deploy_proxy_r5.sh` remains only for legacy r5 runs.
 
-For the scale bring-up path, `./scripts/bootstrap_r5.sh` now regenerates the
-scale artifacts and runs a security-group preflight against the generated
-runtime ports before staging the compose file onto the host.
+For the canonical scale bring-up path, `./scripts/bootstrap_r8a.sh` audits the
+r8a control plane, regenerates the 24x24 scale artifacts, and runs a
+security-group preflight against the generated runtime ports before staging the
+compose file onto the host. `bootstrap_r5.sh` remains only for legacy r5 runs.
 
 For TLS-backed Phase 0c probing, the deploy helper also accepts
 `--tls-cert /path/on/host/fullchain.pem --tls-key /path/on/host/privkey.pem`

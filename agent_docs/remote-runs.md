@@ -87,16 +87,16 @@ precondition, materialize a fresh state directory from the verified Phase
 This keeps failed setup attempts from becoming part of the evidentiary run
 history and makes later summaries unambiguous.
 
-Canonical selected-host Phase 4 launch shape. Keep r5 as the example below;
-for r8a paper-facing AgentLab/process-pool runs, use
-`configs/benchmark_hosts/r8a.yaml` and the matching generated topology.
+Canonical selected-host Phase 4 launch shape. r8a is the example below because
+it is the current paper-facing scale/smoke host. For legacy r5 runs, swap in
+`configs/benchmark_hosts/r5.yaml` and the matching generated topology.
 
 ```bash
 RUN=logs/<phase4_run_name>
 SOURCE=logs/<verified_phase2_phase3_source>
 
 scripts/remote_job_start.sh \
-  --host-config configs/benchmark_hosts/r5.yaml \
+  --host-config configs/benchmark_hosts/r8a.yaml \
   --remote-dir /home/ubuntu/browser-sim \
   --name <short-job-name> \
   --state-dir "$RUN" \

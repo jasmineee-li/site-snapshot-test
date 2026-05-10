@@ -1,19 +1,20 @@
 # Rigor-run setup runbook
 
 One-page reference for going from a fresh EC2 host to a Phase 4 rigor run.
-Codifies the manual r5 setup from 2026-04-20 while keeping the commands
-host-config driven for current r5/r8a runs.
+Codifies the manual r5 setup from 2026-04-20 while making r8a the canonical
+host-config-driven path for current runs.
 
 ## Sequence
 
-1. **`scripts/bootstrap_r5.sh`** (or equivalent for the target host).
-   Generates the scale compose, preflights the SG, brings benchmark
-   containers up with env-ctrl responding.
+1. **`scripts/bootstrap_r8a.sh`** for current r8a runs, or the selected-host
+   equivalent. Audits the r8a control plane, generates the scale compose,
+   preflights the SG, and brings benchmark containers up with env-ctrl
+   responding.
 2. **`scripts/setup_phase4_on_host.sh`** idempotent setup:
 
    ```
    scripts/setup_phase4_on_host.sh \
-       --host-config configs/benchmark_hosts/r5.yaml \
+       --host-config configs/benchmark_hosts/r8a.yaml \
        --instances instances.scale.json \
        --artifacts-source s3://benchmark-archives/worldsim-runs/<run_id>/
    ```
@@ -48,7 +49,7 @@ host-config driven for current r5/r8a runs.
 3. **Launch or resume**:
    ```
    scripts/remote_job_start.sh \
-       --host-config configs/benchmark_hosts/r5.yaml \
+       --host-config configs/benchmark_hosts/r8a.yaml \
        --remote-dir /home/ubuntu/browser-sim \
        --name phase4-rigor \
        --state-dir logs/<run_name> \
@@ -63,7 +64,7 @@ host-config driven for current r5/r8a runs.
    resume subcommand through the same remote job wrapper:
    ```
    scripts/remote_job_start.sh \
-       --host-config configs/benchmark_hosts/r5.yaml \
+       --host-config configs/benchmark_hosts/r8a.yaml \
        --remote-dir /home/ubuntu/browser-sim \
        --name phase4-resume \
        --state-dir logs/<run_name> \
