@@ -1,0 +1,89 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Benchmark host secrets + per-deploy runtime state
+.benchmark_host_id
+.proxy_token
+.benchmark_proxy_metadata
+.benchmark_proxy_ports.conf
+aws-credentials
+aws-credentials.*
+
+# Modal
+.modal/
+
+# WARP Taskgen runtime
+logs/
+pipeline_outputs/
+data/hf/**
+!data/
+!data/hf/
+!data/.gitkeep
+!data/hf/.gitkeep
+*.sqlite
+*.sqlite3
+instances.json
+instances.*.local.json
+
+# Vendors — external benchmark clones (user runs `git clone` themselves)
+vendors/
+
+# Generated host artifacts — regen from scale_config.yml + host config via
+# scripts/generate_scale_r5.sh. Treating the generator output as source
+# leads to drift and hand-edit bandaids.
+instances.scale.json
+instances.scale.json.fragment
+instances.smoke.json
+instances.smoke.json.fragment
+compose.scale.yml
+compose.smoke.yml
+scripts/docker-compose.scale.yml
+scripts/docker-compose.smoke.yml
+scripts/proxy_ports.conf
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+.cursor/
+.codex-worktrees/
+.claude/*
+!.claude/settings.json
+!.claude/hooks
+!.claude/skills
+.gradio/
+
+# Test / tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Backup files
+*.bak
+*.swp
+*.swo
+*~
+
+# Misc
+*.log
+nohup*.out

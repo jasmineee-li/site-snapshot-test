@@ -1,0 +1,23 @@
+[project]
+name = "warp-taskgen-agentlab-runner"
+version = "0.1.0"
+description = "Isolated AgentLab/BrowserGym sidecar runner for WARP Taskgen comparison runs"
+requires-python = ">=3.12,<3.13"
+readme = "README.md"
+dependencies = [
+    "agentlab",
+]
+
+[project.scripts]
+warp-taskgen-agentlab-runner = "worldsim_agentlab_runner.cli:main"
+worldsim-agentlab-runner = "worldsim_agentlab_runner.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/worldsim_agentlab_runner"]
+
+[tool.uv.sources]
+agentlab = { git = "https://github.com/ServiceNow/AgentLab.git", rev = "cbc35a9bc0facaf731bc858c5825edbe757c719f" }

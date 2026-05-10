@@ -1,0 +1,498 @@
+import json
+
+from worldsim.agent_auth import resolve_agent_auth, resolve_storage_state_path
+
+
+def _write_storage_state(path, *, domain="gitlab.test", same_site="no_restriction"):
+    path.write_text(
+        json.dumps(
+            {
+                "cookies": [
+                    {
+                        "name": "session",
+                        "value": "abc",
+                        "domain": domain,
+                        "path": "/",
+                        "sameSite": same_site,
+                    }
+                ],
+                "origins": [{"origin": f"http://{domain}", "localStorage": []}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_storage_state_success_normalizes_same_site(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    path = benchmark_root / "storage_state.json"
+    _write_storage_state(path)
+
+    resolved = resolve_agent_auth(
+        {"type": "storage_state", "storage_state": {"path": str(path)}},
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        benchmark_root=benchmark_root,
+    )
+
+    assert resolved.usable
+    assert resolved.storage_state_path == path
+    assert resolved.api_request_context_kwargs["storage_state"]["cookies"][0]["sameSite"] == "None"
+    assert resolved.browser_context_kwargs == {
+        "storage_state": resolved.api_request_context_kwargs["storage_state"]
+    }
+
+
+def test_storage_state_rejects_host_bound_cookie_for_other_host(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    path = benchmark_root / "storage_state.json"
+    _write_storage_state(path, domain="old-gitlab.test")
+
+    resolved = resolve_agent_auth(
+        {"type": "storage_state", "storage_state": {"path": str(path)}},
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        benchmark_root=benchmark_root,
+    )
+
+    assert not resolved.usable
+    assert "do not match live host" in (resolved.unusable_reason or "")
+
+
+def test_storage_state_rejects_mixed_cookie_hosts(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    path = benchmark_root / "storage_state.json"
+    path.write_text(
+        json.dumps(
+            {
+                "cookies": [
+                    {"name": "session", "value": "abc", "domain": "gitlab.test"},
+                    {"name": "other", "value": "secret", "domain": "other.test"},
+                ],
+                "origins": [{"origin": "http://gitlab.test", "localStorage": []}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    resolved = resolve_agent_auth(
+        {"type": "storage_state", "storage_state": {"path": str(path)}},
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+        benchmark_root=benchmark_root,
+    )
+
+    assert not resolved.usable
+    assert "other.test" in (resolved.unusable_reason or "")
+
+
+def test_http_headers_interpolate_credentials():
+    resolved = resolve_agent_auth(
+        {
+            "type": "http_headers",
+            "http_headers": {"headers": {"Authorization": "Basic ${credentials.username}:x"}},
+            "authentication": {"credentials": {"username": "alice"}},
+        },
+        site_name="reddit",
+        site_url="http://reddit.test",
+    )
+
+    assert resolved.usable
+    assert resolved.api_request_context_kwargs == {
+        "extra_http_headers": {"Authorization": "Basic alice:x"}
+    }
+    assert resolved.browser_context_kwargs == {
+        "extra_http_headers": {"Authorization": "Basic alice:x"}
+    }
+
+
+def test_http_basic_maps_to_context_credentials():
+    resolved = resolve_agent_auth(
+        {
+            "type": "http_basic",
+            "http_basic": {"username": "alice", "password": "pw"},
+        },
+        site_name="site",
+        site_url="http://site.test",
+    )
+
+    assert resolved.usable
+    assert resolved.api_request_context_kwargs == {
+        "http_credentials": {
+            "username": "alice",
+            "password": "pw",
+            "origin": "http://site.test",
+        }
+    }
+    assert resolved.browser_context_kwargs == resolved.api_request_context_kwargs
+
+
+def test_http_basic_requires_valid_origin():
+    resolved = resolve_agent_auth(
+        {
+            "type": "http_basic",
+            "http_basic": {"username": "alice", "password": "pw"},
+        },
+        site_name="site",
+        site_url="",
+    )
+
+    assert not resolved.usable
+    assert "valid HTTP origin" in (resolved.unusable_reason or "")
+
+
+def test_declared_storage_state_without_artifact_is_unusable(tmp_path, monkeypatch):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "state"))
+
+    resolved = resolve_agent_auth(
+        {"type": "storage_state"},
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+    )
+
+    assert not resolved.usable
+    assert (
+        resolved.unusable_reason == "storage_state auth declared but no usable artifact was found"
+    )
+
+
+def test_unknown_auth_is_unusable_for_preflight():
+    resolved = resolve_agent_auth(
+        {"type": "unknown"},
+        site_name="gitlab",
+        site_url="http://gitlab.test",
+    )
+
+    assert not resolved.usable
+    assert "unknown" in (resolved.unusable_reason or "")
+
+
+def test_relative_storage_state_path_cannot_escape_benchmark_root(tmp_path, monkeypatch):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "state"))
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    outside = tmp_path / "outside" / "storage_state.json"
+    outside.parent.mkdir()
+    _write_storage_state(outside)
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {"path": "../outside/storage_state.json"}},
+        site_name="gitlab",
+        benchmark_root=benchmark_root,
+    )
+
+    assert resolved is None
+
+
+def test_absolute_declared_storage_state_cannot_escape_benchmark_root(tmp_path, monkeypatch):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "state"))
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    outside = tmp_path / "outside" / "storage_state.json"
+    outside.parent.mkdir()
+    _write_storage_state(outside)
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {"path": str(outside)}},
+        site_name="gitlab",
+        benchmark_root=benchmark_root,
+    )
+
+    assert resolved is None
+
+
+def test_declared_storage_state_requires_containment_root(tmp_path, monkeypatch):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "state"))
+    outside = tmp_path / "outside" / "storage_state.json"
+    outside.parent.mkdir()
+    _write_storage_state(outside)
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {"path": str(outside)}},
+        site_name="gitlab",
+    )
+
+    assert resolved is None
+
+
+def test_declared_storage_state_allows_phase_0d_root_without_benchmark_root(tmp_path, monkeypatch):
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    phase_0d = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    phase_0d.parent.mkdir(parents=True)
+    _write_storage_state(phase_0d)
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {"path": str(phase_0d)}},
+        site_name="gitlab",
+    )
+
+    assert resolved == phase_0d
+
+
+def test_declared_logs_phase_0d_path_falls_back_to_canonical_logs_for_isolated_state(
+    tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    isolated_state = tmp_path / "logs" / "run"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(isolated_state))
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    canonical = tmp_path / "logs" / "phase_0d" / "gitlab" / "storage_state.json"
+    canonical.parent.mkdir(parents=True)
+    _write_storage_state(canonical)
+
+    resolved = resolve_storage_state_path(
+        {
+            "type": "storage_state",
+            "storage_state": {"path": "logs/phase_0d/gitlab/storage_state.json"},
+        },
+        site_name="gitlab",
+        benchmark_root=benchmark_root,
+    )
+
+    assert resolved == canonical
+
+
+def test_declared_logs_phase_0d_path_prefers_active_state_dir(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    isolated_state = tmp_path / "logs" / "run"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(isolated_state))
+    canonical = tmp_path / "logs" / "phase_0d" / "gitlab" / "storage_state.json"
+    canonical.parent.mkdir(parents=True)
+    _write_storage_state(canonical, domain="canonical.test")
+    isolated = isolated_state / "phase_0d" / "gitlab" / "storage_state.json"
+    isolated.parent.mkdir(parents=True)
+    _write_storage_state(isolated, domain="isolated.test")
+
+    resolved = resolve_storage_state_path(
+        {
+            "type": "storage_state",
+            "storage_state": {"path": "logs/phase_0d/gitlab/storage_state.json"},
+        },
+        site_name="gitlab",
+    )
+
+    assert resolved == isolated
+
+
+def test_phase_0d_fallback_prefers_isolated_state_over_canonical_logs(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    isolated_state = tmp_path / "logs" / "run"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(isolated_state))
+    canonical = tmp_path / "logs" / "phase_0d" / "gitlab" / "storage_state.json"
+    canonical.parent.mkdir(parents=True)
+    _write_storage_state(canonical, domain="canonical.test")
+    isolated = isolated_state / "phase_0d" / "gitlab" / "storage_state.json"
+    isolated.parent.mkdir(parents=True)
+    _write_storage_state(isolated, domain="isolated.test")
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {}},
+        site_name="gitlab",
+    )
+
+    assert resolved == isolated
+
+
+def test_storage_state_override_cannot_escape_allowed_roots(tmp_path, monkeypatch):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "state"))
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    outside = tmp_path / "outside" / "storage_state.json"
+    outside.parent.mkdir()
+    _write_storage_state(outside)
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {}},
+        site_name="gitlab",
+        storage_state_override=outside,
+        benchmark_root=benchmark_root,
+    )
+
+    assert resolved is None
+
+
+def test_storage_state_override_requires_benchmark_root(tmp_path, monkeypatch):
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(tmp_path / "state"))
+    override = tmp_path / "storage_state.json"
+    _write_storage_state(override)
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {}},
+        site_name="gitlab",
+        storage_state_override=override,
+    )
+
+    assert resolved is None
+
+
+def test_storage_state_override_rejects_unsafe_site_name(tmp_path, monkeypatch):
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    phase_0d = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    phase_0d.parent.mkdir(parents=True)
+    _write_storage_state(phase_0d)
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {}},
+        site_name="../gitlab",
+        storage_state_override=phase_0d,
+        benchmark_root=benchmark_root,
+    )
+
+    assert resolved is None
+
+
+def test_storage_state_override_allows_phase_0d_root(tmp_path, monkeypatch):
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    phase_0d = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    phase_0d.parent.mkdir(parents=True)
+    _write_storage_state(phase_0d)
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {}},
+        site_name="gitlab",
+        storage_state_override=phase_0d,
+        benchmark_root=benchmark_root,
+    )
+
+    assert resolved == phase_0d
+
+
+def test_storage_state_fallback_rejects_unsafe_site_name(tmp_path, monkeypatch):
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    escaped = state_dir / "escape" / "storage_state.json"
+    escaped.parent.mkdir(parents=True)
+    _write_storage_state(escaped)
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {}},
+        site_name="../escape",
+    )
+
+    assert resolved is None
+
+
+def test_resolve_storage_state_prefers_per_instance_path(tmp_path, monkeypatch):
+    """When ``instance_id`` is supplied and the per-instance file exists, use it."""
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    shared = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    shared.parent.mkdir(parents=True)
+    _write_storage_state(shared, domain="172.17.0.1")
+    per_instance = (
+        state_dir
+        / "phase_0d"
+        / "gitlab"
+        / "instances"
+        / "instance_deadbeefdeadbeef"
+        / "storage_state.json"
+    )
+    per_instance.parent.mkdir(parents=True)
+    _write_storage_state(per_instance, domain="172.17.0.1")
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {"path": str(shared)}},
+        site_name="gitlab",
+        instance_id="instance_deadbeefdeadbeef",
+    )
+
+    assert resolved == per_instance
+
+
+def test_resolve_storage_state_falls_back_to_shared_when_per_instance_missing(
+    tmp_path, monkeypatch, caplog
+):
+    """Multi-instance configs without per-instance files yet fall back to shared with WARNING."""
+    import logging
+
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    shared = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    shared.parent.mkdir(parents=True)
+    _write_storage_state(shared, domain="172.17.0.1")
+
+    with caplog.at_level(logging.WARNING, logger="worldsim.agent_auth"):
+        resolved = resolve_storage_state_path(
+            {"type": "storage_state", "storage_state": {"path": str(shared)}},
+            site_name="gitlab",
+            instance_id="instance_deadbeefdeadbeef",
+        )
+
+    assert resolved == shared
+    assert any("per-instance storage_state" in record.message for record in caplog.records)
+    assert any("re-run Phase 0d" in record.message for record in caplog.records)
+
+
+def test_resolve_storage_state_single_instance_uses_shared_path(tmp_path, monkeypatch):
+    """No ``instance_id`` -> classic shared-path lookup, unchanged behavior."""
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    shared = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    shared.parent.mkdir(parents=True)
+    _write_storage_state(shared, domain="gitlab.test")
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {"path": str(shared)}},
+        site_name="gitlab",
+    )
+
+    assert resolved == shared
+
+
+def test_resolve_storage_state_unsafe_instance_id_is_ignored(tmp_path, monkeypatch):
+    """Path-traversal attempts in instance_id are rejected; falls back to shared."""
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    shared = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    shared.parent.mkdir(parents=True)
+    _write_storage_state(shared, domain="gitlab.test")
+
+    resolved = resolve_storage_state_path(
+        {"type": "storage_state", "storage_state": {"path": str(shared)}},
+        site_name="gitlab",
+        instance_id="../../etc/passwd",
+    )
+
+    assert resolved == shared
+
+
+def test_resolve_storage_state_per_instance_preferred_over_declared_path(tmp_path, monkeypatch):
+    """Per-instance lookup wins over declared path when both exist."""
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("WORLDSIM_STATE_DIR", str(state_dir))
+    declared = state_dir / "phase_0d" / "gitlab" / "storage_state.json"
+    declared.parent.mkdir(parents=True)
+    _write_storage_state(declared, domain="gitlab.test")
+    per_instance = (
+        state_dir
+        / "phase_0d"
+        / "gitlab"
+        / "instances"
+        / "instance_abcdef0123456789"
+        / "storage_state.json"
+    )
+    per_instance.parent.mkdir(parents=True)
+    _write_storage_state(per_instance, domain="gitlab.test")
+
+    # Declared path explicitly points at the shared file via a relative path.
+    resolved = resolve_storage_state_path(
+        {
+            "type": "storage_state",
+            "storage_state": {"path": "phase_0d/gitlab/storage_state.json"},
+        },
+        site_name="gitlab",
+        instance_id="instance_abcdef0123456789",
+    )
+
+    assert resolved == per_instance

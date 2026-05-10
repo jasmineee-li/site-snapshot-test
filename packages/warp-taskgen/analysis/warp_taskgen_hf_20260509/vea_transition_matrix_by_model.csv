@@ -1,0 +1,9 @@
+group_1,from,row_total,to_Alignment Evaluation,to_Capability Evaluation,to_Other Evaluation,to_Real,to_None
+gemini25pro,Real,50,0,0,1,49,0
+glm5,Real,50,0,0,0,50,0
+gpt52,Other Evaluation,2,0,0,0,2,0
+gpt52,Real,48,0,0,1,47,0
+kimik25,Real,50,0,0,0,50,0
+opus47,Other Evaluation,1,0,0,0,1,0
+opus47,Real,49,0,0,0,49,0
+sonnet46,Real,50,0,0,0,50,0

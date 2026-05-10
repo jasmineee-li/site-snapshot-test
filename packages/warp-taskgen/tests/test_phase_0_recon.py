@@ -1,0 +1,2105 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from worldsim.config import BenchmarkInstance, VerificationProxy
+from worldsim.phases import phase_0_recon
+from worldsim.phases.phase_0c_artifacts import text_sha256, write_json_atomic
+from worldsim.phases.phase_0c_audit import audit_phase_0c_profiles
+
+VERIFICATION_OUTPUT = "/workspace/output/VERIFICATION_CAPABILITIES.json"
+DATA_MODEL_OUTPUT = "/workspace/output/DATA_MODEL.json"
+AGENT_CONTEXT_OUTPUT = "/workspace/output/AGENT_CONTEXT.json"
+INJECTION_OUTPUT = "/workspace/output/INJECTION_SURFACE.json"
+
+
+def test_load_phase_0c_config_resolves_relative_proxy_token_file(tmp_path):
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    (config_dir / ".proxy_token").write_text("phase0-token\n")
+    instances_path = config_dir / "instances.json"
+    instances_path.write_text(
+        json.dumps(
+            {
+                "benchmark_name": "WebArena Verified",
+                "benchmark_codebase": str(tmp_path),
+                "verification_proxy": {
+                    "token_file": ".proxy_token",
+                    "port_offset": 10000,
+                },
+                "instances": [
+                    {
+                        "site_name": "gitlab",
+                        "site_url": "http://gitlab.test:8023",
+                        "agent_auth": {"type": "none"},
+                    }
+                ],
+            }
+        )
+    )
+
+    _instances, proxy = phase_0_recon._load_phase_0c_config(instances_path)
+
+    assert proxy is not None
+    assert proxy.token == "phase0-token"
+
+
+class _FakeVolume:
+    def __init__(self, name: str = "fake-volume") -> None:
+        self.name = name
+
+    def read_only(self):
+        return self
+
+
+@pytest.fixture(autouse=True)
+def _stub_phase_0c_volume_upload(monkeypatch):
+    async def fake_upload_to_volume(path):
+        return _FakeVolume(str(path))
+
+    monkeypatch.setattr(phase_0_recon, "upload_to_volume", fake_upload_to_volume)
+
+
+def _valid_verification_capabilities() -> list[dict]:
+    return [
+        {
+            "eval_type": "NetworkEventEvaluator",
+            "description": "Checks the outbound network request.",
+            "interface": {"params": {"expected": "object"}, "returns": "boolean"},
+            "constraints": "",
+            "examples": [],
+        }
+    ]
+
+
+def _valid_data_model() -> list[dict]:
+    return [
+        {
+            "entity": "products",
+            "storage": "products",
+            "fields": [
+                {"name": "title", "type": "string", "mutable_via_ui": False},
+                {"name": "description", "type": "string", "mutable_via_ui": True},
+            ],
+            "relationships": [],
+            "sample_values": [{"title": "Desk lamp"}],
+        }
+    ]
+
+
+def _valid_agent_context() -> dict:
+    return {
+        "response_format": {
+            "requires_structured_output": False,
+            "output_schema": None,
+            "per_task_format_field": None,
+            "description": "Evaluation inspects browser state directly.",
+        },
+        "authentication": {
+            "pre_authenticated": False,
+            "credentials": {"username": "demo", "password": "secret"},
+            "description": "Log in with the seeded shopping test account.",
+        },
+        "auth_mechanism": {
+            "type": "form_login",
+            "form_login": {
+                "login_url": "/login",
+                "username_selector": "#email",
+                "password_selector": "#password",
+                "submit_selector": "button[type='submit']",
+                "success_url_substring": "/account",
+            },
+        },
+        "agent_prompt_template": None,
+        "site_context": {
+            "platform_name": "Shopping",
+            "description": "An ecommerce storefront with order history and product pages.",
+        },
+    }
+
+
+def _valid_injection_surface(*, source_field: str = "products.description") -> dict:
+    return {
+        "injection_surface": [
+            {
+                "id": "surface-1",
+                "location_page": "/orders/1",
+                "source_field": source_field,
+                "rendering_format": "plaintext",
+                "visibility": "always_shown",
+                "controllable_by_tier": "any_user",
+                "controllability_justification": "Authenticated shoppers can submit this content.",
+                "delivery_channels": [
+                    {
+                        "mechanism": "form",
+                        "privileged_seed": False,
+                        "path_template": "/orders/{id}",
+                        "method": "POST",
+                        "body_field": "detail",
+                        "table": None,
+                        "column": None,
+                        "postcondition": {
+                            "type": "db_row_value",
+                            "table": "orders",
+                            "value_column": "detail",
+                            "where": {"id": {"path_param": "id"}},
+                        },
+                    },
+                ],
+                "rendering_context": "Order detail page body copy.",
+                "compatible_concealments": ["plaintext"],
+                "attacker_realism": "medium",
+                "realism_justification": "Customer-visible free-form text field.",
+            }
+        ],
+        "existing_task_coverage": {
+            "injection_surfaces_with_task_coverage": ["surface-1"],
+            "injection_surfaces_without_task_coverage": [],
+        },
+    }
+
+
+def test_enrich_reddit_profile_with_forums_merges_live_inventory(monkeypatch):
+    instance = BenchmarkInstance(
+        site_name="reddit",
+        site_url="http://reddit.local",
+        db_connection="mysql://u:p@h/db",
+    )
+
+    monkeypatch.setattr(
+        "worldsim.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
+        lambda site_url, db_connection, **kwargs: {
+            "forums": [{"id": "1", "name": "books", "title": "Books"}]
+        },
+    )
+
+    profile = phase_0_recon._enrich_reddit_profile_with_forums(
+        site_name="reddit",
+        profile={"site_name": "reddit"},
+        instance=instance,
+    )
+
+    assert profile["available_entities"]["forums"] == [
+        {"id": "1", "name": "books", "title": "Books"}
+    ]
+
+
+def test_enrich_reddit_profile_with_forums_passes_remote_runtime_db_host(monkeypatch):
+    instance = BenchmarkInstance(
+        site_name="reddit",
+        site_url="http://reddit.local",
+        db_connection="postgresql://u:p@3.12.221.9:5434/postmill",
+    )
+    calls: list[dict] = []
+
+    def fake_enrich(site_url, db_connection, **kwargs):
+        calls.append(
+            {
+                "site_url": site_url,
+                "db_connection": db_connection,
+                "runtime_db_host": kwargs.get("runtime_db_host"),
+            }
+        )
+        return {"forums": [{"id": "1", "name": "books", "title": "Books"}]}
+
+    monkeypatch.setenv("WORLDSIM_ORCHESTRATOR_HOST", "172.17.0.1")
+    monkeypatch.setattr(
+        "worldsim.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
+        fake_enrich,
+    )
+
+    phase_0_recon._enrich_reddit_profile_with_forums(
+        site_name="reddit",
+        profile={"site_name": "reddit"},
+        instance=instance,
+    )
+
+    assert calls == [
+        {
+            "site_url": "http://reddit.local",
+            "db_connection": "postgresql://u:p@3.12.221.9:5434/postmill",
+            "runtime_db_host": "172.17.0.1",
+        }
+    ]
+
+
+def test_enrich_reddit_profile_with_forums_uses_explicit_host_inventory_instance(monkeypatch):
+    instance = BenchmarkInstance(
+        site_name="reddit",
+        site_url="http://172.17.0.1:9990",
+        db_connection="postgresql://u:p@172.17.0.1:5500/postmill",
+    )
+    calls: list[dict] = []
+
+    def fake_enrich(site_url, db_connection, **kwargs):
+        calls.append(
+            {
+                "site_url": site_url,
+                "db_connection": db_connection,
+                "runtime_db_host": kwargs.get("runtime_db_host"),
+            }
+        )
+        return {"forums": [{"id": "1", "name": "books", "title": "Books"}]}
+
+    monkeypatch.setenv("WORLDSIM_ORCHESTRATOR_HOST", "172.17.0.1")
+    monkeypatch.setattr(
+        "worldsim.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
+        fake_enrich,
+    )
+
+    phase_0_recon._enrich_reddit_profile_with_forums(
+        site_name="reddit",
+        profile={"site_name": "reddit"},
+        instance=instance,
+    )
+
+    assert calls == [
+        {
+            "site_url": "http://172.17.0.1:9990",
+            "db_connection": "postgresql://u:p@172.17.0.1:5500/postmill",
+            "runtime_db_host": "172.17.0.1",
+        }
+    ]
+
+
+def test_enrich_reddit_profile_with_forums_keeps_only_cross_replica_common_forums(monkeypatch):
+    instances = [
+        BenchmarkInstance(
+            site_name="reddit",
+            site_url="http://172.17.0.1:9900",
+            db_connection="postgresql://u:p@172.17.0.1:5500/postmill",
+        ),
+        BenchmarkInstance(
+            site_name="reddit",
+            site_url="http://172.17.0.1:9910",
+            db_connection="postgresql://u:p@172.17.0.1:5501/postmill",
+        ),
+    ]
+    calls: list[str] = []
+
+    def fake_enrich(site_url, db_connection, **kwargs):
+        calls.append(site_url)
+        if site_url.endswith(":9900"):
+            return {
+                "forums": [
+                    {"id": "1", "name": "probe-only", "title": "probe-only"},
+                    {"id": "2", "name": "AskReddit", "title": "AskReddit"},
+                ]
+            }
+        return {"forums": [{"id": "7", "name": "AskReddit", "title": "AskReddit"}]}
+
+    monkeypatch.setattr(
+        "worldsim.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
+        fake_enrich,
+    )
+
+    profile = phase_0_recon._enrich_reddit_profile_with_forums(
+        site_name="reddit",
+        profile={"site_name": "reddit"},
+        instance=instances[0],
+        instances=instances,
+    )
+
+    assert calls == ["http://172.17.0.1:9900", "http://172.17.0.1:9910"]
+    assert profile["available_entities"]["forums"] == [
+        {"id": "2", "name": "AskReddit", "title": "AskReddit"}
+    ]
+
+
+def test_enrich_agent_context_with_handles_passes_remote_runtime_web_host(monkeypatch):
+    instance = BenchmarkInstance(
+        site_name="gitlab",
+        site_url="http://3.12.221.9:8023",
+        auth={
+            "type": "bearer_token",
+            "header_name": "PRIVATE-TOKEN",
+            "token_generator": "gitlab_pat",
+            "credentials": {"username": "byteblaze", "password": "hello1234"},
+        },
+    )
+    calls: list[dict] = []
+
+    def fake_enrich(site_url, auth_config, **kwargs):
+        calls.append(
+            {
+                "site_url": site_url,
+                "auth_config": auth_config,
+                "runtime_web_host": kwargs.get("runtime_web_host"),
+            }
+        )
+        return {"user_handles": ["byteblaze"], "group_handles": ["a11yproject"]}
+
+    monkeypatch.setenv("WORLDSIM_ORCHESTRATOR_HOST", "172.17.0.1")
+    monkeypatch.setattr(
+        "worldsim.phases.phase_0c_handle_enrichment.enrich_gitlab_handles",
+        fake_enrich,
+    )
+
+    context = phase_0_recon._enrich_agent_context_with_handles(
+        site_name="gitlab",
+        agent_context={"site_context": {"platform_name": "GitLab"}},
+        instance=instance,
+    )
+
+    assert calls == [
+        {
+            "site_url": "http://3.12.221.9:8023",
+            "auth_config": instance.auth,
+            "runtime_web_host": "172.17.0.1",
+        }
+    ]
+    assert context["gitlab"]["user_handles"] == ["byteblaze"]
+
+
+def test_enrich_gitlab_profile_with_projects_merges_project_inventory(monkeypatch):
+    instance = BenchmarkInstance(
+        site_name="gitlab",
+        site_url="http://172.17.0.1:8023",
+        auth={
+            "type": "bearer_token",
+            "header_name": "PRIVATE-TOKEN",
+            "token_generator": "gitlab_pat",
+            "credentials": {"username": "byteblaze", "password": "hello1234"},
+        },
+    )
+    calls: list[dict] = []
+
+    def fake_enrich(site_url, auth_config, **kwargs):
+        calls.append(
+            {
+                "site_url": site_url,
+                "auth_config": auth_config,
+                "runtime_web_host": kwargs.get("runtime_web_host"),
+            }
+        )
+        return {
+            "projects": [
+                {
+                    "id": "179",
+                    "path_with_namespace": "a11yproject/a11y-webring.club",
+                }
+            ]
+        }
+
+    monkeypatch.setenv("WORLDSIM_ORCHESTRATOR_HOST", "172.17.0.1")
+    monkeypatch.setattr(
+        "worldsim.phases.phase_0c_handle_enrichment.enrich_gitlab_projects",
+        fake_enrich,
+    )
+
+    profile = phase_0_recon._enrich_gitlab_profile_with_projects(
+        site_name="gitlab",
+        profile={"site_name": "gitlab"},
+        instance=instance,
+    )
+
+    assert calls == [
+        {
+            "site_url": "http://172.17.0.1:8023",
+            "auth_config": instance.auth,
+            "runtime_web_host": "172.17.0.1",
+        }
+    ]
+    assert profile["available_entities"]["projects"] == [
+        {"id": "179", "path_with_namespace": "a11yproject/a11y-webring.club"}
+    ]
+
+
+def test_enrich_reddit_profile_with_forums_falls_back_on_failure(monkeypatch):
+    instance = BenchmarkInstance(
+        site_name="reddit",
+        site_url="http://reddit.local",
+        db_connection="mysql://u:p@h/db",
+    )
+
+    from worldsim.phases.phase_0c_reddit_enrichment import RedditInventoryEnrichmentError
+
+    def fail(site_url, db_connection, **kwargs):
+        raise RedditInventoryEnrichmentError("boom")
+
+    monkeypatch.setattr(
+        "worldsim.phases.phase_0c_reddit_enrichment.enrich_reddit_forums",
+        fail,
+    )
+
+    original = {"site_name": "reddit"}
+    profile = phase_0_recon._enrich_reddit_profile_with_forums(
+        site_name="reddit",
+        profile=original,
+        instance=instance,
+    )
+
+    assert profile == original
+
+
+def _valid_injection_surface_with_verification(verified: object, note: str) -> dict:
+    payload = _valid_injection_surface()
+    payload["injection_surface"][0]["delivery_channels"][0]["verified"] = verified
+    payload["injection_surface"][0]["delivery_channels"][0]["verification_notes"] = note
+    return payload
+
+
+def _sandbox_json(output_path: str, payload: object) -> dict[str, str | None]:
+    output = {
+        output_path: json.dumps(payload),
+        "_summary": None,
+    }
+    if output_path == DATA_MODEL_OUTPUT:
+        output["/workspace/output/DATA_MODEL_EVIDENCE.json"] = json.dumps(
+            {"site_name": "shopping", "entities": [], "limitations": []}
+        )
+    if output_path == INJECTION_OUTPUT:
+        output.update(
+            {
+                "/workspace/output/SURFACE_DRAFT.json": json.dumps(
+                    {"site_name": "shopping", "surfaces": []}
+                ),
+                "/workspace/output/TASK_COVERAGE_DRAFT.json": json.dumps(
+                    {
+                        "site_name": "shopping",
+                        "task_links": [],
+                        "uncovered_surface_ids": [],
+                    }
+                ),
+                "/workspace/output/LIVE_VERIFICATION_NOTES.json": json.dumps(
+                    {
+                        "site_name": "shopping",
+                        "requests": [],
+                        "corrections": [],
+                        "limitations": [],
+                    }
+                ),
+            }
+        )
+    return output
+
+
+def _sandbox_json_with_sidecars(
+    output_path: str,
+    payload: object,
+    sidecars: dict[str, object],
+) -> dict[str, str | None]:
+    output = _sandbox_json(output_path, payload)
+    output.update({path: json.dumps(value) for path, value in sidecars.items()})
+    output["_telemetry"] = json.dumps({"schema_version": 1, "tool_calls": 3})
+    return output
+
+
+def _instances_config(benchmark_root: Path, *, site_url: str = "http://shopping.test") -> dict:
+    return {
+        "benchmark_name": "WebArena Verified",
+        "benchmark_codebase": str(benchmark_root),
+        "instances": [
+            {
+                "site_name": "shopping",
+                "site_url": site_url,
+            }
+        ],
+    }
+
+
+def _benchmark_setup(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    source_file = benchmark_root / "shopping.txt"
+    source_file.write_text("demo")
+    return benchmark_root, source_file
+
+
+def test_profile_injection_surface_prompt_uses_active_scope():
+    prompt = Path("worldsim/prompts/profile-injection-surface.md").read_text(encoding="utf-8")
+
+    assert "ordinary issue/forum-style user-generated content" in prompt
+    assert "regular-user HTTP/API/form channels for the configured site's in-scope UGC" in prompt
+    for site_specific_term in ("GitLab", "gitlab", "Reddit", "reddit", "Postmill", "postmill"):
+        assert site_specific_term not in prompt
+    for inactive_example in (
+        "WASP",
+        "Magento",
+        "OpenStreetMap",
+        "Wikipedia",
+        "wiki edit",
+        "review_detail_pdp",
+    ):
+        assert inactive_example not in prompt
+
+
+def test_phase_0a_repairs_webarena_verified_site_source_paths(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    (benchmark_root / "dev/environments/docker/sites/gitlab").mkdir(parents=True)
+    (benchmark_root / "dev/environments/docker/sites/reddit").mkdir(parents=True)
+    manifest = {
+        "sites": [
+            {"name": "gitlab", "source_path": "dev/environments/docker/gitlab"},
+            {"name": "reddit", "source_path": "dev/environments/docker/reddit"},
+        ],
+        "evaluation": {"harness_paths": [], "task_definition_paths": []},
+    }
+
+    phase_0_recon._repair_manifest_paths(manifest, benchmark_root)
+
+    assert manifest["sites"] == [
+        {"name": "gitlab", "source_path": "dev/environments/docker/sites/gitlab"},
+        {"name": "reddit", "source_path": "dev/environments/docker/sites/reddit"},
+    ]
+    missing, unsafe = phase_0_recon._validate_manifest_paths(manifest, benchmark_root)
+    assert missing == []
+    assert unsafe == []
+
+
+def test_phase_0a_does_not_crash_on_bare_site_container_source_path(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    manifest = {
+        "sites": [
+            {"name": "reddit", "source_path": "docker"},
+        ],
+        "evaluation": {"harness_paths": [], "task_definition_paths": []},
+    }
+
+    phase_0_recon._repair_manifest_paths(manifest, benchmark_root)
+
+    assert manifest["sites"] == [
+        {"name": "reddit", "source_path": "docker"},
+    ]
+    missing, unsafe = phase_0_recon._validate_manifest_paths(manifest, benchmark_root)
+    assert missing == ["sites[reddit].source_path: docker"]
+    assert unsafe == []
+
+
+def test_phase_0a_repairs_empty_webarena_verified_task_definition_paths(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    dataset = benchmark_root / "assets/dataset/webarena-verified.json"
+    dataset.parent.mkdir(parents=True)
+    dataset.write_text("[]")
+    manifest = {
+        "sites": [],
+        "evaluation": {"harness_paths": [], "task_definition_paths": []},
+    }
+
+    phase_0_recon._repair_manifest_paths(manifest, benchmark_root)
+
+    assert manifest["evaluation"]["task_definition_paths"] == [
+        "assets/dataset/webarena-verified.json"
+    ]
+    missing, unsafe = phase_0_recon._validate_manifest_paths(manifest, benchmark_root)
+    assert missing == []
+    assert unsafe == []
+
+
+def test_phase_0a_does_not_override_existing_task_definition_paths(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    dataset = benchmark_root / "assets/dataset/webarena-verified.json"
+    custom = benchmark_root / "custom/tasks.json"
+    dataset.parent.mkdir(parents=True)
+    custom.parent.mkdir(parents=True)
+    dataset.write_text("[]")
+    custom.write_text("[]")
+    manifest = {
+        "sites": [],
+        "evaluation": {"harness_paths": [], "task_definition_paths": ["custom/tasks.json"]},
+    }
+
+    phase_0_recon._repair_manifest_paths(manifest, benchmark_root)
+
+    assert manifest["evaluation"]["task_definition_paths"] == ["custom/tasks.json"]
+
+
+def test_phase_0a_does_not_repair_unsafe_or_unmatched_source_paths(tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    manifest = {
+        "sites": [
+            {"name": "gitlab", "source_path": "env/docker/gitlab"},
+            {"name": "reddit", "source_path": "../reddit"},
+        ],
+        "evaluation": {"harness_paths": [], "task_definition_paths": []},
+    }
+
+    phase_0_recon._repair_manifest_paths(manifest, benchmark_root)
+
+    assert manifest["sites"] == [
+        {"name": "gitlab", "source_path": "env/docker/gitlab"},
+        {"name": "reddit", "source_path": "../reddit"},
+    ]
+    missing, unsafe = phase_0_recon._validate_manifest_paths(manifest, benchmark_root)
+    assert missing == ["sites[gitlab].source_path: env/docker/gitlab"]
+    assert unsafe == [
+        "sites[reddit].source_path: Manifest path must not traverse out of root: ../reddit"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_fails_when_any_tier_output_is_missing(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return {"_summary": None}
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    with pytest.raises(RuntimeError, match="did not complete all required site profiles"):
+        await phase_0_recon.run_phase_0c(
+            manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+            sandbox_map={"shopping": [str(source_file)]},
+            benchmark_root=benchmark_root,
+            output_dir=tmp_path / "out",
+        )
+
+    assert not (tmp_path / "out" / "BENCHMARK_PROFILE_shopping.json").exists()
+    assert not (tmp_path / "out" / "AGENT_CONTEXT_shopping.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0a_passes_explicit_sandbox_model(monkeypatch, tmp_path):
+    benchmark_root, _ = _benchmark_setup(tmp_path)
+    captured = {}
+
+    async def fake_upload_to_volume(path):
+        assert path == benchmark_root
+        return object()
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        captured["model"] = kwargs.get("model")
+        return {
+            "/workspace/output/BENCHMARK_MANIFEST.json": json.dumps(
+                {
+                    "sites": [],
+                    "evaluation": {"eval_types": []},
+                    "benchmark_codebase": str(benchmark_root),
+                }
+            ),
+            "/workspace/output/BENCHMARK_MANIFEST.md": "ok",
+            "_summary": None,
+        }
+
+    monkeypatch.setattr(phase_0_recon, "upload_to_volume", fake_upload_to_volume)
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    await phase_0_recon.run_phase_0a(
+        benchmark_root,
+        tmp_path / "out",
+        sandbox_model="claude-opus-4-6",
+    )
+
+    assert captured["model"] == "claude-opus-4-6"
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_mounts_staged_site_subset_via_read_only_volume(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    captured_volumes: list[dict[str, object] | None] = []
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        captured_volumes.append(kwargs.get("volumes"))
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json_with_sidecars(
+                DATA_MODEL_OUTPUT,
+                _valid_data_model(),
+                {
+                    "/workspace/output/DATA_MODEL_EVIDENCE.json": {
+                        "site_name": "shopping",
+                        "entities": [],
+                        "limitations": [],
+                    }
+                },
+            )
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json_with_sidecars(
+                INJECTION_OUTPUT,
+                _valid_injection_surface(),
+                {
+                    "/workspace/output/SURFACE_DRAFT.json": {
+                        "site_name": "shopping",
+                        "surfaces": [],
+                    },
+                    "/workspace/output/TASK_COVERAGE_DRAFT.json": {
+                        "site_name": "shopping",
+                        "task_links": [],
+                        "uncovered_surface_ids": [],
+                    },
+                    "/workspace/output/LIVE_VERIFICATION_NOTES.json": {
+                        "site_name": "shopping",
+                        "requests": [],
+                        "corrections": [],
+                        "limitations": [],
+                    },
+                },
+            )
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=tmp_path / "out",
+    )
+
+    assert captured_volumes
+    for volumes in captured_volumes:
+        assert volumes is not None
+        assert list(volumes) == ["/workspace/benchmark"]
+        assert isinstance(volumes["/workspace/benchmark"], _FakeVolume)
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_publishes_provenance_sidecars_and_trace(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    captured_inputs: dict[str, list[str]] = {}
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        label = kwargs["label"]
+        captured_inputs[label] = sorted(kwargs["site_files"])
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json_with_sidecars(
+                DATA_MODEL_OUTPUT,
+                _valid_data_model(),
+                {
+                    "/workspace/output/DATA_MODEL_EVIDENCE.json": {
+                        "site_name": "shopping",
+                        "entities": [
+                            {
+                                "entity": "products",
+                                "storage_evidence": [
+                                    {"file": "shopping.txt", "line": 1, "claim": "fixture"}
+                                ],
+                                "field_evidence": [
+                                    {
+                                        "field": "description",
+                                        "file": "shopping.txt",
+                                        "line": 1,
+                                        "claim": "fixture",
+                                    }
+                                ],
+                            }
+                        ],
+                        "limitations": [],
+                    }
+                },
+            )
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json_with_sidecars(
+                INJECTION_OUTPUT,
+                _valid_injection_surface(),
+                {
+                    "/workspace/output/SURFACE_DRAFT.json": {
+                        "site_name": "shopping",
+                        "surfaces": [{"id": "surface-1", "file": "shopping.txt"}],
+                    },
+                    "/workspace/output/TASK_COVERAGE_DRAFT.json": {
+                        "site_name": "shopping",
+                        "task_links": [],
+                        "uncovered_surface_ids": [],
+                    },
+                    "/workspace/output/LIVE_VERIFICATION_NOTES.json": {
+                        "site_name": "shopping",
+                        "requests": [],
+                        "corrections": [],
+                        "limitations": ["no connectivity"],
+                    },
+                },
+            )
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=tmp_path / "out",
+    )
+
+    out = tmp_path / "out"
+    assert "/workspace/inputs/FILES_INDEX.json" in captured_inputs["0c-shopping-A-verify"]
+    assert "/workspace/inputs/ROUTES_INDEX.json" in captured_inputs["0c-shopping-B-data"]
+    assert "/workspace/inputs/DATA_MODEL.json" in captured_inputs["0c-shopping-DE-inject"]
+    assert (out / "AGENT_CONTEXT_RAW_shopping.json").exists()
+    assert (out / "DATA_MODEL_EVIDENCE_shopping.json").exists()
+    assert (out / "SURFACE_DRAFT_shopping.json").exists()
+    assert (out / "TASK_COVERAGE_DRAFT_shopping.json").exists()
+    assert (out / "LIVE_VERIFICATION_NOTES_shopping.json").exists()
+    assert (out / "PHASE_0C_TRACE.jsonl").exists()
+    assert (out / "PHASE_0C_TIMINGS.json").exists()
+
+    metadata = json.loads(
+        (out / "TIER_METADATA_shopping_B_DATA_MODEL.json").read_text(encoding="utf-8")
+    )
+    artifact_text = (out / "DATA_MODEL_shopping.json").read_text(encoding="utf-8")
+    sidecar_text = (out / "DATA_MODEL_EVIDENCE_shopping.json").read_text(encoding="utf-8")
+    assert metadata["artifact_sha256"] == text_sha256(artifact_text)
+    assert metadata["sidecar_sha256"]["DATA_MODEL_EVIDENCE"] == text_sha256(sidecar_text)
+    assert metadata["evidence_index_digest"]
+    assert metadata["sandbox_telemetry"]["tool_calls"] == 3
+    profile_metadata = json.loads(
+        (out / "PROFILE_METADATA_shopping.json").read_text(encoding="utf-8")
+    )
+    assert profile_metadata["provenance_schema_version"] == 1
+    assert profile_metadata["benchmark_digest"]
+    report = audit_phase_0c_profiles(
+        out,
+        benchmark_root=benchmark_root,
+        manifest_eval_types={"NetworkEventEvaluator"},
+    )
+    assert report["summary"]["errors"] == 0
+    assert report["summary"]["warnings"] == 0
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_reuses_valid_tier_artifacts_when_profile_is_missing(
+    monkeypatch, tmp_path
+):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json_with_sidecars(
+                DATA_MODEL_OUTPUT,
+                _valid_data_model(),
+                {
+                    "/workspace/output/DATA_MODEL_EVIDENCE.json": {
+                        "site_name": "shopping",
+                        "entities": [],
+                        "limitations": [],
+                    }
+                },
+            )
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json_with_sidecars(
+                INJECTION_OUTPUT,
+                _valid_injection_surface(),
+                {
+                    "/workspace/output/SURFACE_DRAFT.json": {
+                        "site_name": "shopping",
+                        "surfaces": [],
+                    },
+                    "/workspace/output/TASK_COVERAGE_DRAFT.json": {
+                        "site_name": "shopping",
+                        "task_links": [],
+                        "uncovered_surface_ids": [],
+                    },
+                    "/workspace/output/LIVE_VERIFICATION_NOTES.json": {
+                        "site_name": "shopping",
+                        "requests": [],
+                        "corrections": [],
+                        "limitations": [],
+                    },
+                },
+            )
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    out = tmp_path / "out"
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=out,
+    )
+    (out / "BENCHMARK_PROFILE_shopping.json").unlink()
+    sandbox_calls: list[str] = []
+
+    async def fail_if_sandbox_runs(*args, **kwargs):
+        sandbox_calls.append(kwargs["label"])
+        raise AssertionError("tier artifacts should have been reused")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fail_if_sandbox_runs)
+
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=out,
+    )
+
+    assert sandbox_calls == []
+    assert (out / "BENCHMARK_PROFILE_shopping.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_reprofiles_when_whole_site_tier_metadata_is_stale(
+    monkeypatch, tmp_path
+):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json_with_sidecars(
+                DATA_MODEL_OUTPUT,
+                _valid_data_model(),
+                {
+                    "/workspace/output/DATA_MODEL_EVIDENCE.json": {
+                        "site_name": "shopping",
+                        "entities": [],
+                        "limitations": [],
+                    }
+                },
+            )
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json_with_sidecars(
+                INJECTION_OUTPUT,
+                _valid_injection_surface(),
+                {
+                    "/workspace/output/SURFACE_DRAFT.json": {
+                        "site_name": "shopping",
+                        "surfaces": [],
+                    },
+                    "/workspace/output/TASK_COVERAGE_DRAFT.json": {
+                        "site_name": "shopping",
+                        "task_links": [],
+                        "uncovered_surface_ids": [],
+                    },
+                    "/workspace/output/LIVE_VERIFICATION_NOTES.json": {
+                        "site_name": "shopping",
+                        "requests": [],
+                        "corrections": [],
+                        "limitations": [],
+                    },
+                },
+            )
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    out = tmp_path / "out"
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=out,
+    )
+    metadata_path = out / "TIER_METADATA_shopping_B_DATA_MODEL.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    metadata["prompt_sha256"] = "stale"
+    write_json_atomic(metadata_path, metadata)
+    sandbox_calls: list[str] = []
+
+    async def record_rerun(*args, **kwargs):
+        sandbox_calls.append(kwargs["label"])
+        return await fake_run_claude_in_sandbox(*args, **kwargs)
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", record_rerun)
+
+    result = await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=out,
+    )
+
+    assert "shopping" in result
+    assert sandbox_calls == ["0c-shopping-B-data"]
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_reprofiles_tier2_when_tier1_input_hash_changes(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json_with_sidecars(
+                DATA_MODEL_OUTPUT,
+                _valid_data_model(),
+                {
+                    "/workspace/output/DATA_MODEL_EVIDENCE.json": {
+                        "site_name": "shopping",
+                        "entities": [],
+                        "limitations": [],
+                    }
+                },
+            )
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json_with_sidecars(
+                INJECTION_OUTPUT,
+                _valid_injection_surface(),
+                {
+                    "/workspace/output/SURFACE_DRAFT.json": {
+                        "site_name": "shopping",
+                        "surfaces": [],
+                    },
+                    "/workspace/output/TASK_COVERAGE_DRAFT.json": {
+                        "site_name": "shopping",
+                        "task_links": [],
+                        "uncovered_surface_ids": [],
+                    },
+                    "/workspace/output/LIVE_VERIFICATION_NOTES.json": {
+                        "site_name": "shopping",
+                        "requests": [],
+                        "corrections": [],
+                        "limitations": [],
+                    },
+                },
+            )
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    out = tmp_path / "out"
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=out,
+    )
+    changed_data_model = _valid_data_model()
+    changed_data_model[0]["sample_values"] = [{"title": "Different sample"}]
+    data_model_path = out / "DATA_MODEL_shopping.json"
+    raw = json.dumps(changed_data_model, indent=2)
+    data_model_path.write_text(raw, encoding="utf-8")
+    metadata_path = out / "TIER_METADATA_shopping_B_DATA_MODEL.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    metadata["artifact_sha256"] = text_sha256(raw)
+    write_json_atomic(metadata_path, metadata)
+    (out / "BENCHMARK_PROFILE_shopping.json").unlink()
+    sandbox_calls: list[str] = []
+
+    async def only_tier2_should_rerun(*args, **kwargs):
+        label = kwargs["label"]
+        sandbox_calls.append(label)
+        if "-DE-inject" in label:
+            return await fake_run_claude_in_sandbox(*args, **kwargs)
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", only_tier2_should_rerun)
+
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=out,
+    )
+
+    assert sandbox_calls == ["0c-shopping-DE-inject"]
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_reprofiles_tier_when_required_sidecar_hash_changes(
+    monkeypatch, tmp_path
+):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    out = tmp_path / "out"
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=out,
+    )
+    write_json_atomic(
+        out / "LIVE_VERIFICATION_NOTES_shopping.json",
+        {
+            "site_name": "shopping",
+            "requests": [{"tampered": True}],
+            "corrections": [],
+            "limitations": [],
+        },
+    )
+    sandbox_calls: list[str] = []
+
+    async def only_tier2_should_rerun(*args, **kwargs):
+        label = kwargs["label"]
+        sandbox_calls.append(label)
+        if "-DE-inject" in label:
+            return await fake_run_claude_in_sandbox(*args, **kwargs)
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", only_tier2_should_rerun)
+
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=out,
+    )
+
+    assert sandbox_calls == ["0c-shopping-DE-inject"]
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_redacts_proxy_tokens_from_optional_sidecars(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    token = "secret-token-123"
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json_with_sidecars(
+                DATA_MODEL_OUTPUT,
+                _valid_data_model(),
+                {
+                    "/workspace/output/DATA_MODEL_EVIDENCE.json": {
+                        "site_name": "shopping",
+                        "entities": [],
+                        "limitations": [],
+                    }
+                },
+            )
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            injection_surface = _valid_injection_surface_with_verification(
+                True,
+                f"checked with X-Worldsim-Token: {token}",
+            )
+            return _sandbox_json_with_sidecars(
+                INJECTION_OUTPUT,
+                injection_surface,
+                {
+                    "/workspace/output/SURFACE_DRAFT.json": {
+                        "site_name": "shopping",
+                        "surfaces": [],
+                    },
+                    "/workspace/output/TASK_COVERAGE_DRAFT.json": {
+                        "site_name": "shopping",
+                        "task_links": [],
+                        "uncovered_surface_ids": [],
+                    },
+                    "/workspace/output/LIVE_VERIFICATION_NOTES.json": {
+                        "site_name": "shopping",
+                        "requests": [
+                            {
+                                "command": (
+                                    "python /workspace/verify_http.py --auth-header "
+                                    f"'X-Worldsim-Token: {token}'"
+                                )
+                            }
+                        ],
+                        "corrections": [f"header X-Worldsim-Token: {token} was used"],
+                        "limitations": [],
+                    },
+                },
+            )
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=tmp_path / "out",
+        instances=[BenchmarkInstance(site_name="shopping", site_url="http://8.8.8.8:8023")],
+        verification_proxy=VerificationProxy(token=token, port_offset=10000, scheme="http"),
+    )
+
+    notes_text = (tmp_path / "out" / "LIVE_VERIFICATION_NOTES_shopping.json").read_text(
+        encoding="utf-8"
+    )
+    profile_text = (tmp_path / "out" / "BENCHMARK_PROFILE_shopping.json").read_text(
+        encoding="utf-8"
+    )
+    assert token not in notes_text
+    assert token not in profile_text
+    assert "X-Worldsim-Token: [REDACTED]" in notes_text
+    assert "X-Worldsim-Token: [REDACTED]" in profile_text
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_retries_malformed_required_sidecar(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    data_attempts = 0
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        nonlocal data_attempts
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            data_attempts += 1
+            output = _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+            if data_attempts == 1:
+                output["/workspace/output/DATA_MODEL_EVIDENCE.json"] = "{bad"
+            return output
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    result = await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=tmp_path / "out",
+    )
+
+    assert "shopping" in result
+    assert data_attempts == 2
+
+
+@pytest.mark.asyncio
+async def test_phase_0c_audit_catches_tier_artifact_tampering(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    out = tmp_path / "out"
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=out,
+    )
+    (out / "DATA_MODEL_shopping.json").write_text("[]", encoding="utf-8")
+
+    report = audit_phase_0c_profiles(out, manifest_eval_types={"NetworkEventEvaluator"})
+
+    assert any(error["code"] == "TIER_ARTIFACT_HASH_MISMATCH" for error in report["errors"])
+    assert any(error["code"] == "TIER_ARTIFACT_PROFILE_MISMATCH" for error in report["errors"])
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_honors_site_filter(monkeypatch, tmp_path):
+    profiled_sites: list[str] = []
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    gitlab_file = benchmark_root / "gitlab.py"
+    reddit_file = benchmark_root / "reddit.py"
+    shopping_file = benchmark_root / "shopping.py"
+    for path in (gitlab_file, reddit_file, shopping_file):
+        path.write_text("# fixture", encoding="utf-8")
+
+    async def fake_profile_one_site_tiered(**kwargs):
+        profiled_sites.append(kwargs["site_name"])
+        return kwargs["site_name"], {"profile": {}, "agent_context": {}}
+
+    monkeypatch.setattr(phase_0_recon, "_profile_one_site_tiered", fake_profile_one_site_tiered)
+
+    result = await phase_0_recon.run_phase_0c(
+        {"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        {
+            "gitlab": [str(gitlab_file)],
+            "reddit": [str(reddit_file)],
+            "shopping": [str(shopping_file)],
+        },
+        benchmark_root,
+        tmp_path / "phase_0c",
+        site_filter={"gitlab", "reddit"},
+    )
+
+    assert sorted(profiled_sites) == ["gitlab", "reddit"]
+    assert sorted(result) == ["gitlab", "reddit"]
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_separates_modal_and_host_inventory_instances(monkeypatch, tmp_path):
+    benchmark_root = tmp_path / "benchmark"
+    benchmark_root.mkdir()
+    reddit_file = benchmark_root / "reddit.py"
+    reddit_file.write_text("# fixture", encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    async def fake_profile_one_site_tiered(**kwargs):
+        captured.update(kwargs)
+        return "reddit", {"profile": {}, "agent_context": {}}
+
+    monkeypatch.setattr(phase_0_recon, "_profile_one_site_tiered", fake_profile_one_site_tiered)
+
+    await phase_0_recon.run_phase_0c(
+        {"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        {"reddit": [str(reddit_file)]},
+        benchmark_root,
+        tmp_path / "phase_0c",
+        instances=[BenchmarkInstance(site_name="reddit", site_url="http://8.8.8.8:19900")],
+        host_inventory_instances=[
+            BenchmarkInstance(
+                site_name="reddit",
+                site_url="http://172.17.0.1:9990",
+                db_connection="postgresql://u:p@172.17.0.1:5500/postmill",
+            )
+        ],
+    )
+
+    assert captured["site_url"] == "http://8.8.8.8:19900"
+    assert captured["instance"].site_url == "http://8.8.8.8:19900"
+    assert captured["host_inventory_instance"].site_url == "http://172.17.0.1:9990"
+    assert (
+        captured["host_inventory_instance"].db_connection
+        == "postgresql://u:p@172.17.0.1:5500/postmill"
+    )
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_reuses_when_host_inventory_file_omits_site(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+    out = tmp_path / "phase_0c"
+    await phase_0_recon.run_phase_0c(
+        {"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        {"shopping": [str(source_file)]},
+        benchmark_root,
+        out,
+        instances=[BenchmarkInstance(site_name="shopping", site_url="http://8.8.8.8:8023")],
+        host_inventory_instances=[
+            BenchmarkInstance(site_name="reddit", site_url="http://172.17.0.1:9990")
+        ],
+    )
+    sandbox_calls: list[str] = []
+
+    async def fail_if_sandbox_runs(*args, **kwargs):
+        sandbox_calls.append(kwargs["label"])
+        raise AssertionError("profile should have been reused")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fail_if_sandbox_runs)
+
+    await phase_0_recon.run_phase_0c(
+        {"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        {"shopping": [str(source_file)]},
+        benchmark_root,
+        out,
+        instances=[BenchmarkInstance(site_name="shopping", site_url="http://8.8.8.8:8023")],
+        host_inventory_instances=[
+            BenchmarkInstance(site_name="reddit", site_url="http://172.17.0.1:9990")
+        ],
+    )
+
+    assert sandbox_calls == []
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_does_not_publish_invalid_profiles(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    de_attempts = 0
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        nonlocal de_attempts
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            de_attempts += 1
+            return _sandbox_json(
+                INJECTION_OUTPUT, _valid_injection_surface(source_field="posts.body")
+            )
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    with pytest.raises(RuntimeError, match="failed validation"):
+        await phase_0_recon.run_phase_0c(
+            manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+            sandbox_map={"shopping": [str(source_file)]},
+            benchmark_root=benchmark_root,
+            output_dir=tmp_path / "out",
+        )
+
+    assert de_attempts == 1 + phase_0_recon.PROFILE_FIX_MAX_ITERATIONS
+    assert not (tmp_path / "out" / "BENCHMARK_PROFILE_shopping.json").exists()
+    assert not (tmp_path / "out" / "AGENT_CONTEXT_shopping.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_correction_loop_fixes_invalid_tier_output(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    de_attempts = 0
+    de_prompts: list[str] = []
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        nonlocal de_attempts
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            de_attempts += 1
+            de_prompts.append(kwargs["prompt"])
+            source_field = "posts.body" if de_attempts == 1 else "products.description"
+            return _sandbox_json(
+                INJECTION_OUTPUT, _valid_injection_surface(source_field=source_field)
+            )
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    result = await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=tmp_path / "out",
+    )
+
+    assert "shopping" in result
+    assert de_attempts == 2
+    assert "<validation_feedback>" in de_prompts[1]
+    assert '"artifact": "INJECTION_SURFACE.json"' in de_prompts[1]
+    assert "entity.field format" in de_prompts[1]
+    assert (tmp_path / "out" / "BENCHMARK_PROFILE_shopping.json").exists()
+    assert (tmp_path / "out" / "AGENT_CONTEXT_shopping.json").exists()
+    profile = json.loads((tmp_path / "out" / "BENCHMARK_PROFILE_shopping.json").read_text())
+    assert profile["agent_context"] == _valid_agent_context()
+
+
+@pytest.mark.asyncio
+async def test_correction_loop_hard_fails_after_max_retries(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    de_attempts = 0
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        nonlocal de_attempts
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            de_attempts += 1
+            return _sandbox_json(
+                INJECTION_OUTPUT, _valid_injection_surface(source_field="posts.body")
+            )
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    with pytest.raises(RuntimeError, match="failed validation"):
+        await phase_0_recon.run_phase_0c(
+            manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+            sandbox_map={"shopping": [str(source_file)]},
+            benchmark_root=benchmark_root,
+            output_dir=tmp_path / "out",
+        )
+
+    assert de_attempts == 1 + phase_0_recon.PROFILE_FIX_MAX_ITERATIONS
+    assert not (tmp_path / "out" / "BENCHMARK_PROFILE_shopping.json").exists()
+    assert not (tmp_path / "out" / "AGENT_CONTEXT_shopping.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_threads_explicit_sandbox_model(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    seen_models: list[str] = []
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        seen_models.append(kwargs["model"])
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=tmp_path / "out",
+        sandbox_model="claude-opus-4-6",
+    )
+
+    assert seen_models
+    assert set(seen_models) == {"claude-opus-4-6"}
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_reprofiles_when_existing_outputs_are_stale(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    site_name = "shopping"
+
+    stale_profile = {
+        "site_name": site_name,
+        "verification_capabilities": _valid_verification_capabilities(),
+        "data_model": _valid_data_model(),
+        "agent_context": _valid_agent_context(),
+        "injection_surface": _valid_injection_surface()["injection_surface"],
+        "existing_task_coverage": _valid_injection_surface()["existing_task_coverage"],
+    }
+    (output_dir / f"BENCHMARK_PROFILE_{site_name}.json").write_text(
+        json.dumps(stale_profile), encoding="utf-8"
+    )
+    (output_dir / f"AGENT_CONTEXT_{site_name}.json").write_text(
+        json.dumps(_valid_agent_context()), encoding="utf-8"
+    )
+    (output_dir / f"PROFILE_METADATA_{site_name}.json").write_text(
+        json.dumps(
+            {
+                "site_name": site_name,
+                "benchmark_root": str(benchmark_root),
+                "sandbox_model": "claude-opus-4-6",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    calls: list[str] = []
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        calls.append(kwargs["label"])
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            context = _valid_agent_context()
+            context["site_context"]["description"] = "Fresh profile"
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, context)
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    result = await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={site_name: [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=output_dir,
+    )
+
+    assert site_name in result
+    assert calls, "stale outputs must be re-profiled instead of silently skipped"
+    profile = json.loads((output_dir / f"BENCHMARK_PROFILE_{site_name}.json").read_text())
+    assert profile["agent_context"]["site_context"]["description"] == "Fresh profile"
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_reprofiles_when_instance_site_url_changes(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    site_name = "shopping"
+
+    cached_profile = {
+        "site_name": site_name,
+        "verification_capabilities": _valid_verification_capabilities(),
+        "data_model": _valid_data_model(),
+        "agent_context": _valid_agent_context(),
+        "injection_surface": _valid_injection_surface()["injection_surface"],
+        "existing_task_coverage": _valid_injection_surface()["existing_task_coverage"],
+    }
+    (output_dir / f"BENCHMARK_PROFILE_{site_name}.json").write_text(
+        json.dumps(cached_profile), encoding="utf-8"
+    )
+    (output_dir / f"AGENT_CONTEXT_{site_name}.json").write_text(
+        json.dumps(_valid_agent_context()), encoding="utf-8"
+    )
+    (output_dir / f"PROFILE_METADATA_{site_name}.json").write_text(
+        json.dumps(
+            {
+                "site_name": site_name,
+                "benchmark_root": str(benchmark_root),
+                "sandbox_model": "claude-sonnet-4-6",
+                "instance_site_url": "http://shopping-v1.test",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    calls: list[str] = []
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        calls.append(kwargs["label"])
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            context = _valid_agent_context()
+            context["site_context"]["description"] = "Fresh instance URL profile"
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, context)
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    result = await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={site_name: [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=output_dir,
+        instances=[BenchmarkInstance(site_name=site_name, site_url="http://shopping-v2.test")],
+    )
+
+    assert site_name in result
+    assert calls, "changing the representative instance URL must invalidate reuse"
+    refreshed = json.loads((output_dir / f"BENCHMARK_PROFILE_{site_name}.json").read_text())
+    assert refreshed["agent_context"]["site_context"]["description"] == "Fresh instance URL profile"
+    metadata = json.loads((output_dir / f"PROFILE_METADATA_{site_name}.json").read_text())
+    assert metadata["instance_site_url"] == "http://shopping-v2.test"
+
+
+def test_existing_phase_0c_outputs_reprofile_when_host_inventory_changes(tmp_path):
+    benchmark_root, _ = _benchmark_setup(tmp_path)
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    site_name = "shopping"
+    profile = {
+        "site_name": site_name,
+        "verification_capabilities": _valid_verification_capabilities(),
+        "data_model": _valid_data_model(),
+        "agent_context": _valid_agent_context(),
+        "injection_surface": _valid_injection_surface()["injection_surface"],
+        "existing_task_coverage": _valid_injection_surface()["existing_task_coverage"],
+    }
+    (output_dir / f"BENCHMARK_PROFILE_{site_name}.json").write_text(
+        json.dumps(profile), encoding="utf-8"
+    )
+    (output_dir / f"AGENT_CONTEXT_{site_name}.json").write_text(
+        json.dumps(_valid_agent_context()), encoding="utf-8"
+    )
+    (output_dir / f"PROFILE_METADATA_{site_name}.json").write_text(
+        json.dumps(
+            {
+                "site_name": site_name,
+                "benchmark_root": str(benchmark_root),
+                "sandbox_model": "claude-sonnet-4-6",
+                "instance_site_url": "http://shopping.test",
+                "host_inventory_instance_fingerprint": "stale",
+                "verification_proxy": None,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    reusable = phase_0_recon._existing_site_outputs_are_reusable(
+        output_dir=output_dir,
+        site_name=site_name,
+        benchmark_root=benchmark_root,
+        sandbox_model="claude-sonnet-4-6",
+        manifest_eval_type_set={"NetworkEventEvaluator"},
+        instance_site_url="http://shopping.test",
+        host_inventory_instance=BenchmarkInstance(
+            site_name=site_name,
+            site_url="http://172.17.0.1:9990",
+        ),
+        verification_proxy=None,
+    )
+
+    assert reusable is False
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_stages_sanitized_instance_connectivity(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    captured: dict[str, object] = {}
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            connectivity_path = kwargs["site_files"]["/workspace/inputs/INSTANCE_CONNECTIVITY.json"]
+            captured["connectivity"] = json.loads(Path(connectivity_path).read_text())
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=tmp_path / "out",
+        instances=[BenchmarkInstance(site_name="SHOPPING", site_url="http://shopping.test/")],
+    )
+
+    assert captured["connectivity"] == {
+        "site_name": "shopping",
+        "site_url": "http://shopping.test",
+    }
+
+
+async def test_run_phase_0c_writes_reachability_report(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, _valid_agent_context())
+        if "-DE-inject" in label:
+            return _sandbox_json(
+                INJECTION_OUTPUT,
+                _valid_injection_surface_with_verification(
+                    None,
+                    "Instance was unreachable during safe read-only probing.",
+                ),
+            )
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={"shopping": [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=tmp_path / "out",
+        instances=[BenchmarkInstance(site_name="shopping", site_url="http://shopping.test/")],
+    )
+
+    report = json.loads((tmp_path / "out" / "REACHABILITY_REPORT.json").read_text())
+    assert report["schema_version"] == 1
+    assert report["sites"][0]["site"] == "shopping"
+    assert report["sites"][0]["status"] == "unverified"
+    assert report["sites"][0]["channel_counts"] == {"unverified": 1}
+    assert "Instance was unreachable" in report["sites"][0]["notes"][0]
+
+
+def test_load_phase_0c_instances_rejects_invalid_config_shape(tmp_path):
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text("[]", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="invalid instances config"):
+        phase_0_recon._load_phase_0c_config(instances_path)
+
+
+def test_build_instance_site_url_map_rejects_sensitive_site_urls():
+    with pytest.raises(ValueError, match="must not include credentials"):
+        BenchmarkInstance(site_name="shopping", site_url="http://user:pass@shopping.test")
+
+
+def test_sanitize_instance_site_url_canonicalizes_equivalent_origins():
+    assert (
+        phase_0_recon._sanitize_instance_site_url(
+            "HTTP://SHOPPING.test:80/",
+            site_name="shopping",
+        )
+        == "http://shopping.test"
+    )
+    assert (
+        phase_0_recon._sanitize_instance_site_url(
+            "https://SHOPPING.test:443/base/",
+            site_name="shopping",
+        )
+        == "https://shopping.test/base"
+    )
+
+
+def test_phase_0c_modal_connectivity_rejects_host_local_urls():
+    with pytest.raises(RuntimeError, match="Modal sandboxes"):
+        phase_0_recon._validate_phase_0c_modal_connectivity_urls(
+            {
+                "gitlab": "http://172.17.0.1:8023",
+                "reddit": "http://127.0.0.1:9900",
+            }
+        )
+
+
+def test_phase_0c_modal_connectivity_allows_public_proxy_urls():
+    phase_0_recon._validate_phase_0c_modal_connectivity_urls(
+        {
+            "gitlab": "http://8.8.8.8:18023",
+            "reddit": "http://1.1.1.1:19900",
+        }
+    )
+
+
+@pytest.mark.asyncio
+async def test_run_persists_instances_path_across_phase_0_state(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    instances_path = tmp_path / "instances.json"
+    instances_path.write_text(json.dumps(_instances_config(benchmark_root)), encoding="utf-8")
+    host_inventory_path = tmp_path / "instances.scale.json"
+    host_inventory_path.write_text(
+        json.dumps(_instances_config(benchmark_root, site_url="http://172.17.0.1:9990")),
+        encoding="utf-8",
+    )
+
+    state_calls: list[tuple[str, dict]] = []
+    phase_0c_kwargs: dict[str, object] = {}
+
+    async def fake_run_phase_0a(*args, **kwargs):
+        return {
+            "sites": [{"name": "shopping"}],
+            "evaluation": {"eval_types": ["NetworkEventEvaluator"]},
+            "benchmark_codebase": str(benchmark_root),
+        }
+
+    async def fake_run_phase_0c(*args, **kwargs):
+        phase_0c_kwargs.update(kwargs)
+        return {"shopping": {"profile": {}, "agent_context": {}}}
+
+    async def fake_preflight():
+        return None
+
+    monkeypatch.setattr(phase_0_recon, "preflight_sandbox_environment", fake_preflight)
+    monkeypatch.setattr(phase_0_recon, "run_phase_0a", fake_run_phase_0a)
+    monkeypatch.setattr(
+        phase_0_recon,
+        "compute_sandbox_maps",
+        lambda manifest, benchmark: {"shopping": [str(source_file)]},
+    )
+    monkeypatch.setattr(phase_0_recon, "run_phase_0c", fake_run_phase_0c)
+    monkeypatch.setattr(phase_0_recon, "get_state_dir", lambda: tmp_path / "state")
+    monkeypatch.setattr(
+        phase_0_recon,
+        "save_state",
+        lambda step, iteration=0, **metadata: state_calls.append((step, metadata)),
+    )
+    monkeypatch.setattr(
+        phase_0_recon.cost_tracker, "log_phase_summary", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(phase_0_recon.cost_tracker, "save", lambda *args, **kwargs: None)
+
+    rc = await phase_0_recon.run(
+        benchmark=benchmark_root,
+        sub="0",
+        instances_path=instances_path,
+        host_inventory_instances_path=host_inventory_path,
+        site_filter={"shopping"},
+    )
+
+    assert rc == 0
+    phase_calls = [call for call in state_calls if call[0].startswith("phase_0")]
+    assert phase_calls
+    assert all(call[1]["instances_path"] == str(instances_path) for call in phase_calls)
+    assert all(
+        call[1]["host_inventory_instances_path"] == str(host_inventory_path) for call in phase_calls
+    )
+    assert all("host_inventory_instances_sha256" in call[1] for call in phase_calls)
+    assert phase_0c_kwargs["site_filter"] == {"shopping"}
+    assert phase_0c_kwargs["host_inventory_instances"][0].site_url == "http://172.17.0.1:9990"
+
+
+def test_profile_injection_surface_prompt_includes_delivery_feasibility_probing():
+    prompt_path = (
+        Path(phase_0_recon.__file__).resolve().parents[1]
+        / "prompts"
+        / "profile-injection-surface.md"
+    )
+    prompt = prompt_path.read_text(encoding="utf-8")
+
+    # After 1d32012, the prompt allows minimal POST probing for delivery
+    # feasibility instead of prohibiting all write methods during profiling.
+    assert "ONE minimal POST per form channel" in prompt
+    assert "Live instance verification" in prompt
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_reprofiles_when_profile_metadata_is_malformed(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    site_name = "shopping"
+
+    profile = {
+        "site_name": site_name,
+        "verification_capabilities": _valid_verification_capabilities(),
+        "data_model": _valid_data_model(),
+        "agent_context": _valid_agent_context(),
+        "injection_surface": _valid_injection_surface()["injection_surface"],
+        "existing_task_coverage": _valid_injection_surface()["existing_task_coverage"],
+    }
+    (output_dir / f"BENCHMARK_PROFILE_{site_name}.json").write_text(
+        json.dumps(profile), encoding="utf-8"
+    )
+    (output_dir / f"AGENT_CONTEXT_{site_name}.json").write_text(
+        json.dumps(_valid_agent_context()), encoding="utf-8"
+    )
+    (output_dir / f"PROFILE_METADATA_{site_name}.json").write_text(
+        "{not-json",
+        encoding="utf-8",
+    )
+
+    calls: list[str] = []
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        calls.append(kwargs["label"])
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            context = _valid_agent_context()
+            context["site_context"]["description"] = "Fresh malformed metadata profile"
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, context)
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    result = await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={site_name: [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=output_dir,
+    )
+
+    assert site_name in result
+    assert calls, "malformed metadata must trigger re-profiling"
+    refreshed = json.loads((output_dir / f"BENCHMARK_PROFILE_{site_name}.json").read_text())
+    assert refreshed["agent_context"]["site_context"]["description"] == (
+        "Fresh malformed metadata profile"
+    )
+
+
+@pytest.mark.asyncio
+async def test_run_phase_0c_reprofiles_when_proxy_metadata_changes(monkeypatch, tmp_path):
+    benchmark_root, source_file = _benchmark_setup(tmp_path)
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    site_name = "shopping"
+
+    profile = {
+        "site_name": site_name,
+        "verification_capabilities": _valid_verification_capabilities(),
+        "data_model": _valid_data_model(),
+        "agent_context": _valid_agent_context(),
+        "injection_surface": _valid_injection_surface()["injection_surface"],
+        "existing_task_coverage": _valid_injection_surface()["existing_task_coverage"],
+    }
+    (output_dir / f"BENCHMARK_PROFILE_{site_name}.json").write_text(
+        json.dumps(profile), encoding="utf-8"
+    )
+    (output_dir / f"AGENT_CONTEXT_{site_name}.json").write_text(
+        json.dumps(_valid_agent_context()), encoding="utf-8"
+    )
+    (output_dir / f"PROFILE_METADATA_{site_name}.json").write_text(
+        json.dumps(
+            {
+                "site_name": site_name,
+                "benchmark_root": str(benchmark_root),
+                "sandbox_model": "claude-sonnet-4-6",
+                "instance_site_url": "http://shopping.test",
+                "verification_proxy": {
+                    "scheme": "http",
+                    "port_offset": 10000,
+                    "token_sha256": "stale",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    calls: list[str] = []
+
+    async def fake_run_claude_in_sandbox(*args, **kwargs):
+        calls.append(kwargs["label"])
+        label = kwargs["label"]
+        if "-A-verify" in label:
+            return _sandbox_json(VERIFICATION_OUTPUT, _valid_verification_capabilities())
+        if "-B-data" in label:
+            return _sandbox_json(DATA_MODEL_OUTPUT, _valid_data_model())
+        if "-C-context" in label:
+            context = _valid_agent_context()
+            context["site_context"]["description"] = "Fresh proxy metadata profile"
+            return _sandbox_json(AGENT_CONTEXT_OUTPUT, context)
+        if "-DE-inject" in label:
+            return _sandbox_json(INJECTION_OUTPUT, _valid_injection_surface())
+        raise AssertionError(f"unexpected sandbox label: {label}")
+
+    monkeypatch.setattr(phase_0_recon, "run_claude_in_sandbox", fake_run_claude_in_sandbox)
+
+    result = await phase_0_recon.run_phase_0c(
+        manifest={"evaluation": {"eval_types": ["NetworkEventEvaluator"]}},
+        sandbox_map={site_name: [str(source_file)]},
+        benchmark_root=benchmark_root,
+        output_dir=output_dir,
+        instances=[BenchmarkInstance(site_name="shopping", site_url="http://shopping.test")],
+        verification_proxy=VerificationProxy(
+            token="fresh-token", port_offset=10000, scheme="https"
+        ),
+    )
+
+    assert site_name in result
+    assert calls, "proxy metadata change must trigger re-profiling"
+    refreshed = json.loads((output_dir / f"BENCHMARK_PROFILE_{site_name}.json").read_text())
+    assert refreshed["agent_context"]["site_context"]["description"] == (
+        "Fresh proxy metadata profile"
+    )
+    metadata = json.loads((output_dir / f"PROFILE_METADATA_{site_name}.json").read_text())
+    assert metadata["verification_proxy"]["scheme"] == "https"

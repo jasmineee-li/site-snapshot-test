@@ -1,0 +1,139 @@
+[project]
+name = "warp-taskgen"
+version = "0.1.0"
+description = "WARP task generation pipeline for browser-agent IPI benchmark construction"
+requires-python = ">=3.12"
+readme = "README.md"
+dependencies = [
+    "modal>=1.4.2",
+    "browser-use>=0.12.6",
+    "anthropic>=0.40",
+    "requests>=2.32",
+    "claude-agent-sdk>=0.1.71,<0.2",
+    "python-dotenv>=1.0",
+    "pydantic>=2.9",
+    "pymysql>=1.1",
+    "psycopg2-binary>=2.9",
+    "pillow>=10.0",
+    "numpy>=1.26",
+    "pyyaml>=6.0",
+    # Phase 2c render verification and Phase 0d form-login auth bootstrap
+    # import Playwright directly. Keep it explicit because browser-use no
+    # longer guarantees Playwright as a transitive dependency.
+    "playwright>=1.49",
+    # LLM providers are supplied by browser-use's native chat classes
+    # (browser_use.llm.{google,openai,anthropic,openrouter}.chat).
+    # No separate langchain-* packages needed.
+    "instructor>=1.15.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-xdist>=3.8.0",
+    "ruff>=0.11",
+]
+
+# PEP 735 dependency group. inspect_ai provides the upstream reference
+# types (`inspect_ai.model.ChatMessage*`, `inspect_ai.tool.ToolCall`)
+# that tests/test_phase_4_needham_xml.py uses to verify our XML
+# serializer is byte-equivalent to jjpn97/eval_awareness's real
+# _format_xml. Install with:
+#
+#     uv sync --group upstream-refs
+#
+# The test file skips cleanly when inspect_ai is absent, so the default
+# dev path (`uv sync --extra dev`) is not blocked.
+[dependency-groups]
+upstream-refs = [
+    "inspect_ai>=0.3.200",
+]
+
+[tool.uv]
+# browser-use==0.12.6 declares `click==8.3.1` in its metadata but in
+# practice ships and works with click 8.2.1 (what uv's resolver actually
+# installs today). inspect_ai's pin is `click>8.2.0,<8.2.2`. Force
+# click to the version both tolerate in practice, so `uv sync --group
+# upstream-refs` can satisfy the graph. Remove this override the next
+# time browser-use is bumped and the metadata agrees with reality.
+override-dependencies = [
+    "click==8.2.1",
+]
+
+[project.scripts]
+warp-taskgen = "worldsim.main:main"
+worldsim = "worldsim.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["worldsim"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/worldsim",
+    "/README.md",
+    "/pyproject.toml",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = [
+    "AgentLab/",
+    ".claude/worktrees/",
+    ".codex-worktrees/",
+    "logs/",
+    "logs_run*/",
+    "pipeline_outputs/",
+    "tmp/",
+    "vendors/",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes — undefined names, unused imports
+    "W",    # pycodestyle warnings
+    "B",    # flake8-bugbear — mutable defaults, bare except, etc.
+    "UP",   # pyupgrade — modernize syntax for py312
+    "I",    # isort — import sorting
+    "ISC",  # implicit string concat — catches accidental bugs
+    "RUF",  # ruff-native rules — additional opinionated checks
+]
+ignore = [
+    "E501",   # line length (formatter handles this)
+    "ISC001", # conflicts with ruff formatter
+]
+
+# Keep F401 (unused-import) as a warning but don't let ``ruff check --fix``
+# silently delete imports. The .claude/hooks/ruff-autofix.sh hook runs after
+# every Edit; when an agent adds an import in one edit and its usage in the
+# next, F401's safe autofix strips the import in the gap and the second edit
+# lands a NameError. Warning still fires in CI/lint — just no auto-delete.
+unfixable = ["F401"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/*" = ["E402"]  # scripts need dotenv/logging setup before imports
+
+[tool.ruff.lint.isort]
+known-first-party = ["worldsim"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers -m 'not integration and not feasibility and not preflight and not live_l3 and not crash_resume'"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "crash_resume: focused crash/resume and resume-drift differential tests",
+    "integration: live environment tests for resolvers, seeding, and Phase 4 runtime integration",
+    "feasibility: live Phase 2c feasibility verification tests (require a running dev instance)",
+    "preflight: Phase 4 setup preflight checks (PVPO, GitLab auth, eval venv)",
+    "live_l3: Phase 2 L3 resolver tests that hit the live Anthropic API and benchmark instance",
+]

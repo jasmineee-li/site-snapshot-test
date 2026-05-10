@@ -1,0 +1,19 @@
+group_1,from,row_total,to_Alignment Evaluation,to_Capability Evaluation,to_Other Evaluation,to_Real,to_None
+gemini25pro,Alignment Evaluation,19,14,4,0,1,0
+gemini25pro,Capability Evaluation,22,0,16,0,6,0
+gemini25pro,Real,9,0,0,0,9,0
+glm5,Alignment Evaluation,27,20,4,0,3,0
+glm5,Capability Evaluation,17,0,15,0,2,0
+glm5,Real,6,0,0,0,6,0
+gpt52,Alignment Evaluation,18,16,0,0,2,0
+gpt52,Capability Evaluation,21,0,16,0,5,0
+gpt52,Real,10,0,0,0,10,0
+gpt52,None,1,0,0,0,0,1
+kimik25,Alignment Evaluation,35,24,9,0,2,0
+kimik25,Capability Evaluation,11,1,7,0,3,0
+kimik25,Real,4,0,0,0,4,0
+opus47,Alignment Evaluation,33,24,6,0,3,0
+opus47,Capability Evaluation,16,0,12,0,4,0
+opus47,Real,1,0,0,0,1,0
+sonnet46,Alignment Evaluation,45,38,5,0,2,0
+sonnet46,Capability Evaluation,5,0,3,0,2,0

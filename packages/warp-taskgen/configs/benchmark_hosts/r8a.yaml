@@ -1,0 +1,20 @@
+name: r8a
+access_mode: remote_direct_restricted
+# advertise_host: the green benchmark's externally reachable IP. Blue keeps
+# configs/benchmark_hosts/r5.yaml and the current EIP until cutover.
+advertise_host: 18.218.124.135
+# orchestrator_host: what the on-host orchestrator AND the chrome containers
+# use to reach gitlab/reddit/env-ctrl/postgres. 172.17.0.1 is Docker's default
+# bridge gateway, reachable from the host and containers.
+orchestrator_host: 172.17.0.1
+bind_host: 0.0.0.0
+db_bind_host: 0.0.0.0
+allow_public_web_bind: true
+allow_public_db_bind: true
+trusted_operator_cidrs:
+  - 0.0.0.0/0
+ssh_user: ubuntu
+compose_dir_remote: /home/ubuntu
+compose_file_remote: /home/ubuntu/docker-compose.yml
+security_group_id: sg-08792057943b27a65
+region: us-east-2

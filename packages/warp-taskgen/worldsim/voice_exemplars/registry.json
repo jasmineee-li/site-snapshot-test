@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "site_kinds": {
+    "marketplace_review": {
+      "file": "marketplace_review.json"
+    },
+    "developer_collab": {
+      "file": "developer_collab.json"
+    },
+    "forum_ugc": {
+      "file": "forum_ugc.json"
+    },
+    "map_ugc": {
+      "file": "map_ugc.json"
+    },
+    "admin_backoffice": {
+      "file": "admin_backoffice.json"
+    }
+  }
+}

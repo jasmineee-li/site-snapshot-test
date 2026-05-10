@@ -1,0 +1,62 @@
+# scale_config.yml - source of truth for current r5 GitLab/Reddit scale-out.
+#
+# Read by scripts/generate_compose_scale.py, which emits:
+#   - docker-compose.yml (scale or smoke variant)
+#   - proxy_ports.conf   (nginx port map for deploy_benchmark_proxy.sh)
+#   - instances.json.fragment ("instances" array for instances.json)
+#
+# Port scheme:
+#   real_web_port    = next browser-safe port from site.real_port_base + 10*n
+#   real_envctrl_port = real_web_port + 1
+#   proxy_port       = real_web_port + proxy_port_offset       (default 10000)
+#
+# Real runtime port bindings are emitted by generate_compose_scale.py from the
+# selected benchmark host config. In the canonical r5 profile they use the
+# remote_direct_restricted model (explicit host bind + explicit advertised host).
+#
+# WASP-aligned scope (2026-04-21): only gitlab + reddit. shopping/shopping_admin/
+# map/wikipedia were dropped per docs/handoffs/wasp-aligned-scoping-decision.md.
+
+network:
+  name: worldsim-bench
+  subnet: 172.20.0.0/20          # 4094 IPs, first 10 reserved for infra
+
+proxy_port_offset: 10000         # proxy_port = real_port + this
+
+# Smoke-test override for Phase C: first replica (index 0) of each site.
+# The generator emits compose.smoke.yml from this subset when --mode smoke.
+smoke_test_replicas:
+  gitlab: 1
+  reddit: 1
+
+# Per-site configuration. Volume mount paths MUST match the vendor
+# docker-compose at vendors/webarena-verified/docker-compose.yml.
+sites:
+
+  gitlab:
+    image: worldsim/webarena-verified-gitlab:amd64
+    replicas: 21
+    real_port_base: 8023           # gitlab exposes on container port 8023
+    container_web_port: 8023
+    port_step: 10                  # 8023, 8033, ..., 8223 (21 replicas)
+    mem_limit: 8g
+    shm_size: 2g
+    # Bind-mount tuned gitlab.rb (generator references scripts/gitlab.rb.tuned
+    # which is scp'd to /home/ubuntu/gitlab.rb on the host).
+    gitlab_rb_host_path: /home/ubuntu/gitlab.rb
+    gitlab_rb_container_path: /etc/gitlab/gitlab.rb
+    environment:
+      - WA_ENV_CTRL_SKIP_RECONFIGURE: "true"
+    db_port_base: 5433
+    db_port_step: 1
+
+  reddit:
+    image: worldsim/webarena-verified-reddit:amd64
+    replicas: 10
+    real_port_base: 9900           # rebased from 9999 to get a clean +10 run
+    container_web_port: 80
+    port_step: 10                  # 9900, 9910, ..., 9990 (10 replicas)
+    mem_limit: 4g
+    shm_size: 512m
+    db_port_base: 5500
+    db_port_step: 1

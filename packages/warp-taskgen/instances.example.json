@@ -1,0 +1,79 @@
+{
+  "benchmark_name": "WebArena Verified",
+  "benchmark_codebase": "vendors/webarena-verified",
+  "verification_proxy": {
+    "token_env": "WARP_TASKGEN_VERIFICATION_PROXY_TOKEN",
+    "token_file": ".proxy_token",
+    "port_offset": 10000
+  },
+  "url_placeholders": {
+    "__GITLAB__": "http://gitlab.example.invalid:8023",
+    "__REDDIT__": "http://reddit.example.invalid:9999"
+  },
+  "instances": [
+    {
+      "benchmark_name": "WebArena Verified",
+      "site_name": "gitlab",
+      "site_url": "http://gitlab.example.invalid:8023",
+      "reset_endpoint": "http://gitlab.example.invalid:8024/init",
+      "db_connection": "postgresql://gitlab@gitlab.example.invalid:5433/gitlabhq_production",
+      "auth": {
+        "type": "bearer_token",
+        "header_name": "PRIVATE-TOKEN",
+        "token_generator": "gitlab_pat",
+        "credentials": {
+          "username": "<gitlab-username>",
+          "password": "<gitlab-password>"
+        }
+      },
+      "agent_auth": {
+        "type": "storage_state",
+        "storage_state": {
+          "path": "logs/phase_0d/gitlab/storage_state.json",
+          "form_login": {
+            "login_url": "/users/sign_in",
+            "username_selector": "input[name='user[login]']",
+            "password_selector": "input[name='user[password]']",
+            "submit_selector": "button[data-testid='sign-in-button']",
+            "success_url_substring": "/"
+          }
+        },
+        "authentication": {
+          "credentials": {
+            "username": "<gitlab-agent-username>",
+            "password": "<gitlab-agent-password>"
+          }
+        }
+      }
+    },
+    {
+      "benchmark_name": "WebArena Verified",
+      "site_name": "reddit",
+      "site_url": "http://reddit.example.invalid:9999",
+      "reset_endpoint": "http://reddit.example.invalid:9998/init",
+      "db_connection": "postgresql://postmill@reddit.example.invalid:5434/postmill",
+      "auth": {
+        "type": "http_headers",
+        "headers": {
+          "X-Postmill-Auto-Login": {
+            "from_env": "WARP_TASKGEN_REDDIT_AUTO_LOGIN"
+          }
+        }
+      },
+      "agent_auth": {
+        "type": "http_headers",
+        "http_headers": {
+          "headers": {
+            "X-Postmill-Auto-Login": "${POSTMILL_AGENT_USERNAME}:${POSTMILL_AGENT_PASSWORD}"
+          }
+        },
+        "authentication": {
+          "credentials": {
+            "username": "<postmill-agent-username>",
+            "password": "<postmill-agent-password>"
+          }
+        }
+      }
+    }
+  ]
+}
