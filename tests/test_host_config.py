@@ -60,3 +60,33 @@ def test_host_config_rejects_loopback_remote_direct() -> None:
                 "bind_host": "127.0.0.1",
             }
         )
+
+
+def test_host_config_rejects_world_open_trusted_operator_cidrs() -> None:
+    with pytest.raises(ValueError, match="world-open CIDRs"):
+        BenchmarkHostConfig.model_validate(
+            {
+                "name": "r8a",
+                "access_mode": "remote_direct_restricted",
+                "advertise_host": "18.218.124.135",
+                "bind_host": "0.0.0.0",
+                "allow_public_web_bind": True,
+                "allow_public_db_bind": True,
+                "trusted_operator_cidrs": ["0.0.0.0/0"],
+            }
+        )
+
+
+def test_host_config_allows_narrow_trusted_operator_cidrs() -> None:
+    cfg = BenchmarkHostConfig.model_validate(
+        {
+            "name": "r8a",
+            "access_mode": "remote_direct_restricted",
+            "advertise_host": "18.218.124.135",
+            "bind_host": "0.0.0.0",
+            "allow_public_web_bind": True,
+            "allow_public_db_bind": True,
+            "trusted_operator_cidrs": ["128.84.124.235/32"],
+        }
+    )
+    assert cfg.trusted_operator_cidrs == ["128.84.124.235/32"]

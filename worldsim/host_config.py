@@ -10,6 +10,7 @@ import yaml
 from pydantic import BaseModel, Field, model_validator
 
 _WIDE_BIND_HOSTS = frozenset({"0.0.0.0", "::"})
+_WORLD_OPEN_CIDRS = frozenset({"0.0.0.0/0", "::/0"})
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
 
 
@@ -130,9 +131,17 @@ class BenchmarkHostConfig(BaseModel):
             )
         for cidr in self.trusted_operator_cidrs:
             try:
-                ipaddress.ip_network(cidr, strict=False)
+                network = ipaddress.ip_network(cidr, strict=False)
             except ValueError as exc:
                 raise ValueError(f"trusted_operator_cidrs contains invalid CIDR {cidr!r}") from exc
+            if (
+                self.access_mode == "remote_direct_restricted"
+                and str(network) in _WORLD_OPEN_CIDRS
+            ):
+                raise ValueError(
+                    "trusted_operator_cidrs must not include world-open CIDRs "
+                    "for remote_direct_restricted hosts"
+                )
         return self
 
 

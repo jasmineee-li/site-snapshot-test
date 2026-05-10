@@ -14,8 +14,10 @@ bind_host: 0.0.0.0
 db_bind_host: 0.0.0.0
 allow_public_web_bind: true
 allow_public_db_bind: true
-trusted_operator_cidrs:
-  - 0.0.0.0/0
+# Keep this advisory list narrow. World-open CIDRs are rejected by host config
+# validation because configure_db_access.sh may add these ranges to GitLab DB
+# access when present.
+trusted_operator_cidrs: []
 ssh_user: ubuntu
 compose_dir_remote: /home/ubuntu
 compose_file_remote: /home/ubuntu/docker-compose.yml
