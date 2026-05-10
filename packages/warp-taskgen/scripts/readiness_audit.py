@@ -29,6 +29,7 @@ GENERATED_PREFIXES = (
 GENERATED_NAMES = {
     "instances.scale.json",
     "instances.scale.json.fragment",
+    "instances.smoke.json",
     "instances.smoke.json.fragment",
     "compose.scale.yml",
     "compose.smoke.yml",
