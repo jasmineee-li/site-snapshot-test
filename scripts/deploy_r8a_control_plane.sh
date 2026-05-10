@@ -121,17 +121,34 @@ for i in "${!OPERATOR_CIDRS[@]}"; do
         [[ -n "$ip" ]] || die "failed to detect public IP"
         OPERATOR_CIDRS[$i]="$ip/32"
     fi
-    case "${OPERATOR_CIDRS[$i]}" in
-        0.0.0.0/0|::/0) die "refusing world-open SSH CIDR: ${OPERATOR_CIDRS[$i]}" ;;
-    esac
-    uv run python - "${OPERATOR_CIDRS[$i]}" <<'PY' || die "invalid operator CIDR: ${OPERATOR_CIDRS[$i]}"
+    canonical_cidr="$(
+        uv run python - "${OPERATOR_CIDRS[$i]}" <<'PY'
 import ipaddress
 import sys
 
 network = ipaddress.ip_network(sys.argv[1], strict=False)
 if network.version != 4:
     raise SystemExit(1)
+if network.prefixlen != 32:
+    raise SystemExit(2)
+print(str(network))
 PY
+    )" || {
+        status=$?
+        if [[ "$status" -eq 2 ]]; then
+            die "operator SSH CIDR must be a single IPv4 /32, got: ${OPERATOR_CIDRS[$i]}"
+        fi
+        die "invalid operator CIDR: ${OPERATOR_CIDRS[$i]}"
+    }
+    OPERATOR_CIDRS[$i]="$canonical_cidr"
+done
+
+for i in "${!OPERATOR_CIDRS[@]}"; do
+    for j in "${!OPERATOR_CIDRS[@]}"; do
+        if [[ "$i" -lt "$j" && "${OPERATOR_CIDRS[$i]}" == "${OPERATOR_CIDRS[$j]}" ]]; then
+            die "duplicate operator SSH CIDR: ${OPERATOR_CIDRS[$i]}"
+        fi
+    done
 done
 
 if [[ -z "$INSTANCE_ID" ]]; then

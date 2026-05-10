@@ -102,7 +102,91 @@ def test_deploy_r8a_control_plane_rejects_world_open_operator_cidr(tmp_path: Pat
     )
 
     assert completed.returncode == 2
-    assert "refusing world-open SSH CIDR" in completed.stderr
+    assert "operator SSH CIDR must be a single IPv4 /32" in completed.stderr
+
+
+def test_deploy_r8a_control_plane_rejects_broad_operator_cidr(tmp_path: Path) -> None:
+    repo_root = _repo_root()
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    aws = fakebin / "aws"
+    aws.write_text("#!/bin/sh\nexit 0\n")
+    aws.chmod(0o755)
+
+    env = os.environ.copy()
+    env["HOME"] = str(repo_root)
+    env["PATH"] = f"{fakebin}:{env.get('PATH', '')}"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "deploy_r8a_control_plane.sh"),
+            "--operator-cidr",
+            "203.0.113.0/24",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "operator SSH CIDR must be a single IPv4 /32" in completed.stderr
+
+
+def test_deploy_r8a_control_plane_canonicalizes_bare_operator_ip(tmp_path: Path) -> None:
+    repo_root = _repo_root()
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    aws = fakebin / "aws"
+    calls = tmp_path / "aws.calls"
+    aws.write_text(
+        f"""#!/bin/sh
+printf '%s\\n' "$*" >> {calls}
+if [ "$1" = "ec2" ] && [ "$2" = "describe-addresses" ]; then
+  printf 'None\\n'
+  exit 0
+fi
+if [ "$1" = "cloudformation" ] && [ "$2" = "deploy" ]; then
+  exit 0
+fi
+if [ "$1" = "cloudformation" ] && [ "$2" = "describe-stacks" ]; then
+  printf '[{{"OutputKey":"ElasticIp","OutputValue":""}},{{"OutputKey":"AllocationId","OutputValue":"eipalloc-r8a"}},{{"OutputKey":"InstanceId","OutputValue":"i-r8a"}}]\\n'
+  exit 0
+fi
+if [ "$1" = "ec2" ] && [ "$2" = "describe-instances" ]; then
+  printf '198.51.100.40\\n'
+  exit 0
+fi
+printf 'unexpected aws call: %s\\n' "$*" >&2
+exit 99
+"""
+    )
+    aws.chmod(0o755)
+
+    env = os.environ.copy()
+    env["HOME"] = str(repo_root)
+    env["PATH"] = f"{fakebin}:{env.get('PATH', '')}"
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "deploy_r8a_control_plane.sh"),
+            "--operator-cidr",
+            "203.0.113.10",
+            "--instance-id",
+            "i-r8a",
+            "--existing-allocation-id",
+            "eipalloc-r8a",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0
+    assert "OperatorSshCidr1=203.0.113.10/32" in calls.read_text()
 
 
 def test_deploy_r8a_control_plane_refuses_to_move_attached_eip_without_force(
@@ -223,8 +307,12 @@ if [ "$1" = "ec2" ] && [ "$2" = "describe-network-interfaces" ]; then
   printf '{"PublicIp":"18.218.124.135","AllocationId":"eipalloc-r8a","Groups":["sg-08792057943b27a65"]}\\n'
   exit 0
 fi
+if [ "$1" = "ec2" ] && [ "$2" = "describe-security-group-rules" ]; then
+  printf '[{"IpProtocol":"tcp","FromPort":22,"ToPort":22,"CidrIpv4":"203.0.113.10/32"}]\\n'
+  exit 0
+fi
 if [ "$1" = "cloudformation" ] && [ "$2" = "describe-stacks" ]; then
-  printf '[{"OutputKey":"AllocationId","OutputValue":"eipalloc-r8a"}]\\n'
+  printf '{"Outputs":[{"OutputKey":"AllocationId","OutputValue":"eipalloc-r8a"},{"OutputKey":"SecurityGroupId","OutputValue":"sg-08792057943b27a65"}],"Parameters":[{"ParameterKey":"OperatorSshCidr1","ParameterValue":"203.0.113.10/32"}]}\\n'
   exit 0
 fi
 printf 'unexpected aws call: %s\\n' "$*" >&2
@@ -247,3 +335,93 @@ exit 99
 
     assert completed.returncode == 0
     assert "r8a_control_plane=ok" in completed.stdout
+
+
+def test_audit_r8a_control_plane_fails_when_managed_ssh_rule_missing(tmp_path: Path) -> None:
+    repo_root = _repo_root()
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    aws = fakebin / "aws"
+    aws.write_text(
+        """#!/bin/sh
+if [ "$1" = "ec2" ] && [ "$2" = "describe-instances" ]; then
+  printf 'i-r8a\\n'
+  exit 0
+fi
+if [ "$1" = "ec2" ] && [ "$2" = "describe-network-interfaces" ]; then
+  printf '{"PublicIp":"18.218.124.135","AllocationId":"eipalloc-r8a","Groups":["sg-08792057943b27a65"]}\\n'
+  exit 0
+fi
+if [ "$1" = "ec2" ] && [ "$2" = "describe-security-group-rules" ]; then
+  printf '[]\\n'
+  exit 0
+fi
+if [ "$1" = "cloudformation" ] && [ "$2" = "describe-stacks" ]; then
+  printf '{"Outputs":[{"OutputKey":"AllocationId","OutputValue":"eipalloc-r8a"},{"OutputKey":"SecurityGroupId","OutputValue":"sg-08792057943b27a65"}],"Parameters":[{"ParameterKey":"OperatorSshCidr1","ParameterValue":"203.0.113.10/32"}]}\\n'
+  exit 0
+fi
+printf 'unexpected aws call: %s\\n' "$*" >&2
+exit 99
+"""
+    )
+    aws.chmod(0o755)
+
+    env = os.environ.copy()
+    env["HOME"] = str(repo_root)
+    env["PATH"] = f"{fakebin}:{env.get('PATH', '')}"
+
+    completed = subprocess.run(
+        ["bash", str(repo_root / "scripts" / "audit_r8a_control_plane.sh")],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "security group is missing managed SSH CIDRs: 203.0.113.10/32" in completed.stderr
+
+
+def test_audit_r8a_control_plane_fails_on_world_open_ssh_rule(tmp_path: Path) -> None:
+    repo_root = _repo_root()
+    fakebin = tmp_path / "bin"
+    fakebin.mkdir()
+    aws = fakebin / "aws"
+    aws.write_text(
+        """#!/bin/sh
+if [ "$1" = "ec2" ] && [ "$2" = "describe-instances" ]; then
+  printf 'i-r8a\\n'
+  exit 0
+fi
+if [ "$1" = "ec2" ] && [ "$2" = "describe-network-interfaces" ]; then
+  printf '{"PublicIp":"18.218.124.135","AllocationId":"eipalloc-r8a","Groups":["sg-08792057943b27a65"]}\\n'
+  exit 0
+fi
+if [ "$1" = "ec2" ] && [ "$2" = "describe-security-group-rules" ]; then
+  printf '[{"IpProtocol":"tcp","FromPort":22,"ToPort":22,"CidrIpv4":"203.0.113.10/32"},{"IpProtocol":"tcp","FromPort":22,"ToPort":22,"CidrIpv4":"0.0.0.0/0"}]\\n'
+  exit 0
+fi
+if [ "$1" = "cloudformation" ] && [ "$2" = "describe-stacks" ]; then
+  printf '{"Outputs":[{"OutputKey":"AllocationId","OutputValue":"eipalloc-r8a"},{"OutputKey":"SecurityGroupId","OutputValue":"sg-08792057943b27a65"}],"Parameters":[{"ParameterKey":"OperatorSshCidr1","ParameterValue":"203.0.113.10/32"}]}\\n'
+  exit 0
+fi
+printf 'unexpected aws call: %s\\n' "$*" >&2
+exit 99
+"""
+    )
+    aws.chmod(0o755)
+
+    env = os.environ.copy()
+    env["HOME"] = str(repo_root)
+    env["PATH"] = f"{fakebin}:{env.get('PATH', '')}"
+
+    completed = subprocess.run(
+        ["bash", str(repo_root / "scripts" / "audit_r8a_control_plane.sh")],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "security group has world-open SSH ingress" in completed.stderr

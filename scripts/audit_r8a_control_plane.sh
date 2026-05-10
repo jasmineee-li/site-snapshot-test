@@ -82,48 +82,95 @@ instance_json="$(
     aws ec2 describe-network-interfaces \
         --region "$REGION" \
         --filters Name=attachment.instance-id,Values="$INSTANCE_ID" \
-        --query 'NetworkInterfaces[0].{PublicIp:Association.PublicIp,AllocationId:Association.AllocationId,Groups:Groups[].GroupId}' \
+        --query 'NetworkInterfaces[?Attachment.DeviceIndex==`0`]|[0].{PublicIp:Association.PublicIp,AllocationId:Association.AllocationId,Groups:Groups[].GroupId}' \
         --output json
 )"
 stack_json="$(
     aws cloudformation describe-stacks \
         --region "$REGION" \
         --stack-name "$STACK_NAME" \
-        --query 'Stacks[0].Outputs' \
+        --query 'Stacks[0].{Outputs:Outputs,Parameters:Parameters}' \
         --output json 2>/dev/null || true
 )"
+sg_rules_json="$(
+    aws ec2 describe-security-group-rules \
+        --region "$REGION" \
+        --filters Name=group-id,Values="$CFG_SECURITY_GROUP_ID" \
+        --query 'SecurityGroupRules[?IsEgress==`false`]' \
+        --output json
+)"
 
-uv run python - "$CFG_ADVERTISE_HOST" "$CFG_SECURITY_GROUP_ID" "$instance_json" "$stack_json" <<'PY'
+uv run python - "$CFG_ADVERTISE_HOST" "$CFG_SECURITY_GROUP_ID" "$instance_json" "$stack_json" "$sg_rules_json" <<'PY'
 import json
 import sys
 
-advertise_host, security_group_id, instance_raw, stack_raw = sys.argv[1:]
+advertise_host, security_group_id, instance_raw, stack_raw, sg_rules_raw = sys.argv[1:]
 instance = json.loads(instance_raw)
 outputs = {}
+parameters = {}
 if stack_raw.strip():
-    outputs = {item["OutputKey"]: item.get("OutputValue", "") for item in json.loads(stack_raw)}
+    stack = json.loads(stack_raw)
+    if isinstance(stack, list):
+        outputs = {item["OutputKey"]: item.get("OutputValue", "") for item in stack}
+    else:
+        outputs = {item["OutputKey"]: item.get("OutputValue", "") for item in stack.get("Outputs", [])}
+        parameters = {
+            item["ParameterKey"]: item.get("ParameterValue", "") for item in stack.get("Parameters", [])
+        }
+sg_rules = json.loads(sg_rules_raw)
 
 failures = []
 public_ip = instance.get("PublicIp") or ""
 allocation_id = instance.get("AllocationId") or ""
 groups = set(instance.get("Groups") or [])
+stack_security_group_id = outputs.get("SecurityGroupId", "")
+expected_ssh_cidrs = {
+    parameters.get(f"OperatorSshCidr{idx}", "")
+    for idx in range(1, 6)
+}
+expected_ssh_cidrs.discard("")
+actual_ssh_cidrs = {
+    rule.get("CidrIpv4")
+    for rule in sg_rules
+    if str(rule.get("IpProtocol")) == "tcp"
+    and int(rule.get("FromPort") or -1) == 22
+    and int(rule.get("ToPort") or -1) == 22
+    and rule.get("CidrIpv4")
+}
 
 if not allocation_id:
     failures.append("r8a public IP is ephemeral; no EIP allocation is associated")
 if advertise_host != public_ip:
     failures.append(f"host config advertise_host={advertise_host} does not match EC2 public_ip={public_ip}")
-if security_group_id and security_group_id not in groups:
+if not security_group_id:
+    failures.append("host config security_group_id is missing")
+elif security_group_id not in groups:
     failures.append(f"host config security_group_id={security_group_id} is not attached to the instance ENI")
 if not outputs:
     failures.append("CloudFormation stack is missing or unreadable")
-elif outputs.get("AllocationId") != allocation_id:
-    failures.append(
-        f"CloudFormation allocation_id={outputs.get('AllocationId')} does not match ENI allocation_id={allocation_id}"
-    )
+else:
+    if outputs.get("AllocationId") != allocation_id:
+        failures.append(
+            f"CloudFormation allocation_id={outputs.get('AllocationId')} does not match ENI allocation_id={allocation_id}"
+        )
+    if stack_security_group_id != security_group_id:
+        failures.append(
+            f"CloudFormation security_group_id={stack_security_group_id} does not match host config security_group_id={security_group_id}"
+        )
+    if not expected_ssh_cidrs:
+        failures.append("CloudFormation stack parameters do not include any operator SSH CIDRs")
+    else:
+        missing = sorted(expected_ssh_cidrs - actual_ssh_cidrs)
+        if missing:
+            failures.append(f"security group is missing managed SSH CIDRs: {', '.join(missing)}")
+if "0.0.0.0/0" in actual_ssh_cidrs:
+    failures.append("security group has world-open SSH ingress: 0.0.0.0/0")
 
 print(f"public_ip={public_ip or '<none>'}")
 print(f"allocation_id={allocation_id or '<none>'}")
 print(f"host_config_advertise_host={advertise_host}")
+print(f"security_group_id={security_group_id or '<none>'}")
+print(f"operator_ssh_cidrs={','.join(sorted(expected_ssh_cidrs)) or '<none>'}")
 print(f"cloudformation_stack={'present' if outputs else 'missing'}")
 
 if failures:
