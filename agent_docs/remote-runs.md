@@ -57,6 +57,22 @@ fresh hosts with a non-printing token check such as:
 ssh ubuntu@<host> 'cd /home/ubuntu/browser-sim && uv run python -c "from modal.config import config; raise SystemExit(0 if config.get(\"token_id\") and config.get(\"token_secret\") else 1)"'
 ```
 
+r8a is the canonical scale/smoke host for current paper-facing work. Its
+durable AWS identity is managed by a narrow CloudFormation control-plane stack:
+`infra/cloudformation/r8a-control-plane.yaml`. Use
+`scripts/deploy_r8a_control_plane.sh` for EIP association and operator SSH
+ingress, then run `scripts/audit_r8a_control_plane.sh` before starting or
+stopping the host. Do not hand-associate an Elastic IP or add ad hoc SSH ingress
+unless the stack is being repaired; otherwise drift detection loses value. The
+stack does not manage generated benchmark topology. After an EIP change, rerun:
+
+```bash
+scripts/setup_phase4_on_host.sh \
+  --host-config configs/benchmark_hosts/r8a.yaml \
+  --instances instances.scale.json \
+  --scale-config scripts/scale_config.r8a-24x24.yml
+```
+
 Treat launch attempts and evidence runs as separate artifacts. If a remote job
 exits before it starts the measured phase, for example because auth, topology,
 or prerequisite artifacts are missing, keep its remote job registry for
