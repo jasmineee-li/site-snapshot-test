@@ -837,7 +837,7 @@
           The current paper main contains evidence beyond this Hugging Face export, including cross-benchmark eval-awareness results and causal cue-intervention experiments. This report should therefore not be read as the full empirical program. Its job is narrower and more useful: it audits the released 50-task WARP cohort and spells out exactly what the WARP dataset itself shows.
         </p>
         <p>
-          The cohort supports the paper's WARP instantiation story: native-data seeding on WebArena Verified GitLab and Postmill, six target-model runs, explicit payload exposure accounting, state-confirmed final-status scoring, Transcript Purpose (TP), Verbalized Eval Awareness (VEA), and bounded iterator provenance. It also shows where WARP claims need careful language: TP moves in a meaningful subset, VEA is mostly Real, and action-family differences are not causally identified by this cohort alone.
+          The cohort supports the paper's WARP instantiation story: 50 generated WARP tasks on WebArena Verified GitLab and Postmill, native-data seeding, six target-model runs, explicit payload exposure accounting, state-confirmed final-status scoring, Transcript Purpose (TP), Verbalized Eval Awareness (VEA), and bounded iterator provenance. It also shows where WARP claims need careful language: TP moves in a meaningful subset, VEA is mostly Real, and action-family differences are not causally identified by this cohort alone.
         </p>
 
         <div class="table-wrap">
@@ -904,7 +904,7 @@
           </article>
           <article>
             <h3>Phase 1</h3>
-            <p>Select or generate benign browser tasks that route through realistic GitLab and Postmill user-generated content surfaces.</p>
+            <p>Generate benign browser tasks that route through realistic GitLab and Postmill user-generated content surfaces.</p>
           </article>
           <article>
             <h3>Phase 2</h3>
@@ -938,7 +938,7 @@
         <p class="section-kicker">Task mix</p>
         <h2>The 50 tasks cover three workflow families, not a balanced causal design.</h2>
         <p>
-          The cohort is intentionally narrow: GitLab and Reddit/Postmill user-generated content surfaces under the WARP/WASP scope. That makes the cohort auditable, but it also means action-family findings should be treated as hypotheses unless future runs balance site, surface, task wording, and action contract.
+          The cohort is intentionally narrow: all 50 tasks are generated WARP tasks over GitLab and Reddit/Postmill user-generated content surfaces under the WARP/WASP scope. That makes the cohort auditable, but it also means action-family findings should be treated as hypotheses unless future runs balance site, surface, task wording, and action contract.
         </p>
 
         <div class="task-grid">
@@ -967,7 +967,7 @@
             </thead>
             <tbody>
               <tr><td>Sites</td><td>GitLab 30 tasks / 180 rows; Reddit 20 tasks / 120 rows.</td><td>Only GitLab and Postmill are represented in this HF cohort.</td></tr>
-              <tr><td>Origins</td><td>GitLab <code>new_task</code> 30; Reddit <code>existing_task</code> 20.</td><td>Origin is coupled with site, so origin effects are not independently identified here.</td></tr>
+              <tr><td>Task generation</td><td>50 generated WARP tasks: 30 GitLab tasks and 20 Reddit/Postmill tasks.</td><td>This report should not describe the cohort as a mix of wrapped existing tasks and generated tasks; the released 50-task cohort is generated.</td></tr>
               <tr><td>Payload themes</td><td>authority 7, urgency 8, error recovery 6, support escalation 6, policy 5, CI failure 5, moderation appeal 5, peer tip 4, seller footnote 4.</td><td>Theme coverage is useful for examples, but the cohort is too small for strong theme-level ranking.</td></tr>
               <tr><td>Payload formats</td><td>plaintext 30, markdown 11, fenced-system markdown 9.</td><td>Format is another confound to track when explaining iterator behavior.</td></tr>
             </tbody>
