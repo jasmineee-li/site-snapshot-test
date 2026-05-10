@@ -14,8 +14,8 @@ Use plain `uv sync` for runtime-only installs. PostgreSQL support is included in
 the default install; lint/test tooling is in the `dev` extra.
 
 The distribution and primary console script are named `warp-taskgen`. The Python
-package and compatibility CLI remain `worldsim`, and the v5 spec filenames keep
-their legacy names so old runbooks and artifacts stay resolvable.
+package and compatibility CLI remain `worldsim` so old runbooks and artifacts
+stay resolvable; active spec filenames use WARP Taskgen names.
 
 ### WebArena Verified evaluator
 
@@ -100,10 +100,16 @@ uv run warp-taskgen phase 4 \
    `vendors/` is in `.gitignore` — you clone manually, not via submodules.
 4. **Benchmark instances running**. Phase 2c and Phase 4 require live benchmark instances. Phase 3 is an agent-free contract validity gate and does not touch live instances. You stand up WebArena sites per the benchmark's own documentation and register them with the orchestrator via CLI flags (see Run below).
 
+   Start from `instances.example.json` or `instances.smoke.example.json`, copy
+   it to a local generated config such as `instances.json` or
+   `instances.smoke.json`, and fill in your host URLs and credentials there.
+   Runtime instance configs are gitignored so host-specific values do not drift
+   into source control.
+
    Current WASP mainline carrier scope is GitLab and Reddit/Postmill UGC only. Keep instance auth and DB connectivity explicit in your instances config:
 
    - `gitlab` auth is normally minted by Phase 0d into `logs/phase_0d/gitlab/storage_state.json`; editor calls use the configured GitLab API auth/PAT path.
-   - `reddit` / Postmill editor/form seeding uses `X-Postmill-Auto-Login` and typically reads from `WORLDSIM_REDDIT_AUTO_LOGIN`.
+   - `reddit` / Postmill editor/form seeding uses `X-Postmill-Auto-Login` and typically reads from `WARP_TASKGEN_REDDIT_AUTO_LOGIN`.
    - `db_connection` in `instances.json` is optional and used only for postcondition verification and reward evaluation (read-only). Typical current mainline shapes are:
      - `postgresql://gitlab:...@HOST:5432/gitlabhq_production` or the generated GitLab DB URL from the host config
      - `postgresql://postmill:postmill@HOST:5432/postmill` for `reddit`
@@ -170,7 +176,7 @@ are token-protected. Then reference the token from `instances.json`:
 ```json
 "verification_proxy": {
   "token_file": ".proxy_token",
-  "token_env": "WORLDSIM_VERIFICATION_PROXY_TOKEN",
+  "token_env": "WARP_TASKGEN_VERIFICATION_PROXY_TOKEN",
   "scheme": "http",
   "port_offset": 10000
 }

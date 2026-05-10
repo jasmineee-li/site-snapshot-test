@@ -131,4 +131,3 @@ def test_resolve_profile_surface_fails_closed_for_unknown_benchmark():
         )
         is None
     )
-

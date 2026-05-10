@@ -30,7 +30,7 @@ aws-credentials.*
 # Modal
 .modal/
 
-# WorldSim runtime
+# WARP Taskgen runtime
 logs/
 pipeline_outputs/
 data/hf/**
@@ -40,6 +40,8 @@ data/hf/**
 !data/hf/.gitkeep
 *.sqlite
 *.sqlite3
+instances.json
+instances.*.local.json
 
 # Vendors — external benchmark clones (user runs `git clone` themselves)
 vendors/

@@ -90,12 +90,24 @@ may still carry `pvpo_cdp_url` as inert metadata, but canonical Browser Use and
 AgentLab Phase 4 do not route PVPO through that endpoint unless an explicit
 legacy debugging path is enabled.
 
-Instances-config variants live at the repo root and are selected via `--instances`:
+Instances-config examples and runtime variants live at the repo root and are
+selected via `--instances`:
 
-- `instances.json`: baseline WebArena Verified host list. Historical full-benchmark configs may include more sites than current WASP scope.
-- `instances.scale.json`: generated high-parallelism GitLab/Reddit layout for Phase 2c/Phase 4 worker fan-out on the current rigor host. It may be checked in as the current host snapshot, but it is regenerated from `configs/benchmark_hosts/r5.yaml` + `scripts/scale_config.yml` rather than hand-authored.
-- `instances.smoke.json`: generated GitLab/Reddit smoke topology for Phase 0c/Phase 0d and small live checks.
-- `instances.smoke.local.json`: local smoke variant when present.
+- `instances.example.json`: tracked, sanitized baseline WebArena Verified
+  template for fresh clones and package snapshots.
+- `instances.smoke.example.json`: tracked, sanitized GitLab/Reddit smoke
+  template for small live checks.
+- `instances.json`: local operator baseline config copied from an example and
+  filled with host URLs and credentials; gitignored in release/package hygiene.
+  Historical full-benchmark configs may include more sites than current WASP
+  scope.
+- `instances.scale.json`: generated high-parallelism GitLab/Reddit layout for
+  Phase 2c/Phase 4 worker fan-out on the current rigor host. It is regenerated
+  from `configs/benchmark_hosts/r5.yaml` + `scripts/scale_config.yml` rather
+  than hand-authored, and is gitignored in release/package hygiene.
+- `instances.smoke.json`: generated GitLab/Reddit smoke topology for Phase 0c,
+  Phase 0d, and small live checks.
+- `instances.*.local.json`: operator-local variants, gitignored when present.
 
 All variants follow the schema shown above; they differ only in the number,
 addressing, and locality metadata of instances.
@@ -113,9 +125,9 @@ The `benchmark_codebase` path is used only for Phase 0 exploration (read-only). 
 
 Every step that involves Claude Code runs inside a Modal Sandbox. Direct host API calls are used when the interaction is a bounded structured request rather than code exploration. This gives us:
 
-- **True filesystem isolation.** Each sandbox physically contains only the files we put in it. Claude Code cannot access files outside its sandbox, not because of a hint file, but because they do not exist in the container.  
-- **Native parallelism.** Spinning up N sandboxes for N sites is `asyncio.gather`. No machine-per-site overhead, no sequential execution with config regeneration.  
-- **Controlled inputs and outputs.** The file list IS the sandbox. If a profile is wrong, you can re-run the exact same sandbox with the exact same files. Reproducibility is structural.  
+- **True filesystem isolation.** Each sandbox physically contains only the files we put in it. Claude Code cannot access files outside its sandbox, not because of a hint file, but because they do not exist in the container.
+- **Native parallelism.** Spinning up N sandboxes for N sites is `asyncio.gather`. No machine-per-site overhead, no sequential execution with config regeneration.
+- **Controlled inputs and outputs.** The file list IS the sandbox. If a profile is wrong, you can re-run the exact same sandbox with the exact same files. Reproducibility is structural.
 - **Cost efficiency.** Sandboxes scale to zero when idle. No long-running EC2 instances.
 
 **Concrete example.** For current WASP runs, GitLab and Reddit/Postmill are
@@ -2208,7 +2220,7 @@ Configuration lives in `instances.json` under a top-level `verification_proxy` o
 ```json
 "verification_proxy": {
   "token_file": ".proxy_token",
-  "token_env": "WORLDSIM_VERIFICATION_PROXY_TOKEN",
+  "token_env": "WARP_TASKGEN_VERIFICATION_PROXY_TOKEN",
   "port_offset": 10000
 }
 ```
