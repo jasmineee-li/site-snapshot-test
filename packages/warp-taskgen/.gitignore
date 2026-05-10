@@ -30,7 +30,7 @@ aws-credentials.*
 # Modal
 .modal/
 
-# WorldSim runtime
+# WARP Taskgen runtime
 logs/
 pipeline_outputs/
 data/hf/**
@@ -47,6 +47,8 @@ vendors/
 # Generated host artifacts — regen from scale_config.yml + host config via
 # scripts/generate_scale_r5.sh. Treating the generator output as source
 # leads to drift and hand-edit bandaids.
+instances.json
+instances.*.local.json
 instances.scale.json
 instances.scale.json.fragment
 instances.smoke.json

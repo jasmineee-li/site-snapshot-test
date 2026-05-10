@@ -1,73 +1,98 @@
-# CUA Worldsim Infrastructure
+# WARP Browser-Agent Safety Experiments
 
-Infrastructure for evaluating computer- and web-use agents across realistic, multi-page web flows with automated environment generation and adversarial testing.
+WARP is a research monorepo for evaluating browser-use agents against indirect
+prompt injection in controlled web environments. It contains synthetic
+web-environment redteam experiments, evaluation-awareness studies, local
+CUA/probe tooling, and the packaged WARP Taskgen pipeline.
 
-## Core Features
+## What Lives Here
 
-### Dual-Agent Adversarial Framework
+| Area | Paths | Purpose |
+| --- | --- | --- |
+| WARP Synthetic Web Experiments | `AgentLab/`, `behavior-gen/`, `results/` | Generate synthetic multi-page websites from behavior specs, run benign/adversarial BrowserGym/AgentLab experiments, and capture full browser trajectories. |
+| WARP Eval-Awareness Experiments | `eval_awareness/`, `eval_awareness_experiments/`, `models/`, `probes/` | Measure whether browser-agent safety benchmarks look like evaluations, run cue/probe experiments, and analyze ASR shifts. |
+| WARP Taskgen Package | `packages/warp-taskgen/` | Standalone WebArena-style IPI task generation and admission pipeline, including WebArena Verified and AgentLab sidecars. |
+| Data and Results | `data/`, `results/`, `eval_awareness_experiments/results/`, `packages/warp-taskgen/analysis/` | Tracked task exports, summary tables, handoff notes, and paper-facing analysis artifacts. |
 
-- **Single-turn mode**: Attacker generates one prompt injection attempt, target agent responds across multiple browser steps
-- **Multi-turn mode**: Attacker and target exchange messages over multiple conversation turns
-- **Full logging**: Every step captured in `log.json` with actions, reasoning, and token usage
+## WARP Synthetic Web Experiments
 
-### Synthetic Website Generation
+The root synthetic-web stack turns behavior JSON into local, generated browser
+environments. A target browser agent then runs against paired benign and
+adversarial variants through AgentLab/BrowserGym.
 
-Automatically generate realistic web environments:
+Core pieces:
 
-- **World Sim Model**: LLMs (Claude, GPT-4) produce HTML clones of Gmail, Salesforce, Slack, etc.
-- **Trajectory Observation**: Optionally capture real site screenshots to guide generation
-- **Simulation Config**: Define pages, subdomains, prefill data, and adversarial content placement
-- **Caching**: Generated pages cached for reproducibility; option to resume from existing runs
+- `behavior-gen/`: staged behavior generation for websites, workflows,
+  injection points, attack scenarios, and `simulation_config` payloads.
+- `AgentLab/src/agentlab/benchmarks/redteam.py`: `RedteamBenchmark` and
+  `RedteamEnv`, including generated-page serving, benign/adversarial variants,
+  and BrowserGym action/observation plumbing.
+- `AgentLab/src/agentlab/benchmarks/trajectory_observer.py`: optional
+  screenshot/trajectory capture from reference sites for page generation.
+- `results/`: tracked example run output and local experiment artifacts.
 
-### BrowserGym Integration
-
-Agents interact via standardized interface:
-
-- **Observations**: DOM tree, accessibility tree (AXTree), screenshots
-- **Actions**: navigate, click, type, scroll, send_msg_to_user
-- **Local serving**: Pages served via Flask with Playwright route interception
-
-## Quick Start
+Minimal run shape:
 
 ```python
+from agentlab.agents.generic_agent.agent_configs import AGENT_4o_MINI
 from agentlab.benchmarks.redteam import RedteamBenchmark
 from agentlab.experiments.study import Study
-from agentlab.agents.generic_agent.agent_configs import AGENT_4o_MINI
 
 benchmark = RedteamBenchmark(
     benchmark_file="AgentLab/tests/new-data/salesforce_behavior_test_with_config.json",
+    attack_type="indirect",
     world_sim_model="anthropic/claude-opus-4.5",
     attacker_model="x-ai/grok-4",
     adversarial_mode="single_turn",
-    use_trajectory=True,  # Capture real site screenshots for generation
+    n_adversarial_variants=1,
+    use_trajectory=True,
 )
 
 study = Study(
     agent_args=[AGENT_4o_MINI],
     benchmark=benchmark,
-    comment="Redteam adversarial test",
+    comment="WARP synthetic-web redteam run",
 )
 
 study.run(n_jobs=1, parallel_backend="sequential")
 ```
 
-## Output Structure
+Current generated redteam outputs are grouped by behavior and variant:
 
+```text
+results/<run-id>/
+├── log.json
+├── study.pkl.gz
+└── <experiment-dirs>/
+    ├── summary_info.json
+    ├── experiment.log
+    ├── screenshot_step_*.png
+    ├── trajectory/
+    └── generated_pages/
+        └── <behavior-id>/
+            ├── benign/
+            └── adversarial_v0/
 ```
-results/2025-12-31_06-23-05_genericagent-gpt-4o-mini.../
-├── log.json                    # Structured run summary
-├── study.pkl.gz                # Pickled study for reload
-└── <experiment_dirs>/
-    ├── summary_info.json       # Per-experiment metrics
-    ├── experiment.log          # Detailed execution log
-    ├── screenshot_step_*.png   # Screenshots at each step
-    ├── trajectory/             # Real site screenshots (if use_trajectory=True)
-    └── variation_*/            # Generated HTML pages
+
+Use the AgentLab analyzer tools for inspection:
+
+```bash
+cd AgentLab
+make setup
+pip install -e .
+
+agentlab-xray
+python -m agentlab.analyze.website_browser
 ```
 
-## Behavior Specification
+Browsers run headless by default. For local debugging, set `headless=False` on
+the relevant `RedteamBenchmark` / `RedteamEnvArgs` path or trajectory observer
+launch path instead of relying on stale line-number instructions.
 
-Behaviors are defined in JSON with `simulation_config`:
+## Behavior Specs
+
+Synthetic-web behaviors are JSON records with a `simulation_config` describing
+the generated site, page routes, prefill data, and success condition.
 
 ```json
 {
@@ -82,63 +107,121 @@ Behaviors are defined in JSON with `simulation_config`:
       {
         "id": "salesforce",
         "base_site_url": "https://greenwaveai.lightning.force.com",
-        "subdomains": ["/lightning/page/home", "/lightning/setup/ManageUsers/..."],
-        "details": { "/lightning/page/home": "Salesforce home page..." }
+        "subdomains": ["/lightning/page/home"],
+        "details": {
+          "/lightning/page/home": "Salesforce home page..."
+        }
       }
     ]
   },
-  "judging": { ... },
-  "criteria": [ ... ]
+  "judging": {},
+  "criteria": []
 }
 ```
 
-See `AgentLab/tests/new-data/salesforce_behavior_test_with_config.json` for full example.
+See `AgentLab/tests/new-data/salesforce_behavior_test_with_config.json` and
+`behavior-gen/README.md` for concrete examples and the generation pipeline.
 
-## Architecture
+## WARP Eval-Awareness Experiments
 
+The root eval-awareness stack studies whether models recognize browser-agent
+safety benchmarks as evaluations and whether that recognition changes attack
+success rate.
+
+Entry points:
+
+- `eval_awareness_experiments/EXPERIMENTS.md`: experiment map and run commands.
+- `eval_awareness_experiments/results/`: DoomArena/WASP/AgentDojo/InjecAgent
+  result summaries and causal cue experiment tables.
+- `models/README.md`: local CUA model serving notes for OpenCUA and GUI-Owl.
+- `probes/README.md`: difference-of-means probe extraction and analysis.
+- `HANDOFF_CUA_EVAL_AWARENESS.md` and
+  `HANDOFF_GUI_OWL_PROBE_RESULTS.md`: current status and interpretation notes.
+
+The important distinction is that these experiments measure evaluation
+awareness and ASR behavior across benchmark families; they are not the same
+system as the WARP Taskgen package import below.
+
+## WARP Taskgen Package
+
+`packages/warp-taskgen/` is a standalone Python 3.12 `uv` package for
+WebArena-style IPI task generation, admission, feasibility verification, PVPO
+encounter scoring, Phase 4 runs, and Hugging Face/paper-facing analysis.
+
+Use the package README for package-local setup and commands:
+
+```bash
+cd packages/warp-taskgen
+uv sync --extra dev
+uv run warp-taskgen --help
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  Behavior JSON  │────▶│ RedteamBenchmark │────▶│     Study       │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-                               │                        │
-        ┌──────────────────────┼────────────────────────┘
-        │                      │
-        ▼                      ▼
-┌──────────────────┐   ┌──────────────────┐   ┌─────────────────┐
-│ Trajectory Agent │   │  World Sim LLM   │   │  Target Agent   │
-│ (real site obs)  │   │  (HTML gen)      │   │  (BrowserGym)   │
-└──────────────────┘   └──────────────────┘   └─────────────────┘
-        │                      │                      │
-        └──────────┬───────────┘                      │
-                   ▼                                  ▼
-           ┌──────────────────┐              ┌─────────────────┐
-           │  Flask Server    │◀─────────────│  Playwright     │
-           │  (local pages)   │              │  (browser ctrl) │
-           └──────────────────┘              └─────────────────┘
-```
+
+Important package sidecars:
+
+- `packages/warp-taskgen/packages/warp-taskgen-webarena-verified/`: isolated
+  WebArena Verified evaluator adapter.
+- `packages/warp-taskgen/packages/worldsim-agentlab-runner/`: isolated
+  AgentLab/BrowserGym runner sidecar.
+
+The package distribution and primary CLI are named `warp-taskgen`. Some internal
+Python packages and compatibility entrypoints still use `worldsim` by design so
+existing runbooks and artifacts remain resolvable.
 
 ## Setup
 
+Root development setup:
+
 ```bash
-cd AgentLab
-
-# Install
-make setup                          # Install deps, playwright, nltk data
-pip install -e .                    # Development mode
-
-# Environment
-cp .env.example .env                # Add API keys (OPENROUTER_API_KEY, ANTHROPIC_API_KEY)
-
-# Run
-python tutorials/2_eval_on_miniwob/redteam_test.py
-
-# Analyze
-agentlab-xray                       # Gradio UI for experiment visualization
-python website_browser.py           # HTML browser for generated pages
+uv sync --extra dev
 ```
 
-## Headless Mode
+For local CUA model serving or probe extraction:
 
-Browsers run headless by default (no visible window) for server/CI compatibility. To enable headed mode for debugging, set `headless=False` in:
-- `AgentLab/src/agentlab/benchmarks/redteam.py:98`
-- `AgentLab/src/agentlab/benchmarks/trajectory_observer.py:87`
+```bash
+uv sync --extra cua
+```
+
+For AgentLab-only work:
+
+```bash
+cd AgentLab
+make setup
+pip install -e .
+```
+
+For WARP Taskgen package work, use the package-local setup in
+`packages/warp-taskgen/README.md`.
+
+## Results and Artifacts
+
+Useful tracked artifacts:
+
+- `data/tasks_are_generated_task.json`: exported 50-task root task set.
+- `results/`: root AgentLab synthetic-web run artifacts.
+- `eval_awareness_experiments/results/`: benchmark awareness and ASR summaries.
+- `packages/warp-taskgen/analysis/warp_taskgen_hf_20260509/`: canonical WARP
+  Taskgen HF analysis summary and paper-facing report.
+
+Raw generated logs, live benchmark clones, and large runtime outputs should stay
+out of git unless a repo-local artifact policy says otherwise.
+
+## Naming Note
+
+> [!NOTE]
+> This project was previously called **WorldSim**. Public-facing documentation
+> now uses **WARP**. Legacy module names, result paths, and compatibility CLIs
+> may still contain `worldsim` where renaming would break old artifacts or
+> package entrypoints.
+
+Use **WARP** in new prose, README sections, PR descriptions, and paper-facing
+documentation. Treat **WorldSim** as a legacy name that may still appear in:
+
+- historical result paths and old handoff docs;
+- compatibility CLIs and Python packages that would break existing runs if
+  renamed immediately;
+- old behavior-generation design docs that have not yet been cut over.
+
+When updating code or docs, prefer a semantic name that identifies the subsystem:
+`warp-taskgen` for the packaged task-generation pipeline, WARP synthetic-web
+experiments for the root AgentLab/CUA stack, and WARP eval-awareness experiments
+for benchmark/probe studies.
