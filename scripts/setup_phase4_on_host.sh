@@ -28,7 +28,11 @@ HOST_CONFIG=""
 INSTANCES="${INSTANCES:-instances.scale.json}"
 ARTIFACTS_SOURCE=""
 BENCHMARK_ROOT="${WORLDSIM_BENCHMARK_ROOT:-/home/ubuntu/vendors/webarena-verified}"
-SCALE_CONFIG="${WORLDSIM_SCALE_CONFIG:-scripts/scale_config.yml}"
+SCALE_CONFIG="${WORLDSIM_SCALE_CONFIG:-}"
+SCALE_CONFIG_EXPLICIT=0
+if [[ -n "$SCALE_CONFIG" ]]; then
+    SCALE_CONFIG_EXPLICIT=1
+fi
 SKIP_PVPO_CONTAINER=1
 SKIP_MAGENTO_SYNC=0
 SKIP_GITLAB_MINT=0
@@ -54,7 +58,7 @@ while (("$#")); do
     case "$1" in
         --host-config) HOST_CONFIG="$2"; shift 2 ;;
         --instances) INSTANCES="$2"; shift 2 ;;
-        --scale-config) SCALE_CONFIG="$2"; shift 2 ;;
+        --scale-config) SCALE_CONFIG="$2"; SCALE_CONFIG_EXPLICIT=1; shift 2 ;;
         --artifacts-source) ARTIFACTS_SOURCE="$2"; shift 2 ;;
         --benchmark-root) BENCHMARK_ROOT="$2"; shift 2 ;;
         --skip-pvpo-container) SKIP_PVPO_CONTAINER=1; shift ;;
@@ -81,10 +85,27 @@ if [[ -z "$HOST_CONFIG" ]]; then
 fi
 HOST_CONFIG_PATH="$(abs_path "$HOST_CONFIG")"
 INSTANCES_PATH="$(abs_path "$INSTANCES")"
-SCALE_CONFIG_PATH="$(abs_path "$SCALE_CONFIG")"
 if [[ "$SKIP_MAGENTO_SYNC" -eq 1 ]]; then
     substep "--skip-magento-sync is deprecated; Magento left WASP scope on 2026-04-21"
 fi
+
+HOST_NAME="$(uv run python -c '
+import sys, yaml, pathlib
+data = yaml.safe_load(pathlib.Path(sys.argv[1]).read_text())
+print(str(data.get("name") or "").strip())
+' "$HOST_CONFIG_PATH")"
+if [[ -z "$SCALE_CONFIG" ]]; then
+    case "$HOST_NAME" in
+        r8a) SCALE_CONFIG="scripts/scale_config.r8a-24x24.yml" ;;
+        *) SCALE_CONFIG="scripts/scale_config.yml" ;;
+    esac
+    substep "selected default scale config for host=$HOST_NAME: $SCALE_CONFIG"
+elif [[ "$HOST_NAME" == "r8a" && "$SCALE_CONFIG_EXPLICIT" -eq 1 && "$(basename "$SCALE_CONFIG")" != "scale_config.r8a-24x24.yml" ]]; then
+    echo "ERROR: r8a setup requires scripts/scale_config.r8a-24x24.yml for canonical 24x24 topology" >&2
+    echo "Pass --scale-config scripts/scale_config.r8a-24x24.yml or omit --scale-config to use the r8a default." >&2
+    exit 2
+fi
+SCALE_CONFIG_PATH="$(abs_path "$SCALE_CONFIG")"
 
 # ---------------------------------------------------------------------------
 # Step 1 — uv + deps + evaluator venv (issues #1, #2 fallback, #17)

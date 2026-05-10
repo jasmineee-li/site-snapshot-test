@@ -129,6 +129,29 @@ exit 0
     assert completed.stderr
 
 
+def test_setup_phase4_on_host_rejects_r8a_with_r5_scale_config() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+
+    completed = subprocess.run(
+        [
+            "bash",
+            str(repo_root / "scripts" / "setup_phase4_on_host.sh"),
+            "--host-config",
+            "configs/benchmark_hosts/r8a.yaml",
+            "--scale-config",
+            "scripts/scale_config.yml",
+            "--skip-gitlab-mint",
+        ],
+        cwd=repo_root,
+        env=_base_env(repo_root),
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "r8a setup requires scripts/scale_config.r8a-24x24.yml" in completed.stderr
+
+
 def test_run_integration_tests_fails_fast_when_playwright_browser_missing(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     fakebin = tmp_path / "bin"
