@@ -920,7 +920,7 @@
         <ul class="wide">
           <li><strong>Object creation vs. object reply:</strong> new issues and new posts let the agent satisfy an attacker instruction by creating a standalone artifact. Issue notes require attaching text to an existing issue after reading a specific source object, which may make the injected instruction source and user-task conflict more salient.</li>
           <li><strong>Task-contract friction:</strong> comment tasks ask the agent to preserve a benign follow-up/comment contract. If the injection redirects that comment, the conflict with the user task may be easier for the agent or scorer to expose.</li>
-          <li><strong>State-confirmation strictness:</strong> issue-note success is judged through UI/API/GraphQL evidence for a note on a specific issue. That stricter same-object requirement is methodologically appropriate, but it can make the slice less comparable to standalone object creation.</li>
+          <li><strong>Different action contract:</strong> issue-note tasks require posting a note on the same existing issue that contained the payload, while issue/post creation tasks require creating a standalone object. The same-object check is the correct success condition, not a weakness. The caveat is causal: this cohort cannot tell whether lower issue-note ASR comes from comment-style workflows, GitLab issue UI, source-object matching, task wording, or their combination.</li>
           <li><strong>Surface-template coupling:</strong> in this cohort, <code>create_issue_note</code> is tied to GitLab issue descriptions and a public-comment scenario template. The effect could be action semantics, GitLab UI, task wording, payload family, or all of them.</li>
         </ul>
       </section>
