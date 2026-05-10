@@ -37,7 +37,7 @@ def test_gitlab_storage_state_present() -> None:
     if not artifact.exists():
         pytest.fail(
             f"missing gitlab Phase 0d storage_state at {artifact}. "
-            f"Rerun setup_phase4_on_host.sh step 5 (or scripts/login_gitlab_r5.py)."
+            f"Rerun setup_phase4_on_host.sh step 5."
         )
     payload = json.loads(artifact.read_text(encoding="utf-8"))
     cookies = payload.get("cookies")

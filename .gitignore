@@ -46,9 +46,9 @@ instances.*.local.json
 # Vendors — external benchmark clones (user runs `git clone` themselves)
 vendors/
 
-# Generated host artifacts — regen from scale_config.yml + host config via
-# scripts/generate_scale_r5.sh. Treating the generator output as source
-# leads to drift and hand-edit bandaids.
+# Generated host artifacts — regen from the selected host config plus matching
+# scale config via scripts/generate_scale_r5.sh or setup_phase4_on_host.sh.
+# Treating generator output as source leads to drift and hand-edit bandaids.
 instances.scale.json
 instances.scale.json.fragment
 instances.smoke.json
