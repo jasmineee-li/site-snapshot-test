@@ -160,7 +160,7 @@ substep "orchestrator_host=${ORCHESTRATOR_HOST} (from $HOST_CONFIG)"
 # patching the 62 fields that got bandaided on 2026-04-21. Also keeps
 # advertise_host ↔ control_host in sync with the host's actual topology.
 log "step 1b: regen $INSTANCES"
-"$REPO_ROOT/scripts/generate_scale_r5.sh" \
+"$REPO_ROOT/scripts/generate_scale.sh" \
     --host-config "$HOST_CONFIG_PATH" \
     --scale-config "$SCALE_CONFIG_PATH" >/dev/null
 INSTANCES_PATH="$(abs_path "$INSTANCES")"

@@ -80,7 +80,7 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
     completed = subprocess.run(
         [
             "bash",
-            str(repo_root / "scripts" / "sync_to_r5.sh"),
+            str(repo_root / "scripts" / "sync_to_host.sh"),
             "--host-config",
             str(host_config),
             "--dry-run",
@@ -129,8 +129,8 @@ def test_sync_dry_run_excludes_linked_worktree_git_file(tmp_path: Path) -> None:
     (worktree_root / ".git").write_text("gitdir: /local/only/path/.git/worktrees/demo\n")
     scripts_dir = worktree_root / "scripts"
     scripts_dir.mkdir()
-    (scripts_dir / "sync_to_r5.sh").write_text(
-        (repo_root / "scripts" / "sync_to_r5.sh").read_text()
+    (scripts_dir / "sync_to_host.sh").write_text(
+        (repo_root / "scripts" / "sync_to_host.sh").read_text()
     )
     (scripts_dir / "lib").mkdir()
     (scripts_dir / "lib" / "remote_jobs.sh").write_text(
@@ -154,7 +154,7 @@ open({str(args_file)!r}, "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))
     completed = subprocess.run(
         [
             "bash",
-            str(worktree_root / "scripts" / "sync_to_r5.sh"),
+            str(worktree_root / "scripts" / "sync_to_host.sh"),
             "--host-config",
             str(host_config),
             "--dry-run",
@@ -266,7 +266,7 @@ Path({str(rsync_called)!r}).write_text("called", encoding="utf-8")
     completed = subprocess.run(
         [
             "bash",
-            str(repo_root / "scripts" / "sync_to_r5.sh"),
+            str(repo_root / "scripts" / "sync_to_host.sh"),
             "--host-config",
             str(host_config),
             "--remote-dir",

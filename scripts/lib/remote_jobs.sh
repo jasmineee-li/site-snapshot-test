@@ -413,7 +413,7 @@ if (
 ):
     issues.append(
         "Remote r5 jobs must not use --benchmark vendors/webarena-verified. "
-        "sync_to_r5.sh intentionally excludes repo-local vendors/, so that "
+        "sync_to_host.sh intentionally excludes repo-local vendors/, so that "
         "path can be stale or incomplete while the host-local benchmark source "
         "lives at /home/ubuntu/vendors/webarena-verified. Use the absolute "
         "host-local benchmark path, or set WORLDSIM_ALLOW_REMOTE_REPO_VENDOR_BENCHMARK=1 "

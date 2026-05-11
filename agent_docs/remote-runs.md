@@ -7,7 +7,7 @@ Use this before fresh-host setup, benchmark proxy work, selected-host runs such 
 Read `docs/handoffs/rigor-run-setup.md` for the full runbook. The short version:
 
 1. Prepare or validate the host config, for example `configs/benchmark_hosts/r5.yaml` or `configs/benchmark_hosts/r8a.yaml`.
-2. Sync code with `scripts/sync_to_r5.sh` or the selected-host equivalent.
+2. Sync code with `scripts/sync_to_host.sh` or the selected-host equivalent.
 3. Start long jobs with `scripts/remote_job_start.sh` and a job id.
 4. Monitor with `scripts/remote_job_status.sh` or `scripts/remote_job_tail.sh`.
 5. Stop only with `scripts/remote_job_stop.sh --job-id <id>`.
@@ -16,7 +16,7 @@ Avoid raw long-lived SSH pipes for runs. Never use broad `pkill -f` to stop jobs
 Do not sync a remote checkout while a registered job is still running. Common
 Phase 0 -> 1 -> 2 and Phase 4 commands start fresh Python processes between
 steps; syncing mid-chain can make one artifact use multiple code versions.
-`sync_to_r5.sh` blocks active remote jobs by default. Use
+`sync_to_host.sh` blocks active remote jobs by default. Use
 `--allow-active-jobs` only for deliberate maintenance after recording why mixed
 checkout provenance is acceptable.
 
@@ -286,7 +286,7 @@ falls back to the original URL if the host-local candidate fails. If enrichment
 falls back to static profile samples, treat any later source-data 404s as stale
 inventory evidence, not as a carrier-render verdict.
 
-On r5, also treat the benchmark source path as host-local. `sync_to_r5.sh`
+On r5, also treat the benchmark source path as host-local. `sync_to_host.sh`
 intentionally excludes repo-local `vendors/`, so
 `/home/ubuntu/browser-sim/vendors/webarena-verified` may be stale or incomplete.
 Use `/home/ubuntu/vendors/webarena-verified` in remote Phase 0/1/2 commands
@@ -410,7 +410,7 @@ scripts/run_integration_tests.sh --host-config configs/benchmark_hosts/r5.yaml -
 Use `--quiet` for agent sessions. It prints a one-line pass summary or full failure output.
 With `--host-config` and no explicit `--instances`, the wrapper now generates a
 temporary host-config-specific smoke instances file from `scripts/scale_config.yml`
-and the selected host config. This is intentional: `sync_to_r5.sh` excludes
+and the selected host config. This is intentional: `sync_to_host.sh` excludes
 generated topology artifacts, and host setup may regenerate `instances.smoke.json`
 with ports that differ from a stale laptop checkout. Pass `--instances` only
 when you intentionally want a specific public/proxy or scale topology file. On
@@ -429,7 +429,7 @@ bash scripts/run_integration_tests.sh \
     --quiet
 
 # Deliberate scale-topology check:
-bash scripts/generate_scale_r5.sh --host-config configs/benchmark_hosts/r5.yaml
+bash scripts/generate_scale.sh --host-config configs/benchmark_hosts/r8a.yaml
 bash scripts/run_integration_tests.sh \
     --host-config configs/benchmark_hosts/r5.yaml \
     --instances instances.scale.json \

@@ -1481,7 +1481,7 @@ def _dispatch_preflight(args: argparse.Namespace) -> int:
     if not instances.exists():
         print(
             f"instances file not found: {instances}\n"
-            f"Regenerate via scripts/generate_scale_r5.sh with the selected "
+            f"Regenerate via scripts/generate_scale.sh with the selected "
             f"--host-config/--scale-config, "
             f"or pass --instances <path>.",
             file=sys.stderr,

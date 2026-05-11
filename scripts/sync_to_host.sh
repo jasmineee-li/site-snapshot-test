@@ -15,7 +15,7 @@ ALLOW_ACTIVE_JOBS=0
 
 usage() {
     cat <<'USAGE'
-sync_to_r5.sh
+sync_to_host.sh
 
 Options:
   --host-config <path>      benchmark host YAML (required)

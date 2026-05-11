@@ -254,7 +254,7 @@ uv run warp-taskgen phase 2 --benchmark vendors/webarena-verified \
 # instead of hand-editing IPs. Generated instance/proxy/compose files are
 # gitignored host-local scratch. For canonical r8a runs, use the 24x24 scale
 # config: 24 GitLab replicas + 24 Reddit/Postmill replicas.
-./scripts/generate_scale_r5.sh \
+./scripts/generate_scale.sh \
   --host-config configs/benchmark_hosts/r8a.yaml \
   --scale-config scripts/scale_config.r8a-24x24.yml
 uv run warp-taskgen phase 0d --benchmark vendors/webarena-verified \

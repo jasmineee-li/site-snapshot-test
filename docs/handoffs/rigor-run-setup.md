@@ -137,7 +137,7 @@ a registry under `<remote-dir>/logs/remote_jobs/<job_id>/`.
 
 1. Sync the checkout without secrets or generated logs:
    ```
-   scripts/sync_to_r5.sh \
+   scripts/sync_to_host.sh \
        --host-config configs/benchmark_hosts/r5.yaml \
        --remote-dir /home/ubuntu/browser-sim
    ```

@@ -8,7 +8,7 @@ LOCAL_COMPOSE="$REPO_ROOT/scripts/docker-compose.scale.yml"
 INSTANCES_SCALE="$REPO_ROOT/instances.scale.json"
 
 "$REPO_ROOT/scripts/audit_r8a_control_plane.sh" --host-config "$HOST_CONFIG"
-"$REPO_ROOT/scripts/generate_scale_r5.sh" \
+"$REPO_ROOT/scripts/generate_scale.sh" \
   --host-config "$HOST_CONFIG" \
   --scale-config "$SCALE_CONFIG"
 uv run python "$REPO_ROOT/scripts/preflight_security_group.py" \

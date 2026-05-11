@@ -143,7 +143,7 @@ network/HAR, rewards, resume, and artifact manifests together on the rigor host.
 Smallest smoke:
 
 ```bash
-scripts/sync_to_r5.sh --host-config configs/benchmark_hosts/r5.yaml
+scripts/sync_to_host.sh --host-config configs/benchmark_hosts/r8a.yaml
 scripts/remote_job_start.sh \
   --host-config configs/benchmark_hosts/r5.yaml \
   --name agentlab-parity-proof-current-reddit \
@@ -655,7 +655,7 @@ bash scripts/verify_fast.sh
 Live gate before claiming AgentLab `phase4-run` WorldSim-v5 parity:
 
 ```bash
-scripts/sync_to_r5.sh --host-config configs/benchmark_hosts/r5.yaml
+scripts/sync_to_host.sh --host-config configs/benchmark_hosts/r8a.yaml
 scripts/remote_job_start.sh \
   --host-config configs/benchmark_hosts/r5.yaml \
   --name agentlab-parity-proof-current-reddit \

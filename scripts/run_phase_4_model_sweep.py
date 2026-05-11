@@ -626,10 +626,10 @@ def initial_state(config: SweepConfig, state_dir: Path) -> dict[str, Any]:
     }
 
 
-def sync_to_r5(config: SweepConfig) -> None:
+def sync_to_host(config: SweepConfig) -> None:
     run_checked(
         [
-            "scripts/sync_to_r5.sh",
+            "scripts/sync_to_host.sh",
             "--host-config",
             config.host_config,
             "--remote-dir",
@@ -780,7 +780,7 @@ def run_sweep(args: argparse.Namespace) -> int:
         untracked = untracked_files()
         if untracked:
             print(
-                "worktree has untracked files; sync_to_r5 rsyncs workspace bytes, "
+                "worktree has untracked files; sync_to_host rsyncs workspace bytes, "
                 "so run from a clean worktree or pass --allow-dirty intentionally",
                 file=sys.stderr,
             )
@@ -804,7 +804,7 @@ def run_sweep(args: argparse.Namespace) -> int:
     state["status"] = "syncing"
     update_state(state_dir, state)
     log_event("syncing current checkout to r5")
-    sync_to_r5(config)
+    sync_to_host(config)
     state["remote_sync_stamp"] = local_git_stamp(config)
     update_state(state_dir, state)
     log_event("sync complete")
@@ -956,8 +956,7 @@ def run_sweep(args: argparse.Namespace) -> int:
                     break
                 if (
                     status.get("status") == "attention_required"
-                    and status.get("failure_class")
-                    in {"stale_logs", "stale_phase4_progress"}
+                    and status.get("failure_class") in {"stale_logs", "stale_phase4_progress"}
                     and stale_resumes_consumed < config.stale_resume_budget
                 ):
                     stale_resumes_consumed += 1

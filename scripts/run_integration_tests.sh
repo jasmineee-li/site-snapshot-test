@@ -2,7 +2,7 @@
 # With --host-config and no explicit --instances, this wrapper materializes a
 # host-specific smoke instances file in a temp dir. Do not rely on the checked-in
 # instances.smoke.json for live host gates: remote setup regenerates instance
-# topology on the target host, while sync_to_r5.sh intentionally excludes those
+# topology on the target host, while sync_to_host.sh intentionally excludes those
 # generated files so local stale ports cannot overwrite host-local contracts.
 set -euo pipefail
 
