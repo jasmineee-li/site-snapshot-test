@@ -2,7 +2,7 @@ name: r8a
 access_mode: remote_direct_restricted
 # advertise_host: the green benchmark's externally reachable IP. Blue keeps
 # configs/benchmark_hosts/r5.yaml and the current EIP until cutover.
-advertise_host: 18.218.124.135
+advertise_host: 3.16.230.234
 # orchestrator_host: what the on-host orchestrator AND the chrome containers
 # use to reach gitlab/reddit/env-ctrl/postgres. 172.17.0.1 is Docker's default
 # bridge gateway, reachable from the host and containers.
