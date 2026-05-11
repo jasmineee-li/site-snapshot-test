@@ -129,6 +129,66 @@ host-config-driven path for current runs.
    salvage remains inspection evidence only; it does not make a failed
    process-pool merge canonical.
 
+## Archive a completed run to S3
+
+After a rigor run completes and the results are accepted as evidence, archive
+the run directory to `s3://benchmark-archives/worldsim-runs/<run_id>/` so the
+trajectories survive even when the host disk is recycled or the AMI is
+rotated. The script lives at `scripts/archive_run_to_s3.sh` and follows the
+AWS-recommended two-pass discipline (sync, verify with dryrun, optional delete).
+
+```
+scripts/archive_run_to_s3.sh <run_id>
+```
+
+This will:
+
+1. Validate the run directory exists and write `ARCHIVE_MANIFEST.json` capturing
+   the git sha, branch, hostname, file count, and byte count at archive time.
+2. `aws s3 sync` the run directory to `s3://benchmark-archives/worldsim-runs/<run_id>/`
+   with `STANDARD_IA` storage class and `--only-show-errors` operator logging.
+3. Verify with `aws s3 sync --dryrun` — must report zero `upload:` lines.
+4. Tag the manifest object so future audits can filter by `project=warp-taskgen`,
+   `run_id=<id>`, `archived_at=<ISO>`, `git_sha=<sha>`, `purpose=paper-evidence`.
+
+After the local copy is no longer needed (and disk pressure warrants it), pass
+`--delete-local` for the same invocation to remove the local directory in the
+same pass. Verification still runs first; `--delete-local` will refuse to delete
+if verification didn't run.
+
+```
+scripts/archive_run_to_s3.sh <run_id> --delete-local
+```
+
+Resume after interruption: just rerun the same command. `aws s3 sync` is
+natively idempotent — it skips files already at the destination with matching
+size and mtime. The two-pass dryrun verification will catch any partial state.
+
+Refresh the local archive index after archiving:
+
+```
+scripts/regen_archive_index.sh
+```
+
+That regenerates `docs/runs/archive-index.md` (gitignored) from S3 metadata
+plus the local HuggingFace dataset references. Shows gaps where HF references
+a run_id that has no S3 archive.
+
+Hardlink note: `du -sb` counts hardlinks once; S3 expands them into separate
+objects. The S3 byte total will exceed the local `du -sb` total — this is
+expected and the verification script accounts for it. Don't panic at the size
+diff; the dryrun check is the authoritative integrity gate.
+
+Sequencing note for paper handoff:
+
+1. Phase 4 completes and produces `results.json` plus the HF dataset export.
+2. The HF export commits to `data/hf/<dataset_id>/`.
+3. `scripts/archive_run_to_s3.sh <run_id>` writes the trajectories to S3.
+4. `scripts/regen_archive_index.sh` updates the local index.
+5. Only then is the run "fully landed". A run with HF export but no S3 archive
+   is incomplete because reviewers / future you cannot retrieve the underlying
+   trajectories that back the HF rows.
+
 ## Remote job wrapper quickstart
 
 Use the remote job scripts for any r5 command that may outlive an interactive
