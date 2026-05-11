@@ -87,3 +87,6 @@ htmlcov/
 # Misc
 *.log
 nohup*.out
+
+# Operational state — regenerated, not source-controlled
+docs/runs/archive-index.md
