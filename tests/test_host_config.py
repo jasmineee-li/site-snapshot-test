@@ -90,3 +90,72 @@ def test_host_config_allows_narrow_trusted_operator_cidrs() -> None:
         }
     )
     assert cfg.trusted_operator_cidrs == ["128.84.124.235/32"]
+
+
+def test_host_config_instance_id_optional() -> None:
+    cfg = BenchmarkHostConfig.model_validate(
+        {
+            "name": "r8a",
+            "access_mode": "remote_direct_restricted",
+            "advertise_host": "18.218.124.135",
+            "bind_host": "0.0.0.0",
+            "allow_public_web_bind": True,
+            "allow_public_db_bind": True,
+        }
+    )
+    assert cfg.instance_id is None
+
+
+def test_host_config_instance_id_accepts_well_formed() -> None:
+    cfg = BenchmarkHostConfig.model_validate(
+        {
+            "name": "r8a",
+            "access_mode": "remote_direct_restricted",
+            "advertise_host": "18.218.124.135",
+            "bind_host": "0.0.0.0",
+            "allow_public_web_bind": True,
+            "allow_public_db_bind": True,
+            "instance_id": "i-0bf197c9d4e41d500",
+        }
+    )
+    assert cfg.instance_id == "i-0bf197c9d4e41d500"
+
+
+@pytest.mark.parametrize(
+    "bad_id",
+    [
+        "i-0bf197c9d4e41d50",
+        "i-0bf197c9d4e41d5000",
+        "i-0BF197C9D4E41D500",
+        "0bf197c9d4e41d500",
+        "i-zzzzzzzzzzzzzzzzz",
+        "i- 0bf197c9d4e41d500",
+    ],
+)
+def test_host_config_instance_id_rejects_malformed(bad_id: str) -> None:
+    payload = {
+        "name": "r8a",
+        "access_mode": "remote_direct_restricted",
+        "advertise_host": "18.218.124.135",
+        "bind_host": "0.0.0.0",
+        "allow_public_web_bind": True,
+        "allow_public_db_bind": True,
+        "instance_id": bad_id,
+    }
+    with pytest.raises(ValueError, match="instance_id"):
+        BenchmarkHostConfig.model_validate(payload)
+
+
+def test_host_config_instance_id_strips_outer_whitespace() -> None:
+    cfg = BenchmarkHostConfig.model_validate(
+        {
+            "name": "r8a",
+            "access_mode": "remote_direct_restricted",
+            "advertise_host": "18.218.124.135",
+            "bind_host": "0.0.0.0",
+            "allow_public_web_bind": True,
+            "allow_public_db_bind": True,
+            "instance_id": "  i-0bf197c9d4e41d500  ",
+        }
+    )
+    assert cfg.instance_id == "i-0bf197c9d4e41d500"

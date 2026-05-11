@@ -19,3 +19,7 @@ compose_dir_remote: /home/ubuntu
 compose_file_remote: /home/ubuntu/docker-compose.yml
 security_group_id: sg-08792057943b27a65
 region: us-east-2
+# instance_id: durable identity for stop/start; read by scripts/host_park.sh,
+# scripts/host_resume.sh, scripts/enable_r8a_termination_protection.sh, and the
+# EventBridge auto-stop Lambda. Validated against ^i-[0-9a-f]{17}$ on load.
+instance_id: i-0bf197c9d4e41d500
