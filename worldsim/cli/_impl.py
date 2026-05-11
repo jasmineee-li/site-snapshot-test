@@ -1906,7 +1906,9 @@ def _dispatch_phase(args: argparse.Namespace) -> int:
             )
             return 2
         try:
-            with _phase4_run_lock(get_state_dir()):
+            from worldsim.phase_4.sweep_tag import sweep_in_progress
+
+            with _phase4_run_lock(get_state_dir()), sweep_in_progress():
                 rc = _run_phase4_with_bounded_async_shutdown(
                     phase_4_adversarial.run(args),
                     shutdown_timeout_s=_phase4_async_shutdown_timeout(),
