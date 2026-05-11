@@ -101,6 +101,34 @@ Parameters:
       Optional email to subscribe to the auto-stop SNS topic. Leave blank to
       create the topic with no initial subscription; subscribe out-of-band.
 
+  IdleStopAlarmEnabled:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >
+      Whether to deploy the CloudWatch low-CPU backstop alarm (Layer 3). Set
+      false to disable the alarm for long sweep windows. The alarm fires only
+      after the tighter idle window so false-positives during real sweeps
+      are unlikely; it acts as a safety net if Layer 2 fails.
+
+  IdleStopCpuThresholdPct:
+    Type: Number
+    Default: 2
+    MinValue: 1
+    MaxValue: 100
+    Description: >
+      Average CPU% below which the backstop alarm starts counting toward
+      breaching. Default 2 (deliberately tight; Layer 3 is a backstop).
+
+  IdleStopEvaluationPeriods:
+    Type: Number
+    Default: 24
+    MinValue: 1
+    MaxValue: 288
+    Description: >
+      Number of consecutive 5-minute periods below threshold required for the
+      alarm to fire. Default 24 = 2 hours of fully-idle CPU.
+
 Conditions:
   CreateNewElasticIp: !Equals [!Ref CreateElasticIp, "true"]
   HasOperatorSshCidr2: !Not [!Equals [!Ref OperatorSshCidr2, ""]]
@@ -111,6 +139,7 @@ Conditions:
   AutoStopEmailSubscribed: !And
     - !Condition AutoStopEnabled
     - !Not [!Equals [!Ref AutoStopNotificationEmail, ""]]
+  IdleStopAlarmEnabled: !Equals [!Ref IdleStopAlarmEnabled, "true"]
 
 Resources:
   CanonicalElasticIp:
@@ -370,6 +399,35 @@ Resources:
         Arn: !GetAtt AutoStopLambda.Arn
         RoleArn: !GetAtt AutoStopSchedulerRole.Arn
 
+  # ----- Layer 3: CloudWatch low-CPU backstop -----
+  # Native EC2 stop action (no Lambda needed; no tag check). The tight
+  # threshold + long evaluation window make false-positives during real sweeps
+  # unlikely. If Layer 2 fails or is disabled, this is the safety net.
+
+  IdleStopAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IdleStopAlarmEnabled
+    Properties:
+      AlarmName: !Sub "worldsim-${HostName}-idle-stop"
+      AlarmDescription: !Sub >
+        Backstop: stop worldsim-${HostName} after sustained low-CPU idle.
+        Native ec2:stop action. Tune via IdleStopCpuThresholdPct and
+        IdleStopEvaluationPeriods stack parameters.
+      Namespace: AWS/EC2
+      MetricName: CPUUtilization
+      Dimensions:
+        - Name: InstanceId
+          Value: !Ref InstanceId
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: !Ref IdleStopEvaluationPeriods
+      DatapointsToAlarm: !Ref IdleStopEvaluationPeriods
+      Threshold: !Ref IdleStopCpuThresholdPct
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Sub "arn:aws:automate:${AWS::Region}:ec2:stop"
+
 Outputs:
   HostName:
     Description: Benchmark host label.
@@ -402,3 +460,7 @@ Outputs:
   AutoStopSnsTopicArn:
     Description: SNS topic ARN for auto-stop notifications (operator can subscribe).
     Value: !If [AutoStopEnabled, !Ref AutoStopSnsTopic, ""]
+
+  IdleStopAlarmName:
+    Description: CloudWatch backstop alarm name (empty if disabled).
+    Value: !If [IdleStopAlarmEnabled, !Ref IdleStopAlarm, ""]
