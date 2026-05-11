@@ -337,6 +337,16 @@ Live hosts often contain the freshest Phase task artifacts under `logs/`.
 Before relying on checked-in task JSON, audit the host or run archive and follow
 `agent_docs/artifacts.md` for manifest, hash, and fixture-promotion rules.
 
+## Park Between Sweeps
+
+When no rigor sweep is running, stop the host with
+`scripts/host_park.sh --host-config configs/benchmark_hosts/<host>.yaml`
+to avoid idle compute billing. Resume with `scripts/host_resume.sh`
+(it sets `worldsim:sweep-in-progress=true` before starting so the
+auto-stop layers do not fire during the run). Operator workflow is
+documented in `docs/handoffs/rigor-run-setup.md` under "Park between
+sweeps". Clear the sweep tag after the sweep AND archive complete.
+
 ## Fresh Host Gate
 
 Run this on any fresh host before Phase 4:

@@ -129,6 +129,41 @@ host-config-driven path for current runs.
    salvage remains inspection evidence only; it does not make a failed
    process-pool merge canonical.
 
+## Park between sweeps (stop idle billing)
+
+When no rigor sweep is running, stop the host with
+`scripts/host_park.sh`. r8a billing is ~$120/day idle, so parking between
+sweeps is a sizable saving. Compute is the only thing the stop pauses;
+the EBS volume and EIP keep their fixed monthly charges.
+
+```bash
+# Park (stop) the host. Refuses if a sweep is in progress.
+scripts/host_park.sh --host-config configs/benchmark_hosts/r8a.yaml
+
+# Resume (start) and audit. Sets the sweep tag before starting so the
+# auto-stop layers don't fire during the run.
+scripts/host_resume.sh --host-config configs/benchmark_hosts/r8a.yaml
+```
+
+The `worldsim:sweep-in-progress=true` tag is what gates `host_park.sh`
+(and the EventBridge / CloudWatch auto-stop layers, once enabled).
+`host_resume.sh` sets it for you. After the sweep finishes AND the
+archive completes, clear it:
+
+```bash
+aws ec2 delete-tags --region us-east-2 \
+  --resources i-0bf197c9d4e41d500 \
+  --tags Key=worldsim:sweep-in-progress
+```
+
+If the tag is stuck after a crash and you need to park anyway, pass
+`--force` to `host_park.sh` (the operator IAM identity is logged).
+
+If storage_state cookies on disk are older than 24h when you resume,
+the first thing to run is `scripts/setup_phase4_on_host.sh` to refresh
+them; otherwise Phase 0c will fail with stale-session errors. Pass
+`--regen-topology` to `host_resume.sh` to chain it automatically.
+
 ## Archive a completed run to S3
 
 After a rigor run completes and the results are accepted as evidence, archive
