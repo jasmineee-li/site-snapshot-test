@@ -30,7 +30,7 @@ Options:
   -h, --help                  show this help
 
 Command follows after --, for example:
-  scripts/remote_job_start.sh --host-config configs/benchmark_hosts/r5.yaml \
+  scripts/remote_job_start.sh --host-config configs/benchmark_hosts/r8a.yaml \
     --name phase1-route-diversity --remote-dir /home/ubuntu/browser-sim \
     --expected-output logs/phase_1/benign_tasks.json -- \
     uv run warp-taskgen phase 1 --generate-novel

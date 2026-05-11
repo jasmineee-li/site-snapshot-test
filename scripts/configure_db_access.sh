@@ -16,7 +16,7 @@
 # docs/handoffs/wasp-aligned-scoping-decision.md).
 #
 # Usage (from the repo root, on your workstation):
-#   ./scripts/configure_db_access.sh --host-config configs/benchmark_hosts/r5.yaml
+#   ./scripts/configure_db_access.sh --host-config configs/benchmark_hosts/r8a.yaml
 #
 #   # Optional overrides:
 #   HOST_IP=1.2.3.4 SSH_KEY=~/.ssh/other-key.pem ./scripts/configure_db_access.sh

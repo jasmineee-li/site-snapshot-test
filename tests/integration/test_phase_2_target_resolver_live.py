@@ -3,7 +3,7 @@
 Hits the real Anthropic Messages API and the real benchmark instance.
 Skipped in default CI; run locally with:
 
-    LIVE_INSTANCES_FILE=configs/benchmark_hosts/r5.yaml \
+    LIVE_INSTANCES_FILE=configs/benchmark_hosts/r8a.yaml \
     CLAUDE_CODE_OAUTH_TOKEN=... \
     uv run pytest -m live_l3 tests/integration/test_phase_2_target_resolver_live.py
 

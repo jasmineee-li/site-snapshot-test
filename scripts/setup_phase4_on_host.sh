@@ -13,7 +13,7 @@
 #
 # Usage:
 #   scripts/setup_phase4_on_host.sh \
-#       --host-config configs/benchmark_hosts/r5.yaml \
+#       --host-config configs/benchmark_hosts/r8a.yaml \
 #       --instances instances.scale.json \
 #       --artifacts-source s3://benchmark-archives/worldsim-runs/<id>/
 #

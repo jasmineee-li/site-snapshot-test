@@ -24,7 +24,7 @@
 #
 #   # With explicit arguments:
 #   ./scripts/deploy_benchmark_proxy.sh \
-#       --host-config configs/benchmark_hosts/r5.yaml \
+#       --host-config configs/benchmark_hosts/r8a.yaml \
 #       --ssh-key ~/.ssh/webarena-key.pem \
 #       --port-map scripts/proxy_ports.conf \
 #       --token-file .proxy_token
