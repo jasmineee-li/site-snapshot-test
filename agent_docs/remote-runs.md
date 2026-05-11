@@ -347,6 +347,11 @@ auto-stop layers do not fire during the run). Operator workflow is
 documented in `docs/handoffs/rigor-run-setup.md` under "Park between
 sweeps". Clear the sweep tag after the sweep AND archive complete.
 
+The full three-layer lifecycle policy (operator scripts + EventBridge
+auto-stop + CloudWatch backstop + termination protection) is in
+`docs/infra/r8a-control-plane.md` under "Lifecycle policy". Read it
+before disabling any layer for a long sweep window.
+
 ## Fresh Host Gate
 
 Run this on any fresh host before Phase 4:

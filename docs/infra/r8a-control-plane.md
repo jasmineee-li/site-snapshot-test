@@ -112,6 +112,124 @@ The audit fails if r8a has an ephemeral public IP, if the checked-in
 `advertise_host` no longer matches EC2, if the expected security group is not
 attached, or if the CloudFormation stack allocation does not match the ENI.
 
+## Lifecycle policy
+
+The control plane also owns the three-layer defense against idle compute
+billing and accidental termination. All four pieces work independently:
+disabling any one of them does not break the others.
+
+```
+Layer 1: scripts/host_park.sh + scripts/host_resume.sh   (operator-driven)
+Layer 2: EventBridge daily auto-stop (tag-gated)         (catches "forgot")
+Layer 3: CloudWatch low-CPU stop alarm                   (backstop)
++ Termination protection                                 (always-on guard)
++ worldsim:sweep-in-progress tag                         (live-run gate)
+```
+
+### The sweep tag
+
+`worldsim:sweep-in-progress=true` is the contract every layer respects.
+Set the tag before any work that must not be interrupted; clear it once
+the run and its archive are complete. `scripts/host_resume.sh` sets it
+automatically; `worldsim/phase_4/sweep_tag.py` (loaded by the Phase 4
+runner) sets it best-effort at run start and clears it at run end.
+
+### Operator workflow
+
+```bash
+# Before bed (or any long gap between sweeps):
+scripts/host_park.sh --host-config configs/benchmark_hosts/r8a.yaml
+
+# Before a new sweep:
+scripts/host_resume.sh --host-config configs/benchmark_hosts/r8a.yaml
+
+# After the sweep AND its archive complete:
+aws ec2 delete-tags --region us-east-2 \
+  --resources i-0bf197c9d4e41d500 \
+  --tags Key=worldsim:sweep-in-progress
+```
+
+If `host_park.sh` refuses because the tag is set but no Phase 4 process
+is actually running, the runner crashed and left the tag stale. Clear
+it manually (above) or pass `--force` (operator IAM identity is logged).
+
+### Termination protection
+
+`DisableApiTermination=true` is set on the instance via
+`scripts/enable_r8a_termination_protection.sh`. CloudFormation cannot
+manage this attribute on imported instances. See the "Terminating r8a"
+edge case below for the deliberate replace-and-relaunch dance.
+
+### Layer 2: EventBridge daily auto-stop
+
+A daily `AWS::Scheduler::Schedule` (default `cron(0 3 * * ? *)` UTC)
+invokes the `worldsim-r8a-auto-stop` Lambda. The Lambda:
+
+1. Describes the instance and reads tags.
+2. If the instance is already stopped or stopping: publishes a
+   "skipped: already stopped" SNS message and returns.
+3. If `worldsim:sweep-in-progress=true`: publishes a "skipped: sweep in
+   progress" SNS message and returns.
+4. Otherwise: calls `ec2:StopInstances` and publishes "auto-stopped".
+
+Failures land in a 14-day DLQ (`worldsim-r8a-auto-stop-dlq`).
+
+To temporarily disable for a multi-day sweep window, redeploy with
+`AutoStopEnabled=false` (or disable the schedule in the AWS console).
+
+Subscribe to notifications by passing `AutoStopNotificationEmail` at
+stack deploy time, or out-of-band:
+
+```bash
+aws sns subscribe --region us-east-2 \
+  --topic-arn $(aws cloudformation describe-stacks --region us-east-2 \
+    --stack-name worldsim-r8a-control-plane \
+    --query "Stacks[0].Outputs[?OutputKey=='AutoStopSnsTopicArn'].OutputValue" \
+    --output text) \
+  --protocol email --notification-endpoint you@example.com
+```
+
+### Layer 3: CloudWatch idle-stop alarm
+
+`worldsim-r8a-idle-stop` fires after 24 consecutive 5-minute periods of
+`CPUUtilization < 2%` (= 2 hours of fully-idle CPU). The native EC2
+`ec2:stop` action is wired directly; no Lambda is involved.
+
+Native action means the alarm does NOT check the sweep tag. The tight
+threshold is what protects live runs: a real sweep moves CPU well above
+2% during browser sessions, so two consecutive idle hours during a
+sweep is implausible. If we observe false positives we switch to a
+Lambda variant with tag checking; that has not been needed to date.
+
+To temporarily disable: redeploy with `IdleStopAlarmEnabled=false`, or
+in the AWS console disable the alarm action.
+
+### Testing the layers
+
+```bash
+# Layer 1 dry-run:
+scripts/host_park.sh --host-config configs/benchmark_hosts/r8a.yaml --dry-run
+
+# Layer 2 manual invocation (with tag set => skip):
+aws ec2 create-tags --region us-east-2 \
+  --resources i-0bf197c9d4e41d500 \
+  --tags Key=worldsim:sweep-in-progress,Value=true
+aws lambda invoke --region us-east-2 \
+  --function-name worldsim-r8a-auto-stop /tmp/auto-stop-skipped.json
+# (expect SNS "skipped: sweep in progress")
+
+# Layer 2 manual invocation (without tag => stops if running):
+aws ec2 delete-tags --region us-east-2 \
+  --resources i-0bf197c9d4e41d500 \
+  --tags Key=worldsim:sweep-in-progress
+aws lambda invoke --region us-east-2 \
+  --function-name worldsim-r8a-auto-stop /tmp/auto-stop-fired.json
+# (expect instance state -> stopping; SNS "auto-stopped")
+
+# Layer 3 is verified by leaving the instance idle for 2h with Layer 2
+# disabled and observing the alarm in the CloudWatch console.
+```
+
 ## Edge Cases
 
 - **Existing r8a has an ephemeral IP.** Associating an EIP releases the
