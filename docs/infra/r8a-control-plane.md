@@ -127,6 +127,21 @@ attached, or if the CloudFormation stack allocation does not match the ENI.
   typo or stale allocation ID.
 - **Terminating r8a.** The current root volume is delete-on-termination. Stop is
   safe; terminate is data destructive unless volume retention is changed first.
+  Termination protection is the durable guard against accidental termination
+  (the CLI call below fails until protection is explicitly cleared):
+  ```bash
+  scripts/enable_r8a_termination_protection.sh
+  ```
+  CloudFormation does not manage `DisableApiTermination` on imported instances,
+  so this attribute is set out-of-band. To deliberately replace the instance
+  (AMI rotate, family change), clear protection first, terminate, relaunch,
+  then re-enable on the replacement:
+  ```bash
+  scripts/enable_r8a_termination_protection.sh --disable
+  aws ec2 terminate-instances --region us-east-2 --instance-ids <old>
+  # ... launch replacement ...
+  scripts/enable_r8a_termination_protection.sh   # on the new instance
+  ```
 - **Multiple r8a instances match the tag.** Pass `--instance-id` explicitly.
 - **Collaborator IP drift.** Re-run the stack with the new `/32` CIDR. Do not
   open SSH to `0.0.0.0/0` or broad network ranges; the deploy script
