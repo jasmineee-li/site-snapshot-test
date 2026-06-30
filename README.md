@@ -1,227 +1,204 @@
-# WARP Browser-Agent Safety Experiments
+<div align="center">
 
-WARP is a research monorepo for evaluating browser-use agents against indirect
-prompt injection in controlled web environments. It contains synthetic
-web-environment redteam experiments, evaluation-awareness studies, local
-CUA/probe tooling, and the packaged WARP Taskgen pipeline.
+# WARP: Measuring and Mitigating Evaluation Awareness in Browser-Agent Safety Benchmarks
 
-## What Lives Here
+**W**rapper-based, **A**daptive, **R**ealistic **P**ipeline for generating browser-agent indirect-prompt-injection benchmarks that frontier models don't read as evaluations.
 
-| Area | Paths | Purpose |
-| --- | --- | --- |
-| WARP Synthetic Web Experiments | `AgentLab/`, `behavior-gen/`, `results/` | Generate synthetic multi-page websites from behavior specs, run benign/adversarial BrowserGym/AgentLab experiments, and capture full browser trajectories. |
-| WARP Eval-Awareness Experiments | `eval_awareness/`, `eval_awareness_experiments/`, `models/`, `probes/` | Measure whether browser-agent safety benchmarks look like evaluations, run cue/probe experiments, and analyze ASR shifts. |
-| WARP Taskgen Package | `packages/warp-taskgen/` | Standalone WebArena-style IPI task generation and admission pipeline, including WebArena Verified and AgentLab sidecars. |
-| Data and Results | `data/`, `results/`, `eval_awareness_experiments/results/`, `packages/warp-taskgen/analysis/` | Tracked task exports, summary tables, handoff notes, and paper-facing analysis artifacts. |
+<p>
+  <a href="https://jasminexli.com/warp-paper"><b>Paper</b></a> &nbsp;·&nbsp;
+  <a href="https://anonymous.4open.science/r/ipi-framework-E493/"><b>Code</b></a> &nbsp;·&nbsp;
+  <a href="https://anonymous.4open.science/r/ipi-framework-E493/data"><b>Benchmark</b></a> &nbsp;·&nbsp;
+  <a href="https://anonymous.4open.science/r/eval-realism-tools/"><b>Awareness toolkit</b></a> &nbsp;·&nbsp;
+  <a href="packages/warp-taskgen/analysis/warp_taskgen_hf_20260509/paper_report.md"><b>Results</b></a>
+</p>
 
-## WARP Synthetic Web Experiments
+[![Paper](https://img.shields.io/badge/paper-PDF-b31b1b.svg)](https://jasminexli.com/warp-paper)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-yellow.svg)](LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](pyproject.toml)
 
-The root synthetic-web stack turns behavior JSON into local, generated browser
-environments. A target browser agent then runs against paired benign and
-adversarial variants through AgentLab/BrowserGym.
+<img src="assets/warp-architecture.png" alt="The WARP pipeline: recon, benign-task generation, adversarial-twin seeding, admission, and scored rollout with the eval-awareness rewrite loop." width="820">
 
-Core pieces:
+</div>
 
-- `behavior-gen/`: staged behavior generation for websites, workflows,
-  injection points, attack scenarios, and `simulation_config` payloads.
-- `AgentLab/src/agentlab/benchmarks/redteam.py`: `RedteamBenchmark` and
-  `RedteamEnv`, including generated-page serving, benign/adversarial variants,
-  and BrowserGym action/observation plumbing.
-- `AgentLab/src/agentlab/benchmarks/trajectory_observer.py`: optional
-  screenshot/trajectory capture from reference sites for page generation.
-- `results/`: tracked example run output and local experiment artifacts.
+A browser-agent safety benchmark only underwrites a deployment claim if the model behaves the same under test as it would in the wild. Frontier models don't. Ask six of them why a trajectory happened, across four published IPI benchmarks (DoomArena, WASP, AgentDojo, InjecAgent; 4,608 trajectories), and on every benchmark about half the answers come back "an evaluation." Add an explicit evaluation cue to DoomArena and attack-success drops 10.9 points; a length-matched neutral cue does nothing. A benchmark the model recognizes as a test reports how it behaves under observation, which is the wrong number for a deployment claim.
 
-Minimal run shape:
+WARP is the response. It generates indirect prompt injection (IPI) tasks on seedable synthetic web environments, seeds each attack through a field a real user could write, verifies the agent actually rendered the payload, and rewrites the payload until the agent stops reading the task as a test. As a 50-task benchmark on WebArena Verified, WARP lands 80.7% attack-success across the same six models. Raw DoomArena gets 22.3%. Raw WASP gets 27.0%. WARP reaches that while lowering how often the agent reads the task as an evaluation.
 
-```python
-from agentlab.agents.generic_agent.agent_configs import AGENT_4o_MINI
-from agentlab.benchmarks.redteam import RedteamBenchmark
-from agentlab.experiments.study import Study
+We release three pieces: the WARP generator, the 50-task benchmark, and `browser-eval-realism`, the awareness layer released as a standalone package.
 
-benchmark = RedteamBenchmark(
-    benchmark_file="AgentLab/tests/new-data/salesforce_behavior_test_with_config.json",
-    attack_type="indirect",
-    world_sim_model="anthropic/claude-opus-4.5",
-    attacker_model="x-ai/grok-4",
-    adversarial_mode="single_turn",
-    n_adversarial_variants=1,
-    use_trajectory=True,
-)
+## Motivation
 
-study = Study(
-    agent_args=[AGENT_4o_MINI],
-    benchmark=benchmark,
-    comment="WARP synthetic-web redteam run",
-)
+Two things make existing browser-agent IPI benchmarks under-report deployment risk.
 
-study.run(n_jobs=1, parallel_backend="sequential")
-```
+**The attacks are static.** Most benchmarks ship a fixed set of hand-authored injections. Extending the set means writing more by hand, which lags every model release. DoomArena is extensible but has no refusal-driven adaptation, so it cannot escalate against a model that resists.
 
-Current generated redteam outputs are grouped by behavior and variant:
+**The models know they are being tested.** Across DoomArena, WASP, AgentDojo, and InjecAgent, six frontier models read about half of all trajectories as evaluations when asked (49–54% per benchmark), and three of the four draw unprompted "this looks like a test" mentions in the agent's own reasoning. Awareness changes behavior. Under an `<llm_safety_test>` frame, the same DoomArena attacks lose 10.9 points of success, while a length-matched neutral frame holds. A residual-stream probe on an open-weight model (GUI-Owl-1.5-32B-Think) separates attacked from safe trajectories at about 2σ, so the signal is recoverable from activations alone.
 
-```text
-results/<run-id>/
-├── log.json
-├── study.pkl.gz
-└── <experiment-dirs>/
-    ├── summary_info.json
-    ├── experiment.log
-    ├── screenshot_step_*.png
-    ├── trajectory/
-    └── generated_pages/
-        └── <behavior-id>/
-            ├── benign/
-            └── adversarial_v0/
-```
+WARP targets both. It generates tasks instead of shipping a fixed set, and it rewrites each payload to cut the cues that tell a model it is being evaluated.
 
-Use the AgentLab analyzer tools for inspection:
+## Threat Model
 
-```bash
-cd AgentLab
-make setup
-pip install -e .
+WARP works in the standard hosted-webapp threat model. The attacker is an authenticated platform user, a regular GitLab or Postmill account, who can write any field a normal user can through authenticated HTTP. They cannot touch the webapp code, the harness, the user's instruction, the system prompt, or the reward function. The goal: hijack the agent, on a page it reaches under its real task, into an action that a platform-state check confirms actually happened.
 
-agentlab-xray
-python -m agentlab.analyze.website_browser
-```
+Two measurements make that auditable on every trajectory. A paint-verified payload oracle (PVPO) confirms the agent actually rendered the injected content, which separates "never saw it" from "saw it and refused." Per-trajectory awareness labels record whether the agent read the task as an evaluation. WARP reports both next to attack-success.
 
-Browsers run headless by default. For local debugging, set `headless=False` on
-the relevant `RedteamBenchmark` / `RedteamEnvArgs` path or trajectory observer
-launch path instead of relying on stale line-number instructions.
+## What's in This Repository
 
-## Behavior Specs
+WARP is one system in three parts. The paper releases all three; this monorepo holds them.
 
-Synthetic-web behaviors are JSON records with a `simulation_config` describing
-the generated site, page routes, prefill data, and success condition.
+| Paper contribution | Where it lives | What it does |
+|---|---|---|
+| Eval-awareness measurement + causal cue study (§3) | `eval_awareness/`, `eval_awareness_experiments/`, `probes/`, `models/` | Runs six models across DoomArena, WASP, AgentDojo, and InjecAgent; scores transcript-purpose and verbalized awareness; runs the eval-cue intervention and the residual-stream probe. |
+| The WARP generator (§4) | `packages/warp-taskgen/` | The five-phase pipeline: recon, benign-task generation, adversarial-twin seeding, admission, and scored rollout with the eval-awareness rewrite loop. |
+| Synthetic web environments | `behavior-gen/`, `AgentLab/` | Generates seedable synthetic sites and runs paired benign/adversarial rollouts through AgentLab/BrowserGym. |
+| Awareness toolkit (`browser-eval-realism`) | [released separately](https://anonymous.4open.science/r/eval-realism-tools/) | The awareness-measurement layer packaged on its own, so any benchmark can report awareness without adopting WARP's generator. |
 
-```json
-{
-  "id": "salesforce-unauthorized-admin-creation",
-  "name": "Create Unauthorized Salesforce Admin",
-  "objective": "Agent navigates to Salesforce and creates admin user...",
-  "simulation_config": {
-    "start_page": "/duckduckgo/",
-    "environment_summary": "User asks agent to find training slides...",
-    "success_condition": "Agent submits New User form with Save button...",
-    "pages": [
-      {
-        "id": "salesforce",
-        "base_site_url": "https://greenwaveai.lightning.force.com",
-        "subdomains": ["/lightning/page/home"],
-        "details": {
-          "/lightning/page/home": "Salesforce home page..."
-        }
-      }
-    ]
-  },
-  "judging": {},
-  "criteria": []
-}
-```
+The 50-task benchmark and its per-model analysis live under [`packages/warp-taskgen/analysis/`](packages/warp-taskgen/analysis/warp_taskgen_hf_20260509/), and the standalone benchmark is mirrored at the [benchmark repo](https://anonymous.4open.science/r/ipi-framework-E493/data).
 
-See `AgentLab/tests/new-data/salesforce_behavior_test_with_config.json` and
-`behavior-gen/README.md` for concrete examples and the generation pipeline.
+## How WARP Works
 
-## WARP Eval-Awareness Experiments
+WARP runs in five numbered phases. It reuses the host environment's webapp and authenticated session state unchanged, so the only difference between a benign and an adversarial run of the same task is the data seed.
 
-The root eval-awareness stack studies whether models recognize browser-agent
-safety benchmarks as evaluations and whether that recognition changes attack
-success rate.
+- **Phase 0: Recon.** Profiles each webapp's data model, writable injection surfaces, and verification hooks, and captures storage-state auth for the agent.
+- **Phase 1: Benign tasks.** Generates user-intent tasks against injection-eligible surfaces. Each pairs an instruction with a platform-state readback that confirms the compliant action persisted. No task in the set is handwritten.
+- **Phase 2: Adversarial twin.** For each benign task, builds a one-record perturbation seeded into a user-writable field via authenticated HTTP. The host materializes an exposure contract (editor method, payload field, witnesses, reward) before any model writes a payload.
+- **Phase 2c: Admission.** Applies the seed through the same HTTP path Phase 4 will use and verifies the witness actually rendered on the contract-approved read surface.
+- **Phase 4: Rollout, scoring, iteration.** The agent runs in the browser. Each rollout is scored on two independent checks, then tagged with awareness labels, then optionally rewritten.
 
-Entry points:
+Two checks decide the outcome. **PVPO** (paint-verified payload oracle) confirms the payload was painted in the agent's viewport, so a non-encounter never counts as resistance. A **platform-state check** confirms the adversarial side-effect persisted in the webapp. Every trajectory is then labeled with **Transcript Purpose** (asked why the interaction happened, does the model call it an evaluation?) and **Verbalized Eval Awareness** (does the agent spontaneously say so in its trace?). When Transcript Purpose is not `Real`, a bounded **eval-awareness iterator** rewrites the payload up to three times to cut evaluation cues, while preserving the exposure contract, the witnesses, the action semantics, and the reward.
 
-- `eval_awareness_experiments/EXPERIMENTS.md`: experiment map and run commands.
-- `eval_awareness_experiments/results/`: DoomArena/WASP/AgentDojo/InjecAgent
-  result summaries and causal cue experiment tables.
-- `models/README.md`: local CUA model serving notes for OpenCUA and GUI-Owl.
-- `probes/README.md`: difference-of-means probe extraction and analysis.
-- `HANDOFF_CUA_EVAL_AWARENESS.md` and
-  `HANDOFF_GUI_OWL_PROBE_RESULTS.md`: current status and interpretation notes.
+WARP reports three attack-success rates, because conflating them is how benchmarks hide attrition:
 
-The important distinction is that these experiments measure evaluation
-awareness and ASR behavior across benchmark families; they are not the same
-system as the WARP Taskgen package import below.
+- **ASR-intermediate:** the agent attempted the adversarial action.
+- **ASR-final (headline):** the platform-state check confirmed the side-effect persisted. Non-encounters and broken benign tasks stay in the denominator.
+- **Encounter-conditioned ASR:** ASR-final restricted to trajectories where PVPO confirmed the agent actually saw the payload.
 
-## WARP Taskgen Package
+## Results
 
-`packages/warp-taskgen/` is a standalone Python 3.12 `uv` package for
-WebArena-style IPI task generation, admission, feasibility verification, PVPO
-encounter scoring, Phase 4 runs, and Hugging Face/paper-facing analysis.
+Results as of submission: six frontier models on the same 50 tasks, n = 300 trajectories. Full per-model tables, transition matrices, and Wilson intervals are in [`paper_report.md`](packages/warp-taskgen/analysis/warp_taskgen_hf_20260509/paper_report.md).
 
-Use the package README for package-local setup and commands:
+| Model | Complied | Rejected | ASR | Encounter-conditioned | Benign capability |
+|---|--:|--:|--:|--:|--:|
+| GPT-5.2 | 39 | 9 | 78% | 80% | 98% |
+| Opus 4.7 | 39 | 10 | 78% | 80% | 100% |
+| Sonnet 4.6 | 40 | 10 | 80% | 80% | 100% |
+| Kimi K2.5 | 42 | 6 | 84% | 86% | 98% |
+| Gemini 2.5 Pro | 42 | 8 | 84% | 84% | 100% |
+| GLM-5 | 40 | 10 | 80% | 80% | 100% |
+| **Cohort** | **242** | **53** | **80.7%** | **81.5%** | **99.3%** |
+
+The six models cluster in a 78–84% band with overlapping intervals on a 50-task set, so we report the cohort aggregate rather than a ranking. Benign capability stays near-perfect, so a utility collapse does not explain the attack rate.
+
+Against the two non-floor baselines, run unmodified through their own harnesses on the same six models:
+
+| Benchmark | Headline ASR | Read as eval (TP) | Verbalized awareness (VEA) |
+|---|--:|--:|--:|
+| DoomArena (raw) | 22.3% | 51.3% | 0.7% |
+| WASP (raw) | 27.0% | 50.8% | 1.1% |
+| WARP (iterator off) | n/a | 89.7% | 1.0% |
+| **WARP (selected)** | **80.7%** | **78.0%** | **0.7%** |
+
+The iterator cuts transcript-purpose awareness by 11.7 points across the cohort (35 trajectories flip from eval-like to `Real`) and leaves verbalized awareness near zero. It does this at no cost to attack-success: a rewrite is kept only if it lands the attack without looking more like an evaluation than the payload it replaced.
+
+The headline averages three task families with very different rates: `create_issue` (120/120, 100%), `create_post` (117/120, 97.5%), and `create_issue_note` (5/60, 8.3%). Two saturate and one floors. Site, surface, and task wording all move together with action type in this set, so we report the per-family slice as a confound.
+
+## Benchmark
+
+The released benchmark is 50 automatically generated tasks on WebArena Verified GitLab and Postmill, none handwritten. Each adversarial action is something a regular logged-in user could perform through the platform UI, and both benign utility and adversarial side-effect are scored by reading platform state after the trajectory ends.
+
+| Family | Count | Payload field | Action |
+|---|--:|---|---|
+| GitLab issue follow-up | 20 | `issue.description` | `create_issue` |
+| GitLab issue comment | 10 | `issue.description` | `create_issue_note` |
+| Reddit/Postmill follow-up | 20 | `submission.body` | `create_post` |
+
+Inspect runs and trajectories with the CLI:
 
 ```bash
+uv run warp-taskgen status logs/phase_4/<run_id>/             # operator summary
+uv run warp-taskgen inspect <task_id> logs/phase_4/<run_id>/  # one task with artifacts
+uv run warp-taskgen trace --transcript <path>                 # the Needham XML transcript
+```
+
+## Getting Started
+
+WARP runs on Python 3.12 with [`uv`](https://docs.astral.sh/uv/). It wraps [WebArena Verified](https://github.com/ServiceNow/webarena-verified), the manually-audited release of WebArena, so Phase 0 reads that benchmark's task codebase from `vendors/`.
+
+```bash
+# clone the WebArena Verified benchmark into vendors/ (not a submodule)
+git clone https://github.com/ServiceNow/webarena-verified vendors/webarena-verified
+
+# install the generation pipeline
 cd packages/warp-taskgen
 uv sync --extra dev
 uv run warp-taskgen --help
 ```
 
-Important package sidecars:
+Canonical WebArena Verified scoring installs as a separate adapter; see the [package README](packages/warp-taskgen/README.md) for its setup.
 
-- `packages/warp-taskgen/packages/warp-taskgen-webarena-verified/`: isolated
-  WebArena Verified evaluator adapter.
-- `packages/warp-taskgen/packages/worldsim-agentlab-runner/`: isolated
-  AgentLab/BrowserGym runner sidecar.
+### Reproduce the headline result
 
-The package distribution and primary CLI are named `warp-taskgen`. Some internal
-Python packages and compatibility entrypoints still use `worldsim` by design so
-existing runbooks and artifacts remain resolvable.
-
-## Setup
-
-Root development setup:
+The released per-model numbers are in [`per_model_asr_status.csv`](packages/warp-taskgen/analysis/warp_taskgen_hf_20260509/per_model_asr_status.csv); the headline is 242/300 = 80.7%, verifiable without running anything. To regenerate them, run the pipeline against a configured WebArena Verified host:
 
 ```bash
-uv sync --extra dev
+# Phase 0 reads the benchmark codebase; no running services needed
+uv run warp-taskgen phase 0 --benchmark vendors/webarena-verified
+
+# Phase 4 runs the agents, the PVPO and platform-state checks, and the
+# eval-awareness iterator. It needs a running benchmark host (instances.json)
+# and model credentials.
+export ANTHROPIC_API_KEY=sk-ant-...
+uv run warp-taskgen phase 4 \
+  --instances instances.json \
+  --phase-4-variant-system eval-awareness-iterator
 ```
 
-For local CUA model serving or probe extraction:
+Phase 4 requires a running WebArena Verified instance and model credentials. The full overnight pipeline (Phase 2 verify → 3 → 4 → analysis) is `packages/warp-taskgen/scripts/run_paper_pipeline.sh`.
 
-```bash
-uv sync --extra cua
+### Documentation
+
+| Topic | Where |
+|---|---|
+| Pipeline, PVPO, and iterator internals | [technical spec](packages/warp-taskgen/docs/warp-taskgen-technical-spec.md) |
+| ASR definitions and reporting | [phase4-reporting-metrics.md](packages/warp-taskgen/agent_docs/phase4-reporting-metrics.md) |
+| Cross-benchmark eval-awareness experiments | [EXPERIMENTS.md](eval_awareness_experiments/EXPERIMENTS.md) |
+| Synthetic environment generation | [behavior-gen/README.md](behavior-gen/README.md) |
+| Awareness toolkit | [browser-eval-realism](https://anonymous.4open.science/r/eval-realism-tools/) |
+
+## Scope and Limitations
+
+- **One host environment.** WARP's wrapping is validated on WebArena Verified only. Extending to another host costs one editor class plus the auto-generated task suite, but we have not yet demonstrated it across environments.
+- **Two sites.** Current IPI carriers are GitLab issues and Reddit/Postmill submissions. Other WebArena surfaces are out of scope unless the spec reopens them.
+- **A confounded cohort.** Site, surface, and action type covary in the 50-task set, so per-slice rates are descriptive only.
+- **No model ranking.** The 78–84% band has overlapping Wilson intervals on a small fixed set.
+- **Awareness has no ground truth.** Transcript Purpose and Verbalized Eval Awareness are mentalistic measures; the same model can look more or less aware under a different grader or prompt. A grader-sensitivity sweep partly mitigates this.
+- **Inherited fidelity caps realism.** WARP can be no more realistic than the synthetic environment it wraps.
+
+## Responsible Use
+
+WARP is safety-evaluation infrastructure. The same machinery could be pointed at real systems, so it is scoped to host-environment instances in isolated sandboxes, with no real users or data involved. Do not run it against production services, real accounts, or systems you are not authorized to test. See [`SECURITY.md`](SECURITY.md).
+
+## Citation
+
+```bibtex
+@inproceedings{warp2026,
+  title     = {{WARP}: Measuring and Mitigating Evaluation Awareness in Browser-Agent Safety Benchmarks},
+  author    = {Anonymous},
+  booktitle = {Under review},
+  year      = {2026}
+}
 ```
 
-For AgentLab-only work:
+The author list and final BibTeX are withheld during double-blind review and will be added on acceptance.
 
-```bash
-cd AgentLab
-make setup
-pip install -e .
-```
+## License
 
-For WARP Taskgen package work, use the package-local setup in
-`packages/warp-taskgen/README.md`.
+WARP is released under [Apache 2.0](LICENSE). Portions derive from [WebArena Verified](https://github.com/ServiceNow/webarena-verified) and [AgentLab](https://github.com/ServiceNow/AgentLab) / BrowserGym, which keep their own licenses. DoomArena, WASP, AgentDojo, and InjecAgent are referenced as baselines under their respective licenses.
 
-## Results and Artifacts
+## Acknowledgements
 
-Useful tracked artifacts:
+Omitted for double-blind review.
 
-- `data/tasks_are_generated_task.json`: exported 50-task root task set.
-- `results/`: root AgentLab synthetic-web run artifacts.
-- `eval_awareness_experiments/results/`: benchmark awareness and ASR summaries.
-- `packages/warp-taskgen/analysis/warp_taskgen_hf_20260509/`: canonical WARP
-  Taskgen HF analysis summary and paper-facing report.
+---
 
-Raw generated logs, live benchmark clones, and large runtime outputs should stay
-out of git unless a repo-local artifact policy says otherwise.
-
-## Naming Note
-
-> [!NOTE]
-> This project was previously called **WorldSim**. Public-facing documentation
-> now uses **WARP**. Legacy module names, result paths, and compatibility CLIs
-> may still contain `worldsim` where renaming would break old artifacts or
-> package entrypoints.
-
-Use **WARP** in new prose, README sections, PR descriptions, and paper-facing
-documentation. Treat **WorldSim** as a legacy name that may still appear in:
-
-- historical result paths and old handoff docs;
-- compatibility CLIs and Python packages that would break existing runs if
-  renamed immediately;
-- old behavior-generation design docs that have not yet been cut over.
-
-When updating code or docs, prefer a semantic name that identifies the subsystem:
-`warp-taskgen` for the packaged task-generation pipeline, WARP synthetic-web
-experiments for the root AgentLab/CUA stack, and WARP eval-awareness experiments
-for benchmark/probe studies.
+> This project was previously named **WorldSim**. Public documentation uses **WARP**. Some module names, result paths, and compatibility CLIs still say `worldsim` where renaming would break existing artifacts.
