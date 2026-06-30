@@ -16,7 +16,5 @@ indirect prompt injection. It generates and runs adversarial content by design.
 ## Reporting a vulnerability
 
 For a security issue in this code (as opposed to a finding about a model under
-test), please open a private report rather than a public issue.
-
-> Maintainer contact is withheld during double-blind review and will be added
-> on acceptance.
+test), please open a private security advisory through the GitHub repository's
+Security tab rather than a public issue.

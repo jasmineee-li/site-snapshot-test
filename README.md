@@ -5,6 +5,18 @@
 **W**rapper-based, **A**daptive, **R**ealistic **P**ipeline for generating browser-agent indirect-prompt-injection benchmarks that frontier models don't read as evaluations.
 
 <p>
+  Jasmine Li<sup>1,*</sup>&nbsp;&nbsp;&nbsp;
+  Ashton Chew<sup>1,*</sup>&nbsp;&nbsp;&nbsp;
+  Maxwell Lin<sup>2,*</sup>&nbsp;&nbsp;&nbsp;
+  Eliot Krzysztof Jones<sup>3</sup>&nbsp;&nbsp;&nbsp;
+  Xiaohan Fu<sup>2</sup>&nbsp;&nbsp;&nbsp;
+  Andy Zou<sup>2</sup>
+</p>
+<p>
+  <sup>1</sup>Cornell University&nbsp;&nbsp;&nbsp;&nbsp;<sup>2</sup>Gray Swan AI&nbsp;&nbsp;&nbsp;&nbsp;<sup>3</sup>Hark&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<sup>*</sup>Equal contribution
+</p>
+
+<p>
   <a href="https://jasminexli.com/warp-paper"><b>Paper</b></a> &nbsp;·&nbsp;
   <a href="https://anonymous.4open.science/r/ipi-framework-E493/"><b>Code</b></a> &nbsp;·&nbsp;
   <a href="https://anonymous.4open.science/r/ipi-framework-E493/data"><b>Benchmark</b></a> &nbsp;·&nbsp;
@@ -180,16 +192,16 @@ WARP is safety-evaluation infrastructure. The same machinery could be pointed at
 
 ## Citation
 
+If you use WARP, please cite:
+
 ```bibtex
 @inproceedings{warp2026,
   title     = {{WARP}: Measuring and Mitigating Evaluation Awareness in Browser-Agent Safety Benchmarks},
-  author    = {Anonymous},
+  author    = {Li, Jasmine and Chew, Ashton and Lin, Maxwell and Jones, Eliot Krzysztof and Fu, Xiaohan and Zou, Andy},
   booktitle = {Under review},
   year      = {2026}
 }
 ```
-
-The author list and final BibTeX are withheld during double-blind review and will be added on acceptance.
 
 ## License
 
@@ -197,7 +209,7 @@ WARP is released under [Apache 2.0](LICENSE). Portions derive from [WebArena Ver
 
 ## Acknowledgements
 
-Omitted for double-blind review.
+We thank Gray Swan AI for supporting this work.
 
 ---
 
