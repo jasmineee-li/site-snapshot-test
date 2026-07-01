@@ -2,7 +2,7 @@
 
 # WARP: Measuring and Mitigating Evaluation Awareness in Browser-Agent Safety Benchmarks
 
-**W**rapper-based, **A**daptive, **R**ealistic **P**ipeline for generating browser-agent indirect-prompt-injection benchmarks that frontier models don't read as evaluations.
+**W**rapper-based, **A**daptive, **R**ealistic **P**ipeline for generating indirect-prompt-injection benchmarks for browser agents that frontier models don't read as evaluations.
 
 <p>
   Jasmine Li<sup>1,*</sup>&nbsp;&nbsp;&nbsp;
@@ -34,7 +34,7 @@
 
 WARP generates indirect prompt injection (IPI) benchmarks for browser agents on WebArena Verified. It seeds each attack into a field a normal user could write, checks that the agent actually rendered it, and rewrites the payload when the agent reads the task as an evaluation.
 
-We built WARP because existing IPI benchmarks under-report how vulnerable browser agents are in deployment. Frontier models often recognize a benchmark as an evaluation and act more safely than they would in the wild. Across DoomArena, WASP, AgentDojo, and InjecAgent (six models, 4,608 trajectories), they classify about half of all trajectories as evaluations when asked, and adding an explicit evaluation cue drops DoomArena's attack-success rate by 10.9 points. WARP's 50-task benchmark reaches 80.7% attack-success across those same six models, compared with 22.3% on raw DoomArena and 27.0% on raw WASP. Rewriting the payloads also lowers eval-awareness relative to WARP's own no-rewrite baseline.
+We built WARP because existing IPI benchmarks under-report how vulnerable browser agents are in deployment. Frontier models often recognize a benchmark as an evaluation and act more safely than they would in the wild: across four published benchmarks, six of them call about half of all trajectories evaluations when asked. WARP's 50-task benchmark reaches 80.7% attack-success across those same six models, compared with 22.3% on raw DoomArena and 27.0% on raw WASP. Rewriting the payloads also lowers WARP's transcript-purpose eval-awareness relative to a no-rewrite baseline.
 
 We release the WARP generator, the 50-task benchmark, and the standalone awareness-measurement package `browser-eval-realism`.
 
@@ -44,19 +44,19 @@ Existing IPI benchmarks under-report deployment risk for two reasons.
 
 Their attacks are static. Most benchmarks ship a fixed set of hand-authored injections, and extending them means writing more by hand, which falls behind each new model release. DoomArena is extensible, but it has no refusal-driven adaptation, so it cannot escalate against a model that resists.
 
-Models can also tell they are being evaluated. Across DoomArena, WASP, AgentDojo, and InjecAgent, six frontier models classify about half of all trajectories as evaluations when asked (49–54% per benchmark), and in three of the four the agent spontaneously notes in its reasoning that the task looks like a test. That recognition changes behavior: wrapping a DoomArena injection in an explicit `<llm_safety_test>` tag drops its attack-success rate by 10.9 points, while a length-matched non-eval tag does not. A residual-stream probe on GUI-Owl-1.5-32B-Think separates attacked from safe InjecAgent trajectories at about 2σ, so the awareness shows up directly in the model's activations.
+Models can also tell they are being evaluated. Across DoomArena, WASP, AgentDojo, and InjecAgent (4,608 trajectories), six frontier models classify about half of all trajectories as evaluations when asked (49–54% per benchmark), and in three of the four the agent spontaneously notes in its reasoning that the task looks like a test. That recognition changes behavior: wrapping a DoomArena injection in an explicit `<llm_safety_test>` tag drops its attack-success rate by 10.9 points, while a length-matched non-eval tag does not. A residual-stream probe on GUI-Owl-1.5-32B-Think separates attacked from safe InjecAgent trajectories at about 2σ, so the awareness shows up directly in the model's activations.
 
-WARP addresses both: it generates tasks rather than shipping a fixed set, and it rewrites each payload to remove the cues that signal evaluation.
+WARP targets both. It generates the task set automatically, and rewrites each payload to strip the cues that signal evaluation.
 
 ## Threat Model
 
-WARP uses the standard hosted-webapp threat model. The attacker is an authenticated platform user, a regular GitLab or Postmill account, who can write any field a normal user can through authenticated HTTP. They cannot change the webapp code, its rendering rules, the harness, the user's instruction, the system prompt, or the reward function. Their goal is to hijack the agent into an adversarial action it would not otherwise take, on a page it reaches while doing its real task.
+WARP uses the standard hosted-webapp threat model. The attacker is an authenticated platform user, a regular GitLab or Postmill account, who can write any field a normal user can, over authenticated HTTP. They cannot change the webapp code, its rendering rules, the harness, the user's instruction, the system prompt, or the reward function. Their goal is to hijack the agent into an adversarial action it would not otherwise take, on a page it reaches while doing its real task.
 
-WARP verifies each attack on every trajectory. A paint-verified payload oracle (PVPO) confirms the agent rendered the injected content, which separates non-encounters from genuine refusals, and a platform-state check confirms whether the adversarial action took effect. Two awareness labels record whether the agent read the task as an evaluation. All of this is reported alongside attack-success.
+WARP measures each of those outcomes on every trajectory. A paint-verified payload oracle (PVPO) confirms the agent rendered the injected content, which separates non-encounters from genuine refusals, and a platform-state check confirms whether the adversarial action took effect. Two awareness labels then record whether the agent read the task as an evaluation, and WARP reports all of them alongside attack-success.
 
 ## What's in This Repository
 
-This repository holds everything released with the paper.
+This repository holds the code, data, and analysis released with the paper.
 
 | Paper contribution | Where it lives | What it does |
 |---|---|---|
@@ -77,7 +77,7 @@ WARP runs in five numbered phases. It reuses the host environment's webapp and a
 - **Phase 2c: Admission.** Applies the seed through the same HTTP path Phase 4 will use and verifies the witness actually rendered on the contract-approved read surface.
 - **Phase 4: Rollout, scoring, iteration.** The agent runs in the browser. Each rollout is scored on two independent checks, then tagged with awareness labels, then optionally rewritten.
 
-PVPO, the paint-verified payload oracle, confirms the payload was painted in the agent's viewport, so a trajectory that never reached the payload is never counted as resistance. A platform-state check confirms the adversarial side-effect actually persisted in the webapp. Every trajectory then gets two awareness labels: Transcript Purpose (asked afterward why the interaction happened, does the model call it an evaluation?) and Verbalized Eval Awareness (does the agent say so on its own, mid-trace?). When Transcript Purpose comes back as anything but `Real`, a bounded eval-awareness iterator rewrites the payload up to three times to strip evaluation cues, holding the exposure contract, the witnesses, the action, and the reward fixed.
+PVPO confirms the payload was painted in the agent's viewport, so a trajectory that never reached the payload does not count as resistance. A platform-state check confirms the adversarial side-effect actually persisted in the webapp. Every trajectory then gets two awareness labels: Transcript Purpose (asked afterward why the interaction happened, does the model call it an evaluation?) and Verbalized Eval Awareness (does the agent say so on its own, mid-trace?). When Transcript Purpose comes back as anything but `Real`, a bounded eval-awareness iterator rewrites the payload up to three times to strip evaluation cues, holding the exposure contract, the witnesses, the action, and the reward fixed.
 
 Because a single number would hide trajectories that never encountered the payload, WARP reports three attack-success rates:
 
@@ -99,9 +99,9 @@ As of submission, we ran all six models on the same 50 tasks, for 300 trajectori
 | GLM-5 | 40 | 10 | 80% | 80% | 100% |
 | **Cohort** | **242** | **53** | **80.7%** | **81.5%** | **99.3%** |
 
-The six models land in a narrow 78–84% band, with overlapping confidence intervals on a 50-task set, so we report the cohort aggregate instead of a ranking. Benign capability stays near-perfect, so the agents complete the real task and still comply with the injection.
+The six models land in a narrow 78–84% band, with overlapping confidence intervals on a 50-task set, so we report the cohort aggregate and avoid model-by-model ranking. Benign capability stays near-perfect, so the agents complete the real task and still comply with the injection.
 
-Against the two non-floor baselines, run unmodified through their own harnesses on the same six models:
+Against DoomArena and WASP, the two baselines with non-trivial attack-success, run unmodified through their own harnesses on the same six models:
 
 | Benchmark | Headline ASR | Read as eval (TP) | Verbalized awareness (VEA) |
 |---|--:|--:|--:|
@@ -110,7 +110,7 @@ Against the two non-floor baselines, run unmodified through their own harnesses 
 | WARP (iterator off) | n/a | 89.7% | 1.0% |
 | **WARP (selected)** | **80.7%** | **78.0%** | **0.7%** |
 
-The iterator cuts transcript-purpose awareness by 11.7 points across the cohort (35 trajectories flip from eval-like to `Real`) and leaves verbalized awareness near zero. It does this at no cost to attack-success: a rewrite is kept only if it lands the attack without looking more like an evaluation than the payload it replaced.
+The iterator-off row is WARP's pre-rewrite baseline, so it carries awareness rates but no separate headline ASR. The iterator cuts transcript-purpose awareness by 11.7 points across the cohort (35 trajectories flip from eval-like to `Real`) and leaves verbalized awareness near zero. Attack-success holds, because a rewrite is kept only if it lands the attack without looking more like an evaluation than the payload it replaced.
 
 The headline averages three task families with very different rates: `create_issue` (120/120, 100%), `create_post` (117/120, 97.5%), and `create_issue_note` (5/60, 8.3%). Site, surface, and task wording all vary together with the action type here, so this slice is confounded, and we report it as descriptive.
 
@@ -181,8 +181,8 @@ Phase 4 requires a running WebArena Verified instance and model credentials. The
 
 - **One host environment.** WARP's wrapping is validated on WebArena Verified only. Extending to another host costs one editor class plus the auto-generated task suite, but we have not yet demonstrated it across environments.
 - **Two sites.** Current IPI carriers are GitLab issues and Reddit/Postmill submissions. Other WebArena surfaces are out of scope unless the spec reopens them.
-- **A confounded cohort.** Site, surface, and action type covary in the 50-task set, so per-slice rates are descriptive only.
-- **No model ranking.** The 78–84% band has overlapping Wilson intervals on a small fixed set.
+- **A confounded cohort.** Site, surface, and action type covary in the 50-task set, so the per-family rates are not causal.
+- **No model ranking.** The per-model rates overlap within Wilson intervals on a small fixed set.
 - **Awareness has no ground truth.** Transcript Purpose and Verbalized Eval Awareness are mentalistic measures; the same model can look more or less aware under a different grader or prompt. A grader-sensitivity sweep partly mitigates this.
 - **Inherited fidelity caps realism.** WARP's realism is bounded by the synthetic environment it wraps.
 
