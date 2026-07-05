@@ -18,9 +18,9 @@
 
 <p>
   <a href="https://jasminexli.com/warp-paper"><b>Paper</b></a> &nbsp;·&nbsp;
-  <a href="https://anonymous.4open.science/r/ipi-framework-E493/"><b>Code</b></a> &nbsp;·&nbsp;
-  <a href="https://anonymous.4open.science/r/ipi-framework-E493/data"><b>Benchmark</b></a> &nbsp;·&nbsp;
-  <a href="https://anonymous.4open.science/r/eval-realism-tools/"><b>Awareness toolkit</b></a> &nbsp;·&nbsp;
+  <a href="https://github.com/jasmineee-li/warp"><b>Code</b></a> &nbsp;·&nbsp;
+  <a href="https://huggingface.co/datasets/anonymous-dataset-submission-warp/warp-taskgen-generated-ipi-tasks-50"><b>Benchmark</b></a> &nbsp;·&nbsp;
+  <a href="https://github.com/jasmineee-li/eval-realism-tools"><b>Awareness toolkit</b></a> &nbsp;·&nbsp;
   <a href="packages/warp-taskgen/analysis/warp_taskgen_hf_20260509/paper_report.md"><b>Results</b></a>
 </p>
 
@@ -63,9 +63,9 @@ This repository holds the code, data, and analysis released with the paper.
 | Eval-awareness measurement + causal cue study (§3) | `eval_awareness/`, `eval_awareness_experiments/`, `probes/`, `models/` | Runs six models across DoomArena, WASP, AgentDojo, and InjecAgent; scores transcript-purpose and verbalized awareness; runs the eval-cue intervention and the residual-stream probe. |
 | The WARP generator (§4) | `packages/warp-taskgen/` | The five-phase pipeline: recon, benign-task generation, adversarial-twin seeding, admission, and scored rollout with the eval-awareness rewrite loop. |
 | Synthetic web environments | `behavior-gen/`, `AgentLab/` | Generates seedable synthetic sites and runs paired benign/adversarial rollouts through AgentLab/BrowserGym. |
-| Awareness toolkit (`browser-eval-realism`) | [released separately](https://anonymous.4open.science/r/eval-realism-tools/) | The awareness-measurement layer packaged on its own, so any benchmark can report awareness without adopting WARP's generator. |
+| Awareness toolkit (`browser-eval-realism`) | [released separately](https://github.com/jasmineee-li/eval-realism-tools) | The awareness-measurement layer packaged on its own, so any benchmark can report awareness without adopting WARP's generator. |
 
-The 50-task benchmark and its per-model analysis live under [`packages/warp-taskgen/analysis/`](packages/warp-taskgen/analysis/warp_taskgen_hf_20260509/), and the standalone benchmark is mirrored at the [benchmark repo](https://anonymous.4open.science/r/ipi-framework-E493/data).
+The 50-task benchmark and its per-model analysis live under [`packages/warp-taskgen/analysis/`](packages/warp-taskgen/analysis/warp_taskgen_hf_20260509/), and the standalone benchmark is also on [Hugging Face](https://huggingface.co/datasets/anonymous-dataset-submission-warp/warp-taskgen-generated-ipi-tasks-50).
 
 ## How WARP Works
 
@@ -175,7 +175,7 @@ Phase 4 requires a running WebArena Verified instance and model credentials. The
 | ASR definitions and reporting | [phase4-reporting-metrics.md](packages/warp-taskgen/agent_docs/phase4-reporting-metrics.md) |
 | Cross-benchmark eval-awareness experiments | [EXPERIMENTS.md](eval_awareness_experiments/EXPERIMENTS.md) |
 | Synthetic environment generation | [behavior-gen/README.md](behavior-gen/README.md) |
-| Awareness toolkit | [browser-eval-realism](https://anonymous.4open.science/r/eval-realism-tools/) |
+| Awareness toolkit | [browser-eval-realism](https://github.com/jasmineee-li/eval-realism-tools) |
 
 ## Scope and Limitations
 
