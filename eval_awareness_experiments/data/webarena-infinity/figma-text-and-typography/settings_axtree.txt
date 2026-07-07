@@ -1,0 +1,69 @@
+- document:
+  - complementary:
+    - img: T
+    - text: Design System v4.2 Typography
+    - navigation:
+      - img
+      - text: Layers
+      - img: T
+      - text: Typography
+      - img
+      - text: Text Styles
+      - img: Ag
+      - text: Fonts
+      - img
+      - text: Settings
+    - text: SC Sarah Chen Editor
+  - main:
+    - heading "Settings" [level=2]
+    - paragraph: Configure default text properties and preferences
+    - heading "Smart Features" [level=3]
+    - text: Smart quotes Convert straight quotes to curly quotes Smart symbols Auto-convert character combinations to symbols Type Result Name
+    - code: "->"
+    - text: → Right Arrow
+    - code: <-
+    - text: ← Left Arrow
+    - code: vv
+    - text: ↓ Down Arrow
+    - code: ^^
+    - text: ↑ Up Arrow
+    - code: (c)
+    - text: © Copyright
+    - code: (r)
+    - text: ® Registered
+    - code: (tm)
+    - text: ™ Trademark
+    - code: "[ ]"
+    - text: ▢ Checkbox
+    - code: ...
+    - text: … Ellipsis
+    - code: "--"
+    - text: — Em Dash
+    - code: 1/2
+    - text: ½ Half
+    - code: 1/4
+    - text: ¼ Quarter
+    - code: 3/4
+    - text: ¾ Three Quarters
+    - heading "Default Text Properties" [level=3]
+    - text: Font family Inter
+    - img
+    - text: Font style Regular
+    - img
+    - text: Font size 16
+    - img
+    - text: Alignment left
+    - img
+    - text: Text direction ltr
+    - img
+    - heading "Spelling" [level=3]
+    - text: Language English (US)
+    - img
+    - heading "Canvas" [level=3]
+    - text: Snap to grid Show font preview on hover Nudge amount
+    - textbox: "1"
+    - text: px Big nudge amount
+    - textbox: "10"
+    - text: px
+    - heading "Recent Fonts" [level=3]
+    - text: 1. Inter 2. Roboto 3. Montserrat 4. Poppins 5. Playfair Display

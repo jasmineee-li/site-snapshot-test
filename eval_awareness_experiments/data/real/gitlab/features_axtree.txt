@@ -1,0 +1,84 @@
+- document:
+  - banner:
+    - link "Skip to main content":
+      - /url: "#content-body"
+    - link "Homepage":
+      - /url: /
+    - list:
+      - listitem:
+        - link "Why GitLab":
+          - /url: https://about.gitlab.com/why-gitlab
+      - listitem:
+        - link "Pricing":
+          - /url: https://about.gitlab.com/pricing
+      - listitem:
+        - link "Explore":
+          - /url: /explore
+    - button "Search or go to… /"
+    - link "Get free trial":
+      - /url: /-/trial_registrations/new
+    - link "Sign in":
+      - /url: /users/sign_in?redirect_to_referer=yes
+  - navigation "Primary navigation":
+    - heading "Primary navigation" [level=2]
+    - text: Group
+    - list "Group":
+      - listitem:
+        - link "features":
+          - /url: /features
+      - listitem:
+        - button "Manage":
+          - text: Manage
+          - img
+      - listitem:
+        - button "Plan":
+          - text: Plan
+          - img
+      - listitem:
+        - button "Code":
+          - text: Code
+          - img
+      - listitem:
+        - button "Deploy":
+          - text: Deploy
+          - img
+      - listitem:
+        - button "Operate":
+          - text: Operate
+          - img
+    - button "What's new"
+    - button "Help"
+    - button "Collapse sidebar"
+  - navigation "Breadcrumb":
+    - list:
+      - listitem:
+        - link "features":
+          - /url: /features
+  - main:
+    - alert:
+      - img
+      - alert:
+        - text: Sign in or sign up before continuing. Don't have an account yet? Register now to get started.
+        - link "Register now":
+          - /url: /users/sign_up
+    - heading "features" [level=1]:
+      - text: features
+      - img
+    - paragraph: feature extractors
+    - tablist:
+      - tab "Subgroups and projects" [selected]
+      - tab "Shared projects"
+      - tab "Shared groups"
+      - tab "Inactive"
+    - group:
+      - button "Toggle search history"
+      - textbox "Search":
+        - /placeholder: Search (3 character minimum)
+      - button "Search"
+    - group:
+      - combobox "Sort by:": Name
+      - text: "Sort by:"
+      - 'button "Sort direction: Ascending"'
+    - tabpanel "Subgroups and projects":
+      - heading "There are no subgroups or projects in this group" [level=2]
+      - paragraph: You do not have necessary permissions to create a subgroup or project in this group. Please contact an owner of this group to create a new subgroup or project.

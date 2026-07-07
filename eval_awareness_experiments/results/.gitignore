@@ -1,6 +1,0 @@
-# Ignore experiment results (can be large)
-*.jsonl
-*.csv
-*.png
-*.json
-!.gitkeep

@@ -1,0 +1,39 @@
+- document:
+  - complementary:
+    - img
+    - text: Handshake
+    - navigation:
+      - button "Feed":
+        - img
+        - text: Feed
+      - button "Jobs":
+        - img
+        - text: Jobs
+      - button "Employers":
+        - img
+        - text: Employers
+      - button "Events":
+        - img
+        - text: Events
+      - button "Messages 4":
+        - img
+        - text: Messages 4
+      - button "Career Center":
+        - img
+        - text: Career Center
+      - button "Q&A":
+        - img
+        - text: Q&A
+    - text: MC Maya Chen Stanford University
+  - main:
+    - heading "Q&A Community" [level=2]
+    - paragraph: Ask questions and get advice from peers
+    - button "All Questions"
+    - button "My Questions"
+    - button "My Answers"
+    - img
+    - textbox "Search questions, advice, companies..."
+    - heading "Ask your own question" [level=4]
+    - textbox "Type your question here..."
+    - button "Submit Question"
+    - text: Anonymous Stanford University · Computer Science · Class of 2026 What is the Google SWE internship interview process like? 2 answers 1245 views 2w ago Priya Sharma Columbia University · Economics · Class of 2026 How competitive is the JPMorgan Investment Banking Summer Analyst program? 2 answers 892 views 2w ago Kevin O'Brien MIT · Computer Science · Class of 2026 Is it worth doing a consulting internship before going into tech? 1 answer 634 views 2w ago Anonymous University of Michigan · Information Science · Class of 2027 What should I wear to a virtual career fair on Handshake? 1 answer 423 views 3w ago Lisa Chang UCLA · Psychology · Class of 2026 How do you negotiate salary for a new grad offer? 2 answers 1567 views 3w ago Aisha Mohammed Howard University · Computer Engineering · Class of 2027 What are the best resources for learning system design for interviews? 1 answer 987 views 3w ago Maya Chen Stanford University · Computer Science · Class of 2027 What's the work-life balance like at Meta as a new grad engineer? 1 answer 756 views Feb 5 Sam Patel UC Berkeley · Business Administration · Class of 2027 How important is GPA for consulting recruiting at MBB firms? 1 answer 1123 views Feb 1 Rachel Torres Georgia Tech · Computer Science · Class of 2026 Should I accept a return offer or keep interviewing? 1 answer 534 views Jan 28 Anonymous University of Pennsylvania · Finance · Class of 2027 What is the timeline for summer 2027 internship recruiting in finance? 0 answers 678 views Jan 25 Derek Williams Morehouse College · Computer Science · Class of 2027 What diversity programs do big tech companies offer for underrepresented students? 1 answer 890 views Jan 20 Sophia Williams Harvard University · Government · Class of 2026 How do you transition from a liberal arts background to a tech career? 1 answer 567 views Jan 15

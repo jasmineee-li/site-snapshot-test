@@ -1,0 +1,148 @@
+- document:
+  - banner:
+    - text: ⚡ Superhuman 🔍
+    - textbox "Search emails... (use from:, to:, subject:, has:attachment)"
+    - button "📅"
+    - button "📆"
+    - button "⌘K"
+    - button "⚙"
+    - text: AM
+  - navigation:
+    - button "✎ Compose"
+    - text: ✉ Inbox 10 ★ Starred ✓ Done ⏰ Reminders 6 ➤ Sent ✎ Drafts 2 👁 Recent Opens 📄 Snippets ⚠ Spam 3 🗑 Trash Labels
+    - button "+"
+    - text: Work Personal Finance Clients Urgent Travel Newsletters Recruiting Legal Product Engineering Marketing Receipts Events
+  - main:
+    - button "Important 6"
+    - button "Other 4"
+    - button "Calendar"
+    - button "Feeds 1"
+    - button "Notifications 3"
+    - text: 1-25 of 36
+    - button "‹" [disabled]
+    - button "›"
+    - checkbox
+    - text: SC Sarah Chen Mar 7 Q2 Product Roadmap - Final Review Hey Alex, I've compiled the final draft of our Q2 roadmap. Can you take a look before the board meeting? Work Product 📎
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "ER Emily Rodriguez Mar 7 Re: Series B Term Sheet Discussion Alex, the term sheet looks good overall. A few comments on the liquidation preference... Urgent"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: DK David Kim Mar 7 Partnership Opportunity - FinancePlus x Acme Hi Alex, following up on our conversation at the conference. We'd love to explore integrating... Clients ✓✓
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "TB Tom Bradley Mar 7 Re: Infrastructure Migration Plan Alex, the migration to the new k8s cluster is on track. We'll start Phase 2 next Monday. Work Engineering"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "TB Tom Bradley Mar 6 Database Performance Report - March Monthly DB report: Query performance improved 23% after index optimization. Details inside. Engineering"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: MP Maya Patel Mar 6 Accessibility Audit Results Completed the WCAG 2.1 AA audit. 94% compliance, 12 issues found (mostly contrast ratios). Product
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: PS Priya Sharma Mar 6 Budget Approval Needed - Marketing Campaign Hi Alex, need your sign-off on the Q2 marketing budget. Total ask is $450K across digital... Work Finance 📎
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: KZ Kevin Zhao Mar 6 Quantum Computing Integration Prototype Alex, the prototype is ready for review. We've achieved 3x performance improvement on the... Engineering ✓✓
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "NP Nate Patel Mar 6 Re: Sprint 23 Retrospective Notes Summarized the retro notes. Main themes: deployment pipeline needs work, on-call rotations... Engineering"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "MP Maya Patel Mar 6 Design System Update - New Components Ready Hi Alex, the new design system components are ready for review. Added: data tables, charts... Product"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "RF Rachel Foster Mar 6 Re: Engineering Manager Candidates Alex, we have 3 strong candidates for the EM role. Top pick is Jordan Lee from Stripe... Recruiting 📎"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: MW Marcus Williams Mar 6 New Brand Assets - Review Needed Hey Alex, the updated brand assets are ready. New logo variants, color palette, and typography... Marketing 📎
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "ER To: Emily Rodriguez Mar 6 Re: Series B Term Sheet Discussion Emily, thanks for the feedback. Let's discuss Thursday at 2pm PT. I'll send a calendar invite. Urgent"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: AG Ana Gutierrez Mar 6 Global Health Initiative - Sponsorship Request Hi Alex, reaching out about our annual Global Health Summit (April 15-17). Would Acme be... Events
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: PO Patrick O'Neil Mar 6 Executive Team Dinner - March 14 Alex, confirming dinner at Benu on March 14 at 7pm. Private room booked for 8. Work
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "JO James O'Brien Mar 6 Re: Vendor Agreement - CloudScale Alex, I've reviewed the CloudScale agreement. A few items that need attention before signing... Legal"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "TB To: Tom Bradley Mar 6 Infrastructure Migration Sign-off Tom, Phase 2 is approved. Please proceed with the production migration starting Monday."
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "MP Michelle Park Mar 6 Exclusive: Acme Feature in TechTrends Weekly Hi Alex, we'd love to feature Acme in our upcoming issue of TechTrends Weekly. The story... Marketing"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: BC Ben Carter Mar 5 Office Lease Renewal - Decision Needed Alex, the office lease expires April 30. The landlord is offering 3 options... Finance
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "ER To: Emily Rodriguez, Lena Johansson, Patrick O'Neil Mar 5 Quarterly Board Update - Q1 2026 Board members, please find attached the Q1 2026 quarterly update for review ahead of our March 10 meeting. 📎 ✓✓"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: NP Nate Patel Mar 5 Feature Flag Cleanup Proposal We have 47 stale feature flags. Proposing to remove 32 that have been 100% rolled out for 30+ days. Engineering
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: JW Jennifer Wu Mar 5 Research Collaboration Proposal Dear Alex, writing from BioMed Research to propose a joint study on AI-driven diagnostics... Clients
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: RF Rachel Foster Mar 5 New Employee Onboarding - Week of March 24 Jordan Lee starts March 24. Onboarding schedule and buddy assignments attached. Recruiting 📎
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: RC Ryan Cooper Mar 5 SaaS Platform Integration - API Access Hey Alex, we've set up your sandbox API access. Here are the details... Engineering
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "RS To: Robert Singh Mar 5 Re: Guest Lecture Request - Stanford Professor Singh, I'd be happy to give the guest lecture. April 8 works perfectly. ✓✓"
+    - button "☆"
+    - button "✓"
+    - button "⏰"

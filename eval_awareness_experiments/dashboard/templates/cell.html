@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{{ cell.benchmark }}/{{ cell.arm }}/{{ cell.model_slug }} — cell detail</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: ui-sans-serif, system-ui, -apple-system, "SF Pro Text", sans-serif; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-800">
+<div class="max-w-5xl mx-auto p-8">
+
+    <a href="/" class="text-sm text-blue-600 hover:underline mb-4 inline-block">← back to matrix</a>
+
+    <header class="mb-6">
+        <h1 class="text-xl font-semibold mb-1 mono">
+            {{ cell.benchmark }} / {{ cell.arm }} / {{ cell.model_slug }}
+        </h1>
+        <p class="text-xs text-stone-500 mono">{{ cell.output_dir }}</p>
+        <p class="text-xs text-stone-500 mt-1">
+            Status:
+            {% if cell.status.startswith("complete") %}
+                <span class="text-emerald-700 font-semibold">{{ cell.status }}</span>
+            {% elif cell.status == "partial" or cell.status == "run-only (no judges)" %}
+                <span class="text-amber-700 font-semibold">{{ cell.status }}</span>
+            {% else %}
+                <span class="text-stone-400">{{ cell.status }}</span>
+            {% endif %}
+            {% if cell.last_modified %}
+            · last activity {{ cell.last_modified[:19].replace('T', ' ') }}Z
+            {% endif %}
+        </p>
+    </header>
+
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+        {% set metrics = [
+            ('Trajectories', cell.n_trajectories, '%d'),
+            ('ASR', cell.asr, '%.3f'),
+            ('Task pass', cell.task_pass_rate, '%.3f'),
+            ('VEA rate', cell.vea_rate, '%.3f'),
+            ('VEA count', cell.vea_count, '%d'),
+            ('Align share (5PQ)', cell.align_share, '%.3f'),
+            ('Any-eval share (5PQ)', cell.any_eval_share, '%.3f'),
+            ('5PQ judged', cell.n_5pq, '%d'),
+        ] %}
+        {% for label, value, fmt in metrics %}
+        <div class="bg-white rounded-lg p-3 shadow-sm border border-stone-200">
+            <div class="text-[10px] uppercase tracking-wide text-stone-500 mb-1">{{ label }}</div>
+            <div class="text-lg font-semibold mono">
+                {% if value is not none %}{{ fmt|format(value) }}{% else %}—{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </section>
+
+    {% if cell.splits %}
+    <section class="mb-8">
+        <h2 class="text-sm font-semibold mb-2 text-stone-600 uppercase tracking-wide">Splits</h2>
+        <div class="bg-white rounded-lg shadow-sm border border-stone-200 overflow-hidden">
+            <table class="w-full text-xs">
+                <thead class="bg-stone-100 text-stone-600">
+                    <tr>
+                        <th class="text-left px-3 py-2 font-medium">Split</th>
+                        <th class="text-right px-3 py-2 font-medium">Trajectories</th>
+                        <th class="text-right px-3 py-2 font-medium">Attacks</th>
+                        <th class="text-right px-3 py-2 font-medium">Passes</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-stone-100">
+                {% for s in cell.splits %}
+                    <tr>
+                        <td class="px-3 py-2 mono">{{ s.name }}</td>
+                        <td class="px-3 py-2 mono text-right">{{ s.n_trajectories }}</td>
+                        <td class="px-3 py-2 mono text-right">{{ s.n_attacks }}</td>
+                        <td class="px-3 py-2 mono text-right">{{ s.n_passes }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if links %}
+    <section>
+        <h2 class="text-sm font-semibold mb-2 text-stone-600 uppercase tracking-wide">Trajectory markdowns</h2>
+        {% for link in links %}
+        <details class="mb-3 bg-white rounded-lg border border-stone-200">
+            <summary class="px-3 py-2 cursor-pointer text-xs mono font-semibold text-stone-700 hover:bg-stone-50">
+                {{ link.split }} · {{ link.files|length }} files
+            </summary>
+            <div class="px-3 py-2 border-t border-stone-100 text-xs mono text-stone-500 max-h-80 overflow-y-auto">
+                <p class="mb-2 text-[10px] text-stone-400">{{ link.md_dir }}</p>
+                {% for f in link.files %}
+                <div>{{ f }}</div>
+                {% endfor %}
+            </div>
+        </details>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+</div>
+</body>
+</html>

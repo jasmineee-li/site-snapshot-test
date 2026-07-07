@@ -1,0 +1,368 @@
+- document:
+  - region
+  - link "Skip to content":
+    - /url: "#start-of-content"
+  - banner:
+    - heading "Navigation Menu" [level=2]
+    - link "Homepage":
+      - /url: /
+    - navigation "Global":
+      - list:
+        - listitem:
+          - button "Platform"
+        - listitem:
+          - button "Solutions"
+        - listitem:
+          - button "Resources"
+        - listitem:
+          - button "Open Source"
+        - listitem:
+          - button "Enterprise"
+        - listitem:
+          - link "Pricing":
+            - /url: https://github.com/pricing
+    - button "Search or jump to…"
+    - link "Sign in":
+      - /url: /login
+    - link "Sign up":
+      - /url: /signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F&source=header-home
+  - main:
+    - text: Mona the Octocat, Copilot, and Ducky float jubilantly upward from behind the GitHub product demo accompanied by a purple glow and a scattering of stars.
+    - region "The future of building happens together":
+      - heading "The future of building happens together" [level=1]
+      - paragraph: Tools and trends evolve, but collaboration endures. With GitHub, developers, agents, and code come together on one platform.
+    - form "Sign up for GitHub":
+      - text: Enter your email
+      - textbox "Enter your email":
+        - /placeholder: you@domain.com
+      - button "Sign up for GitHub"
+    - link "Try GitHub Copilot free":
+      - /url: /github-copilot/pro
+    - heading "GitHub features" [level=2]
+    - button "Pause"
+    - text: A demonstration animation of a code editor using GitHub Copilot Chat, where the user requests GitHub Copilot to refactor duplicated logic and extract it into a reusable function for a given code snippet.
+    - tablist:
+      - tab "Code"
+      - tab "Plan"
+      - tab "Collaborate"
+      - tab "Automate"
+      - tab "Secure"
+    - region: Write, test, and fix code quickly with GitHub Copilot, from simple boilerplate to complex features.
+    - heading "GitHub customers" [level=2]
+    - img "American Airlines"
+    - img "Duolingo"
+    - img "Ernst and Young"
+    - img "Ford"
+    - img "InfoSys"
+    - img "Mercado Libre"
+    - img "Mercedes-Benz"
+    - img "Shopify"
+    - img "Philips"
+    - img "Société Générale"
+    - img "Spotify"
+    - img "Vodafone"
+    - button "Pause animation"
+    - heading "Accelerate your entire workflow" [level=2]
+    - paragraph: From your first line of code to final deployment, GitHub provides AI and automation tools to help you build and ship better software faster.
+    - button "Pause video"
+    - text: A Copilot chat window with the 'Ask' mode enabled. The user switches from 'Ask' mode to 'Agent' mode from a dropdown menu, then sends the prompt 'Update the website to allow searching for running races by name.' Copilot analyzes the codebase, then explains the required edits for three files before generating them. Copilot then confirms completion and summarizes the implemented changes for the new functionality allowing users to search races by name and view paginated, filtered results.
+    - heading "Your AI partner everywhere. Copilot is ready to work with you at each step of the software development lifecycle." [level=3]
+    - link "Explore GitHub Copilot":
+      - /url: /features/copilot
+    - paragraph: Duolingo boosts developer speed by 25% with GitHub Copilot
+    - link "Read customer story":
+      - /url: /customer-stories/duolingo
+    - paragraph: 2025 Gartner® Magic Quadrant™ for AI Code Assistants
+    - link "Read industry report":
+      - /url: https://www.gartner.com/reprints/?id=1-2LVTG7RP&ct=250915&st=sb
+    - term:
+      - button "Automate your path to production" [expanded]:
+        - heading "Automate your path to production" [level=3]
+    - definition:
+      - paragraph: Ship faster with secure, reliable CI/CD.
+      - link "Explore GitHub Actions":
+        - /url: /features/actions
+    - term:
+      - button "Code instantly from anywhere":
+        - heading "Code instantly from anywhere" [level=3]
+    - term:
+      - button "Keep momentum on the go":
+        - heading "Keep momentum on the go" [level=3]
+    - term:
+      - button "Shape your toolchain":
+        - heading "Shape your toolchain" [level=3]
+    - heading "Built-in application security where found means fixed" [level=2]
+    - paragraph: Use AI to find and fix vulnerabilities so your team can ship more secure software faster.
+    - heading "Apply fixes in seconds. Spend less time debugging and more time building features with Copilot Autofix." [level=3]
+    - link "Explore GitHub Advanced Security":
+      - /url: /security/advanced-security
+    - img "Copilot Autofix identifies vulnerable code and provides an explanation, together with a secure code suggestion to remediate the vulnerability."
+    - paragraph: Security debt, solved. Leverage security campaigns and Copilot Autofix to reduce application vulnerabilities.
+    - link "Learn about GitHub Code Security":
+      - /url: /security/advanced-security/code-security
+    - img "A security campaign screen displays the campaign’s progress bar with 97% completed of 701 alerts. A total of 23 alerts are left with 13 in progress, and the campaign started 20 days ago. The status below shows that there are 7 days left in the campaign with a due date of November 15, 2024."
+    - paragraph: Dependencies you can depend on. Update vulnerable dependencies with supported fixes for breaking changes.
+    - link "Learn about Dependabot":
+      - /url: /security/advanced-security/software-supply-chain
+    - img "List of dependencies defined in a requirements .txt file."
+    - paragraph: Your secrets, your business. Detect, prevent, and remediate leaked secrets across your organization.
+    - link "Learn about GitHub Secret Protection":
+      - /url: /security/advanced-security/secret-protection
+    - img "GitHub push protection confirms and displays an active secret, and blocks the push."
+    - paragraph:
+      - text: 70% MTTR reduction with Copilot Autofix
+      - superscript:
+        - link "Footnote 1":
+          - /url: "#footnote-1"
+          - text: "1"
+    - paragraph:
+      - text: 8.3M secret leaks stopped in the past 12 months with push protection
+      - superscript:
+        - link "Footnote 1":
+          - /url: "#footnote-1"
+          - text: "1"
+    - heading "Work together, achieve more" [level=2]
+    - paragraph: From planning and discussion to code review, GitHub keeps your team’s conversation and context next to your code.
+    - img "A project management dashboard showing tasks for the ‘OctoArcade Invaders’ project, with tasks grouped under project phase categories like ‘Prototype,’ ‘Beta,’ and ‘Launch’ in a table layout. One of the columns displays sub-issue progress bars with percentages for each issue."
+    - heading "Plan with clarity. Organize everything from high-level roadmaps to everyday tasks." [level=3]
+    - link "Explore GitHub Projects":
+      - /url: /features/issues
+    - figure:
+      - blockquote: It helps us onboard new software engineers and get them productive right away. We have all our source code, issues, and pull requests in one place... GitHub is a complete platform that frees us from menial tasks and enables us to do our best work.
+      - text: Fabian Faulhaber Application manager at Mercedes-Benz
+    - term:
+      - button "Keep track of your tasks" [expanded]:
+        - heading "Keep track of your tasks" [level=3]
+    - definition:
+      - paragraph: Create issues and manage projects with tools that adapt to your code.
+      - link "Explore GitHub Issues":
+        - /url: /features/issues
+    - term:
+      - button "Share ideas and ask questions":
+        - heading "Share ideas and ask questions" [level=3]
+    - term:
+      - button "Review code changes together":
+        - heading "Review code changes together" [level=3]
+    - term:
+      - button "Fund open source projects":
+        - heading "Fund open source projects" [level=3]
+    - heading "From startups to enterprises, GitHub scales with teams of any size in any industry." [level=2]
+    - tablist:
+      - tab "By industry"
+      - tab "By size"
+      - tab "By use case"
+    - separator
+    - link "Technology Figma streamlines development and strengthens security Read customer story":
+      - /url: /customer-stories/figma
+      - text: Technology
+      - paragraph: Figma streamlines development and strengthens security
+      - text: Read customer story
+    - link "Automotive Mercedes-Benz standardizes source code and automates onboarding Read customer story":
+      - /url: /customer-stories/mercedes-benz
+      - text: Automotive
+      - paragraph: Mercedes-Benz standardizes source code and automates onboarding
+      - text: Read customer story
+    - link "Financial services Mercado Libre cuts coding time by 50% Read customer story":
+      - /url: /customer-stories/mercado-libre
+      - text: Financial services
+      - paragraph: Mercado Libre cuts coding time by 50%
+      - text: Read customer story
+    - link "Explore customer stories":
+      - /url: /customer-stories
+    - separator
+    - link "View all solutions":
+      - /url: /solutions
+    - text: A subtle purple glow fades in as Mona the Octocat, Copilot, and Ducky dramatically fall into place next to one another while gazing optimistically into the distance.
+    - heading "Millions of developers and businesses call GitHub home" [level=2]
+    - paragraph: Whether you’re scaling your development process or just learning how to code, GitHub is where you belong. Join the world’s most widely adopted developer platform to build the technologies that shape what’s next.
+    - form "Sign up for GitHub":
+      - text: Enter your email
+      - textbox "Enter your email":
+        - /placeholder: you@domain.com
+      - button "Sign up for GitHub"
+    - link "Try GitHub Copilot free":
+      - /url: /github-copilot/pro
+    - heading "Footnotes" [level=2]
+    - list:
+      - listitem:
+        - paragraph:
+          - text: GitHub internal customer data, 2025.
+          - link "Back to content":
+            - /url: "#footnote-1-ref-0"
+    - link "Back to top":
+      - /url: "#hero"
+  - contentinfo:
+    - heading "Site-wide Links" [level=2]
+    - link "Go to GitHub homepage":
+      - /url: /
+    - heading "Subscribe to our developer newsletter" [level=3]
+    - paragraph: Get tips, technical guides, and best practices. Twice a month.
+    - link "Subscribe":
+      - /url: https://github.com/newsletter
+    - navigation "Platform":
+      - heading "Platform" [level=3]
+      - list:
+        - listitem:
+          - link "Features":
+            - /url: /features
+        - listitem:
+          - link "Enterprise":
+            - /url: /enterprise
+        - listitem:
+          - link "Copilot":
+            - /url: /features/copilot
+        - listitem:
+          - link "AI":
+            - /url: /features/ai
+        - listitem:
+          - link "Security":
+            - /url: /security
+        - listitem:
+          - link "Pricing":
+            - /url: /pricing
+        - listitem:
+          - link "Team":
+            - /url: /team
+        - listitem:
+          - link "Resources":
+            - /url: https://resources.github.com
+        - listitem:
+          - link "Roadmap":
+            - /url: https://github.com/github/roadmap
+        - listitem:
+          - link "Compare GitHub":
+            - /url: /resources/articles/devops-tools-comparison
+    - navigation "Ecosystem":
+      - heading "Ecosystem" [level=3]
+      - list:
+        - listitem:
+          - link "Developer API":
+            - /url: https://docs.github.com/get-started/exploring-integrations/about-building-integrations
+        - listitem:
+          - link "Partners":
+            - /url: https://partner.github.com
+        - listitem:
+          - link "Education":
+            - /url: https://github.com/edu
+        - listitem:
+          - link "GitHub CLI":
+            - /url: https://cli.github.com
+        - listitem:
+          - link "GitHub Desktop":
+            - /url: https://desktop.github.com
+        - listitem:
+          - link "GitHub Mobile":
+            - /url: https://github.com/mobile
+        - listitem:
+          - link "GitHub Marketplace":
+            - /url: https://github.com/marketplace
+        - listitem:
+          - link "MCP Registry":
+            - /url: https://github.com/mcp
+    - navigation "Support":
+      - heading "Support" [level=3]
+      - list:
+        - listitem:
+          - link "Docs":
+            - /url: https://docs.github.com
+        - listitem:
+          - link "Community Forum":
+            - /url: https://github.community
+        - listitem:
+          - link "Professional Services":
+            - /url: https://services.github.com
+        - listitem:
+          - link "Premium Support":
+            - /url: /enterprise/premium-support
+        - listitem:
+          - link "Skills":
+            - /url: https://skills.github.com
+        - listitem:
+          - link "Status":
+            - /url: https://www.githubstatus.com
+        - listitem:
+          - link "Contact GitHub":
+            - /url: https://support.github.com?tags=dotcom-footer
+    - navigation "Company":
+      - heading "Company" [level=3]
+      - list:
+        - listitem:
+          - link "About":
+            - /url: https://github.com/about
+        - listitem:
+          - link "Why GitHub":
+            - /url: https://github.com/why-github
+        - listitem:
+          - link "Customer stories":
+            - /url: /customer-stories?type=enterprise
+        - listitem:
+          - link "Blog":
+            - /url: https://github.blog
+        - listitem:
+          - link "The ReadME Project":
+            - /url: /readme
+        - listitem:
+          - link "Careers":
+            - /url: https://github.careers
+        - listitem:
+          - link "Newsroom":
+            - /url: /newsroom
+        - listitem:
+          - link "Inclusion":
+            - /url: /about/diversity
+        - listitem:
+          - link "Social Impact":
+            - /url: https://socialimpact.github.com
+        - listitem:
+          - link "Shop":
+            - /url: https://shop.github.com
+    - navigation "Legal and Resource Links":
+      - list:
+        - listitem:
+          - text: ©
+          - time: "2026"
+          - text: GitHub, Inc.
+        - listitem:
+          - link "Terms":
+            - /url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+        - listitem:
+          - link "Privacy":
+            - /url: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement
+          - link "(Updated 02/2024) 02/2024":
+            - /url: https://github.com/github/site-policy/pull/582
+            - text: (Updated 02/2024)
+            - time: 02/2024
+        - listitem:
+          - link "Sitemap":
+            - /url: /sitemap
+        - listitem:
+          - link "What is Git?":
+            - /url: /git-guides
+        - listitem:
+          - button "Manage cookies"
+        - listitem:
+          - button "Do not share my personal information"
+    - navigation "GitHub's Social Media Links":
+      - list:
+        - listitem:
+          - link "GitHub on LinkedIn":
+            - /url: https://www.linkedin.com/company/github
+        - listitem:
+          - link "GitHub on Instagram":
+            - /url: https://www.instagram.com/github
+        - listitem:
+          - link "GitHub on YouTube":
+            - /url: https://www.youtube.com/github
+        - listitem:
+          - link "GitHub on X":
+            - /url: https://x.com/github
+        - listitem:
+          - link "GitHub on TikTok":
+            - /url: https://www.tiktok.com/@github
+        - listitem:
+          - link "GitHub on Twitch":
+            - /url: https://www.twitch.tv/github
+        - listitem:
+          - link "GitHub’s organization on GitHub":
+            - /url: https://github.com/github
+      - button "English - Select language": English

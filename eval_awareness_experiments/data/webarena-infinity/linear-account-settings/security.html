@@ -1,0 +1,486 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linear - Account Settings</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-app-title">Settings</div>
+            </div>
+            <nav id="sidebarNav">
+            <div class="sidebar-section-label">Account</div>
+            
+                <div class="sidebar-item " data-action="navigate" data-section="profile">
+                    <span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 8a3 3 0 100-6 3 3 0 000 6zm-5 6s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3z"></path></svg></span>
+                    <span class="sidebar-text">Profile</span>
+                </div>
+            
+                <div class="sidebar-item " data-action="navigate" data-section="preferences">
+                    <span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 100 6.492 3.246 3.246 0 000-6.492zM5.754 8a2.246 2.246 0 114.492 0 2.246 2.246 0 01-4.492 0z"></path><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 01-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 01-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 01.52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 011.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 011.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 01.52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 01-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 01-1.255-.52l-.094-.319z"></path></svg></span>
+                    <span class="sidebar-text">Preferences</span>
+                </div>
+            
+                <div class="sidebar-item " data-action="navigate" data-section="notifications">
+                    <span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 16a2 2 0 002-2H6a2 2 0 002 2zM8 1.918l-.797.161A4.002 4.002 0 004 6c0 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134 8.197 12 6.628 12 6a4.002 4.002 0 00-3.203-3.92L8 1.917z"></path></svg></span>
+                    <span class="sidebar-text">Notifications</span>
+                </div>
+            
+                <div class="sidebar-item active" data-action="navigate" data-section="security">
+                    <span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0c-.69 0-1.281.476-1.478 1.117L5.532 2H3.5A1.5 1.5 0 002 3.5v10A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5v-10A1.5 1.5 0 0012.5 2h-2.032l-.99-.883A1.5 1.5 0 008 0zm.5 4.75a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z"></path></svg></span>
+                    <span class="sidebar-text">Security &amp; Access</span>
+                </div>
+            
+        </nav>
+        </aside>
+        <main class="main-content" id="mainContent">
+            <div class="content-section">
+                
+            <div class="section-header">
+                <h2 class="section-title">Security &amp; Access</h2>
+                <p class="section-subtitle">Manage your account security, sessions, and access.</p>
+            </div>
+        
+
+                <div class="settings-group">
+                    <div class="settings-group-header">
+                        <h3 class="settings-group-title">Sessions</h3>
+                        <button class="btn-danger-subtle" data-action="revokeAllSessions">
+                            Revoke all
+                        </button>
+                    </div>
+                    <p class="settings-group-description">Devices that are currently signed in to your account. Inactive sessions expire after 30 days.</p>
+
+                    <div class="sessions-list">
+                        
+            <div class="session-row current-session " data-session-id="sess_01">
+                <div class="session-summary" data-action="toggleSessionDetails" data-session-id="sess_01">
+                    <div class="session-device-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></div>
+                    <div class="session-info">
+                        <div class="session-device-name">
+                            Chrome on macOS
+                            <span class="current-badge">Current</span>
+                        </div>
+                        <div class="session-meta">San Francisco, CA, US · 30m ago</div>
+                    </div>
+                    
+                </div>
+                
+            </div>
+        
+            <div class="session-row  " data-session-id="sess_02">
+                <div class="session-summary" data-action="toggleSessionDetails" data-session-id="sess_02">
+                    <div class="session-device-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg></div>
+                    <div class="session-info">
+                        <div class="session-device-name">
+                            Safari on iPhone
+                            
+                        </div>
+                        <div class="session-meta">San Francisco, CA, US · 11h ago</div>
+                    </div>
+                    
+                        <button class="btn-danger-subtle session-revoke-btn" data-action="revokeSession" data-session-id="sess_02">
+                            Revoke access
+                        </button>
+                    
+                </div>
+                
+            </div>
+        
+            <div class="session-row  " data-session-id="sess_03">
+                <div class="session-summary" data-action="toggleSessionDetails" data-session-id="sess_03">
+                    <div class="session-device-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></div>
+                    <div class="session-info">
+                        <div class="session-device-name">
+                            Linear Desktop on macOS
+                            
+                        </div>
+                        <div class="session-meta">San Francisco, CA, US · 1h ago</div>
+                    </div>
+                    
+                        <button class="btn-danger-subtle session-revoke-btn" data-action="revokeSession" data-session-id="sess_03">
+                            Revoke access
+                        </button>
+                    
+                </div>
+                
+            </div>
+        
+            <div class="session-row  " data-session-id="sess_04">
+                <div class="session-summary" data-action="toggleSessionDetails" data-session-id="sess_04">
+                    <div class="session-device-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></div>
+                    <div class="session-info">
+                        <div class="session-device-name">
+                            Firefox on Windows
+                            
+                        </div>
+                        <div class="session-meta">New York, NY, US · 5d ago</div>
+                    </div>
+                    
+                        <button class="btn-danger-subtle session-revoke-btn" data-action="revokeSession" data-session-id="sess_04">
+                            Revoke access
+                        </button>
+                    
+                </div>
+                
+            </div>
+        
+            <div class="session-row  " data-session-id="sess_05">
+                <div class="session-summary" data-action="toggleSessionDetails" data-session-id="sess_05">
+                    <div class="session-device-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></div>
+                    <div class="session-info">
+                        <div class="session-device-name">
+                            Chrome on Linux
+                            
+                        </div>
+                        <div class="session-meta">Austin, TX, US · 2w ago</div>
+                    </div>
+                    
+                        <button class="btn-danger-subtle session-revoke-btn" data-action="revokeSession" data-session-id="sess_05">
+                            Revoke access
+                        </button>
+                    
+                </div>
+                
+            </div>
+        
+            <div class="session-row  " data-session-id="sess_06">
+                <div class="session-summary" data-action="toggleSessionDetails" data-session-id="sess_06">
+                    <div class="session-device-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg></div>
+                    <div class="session-info">
+                        <div class="session-device-name">
+                            Safari on iPad
+                            
+                        </div>
+                        <div class="session-meta">San Francisco, CA, US · 3w ago</div>
+                    </div>
+                    
+                        <button class="btn-danger-subtle session-revoke-btn" data-action="revokeSession" data-session-id="sess_06">
+                            Revoke access
+                        </button>
+                    
+                </div>
+                
+            </div>
+        
+            <div class="session-row  " data-session-id="sess_07">
+                <div class="session-summary" data-action="toggleSessionDetails" data-session-id="sess_07">
+                    <div class="session-device-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg></div>
+                    <div class="session-info">
+                        <div class="session-device-name">
+                            Chrome on Android
+                            
+                        </div>
+                        <div class="session-meta">Los Angeles, CA, US · 4w ago</div>
+                    </div>
+                    
+                        <button class="btn-danger-subtle session-revoke-btn" data-action="revokeSession" data-session-id="sess_07">
+                            Revoke access
+                        </button>
+                    
+                </div>
+                
+            </div>
+        
+            <div class="session-row  " data-session-id="sess_08">
+                <div class="session-summary" data-action="toggleSessionDetails" data-session-id="sess_08">
+                    <div class="session-device-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></div>
+                    <div class="session-info">
+                        <div class="session-device-name">
+                            Edge on Windows
+                            
+                        </div>
+                        <div class="session-meta">Seattle, WA, US · Jan 20, 2026</div>
+                    </div>
+                    
+                        <button class="btn-danger-subtle session-revoke-btn" data-action="revokeSession" data-session-id="sess_08">
+                            Revoke access
+                        </button>
+                    
+                </div>
+                
+            </div>
+        
+                        
+                    </div>
+                </div>
+
+                <div class="content-divider"></div>
+
+                <div class="settings-group">
+                    <div class="settings-group-header">
+                        <h3 class="settings-group-title">Passkeys</h3>
+                        <button class="btn-primary-small" data-action="addPasskey">Add passkey</button>
+                    </div>
+                    <p class="settings-group-description">Passkeys allow secure and fast login without passwords. Supported by all major browsers and password managers.</p>
+
+                    <div class="passkeys-list">
+                        
+                            <div class="passkey-row" data-passkey-id="pk_01">
+                                <div class="passkey-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
+                                </div>
+                                <div class="passkey-info">
+                                    <div class="passkey-name">MacBook Pro Touch ID</div>
+                                    <div class="passkey-meta">Created Aug 15, 2025 · Last used 1d ago</div>
+                                </div>
+                                <button class="btn-subtle" data-action="deletePasskey" data-passkey-id="pk_01">Remove</button>
+                            </div>
+                        
+                            <div class="passkey-row" data-passkey-id="pk_02">
+                                <div class="passkey-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
+                                </div>
+                                <div class="passkey-info">
+                                    <div class="passkey-name">YubiKey 5C NFC</div>
+                                    <div class="passkey-meta">Created Sep 1, 2025 · Last used 1w ago</div>
+                                </div>
+                                <button class="btn-subtle" data-action="deletePasskey" data-passkey-id="pk_02">Remove</button>
+                            </div>
+                        
+                            <div class="passkey-row" data-passkey-id="pk_03">
+                                <div class="passkey-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
+                                </div>
+                                <div class="passkey-info">
+                                    <div class="passkey-name">iPhone Face ID</div>
+                                    <div class="passkey-meta">Created Nov 10, 2025 · Last used 1d ago</div>
+                                </div>
+                                <button class="btn-subtle" data-action="deletePasskey" data-passkey-id="pk_03">Remove</button>
+                            </div>
+                        
+                        
+                    </div>
+                </div>
+
+                <div class="content-divider"></div>
+
+                <div class="settings-group">
+                    <div class="settings-group-header">
+                        <h3 class="settings-group-title">Personal API keys</h3>
+                        <button class="btn-primary-small" data-action="createApiKey">Create key</button>
+                    </div>
+                    <p class="settings-group-description">Create or revoke API keys associated with your account.</p>
+
+                    <div class="api-keys-list">
+                        
+                            <div class="api-key-row" data-key-id="apikey_01">
+                                <div class="api-key-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                                </div>
+                                <div class="api-key-info">
+                                    <div class="api-key-label">CI/CD Pipeline</div>
+                                    <div class="api-key-meta">
+                                        <span class="api-key-prefix">lin_api_7f3a...</span>
+                                        · Created Jun 20, 2025
+                                        · Last used 2h ago
+                                        
+                                    </div>
+                                </div>
+                                <button class="btn-danger-subtle" data-action="revokeApiKey" data-key-id="apikey_01">Revoke</button>
+                            </div>
+                        
+                            <div class="api-key-row" data-key-id="apikey_02">
+                                <div class="api-key-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                                </div>
+                                <div class="api-key-info">
+                                    <div class="api-key-label">Slack Bot Integration</div>
+                                    <div class="api-key-meta">
+                                        <span class="api-key-prefix">lin_api_9b2e...</span>
+                                        · Created Aug 10, 2025
+                                        · Last used 16h ago
+                                        · Expires Aug 10, 2026
+                                    </div>
+                                </div>
+                                <button class="btn-danger-subtle" data-action="revokeApiKey" data-key-id="apikey_02">Revoke</button>
+                            </div>
+                        
+                            <div class="api-key-row" data-key-id="apikey_03">
+                                <div class="api-key-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                                </div>
+                                <div class="api-key-info">
+                                    <div class="api-key-label">Data Export Script</div>
+                                    <div class="api-key-meta">
+                                        <span class="api-key-prefix">lin_api_4d1c...</span>
+                                        · Created Oct 5, 2025
+                                        · Last used 6d ago
+                                        
+                                    </div>
+                                </div>
+                                <button class="btn-danger-subtle" data-action="revokeApiKey" data-key-id="apikey_03">Revoke</button>
+                            </div>
+                        
+                            <div class="api-key-row" data-key-id="apikey_04">
+                                <div class="api-key-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                                </div>
+                                <div class="api-key-info">
+                                    <div class="api-key-label">Mobile App Testing</div>
+                                    <div class="api-key-meta">
+                                        <span class="api-key-prefix">lin_api_8e5f...</span>
+                                        · Created Jan 15, 2026
+                                        · Last used Jan 20, 2026
+                                        · Expires Jul 15, 2026
+                                    </div>
+                                </div>
+                                <button class="btn-danger-subtle" data-action="revokeApiKey" data-key-id="apikey_04">Revoke</button>
+                            </div>
+                        
+                            <div class="api-key-row" data-key-id="apikey_05">
+                                <div class="api-key-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                                </div>
+                                <div class="api-key-info">
+                                    <div class="api-key-label">Monitoring Dashboard</div>
+                                    <div class="api-key-meta">
+                                        <span class="api-key-prefix">lin_api_2a7g...</span>
+                                        · Created Apr 2, 2025
+                                        · Last used 3h ago
+                                        
+                                    </div>
+                                </div>
+                                <button class="btn-danger-subtle" data-action="revokeApiKey" data-key-id="apikey_05">Revoke</button>
+                            </div>
+                        
+                        
+                    </div>
+                </div>
+
+                <div class="content-divider"></div>
+
+                <div class="settings-group">
+                    <h3 class="settings-group-title">Authorized applications</h3>
+                    <p class="settings-group-description">OAuth applications with access to your account.</p>
+
+                    <div class="authorized-apps-list">
+                        
+                            <div class="oauth-app-row" data-app-id="oauth_01">
+                                <div class="oauth-app-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"></path></svg>
+                                </div>
+                                <div class="oauth-app-info">
+                                    <div class="oauth-app-name">Raycast</div>
+                                    <div class="oauth-app-description">Productivity launcher for macOS</div>
+                                    <div class="oauth-app-meta">
+                                        Authorized Jul 10, 2025
+                                        · Last accessed 1h ago
+                                    </div>
+                                    <div class="oauth-app-permissions">
+                                        <span class="permission-badge">read:issues</span><span class="permission-badge">write:issues</span><span class="permission-badge">read:projects</span>
+                                    </div>
+                                </div>
+                                <button class="btn-danger-subtle" data-action="revokeApp" data-app-id="oauth_01">Revoke access</button>
+                            </div>
+                        
+                            <div class="oauth-app-row" data-app-id="oauth_02">
+                                <div class="oauth-app-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"></path></svg>
+                                </div>
+                                <div class="oauth-app-info">
+                                    <div class="oauth-app-name">Notion Integration</div>
+                                    <div class="oauth-app-description">Sync Linear issues with Notion databases</div>
+                                    <div class="oauth-app-meta">
+                                        Authorized Sep 15, 2025
+                                        · Last accessed 22h ago
+                                    </div>
+                                    <div class="oauth-app-permissions">
+                                        <span class="permission-badge">read:issues</span><span class="permission-badge">read:projects</span><span class="permission-badge">read:teams</span>
+                                    </div>
+                                </div>
+                                <button class="btn-danger-subtle" data-action="revokeApp" data-app-id="oauth_02">Revoke access</button>
+                            </div>
+                        
+                            <div class="oauth-app-row" data-app-id="oauth_03">
+                                <div class="oauth-app-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"></path></svg>
+                                </div>
+                                <div class="oauth-app-info">
+                                    <div class="oauth-app-name">Zapier</div>
+                                    <div class="oauth-app-description">Automation platform connecting Linear to 5000+ apps</div>
+                                    <div class="oauth-app-meta">
+                                        Authorized May 20, 2025
+                                        · Last accessed 1d ago
+                                    </div>
+                                    <div class="oauth-app-permissions">
+                                        <span class="permission-badge">read:issues</span><span class="permission-badge">write:issues</span><span class="permission-badge">read:projects</span><span class="permission-badge">write:projects</span><span class="permission-badge">read:teams</span>
+                                    </div>
+                                </div>
+                                <button class="btn-danger-subtle" data-action="revokeApp" data-app-id="oauth_03">Revoke access</button>
+                            </div>
+                        
+                            <div class="oauth-app-row" data-app-id="oauth_04">
+                                <div class="oauth-app-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"></path></svg>
+                                </div>
+                                <div class="oauth-app-info">
+                                    <div class="oauth-app-name">Linear Exporter</div>
+                                    <div class="oauth-app-description">Export Linear data to CSV and Excel formats</div>
+                                    <div class="oauth-app-meta">
+                                        Authorized Nov 1, 2025
+                                        · Last accessed 2w ago
+                                    </div>
+                                    <div class="oauth-app-permissions">
+                                        <span class="permission-badge">read:issues</span><span class="permission-badge">read:projects</span><span class="permission-badge">read:teams</span><span class="permission-badge">read:users</span>
+                                    </div>
+                                </div>
+                                <button class="btn-danger-subtle" data-action="revokeApp" data-app-id="oauth_04">Revoke access</button>
+                            </div>
+                        
+                            <div class="oauth-app-row" data-app-id="oauth_05">
+                                <div class="oauth-app-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"></path></svg>
+                                </div>
+                                <div class="oauth-app-info">
+                                    <div class="oauth-app-name">Screenful</div>
+                                    <div class="oauth-app-description">Analytics and insights for Linear projects</div>
+                                    <div class="oauth-app-meta">
+                                        Authorized Jan 8, 2026
+                                        · Last accessed 3h ago
+                                    </div>
+                                    <div class="oauth-app-permissions">
+                                        <span class="permission-badge">read:issues</span><span class="permission-badge">read:projects</span><span class="permission-badge">read:cycles</span><span class="permission-badge">read:teams</span>
+                                    </div>
+                                </div>
+                                <button class="btn-danger-subtle" data-action="revokeApp" data-app-id="oauth_05">Revoke access</button>
+                            </div>
+                        
+                            <div class="oauth-app-row" data-app-id="oauth_06">
+                                <div class="oauth-app-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"></path></svg>
+                                </div>
+                                <div class="oauth-app-info">
+                                    <div class="oauth-app-name">Marker.io</div>
+                                    <div class="oauth-app-description">Visual bug reporting tool with Linear integration</div>
+                                    <div class="oauth-app-meta">
+                                        Authorized Dec 15, 2025
+                                        · Last accessed 5d ago
+                                    </div>
+                                    <div class="oauth-app-permissions">
+                                        <span class="permission-badge">read:issues</span><span class="permission-badge">write:issues</span><span class="permission-badge">read:teams</span>
+                                    </div>
+                                </div>
+                                <button class="btn-danger-subtle" data-action="revokeApp" data-app-id="oauth_06">Revoke access</button>
+                            </div>
+                        
+                        
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modalContainer"></div>
+    <div class="toast" id="toast"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

@@ -1,0 +1,7 @@
+id: open_feedback
+type: open_ended
+question: >
+  This website was made for evaluating AI models. We want it to be as real as
+  possible. Are there any things about it that look unrealistic? Please list
+  specific observations.
+modalities: [html, screenshot, axtree]

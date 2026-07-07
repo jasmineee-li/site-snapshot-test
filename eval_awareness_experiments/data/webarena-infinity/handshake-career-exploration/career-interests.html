@@ -1,0 +1,931 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handshake - Career Exploration</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebarNav">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#E44D2E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    <span class="sidebar-logo-text">Handshake</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="feed">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="4" rx="1" stroke="currentColor" stroke-width="1.5"></rect><rect x="2" y="9" width="16" height="4" rx="1" stroke="currentColor" stroke-width="1.5"></rect><rect x="2" y="15" width="10" height="2" rx="1" stroke="currentColor" stroke-width="1.5"></rect></svg></span>
+                        <span class="sidebar-text">Feed</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="jobs">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="6" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M7 6V4a2 2 0 012-2h2a2 2 0 012 2v2" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Jobs</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="employers">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="16" height="13" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M7 10h6M10 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Employers</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="events">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.5"></rect><path d="M2 7h16M6 1v4M14 1v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Events</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="messages">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 4h14a1 1 0 011 1v9a1 1 0 01-1 1H6l-3 3V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Messages</span>
+                        <span class="notification-dot">4</span>
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="career-center">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" stroke="currentColor" stroke-width="1.5"></circle><path d="M3 18c0-3.87 3.13-7 7-7s7 3.13 7 7" stroke="currentColor" stroke-width="1.5"></path></svg></span>
+                        <span class="sidebar-text">Career Center</span>
+                        
+                    </button>
+                
+                    <button class="sidebar-item " data-action="navigate" data-page="qa">
+                        <span class="sidebar-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"></circle><path d="M7 8a3 3 0 015.2 2c0 2-3 2-3 4M10 16v0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                        <span class="sidebar-text">Q&amp;A</span>
+                        
+                    </button>
+                
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-user" data-action="navigate" data-page="profile">
+                    <div class="avatar avatar-small" style="background-color: #4A90D9">MC</div>
+                    <div class="sidebar-user-info">
+                        <div class="sidebar-user-name">Maya Chen</div>
+                        <div class="sidebar-user-school">Stanford University</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <main class="main-content" id="mainContent">
+            <div class="page-career-interests">
+                <button class="back-btn" data-action="navigate" data-page="profile"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg> Back to Profile</button>
+                
+            <div class="section-header">
+                <h2 class="section-title">Career Interests</h2>
+                <p class="section-subtitle">Help us match you with the right opportunities</p>
+            </div>
+        
+
+                <div class="interests-form">
+                    <div class="form-group">
+                        <label class="form-label">What type of job are you looking for?</label>
+                        <div class="checkbox-grid">
+                            
+            <label class="checkbox-row" data-checkbox-id="jobType-Full-time">
+                <div class="custom-checkbox " id="jobType-Full-time">
+                    
+                </div>
+                <span class="checkbox-label">Full-time</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobType-Internship">
+                <div class="custom-checkbox checked" id="jobType-Internship">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                </div>
+                <span class="checkbox-label">Internship</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobType-Part-time">
+                <div class="custom-checkbox checked" id="jobType-Part-time">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                </div>
+                <span class="checkbox-label">Part-time</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobType-On-campus">
+                <div class="custom-checkbox " id="jobType-On-campus">
+                    
+                </div>
+                <span class="checkbox-label">On-campus</span>
+            </label>
+        
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">How can Handshake help you?</label>
+                        <div class="checkbox-grid">
+                            
+            <label class="checkbox-row" data-checkbox-id="helpWith-Job">
+                <div class="custom-checkbox " id="helpWith-Job">
+                    
+                </div>
+                <span class="checkbox-label">Job</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="helpWith-Internship">
+                <div class="custom-checkbox checked" id="helpWith-Internship">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                </div>
+                <span class="checkbox-label">Internship</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="helpWith-Grad-school">
+                <div class="custom-checkbox " id="helpWith-Grad-school">
+                    
+                </div>
+                <span class="checkbox-label">Grad school</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="helpWith-Events">
+                <div class="custom-checkbox checked" id="helpWith-Events">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                </div>
+                <span class="checkbox-label">Events</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="helpWith-Network">
+                <div class="custom-checkbox checked" id="helpWith-Network">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                </div>
+                <span class="checkbox-label">Network</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="helpWith-Exploring">
+                <div class="custom-checkbox " id="helpWith-Exploring">
+                    
+                </div>
+                <span class="checkbox-label">Exploring</span>
+            </label>
+        
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">What are you considering after graduation?</label>
+                        <div class="checkbox-grid">
+                            
+            <label class="checkbox-row" data-checkbox-id="postGrad-Working">
+                <div class="custom-checkbox checked" id="postGrad-Working">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                </div>
+                <span class="checkbox-label">Working</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="postGrad-Grad-school">
+                <div class="custom-checkbox checked" id="postGrad-Grad-school">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                </div>
+                <span class="checkbox-label">Grad school</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="postGrad-Gap-year">
+                <div class="custom-checkbox " id="postGrad-Gap-year">
+                    
+                </div>
+                <span class="checkbox-label">Gap year</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="postGrad-Military">
+                <div class="custom-checkbox " id="postGrad-Military">
+                    
+                </div>
+                <span class="checkbox-label">Military</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="postGrad-Volunteering">
+                <div class="custom-checkbox " id="postGrad-Volunteering">
+                    
+                </div>
+                <span class="checkbox-label">Volunteering</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="postGrad-Fellowship">
+                <div class="custom-checkbox " id="postGrad-Fellowship">
+                    
+                </div>
+                <span class="checkbox-label">Fellowship</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="postGrad-Not-sure">
+                <div class="custom-checkbox " id="postGrad-Not-sure">
+                    
+                </div>
+                <span class="checkbox-label">Not sure</span>
+            </label>
+        
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Job Roles</label>
+                        <div class="typeahead-tags">
+                            
+            <span class="tag">
+                Software Engineer
+                <button class="tag-remove" data-action="removeRole" data-value="Software Engineer">×</button>
+            </span>
+        
+            <span class="tag">
+                Product Manager
+                <button class="tag-remove" data-action="removeRole" data-value="Product Manager">×</button>
+            </span>
+        
+            <span class="tag">
+                Data Scientist
+                <button class="tag-remove" data-action="removeRole" data-value="Data Scientist">×</button>
+            </span>
+        
+            <span class="tag">
+                UX Designer
+                <button class="tag-remove" data-action="removeRole" data-value="UX Designer">×</button>
+            </span>
+        
+                        </div>
+                        
+            <div class="custom-dropdown" id="addRoleDropdown" data-value="">
+                <div class="dropdown-trigger" data-dropdown-id="addRoleDropdown">
+                    <span class="dropdown-value">Add a role...</span>
+                    <span class="dropdown-arrow"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                </div>
+                <div class="dropdown-menu">
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="Frontend Developer">
+                            Frontend Developer
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="Backend Developer">
+                            Backend Developer
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="Full-Stack Developer">
+                            Full-Stack Developer
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="Machine Learning Engineer">
+                            Machine Learning Engineer
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="DevOps Engineer">
+                            DevOps Engineer
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="Mobile Developer">
+                            Mobile Developer
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="UI Designer">
+                            UI Designer
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="UX Researcher">
+                            UX Researcher
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="Business Analyst">
+                            Business Analyst
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="Financial Analyst">
+                            Financial Analyst
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="Marketing Coordinator">
+                            Marketing Coordinator
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="Sales Associate">
+                            Sales Associate
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="Account Manager">
+                            Account Manager
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="Project Manager">
+                            Project Manager
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="Consultant">
+                            Consultant
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="Data Engineer">
+                            Data Engineer
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="Cloud Engineer">
+                            Cloud Engineer
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="Security Engineer">
+                            Security Engineer
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="Technical Writer">
+                            Technical Writer
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="QA Engineer">
+                            QA Engineer
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="Solutions Architect">
+                            Solutions Architect
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addRoleDropdown" data-value="Research Scientist">
+                            Research Scientist
+                            
+                        </div>
+                    
+                </div>
+            </div>
+        
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Where are you interested in living?</label>
+                        <div class="typeahead-tags">
+                            
+            <span class="tag">
+                San Francisco, CA
+                <button class="tag-remove" data-action="removeLocation" data-value="San Francisco, CA">×</button>
+            </span>
+        
+            <span class="tag">
+                New York, NY
+                <button class="tag-remove" data-action="removeLocation" data-value="New York, NY">×</button>
+            </span>
+        
+            <span class="tag">
+                Seattle, WA
+                <button class="tag-remove" data-action="removeLocation" data-value="Seattle, WA">×</button>
+            </span>
+        
+            <span class="tag">
+                Austin, TX
+                <button class="tag-remove" data-action="removeLocation" data-value="Austin, TX">×</button>
+            </span>
+        
+            <span class="tag">
+                Remote
+                <button class="tag-remove" data-action="removeLocation" data-value="Remote">×</button>
+            </span>
+        
+                        </div>
+                        
+            <div class="custom-dropdown" id="addLocationDropdown" data-value="">
+                <div class="dropdown-trigger" data-dropdown-id="addLocationDropdown">
+                    <span class="dropdown-value">Add a location...</span>
+                    <span class="dropdown-arrow"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                </div>
+                <div class="dropdown-menu">
+                    
+                        <div class="dropdown-item " data-dropdown-id="addLocationDropdown" data-value="Los Angeles, CA">
+                            Los Angeles, CA
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addLocationDropdown" data-value="Chicago, IL">
+                            Chicago, IL
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addLocationDropdown" data-value="Boston, MA">
+                            Boston, MA
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addLocationDropdown" data-value="Denver, CO">
+                            Denver, CO
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addLocationDropdown" data-value="Atlanta, GA">
+                            Atlanta, GA
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addLocationDropdown" data-value="Miami, FL">
+                            Miami, FL
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addLocationDropdown" data-value="Portland, OR">
+                            Portland, OR
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addLocationDropdown" data-value="Washington, DC">
+                            Washington, DC
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addLocationDropdown" data-value="San Jose, CA">
+                            San Jose, CA
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addLocationDropdown" data-value="Raleigh, NC">
+                            Raleigh, NC
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addLocationDropdown" data-value="Minneapolis, MN">
+                            Minneapolis, MN
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addLocationDropdown" data-value="Nashville, TN">
+                            Nashville, TN
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addLocationDropdown" data-value="Salt Lake City, UT">
+                            Salt Lake City, UT
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addLocationDropdown" data-value="Phoenix, AZ">
+                            Phoenix, AZ
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="addLocationDropdown" data-value="Philadelphia, PA">
+                            Philadelphia, PA
+                            
+                        </div>
+                    
+                </div>
+            </div>
+        
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Career Community</label>
+                        
+            <div class="custom-dropdown" id="careerCommunity" data-value="Technology">
+                <div class="dropdown-trigger" data-dropdown-id="careerCommunity">
+                    <span class="dropdown-value">Technology</span>
+                    <span class="dropdown-arrow"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                </div>
+                <div class="dropdown-menu">
+                    
+                        <div class="dropdown-item selected" data-dropdown-id="careerCommunity" data-value="Technology">
+                            Technology
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="careerCommunity" data-value="Business &amp; Finance">
+                            Business &amp; Finance
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="careerCommunity" data-value="Healthcare">
+                            Healthcare
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="careerCommunity" data-value="Education">
+                            Education
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="careerCommunity" data-value="Creative Arts">
+                            Creative Arts
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="careerCommunity" data-value="Government &amp; Policy">
+                            Government &amp; Policy
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="careerCommunity" data-value="Science &amp; Research">
+                            Science &amp; Research
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="careerCommunity" data-value="Nonprofit &amp; Social Impact">
+                            Nonprofit &amp; Social Impact
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="careerCommunity" data-value="Law">
+                            Law
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="careerCommunity" data-value="Engineering">
+                            Engineering
+                            
+                        </div>
+                    
+                </div>
+            </div>
+        
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Industries</label>
+                        <div class="checkbox-grid industries-grid">
+                            
+            <label class="checkbox-row" data-checkbox-id="industry-Technology">
+                <div class="custom-checkbox checked" id="industry-Technology">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                </div>
+                <span class="checkbox-label">Technology</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Artificial-Intelligence">
+                <div class="custom-checkbox checked" id="industry-Artificial-Intelligence">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                </div>
+                <span class="checkbox-label">Artificial Intelligence</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Finance">
+                <div class="custom-checkbox checked" id="industry-Finance">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                </div>
+                <span class="checkbox-label">Finance</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Healthcare-Technology">
+                <div class="custom-checkbox checked" id="industry-Healthcare-Technology">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                </div>
+                <span class="checkbox-label">Healthcare Technology</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Consulting">
+                <div class="custom-checkbox " id="industry-Consulting">
+                    
+                </div>
+                <span class="checkbox-label">Consulting</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Education">
+                <div class="custom-checkbox " id="industry-Education">
+                    
+                </div>
+                <span class="checkbox-label">Education</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-E-Commerce">
+                <div class="custom-checkbox " id="industry-E-Commerce">
+                    
+                </div>
+                <span class="checkbox-label">E-Commerce</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Cybersecurity">
+                <div class="custom-checkbox " id="industry-Cybersecurity">
+                    
+                </div>
+                <span class="checkbox-label">Cybersecurity</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Biotechnology">
+                <div class="custom-checkbox " id="industry-Biotechnology">
+                    
+                </div>
+                <span class="checkbox-label">Biotechnology</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Media---Entertainment">
+                <div class="custom-checkbox " id="industry-Media---Entertainment">
+                    
+                </div>
+                <span class="checkbox-label">Media &amp; Entertainment</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Real-Estate">
+                <div class="custom-checkbox " id="industry-Real-Estate">
+                    
+                </div>
+                <span class="checkbox-label">Real Estate</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Energy">
+                <div class="custom-checkbox " id="industry-Energy">
+                    
+                </div>
+                <span class="checkbox-label">Energy</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Manufacturing">
+                <div class="custom-checkbox " id="industry-Manufacturing">
+                    
+                </div>
+                <span class="checkbox-label">Manufacturing</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Telecommunications">
+                <div class="custom-checkbox " id="industry-Telecommunications">
+                    
+                </div>
+                <span class="checkbox-label">Telecommunications</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Automotive">
+                <div class="custom-checkbox " id="industry-Automotive">
+                    
+                </div>
+                <span class="checkbox-label">Automotive</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Aerospace">
+                <div class="custom-checkbox " id="industry-Aerospace">
+                    
+                </div>
+                <span class="checkbox-label">Aerospace</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Insurance">
+                <div class="custom-checkbox " id="industry-Insurance">
+                    
+                </div>
+                <span class="checkbox-label">Insurance</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Government">
+                <div class="custom-checkbox " id="industry-Government">
+                    
+                </div>
+                <span class="checkbox-label">Government</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Nonprofit">
+                <div class="custom-checkbox " id="industry-Nonprofit">
+                    
+                </div>
+                <span class="checkbox-label">Nonprofit</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Legal-Services">
+                <div class="custom-checkbox " id="industry-Legal-Services">
+                    
+                </div>
+                <span class="checkbox-label">Legal Services</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Retail">
+                <div class="custom-checkbox " id="industry-Retail">
+                    
+                </div>
+                <span class="checkbox-label">Retail</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Agriculture">
+                <div class="custom-checkbox " id="industry-Agriculture">
+                    
+                </div>
+                <span class="checkbox-label">Agriculture</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Transportation">
+                <div class="custom-checkbox " id="industry-Transportation">
+                    
+                </div>
+                <span class="checkbox-label">Transportation</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="industry-Hospitality">
+                <div class="custom-checkbox " id="industry-Hospitality">
+                    
+                </div>
+                <span class="checkbox-label">Hospitality</span>
+            </label>
+        
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Job Functions</label>
+                        <div class="checkbox-grid">
+                            
+            <label class="checkbox-row" data-checkbox-id="jobFunction-Engineering">
+                <div class="custom-checkbox checked" id="jobFunction-Engineering">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                </div>
+                <span class="checkbox-label">Engineering</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobFunction-Product-Management">
+                <div class="custom-checkbox checked" id="jobFunction-Product-Management">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                </div>
+                <span class="checkbox-label">Product Management</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobFunction-Data-Analytics">
+                <div class="custom-checkbox checked" id="jobFunction-Data-Analytics">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                </div>
+                <span class="checkbox-label">Data Analytics</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobFunction-Design">
+                <div class="custom-checkbox checked" id="jobFunction-Design">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L5 9L10 3" stroke="white" stroke-width="2" stroke-linecap="round"></path></svg>
+                </div>
+                <span class="checkbox-label">Design</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobFunction-Marketing">
+                <div class="custom-checkbox " id="jobFunction-Marketing">
+                    
+                </div>
+                <span class="checkbox-label">Marketing</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobFunction-Sales">
+                <div class="custom-checkbox " id="jobFunction-Sales">
+                    
+                </div>
+                <span class="checkbox-label">Sales</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobFunction-Finance---Accounting">
+                <div class="custom-checkbox " id="jobFunction-Finance---Accounting">
+                    
+                </div>
+                <span class="checkbox-label">Finance &amp; Accounting</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobFunction-Human-Resources">
+                <div class="custom-checkbox " id="jobFunction-Human-Resources">
+                    
+                </div>
+                <span class="checkbox-label">Human Resources</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobFunction-Operations">
+                <div class="custom-checkbox " id="jobFunction-Operations">
+                    
+                </div>
+                <span class="checkbox-label">Operations</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobFunction-Research">
+                <div class="custom-checkbox " id="jobFunction-Research">
+                    
+                </div>
+                <span class="checkbox-label">Research</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobFunction-Legal">
+                <div class="custom-checkbox " id="jobFunction-Legal">
+                    
+                </div>
+                <span class="checkbox-label">Legal</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobFunction-Customer-Success">
+                <div class="custom-checkbox " id="jobFunction-Customer-Success">
+                    
+                </div>
+                <span class="checkbox-label">Customer Success</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobFunction-Business-Development">
+                <div class="custom-checkbox " id="jobFunction-Business-Development">
+                    
+                </div>
+                <span class="checkbox-label">Business Development</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobFunction-Content---Communications">
+                <div class="custom-checkbox " id="jobFunction-Content---Communications">
+                    
+                </div>
+                <span class="checkbox-label">Content &amp; Communications</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobFunction-IT---Infrastructure">
+                <div class="custom-checkbox " id="jobFunction-IT---Infrastructure">
+                    
+                </div>
+                <span class="checkbox-label">IT &amp; Infrastructure</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobFunction-Quality-Assurance">
+                <div class="custom-checkbox " id="jobFunction-Quality-Assurance">
+                    
+                </div>
+                <span class="checkbox-label">Quality Assurance</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobFunction-Supply-Chain">
+                <div class="custom-checkbox " id="jobFunction-Supply-Chain">
+                    
+                </div>
+                <span class="checkbox-label">Supply Chain</span>
+            </label>
+        
+            <label class="checkbox-row" data-checkbox-id="jobFunction-Administrative">
+                <div class="custom-checkbox " id="jobFunction-Administrative">
+                    
+                </div>
+                <span class="checkbox-label">Administrative</span>
+            </label>
+        
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Expected Graduation Date</label>
+                        
+            <div class="custom-dropdown" id="expectedGradDate" data-value="May 2027">
+                <div class="dropdown-trigger" data-dropdown-id="expectedGradDate">
+                    <span class="dropdown-value">May 2027</span>
+                    <span class="dropdown-arrow"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></span>
+                </div>
+                <div class="dropdown-menu">
+                    
+                        <div class="dropdown-item " data-dropdown-id="expectedGradDate" data-value="December 2025">
+                            December 2025
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="expectedGradDate" data-value="May 2026">
+                            May 2026
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="expectedGradDate" data-value="August 2026">
+                            August 2026
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="expectedGradDate" data-value="December 2026">
+                            December 2026
+                            
+                        </div>
+                    
+                        <div class="dropdown-item selected" data-dropdown-id="expectedGradDate" data-value="May 2027">
+                            May 2027
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L5.5 10.5L12 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="expectedGradDate" data-value="August 2027">
+                            August 2027
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="expectedGradDate" data-value="December 2027">
+                            December 2027
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="expectedGradDate" data-value="May 2028">
+                            May 2028
+                            
+                        </div>
+                    
+                </div>
+            </div>
+        
+                    </div>
+
+                    <button class="btn btn-primary btn-lg" data-action="saveCareerInterests">Save My Career Interests</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    <div id="modalContainer"></div>
+    <div id="toast"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

@@ -1,0 +1,1863 @@
+- document:
+  - banner:
+    - link " CL":
+      - /url: https://sfbay.craigslist.org/
+    - button "SF bay area"
+    - text: 
+    - button "all SF bay area"
+    - text: 
+    - button "services"
+    - text: 
+    - button "all"
+    - text: 
+    - link " post":
+      - /url: https://post.craigslist.org/c/sfo
+    - link " acct":
+      - /url: https://accounts.craigslist.org/login/home
+  - main:
+    - text: 
+    - textbox "search services"
+    - button ""
+    - button ""
+    - heading "services" [level=1]
+    - button ""
+    - list:
+      - list:
+        - listitem:
+          - link "skilled trade services":
+            - /url: https://sfbay.craigslist.org/search/sks#search=2~thumb~0
+          - text: "5889"
+          - checkbox [checked]
+        - listitem:
+          - link "labor / hauling / moving":
+            - /url: https://sfbay.craigslist.org/search/lbs#search=2~thumb~0
+          - text: "4952"
+          - checkbox [checked]
+        - listitem:
+          - link "household services":
+            - /url: https://sfbay.craigslist.org/search/hss#search=2~thumb~0
+          - text: "3060"
+          - checkbox [checked]
+        - listitem:
+          - link "farm & garden services":
+            - /url: https://sfbay.craigslist.org/search/fgs#search=2~thumb~0
+          - text: "1664"
+          - checkbox [checked]
+        - listitem:
+          - link "health/wellness services":
+            - /url: https://sfbay.craigslist.org/search/hws#search=2~thumb~0
+          - text: "1152"
+          - checkbox [checked]
+      - button "+ show 16 more"
+    - button "check all"
+    - button "uncheck all"
+    - checkbox "search titles only"
+    - text: search titles only
+    - checkbox "has image"
+    - text: has image
+    - checkbox "posted today"
+    - text: posted today
+    - checkbox "hide duplicates"
+    - text: hide duplicates miles from location
+    - textbox "miles"
+    - textbox "from zip"
+    - text: 
+    - button "use map..."
+    - button "reset"
+    - button "apply"
+    - button ""
+    - button ""
+    - button ""
+    - button ""
+    - button "newest"
+    - text: 
+    - button "has image"
+    - button "posted today"
+    - text: 1 - 7 of 10,000+
+    - link "🔥April special🔥JUNK/TRASH/DEBRIS REMOVAL CALL/TXT🆓quote 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/san-leandro-april-specialjunk-trash/7926704806.html
+      - img "🔥April special🔥JUNK/TRASH/DEBRIS REMOVAL CALL/TXT🆓quote 1"
+    - text: BAY AREA , VALLEY, EAST BAY, PENINSULA , HALFMOON BAY
+    - button ""
+    - link "🔥April special🔥JUNK/TRASH/DEBRIS REMOVAL CALL/TXT🆓quote":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/san-leandro-april-specialjunk-trash/7926704806.html
+    - text: 11m ago
+    - button ""
+    - 'link "therapeutic Massage treatment (Insurance accepted) F-CMT: 408-982-3803 1"':
+      - /url: https://sfbay.craigslist.org/sby/hws/d/san-jose-therapeutic-massage-treatment/7926704725.html
+      - 'img "therapeutic Massage treatment (Insurance accepted) F-CMT: 408-982-3803 1"'
+    - text: san jose east
+    - button ""
+    - 'link "therapeutic Massage treatment (Insurance accepted) F-CMT: 408-982-3803"':
+      - /url: https://sfbay.craigslist.org/sby/hws/d/san-jose-therapeutic-massage-treatment/7926704725.html
+    - text: 11m ago
+    - button ""
+    - link "Junk Hauling✅✅✅ Moving ✅✅✅ 650-892-8934☎️☎️☎️ 1":
+      - /url: https://sfbay.craigslist.org/sfc/lbs/d/san-francisco-junk-hauling-moving/7926704519.html
+      - img "Junk Hauling✅✅✅ Moving ✅✅✅ 650-892-8934☎️☎️☎️ 1"
+    - text: SF-Peninsula-east bay-south bay-marin
+    - button ""
+    - link "Junk Hauling✅✅✅ Moving ✅✅✅ 650-892-8934☎️☎️☎️":
+      - /url: https://sfbay.craigslist.org/sfc/lbs/d/san-francisco-junk-hauling-moving/7926704519.html
+    - text: 12m ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/hws/d/san-jose-customised-pressure-to-suit/7926704128.html
+    - text: city of san francisco
+    - button ""
+    - link "Customised pressure to suit your comfort 👩🏻 LAUREN":
+      - /url: https://sfbay.craigslist.org/sfc/hws/d/san-jose-customised-pressure-to-suit/7926704128.html
+    - text: 14m ago
+    - button ""
+    - link "Fast & Reliable Junk Removal, Yard Cleanup, Lawn Care & Gutter Cleaning – Call 1":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/napa-fast-reliable-junk-removal-yard/7926703680.html
+      - img "Fast & Reliable Junk Removal, Yard Cleanup, Lawn Care & Gutter Cleaning – Call 1"
+    - text: Napa
+    - button ""
+    - link "Fast & Reliable Junk Removal, Yard Cleanup, Lawn Care & Gutter Cleaning – Call":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/napa-fast-reliable-junk-removal-yard/7926703680.html
+    - text: 16m ago
+    - button ""
+    - link "A/C REPAIR ☎️AIR CONDITIONING, HVAC ,FURNACE AC REPAIR SERVICE 1":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/hercules-c-repair-air-conditioning-hvac/7926703518.html
+      - img "A/C REPAIR ☎️AIR CONDITIONING, HVAC ,FURNACE AC REPAIR SERVICE 1"
+    - text: fremont / Hayward / Oakland / Berkeley
+    - button ""
+    - link "A/C REPAIR ☎️AIR CONDITIONING, HVAC ,FURNACE AC REPAIR SERVICE":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/hercules-c-repair-air-conditioning-hvac/7926703518.html
+    - text: 17m ago
+    - button ""
+    - link "Need Help Growing on Tiktok or IG? 1":
+      - /url: https://sfbay.craigslist.org/sfc/crs/d/san-francisco-need-help-growing-on/7926703216.html
+      - img "Need Help Growing on Tiktok or IG? 1"
+    - text: city of san francisco
+    - button ""
+    - link "Need Help Growing on Tiktok or IG?":
+      - /url: https://sfbay.craigslist.org/sfc/crs/d/san-francisco-need-help-growing-on/7926703216.html
+    - text: 19m ago
+    - button ""
+    - link "AC AIR CONDITIONING 🅰️ HEATING FURNACE, HVAC AC REPAIR✅FREE ESTIMATES 1":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/mountain-view-ac-air-conditioning/7926703050.html
+      - img "AC AIR CONDITIONING 🅰️ HEATING FURNACE, HVAC AC REPAIR✅FREE ESTIMATES 1"
+    - text: San Jose
+    - button ""
+    - link "AC AIR CONDITIONING 🅰️ HEATING FURNACE, HVAC AC REPAIR✅FREE ESTIMATES":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/mountain-view-ac-air-conditioning/7926703050.html
+    - text: 19m ago
+    - button ""
+    - link "Handyman, Home Repair, Painting, Drywall, Carpentry, WaterHeater Insta 1":
+      - /url: https://sfbay.craigslist.org/pen/sks/d/san-bruno-handyman-home-repair-painting/7926702863.html
+      - img "Handyman, Home Repair, Painting, Drywall, Carpentry, WaterHeater Insta 1"
+    - text: san bruno
+    - button ""
+    - link "Handyman, Home Repair, Painting, Drywall, Carpentry, WaterHeater Insta":
+      - /url: https://sfbay.craigslist.org/pen/sks/d/san-bruno-handyman-home-repair-painting/7926702863.html
+    - text: 20m ago
+    - button ""
+    - link "Moving Service. $89/HOUR—2 MOVERS MOVER🌎☎️☎️☎️🌎SAME DAY MOVE 1":
+      - /url: https://sfbay.craigslist.org/sby/lbs/d/cupertino-moving-service-89-hour2/7926702318.html
+      - img "Moving Service. $89/HOUR—2 MOVERS MOVER🌎☎️☎️☎️🌎SAME DAY MOVE 1"
+    - text: Get $20-$30 cash back for the positive review
+    - button ""
+    - link "Moving Service. $89/HOUR—2 MOVERS MOVER🌎☎️☎️☎️🌎SAME DAY MOVE":
+      - /url: https://sfbay.craigslist.org/sby/lbs/d/cupertino-moving-service-89-hour2/7926702318.html
+    - text: 23m ago
+    - button ""
+    - link "Mendoza 510 4725374 🌐BEST PRICE FOR JUNK REMOVAL TRASH HUALING DEMO 1":
+      - /url: https://sfbay.craigslist.org/eby/fgs/d/moraga-mendoza-best-price-for-junk/7926702242.html
+      - img "Mendoza 510 4725374 🌐BEST PRICE FOR JUNK REMOVAL TRASH HUALING DEMO 1"
+    - text: Moraga
+    - button ""
+    - link "Mendoza 510 4725374 🌐BEST PRICE FOR JUNK REMOVAL TRASH HUALING DEMO":
+      - /url: https://sfbay.craigslist.org/eby/fgs/d/moraga-mendoza-best-price-for-junk/7926702242.html
+    - text: 23m ago
+    - button ""
+    - link "Mendoza ✅️ l do Demolition 🏛DIRT CONCRETE REMOVAL JUNK PICKUP 510 472 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/orinda-mendoza-do-demolition-dirt/7926701971.html
+      - img "Mendoza ✅️ l do Demolition 🏛DIRT CONCRETE REMOVAL JUNK PICKUP 510 472 1"
+    - text: Orinda
+    - button ""
+    - link "Mendoza ✅️ l do Demolition 🏛DIRT CONCRETE REMOVAL JUNK PICKUP 510 472":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/orinda-mendoza-do-demolition-dirt/7926701971.html
+    - text: 24m ago
+    - button ""
+    - link "Same-day junk removal-cheap, reliable & Hassle free!! 1":
+      - /url: https://sfbay.craigslist.org/sby/lbs/d/san-jose-same-day-junk-removal-cheap/7926701740.html
+      - img "Same-day junk removal-cheap, reliable & Hassle free!! 1"
+    - text: san jose north
+    - button ""
+    - link "Same-day junk removal-cheap, reliable & Hassle free!!":
+      - /url: https://sfbay.craigslist.org/sby/lbs/d/san-jose-same-day-junk-removal-cheap/7926701740.html
+    - text: 25m ago
+    - button ""
+    - link "Thai massage spa 1":
+      - /url: https://sfbay.craigslist.org/sby/hws/d/santa-clara-thai-massage-spa/7926701454.html
+      - img "Thai massage spa 1"
+    - text: santa clara
+    - button ""
+    - link "Thai massage spa":
+      - /url: https://sfbay.craigslist.org/sby/hws/d/santa-clara-thai-massage-spa/7926701454.html
+    - text: 26m ago
+    - button ""
+    - link "Last minute Movers!! Junk removal! 707-803-1082 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/emeryville-last-minute-movers-junk/7926700853.html
+      - img "Last minute Movers!! Junk removal! 707-803-1082 1"
+    - text: oakland west
+    - button ""
+    - link "Last minute Movers!! Junk removal! 707-803-1082":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/emeryville-last-minute-movers-junk/7926700853.html
+    - text: 29m ago
+    - button ""
+    - link "Dai P Luong Photography - Wedding Packages from $1165 Photographer! 💗 1":
+      - /url: https://sfbay.craigslist.org/eby/evs/d/hayward-dai-luong-photography-wedding/7926700627.html
+      - img "Dai P Luong Photography - Wedding Packages from $1165 Photographer! 💗 1"
+    - text: East Bay
+    - button ""
+    - link "Dai P Luong Photography - Wedding Packages from $1165 Photographer! 💗":
+      - /url: https://sfbay.craigslist.org/eby/evs/d/hayward-dai-luong-photography-wedding/7926700627.html
+    - text: 30m ago
+    - button ""
+    - link "DIVORCE, CHILD CUSTODY, EVICTION, PROBATE, IMMIGRATION, CIVIL, & MORE 1":
+      - /url: https://sfbay.craigslist.org/sfc/lgs/d/san-francisco-divorce-child-custody/7926559276.html
+      - img "DIVORCE, CHILD CUSTODY, EVICTION, PROBATE, IMMIGRATION, CIVIL, & MORE 1"
+    - text: SF
+    - button ""
+    - link "DIVORCE, CHILD CUSTODY, EVICTION, PROBATE, IMMIGRATION, CIVIL, & MORE":
+      - /url: https://sfbay.craigslist.org/sfc/lgs/d/san-francisco-divorce-child-custody/7926559276.html
+    - text: 34m ago
+    - button ""
+    - link "Braiders, eyelash Tecs, hairstylist, barbers we have a space for you! 1":
+      - /url: https://sfbay.craigslist.org/sfc/bts/d/san-francisco-braiders-eyelash-tecs/7926699851.html
+      - img "Braiders, eyelash Tecs, hairstylist, barbers we have a space for you! 1"
+    - text: ingleside / SFSU / CCSF
+    - button ""
+    - link "Braiders, eyelash Tecs, hairstylist, barbers we have a space for you!":
+      - /url: https://sfbay.craigslist.org/sfc/bts/d/san-francisco-braiders-eyelash-tecs/7926699851.html
+    - text: 34m ago
+    - button ""
+    - link "caregivers, home care, need help with groceries 1":
+      - /url: https://sfbay.craigslist.org/pen/hss/d/mountain-view-caregivers-home-care-need/7926699165.html
+      - img "caregivers, home care, need help with groceries 1"
+    - text: greater bay area
+    - button ""
+    - link "caregivers, home care, need help with groceries":
+      - /url: https://sfbay.craigslist.org/pen/hss/d/mountain-view-caregivers-home-care-need/7926699165.html
+    - text: 37m ago
+    - button ""
+    - link "🌎♻️ 🚚 STARTING AT $20 !!!! JUNK REMOVAL / HAULING 🚚 ♻️ SAME DAY 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/oakland-starting-at-20-junk-removal/7926698922.html
+      - img "🌎♻️ 🚚 STARTING AT $20 !!!! JUNK REMOVAL / HAULING 🚚 ♻️ SAME DAY 1"
+    - text: "!!! ENTIRE BAY AREA !!!"
+    - button ""
+    - link "🌎♻️ 🚚 STARTING AT $20 !!!! JUNK REMOVAL / HAULING 🚚 ♻️ SAME DAY":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/oakland-starting-at-20-junk-removal/7926698922.html
+    - text: 38m ago
+    - button ""
+    - link "🌎♻️ 🚚 STARTING AT $20 !!!! JUNK REMOVAL / HAULING 🚚 ♻️ SAME DAY 1":
+      - /url: https://sfbay.craigslist.org/sfc/hss/d/san-francisco-starting-at-20-junk/7926698843.html
+      - img "🌎♻️ 🚚 STARTING AT $20 !!!! JUNK REMOVAL / HAULING 🚚 ♻️ SAME DAY 1"
+    - text: SAN FRANCISCO
+    - button ""
+    - link "🌎♻️ 🚚 STARTING AT $20 !!!! JUNK REMOVAL / HAULING 🚚 ♻️ SAME DAY":
+      - /url: https://sfbay.craigslist.org/sfc/hss/d/san-francisco-starting-at-20-junk/7926698843.html
+    - text: 38m ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/sks/d/san-francisco-interior-design-services/7926698309.html
+    - text: San Francisco
+    - button ""
+    - link "Interior Design Services":
+      - /url: https://sfbay.craigslist.org/sfc/sks/d/san-francisco-interior-design-services/7926698309.html
+    - text: 40m ago
+    - button ""
+    - link "Cleaning Service, House and Home Cleaning, Airbnb Cleaning, Deep Clean 1":
+      - /url: https://sfbay.craigslist.org/pen/hss/d/pacifica-cleaning-service-house-and/7926698302.html
+      - img "Cleaning Service, House and Home Cleaning, Airbnb Cleaning, Deep Clean 1"
+    - text: pacifica
+    - button ""
+    - link "Cleaning Service, House and Home Cleaning, Airbnb Cleaning, Deep Clean":
+      - /url: https://sfbay.craigslist.org/pen/hss/d/pacifica-cleaning-service-house-and/7926698302.html
+    - text: 40m ago
+    - button ""
+    - link "Cleaning and organizing services 1":
+      - /url: https://sfbay.craigslist.org/nby/hss/d/napa-cleaning-and-organizing-services/7926698195.html
+      - img "Cleaning and organizing services 1"
+    - text: napa county
+    - button ""
+    - link "Cleaning and organizing services":
+      - /url: https://sfbay.craigslist.org/nby/hss/d/napa-cleaning-and-organizing-services/7926698195.html
+    - text: 40m ago
+    - button ""
+    - link "Your Water Heater Guy! https://qualitywaterheaterservice.com/ 1":
+      - /url: https://sfbay.craigslist.org/pen/sks/d/palo-alto-your-water-heater-guy/7926697523.html
+      - img "Your Water Heater Guy! https://qualitywaterheaterservice.com/ 1"
+    - text: san mateo
+    - button ""
+    - link "Your Water Heater Guy! https://qualitywaterheaterservice.com/":
+      - /url: https://sfbay.craigslist.org/pen/sks/d/palo-alto-your-water-heater-guy/7926697523.html
+    - text: 42m ago
+    - button ""
+    - link "Your Water Heater Guy! https://qualitywaterheaterservice.com/ 1":
+      - /url: https://sfbay.craigslist.org/eby/hss/d/pleasanton-your-water-heater-guy/7926697292.html
+      - img "Your Water Heater Guy! https://qualitywaterheaterservice.com/ 1"
+    - text: fremont / union city / newark
+    - button ""
+    - link "Your Water Heater Guy! https://qualitywaterheaterservice.com/":
+      - /url: https://sfbay.craigslist.org/eby/hss/d/pleasanton-your-water-heater-guy/7926697292.html
+    - text: 43m ago
+    - button ""
+    - link "⚡ SAME DAY JUNK REMOVAL - TEXT PHOTOS FOR INSTANT QUOTE! BAY AREA 1":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/greenbrae-same-day-junk-removal-text/7926697236.html
+      - img "⚡ SAME DAY JUNK REMOVAL - TEXT PHOTOS FOR INSTANT QUOTE! BAY AREA 1"
+    - text: ENTIRE BAY AREA
+    - button ""
+    - link "⚡ SAME DAY JUNK REMOVAL - TEXT PHOTOS FOR INSTANT QUOTE! BAY AREA":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/greenbrae-same-day-junk-removal-text/7926697236.html
+    - text: 43m ago
+    - button ""
+    - link "New Hands. New Energy. Feel the Difference 🌼 415-876-6372 1":
+      - /url: https://sfbay.craigslist.org/sfc/hws/d/san-francisco-new-hands-new-energy-feel/7926697232.html
+      - img "New Hands. New Energy. Feel the Difference 🌼 415-876-6372 1"
+    - text: inner richmond
+    - button ""
+    - link "New Hands. New Energy. Feel the Difference 🌼 415-876-6372":
+      - /url: https://sfbay.craigslist.org/sfc/hws/d/san-francisco-new-hands-new-energy-feel/7926697232.html
+    - text: 43m ago
+    - button ""
+    - link "Your local Water Heater Guy! https://qualitywaterheaterservice.com/ 1":
+      - /url: https://sfbay.craigslist.org/sby/hss/d/your-local-water-heater-guy/7926697151.html
+      - img "Your local Water Heater Guy! https://qualitywaterheaterservice.com/ 1"
+    - text: san jose north
+    - button ""
+    - link "Your local Water Heater Guy! https://qualitywaterheaterservice.com/":
+      - /url: https://sfbay.craigslist.org/sby/hss/d/your-local-water-heater-guy/7926697151.html
+    - text: 44m ago
+    - button ""
+    - link "🚧 JUNK REMOVAL - CALL TODAY, JUNK AWAY..🚧 FREE ESTIMATE.. 1":
+      - /url: https://sfbay.craigslist.org/sfc/lbs/d/san-francisco-junk-removal-call-today/7926697069.html
+      - img "🚧 JUNK REMOVAL - CALL TODAY, JUNK AWAY..🚧 FREE ESTIMATE.. 1"
+    - text: San Francisco
+    - button ""
+    - link "🚧 JUNK REMOVAL - CALL TODAY, JUNK AWAY..🚧 FREE ESTIMATE..":
+      - /url: https://sfbay.craigslist.org/sfc/lbs/d/san-francisco-junk-removal-call-today/7926697069.html
+    - text: 44m ago
+    - button ""
+    - link "♻️🧹 JUNK REMOVAL & CLEANING ♻️🧹 ON SCENE CLEANING & JUNK REMOVAL 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/hercules-junk-removal-cleaning-on-scene/7926696555.html
+      - img "♻️🧹 JUNK REMOVAL & CLEANING ♻️🧹 ON SCENE CLEANING & JUNK REMOVAL 1"
+    - text: Hercules-Pinole-El Sobrante-Rodeo-Richmond
+    - button ""
+    - link "♻️🧹 JUNK REMOVAL & CLEANING ♻️🧹 ON SCENE CLEANING & JUNK REMOVAL":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/hercules-junk-removal-cleaning-on-scene/7926696555.html
+    - text: 45m ago
+    - button ""
+    - link "🚧 JUNK REMOVAL - CALL TODAY, JUNK AWAY..🚧 FREE ESTIMATE 1":
+      - /url: https://sfbay.craigslist.org/pen/lbs/d/redwood-city-junk-removal-call-today/7926696472.html
+      - img "🚧 JUNK REMOVAL - CALL TODAY, JUNK AWAY..🚧 FREE ESTIMATE 1"
+    - text: redwood city
+    - button ""
+    - link "🚧 JUNK REMOVAL - CALL TODAY, JUNK AWAY..🚧 FREE ESTIMATE":
+      - /url: https://sfbay.craigslist.org/pen/lbs/d/redwood-city-junk-removal-call-today/7926696472.html
+    - text: 45m ago
+    - button ""
+    - link "Discount Clean-Up Gardening 1":
+      - /url: https://sfbay.craigslist.org/sfc/fgs/d/san-francisco-discount-clean-up/7926696171.html
+      - img "Discount Clean-Up Gardening 1"
+    - text: excelsior / outer mission
+    - button ""
+    - link "Discount Clean-Up Gardening":
+      - /url: https://sfbay.craigslist.org/sfc/fgs/d/san-francisco-discount-clean-up/7926696171.html
+    - text: 46m ago
+    - button ""
+    - link "Videographer 🎬 500M+ Views / Starting at $55ph 1":
+      - /url: https://sfbay.craigslist.org/sfc/crs/d/san-francisco-videographer-500m-views/7926695991.html
+      - img "Videographer 🎬 500M+ Views / Starting at $55ph 1"
+    - text: San Francisco
+    - button ""
+    - link "Videographer 🎬 500M+ Views / Starting at $55ph":
+      - /url: https://sfbay.craigslist.org/sfc/crs/d/san-francisco-videographer-500m-views/7926695991.html
+    - text: 47m ago
+    - button ""
+    - link "Tree service🌳Tree trimming🌲Tree removal🌴PAUL has best prices👷🎯 1":
+      - /url: https://sfbay.craigslist.org/eby/fgs/d/concord-tree-servicetree-trimmingtree/7926695800.html
+      - img "Tree service🌳Tree trimming🌲Tree removal🌴PAUL has best prices👷🎯 1"
+    - text: concord / pleasant hill / martinez
+    - button ""
+    - link "Tree service🌳Tree trimming🌲Tree removal🌴PAUL has best prices👷🎯":
+      - /url: https://sfbay.craigslist.org/eby/fgs/d/concord-tree-servicetree-trimmingtree/7926695800.html
+    - text: 47m ago
+    - button ""
+    - link "$79/HR 2 MOVERS📦NEWARK TOP 10 MOVERS📦LICENSED & INSURED☎️☎️ 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/fremont-79-hr-moversnewark-top-10/7926695734.html
+      - img "$79/HR 2 MOVERS📦NEWARK TOP 10 MOVERS📦LICENSED & INSURED☎️☎️ 1"
+    - text: 5 Stars On Google, Free boxes
+    - button ""
+    - link "$79/HR 2 MOVERS📦NEWARK TOP 10 MOVERS📦LICENSED & INSURED☎️☎️":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/fremont-79-hr-moversnewark-top-10/7926695734.html
+    - text: 48m ago
+    - button ""
+    - link "🌾Weed Cutting🍁Yard clean up🌿🌾Landscaping🏡🌳 Tree work🌲Paul 1":
+      - /url: https://sfbay.craigslist.org/eby/fgs/d/concord-weed-cuttingyard-clean/7926695628.html
+      - img "🌾Weed Cutting🍁Yard clean up🌿🌾Landscaping🏡🌳 Tree work🌲Paul 1"
+    - text: concord / pleasant hill / martinez
+    - button ""
+    - link "🌾Weed Cutting🍁Yard clean up🌿🌾Landscaping🏡🌳 Tree work🌲Paul":
+      - /url: https://sfbay.craigslist.org/eby/fgs/d/concord-weed-cuttingyard-clean/7926695628.html
+    - text: 48m ago
+    - button ""
+    - link "House Cleaning Services 1":
+      - /url: https://sfbay.craigslist.org/nby/hss/d/belvedere-tiburon-house-cleaning/7926695356.html
+      - img "House Cleaning Services 1"
+    - text: tiburon / belvedere
+    - button ""
+    - link "House Cleaning Services":
+      - /url: https://sfbay.craigslist.org/nby/hss/d/belvedere-tiburon-house-cleaning/7926695356.html
+    - text: 49m ago
+    - button ""
+    - link "House Cleaning Service 1":
+      - /url: https://sfbay.craigslist.org/nby/hss/d/novato-house-cleaning-service/7926693923.html
+      - img "House Cleaning Service 1"
+    - text: novato
+    - button ""
+    - link "House Cleaning Service":
+      - /url: https://sfbay.craigslist.org/nby/hss/d/novato-house-cleaning-service/7926693923.html
+    - text: 52m ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/wet/d/berkeley-are-you-student-looking-for/7926693664.html
+    - text: berkeley
+    - button ""
+    - link "Are you a student looking for help writing your papers?":
+      - /url: https://sfbay.craigslist.org/eby/wet/d/berkeley-are-you-student-looking-for/7926693664.html
+    - text: 53m ago
+    - button ""
+    - link "Interior Design & Home Staging Consultants 1":
+      - /url: https://sfbay.craigslist.org/pen/hss/d/belmont-interior-design-home-staging/7926692748.html
+      - img "Interior Design & Home Staging Consultants 1"
+    - text: BAY AREA
+    - button ""
+    - link "Interior Design & Home Staging Consultants":
+      - /url: https://sfbay.craigslist.org/pen/hss/d/belmont-interior-design-home-staging/7926692748.html
+    - text: 56m ago
+    - button ""
+    - link "🚩🔴 JUNK REMOVAL 🔴 HAULING 🔴 PROPERTY CLEANOUTS ☎️ 831 756 2932 1":
+      - /url: https://sfbay.craigslist.org/scz/lbs/d/felton-junk-removal-hauling-property/7926692441.html
+      - img "🚩🔴 JUNK REMOVAL 🔴 HAULING 🔴 PROPERTY CLEANOUTS ☎️ 831 756 2932 1"
+    - text: WE HAUL JUNK FOR LESS💰ALL SANTA CRUZ COUNTY
+    - button ""
+    - link "🚩🔴 JUNK REMOVAL 🔴 HAULING 🔴 PROPERTY CLEANOUTS ☎️ 831 756 2932":
+      - /url: https://sfbay.craigslist.org/scz/lbs/d/felton-junk-removal-hauling-property/7926692441.html
+    - text: 58m ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/hayward-instant-booking-get-20-off-team/7926691425.html
+    - text: fremont / union city / newark
+    - button ""
+    - link "INSTANT BOOKING, GET $20 OFF! Team Up Movers龙海搬运 2 movers + truck":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/hayward-instant-booking-get-20-off-team/7926691425.html
+    - text: 1h ago
+    - button ""
+    - link "Premier Water Heaters and plumbing ( Free estimates ) (408)361-0629 1":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/sunnyvale-premier-water-heaters-and/7926690870.html
+      - img "Premier Water Heaters and plumbing ( Free estimates ) (408)361-0629 1"
+    - text: Sunnyvale
+    - button ""
+    - link "Premier Water Heaters and plumbing ( Free estimates ) (408)361-0629":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/sunnyvale-premier-water-heaters-and/7926690870.html
+    - text: 1h ago
+    - button ""
+    - link "⭐TRASH CLEAN OUT/ JUNK REMOVAL/SPA/JACUZZI/HOT TUB/HAULING SERVICE⭐ 1":
+      - /url: https://sfbay.craigslist.org/sby/lbs/d/san-jose-trash-clean-out-junk-removal/7926690612.html
+      - img "⭐TRASH CLEAN OUT/ JUNK REMOVAL/SPA/JACUZZI/HOT TUB/HAULING SERVICE⭐ 1"
+    - text: SAN JOSE
+    - button ""
+    - link "⭐TRASH CLEAN OUT/ JUNK REMOVAL/SPA/JACUZZI/HOT TUB/HAULING SERVICE⭐":
+      - /url: https://sfbay.craigslist.org/sby/lbs/d/san-jose-trash-clean-out-junk-removal/7926690612.html
+    - text: 1h ago
+    - button ""
+    - link "HAULING & JUNK REMOVAL,⭐TRASH & GARBAGE⭐GARAGE CLEAN UP⭐(408)620-4250 1":
+      - /url: https://sfbay.craigslist.org/sby/lbs/d/san-jose-hauling-junk-removaltrash/7926690515.html
+      - img "HAULING & JUNK REMOVAL,⭐TRASH & GARBAGE⭐GARAGE CLEAN UP⭐(408)620-4250 1"
+    - text: SAN JOSE
+    - button ""
+    - link "HAULING & JUNK REMOVAL,⭐TRASH & GARBAGE⭐GARAGE CLEAN UP⭐(408)620-4250":
+      - /url: https://sfbay.craigslist.org/sby/lbs/d/san-jose-hauling-junk-removaltrash/7926690515.html
+    - text: 1h ago
+    - button ""
+    - link "➔ Marketing | Google Ads | Facebook Ads | SEO | Meta Ads | PPC 🎯 1":
+      - /url: https://sfbay.craigslist.org/sfc/biz/d/san-francisco-marketing-google-ads/7926690140.html
+      - img "➔ Marketing | Google Ads | Facebook Ads | SEO | Meta Ads | PPC 🎯 1"
+    - text: inner richmond
+    - button ""
+    - link "➔ Marketing | Google Ads | Facebook Ads | SEO | Meta Ads | PPC 🎯":
+      - /url: https://sfbay.craigslist.org/sfc/biz/d/san-francisco-marketing-google-ads/7926690140.html
+    - text: 1h ago
+    - button ""
+    - link "ROSY’S HOUSE CLEANING AT YOUR SERVICE!!! 1":
+      - /url: https://sfbay.craigslist.org/eby/hss/d/pleasanton-rosys-house-cleaning-at-your/7926690019.html
+      - img "ROSY’S HOUSE CLEANING AT YOUR SERVICE!!! 1"
+    - text: dublin / pleasanton / livermore
+    - button ""
+    - link "ROSY’S HOUSE CLEANING AT YOUR SERVICE!!!":
+      - /url: https://sfbay.craigslist.org/eby/hss/d/pleasanton-rosys-house-cleaning-at-your/7926690019.html
+    - text: 1h ago
+    - button ""
+    - link "Experienced plumber and electrician 1":
+      - /url: https://sfbay.craigslist.org/scz/sks/d/gilroy-experienced-plumber-and/7926689837.html
+      - img "Experienced plumber and electrician 1"
+    - text: Gilroy
+    - button ""
+    - link "Experienced plumber and electrician":
+      - /url: https://sfbay.craigslist.org/scz/sks/d/gilroy-experienced-plumber-and/7926689837.html
+    - text: 1h ago
+    - button ""
+    - link "HOME MAINTENANCE AND HANDYMAN SERVICE (Independent-No middle man) 1":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/san-jose-home-maintenance-and-handyman/7926689424.html
+      - img "HOME MAINTENANCE AND HANDYMAN SERVICE (Independent-No middle man) 1"
+    - text: saratoga
+    - button ""
+    - link "HOME MAINTENANCE AND HANDYMAN SERVICE (Independent-No middle man)":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/san-jose-home-maintenance-and-handyman/7926689424.html
+    - text: 1h ago
+    - button ""
+    - link "TOM C BARBER COLLEGE 1":
+      - /url: https://sfbay.craigslist.org/sby/bts/d/santa-clara-tom-barber-college/7926688914.html
+      - img "TOM C BARBER COLLEGE 1"
+    - text: santa clara
+    - button ""
+    - link "TOM C BARBER COLLEGE":
+      - /url: https://sfbay.craigslist.org/sby/bts/d/santa-clara-tom-barber-college/7926688914.html
+    - text: 1h ago
+    - button ""
+    - link "JUNK REMOVAL! WE HAUL IT ALL - CALL/TEXT (415) 424-8650 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/hayward-junk-removal-we-haul-it-all/7926688461.html
+      - img "JUNK REMOVAL! WE HAUL IT ALL - CALL/TEXT (415) 424-8650 1"
+    - text: ENTIRE BAY AREA
+    - button ""
+    - link "JUNK REMOVAL! WE HAUL IT ALL - CALL/TEXT (415) 424-8650":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/hayward-junk-removal-we-haul-it-all/7926688461.html
+    - text: 1h ago
+    - button ""
+    - link "Licensed Electrical/Solar Services 1":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/san-jose-licensed-electrical-solar/7926686566.html
+      - img "Licensed Electrical/Solar Services 1"
+    - text: San Jose
+    - button ""
+    - link "Licensed Electrical/Solar Services":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/san-jose-licensed-electrical-solar/7926686566.html
+    - text: 1h ago
+    - button ""
+    - link "JUNK REMOVAL TODAY! - BAY AREA 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/south-san-francisco-junk-removal-today/7926686528.html
+      - img "JUNK REMOVAL TODAY! - BAY AREA 1"
+    - text: ENTIRE BAY AREA
+    - button ""
+    - link "JUNK REMOVAL TODAY! - BAY AREA":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/south-san-francisco-junk-removal-today/7926686528.html
+    - text: 1h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/hss/d/cotati-professional-cleaning-services/7926686495.html
+    - text: rohnert pk / cotati
+    - button ""
+    - link "Professional cleaning services.":
+      - /url: https://sfbay.craigslist.org/nby/hss/d/cotati-professional-cleaning-services/7926686495.html
+    - text: 1h ago
+    - button ""
+    - link "ECO-FRIENDLY JUNK REMOVAL - WE DONATE & RECYCLE! ♻️ 1":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/sausalito-eco-friendly-junk-removal-we/7926686360.html
+      - img "ECO-FRIENDLY JUNK REMOVAL - WE DONATE & RECYCLE! ♻️ 1"
+    - text: ENTIRE BAY AREA
+    - button ""
+    - link "ECO-FRIENDLY JUNK REMOVAL - WE DONATE & RECYCLE! ♻️":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/sausalito-eco-friendly-junk-removal-we/7926686360.html
+    - text: 1h ago
+    - button ""
+    - link "🔥 FAST & EASY JUNK REMOVAL! Text Us Your Photos! 1":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/mill-valley-fast-easy-junk-removal-text/7926686281.html
+      - img "🔥 FAST & EASY JUNK REMOVAL! Text Us Your Photos! 1"
+    - text: ENTIRE BAY AREA
+    - button ""
+    - link "🔥 FAST & EASY JUNK REMOVAL! Text Us Your Photos!":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/mill-valley-fast-easy-junk-removal-text/7926686281.html
+    - text: 1h ago
+    - button ""
+    - link "Licensed Electrical/Solar Services 1":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/berkeley-licensed-electrical-solar/7926686264.html
+      - img "Licensed Electrical/Solar Services 1"
+    - text: Berkeley
+    - button ""
+    - link "Licensed Electrical/Solar Services":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/berkeley-licensed-electrical-solar/7926686264.html
+    - text: 1h ago
+    - button ""
+    - link "⚡ SAME DAY JUNK REMOVAL - TEXT PHOTOS FOR INSTANT QUOTE! BAY AREA 1":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/pacifica-same-day-junk-removal-text/7926686189.html
+      - img "⚡ SAME DAY JUNK REMOVAL - TEXT PHOTOS FOR INSTANT QUOTE! BAY AREA 1"
+    - text: SF, SSF, and Daly City
+    - button ""
+    - link "⚡ SAME DAY JUNK REMOVAL - TEXT PHOTOS FOR INSTANT QUOTE! BAY AREA":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/pacifica-same-day-junk-removal-text/7926686189.html
+    - text: 1h ago
+    - button ""
+    - link "Licensed Electrical/Solar Services 1":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/fremont-licensed-electrical-solar/7926686146.html
+      - img "Licensed Electrical/Solar Services 1"
+    - text: Fremont
+    - button ""
+    - link "Licensed Electrical/Solar Services":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/fremont-licensed-electrical-solar/7926686146.html
+    - text: 1h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/san-leandro-mobile-mechanic-fast-honest/7926686059.html
+    - text: San Leandro
+    - button ""
+    - link "🚗 Mobile Mechanic – Fast, Honest & Affordable (East Bay & Surrounding Areas":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/san-leandro-mobile-mechanic-fast-honest/7926686059.html
+    - text: 1h ago
+    - button ""
+    - link "Moving labor 70/hour for 2 men /junk removal as well 925-639-7402 same day avail 1":
+      - /url: https://sfbay.craigslist.org/sfc/lbs/d/san-francisco-moving-labor-70-hour-for/7926684786.html
+      - img "Moving labor 70/hour for 2 men /junk removal as well 925-639-7402 same day avail 1"
+    - text: All bay area/all areas
+    - button ""
+    - link "Moving labor 70/hour for 2 men /junk removal as well 925-639-7402 same day avail":
+      - /url: https://sfbay.craigslist.org/sfc/lbs/d/san-francisco-moving-labor-70-hour-for/7926684786.html
+    - text: 2h ago
+    - button ""
+    - link "JUNK REMOVAL TODAY! - BAY AREA 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/berkeley-junk-removal-today-bay-area/7926684481.html
+      - img "JUNK REMOVAL TODAY! - BAY AREA 1"
+    - text: ENTIRE BAY AREA
+    - button ""
+    - link "JUNK REMOVAL TODAY! - BAY AREA":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/berkeley-junk-removal-today-bay-area/7926684481.html
+    - text: 2h ago
+    - button ""
+    - link "👍❤️$30/HR! MOVING LABOR, JUNK REMOVAL, HANDYMAN, MOVERS + MORE!❤️👍 1":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/santa-rosa-30-hr-moving-labor-junk/7926684293.html
+      - img "👍❤️$30/HR! MOVING LABOR, JUNK REMOVAL, HANDYMAN, MOVERS + MORE!❤️👍 1"
+    - text: Call (888) 270-8355 - Same Day Service Available!
+    - button ""
+    - link "👍❤️$30/HR! MOVING LABOR, JUNK REMOVAL, HANDYMAN, MOVERS + MORE!❤️👍":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/santa-rosa-30-hr-moving-labor-junk/7926684293.html
+    - text: 2h ago
+    - button ""
+    - link "🏠 EXTERIOR - SIDING - WINDOWS - TRIM - REPAIR 🏠 1":
+      - /url: https://sfbay.craigslist.org/scz/sks/d/santa-cruz-exterior-siding-windows-trim/7926683950.html
+      - img "🏠 EXTERIOR - SIDING - WINDOWS - TRIM - REPAIR 🏠 1"
+    - text: Santa Cruz
+    - button ""
+    - link "🏠 EXTERIOR - SIDING - WINDOWS - TRIM - REPAIR 🏠":
+      - /url: https://sfbay.craigslist.org/scz/sks/d/santa-cruz-exterior-siding-windows-trim/7926683950.html
+    - text: 2h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/rts/d/san-francisco-real-estate-broker/7926683901.html
+    - text: ingleside / SFSU / CCSF
+    - button ""
+    - link "Real Estate Broker":
+      - /url: https://sfbay.craigslist.org/sfc/rts/d/san-francisco-real-estate-broker/7926683901.html
+    - text: 2h ago
+    - button ""
+    - link "Laborer providing landscaping and garden services 1":
+      - /url: https://sfbay.craigslist.org/scz/fgs/d/aptos-laborer-providing-landscaping-and/7926683811.html
+      - img "Laborer providing landscaping and garden services 1"
+    - text: santa cruz
+    - button ""
+    - link "Laborer providing landscaping and garden services":
+      - /url: https://sfbay.craigslist.org/scz/fgs/d/aptos-laborer-providing-landscaping-and/7926683811.html
+    - text: 2h ago
+    - button ""
+    - link "DJ Music Entertainment 1":
+      - /url: https://sfbay.craigslist.org/sfc/evs/d/south-san-francisco-dj-music/7926683229.html
+      - img "DJ Music Entertainment 1"
+    - text: San Bruno
+    - button ""
+    - link "DJ Music Entertainment":
+      - /url: https://sfbay.craigslist.org/sfc/evs/d/south-san-francisco-dj-music/7926683229.html
+    - text: 2h ago
+    - button ""
+    - link "$79/HR 2 MOVERS📦NEWARK TOP 10 MOVERS📦LICENSED & INSURED☎️☎️ 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/fremont-79-hr-moversnewark-top-10/7926683048.html
+      - img "$79/HR 2 MOVERS📦NEWARK TOP 10 MOVERS📦LICENSED & INSURED☎️☎️ 1"
+    - text: 5 Stars On Google, Free boxes
+    - button ""
+    - link "$79/HR 2 MOVERS📦NEWARK TOP 10 MOVERS📦LICENSED & INSURED☎️☎️":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/fremont-79-hr-moversnewark-top-10/7926683048.html
+    - text: 2h ago
+    - button ""
+    - link "Pretty Good Movers 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/oakland-pretty-good-movers/7926682867.html
+      - img "Pretty Good Movers 1"
+    - text: east bay area
+    - button ""
+    - link "Pretty Good Movers":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/oakland-pretty-good-movers/7926682867.html
+    - text: 2h ago
+    - button ""
+    - link "**Care & Companionship for Bay Area Seniors** 1":
+      - /url: https://sfbay.craigslist.org/pen/hss/d/palo-alto-care-companionship-for-bay/7926682800.html
+      - img "**Care & Companionship for Bay Area Seniors** 1"
+    - text: Entire Bay Area
+    - button ""
+    - link "**Care & Companionship for Bay Area Seniors**":
+      - /url: https://sfbay.craigslist.org/pen/hss/d/palo-alto-care-companionship-for-bay/7926682800.html
+    - text: 2h ago
+    - button ""
+    - link "ROSY’S HOUSE CLEANING AT YOUR SERVICE!!! 1":
+      - /url: https://sfbay.craigslist.org/eby/hss/d/livermore-rosys-house-cleaning-at-your/7926682728.html
+      - img "ROSY’S HOUSE CLEANING AT YOUR SERVICE!!! 1"
+    - text: danville / san ramon
+    - button ""
+    - link "ROSY’S HOUSE CLEANING AT YOUR SERVICE!!!":
+      - /url: https://sfbay.craigslist.org/eby/hss/d/livermore-rosys-house-cleaning-at-your/7926682728.html
+    - text: 2h ago
+    - button ""
+    - link "🏠 EXTERIOR - SIDING - WINDOWS - TRIM - REPAIR 🏠 1":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/los-gatos-exterior-siding-windows-trim/7926682514.html
+      - img "🏠 EXTERIOR - SIDING - WINDOWS - TRIM - REPAIR 🏠 1"
+    - text: south bay area
+    - button ""
+    - link "🏠 EXTERIOR - SIDING - WINDOWS - TRIM - REPAIR 🏠":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/los-gatos-exterior-siding-windows-trim/7926682514.html
+    - text: 2h ago
+    - button ""
+    - link "Grading, Trenching, Excavation, Concrete, removal, Drainage issues etc 1":
+      - /url: https://sfbay.craigslist.org/sby/biz/d/san-martin-grading-trenching-excavation/7926682474.html
+      - img "Grading, Trenching, Excavation, Concrete, removal, Drainage issues etc 1"
+    - text: San Martin, Gilroy, Morgan Hill, San Jose .......
+    - button ""
+    - link "Grading, Trenching, Excavation, Concrete, removal, Drainage issues etc":
+      - /url: https://sfbay.craigslist.org/sby/biz/d/san-martin-grading-trenching-excavation/7926682474.html
+    - text: 2h ago
+    - button ""
+    - link "*Caregivers, Elderly Assistance & Companionship for Bay Area Seniors* 1":
+      - /url: https://sfbay.craigslist.org/sby/hss/d/san-jose-caregivers-elderly-assistance/7926682247.html
+      - img "*Caregivers, Elderly Assistance & Companionship for Bay Area Seniors* 1"
+    - text: Entire Bay Area
+    - button ""
+    - link "*Caregivers, Elderly Assistance & Companionship for Bay Area Seniors*":
+      - /url: https://sfbay.craigslist.org/sby/hss/d/san-jose-caregivers-elderly-assistance/7926682247.html
+    - text: 2h ago
+    - button ""
+    - link "***** Bobcat Services @ Affordable Rates ***** 1":
+      - /url: https://sfbay.craigslist.org/sby/hss/d/san-jose-bobcat-services-affordable/7926682169.html
+      - img "***** Bobcat Services @ Affordable Rates ***** 1"
+    - text: Entire San Jose
+    - button ""
+    - link "***** Bobcat Services @ Affordable Rates *****":
+      - /url: https://sfbay.craigslist.org/sby/hss/d/san-jose-bobcat-services-affordable/7926682169.html
+    - text: 2h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/lss/d/san-rafael-saxophone-lessons-in-marin/7926682141.html
+    - text: san rafael
+    - button ""
+    - link "Saxophone Lessons in Marin County":
+      - /url: https://sfbay.craigslist.org/nby/lss/d/san-rafael-saxophone-lessons-in-marin/7926682141.html
+    - text: 2h ago
+    - button ""
+    - link "Reliable Dog Sitting & Walking – All Breeds Welcome – San Jose Area 1":
+      - /url: https://sfbay.craigslist.org/sby/pas/d/san-jose-reliable-dog-sitting-walking/7926682059.html
+      - img "Reliable Dog Sitting & Walking – All Breeds Welcome – San Jose Area 1"
+    - text: san jose south
+    - button ""
+    - link "Reliable Dog Sitting & Walking – All Breeds Welcome – San Jose Area":
+      - /url: https://sfbay.craigslist.org/sby/pas/d/san-jose-reliable-dog-sitting-walking/7926682059.html
+    - text: 2h ago
+    - button ""
+    - link "MOBILE AUTO REPAIR SPECIALISTS we come to you 24/7🙂🙂🙂424-224-2423 1":
+      - /url: https://sfbay.craigslist.org/sfc/aos/d/san-francisco-mobile-auto-repair/7926681980.html
+      - img "MOBILE AUTO REPAIR SPECIALISTS we come to you 24/7🙂🙂🙂424-224-2423 1"
+    - text: San Francisco bay area
+    - button ""
+    - link "MOBILE AUTO REPAIR SPECIALISTS we come to you 24/7🙂🙂🙂424-224-2423":
+      - /url: https://sfbay.craigslist.org/sfc/aos/d/san-francisco-mobile-auto-repair/7926681980.html
+    - text: 2h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/san-rafael-asphalt-paving-seal-coating/7926681695.html
+    - text: walnut creek
+    - button ""
+    - link "✔️ Asphalt Paving, Seal Coating, Excavation ⚫ Drainage System ⚫":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/san-rafael-asphalt-paving-seal-coating/7926681695.html
+    - text: 2h ago
+    - button ""
+    - link "MIMI FOOT SPA ⭐️FULL BODY MASSAGE⭐️ 1":
+      - /url: https://sfbay.craigslist.org/sby/hws/d/san-jose-mimi-foot-spa-full-body-massage/7926681579.html
+      - img "MIMI FOOT SPA ⭐️FULL BODY MASSAGE⭐️ 1"
+    - text: san jose downtown
+    - button ""
+    - link "MIMI FOOT SPA ⭐️FULL BODY MASSAGE⭐️":
+      - /url: https://sfbay.craigslist.org/sby/hws/d/san-jose-mimi-foot-spa-full-body-massage/7926681579.html
+    - text: 2h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/lss/d/san-rafael-piano-lessons-in-marin/7926681488.html
+    - text: san rafael
+    - button ""
+    - link "PIANO LESSONS IN MARIN! Classical and Popular Music":
+      - /url: https://sfbay.craigslist.org/nby/lss/d/san-rafael-piano-lessons-in-marin/7926681488.html
+    - text: 2h ago
+    - button ""
+    - link "🌟💥$50/ hour Warm oil body massage (1029 B ST Hayward ) 1":
+      - /url: https://sfbay.craigslist.org/eby/hws/d/hayward-50-hour-warm-oil-body-massage/7926681490.html
+      - img "🌟💥$50/ hour Warm oil body massage (1029 B ST Hayward ) 1"
+    - text: hayward / castro valley
+    - button ""
+    - link "🌟💥$50/ hour Warm oil body massage (1029 B ST Hayward )":
+      - /url: https://sfbay.craigslist.org/eby/hws/d/hayward-50-hour-warm-oil-body-massage/7926681490.html
+    - text: 2h ago
+    - button ""
+    - link "CONCRETE, CONCRETE, CONCRETE, CONCRETE, CONCRETE, CONCRETE 1":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/san-jose-concrete-concrete-concrete/7926681459.html
+      - img "CONCRETE, CONCRETE, CONCRETE, CONCRETE, CONCRETE, CONCRETE 1"
+    - text: San Jose & Surrounding Areas
+    - button ""
+    - link "CONCRETE, CONCRETE, CONCRETE, CONCRETE, CONCRETE, CONCRETE":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/san-jose-concrete-concrete-concrete/7926681459.html
+    - text: 2h ago
+    - button ""
+    - link "🌿 Relax Your Body & Mind with Professional Massage 🌿 1":
+      - /url: https://sfbay.craigslist.org/pen/hws/d/san-mateo-relax-your-body-mind-with/7926681313.html
+      - img "🌿 Relax Your Body & Mind with Professional Massage 🌿 1"
+    - text: san mateo
+    - button ""
+    - link "🌿 Relax Your Body & Mind with Professional Massage 🌿":
+      - /url: https://sfbay.craigslist.org/pen/hws/d/san-mateo-relax-your-body-mind-with/7926681313.html
+    - text: 2h ago
+    - button ""
+    - link "🌟🌟Wonderful massage in San Mateo (2477 Flores ST San Mateo ) 1":
+      - /url: https://sfbay.craigslist.org/pen/hws/d/san-mateo-wonderful-massage-in-san/7926681290.html
+      - img "🌟🌟Wonderful massage in San Mateo (2477 Flores ST San Mateo ) 1"
+    - text: san mateo
+    - button ""
+    - link "🌟🌟Wonderful massage in San Mateo (2477 Flores ST San Mateo )":
+      - /url: https://sfbay.craigslist.org/pen/hws/d/san-mateo-wonderful-massage-in-san/7926681290.html
+    - text: 2h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/pas/d/dublin-calling-amador-lakes-dogs-cats/7926680790.html
+    - text: dublin / pleasanton / livermore
+    - button ""
+    - link "Calling Amador Lakes Dogs & Cats":
+      - /url: https://sfbay.craigslist.org/eby/pas/d/dublin-calling-amador-lakes-dogs-cats/7926680790.html
+    - text: 2h ago
+    - button ""
+    - link "MASSAGE THERAPY 1":
+      - /url: https://sfbay.craigslist.org/pen/hws/d/san-mateo-massage-therapy/7926680491.html
+      - img "MASSAGE THERAPY 1"
+    - text: foster city
+    - button ""
+    - link "MASSAGE THERAPY":
+      - /url: https://sfbay.craigslist.org/pen/hws/d/san-mateo-massage-therapy/7926680491.html
+    - text: 2h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/san-pablo-roofing-contractor/7926680313.html
+    - text: vallejo / benicia
+    - button ""
+    - link "Roofing Contractor":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/san-pablo-roofing-contractor/7926680313.html
+    - text: 2h ago
+    - button ""
+    - link "Meesa method thai massage and body work 1":
+      - /url: https://sfbay.craigslist.org/nby/hws/d/kentfield-meesa-method-thai-massage-and/7926679978.html
+      - img "Meesa method thai massage and body work 1"
+    - text: san rafael
+    - button ""
+    - link "Meesa method thai massage and body work":
+      - /url: https://sfbay.craigslist.org/nby/hws/d/kentfield-meesa-method-thai-massage-and/7926679978.html
+    - text: 2h ago
+    - button ""
+    - link "FREE ESTIMATE HVAC FURNACE REPAIR 1":
+      - /url: https://sfbay.craigslist.org/eby/hss/d/alameda-free-estimate-hvac-furnace/7926679918.html
+      - img "FREE ESTIMATE HVAC FURNACE REPAIR 1"
+    - text: alameda
+    - button ""
+    - link "FREE ESTIMATE HVAC FURNACE REPAIR":
+      - /url: https://sfbay.craigslist.org/eby/hss/d/alameda-free-estimate-hvac-furnace/7926679918.html
+    - text: 2h ago
+    - button ""
+    - link "🌇 Professional Exec. Office for Local Businesses – Bel Marin Keys 1":
+      - /url: https://sfbay.craigslist.org/nby/rts/d/novato-professional-exec-office-for/7926679891.html
+      - img "🌇 Professional Exec. Office for Local Businesses – Bel Marin Keys 1"
+    - text: novato
+    - button ""
+    - link "🌇 Professional Exec. Office for Local Businesses – Bel Marin Keys":
+      - /url: https://sfbay.craigslist.org/nby/rts/d/novato-professional-exec-office-for/7926679891.html
+    - text: 2h ago
+    - button ""
+    - link "🔴Kitchen/Bathroom/Remodel/ADU/Structure Engineer/Architect/Contractor 1":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/union-city-kitchen-bathroom-remodel-adu/7926679870.html
+      - img "🔴Kitchen/Bathroom/Remodel/ADU/Structure Engineer/Architect/Contractor 1"
+    - text: Union City,Fremont,Newark,Castro Valley,Pleasanton
+    - button ""
+    - link "🔴Kitchen/Bathroom/Remodel/ADU/Structure Engineer/Architect/Contractor":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/union-city-kitchen-bathroom-remodel-adu/7926679870.html
+    - text: 2h ago
+    - button ""
+    - link "*** GREAT MASSAGE *** DAILY SPECIALS***SFO AIRPORT AREA 1":
+      - /url: https://sfbay.craigslist.org/pen/hws/d/san-mateo-great-massage-daily/7926679712.html
+      - img "*** GREAT MASSAGE *** DAILY SPECIALS***SFO AIRPORT AREA 1"
+    - text: san mateo
+    - button ""
+    - link "*** GREAT MASSAGE *** DAILY SPECIALS***SFO AIRPORT AREA":
+      - /url: https://sfbay.craigslist.org/pen/hws/d/san-mateo-great-massage-daily/7926679712.html
+    - text: 2h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/lbs/d/hauling-household-trash-garbage/7926679550.html
+    - text: SnFrancisco-Sn Mateo County
+    - button ""
+    - link "415-990-7811 HAULING HOUSEHOLD TRASH-GARBAGE-HAULING&DEMOLITION":
+      - /url: https://sfbay.craigslist.org/sfc/lbs/d/hauling-household-trash-garbage/7926679550.html
+    - text: 2h ago
+    - button ""
+    - link "🏠 JUNK REMOVAL & HAULING – FAST, FRIENDLY, LOCAL SERVICE! 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/berkeley-junk-removal-hauling-fast/7926679233.html
+      - img "🏠 JUNK REMOVAL & HAULING – FAST, FRIENDLY, LOCAL SERVICE! 1"
+    - text: berkeley
+    - button ""
+    - link "🏠 JUNK REMOVAL & HAULING – FAST, FRIENDLY, LOCAL SERVICE!":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/berkeley-junk-removal-hauling-fast/7926679233.html
+    - text: 2h ago
+    - button ""
+    - link "🏢 Cozy Interior Office – Perfect for One in BMK 1":
+      - /url: https://sfbay.craigslist.org/nby/rts/d/novato-cozy-interior-office-perfect-for/7926679189.html
+      - img "🏢 Cozy Interior Office – Perfect for One in BMK 1"
+    - text: novato
+    - button ""
+    - link "🏢 Cozy Interior Office – Perfect for One in BMK":
+      - /url: https://sfbay.craigslist.org/nby/rts/d/novato-cozy-interior-office-perfect-for/7926679189.html
+    - text: 2h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/lbs/d/san-bruno-robbies-bay-area-hauling-and/7926678936.html
+    - text: SAN FRANCISCO to PALO ALTO
+    - button ""
+    - link "650-583-6700/ 415-990-7811 ROBBIE'S BAY AREA HAULING and MOVING":
+      - /url: https://sfbay.craigslist.org/pen/lbs/d/san-bruno-robbies-bay-area-hauling-and/7926678936.html
+    - text: 2h ago
+    - button ""
+    - link "KidStarter Youth Piano - Call Zach Hoffman today! 1":
+      - /url: https://sfbay.craigslist.org/sfc/lss/d/san-francisco-kidstarter-youth-piano/7926678574.html
+      - img "KidStarter Youth Piano - Call Zach Hoffman today! 1"
+    - text: pacific heights
+    - button ""
+    - link "KidStarter Youth Piano - Call Zach Hoffman today!":
+      - /url: https://sfbay.craigslist.org/sfc/lss/d/san-francisco-kidstarter-youth-piano/7926678574.html
+    - text: 2h ago
+    - button ""
+    - link "Youth Piano with Zach - 3 free lessons to try it out! 1":
+      - /url: https://sfbay.craigslist.org/sfc/lss/d/oakland-youth-piano-with-zach-free/7926678496.html
+      - img "Youth Piano with Zach - 3 free lessons to try it out! 1"
+    - text: laurel hts / presidio
+    - button ""
+    - link "Youth Piano with Zach - 3 free lessons to try it out!":
+      - /url: https://sfbay.craigslist.org/sfc/lss/d/oakland-youth-piano-with-zach-free/7926678496.html
+    - text: 2h ago
+    - button ""
+    - link "🚀 Upgrade Your Mail Game! Snag a Professional Address at IWG Spaces ✨ 1":
+      - /url: https://sfbay.craigslist.org/pen/rts/d/menlo-park-upgrade-your-mail-game-snag/7926677835.html
+      - img "🚀 Upgrade Your Mail Game! Snag a Professional Address at IWG Spaces ✨ 1"
+    - text: menlo park
+    - button ""
+    - link "🚀 Upgrade Your Mail Game! Snag a Professional Address at IWG Spaces ✨":
+      - /url: https://sfbay.craigslist.org/pen/rts/d/menlo-park-upgrade-your-mail-game-snag/7926677835.html
+    - text: 2h ago
+    - button ""
+    - link "** Thai Deep tissue & Relaxation massage** 1":
+      - /url: https://sfbay.craigslist.org/nby/hws/d/santa-rosa-thai-deep-tissue-relaxation/7926677048.html
+      - img "** Thai Deep tissue & Relaxation massage** 1"
+    - text: santa rosa
+    - button ""
+    - link "** Thai Deep tissue & Relaxation massage**":
+      - /url: https://sfbay.craigslist.org/nby/hws/d/santa-rosa-thai-deep-tissue-relaxation/7926677048.html
+    - text: 2h ago
+    - button ""
+    - link "Dumping hauling or moving 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/el-sobrante-dumping-hauling-or-moving/7926676998.html
+      - img "Dumping hauling or moving 1"
+    - text: albany / el cerrito
+    - button ""
+    - link "Dumping hauling or moving":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/el-sobrante-dumping-hauling-or-moving/7926676998.html
+    - text: 2h ago
+    - button ""
+    - link "💐💐. Full Body Massage 💐💐 1":
+      - /url: https://sfbay.craigslist.org/sby/bts/d/san-jose-full-body-massage/7926676901.html
+      - img "💐💐. Full Body Massage 💐💐 1"
+    - text: san jose south
+    - button ""
+    - link "💐💐. Full Body Massage 💐💐":
+      - /url: https://sfbay.craigslist.org/sby/bts/d/san-jose-full-body-massage/7926676901.html
+    - text: 2h ago
+    - button ""
+    - link "DEMO ✅️JUNK REMOVAL & YARD CLEAN UPS 🪾🌳⭐️⭐️⭐️IM LORENZO 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/oakland-demo-junk-removal-yard-clean/7926676903.html
+      - img "DEMO ✅️JUNK REMOVAL & YARD CLEAN UPS 🪾🌳⭐️⭐️⭐️IM LORENZO 1"
+    - text: Richmond Oakland SAN FRANCISCO HAYWARD VAY AREA
+    - button ""
+    - link "DEMO ✅️JUNK REMOVAL & YARD CLEAN UPS 🪾🌳⭐️⭐️⭐️IM LORENZO":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/oakland-demo-junk-removal-yard-clean/7926676903.html
+    - text: 2h ago
+    - button ""
+    - link "♻️HAULING & JUNK REMOVAL - SAME DAY SERVICE🚚 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/oakland-hauling-junk-removal-same-day/7926676165.html
+      - img "♻️HAULING & JUNK REMOVAL - SAME DAY SERVICE🚚 1"
+    - text: Oakland, Berkeley, Richmond, San Leandro, Hayward
+    - button ""
+    - link "♻️HAULING & JUNK REMOVAL - SAME DAY SERVICE🚚":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/oakland-hauling-junk-removal-same-day/7926676165.html
+    - text: 2h ago
+    - button ""
+    - link "NEED IT GONE NOW? 💥 5-STAR Rated Junk Removal Service 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/danville-need-it-gone-now-star-rated/7926675486.html
+      - img "NEED IT GONE NOW? 💥 5-STAR Rated Junk Removal Service 1"
+    - text: danville / san ramon
+    - button ""
+    - link "NEED IT GONE NOW? 💥 5-STAR Rated Junk Removal Service":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/danville-need-it-gone-now-star-rated/7926675486.html
+    - text: 2h ago
+    - button ""
+    - link "🎈🌸Wellness Therapy 🌸🌸professional ASIAN massage🔥 650-282-5400 1":
+      - /url: https://sfbay.craigslist.org/sby/bts/d/mountain-view-wellness-therapy/7926673597.html
+      - img "🎈🌸Wellness Therapy 🌸🌸professional ASIAN massage🔥 650-282-5400 1"
+    - text: mountain view
+    - button ""
+    - link "🎈🌸Wellness Therapy 🌸🌸professional ASIAN massage🔥 650-282-5400":
+      - /url: https://sfbay.craigslist.org/sby/bts/d/mountain-view-wellness-therapy/7926673597.html
+    - text: 2h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/fns/d/san-francisco-brand-new-ai-chatbot/7926672171.html
+    - text: bayview
+    - button ""
+    - link "Brand New AI & CHATBOT PRODUCT - LT LEAD AI":
+      - /url: https://sfbay.craigslist.org/sfc/fns/d/san-francisco-brand-new-ai-chatbot/7926672171.html
+    - text: 2h ago
+    - button ""
+    - link "Sr. Opto-Mechanical Engineer 1":
+      - /url: https://sfbay.craigslist.org/sfc/crs/d/sr-opto-mechanical-engineer/7926672139.html
+      - img "Sr. Opto-Mechanical Engineer 1"
+    - text: bayview
+    - button ""
+    - link "Sr. Opto-Mechanical Engineer":
+      - /url: https://sfbay.craigslist.org/sfc/crs/d/sr-opto-mechanical-engineer/7926672139.html
+    - text: 2h ago
+    - button ""
+    - link "📦Quality & Affordable Movers $45/hr📦(We can do last minute jobs!) 1":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/san-rafael-quality-affordable-movers-45/7926671134.html
+      - img "📦Quality & Affordable Movers $45/hr📦(We can do last minute jobs!) 1"
+    - text: san rafael
+    - button ""
+    - link "📦Quality & Affordable Movers $45/hr📦(We can do last minute jobs!)":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/san-rafael-quality-affordable-movers-45/7926671134.html
+    - text: 2h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/fns/d/san-francisco-instant-700k-business/7926670489.html
+    - text: San Francisco
+    - button ""
+    - link "🟣INSTANT 700k BUSINESS FUNDING LOAN (Guaranteed on the spot)":
+      - /url: https://sfbay.craigslist.org/sfc/fns/d/san-francisco-instant-700k-business/7926670489.html
+    - text: 2h ago
+    - button ""
+    - link "~ ~ ~ ~ ~ ~ ~ ~ ROOFER - LOW RATES ON ALL ROOFING WORK ~ ~ ~ ~ ~ ~ ~ ~ 1":
+      - /url: https://sfbay.craigslist.org/eby/hss/d/port-costa-roofer-low-rates-on-all/7926670378.html
+      - img "~ ~ ~ ~ ~ ~ ~ ~ ROOFER - LOW RATES ON ALL ROOFING WORK ~ ~ ~ ~ ~ ~ ~ ~ 1"
+    - text: CALL - 925-281-4755 - FREE ROOF QUOTES
+    - button ""
+    - link "~ ~ ~ ~ ~ ~ ~ ~ ROOFER - LOW RATES ON ALL ROOFING WORK ~ ~ ~ ~ ~ ~ ~ ~":
+      - /url: https://sfbay.craigslist.org/eby/hss/d/port-costa-roofer-low-rates-on-all/7926670378.html
+    - text: 2h ago
+    - button ""
+    - link "**Swimming pool Fill/ removal services at Discounted rates (15% off)** 1":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/san-jose-swimming-pool-fill-removal/7926670056.html
+      - img "**Swimming pool Fill/ removal services at Discounted rates (15% off)** 1"
+    - text: San Jose & Surrounding Areas
+    - button ""
+    - link "**Swimming pool Fill/ removal services at Discounted rates (15% off)**":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/san-jose-swimming-pool-fill-removal/7926670056.html
+    - text: 2h ago
+    - button ""
+    - link "Sr. Mechanical Engineer, Opto-Mechanical, Machine Design 1":
+      - /url: https://sfbay.craigslist.org/pen/crs/d/daly-city-sr-mechanical-engineer-opto/7926670062.html
+      - img "Sr. Mechanical Engineer, Opto-Mechanical, Machine Design 1"
+    - text: San Francisco
+    - button ""
+    - link "Sr. Mechanical Engineer, Opto-Mechanical, Machine Design":
+      - /url: https://sfbay.craigslist.org/pen/crs/d/daly-city-sr-mechanical-engineer-opto/7926670062.html
+    - text: 2h ago
+    - button ""
+    - link "Low-Cost High-Quality Websites from $100 Also Repair, SEO, Marketing 1":
+      - /url: https://sfbay.craigslist.org/sfc/crs/d/san-anselmo-low-cost-high-quality/7926669189.html
+      - img "Low-Cost High-Quality Websites from $100 Also Repair, SEO, Marketing 1"
+    - text: Marin County, California
+    - button ""
+    - link "Low-Cost High-Quality Websites from $100 Also Repair, SEO, Marketing":
+      - /url: https://sfbay.craigslist.org/sfc/crs/d/san-anselmo-low-cost-high-quality/7926669189.html
+    - text: 2h ago
+    - button ""
+    - link "🚗💥🚑Car Crash Lawyer - Abogado de Accidente - Work Injury Attorney 1":
+      - /url: https://sfbay.craigslist.org/eby/lgs/d/oakland-car-crash-lawyer-abogado-de/7926669116.html
+      - img "🚗💥🚑Car Crash Lawyer - Abogado de Accidente - Work Injury Attorney 1"
+    - text: oakland downtown
+    - button ""
+    - link "🚗💥🚑Car Crash Lawyer - Abogado de Accidente - Work Injury Attorney":
+      - /url: https://sfbay.craigslist.org/eby/lgs/d/oakland-car-crash-lawyer-abogado-de/7926669116.html
+    - text: 2h ago
+    - button ""
+    - link "Hayward* LUCKY SPA* OPENING ON FOURTH OF JULY 1":
+      - /url: https://sfbay.craigslist.org/eby/bts/d/hayward-hayward-lucky-spa-opening-on/7926668822.html
+      - img "Hayward* LUCKY SPA* OPENING ON FOURTH OF JULY 1"
+    - text: hayward / castro valley
+    - button ""
+    - link "Hayward* LUCKY SPA* OPENING ON FOURTH OF JULY":
+      - /url: https://sfbay.craigslist.org/eby/bts/d/hayward-hayward-lucky-spa-opening-on/7926668822.html
+    - text: 2h ago
+    - button ""
+    - link "Moving Service. $89/HOUR—2 MOVERS MOVER🌎☎️☎️☎️🌎SAME DAY MOVE 1":
+      - /url: https://sfbay.craigslist.org/sfc/lbs/d/cupertino-moving-service-89-hour2/7926668733.html
+      - img "Moving Service. $89/HOUR—2 MOVERS MOVER🌎☎️☎️☎️🌎SAME DAY MOVE 1"
+    - text: Get $20-$30 cash back for the positive review
+    - button ""
+    - link "Moving Service. $89/HOUR—2 MOVERS MOVER🌎☎️☎️☎️🌎SAME DAY MOVE":
+      - /url: https://sfbay.craigslist.org/sfc/lbs/d/cupertino-moving-service-89-hour2/7926668733.html
+    - text: 2h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/fgs/d/san-rafael-enriquez-landscaping-service/7926668618.html
+    - text: san rafael
+    - button ""
+    - link "Enriquez Landscaping Service!! Serving All Marin":
+      - /url: https://sfbay.craigslist.org/nby/fgs/d/san-rafael-enriquez-landscaping-service/7926668618.html
+    - text: 2h ago
+    - button ""
+    - link "⭐🏠 NEW ROOFING - ROOF REPLACEMENT - REPAIRS - SKYLIGHTS - GUTTERS 🏠⭐ 1":
+      - /url: https://sfbay.craigslist.org/scz/sks/d/santa-cruz-new-roofing-roof-replacement/7926668605.html
+      - img "⭐🏠 NEW ROOFING - ROOF REPLACEMENT - REPAIRS - SKYLIGHTS - GUTTERS 🏠⭐ 1"
+    - text: santa cruz
+    - button ""
+    - link "⭐🏠 NEW ROOFING - ROOF REPLACEMENT - REPAIRS - SKYLIGHTS - GUTTERS 🏠⭐":
+      - /url: https://sfbay.craigslist.org/scz/sks/d/santa-cruz-new-roofing-roof-replacement/7926668605.html
+    - text: 2h ago
+    - button ""
+    - link "▂ ▂ ▂ ▂ ELECTRICIAN - HONEST & AFFORDABLE - 510-616-7887 ▂ ▂ ▂ ▂ 1":
+      - /url: https://sfbay.craigslist.org/eby/hss/d/oakland-electrician-honest-affordable/7926668461.html
+      - img "▂ ▂ ▂ ▂ ELECTRICIAN - HONEST & AFFORDABLE - 510-616-7887 ▂ ▂ ▂ ▂ 1"
+    - text: ☎️ OWNER ANSWERS PHONE ☎️ - Car Chargers
+    - button ""
+    - link "▂ ▂ ▂ ▂ ELECTRICIAN - HONEST & AFFORDABLE - 510-616-7887 ▂ ▂ ▂ ▂":
+      - /url: https://sfbay.craigslist.org/eby/hss/d/oakland-electrician-honest-affordable/7926668461.html
+    - text: 2h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/drywallsheetrocking-patcheshandyman/7926668253.html
+    - text: los gatos
+    - button ""
+    - link "DRYWALL,SHEETROCKING ,PATCHES,HANDYMAN SERVICE, WATER-DAMAGE Repair":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/drywallsheetrocking-patcheshandyman/7926668253.html
+    - text: 2h ago
+    - button ""
+    - link "⭐🏠 NEW ROOFING - ROOF REPLACEMENT - REPAIR - SKYLIGHTS - GUTTERS 🏠⭐ 1":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/los-gatos-new-roofing-roof-replacement/7926668154.html
+      - img "⭐🏠 NEW ROOFING - ROOF REPLACEMENT - REPAIR - SKYLIGHTS - GUTTERS 🏠⭐ 1"
+    - text: south bay area
+    - button ""
+    - link "⭐🏠 NEW ROOFING - ROOF REPLACEMENT - REPAIR - SKYLIGHTS - GUTTERS 🏠⭐":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/los-gatos-new-roofing-roof-replacement/7926668154.html
+    - text: 2h ago
+    - button ""
+    - link "The Underdog Handyman. Davis, Woodland, Vacaville, Fairfield 1":
+      - /url: https://sfbay.craigslist.org/nby/sks/d/fairfield-the-underdog-handyman-davis/7926667436.html
+      - img "The Underdog Handyman. Davis, Woodland, Vacaville, Fairfield 1"
+    - text: Davis, Woodland, Vacaville, Fairfield 707-770-8372
+    - button ""
+    - link "The Underdog Handyman. Davis, Woodland, Vacaville, Fairfield":
+      - /url: https://sfbay.craigslist.org/nby/sks/d/fairfield-the-underdog-handyman-davis/7926667436.html
+    - text: 3h ago
+    - button ""
+    - link "GD Garage Door Repair, Install Broken Spring/Opener (669) 247-0760 1":
+      - /url: https://sfbay.craigslist.org/sby/hss/d/san-jose-gd-garage-door-repair-install/7926667268.html
+      - img "GD Garage Door Repair, Install Broken Spring/Opener (669) 247-0760 1"
+    - text: Garage door repair, Springs, Openers, Cables, Rollers
+    - button ""
+    - link "GD Garage Door Repair, Install Broken Spring/Opener (669) 247-0760":
+      - /url: https://sfbay.craigslist.org/sby/hss/d/san-jose-gd-garage-door-repair-install/7926667268.html
+    - text: 3h ago
+    - button ""
+    - link "GD Garage Door Repair, Install Broken Spring/Opener (669) 247-0760 1":
+      - /url: https://sfbay.craigslist.org/eby/hss/d/fremont-gd-garage-door-repair-install/7926667140.html
+      - img "GD Garage Door Repair, Install Broken Spring/Opener (669) 247-0760 1"
+    - text: Garage door repair, Springs, Openers, Cables, Rollers
+    - button ""
+    - link "GD Garage Door Repair, Install Broken Spring/Opener (669) 247-0760":
+      - /url: https://sfbay.craigslist.org/eby/hss/d/fremont-gd-garage-door-repair-install/7926667140.html
+    - text: 3h ago
+    - button ""
+    - link "Photo + Video 1":
+      - /url: https://sfbay.craigslist.org/nby/crs/d/glen-ellen-photo-video/7926667118.html
+      - img "Photo + Video 1"
+    - text: sonoma
+    - button ""
+    - link "Photo + Video":
+      - /url: https://sfbay.craigslist.org/nby/crs/d/glen-ellen-photo-video/7926667118.html
+    - text: 3h ago
+    - button ""
+    - link "JAY MOBILE AUTO REPAIR 510-375-6875 FREE QUOTES 1":
+      - /url: https://sfbay.craigslist.org/eby/aos/d/berkeley-jay-mobile-auto-repair-free/7926667061.html
+      - img "JAY MOBILE AUTO REPAIR 510-375-6875 FREE QUOTES 1"
+    - text: albany / el cerrito
+    - button ""
+    - link "JAY MOBILE AUTO REPAIR 510-375-6875 FREE QUOTES":
+      - /url: https://sfbay.craigslist.org/eby/aos/d/berkeley-jay-mobile-auto-repair-free/7926667061.html
+    - text: 3h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/san-francisco-best-moving/7926666531.html
+    - text: San Francisco/San mateo/San jose/oakland
+    - button ""
+    - link "：Best moving service=incredible price, 2 Movers+truck @ $99/HR":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/san-francisco-best-moving/7926666531.html
+    - text: 3h ago
+    - button ""
+    - link "WEB WEBSITES WORDPRESS CODING WIX DESIGN DRUPAL DEVELOPMENT PROGRAMMER 1":
+      - /url: https://sfbay.craigslist.org/sfc/cps/d/san-francisco-web-websites-wordpress/7926666400.html
+      - img "WEB WEBSITES WORDPRESS CODING WIX DESIGN DRUPAL DEVELOPMENT PROGRAMMER 1"
+    - text: ✅BEST PRICE ✅AVAILABLE IMMEDIATELY ✅NO DEPOSITS ✅ 8133014555
+    - button ""
+    - link "WEB WEBSITES WORDPRESS CODING WIX DESIGN DRUPAL DEVELOPMENT PROGRAMMER":
+      - /url: https://sfbay.craigslist.org/sfc/cps/d/san-francisco-web-websites-wordpress/7926666400.html
+    - text: 3h ago
+    - button ""
+    - link "➡️PLUMBER - Done Right - Fair Rates - No Runaround 1":
+      - /url: https://sfbay.craigslist.org/sfc/sks/d/oakland-plumber-done-right-fair-rates/7926666246.html
+      - img "➡️PLUMBER - Done Right - Fair Rates - No Runaround 1"
+    - text: 650-414-4042 - We Clean Up Our Mess - Call Today
+    - button ""
+    - link "➡️PLUMBER - Done Right - Fair Rates - No Runaround":
+      - /url: https://sfbay.craigslist.org/sfc/sks/d/oakland-plumber-done-right-fair-rates/7926666246.html
+    - text: 3h ago
+    - button ""
+    - link "🔧PLUMBER - Done Right - Fair Rates - No Runaround 1":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/san-jose-plumber-done-right-fair-rates/7926665813.html
+      - img "🔧PLUMBER - Done Right - Fair Rates - No Runaround 1"
+    - text: 669-271-6100 - We Clean Up Our Mess - Call Today
+    - button ""
+    - link "🔧PLUMBER - Done Right - Fair Rates - No Runaround":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/san-jose-plumber-done-right-fair-rates/7926665813.html
+    - text: 3h ago
+    - button ""
+    - link "THE GARDEN'S MAGICIAN LLC 1":
+      - /url: https://sfbay.craigslist.org/eby/fgs/d/fremont-the-gardens-magician-llc/7926665811.html
+      - img "THE GARDEN'S MAGICIAN LLC 1"
+    - text: fremont / union city / newark
+    - button ""
+    - link "THE GARDEN'S MAGICIAN LLC":
+      - /url: https://sfbay.craigslist.org/eby/fgs/d/fremont-the-gardens-magician-llc/7926665811.html
+    - text: 3h ago
+    - button ""
+    - link "#1 MOVERS in Sonoma County 1":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/santa-rosa-movers-in-sonoma-county/7926664706.html
+      - img "#1 MOVERS in Sonoma County 1"
+    - text: ⭐️⭐️⭐️⭐️⭐️ 5 Star Movers
+    - button ""
+    - link "#1 MOVERS in Sonoma County":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/santa-rosa-movers-in-sonoma-county/7926664706.html
+    - text: 3h ago
+    - button ""
+    - link "Mobile RV Repairs & 24/7 Roadside Assistance - $200 per hour 1":
+      - /url: https://sfbay.craigslist.org/eby/aos/d/hayward-mobile-rv-repairs-roadside/7926664542.html
+      - img "Mobile RV Repairs & 24/7 Roadside Assistance - $200 per hour 1"
+    - text: hayward / castro valley
+    - button ""
+    - link "Mobile RV Repairs & 24/7 Roadside Assistance - $200 per hour":
+      - /url: https://sfbay.craigslist.org/eby/aos/d/hayward-mobile-rv-repairs-roadside/7926664542.html
+    - text: 3h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/nby/sks/d/santa-rosa-licensed-plumbing-sewer/7926664191.html
+    - text: santa rosa
+    - button ""
+    - link "Licensed Plumbing - Sewer Repairs":
+      - /url: https://sfbay.craigslist.org/nby/sks/d/santa-rosa-licensed-plumbing-sewer/7926664191.html
+    - text: 3h ago
+    - button ""
+    - link "Used Car Inspection - $120 1":
+      - /url: https://sfbay.craigslist.org/eby/aos/d/hayward-used-car-inspection-120/7926664168.html
+      - img "Used Car Inspection - $120 1"
+    - text: hayward / castro valley
+    - button ""
+    - link "Used Car Inspection - $120":
+      - /url: https://sfbay.craigslist.org/eby/aos/d/hayward-used-car-inspection-120/7926664168.html
+    - text: 3h ago
+    - button ""
+    - link "You & Your Team Deserve More Room To Grow - Call Today! 👨‍💻👩‍ 1":
+      - /url: https://sfbay.craigslist.org/sby/rts/d/san-jose-you-your-team-deserve-more/7926663993.html
+      - img "You & Your Team Deserve More Room To Grow - Call Today! 👨‍💻👩‍ 1"
+    - text: san jose downtown
+    - button ""
+    - link "You & Your Team Deserve More Room To Grow - Call Today! 👨‍💻👩‍":
+      - /url: https://sfbay.craigslist.org/sby/rts/d/san-jose-you-your-team-deserve-more/7926663993.html
+    - text: 3h ago
+    - button ""
+    - link "Ant Movers:90hour 🐜🐜junk removal/delivere/we Go Everywhere anytime 1":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/santa-rosa-ant-movers90hour-junk/7926663919.html
+      - img "Ant Movers:90hour 🐜🐜junk removal/delivere/we Go Everywhere anytime 1"
+    - text: santa rosa
+    - button ""
+    - link "Ant Movers:90hour 🐜🐜junk removal/delivere/we Go Everywhere anytime":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/santa-rosa-ant-movers90hour-junk/7926663919.html
+    - text: 3h ago
+    - button ""
+    - link "Working Remote? We've Got Exactly What You Need 🏢💻 Call Now! 1":
+      - /url: https://sfbay.craigslist.org/sby/rts/d/san-jose-working-remote-weve-got/7926663896.html
+      - img "Working Remote? We've Got Exactly What You Need 🏢💻 Call Now! 1"
+    - text: san jose downtown
+    - button ""
+    - link "Working Remote? We've Got Exactly What You Need 🏢💻 Call Now!":
+      - /url: https://sfbay.craigslist.org/sby/rts/d/san-jose-working-remote-weve-got/7926663896.html
+    - text: 3h ago
+    - button ""
+    - link "Business Mailbox, Meeting Rooms, & Private Offices👩‍💻👨‍Call Now! 1":
+      - /url: https://sfbay.craigslist.org/sby/rts/d/san-jose-business-mailbox-meeting-rooms/7926663814.html
+      - img "Business Mailbox, Meeting Rooms, & Private Offices👩‍💻👨‍Call Now! 1"
+    - text: san jose downtown
+    - button ""
+    - link "Business Mailbox, Meeting Rooms, & Private Offices👩‍💻👨‍Call Now!":
+      - /url: https://sfbay.craigslist.org/sby/rts/d/san-jose-business-mailbox-meeting-rooms/7926663814.html
+    - text: 3h ago
+    - button ""
+    - link "Your Team Wants To Work In The Same Room Together - Call Us 👩‍💻👨‍ 1":
+      - /url: https://sfbay.craigslist.org/sby/rts/d/san-jose-your-team-wants-to-work-in-the/7926663715.html
+      - img "Your Team Wants To Work In The Same Room Together - Call Us 👩‍💻👨‍ 1"
+    - text: san jose downtown
+    - button ""
+    - link "Your Team Wants To Work In The Same Room Together - Call Us 👩‍💻👨‍":
+      - /url: https://sfbay.craigslist.org/sby/rts/d/san-jose-your-team-wants-to-work-in-the/7926663715.html
+    - text: 3h ago
+    - button ""
+    - link "♻️Low Cost JUNK REMOVAL & Demolition Pros 707-393-0133🏡 1":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/santa-rosa-low-cost-junk-removal/7926663167.html
+      - img "♻️Low Cost JUNK REMOVAL & Demolition Pros 707-393-0133🏡 1"
+    - text: Santa Rosa / Petaluma / Sebastopol / All of Sonoma County
+    - button ""
+    - link "♻️Low Cost JUNK REMOVAL & Demolition Pros 707-393-0133🏡":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/santa-rosa-low-cost-junk-removal/7926663167.html
+    - text: 3h ago
+    - button ""
+    - link "**DECKS**FENCES** PERGOLAS**LOCAL**HARDSCAPE**LANDSCAPE**** 1":
+      - /url: https://sfbay.craigslist.org/nby/sks/d/santa-rosa-decksfences/7926662503.html
+      - img "**DECKS**FENCES** PERGOLAS**LOCAL**HARDSCAPE**LANDSCAPE**** 1"
+    - text: santa rosa
+    - button ""
+    - link "**DECKS**FENCES** PERGOLAS**LOCAL**HARDSCAPE**LANDSCAPE****":
+      - /url: https://sfbay.craigslist.org/nby/sks/d/santa-rosa-decksfences/7926662503.html
+    - text: 3h ago
+    - button ""
+    - link "Professional Electrical Services – Sonoma County 1":
+      - /url: https://sfbay.craigslist.org/nby/sks/d/santa-rosa-professional-electrical/7926662330.html
+      - img "Professional Electrical Services – Sonoma County 1"
+    - text: santa rosa
+    - button ""
+    - link "Professional Electrical Services – Sonoma County":
+      - /url: https://sfbay.craigslist.org/nby/sks/d/santa-rosa-professional-electrical/7926662330.html
+    - text: 3h ago
+    - button ""
+    - link "INTRODUCTORY SPECIAL $60.00 PER HOUR FREE SAUNA 1":
+      - /url: https://sfbay.craigslist.org/pen/hws/d/san-mateo-introductory-special-6000-per/7926662148.html
+      - img "INTRODUCTORY SPECIAL $60.00 PER HOUR FREE SAUNA 1"
+    - text: san mateo
+    - button ""
+    - link "INTRODUCTORY SPECIAL $60.00 PER HOUR FREE SAUNA":
+      - /url: https://sfbay.craigslist.org/pen/hws/d/san-mateo-introductory-special-6000-per/7926662148.html
+    - text: 3h ago
+    - button ""
+    - link "Stop Guessing Your Numbers– QuickBooks Support for Contractors 10% Off 1":
+      - /url: https://sfbay.craigslist.org/sfc/fns/d/daly-city-stop-guessing-your-numbers/7926662110.html
+      - img "Stop Guessing Your Numbers– QuickBooks Support for Contractors 10% Off 1"
+    - text: city of san francisco
+    - button ""
+    - link "Stop Guessing Your Numbers– QuickBooks Support for Contractors 10% Off":
+      - /url: https://sfbay.craigslist.org/sfc/fns/d/daly-city-stop-guessing-your-numbers/7926662110.html
+    - text: 3h ago
+    - button ""
+    - link "** NEW CONSTRUCTION** ADU'S**FREE ESTIMATES** 1":
+      - /url: https://sfbay.craigslist.org/nby/sks/d/fulton-new-construction-adusfree/7926662046.html
+      - img "** NEW CONSTRUCTION** ADU'S**FREE ESTIMATES** 1"
+    - text: Santa Rosa and Surrounding Areas
+    - button ""
+    - link "** NEW CONSTRUCTION** ADU'S**FREE ESTIMATES**":
+      - /url: https://sfbay.craigslist.org/nby/sks/d/fulton-new-construction-adusfree/7926662046.html
+    - text: 3h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/lss/d/san-francisco-expert-math-statistics/7926661833.html
+    - text: Anywhere in California
+    - button ""
+    - link "Expert Math/Statistics, Chemistry, Physics, Biology Tutoring":
+      - /url: https://sfbay.craigslist.org/pen/lss/d/san-francisco-expert-math-statistics/7926661833.html
+    - text: 3h ago
+    - button ""
+    - link "**HVAC**MINI SPLITS**HEATING**AIR CONDITIONING** 1":
+      - /url: https://sfbay.craigslist.org/nby/sks/d/santa-rosa-hvacmini-splitsheatingair/7926661585.html
+      - img "**HVAC**MINI SPLITS**HEATING**AIR CONDITIONING** 1"
+    - text: santa rosa
+    - button ""
+    - link "**HVAC**MINI SPLITS**HEATING**AIR CONDITIONING**":
+      - /url: https://sfbay.craigslist.org/nby/sks/d/santa-rosa-hvacmini-splitsheatingair/7926661585.html
+    - text: 3h ago
+    - button ""
+    - link "Best Electrical💡Electrician👷Handyman Service⚡️🛠 1":
+      - /url: https://sfbay.craigslist.org/eby/hss/d/pleasanton-best/7926661554.html
+      - img "Best Electrical💡Electrician👷Handyman Service⚡️🛠 1"
+    - text: Livermore, Pleasanton, Fremont, San Jose, Oakland
+    - button ""
+    - link "Best Electrical💡Electrician👷Handyman Service⚡️🛠":
+      - /url: https://sfbay.craigslist.org/eby/hss/d/pleasanton-best/7926661554.html
+    - text: 3h ago
+    - button ""
+    - link "🚰PLUMBER - Fast Answer, Fast Fix – Plumbing Service That Delivers 1":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/oakland-plumber-fast-answer-fast-fix/7926661465.html
+      - img "🚰PLUMBER - Fast Answer, Fast Fix – Plumbing Service That Delivers 1"
+    - text: 510-627-0222 - Call Now, Help Now, Fixed Now
+    - button ""
+    - link "🚰PLUMBER - Fast Answer, Fast Fix – Plumbing Service That Delivers":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/oakland-plumber-fast-answer-fast-fix/7926661465.html
+    - text: 3h ago
+    - button ""
+    - link "925 391 4174 gardening, yard clean ups, haulng 1":
+      - /url: https://sfbay.craigslist.org/eby/fgs/d/berkeley-gardening-yard-clean-ups-haulng/7926661371.html
+      - img "925 391 4174 gardening, yard clean ups, haulng 1"
+    - text: Berkeley
+    - button ""
+    - link "925 391 4174 gardening, yard clean ups, haulng":
+      - /url: https://sfbay.craigslist.org/eby/fgs/d/berkeley-gardening-yard-clean-ups-haulng/7926661371.html
+    - text: 3h ago
+    - button ""
+    - link "Restore Balance. Renew Wellness. 1":
+      - /url: https://sfbay.craigslist.org/pen/hws/d/san-carlos-restore-balance-renew/7926661186.html
+      - img "Restore Balance. Renew Wellness. 1"
+    - text: san carlos
+    - button ""
+    - link "Restore Balance. Renew Wellness.":
+      - /url: https://sfbay.craigslist.org/pen/hws/d/san-carlos-restore-balance-renew/7926661186.html
+    - text: 3h ago
+    - button ""
+    - link "♻️🧹 JUNK REMOVAL & CLEANING ♻️🧹 ON SCENE CLEANING & JUNK REMOVAL 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/el-cerrito-junk-removal-cleaning-on/7926661079.html
+      - img "♻️🧹 JUNK REMOVAL & CLEANING ♻️🧹 ON SCENE CLEANING & JUNK REMOVAL 1"
+    - text: El Cerrito - Richmond- Albany - Berkeley
+    - button ""
+    - link "♻️🧹 JUNK REMOVAL & CLEANING ♻️🧹 ON SCENE CLEANING & JUNK REMOVAL":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/el-cerrito-junk-removal-cleaning-on/7926661079.html
+    - text: 3h ago
+    - button ""
+    - link "Last Minute Junk Removal? We’re Ready NOW CALL 925-489-4485 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/antioch-last-minute-junk-removal-were/7926660986.html
+      - img "Last Minute Junk Removal? We’re Ready NOW CALL 925-489-4485 1"
+    - text: "#antioch#pittsburg#brentwood#oakley"
+    - button ""
+    - link "Last Minute Junk Removal? We’re Ready NOW CALL 925-489-4485":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/antioch-last-minute-junk-removal-were/7926660986.html
+    - text: 3h ago
+    - button ""
+    - link "DECK REPAIRS /REPLACMENTS AND NEW BUILDS 1":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/lafayette-deck-repairs-replacments-and/7926660797.html
+      - img "DECK REPAIRS /REPLACMENTS AND NEW BUILDS 1"
+    - text: walnut creek
+    - button ""
+    - link "DECK REPAIRS /REPLACMENTS AND NEW BUILDS":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/lafayette-deck-repairs-replacments-and/7926660797.html
+    - text: 3h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/pen/lbs/d/burlingame-friends-moving-service10/7926660597.html
+    - text: San Jose,Palo Alto,Sunnyvale,San Francisco,Oakland,Bay Area
+    - button ""
+    - link "🌟🚛🚚📦FRIEND’S MOVING SERVICE📦🚚🚛🌟10 YEARS OF EXPERIENCE!":
+      - /url: https://sfbay.craigslist.org/pen/lbs/d/burlingame-friends-moving-service10/7926660597.html
+    - text: 3h ago
+    - button ""
+    - link "Dumpster & Junk Removal ( concord , walnut creek, pleasant hill) 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/pleasant-hill-dumpster-junk-removal/7926660410.html
+      - img "Dumpster & Junk Removal ( concord , walnut creek, pleasant hill) 1"
+    - text: east bay area
+    - button ""
+    - link "Dumpster & Junk Removal ( concord , walnut creek, pleasant hill)":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/pleasant-hill-dumpster-junk-removal/7926660410.html
+    - text: 3h ago
+    - button ""
+    - link "💡ELECTRICIAN - Stop Dealing with No-Shows - We're Here to Help 1":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/oakland-electrician-stop-dealing-with/7926660404.html
+      - img "💡ELECTRICIAN - Stop Dealing with No-Shows - We're Here to Help 1"
+    - text: 510-588-1120 - No Games, No Excuses - Just Results
+    - button ""
+    - link "💡ELECTRICIAN - Stop Dealing with No-Shows - We're Here to Help":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/oakland-electrician-stop-dealing-with/7926660404.html
+    - text: 3h ago
+    - button ""
+    - link "Custom carpentry 1":
+      - /url: https://sfbay.craigslist.org/nby/sks/d/healdsburg-custom-carpentry/7926660344.html
+      - img "Custom carpentry 1"
+    - text: Healdsburg
+    - button ""
+    - link "Custom carpentry":
+      - /url: https://sfbay.craigslist.org/nby/sks/d/healdsburg-custom-carpentry/7926660344.html
+    - text: 3h ago
+    - button ""
+    - link "📍 Bel Marin Keys Professional Offices – Ideal for Small Teams 1":
+      - /url: https://sfbay.craigslist.org/nby/rts/d/novato-bel-marin-keys-professional/7926660090.html
+      - img "📍 Bel Marin Keys Professional Offices – Ideal for Small Teams 1"
+    - text: novato
+    - button ""
+    - link "📍 Bel Marin Keys Professional Offices – Ideal for Small Teams":
+      - /url: https://sfbay.craigslist.org/nby/rts/d/novato-bel-marin-keys-professional/7926660090.html
+    - text: 3h ago
+    - button ""
+    - link "Quickbooks - Bookkeeping - Payroll - Office & More! 1":
+      - /url: https://sfbay.craigslist.org/nby/fns/d/santa-rosa-quickbooks-bookkeeping/7926660063.html
+      - img "Quickbooks - Bookkeeping - Payroll - Office & More! 1"
+    - text: Bay Area
+    - button ""
+    - link "Quickbooks - Bookkeeping - Payroll - Office & More!":
+      - /url: https://sfbay.craigslist.org/nby/fns/d/santa-rosa-quickbooks-bookkeeping/7926660063.html
+    - text: 3h ago
+    - button ""
+    - link "General contractor kitchen/ bathroom remodels, ADU’s , Additions 1":
+      - /url: https://sfbay.craigslist.org/pen/sks/d/menlo-park-general-contractor-kitchen/7926659864.html
+      - img "General contractor kitchen/ bathroom remodels, ADU’s , Additions 1"
+    - text: Mid peninsula
+    - button ""
+    - link "General contractor kitchen/ bathroom remodels, ADU’s , Additions":
+      - /url: https://sfbay.craigslist.org/pen/sks/d/menlo-park-general-contractor-kitchen/7926659864.html
+    - text: 3h ago
+    - button ""
+    - link "🔑 Office Cluster in BMK Industrial Park – Perfect for Admin Teams 1":
+      - /url: https://sfbay.craigslist.org/nby/rts/d/novato-office-cluster-in-bmk-industrial/7926659539.html
+      - img "🔑 Office Cluster in BMK Industrial Park – Perfect for Admin Teams 1"
+    - text: novato
+    - button ""
+    - link "🔑 Office Cluster in BMK Industrial Park – Perfect for Admin Teams":
+      - /url: https://sfbay.craigslist.org/nby/rts/d/novato-office-cluster-in-bmk-industrial/7926659539.html
+    - text: 3h ago
+    - button ""
+    - link "WE SALE UNLOC PHONES,FIX IPHONE,SAMSUNG,MOTO SCREEN ,BATERY,PORT CALL 1":
+      - /url: https://sfbay.craigslist.org/sby/cms/d/san-jose-we-sale-unloc-phonesfix/7926659380.html
+      - img "WE SALE UNLOC PHONES,FIX IPHONE,SAMSUNG,MOTO SCREEN ,BATERY,PORT CALL 1"
+    - text: san jose east
+    - button ""
+    - link "WE SALE UNLOC PHONES,FIX IPHONE,SAMSUNG,MOTO SCREEN ,BATERY,PORT CALL":
+      - /url: https://sfbay.craigslist.org/sby/cms/d/san-jose-we-sale-unloc-phonesfix/7926659380.html
+    - text: 3h ago
+    - button ""
+    - link "🔧⚡Bay Area Licensed Electrician – Same-Day Fixes & Installs 1":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/santa-clara-bay-area-licensed/7926659252.html
+      - img "🔧⚡Bay Area Licensed Electrician – Same-Day Fixes & Installs 1"
+    - text: santa clara
+    - button ""
+    - link "🔧⚡Bay Area Licensed Electrician – Same-Day Fixes & Installs":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/santa-clara-bay-area-licensed/7926659252.html
+    - text: 3h ago
+    - button ""
+    - link "Friendly Computer/Smart Device Support and Repair (IT CONSULTING) 1":
+      - /url: https://sfbay.craigslist.org/eby/cps/d/oakland-friendly-computer-smart-device/7926659058.html
+      - img "Friendly Computer/Smart Device Support and Repair (IT CONSULTING) 1"
+    - text: Oakland
+    - button ""
+    - link "Friendly Computer/Smart Device Support and Repair (IT CONSULTING)":
+      - /url: https://sfbay.craigslist.org/eby/cps/d/oakland-friendly-computer-smart-device/7926659058.html
+    - text: 3h ago
+    - button ""
+    - link "Friendly Computer/Smart Device Support and Repair (IT CONSULTING) 1":
+      - /url: https://sfbay.craigslist.org/nby/cps/d/sonoma-friendly-computer-smart-device/7926658989.html
+      - img "Friendly Computer/Smart Device Support and Repair (IT CONSULTING) 1"
+    - text: Sonoma
+    - button ""
+    - link "Friendly Computer/Smart Device Support and Repair (IT CONSULTING)":
+      - /url: https://sfbay.craigslist.org/nby/cps/d/sonoma-friendly-computer-smart-device/7926658989.html
+    - text: 3h ago
+    - button ""
+    - link "INTERIOR PROFESSIONAL PAINTING.... Painter .. 15 yrs exp 1":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/interior-professional-painting-painter/7926658944.html
+      - img "INTERIOR PROFESSIONAL PAINTING.... Painter .. 15 yrs exp 1"
+    - text: san jose west
+    - button ""
+    - link "INTERIOR PROFESSIONAL PAINTING.... Painter .. 15 yrs exp":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/interior-professional-painting-painter/7926658944.html
+    - text: 3h ago
+    - button ""
+    - link "Friendly Computer/Smart Device Support and Repair (IT CONSULTING) 1":
+      - /url: https://sfbay.craigslist.org/sfc/cps/d/san-francisco-friendly-computer-smart/7926658911.html
+      - img "Friendly Computer/Smart Device Support and Repair (IT CONSULTING) 1"
+    - text: San Francisco
+    - button ""
+    - link "Friendly Computer/Smart Device Support and Repair (IT CONSULTING)":
+      - /url: https://sfbay.craigslist.org/sfc/cps/d/san-francisco-friendly-computer-smart/7926658911.html
+    - text: 3h ago
+    - button ""
+    - link "Friendly Computer/Smart Device Support and Repair (IT CONSULTING) 1":
+      - /url: https://sfbay.craigslist.org/nby/cps/d/santa-rosa-friendly-computer-smart/7926658835.html
+      - img "Friendly Computer/Smart Device Support and Repair (IT CONSULTING) 1"
+    - text: Santa Rosa
+    - button ""
+    - link "Friendly Computer/Smart Device Support and Repair (IT CONSULTING)":
+      - /url: https://sfbay.craigslist.org/nby/cps/d/santa-rosa-friendly-computer-smart/7926658835.html
+    - text: 3h ago
+    - button ""
+    - link "Friendly Computer/Smart Device Support and Repair (IT CONSULTING) 1":
+      - /url: https://sfbay.craigslist.org/nby/cps/d/san-rafael-friendly-computer-smart/7926658767.html
+      - img "Friendly Computer/Smart Device Support and Repair (IT CONSULTING) 1"
+    - text: San Rafael
+    - button ""
+    - link "Friendly Computer/Smart Device Support and Repair (IT CONSULTING)":
+      - /url: https://sfbay.craigslist.org/nby/cps/d/san-rafael-friendly-computer-smart/7926658767.html
+    - text: 3h ago
+    - button ""
+    - link "Fast & Reliable Junk Removal, Yard Cleanup, Lawn Care & Gutter Cleaning – Call 1":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/napa-fast-reliable-junk-removal-yard/7926658622.html
+      - img "Fast & Reliable Junk Removal, Yard Cleanup, Lawn Care & Gutter Cleaning – Call 1"
+    - text: Napa
+    - button ""
+    - link "Fast & Reliable Junk Removal, Yard Cleanup, Lawn Care & Gutter Cleaning – Call":
+      - /url: https://sfbay.craigslist.org/nby/lbs/d/napa-fast-reliable-junk-removal-yard/7926658622.html
+    - text: 3h ago
+    - button ""
+    - link "Junk Removal Near You – Open Slots Today – Call Now 925-489-4485 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/lafayette-junk-removal-near-you-open/7926657578.html
+      - img "Junk Removal Near You – Open Slots Today – Call Now 925-489-4485 1"
+    - text: "#pleasantHill#concord#Martinez#walnutCreek#Lafayette"
+    - button ""
+    - link "Junk Removal Near You – Open Slots Today – Call Now 925-489-4485":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/lafayette-junk-removal-near-you-open/7926657578.html
+    - text: 3h ago
+    - button ""
+    - link "us california moving services long distance end local 1":
+      - /url: https://sfbay.craigslist.org/pen/lbs/d/fremont-us-california-moving-services/7926657489.html
+      - img "us california moving services long distance end local 1"
+    - text: San Francisco and all the bay area
+    - button ""
+    - link "us california moving services long distance end local":
+      - /url: https://sfbay.craigslist.org/pen/lbs/d/fremont-us-california-moving-services/7926657489.html
+    - text: 3h ago
+    - button ""
+    - link "‼️JUNK REMOVAL/ HAULING 510-372-5938 TEXT US PICS OF WHAT U NEED REMOVED 1":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/emeryville-junk-removal-hauling-text-us/7926655607.html
+      - img "‼️JUNK REMOVAL/ HAULING 510-372-5938 TEXT US PICS OF WHAT U NEED REMOVED 1"
+    - text: Emeryville - WHOLE BAY AREA FREE ESTIMATE
+    - button ""
+    - link "‼️JUNK REMOVAL/ HAULING 510-372-5938 TEXT US PICS OF WHAT U NEED REMOVED":
+      - /url: https://sfbay.craigslist.org/eby/lbs/d/emeryville-junk-removal-hauling-text-us/7926655607.html
+    - text: 3h ago
+    - button ""
+    - link "$95 CARPET CLEANING WHOLE HOUSE, TILE, POWER WASHING, WINDOWS,GUTTERS 1":
+      - /url: https://sfbay.craigslist.org/sby/hss/d/santa-clara-95-carpet-cleaning-whole/7926655358.html
+      - img "$95 CARPET CLEANING WHOLE HOUSE, TILE, POWER WASHING, WINDOWS,GUTTERS 1"
+    - text: south bay area
+    - button ""
+    - link "$95 CARPET CLEANING WHOLE HOUSE, TILE, POWER WASHING, WINDOWS,GUTTERS":
+      - /url: https://sfbay.craigslist.org/sby/hss/d/santa-clara-95-carpet-cleaning-whole/7926655358.html
+    - text: 3h ago
+    - button ""
+    - link "INSTANT FUNDING - 5k to $2MILLION - SELF-EMPLOYED - RIDE GIG WORKERS 1":
+      - /url: https://sfbay.craigslist.org/sfc/fns/d/san-francisco-instant-funding-5k-to/7926654717.html
+      - img "INSTANT FUNDING - 5k to $2MILLION - SELF-EMPLOYED - RIDE GIG WORKERS 1"
+    - text: city of san francisco
+    - button ""
+    - link "INSTANT FUNDING - 5k to $2MILLION - SELF-EMPLOYED - RIDE GIG WORKERS":
+      - /url: https://sfbay.craigslist.org/sfc/fns/d/san-francisco-instant-funding-5k-to/7926654717.html
+    - text: 3h ago
+    - button ""
+    - link "plumbing contractor, plumber ,gas lines,water heaters,408 449 8975 1":
+      - /url: https://sfbay.craigslist.org/sby/lbs/d/san-jose-plumbing-contractor-plumber/7926654023.html
+      - img "plumbing contractor, plumber ,gas lines,water heaters,408 449 8975 1"
+    - text: san jose
+    - button ""
+    - link "plumbing contractor, plumber ,gas lines,water heaters,408 449 8975":
+      - /url: https://sfbay.craigslist.org/sby/lbs/d/san-jose-plumbing-contractor-plumber/7926654023.html
+    - text: 3h ago
+    - button ""
+    - link "Genie's Junk Removal- Let's dump the junk! 1":
+      - /url: https://sfbay.craigslist.org/sby/lbs/d/san-jose-genies-junk-removal-lets-dump/7926653423.html
+      - img "Genie's Junk Removal- Let's dump the junk! 1"
+    - text: sunnyvale
+    - button ""
+    - link "Genie's Junk Removal- Let's dump the junk!":
+      - /url: https://sfbay.craigslist.org/sby/lbs/d/san-jose-genies-junk-removal-lets-dump/7926653423.html
+    - text: 3h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/lgs/d/daly-city-legal-writer-any-case-writing/7926653120.html
+    - text: city of san francisco
+    - button ""
+    - link "Legal Writer - $120 (Any Case Writing / Brief / Motion)":
+      - /url: https://sfbay.craigslist.org/sfc/lgs/d/daly-city-legal-writer-any-case-writing/7926653120.html
+    - text: 3h ago
+    - button ""
+    - link "DJ🇺🇸🟢MC🔔BIRTHDAY🇲🇽🟨🟦 Corporate All Events🎉WEDDING 1":
+      - /url: https://sfbay.craigslist.org/sfc/evs/d/sausalito-djmcbirthday-corporate-all/7926652236.html
+      - img "DJ🇺🇸🟢MC🔔BIRTHDAY🇲🇽🟨🟦 Corporate All Events🎉WEDDING 1"
+    - text: 🇺🇸 ☎BUDGET DJ🏅MC 🇮🇳Photobooth ❎★SCHOOL DJ✅
+    - button ""
+    - link "DJ🇺🇸🟢MC🔔BIRTHDAY🇲🇽🟨🟦 Corporate All Events🎉WEDDING":
+      - /url: https://sfbay.craigslist.org/sfc/evs/d/sausalito-djmcbirthday-corporate-all/7926652236.html
+    - text: 3h ago
+    - button ""
+    - link "S.F & ALL BAY AREA LOCATIONS TO LOS ANGELES ORANGE CO SAN DIEGO 1":
+      - /url: https://sfbay.craigslist.org/sfc/lbs/d/san-francisco-sf-all-bay-area-locations/7926652228.html
+      - img "S.F & ALL BAY AREA LOCATIONS TO LOS ANGELES ORANGE CO SAN DIEGO 1"
+    - text: WEEKLY ROUTES_HOME APT OFFICE STORAGE UNITS BULK ITEMS
+    - button ""
+    - link "S.F & ALL BAY AREA LOCATIONS TO LOS ANGELES ORANGE CO SAN DIEGO":
+      - /url: https://sfbay.craigslist.org/sfc/lbs/d/san-francisco-sf-all-bay-area-locations/7926652228.html
+    - text: 3h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sby/biz/d/san-jose-sr-embedded-systems-design-and/7926652036.html
+    - text: san jose south
+    - button ""
+    - link "Sr. Embedded Systems Design and Development Engineer":
+      - /url: https://sfbay.craigslist.org/sby/biz/d/san-jose-sr-embedded-systems-design-and/7926652036.html
+    - text: 3h ago
+    - button ""
+    - link "Ismael Handyman 1":
+      - /url: https://sfbay.craigslist.org/sby/hss/d/san-jose-ismael-handyman/7926651886.html
+      - img "Ismael Handyman 1"
+    - text: san jose east
+    - button ""
+    - link "Ismael Handyman":
+      - /url: https://sfbay.craigslist.org/sby/hss/d/san-jose-ismael-handyman/7926651886.html
+    - text: 3h ago
+    - button ""
+    - link "LIC.TILE.PAINTING.DRY ROT.DRY WALL.HANDYMAN&MORE 25Y.X.EPA LEAD CERTIF 1":
+      - /url: https://sfbay.craigslist.org/sfc/sks/d/san-francisco-lictilepaintingdry-rotdry/7926651510.html
+      - img "LIC.TILE.PAINTING.DRY ROT.DRY WALL.HANDYMAN&MORE 25Y.X.EPA LEAD CERTIF 1"
+    - text: ALL AREA 25Y.EXP.LIC.INS....EPA LEAD CERTIFIED (415)441-3416
+    - button ""
+    - link "LIC.TILE.PAINTING.DRY ROT.DRY WALL.HANDYMAN&MORE 25Y.X.EPA LEAD CERTIF":
+      - /url: https://sfbay.craigslist.org/sfc/sks/d/san-francisco-lictilepaintingdry-rotdry/7926651510.html
+    - text: 3h ago
+    - button ""
+    - link "Expert Local Web Website Design (Designer), Google Ads, SEO, 20 Years 1":
+      - /url: https://sfbay.craigslist.org/nby/cps/d/greenbrae-expert-local-web-website/7926651495.html
+      - img "Expert Local Web Website Design (Designer), Google Ads, SEO, 20 Years 1"
+    - text: greenbrae
+    - button ""
+    - link "Expert Local Web Website Design (Designer), Google Ads, SEO, 20 Years":
+      - /url: https://sfbay.craigslist.org/nby/cps/d/greenbrae-expert-local-web-website/7926651495.html
+    - text: 3h ago
+    - button ""
+    - link "✨ San Rafael Tile, Flooring, Paint, Kitchen & Bath Remodels ✨ 1":
+      - /url: https://sfbay.craigslist.org/nby/sks/d/san-rafael-san-rafael-tile-flooring/7926650498.html
+      - img "✨ San Rafael Tile, Flooring, Paint, Kitchen & Bath Remodels ✨ 1"
+    - text: san rafael
+    - button ""
+    - link "✨ San Rafael Tile, Flooring, Paint, Kitchen & Bath Remodels ✨":
+      - /url: https://sfbay.craigslist.org/nby/sks/d/san-rafael-san-rafael-tile-flooring/7926650498.html
+    - text: 3h ago
+    - button ""
+    - link "caregivers, home care, need help with groceries 1":
+      - /url: https://sfbay.craigslist.org/pen/hss/d/mountain-view-caregivers-home-care-need/7926650406.html
+      - img "caregivers, home care, need help with groceries 1"
+    - text: greater bay area
+    - button ""
+    - link "caregivers, home care, need help with groceries":
+      - /url: https://sfbay.craigslist.org/pen/hss/d/mountain-view-caregivers-home-care-need/7926650406.html
+    - text: 3h ago
+    - button ""
+    - link "✨ Oakland Tile, Flooring, Paint, Kitchen & Bath Remodels ✨ 1":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/oakland-oakland-tile-flooring-paint/7926650312.html
+      - img "✨ Oakland Tile, Flooring, Paint, Kitchen & Bath Remodels ✨ 1"
+    - text: oakland lake merritt / grand
+    - button ""
+    - link "✨ Oakland Tile, Flooring, Paint, Kitchen & Bath Remodels ✨":
+      - /url: https://sfbay.craigslist.org/eby/sks/d/oakland-oakland-tile-flooring-paint/7926650312.html
+    - text: 3h ago
+    - button ""
+    - link "💳✨ Credit Repair That ACTUALLY Works? YES!✨💳 1":
+      - /url: https://sfbay.craigslist.org/sfc/fns/d/san-francisco-credit-repair-that/7926650106.html
+      - img "💳✨ Credit Repair That ACTUALLY Works? YES!✨💳 1"
+    - text: city of san francisco
+    - button ""
+    - link "💳✨ Credit Repair That ACTUALLY Works? YES!✨💳":
+      - /url: https://sfbay.craigslist.org/sfc/fns/d/san-francisco-credit-repair-that/7926650106.html
+    - text: 4h ago
+    - button ""
+    - link "Auto body $98 Spot paint 1":
+      - /url: https://sfbay.craigslist.org/sby/aos/d/san-jose-auto-body-98-spot-paint/7926649569.html
+      - img "Auto body $98 Spot paint 1"
+    - text: All Bay Area (MOBILE)
+    - button ""
+    - link "Auto body $98 Spot paint":
+      - /url: https://sfbay.craigslist.org/sby/aos/d/san-jose-auto-body-98-spot-paint/7926649569.html
+    - text: 4h ago
+    - button ""
+    - link "HOUSE CLEANING - MOVE OUT CLEANING ✅ Text for Quote!! (415) 362-4555 1":
+      - /url: https://sfbay.craigslist.org/pen/sks/d/san-mateo-house-cleaning-move-out/7926648892.html
+      - img "HOUSE CLEANING - MOVE OUT CLEANING ✅ Text for Quote!! (415) 362-4555 1"
+    - text: SAN MATEO COUNTY
+    - button ""
+    - link "HOUSE CLEANING - MOVE OUT CLEANING ✅ Text for Quote!! (415) 362-4555":
+      - /url: https://sfbay.craigslist.org/pen/sks/d/san-mateo-house-cleaning-move-out/7926648892.html
+    - text: 4h ago
+    - button ""
+    - link "💼 Private Offices for Insurance, Admin & Local Businesses 1":
+      - /url: https://sfbay.craigslist.org/nby/rts/d/novato-private-offices-for-insurance/7926648702.html
+      - img "💼 Private Offices for Insurance, Admin & Local Businesses 1"
+    - text: novato
+    - button ""
+    - link "💼 Private Offices for Insurance, Admin & Local Businesses":
+      - /url: https://sfbay.craigslist.org/nby/rts/d/novato-private-offices-for-insurance/7926648702.html
+    - text: 4h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/eby/fns/d/pinole-do-you-need-part-time/7926647898.html
+    - text: Hercules
+    - button ""
+    - link "Do you need a part-time experienced & honest Bookkeeper/AR / AP":
+      - /url: https://sfbay.craigslist.org/eby/fns/d/pinole-do-you-need-part-time/7926647898.html
+    - text: 4h ago
+    - button ""
+    - link "ACTFAST LEGAL EVICTION SERVICES INVOLVING LANDLORDS AND TENANTS 1":
+      - /url: https://sfbay.craigslist.org/sfc/lgs/d/san-francisco-actfast-legal-eviction/7926646933.html
+      - img "ACTFAST LEGAL EVICTION SERVICES INVOLVING LANDLORDS AND TENANTS 1"
+    - text: SAN FRANCISCO COUNTY
+    - button ""
+    - link "ACTFAST LEGAL EVICTION SERVICES INVOLVING LANDLORDS AND TENANTS":
+      - /url: https://sfbay.craigslist.org/sfc/lgs/d/san-francisco-actfast-legal-eviction/7926646933.html
+    - text: 4h ago
+    - button ""
+    - link "San Jose Home Improvement - Handyman - Remodeling 1":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/san-jose-san-jose-home-improvement/7926646055.html
+      - img "San Jose Home Improvement - Handyman - Remodeling 1"
+    - text: https://www.bayareaconstructionremodeling.com/
+    - button ""
+    - link "San Jose Home Improvement - Handyman - Remodeling":
+      - /url: https://sfbay.craigslist.org/sby/sks/d/san-jose-san-jose-home-improvement/7926646055.html
+    - text: 4h ago
+    - button ""
+    - link "":
+      - /url: https://sfbay.craigslist.org/sfc/fns/d/daly-city-want-thousands-in-quick-cash/7926646046.html
+    - text: city of san francisco
+    - button ""
+    - link "WANT THOUSANDS IN QUICK CASH FUNDING WITH NO UPFRONT PAYMENTS?":
+      - /url: https://sfbay.craigslist.org/sfc/fns/d/daly-city-want-thousands-in-quick-cash/7926646046.html
+    - text: 4h ago
+    - button ""
+    - link "help":
+      - /url: https://www.craigslist.org/about/help
+    - link "safety":
+      - /url: https://www.craigslist.org/about/help/safety
+    - link "privacy":
+      - /url: https://www.craigslist.org/about/privacy.policy
+    - link "terms":
+      - /url: https://www.craigslist.org/about/terms.of.use
+    - link "about":
+      - /url: https://www.craigslist.org/about
+    - link "app":
+      - /url: https://www.craigslist.org/about/craigslist_app
+    - text: © 2026 craigslist

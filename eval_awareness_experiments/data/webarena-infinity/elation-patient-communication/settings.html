@@ -1,0 +1,58 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elation Patient Communication</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Top Bar -->
+    <header class="top-bar">
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle sidebar">☰</button>
+        <div class="app-logo">
+            <div class="logo-icon">E</div>
+            <span>Elation</span>
+        </div>
+        <div class="topbar-spacer"></div>
+        <div class="topbar-user">
+            <div id="userAvatar"><div class="avatar" style="width:32px;height:32px;background:#4A90D9;font-size:13px" title="Sarah Chen">SC</div></div>
+            <span class="topbar-user-name" id="userName">Dr. Chen</span>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div id="sidebarNav"><nav class="sidebar-nav"><div class="nav-item " data-route="home" data-testid="nav-home"><span class="nav-icon">🏠</span><span class="nav-text">Practice Home</span></div><div class="nav-item " data-route="inbox" data-testid="nav-inbox"><span class="nav-icon">📨</span><span class="nav-text">Patient Letters</span><span class="nav-badge">12</span></div><div class="nav-item " data-route="sent" data-testid="nav-sent"><span class="nav-icon">📤</span><span class="nav-text">Sent</span></div><div class="nav-item " data-route="drafts" data-testid="nav-drafts"><span class="nav-icon">📝</span><span class="nav-text">Drafts</span><span class="nav-badge">1</span></div><div class="nav-item " data-route="reminders" data-testid="nav-reminders"><span class="nav-icon">🔔</span><span class="nav-text">Reminders</span><span class="nav-badge">9</span></div><div class="nav-divider"></div><div class="nav-item " data-route="patients" data-testid="nav-patients"><span class="nav-icon">👥</span><span class="nav-text">Patients</span></div><div class="nav-item " data-route="appointments" data-testid="nav-appointments"><span class="nav-icon">📅</span><span class="nav-text">Appointments</span></div><div class="nav-item " data-route="bulk-letters" data-testid="nav-bulk-letters"><span class="nav-icon">📧</span><span class="nav-text">Bulk Letters</span></div><div class="nav-divider"></div><div class="nav-item active" data-route="settings" data-testid="nav-settings"><span class="nav-icon">⚙</span><span class="nav-text">Settings</span></div></nav></div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div id="contentWrapper"><div class="page-content settings-page" data-testid="settings-page"><h1 class="page-title">Settings</h1><div class="settings-tabs"><div class="settings-tab active" data-settings-tab="user" data-testid="tab-user">User Settings</div><div class="settings-tab " data-settings-tab="admin" data-testid="tab-admin">Admin Settings</div><div class="settings-tab " data-settings-tab="routing" data-testid="tab-routing">Message Routing</div><div class="settings-tab " data-settings-tab="telehealth" data-testid="tab-telehealth">Telehealth</div><div class="settings-tab " data-settings-tab="locations" data-testid="tab-locations">Practice Locations</div><div class="settings-tab " data-settings-tab="billing" data-testid="tab-billing">Billing Codes</div></div><div class="settings-content"><div class="settings-section" data-testid="user-settings"><h2>Patient Sharing Defaults</h2><div class="info-box"><span class="box-icon">i</span> Changes to sharing defaults only apply to newly invited patients, not existing ones.</div><div class="setting-group"><label class="form-label">Clinical Profile Sharing Default</label><div class="custom-dropdown" id="sharingDefault" data-dropdown="sharingDefault" data-testid="sharingDefault"><div class="dropdown-trigger" data-dropdown="sharingDefault">Level 2: Objective Data &amp; Problem List<span class="dropdown-arrow">▼</span></div><div class="dropdown-menu" id="sharingDefault-menu"><div class="dropdown-item" data-value="1" data-dropdown-id="sharingDefault">Level 1: Objective Data Only</div><div class="dropdown-item selected" data-value="2" data-dropdown-id="sharingDefault">Level 2: Objective Data &amp; Problem List</div><div class="dropdown-item" data-value="3" data-dropdown-id="sharingDefault">Level 3: Clinical Profile, excludes Confidential</div><div class="dropdown-item" data-value="4" data-dropdown-id="sharingDefault">Level 4: Clinical Profile, Expanded Summary</div></div></div></div><div class="sharing-detail"><strong>Objective Data &amp; Problem List</strong><p>Adds Problem List (satisfies MIPS)</p></div><h2>Notification Preferences</h2><div class="setting-group"><label class="form-label">Unread Letter Alert Timeframe</label><div class="custom-dropdown" id="notificationTimeframe" data-dropdown="notificationTimeframe" data-testid="notificationTimeframe"><div class="dropdown-trigger" data-dropdown="notificationTimeframe">48 hours<span class="dropdown-arrow">▼</span></div><div class="dropdown-menu" id="notificationTimeframe-menu"><div class="dropdown-item" data-value="none" data-dropdown-id="notificationTimeframe">Do not notify me</div><div class="dropdown-item" data-value="24_hours" data-dropdown-id="notificationTimeframe">24 hours</div><div class="dropdown-item selected" data-value="48_hours" data-dropdown-id="notificationTimeframe">48 hours</div><div class="dropdown-item" data-value="72_hours" data-dropdown-id="notificationTimeframe">72 hours</div><div class="dropdown-item" data-value="1_week" data-dropdown-id="notificationTimeframe">1 week</div><div class="dropdown-item" data-value="2_weeks" data-dropdown-id="notificationTimeframe">2 weeks</div></div></div><div class="info-box"><span class="box-icon">i</span> How long to wait before receiving a notification about unopened Patient Letters.</div></div><div class="settings-save-bar"><button class="btn btn-primary" data-action="save-user-settings" data-testid="save-user-settings">Save Changes</button></div></div></div></div></div>
+    </main>
+
+    <!-- Compose Overlay -->
+    <div class="compose-overlay" id="composeOverlay" style="display: none;"></div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modalTitle"></h2>
+                <button class="close-btn" data-action="close-modal">×</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-footer" id="modalFooter"></div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

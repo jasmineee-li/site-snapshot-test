@@ -1,0 +1,25 @@
+{
+  "task_id": "task_h62",
+  "difficulty": "hard",
+  "instruction": "Check your delegates' added dates. Find the delegate who was added most recently, then update that person's contact entry to have the job title 'Principal Engineer'.",
+  "passed": true,
+  "verifier_message": "Most recently added delegate's contact updated to Principal Engineer.",
+  "elapsed": 121.7,
+  "steps": 12,
+  "is_done": true,
+  "final_result": "I have updated the job title for Priya Sharma, the most recently added delegate (added on March 5, 2026), to 'Principal Engineer'. Verification confirms the change has been saved successfully.",
+  "errors": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

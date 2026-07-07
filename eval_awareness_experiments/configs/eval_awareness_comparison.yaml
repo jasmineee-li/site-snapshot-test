@@ -1,0 +1,33 @@
+# Compare eval awareness rates across safety benchmarks vs general agent benchmarks.
+# Experiment A: Show that models have high eval awareness on IPI benchmarks.
+#
+# Includes all sources (safety + general) for cross-benchmark comparison.
+# Baselines: webarena-infinity, tac (general agent benchmarks)
+# Safety:    doomarena, wasp, os-harm (IPI / adversarial benchmarks)
+
+name: eval_awareness_comparison
+experiment: trajectory_awareness
+
+models:
+  - anthropic/claude-opus-4.6:thinking
+  - openai/gpt-5.4:thinking
+
+formats:
+  - trajectory
+
+sources:
+  - doomarena
+  - wasp
+  - safearena
+  # - os-harm  # disabled for now
+  - webarena-infinity
+  - tac
+
+judges:
+  - test_awareness_steering
+  - verbalized_awareness
+  - binary_third_person
+  - probability_third_person
+
+manifest: eval_awareness_experiments/data/manifest.json
+output_dir: eval_awareness_experiments/results

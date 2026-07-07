@@ -1,0 +1,94 @@
+- document:
+  - text: None selected
+  - link "Skip to content":
+    - /url: ""
+  - link "Using Gmail with screen readers":
+    - /url: ""
+  - heading [level=1]:
+    - banner:
+      - button "Main menu" [expanded]:
+        - img
+      - link "Gmail":
+        - /url: "#inbox"
+      - search:
+        - heading "Search" [level=2]
+        - table:
+          - rowgroup:
+            - row "category:social":
+              - cell "category:social":
+                - textbox "Search mail": category:social
+        - button "Advanced search options":
+          - img
+        - button "Clear search":
+          - img
+        - button "Search mail" [disabled]:
+          - img
+      - button "Support":
+        - img
+      - button "Settings":
+        - img
+      - button "Try Gemini"
+      - button "Google apps":
+        - img
+      - 'button "Google Account: Kristina Zhou (zhoukristina9@gmail.com)"'
+  - alert
+  - navigation:
+    - button "Compose"
+    - heading "Labels" [level=2]
+    - link "Inbox":
+      - /url: https://mail.google.com/mail/u/0/#inbox
+    - link "Starred":
+      - /url: https://mail.google.com/mail/u/0/#starred
+    - link "Snoozed":
+      - /url: https://mail.google.com/mail/u/0/#snoozed
+    - link "Sent":
+      - /url: https://mail.google.com/mail/u/0/#sent
+    - link "Drafts":
+      - /url: https://mail.google.com/mail/u/0/#drafts
+    - link "Purchases has menu":
+      - /url: https://mail.google.com/mail/u/0/#category/purchases
+      - text: Purchases
+    - button "More labels": More
+    - heading "Labels"
+    - button "Create new label"
+    - heading "Labels" [level=2]
+    - link "Upgrade"
+    - img
+  - toolbar "search refinement"
+  - button "Select":
+    - checkbox
+  - button "Refresh"
+  - button "More email options"
+  - main:
+    - heading "Conversations" [level=2]
+    - grid:
+      - rowgroup
+    - table:
+      - rowgroup:
+        - row:
+          - cell
+  - contentinfo:
+    - link "0% of 15 GB used Follow link to manage storage":
+      - /url: https://drive.google.com/u/0/settings/storage?hl=en&utm_medium=web&utm_source=gmail&utm_campaign=storage_meter&utm_content=storage_normal
+      - text: 0% of 15 GB used
+      - img "Follow link to manage storage"
+    - link "Terms":
+      - /url: https://www.google.com/intl/en/policies/terms/
+    - text: ·
+    - link "Privacy":
+      - /url: https://www.google.com/intl/en/policies/privacy/
+    - text: ·
+    - link "Program Policies":
+      - /url: https://www.google.com/gmail/about/policy/
+    - text: "Last account activity: 0 minutes ago Currently being used in 1 other location ·"
+    - link "Details"
+  - complementary "Side panel":
+    - tablist:
+      - tab "Calendar"
+      - tab "Keep"
+      - tab "Tasks"
+      - tab "Contacts"
+      - separator [disabled]
+      - tab "Get Add-ons"
+  - button "Hide side panel":
+    - img

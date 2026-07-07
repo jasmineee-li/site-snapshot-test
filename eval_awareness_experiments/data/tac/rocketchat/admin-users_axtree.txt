@@ -1,0 +1,106 @@
+- document:
+  - navigation:
+    - group:
+      - button "Home"
+      - button "Search"
+      - button "Directory"
+      - button "Display"
+      - button "Create new"
+      - button "Administration"
+    - separator
+    - region "Channels":
+      - text: Omnichannel
+      - group:
+        - button
+        - button
+      - separator
+    - text: Administration
+    - button
+    - link "Go fully featured ⚡":
+      - /url: /admin/upgrade/go-fully-featured
+    - link "Info":
+      - /url: /admin/info
+    - link "Import":
+      - /url: /admin/import
+    - link "Users":
+      - /url: /admin/users
+    - link "Rooms":
+      - /url: /admin/rooms
+    - link "Invites":
+      - /url: /admin/invites
+    - link "Connectivity Services":
+      - /url: /admin/cloud
+    - link "View Logs":
+      - /url: /admin/view-logs
+    - link "Custom Sounds":
+      - /url: /admin/custom-sounds
+    - link "Federation Dashboard":
+      - /url: /admin/federation-dashboard
+    - link "Apps":
+      - /url: /admin/marketplace
+    - link "Email Inboxes":
+      - /url: /admin/email-inboxes
+    - link "Custom Emoji":
+      - /url: /admin/emoji-custom
+    - link "Integrations":
+      - /url: /admin/integrations
+    - link "OAuth Apps":
+      - /url: /admin/oauth-apps
+    - link "Mailer":
+      - /url: /admin/mailer
+    - link "Custom User Status":
+      - /url: /admin/custom-user-status
+    - link "Permissions":
+      - /url: /admin/permissions
+    - link "Settings":
+      - /url: /admin/settings
+    - separator
+    - link "Home":
+      - /url: /home
+      - img "Home"
+    - link "Powered by Rocket.Chat Free edition":
+      - /url: https://rocket.chat/
+  - heading "Users" [level=2]
+  - group:
+    - button "New"
+    - button "Invite"
+  - textbox:
+    - /placeholder: Search Users
+  - table:
+    - rowgroup:
+      - row "Name Username Email Roles Status":
+        - columnheader "Name":
+          - text: Name
+          - img
+        - columnheader "Username":
+          - text: Username
+          - img
+        - columnheader "Email":
+          - text: Email
+          - img
+        - columnheader "Roles"
+        - columnheader "Status":
+          - text: Status
+          - img
+    - rowgroup:
+      - link "Rocket.Cat rocket.cat bot Online":
+        - cell "Rocket.Cat"
+        - cell "rocket.cat"
+        - cell
+        - cell "bot"
+        - cell "Online"
+      - link "theagentcompany theagentcompany theagentcompany@example.com admin Online":
+        - cell "theagentcompany"
+        - cell "theagentcompany"
+        - cell "theagentcompany@example.com"
+        - cell "admin"
+        - cell "Online"
+  - navigation:
+    - text: Showing results 1 - 2 of 2
+    - list:
+      - listitem:
+        - button [disabled]
+      - listitem:
+        - button "1" [disabled]
+      - listitem:
+        - button [disabled]

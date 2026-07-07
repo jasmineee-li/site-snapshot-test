@@ -1,0 +1,192 @@
+- document:
+  - banner:
+    - button "Toggle sidebar": ☰
+    - text: E Elation SC Dr. Chen
+  - navigation:
+    - navigation: 🏠 Practice Home 📨 Patient Letters 12 📤 Sent 📝 Drafts 1 🔔 Reminders 9 👥 Patients 📅 Appointments 📧 Bulk Letters ⚙ Settings
+  - main:
+    - heading "Appointments" [level=1]
+    - button "New Appointment"
+    - heading "Upcoming" [level=2]
+    - table:
+      - rowgroup:
+        - row "Date Time Patient Provider Type Reason Actions":
+          - columnheader "Date"
+          - columnheader "Time"
+          - columnheader "Patient"
+          - columnheader "Provider"
+          - columnheader "Type"
+          - columnheader "Reason"
+          - columnheader "Actions"
+      - rowgroup:
+        - row "05/15/2026 6:00 AM Thomas Nakamura Michael Torres 🏥 In-person Cardiac monitoring Cancel":
+          - cell "05/15/2026"
+          - cell "6:00 AM"
+          - cell "Thomas Nakamura"
+          - cell "Michael Torres"
+          - cell "🏥 In-person"
+          - cell "Cardiac monitoring"
+          - cell "Cancel":
+            - button "Cancel"
+    - heading "Past Appointments" [level=2]
+    - table:
+      - rowgroup:
+        - row "Date Time Patient Provider Type Reason Status Actions":
+          - columnheader "Date"
+          - columnheader "Time"
+          - columnheader "Patient"
+          - columnheader "Provider"
+          - columnheader "Type"
+          - columnheader "Reason"
+          - columnheader "Status"
+          - columnheader "Actions"
+      - rowgroup:
+        - row "03/20/2026 6:00 AM Maria Gonzalez Sarah Chen 🏥 In-person Pre-diabetes follow-up scheduled Cancel":
+          - cell "03/20/2026"
+          - cell "6:00 AM"
+          - cell "Maria Gonzalez"
+          - cell "Sarah Chen"
+          - cell "🏥 In-person"
+          - cell "Pre-diabetes follow-up"
+          - cell "scheduled"
+          - cell "Cancel":
+            - button "Cancel"
+        - row "03/18/2026 6:00 AM Dennis Volkov Robert Kim 🏥 In-person Blood pressure management scheduled Cancel":
+          - cell "03/18/2026"
+          - cell "6:00 AM"
+          - cell "Dennis Volkov"
+          - cell "Robert Kim"
+          - cell "🏥 In-person"
+          - cell "Blood pressure management"
+          - cell "scheduled"
+          - cell "Cancel":
+            - button "Cancel"
+        - row "03/15/2026 10:00 AM Howard Blackwell Robert Kim 📹 Virtual CHF management review scheduled Cancel":
+          - cell "03/15/2026"
+          - cell "10:00 AM"
+          - cell "Howard Blackwell"
+          - cell "Robert Kim"
+          - cell "📹 Virtual"
+          - cell "CHF management review"
+          - cell "scheduled"
+          - cell "Cancel":
+            - button "Cancel"
+        - row "03/12/2026 5:30 AM Patricia O'Brien Sarah Chen 🏥 In-person Kidney function labs review scheduled Cancel":
+          - cell "03/12/2026"
+          - cell "5:30 AM"
+          - cell "Patricia O'Brien"
+          - cell "Sarah Chen"
+          - cell "🏥 In-person"
+          - cell "Kidney function labs review"
+          - cell "scheduled"
+          - cell "Cancel":
+            - button "Cancel"
+        - row "03/10/2026 5:00 AM Robert Washington Michael Torres 🏥 In-person Warfarin check / INR scheduled Cancel":
+          - cell "03/10/2026"
+          - cell "5:00 AM"
+          - cell "Robert Washington"
+          - cell "Michael Torres"
+          - cell "🏥 In-person"
+          - cell "Warfarin check / INR"
+          - cell "scheduled"
+          - cell "Cancel":
+            - button "Cancel"
+        - row "03/08/2026 7:00 AM Rachel Steinberg Jessica Okafor 🏥 In-person Medication review scheduled Cancel":
+          - cell "03/08/2026"
+          - cell "7:00 AM"
+          - cell "Rachel Steinberg"
+          - cell "Jessica Okafor"
+          - cell "🏥 In-person"
+          - cell "Medication review"
+          - cell "scheduled"
+          - cell "Cancel":
+            - button "Cancel"
+        - row "03/07/2026 10:00 AM Andrew McIntyre Michael Torres 📹 Virtual GI follow-up scheduled Cancel":
+          - cell "03/07/2026"
+          - cell "10:00 AM"
+          - cell "Andrew McIntyre"
+          - cell "Michael Torres"
+          - cell "📹 Virtual"
+          - cell "GI follow-up"
+          - cell "scheduled"
+          - cell "Cancel":
+            - button "Cancel"
+        - row "03/06/2026 6:00 AM Helen Matsumoto Sarah Chen 🏥 In-person Cognitive assessment follow-up scheduled Cancel":
+          - cell "03/06/2026"
+          - cell "6:00 AM"
+          - cell "Helen Matsumoto"
+          - cell "Sarah Chen"
+          - cell "🏥 In-person"
+          - cell "Cognitive assessment follow-up"
+          - cell "scheduled"
+          - cell "Cancel":
+            - button "Cancel"
+        - row "03/05/2026 10:00 AM Susan Cho Jessica Okafor 📹 Virtual Urticaria flare evaluation scheduled Cancel":
+          - cell "03/05/2026"
+          - cell "10:00 AM"
+          - cell "Susan Cho"
+          - cell "Jessica Okafor"
+          - cell "📹 Virtual"
+          - cell "Urticaria flare evaluation"
+          - cell "scheduled"
+          - cell "Cancel":
+            - button "Cancel"
+        - row "03/05/2026 5:00 AM James Rodriguez Sarah Chen 🏥 In-person Diabetes follow-up scheduled Cancel":
+          - cell "03/05/2026"
+          - cell "5:00 AM"
+          - cell "James Rodriguez"
+          - cell "Sarah Chen"
+          - cell "🏥 In-person"
+          - cell "Diabetes follow-up"
+          - cell "scheduled"
+          - cell "Cancel":
+            - button "Cancel"
+        - row "03/04/2026 9:00 AM Sophia Nguyen Sarah Chen 📹 Virtual Thyroid check-up scheduled Cancel":
+          - cell "03/04/2026"
+          - cell "9:00 AM"
+          - cell "Sophia Nguyen"
+          - cell "Sarah Chen"
+          - cell "📹 Virtual"
+          - cell "Thyroid check-up"
+          - cell "scheduled"
+          - cell "Cancel":
+            - button "Cancel"
+        - 'row "03/04/2026 4:00 AM Janet Okonkwo Sarah Chen 📹 Virtual Urgent: Blood sugar management scheduled Cancel"':
+          - cell "03/04/2026"
+          - cell "4:00 AM"
+          - cell "Janet Okonkwo"
+          - cell "Sarah Chen"
+          - cell "📹 Virtual"
+          - 'cell "Urgent: Blood sugar management"'
+          - cell "scheduled"
+          - cell "Cancel":
+            - button "Cancel"
+        - row "03/03/2026 9:00 AM Martha Reeves-Whitfield Sarah Chen 🏥 In-person Annual wellness visit follow-up scheduled Cancel":
+          - cell "03/03/2026"
+          - cell "9:00 AM"
+          - cell "Martha Reeves-Whitfield"
+          - cell "Sarah Chen"
+          - cell "🏥 In-person"
+          - cell "Annual wellness visit follow-up"
+          - cell "scheduled"
+          - cell "Cancel":
+            - button "Cancel"
+        - row "03/03/2026 5:00 AM Aisha Patel Jessica Okafor 🏥 In-person 32-week prenatal checkup scheduled Cancel":
+          - cell "03/03/2026"
+          - cell "5:00 AM"
+          - cell "Aisha Patel"
+          - cell "Jessica Okafor"
+          - cell "🏥 In-person"
+          - cell "32-week prenatal checkup"
+          - cell "scheduled"
+          - cell "Cancel":
+            - button "Cancel"
+        - row "02/20/2026 9:00 AM Howard Blackwell Robert Kim 🏥 In-person Pacemaker interrogation completed":
+          - cell "02/20/2026"
+          - cell "9:00 AM"
+          - cell "Howard Blackwell"
+          - cell "Robert Kim"
+          - cell "🏥 In-person"
+          - cell "Pacemaker interrogation"
+          - cell "completed"
+          - cell

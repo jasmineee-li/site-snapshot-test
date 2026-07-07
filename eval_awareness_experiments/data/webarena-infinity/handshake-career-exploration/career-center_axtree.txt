@@ -1,0 +1,35 @@
+- document:
+  - complementary:
+    - img
+    - text: Handshake
+    - navigation:
+      - button "Feed":
+        - img
+        - text: Feed
+      - button "Jobs":
+        - img
+        - text: Jobs
+      - button "Employers":
+        - img
+        - text: Employers
+      - button "Events":
+        - img
+        - text: Events
+      - button "Messages 4":
+        - img
+        - text: Messages 4
+      - button "Career Center":
+        - img
+        - text: Career Center
+      - button "Q&A":
+        - img
+        - text: Q&A
+    - text: MC Maya Chen Stanford University
+  - main:
+    - heading "Career Center" [level=2]
+    - paragraph: Appointments with your career services team
+    - button "Schedule a New Appointment"
+    - heading "Upcoming Appointments" [level=3]
+    - text: Mar 14 10:00 AM Resume Review Michael Okafor · 30 min · In Person Resume & Cover Letter Approved Mar 21 2:00 PM Mock Interview - Technical David Kim · 60 min · Virtual on Handshake Interview Preparation Requested Mar 28 11:00 AM Case Interview Prep James Chen · 60 min · Virtual on Handshake Interview Preparation Requested
+    - heading "Past Appointments" [level=3]
+    - text: Feb 20 11:00 AM General Career Advising Dr. Patricia Williams · 45 min · In Person Career Counseling Completed Jan 15 3:00 PM Internship Planning Dr. Patricia Williams · 30 min · Virtual on Handshake Job & Internship Search Completed Jan 8 9:00 AM LinkedIn Profile Review Michael Okafor · 30 min · Phone Resume & Cover Letter Completed Nov 10 1:00 PM Mock Interview - Behavioral David Kim · 45 min · In Person Interview Preparation Completed Sep 20 10:00 AM Major Exploration Maria Rodriguez · 30 min · In Person Career Counseling Completed

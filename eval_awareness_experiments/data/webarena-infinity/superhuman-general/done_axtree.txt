@@ -1,0 +1,143 @@
+- document:
+  - banner:
+    - text: ⚡ Superhuman 🔍
+    - textbox "Search emails... (use from:, to:, subject:, has:attachment)"
+    - button "📅"
+    - button "📆"
+    - button "⌘K"
+    - button "⚙"
+    - text: AM
+  - navigation:
+    - button "✎ Compose"
+    - text: ✉ Inbox 10 ★ Starred ✓ Done ⏰ Reminders 6 ➤ Sent ✎ Drafts 2 👁 Recent Opens 📄 Snippets ⚠ Spam 3 🗑 Trash Labels
+    - button "+"
+    - text: Work Personal Finance Clients Urgent Travel Newsletters Recruiting Legal Product Engineering Marketing Receipts Events
+  - main:
+    - text: 1-25 of 41
+    - button "‹" [disabled]
+    - button "›"
+    - checkbox
+    - text: "PO Patrick O'Neil Mar 5 Re: Company All-Hands Agenda Added the Q1 wins section and customer spotlight. Priya will present financials. Work"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "MP Michelle Park Mar 5 Follow-up: Media Coverage Tracking Alex, tracking our media mentions this week: 12 articles, 3 podcasts, 2 TV segments. Marketing"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "MP Maya Patel Mar 4 Re: User Research Findings - Onboarding Flow Updated the research doc with last week's interviews. Key insight: users want a guided setup wizard. Product"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "SC Sarah Chen Mar 4 Re: Customer Success Playbook v2 Updated the CS playbook with the new onboarding flow. Ready for your review. Clients"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "SC Sarah Chen Mar 4 Customer Escalation - Enterprise Client Heads up: MegaCorp is escalating an issue with data export. They're threatening to churn. Clients Urgent ✎ Sarah Chen"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "S Segment Mar 3 Data pipeline alert: 2 sources disconnected HubSpot and Salesforce sources disconnected. Last sync: 6 hours ago. Engineering"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "C Cloudflare Mar 3 DDoS Attack Mitigated - acmecorp.com A Layer 7 DDoS attack was automatically mitigated. Peak: 2.4M requests/second. Zero downtime. Engineering"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "J Jira Mar 3 Sprint 23 completed - 42 of 45 stories done Sprint 23 has been completed. Velocity: 42 story points. 3 stories carried over."
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "TB Tom Bradley Mar 3 Re: Load Testing Results Load test complete: 50K concurrent users, p99 latency 180ms, zero errors. We're good to go. Engineering"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "SC Sarah Chen Mar 3 Re: Q1 Sales Numbers Final Q1 numbers: $3.2M ARR added, 127% of target. Enterprise segment leading at 145%. Work"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "N npm Mar 3 Security advisory: 2 vulnerabilities in dependencies Found 2 moderate severity vulnerabilities in your project dependencies. Engineering"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "PS Priya Sharma Mar 3 Tax Filing Reminder - March 15 Deadline Reminder: Corporate estimated tax payments due March 15. Amount: $234,000. Finance"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: TB Tom Bradley Mar 3 Server Maintenance Complete All servers updated to latest patches. Zero downtime achieved during the maintenance window. Engineering
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "GA Google Analytics Mar 3 Weekly Analytics Report - acmecorp.com Sessions: 245K (+18%), Conversions: 1,847, Revenue: $127K Marketing"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "NP Nate Patel Mar 2 Re: Code Review - Auth Module LGTM! Approved the PR. Nice work on the token refresh logic. Engineering"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "NP Nate Patel Mar 2 API Rate Limiting Implementation Pushed the rate limiting changes. New limits: 100 req/s per API key, 1000 req/s per org. Engineering"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: PS Priya Sharma Mar 2 Travel Expenses Approved Your travel expenses for the SaaS Connect conference ($4,230) have been approved and will be reimbursed. Finance Travel
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: DR Diana Reyes Mar 2 Content Calendar - March 2026 Here's the content calendar for March. 12 blog posts, 4 case studies, 2 whitepapers planned. Marketing
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: MP Maya Patel Mar 1 Design Sprint Wrap-up Great work on the design sprint! The new onboarding flow prototype tested really well with users. Product
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "A Amazon Mar 1 Your order has been delivered Your order #112-3456789-0123456 was delivered today at 2:14 PM. Receipts"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "SC Sarah Chen Mar 1 Customer Success Metrics - February Feb metrics: NPS 72 (+5), churn 1.2% (-0.3%), CSAT 4.6/5.0 Clients"
+    - button "★"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "YC Y Combinator Mar 1 YC Newsletter: Top 10 Startups to Watch in 2026 This month's picks include companies in AI, climate tech, and healthcare..."
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "BC Ben Carter Mar 1 SOC 2 Audit Progress Update Quick update: SOC 2 Type II audit is 75% complete. On track for April certification. Work"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "MW Marcus Williams Feb 28 Re: Logo Concepts - Round 2 Going with Concept C. Updated files will be ready by Monday. Marketing"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "RF Rachel Foster Feb 28 Re: Employee Engagement Survey Results Overall engagement: 82% (+4% from last quarter). Top concerns: workload balance and career growth. Recruiting"
+    - button "☆"
+    - button "✓"
+    - button "⏰"

@@ -1,0 +1,12 @@
+{
+  "task_id": "task_h21",
+  "difficulty": "hard",
+  "instruction": "Remove any delegate whose corresponding contact entry has the Work label.",
+  "passed": true,
+  "verifier_message": "All delegates with Work-labeled contacts removed successfully.",
+  "elapsed": 184.9,
+  "steps": 15,
+  "is_done": true,
+  "final_result": "The task is complete. I have successfully removed Maya Patel and Priya Sharma from the delegates list as they both had the \"Work\" label on their contact entries.\n\n## Action:\nConfirm completion after removing delegates with the \"Work\" label and end the task.\n\n## Code:\n```python\ncomputer.terminate(status=\"success\", answer='''Successfully removed delegates who had the \"Work\" label on their contact entries. Removed Maya Patel and Priya Sharma. The remaining delegates are Laura Johnson-Martinez (Family label) and Jake Morrison (Friends, Gym Buddies, College Alumni labels).''')\n```",
+  "errors": []
+}

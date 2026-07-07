@@ -1,0 +1,130 @@
+- document:
+  - banner:
+    - heading "OpenStreetMap logo OpenStreetMap" [level=1]:
+      - link "OpenStreetMap logo OpenStreetMap":
+        - /url: /
+        - img "OpenStreetMap logo"
+        - text: OpenStreetMap
+    - navigation:
+      - link "Edit":
+        - /url: /edit
+      - button
+    - navigation:
+      - list:
+        - listitem:
+          - link "History":
+            - /url: /history
+        - listitem:
+          - link "Export":
+            - /url: /export
+        - listitem:
+          - link "GPS Traces":
+            - /url: /traces
+        - listitem:
+          - link "User Diaries":
+            - /url: /diary
+        - listitem:
+          - link "Communities":
+            - /url: /communities
+        - listitem:
+          - link "Copyright":
+            - /url: /copyright
+        - listitem:
+          - link "Help":
+            - /url: /help
+        - listitem:
+          - link "Donate":
+            - /url: https://supporting.openstreetmap.org/donate/
+        - listitem:
+          - link "About":
+            - /url: /about
+      - button "Select Language":
+        - img
+      - link "Log In":
+        - /url: /login?referer=%2Fabout
+      - link "Sign Up":
+        - /url: /user/new
+  - paragraph: © OpenStreetMap contributors
+  - heading "OpenStreetMap provides map data for thousands of websites, mobile apps, and hardware devices" [level=1]
+  - paragraph: OpenStreetMap is built by a community of mappers that contribute and maintain data about roads, trails, cafés, railway stations, and much more, all over the world.
+  - img
+  - heading "Local Knowledge" [level=2]
+  - paragraph: OpenStreetMap emphasizes local knowledge. Contributors use aerial imagery, GPS devices, and low-tech field maps to verify that OSM is accurate and up to date.
+  - img
+  - heading "Community Driven" [level=2]
+  - paragraph:
+    - text: OpenStreetMap's community is diverse, passionate, and growing every day. Our contributors include enthusiast mappers, GIS professionals, engineers running the OSM servers, humanitarians mapping disaster-affected areas, and many more. To learn more about the community, see the
+    - link "OpenStreetMap Blog":
+      - /url: https://blog.openstreetmap.org
+    - text: ","
+    - link "user diaries":
+      - /url: /diary
+    - text: ","
+    - link "community blogs":
+      - /url: https://blogs.openstreetmap.org/
+    - text: ", and the"
+    - link "OSM Foundation":
+      - /url: https://www.osmfoundation.org/
+    - text: website.
+  - img
+  - heading "Open Data" [level=2]
+  - paragraph:
+    - text: "OpenStreetMap is open data: you are free to use it for any purpose as long as you credit OpenStreetMap and its contributors. If you alter or build upon the data in certain ways, you may distribute the result only under the same licence. See the"
+    - link "Copyright and License page":
+      - /url: /copyright
+    - text: for details.
+  - img
+  - heading "Legal" [level=2]
+  - paragraph:
+    - text: This site and many other related services are formally operated by the
+    - link "OpenStreetMap Foundation":
+      - /url: https://osmfoundation.org/
+    - text: (OSMF) on behalf of the community. Use of all OSMF operated services is subject to our
+    - link "Terms of Use":
+      - /url: https://osmfoundation.org/wiki/Terms_of_Use
+    - text: ","
+    - link "Acceptable Use Policies":
+      - /url: https://wiki.openstreetmap.org/wiki/Acceptable_Use_Policy
+    - text: and our
+    - link "Privacy Policy":
+      - /url: https://osmfoundation.org/wiki/Privacy_Policy
+    - text: .
+  - paragraph:
+    - text: If you would like to use OpenStreetMap maps or data please make sure to attribute OpenStreetMap—refer to
+    - link "Attribution Guidelines":
+      - /url: https://wiki.osmfoundation.org/wiki/Licence/Attribution_Guidelines
+    - text: for more information.
+  - paragraph:
+    - text: Specifically for using a screenshot from OpenStreetMap directly in your book, publication, film or TV show, you do not need to ask for permission as data in OpenStreetMap is open for all to use. Refer to the
+    - link "Attribution Guidelines":
+      - /url: https://wiki.osmfoundation.org/wiki/Licence/Attribution_Guidelines
+    - text: and see existing examples in
+    - link "Film":
+      - /url: https://wiki.openstreetmap.org/wiki/Films
+    - text: and
+    - link "TV":
+      - /url: https://wiki.openstreetmap.org/wiki/TV_series
+    - text: .
+  - paragraph:
+    - text: Please
+    - link "contact the OSMF":
+      - /url: https://osmfoundation.org/Contact
+    - text: for any other licensing, copyright or other legal questions.
+  - paragraph:
+    - text: OpenStreetMap, the magnifying glass logo and State of the Map are
+    - link "registered trademarks of the OSMF":
+      - /url: https://osmfoundation.org/wiki/Trademark_Policy
+    - text: .
+  - img
+  - heading "Partners" [level=2]
+  - paragraph:
+    - text: Hosting is supported by
+    - link "Fastly":
+      - /url: https://www.fastly.com/
+    - text: ","
+    - link "OSMF corporate members":
+      - /url: https://osmfoundation.org/wiki/Corporate_Members
+    - text: ", and other"
+    - link "partners":
+      - /url: https://hardware.openstreetmap.org/thanks/
+    - text: .

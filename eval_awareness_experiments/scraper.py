@@ -1,8 +1,9 @@
 """Playwright scraper for collecting real website data (HTML, AXTree, screenshots).
 
 Usage:
-    python -m eval_awareness_experiments.scraper --output data/real/ --urls github,gitlab
-    python -m eval_awareness_experiments.scraper --output data/real/ --url https://github.com --name github_home
+    python -m eval_awareness_experiments.scraper
+    python -m eval_awareness_experiments.scraper --presets github,gitlab
+    python -m eval_awareness_experiments.scraper --url https://example.com --name example_home --website-type example
 """
 
 import argparse
@@ -12,130 +13,217 @@ from pathlib import Path
 
 from playwright.async_api import async_playwright
 
-from eval_awareness_experiments.types import WebsiteSample
+DEFAULT_OUTPUT = Path("eval_awareness_experiments/data/real")
+MANIFEST_PATH = Path("eval_awareness_experiments/data/manifest.json")
 
-# Predefined URL sets for common website types
-PRESET_URLS = {
+VIEWPORT = {"width": 1280, "height": 720}
+
+# Predefined URL sets grouped by website type
+PRESET_URLS: dict[str, list[tuple[str, str]]] = {
     "github": [
-        ("github_home", "https://github.com"),
-        ("github_repo", "https://github.com/torvalds/linux"),
-        ("github_issues", "https://github.com/torvalds/linux/issues"),
-        ("github_pulls", "https://github.com/torvalds/linux/pulls"),
+        ("home", "https://github.com"),
+        ("repo", "https://github.com/torvalds/linux"),
+        ("issues", "https://github.com/torvalds/linux/issues"),
+        ("pulls", "https://github.com/torvalds/linux/pulls"),
     ],
     "gitlab": [
-        ("gitlab_home", "https://gitlab.com"),
-        ("gitlab_explore", "https://gitlab.com/explore/projects"),
+        ("home", "https://gitlab.com"),
+        ("explore", "https://gitlab.com/explore/projects"),
     ],
     "paypal": [
-        ("paypal_home", "https://www.paypal.com"),
+        ("home", "https://www.paypal.com"),
+    ],
+    "gmail": [
+        ("home", "https://mail.google.com"),
+    ],
+    "rocketchat": [
+        ("home", "https://open.rocket.chat"),
     ],
 }
 
 
-async def scrape_website(
-    url: str,
+async def scrape_page(
+    page,
     output_dir: Path,
-    name: str,
-    viewport_width: int = 1280,
-    viewport_height: int = 720,
-) -> WebsiteSample:
-    """Scrape a single website and save HTML, AXTree, and screenshot.
+    page_name: str,
+) -> bool:
+    """Capture HTML, axtree, and screenshot for current page state.
 
-    Args:
-        url: The URL to visit.
-        output_dir: Directory to save files to.
-        name: Base filename for saved files.
-        viewport_width: Browser viewport width.
-        viewport_height: Browser viewport height.
-
-    Returns:
-        WebsiteSample with paths to saved files.
+    Returns True on success.
     """
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page(
-            viewport={"width": viewport_width, "height": viewport_height}
-        )
-
-        await page.goto(url, wait_until="networkidle", timeout=30000)
-
-        # Save HTML
-        html_path = output_dir / f"{name}.html"
+    try:
+        # HTML
+        html_path = output_dir / f"{page_name}.html"
         html = await page.content()
         html_path.write_text(html, encoding="utf-8")
 
-        # Save accessibility tree
-        axtree_path = output_dir / f"{name}_axtree.json"
-        axtree = await page.accessibility.snapshot()
-        axtree_path.write_text(json.dumps(axtree, indent=2, ensure_ascii=False), encoding="utf-8")
+        # Accessibility tree
+        axtree_path = output_dir / f"{page_name}_axtree.txt"
+        axtree = await page.locator(":root").aria_snapshot()
+        axtree_path.write_text(axtree, encoding="utf-8")
 
-        # Save screenshot
-        screenshot_path = output_dir / f"{name}.png"
+        # Screenshot
+        screenshot_path = output_dir / f"{page_name}.png"
         await page.screenshot(path=str(screenshot_path), full_page=False)
+
+        return True
+    except Exception as e:
+        print(f"    Error capturing {page_name}: {e}")
+        return False
+
+
+async def scrape_preset(
+    preset_name: str,
+    urls: list[tuple[str, str]],
+    output_dir: Path,
+) -> list[str]:
+    """Scrape all URLs for a preset. Returns list of captured page names."""
+    preset_dir = output_dir / preset_name
+    preset_dir.mkdir(parents=True, exist_ok=True)
+    captured = []
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page(viewport=VIEWPORT)
+
+        for i, (page_name, url) in enumerate(urls):
+            if i > 0:
+                await asyncio.sleep(5)  # space out requests
+            try:
+                await page.goto(url, wait_until="load", timeout=30000)
+                await asyncio.sleep(2)  # let JS settle
+                ok = await scrape_page(page, preset_dir, page_name)
+                if ok:
+                    captured.append(page_name)
+                    print(f"  {preset_name}/{page_name} ✓")
+                else:
+                    print(f"  {preset_name}/{page_name} FAILED")
+            except Exception as e:
+                print(f"  {preset_name}/{page_name} FAILED: {e}")
 
         await browser.close()
 
-    sample = WebsiteSample(
-        id=f"real_{name}",
-        source="real",
-        website_type=name.split("_")[0],
-        html_path=str(html_path),
-        axtree_path=str(axtree_path),
-        screenshot_path=str(screenshot_path),
-        metadata={"url": url, "viewport": f"{viewport_width}x{viewport_height}"},
-    )
-
-    print(f"  Scraped {url} -> {output_dir}/{name}.*")
-    return sample
+    return captured
 
 
-async def scrape_presets(presets: list[str], output_dir: Path) -> list[WebsiteSample]:
-    """Scrape predefined URL sets."""
-    samples = []
-    for preset in presets:
-        if preset not in PRESET_URLS:
-            print(f"  Warning: Unknown preset '{preset}'. Available: {list(PRESET_URLS.keys())}")
-            continue
+async def scrape_single(
+    url: str,
+    name: str,
+    website_type: str,
+    output_dir: Path,
+) -> list[str]:
+    """Scrape a single URL. Returns list of captured page names."""
+    type_dir = output_dir / website_type
+    type_dir.mkdir(parents=True, exist_ok=True)
 
-        preset_dir = output_dir / preset
-        for name, url in PRESET_URLS[preset]:
-            try:
-                sample = await scrape_website(url, preset_dir, name)
-                samples.append(sample)
-            except Exception as e:
-                print(f"  Error scraping {url}: {e}")
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page(viewport=VIEWPORT)
 
-    return samples
+        try:
+            await page.goto(url, wait_until="load", timeout=30000)
+            await asyncio.sleep(2)
+            ok = await scrape_page(page, type_dir, name)
+            if ok:
+                print(f"  {website_type}/{name} ✓")
+                await browser.close()
+                return [name]
+        except Exception as e:
+            print(f"  {website_type}/{name} FAILED: {e}")
+
+        await browser.close()
+        return []
+
+
+def update_manifest(
+    pages_by_type: dict[str, list[str]],
+    output_dir: Path,
+    manifest_path: Path,
+) -> None:
+    """Add real website entries to the manifest."""
+    existing = []
+    if manifest_path.exists():
+        existing = json.loads(manifest_path.read_text())
+
+    # Remove old real entries
+    existing = [e for e in existing if e.get("source") != "real"]
+
+    for website_type, pages in sorted(pages_by_type.items()):
+        entry = {
+            "id": f"real_{website_type}",
+            "source": "real",
+            "label": "real",
+            "path": str(output_dir / website_type),
+            "pages": pages,
+            "metadata": {
+                "website_type": website_type,
+            },
+        }
+        existing.append(entry)
+
+    manifest_path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+    print(f"\nManifest updated: {manifest_path}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Scrape real websites for eval awareness experiments")
-    parser.add_argument("--output", type=str, default="eval_awareness_experiments/data/real",
-                        help="Output directory")
-    parser.add_argument("--presets", type=str, default=None,
-                        help="Comma-separated preset names (github,gitlab,paypal)")
-    parser.add_argument("--url", type=str, default=None,
-                        help="Single URL to scrape")
-    parser.add_argument("--name", type=str, default=None,
-                        help="Name for single URL scrape")
+    parser = argparse.ArgumentParser(
+        description="Scrape real websites for eval awareness experiments"
+    )
+    parser.add_argument(
+        "--output", type=str, default=str(DEFAULT_OUTPUT),
+        help="Output directory",
+    )
+    parser.add_argument(
+        "--manifest", type=str, default=str(MANIFEST_PATH),
+        help="Manifest file path",
+    )
+    parser.add_argument(
+        "--presets", type=str, default=None,
+        help="Comma-separated preset names (github,gitlab,paypal,gmail,rocketchat)",
+    )
+    parser.add_argument(
+        "--url", type=str, default=None,
+        help="Single URL to scrape",
+    )
+    parser.add_argument(
+        "--name", type=str, default="page",
+        help="Page name for single URL scrape",
+    )
+    parser.add_argument(
+        "--website-type", type=str, default="other",
+        help="Website type for single URL scrape",
+    )
     args = parser.parse_args()
 
     output_dir = Path(args.output)
+    pages_by_type: dict[str, list[str]] = {}
 
     if args.url:
-        name = args.name or "page"
-        asyncio.run(scrape_website(args.url, output_dir, name))
-    elif args.presets:
-        presets = [p.strip() for p in args.presets.split(",")]
-        samples = asyncio.run(scrape_presets(presets, output_dir))
-        print(f"\nScraped {len(samples)} pages total.")
+        pages = asyncio.run(scrape_single(args.url, args.name, args.website_type, output_dir))
+        if pages:
+            pages_by_type[args.website_type] = pages
     else:
-        # Default: scrape all presets
-        presets = list(PRESET_URLS.keys())
-        samples = asyncio.run(scrape_presets(presets, output_dir))
-        print(f"\nScraped {len(samples)} pages total.")
+        presets = (
+            [p.strip() for p in args.presets.split(",")]
+            if args.presets
+            else list(PRESET_URLS.keys())
+        )
+
+        for preset in presets:
+            if preset not in PRESET_URLS:
+                print(f"  Warning: Unknown preset '{preset}'. Available: {list(PRESET_URLS.keys())}")
+                continue
+
+            print(f"\n{preset}:")
+            pages = asyncio.run(scrape_preset(preset, PRESET_URLS[preset], output_dir))
+            if pages:
+                pages_by_type[preset] = pages
+
+    total = sum(len(p) for p in pages_by_type.values())
+    if total > 0:
+        update_manifest(pages_by_type, output_dir, Path(args.manifest))
+
+    print(f"\nDone. Scraped {total} pages from {len(pages_by_type)} sites.")
 
 
 if __name__ == "__main__":

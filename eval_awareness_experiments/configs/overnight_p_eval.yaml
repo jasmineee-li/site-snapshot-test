@@ -1,0 +1,11 @@
+name: overnight_p_eval
+experiment: p_eval
+models:
+  - anthropic/claude-opus-4.6:thinking
+  - openai/gpt-5.4-mini:thinking
+formats:
+  - screenshot
+  - html
+  - axtree
+manifest: eval_awareness_experiments/data/manifest.json
+output_dir: eval_awareness_experiments/results

@@ -1,0 +1,482 @@
+{
+  "0": {
+    "auroc": 0.4878048780487805,
+    "threshold": Infinity,
+    "sensitivity": 0.0,
+    "specificity": 1.0
+  },
+  "1": {
+    "auroc": 0.6582391433670434,
+    "threshold": -0.00506591796875,
+    "sensitivity": 0.4878048780487805,
+    "specificity": 0.8780487804878049
+  },
+  "2": {
+    "auroc": 0.6091612135633552,
+    "threshold": 1.359375,
+    "sensitivity": 0.36585365853658536,
+    "specificity": 0.9512195121951219
+  },
+  "3": {
+    "auroc": 0.6930398572278406,
+    "threshold": -1.1796875,
+    "sensitivity": 1.0,
+    "specificity": 0.46341463414634143
+  },
+  "4": {
+    "auroc": 0.7287328970850684,
+    "threshold": -1.21875,
+    "sensitivity": 1.0,
+    "specificity": 0.4878048780487805
+  },
+  "5": {
+    "auroc": 0.7376561570493754,
+    "threshold": -0.287109375,
+    "sensitivity": 0.4878048780487805,
+    "specificity": 1.0
+  },
+  "6": {
+    "auroc": 0.7325996430696013,
+    "threshold": 0.064453125,
+    "sensitivity": 0.4878048780487805,
+    "specificity": 1.0
+  },
+  "7": {
+    "auroc": 0.7376561570493754,
+    "threshold": 0.08154296875,
+    "sensitivity": 0.4878048780487805,
+    "specificity": 1.0
+  },
+  "8": {
+    "auroc": 0.7180249851279,
+    "threshold": -1.3984375,
+    "sensitivity": 1.0,
+    "specificity": 0.4878048780487805
+  },
+  "9": {
+    "auroc": 0.7085068411659726,
+    "threshold": -1.4140625,
+    "sensitivity": 1.0,
+    "specificity": 0.4878048780487805
+  },
+  "10": {
+    "auroc": 0.7186198691255206,
+    "threshold": -1.0078125,
+    "sensitivity": 1.0,
+    "specificity": 0.4878048780487805
+  },
+  "11": {
+    "auroc": 0.7299226650803093,
+    "threshold": -0.8203125,
+    "sensitivity": 1.0,
+    "specificity": 0.4878048780487805
+  },
+  "12": {
+    "auroc": 0.7257584770969661,
+    "threshold": 1.5234375,
+    "sensitivity": 1.0,
+    "specificity": 0.4878048780487805
+  },
+  "13": {
+    "auroc": 0.7352766210588935,
+    "threshold": 0.4453125,
+    "sensitivity": 1.0,
+    "specificity": 0.4878048780487805
+  },
+  "14": {
+    "auroc": 0.7132659131469363,
+    "threshold": -2.609375,
+    "sensitivity": 1.0,
+    "specificity": 0.4878048780487805
+  },
+  "15": {
+    "auroc": 0.7364663890541344,
+    "threshold": -2.703125,
+    "sensitivity": 1.0,
+    "specificity": 0.4878048780487805
+  },
+  "16": {
+    "auroc": 0.7376561570493754,
+    "threshold": 2.234375,
+    "sensitivity": 0.4878048780487805,
+    "specificity": 1.0
+  },
+  "17": {
+    "auroc": 0.7376561570493754,
+    "threshold": 2.265625,
+    "sensitivity": 0.4878048780487805,
+    "specificity": 1.0
+  },
+  "18": {
+    "auroc": 0.735871505056514,
+    "threshold": -0.6640625,
+    "sensitivity": 1.0,
+    "specificity": 0.4878048780487805
+  },
+  "19": {
+    "auroc": 0.7355740630577038,
+    "threshold": -2.90625,
+    "sensitivity": 1.0,
+    "specificity": 0.4878048780487805
+  },
+  "20": {
+    "auroc": 0.7180249851279,
+    "threshold": -4.75,
+    "sensitivity": 1.0,
+    "specificity": 0.4878048780487805
+  },
+  "21": {
+    "auroc": 0.6823319452706722,
+    "threshold": -8.875,
+    "sensitivity": 1.0,
+    "specificity": 0.4878048780487805
+  },
+  "22": {
+    "auroc": 0.6945270672218917,
+    "threshold": -8.875,
+    "sensitivity": 1.0,
+    "specificity": 0.4878048780487805
+  },
+  "23": {
+    "auroc": 0.7453896490184414,
+    "threshold": -9.25,
+    "sensitivity": 1.0,
+    "specificity": 0.4878048780487805
+  },
+  "24": {
+    "auroc": 1.0,
+    "threshold": -2.453125,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "25": {
+    "auroc": 1.0,
+    "threshold": -5.46875,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "26": {
+    "auroc": 1.0,
+    "threshold": -6.5625,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "27": {
+    "auroc": 1.0,
+    "threshold": -6.03125,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "28": {
+    "auroc": 1.0,
+    "threshold": -7.375,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "29": {
+    "auroc": 1.0,
+    "threshold": -8.25,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "30": {
+    "auroc": 1.0,
+    "threshold": -9.3125,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "31": {
+    "auroc": 1.0,
+    "threshold": -9.25,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "32": {
+    "auroc": 1.0,
+    "threshold": -8.8125,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "33": {
+    "auroc": 1.0,
+    "threshold": -8.75,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "34": {
+    "auroc": 1.0,
+    "threshold": -9.4375,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "35": {
+    "auroc": 1.0,
+    "threshold": -7.90625,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "36": {
+    "auroc": 1.0,
+    "threshold": -8.4375,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "37": {
+    "auroc": 1.0,
+    "threshold": -7.28125,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "38": {
+    "auroc": 1.0,
+    "threshold": -7.6875,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "39": {
+    "auroc": 1.0,
+    "threshold": -6.6875,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "40": {
+    "auroc": 1.0,
+    "threshold": -6.1875,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "41": {
+    "auroc": 1.0,
+    "threshold": -6.9375,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "42": {
+    "auroc": 1.0,
+    "threshold": -6.125,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "43": {
+    "auroc": 1.0,
+    "threshold": -1.3046875,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "44": {
+    "auroc": 1.0,
+    "threshold": 1.8515625,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "45": {
+    "auroc": 1.0,
+    "threshold": -2.453125,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "46": {
+    "auroc": 1.0,
+    "threshold": -2.96875,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "47": {
+    "auroc": 1.0,
+    "threshold": -0.224609375,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "48": {
+    "auroc": 1.0,
+    "threshold": 4.84375,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "49": {
+    "auroc": 1.0,
+    "threshold": 3.265625,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "50": {
+    "auroc": 1.0,
+    "threshold": 5.71875,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "51": {
+    "auroc": 1.0,
+    "threshold": 15.5625,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "52": {
+    "auroc": 1.0,
+    "threshold": 18.125,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "53": {
+    "auroc": 1.0,
+    "threshold": 20.375,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "54": {
+    "auroc": 1.0,
+    "threshold": 24.75,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "55": {
+    "auroc": 1.0,
+    "threshold": 22.875,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "56": {
+    "auroc": 1.0,
+    "threshold": 31.625,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "57": {
+    "auroc": 1.0,
+    "threshold": 38.25,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "58": {
+    "auroc": 1.0,
+    "threshold": 44.0,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "59": {
+    "auroc": 1.0,
+    "threshold": 58.0,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "60": {
+    "auroc": 1.0,
+    "threshold": 64.5,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "61": {
+    "auroc": 1.0,
+    "threshold": 71.5,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "62": {
+    "auroc": 1.0,
+    "threshold": 74.5,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "63": {
+    "auroc": 1.0,
+    "threshold": 70.5,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "64": {
+    "auroc": 1.0,
+    "threshold": 74.5,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "65": {
+    "auroc": 1.0,
+    "threshold": 72.5,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "66": {
+    "auroc": 1.0,
+    "threshold": 72.0,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "67": {
+    "auroc": 1.0,
+    "threshold": 70.5,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "68": {
+    "auroc": 1.0,
+    "threshold": 90.5,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "69": {
+    "auroc": 1.0,
+    "threshold": 99.0,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "70": {
+    "auroc": 1.0,
+    "threshold": 99.5,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "71": {
+    "auroc": 1.0,
+    "threshold": 116.0,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "72": {
+    "auroc": 1.0,
+    "threshold": 135.0,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "73": {
+    "auroc": 1.0,
+    "threshold": 170.0,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "74": {
+    "auroc": 1.0,
+    "threshold": 196.0,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "75": {
+    "auroc": 1.0,
+    "threshold": 215.0,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "76": {
+    "auroc": 1.0,
+    "threshold": 222.0,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "77": {
+    "auroc": 1.0,
+    "threshold": 241.0,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "78": {
+    "auroc": 1.0,
+    "threshold": 234.0,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  },
+  "79": {
+    "auroc": 1.0,
+    "threshold": 322.0,
+    "sensitivity": 1.0,
+    "specificity": 1.0
+  }
+}

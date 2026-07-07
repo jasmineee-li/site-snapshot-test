@@ -1,0 +1,660 @@
+- document:
+  - region
+  - link "Skip to content":
+    - /url: "#start-of-content"
+  - banner:
+    - heading "Navigation Menu" [level=2]
+    - link "Homepage":
+      - /url: /
+    - navigation "Global":
+      - list:
+        - listitem:
+          - button "Platform"
+        - listitem:
+          - button "Solutions"
+        - listitem:
+          - button "Resources"
+        - listitem:
+          - button "Open Source"
+        - listitem:
+          - button "Enterprise"
+        - listitem:
+          - link "Pricing":
+            - /url: https://github.com/pricing
+    - button "Search or jump to…"
+    - link "Sign in":
+      - /url: /login?return_to=https%3A%2F%2Fgithub.com%2Ftorvalds%2Flinux
+    - link "Sign up":
+      - /url: /signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E&source=header-repo&source_repo=torvalds%2Flinux
+    - button "Appearance settings"
+  - main:
+    - link "torvalds":
+      - /url: /torvalds
+    - text: /
+    - strong:
+      - link "linux":
+        - /url: /torvalds/linux
+    - text: Public
+    - list:
+      - listitem:
+        - link "You must be signed in to change notification settings":
+          - /url: /login?return_to=%2Ftorvalds%2Flinux
+          - text: Notifications
+      - listitem:
+        - link "Fork 61.5k":
+          - /url: /login?return_to=%2Ftorvalds%2Flinux
+      - listitem:
+        - link "You must be signed in to star a repository":
+          - /url: /login?return_to=%2Ftorvalds%2Flinux
+          - text: Star 227k
+    - navigation "Repository":
+      - list:
+        - listitem:
+          - link "Code":
+            - /url: /torvalds/linux
+        - listitem:
+          - link "Actions":
+            - /url: /torvalds/linux/actions
+        - listitem:
+          - link "Projects":
+            - /url: /torvalds/linux/projects
+        - listitem:
+          - link "Security and quality":
+            - /url: /torvalds/linux/security
+        - listitem:
+          - link "Insights":
+            - /url: /torvalds/linux/pulse
+    - heading "torvalds/linux" [level=1]
+    - button "master branch": master
+    - link "2 Branches":
+      - /url: /torvalds/linux/branches
+      - strong: "2"
+      - text: Branches
+    - link "926 Tags":
+      - /url: /torvalds/linux/tags
+      - strong: "926"
+      - text: Tags
+    - combobox "Go to file"
+    - button "Code"
+    - heading "Folders and files" [level=2]
+    - table "Folders and files":
+      - rowgroup:
+        - row "Name Last commit message Last commit date":
+          - columnheader "Name"
+          - columnheader "Last commit message"
+          - columnheader "Last commit date"
+      - rowgroup:
+        - row "Latest commit torvalds commits by torvalds Merge tag 'soc-fixes-7.0-2' of git://git.kernel.org/pub/scm/linux/ker… Open commit details Commit bfe62a4 · Apr 6, 202610 hours ago History 1,429,781 Commits":
+          - cell "Latest commit torvalds commits by torvalds Merge tag 'soc-fixes-7.0-2' of git://git.kernel.org/pub/scm/linux/ker… Open commit details Commit bfe62a4 · Apr 6, 202610 hours ago History 1,429,781 Commits":
+            - heading "Latest commit" [level=2]
+            - link "torvalds":
+              - /url: /torvalds
+              - img "torvalds"
+            - link "commits by torvalds":
+              - /url: /torvalds/linux/commits?author=torvalds
+              - text: torvalds
+            - link "Merge tag 'soc-fixes-7.0-2' of git://git.kernel.org/pub/scm/linux/ker…":
+              - /url: /torvalds/linux/commit/bfe62a454542cfad3379f6ef5680b125f41e20f4
+            - button "Open commit details"
+            - link "Commit bfe62a4":
+              - /url: /torvalds/linux/commit/bfe62a454542cfad3379f6ef5680b125f41e20f4
+              - text: bfe62a4
+            - text: · Apr 6, 202610 hours ago
+            - heading "History" [level=2]
+            - link "1,429,781 Commits":
+              - /url: /torvalds/linux/commits/master/
+        - row "Documentation, (Directory) Merge tag 'soc-fixes-7.0-2' of git://git.kernel.org/pub/scm/linux/ker… Apr 6, 202610 hours ago":
+          - cell "Documentation, (Directory)":
+            - link "Documentation, (Directory)":
+              - /url: /torvalds/linux/tree/master/Documentation
+              - text: Documentation
+          - cell "Merge tag 'soc-fixes-7.0-2' of git://git.kernel.org/pub/scm/linux/ker…":
+            - link "Merge tag 'soc-fixes-7.0-2' of git://git.kernel.org/pub/scm/linux/ker…":
+              - /url: /torvalds/linux/commit/bfe62a454542cfad3379f6ef5680b125f41e20f4
+          - cell "Apr 6, 202610 hours ago"
+        - 'row "LICENSES, (Directory) LICENSES: Add modern form of the LGPL-2.1 tags to the usage guide sec… Oct 22, 20256 months ago"':
+          - cell "LICENSES, (Directory)":
+            - link "LICENSES, (Directory)":
+              - /url: /torvalds/linux/tree/master/LICENSES
+              - text: LICENSES
+          - 'cell "LICENSES: Add modern form of the LGPL-2.1 tags to the usage guide sec…"':
+            - 'link "LICENSES: Add modern form of the LGPL-2.1 tags to the usage guide sec…"':
+              - /url: /torvalds/linux/commit/89373f5695dc918a0118fa71ee4dc423bc8c8476
+          - cell "Oct 22, 20256 months ago"
+        - row "arch, (Directory) Merge tag 'soc-fixes-7.0-2' of git://git.kernel.org/pub/scm/linux/ker… Apr 6, 202610 hours ago":
+          - cell "arch, (Directory)":
+            - link "arch, (Directory)":
+              - /url: /torvalds/linux/tree/master/arch
+              - text: arch
+          - cell "Merge tag 'soc-fixes-7.0-2' of git://git.kernel.org/pub/scm/linux/ker…":
+            - link "Merge tag 'soc-fixes-7.0-2' of git://git.kernel.org/pub/scm/linux/ker…":
+              - /url: /torvalds/linux/commit/bfe62a454542cfad3379f6ef5680b125f41e20f4
+          - cell "Apr 6, 202610 hours ago"
+        - row "block, (Directory) Merge tag 'block-7.0-20260305' of git://git.kernel.org/pub/scm/linux/… Mar 6, 2026last month":
+          - cell "block, (Directory)":
+            - link "block, (Directory)":
+              - /url: /torvalds/linux/tree/master/block
+              - text: block
+          - cell "Merge tag 'block-7.0-20260305' of git://git.kernel.org/pub/scm/linux/…":
+            - link "Merge tag 'block-7.0-20260305' of git://git.kernel.org/pub/scm/linux/…":
+              - /url: /torvalds/linux/commit/a028739a4330881a6a3b5aa4a39381bbcacf2f2f
+          - cell "Mar 6, 2026last month"
+        - row "certs, (Directory) Convert 'alloc_obj' family to use the new default GFP_KERNEL argument Feb 21, 20262 months ago":
+          - cell "certs, (Directory)":
+            - link "certs, (Directory)":
+              - /url: /torvalds/linux/tree/master/certs
+              - text: certs
+          - cell "Convert 'alloc_obj' family to use the new default GFP_KERNEL argument":
+            - link "Convert 'alloc_obj' family to use the new default GFP_KERNEL argument":
+              - /url: /torvalds/linux/commit/bf4afc53b77aeaa48b5409da5c8da6bb4eff7f43
+          - cell "Feb 21, 20262 months ago"
+        - row "crypto, (Directory) Merge tag 'v7.0-p4' of git://git.kernel.org/pub/scm/linux/kernel/git/… Apr 2, 20264 days ago":
+          - cell "crypto, (Directory)":
+            - link "crypto, (Directory)":
+              - /url: /torvalds/linux/tree/master/crypto
+              - text: crypto
+          - cell "Merge tag 'v7.0-p4' of git://git.kernel.org/pub/scm/linux/kernel/git/…":
+            - link "Merge tag 'v7.0-p4' of git://git.kernel.org/pub/scm/linux/kernel/git/…":
+              - /url: /torvalds/linux/commit/5a9617dde77d0777b53f0af7dee58109650bda41
+          - cell "Apr 2, 20264 days ago"
+        - row "drivers, (Directory) Merge tag 'soc-fixes-7.0-2' of git://git.kernel.org/pub/scm/linux/ker… Apr 6, 202610 hours ago":
+          - cell "drivers, (Directory)":
+            - link "drivers, (Directory)":
+              - /url: /torvalds/linux/tree/master/drivers
+              - text: drivers
+          - cell "Merge tag 'soc-fixes-7.0-2' of git://git.kernel.org/pub/scm/linux/ker…":
+            - link "Merge tag 'soc-fixes-7.0-2' of git://git.kernel.org/pub/scm/linux/ker…":
+              - /url: /torvalds/linux/commit/bfe62a454542cfad3379f6ef5680b125f41e20f4
+          - cell "Apr 6, 202610 hours ago"
+        - row "fs, (Directory) Merge tag 'v7.0-rc6-smb3-client-fix' of git://git.samba.org/sfrench/c… Apr 3, 20264 days ago":
+          - cell "fs, (Directory)":
+            - link "fs, (Directory)":
+              - /url: /torvalds/linux/tree/master/fs
+              - text: fs
+          - cell "Merge tag 'v7.0-rc6-smb3-client-fix' of git://git.samba.org/sfrench/c…":
+            - link "Merge tag 'v7.0-rc6-smb3-client-fix' of git://git.samba.org/sfrench/c…":
+              - /url: /torvalds/linux/commit/d8a9a4b11a137909e306e50346148fc5c3b63f9d
+          - cell "Apr 3, 20264 days ago"
+        - row "include, (Directory) Merge tag 'soc-fixes-7.0-2' of git://git.kernel.org/pub/scm/linux/ker… Apr 6, 202610 hours ago":
+          - cell "include, (Directory)":
+            - link "include, (Directory)":
+              - /url: /torvalds/linux/tree/master/include
+              - text: include
+          - cell "Merge tag 'soc-fixes-7.0-2' of git://git.kernel.org/pub/scm/linux/ker…":
+            - link "Merge tag 'soc-fixes-7.0-2' of git://git.kernel.org/pub/scm/linux/ker…":
+              - /url: /torvalds/linux/commit/bfe62a454542cfad3379f6ef5680b125f41e20f4
+          - cell "Apr 6, 202610 hours ago"
+        - row "init, (Directory) Merge tag 'hardening-v7.0-rc6' of git://git.kernel.org/pub/scm/linux/… Mar 25, 20262 weeks ago":
+          - cell "init, (Directory)":
+            - link "init, (Directory)":
+              - /url: /torvalds/linux/tree/master/init
+              - text: init
+          - cell "Merge tag 'hardening-v7.0-rc6' of git://git.kernel.org/pub/scm/linux/…":
+            - link "Merge tag 'hardening-v7.0-rc6' of git://git.kernel.org/pub/scm/linux/…":
+              - /url: /torvalds/linux/commit/d2a43e7f89da55d6f0f96aaadaa243f35557291e
+          - cell "Mar 25, 20262 weeks ago"
+        - row "io_uring, (Directory) Merge tag 'io_uring-7.0-20260403' of git://git.kernel.org/pub/scm/lin… Apr 3, 20263 days ago":
+          - cell "io_uring, (Directory)":
+            - link "io_uring, (Directory)":
+              - /url: /torvalds/linux/tree/master/io_uring
+              - text: io_uring
+          - cell "Merge tag 'io_uring-7.0-20260403' of git://git.kernel.org/pub/scm/lin…":
+            - link "Merge tag 'io_uring-7.0-20260403' of git://git.kernel.org/pub/scm/lin…":
+              - /url: /torvalds/linux/commit/e41255ce7acc4a3412ecdaa74b32deee980d27f7
+          - cell "Apr 3, 20263 days ago"
+        - row "ipc, (Directory) Convert 'alloc_obj' family to use the new default GFP_KERNEL argument Feb 21, 20262 months ago":
+          - cell "ipc, (Directory)":
+            - link "ipc, (Directory)":
+              - /url: /torvalds/linux/tree/master/ipc
+              - text: ipc
+          - cell "Convert 'alloc_obj' family to use the new default GFP_KERNEL argument":
+            - link "Convert 'alloc_obj' family to use the new default GFP_KERNEL argument":
+              - /url: /torvalds/linux/commit/bf4afc53b77aeaa48b5409da5c8da6bb4eff7f43
+          - cell "Feb 21, 20262 months ago"
+        - row "kernel, (Directory) Merge tag 'sched-urgent-2026-04-05' of git://git.kernel.org/pub/scm/l… Apr 5, 2026yesterday":
+          - cell "kernel, (Directory)":
+            - link "kernel, (Directory)":
+              - /url: /torvalds/linux/tree/master/kernel
+              - text: kernel
+          - cell "Merge tag 'sched-urgent-2026-04-05' of git://git.kernel.org/pub/scm/l…":
+            - link "Merge tag 'sched-urgent-2026-04-05' of git://git.kernel.org/pub/scm/l…":
+              - /url: /torvalds/linux/commit/2ab99ad7faef1f0a4529e8bae92009fa56242bd4
+          - cell "Apr 5, 2026yesterday"
+        - row "lib, (Directory) Merge tag 'libcrypto-for-linus' of git://git.kernel.org/pub/scm/linux… Mar 30, 2026last week":
+          - cell "lib, (Directory)":
+            - link "lib, (Directory)":
+              - /url: /torvalds/linux/tree/master/lib
+              - text: lib
+          - cell "Merge tag 'libcrypto-for-linus' of git://git.kernel.org/pub/scm/linux…":
+            - link "Merge tag 'libcrypto-for-linus' of git://git.kernel.org/pub/scm/linux…":
+              - /url: /torvalds/linux/commit/d0c3bcd5b8976159d835a897254048e078f447e6
+          - cell "Mar 30, 2026last week"
+        - row "mm, (Directory) Merge tag 'locking-urgent-2026-03-29' of git://git.kernel.org/pub/scm… Mar 29, 2026last week":
+          - cell "mm, (Directory)":
+            - link "mm, (Directory)":
+              - /url: /torvalds/linux/tree/master/mm
+              - text: mm
+          - cell "Merge tag 'locking-urgent-2026-03-29' of git://git.kernel.org/pub/scm…":
+            - link "Merge tag 'locking-urgent-2026-03-29' of git://git.kernel.org/pub/scm…":
+              - /url: /torvalds/linux/commit/f087b0bad454a91c7d1615f82954a4752843560d
+          - cell "Mar 29, 2026last week"
+        - row "net, (Directory) Merge tag 'bpf-fixes' of git://git.kernel.org/pub/scm/linux/kernel/gi… Apr 2, 20264 days ago":
+          - cell "net, (Directory)":
+            - link "net, (Directory)":
+              - /url: /torvalds/linux/tree/master/net
+              - text: net
+          - cell "Merge tag 'bpf-fixes' of git://git.kernel.org/pub/scm/linux/kernel/gi…":
+            - link "Merge tag 'bpf-fixes' of git://git.kernel.org/pub/scm/linux/kernel/gi…":
+              - /url: /torvalds/linux/commit/7b9e74c5a49e1331e03c8ae5f981067da4f33328
+          - cell "Apr 2, 20264 days ago"
+        - 'row "rust, (Directory) rust: regulator: do not assume that regulator_get() returns non-null Mar 24, 20262 weeks ago"':
+          - cell "rust, (Directory)":
+            - link "rust, (Directory)":
+              - /url: /torvalds/linux/tree/master/rust
+              - text: rust
+          - 'cell "rust: regulator: do not assume that regulator_get() returns non-null"':
+            - 'link "rust: regulator: do not assume that regulator_get() returns non-null"':
+              - /url: /torvalds/linux/commit/8121353a4bf8e38afee26299419a78ec108e14a6
+          - cell "Mar 24, 20262 weeks ago"
+        - row "samples, (Directory) Merge tag 'landlock-7.0-rc6' of git://git.kernel.org/pub/scm/linux/ke… Mar 26, 20262 weeks ago":
+          - cell "samples, (Directory)":
+            - link "samples, (Directory)":
+              - /url: /torvalds/linux/tree/master/samples
+              - text: samples
+          - cell "Merge tag 'landlock-7.0-rc6' of git://git.kernel.org/pub/scm/linux/ke…":
+            - link "Merge tag 'landlock-7.0-rc6' of git://git.kernel.org/pub/scm/linux/ke…":
+              - /url: /torvalds/linux/commit/25b69ebe28c8e3f883b071e924b87d358db56047
+          - cell "Mar 26, 20262 weeks ago"
+        - row "scripts, (Directory) Merge tag 'hardening-v7.0-rc6' of git://git.kernel.org/pub/scm/linux/… Mar 25, 20262 weeks ago":
+          - cell "scripts, (Directory)":
+            - link "scripts, (Directory)":
+              - /url: /torvalds/linux/tree/master/scripts
+              - text: scripts
+          - cell "Merge tag 'hardening-v7.0-rc6' of git://git.kernel.org/pub/scm/linux/…":
+            - link "Merge tag 'hardening-v7.0-rc6' of git://git.kernel.org/pub/scm/linux/…":
+              - /url: /torvalds/linux/commit/d2a43e7f89da55d6f0f96aaadaa243f35557291e
+          - cell "Mar 25, 20262 weeks ago"
+        - row "security, (Directory) Merge tag 'landlock-7.0-rc6' of git://git.kernel.org/pub/scm/linux/ke… Mar 26, 20262 weeks ago":
+          - cell "security, (Directory)":
+            - link "security, (Directory)":
+              - /url: /torvalds/linux/tree/master/security
+              - text: security
+          - cell "Merge tag 'landlock-7.0-rc6' of git://git.kernel.org/pub/scm/linux/ke…":
+            - link "Merge tag 'landlock-7.0-rc6' of git://git.kernel.org/pub/scm/linux/ke…":
+              - /url: /torvalds/linux/commit/25b69ebe28c8e3f883b071e924b87d358db56047
+          - cell "Mar 26, 20262 weeks ago"
+        - row "sound, (Directory) Merge tag 'usb-7.0-rc7' of git://git.kernel.org/pub/scm/linux/kernel/… Apr 5, 2026yesterday":
+          - cell "sound, (Directory)":
+            - link "sound, (Directory)":
+              - /url: /torvalds/linux/tree/master/sound
+              - text: sound
+          - cell "Merge tag 'usb-7.0-rc7' of git://git.kernel.org/pub/scm/linux/kernel/…":
+            - link "Merge tag 'usb-7.0-rc7' of git://git.kernel.org/pub/scm/linux/kernel/…":
+              - /url: /torvalds/linux/commit/aea7c84f28f1117653f7443806905d7aeef13ba8
+          - cell "Apr 5, 2026yesterday"
+        - row "tools, (Directory) Merge tag 'riscv-for-linus-7.0-rc7' of git://git.kernel.org/pub/scm/l… Apr 5, 2026yesterday":
+          - cell "tools, (Directory)":
+            - link "tools, (Directory)":
+              - /url: /torvalds/linux/tree/master/tools
+              - text: tools
+          - cell "Merge tag 'riscv-for-linus-7.0-rc7' of git://git.kernel.org/pub/scm/l…":
+            - link "Merge tag 'riscv-for-linus-7.0-rc7' of git://git.kernel.org/pub/scm/l…":
+              - /url: /torvalds/linux/commit/85fb6da43ac58dc7d1a6242e7b2102fd1d4954bc
+          - cell "Apr 5, 2026yesterday"
+        - 'row "usr, (Directory) kbuild: uapi: drop dependency on CC_CAN_LINK Jan 16, 20263 months ago"':
+          - cell "usr, (Directory)":
+            - link "usr, (Directory)":
+              - /url: /torvalds/linux/tree/master/usr
+              - text: usr
+          - 'cell "kbuild: uapi: drop dependency on CC_CAN_LINK"':
+            - 'link "kbuild: uapi: drop dependency on CC_CAN_LINK"':
+              - /url: /torvalds/linux/commit/2a0a30805a7d27470e02137cae72f7c3188e44eb
+          - cell "Jan 16, 20263 months ago"
+        - row "virt, (Directory) Merge tag 'kvm-x86-generic-7.0-rc3' of https://github.com/kvm-x86/linux… Mar 11, 2026last month":
+          - cell "virt, (Directory)":
+            - link "virt, (Directory)":
+              - /url: /torvalds/linux/tree/master/virt
+              - text: virt
+          - cell "Merge tag 'kvm-x86-generic-7.0-rc3' of https://github.com/kvm-x86/linux…":
+            - link "Merge tag 'kvm-x86-generic-7.0-rc3' of":
+              - /url: /torvalds/linux/commit/94fe3e6515ddca2fd33ca1ec53d3635e54fbe456
+            - link "https://github.com/kvm-x86/linux":
+              - /url: https://github.com/kvm-x86/linux
+            - link "…":
+              - /url: /torvalds/linux/commit/94fe3e6515ddca2fd33ca1ec53d3635e54fbe456
+          - cell "Mar 11, 2026last month"
+        - row ".clang-format, (File) Merge tag 'devicetree-for-7.0' of git://git.kernel.org/pub/scm/linux/… Feb 11, 20262 months ago":
+          - cell ".clang-format, (File)":
+            - link ".clang-format, (File)":
+              - /url: /torvalds/linux/blob/master/.clang-format
+              - text: .clang-format
+          - cell "Merge tag 'devicetree-for-7.0' of git://git.kernel.org/pub/scm/linux/…":
+            - link "Merge tag 'devicetree-for-7.0' of git://git.kernel.org/pub/scm/linux/…":
+              - /url: /torvalds/linux/commit/098b6e44cbaa2d526d06af90c862d13fb414a0ec
+          - cell "Feb 11, 20262 months ago"
+        - 'row ".clippy.toml, (File) rust: clean Rust 1.88.0''s warning about clippy::disallowed_macros c… May 6, 202511 months ago"':
+          - cell ".clippy.toml, (File)":
+            - link ".clippy.toml, (File)":
+              - /url: /torvalds/linux/blob/master/.clippy.toml
+              - text: .clippy.toml
+          - 'cell "rust: clean Rust 1.88.0''s warning about clippy::disallowed_macros c…"':
+            - 'link "rust: clean Rust 1.88.0''s warning about clippy::disallowed_macros c…"':
+              - /url: /torvalds/linux/commit/c016722fd57551f8a6fcf472c9d2bcf2130ea0ec
+              - text: "rust: clean Rust 1.88.0's warning about"
+              - code: clippy::disallowed_macros
+              - text: c…
+          - cell "May 6, 202511 months ago"
+        - 'row ".cocciconfig, (File) scripts: add Linux .cocciconfig for coccinelle Jul 22, 201610 years ago"':
+          - cell ".cocciconfig, (File)":
+            - link ".cocciconfig, (File)":
+              - /url: /torvalds/linux/blob/master/.cocciconfig
+              - text: .cocciconfig
+          - 'cell "scripts: add Linux .cocciconfig for coccinelle"':
+            - 'link "scripts: add Linux .cocciconfig for coccinelle"':
+              - /url: /torvalds/linux/commit/dd951fc1b67b6511d6c8f0449f3d451df374ebce
+          - cell "Jul 22, 201610 years ago"
+        - 'row ".editorconfig, (File) editorconfig: add rst extension Jan 26, 20263 months ago"':
+          - cell ".editorconfig, (File)":
+            - link ".editorconfig, (File)":
+              - /url: /torvalds/linux/blob/master/.editorconfig
+              - text: .editorconfig
+          - 'cell "editorconfig: add rst extension"':
+            - 'link "editorconfig: add rst extension"':
+              - /url: /torvalds/linux/commit/0e7fd23f9293cee3c7f341498a0011d09c491510
+          - cell "Jan 26, 20263 months ago"
+        - 'row ".get_maintainer.ignore, (File) .get_maintainer.ignore: add myself Apr 2, 20264 days ago"':
+          - cell ".get_maintainer.ignore, (File)":
+            - link ".get_maintainer.ignore, (File)":
+              - /url: /torvalds/linux/blob/master/.get_maintainer.ignore
+              - text: .get_maintainer.ignore
+          - 'cell ".get_maintainer.ignore: add myself"':
+            - 'link ".get_maintainer.ignore: add myself"':
+              - /url: /torvalds/linux/commit/d78ceee1e6205ffcd84ff581ccb40a008d39136f
+          - cell "Apr 2, 20264 days ago"
+        - 'row ".gitattributes, (File) .gitattributes: set diff driver for Rust source code files May 31, 20233 years ago"':
+          - cell ".gitattributes, (File)":
+            - link ".gitattributes, (File)":
+              - /url: /torvalds/linux/blob/master/.gitattributes
+              - text: .gitattributes
+          - 'cell ".gitattributes: set diff driver for Rust source code files"':
+            - 'link ".gitattributes: set diff driver for Rust source code files"':
+              - /url: /torvalds/linux/commit/8f8d4be9fb69ce0aa8f87570d9a71413ff726982
+          - cell "May 31, 20233 years ago"
+        - 'row ".gitignore, (File) rust: kbuild: add proc macro library support Nov 24, 20255 months ago"':
+          - cell ".gitignore, (File)":
+            - link ".gitignore, (File)":
+              - /url: /torvalds/linux/blob/master/.gitignore
+              - text: .gitignore
+          - 'cell "rust: kbuild: add proc macro library support"':
+            - 'link "rust: kbuild: add proc macro library support"':
+              - /url: /torvalds/linux/commit/7dbe46c0b11dded16cf9c5f85c1a3f260422cee5
+          - cell "Nov 24, 20255 months ago"
+        - 'row ".mailmap, (File) MAINTAINERS, mailmap: update email address for Harry Yoo Mar 27, 2026last week"':
+          - cell ".mailmap, (File)":
+            - link ".mailmap, (File)":
+              - /url: /torvalds/linux/blob/master/.mailmap
+              - text: .mailmap
+          - 'cell "MAINTAINERS, mailmap: update email address for Harry Yoo"':
+            - 'link "MAINTAINERS, mailmap: update email address for Harry Yoo"':
+              - /url: /torvalds/linux/commit/26d3dca201f3662e51d25022cfce0f642a150a90
+          - cell "Mar 27, 2026last week"
+        - 'row ".pylintrc, (File) docs: Move the python libraries to tools/lib/python Nov 18, 20255 months ago"':
+          - cell ".pylintrc, (File)":
+            - link ".pylintrc, (File)":
+              - /url: /torvalds/linux/blob/master/.pylintrc
+              - text: .pylintrc
+          - 'cell "docs: Move the python libraries to tools/lib/python"':
+            - 'link "docs: Move the python libraries to tools/lib/python"':
+              - /url: /torvalds/linux/commit/778b8ebe5192e7a7f00563a7456517dfa63e1d90
+          - cell "Nov 18, 20255 months ago"
+        - 'row ".rustfmt.toml, (File) rust: add .rustfmt.toml Sep 28, 20224 years ago"':
+          - cell ".rustfmt.toml, (File)":
+            - link ".rustfmt.toml, (File)":
+              - /url: /torvalds/linux/blob/master/.rustfmt.toml
+              - text: .rustfmt.toml
+          - 'cell "rust: add .rustfmt.toml"':
+            - 'link "rust: add .rustfmt.toml"':
+              - /url: /torvalds/linux/commit/80db40bac8f42f23132b2898b0490f8f76868a57
+              - text: "rust: add"
+              - code: .rustfmt.toml
+          - cell "Sep 28, 20224 years ago"
+        - 'row "COPYING, (File) COPYING: state that all contributions really are covered by this file Feb 10, 20206 years ago"':
+          - cell "COPYING, (File)":
+            - link "COPYING, (File)":
+              - /url: /torvalds/linux/blob/master/COPYING
+              - text: COPYING
+          - 'cell "COPYING: state that all contributions really are covered by this file"':
+            - 'link "COPYING: state that all contributions really are covered by this file"':
+              - /url: /torvalds/linux/commit/74835c7db0322b6eddf091b8b062f127b8999a0a
+          - cell "Feb 10, 20206 years ago"
+        - 'row "CREDITS, (File) MAINTAINERS: remove Thomas Falcon from IBM ibmvnic Mar 5, 2026last month"':
+          - cell "CREDITS, (File)":
+            - link "CREDITS, (File)":
+              - /url: /torvalds/linux/blob/master/CREDITS
+              - text: CREDITS
+          - 'cell "MAINTAINERS: remove Thomas Falcon from IBM ibmvnic"':
+            - 'link "MAINTAINERS: remove Thomas Falcon from IBM ibmvnic"':
+              - /url: /torvalds/linux/commit/ed6579002548f3d9c00380e2aeaa8305d3ed8fc5
+          - cell "Mar 5, 2026last month"
+        - 'row "Kbuild, (File) sched: Make migrate_{en,dis}able() inline Sep 25, 20257 months ago"':
+          - cell "Kbuild, (File)":
+            - link "Kbuild, (File)":
+              - /url: /torvalds/linux/blob/master/Kbuild
+              - text: Kbuild
+          - 'cell "sched: Make migrate_{en,dis}able() inline"':
+            - 'link "sched: Make migrate_{en,dis}able() inline"':
+              - /url: /torvalds/linux/commit/378b7708194fff77c9020392067329931c3fcc04
+          - cell "Sep 25, 20257 months ago"
+        - 'row "Kconfig, (File) io_uring: Rename KConfig to Kconfig Feb 19, 2025last year"':
+          - cell "Kconfig, (File)":
+            - link "Kconfig, (File)":
+              - /url: /torvalds/linux/blob/master/Kconfig
+              - text: Kconfig
+          - 'cell "io_uring: Rename KConfig to Kconfig"':
+            - 'link "io_uring: Rename KConfig to Kconfig"':
+              - /url: /torvalds/linux/commit/0d2cdc35e805eb50f4a33b7287995ef590f1b916
+          - cell "Feb 19, 2025last year"
+        - row "MAINTAINERS, (File) Merge tag 'i2c-for-7.0-rc6' of git://git.kernel.org/pub/scm/linux/ker… Mar 29, 2026last week":
+          - cell "MAINTAINERS, (File)":
+            - link "MAINTAINERS, (File)":
+              - /url: /torvalds/linux/blob/master/MAINTAINERS
+              - text: MAINTAINERS
+          - cell "Merge tag 'i2c-for-7.0-rc6' of git://git.kernel.org/pub/scm/linux/ker…":
+            - link "Merge tag 'i2c-for-7.0-rc6' of git://git.kernel.org/pub/scm/linux/ker…":
+              - /url: /torvalds/linux/commit/32ee88daf78b69a95d21ba9ead55da8469ede1c9
+          - cell "Mar 29, 2026last week"
+        - row "Makefile, (File) Linux 7.0-rc7 Apr 5, 2026yesterday":
+          - cell "Makefile, (File)":
+            - link "Makefile, (File)":
+              - /url: /torvalds/linux/blob/master/Makefile
+              - text: Makefile
+          - cell "Linux 7.0-rc7":
+            - link "Linux 7.0-rc7":
+              - /url: /torvalds/linux/commit/591cd656a1bf5ea94a222af5ef2ee76df029c1d2
+          - cell "Apr 5, 2026yesterday"
+        - 'row "README, (File) docs: add AI Coding Assistants documentation Jan 6, 20263 months ago"':
+          - cell "README, (File)":
+            - link "README, (File)":
+              - /url: /torvalds/linux/blob/master/README
+              - text: README
+          - 'cell "docs: add AI Coding Assistants documentation"':
+            - 'link "docs: add AI Coding Assistants documentation"':
+              - /url: /torvalds/linux/commit/78d979db6cef557c171d6059cbce06c3db89c7ee
+          - cell "Jan 6, 20263 months ago"
+    - heading "Repository files navigation" [level=2]
+    - navigation "Repository files":
+      - list:
+        - listitem:
+          - link "README":
+            - /url: "#"
+        - listitem:
+          - link "License":
+            - /url: "#"
+    - text: "Linux kernel ============ The Linux kernel is the core of any Linux operating system. It manages hardware, system resources, and provides the fundamental services for all other software. Quick Start ----------- * Report a bug: See Documentation/admin-guide/reporting-issues.rst * Get the latest kernel:"
+    - link "https://kernel.org":
+      - /url: https://kernel.org
+    - text: "* Build the kernel: See Documentation/admin-guide/quickly-build-trimmed-linux.rst * Join the community:"
+    - link "https://lore.kernel.org/":
+      - /url: https://lore.kernel.org/
+    - text: "Essential Documentation ----------------------- All users should be familiar with: * Building requirements: Documentation/process/changes.rst * Code of Conduct: Documentation/process/code-of-conduct.rst * License: See COPYING Documentation can be built with make htmldocs or viewed online at:"
+    - link "https://www.kernel.org/doc/html/latest/":
+      - /url: https://www.kernel.org/doc/html/latest/
+    - text: "Who Are You? ============ Find your role below: * New Kernel Developer - Getting started with kernel development * Academic Researcher - Studying kernel internals and architecture * Security Expert - Hardening and vulnerability analysis * Backport/Maintenance Engineer - Maintaining stable kernels * System Administrator - Configuring and troubleshooting * Maintainer - Leading subsystems and reviewing patches * Hardware Vendor - Writing drivers for new hardware * Distribution Maintainer - Packaging kernels for distros * AI Coding Assistant - LLMs and AI-powered development tools For Specific Users ================== New Kernel Developer -------------------- Welcome! Start your kernel development journey here: * Getting Started: Documentation/process/development-process.rst * Your First Patch: Documentation/process/submitting-patches.rst * Coding Style: Documentation/process/coding-style.rst * Build System: Documentation/kbuild/index.rst * Development Tools: Documentation/dev-tools/index.rst * Kernel Hacking Guide: Documentation/kernel-hacking/hacking.rst * Core APIs: Documentation/core-api/index.rst Academic Researcher ------------------- Explore the kernel's architecture and internals: * Researcher Guidelines: Documentation/process/researcher-guidelines.rst * Memory Management: Documentation/mm/index.rst * Scheduler: Documentation/scheduler/index.rst * Networking Stack: Documentation/networking/index.rst * Filesystems: Documentation/filesystems/index.rst * RCU (Read-Copy Update): Documentation/RCU/index.rst * Locking Primitives: Documentation/locking/index.rst * Power Management: Documentation/power/index.rst Security Expert --------------- Security documentation and hardening guides: * Security Documentation: Documentation/security/index.rst * LSM Development: Documentation/security/lsm-development.rst * Self Protection: Documentation/security/self-protection.rst * Reporting Vulnerabilities: Documentation/process/security-bugs.rst * CVE Procedures: Documentation/process/cve.rst * Embargoed Hardware Issues: Documentation/process/embargoed-hardware-issues.rst * Security Features: Documentation/userspace-api/seccomp_filter.rst Backport/Maintenance Engineer ----------------------------- Maintain and stabilize kernel versions: * Stable Kernel Rules: Documentation/process/stable-kernel-rules.rst * Backporting Guide: Documentation/process/backporting.rst * Applying Patches: Documentation/process/applying-patches.rst * Subsystem Profile: Documentation/maintainer/maintainer-entry-profile.rst * Git for Maintainers: Documentation/maintainer/configure-git.rst System Administrator -------------------- Configure, tune, and troubleshoot Linux systems: * Admin Guide: Documentation/admin-guide/index.rst * Kernel Parameters: Documentation/admin-guide/kernel-parameters.rst * Sysctl Tuning: Documentation/admin-guide/sysctl/index.rst * Tracing/Debugging: Documentation/trace/index.rst * Performance Security: Documentation/admin-guide/perf-security.rst * Hardware Monitoring: Documentation/hwmon/index.rst Maintainer ---------- Lead kernel subsystems and manage contributions: * Maintainer Handbook: Documentation/maintainer/index.rst * Pull Requests: Documentation/maintainer/pull-requests.rst * Managing Patches: Documentation/maintainer/modifying-patches.rst * Rebasing and Merging: Documentation/maintainer/rebasing-and-merging.rst * Development Process: Documentation/process/maintainer-handbooks.rst * Maintainer Entry Profile: Documentation/maintainer/maintainer-entry-profile.rst * Git Configuration: Documentation/maintainer/configure-git.rst Hardware Vendor --------------- Write drivers and support new hardware: * Driver API Guide: Documentation/driver-api/index.rst * Driver Model: Documentation/driver-api/driver-model/driver.rst * Device Drivers: Documentation/driver-api/infrastructure.rst * Bus Types: Documentation/driver-api/driver-model/bus.rst * Device Tree Bindings: Documentation/devicetree/bindings/ * Power Management: Documentation/driver-api/pm/index.rst * DMA API: Documentation/core-api/dma-api.rst Distribution Maintainer ----------------------- Package and distribute the kernel: * Stable Kernel Rules: Documentation/process/stable-kernel-rules.rst * ABI Documentation: Documentation/ABI/README * Kernel Configuration: Documentation/kbuild/kconfig.rst * Module Signing: Documentation/admin-guide/module-signing.rst * Kernel Parameters: Documentation/admin-guide/kernel-parameters.rst * Tainted Kernels: Documentation/admin-guide/tainted-kernels.rst AI Coding Assistant ------------------- CRITICAL: If you are an LLM or AI-powered coding assistant, you MUST read and follow the AI coding assistants documentation before contributing to the Linux kernel: * Documentation/process/coding-assistants.rst This documentation contains essential requirements about licensing, attribution, and the Developer Certificate of Origin that all AI tools must comply with. Communication and Support ========================= * Mailing Lists:"
+    - link "https://lore.kernel.org/":
+      - /url: https://lore.kernel.org/
+    - text: "* IRC: #kernelnewbies on irc.oftc.net * Bugzilla:"
+    - link "https://bugzilla.kernel.org/":
+      - /url: https://bugzilla.kernel.org/
+    - text: "* MAINTAINERS file: Lists subsystem maintainers and mailing lists * Email Clients: Documentation/process/email-clients.rst"
+    - heading "About" [level=2]
+    - paragraph: Linux kernel source tree
+    - heading "Resources" [level=3]
+    - link "Readme":
+      - /url: "#readme-ov-file"
+    - heading "License" [level=3]
+    - link "View license":
+      - /url: "#License-1-ov-file"
+    - link "Activity":
+      - /url: /torvalds/linux/activity
+    - heading "Stars" [level=3]
+    - link "227k stars":
+      - /url: /torvalds/linux/stargazers
+      - strong: 227k
+      - text: stars
+    - heading "Watchers" [level=3]
+    - link "8.1k watching":
+      - /url: /torvalds/linux/watchers
+      - strong: 8.1k
+      - text: watching
+    - heading "Forks" [level=3]
+    - link "61.5k forks":
+      - /url: /torvalds/linux/forks
+      - strong: 61.5k
+      - text: forks
+    - link "Report repository":
+      - /url: /contact/report-content?content_url=https%3A%2F%2Fgithub.com%2Ftorvalds%2Flinux&report=torvalds+%28user%29
+    - heading "Releases" [level=2]:
+      - link "Releases":
+        - /url: /torvalds/linux/releases
+    - link "926 tags":
+      - /url: /torvalds/linux/tags
+    - heading "Packages" [level=2]:
+      - link "Packages":
+        - /url: /users/torvalds/packages?repo_name=linux
+    - text: No packages published
+    - heading "Contributors 5,000+" [level=2]:
+      - link "Contributors 5,000+":
+        - /url: /torvalds/linux/graphs/contributors
+    - list:
+      - listitem:
+        - link "@torvalds":
+          - /url: https://github.com/torvalds
+          - img "@torvalds"
+      - listitem:
+        - link "@davem330":
+          - /url: https://github.com/davem330
+          - img "@davem330"
+      - listitem:
+        - link "@arndb":
+          - /url: https://github.com/arndb
+          - img "@arndb"
+      - listitem:
+        - link "@broonie":
+          - /url: https://github.com/broonie
+          - img "@broonie"
+      - listitem:
+        - link "@tiwai":
+          - /url: https://github.com/tiwai
+          - img "@tiwai"
+      - listitem:
+        - link "@krzk":
+          - /url: https://github.com/krzk
+          - img "@krzk"
+      - listitem:
+        - link "@KAGA-KOKO":
+          - /url: https://github.com/KAGA-KOKO
+          - img "@KAGA-KOKO"
+      - listitem:
+        - link "@gregkh":
+          - /url: https://github.com/gregkh
+          - img "@gregkh"
+      - listitem:
+        - link "@geertu":
+          - /url: https://github.com/geertu
+          - img "@geertu"
+      - listitem:
+        - link "@mchehab":
+          - /url: https://github.com/mchehab
+          - img "@mchehab"
+      - listitem:
+        - link "@ickle":
+          - /url: https://github.com/ickle
+          - img "@ickle"
+      - listitem:
+        - link "@andy-shev":
+          - /url: https://github.com/andy-shev
+          - img "@andy-shev"
+      - listitem:
+        - link "@kuba-moo":
+          - /url: https://github.com/kuba-moo
+          - img "@kuba-moo"
+      - listitem:
+        - link "@vsyrjala":
+          - /url: https://github.com/vsyrjala
+          - img "@vsyrjala"
+    - link "+ 17,966 contributors":
+      - /url: /torvalds/linux/graphs/contributors
+    - heading "Languages" [level=2]
+    - list:
+      - listitem:
+        - link "C 98.0%":
+          - /url: /torvalds/linux/search?l=c
+      - listitem:
+        - link "Assembly 0.7%":
+          - /url: /torvalds/linux/search?l=assembly
+      - listitem:
+        - link "Shell 0.4%":
+          - /url: /torvalds/linux/search?l=shell
+      - listitem:
+        - link "Rust 0.3%":
+          - /url: /torvalds/linux/search?l=rust
+      - listitem:
+        - link "Python 0.3%":
+          - /url: /torvalds/linux/search?l=python
+      - listitem:
+        - link "Makefile 0.2%":
+          - /url: /torvalds/linux/search?l=makefile
+      - listitem: Other 0.1%
+  - contentinfo:
+    - heading "Footer" [level=2]
+    - link "GitHub Homepage":
+      - /url: https://github.com
+    - text: © 2026 GitHub, Inc.
+    - navigation "Footer":
+      - heading "Footer navigation" [level=3]
+      - list "Footer navigation":
+        - listitem:
+          - link "Terms":
+            - /url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+        - listitem:
+          - link "Privacy":
+            - /url: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement
+        - listitem:
+          - link "Security":
+            - /url: https://github.com/security
+        - listitem:
+          - link "Status":
+            - /url: https://www.githubstatus.com/
+        - listitem:
+          - link "Community":
+            - /url: https://github.community/
+        - listitem:
+          - link "Docs":
+            - /url: https://docs.github.com/
+        - listitem:
+          - link "Contact":
+            - /url: https://support.github.com?tags=dotcom-footer
+        - listitem:
+          - button "Manage cookies"
+        - listitem:
+          - button "Do not share my personal information"

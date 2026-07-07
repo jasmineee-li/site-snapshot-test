@@ -1,0 +1,50 @@
+- document:
+  - navigation:
+    - group:
+      - button "Home"
+      - button "Search"
+      - button "Directory"
+      - button "Display"
+      - button "Create new"
+      - button "Administration"
+    - separator
+    - region "Channels":
+      - text: Omnichannel
+      - group:
+        - button
+        - button
+      - separator
+    - separator
+    - link "Home":
+      - /url: /home
+      - img "Home"
+    - link "Powered by Rocket.Chat Free edition":
+      - /url: https://rocket.chat/
+  - main "Channel":
+    - heading "general" [level=1]
+    - button "Favorite"
+    - toolbar "Primary Room actions":
+      - button "Call"
+      - separator
+      - button "Room Information"
+      - button "Threads"
+      - button "Discussions"
+      - button "Members"
+      - button "Search Messages"
+      - button "Files"
+      - button "Options"
+    - separator
+    - region "Channel":
+      - button " New messages"
+      - button "Jump to recent messages "
+      - list:
+        - listitem: Start of conversation
+      - textbox "Message"
+      - button "join"
+      - button "bold"
+      - button "Italic"
+      - button "strike"
+      - button "inline code"
+      - button "multi line"
+      - link "\\[KaTeX\\]":
+        - /url: https://khan.github.io/KaTeX/function-support.html

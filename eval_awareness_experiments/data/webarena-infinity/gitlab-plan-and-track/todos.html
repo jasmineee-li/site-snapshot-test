@@ -1,0 +1,74 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitLab — Plan &amp; Track</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Top Bar -->
+    <header class="top-bar" id="topBar">
+        <div class="top-bar-left">
+            <div class="logo" data-testid="gitlab-logo">
+                <svg width="24" height="24" viewBox="0 0 32 32">
+                    <path fill="#e24329" d="M16 28.9L20.4 15.5H11.6z"></path>
+                    <path fill="#fc6d26" d="M16 28.9L11.6 15.5H2.5z"></path>
+                    <path fill="#fca326" d="M2.5 15.5L.8 20.8c-.2.5 0 1 .4 1.3L16 28.9z"></path>
+                    <path fill="#e24329" d="M2.5 15.5H11.6L7.7 3.5c-.2-.5-.8-.5-1 0z"></path>
+                    <path fill="#fc6d26" d="M16 28.9L20.4 15.5H29.5z"></path>
+                    <path fill="#fca326" d="M29.5 15.5L31.2 20.8c.2.5 0 1-.4 1.3L16 28.9z"></path>
+                    <path fill="#e24329" d="M29.5 15.5H20.4L24.3 3.5c.2-.5.8-.5 1 0z"></path>
+                </svg>
+                <span class="logo-text">Plan &amp; Track</span>
+            </div>
+        </div>
+        <div class="top-bar-center">
+            <div class="project-breadcrumb">
+                <span class="breadcrumb-org">AcmeCorp</span>
+                <span class="breadcrumb-sep">/</span>
+                <span class="breadcrumb-project">platform-v4</span>
+            </div>
+        </div>
+        <div class="top-bar-right">
+            <button class="top-bar-btn todo-btn" data-route="todos" data-testid="todo-nav-btn" aria-label="To-Do List">
+                <svg width="18" height="18" viewBox="0 0 16 16"><path d="M3 8l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                <span class="todo-badge" id="todoBadge">9</span>
+            </button>
+            <div class="user-avatar-top" id="userAvatarTop" data-testid="user-avatar">
+                <span id="userInitials">SC</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar" data-testid="sidebar">
+        <div class="sidebar-nav" id="sidebarNav"><div class="sidebar-section"><div class="sidebar-header">Plan</div><a class="nav-item" data-route="issues" data-testid="nav-issues"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"></circle></svg></span><span class="nav-label">Issues</span><span class="nav-count">57</span></a><a class="nav-item" data-route="boards" data-testid="nav-boards"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="1" y="3" width="4" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"></rect><rect x="6" y="1" width="4" height="14" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"></rect><rect x="11" y="5" width="4" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"></rect></svg></span><span class="nav-label">Boards</span></a><a class="nav-item" data-route="epics" data-testid="nav-epics"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect><line x1="4" y1="6" x2="12" y2="6" stroke="currentColor" stroke-width="1.5"></line><line x1="4" y1="10" x2="9" y2="10" stroke="currentColor" stroke-width="1.5"></line></svg></span><span class="nav-label">Epics</span></a><a class="nav-item" data-route="milestones" data-testid="nav-milestones"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 2v12M3 4h7l3 3-3 3H3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path></svg></span><span class="nav-label">Milestones</span></a><a class="nav-item" data-route="iterations" data-testid="nav-iterations"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M13 8A5 5 0 113 8" fill="none" stroke="currentColor" stroke-width="1.5"></path><path d="M13 8l2-2M13 8l2 2" stroke="currentColor" stroke-width="1.5"></path></svg></span><span class="nav-label">Iterations</span></a><a class="nav-item" data-route="labels" data-testid="nav-labels"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 7.5V2h5.5L14 8.5 8.5 14z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path><circle cx="5.5" cy="5.5" r="1" fill="currentColor"></circle></svg></span><span class="nav-label">Labels</span></a></div><div class="sidebar-section"><div class="sidebar-header">Personal</div><a class="nav-item active" data-route="todos" data-testid="nav-todos"><span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M3 8l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span><span class="nav-label">To-Do List</span><span class="nav-count">9</span></a></div></div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent" data-testid="main-content">
+        <div class="content-wrapper" id="contentWrapper"><div class="page-header"><div class="page-header-left"><h1>To-Do List</h1></div><div class="page-header-right"><button class="btn btn-outline" data-action="mark-all-todos-done" data-testid="mark-all-done-btn">Mark all as done</button></div></div><div class="todo-tabs"><button class="todo-tab active" data-action="switch-todo-tab" data-tab="pending" data-testid="todo-tab-pending">To Do <span class="count">9</span></button><button class="todo-tab" data-action="switch-todo-tab" data-tab="snoozed" data-testid="todo-tab-snoozed">Snoozed <span class="count">2</span></button><button class="todo-tab" data-action="switch-todo-tab" data-tab="done" data-testid="todo-tab-done">Done <span class="count">4</span></button></div><div class="todo-list" data-testid="todo-list"><div class="todo-row" data-testid="todo-row-todo_1"><div class="todo-row-left"><span class="avatar" style="width:32px;height:32px;font-size:12.8px;background:#fc6d26" title="Marcus Johnson" data-testid="avatar-usr_2">MJ</span><div class="todo-row-content"><div class="todo-row-text"><strong>Marcus Johnson</strong> assigned</div><a class="todo-target" data-route="issues/issue_17">Login page shows blank screen on Safari 17.2 #17</a><span class="todo-time">1mo ago</span></div></div><div class="todo-row-right"><button class="btn btn-sm btn-outline" data-action="snooze-todo" data-id="todo_1" data-testid="snooze-todo-todo_1">Snooze</button><button class="btn btn-sm btn-primary" data-action="done-todo" data-id="todo_1" data-testid="done-todo-todo_1">Done</button></div></div><div class="todo-row" data-testid="todo-row-todo_2"><div class="todo-row-left"><span class="avatar" style="width:32px;height:32px;font-size:12.8px;background:#8e44ad" title="Fatima Al-Rashid" data-testid="avatar-usr_9">FA</span><div class="todo-row-content"><div class="todo-row-text"><strong>Fatima Al-Rashid</strong> mentioned you on</div><a class="todo-target" data-route="issues/issue_18">Email notifications sent with wrong timezone offset #18</a><span class="todo-time">1mo ago</span></div></div><div class="todo-row-right"><button class="btn btn-sm btn-outline" data-action="snooze-todo" data-id="todo_2" data-testid="snooze-todo-todo_2">Snooze</button><button class="btn btn-sm btn-primary" data-action="done-todo" data-id="todo_2" data-testid="done-todo-todo_2">Done</button></div></div><div class="todo-row" data-testid="todo-row-todo_3"><div class="todo-row-left"><span class="avatar" style="width:32px;height:32px;font-size:12.8px;background:#fca326" title="Priya Patel" data-testid="avatar-usr_3">PP</span><div class="todo-row-content"><div class="todo-row-text"><strong>Priya Patel</strong> assigned</div><a class="todo-target" data-route="issues/issue_4">Migrate user settings page to React #4</a><span class="todo-time">1mo ago</span></div></div><div class="todo-row-right"><button class="btn btn-sm btn-outline" data-action="snooze-todo" data-id="todo_3" data-testid="snooze-todo-todo_3">Snooze</button><button class="btn btn-sm btn-primary" data-action="done-todo" data-id="todo_3" data-testid="done-todo-todo_3">Done</button></div></div><div class="todo-row" data-testid="todo-row-todo_4"><div class="todo-row-left"><span class="avatar" style="width:32px;height:32px;font-size:12.8px;background:#c0392b" title="Oliver Schmidt" data-testid="avatar-usr_15">OS</span><div class="todo-row-content"><div class="todo-row-text"><strong>Oliver Schmidt</strong> mentioned you on</div><a class="todo-target" data-route="epics/epic_7">Security Hardening &amp;7</a><span class="todo-time">1mo ago</span></div></div><div class="todo-row-right"><button class="btn btn-sm btn-outline" data-action="snooze-todo" data-id="todo_4" data-testid="snooze-todo-todo_4">Snooze</button><button class="btn btn-sm btn-primary" data-action="done-todo" data-id="todo_4" data-testid="done-todo-todo_4">Done</button></div></div><div class="todo-row" data-testid="todo-row-todo_5"><div class="todo-row-left"><span class="avatar" style="width:32px;height:32px;font-size:12.8px;background:#e24329" title="Sarah Chen" data-testid="avatar-usr_1">SC</span><div class="todo-row-content"><div class="todo-row-text"><strong>Sarah Chen</strong> assigned</div><a class="todo-target" data-route="issues/issue_22">Add dark mode support for the entire application #22</a><span class="todo-time">1mo ago</span></div></div><div class="todo-row-right"><button class="btn btn-sm btn-outline" data-action="snooze-todo" data-id="todo_5" data-testid="snooze-todo-todo_5">Snooze</button><button class="btn btn-sm btn-primary" data-action="done-todo" data-id="todo_5" data-testid="done-todo-todo_5">Done</button></div></div><div class="todo-row" data-testid="todo-row-todo_8"><div class="todo-row-left"><span class="avatar" style="width:32px;height:32px;font-size:12.8px;background:#e24329" title="Sarah Chen" data-testid="avatar-usr_1">SC</span><div class="todo-row-content"><div class="todo-row-text"><strong>Sarah Chen</strong> assigned</div><a class="todo-target" data-route="issues/issue_28">Reduce JavaScript bundle size by 40% #28</a><span class="todo-time">1mo ago</span></div></div><div class="todo-row-right"><button class="btn btn-sm btn-outline" data-action="snooze-todo" data-id="todo_8" data-testid="snooze-todo-todo_8">Snooze</button><button class="btn btn-sm btn-primary" data-action="done-todo" data-id="todo_8" data-testid="done-todo-todo_8">Done</button></div></div><div class="todo-row" data-testid="todo-row-todo_11"><div class="todo-row-left"><span class="avatar" style="width:32px;height:32px;font-size:12.8px;background:#e24329" title="Sarah Chen" data-testid="avatar-usr_1">SC</span><div class="todo-row-content"><div class="todo-row-text"><strong>Sarah Chen</strong> assigned</div><a class="todo-target" data-route="issues/issue_14">Upgrade vulnerable dependencies identified in audit #14</a><span class="todo-time">1mo ago</span></div></div><div class="todo-row-right"><button class="btn btn-sm btn-outline" data-action="snooze-todo" data-id="todo_11" data-testid="snooze-todo-todo_11">Snooze</button><button class="btn btn-sm btn-primary" data-action="done-todo" data-id="todo_11" data-testid="done-todo-todo_11">Done</button></div></div><div class="todo-row" data-testid="todo-row-todo_12"><div class="todo-row-left"><span class="avatar" style="width:32px;height:32px;font-size:12.8px;background:#34495e" title="David Kim" data-testid="avatar-usr_8">DK</span><div class="todo-row-content"><div class="todo-row-text"><strong>David Kim</strong> requested review on</div><a class="todo-target" data-route="issues/issue_27">Optimize issue list query to use keyset pagination #27</a><span class="todo-time">1mo ago</span></div></div><div class="todo-row-right"><button class="btn btn-sm btn-outline" data-action="snooze-todo" data-id="todo_12" data-testid="snooze-todo-todo_12">Snooze</button><button class="btn btn-sm btn-primary" data-action="done-todo" data-id="todo_12" data-testid="done-todo-todo_12">Done</button></div></div><div class="todo-row" data-testid="todo-row-todo_14"><div class="todo-row-left"><span class="avatar" style="width:32px;height:32px;font-size:12.8px;background:#1f78d1" title="Nina Kowalski" data-testid="avatar-usr_7">NK</span><div class="todo-row-content"><div class="todo-row-text"><strong>Nina Kowalski</strong> mentioned you on</div><a class="todo-target" data-route="issues/issue_29">Implement lazy loading for images and avatars #29</a><span class="todo-time">1mo ago</span></div></div><div class="todo-row-right"><button class="btn btn-sm btn-outline" data-action="snooze-todo" data-id="todo_14" data-testid="snooze-todo-todo_14">Snooze</button><button class="btn btn-sm btn-primary" data-action="done-todo" data-id="todo_14" data-testid="done-todo-todo_14">Done</button></div></div></div></div>
+    </main>
+
+    <!-- Generic Modal -->
+    <div class="modal-overlay" id="modalOverlay" style="display:none">
+        <div class="modal" id="modalContainer">
+            <div class="modal-header">
+                <h2 id="modalTitle"></h2>
+                <button class="modal-close" data-action="close-modal">×</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-footer" id="modalFooter"></div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

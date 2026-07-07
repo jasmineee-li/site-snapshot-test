@@ -1,0 +1,31 @@
+- document:
+  - banner:
+    - text: Xero
+    - textbox "Search invoices, quotes, contacts..."
+    - button "🔍"
+  - complementary:
+    - text: Demo Company (AU)
+    - navigation: ▢ Dashboard Sales 📄 Invoices 13 📋 Quotes 💳 Credit Notes 🔄 Repeating Invoices Settings ⚙ Invoice Settings 🎨 Branding Themes 🔔 Invoice Reminders
+  - main:
+    - heading "Invoice Reminders" [level=1]
+    - button "Add Reminder"
+    - checkbox [checked]
+    - text: 7 day(s) before due date
+    - button "Edit"
+    - button "Delete"
+    - text: "Upcoming invoice due - {InvoiceNumber}"
+    - checkbox [checked]
+    - text: 1 day(s) after due date
+    - button "Edit"
+    - button "Delete"
+    - text: "Invoice overdue - {InvoiceNumber}"
+    - checkbox [checked]
+    - text: 14 day(s) after due date
+    - button "Edit"
+    - button "Delete"
+    - text: "Second reminder: Invoice overdue - {InvoiceNumber}"
+    - checkbox
+    - text: 30 day(s) after due date
+    - button "Edit"
+    - button "Delete"
+    - text: "Final notice: Invoice overdue - {InvoiceNumber}"

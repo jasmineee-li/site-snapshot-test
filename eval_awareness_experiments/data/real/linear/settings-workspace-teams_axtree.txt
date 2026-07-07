@@ -1,0 +1,96 @@
+- document:
+  - link "Skip to content":
+    - /url: "#skip-nav"
+  - navigation:
+    - link "Back to app":
+      - /url: /kristys-team
+    - link "Preferences":
+      - /url: /kristys-team/settings/account/preferences
+    - link "Profile":
+      - /url: /kristys-team/settings/account/profile
+    - link "Notifications":
+      - /url: /kristys-team/settings/account/notifications
+    - link "Security & access":
+      - /url: /kristys-team/settings/account/security
+    - link "Connected accounts":
+      - /url: /kristys-team/settings/account/connections
+    - link "Agent personalization":
+      - /url: /kristys-team/settings/account/agents
+    - heading "Issues" [level=2]
+    - link "Labels":
+      - /url: /kristys-team/settings/issue-labels
+    - link "Templates":
+      - /url: /kristys-team/settings/issue-templates
+    - link "SLAs":
+      - /url: /kristys-team/settings/sla
+    - heading "Projects" [level=2]
+    - link "Labels":
+      - /url: /kristys-team/settings/project-labels
+    - link "Templates":
+      - /url: /kristys-team/settings/project-templates
+    - link "Statuses":
+      - /url: /kristys-team/settings/project-statuses
+    - link "Updates":
+      - /url: /kristys-team/settings/project-updates
+    - heading "Features" [level=2]
+    - link "AI & Agents":
+      - /url: /kristys-team/settings/ai
+    - link "Initiatives":
+      - /url: /kristys-team/settings/initiatives
+    - link "Documents":
+      - /url: /kristys-team/settings/documents
+    - link "Customer requests":
+      - /url: /kristys-team/settings/customer-requests
+    - link "Pulse":
+      - /url: /kristys-team/settings/pulse
+    - link "Asks":
+      - /url: /kristys-team/settings/asks
+    - link "Emojis":
+      - /url: /kristys-team/settings/emojis
+    - link "Integrations":
+      - /url: /kristys-team/settings/integrations
+    - heading "Administration" [level=2]
+    - link "Workspace":
+      - /url: /kristys-team/settings/workspace
+    - link "Teams":
+      - /url: /kristys-team/settings/teams
+    - link "Members":
+      - /url: /kristys-team/settings/members
+    - link "Security":
+      - /url: /kristys-team/settings/security
+    - link "API":
+      - /url: /kristys-team/settings/api
+    - link "Applications":
+      - /url: /kristys-team/settings/applications
+    - link "Billing":
+      - /url: /kristys-team/settings/billing
+    - link "Import & export":
+      - /url: /kristys-team/settings/import-export
+    - heading "Your teams" [level=2]
+    - link "Kristina Zhou":
+      - /url: /kristys-team/settings/teams/KRI
+    - text: Create a team
+  - button "Open Help menu"
+  - main:
+    - text: Teams
+    - search "Filter by name…"
+    - combobox: Active
+    - button "Create new team": Create team
+    - button "Order by Name": Name
+    - button "Order by Visibility": Visibility
+    - button "Order by Members": Members
+    - button "Order by Issues": Issues
+    - button "Order by Created": Created
+    - text: Active 1
+    - link "Kristina Zhou KRI Workspace 1 - Created Apr 9, 2:18:51 PM Open menu":
+      - /url: /kristys-team/settings/teams/KRI
+      - text: Kristina Zhou KRI Workspace
+      - link "1":
+        - /url: /kristys-team/settings/teams/KRI/members
+      - link "-":
+        - /url: /kristys-team/team/KRI/all
+      - text: Apr 9
+      - button "Open menu"
+  - button "Ask Linear"
+  - button "Chat history"
+  - region "Notifications alt+T"

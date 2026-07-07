@@ -1,0 +1,20 @@
+{
+  "task_id": "task_h5",
+  "difficulty": "hard",
+  "instruction": "Update the Body/Regular style to use a font size of 18 and make sure all layers using it are updated.",
+  "passed": true,
+  "verifier_message": "Style 'Body/Regular' and layer 'Body Text' both have fontSize=18.",
+  "elapsed": 47.6,
+  "steps": 7,
+  "is_done": true,
+  "final_result": "I have updated the 'Body/Regular' text style to a font size of 18. I also verified on the Layers page that the 'Body Text' layer, which uses this style, has been automatically updated to 18px.",
+  "errors": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

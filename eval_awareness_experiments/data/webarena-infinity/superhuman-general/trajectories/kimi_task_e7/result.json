@@ -1,0 +1,12 @@
+{
+  "task_id": "task_e7",
+  "difficulty": "easy",
+  "instruction": "Turn off Instant Reply.",
+  "passed": true,
+  "verifier_message": "Instant Reply is turned off.",
+  "elapsed": 128.1,
+  "steps": 9,
+  "is_done": true,
+  "final_result": "The task is complete - Instant Reply has been successfully turned off.\n\n## Action:\nTerminate the task with success status.\n\n## Code:\n```python\ncomputer.terminate(status=\"success\")\n```",
+  "errors": []
+}

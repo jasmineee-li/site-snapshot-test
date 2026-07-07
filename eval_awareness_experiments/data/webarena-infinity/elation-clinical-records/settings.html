@@ -1,0 +1,189 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elation Clinical Records</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar"><div class="sidebar-header">
+            <div class="app-logo">
+                <span class="logo-icon">☤</span>
+                <span class="logo-text">Elation</span>
+            </div>
+            <div class="provider-info">
+                <div class="provider-name">Dr. Sarah Chen</div>
+                <div class="provider-practice">Greenwood Family Medicine</div>
+            </div>
+        </div>
+        <nav class="sidebar-nav"><div class="nav-item" data-action="navigate" data-section="patients">
+                <span class="nav-icon">👤</span>
+                <span class="nav-label">Patients</span>
+            </div><div class="nav-item" data-action="navigate" data-section="templates">
+                <span class="nav-icon">📄</span>
+                <span class="nav-label">Templates</span>
+            </div><div class="nav-item" data-action="navigate" data-section="categories">
+                <span class="nav-icon">📁</span>
+                <span class="nav-label">Categories</span>
+            </div><div class="nav-item active" data-action="navigate" data-section="settings">
+                <span class="nav-icon">⚙</span>
+                <span class="nav-label">Settings</span>
+            </div></nav></aside>
+        <main class="main-content" id="main-content"><div class="content-panel">
+            <div class="section-header">
+            <div class="section-header-text">
+                <h2>Settings</h2>
+                
+            </div>
+            
+        </div>
+            <div class="settings-group">
+                <h3>Provider Preferences</h3>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <label>Coded Visit Note Assessments</label>
+                        <p class="setting-desc">Show ICD-10 code search in assessment fields</p>
+                    </div>
+                    <div class="setting-control">
+                        <div class="toggle-row">
+            <span class="toggle-label"></span>
+            <div class="toggle-switch active" data-toggle-id="pref-coded-assessments">
+                <div class="toggle-knob"></div>
+            </div>
+        </div>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <label>Show Dx Codes in Print</label>
+                        <p class="setting-desc">Display diagnosis codes in printed/faxed/shared notes</p>
+                    </div>
+                    <div class="setting-control">
+                        <div class="toggle-row">
+            <span class="toggle-label"></span>
+            <div class="toggle-switch" data-toggle-id="pref-dx-in-print">
+                <div class="toggle-knob"></div>
+            </div>
+        </div>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <label>Default Visit Note Format</label>
+                        <p class="setting-desc">Format used when creating new visit notes</p>
+                    </div>
+                    <div class="setting-control">
+                        <div class="custom-dropdown" data-dropdown-id="pref-note-format">
+            <div class="dropdown-trigger" data-dropdown-trigger="pref-note-format">
+                <span class="dropdown-value">complete_hp</span>
+                <span class="dropdown-arrow">▾</span>
+            </div>
+            <div class="dropdown-menu" data-dropdown-menu="pref-note-format">
+                <div class="dropdown-item selected" data-value="complete_hp">Complete H&amp;P Note (2-Column)</div><div class="dropdown-item" data-value="hp_single">H&amp;P Note (Single Column)</div><div class="dropdown-item" data-value="pre_op">Pre-Op H&amp;P Note</div><div class="dropdown-item" data-value="simple">Simple Note</div><div class="dropdown-item" data-value="non_visit">Non-Visit Note</div>
+            </div>
+        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-group">
+                <h3>Appointment Types &amp; Visit Note Automation</h3>
+                <p class="setting-desc">Configure which visit note format, category, and template auto-populate when starting a note from each appointment type.</p>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead><tr><th>Appointment Type</th><th>Duration</th><th>Note Format</th><th>Category</th><th>Template</th><th>Actions</th></tr></thead>
+                        <tbody><tr>
+                <td><span class="apt-color" style="background:#4A90D9"></span>Office Visit</td>
+                <td>30 min</td>
+                <td>Complete H&amp;P Note (2-Column)</td>
+                <td>Office Visit</td>
+                <td>E* Problem-Focused Visit</td>
+                <td><button class="btn btn-xs btn-ghost" data-action="edit-appointment-type" data-apt-id="apt_001">Edit</button></td>
+            </tr><tr>
+                <td><span class="apt-color" style="background:#50C878"></span>Annual Exam</td>
+                <td>60 min</td>
+                <td>Complete H&amp;P Note (2-Column)</td>
+                <td>Annual Exam</td>
+                <td>E* Annual Wellness Visit</td>
+                <td><button class="btn btn-xs btn-ghost" data-action="edit-appointment-type" data-apt-id="apt_002">Edit</button></td>
+            </tr><tr>
+                <td><span class="apt-color" style="background:#9B59B6"></span>Telehealth Visit</td>
+                <td>20 min</td>
+                <td>H&amp;P Note (Single Column)</td>
+                <td>Telehealth</td>
+                <td>Telehealth Follow-Up</td>
+                <td><button class="btn btn-xs btn-ghost" data-action="edit-appointment-type" data-apt-id="apt_003">Edit</button></td>
+            </tr><tr>
+                <td><span class="apt-color" style="background:#E67E22"></span>Flu Shot</td>
+                <td>15 min</td>
+                <td>Simple Note</td>
+                <td>Vaccination Only</td>
+                <td>Flu Shot Administration</td>
+                <td><button class="btn btn-xs btn-ghost" data-action="edit-appointment-type" data-apt-id="apt_004">Edit</button></td>
+            </tr><tr>
+                <td><span class="apt-color" style="background:#E74C3C"></span>COVID Vaccine</td>
+                <td>30 min</td>
+                <td>Simple Note</td>
+                <td>Vaccination Only</td>
+                <td>COVID-19 Vaccine Visit</td>
+                <td><button class="btn btn-xs btn-ghost" data-action="edit-appointment-type" data-apt-id="apt_005">Edit</button></td>
+            </tr><tr>
+                <td><span class="apt-color" style="background:#1ABC9C"></span>Follow-Up</td>
+                <td>20 min</td>
+                <td>Complete H&amp;P Note (2-Column)</td>
+                <td>Follow-Up</td>
+                <td>None</td>
+                <td><button class="btn btn-xs btn-ghost" data-action="edit-appointment-type" data-apt-id="apt_006">Edit</button></td>
+            </tr><tr>
+                <td><span class="apt-color" style="background:#F39C12"></span>Procedure</td>
+                <td>45 min</td>
+                <td>Complete H&amp;P Note (2-Column)</td>
+                <td>Procedure</td>
+                <td>None</td>
+                <td><button class="btn btn-xs btn-ghost" data-action="edit-appointment-type" data-apt-id="apt_007">Edit</button></td>
+            </tr><tr>
+                <td><span class="apt-color" style="background:#E74C3C"></span>Urgent Same-Day</td>
+                <td>20 min</td>
+                <td>Complete H&amp;P Note (2-Column)</td>
+                <td>Urgent Visit</td>
+                <td>None</td>
+                <td><button class="btn btn-xs btn-ghost" data-action="edit-appointment-type" data-apt-id="apt_008">Edit</button></td>
+            </tr><tr>
+                <td><span class="apt-color" style="background:#2ECC71"></span>Well Child Check</td>
+                <td>45 min</td>
+                <td>Complete H&amp;P Note (2-Column)</td>
+                <td>Annual Exam</td>
+                <td>Well Child Visit (2-5 years)</td>
+                <td><button class="btn btn-xs btn-ghost" data-action="edit-appointment-type" data-apt-id="apt_009">Edit</button></td>
+            </tr><tr>
+                <td><span class="apt-color" style="background:#3498DB"></span>Pre-Op Clearance</td>
+                <td>60 min</td>
+                <td>Pre-Op H&amp;P Note</td>
+                <td>Pre-Op Evaluation</td>
+                <td>Pre-Operative Evaluation</td>
+                <td><button class="btn btn-xs btn-ghost" data-action="edit-appointment-type" data-apt-id="apt_010">Edit</button></td>
+            </tr></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="settings-group">
+                <h3>Practice Information</h3>
+                <div class="demographics-grid">
+                    <div class="demo-item"><label>Practice Name</label><span>Greenwood Family Medicine</span></div>
+                    <div class="demo-item"><label>Address</label><span>2847 Greenwood Ave, Suite 300, Seattle, WA 98103</span></div>
+                    <div class="demo-item"><label>Phone</label><span>(206) 555-0142</span></div>
+                    <div class="demo-item"><label>Fax</label><span>(206) 555-0143</span></div>
+                </div>
+            </div>
+        </div></main>
+    </div>
+    <div id="modal-container"></div>
+    <div id="toast-container"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

@@ -1,0 +1,110 @@
+- document:
+  - banner:
+    - img
+    - text: Plan & Track AcmeCorp / platform-v4
+    - button "To-Do List":
+      - img
+      - text: "9"
+    - text: SC
+  - navigation:
+    - text: Plan
+    - img
+    - text: Issues 57
+    - img
+    - text: Boards
+    - img
+    - text: Epics
+    - img
+    - text: Milestones
+    - img
+    - text: Iterations
+    - img
+    - text: Labels Personal
+    - img
+    - text: To-Do List 9
+  - main:
+    - heading "Issues" [level=1]
+    - button "New issue"
+    - button "Open 57"
+    - button "Closed 10"
+    - button "All"
+    - textbox "Search issues..."
+    - button "Assignee"
+    - button "Milestone"
+    - button "Label"
+    - button "Sort"
+    - img
+    - text: "Fix typo in 404 error page message #53 type bug priority low good-first-issue component frontend 1 1mo ago"
+    - img
+    - text: "Add tooltip to truncated sidebar labels #54 type improvement component frontend good-first-issue UX 1 1mo ago"
+    - img
+    - text: "Fix dropdown menu position clipping at viewport edges #48 type bug priority low component frontend 2 NK 1mo ago"
+    - img
+    - text: "Implement container registry garbage collection #64 type task component infrastructure"
+    - img
+    - text: v4.2 - Security Hardening May 30 5 LR 1mo ago
+    - img
+    - text: "Fix race condition in concurrent issue updates #62 type bug priority high component backend"
+    - img
+    - text: v4.1 - Performance Mar 31 5 CW 1mo ago
+    - img
+    - text: "Add branch protection rules UI #57 type feature component frontend security"
+    - img
+    - text: v4.2 - Security Hardening May 30 8 NK 1mo ago
+    - img
+    - text: "Create automated backup verification system #46 type task component infrastructure component database"
+    - img
+    - text: v4.2 - Security Hardening May 14 5 LR 1mo ago
+    - img
+    - text: "Improve error boundary fallback UI #49 type improvement component frontend UX"
+    - img
+    - text: v4.0 - Platform Redesign Mar 14 3 AT 1mo ago
+    - img
+    - text: "Markdown preview renders incorrectly with nested code blocks #21 type bug priority low component frontend"
+    - img
+    - text: Backlog 1 1mo ago
+    - img
+    - text: "Add webhook support for issue state changes #45 type feature component api component backend"
+    - img
+    - text: v5.0 - Enterprise Edition 8 1mo ago
+    - img
+    - text: "Internationalization (i18n) framework setup #66 type task component frontend"
+    - img
+    - text: v5.0 - Enterprise Edition 13 YT 1mo ago
+    - img
+    - text: "Database connection pool exhaustion under load #59 type bug priority high component database performance"
+    - img
+    - text: v4.1 - Performance Mar 31 8 DK 1mo ago
+    - img
+    - text: "Add inline code suggestions in merge request reviews #65 type feature component frontend component backend"
+    - img
+    - text: v5.0 - Enterprise Edition 13 1mo ago
+    - img
+    - text: "Implement retry mechanism for failed API calls #44 type improvement component api component backend 3 CW 1mo ago"
+    - img
+    - text: "Implement Redis session store #56 type improvement component backend component infrastructure"
+    - img
+    - text: v4.1 - Performance Apr 14 3 LR 1mo ago
+    - img
+    - text: "Login page shows blank screen on Safari 17.2 #17 type bug priority critical component frontend workflow in-progress"
+    - img
+    - text: v4.0 - Platform Redesign Feb 27 2 At risk NK 1mo ago
+    - img
+    - text: "Design system color palette update for WCAG AAA compliance #35 accessibility UX type task"
+    - img
+    - text: v4.1 - Performance Mar 31 5 AM 1mo ago
+    - img
+    - text: "Add merge request approval rules engine #61 type feature component backend"
+    - img
+    - text: v5.0 - Enterprise Edition 13 1mo ago
+    - img
+    - text: "Update project README with new setup instructions #30 type documentation type task"
+    - img
+    - text: v4.0 - Platform Redesign Feb 28 1 On track FA 1mo ago
+    - img
+    - text: "File upload fails silently for files > 50MB #20 type bug priority high component api UX 3 JO 1mo ago Showing 1–20 of 57"
+    - button "« Prev" [disabled]
+    - button "1"
+    - button "2"
+    - button "3"
+    - button "Next »"

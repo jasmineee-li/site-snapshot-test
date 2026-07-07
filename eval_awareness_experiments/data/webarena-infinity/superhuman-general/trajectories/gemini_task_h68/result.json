@@ -1,0 +1,22 @@
+{
+  "task_id": "task_h68",
+  "difficulty": "hard",
+  "instruction": "Delete all snippets authored by someone other than Alex Morgan, then create a new shared snippet called 'Team Standup' with body 'Hi team, here are my updates for {date}: {updates}'.",
+  "passed": true,
+  "verifier_message": "Non-Alex snippets deleted and 'Team Standup' created as shared.",
+  "elapsed": 79.1,
+  "steps": 9,
+  "is_done": true,
+  "final_result": "I have successfully completed the task. I deleted all snippets authored by anyone other than Alex Morgan (Sarah Chen, Rachel Foster, Nate Patel, and Diana Reyes) and created a new shared snippet titled 'Team Standup' with the body: 'Hi team, here are my updates for {date}: {updates}'.",
+  "errors": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

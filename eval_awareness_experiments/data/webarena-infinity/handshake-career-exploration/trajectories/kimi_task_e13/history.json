@@ -1,0 +1,39 @@
+{
+  "history": [
+    {
+      "thought": "## Action:\nScroll down on the feed to reveal more of the Anthropic post content.\n## Code:\n```python\npyautogui.moveTo(x=0.500, y=0.556)\npyautogui.scroll(-3)\n```",
+      "actions": [
+        {
+          "type": "hover",
+          "x": 960,
+          "y": 600
+        },
+        {
+          "type": "scroll",
+          "direction": "down",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "thought": "I can see the Anthropic post about AI safety internship applications. It mentions \"Our 2026 internship applications are now open for Research Engineering and Policy Research roles. Help us shape the future of AI safety.\" Below this post, I can see the heart icon with \"198\" likes. I'll click on it to like the post.\n\n## Action:\nClick on the heart icon next to \"198\" below the Anthropic post to like it.\n\n## Code:\n```python\npyautogui.click(x=0.166, y=0.818)\n```",
+      "actions": [
+        {
+          "type": "click",
+          "x": 319,
+          "y": 883
+        }
+      ]
+    },
+    {
+      "thought": "## Action:\nThe task has been completed successfully - I have liked the Anthropic post about AI safety internship applications as evidenced by the filled red heart icon and the increased like count from 198 to 199.\n## Code:\n```code\ncomputer.terminate(status=\"success\", answer='''Successfully liked the Anthropic post about AI safety internship applications. The heart icon is now filled in red and the like count increased from 198 to 199.''')\n```",
+      "actions": [
+        {
+          "type": "terminate",
+          "status": "done"
+        }
+      ]
+    }
+  ],
+  "format": "vision_agent"
+}

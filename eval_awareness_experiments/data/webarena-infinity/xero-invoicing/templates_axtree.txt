@@ -1,0 +1,25 @@
+- document:
+  - banner:
+    - text: Xero
+    - textbox "Search invoices, quotes, contacts..."
+    - button "🔍"
+  - complementary:
+    - text: Demo Company (AU)
+    - navigation: ▢ Dashboard Sales 📄 Invoices 13 📋 Quotes 💳 Credit Notes 🔄 Repeating Invoices Settings ⚙ Invoice Settings 🎨 Branding Themes 🔔 Invoice Reminders
+  - main:
+    - heading "Branding Themes" [level=1]
+    - button "New Theme"
+    - text: Standard Default
+    - button "Edit"
+    - text: Professional Services
+    - button "Edit"
+    - button "Set Default"
+    - button "Delete"
+    - text: Simple Clean
+    - button "Edit"
+    - button "Set Default"
+    - button "Delete"
+    - text: Retail
+    - button "Edit"
+    - button "Set Default"
+    - button "Delete"

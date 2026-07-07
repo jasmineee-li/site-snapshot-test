@@ -1,0 +1,63 @@
+- document:
+  - banner:
+    - text: ⚡ Superhuman 🔍
+    - textbox "Search emails... (use from:, to:, subject:, has:attachment)"
+    - button "📅"
+    - button "📆"
+    - button "⌘K"
+    - button "⚙"
+    - text: AM
+  - navigation:
+    - button "✎ Compose"
+    - text: ✉ Inbox 10 ★ Starred ✓ Done ⏰ Reminders 6 ➤ Sent ✎ Drafts 2 👁 Recent Opens 📄 Snippets ⚠ Spam 3 🗑 Trash Labels
+    - button "+"
+    - text: Work Personal Finance Clients Urgent Travel Newsletters Recruiting Legal Product Engineering Marketing Receipts Events
+  - main:
+    - text: 1-9 of 9
+    - button "‹" [disabled]
+    - button "›" [disabled]
+    - checkbox
+    - text: "ER To: Emily Rodriguez Mar 6 Re: Series B Term Sheet Discussion Emily, thanks for the feedback. Let's discuss Thursday at 2pm PT. I'll send a calendar invite. Urgent"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "TB To: Tom Bradley Mar 6 Infrastructure Migration Sign-off Tom, Phase 2 is approved. Please proceed with the production migration starting Monday."
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "ER To: Emily Rodriguez, Lena Johansson, Patrick O'Neil Mar 5 Quarterly Board Update - Q1 2026 Board members, please find attached the Q1 2026 quarterly update for review ahead of our March 10 meeting. 📎 ✓✓"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "RS To: Robert Singh Mar 5 Re: Guest Lecture Request - Stanford Professor Singh, I'd be happy to give the guest lecture. April 8 works perfectly. ✓✓"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "LJ To: Lena Johansson Mar 4 Re: Nordic Ventures - Follow-up Lena, great meeting you too. Happy to schedule a call. Here's my availability next week... ✓"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "JL To: Jordan Lee Mar 4 Welcome to the team, Jordan! Jordan, thrilled to have you joining Acme as Engineering Manager. Your start date is March 24. ✓✓"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "DK To: David Kim Mar 3 Re: Partnership Opportunity - FinancePlus x Acme David, great catching up at SaaS Connect. Let's schedule a call - my booking page: https://cal.superhuman.com/alex ✓✓"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "DK To: David Kim Mar 2 Proposal: Enterprise Pricing Update Hi David, following up on our pricing discussion. Attached is the updated enterprise tier proposal. 📎 ✓✓"
+    - button "☆"
+    - button "✓"
+    - button "⏰"
+    - checkbox
+    - text: "SC To: Sarah Chen, Nate Patel, Maya Patel, Tom Bradley, Ben Carter, Rachel Foster Mar 1 Team Offsite - Save the Date: March 12 Team, saving the date for our annual product team offsite on March 12 at Cavallo Point in Sausalito. ✓✓"
+    - button "☆"
+    - button "✓"
+    - button "⏰"

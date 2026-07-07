@@ -1,0 +1,253 @@
+- document:
+  - banner:
+    - button "Toggle sidebar": ☰
+    - text: E Elation SC Dr. Chen
+  - navigation:
+    - navigation: 🏠 Practice Home 📨 Patient Letters 12 📤 Sent 📝 Drafts 1 🔔 Reminders 9 👥 Patients 📅 Appointments 📧 Bulk Letters ⚙ Settings
+  - main:
+    - heading "Patients" [level=1]
+    - textbox "Search patients..."
+    - text: "All Providers ▼ Passport Status:"
+    - checkbox "Registered" [checked]
+    - text: Registered
+    - checkbox "Invited" [checked]
+    - text: Invited
+    - checkbox "Not Invited" [checked]
+    - text: Not Invited
+    - table:
+      - rowgroup:
+        - row "Name Email Phone DOB Provider Passport SMS Tags":
+          - columnheader:
+            - checkbox
+          - columnheader "Name"
+          - columnheader "Email"
+          - columnheader "Phone"
+          - columnheader "DOB"
+          - columnheader "Provider"
+          - columnheader "Passport"
+          - columnheader "SMS"
+          - columnheader "Tags"
+      - rowgroup:
+        - row "Abrams, Gregory greg.abrams@gmail.com (510) 555-4181 12/05/1972 Michael Torres 🌐 Registered SMS Opted In Chronic Care":
+          - cell:
+            - checkbox
+          - cell "Abrams, Gregory"
+          - cell "greg.abrams@gmail.com"
+          - cell "(510) 555-4181"
+          - cell "12/05/1972"
+          - cell "Michael Torres"
+          - cell "🌐 Registered"
+          - cell "SMS Opted In"
+          - cell "Chronic Care"
+        - row "Adebayo, Kevin kevin.adebayo@gmail.com (650) 555-1121 06/08/1983 Robert Kim 🌐 Registered SMS Opted In Diabetes Management":
+          - cell:
+            - checkbox
+          - cell "Adebayo, Kevin"
+          - cell "kevin.adebayo@gmail.com"
+          - cell "(650) 555-1121"
+          - cell "06/08/1983"
+          - cell "Robert Kim"
+          - cell "🌐 Registered"
+          - cell "SMS Opted In"
+          - cell "Diabetes Management"
+        - row "Andersen, Barbara barbara.a@comcast.net (415) 555-3875 01/18/1967 Sarah Chen 🌐 Registered SMS Opted In":
+          - cell:
+            - checkbox
+          - cell "Andersen, Barbara"
+          - cell "barbara.a@comcast.net"
+          - cell "(415) 555-3875"
+          - cell "01/18/1967"
+          - cell "Sarah Chen"
+          - cell "🌐 Registered"
+          - cell "SMS Opted In"
+          - cell
+        - row "Bennet, Craig craig.b@yahoo.com (650) 555-3161 09/07/2003 Robert Kim 🌐 Not Invited SMS Not Opted In New Patient":
+          - cell:
+            - checkbox
+          - cell "Bennet, Craig"
+          - cell "craig.b@yahoo.com"
+          - cell "(650) 555-3161"
+          - cell "09/07/2003"
+          - cell "Robert Kim"
+          - cell "🌐 Not Invited"
+          - cell "SMS Not Opted In"
+          - cell "New Patient"
+        - row "Blackwell, Howard h.blackwell@protonmail.com (650) 555-2753 07/18/1948 Robert Kim 🌐 Registered SMS Opted Out Geriatric High Risk Chronic Care":
+          - cell:
+            - checkbox
+          - cell "Blackwell, Howard"
+          - cell "h.blackwell@protonmail.com"
+          - cell "(650) 555-2753"
+          - cell "07/18/1948"
+          - cell "Robert Kim"
+          - cell "🌐 Registered"
+          - cell "SMS Opted Out"
+          - cell "Geriatric High Risk Chronic Care"
+        - row "Burke, Megan megan.burke@yahoo.com (415) 555-4283 04/11/1998 Sarah Chen 🌐 Not Invited SMS Not Opted In New Patient":
+          - cell:
+            - checkbox
+          - cell "Burke, Megan"
+          - cell "megan.burke@yahoo.com"
+          - cell "(415) 555-4283"
+          - cell "04/11/1998"
+          - cell "Sarah Chen"
+          - cell "🌐 Not Invited"
+          - cell "SMS Not Opted In"
+          - cell "New Patient"
+        - row "Chang, William wchang@yahoo.com (510) 555-1325 07/03/1975 Michael Torres 🌐 Invited SMS Opted In":
+          - cell:
+            - checkbox
+          - cell "Chang, William"
+          - cell "wchang@yahoo.com"
+          - cell "(510) 555-1325"
+          - cell "07/03/1975"
+          - cell "Michael Torres"
+          - cell "🌐 Invited"
+          - cell "SMS Opted In"
+          - cell
+        - row "Chen, Olivia olivia.chen@icloud.com (415) 555-2651 04/02/1991 Sarah Chen 🌐 Registered SMS Opted In":
+          - cell:
+            - checkbox
+          - cell "Chen, Olivia"
+          - cell "olivia.chen@icloud.com"
+          - cell "(415) 555-2651"
+          - cell "04/02/1991"
+          - cell "Sarah Chen"
+          - cell "🌐 Registered"
+          - cell "SMS Opted In"
+          - cell
+        - row "Cho, Susan susan.cho@gmail.com (415) 555-4079 09/16/1984 Jessica Okafor 🌐 Registered SMS Opted In Telehealth Preferred":
+          - cell:
+            - checkbox
+          - cell "Cho, Susan"
+          - cell "susan.cho@gmail.com"
+          - cell "(415) 555-4079"
+          - cell "09/16/1984"
+          - cell "Jessica Okafor"
+          - cell "🌐 Registered"
+          - cell "SMS Opted In"
+          - cell "Telehealth Preferred"
+        - row "Copeland, Raymond ray.copeland@gmail.com (650) 555-3569 10/21/1980 Robert Kim 🌐 Registered SMS Opted In Diabetes Management":
+          - cell:
+            - checkbox
+          - cell "Copeland, Raymond"
+          - cell "ray.copeland@gmail.com"
+          - cell "(650) 555-3569"
+          - cell "10/21/1980"
+          - cell "Robert Kim"
+          - cell "🌐 Registered"
+          - cell "SMS Opted In"
+          - cell "Diabetes Management"
+        - row "DeLuca, Frank frank.deluca@aol.com (650) 555-1937 01/22/1960 Robert Kim 🌐 Registered SMS Opted In Geriatric":
+          - cell:
+            - checkbox
+          - cell "DeLuca, Frank"
+          - cell "frank.deluca@aol.com"
+          - cell "(650) 555-1937"
+          - cell "01/22/1960"
+          - cell "Robert Kim"
+          - cell "🌐 Registered"
+          - cell "SMS Opted In"
+          - cell "Geriatric"
+        - row "Dubois, Lauren lauren.d@icloud.com (415) 555-4487 06/20/1990 Jessica Okafor 🌐 Registered SMS Opted In":
+          - cell:
+            - checkbox
+          - cell "Dubois, Lauren"
+          - cell "lauren.d@icloud.com"
+          - cell "(415) 555-4487"
+          - cell "06/20/1990"
+          - cell "Jessica Okafor"
+          - cell "🌐 Registered"
+          - cell "SMS Opted In"
+          - cell
+        - row "Fitzgerald, Douglas doug.fitz@outlook.com (510) 555-3365 06/29/1955 Michael Torres 🌐 Registered SMS Opted Out Geriatric":
+          - cell:
+            - checkbox
+          - cell "Fitzgerald, Douglas"
+          - cell "doug.fitz@outlook.com"
+          - cell "(510) 555-3365"
+          - cell "06/29/1955"
+          - cell "Michael Torres"
+          - cell "🌐 Registered"
+          - cell "SMS Opted Out"
+          - cell "Geriatric"
+        - row "Foster-Hutchinson, Diane diane.fh@gmail.com (415) 555-1631 09/06/1981 Sarah Chen 🌐 Registered SMS Opted In Telehealth Preferred":
+          - cell:
+            - checkbox
+          - cell "Foster-Hutchinson, Diane"
+          - cell "diane.fh@gmail.com"
+          - cell "(415) 555-1631"
+          - cell "09/06/1981"
+          - cell "Sarah Chen"
+          - cell "🌐 Registered"
+          - cell "SMS Opted In"
+          - cell "Telehealth Preferred"
+        - row "Garcia, Linda linda.garcia@hotmail.com (415) 555-0611 09/02/1970 Jessica Okafor 🌐 Registered SMS Opted In Chronic Care":
+          - cell:
+            - checkbox
+          - cell "Garcia, Linda"
+          - cell "linda.garcia@hotmail.com"
+          - cell "(415) 555-0611"
+          - cell "09/02/1970"
+          - cell "Jessica Okafor"
+          - cell "🌐 Registered"
+          - cell "SMS Opted In"
+          - cell "Chronic Care"
+        - row "Gonzalez, Maria maria.gonzalez@gmail.com (415) 555-1427 03/21/1968 Sarah Chen 🌐 Registered SMS Opted In Spanish Speaking Chronic Care":
+          - cell:
+            - checkbox
+          - cell "Gonzalez, Maria"
+          - cell "maria.gonzalez@gmail.com"
+          - cell "(415) 555-1427"
+          - cell "03/21/1968"
+          - cell "Sarah Chen"
+          - cell "🌐 Registered"
+          - cell "SMS Opted In"
+          - cell "Spanish Speaking Chronic Care"
+        - row "Hansen, Derek derek.hansen@gmail.com (510) 555-2549 01/29/1997 Michael Torres 🌐 Registered SMS Opted In":
+          - cell:
+            - checkbox
+          - cell "Hansen, Derek"
+          - cell "derek.hansen@gmail.com"
+          - cell "(510) 555-2549"
+          - cell "01/29/1997"
+          - cell "Michael Torres"
+          - cell "🌐 Registered"
+          - cell "SMS Opted In"
+          - cell
+        - row "Johansson, Alice alice.j@gmail.com (415) 555-3467 02/06/1993 Jessica Okafor 🌐 Registered SMS Opted In":
+          - cell:
+            - checkbox
+          - cell "Johansson, Alice"
+          - cell "alice.j@gmail.com"
+          - cell "(415) 555-3467"
+          - cell "02/06/1993"
+          - cell "Jessica Okafor"
+          - cell "🌐 Registered"
+          - cell "SMS Opted In"
+          - cell
+        - row "Johnson, Marcus marcus.j@protonmail.com (510) 555-0509 05/18/1995 Michael Torres 🌐 Invited SMS Not Opted In New Patient":
+          - cell:
+            - checkbox
+          - cell "Johnson, Marcus"
+          - cell "marcus.j@protonmail.com"
+          - cell "(510) 555-0509"
+          - cell "05/18/1995"
+          - cell "Michael Torres"
+          - cell "🌐 Invited"
+          - cell "SMS Not Opted In"
+          - cell "New Patient"
+        - row "Keane, Russell russell.keane@yahoo.com (510) 555-4997 05/30/1969 Michael Torres 🌐 Registered SMS Opted In":
+          - cell:
+            - checkbox
+          - cell "Keane, Russell"
+          - cell "russell.keane@yahoo.com"
+          - cell "(510) 555-4997"
+          - cell "05/30/1969"
+          - cell "Michael Torres"
+          - cell "🌐 Registered"
+          - cell "SMS Opted In"
+          - cell
+    - text: 1-20 of 50
+    - button "◀" [disabled]
+    - button "▶"

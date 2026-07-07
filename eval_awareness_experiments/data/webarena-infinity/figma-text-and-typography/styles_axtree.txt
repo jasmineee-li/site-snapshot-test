@@ -1,0 +1,82 @@
+- document:
+  - complementary:
+    - img: T
+    - text: Design System v4.2 Typography
+    - navigation:
+      - img
+      - text: Layers
+      - img: T
+      - text: Typography
+      - img
+      - text: Text Styles
+      - img: Ag
+      - text: Fonts
+      - img
+      - text: Settings
+    - text: SC Sarah Chen Editor
+  - main:
+    - heading "Text Styles" [level=2]
+    - paragraph: 12 styles defined
+    - button "New Style":
+      - img
+      - text: New Style
+    - text: Ag Heading/H1 Inter Bold · 48px Primary page heading 1 layer using this style
+    - button "Edit style":
+      - img
+    - button "Delete style":
+      - img
+    - text: Ag Body/Regular Inter Regular · 16px Default body text 1 layer using this style
+    - button "Edit style":
+      - img
+    - button "Delete style":
+      - img
+    - text: Ag Heading/H2 Montserrat Semi Bold · 32px Section heading 1 layer using this style
+    - button "Edit style":
+      - img
+    - button "Delete style":
+      - img
+    - text: Ag Heading/H3 Inter Semi Bold · 24px Subsection heading 0 layers using this style
+    - button "Edit style":
+      - img
+    - button "Delete style":
+      - img
+    - text: Ag Button/Primary Poppins Semi Bold · 18px Primary button text 1 layer using this style
+    - button "Edit style":
+      - img
+    - button "Delete style":
+      - img
+    - text: Ag Caption/Small Inter Regular · 12px Small captions and footnotes 1 layer using this style
+    - button "Edit style":
+      - img
+    - button "Delete style":
+      - img
+    - text: Ag Code/Inline JetBrains Mono Regular · 13px Code snippets and inline code 1 layer using this style
+    - button "Edit style":
+      - img
+    - button "Delete style":
+      - img
+    - text: Ag Label/SmallCaps Montserrat Medium · 14px Small caps label for section dividers 1 layer using this style
+    - button "Edit style":
+      - img
+    - button "Delete style":
+      - img
+    - text: Ag Body/Large Inter Regular · 18px Large body for introductory paragraphs 0 layers using this style
+    - button "Edit style":
+      - img
+    - button "Delete style":
+      - img
+    - text: Ag Heading/Display Playfair Display Bold · 64px Display heading for hero sections 0 layers using this style
+    - button "Edit style":
+      - img
+    - button "Delete style":
+      - img
+    - text: Ag Body/Small Inter Regular · 13px Compact body text for dense layouts 0 layers using this style
+    - button "Edit style":
+      - img
+    - button "Delete style":
+      - img
+    - text: Ag Label/Overline Inter Semi Bold · 11px Overline label for categories 0 layers using this style
+    - button "Edit style":
+      - img
+    - button "Delete style":
+      - img

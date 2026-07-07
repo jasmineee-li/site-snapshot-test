@@ -1,0 +1,306 @@
+- document:
+  - banner:
+    - text: Xero
+    - textbox "Search invoices, quotes, contacts..."
+    - button "🔍"
+  - complementary:
+    - text: Demo Company (AU)
+    - navigation: ▢ Dashboard Sales 📄 Invoices 13 📋 Quotes 💳 Credit Notes 🔄 Repeating Invoices Settings ⚙ Invoice Settings 🎨 Branding Themes 🔔 Invoice Reminders
+  - main:
+    - heading "Invoices" [level=1]
+    - button "New Invoice"
+    - button "All (25)"
+    - button "Draft (3)"
+    - button "Awaiting Approval (2)"
+    - button "Awaiting Payment (13)"
+    - button "Overdue (13)"
+    - button "Paid (6)"
+    - table:
+      - rowgroup:
+        - row "Number Reference To Date Due Date Total Due Status":
+          - columnheader:
+            - checkbox
+          - columnheader "Number"
+          - columnheader "Reference"
+          - columnheader "To"
+          - columnheader "Date"
+          - columnheader "Due Date"
+          - columnheader "Total"
+          - columnheader "Due"
+          - columnheader "Status"
+      - rowgroup:
+        - row "INV-0060 RB-CONSULT Redback Mining Supplies 2 Mar 2026 16 Apr 2026 $3,450.00 $3,450.00 Draft":
+          - cell:
+            - checkbox
+          - cell "INV-0060"
+          - cell "RB-CONSULT"
+          - cell "Redback Mining Supplies"
+          - cell "2 Mar 2026"
+          - cell "16 Apr 2026"
+          - cell "$3,450.00"
+          - cell "$3,450.00"
+          - cell "Draft"
+        - row "INV-0058 MRW-WEBSITE Murray River Winery 1 Mar 2026 31 Mar 2026 $4,280.00 $4,280.00 Draft":
+          - cell:
+            - checkbox
+          - cell "INV-0058"
+          - cell "MRW-WEBSITE"
+          - cell "Murray River Winery"
+          - cell "1 Mar 2026"
+          - cell "31 Mar 2026"
+          - cell "$4,280.00"
+          - cell "$4,280.00"
+          - cell "Draft"
+        - row "INV-0059 Bright Spark Electrical 1 Mar 2026 31 Mar 2026 $328.90 $328.90 Draft":
+          - cell:
+            - checkbox
+          - cell "INV-0059"
+          - cell
+          - cell "Bright Spark Electrical"
+          - cell "1 Mar 2026"
+          - cell "31 Mar 2026"
+          - cell "$328.90"
+          - cell "$328.90"
+          - cell "Draft"
+        - row "INV-0057 Stellar Education Services 28 Feb 2026 30 Mar 2026 $6,600.00 $6,600.00 Awaiting Approval":
+          - cell:
+            - checkbox
+          - cell "INV-0057"
+          - cell
+          - cell "Stellar Education Services"
+          - cell "28 Feb 2026"
+          - cell "30 Mar 2026"
+          - cell "$6,600.00"
+          - cell "$6,600.00"
+          - cell "Awaiting Approval"
+        - row "INV-0056 HM-DIGITAL-Q1 Horizon Media & Advertising 27 Feb 2026 31 Mar 2026 $10,692.00 $10,692.00 Awaiting Approval":
+          - cell:
+            - checkbox
+          - cell "INV-0056"
+          - cell "HM-DIGITAL-Q1"
+          - cell "Horizon Media & Advertising"
+          - cell "27 Feb 2026"
+          - cell "31 Mar 2026"
+          - cell "$10,692.00"
+          - cell "$10,692.00"
+          - cell "Awaiting Approval"
+        - row "INV-0055 TV-Q1-2026 TechVault Solutions Pty Ltd 25 Feb 2026 11 Mar 2026 $41,800.00 $41,800.00 Awaiting Payment":
+          - cell:
+            - checkbox
+          - cell "INV-0055"
+          - cell "TV-Q1-2026"
+          - cell "TechVault Solutions Pty Ltd"
+          - cell "25 Feb 2026"
+          - cell "11 Mar 2026"
+          - cell "$41,800.00"
+          - cell "$41,800.00"
+          - cell "Awaiting Payment"
+        - row "INV-0054 SBR-WEB Sapphire Bay Resort 22 Feb 2026 24 Mar 2026 $2,178.00 $2,178.00 Awaiting Payment":
+          - cell:
+            - checkbox
+          - cell "INV-0054"
+          - cell "SBR-WEB"
+          - cell "Sapphire Bay Resort"
+          - cell "22 Feb 2026"
+          - cell "24 Mar 2026"
+          - cell "$2,178.00"
+          - cell "$2,178.00"
+          - cell "Awaiting Payment"
+        - row "INV-0053 Vanguard Security Systems 20 Feb 2026 22 Mar 2026 $823.90 $823.90 Awaiting Payment":
+          - cell:
+            - checkbox
+          - cell "INV-0053"
+          - cell
+          - cell "Vanguard Security Systems"
+          - cell "20 Feb 2026"
+          - cell "22 Mar 2026"
+          - cell "$823.90"
+          - cell "$823.90"
+          - cell "Awaiting Payment"
+        - row "INV-0062 CN-HOSTING-FEB CloudNine Analytics 20 Feb 2026 6 Mar 2026 $2,139.50 $2,139.50 Awaiting Payment":
+          - cell:
+            - checkbox
+          - cell "INV-0062"
+          - cell "CN-HOSTING-FEB"
+          - cell "CloudNine Analytics"
+          - cell "20 Feb 2026"
+          - cell "6 Mar 2026"
+          - cell "$2,139.50"
+          - cell "$2,139.50"
+          - cell "Awaiting Payment"
+        - row "INV-0052 CSS-DEV-FEB Cascade Software Solutions 18 Feb 2026 4 Mar 2026 $27,324.00 $27,324.00 Awaiting Payment":
+          - cell:
+            - checkbox
+          - cell "INV-0052"
+          - cell "CSS-DEV-FEB"
+          - cell "Cascade Software Solutions"
+          - cell "18 Feb 2026"
+          - cell "4 Mar 2026"
+          - cell "$27,324.00"
+          - cell "$27,324.00"
+          - cell "Awaiting Payment"
+        - row "INV-0051 SHG-IT-2026 Summit Health Group 15 Feb 2026 1 Mar 2026 $6,060.00 $6,060.00 Awaiting Payment":
+          - cell:
+            - checkbox
+          - cell "INV-0051"
+          - cell "SHG-IT-2026"
+          - cell "Summit Health Group"
+          - cell "15 Feb 2026"
+          - cell "1 Mar 2026"
+          - cell "$6,060.00"
+          - cell "$6,060.00"
+          - cell "Awaiting Payment"
+        - row "INV-0050 ALI-2026-Q1 Alpha Logistics International 12 Feb 2026 14 Mar 2026 $13,255.00 $13,255.00 Awaiting Payment":
+          - cell:
+            - checkbox
+          - cell "INV-0050"
+          - cell "ALI-2026-Q1"
+          - cell "Alpha Logistics International"
+          - cell "12 Feb 2026"
+          - cell "14 Mar 2026"
+          - cell "$13,255.00"
+          - cell "$13,255.00"
+          - cell "Awaiting Payment"
+        - row "INV-0049 Coastal Living Interiors 10 Feb 2026 24 Feb 2026 $2,996.00 $2,996.00 Awaiting Payment":
+          - cell:
+            - checkbox
+          - cell "INV-0049"
+          - cell
+          - cell "Coastal Living Interiors"
+          - cell "10 Feb 2026"
+          - cell "24 Feb 2026"
+          - cell "$2,996.00"
+          - cell "$2,996.00"
+          - cell "Awaiting Payment"
+        - row "INV-0048 PF-WO-3301 Pacific Freight Lines 5 Feb 2026 7 Mar 2026 $4,180.00 $4,180.00 Awaiting Payment":
+          - cell:
+            - checkbox
+          - cell "INV-0048"
+          - cell "PF-WO-3301"
+          - cell "Pacific Freight Lines"
+          - cell "5 Feb 2026"
+          - cell "7 Mar 2026"
+          - cell "$4,180.00"
+          - cell "$4,180.00"
+          - cell "Awaiting Payment"
+        - row "INV-0061 GF-2026-002 Greenfield Organics 5 Feb 2026 7 Mar 2026 $2,449.00 $2,449.00 Awaiting Payment":
+          - cell:
+            - checkbox
+          - cell "INV-0061"
+          - cell "GF-2026-002"
+          - cell "Greenfield Organics"
+          - cell "5 Feb 2026"
+          - cell "7 Mar 2026"
+          - cell "$2,449.00"
+          - cell "$2,449.00"
+          - cell "Awaiting Payment"
+        - row "INV-0047 CN-PROJ-2026-Q1 CloudNine Analytics 1 Feb 2026 15 Feb 2026 $18,652.70 $18,652.70 Awaiting Payment":
+          - cell:
+            - checkbox
+          - cell "INV-0047"
+          - cell "CN-PROJ-2026-Q1"
+          - cell "CloudNine Analytics"
+          - cell "1 Feb 2026"
+          - cell "15 Feb 2026"
+          - cell "$18,652.70"
+          - cell "$18,652.70"
+          - cell "Awaiting Payment"
+        - row "INV-0046 Baxter & Associates Legal 25 Jan 2026 1 Feb 2026 $6,655.00 $6,655.00 Awaiting Payment":
+          - cell:
+            - checkbox
+          - cell "INV-0046"
+          - cell
+          - cell "Baxter & Associates Legal"
+          - cell "25 Jan 2026"
+          - cell "1 Feb 2026"
+          - cell "$6,655.00"
+          - cell "$6,655.00"
+          - cell "Awaiting Payment"
+        - row "INV-0045 PO-9012 Pinnacle Construction Group 20 Jan 2026 19 Feb 2026 $15,840.00 $10,890.00 Awaiting Payment":
+          - cell:
+            - checkbox
+          - cell "INV-0045"
+          - cell "PO-9012"
+          - cell "Pinnacle Construction Group"
+          - cell "20 Jan 2026"
+          - cell "19 Feb 2026"
+          - cell "$15,840.00"
+          - cell "$10,890.00"
+          - cell "Awaiting Payment"
+        - row "INV-0044 GF-2026-001 Greenfield Organics 5 Jan 2026 4 Feb 2026 $749.00 $0.00 Paid":
+          - cell:
+            - checkbox
+          - cell "INV-0044"
+          - cell "GF-2026-001"
+          - cell "Greenfield Organics"
+          - cell "5 Jan 2026"
+          - cell "4 Feb 2026"
+          - cell "$749.00"
+          - cell "$0.00"
+          - cell "Paid"
+        - row "INV-0043 TechVault Solutions Pty Ltd 20 Dec 2025 3 Jan 2026 $8,756.00 $0.00 Paid":
+          - cell:
+            - checkbox
+          - cell "INV-0043"
+          - cell
+          - cell "TechVault Solutions Pty Ltd"
+          - cell "20 Dec 2025"
+          - cell "3 Jan 2026"
+          - cell "$8,756.00"
+          - cell "$0.00"
+          - cell "Paid"
+        - row "INV-0042 PO-8834 Pinnacle Construction Group 15 Dec 2025 14 Jan 2026 $15,840.00 $0.00 Paid":
+          - cell:
+            - checkbox
+          - cell "INV-0042"
+          - cell "PO-8834"
+          - cell "Pinnacle Construction Group"
+          - cell "15 Dec 2025"
+          - cell "14 Jan 2026"
+          - cell "$15,840.00"
+          - cell "$0.00"
+          - cell "Paid"
+        - row "INV-0063 Coastal Living Interiors 10 Nov 2025 24 Nov 2025 $2,370.25 $0.00 Paid":
+          - cell:
+            - checkbox
+          - cell "INV-0063"
+          - cell
+          - cell "Coastal Living Interiors"
+          - cell "10 Nov 2025"
+          - cell "24 Nov 2025"
+          - cell "$2,370.25"
+          - cell "$0.00"
+          - cell "Paid"
+        - row "INV-0066 WP-NZ-2025-Q4 Wellington & Partners Accounting 1 Nov 2025 1 Dec 2025 NZ$3,000.00 NZ$0.00 Paid":
+          - cell:
+            - checkbox
+          - cell "INV-0066"
+          - cell "WP-NZ-2025-Q4"
+          - cell "Wellington & Partners Accounting"
+          - cell "1 Nov 2025"
+          - cell "1 Dec 2025"
+          - cell "NZ$3,000.00"
+          - cell "NZ$0.00"
+          - cell "Paid"
+        - row "INV-0064 NTP-2025-IT-004 Northern Territory Power Corp 1 Oct 2025 30 Nov 2025 $23,100.00 $0.00 Paid":
+          - cell:
+            - checkbox
+          - cell "INV-0064"
+          - cell "NTP-2025-IT-004"
+          - cell "Northern Territory Power Corp"
+          - cell "1 Oct 2025"
+          - cell "30 Nov 2025"
+          - cell "$23,100.00"
+          - cell "$0.00"
+          - cell "Paid"
+        - row "INV-0065 OAT-CAMP-01 Outback Adventures Tourism 15 Sep 2025 15 Oct 2025 $8,140.00 $0.00 Voided":
+          - cell:
+            - checkbox
+          - cell "INV-0065"
+          - cell "OAT-CAMP-01"
+          - cell "Outback Adventures Tourism"
+          - cell "15 Sep 2025"
+          - cell "15 Oct 2025"
+          - cell "$8,140.00"
+          - cell "$0.00"
+          - cell "Voided"

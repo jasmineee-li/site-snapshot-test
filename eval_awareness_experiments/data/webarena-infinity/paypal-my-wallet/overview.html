@@ -1,0 +1,372 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayPal - My Wallet</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Mobile Header -->
+        <div class="mobile-header">
+            <span class="material-icons" data-action="toggle-sidebar">menu</span>
+            <span class="sidebar-logo">PayPal Wallet</span>
+        </div>
+
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <span class="material-icons">account_balance_wallet</span>
+                    PayPal
+                </div>
+            </div>
+
+            <div class="sidebar-user">
+                <div class="user-avatar" id="user-avatar">JM</div>
+                <div class="user-info">
+                    <div class="user-name" id="user-name">Jordan Mitchell</div>
+                    <div class="user-email" id="user-email">jordan.mitchell@outlook.com</div>
+                </div>
+            </div>
+
+            <div class="sidebar-nav">
+                <div class="nav-section">Overview</div>
+                <button class="nav-item active" data-view="overview" data-action="navigate">
+                    <span class="material-icons">dashboard</span>
+                    My Wallet
+                </button>
+                <button class="nav-item" data-view="transactions" data-action="navigate">
+                    <span class="material-icons">receipt_long</span>
+                    Transactions
+                </button>
+
+                <div class="nav-section">Payment Methods</div>
+                <button class="nav-item" data-view="cards" data-action="navigate">
+                    <span class="material-icons">credit_card</span>
+                    Cards
+                </button>
+                <button class="nav-item" data-view="banks" data-action="navigate">
+                    <span class="material-icons">account_balance</span>
+                    Bank Accounts
+                </button>
+                <button class="nav-item" data-view="debit-card" data-action="navigate">
+                    <span class="material-icons">payment</span>
+                    PayPal Debit Card
+                </button>
+
+                <div class="nav-section">Money</div>
+                <button class="nav-item" data-view="balance" data-action="navigate">
+                    <span class="material-icons">account_balance_wallet</span>
+                    Balance
+                </button>
+                <button class="nav-item" data-view="savings" data-action="navigate">
+                    <span class="material-icons">savings</span>
+                    Savings
+                </button>
+                <button class="nav-item" data-view="crypto" data-action="navigate">
+                    <span class="material-icons">currency_bitcoin</span>
+                    Cryptocurrency
+                </button>
+
+                <div class="nav-section">Credit &amp; Pay Later</div>
+                <button class="nav-item" data-view="credit" data-action="navigate">
+                    <span class="material-icons">credit_score</span>
+                    PayPal Credit
+                </button>
+                <button class="nav-item" data-view="pay-later" data-action="navigate">
+                    <span class="material-icons">calendar_today</span>
+                    Pay in 4
+                </button>
+
+                <div class="nav-section">Rewards &amp; More</div>
+                <button class="nav-item" data-view="rewards" data-action="navigate">
+                    <span class="material-icons">star</span>
+                    Rewards
+                </button>
+                <button class="nav-item" data-view="offers" data-action="navigate">
+                    <span class="material-icons">local_offer</span>
+                    Offers
+                </button>
+                <button class="nav-item" data-view="gift-cards" data-action="navigate">
+                    <span class="material-icons">card_giftcard</span>
+                    Gift Cards
+                </button>
+
+                <div class="nav-section">Settings</div>
+                <button class="nav-item" data-view="preferences" data-action="navigate">
+                    <span class="material-icons">settings</span>
+                    Preferences
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content" id="app-content">
+            <div class="page-header">
+                <h1>My Wallet</h1>
+                <p class="page-subtitle">Welcome back, Jordan</p>
+            </div>
+
+            <div class="overview-cards-grid">
+                <div class="overview-card balance-card" data-action="navigate" data-view="balance">
+                    <div class="overview-card-header">
+                        <span class="material-icons">account_balance_wallet</span>
+                        <span>PayPal Balance</span>
+                    </div>
+                    <div class="overview-card-value">$2,847.63</div>
+                    <div class="overview-card-footer">6 currencies</div>
+                </div>
+
+                <div class="overview-card savings-card" data-action="navigate" data-view="savings">
+                    <div class="overview-card-header">
+                        <span class="material-icons">savings</span>
+                        <span>Savings</span>
+                    </div>
+                    <div class="overview-card-value">$12,450.82</div>
+                    <div class="overview-card-footer">4.3% APY</div>
+                </div>
+
+                <div class="overview-card crypto-card" data-action="navigate" data-view="crypto">
+                    <div class="overview-card-header">
+                        <span class="material-icons">currency_bitcoin</span>
+                        <span>Crypto</span>
+                    </div>
+                    <div class="overview-card-value">$7,428.99</div>
+                    <div class="overview-card-footer">6 assets</div>
+                </div>
+
+                <div class="overview-card rewards-card" data-action="navigate" data-view="rewards">
+                    <div class="overview-card-header">
+                        <span class="material-icons">star</span>
+                        <span>Rewards</span>
+                    </div>
+                    <div class="overview-card-value">4,825 pts</div>
+                    <div class="overview-card-footer">Worth $48.25</div>
+                </div>
+            </div>
+
+            
+            <div class="section-header">
+                <h3>Payment Methods</h3>
+                <div class="section-actions"><button class="btn btn-sm btn-outline" data-action="navigate" data-view="cards">View All</button></div>
+            </div>
+        
+            <div class="payment-methods-list">
+                
+                    <div class="payment-method-item" data-action="navigate" data-view="cards" data-id="card_001">
+                        
+                <div class="card-visual-compact visa">
+                    <span class="card-brand visa">VISA</span>
+                    <span class="card-last-four">•••• 4829</span>
+                    <span class="card-type-label">Credit</span>
+                </div>
+            
+                        <span class="status-badge badge-success">Confirmed</span>
+                    </div>
+                
+                    <div class="payment-method-item" data-action="navigate" data-view="cards" data-id="card_002">
+                        
+                <div class="card-visual-compact mastercard">
+                    <span class="card-brand mastercard">MC</span>
+                    <span class="card-last-four">•••• 7156</span>
+                    <span class="card-type-label">Debit</span>
+                </div>
+            
+                        <span class="status-badge badge-success">Confirmed</span>
+                    </div>
+                
+                    <div class="payment-method-item" data-action="navigate" data-view="cards" data-id="card_003">
+                        
+                <div class="card-visual-compact american-express">
+                    <span class="card-brand amex">AMEX</span>
+                    <span class="card-last-four">•••• 3001</span>
+                    <span class="card-type-label">Credit</span>
+                </div>
+            
+                        <span class="status-badge badge-success">Confirmed</span>
+                    </div>
+                
+                
+                    <div class="payment-method-item" data-action="navigate" data-view="banks" data-id="bank_001">
+                        <div class="card-visual-compact bank">
+                            <span class="material-icons">account_balance</span>
+                            <span class="card-last-four">Chase •••• 6742</span>
+                            <span class="card-type-label">checking</span>
+                        </div>
+                        <span class="status-badge badge-success">Confirmed</span>
+                    </div>
+                
+                    <div class="payment-method-item" data-action="navigate" data-view="banks" data-id="bank_002">
+                        <div class="card-visual-compact bank">
+                            <span class="material-icons">account_balance</span>
+                            <span class="card-last-four">Bank of America •••• 3891</span>
+                            <span class="card-type-label">savings</span>
+                        </div>
+                        <span class="status-badge badge-success">Confirmed</span>
+                    </div>
+                
+            </div>
+
+            
+                
+            <div class="section-header">
+                <h3>Active Pay Later Plans</h3>
+                <div class="section-actions"><button class="btn btn-sm btn-outline" data-action="navigate" data-view="pay-later">View All</button></div>
+            </div>
+        
+                <div class="plans-summary">
+                    
+                            <div class="plan-summary-item" data-action="navigate" data-view="pay-later" data-id="pi4_001">
+                                <div class="plan-merchant">Nordstrom</div>
+                                <div class="plan-amount">$284.50</div>
+                                
+            <div class="progress-container">
+                <div class="progress-label">2/4 payments</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 50%"></div>
+                </div>
+            </div>
+        
+                            </div>
+                        
+                            <div class="plan-summary-item" data-action="navigate" data-view="pay-later" data-id="pi4_002">
+                                <div class="plan-merchant">Best Buy</div>
+                                <div class="plan-amount">$649.99</div>
+                                
+            <div class="progress-container">
+                <div class="progress-label">4/4 payments</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 100%"></div>
+                </div>
+            </div>
+        
+                            </div>
+                        
+                            <div class="plan-summary-item" data-action="navigate" data-view="pay-later" data-id="pi4_003">
+                                <div class="plan-merchant">Nike</div>
+                                <div class="plan-amount">$189.00</div>
+                                
+            <div class="progress-container">
+                <div class="progress-label">1/4 payments</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 25%"></div>
+                </div>
+            </div>
+        
+                            </div>
+                        
+                </div>
+            
+
+            
+            <div class="section-header">
+                <h3>Recent Activity</h3>
+                <div class="section-actions"><button class="btn btn-sm btn-outline" data-action="navigate" data-view="transactions">View All</button></div>
+            </div>
+        
+            <div class="transactions-list">
+                
+            <div class="transaction-row ">
+                <div class="transaction-icon negative">
+                    <span class="material-icons">shopping_cart</span>
+                </div>
+                <div class="transaction-info">
+                    <div class="transaction-desc">Amazon.com</div>
+                    <div class="transaction-meta">
+                        Mar 6, 2026
+                        
+                        
+                    </div>
+                </div>
+                
+                <div class="transaction-amount negative">
+                    -$89.47
+                </div>
+            </div>
+        
+            <div class="transaction-row ">
+                <div class="transaction-icon positive">
+                    <span class="material-icons">arrow_downward</span>
+                </div>
+                <div class="transaction-info">
+                    <div class="transaction-desc">From Marcus Williams</div>
+                    <div class="transaction-meta">
+                        Mar 6, 2026
+                        
+                        
+                    </div>
+                </div>
+                
+                <div class="transaction-amount positive">
+                    +$150.00
+                </div>
+            </div>
+        
+            <div class="transaction-row ">
+                <div class="transaction-icon negative">
+                    <span class="material-icons">shopping_cart</span>
+                </div>
+                <div class="transaction-info">
+                    <div class="transaction-desc">Spotify Premium</div>
+                    <div class="transaction-meta">
+                        Mar 4, 2026
+                        
+                        
+                    </div>
+                </div>
+                
+                <div class="transaction-amount negative">
+                    -$11.99
+                </div>
+            </div>
+        
+            <div class="transaction-row ">
+                <div class="transaction-icon negative">
+                    <span class="material-icons">shopping_cart</span>
+                </div>
+                <div class="transaction-info">
+                    <div class="transaction-desc">Uber Trip</div>
+                    <div class="transaction-meta">
+                        Mar 4, 2026
+                        
+                        
+                    </div>
+                </div>
+                
+                <div class="transaction-amount negative">
+                    -$24.50
+                </div>
+            </div>
+        
+            <div class="transaction-row ">
+                <div class="transaction-icon negative">
+                    <span class="material-icons">account_balance</span>
+                </div>
+                <div class="transaction-info">
+                    <div class="transaction-desc">To Chase ***6742</div>
+                    <div class="transaction-meta">
+                        Mar 3, 2026
+                        
+                        
+                    </div>
+                </div>
+                
+                <div class="transaction-amount negative">
+                    -$500.00
+                </div>
+            </div>
+        
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts (order matters: data → state → components → views → app) -->
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

@@ -1,0 +1,12 @@
+{
+  "task_id": "task_h19",
+  "difficulty": "hard",
+  "instruction": "Create a visit note for William O'Brien using the Follow-Up category, add an HPI block, and add an Assessment & Plan block.",
+  "passed": true,
+  "verifier_message": "O'Brien has a visit note (id=note_100) with Follow-Up category (cat_005), an HPI block, and an Assessment block.",
+  "elapsed": 120.7,
+  "steps": 11,
+  "is_done": true,
+  "final_result": "Action: Click the \"Save Draft\" button to save the visit note with the HPI and Assessment & Plan blocks.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nterminate\n</parameter>\n<parameter=status>\nsuccess\n</parameter>\n</function>\n</tool_call>",
+  "errors": []
+}

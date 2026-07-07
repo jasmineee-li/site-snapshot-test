@@ -1,0 +1,28 @@
+- document:
+  - navigation:
+    - text: account_balance_wallet PayPal JM Jordan Mitchell jordan.mitchell@outlook.com Overview
+    - button "dashboard My Wallet"
+    - button "receipt_long Transactions"
+    - text: Payment Methods
+    - button "credit_card Cards"
+    - button "account_balance Bank Accounts"
+    - button "payment PayPal Debit Card"
+    - text: Money
+    - button "account_balance_wallet Balance"
+    - button "savings Savings"
+    - button "currency_bitcoin Cryptocurrency"
+    - text: Credit & Pay Later
+    - button "credit_score PayPal Credit"
+    - button "calendar_today Pay in 4"
+    - text: Rewards & More
+    - button "star Rewards"
+    - button "local_offer Offers"
+    - button "card_giftcard Gift Cards"
+    - text: Settings
+    - button "settings Preferences"
+  - main:
+    - heading "Rewards" [level=1]
+    - button "redeem Redeem Points"
+    - text: 4,825 Points Available Worth $48.25 workspace_premium Gold Member Earned This Month 312 pts Earned This Year 2,150 pts
+    - heading "History" [level=3]
+    - text: "add_circle Purchase at Amazon Mar 5, 2026 +125 pts add_circle Purchase at Target Mar 2, 2026 +87 pts remove_circle Redeemed for PayPal Balance Feb 28, 2026 -500 pts add_circle Purchase at Uber Eats Feb 25, 2026 +45 pts star Bonus: Monthly Spend Goal Jan 31, 2026 +200 pts add_circle Purchase at Walmart Jan 28, 2026 +63 pts add_circle Purchase at Spotify Jan 14, 2026 +15 pts remove_circle Redeemed for Gift Card Jan 10, 2026 -1,000 pts add_circle Purchase at Etsy Jan 5, 2026 +92 pts star Holiday Bonus Dec 24, 2025 +500 pts add_circle Purchase at Apple Dec 20, 2025 +340 pts add_circle Purchase at Home Depot Dec 15, 2025 +156 pts"

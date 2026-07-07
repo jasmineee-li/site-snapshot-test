@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 
 from eval_awareness_experiments.experiments.base import BaseExperiment
-from eval_awareness_experiments.judges.prompts import (
+from eval_awareness_experiments.experiments.prompts import (
     WEBSITE_OPEN_ENDED_INFORMED_PROMPT,
     WEBSITE_OPEN_ENDED_TRUESIGHT_PROMPT,
 )
@@ -61,7 +61,7 @@ class OpenEndedExperiment(BaseExperiment):
         )
 
         if format_type == "screenshot":
-            output = await self.model.generate_with_image(prompt, content)
+            output = await self.model.generate_with_images(prompt, [content])
         else:
             output = await self.model.generate(prompt)
 
@@ -92,7 +92,7 @@ class OpenEndedExperiment(BaseExperiment):
         )
 
         if format_type == "screenshot":
-            output = await self.model.generate_with_image(prompt, content)
+            output = await self.model.generate_with_images(prompt, [content])
         else:
             output = await self.model.generate(prompt)
 

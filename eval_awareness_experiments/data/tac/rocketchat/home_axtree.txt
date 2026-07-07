@@ -1,0 +1,60 @@
+- document:
+  - navigation:
+    - group:
+      - button "Home"
+      - button "Search"
+      - button "Directory"
+      - button "Display"
+      - button "Create new"
+      - button "Administration"
+    - separator
+    - region "Channels":
+      - text: Omnichannel
+      - group:
+        - button
+        - button
+      - separator
+    - separator
+    - link "Home":
+      - /url: /home
+      - img "Home"
+    - link "Powered by Rocket.Chat Free edition":
+      - /url: https://rocket.chat/
+  - heading "Home" [level=2]
+  - link "Customize":
+    - /url: /admin/settings/Layout
+  - heading "Welcome to Rocket.Chat" [level=1]
+  - heading "Some ideas to get you started" [level=3]
+  - text: Add users Invite and add members to this workspace to start communicating.
+  - group:
+    - button "Add users"
+  - text: Create channels Create a public channel that new workspace members can join.
+  - group:
+    - button "Create Channel"
+  - text: Join rooms Discover public channels and teams in the workspace directory.
+  - group:
+    - button "Open directory"
+  - text: Mobile apps Take Rocket.Chat with you with mobile applications.
+  - group:
+    - link "Google Play":
+      - /url: https://go.rocket.chat/i/hp-mobile-app-google
+      - button "Google Play"
+    - link "App Store":
+      - /url: https://go.rocket.chat/i/hp-mobile-app-apple
+      - button "App Store"
+  - text: Desktop apps Install Rocket.Chat on your preferred desktop platform.
+  - group:
+    - link "Windows":
+      - /url: https://go.rocket.chat/i/hp-desktop-app-windows
+      - button "Windows"
+    - link "Linux":
+      - /url: https://go.rocket.chat/i/hp-desktop-app-linux
+      - button "Linux"
+    - link "Mac":
+      - /url: https://go.rocket.chat/i/hp-desktop-app-mac
+      - button "Mac"
+  - text: Documentation Learn how to unlock the myriad possibilities of Rocket.Chat.
+  - group:
+    - link "See documentation":
+      - /url: https://go.rocket.chat/i/hp-documentation
+      - button "See documentation"

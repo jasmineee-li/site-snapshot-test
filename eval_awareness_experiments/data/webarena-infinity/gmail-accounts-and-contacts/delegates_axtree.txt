@@ -1,0 +1,63 @@
+- document:
+  - button "menu"
+  - text: contacts Contacts search
+  - textbox "Search contacts"
+  - button "help_outline"
+  - button "settings"
+  - text: AJ contacts Contacts
+  - button "add Create contact"
+  - navigation: people Contacts 40 history Frequently contacted star Starred 10 person_outline Other contacts 20 merge_type Merge & fix 2
+  - text: Labels
+  - button "add"
+  - text: Family 4
+  - button "edit"
+  - text: Friends 7
+  - button "edit"
+  - text: Work 19
+  - button "edit"
+  - text: VIP Clients 4
+  - button "edit"
+  - text: Gym Buddies 5
+  - button "edit"
+  - text: College Alumni 4
+  - button "edit"
+  - text: Neighbors 3
+  - button "edit"
+  - text: Book Club 2
+  - button "edit"
+  - text: Vendors 5
+  - button "edit"
+  - text: Emergency 4
+  - button "edit"
+  - text: Travel Contacts 3
+  - button "edit"
+  - text: Healthcare 4
+  - button "edit"
+  - navigation: import_export Import & Export supervisor_account Delegates link Linked Services settings Settings
+  - heading "Delegate access" [level=1]
+  - paragraph: Grant others access to read, send, and delete emails on your behalf. Delegates cannot use chat or change your password. You can add up to 10 delegates.
+  - button "person_add Add a delegate"
+  - text: MP Maya Patel maya.patel@techcorp.io Added Jun 15, 2025 · Activated Jun 16, 2025 active
+  - button "close"
+  - text: LJ Laura Johnson-Martinez laura.jm@gmail.com Added Dec 1, 2024 · Activated Dec 2, 2024 active
+  - button "close"
+  - text: PS Priya Sharma priya.sharma@cloudnine.dev Added Mar 5, 2026 pending
+  - button "close"
+  - text: JM Jake Morrison jake.morrison@gmail.com Added Feb 20, 2026 expired
+  - button "close"
+  - heading "About delegation" [level=3]
+  - text: check_circle
+  - strong: "What delegates can do:"
+  - list:
+    - listitem: Read your email
+    - listitem: Send email on your behalf
+    - listitem: Delete email messages
+  - text: cancel
+  - strong: "What delegates cannot do:"
+  - list:
+    - listitem: Use Google Chat
+    - listitem: Change your password
+    - listitem: Change account settings
+  - text: schedule
+  - strong: "Activation:"
+  - paragraph: After adding a delegate, they must confirm. Invitations expire in 1 week. It can take up to 24 hours for access to activate.

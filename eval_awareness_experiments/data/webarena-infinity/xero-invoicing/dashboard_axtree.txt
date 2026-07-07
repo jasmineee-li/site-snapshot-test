@@ -1,0 +1,98 @@
+- document:
+  - banner:
+    - text: Xero
+    - textbox "Search invoices, quotes, contacts..."
+    - button "🔍"
+  - complementary:
+    - text: Demo Company (AU)
+    - navigation: ▢ Dashboard Sales 📄 Invoices 13 📋 Quotes 💳 Credit Notes 🔄 Repeating Invoices Settings ⚙ Invoice Settings 🎨 Branding Themes 🔔 Invoice Reminders
+  - main:
+    - heading "Sales Overview" [level=1]
+    - button "New Invoice"
+    - button "New Quote"
+    - text: Draft 3 $8,058.90 Awaiting Approval 2 $17,292.00 Awaiting Payment 13 $139,403.10 Overdue 13 $139,403.10 Total Outstanding $139,403.10 Total Overdue $139,403.10
+    - heading "Recent Invoices" [level=2]
+    - table:
+      - rowgroup:
+        - row "Number Reference To Date Due Date Total Due Status":
+          - columnheader "Number"
+          - columnheader "Reference"
+          - columnheader "To"
+          - columnheader "Date"
+          - columnheader "Due Date"
+          - columnheader "Total"
+          - columnheader "Due"
+          - columnheader "Status"
+      - rowgroup:
+        - row "INV-0060 RB-CONSULT Redback Mining Supplies 2 Mar 2026 16 Apr 2026 $3,450.00 $3,450.00 Draft":
+          - cell "INV-0060"
+          - cell "RB-CONSULT"
+          - cell "Redback Mining Supplies"
+          - cell "2 Mar 2026"
+          - cell "16 Apr 2026"
+          - cell "$3,450.00"
+          - cell "$3,450.00"
+          - cell "Draft"
+        - row "INV-0058 MRW-WEBSITE Murray River Winery 1 Mar 2026 31 Mar 2026 $4,280.00 $4,280.00 Draft":
+          - cell "INV-0058"
+          - cell "MRW-WEBSITE"
+          - cell "Murray River Winery"
+          - cell "1 Mar 2026"
+          - cell "31 Mar 2026"
+          - cell "$4,280.00"
+          - cell "$4,280.00"
+          - cell "Draft"
+        - row "INV-0059 Bright Spark Electrical 1 Mar 2026 31 Mar 2026 $328.90 $328.90 Draft":
+          - cell "INV-0059"
+          - cell
+          - cell "Bright Spark Electrical"
+          - cell "1 Mar 2026"
+          - cell "31 Mar 2026"
+          - cell "$328.90"
+          - cell "$328.90"
+          - cell "Draft"
+        - row "INV-0057 Stellar Education Services 28 Feb 2026 30 Mar 2026 $6,600.00 $6,600.00 Awaiting Approval":
+          - cell "INV-0057"
+          - cell
+          - cell "Stellar Education Services"
+          - cell "28 Feb 2026"
+          - cell "30 Mar 2026"
+          - cell "$6,600.00"
+          - cell "$6,600.00"
+          - cell "Awaiting Approval"
+        - row "INV-0056 HM-DIGITAL-Q1 Horizon Media & Advertising 27 Feb 2026 31 Mar 2026 $10,692.00 $10,692.00 Awaiting Approval":
+          - cell "INV-0056"
+          - cell "HM-DIGITAL-Q1"
+          - cell "Horizon Media & Advertising"
+          - cell "27 Feb 2026"
+          - cell "31 Mar 2026"
+          - cell "$10,692.00"
+          - cell "$10,692.00"
+          - cell "Awaiting Approval"
+        - row "INV-0055 TV-Q1-2026 TechVault Solutions Pty Ltd 25 Feb 2026 11 Mar 2026 $41,800.00 $41,800.00 Awaiting Payment":
+          - cell "INV-0055"
+          - cell "TV-Q1-2026"
+          - cell "TechVault Solutions Pty Ltd"
+          - cell "25 Feb 2026"
+          - cell "11 Mar 2026"
+          - cell "$41,800.00"
+          - cell "$41,800.00"
+          - cell "Awaiting Payment"
+        - row "INV-0054 SBR-WEB Sapphire Bay Resort 22 Feb 2026 24 Mar 2026 $2,178.00 $2,178.00 Awaiting Payment":
+          - cell "INV-0054"
+          - cell "SBR-WEB"
+          - cell "Sapphire Bay Resort"
+          - cell "22 Feb 2026"
+          - cell "24 Mar 2026"
+          - cell "$2,178.00"
+          - cell "$2,178.00"
+          - cell "Awaiting Payment"
+        - row "INV-0053 Vanguard Security Systems 20 Feb 2026 22 Mar 2026 $823.90 $823.90 Awaiting Payment":
+          - cell "INV-0053"
+          - cell
+          - cell "Vanguard Security Systems"
+          - cell "20 Feb 2026"
+          - cell "22 Mar 2026"
+          - cell "$823.90"
+          - cell "$823.90"
+          - cell "Awaiting Payment"

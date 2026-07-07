@@ -1,0 +1,2000 @@
+- document:
+  - banner:
+    - link " CL":
+      - /url: https://sfbay.craigslist.org/
+    - button "SF bay area"
+    - text: 
+    - button "all SF bay area"
+    - text: 
+    - button "for sale"
+    - text: 
+    - button "free stuff"
+    - text: 
+    - link " post":
+      - /url: https://post.craigslist.org/c/sfo
+    - link " acct":
+      - /url: https://accounts.craigslist.org/login/home
+  - main:
+    - text: 
+    - textbox "search free stuff"
+    - button ""
+    - button ""
+    - heading "free stuff" [level=1]
+    - button ""
+    - list:
+      - list:
+        - listitem:
+          - link "free stuff":
+            - /url: https://sfbay.craigslist.org/search/zip?free=1#search=2~gallery~0
+          - text: "4093"
+          - checkbox [checked]
+        - listitem:
+          - link "furniture":
+            - /url: https://sfbay.craigslist.org/search/fua?free=1#search=2~gallery~0
+          - text: "466"
+          - checkbox [checked]
+        - listitem:
+          - link "farm & garden":
+            - /url: https://sfbay.craigslist.org/search/gra?free=1#search=2~gallery~0
+          - text: "85"
+          - checkbox [checked]
+        - listitem:
+          - link "baby & kid stuff":
+            - /url: https://sfbay.craigslist.org/search/baa?free=1#search=2~gallery~0
+          - text: "79"
+          - checkbox [checked]
+        - listitem:
+          - link "general for sale":
+            - /url: https://sfbay.craigslist.org/search/foa?free=1#search=2~gallery~0
+          - text: "73"
+          - checkbox [checked]
+      - button "+ show 32 more"
+    - button "check all"
+    - button "uncheck all"
+    - checkbox "search titles only"
+    - text: search titles only
+    - checkbox "has image"
+    - text: has image
+    - checkbox "posted today"
+    - text: posted today
+    - checkbox "hide duplicates"
+    - text: hide duplicates miles from location
+    - textbox "miles"
+    - textbox "from zip"
+    - text: 
+    - button "use map..."
+    - button " condition"
+    - checkbox "delivery available"
+    - text: delivery available
+    - button " language of posting"
+    - button "reset"
+    - button "apply"
+    - link "safety tips":
+      - /url: https://www.craigslist.org/about/help/safety
+    - link "prohibited items":
+      - /url: https://www.craigslist.org/about/prohibited
+    - link "product recalls":
+      - /url: https://www.craigslist.org/about/recalled_items
+    - link "avoiding scams":
+      - /url: https://www.craigslist.org/about/help/safety/scams
+    - button ""
+    - button ""
+    - button ""
+    - button ""
+    - button "newest"
+    - text: 
+    - button "condition"
+    - text: 1 - 6 of 5,393
+    - link "Kincaid Cherry Wood Queen Bed Frame & Armoire 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/el-cerrito-kincaid-cherry-wood-queen/7926703679.html
+      - img "Kincaid Cherry Wood Queen Bed Frame & Armoire 1"
+    - text: • • • • • • • •
+    - link "Kincaid Cherry Wood Queen Bed Frame & Armoire":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/el-cerrito-kincaid-cherry-wood-queen/7926703679.html
+    - button ""
+    - text: <1hr ago • albany / el cerrito
+    - button ""
+    - text: free
+    - link "Free Glass Table Tops 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-free-glass-table-tops/7926703639.html
+      - img "Free Glass Table Tops 1"
+    - text: • • • •
+    - link "Free Glass Table Tops":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-free-glass-table-tops/7926703639.html
+    - button ""
+    - text: <1hr ago • berkeley north / hills
+    - button ""
+    - text: free
+    - link "FREE felt fabric pieces...take it ALL 1":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/san-francisco-free-felt-fabric/7926703591.html
+      - img "FREE felt fabric pieces...take it ALL 1"
+    - text: •
+    - link "FREE felt fabric pieces...take it ALL":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/san-francisco-free-felt-fabric/7926703591.html
+    - button ""
+    - text: <1hr ago • San Francisco
+    - button ""
+    - text: free
+    - link "Free Old Town Recreation Canoe and paddles 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-free-old-town-recreation-canoe/7926703409.html
+      - img "Free Old Town Recreation Canoe and paddles 1"
+    - text: • • •
+    - link "Free Old Town Recreation Canoe and paddles":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-free-old-town-recreation-canoe/7926703409.html
+    - button ""
+    - text: <1hr ago • oakland west
+    - button ""
+    - text: free
+    - link "Trundle Bottom Spring and Twin Mattress 1":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/fairfield-trundle-bottom-spring-and/7922101783.html
+      - img "Trundle Bottom Spring and Twin Mattress 1"
+    - text: • • •
+    - link "Trundle Bottom Spring and Twin Mattress":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/fairfield-trundle-bottom-spring-and/7922101783.html
+    - button ""
+    - text: <1hr ago • Fairfield, Lower Green Valley
+    - button ""
+    - text: free
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/sby/grd/d/cupertino-firewood-buyer-beware/7920799953.html
+      - text: 
+      - paragraph: no image
+    - link "Firewood - Buyer Beware":
+      - /url: https://sfbay.craigslist.org/sby/grd/d/cupertino-firewood-buyer-beware/7920799953.html
+    - button ""
+    - text: <1hr ago • cupertino
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-free-ikea-shelves-full/7926702534.html
+    - text: • • • • •
+    - link "Free Ikea Shelves, Full Sheetrock sheets, 3/4” Plywood":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-free-ikea-shelves-full/7926702534.html
+    - button ""
+    - text: <1hr ago • berkeley north / hills
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/zip/d/berkeley-moving-boxes-packing-paper-lots/7926702489.html
+    - text: • •
+    - link "Moving boxes, packing paper - lots!":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/berkeley-moving-boxes-packing-paper-lots/7926702489.html
+    - button ""
+    - text: <1hr ago • berkeley north / hills
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-free-vintage-acrosonic-by/7926702181.html
+    - text: • • •
+    - link "FREE Vintage Acrosonic by Baldwin Vintage Spinet Piano":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-free-vintage-acrosonic-by/7926702181.html
+    - button ""
+    - text: <1hr ago • oakland piedmont / montclair
+    - button ""
+    - text: free
+    - link "Free tv cart 1":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/south-san-francisco-free-tv-cart/7923770513.html
+      - img "Free tv cart 1"
+    - text: •
+    - link "Free tv cart":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/south-san-francisco-free-tv-cart/7923770513.html
+    - button ""
+    - text: <1hr ago • south san francisco
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/zip/d/south-san-francisco-computer-desk-wide/7920234532.html
+    - text: • •
+    - link "Computer desk - Wide Anthro cart":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/south-san-francisco-computer-desk-wide/7920234532.html
+    - button ""
+    - text: <1hr ago • south san francisco
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/zip/d/walnut-creek-antique-wood-table-with/7926701393.html
+    - text: • •
+    - link "ANTIQUE WOOD TABLE WITH CHAIRS":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/walnut-creek-antique-wood-table-with/7926701393.html
+    - button ""
+    - text: <1hr ago • walnut creek
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-canned-goods-expired-but/7926700562.html
+    - text: • •
+    - link "Canned goods, expired but should still be fine":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-canned-goods-expired-but/7926700562.html
+    - button ""
+    - text: <1hr ago • castro / upper market
+    - button ""
+    - text: free
+    - link "Oil-less turkey frier 1":
+      - /url: https://sfbay.craigslist.org/scz/zip/d/santa-cruz-oil-less-turkey-frier/7926700230.html
+      - img "Oil-less turkey frier 1"
+    - text: •
+    - link "Oil-less turkey frier":
+      - /url: https://sfbay.craigslist.org/scz/zip/d/santa-cruz-oil-less-turkey-frier/7926700230.html
+    - button ""
+    - text: <1hr ago • santa cruz
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/fuo/d/san-francisco-free-hutch-cottage-core/7926700150.html
+    - text: • • • •
+    - link "FREE HUTCH - Cottage Core, deVol, French Inspired, Granny Core":
+      - /url: https://sfbay.craigslist.org/sfc/fuo/d/san-francisco-free-hutch-cottage-core/7926700150.html
+    - button ""
+    - text: <1hr ago • nob hill
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/zip/d/walnut-creek-outdoor-storage-x-feet/7926700010.html
+    - text: • •
+    - link "OUTDOOR STORAGE 6 x 8 feet":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/walnut-creek-outdoor-storage-x-feet/7926700010.html
+    - button ""
+    - text: <1hr ago • walnut creek
+    - button ""
+    - text: free
+    - link "1920s 6 foot wide window sash 1":
+      - /url: https://sfbay.craigslist.org/eby/mat/d/oakland-1920s-foot-wide-window-sash/7922471983.html
+      - img "1920s 6 foot wide window sash 1"
+    - text: •
+    - link "1920s 6 foot wide window sash":
+      - /url: https://sfbay.craigslist.org/eby/mat/d/oakland-1920s-foot-wide-window-sash/7922471983.html
+    - button ""
+    - text: <1hr ago • oakland rockridge / claremont
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/ross-free-fireplace-screen/7926699254.html
+    - text: • •
+    - link "Free fireplace screen":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/ross-free-fireplace-screen/7926699254.html
+    - button ""
+    - text: <1hr ago • san rafael
+    - button ""
+    - text: free
+    - link "Pottery barn kids bean bag chair free 1":
+      - /url: https://sfbay.craigslist.org/sby/tag/d/cupertino-pottery-barn-kids-bean-bag/7926698719.html
+      - img "Pottery barn kids bean bag chair free 1"
+    - text: •
+    - link "Pottery barn kids bean bag chair free":
+      - /url: https://sfbay.craigslist.org/sby/tag/d/cupertino-pottery-barn-kids-bean-bag/7926698719.html
+    - button ""
+    - text: <1hr ago • cupertino
+    - button ""
+    - text: free
+    - link "Chest Freezer 1":
+      - /url: https://sfbay.craigslist.org/nby/hsh/d/santa-rosa-chest-freezer/7926698542.html
+      - img "Chest Freezer 1"
+    - text: •
+    - link "Chest Freezer":
+      - /url: https://sfbay.craigslist.org/nby/hsh/d/santa-rosa-chest-freezer/7926698542.html
+    - button ""
+    - text: <1hr ago • santa rosa
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-free-tv-stand-shelving/7926697964.html
+    - text: • • • • • • • •
+    - link "FREE!! TV stand w/ shelving":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-free-tv-stand-shelving/7926697964.html
+    - button ""
+    - text: <1hr ago • Oakland
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/zip/d/santa-cruz-free-plant-food-old-metal/7926697392.html
+    - text: • • •
+    - link "Free plant food, old metal shelf bracket, pint of dark blue paint":
+      - /url: https://sfbay.craigslist.org/scz/zip/d/santa-cruz-free-plant-food-old-metal/7926697392.html
+    - button ""
+    - text: <1hr ago • santa cruz
+    - button ""
+    - text: free
+    - link "FREE 50 INCH TV 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/walnut-creek-free-50-inch-tv/7926697260.html
+      - img "FREE 50 INCH TV 1"
+    - text: •
+    - link "FREE 50 INCH TV":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/walnut-creek-free-50-inch-tv/7926697260.html
+    - button ""
+    - text: <1hr ago • walnut creek
+    - button ""
+    - text: free
+    - link "Free Tire - off Chanate Rd and Slater St 1":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/santa-rosa-free-tire-off-chanate-rd-and/7925981390.html
+      - img "Free Tire - off Chanate Rd and Slater St 1"
+    - text: •
+    - link "Free Tire - off Chanate Rd and Slater St":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/santa-rosa-free-tire-off-chanate-rd-and/7925981390.html
+    - button ""
+    - text: <1hr ago • Santa Rosa
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/zip/d/sunnyvale-slot/7926695641.html
+    - text: • •
+    - link "T slot":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/sunnyvale-slot/7926695641.html
+    - button ""
+    - text: <1hr ago • sunnyvale
+    - button ""
+    - text: free
+    - link "Chill Packs 1":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-chill-packs/7926695276.html
+      - img "Chill Packs 1"
+    - text: •
+    - link "Chill Packs":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-chill-packs/7926695276.html
+    - button ""
+    - text: <1hr ago • pacific heights
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/ross-free-bar-stools/7926694898.html
+    - text: • • •
+    - link "Free bar stools":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/ross-free-bar-stools/7926694898.html
+    - button ""
+    - text: <1hr ago • san rafael
+    - button ""
+    - text: free
+    - link "free couch 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/berkeley-free-couch/7917712770.html
+      - img "free couch 1"
+    - text: •
+    - link "free couch":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/berkeley-free-couch/7917712770.html
+    - button ""
+    - text: <1hr ago • berkeley
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/oakland-free-loveseat-and-tv-table/7926693415.html
+    - text: • •
+    - link "Free loveseat and tv table":
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/oakland-free-loveseat-and-tv-table/7926693415.html
+    - button ""
+    - text: <1hr ago • oakland lake merritt / grand
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/santa-rosa-leather-ottoman-table/7922201731.html
+    - text: • •
+    - link "Leather ottoman/table":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/santa-rosa-leather-ottoman-table/7922201731.html
+    - button ""
+    - text: <1hr ago • santa rosa
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/spo/d/san-francisco-nordic-track-ski-exercise/7926692396.html
+    - text: • • • •
+    - link "Nordic Track Ski exercise Machine":
+      - /url: https://sfbay.craigslist.org/sfc/spo/d/san-francisco-nordic-track-ski-exercise/7926692396.html
+    - button ""
+    - text: <1hr ago • cole valley / ashbury hts
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-massage-table-used/7926692375.html
+    - text: • • • •
+    - link "FREE MASSAGE TABLE - USED":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-massage-table-used/7926692375.html
+    - button ""
+    - text: <1hr ago • San Francisco
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/san-jose-free-king-size-bed-frame/7926692284.html
+    - text: • • •
+    - link "free king size bed frame":
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/san-jose-free-king-size-bed-frame/7926692284.html
+    - button ""
+    - text: <1hr ago • san jose east
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/zip/d/san-bruno-vintage-solo-pleated-paper/7926691585.html
+    - text: • •
+    - link "Vintage Solo Pleated Paper Water Fountain Dispenser Cups No.450 3.5oz.":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/san-bruno-vintage-solo-pleated-paper/7926691585.html
+    - button ""
+    - text: <1hr ago • san bruno
+    - button ""
+    - text: free
+    - link "Trampoline Olympus Pro 14' 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/danville-trampoline-olympus-pro-14/7926691401.html
+      - img "Trampoline Olympus Pro 14' 1"
+    - text: •
+    - link "Trampoline Olympus Pro 14'":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/danville-trampoline-olympus-pro-14/7926691401.html
+    - button ""
+    - text: <1hr ago • danville / san ramon
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/clo/d/berkeley-clothing/7926691391.html
+    - text: • • • • •
+    - link "Clothing":
+      - /url: https://sfbay.craigslist.org/eby/clo/d/berkeley-clothing/7926691391.html
+    - button ""
+    - text: <1hr ago • berkeley
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/mat/d/oakland-free-lumber/7926690611.html
+    - text: • •
+    - link "FREE LUMBER":
+      - /url: https://sfbay.craigslist.org/eby/mat/d/oakland-free-lumber/7926690611.html
+    - button ""
+    - text: 1h ago • oakland hills / mills
+    - button ""
+    - text: free
+    - 'link "Curb alert: vintage green trunk 1"':
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-curb-alert-vintage-green-trunk/7926690495.html
+      - 'img "Curb alert: vintage green trunk 1"'
+    - text: •
+    - 'link "Curb alert: vintage green trunk"':
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-curb-alert-vintage-green-trunk/7926690495.html
+    - button ""
+    - text: 1h ago • oakland lake merritt / grand
+    - button ""
+    - text: free
+    - link "FREE WOOD CHIPS 1":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/milpitas-free-wood-chips/7926690183.html
+      - img "FREE WOOD CHIPS 1"
+    - text: •
+    - link "FREE WOOD CHIPS":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/milpitas-free-wood-chips/7926690183.html
+    - button ""
+    - text: 1h ago • milpitas
+    - button ""
+    - text: free
+    - link "Curb Alert - Tile Grey Modern 16 qty. size 1' x 2' = 32sq ft 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/fremont-curb-alert-tile-grey-modern-16/7926689631.html
+      - img "Curb Alert - Tile Grey Modern 16 qty. size 1' x 2' = 32sq ft 1"
+    - text: •
+    - link "Curb Alert - Tile Grey Modern 16 qty. size 1' x 2' = 32sq ft":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/fremont-curb-alert-tile-grey-modern-16/7926689631.html
+    - button ""
+    - text: 1h ago • fremont / union city / newark
+    - button ""
+    - text: free
+    - link "Kindly asking for any help with supplies or funds for my hotdog cart.broke and l 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-kindly-asking-for-any-help-with/7926689633.html
+      - img "Kindly asking for any help with supplies or funds for my hotdog cart.broke and l 1"
+    - text: •
+    - link "Kindly asking for any help with supplies or funds for my hotdog cart.broke and l":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-kindly-asking-for-any-help-with/7926689633.html
+    - button ""
+    - text: 1h ago • Oakland
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/petaluma-free-bagged-dirt-adobe-soil/7921271770.html
+    - text: • • • •
+    - link "Free bagged dirt (adobe soil clumps - top layer) CAN DELIVER":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/petaluma-free-bagged-dirt-adobe-soil/7921271770.html
+    - button ""
+    - text: 1h ago • petaluma
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/zip/d/fremont-free-dresser-with-mirror/7926688725.html
+    - text: • • •
+    - link "FREE dresser with mirror & nightstand":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/fremont-free-dresser-with-mirror/7926688725.html
+    - button ""
+    - text: 1h ago • fremont / union city / newark
+    - button ""
+    - text: free
+    - link "FREE toddler bubble lawnmower 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/fremont-free-toddler-bubble-lawnmower/7926688165.html
+      - img "FREE toddler bubble lawnmower 1"
+    - text: •
+    - link "FREE toddler bubble lawnmower":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/fremont-free-toddler-bubble-lawnmower/7926688165.html
+    - button ""
+    - text: 1h ago • fremont / union city / newark
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-mobility-duracell-procell/7926688032.html
+    - text: • • • • •
+    - link "Mobility duracell procell bateries":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-mobility-duracell-procell/7926688032.html
+    - button ""
+    - text: 1h ago • San Jose
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free/7926195540.html
+    - text: • • • • • • • •
+    - link "Free":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free/7926195540.html
+    - button ""
+    - text: 1h ago • san jose east
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/napa-free-asolid-oak-claw-foot-table/7926686844.html
+    - text: • • •
+    - link "FREE! ASolid Oak Claw foot table":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/napa-free-asolid-oak-claw-foot-table/7926686844.html
+    - button ""
+    - text: 1h ago • napa county
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-key-chains/7926686520.html
+    - text: • •
+    - link "Key Chains":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-key-chains/7926686520.html
+    - button ""
+    - text: 1h ago • pacific heights
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-retro-lampshade/7926686346.html
+    - text: • •
+    - link "Retro lampshade":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-retro-lampshade/7926686346.html
+    - button ""
+    - text: 1h ago • san jose north
+    - button ""
+    - text: free
+    - link "Glassware 1":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-glassware/7926686172.html
+      - img "Glassware 1"
+    - text: •
+    - link "Glassware":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-glassware/7926686172.html
+    - button ""
+    - text: 1h ago • pacific heights
+    - button ""
+    - text: free
+    - link "Se busca empliada para limpiar casas 1":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/redwood-city-se-busca-empliada-para/7926685114.html
+      - img "Se busca empliada para limpiar casas 1"
+    - text: •
+    - link "Se busca empliada para limpiar casas":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/redwood-city-se-busca-empliada-para/7926685114.html
+    - button ""
+    - text: 1h ago • Menlon park/Redwood City
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/grd/d/novato-jade-plants-free-to-good-home/7926685422.html
+    - text: • •
+    - link "Jade plants free to good home":
+      - /url: https://sfbay.craigslist.org/nby/grd/d/novato-jade-plants-free-to-good-home/7926685422.html
+    - button ""
+    - text: 1h ago • novato
+    - button ""
+    - text: free
+    - link "HardieBoard Cement Backer Board 1/4\" 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/berkeley-hardieboard-cement-backer/7926685386.html
+      - img "HardieBoard Cement Backer Board 1/4\" 1"
+    - text: •
+    - link "HardieBoard Cement Backer Board 1/4\"":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/berkeley-hardieboard-cement-backer/7926685386.html
+    - button ""
+    - text: 1h ago • berkeley
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/corte-madera-free-queen-niagra/7926065552.html
+    - text: • • • • •
+    - link "FREE Queen Niagra Adjustable Bed with Cyclo-massage":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/corte-madera-free-queen-niagra/7926065552.html
+    - button ""
+    - text: 1h ago • Corte Madera
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/santa-rosa-kitchen-table-free/7926684872.html
+    - text: • •
+    - link "Kitchen Table Free":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/santa-rosa-kitchen-table-free/7926684872.html
+    - button ""
+    - text: 1h ago • santa rosa
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-bookshelves/7926682738.html
+    - text: • • • •
+    - link "2 Free Bookshelves":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-bookshelves/7926682738.html
+    - button ""
+    - text: 2h ago • San Francisco
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-cookware/7926682388.html
+    - text: • • •
+    - link "Free Cookware":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-cookware/7926682388.html
+    - button ""
+    - text: 2h ago • milpitas
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/zip/d/sunnyvale-behr-marquee-blue-paint/7926067480.html
+    - text: • •
+    - link "Behr Marquee blue paint":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/sunnyvale-behr-marquee-blue-paint/7926067480.html
+    - button ""
+    - text: 2h ago • sunnyvale
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-wood/7926681682.html
+    - text: • •
+    - link "Free wood":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-wood/7926681682.html
+    - button ""
+    - text: 2h ago • milpitas
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-ice-chest/7926680470.html
+    - text: • • •
+    - link "Free ice chest":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-ice-chest/7926680470.html
+    - button ""
+    - text: 2h ago • milpitas
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/corte-madera-free-heavy-duty-metal/7926680376.html
+    - text: • • •
+    - link "FREE - Heavy duty metal shelf 72\"":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/corte-madera-free-heavy-duty-metal/7926680376.html
+    - button ""
+    - text: 2h ago • mill valley
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/ele/d/san-francisco-red-spigen-case-for/7926680311.html
+    - text: • • • •
+    - link "Red Spigen case for iPhone 13 mini. Unused! Free!":
+      - /url: https://sfbay.craigslist.org/sfc/ele/d/san-francisco-red-spigen-case-for/7926680311.html
+    - button ""
+    - text: 2h ago • ingleside / SFSU / CCSF
+    - button ""
+    - text: free
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/sby/hsh/d/san-jose-rev-shelf-right-swing-blind/7926679373.html
+      - text: 
+      - paragraph: no image
+    - link "Rev-a-Shelf. Right swing blind corner cabinet":
+      - /url: https://sfbay.craigslist.org/sby/hsh/d/san-jose-rev-shelf-right-swing-blind/7926679373.html
+    - button ""
+    - text: 2h ago • san jose south
+    - button ""
+    - text: free
+    - link "Lateral File 42x19.25x28H (FREE) 1":
+      - /url: https://sfbay.craigslist.org/eby/bfs/d/pleasant-hill-lateral-file-42x1925x28h/7926678501.html
+      - img "Lateral File 42x19.25x28H (FREE) 1"
+    - text: •
+    - link "Lateral File 42x19.25x28H (FREE)":
+      - /url: https://sfbay.craigslist.org/eby/bfs/d/pleasant-hill-lateral-file-42x1925x28h/7926678501.html
+    - button ""
+    - text: 2h ago • concord / pleasant hill / martinez
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/tls/d/san-francisco-large-drill-bits/7926678246.html
+    - text: • •
+    - link "Large Drill Bits":
+      - /url: https://sfbay.craigslist.org/sfc/tls/d/san-francisco-large-drill-bits/7926678246.html
+    - button ""
+    - text: 2h ago • ingleside / SFSU / CCSF
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-king-mattress-and-frame/7923674214.html
+    - text: • • • • • • • • • • •
+    - link "King Mattress and frame":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-king-mattress-and-frame/7923674214.html
+    - button ""
+    - text: 2h ago • san jose west
+    - button ""
+    - text: free
+    - link "Lateral File 42x19.25x28H (FREE) 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/pleasant-hill-lateral-file-42x1925x28h/7926677766.html
+      - img "Lateral File 42x19.25x28H (FREE) 1"
+    - text: •
+    - link "Lateral File 42x19.25x28H (FREE)":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/pleasant-hill-lateral-file-42x1925x28h/7926677766.html
+    - button ""
+    - text: 2h ago • concord / pleasant hill / martinez
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/sys/d/oakland-lenovo-thinkpad/7926677584.html
+    - text: • • • •
+    - link "Lenovo ThinkPad":
+      - /url: https://sfbay.craigslist.org/eby/sys/d/oakland-lenovo-thinkpad/7926677584.html
+    - button ""
+    - text: 2h ago • alameda
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/fuo/d/sebastopol-serta-california-king-piece/7923935138.html
+    - text: • •
+    - link "Serta California King 2 piece Box Spring set":
+      - /url: https://sfbay.craigslist.org/nby/fuo/d/sebastopol-serta-california-king-piece/7923935138.html
+    - button ""
+    - text: 2h ago • Sebastopol
+    - button ""
+    - text: free
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/sebastopol-used-clay-for-free/7910973975.html
+      - text: 
+      - paragraph: no image
+    - link "Used clay for free":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/sebastopol-used-clay-for-free/7910973975.html
+    - button ""
+    - text: 2h ago • sebastopol
+    - button ""
+    - text: free
+    - link "Empty CD Jewel Cases 1":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/san-rafael-empty-cd-jewel-cases/7926172856.html
+      - img "Empty CD Jewel Cases 1"
+    - text: •
+    - link "Empty CD Jewel Cases":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/san-rafael-empty-cd-jewel-cases/7926172856.html
+    - button ""
+    - text: 2h ago • san rafael
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/atq/d/emeryville-free-piano-you-haul/7926675315.html
+    - text: • •
+    - link "Free Piano! You haul":
+      - /url: https://sfbay.craigslist.org/eby/atq/d/emeryville-free-piano-you-haul/7926675315.html
+    - button ""
+    - text: 2h ago • emeryville
+    - button ""
+    - text: free
+    - link "Vases 1":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-vases/7926675228.html
+      - img "Vases 1"
+    - text: •
+    - link "Vases":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-vases/7926675228.html
+    - button ""
+    - text: 2h ago • pacific heights
+    - button ""
+    - text: free
+    - link "Free 3 Volts lithium button batteries CR1620, CR1632, CR2032 1":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-volts-lithium-button/7925066458.html
+      - img "Free 3 Volts lithium button batteries CR1620, CR1632, CR2032 1"
+    - text: •
+    - link "Free 3 Volts lithium button batteries CR1620, CR1632, CR2032":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-volts-lithium-button/7925066458.html
+    - button ""
+    - text: 2h ago • san jose north
+    - button ""
+    - text: free
+    - link "Free Wells Fargo branded Calculator with Solar Panel 1":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-wells-fargo-branded/7925066929.html
+      - img "Free Wells Fargo branded Calculator with Solar Panel 1"
+    - text: •
+    - link "Free Wells Fargo branded Calculator with Solar Panel":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-wells-fargo-branded/7925066929.html
+    - button ""
+    - text: 2h ago • san jose north
+    - button ""
+    - text: free
+    - link "Wheel 1":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-wheel/7925068449.html
+      - img "Wheel 1"
+    - text: •
+    - link "Wheel":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-wheel/7925068449.html
+    - button ""
+    - text: 2h ago • san jose north
+    - button ""
+    - text: free
+    - link "Free large pallets on curb 5715 Southfront Rd Livermore Approx 8x8 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/livermore-free-large-pallets-on-curb/7926672905.html
+      - img "Free large pallets on curb 5715 Southfront Rd Livermore Approx 8x8 1"
+    - text: •
+    - link "Free large pallets on curb 5715 Southfront Rd Livermore Approx 8x8":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/livermore-free-large-pallets-on-curb/7926672905.html
+    - button ""
+    - text: 2h ago • dublin / pleasanton / livermore
+    - button ""
+    - text: free
+    - link "Dark grey sofa 3-seater 1":
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/hayward-dark-grey-sofa-seater/7926672836.html
+      - img "Dark grey sofa 3-seater 1"
+    - text: •
+    - link "Dark grey sofa 3-seater":
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/hayward-dark-grey-sofa-seater/7926672836.html
+    - button ""
+    - text: 2h ago • hayward / castro valley
+    - button ""
+    - text: free
+    - link "Free florescent fixtures and bulbs and lights thur 1":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-florescent-fixtures-and/7907202141.html
+      - img "Free florescent fixtures and bulbs and lights thur 1"
+    - text: •
+    - link "Free florescent fixtures and bulbs and lights thur":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-florescent-fixtures-and/7907202141.html
+    - button ""
+    - text: 2h ago • san jose downtown
+    - button ""
+    - text: free
+    - 'link "FREE: holiday decor 6'' sparkly flocked faux pine branch w/ berries 1"':
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-holiday-decor/7926672608.html
+      - 'img "FREE: holiday decor 6'' sparkly flocked faux pine branch w/ berries 1"'
+    - text: •
+    - 'link "FREE: holiday decor 6'' sparkly flocked faux pine branch w/ berries"':
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-holiday-decor/7926672608.html
+    - button ""
+    - text: 2h ago • castro / upper market
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-bike-frames-with-parts/7918575455.html
+    - text: • • • • • • • • • • • •
+    - link "2 Bike Frames with Parts (handlebars, cranks etc) Trek":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-bike-frames-with-parts/7918575455.html
+    - button ""
+    - text: 2h ago • city of san francisco
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-butter-dish-anthropologie/7926672338.html
+    - text: • •
+    - link "Butter Dish-Anthropologie":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-butter-dish-anthropologie/7926672338.html
+    - button ""
+    - text: 2h ago • pacific heights
+    - button ""
+    - text: free
+    - link "FREE QUEEN SIZED REMOTE CONTROLLED ADJUSTABLE BED FRAME 1":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-queen-sized-remote/7926672305.html
+      - img "FREE QUEEN SIZED REMOTE CONTROLLED ADJUSTABLE BED FRAME 1"
+    - text: •
+    - link "FREE QUEEN SIZED REMOTE CONTROLLED ADJUSTABLE BED FRAME":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-queen-sized-remote/7926672305.html
+    - button ""
+    - text: 2h ago • nob hill
+    - button ""
+    - text: free
+    - link "Handbag clasps 1":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-handbag-clasps/7926672240.html
+      - img "Handbag clasps 1"
+    - text: •
+    - link "Handbag clasps":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-handbag-clasps/7926672240.html
+    - button ""
+    - text: 2h ago • pacific heights
+    - button ""
+    - text: free
+    - link "Free used Bocce Ball set 1":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/menlo-park-free-used-bocce-ball-set/7926672011.html
+      - img "Free used Bocce Ball set 1"
+    - text: •
+    - link "Free used Bocce Ball set":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/menlo-park-free-used-bocce-ball-set/7926672011.html
+    - button ""
+    - text: 2h ago • menlo park
+    - button ""
+    - text: free
+    - link "Cat toys 1":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-cat-toys/7926671844.html
+      - img "Cat toys 1"
+    - text: •
+    - link "Cat toys":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-cat-toys/7926671844.html
+    - button ""
+    - text: 2h ago • pacific heights
+    - button ""
+    - text: free
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/novato-free-stationary-bicycle-like-new/7926671846.html
+      - text: 
+      - paragraph: no image
+    - link "Free Stationary Bicycle Like New":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/novato-free-stationary-bicycle-like-new/7926671846.html
+    - button ""
+    - text: 2h ago • novato
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/hidden-valley-lake-free-firewood-hidden/7923789421.html
+    - text: • • • •
+    - link "Free firewood Hidden Valley Lake you haul":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/hidden-valley-lake-free-firewood-hidden/7923789421.html
+    - button ""
+    - text: 2h ago • lake county
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/bab/d/san-francisco-free-kids-large-alphabet/7926671331.html
+    - text: • • • • •
+    - link "Free Kid's Large Alphabet Puzzle Pcs Game w/ New Hockey Stick!":
+      - /url: https://sfbay.craigslist.org/sfc/bab/d/san-francisco-free-kids-large-alphabet/7926671331.html
+    - button ""
+    - text: 2h ago • city of san francisco
+    - button ""
+    - text: free
+    - link "Free Tesla car mats 1":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/menlo-park-free-tesla-car-mats/7926670678.html
+      - img "Free Tesla car mats 1"
+    - text: •
+    - link "Free Tesla car mats":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/menlo-park-free-tesla-car-mats/7926670678.html
+    - button ""
+    - text: 2h ago • menlo park
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/zip/d/redwood-city-hat-with-light/7926669991.html
+    - text: • • •
+    - link "Hat with Light":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/redwood-city-hat-with-light/7926669991.html
+    - button ""
+    - text: 2h ago • redwood city
+    - button ""
+    - text: free
+    - link "21 pairs of men'ts underwear size L 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/el-cerrito-21-pairs-of-ments-underwear/7926669132.html
+      - img "21 pairs of men'ts underwear size L 1"
+    - text: •
+    - link "21 pairs of men'ts underwear size L":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/el-cerrito-21-pairs-of-ments-underwear/7926669132.html
+    - button ""
+    - text: 2h ago • albany / el cerrito
+    - button ""
+    - text: free
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/eby/bab/d/danville-free-folding-travel-potty-seat/7900742801.html
+      - text: 
+      - paragraph: no image
+    - link "Free Folding travel potty seat, toilet training":
+      - /url: https://sfbay.craigslist.org/eby/bab/d/danville-free-folding-travel-potty-seat/7900742801.html
+    - button ""
+    - text: 2h ago • Danville
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/pts/d/danville-freevalvoline-dex-merc/7900741604.html
+    - text: • •
+    - link "Free!!!!Valvoline DEX MERC automatic transmission fluid":
+      - /url: https://sfbay.craigslist.org/eby/pts/d/danville-freevalvoline-dex-merc/7900741604.html
+    - button ""
+    - text: 2h ago • Danville
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/san-rafael-free-furniture/7925569622.html
+    - text: • •
+    - link "Free furniture":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/san-rafael-free-furniture/7925569622.html
+    - button ""
+    - text: 2h ago • San Rafael
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/san-rafael-free-qeen-mattress-and-inch/7926666614.html
+    - text: • • • •
+    - link "Free Qeen mattress and 4 inch topper":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/san-rafael-free-qeen-mattress-and-inch/7926666614.html
+    - button ""
+    - text: 2h ago • San Rafael
+    - button ""
+    - text: free
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-upperbaby-cruz-v1-parts/7924837152.html
+      - text: 
+      - paragraph: no image
+    - link "UpperBaby Cruz v1 parts":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-upperbaby-cruz-v1-parts/7924837152.html
+    - button ""
+    - text: 2h ago • west portal / forest hill
+    - button ""
+    - text: free
+    - link "POOL DEMOLITION, CONCRETE 1":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/martinez-pool-demolition-concrete/7926666256.html
+      - img "POOL DEMOLITION, CONCRETE 1"
+    - text: •
+    - link "POOL DEMOLITION, CONCRETE":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/martinez-pool-demolition-concrete/7926666256.html
+    - button ""
+    - text: 3h ago • walnut creek
+    - button ""
+    - text: free
+    - link "POOL DEMOLITION, CONCRETE 1":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/martinez-pool-demolition-concrete/7926665965.html
+      - img "POOL DEMOLITION, CONCRETE 1"
+    - text: •
+    - link "POOL DEMOLITION, CONCRETE":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/martinez-pool-demolition-concrete/7926665965.html
+    - button ""
+    - text: 3h ago • walnut creek
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/zip/d/morgan-hill-rehoming-found-red-slider/7926665751.html
+    - text: • •
+    - link "Rehoming a found red slider turtle":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/morgan-hill-rehoming-found-red-slider/7926665751.html
+    - button ""
+    - text: 3h ago • Morgan Hill
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/zip/d/santa-clara-free-niko-22-display-with/7926664621.html
+    - text: • • • •
+    - link "Free Niko 22\" display with built-in speakers":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/santa-clara-free-niko-22-display-with/7926664621.html
+    - button ""
+    - text: 3h ago • santa clara
+    - button ""
+    - text: free
+    - link "Ipad case for Ipad Air 13-inch M4/M3/M2 (2026/2025/2024) 1":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/santa-clara-ipad-case-for-ipad-air-13/7926664246.html
+      - img "Ipad case for Ipad Air 13-inch M4/M3/M2 (2026/2025/2024) 1"
+    - text: •
+    - link "Ipad case for Ipad Air 13-inch M4/M3/M2 (2026/2025/2024)":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/santa-clara-ipad-case-for-ipad-air-13/7926664246.html
+    - button ""
+    - text: 3h ago • santa clara
+    - button ""
+    - text: free
+    - link "Free gu24 led bulbs 1":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-gu24-led-bulbs/7918306040.html
+      - img "Free gu24 led bulbs 1"
+    - text: •
+    - link "Free gu24 led bulbs":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-gu24-led-bulbs/7918306040.html
+    - button ""
+    - text: 3h ago • inner sunset / UCSF
+    - button ""
+    - text: free
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-rug-x/7926663792.html
+      - text: 
+      - paragraph: no image
+    - link "Free- Rug 5' x 7'":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-rug-x/7926663792.html
+    - button ""
+    - text: 3h ago • noe valley
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/zip/d/berkeley-pro-level-cycling-shoes-custom/7926663782.html
+    - text: • •
+    - link "Pro-Level Cycling Shoes-Custom (M39.5) D2 Super Crit & Sidi (W5)":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/berkeley-pro-level-cycling-shoes-custom/7926663782.html
+    - button ""
+    - text: 3h ago • berkeley
+    - button ""
+    - text: free
+    - link "Crutches 1":
+      - /url: https://sfbay.craigslist.org/pen/hab/d/mountain-view-crutches/7907268114.html
+      - img "Crutches 1"
+    - text: •
+    - link "Crutches":
+      - /url: https://sfbay.craigslist.org/pen/hab/d/mountain-view-crutches/7907268114.html
+    - button ""
+    - text: 3h ago • Mountain View
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-dining-table-with-chairs/7926663479.html
+    - text: • • •
+    - link "Free dining table with 4 chairs":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-dining-table-with-chairs/7926663479.html
+    - button ""
+    - text: 3h ago • San Jose
+    - button ""
+    - text: free
+    - link "FREE DIRT FREE DELIVERY 1":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/alamo-free-dirt-free-delivery/7926663032.html
+      - img "FREE DIRT FREE DELIVERY 1"
+    - text: •
+    - link "FREE DIRT FREE DELIVERY":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/alamo-free-dirt-free-delivery/7926663032.html
+    - button ""
+    - text: 3h ago • walnut creek
+    - button ""
+    - text: free
+    - link "IKEA cart 1":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-ikea-cart/7926662742.html
+      - img "IKEA cart 1"
+    - text: •
+    - link "IKEA cart":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-ikea-cart/7926662742.html
+    - button ""
+    - text: 3h ago • noe valley
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-light-fixture/7926662506.html
+    - text: • •
+    - link "Light fixture":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-light-fixture/7926662506.html
+    - button ""
+    - text: 3h ago • noe valley
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-stuff-in-pickup-bed-tile/7926661472.html
+    - text: • • • • • • • •
+    - link "Free stuff in pickup bed tile, tampons, diapers, Bona Hardwood Cleaner":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-stuff-in-pickup-bed-tile/7926661472.html
+    - button ""
+    - text: 3h ago • San Jose
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-girls-ski-clothes/7926661319.html
+    - text: • • • •
+    - link "Free- Girl's Ski Clothes":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-girls-ski-clothes/7926661319.html
+    - button ""
+    - text: 3h ago • noe valley
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/zip/d/berkeley-free-trampoline-berkeley/7926660610.html
+    - text: • • • • • •
+    - link "Free Trampoline - Berkeley":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/berkeley-free-trampoline-berkeley/7926660610.html
+    - button ""
+    - text: 3h ago • berkeley north / hills
+    - button ""
+    - text: free
+    - link "Free changing table with storage 1":
+      - /url: https://sfbay.craigslist.org/eby/bab/d/canyon-free-changing-table-with-storage/7926660069.html
+      - img "Free changing table with storage 1"
+    - text: •
+    - link "Free changing table with storage":
+      - /url: https://sfbay.craigslist.org/eby/bab/d/canyon-free-changing-table-with-storage/7926660069.html
+    - button ""
+    - text: 3h ago • Oakland/Montclair hills
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/zip/d/santa-cruz-grey-sofa/7926659886.html
+    - text: • • •
+    - link "Grey sofa":
+      - /url: https://sfbay.craigslist.org/scz/zip/d/santa-cruz-grey-sofa/7926659886.html
+    - button ""
+    - text: 3h ago • santa cruz
+    - button ""
+    - text: free
+    - link "Free small sturdy plywood shelf 1":
+      - /url: https://sfbay.craigslist.org/scz/zip/d/scotts-valley-free-small-sturdy-plywood/7912643778.html
+      - img "Free small sturdy plywood shelf 1"
+    - text: •
+    - link "Free small sturdy plywood shelf":
+      - /url: https://sfbay.craigslist.org/scz/zip/d/scotts-valley-free-small-sturdy-plywood/7912643778.html
+    - button ""
+    - text: 3h ago • scotts valley
+    - button ""
+    - text: free
+    - link "Free random stuff 1":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/mill-valley-free-random-stuff/7926659562.html
+      - img "Free random stuff 1"
+    - text: •
+    - link "Free random stuff":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/mill-valley-free-random-stuff/7926659562.html
+    - button ""
+    - text: 3h ago • north bay / marin
+    - button ""
+    - text: free
+    - link "Cabinets with countertop - FREE 1":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/los-altos-cabinets-with-countertop-free/7926659548.html
+      - img "Cabinets with countertop - FREE 1"
+    - text: •
+    - link "Cabinets with countertop - FREE":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/los-altos-cabinets-with-countertop-free/7926659548.html
+    - button ""
+    - text: 3h ago • mountain view
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-pottery-barn-kendall/7890993111.html
+    - text: • • • • • • • • • • • • • •
+    - link "FREE Pottery Barn Kendall Crib - Dark Wood":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-pottery-barn-kendall/7890993111.html
+    - button ""
+    - text: 3h ago • sunset / parkside
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/mill-valley-free-large-remnants-of/7925719335.html
+    - text: • •
+    - link "FREE - Large remnants of “Gascogne Blue” Limestone and quartzite":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/mill-valley-free-large-remnants-of/7925719335.html
+    - button ""
+    - text: 3h ago • north bay / marin
+    - button ""
+    - text: free
+    - link "Free tables 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-free-tables/7925041093.html
+      - img "Free tables 1"
+    - text: •
+    - link "Free tables":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-free-tables/7925041093.html
+    - button ""
+    - text: 3h ago • oakland east
+    - button ""
+    - text: free
+    - link "Free tables 1":
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/oakland-free-tables/7925046415.html
+      - img "Free tables 1"
+    - text: •
+    - link "Free tables":
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/oakland-free-tables/7925046415.html
+    - button ""
+    - text: 3h ago • oakland east
+    - button ""
+    - text: free
+    - link "Free Yamaha receiver, broken, won't turn on 1":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-yamaha-receiver-broken/7926656738.html
+      - img "Free Yamaha receiver, broken, won't turn on 1"
+    - text: •
+    - link "Free Yamaha receiver, broken, won't turn on":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-yamaha-receiver-broken/7926656738.html
+    - button ""
+    - text: 3h ago • san jose north
+    - button ""
+    - text: free
+    - link "Free 8 Foot Wide Solid Wood Book Display Storage Shelf 1":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/san-anselmo-free-foot-wide-solid-wood/7926656421.html
+      - img "Free 8 Foot Wide Solid Wood Book Display Storage Shelf 1"
+    - text: •
+    - link "Free 8 Foot Wide Solid Wood Book Display Storage Shelf":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/san-anselmo-free-foot-wide-solid-wood/7926656421.html
+    - button ""
+    - text: 3h ago • san anselmo
+    - button ""
+    - text: free
+    - link "Free Medium Sized Conservator Refrigerator /Freezer 1":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/san-anselmo-free-medium-sized/7926655368.html
+      - img "Free Medium Sized Conservator Refrigerator /Freezer 1"
+    - text: •
+    - link "Free Medium Sized Conservator Refrigerator /Freezer":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/san-anselmo-free-medium-sized/7926655368.html
+    - button ""
+    - text: 3h ago • san anselmo
+    - button ""
+    - text: free
+    - link "Free Solid Wood Desk 1":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/san-anselmo-free-solid-wood-desk/7926655002.html
+      - img "Free Solid Wood Desk 1"
+    - text: •
+    - link "Free Solid Wood Desk":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/san-anselmo-free-solid-wood-desk/7926655002.html
+    - button ""
+    - text: 3h ago • san anselmo
+    - button ""
+    - text: free
+    - link "Pallet 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/berkeley-pallet/7926654599.html
+      - img "Pallet 1"
+    - text: •
+    - link "Pallet":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/berkeley-pallet/7926654599.html
+    - button ""
+    - text: 3h ago • berkeley north / hills
+    - button ""
+    - text: free
+    - link "Free White Bookshelf Display Shelf, 8 Cubbies 1":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/san-anselmo-free-white-bookshelf/7926654510.html
+      - img "Free White Bookshelf Display Shelf, 8 Cubbies 1"
+    - text: •
+    - link "Free White Bookshelf Display Shelf, 8 Cubbies":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/san-anselmo-free-white-bookshelf/7926654510.html
+    - button ""
+    - text: 3h ago • san anselmo
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/petaluma-free-books/7926654278.html
+    - text: • •
+    - link "Free books":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/petaluma-free-books/7926654278.html
+    - button ""
+    - text: 3h ago • Petaluma
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-mermaid-sleeping-sack/7926653175.html
+    - text: • • • •
+    - link "Mermaid Sleeping Sack":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-mermaid-sleeping-sack/7926653175.html
+    - button ""
+    - text: 3h ago • noe valley
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/fuo/d/san-anselmo-free-white-bookshelf/7926066251.html
+    - text: • • • • •
+    - link "Free White Bookshelf Display Shelf, 8 Cubbies":
+      - /url: https://sfbay.craigslist.org/nby/fuo/d/san-anselmo-free-white-bookshelf/7926066251.html
+    - button ""
+    - text: 3h ago • san anselmo
+    - button ""
+    - text: free
+    - link "Free Piano 1":
+      - /url: https://sfbay.craigslist.org/eby/msg/d/danville-free-piano/7926652461.html
+      - img "Free Piano 1"
+    - text: •
+    - link "Free Piano":
+      - /url: https://sfbay.craigslist.org/eby/msg/d/danville-free-piano/7926652461.html
+    - button ""
+    - text: 3h ago • danville / san ramon
+    - button ""
+    - text: free
+    - link "Two king size solid wood bed frames 1":
+      - /url: https://sfbay.craigslist.org/scz/zip/d/santa-cruz-two-king-size-solid-wood-bed/7925597325.html
+      - img "Two king size solid wood bed frames 1"
+    - text: •
+    - link "Two king size solid wood bed frames":
+      - /url: https://sfbay.craigslist.org/scz/zip/d/santa-cruz-two-king-size-solid-wood-bed/7925597325.html
+    - button ""
+    - text: 3h ago • santa cruz
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/fuo/d/san-anselmo-free-solid-wood-desk/7926068340.html
+    - text: • • • • • • • • •
+    - link "Free Solid Wood Desk":
+      - /url: https://sfbay.craigslist.org/nby/fuo/d/san-anselmo-free-solid-wood-desk/7926068340.html
+    - button ""
+    - text: 3h ago • san anselmo
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/zip/d/santa-cruz-large-sofa-couch-sectional/7925598356.html
+    - text: • • •
+    - link "Large sofa, Couch, sectional":
+      - /url: https://sfbay.craigslist.org/scz/zip/d/santa-cruz-large-sofa-couch-sectional/7925598356.html
+    - button ""
+    - text: 3h ago • santa cruz
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/san-anselmo-beige-corduroy-couch/7926106214.html
+    - text: • • •
+    - link "Beige Corduroy Couch":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/san-anselmo-beige-corduroy-couch/7926106214.html
+    - button ""
+    - text: 3h ago • san anselmo
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/fuo/d/san-anselmo-free-medium-sized/7926071201.html
+    - text: • • • • • • • •
+    - link "Free Medium Sized Conservator Refrigerator /Freezer":
+      - /url: https://sfbay.craigslist.org/nby/fuo/d/san-anselmo-free-medium-sized/7926071201.html
+    - button ""
+    - text: 3h ago • san anselmo
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/fuo/d/san-anselmo-free-foot-wide-solid-wood/7926072664.html
+    - text: • • • • •
+    - link "Free 8 Foot Wide Solid Wood Book Display Storage Shelf":
+      - /url: https://sfbay.craigslist.org/nby/fuo/d/san-anselmo-free-foot-wide-solid-wood/7926072664.html
+    - button ""
+    - text: 3h ago • san anselmo
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/fuo/d/san-anselmo-free-multi-game-chest-with/7925480198.html
+    - text: • • • • • • • • •
+    - link "Free Multi Game Chest with Drawers / Side Table with game pieces":
+      - /url: https://sfbay.craigslist.org/nby/fuo/d/san-anselmo-free-multi-game-chest-with/7925480198.html
+    - button ""
+    - text: 3h ago • san anselmo
+    - button ""
+    - text: free
+    - link "FREE GARDEN FENCING FOR PLANTING BEDS and more 1":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/petaluma-free-garden-fencing-for/7926650236.html
+      - img "FREE GARDEN FENCING FOR PLANTING BEDS and more 1"
+    - text: •
+    - link "FREE GARDEN FENCING FOR PLANTING BEDS and more":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/petaluma-free-garden-fencing-for/7926650236.html
+    - button ""
+    - text: 3h ago • petaluma
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/zip/d/berkeley-free-couch/7926650167.html
+    - text: • •
+    - link "Free couch":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/berkeley-free-couch/7926650167.html
+    - button ""
+    - text: 3h ago • berkeley
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/san-anselmo-16-cube-wooden-wall-display/7925447254.html
+    - text: • • • •
+    - link "16 Cube Wooden Wall Display Storage Cubbies - Free":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/san-anselmo-16-cube-wooden-wall-display/7925447254.html
+    - button ""
+    - text: 3h ago • san anselmo
+    - button ""
+    - text: free
+    - link "Hanging wreath, orange Fall colors, from Michaels 1":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/campbell-hanging-wreath-orange-fall/7926095853.html
+      - img "Hanging wreath, orange Fall colors, from Michaels 1"
+    - text: •
+    - link "Hanging wreath, orange Fall colors, from Michaels":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/campbell-hanging-wreath-orange-fall/7926095853.html
+    - button ""
+    - text: 3h ago • campbell
+    - button ""
+    - text: free
+    - link "free stroller 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/livermore-free-stroller/7926649151.html
+      - img "free stroller 1"
+    - text: •
+    - link "free stroller":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/livermore-free-stroller/7926649151.html
+    - button ""
+    - text: 3h ago • Livermore
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-kitchen-cabinets-upper/7926648339.html
+    - text: • •
+    - link "Kitchen Cabinets Upper and Lower":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-kitchen-cabinets-upper/7926648339.html
+    - button ""
+    - text: 4h ago • cole valley / ashbury hts
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-folding-cat-bed/7926647899.html
+    - text: • •
+    - link "Free Folding Cat Bed":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-folding-cat-bed/7926647899.html
+    - button ""
+    - text: 4h ago • san jose west
+    - button ""
+    - text: free
+    - link "POOL DEMOLITION, CONCRETE 1":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/danville-pool-demolition-concrete/7926647020.html
+      - img "POOL DEMOLITION, CONCRETE 1"
+    - text: •
+    - link "POOL DEMOLITION, CONCRETE":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/danville-pool-demolition-concrete/7926647020.html
+    - button ""
+    - text: 4h ago • walnut creek
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/fuo/d/millbrae-vintage-dining-table-and/7926646782.html
+    - text: • • • • • • • • •
+    - link "Vintage Dining Table and Chairs Set":
+      - /url: https://sfbay.craigslist.org/pen/fuo/d/millbrae-vintage-dining-table-and/7926646782.html
+    - button ""
+    - text: 4h ago • san bruno
+    - button ""
+    - text: free
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-packing-styrofoam-peanuts/7925451874.html
+      - text: 
+      - paragraph: no image
+    - link "packing styrofoam peanuts":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-packing-styrofoam-peanuts/7925451874.html
+    - button ""
+    - text: 4h ago • san jose downtown
+    - button ""
+    - text: free
+    - link "Toyota Tacoma 3rd gen shock mounts, leaf springs hangers, etc. 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/brentwood-toyota-tacoma-3rd-gen-shock/7917622375.html
+      - img "Toyota Tacoma 3rd gen shock mounts, leaf springs hangers, etc. 1"
+    - text: •
+    - link "Toyota Tacoma 3rd gen shock mounts, leaf springs hangers, etc.":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/brentwood-toyota-tacoma-3rd-gen-shock/7917622375.html
+    - button ""
+    - text: 4h ago • brentwood / oakley
+    - button ""
+    - text: free
+    - link "Large lotion pump 1":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-large-lotion-pump/7923464244.html
+      - img "Large lotion pump 1"
+    - text: •
+    - link "Large lotion pump":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-large-lotion-pump/7923464244.html
+    - button ""
+    - text: 4h ago • bernal heights
+    - button ""
+    - text: free
+    - link "Glass and plastic jars 1":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-glass-and-plastic-jars/7918590953.html
+      - img "Glass and plastic jars 1"
+    - text: •
+    - link "Glass and plastic jars":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-glass-and-plastic-jars/7918590953.html
+    - button ""
+    - text: 4h ago • bernal heights
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/cupertino-free-mid-century-console-table/7915979719.html
+    - text: • •
+    - link "FREE, mid-century, console table":
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/cupertino-free-mid-century-console-table/7915979719.html
+    - button ""
+    - text: 4h ago • cupertino
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/mpo/d/concord-ducati-multistrada-1200-rear/7926645910.html
+    - text: • • • •
+    - link "Ducati Multistrada 1200 rear hugger, splash guard. unused. Free.":
+      - /url: https://sfbay.craigslist.org/eby/mpo/d/concord-ducati-multistrada-1200-rear/7926645910.html
+    - button ""
+    - text: 4h ago • concord / pleasant hill / martinez
+    - button ""
+    - text: free
+    - link "Free used Vermeer BC1000XL wood chipper 1":
+      - /url: https://sfbay.craigslist.org/pen/hvo/d/san-carlos-free-used-vermeer-bc1000xl/7926645516.html
+      - img "Free used Vermeer BC1000XL wood chipper 1"
+    - text: •
+    - link "Free used Vermeer BC1000XL wood chipper":
+      - /url: https://sfbay.craigslist.org/pen/hvo/d/san-carlos-free-used-vermeer-bc1000xl/7926645516.html
+    - button ""
+    - text: 4h ago • woodside
+    - button ""
+    - text: free
+    - link "Antique Hutch-FREE 1":
+      - /url: https://sfbay.craigslist.org/eby/atq/d/danville-antique-hutch-free/7926644681.html
+      - img "Antique Hutch-FREE 1"
+    - text: •
+    - link "Antique Hutch-FREE":
+      - /url: https://sfbay.craigslist.org/eby/atq/d/danville-antique-hutch-free/7926644681.html
+    - button ""
+    - text: 4h ago • danville / san ramon
+    - button ""
+    - text: free
+    - link "2 my brest friend nursing pillows—FREE 1":
+      - /url: https://sfbay.craigslist.org/eby/bab/d/berkeley-my-brest-friend-nursing/7919267299.html
+      - img "2 my brest friend nursing pillows—FREE 1"
+    - text: •
+    - link "2 my brest friend nursing pillows—FREE":
+      - /url: https://sfbay.craigslist.org/eby/bab/d/berkeley-my-brest-friend-nursing/7919267299.html
+    - button ""
+    - text: 4h ago • Berkeley
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-keg-dispenser-kegerator/7926642429.html
+    - text: • •
+    - link "FREE - keg dispenser / kegerator on the street":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-free-keg-dispenser-kegerator/7926642429.html
+    - button ""
+    - text: 4h ago • san jose west
+    - button ""
+    - text: free
+    - link "Free- Super Z tire (snow) chains - brand new 1":
+      - /url: https://sfbay.craigslist.org/pen/wto/d/stanford-free-super-tire-snow-chains/7926633574.html
+      - img "Free- Super Z tire (snow) chains - brand new 1"
+    - text: •
+    - link "Free- Super Z tire (snow) chains - brand new":
+      - /url: https://sfbay.craigslist.org/pen/wto/d/stanford-free-super-tire-snow-chains/7926633574.html
+    - button ""
+    - text: 4h ago • palo alto
+    - button ""
+    - text: free
+    - link "FREE PALLETS 1":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/redwood-city-free-pallets/7926640727.html
+      - img "FREE PALLETS 1"
+    - text: •
+    - link "FREE PALLETS":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/redwood-city-free-pallets/7926640727.html
+    - button ""
+    - text: 4h ago • Redwood City
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/pts/d/napa-lc100-land-cruiser-side-steps/7926639747.html
+    - text: • • • •
+    - link "LC100 Land cruiser side steps/running boards":
+      - /url: https://sfbay.craigslist.org/nby/pts/d/napa-lc100-land-cruiser-side-steps/7926639747.html
+    - button ""
+    - text: 4h ago • Napa
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/petaluma-free-lamp/7925009460.html
+    - text: • •
+    - link "Free lamp":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/petaluma-free-lamp/7925009460.html
+    - button ""
+    - text: 4h ago • Petaluma
+    - button ""
+    - text: free
+    - link "FREE CARDBOARD BOXES AT DOG EARED BOOKS 1":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-cardboard-boxes-at/7926637860.html
+      - img "FREE CARDBOARD BOXES AT DOG EARED BOOKS 1"
+    - text: •
+    - link "FREE CARDBOARD BOXES AT DOG EARED BOOKS":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-cardboard-boxes-at/7926637860.html
+    - button ""
+    - text: 4h ago • mission district
+    - button ""
+    - text: free
+    - link "Wand for blinds 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-wand-for-blinds/7913759024.html
+      - img "Wand for blinds 1"
+    - text: •
+    - link "Wand for blinds":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-wand-for-blinds/7913759024.html
+    - button ""
+    - text: 4h ago • Oakland
+    - button ""
+    - text: free
+    - link "Round table 1":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/mountain-view-round-table/7926637378.html
+      - img "Round table 1"
+    - text: •
+    - link "Round table":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/mountain-view-round-table/7926637378.html
+    - button ""
+    - text: 4h ago • mountain view
+    - button ""
+    - text: free
+    - link "Shop light 1":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/mountain-view-shop-light/7926636781.html
+      - img "Shop light 1"
+    - text: •
+    - link "Shop light":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/mountain-view-shop-light/7926636781.html
+    - button ""
+    - text: 4h ago • mountain view
+    - button ""
+    - text: free
+    - link "Carter Upright piano - free 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/berkeley-carter-upright-piano-free/7926636763.html
+      - img "Carter Upright piano - free 1"
+    - text: •
+    - link "Carter Upright piano - free":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/berkeley-carter-upright-piano-free/7926636763.html
+    - button ""
+    - text: 4h ago • berkeley
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/zip/d/pleasanton-over-sized-chair/7926636653.html
+    - text: • •
+    - link "Over sized chair":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/pleasanton-over-sized-chair/7926636653.html
+    - button ""
+    - text: 4h ago • dublin / pleasanton / livermore
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/santa-rosa-free-pallets-large-small/7926636107.html
+    - text: • • •
+    - link "Free Pallets! Large & Small sizes":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/santa-rosa-free-pallets-large-small/7926636107.html
+    - button ""
+    - text: 4h ago • santa rosa
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/santa-rosa-free-crate-barrel-queen-bed/7919093371.html
+    - text: • • •
+    - link "Free CRATE & BARREL!!! **Queen Bed ** Still available APRIL 9 2026":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/santa-rosa-free-crate-barrel-queen-bed/7919093371.html
+    - button ""
+    - text: 4h ago • santa rosa
+    - button ""
+    - text: free
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/san-ramon-samsung-un46c6300sf-lcd-smart/7924133990.html
+      - text: 
+      - paragraph: no image
+    - link "Samsung UN46C6300SF LCD smart TV":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/san-ramon-samsung-un46c6300sf-lcd-smart/7924133990.html
+    - button ""
+    - text: 4h ago • danville / san ramon
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/larkspur-drawer-filing-cabinet/7925706723.html
+    - text: • •
+    - link "2 Drawer Filing Cabinet":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/larkspur-drawer-filing-cabinet/7925706723.html
+    - button ""
+    - text: 4h ago • larkspur
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-ping-pong-table/7924359715.html
+    - text: • •
+    - link "PING Pong Table":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-ping-pong-table/7924359715.html
+    - button ""
+    - text: 4h ago • glen park
+    - button ""
+    - text: free
+    - link "Walker 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/orinda-walker/7921409680.html
+      - img "Walker 1"
+    - text: •
+    - link "Walker":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/orinda-walker/7921409680.html
+    - button ""
+    - text: 4h ago • lafayette / orinda / moraga
+    - button ""
+    - text: free
+    - link "FREE concrete pier/deck blocks 1":
+      - /url: https://sfbay.craigslist.org/eby/mat/d/port-costa-free-concrete-pier-deck/7926632976.html
+      - img "FREE concrete pier/deck blocks 1"
+    - text: •
+    - link "FREE concrete pier/deck blocks":
+      - /url: https://sfbay.craigslist.org/eby/mat/d/port-costa-free-concrete-pier-deck/7926632976.html
+    - button ""
+    - text: 4h ago • vallejo / benicia
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/zip/d/freedom-free-tires-r15/7926632443.html
+    - text: • •
+    - link "Free Tires 205/60R15":
+      - /url: https://sfbay.craigslist.org/scz/zip/d/freedom-free-tires-r15/7926632443.html
+    - button ""
+    - text: 4h ago • aptos
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-media-console-tv/7926107012.html
+    - text: • • •
+    - link "FREE media console tv stand":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-media-console-tv/7926107012.html
+    - button ""
+    - text: 4h ago • sunset / parkside
+    - button ""
+    - text: free
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/san-ramon-samsung-ln52b630n1f-smart-lcd/7924117389.html
+      - text: 
+      - paragraph: no image
+    - link "Samsung LN52B630N1F smart LCD TV":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/san-ramon-samsung-ln52b630n1f-smart-lcd/7924117389.html
+    - button ""
+    - text: 5h ago • danville / san ramon
+    - button ""
+    - text: free
+    - link "Large Mirror. 1":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/petaluma-large-mirror/7926629700.html
+      - img "Large Mirror. 1"
+    - text: •
+    - link "Large Mirror.":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/petaluma-large-mirror/7926629700.html
+    - button ""
+    - text: 5h ago • petaluma
+    - button ""
+    - text: free
+    - link "FREE CEDAR CLOTHING & STORAGE ARMOIRE 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/alameda-free-cedar-clothing-storage/7926629610.html
+      - img "FREE CEDAR CLOTHING & STORAGE ARMOIRE 1"
+    - text: •
+    - link "FREE CEDAR CLOTHING & STORAGE ARMOIRE":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/alameda-free-cedar-clothing-storage/7926629610.html
+    - button ""
+    - text: 5h ago • alameda
+    - button ""
+    - text: free
+    - link "Ideal Pet Products replacement flap 1":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-ideal-pet-products-replacement/7920574585.html
+      - img "Ideal Pet Products replacement flap 1"
+    - text: •
+    - link "Ideal Pet Products replacement flap":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-ideal-pet-products-replacement/7920574585.html
+    - button ""
+    - text: 5h ago • san jose south
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/petaluma-matching-desk-and-bed-head/7926629002.html
+    - text: • • •
+    - link "Matching Desk and Bed (head/footboard.)":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/petaluma-matching-desk-and-bed-head/7926629002.html
+    - button ""
+    - text: 5h ago • petaluma
+    - button ""
+    - text: free
+    - link "Lateral File 42x19.25x28H (FREE) 1":
+      - /url: https://sfbay.craigslist.org/eby/for/d/pleasant-hill-lateral-file-42x1925x28h/7926628618.html
+      - img "Lateral File 42x19.25x28H (FREE) 1"
+    - text: •
+    - link "Lateral File 42x19.25x28H (FREE)":
+      - /url: https://sfbay.craigslist.org/eby/for/d/pleasant-hill-lateral-file-42x1925x28h/7926628618.html
+    - button ""
+    - text: 5h ago • concord / pleasant hill / martinez
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/petaluma-free-bed/7926627202.html
+    - text: • •
+    - link "Free bed":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/petaluma-free-bed/7926627202.html
+    - button ""
+    - text: 5h ago • petaluma
+    - button ""
+    - text: free
+    - link "Huge free pile 1":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/santa-rosa-huge-free-pile/7926627180.html
+      - img "Huge free pile 1"
+    - text: •
+    - link "Huge free pile":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/santa-rosa-huge-free-pile/7926627180.html
+    - button ""
+    - text: 5h ago • santa rosa
+    - button ""
+    - text: free
+    - link "Large Outdoor Rug 1":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-large-outdoor-rug/7926626985.html
+      - img "Large Outdoor Rug 1"
+    - text: •
+    - link "Large Outdoor Rug":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-large-outdoor-rug/7926626985.html
+    - button ""
+    - text: 5h ago • oakland piedmont / montclair
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/msg/d/santa-rosa-free-piano-you-haul-must-go/7925159302.html
+    - text: • • • •
+    - link "FREE PIANO - YOU HAUL - MUST GO ASAP":
+      - /url: https://sfbay.craigslist.org/nby/msg/d/santa-rosa-free-piano-you-haul-must-go/7925159302.html
+    - button ""
+    - text: 5h ago • Santa Rosa
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/zip/d/redwood-city-patio-dining-set/7925461805.html
+    - text: • •
+    - link "PATIO DINING SET":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/redwood-city-patio-dining-set/7925461805.html
+    - button ""
+    - text: 5h ago • redwood city
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-moving-declutter-check-back/7926626095.html
+    - text: • • • • • • • • • • • • • •
+    - link "MOVING DECLUTTER- Check back regularly for more stuff":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/oakland-moving-declutter-check-back/7926626095.html
+    - button ""
+    - text: 5h ago • oakland rockridge / claremont
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/zip/d/redwood-city-slabs-of-stone/7922573380.html
+    - text: • • • • • • • • • • • •
+    - link "Slabs of Stone":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/redwood-city-slabs-of-stone/7922573380.html
+    - button ""
+    - text: 5h ago • redwood city
+    - button ""
+    - text: free
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/scz/zip/d/freedom-horse-manure/7912475793.html
+      - text: 
+      - paragraph: no image
+    - link "horse manure":
+      - /url: https://sfbay.craigslist.org/scz/zip/d/freedom-horse-manure/7912475793.html
+    - button ""
+    - text: 5h ago • corralitos
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/msg/d/san-bruno-lowrey-century-organ/7910047759.html
+    - text: • • • •
+    - link "Lowrey Century Organ":
+      - /url: https://sfbay.craigslist.org/pen/msg/d/san-bruno-lowrey-century-organ/7910047759.html
+    - button ""
+    - text: 5h ago • San Bruno
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-adjustable-white/7926625795.html
+    - text: • •
+    - link "Free adjustable white board":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-adjustable-white/7926625795.html
+    - button ""
+    - text: 5h ago • bernal heights
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/santa-rosa-dog-house/7925037738.html
+    - text: • • •
+    - link "Dog House":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/santa-rosa-dog-house/7925037738.html
+    - button ""
+    - text: 5h ago • santa rosa
+    - button ""
+    - text: free
+    - link "Free Bookshelf 1":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/petaluma-free-bookshelf/7926625568.html
+      - img "Free Bookshelf 1"
+    - text: •
+    - link "Free Bookshelf":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/petaluma-free-bookshelf/7926625568.html
+    - button ""
+    - text: 5h ago • petaluma
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/mob/d/richmond-doll-house/7924329129.html
+    - text: • •
+    - link "Doll House":
+      - /url: https://sfbay.craigslist.org/eby/mob/d/richmond-doll-house/7924329129.html
+    - button ""
+    - text: 5h ago • richmond / point / annex
+    - button ""
+    - text: free
+    - link "4 Purple Dining Chairs 1":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/redwood-city-purple-dining-chairs/7925842360.html
+      - img "4 Purple Dining Chairs 1"
+    - text: •
+    - link "4 Purple Dining Chairs":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/redwood-city-purple-dining-chairs/7925842360.html
+    - button ""
+    - text: 5h ago • Redwood City
+    - button ""
+    - text: free
+    - link "Free baby bottle warmer and bottle sterilizer 1":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-baby-bottle-warmer/7926623750.html
+      - img "Free baby bottle warmer and bottle sterilizer 1"
+    - text: •
+    - link "Free baby bottle warmer and bottle sterilizer":
+      - /url: https://sfbay.craigslist.org/sfc/zip/d/san-francisco-free-baby-bottle-warmer/7926623750.html
+    - button ""
+    - text: 5h ago • laurel hts / presidio
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/zip/d/albany-treats-for-rats-mice-or-gerbils/7923725830.html
+    - text: • • •
+    - link "Treats for Rats, Mice or Gerbils":
+      - /url: https://sfbay.craigslist.org/eby/zip/d/albany-treats-for-rats-mice-or-gerbils/7923725830.html
+    - button ""
+    - text: 5h ago • Albany
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-keurig-single-cup-pod-coffee/7925984502.html
+    - text: • • •
+    - link "Keurig single cup pod coffee machine":
+      - /url: https://sfbay.craigslist.org/sby/zip/d/san-jose-keurig-single-cup-pod-coffee/7925984502.html
+    - button ""
+    - text: 5h ago • san jose north
+    - button ""
+    - text: free
+    - link "help":
+      - /url: https://www.craigslist.org/about/help
+    - link "safety":
+      - /url: https://www.craigslist.org/about/help/safety
+    - link "privacy":
+      - /url: https://www.craigslist.org/about/privacy.policy
+    - link "terms":
+      - /url: https://www.craigslist.org/about/terms.of.use
+    - link "about":
+      - /url: https://www.craigslist.org/about
+    - link "app":
+      - /url: https://www.craigslist.org/about/craigslist_app
+    - text: © 2026 craigslist

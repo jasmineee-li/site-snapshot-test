@@ -1,0 +1,361 @@
+- document:
+  - banner:
+    - link "Skip to main content":
+      - /url: "#content-body"
+    - link "Homepage":
+      - /url: /
+    - list:
+      - listitem:
+        - link "Why GitLab":
+          - /url: https://about.gitlab.com/why-gitlab
+      - listitem:
+        - link "Pricing":
+          - /url: https://about.gitlab.com/pricing
+      - listitem:
+        - link "Explore":
+          - /url: /explore
+    - button "Search or go to… /"
+    - link "Get free trial":
+      - /url: /-/trial_registrations/new
+    - link "Sign in":
+      - /url: /users/sign_in?redirect_to_referer=yes
+  - navigation "Primary navigation":
+    - heading "Primary navigation" [level=2]
+    - text: Explore
+    - list "Explore":
+      - listitem:
+        - link "Projects":
+          - /url: /explore/projects
+      - listitem:
+        - link "Groups":
+          - /url: /explore/groups
+      - listitem:
+        - link "CI/CD Catalog":
+          - /url: /explore/catalog
+      - listitem:
+        - link "Topics":
+          - /url: /explore/projects/topics
+      - listitem:
+        - link "Snippets":
+          - /url: /explore/snippets
+    - button "What's new"
+    - button "Help"
+    - button "Collapse sidebar"
+  - navigation "Breadcrumb":
+    - list:
+      - listitem:
+        - link "Explore":
+          - /url: /explore
+        - text: /
+      - listitem:
+        - link "Snippets":
+          - /url: /explore/snippets
+  - main:
+    - heading "Explore snippets" [level=1]
+    - list:
+      - listitem:
+        - link "PauloMaza988":
+          - /url: /-/snippets/5978276
+        - text: $5978276 · created
+        - time: just now
+        - text: by
+        - link "Pauo Maza":
+          - /url: /users/PauloMaza988/snippets
+        - button "20":
+          - img
+        - text: updated
+        - time: just now
+      - listitem:
+        - link "readmii":
+          - /url: /-/snippets/5978254
+        - text: $5978254 · created
+        - time: 2 hours ago
+        - text: by
+        - link "niilevv":
+          - /url: /users/niilevv/snippets
+        - button "1 file":
+          - img
+          - text: "1"
+        - button "20":
+          - img
+        - text: updated
+        - time: 2 hours ago
+      - listitem:
+        - link "international_baccalaureate.md":
+          - /url: /-/snippets/5978252
+        - text: $5978252 · created
+        - time: 2 hours ago
+        - text: by
+        - link "Lucas Charles":
+          - /url: /users/theoretick/snippets
+        - button "1 file":
+          - img
+          - text: "1"
+        - button "20":
+          - img
+        - text: updated
+        - time: 2 hours ago
+      - listitem:
+        - link "codespell":
+          - /url: /-/snippets/5978224
+        - text: $5978224 · created
+        - time: 3 hours ago
+        - text: by
+        - link "Andy Huntsman":
+          - /url: /users/andy.huntsman/snippets
+        - button "3 files":
+          - img
+          - text: "3"
+        - button "20":
+          - img
+        - text: updated
+        - time: 3 hours ago
+      - listitem:
+        - link "Test PNG Polyglot":
+          - /url: /-/snippets/5978212
+        - text: $5978212 · created
+        - time: 4 hours ago
+        - text: by
+        - link "Vlad Podorozhniy":
+          - /url: /users/v.podorozhnyi/snippets
+        - button "1 file":
+          - img
+          - text: "1"
+        - button "20":
+          - img
+        - text: updated
+        - time: 4 hours ago
+      - listitem:
+        - link "PNG Polyglot patch":
+          - /url: /-/snippets/5978211
+        - text: $5978211 · created
+        - time: 4 hours ago
+        - text: by
+        - link "Vlad Podorozhniy":
+          - /url: /users/v.podorozhnyi/snippets
+        - button "1 file":
+          - img
+          - text: "1"
+        - button "20":
+          - img
+        - text: updated
+        - time: 4 hours ago
+      - listitem:
+        - link "chastelib suite for 64 bit Linux with NASM Assembler":
+          - /url: /-/snippets/5978122
+        - text: $5978122 · created
+        - time: 4 hours ago
+        - text: by
+        - link "Chastity Rose":
+          - /url: /users/chastitywhiterose/snippets
+        - button "2 files":
+          - img
+          - text: "2"
+        - button "20":
+          - img
+        - text: updated
+        - time: 4 hours ago
+      - listitem:
+        - link "Wie man den perfekten Klingelton auswählt":
+          - /url: /-/snippets/5978107
+        - text: $5978107 · created
+        - time: 6 hours ago
+        - text: by
+        - link "Klingeltöne Kostenlos":
+          - /url: /users/klingeltonekostenlos2025/snippets
+        - button "1 file":
+          - img
+          - text: "1"
+        - button "20":
+          - img
+        - text: updated
+        - time: 6 hours ago
+      - listitem:
+        - link "Basic Python snippets":
+          - /url: /-/snippets/5978092
+        - text: $5978092 · created
+        - time: 6 hours ago
+        - text: by
+        - link "Dino Almirall":
+          - /url: /users/DJA-prog/snippets
+        - button "1 file":
+          - img
+          - text: "1"
+        - button "20":
+          - img
+        - text: updated
+        - time: 6 hours ago
+      - listitem:
+        - 'link "Discipline and Structure in Operations Leadership: Pablo M. Rivera''s Core Philosophy"':
+          - /url: /-/snippets/5978091
+        - text: $5978091 · created
+        - time: 6 hours ago
+        - text: by
+        - link "Pablo Rivera":
+          - /url: /users/pablom06/snippets
+        - button "1 file":
+          - img
+          - text: "1"
+        - button "20":
+          - img
+        - text: updated
+        - time: 6 hours ago
+      - listitem:
+        - 'link "Green Building and Sustainable Operations: Pablo M. Rivera on the Business Case"':
+          - /url: /-/snippets/5978090
+        - text: $5978090 · created
+        - time: 6 hours ago
+        - text: by
+        - link "Pablo Rivera":
+          - /url: /users/pablom06/snippets
+        - button "1 file":
+          - img
+          - text: "1"
+        - button "20":
+          - img
+        - text: updated
+        - time: 6 hours ago
+      - listitem:
+        - 'link "Operations Consulting and Advisory: What Pablo M. Rivera Brings to the Table"':
+          - /url: /-/snippets/5978089
+        - text: $5978089 · created
+        - time: 6 hours ago
+        - text: by
+        - link "Pablo Rivera":
+          - /url: /users/pablom06/snippets
+        - button "1 file":
+          - img
+          - text: "1"
+        - button "20":
+          - img
+        - text: updated
+        - time: 6 hours ago
+      - listitem:
+        - link "EE-to-CE Service Migration - Testing Toolkit":
+          - /url: /-/snippets/5978078
+        - text: $5978078 · created
+        - time: 6 hours ago
+        - text: by
+        - link "Aleksei Lipniagov":
+          - /url: /users/alipniagov/snippets
+        - button "5 files":
+          - img
+          - text: "5"
+        - button "20":
+          - img
+        - text: updated
+        - time: 6 hours ago
+      - listitem:
+        - link "drive benchmarking suite":
+          - /url: /-/snippets/5978073
+        - text: $5978073 · created
+        - time: 6 hours ago
+        - text: by
+        - link "David Šorm":
+          - /url: /users/david.sorm/snippets
+        - button "2 files":
+          - img
+          - text: "2"
+        - button "20":
+          - img
+        - text: updated
+        - time: 6 hours ago
+      - listitem:
+        - link "#698356":
+          - /url: /-/snippets/5978057
+        - text: $5978057 · created
+        - time: 7 hours ago
+        - text: by
+        - link "Niklas Janz":
+          - /url: /users/niklasjanz/snippets
+        - button "1 file":
+          - img
+          - text: "1"
+        - button "20":
+          - img
+        - text: updated
+        - time: 7 hours ago
+      - listitem:
+        - link "Objective 3 Metrics Source Analysis":
+          - /url: /-/snippets/5978051
+        - text: $5978051 · created
+        - time: 8 hours ago
+        - text: by
+        - link "Kirill Krainov":
+          - /url: /users/Kirill.Krainov1/snippets
+        - button "1 file":
+          - img
+          - text: "1"
+        - button "20":
+          - img
+        - text: updated
+        - time: 8 hours ago
+      - listitem:
+        - link "Publiczne":
+          - /url: /-/snippets/5978050
+        - text: $5978050 · created
+        - time: 8 hours ago
+        - text: by
+        - link "Marcin Kowalski":
+          - /url: /users/marcin.kowalski.pl/snippets
+        - button "Comments":
+          - img
+          - text: "1"
+        - button "1 file":
+          - img
+          - text: "1"
+        - button "20":
+          - img
+        - text: updated
+        - time: 1 hour ago
+      - listitem:
+        - link "remove data-cy attributes during docker build":
+          - /url: /-/snippets/5978044
+        - text: $5978044 · created
+        - time: 8 hours ago
+        - text: by
+        - link "Mikhail Shevtsov":
+          - /url: /users/mikhail.shevtsov/snippets
+        - button "1 file":
+          - img
+          - text: "1"
+        - button "20":
+          - img
+        - text: updated
+        - time: 8 hours ago
+      - listitem:
+        - link "Nyckelvägen - Poolskötsel":
+          - /url: /-/snippets/5978023
+        - text: $5978023 · created
+        - time: 10 hours ago
+        - text: by
+        - link "Sebastian Löfstrand":
+          - /url: /users/sebastian.lofstrand/snippets
+        - button "3 files":
+          - img
+          - text: "3"
+        - button "20":
+          - img
+        - text: updated
+        - time: 2 hours ago
+      - listitem:
+        - link "Nouvelle version contrôleur dashboard":
+          - /url: /-/snippets/5978022
+        - text: $5978022 · created
+        - time: 10 hours ago
+        - text: by
+        - link "Herve Wilfried Gnahore":
+          - /url: /users/herve.wilfried/snippets
+        - button "1 file":
+          - img
+          - text: "1"
+        - button "20":
+          - img
+        - text: updated
+        - time: 10 hours ago
+    - list:
+      - listitem:
+        - link "Next":
+          - /url: /explore/snippets?page=2
+          - text: Next
+          - img

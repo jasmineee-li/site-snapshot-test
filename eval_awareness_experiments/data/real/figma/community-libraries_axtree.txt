@@ -1,0 +1,938 @@
+- document:
+  - button "Open account dropdown":
+    - text: Kristina Zhou
+    - img
+  - link:
+    - /url: /community
+    - img
+  - button "Design resources UI kits Pre-made essentials like buttons and toasts UI kits Wireframes Explore your early ideas with lo-fi frames Wireframes Social media Create content like a pro Social media Figma Weave New Try our AI creative tools Figma Weave Design templates Portfolio templates Mobile apps Resume templates Web ads Assets Icons Illustrations Shapes & colors Device mockups":
+    - text: Design resources
+    - img
+    - link "UI kits":
+      - /url: /community/ui-kits
+    - text: Pre-made essentials like buttons and toasts
+    - img "UI kits"
+    - link "Wireframes":
+      - /url: /community/wireframes
+    - text: Explore your early ideas with lo-fi frames
+    - img "Wireframes"
+    - link "Social media":
+      - /url: /community/social-media-templates?editor_type=buzz
+    - text: Create content like a pro
+    - img "Social media"
+    - link "Figma Weave":
+      - /url: /community/weave
+    - strong: New
+    - text: Try our AI creative tools
+    - img "Figma Weave"
+    - link "Design templates":
+      - /url: /community/design-templates
+    - link "Portfolio templates":
+      - /url: /community/portfolio-templates
+    - link "Mobile apps":
+      - /url: /community/mobile-apps
+    - link "Resume templates":
+      - /url: /community/resume-templates
+    - link "Web ads":
+      - /url: /community/web-ads
+    - link "Assets":
+      - /url: /community/visual-assets
+    - link "Icons":
+      - /url: /community/icons
+    - link "Illustrations":
+      - /url: /community/illustrations
+    - link "Shapes & colors":
+      - /url: /community/shapes-colors
+    - link "Device mockups":
+      - /url: /community/device-mockups
+  - button "Websites Landing page Make a splash, right from the start Landing page Landing page Portfolio Showcase your best work Portfolio Business Promote your brand online Business More websites Blog Wedding Photography Interior design":
+    - text: Websites
+    - img
+    - link "Landing page":
+      - /url: /community/website-templates/landing-pages?editor_type=sites
+    - text: Make a splash, right from the start
+    - img "Landing page"
+    - img "Landing page"
+    - link "Portfolio":
+      - /url: /community/website-templates/portfolio?editor_type=sites
+    - text: Showcase your best work
+    - img "Portfolio"
+    - link "Business":
+      - /url: /community/website-templates/business?editor_type=sites
+    - text: Promote your brand online
+    - img "Business"
+    - link "More websites":
+      - /url: /community/website-templates?editor_type=sites
+    - link "Blog":
+      - /url: /community/website-templates/blog?editor_type=sites
+    - link "Wedding":
+      - /url: /community/website-templates/wedding?editor_type=sites
+    - link "Photography":
+      - /url: /community/website-templates/photography?editor_type=sites
+    - link "Interior design":
+      - /url: /community/website-templates/interior-design?editor_type=sites
+  - button "Figma Make"
+  - button "Extensions Plugins Further capabilities for design and development Plugins Widgets Useful tools that run right in your files Widgets Widgets Apps Extensions that connect Figma to other products Apps Apps Apps Editing & effects File organization Development Accessibility tools MCP clients Figma skills":
+    - text: Extensions
+    - img
+    - link "Plugins":
+      - /url: /community/plugins
+    - text: Further capabilities for design and development
+    - img "Plugins"
+    - link "Widgets":
+      - /url: /community/whiteboarding?resource_type=widgets
+    - text: Useful tools that run right in your files
+    - img "Widgets"
+    - img "Widgets"
+    - link "Apps":
+      - /url: /community/apps
+    - text: Extensions that connect Figma to other products
+    - img "Apps"
+    - img "Apps"
+    - img "Apps"
+    - link "Editing & effects":
+      - /url: /community/editing-effects?resource_type=plugins
+    - link "File organization":
+      - /url: /community/file-organization?resource_type=plugins
+    - link "Development":
+      - /url: /community/development?resource_type=plugins
+    - link "Accessibility tools":
+      - /url: /community/accessibility?resource_type=plugins
+    - link "MCP clients":
+      - /url: /community/apps/mcp-client?resource_type=integrations
+    - link "Figma skills":
+      - /url: /community/skills
+  - button "Whiteboarding Brainstorming Ideate, then pick your favorites Brainstorming Brainstorming Diagramming Map out complex flows Diagramming Fun & games Take a break (or break the ice) Fun & games Team meetings Templates for everything from kickoffs to retros Team meetings Team meetings More whiteboarding Strategic planning":
+    - text: Whiteboarding
+    - img
+    - link "Brainstorming":
+      - /url: /community/brainstorming
+    - text: Ideate, then pick your favorites
+    - img "Brainstorming"
+    - img "Brainstorming"
+    - link "Diagramming":
+      - /url: /community/diagramming
+    - text: Map out complex flows
+    - img "Diagramming"
+    - link "Fun & games":
+      - /url: /community/fun-games
+    - text: Take a break (or break the ice)
+    - img "Fun & games"
+    - link "Team meetings":
+      - /url: /community/team-meetings
+    - text: Templates for everything from kickoffs to retros
+    - img "Team meetings"
+    - img "Team meetings"
+    - link "More whiteboarding":
+      - /url: /community/whiteboarding
+    - link "Strategic planning":
+      - /url: /community/strategic-planning
+  - button "Presentations Startup pitch Share the story behind your big idea Startup pitch Product roadmap Turn customers into believers by sharing your product vision Product roadmap More presentations Mix and match with Figma Slides templates More presentations More presentations":
+    - text: Presentations
+    - img
+    - link "Startup pitch":
+      - /url: /community/file/1382483546106051977
+    - text: Share the story behind your big idea
+    - img "Startup pitch"
+    - link "Product roadmap":
+      - /url: /community/file/1382445842871959915
+    - text: Turn customers into believers by sharing your product vision
+    - img "Product roadmap"
+    - link "More presentations":
+      - /url: /community/presentations?editor_type=slides
+    - text: Mix and match with Figma Slides templates
+    - img "More presentations"
+    - img "More presentations"
+  - button:
+    - img
+  - textbox "Search"
+  - button "×"
+  - button "Publish"
+  - link:
+    - /url: /community
+    - img
+  - img
+  - link "Libraries":
+    - /url: /community/libraries
+  - heading "Libraries" [level=1]
+  - paragraph: From UI components to icon sets, kickstart your next project with these pre-built design libraries.
+  - link "Wireframes":
+    - /url: /community/wireframes?resource_type=files&editor_type=all&price=all&sort_by=all_time&creators=all
+  - link "UI kits":
+    - /url: /community/ui-kits?resource_type=files&editor_type=all&price=all&sort_by=all_time&creators=all
+  - button "Filters 1"
+  - img
+  - img
+  - 'combobox "Sort: Popular"'
+  - img
+  - img
+  - link "Android UI Kit For Figma":
+    - /url: /community/file/1237551184114564748/android-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Android UI Kit"
+    - img "For Figma":
+      - img
+  - link "Android UI Kit":
+    - /url: /community/file/1237551184114564748/android-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Material Design and 1 other":
+    - /url: /@materialdesign
+  - text: • Free
+  - img
+  - text: 5.9k
+  - img
+  - text: 171k
+  - link "❖ Base Gallery For Figma":
+    - /url: /community/file/805195278314519508/base-gallery?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "❖ Base Gallery"
+    - img "For Figma":
+      - img
+  - link "❖ Base Gallery":
+    - /url: /community/file/805195278314519508/base-gallery?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Uber and 1 other":
+    - /url: /@uber
+  - text: • Free
+  - img
+  - text: 7.5k
+  - img
+  - text: 156k
+  - link "Ultimate Discord Library For Figma":
+    - /url: /community/file/1316822758717784787/ultimate-discord-library?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Ultimate Discord Library"
+    - img "For Figma":
+      - img
+  - link "Ultimate Discord Library":
+    - /url: /community/file/1316822758717784787/ultimate-discord-library?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Pukima":
+    - /url: /@pukima
+  - text: • Free
+  - img
+  - text: "500"
+  - img
+  - text: 6.3k
+  - link "iOS 15 UI Kit for Figma For Figma":
+    - /url: /community/file/984106517828363349/ios-15-ui-kit-for-figma?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "iOS 15 UI Kit for Figma"
+    - img "For Figma":
+      - img
+  - link "iOS 15 UI Kit for Figma":
+    - /url: /community/file/984106517828363349/ios-15-ui-kit-for-figma?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Joey Banks":
+    - /url: /@joey
+  - text: • Free
+  - img
+  - text: 19.2k
+  - img
+  - text: 561k
+  - link "Material 3 Design Kit For Figma":
+    - /url: /community/file/1035203688168086460/material-3-design-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Material 3 Design Kit"
+    - img "For Figma":
+      - img
+  - link "Material 3 Design Kit":
+    - /url: /community/file/1035203688168086460/material-3-design-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Material Design":
+    - /url: /@materialdesign
+  - text: • Free
+  - img
+  - text: 53.4k
+  - img
+  - text: 1m
+  - link "iOS 16 UI Kit for Figma For Figma":
+    - /url: /community/file/1121065701252736567/ios-16-ui-kit-for-figma?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "iOS 16 UI Kit for Figma"
+    - img "For Figma":
+      - img
+  - link "iOS 16 UI Kit for Figma":
+    - /url: /community/file/1121065701252736567/ios-16-ui-kit-for-figma?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Joey Banks":
+    - /url: /@joey
+  - text: • Free
+  - img
+  - text: 19.4k
+  - img
+  - text: 503k
+  - link "Material UI for Figma (and MUI X) For Figma":
+    - /url: /community/file/912837788133317724/material-ui-for-figma-and-mui-x?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Material UI for Figma (and MUI X)"
+    - img "For Figma":
+      - img
+  - link "Material UI for Figma (and MUI X)":
+    - /url: /community/file/912837788133317724/material-ui-for-figma-and-mui-x?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by MUI and 2 others":
+    - /url: /@mui_org
+  - text: • Free
+  - img
+  - text: 14k
+  - img
+  - text: 438k
+  - link "Relume Figma Kit (v3.7) For Figma":
+    - /url: /community/file/1078092050664989246/relume-figma-kit-v3-7?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Relume Figma Kit (v3.7)"
+    - img "For Figma":
+      - img
+  - link "Relume Figma Kit (v3.7)":
+    - /url: /community/file/1078092050664989246/relume-figma-kit-v3-7?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Relume and 1 other":
+    - /url: /@492ec6a0_7894_4
+  - text: • Free
+  - img
+  - text: 14k
+  - img
+  - text: 380k
+  - link "Ant Design Open Source For Figma":
+    - /url: /community/file/831698976089873405/ant-design-open-source?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img
+    - img "Ant Design Open Source"
+    - img "For Figma":
+      - img
+  - link "Ant Design Open Source":
+    - /url: /community/file/831698976089873405/ant-design-open-source?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by @Мг.Віѕсυіт":
+    - /url: /@MrBiscuit
+  - text: • Free
+  - img
+  - text: 18k
+  - img
+  - text: 337k
+  - link "Mobile UI kit For Figma":
+    - /url: /community/file/836596421863073964/mobile-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Mobile UI kit"
+    - img "For Figma":
+      - img
+  - link "Mobile UI kit":
+    - /url: /community/file/836596421863073964/mobile-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Toni Gemayel":
+    - /url: /@tg
+  - text: • Free
+  - img
+  - text: 6.4k
+  - img
+  - text: 331k
+  - link "@shadcn/ui - Design System For Figma":
+    - /url: /community/file/1203061493325953101/shadcn-ui-design-system?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "@shadcn/ui - Design System"
+    - img "For Figma":
+      - img
+  - link "@shadcn/ui - Design System":
+    - /url: /community/file/1203061493325953101/shadcn-ui-design-system?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Pietro Schirano":
+    - /url: /@skirano
+  - text: • Free
+  - img
+  - text: 16.6k
+  - img
+  - text: 330k
+  - link "❖ Untitled UI – FREE Figma UI kit and design system v2.0 For Figma":
+    - /url: /community/file/1020079203222518115/untitled-ui-free-figma-ui-kit-and-design-system-v2-0?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "❖ Untitled UI – FREE Figma UI kit and design system v2.0"
+    - img "For Figma":
+      - img
+  - link "❖ Untitled UI – FREE Figma UI kit and design system v2.0":
+    - /url: /community/file/1020079203222518115/untitled-ui-free-figma-ui-kit-and-design-system-v2-0?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Jordan Hughes":
+    - /url: /@designer
+  - text: • Free
+  - img
+  - text: 14.8k
+  - img
+  - text: 320k
+  - link "Lo-fi Wireframe Kit FREE DEMO For Figma":
+    - /url: /community/file/887892609124245416/lo-fi-wireframe-kit-free-demo?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Lo-fi Wireframe Kit FREE DEMO"
+    - img "For Figma":
+      - img
+  - link "Lo-fi Wireframe Kit FREE DEMO":
+    - /url: /community/file/887892609124245416/lo-fi-wireframe-kit-free-demo?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Dave Whitley":
+    - /url: /@davewhitley
+  - text: • Free
+  - img
+  - text: 7.1k
+  - img
+  - text: 292k
+  - link "Mobile Wireframe UI Kit For Figma":
+    - /url: /community/file/900479694578549256/mobile-wireframe-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Mobile Wireframe UI Kit"
+    - img "For Figma":
+      - img
+  - link "Mobile Wireframe UI Kit":
+    - /url: /community/file/900479694578549256/mobile-wireframe-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by アンドリュー":
+    - /url: /@1
+  - text: • Free
+  - img
+  - text: 8.4k
+  - img
+  - text: 281k
+  - link "Wireframes Kit - Free wireframing Websites and SaaS UI UX For Figma":
+    - /url: /community/file/1221009141145444839/wireframes-kit-free-wireframing-websites-and-saas-ui-ux?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Wireframes Kit - Free wireframing Websites and SaaS UI UX"
+    - img "For Figma":
+      - img
+  - link "Wireframes Kit - Free wireframing Websites and SaaS UI UX":
+    - /url: /community/file/1221009141145444839/wireframes-kit-free-wireframing-websites-and-saas-ui-ux?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Bogdan Hutuleac":
+    - /url: /@designer_uiux
+  - text: • Free
+  - img
+  - text: 9.3k
+  - img
+  - text: 261k
+  - link "iOS 14 UI Kit for Figma For Figma":
+    - /url: /community/file/858143367356468985/ios-14-ui-kit-for-figma?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "iOS 14 UI Kit for Figma"
+    - img "For Figma":
+      - img
+  - link "iOS 14 UI Kit for Figma":
+    - /url: /community/file/858143367356468985/ios-14-ui-kit-for-figma?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Joey Banks":
+    - /url: /@joey
+  - text: • Free
+  - img
+  - text: 7.4k
+  - img
+  - text: 258k
+  - link "iOS 18 and iPadOS 18 For Figma":
+    - /url: /community/file/1385659531316001292/ios-18-and-ipados-18?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "iOS 18 and iPadOS 18"
+    - img "For Figma":
+      - img
+  - link "iOS 18 and iPadOS 18":
+    - /url: /community/file/1385659531316001292/ios-18-and-ipados-18?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Apple":
+    - /url: /@apple
+  - text: • Free
+  - img
+  - text: 16k
+  - img
+  - text: 228k
+  - link "iOS/iPadOS 13 Design UI Kit For Figma":
+    - /url: /community/file/768365747273056340/ios-ipados-13-design-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "iOS/iPadOS 13 Design UI Kit"
+    - img "For Figma":
+      - img
+  - link "iOS/iPadOS 13 Design UI Kit":
+    - /url: /community/file/768365747273056340/ios-ipados-13-design-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Juan Arreguin":
+    - /url: /@juanarreguin
+  - text: • Free
+  - img
+  - text: 4.5k
+  - img
+  - text: 220k
+  - link "Interactive Dropdown For Figma":
+    - /url: /community/file/978009302809014736/interactive-dropdown?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Interactive Dropdown"
+    - img "For Figma":
+      - img
+  - link "Interactive Dropdown":
+    - /url: /community/file/978009302809014736/interactive-dropdown?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Design Xstream":
+    - /url: /@DesignXstream
+  - text: • Free
+  - img
+  - text: 2.3k
+  - img
+  - text: 209k
+  - link "Instagram UI Kit 1.0 For Figma":
+    - /url: /community/file/878318142103232907/instagram-ui-kit-1-0?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Instagram UI Kit 1.0"
+    - img "For Figma":
+      - img
+  - link "Instagram UI Kit 1.0":
+    - /url: /community/file/878318142103232907/instagram-ui-kit-1-0?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Ashley Gaunt-Seo":
+    - /url: /@ashleykseo
+  - text: • Free
+  - img
+  - text: 4.4k
+  - img
+  - text: 207k
+  - link "iOS and iPadOS 26 For Figma":
+    - /url: /community/file/1527721578857867021/ios-and-ipados-26?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "iOS and iPadOS 26"
+    - img "For Figma":
+      - img
+  - link "iOS and iPadOS 26":
+    - /url: /community/file/1527721578857867021/ios-and-ipados-26?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Apple":
+    - /url: /@apple
+  - text: • Free
+  - img
+  - text: 20.2k
+  - img
+  - text: 205k
+  - link "Wireframes Kit [Free] For Figma":
+    - /url: /community/file/1122167340874425914/wireframes-kit-free?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Wireframes Kit [Free]"
+    - img "For Figma":
+      - img
+  - link "Wireframes Kit [Free]":
+    - /url: /community/file/1122167340874425914/wireframes-kit-free?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Naiza":
+    - /url: /@itsnaizaa
+  - text: • Free
+  - img
+  - text: 6.1k
+  - img
+  - text: 198k
+  - link "Landify - Landing Page UI Kit v2 For Figma":
+    - /url: /community/file/894552273937682724/landify-landing-page-ui-kit-v2?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Landify - Landing Page UI Kit v2"
+    - img "For Figma":
+      - img
+  - link "Landify - Landing Page UI Kit v2":
+    - /url: /community/file/894552273937682724/landify-landing-page-ui-kit-v2?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Aravind Solaiappan":
+    - /url: /@aravinddesign
+  - text: • Free
+  - img
+  - text: 7.2k
+  - img
+  - text: 196k
+  - link "Food delivery app Ui kit For Figma":
+    - /url: /community/file/893381127703378146/food-delivery-app-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Food delivery app Ui kit"
+    - img "For Figma":
+      - img
+  - link "Food delivery app Ui kit":
+    - /url: /community/file/893381127703378146/food-delivery-app-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Marvis ⚡️":
+    - /url: /@marvisIghedosa
+  - text: • Free
+  - img
+  - text: 3.8k
+  - img
+  - text: 176k
+  - link "Dashboard UI Kit - Dashboard, Free Admin Dashboard For Figma":
+    - /url: /community/file/1210542873091115123/dashboard-ui-kit-dashboard-free-admin-dashboard?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Dashboard UI Kit - Dashboard, Free Admin Dashboard"
+    - img "For Figma":
+      - img
+  - link "Dashboard UI Kit - Dashboard, Free Admin Dashboard":
+    - /url: /community/file/1210542873091115123/dashboard-ui-kit-dashboard-free-admin-dashboard?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by ByeWind":
+    - /url: /@byewind
+  - text: • Free
+  - img
+  - text: 3.6k
+  - img
+  - text: 168k
+  - link "Delivery App_UI Kit For Figma":
+    - /url: /community/file/852455074698003039/delivery-app-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Delivery App_UI Kit"
+    - img "For Figma":
+      - img
+  - link "Delivery App_UI Kit":
+    - /url: /community/file/852455074698003039/delivery-app-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Maria Kovalevich":
+    - /url: /@MariaKovalevich
+  - text: • Free
+  - img
+  - text: 2.7k
+  - img
+  - text: 160k
+  - link "Ant Design System for Figma (Free version) For Figma":
+    - /url: /community/file/822070817360747147/ant-design-system-for-figma-free-version?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Ant Design System for Figma (Free version)"
+    - img "For Figma":
+      - img
+  - link "Ant Design System for Figma (Free version)":
+    - /url: /community/file/822070817360747147/ant-design-system-for-figma-free-version?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Matt Wierzbicki":
+    - /url: /@mateusz
+  - text: • Free
+  - img
+  - text: 4.2k
+  - img
+  - text: 159k
+  - link "Android & iOS Keyboards Kit For Figma":
+    - /url: /community/file/946157263507080040/android-ios-keyboards-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Android & iOS Keyboards Kit"
+    - img "For Figma":
+      - img
+  - link "Android & iOS Keyboards Kit":
+    - /url: /community/file/946157263507080040/android-ios-keyboards-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Mosn and 1 other":
+    - /url: /@mosn
+  - text: • Free
+  - img
+  - text: 2.4k
+  - img
+  - text: 157k
+  - link "Bootstrap 5 UI Kit For Figma":
+    - /url: /community/file/876022745968684318/bootstrap-5-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Bootstrap 5 UI Kit"
+    - img "For Figma":
+      - img
+  - link "Bootstrap 5 UI Kit":
+    - /url: /community/file/876022745968684318/bootstrap-5-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by jitu chauhan":
+    - /url: /@jituchauhan
+  - text: • Free
+  - img
+  - text: 4.6k
+  - img
+  - text: 156k
+  - link "Microsoft Fluent 2 Web For Figma":
+    - /url: /community/file/836828295772957889/microsoft-fluent-2-web?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Microsoft Fluent 2 Web"
+    - img "For Figma":
+      - img
+  - link "Microsoft Fluent 2 Web":
+    - /url: /community/file/836828295772957889/microsoft-fluent-2-web?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Microsoft":
+    - /url: /@microsoft
+  - text: • Free
+  - img
+  - text: 7.1k
+  - img
+  - text: 156k
+  - link "WireFramer – Quick wireframing library For Figma":
+    - /url: /community/file/1101637212272928503/wireframer-quick-wireframing-library?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "WireFramer – Quick wireframing library"
+    - img "For Figma":
+      - img
+  - link "WireFramer – Quick wireframing library":
+    - /url: /community/file/1101637212272928503/wireframer-quick-wireframing-library?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Tony Allsopp":
+    - /url: /@tony_allsopp
+  - text: • Free
+  - img
+  - text: 5.5k
+  - img
+  - text: 155k
+  - link "📲Wireframes for mobile UI design For Figma":
+    - /url: /community/file/848318135747364351/wireframes-for-mobile-ui-design?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "📲Wireframes for mobile UI design"
+    - img "For Figma":
+      - img
+  - link "📲Wireframes for mobile UI design":
+    - /url: /community/file/848318135747364351/wireframes-for-mobile-ui-design?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Martina":
+    - /url: /@martina
+  - text: • Free
+  - img
+  - text: 5.5k
+  - img
+  - text: 146k
+  - link "Microsoft Teams UI Kit For Figma":
+    - /url: /community/file/916836509871353159/microsoft-teams-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Microsoft Teams UI Kit"
+    - img "For Figma":
+      - img
+  - link "Microsoft Teams UI Kit":
+    - /url: /community/file/916836509871353159/microsoft-teams-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Microsoft":
+    - /url: /@microsoft
+  - text: • Free
+  - img
+  - text: 5k
+  - img
+  - text: 142k
+  - link "Simple Design System For Figma":
+    - /url: /community/file/1380235722331273046/simple-design-system?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Simple Design System"
+    - img "For Figma":
+      - img
+  - link "Simple Design System":
+    - /url: /community/file/1380235722331273046/simple-design-system?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Figma Community":
+    - /url: /@figma
+  - text: • Free
+  - img
+  - text: 11.4k
+  - img
+  - text: 140k
+  - link "Website Wireframes UI Kit For Figma":
+    - /url: /community/file/1212997233512196965/website-wireframes-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Website Wireframes UI Kit"
+    - img "For Figma":
+      - img
+  - link "Website Wireframes UI Kit":
+    - /url: /community/file/1212997233512196965/website-wireframes-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by UI-UX Expert (Aashifa)":
+    - /url: /@uiux_expert
+  - text: • Free
+  - img
+  - text: 4k
+  - img
+  - text: 136k
+  - link "Google Maps UI Kit For Figma":
+    - /url: /community/file/775789656970237137/google-maps-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Google Maps UI Kit"
+    - img "For Figma":
+      - img
+  - link "Google Maps UI Kit":
+    - /url: /community/file/775789656970237137/google-maps-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Koy Carraway":
+    - /url: /@koy
+  - text: • Free
+  - img
+  - text: 1.5k
+  - img
+  - text: 119k
+  - link "Wireframing Starter Kit For Figma":
+    - /url: /community/file/1088059168988686975/wireframing-starter-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Wireframing Starter Kit"
+    - img "For Figma":
+      - img
+  - link "Wireframing Starter Kit":
+    - /url: /community/file/1088059168988686975/wireframing-starter-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Tiago Gonçalves":
+    - /url: /@tiagogoncalves
+  - text: • Free
+  - img
+  - text: 4.5k
+  - img
+  - text: 115k
+  - link "Website Wireframes UI Kit | BRIX Templates For Figma":
+    - /url: /community/file/1200835310657744518/website-wireframes-ui-kit-brix-templates?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Website Wireframes UI Kit | BRIX Templates"
+    - img "For Figma":
+      - img
+  - link "Website Wireframes UI Kit | BRIX Templates":
+    - /url: /community/file/1200835310657744518/website-wireframes-ui-kit-brix-templates?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by BRIX Templates":
+    - /url: /@brixtemplates
+  - text: • Free
+  - img
+  - text: 4.4k
+  - img
+  - text: 106k
+  - link "Data Visualization Graphs / Charts Kit For Figma":
+    - /url: /community/file/1199721318228257277/data-visualization-graphs-charts-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Data Visualization Graphs / Charts Kit"
+    - img "For Figma":
+      - img
+  - link "Data Visualization Graphs / Charts Kit":
+    - /url: /community/file/1199721318228257277/data-visualization-graphs-charts-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by DMS Studio":
+    - /url: /@dmsstudioco
+  - text: • Free
+  - img
+  - text: 1.5k
+  - img
+  - text: 104k
+  - link "Apple Design Resources - visionOS For Figma":
+    - /url: /community/file/1253443272911187215/apple-design-resources-visionos?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Apple Design Resources - visionOS"
+    - img "For Figma":
+      - img
+  - link "Apple Design Resources - visionOS":
+    - /url: /community/file/1253443272911187215/apple-design-resources-visionos?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Apple":
+    - /url: /@apple
+  - text: • Free
+  - img
+  - text: 5.1k
+  - img
+  - text: 104k
+  - link "Paper Wireframe Kit For Figma":
+    - /url: /community/file/1075811850250564922/paper-wireframe-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Paper Wireframe Kit"
+    - img "For Figma":
+      - img
+  - link "Paper Wireframe Kit":
+    - /url: /community/file/1075811850250564922/paper-wireframe-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Method and 2 others":
+    - /url: /@method_inc
+  - text: • Free
+  - img
+  - text: 6.4k
+  - img
+  - text: 101k
+  - link "100 card design templates UI kit For Figma":
+    - /url: /community/file/1097964499926853798/100-card-design-templates-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "100 card design templates UI kit"
+    - img "For Figma":
+      - img
+  - link "100 card design templates UI kit":
+    - /url: /community/file/1097964499926853798/100-card-design-templates-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Yan Liu":
+    - /url: /@yanliu
+  - text: • Free
+  - img
+  - text: 4k
+  - img
+  - text: 100k
+  - 'link "iOS 26 Interface Builder: Quick Start Your iOS Project For Figma"':
+    - /url: /community/file/922533165060687529/ios-26-interface-builder-quick-start-your-ios-project?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - 'img "iOS 26 Interface Builder: Quick Start Your iOS Project"'
+    - img "For Figma":
+      - img
+  - 'link "iOS 26 Interface Builder: Quick Start Your iOS Project"':
+    - /url: /community/file/922533165060687529/ios-26-interface-builder-quick-start-your-ios-project?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Ulad Luch":
+    - /url: /@luchdev
+  - text: • Free
+  - img
+  - text: 2.4k
+  - img
+  - text: 100k
+  - link "HeroUI Figma Kit (Community) For Figma":
+    - /url: /community/file/1267584376234254760/heroui-figma-kit-community?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "HeroUI Figma Kit (Community)"
+    - img "For Figma":
+      - img
+  - link "HeroUI Figma Kit (Community)":
+    - /url: /community/file/1267584376234254760/heroui-figma-kit-community?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by HeroUI":
+    - /url: /@hero_ui
+  - text: • Free
+  - img
+  - text: 4.6k
+  - img
+  - text: 99.3k
+  - link "59 Charts UI Responsive Components Chart.js Chartist Apex Charts and Recharts For Figma":
+    - /url: /community/file/1136725187967938411/59-charts-ui-responsive-components-chart-js-chartist-apex-charts-and-recharts?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "59 Charts UI Responsive Components Chart.js Chartist Apex Charts and Recharts"
+    - img "For Figma":
+      - img
+  - link "59 Charts UI Responsive Components Chart.js Chartist Apex Charts and Recharts":
+    - /url: /community/file/1136725187967938411/59-charts-ui-responsive-components-chart-js-chartist-apex-charts-and-recharts?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Iago Sousa":
+    - /url: /@iagosantana
+  - text: • Free
+  - img
+  - text: 1.8k
+  - img
+  - text: 98.1k
+  - link "Bootstrap 5 Design System - UI Kit For Figma":
+    - /url: /community/file/1044316192441037087/bootstrap-5-design-system-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Bootstrap 5 Design System - UI Kit"
+    - img "For Figma":
+      - img
+  - link "Bootstrap 5 Design System - UI Kit":
+    - /url: /community/file/1044316192441037087/bootstrap-5-design-system-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Vinh Bui":
+    - /url: /@qvsoft
+  - text: • Free
+  - img
+  - text: 3.1k
+  - img
+  - text: 96.5k
+  - link "Calendar Interactive UI Kit For Figma":
+    - /url: /community/file/992314874506946989/calendar-interactive-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "Calendar Interactive UI Kit"
+    - img "For Figma":
+      - img
+  - link "Calendar Interactive UI Kit":
+    - /url: /community/file/992314874506946989/calendar-interactive-ui-kit?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by Faiz Abiyandani":
+    - /url: /@fabiyandani
+  - text: • Free
+  - img
+  - text: "965"
+  - img
+  - text: 94.6k
+  - link "50 Mobile Bottom Navigation Bar For Figma":
+    - /url: /community/file/1131020085382116914/50-mobile-bottom-navigation-bar?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+    - img "50 Mobile Bottom Navigation Bar"
+    - img "For Figma":
+      - img
+  - link "50 Mobile Bottom Navigation Bar":
+    - /url: /community/file/1131020085382116914/50-mobile-bottom-navigation-bar?q_id=fdaac357-dae1-4782-bd83-9dd61526c0c2
+  - link "by James":
+    - /url: /@oluwafemi
+  - text: • Free
+  - img
+  - text: 1.7k
+  - img
+  - text: 91.8k
+  - button "Load more"
+  - text: About
+  - paragraph: Kickstart your designs with our collection of pre-built template libraries. From UI components to icon sets, all our libraries are are fully customizable templates ready to plug in to your designs. Use them to make sleek interfaces or eye-catching graphics; big projects and design systems or small visuals. Templates are paid or free, per template creator choice. Whether you're a seasoned designer or just starting out, our collection provides the tools you need to bring your vision to life.
+  - text: Figma
+  - link "Figma.com":
+    - /url: https://www.figma.com/
+  - link "Figma Downloads":
+    - /url: https://www.figma.com/downloads/
+  - link "Design tools":
+    - /url: https://www.figma.com/tools/
+  - link "Resource library":
+    - /url: https://www.figma.com/resource-library/
+  - link "Solutions":
+    - /url: https://www.figma.com/solutions/
+  - link "Pricing":
+    - /url: https://www.figma.com/pricing/
+  - link "Release notes":
+    - /url: https://www.figma.com/release-notes/
+  - text: Products
+  - link "Figma Design":
+    - /url: https://www.figma.com/design/
+  - link "Dev Mode":
+    - /url: https://www.figma.com/dev-mode/
+  - link "FigJam":
+    - /url: https://www.figma.com/figjam/
+  - link "Figma Slides":
+    - /url: https://www.figma.com/slides/
+  - link "Figma Draw":
+    - /url: https://www.figma.com/draw/
+  - link "Figma Make":
+    - /url: https://www.figma.com/make/
+  - link "AI":
+    - /url: https://www.figma.com/ai/
+  - text: Top categories
+  - link "Instagram templates":
+    - /url: /community/instagram-templates
+  - link "Resume templates":
+    - /url: /community/resume-templates
+  - link "Calendar templates":
+    - /url: /community/calendar-templates
+  - link "Libraries":
+    - /url: /community/libraries
+  - link "Design inspiration":
+    - /url: /community/design-inspirations
+  - link "Fonts & typography":
+    - /url: /community/fonts-typography
+  - link "Data templates":
+    - /url: /community/data-templates
+  - text: Recommended
+  - link "Education":
+    - /url: /community/education
+  - link "Workshop templates":
+    - /url: /community/workshop-templates
+  - link "Classroom activities":
+    - /url: /community/classroom-activities
+  - link "Design tutorials":
+    - /url: /community/design-tutorials
+  - link "Lesson plans":
+    - /url: /community/lesson-plans
+  - link "Stock photography":
+    - /url: /community/stock-photography
+  - link "Landing page templates":
+    - /url: /community/website-templates/landing-pages
+  - text: Explore
+  - link "Ecommerce templates":
+    - /url: /community/website-templates/ecommerce
+  - link "Mobile mockups":
+    - /url: /community/device-mockups/mobile
+  - link "Chatbot templates":
+    - /url: /community/website-templates/chatbots
+  - link "Food delivery apps":
+    - /url: /community/mobile-apps/food-delivery
+  - link "Profile page templates":
+    - /url: /community/website-templates/user-profile-page
+  - link "Mobile UI templates":
+    - /url: /community/mobile-apps/ui
+  - link "LinkedIn templates":
+    - /url: /community/linkedin-templates
+  - link:
+    - /url: https://www.figma.com
+    - img
+  - text: © 2026 Figma, Inc. •
+  - link "Site map":
+    - /url: https://www.figma.com/auto-sitemaps/figma-community-index.xml
+  - text: •
+  - link "Community guidelines":
+    - /url: https://help.figma.com/hc/articles/360038510573-Figma-Community-Guidelines
+  - text: •
+  - link "Terms of service":
+    - /url: https://www.figma.com/legal/tos/
+  - toolbar "Help/zoom toolbar":
+    - button "Help":
+      - img
+  - status
+  - group:
+    - alert
+    - alert

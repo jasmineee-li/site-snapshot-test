@@ -1,0 +1,257 @@
+- document:
+  - text: None selected
+  - link "Skip to content":
+    - /url: ""
+  - link "Using Gmail with screen readers":
+    - /url: ""
+  - heading [level=1]:
+    - banner:
+      - button "Main menu" [expanded]:
+        - img
+      - link "Gmail":
+        - /url: "#inbox"
+      - search:
+        - heading "Search" [level=2]
+        - table:
+          - rowgroup:
+            - row:
+              - cell:
+                - textbox "Search mail"
+        - button "Advanced search options":
+          - img
+        - button "Search mail" [disabled]:
+          - img
+      - button "Support":
+        - img
+      - button "Settings":
+        - img
+      - button "Try Gemini"
+      - button "Google apps":
+        - img
+      - 'button "Google Account: Kristina Zhou (zhoukristina9@gmail.com)"'
+  - alert
+  - navigation:
+    - button "Compose"
+    - heading "Labels" [level=2]
+    - link "Inbox":
+      - /url: https://mail.google.com/mail/u/0/#inbox
+    - link "Starred":
+      - /url: https://mail.google.com/mail/u/0/#starred
+    - link "Snoozed":
+      - /url: https://mail.google.com/mail/u/0/#snoozed
+    - link "Sent":
+      - /url: https://mail.google.com/mail/u/0/#sent
+    - link "Drafts":
+      - /url: https://mail.google.com/mail/u/0/#drafts
+    - link "Purchases has menu":
+      - /url: https://mail.google.com/mail/u/0/#category/purchases
+      - text: Purchases
+    - button "More labels": More
+    - heading "Labels"
+    - button "Create new label"
+    - heading "Labels" [level=2]
+    - link "Upgrade"
+    - img
+  - heading "Settings" [level=2]
+  - tablist:
+    - tab "General"
+    - tab "Labels"
+    - tab "Inbox" [selected]
+    - tab "Accounts and Import"
+    - tab "Filters and Blocked Addresses"
+    - tab "Forwarding and POP/IMAP"
+    - tab "Add-ons"
+    - tab "Chat and Meet"
+    - tab "Advanced"
+    - tab "Offline"
+    - tab "Themes"
+  - main:
+    - tablist:
+      - table:
+        - rowgroup:
+          - 'row "Inbox type: Default"':
+            - cell "Inbox type:"
+            - cell "Default":
+              - combobox:
+                - option "Default" [selected]
+                - option "Important first"
+                - option "Unread first"
+                - option "Starred first"
+                - option "Priority Inbox"
+                - option "Multiple Inboxes"
+          - 'row "Categories: Learn more about categories Primary Promotions Social Updates Forums Starred messages Include starred in Primary Bundling in Promotions Enable bundling of top promo emails in Promotions Choose which message categories to show as inbox tabs. Other messages will appear in the Primary tab. Deselect all categories to go back to your old inbox."':
+            - 'cell "Categories: Learn more about categories Primary Promotions Social Updates Forums Starred messages Include starred in Primary Bundling in Promotions Enable bundling of top promo emails in Promotions Choose which message categories to show as inbox tabs. Other messages will appear in the Primary tab. Deselect all categories to go back to your old inbox."':
+              - table:
+                - rowgroup:
+                  - 'row "Categories: Learn more about categories Primary Promotions Social Updates Forums Starred messages Include starred in Primary Bundling in Promotions Enable bundling of top promo emails in Promotions Choose which message categories to show as inbox tabs. Other messages will appear in the Primary tab. Deselect all categories to go back to your old inbox."':
+                    - 'cell "Categories: Learn more about categories"':
+                      - text: "Categories:"
+                      - link "Learn more about categories":
+                        - /url: https://support.google.com/mail?hl=en&p=inboxtabs
+                        - text: Learn more
+                    - cell "Primary Promotions Social Updates Forums Starred messages Include starred in Primary Bundling in Promotions Enable bundling of top promo emails in Promotions Choose which message categories to show as inbox tabs. Other messages will appear in the Primary tab. Deselect all categories to go back to your old inbox.":
+                      - table:
+                        - rowgroup:
+                          - row "Primary Promotions Social Updates Forums":
+                            - cell "Primary Promotions Social Updates Forums":
+                              - table:
+                                - rowgroup:
+                                  - row "Primary":
+                                    - cell "Primary":
+                                      - checkbox "Primary" [checked] [disabled]
+                                    - cell "Primary"
+                              - table:
+                                - rowgroup:
+                                  - row "Promotions":
+                                    - cell "Promotions":
+                                      - checkbox "Promotions" [checked]
+                                    - cell "Promotions"
+                              - table:
+                                - rowgroup:
+                                  - row "Social":
+                                    - cell "Social":
+                                      - checkbox "Social" [checked]
+                                    - cell "Social"
+                              - table:
+                                - rowgroup:
+                                  - row "Updates":
+                                    - cell "Updates":
+                                      - checkbox "Updates"
+                                    - cell "Updates"
+                              - table:
+                                - rowgroup:
+                                  - row "Forums":
+                                    - cell "Forums":
+                                      - checkbox "Forums"
+                                    - cell "Forums"
+                      - text: Starred messages
+                      - table:
+                        - rowgroup:
+                          - row "Include starred in Primary":
+                            - cell "Include starred in Primary":
+                              - table:
+                                - rowgroup:
+                                  - row "Include starred in Primary":
+                                    - cell "Include starred in Primary":
+                                      - checkbox "Include starred in Primary" [checked]
+                                    - cell "Include starred in Primary"
+                      - text: Bundling in Promotions
+                      - table:
+                        - rowgroup:
+                          - row "Enable bundling of top promo emails in Promotions":
+                            - cell "Enable bundling of top promo emails in Promotions":
+                              - table:
+                                - rowgroup:
+                                  - row "Enable bundling of top promo emails in Promotions":
+                                    - cell "Enable bundling of top promo emails in Promotions":
+                                      - checkbox "Enable bundling of top promo emails in Promotions" [checked]
+                                    - cell "Enable bundling of top promo emails in Promotions"
+                      - text: Choose which message categories to show as inbox tabs. Other messages will appear in the Primary tab. Deselect all categories to go back to your old inbox.
+          - 'row "Reading pane: Enable reading pane - provides a way to read mail right next to your list of conversations, making mail reading and writing mail faster and adding more context. Reading pane position No split Right of inbox Below inbox"':
+            - cell "Reading pane:"
+            - cell "Enable reading pane - provides a way to read mail right next to your list of conversations, making mail reading and writing mail faster and adding more context. Reading pane position No split Right of inbox Below inbox":
+              - table:
+                - rowgroup:
+                  - row "Enable reading pane - provides a way to read mail right next to your list of conversations, making mail reading and writing mail faster and adding more context.":
+                    - cell "Enable reading pane - provides a way to read mail right next to your list of conversations, making mail reading and writing mail faster and adding more context.":
+                      - checkbox "Enable reading pane - provides a way to read mail right next to your list of conversations, making mail reading and writing mail faster and adding more context."
+                    - cell "Enable reading pane - provides a way to read mail right next to your list of conversations, making mail reading and writing mail faster and adding more context."
+              - text: Reading pane position
+              - table:
+                - rowgroup:
+                  - row "No split":
+                    - cell "No split":
+                      - radio "No split" [checked] [disabled]
+                    - cell "No split"
+              - table:
+                - rowgroup:
+                  - row "Right of inbox":
+                    - cell "Right of inbox":
+                      - radio "Right of inbox" [disabled]
+                    - cell "Right of inbox"
+              - table:
+                - rowgroup:
+                  - row "Below inbox":
+                    - cell "Below inbox":
+                      - radio "Below inbox" [disabled]
+                    - cell "Below inbox"
+          - 'row "Importance markers: Show markers - Show a marker ( ) by messages marked as important. No markers Link to an instructional video for Priority Inbox Gmail analyzes your new incoming messages to predict what''s important, considering things like how you''ve treated similar messages in the past, how directly the message is addressed to you, and many other factors. Learn more about Priority Inbox"':
+            - cell "Importance markers:"
+            - cell "Show markers - Show a marker ( ) by messages marked as important. No markers Link to an instructional video for Priority Inbox Gmail analyzes your new incoming messages to predict what's important, considering things like how you've treated similar messages in the past, how directly the message is addressed to you, and many other factors. Learn more about Priority Inbox":
+              - table:
+                - rowgroup:
+                  - row "Show markers - Show a marker ( ) by messages marked as important.":
+                    - cell "Show markers - Show a marker ( ) by messages marked as important.":
+                      - radio "Show markers - Show a marker ( ) by messages marked as important."
+                    - cell "Show markers - Show a marker ( ) by messages marked as important."
+              - table:
+                - rowgroup:
+                  - row "No markers":
+                    - cell "No markers":
+                      - radio "No markers" [checked]
+                    - cell "No markers"
+              - link "Link to an instructional video for Priority Inbox":
+                - /url: https://support.google.com/mail/answer/186531?hl=en
+              - text: Gmail analyzes your new incoming messages to predict what's important, considering things like how you've treated similar messages in the past, how directly the message is addressed to you, and many other factors.
+              - link "Learn more about Priority Inbox":
+                - /url: https://support.google.com/mail?hl=en&p=inboxstyles
+                - text: Learn more
+              - group:
+                - table:
+                  - rowgroup:
+                    - row "Use my past actions to predict which messages are important to me.":
+                      - cell "Use my past actions to predict which messages are important to me.":
+                        - radio "Use my past actions to predict which messages are important to me." [checked]
+                      - cell "Use my past actions to predict which messages are important to me."
+                - table:
+                  - rowgroup:
+                    - 'row "Don''t use my past actions to predict which messages are important. Note: this will erase action history and will likely reduce the accuracy of importance predictions."':
+                      - 'cell "Don''t use my past actions to predict which messages are important. Note: this will erase action history and will likely reduce the accuracy of importance predictions."':
+                        - 'radio "Don''t use my past actions to predict which messages are important. Note: this will erase action history and will likely reduce the accuracy of importance predictions."'
+                      - 'cell "Don''t use my past actions to predict which messages are important. Note: this will erase action history and will likely reduce the accuracy of importance predictions."'
+          - row "Filtered mail:":
+            - cell "Filtered mail:"
+            - cell:
+              - group:
+                - table:
+                  - rowgroup:
+                    - row "Override filters - Include important messages in the inbox that may have been filtered out.":
+                      - cell "Override filters - Include important messages in the inbox that may have been filtered out.":
+                        - radio "Override filters - Include important messages in the inbox that may have been filtered out."
+                      - cell "Override filters - Include important messages in the inbox that may have been filtered out."
+                - table:
+                  - rowgroup:
+                    - row "Don't override filters":
+                      - cell "Don't override filters":
+                        - radio "Don't override filters" [checked]
+                      - cell "Don't override filters"
+          - row:
+            - cell:
+              - navigation:
+                - button "Save Changes" [disabled]
+                - button "Cancel"
+  - contentinfo:
+    - link "0% of 15 GB used Follow link to manage storage":
+      - /url: https://drive.google.com/u/0/settings/storage?hl=en&utm_medium=web&utm_source=gmail&utm_campaign=storage_meter&utm_content=storage_normal
+      - text: 0% of 15 GB used
+      - img "Follow link to manage storage"
+    - link "Terms":
+      - /url: https://www.google.com/intl/en/policies/terms/
+    - text: ·
+    - link "Privacy":
+      - /url: https://www.google.com/intl/en/policies/privacy/
+    - text: ·
+    - link "Program Policies":
+      - /url: https://www.google.com/gmail/about/policy/
+    - text: "Last account activity: 0 minutes ago Open in 1 other location ·"
+    - link "Details"
+  - complementary "Side panel":
+    - tablist:
+      - tab "Calendar"
+      - tab "Keep"
+      - tab "Tasks"
+      - tab "Contacts"
+      - separator [disabled]
+      - tab "Get Add-ons"
+  - button "Hide side panel":
+    - img

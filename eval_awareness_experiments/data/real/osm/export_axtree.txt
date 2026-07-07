@@ -1,0 +1,117 @@
+- document:
+  - banner:
+    - heading "OpenStreetMap logo OpenStreetMap" [level=1]:
+      - link "OpenStreetMap logo OpenStreetMap":
+        - /url: https://www.openstreetmap.org/#map=4/38.01/-95.84
+        - img "OpenStreetMap logo"
+        - text: OpenStreetMap
+    - navigation:
+      - link "Edit":
+        - /url: https://www.openstreetmap.org/edit#map=4/38.01/-95.84
+      - button
+    - navigation:
+      - list:
+        - listitem:
+          - link "History":
+            - /url: /history
+        - listitem:
+          - link "Export":
+            - /url: /export
+        - listitem:
+          - link "GPS Traces":
+            - /url: /traces
+        - listitem:
+          - link "User Diaries":
+            - /url: /diary
+        - listitem:
+          - link "Communities":
+            - /url: /communities
+        - listitem:
+          - link "Copyright":
+            - /url: /copyright
+        - listitem:
+          - link "Help":
+            - /url: /help
+        - listitem:
+          - link "Donate":
+            - /url: https://supporting.openstreetmap.org/donate/
+        - listitem:
+          - link "About":
+            - /url: /about
+      - button "Select Language":
+        - img
+      - link "Log In":
+        - /url: https://www.openstreetmap.org/login?referer=%2Fexport#map=4/38.01/-95.84
+      - link "Sign Up":
+        - /url: /user/new
+  - textbox "Search"
+  - button "Where is this?"
+  - button "Go":
+    - img
+  - link "Find directions between two points":
+    - /url: /directions
+    - img
+  - button "Close"
+  - heading "Export" [level=2]
+  - textbox: "57.37"
+  - textbox: "-136.67"
+  - textbox: "-54.93"
+  - textbox: "11.87"
+  - link "Manually select a different area":
+    - /url: "#"
+  - heading "Licence" [level=4]
+  - paragraph:
+    - text: OpenStreetMap data is licensed under the
+    - link "Open Data Commons Open Database License":
+      - /url: https://opendatacommons.org/licenses/odbl/1.0/
+    - text: (ODbL).
+  - paragraph: This area is too large to be exported as OpenStreetMap XML Data. Please zoom in or select a smaller area, or use one of the sources listed below for bulk data downloads.
+  - paragraph: "If the above export fails, please consider using one of the sources listed below:"
+  - term:
+    - link "Overpass API":
+      - /url: https://overpass-api.de/api/map?bbox=-136.67,11.87,-54.93,57.37
+  - definition: Download this bounding box from a mirror of the OpenStreetMap database
+  - term:
+    - link "Planet OSM":
+      - /url: https://planet.openstreetmap.org/
+  - definition: Regularly-updated copies of the complete OpenStreetMap database
+  - term:
+    - link "Geofabrik Downloads":
+      - /url: https://download.geofabrik.de/
+  - definition: Regularly-updated extracts of continents, countries, and selected cities
+  - term:
+    - link "Other Sources":
+      - /url: https://wiki.openstreetmap.org/wiki/Download
+  - definition: Additional sources listed on the OpenStreetMap Wiki
+  - img
+  - link "Zoom In":
+    - /url: "#"
+    - text: 
+  - link "Zoom Out":
+    - /url: "#"
+    - text: 
+  - button "Show My Location": 
+  - link "Layers":
+    - /url: "#"
+    - text: 
+  - link "Legend":
+    - /url: "#"
+    - text: 
+  - link "Share":
+    - /url: "#"
+    - text: 
+  - link "Add a note to the map":
+    - /url: "#"
+    - text: 
+  - link "Query features":
+    - /url: "#"
+    - text: 
+  - text: 500 km 300 mi ©
+  - link "OpenStreetMap contributors":
+    - /url: /copyright
+  - text: ♥️
+  - link "Make a Donation":
+    - /url: https://supporting.openstreetmap.org
+  - text: .
+  - link "Website and API terms":
+    - /url: https://wiki.osmfoundation.org/wiki/Terms_of_Use

@@ -1,0 +1,644 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Contacts - Accounts &amp; Contacts</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&amp;family=Roboto:wght@300;400;500;700&amp;display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app"><div class="topbar"><div class="topbar-left">
+            <button class="icon-btn" data-action="toggle-sidebar" title="Menu">
+                <span class="material-icons">menu</span>
+            </button>
+            <div class="topbar-brand">
+                <span class="material-icons topbar-logo-icon" style="color:#4285F4;">contacts</span>
+                <span class="topbar-app-name">Contacts</span>
+            </div>
+        </div><div class="topbar-center"><div class="search-bar" id="global-search">
+            <span class="material-icons search-icon">search</span>
+            <input type="text" class="search-input" id="global-search-input" value="" placeholder="Search contacts">
+            
+        </div></div><div class="topbar-right">
+            <button class="icon-btn" data-action="open-help" title="Help">
+                <span class="material-icons">help_outline</span>
+            </button>
+            <button class="icon-btn" data-action="open-settings-menu" title="Settings">
+                <span class="material-icons">settings</span>
+            </button>
+            <div class="topbar-profile" data-action="toggle-profile-menu">
+                <div class="avatar" style="width:32px;height:32px;background:#1a73e8;font-size:13px;line-height:32px;">AJ</div>
+            </div>
+        </div></div><div class="app-layout "><div class="sidebar"><div class="sidebar-header">
+            <div class="sidebar-logo">
+                <span class="material-icons" style="color:#4285F4;font-size:28px;">contacts</span>
+                <span class="sidebar-title">Contacts</span>
+            </div>
+        </div><div class="sidebar-action">
+            <button class="btn btn-primary btn-create" data-action="open-create-contact">
+                <span class="material-icons btn-icon">add</span> Create contact
+            </button>
+        </div><nav class="sidebar-nav"><div class="nav-item nav-active" data-action="navigate" data-view="contacts" data-filter="all">
+            <span class="material-icons nav-icon">people</span>
+            <span class="nav-label">Contacts</span>
+            <span class="nav-count">40</span>
+        </div><div class="nav-item" data-action="navigate" data-view="contacts" data-filter="frequently">
+            <span class="material-icons nav-icon">history</span>
+            <span class="nav-label">Frequently contacted</span>
+            
+        </div><div class="nav-item" data-action="navigate" data-view="contacts" data-filter="starred">
+            <span class="material-icons nav-icon">star</span>
+            <span class="nav-label">Starred</span>
+            <span class="nav-count">10</span>
+        </div><div class="nav-item" data-action="navigate" data-view="other-contacts" data-filter="other">
+            <span class="material-icons nav-icon">person_outline</span>
+            <span class="nav-label">Other contacts</span>
+            <span class="nav-count">20</span>
+        </div><div class="nav-item" data-action="navigate" data-view="merge-suggestions" data-filter="merge">
+            <span class="material-icons nav-icon">merge_type</span>
+            <span class="nav-label">Merge &amp; fix</span>
+            <span class="nav-count">2</span>
+        </div></nav><div class="sidebar-section"><div class="sidebar-section-header">
+            <span class="sidebar-section-title">Labels</span>
+            <button class="icon-btn icon-btn-sm" data-action="open-create-label" title="Create label">
+                <span class="material-icons">add</span>
+            </button>
+        </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_1">
+                <span class="label-dot" style="background:#EA4335"></span>
+                <span class="nav-label">Family</span>
+                <span class="nav-count">4</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_1" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_2">
+                <span class="label-dot" style="background:#34A853"></span>
+                <span class="nav-label">Friends</span>
+                <span class="nav-count">7</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_2" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_3">
+                <span class="label-dot" style="background:#4285F4"></span>
+                <span class="nav-label">Work</span>
+                <span class="nav-count">19</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_3" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_4">
+                <span class="label-dot" style="background:#FBBC04"></span>
+                <span class="nav-label">VIP Clients</span>
+                <span class="nav-count">4</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_4" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_5">
+                <span class="label-dot" style="background:#FF6D01"></span>
+                <span class="nav-label">Gym Buddies</span>
+                <span class="nav-count">5</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_5" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_6">
+                <span class="label-dot" style="background:#9C27B0"></span>
+                <span class="nav-label">College Alumni</span>
+                <span class="nav-count">4</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_6" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_7">
+                <span class="label-dot" style="background:#009688"></span>
+                <span class="nav-label">Neighbors</span>
+                <span class="nav-count">3</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_7" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_8">
+                <span class="label-dot" style="background:#795548"></span>
+                <span class="nav-label">Book Club</span>
+                <span class="nav-count">2</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_8" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_9">
+                <span class="label-dot" style="background:#607D8B"></span>
+                <span class="nav-label">Vendors</span>
+                <span class="nav-count">5</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_9" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_10">
+                <span class="label-dot" style="background:#F44336"></span>
+                <span class="nav-label">Emergency</span>
+                <span class="nav-count">4</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_10" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_11">
+                <span class="label-dot" style="background:#00BCD4"></span>
+                <span class="nav-label">Travel Contacts</span>
+                <span class="nav-count">3</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_11" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div><div class="nav-item " data-action="filter-by-label" data-label-id="clabel_12">
+                <span class="label-dot" style="background:#E91E63"></span>
+                <span class="nav-label">Healthcare</span>
+                <span class="nav-count">4</span>
+                <button class="icon-btn icon-btn-xs nav-edit" data-action="edit-label" data-label-id="clabel_12" title="Edit label">
+                    <span class="material-icons">edit</span>
+                </button>
+            </div></div><nav class="sidebar-nav sidebar-nav-bottom"><div class="nav-item" data-action="navigate" data-view="import-export">
+            <span class="material-icons nav-icon">import_export</span>
+            <span class="nav-label">Import &amp; Export</span>
+        </div><div class="nav-item" data-action="navigate" data-view="delegates">
+            <span class="material-icons nav-icon">supervisor_account</span>
+            <span class="nav-label">Delegates</span>
+        </div><div class="nav-item" data-action="navigate" data-view="linked-services">
+            <span class="material-icons nav-icon">link</span>
+            <span class="nav-label">Linked Services</span>
+        </div><div class="nav-item" data-action="navigate" data-view="settings">
+            <span class="material-icons nav-icon">settings</span>
+            <span class="nav-label">Settings</span>
+        </div></nav></div><div class="main-area"><div class="main-content"><div class="toolbar"><div class="toolbar-left"><div class="search-bar" id="contact-search">
+            <span class="material-icons search-icon">search</span>
+            <input type="text" class="search-input" id="contact-search-input" value="" placeholder="Search contacts">
+            
+        </div></div><div class="toolbar-right"><div class="toolbar-sort"><div class="custom-dropdown" id="sort-by" data-dropdown="sort-by"><div class="dropdown-trigger" data-dropdown="sort-by"><span class="dropdown-text">First name</span><span class="material-icons dropdown-arrow">expand_more</span></div><div class="dropdown-menu" id="sort-by-menu"><div class="dropdown-item selected" data-value="firstName" data-dropdown-id="sort-by"><span>First name</span><span class="material-icons checkmark">check</span></div><div class="dropdown-item" data-value="lastName" data-dropdown-id="sort-by"><span>Last name</span></div><div class="dropdown-item" data-value="email" data-dropdown-id="sort-by"><span>Email</span></div><div class="dropdown-item" data-value="company" data-dropdown-id="sort-by"><span>Company</span></div><div class="dropdown-item" data-value="updatedAt" data-dropdown-id="sort-by"><span>Last updated</span></div></div></div></div><button class="icon-btn" data-action="toggle-sort-dir" title="Toggle sort direction">
+            <span class="material-icons">arrow_upward</span>
+        </button></div></div><div class="content-header">
+            <h1 class="content-title">Contacts</h1>
+            <span class="content-count">40 contacts</span>
+        </div><div class="contact-table"><div class="contact-table-header">
+                <div class="ct-col ct-name">Name</div>
+                <div class="ct-col ct-email">Email</div>
+                <div class="ct-col ct-phone">Phone number</div>
+                <div class="ct-col ct-company">Company</div>
+                <div class="ct-col ct-labels">Labels</div>
+                <div class="ct-col ct-actions"></div>
+            </div><div class="contact-row " data-contact-id="contact_23" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#BF360C;font-size:13px;line-height:32px;">AM</div>
+                        <span class="ct-name-text">Aisha Mohammed</span>
+                    </div>
+                </div><div class="ct-col ct-email">aisha.m@edtech.academy</div><div class="ct-col ct-phone">+1 (510) 555-2326</div><div class="ct-col ct-company">EdTech Academy</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#4285F420;color:#4285F4;border:1px solid #4285F440;">
+            Work
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star " data-action="toggle-star" data-contact-id="contact_23">
+                        <span class="material-icons">star_border</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_23">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_23">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_09" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#E91E63;font-size:13px;line-height:32px;">AG</div>
+                        <span class="ct-name-text">Ana Gutierrez</span>
+                    </div>
+                </div><div class="ct-col ct-email">ana.g@globalhealth.org</div><div class="ct-col ct-phone">+1 (415) 555-0912</div><div class="ct-col ct-company">GlobalHealth.org</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#34A85320;color:#34A853;border:1px solid #34A85340;">
+            Friends
+        </span><span class="label-chip" style="background:#FF6D0120;color:#FF6D01;border:1px solid #FF6D0140;">
+            Gym Buddies
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star " data-action="toggle-star" data-contact-id="contact_09">
+                        <span class="material-icons">star_border</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_09">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_09">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_34" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#546E7A;font-size:13px;line-height:32px;">BW</div>
+                        <span class="ct-name-text">Ben Walker</span>
+                    </div>
+                </div><div class="ct-col ct-email">ben.walker@gmail.com</div><div class="ct-col ct-phone">+1 (415) 555-3410</div><div class="ct-col ct-company"></div><div class="ct-col ct-labels"><span class="label-chip" style="background:#00968820;color:#009688;border:1px solid #00968840;">
+            Neighbors
+        </span><span class="label-chip" style="background:#F4433620;color:#F44336;border:1px solid #F4433640;">
+            Emergency
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star " data-action="toggle-star" data-contact-id="contact_34">
+                        <span class="material-icons">star_border</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_34">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_34">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_12" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#607D8B;font-size:13px;line-height:32px;">CM</div>
+                        <span class="ct-name-text">Carlos Mendez</span>
+                    </div>
+                </div><div class="ct-col ct-email">carlos.m@logisticspro.net</div><div class="ct-col ct-phone">+1 (305) 555-1215</div><div class="ct-col ct-company">LogisticsPro</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#607D8B20;color:#607D8B;border:1px solid #607D8B40;">
+            Vendors
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star " data-action="toggle-star" data-contact-id="contact_12">
+                        <span class="material-icons">star_border</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_12">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_12">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_22" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#1B5E20;font-size:13px;line-height:32px;">CE</div>
+                        <span class="ct-name-text">Chris Evans</span>
+                    </div>
+                </div><div class="ct-col ct-email">chris.evans@sportsnews.com</div><div class="ct-col ct-phone">+1 (925) 555-2225</div><div class="ct-col ct-company">SportsNews</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#34A85320;color:#34A853;border:1px solid #34A85340;">
+            Friends
+        </span><span class="label-chip" style="background:#9C27B020;color:#9C27B0;border:1px solid #9C27B040;">
+            College Alumni
+        </span><span class="label-chip" style="background:#FF6D0120;color:#FF6D01;border:1px solid #FF6D0140;">
+            Gym Buddies
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star " data-action="toggle-star" data-contact-id="contact_22">
+                        <span class="material-icons">star_border</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_22">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_22">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_20" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#455A64;font-size:13px;line-height:32px;">DT</div>
+                        <span class="ct-name-text">Daniel Thompson</span>
+                    </div>
+                </div><div class="ct-col ct-email">daniel.t@architectsllp.com</div><div class="ct-col ct-phone">+1 (415) 555-2023</div><div class="ct-col ct-company">Thompson Architects LLP</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#607D8B20;color:#607D8B;border:1px solid #607D8B40;">
+            Vendors
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star " data-action="toggle-star" data-contact-id="contact_20">
+                        <span class="material-icons">star_border</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_20">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_20">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_06" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#FF5722;font-size:13px;line-height:32px;">DK</div>
+                        <span class="ct-name-text">David Kim</span>
+                    </div>
+                </div><div class="ct-col ct-email">david.kim@financeplus.com</div><div class="ct-col ct-phone">+1 (312) 555-0608</div><div class="ct-col ct-company">FinancePlus</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#4285F420;color:#4285F4;border:1px solid #4285F440;">
+            Work
+        </span><span class="label-chip" style="background:#FBBC0420;color:#FBBC04;border:1px solid #FBBC0440;">
+            VIP Clients
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star " data-action="toggle-star" data-contact-id="contact_06">
+                        <span class="material-icons">star_border</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_06">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_06">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_35" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#7CB342;font-size:13px;line-height:32px;">DC</div>
+                        <span class="ct-name-text">Diana Castillo</span>
+                    </div>
+                </div><div class="ct-col ct-email">diana.castillo@gmail.com</div><div class="ct-col ct-phone">+1 (415) 555-3511</div><div class="ct-col ct-company">Self-employed</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#FF6D0120;color:#FF6D01;border:1px solid #FF6D0140;">
+            Gym Buddies
+        </span><span class="label-chip" style="background:#E91E6320;color:#E91E63;border:1px solid #E91E6340;">
+            Healthcare
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star " data-action="toggle-star" data-contact-id="contact_35">
+                        <span class="material-icons">star_border</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_35">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_35">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_28" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#00695C;font-size:13px;line-height:32px;">DP</div>
+                        <span class="ct-name-text">Dr. Patricia Nguyen</span>
+                    </div>
+                </div><div class="ct-col ct-email">dr.nguyen@baymedical.org</div><div class="ct-col ct-phone">+1 (415) 555-2804</div><div class="ct-col ct-company">Bay Medical Center</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#E91E6320;color:#E91E63;border:1px solid #E91E6340;">
+            Healthcare
+        </span><span class="label-chip" style="background:#F4433620;color:#F44336;border:1px solid #F4433640;">
+            Emergency
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star " data-action="toggle-star" data-contact-id="contact_28">
+                        <span class="material-icons">star_border</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_28">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_28">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_37" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#AB47BC;font-size:13px;line-height:32px;">EV</div>
+                        <span class="ct-name-text">Elena Volkov</span>
+                    </div>
+                </div><div class="ct-col ct-email">elena.volkov@eurodesign.fr</div><div class="ct-col ct-phone">+33 6 12 34 5678</div><div class="ct-col ct-company">EuroDesign</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#4285F420;color:#4285F4;border:1px solid #4285F440;">
+            Work
+        </span><span class="label-chip" style="background:#00BCD420;color:#00BCD4;border:1px solid #00BCD440;">
+            Travel Contacts
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star " data-action="toggle-star" data-contact-id="contact_37">
+                        <span class="material-icons">star_border</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_37">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_37">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_03" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#FBBC04;font-size:13px;line-height:32px;">ER</div>
+                        <span class="ct-name-text">Emily Rodriguez</span>
+                    </div>
+                </div><div class="ct-col ct-email">emily.r@startupventures.co</div><div class="ct-col ct-phone">+1 (408) 555-0304</div><div class="ct-col ct-company">StartupVentures</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#4285F420;color:#4285F4;border:1px solid #4285F440;">
+            Work
+        </span><span class="label-chip" style="background:#FBBC0420;color:#FBBC04;border:1px solid #FBBC0440;">
+            VIP Clients
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star starred" data-action="toggle-star" data-contact-id="contact_03">
+                        <span class="material-icons">star</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_03">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_03">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_32" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#5D4037;font-size:13px;line-height:32px;">GH</div>
+                        <span class="ct-name-text">Greg Hoffman</span>
+                    </div>
+                </div><div class="ct-col ct-email">greg.hoffman@wellsfargo.com</div><div class="ct-col ct-phone">+1 (415) 555-3208</div><div class="ct-col ct-company">Wells Fargo</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#607D8B20;color:#607D8B;border:1px solid #607D8B40;">
+            Vendors
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star " data-action="toggle-star" data-contact-id="contact_32">
+                        <span class="material-icons">star_border</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_32">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_32">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_17" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#F44336;font-size:13px;line-height:32px;">HB</div>
+                        <span class="ct-name-text">Hannah Brooks</span>
+                    </div>
+                </div><div class="ct-col ct-email">hannah.b@fitnessfirst.com</div><div class="ct-col ct-phone">+1 (415) 555-1720</div><div class="ct-col ct-company">FitnessFirst</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#FF6D0120;color:#FF6D01;border:1px solid #FF6D0140;">
+            Gym Buddies
+        </span><span class="label-chip" style="background:#E91E6320;color:#E91E63;border:1px solid #E91E6340;">
+            Healthcare
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star " data-action="toggle-star" data-contact-id="contact_17">
+                        <span class="material-icons">star_border</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_17">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_17">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_30" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#1E88E5;font-size:13px;line-height:32px;">JM</div>
+                        <span class="ct-name-text">Jake Morrison</span>
+                    </div>
+                </div><div class="ct-col ct-email">jake.morrison@gmail.com</div><div class="ct-col ct-phone">+1 (415) 555-3006</div><div class="ct-col ct-company">Stripe</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#34A85320;color:#34A853;border:1px solid #34A85340;">
+            Friends
+        </span><span class="label-chip" style="background:#FF6D0120;color:#FF6D01;border:1px solid #FF6D0140;">
+            Gym Buddies
+        </span><span class="label-chip" style="background:#9C27B020;color:#9C27B0;border:1px solid #9C27B040;">
+            College Alumni
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star starred" data-action="toggle-star" data-contact-id="contact_30">
+                        <span class="material-icons">star</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_30">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_30">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_04" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#4285F4;font-size:13px;line-height:32px;">JO</div>
+                        <span class="ct-name-text">James O'Brien</span>
+                    </div>
+                </div><div class="ct-col ct-email">james.obrien@lawfirm.legal</div><div class="ct-col ct-phone">+1 (212) 555-0405</div><div class="ct-col ct-company">Morrison &amp; Associates</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#4285F420;color:#4285F4;border:1px solid #4285F440;">
+            Work
+        </span><span class="label-chip" style="background:#607D8B20;color:#607D8B;border:1px solid #607D8B40;">
+            Vendors
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star " data-action="toggle-star" data-contact-id="contact_04">
+                        <span class="material-icons">star_border</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_04">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_04">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_19" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#FF6F00;font-size:13px;line-height:32px;">JW</div>
+                        <span class="ct-name-text">Jennifer Wu</span>
+                    </div>
+                </div><div class="ct-col ct-email">jennifer.wu@biomedresearch.com</div><div class="ct-col ct-phone">+1 (617) 555-1922</div><div class="ct-col ct-company">BioMed Research</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#4285F420;color:#4285F4;border:1px solid #4285F440;">
+            Work
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star " data-action="toggle-star" data-contact-id="contact_19">
+                        <span class="material-icons">star_border</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_19">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_19">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_14" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#00BCD4;font-size:13px;line-height:32px;">KZ</div>
+                        <span class="ct-name-text">Kevin Zhao</span>
+                    </div>
+                </div><div class="ct-col ct-email">kevin.zhao@quantumlab.tech</div><div class="ct-col ct-phone">+1 (650) 555-1417</div><div class="ct-col ct-company">QuantumLab</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#4285F420;color:#4285F4;border:1px solid #4285F440;">
+            Work
+        </span><span class="label-chip" style="background:#9C27B020;color:#9C27B0;border:1px solid #9C27B040;">
+            College Alumni
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star starred" data-action="toggle-star" data-contact-id="contact_14">
+                        <span class="material-icons">star</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_14">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_14">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_27" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#AD1457;font-size:13px;line-height:32px;">LJ</div>
+                        <span class="ct-name-text">Laura Johnson-Martinez</span>
+                    </div>
+                </div><div class="ct-col ct-email">laura.jm@gmail.com</div><div class="ct-col ct-phone">+1 (503) 555-2703</div><div class="ct-col ct-company">Nike</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#EA433520;color:#EA4335;border:1px solid #EA433540;">
+            Family
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star starred" data-action="toggle-star" data-contact-id="contact_27">
+                        <span class="material-icons">star</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_27">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_27">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_40" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#00838F;font-size:13px;line-height:32px;">LM</div>
+                        <span class="ct-name-text">Leo Martinez</span>
+                    </div>
+                </div><div class="ct-col ct-email">leo.martinez@gmail.com</div><div class="ct-col ct-phone">+1 (503) 555-4014</div><div class="ct-col ct-company">Adidas</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#EA433520;color:#EA4335;border:1px solid #EA433540;">
+            Family
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star " data-action="toggle-star" data-contact-id="contact_40">
+                        <span class="material-icons">star_border</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_40">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_40">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_07" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#009688;font-size:13px;line-height:32px;">LN</div>
+                        <span class="ct-name-text">Lisa Nakamura</span>
+                    </div>
+                </div><div class="ct-col ct-email">lisa.n@creativeagency.co</div><div class="ct-col ct-phone">+1 (310) 555-0710</div><div class="ct-col ct-company">Creative Agency Co.</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#4285F420;color:#4285F4;border:1px solid #4285F440;">
+            Work
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star " data-action="toggle-star" data-contact-id="contact_07">
+                        <span class="material-icons">star_border</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_07">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_07">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_02" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#34A853;font-size:13px;line-height:32px;">MW</div>
+                        <span class="ct-name-text">Marcus Williams</span>
+                    </div>
+                </div><div class="ct-col ct-email">marcus.w@designhub.com</div><div class="ct-col ct-phone">+1 (415) 555-0203</div><div class="ct-col ct-company">DesignHub</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#4285F420;color:#4285F4;border:1px solid #4285F440;">
+            Work
+        </span><span class="label-chip" style="background:#34A85320;color:#34A853;border:1px solid #34A85340;">
+            Friends
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star starred" data-action="toggle-star" data-contact-id="contact_02">
+                        <span class="material-icons">star</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_02">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_02">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_25" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#C62828;font-size:13px;line-height:32px;">MJ</div>
+                        <span class="ct-name-text">Margaret Johnson</span>
+                    </div>
+                </div><div class="ct-col ct-email">margaret.johnson@gmail.com</div><div class="ct-col ct-phone">+1 (916) 555-2500</div><div class="ct-col ct-company"></div><div class="ct-col ct-labels"><span class="label-chip" style="background:#EA433520;color:#EA4335;border:1px solid #EA433540;">
+            Family
+        </span><span class="label-chip" style="background:#F4433620;color:#F44336;border:1px solid #F4433640;">
+            Emergency
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star starred" data-action="toggle-star" data-contact-id="contact_25">
+                        <span class="material-icons">star</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_25">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_25">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_21" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#7B1FA2;font-size:13px;line-height:32px;">MP</div>
+                        <span class="ct-name-text">Maya Patel</span>
+                    </div>
+                </div><div class="ct-col ct-email">maya.patel@techcorp.io</div><div class="ct-col ct-phone">+1 (650) 555-2124</div><div class="ct-col ct-company">TechCorp</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#4285F420;color:#4285F4;border:1px solid #4285F440;">
+            Work
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star starred" data-action="toggle-star" data-contact-id="contact_21">
+                        <span class="material-icons">star</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_21">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_21">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_11" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#FF9800;font-size:13px;line-height:32px;">MP</div>
+                        <span class="ct-name-text">Michelle Park</span>
+                    </div>
+                </div><div class="ct-col ct-email">michelle.park@mediaco.tv</div><div class="ct-col ct-phone">+1 (213) 555-1114</div><div class="ct-col ct-company">MediaCo TV</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#4285F420;color:#4285F4;border:1px solid #4285F440;">
+            Work
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star " data-action="toggle-star" data-contact-id="contact_11">
+                        <span class="material-icons">star_border</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_11">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_11">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div><div class="contact-row " data-contact-id="contact_29" data-action="select-contact"><div class="ct-col ct-name">
+                    <div class="ct-name-cell">
+                        <div class="avatar" style="width:32px;height:32px;background:#4E342E;font-size:13px;line-height:32px;">MC</div>
+                        <span class="ct-name-text">Mike Chen</span>
+                    </div>
+                </div><div class="ct-col ct-email">mike.chen.dds@gmail.com</div><div class="ct-col ct-phone">+1 (415) 555-2905</div><div class="ct-col ct-company">Sunset Dental</div><div class="ct-col ct-labels"><span class="label-chip" style="background:#E91E6320;color:#E91E63;border:1px solid #E91E6340;">
+            Healthcare
+        </span></div><div class="ct-col ct-actions">
+                    <button class="icon-btn contact-star " data-action="toggle-star" data-contact-id="contact_29">
+                        <span class="material-icons">star_border</span>
+                    </button>
+                    <button class="icon-btn" data-action="edit-contact" data-contact-id="contact_29">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="icon-btn" data-action="delete-contact" data-contact-id="contact_29">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div></div></div><div class="pagination"><span class="pagination-info">1-25 of 40</span><button class="pagination-btn" data-action="prev-page" disabled=""><span class="material-icons">chevron_left</span></button><button class="pagination-btn" data-action="next-page"><span class="material-icons">chevron_right</span></button></div></div></div></div></div>
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

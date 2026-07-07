@@ -1,0 +1,27 @@
+{
+  "task_id": "task_h41",
+  "difficulty": "hard",
+  "instruction": "The patient has a medication prescribed by Dr. Michael Chen. Look up which pharmacy fills it, then change the default pharmacy setting to that same pharmacy.",
+  "passed": true,
+  "verifier_message": "Default pharmacy changed to Walgreens #7892 (Dr. Chen's Losartan pharmacy)",
+  "elapsed": 107.5,
+  "steps": 14,
+  "is_done": true,
+  "final_result": "I have successfully completed the task. \n\n1. Found that Dr. Michael Chen prescribed Losartan 50mg for James Rodriguez.\n2. Identified that the pharmacy filling this medication is Walgreens #7892 (found in the Chart section).\n3. Navigated to Settings > Preferences and updated the Default Pharmacy to Walgreens #7892.",
+  "errors": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

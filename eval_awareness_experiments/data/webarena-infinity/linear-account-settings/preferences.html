@@ -1,0 +1,506 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linear - Account Settings</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-app-title">Settings</div>
+            </div>
+            <nav id="sidebarNav">
+            <div class="sidebar-section-label">Account</div>
+            
+                <div class="sidebar-item " data-action="navigate" data-section="profile">
+                    <span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 8a3 3 0 100-6 3 3 0 000 6zm-5 6s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3z"></path></svg></span>
+                    <span class="sidebar-text">Profile</span>
+                </div>
+            
+                <div class="sidebar-item active" data-action="navigate" data-section="preferences">
+                    <span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 100 6.492 3.246 3.246 0 000-6.492zM5.754 8a2.246 2.246 0 114.492 0 2.246 2.246 0 01-4.492 0z"></path><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 01-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 01-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 01.52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 011.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 011.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 01.52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 01-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 01-1.255-.52l-.094-.319z"></path></svg></span>
+                    <span class="sidebar-text">Preferences</span>
+                </div>
+            
+                <div class="sidebar-item " data-action="navigate" data-section="notifications">
+                    <span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 16a2 2 0 002-2H6a2 2 0 002 2zM8 1.918l-.797.161A4.002 4.002 0 004 6c0 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134 8.197 12 6.628 12 6a4.002 4.002 0 00-3.203-3.92L8 1.917z"></path></svg></span>
+                    <span class="sidebar-text">Notifications</span>
+                </div>
+            
+                <div class="sidebar-item " data-action="navigate" data-section="security">
+                    <span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0c-.69 0-1.281.476-1.478 1.117L5.532 2H3.5A1.5 1.5 0 002 3.5v10A1.5 1.5 0 003.5 15h9a1.5 1.5 0 001.5-1.5v-10A1.5 1.5 0 0012.5 2h-2.032l-.99-.883A1.5 1.5 0 008 0zm.5 4.75a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z"></path></svg></span>
+                    <span class="sidebar-text">Security &amp; Access</span>
+                </div>
+            
+        </nav>
+        </aside>
+        <main class="main-content" id="mainContent">
+            <div class="content-section">
+                
+            <div class="section-header">
+                <h2 class="section-title">Preferences</h2>
+                <p class="section-subtitle">Adjust your preferences to personalize your workflow.</p>
+            </div>
+        
+
+                <div class="settings-group">
+                    <h3 class="settings-group-title">General</h3>
+
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Default home view</div>
+                    <div class="setting-description">The default view that opens when you log in.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="custom-dropdown " id="pref-home-view" data-value="Active issues">
+                <div class="dropdown-trigger" data-dropdown-id="pref-home-view">
+                    <span class="dropdown-value">Active issues</span>
+                    <span class="dropdown-arrow">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 6.427l3.396 3.396a.25.25 0 00.354 0l3.396-3.396A.25.25 0 0011.396 6H4.604a.25.25 0 00-.177.427z"></path></svg>
+                    </span>
+                </div>
+                <div class="dropdown-menu">
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-home-view" data-value="All issues">
+                            All issues
+                            
+                        </div>
+                    
+                        <div class="dropdown-item selected" data-dropdown-id="pref-home-view" data-value="Active issues">
+                            Active issues
+                            <svg class="check-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"></path></svg>
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-home-view" data-value="Current cycle">
+                            Current cycle
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-home-view" data-value="Inbox">
+                            Inbox
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-home-view" data-value="My Issues">
+                            My Issues
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-home-view" data-value="Favorited Views">
+                            Favorited Views
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-home-view" data-value="Favorited Projects">
+                            Favorited Projects
+                            
+                        </div>
+                    
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Display full names</div>
+                    <div class="setting-description">Show full names instead of usernames.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch active" id="pref-display-full-names" data-toggle-id="pref-display-full-names">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">First day of the week</div>
+                    <div class="setting-description">Personalize how calendars display your weeks.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="custom-dropdown " id="pref-first-day" data-value="Monday">
+                <div class="dropdown-trigger" data-dropdown-id="pref-first-day">
+                    <span class="dropdown-value">Monday</span>
+                    <span class="dropdown-arrow">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 6.427l3.396 3.396a.25.25 0 00.354 0l3.396-3.396A.25.25 0 0011.396 6H4.604a.25.25 0 00-.177.427z"></path></svg>
+                    </span>
+                </div>
+                <div class="dropdown-menu">
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-first-day" data-value="Sunday">
+                            Sunday
+                            
+                        </div>
+                    
+                        <div class="dropdown-item selected" data-dropdown-id="pref-first-day" data-value="Monday">
+                            Monday
+                            <svg class="check-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"></path></svg>
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-first-day" data-value="Tuesday">
+                            Tuesday
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-first-day" data-value="Wednesday">
+                            Wednesday
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-first-day" data-value="Thursday">
+                            Thursday
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-first-day" data-value="Friday">
+                            Friday
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-first-day" data-value="Saturday">
+                            Saturday
+                            
+                        </div>
+                    
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Convert text emoticons into emojis</div>
+                    <div class="setting-description">Automatically convert text like :) into emojis.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch active" id="pref-convert-emojis" data-toggle-id="pref-convert-emojis">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+                </div>
+
+                <div class="settings-group">
+                    <h3 class="settings-group-title">Interface and theme</h3>
+
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Theme</div>
+                    <div class="setting-description">Choose your preferred theme.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="custom-dropdown " id="pref-theme" data-value="System">
+                <div class="dropdown-trigger" data-dropdown-id="pref-theme">
+                    <span class="dropdown-value">System</span>
+                    <span class="dropdown-arrow">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 6.427l3.396 3.396a.25.25 0 00.354 0l3.396-3.396A.25.25 0 0011.396 6H4.604a.25.25 0 00-.177.427z"></path></svg>
+                    </span>
+                </div>
+                <div class="dropdown-menu">
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-theme" data-value="Light">
+                            Light
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-theme" data-value="Dark">
+                            Dark
+                            
+                        </div>
+                    
+                        <div class="dropdown-item selected" data-dropdown-id="pref-theme" data-value="System">
+                            System
+                            <svg class="check-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"></path></svg>
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-theme" data-value="Light - Contrast">
+                            Light - Contrast
+                            
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-theme" data-value="Dark - Contrast">
+                            Dark - Contrast
+                            
+                        </div>
+                    
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Font size</div>
+                    <div class="setting-description">Adjust the font size of the interface.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="custom-dropdown " id="pref-font-size" data-value="Default">
+                <div class="dropdown-trigger" data-dropdown-id="pref-font-size">
+                    <span class="dropdown-value">Default</span>
+                    <span class="dropdown-arrow">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 6.427l3.396 3.396a.25.25 0 00.354 0l3.396-3.396A.25.25 0 0011.396 6H4.604a.25.25 0 00-.177.427z"></path></svg>
+                    </span>
+                </div>
+                <div class="dropdown-menu">
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-font-size" data-value="Small">
+                            Small
+                            
+                        </div>
+                    
+                        <div class="dropdown-item selected" data-dropdown-id="pref-font-size" data-value="Default">
+                            Default
+                            <svg class="check-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"></path></svg>
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-font-size" data-value="Large">
+                            Large
+                            
+                        </div>
+                    
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Use pointer cursor</div>
+                    <div class="setting-description">Show pointer cursor when hovering over interactive elements.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch " id="pref-pointer-cursor" data-toggle-id="pref-pointer-cursor">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+                </div>
+
+                <div class="settings-group">
+                    <h3 class="settings-group-title">Desktop application</h3>
+
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Open in desktop app</div>
+                    <div class="setting-description">Attempt to open Linear URLs in the desktop app.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch active" id="pref-open-desktop" data-toggle-id="pref-open-desktop">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Notification badge</div>
+                    <div class="setting-description">Show notification badges on the desktop app icon.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch active" id="pref-notif-badge" data-toggle-id="pref-notif-badge">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Spell check</div>
+                    <div class="setting-description">Enable spell check in the desktop app.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch active" id="pref-spell-check" data-toggle-id="pref-spell-check">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+                </div>
+
+                <div class="settings-group">
+                    <h3 class="settings-group-title">Automations and workflows</h3>
+
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Auto-assign on create</div>
+                    <div class="setting-description">Automatically assign issues you create to yourself.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch " id="pref-auto-assign-create" data-toggle-id="pref-auto-assign-create">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Auto-assign on started</div>
+                    <div class="setting-description">Auto-assign issues you move to a started status.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch " id="pref-auto-assign-started" data-toggle-id="pref-auto-assign-started">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">Git attachment format</div>
+                    <div class="setting-description">How git attachments are displayed.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="custom-dropdown " id="pref-git-format" data-value="Title only">
+                <div class="dropdown-trigger" data-dropdown-id="pref-git-format">
+                    <span class="dropdown-value">Title only</span>
+                    <span class="dropdown-arrow">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4.427 6.427l3.396 3.396a.25.25 0 00.354 0l3.396-3.396A.25.25 0 0011.396 6H4.604a.25.25 0 00-.177.427z"></path></svg>
+                    </span>
+                </div>
+                <div class="dropdown-menu">
+                    
+                        <div class="dropdown-item selected" data-dropdown-id="pref-git-format" data-value="Title only">
+                            Title only
+                            <svg class="check-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"></path></svg>
+                        </div>
+                    
+                        <div class="dropdown-item " data-dropdown-id="pref-git-format" data-value="Title and repository">
+                            Title and repository
+                            
+                        </div>
+                    
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">On git branch copy, move to started</div>
+                    <div class="setting-description">Move issue to started status when you copy the git branch name.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch active" id="pref-git-move-started" data-toggle-id="pref-git-move-started">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+
+                    
+            <div class="setting-row">
+                <div class="setting-info">
+                    <div class="setting-label">On git branch copy, auto-assign</div>
+                    <div class="setting-description">Auto-assign the issue to yourself when you copy the git branch name.</div>
+                </div>
+                <div class="setting-control">
+                    
+            <div class="toggle-row">
+                
+                <div class="toggle-switch active" id="pref-git-auto-assign" data-toggle-id="pref-git-auto-assign">
+                    <div class="toggle-knob"></div>
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modalContainer"></div>
+    <div class="toast" id="toast"></div>
+
+    <script src="js/data.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/views.js"></script>
+    <script src="js/app.js"></script>
+
+
+</body></html>

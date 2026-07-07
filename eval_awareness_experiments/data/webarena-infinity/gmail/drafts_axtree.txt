@@ -1,0 +1,61 @@
+- document:
+  - banner:
+    - button "Main menu":
+      - img
+    - img
+    - text: Gmail
+    - button "Search":
+      - img
+    - textbox "Search mail"
+    - button "Show search options":
+      - img
+    - button "Settings":
+      - img
+    - text: AJ
+  - navigation:
+    - button "Compose":
+      - img
+      - text: Compose
+    - img
+    - text: Inbox 19
+    - img
+    - text: Starred
+    - img
+    - text: Snoozed
+    - img
+    - text: Sent
+    - img
+    - text: Drafts 2
+    - img
+    - text: Important
+    - img
+    - text: All Mail
+    - img
+    - text: Spam 5
+    - img
+    - text: Trash Labels
+    - button "▾"
+    - text: Work 12 Projects 4 Meetings 1 Clients 1 HR Personal Family Friends Finance Invoices Banking Travel 1 Receipts Newsletters 2 Health Education Action Required 4 Waiting For Reply 1 Reference
+    - img
+    - text: Create new label
+  - main:
+    - checkbox
+    - button "▾"
+    - button "Refresh":
+      - img
+      - text: Refresh
+    - text: 1-2 of 2
+    - button "Newer" [disabled]:
+      - img
+      - text: Newer
+    - button "Older" [disabled]:
+      - img
+      - text: Older
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Draft Re: Conference Talk Proposal - Hi Sophie, Thank you for the invitation to speak at EuroDesign Summit. I'd be happy to present on... Feb 23"
+    - checkbox
+    - button "☆"
+    - button "▷"
+    - text: "Draft Project Proposal: AI-Powered Analytics - Dear Sarah, I'd like to propose a new project for Q2: building an AI-powered analytics dashboard that... Feb 22"

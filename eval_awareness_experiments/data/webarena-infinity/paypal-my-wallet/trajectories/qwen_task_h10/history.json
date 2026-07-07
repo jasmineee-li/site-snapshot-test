@@ -1,0 +1,94 @@
+{
+  "history": [
+    {
+      "thought": "Action: Click on the \"Preferences\" option in the left sidebar under the SETTINGS section.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[43, 799]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 82,
+          "y": 863
+        }
+      ]
+    },
+    {
+      "thought": "Action: Click on the Payment Notifications toggle switch to disable email notifications for payments.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[661, 813]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 1270,
+          "y": 878
+        }
+      ]
+    },
+    {
+      "thought": "Action: Click on the Transfer Notifications toggle switch to disable email notifications for transfers.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[661, 859]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 1270,
+          "y": 928
+        }
+      ]
+    },
+    {
+      "thought": "Action: Scroll down the page to view additional email notification settings that may be below the current view.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nscroll\n</parameter>\n<parameter=pixels>\n-100\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "scroll",
+          "direction": "down",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "thought": "Action: Click on the Crypto Alerts toggle switch to disable email notifications for cryptocurrency alerts.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[661, 902]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 1270,
+          "y": 975
+        }
+      ]
+    },
+    {
+      "thought": "Action: Click on the Rewards Updates toggle switch to disable email notifications for rewards updates.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[661, 948]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 1270,
+          "y": 1024
+        }
+      ]
+    },
+    {
+      "thought": "Action: Scroll down slightly at the current position to bring the Weekly Digest toggle into better view.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nmouse_move\n</parameter>\n<parameter=coordinate>\n[661, 948]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "hover",
+          "x": 1270,
+          "y": 1024
+        }
+      ]
+    },
+    {
+      "thought": "Action: Click on the Weekly Digest toggle switch to disable email notifications for the weekly digest.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[661, 987]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 1270,
+          "y": 1067
+        }
+      ]
+    },
+    {
+      "thought": "Action: Terminate the task as the goal has been successfully completed.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nterminate\n</parameter>\n<parameter=status>\nsuccess\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "terminate",
+          "status": "success"
+        }
+      ]
+    }
+  ],
+  "format": "vision_agent"
+}

@@ -1,0 +1,114 @@
+{
+  "history": [
+    {
+      "thought": "Action: Click on the patient name \"O'Brien, William\" in the patient list to access his patient record.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[302, 375]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 580,
+          "y": 405
+        }
+      ]
+    },
+    {
+      "thought": "Action: Click on the \"Visit Notes\" tab in the patient record navigation menu to access the visit notes section for William O'Brien.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[359, 213]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 689,
+          "y": 230
+        }
+      ]
+    },
+    {
+      "thought": "Action: Click on the \"+ New Visit Note\" button in the top-right corner of the Visit Notes section to begin creating a new visit note.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[822, 274]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 1579,
+          "y": 296
+        }
+      ]
+    },
+    {
+      "thought": "Action: Click on the Category field that currently displays \"cat_001\" to change the category for the visit note.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[544, 470]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 1045,
+          "y": 508
+        }
+      ]
+    },
+    {
+      "thought": "Action: Click on the \"Follow-Up\" option in the Category dropdown menu to select it as the category for the visit note.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[544, 631]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 1045,
+          "y": 682
+        }
+      ]
+    },
+    {
+      "thought": "Action: Click the \"Create Note\" button at the bottom right of the New Visit Note modal to create the visit note with the Follow-Up category.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[596, 693]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 1145,
+          "y": 749
+        }
+      ]
+    },
+    {
+      "thought": "Action: Click on the \"+ Add Block\" button to begin adding content blocks to the visit note.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[462, 552]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 887,
+          "y": 596
+        }
+      ]
+    },
+    {
+      "thought": "Action: Click on the \"HPI\" option in the Add Block to Note modal to add an HPI block to the visit note.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[532, 481]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 1022,
+          "y": 520
+        }
+      ]
+    },
+    {
+      "thought": "Action: Click on the \"+ Add Block\" button to open the block selection menu and add another content block to the visit note.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[462, 621]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 887,
+          "y": 671
+        }
+      ]
+    },
+    {
+      "thought": "Action: Click on the \"Assessment & Plan\" option in the Add Block to Note modal to add this block type to the visit note.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nleft_click\n</parameter>\n<parameter=coordinate>\n[532, 281]\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "click",
+          "x": 1022,
+          "y": 303
+        }
+      ]
+    },
+    {
+      "thought": "Action: Click the \"Save Draft\" button to save the visit note with the HPI and Assessment & Plan blocks.\n\n<tool_call>\n<function=computer_use>\n<parameter=action>\nterminate\n</parameter>\n<parameter=status>\nsuccess\n</parameter>\n</function>\n</tool_call>",
+      "actions": [
+        {
+          "type": "terminate",
+          "status": "success"
+        }
+      ]
+    }
+  ],
+  "format": "vision_agent"
+}

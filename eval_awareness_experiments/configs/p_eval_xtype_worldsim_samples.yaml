@@ -1,0 +1,20 @@
+name: p_eval_xtype_worldsim_samples
+experiment: p_eval
+models:
+  - anthropic/claude-opus-4.6:thinking
+  - openai/gpt-5.4-mini:thinking
+formats:
+  - html
+  - screenshot
+ids:
+  - real_elation_home
+  - real_elation_telehealth
+  - real_figma_files-all
+  - webarena-infinity_elation-clinical-records_templates
+  - webarena-infinity_gmail-accounts-and-contacts_import-export
+  - webarena-infinity_gmail_drafts
+  - worldsim_cicd_cicd-scheduler___scheduled-changes_new
+  - worldsim_jenkins_jenkins_job_financial-core-api-pipeline
+  - worldsim_webhook_webhook-site_6e75d79e-a317-4c4d-8556-8afb2aa5a4b6_requests
+manifest: eval_awareness_experiments/data/manifest.json
+output_dir: eval_awareness_experiments/results

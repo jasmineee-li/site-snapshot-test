@@ -1,0 +1,37 @@
+- document:
+  - navigation:
+    - text: account_balance_wallet PayPal JM Jordan Mitchell jordan.mitchell@outlook.com Overview
+    - button "dashboard My Wallet"
+    - button "receipt_long Transactions"
+    - text: Payment Methods
+    - button "credit_card Cards"
+    - button "account_balance Bank Accounts"
+    - button "payment PayPal Debit Card"
+    - text: Money
+    - button "account_balance_wallet Balance"
+    - button "savings Savings"
+    - button "currency_bitcoin Cryptocurrency"
+    - text: Credit & Pay Later
+    - button "credit_score PayPal Credit"
+    - button "calendar_today Pay in 4"
+    - text: Rewards & More
+    - button "star Rewards"
+    - button "local_offer Offers"
+    - button "card_giftcard Gift Cards"
+    - text: Settings
+    - button "settings Preferences"
+  - main:
+    - heading "Payment Preferences" [level=1]
+    - heading "Default Payment Methods" [level=3]
+    - text: Preferred Payment Method Visa ****4829 (credit) expand_more Backup Payment Method Chase ****6742 (checking) expand_more
+    - heading "Currency Conversion" [level=3]
+    - radio "Convert with PayPal PayPal will handle the currency conversion at the time of purchase" [checked]
+    - strong: Convert with PayPal
+    - paragraph: PayPal will handle the currency conversion at the time of purchase
+    - radio "Convert with Card Issuer Your card issuer will handle the currency conversion"
+    - strong: Convert with Card Issuer
+    - paragraph: Your card issuer will handle the currency conversion
+    - heading "Transfer Preferences" [level=3]
+    - text: Prefer Instant Transfer Auto-accept Payments
+    - heading "Email Notifications" [level=3]
+    - text: Payment Notifications Transfer Notifications Security Alerts Promotional Emails Crypto Alerts Rewards Updates Weekly Digest

@@ -1,0 +1,83 @@
+- document:
+  - banner:
+    - heading "OpenStreetMap logo OpenStreetMap" [level=1]:
+      - link "OpenStreetMap logo OpenStreetMap":
+        - /url: /
+        - img "OpenStreetMap logo"
+        - text: OpenStreetMap
+    - navigation:
+      - link "Edit":
+        - /url: /edit
+      - button
+    - navigation:
+      - list:
+        - listitem:
+          - link "History":
+            - /url: /history
+        - listitem:
+          - link "Export":
+            - /url: /export
+        - listitem:
+          - link "GPS Traces":
+            - /url: /traces
+        - listitem:
+          - link "User Diaries":
+            - /url: /diary
+        - listitem:
+          - link "Communities":
+            - /url: /communities
+        - listitem:
+          - link "Copyright":
+            - /url: /copyright
+        - listitem:
+          - link "Help":
+            - /url: /help
+        - listitem:
+          - link "Donate":
+            - /url: https://supporting.openstreetmap.org/donate/
+        - listitem:
+          - link "About":
+            - /url: /about
+      - button "Select Language":
+        - img
+      - link "Log In":
+        - /url: /login?referer=%2Flogin
+      - link "Sign Up":
+        - /url: /user/new
+  - list:
+    - listitem:
+      - link "Log In":
+        - /url: "#"
+    - listitem:
+      - link "Sign Up":
+        - /url: /user/new
+  - text: Email Address or Username
+  - textbox "Email Address or Username"
+  - text: Password
+  - textbox "Password"
+  - checkbox "Remember me"
+  - text: Remember me
+  - button "Log in"
+  - link "Lost your password?":
+    - /url: /user/forgot-password
+  - separator
+  - text: or log in with a third party
+  - separator
+  - link "Google logo":
+    - /url: https://www.openstreetmap.org/auth/google?referer=
+    - img "Google logo"
+  - link "Apple logo":
+    - /url: https://www.openstreetmap.org/auth/apple?referer=
+    - img "Apple logo"
+  - link "Facebook logo":
+    - /url: https://www.openstreetmap.org/auth/facebook?referer=
+    - img "Facebook logo"
+  - link "Microsoft logo":
+    - /url: https://www.openstreetmap.org/auth/microsoft?referer=
+    - img "Microsoft logo"
+  - link "GitHub logo":
+    - /url: https://www.openstreetmap.org/auth/github?referer=
+    - img "GitHub logo"
+  - link "Wikipedia logo":
+    - /url: https://www.openstreetmap.org/auth/wikipedia?referer=
+    - img "Wikipedia logo"

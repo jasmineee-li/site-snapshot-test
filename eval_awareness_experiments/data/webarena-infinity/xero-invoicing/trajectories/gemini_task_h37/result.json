@@ -1,0 +1,26 @@
+{
+  "task_id": "task_h37",
+  "difficulty": "hard",
+  "instruction": "Fully pay the Greenfield Organics February invoice and then void their paid January invoice.",
+  "passed": true,
+  "verifier_message": "INV-0061 (Feb) fully paid; INV-0044 (Jan) voided.",
+  "elapsed": 129.3,
+  "steps": 13,
+  "is_done": true,
+  "final_result": "I have successfully completed the task. The Greenfield Organics February invoice (INV-0061) has been fully paid, and the January invoice (INV-0044) has been voided. I have verified their statuses on the invoice list: INV-0061 is 'Paid' and INV-0044 is 'Voided'.",
+  "errors": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ]
+}

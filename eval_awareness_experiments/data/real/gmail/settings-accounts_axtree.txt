@@ -1,0 +1,195 @@
+- document:
+  - text: None selected
+  - link "Skip to content":
+    - /url: ""
+  - link "Using Gmail with screen readers":
+    - /url: ""
+  - heading [level=1]:
+    - banner:
+      - button "Main menu" [expanded]:
+        - img
+      - link "Gmail":
+        - /url: "#inbox"
+      - search:
+        - heading "Search" [level=2]
+        - table:
+          - rowgroup:
+            - row:
+              - cell:
+                - textbox "Search mail"
+        - button "Advanced search options":
+          - img
+        - button "Search mail" [disabled]:
+          - img
+      - button "Support":
+        - img
+      - button "Settings":
+        - img
+      - button "Try Gemini"
+      - button "Google apps":
+        - img
+      - 'button "Google Account: Kristina Zhou (zhoukristina9@gmail.com)"'
+  - alert
+  - navigation:
+    - button "Compose"
+    - heading "Labels" [level=2]
+    - link "Inbox":
+      - /url: https://mail.google.com/mail/u/0/#inbox
+    - link "Starred":
+      - /url: https://mail.google.com/mail/u/0/#starred
+    - link "Snoozed":
+      - /url: https://mail.google.com/mail/u/0/#snoozed
+    - link "Sent":
+      - /url: https://mail.google.com/mail/u/0/#sent
+    - link "Drafts":
+      - /url: https://mail.google.com/mail/u/0/#drafts
+    - link "Purchases has menu":
+      - /url: https://mail.google.com/mail/u/0/#category/purchases
+      - text: Purchases
+    - button "More labels": More
+    - heading "Labels"
+    - button "Create new label"
+    - heading "Labels" [level=2]
+    - link "Upgrade"
+    - img
+  - heading "Settings" [level=2]
+  - tablist:
+    - tab "General"
+    - tab "Labels"
+    - tab "Inbox"
+    - tab "Accounts and Import" [selected]
+    - tab "Filters and Blocked Addresses"
+    - tab "Forwarding and POP/IMAP"
+    - tab "Add-ons"
+    - tab "Chat and Meet"
+    - tab "Advanced"
+    - tab "Offline"
+    - tab "Themes"
+  - main:
+    - tablist:
+      - table:
+        - rowgroup:
+          - 'row "Change account settings: Change password Change password recovery options Other Google Account settings"':
+            - cell "Change account settings:"
+            - cell "Change password Change password recovery options Other Google Account settings":
+              - link "Change password":
+                - /url: https://myaccount.google.com/u/0/signinoptions/password?hl=en
+              - link "Change password recovery options":
+                - /url: https://myaccount.google.com/u/0/security?hl=en
+              - link "Other Google Account settings":
+                - /url: https://myaccount.google.com/u/0/?hl=en
+          - row "Using Gmail for work? Businesses get yourname@example.com email, more storage, and admin tools with Google Workspace. Try at no cost":
+            - cell "Using Gmail for work?"
+            - cell "Businesses get yourname@example.com email, more storage, and admin tools with Google Workspace. Try at no cost":
+              - text: Businesses get yourname@example.com email, more storage, and admin tools with Google Workspace.
+              - link "Try at no cost":
+                - /url: https://workspace.google.com/u/0/business/signup/upgradeaccount?source=gmail_settings&utm_medium=et&utm_source=gmail-in-product&utm_campaign=FY25-Q2-gmail_settings&utm_content=var-ae-signup&uj=gmail&gmail=pep&uj=gmail-settings&ms=pt:453;s:479
+          - 'row "Import mail and contacts: Learn more about importing mail and contacts Import from Yahoo!, Hotmail, AOL, or other webmail or POP3 accounts. Import mail and contacts"':
+            - 'cell "Import mail and contacts: Learn more about importing mail and contacts"':
+              - text: "Import mail and contacts:"
+              - link "Learn more about importing mail and contacts":
+                - /url: https://support.google.com/mail/answer/21289?hl=en
+                - text: Learn more
+            - cell "Import from Yahoo!, Hotmail, AOL, or other webmail or POP3 accounts. Import mail and contacts":
+              - table
+              - text: Import from Yahoo!, Hotmail, AOL, or other webmail or POP3 accounts.
+              - link "Import mail and contacts"
+          - 'row "Send mail as: (Use Gmail to send from your other email addresses) Learn more about sending email from a custom from address Kristina Zhou <zhoukristina9@gmail.com> edit info Add another email address"':
+            - 'cell "Send mail as: (Use Gmail to send from your other email addresses) Learn more about sending email from a custom from address"':
+              - text: "Send mail as: (Use Gmail to send from your other email addresses)"
+              - link "Learn more about sending email from a custom from address":
+                - /url: https://support.google.com/mail/answer/22370?hl=en
+                - text: Learn more
+            - cell "Kristina Zhou <zhoukristina9@gmail.com> edit info Add another email address":
+              - table:
+                - rowgroup:
+                  - row "Kristina Zhou <zhoukristina9@gmail.com> edit info":
+                    - cell "Kristina Zhou <zhoukristina9@gmail.com>"
+                    - cell
+                    - cell "edit info":
+                      - link "edit info"
+                    - cell
+                  - row "Add another email address":
+                    - cell "Add another email address":
+                      - link "Add another email address"
+          - 'row "Check mail from other accounts: Learn more about Gmail''s Mail Fetcher Add a mail account"':
+            - 'cell "Check mail from other accounts: Learn more about Gmail''s Mail Fetcher"':
+              - text: "Check mail from other accounts:"
+              - link "Learn more about Gmail's Mail Fetcher":
+                - /url: https://support.google.com/mail/answer/21289?hl=en
+                - text: Learn more
+            - cell "Add a mail account":
+              - table:
+                - rowgroup
+              - link "Add a mail account"
+          - 'row "Grant access to your account: (Allow others to read and send mail on your behalf) Learn more about granting others access to your account Add another account Mark as read Mark conversation as read when opened by others Leave conversation unread when opened by others Sender information Show this address and the person who sent it (\"sent by …\") Show this address only (zhoukristina9@gmail.com)"':
+            - 'cell "Grant access to your account: (Allow others to read and send mail on your behalf) Learn more about granting others access to your account"':
+              - text: "Grant access to your account: (Allow others to read and send mail on your behalf)"
+              - link "Learn more about granting others access to your account":
+                - /url: https://support.google.com/mail/answer/138350?hl=en
+                - text: Learn more
+            - cell "Add another account Mark as read Mark conversation as read when opened by others Leave conversation unread when opened by others Sender information Show this address and the person who sent it (\"sent by …\") Show this address only (zhoukristina9@gmail.com)":
+              - table:
+                - rowgroup
+              - table:
+                - rowgroup:
+                  - row "Add another account":
+                    - cell "Add another account":
+                      - link "Add another account"
+              - text: Mark as read
+              - table:
+                - rowgroup:
+                  - row "Mark conversation as read when opened by others":
+                    - cell "Mark conversation as read when opened by others":
+                      - radio "Mark conversation as read when opened by others" [checked]
+                    - cell "Mark conversation as read when opened by others"
+              - table:
+                - rowgroup:
+                  - row "Leave conversation unread when opened by others":
+                    - cell "Leave conversation unread when opened by others":
+                      - radio "Leave conversation unread when opened by others"
+                    - cell "Leave conversation unread when opened by others"
+              - text: Sender information
+              - table:
+                - rowgroup:
+                  - row "Show this address and the person who sent it (\"sent by …\")":
+                    - cell "Show this address and the person who sent it (\"sent by …\")":
+                      - radio "Show this address and the person who sent it (\"sent by …\")" [checked]
+                    - cell "Show this address and the person who sent it (\"sent by …\")"
+              - table:
+                - rowgroup:
+                  - row "Show this address only (zhoukristina9@gmail.com)":
+                    - cell "Show this address only (zhoukristina9@gmail.com)":
+                      - radio "Show this address only (zhoukristina9@gmail.com)"
+                    - cell "Show this address only (zhoukristina9@gmail.com)"
+          - 'row "Add additional storage: You are currently using 0% of your 15 GB. Need more space? Purchase additional storage"':
+            - cell "Add additional storage:"
+            - cell "You are currently using 0% of your 15 GB. Need more space? Purchase additional storage":
+              - text: You are currently using 0% of your 15 GB. Need more space?
+              - link "Purchase additional storage":
+                - /url: https://drive.google.com/u/0/settings/storage?hl=en&utm_medium=web&utm_source=gmail&utm_campaign=add_additional_storage
+  - contentinfo:
+    - link "0% of 15 GB used Follow link to manage storage":
+      - /url: https://drive.google.com/u/0/settings/storage?hl=en&utm_medium=web&utm_source=gmail&utm_campaign=storage_meter&utm_content=storage_normal
+      - text: 0% of 15 GB used
+      - img "Follow link to manage storage"
+    - link "Terms":
+      - /url: https://www.google.com/intl/en/policies/terms/
+    - text: ·
+    - link "Privacy":
+      - /url: https://www.google.com/intl/en/policies/privacy/
+    - text: ·
+    - link "Program Policies":
+      - /url: https://www.google.com/gmail/about/policy/
+    - text: "Last account activity: 0 minutes ago Open in 1 other location ·"
+    - link "Details"
+  - complementary "Side panel":
+    - tablist:
+      - tab "Calendar"
+      - tab "Keep"
+      - tab "Tasks"
+      - tab "Contacts"
+      - separator [disabled]
+      - tab "Get Add-ons"
+  - button "Hide side panel":
+    - img

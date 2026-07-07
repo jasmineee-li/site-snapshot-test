@@ -1,0 +1,37 @@
+- document:
+  - complementary:
+    - text: ☤ Elation Dr. Sarah Chen Greenwood Family Medicine
+    - navigation: 👤 Patients 📄 Templates 📁 Categories ⚙ Settings
+  - main:
+    - heading "Visit Note Categories" [level=2]
+    - paragraph: 10 categories
+    - button "+ Add Category"
+    - text: i The first category in the list is the default category (marked with a star). Drag to reorder. Admin privileges required for changes. ☰ Office Visit ★ Count for MIPS
+    - button "Edit"
+    - text: ☰ Telehealth Count for MIPS
+    - button "Edit"
+    - button "Remove"
+    - text: ☰ Annual Exam Count for MIPS
+    - button "Edit"
+    - button "Remove"
+    - text: ☰ Procedure Count for MIPS
+    - button "Edit"
+    - button "Remove"
+    - text: ☰ Follow-Up Count for MIPS
+    - button "Edit"
+    - button "Remove"
+    - text: ☰ Care Plan Review Count for MIPS
+    - button "Edit"
+    - button "Remove"
+    - text: ☰ Urgent Visit Count for MIPS
+    - button "Edit"
+    - button "Remove"
+    - text: ☰ Vaccination Only Count for MIPS
+    - button "Edit"
+    - button "Remove"
+    - text: ☰ Pre-Op Evaluation Count for MIPS
+    - button "Edit"
+    - button "Remove"
+    - text: ☰ Workers Comp Count for MIPS
+    - button "Edit"
+    - button "Remove"

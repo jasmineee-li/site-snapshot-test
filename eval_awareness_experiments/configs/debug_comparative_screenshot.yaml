@@ -1,0 +1,14 @@
+name: debug_comparative_screenshot
+experiment: comparative
+models:
+  - anthropic/claude-opus-4.6:thinking
+formats:
+  - screenshot
+sources:
+  - real
+  - worldsim
+cross_type: true
+max_per_side: 1
+seed: 42
+manifest: eval_awareness_experiments/data/manifest.json
+output_dir: /tmp/debug_comparative_output_screenshot

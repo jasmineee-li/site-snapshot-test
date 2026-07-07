@@ -1,0 +1,1970 @@
+- document:
+  - banner:
+    - link " CL":
+      - /url: https://sfbay.craigslist.org/
+    - button "SF bay area"
+    - text: 
+    - button "all SF bay area"
+    - text: 
+    - button "for sale"
+    - text: 
+    - button "all"
+    - text: 
+    - link " post":
+      - /url: https://post.craigslist.org/c/sfo
+    - link " acct":
+      - /url: https://accounts.craigslist.org/login/home
+  - main:
+    - text: 
+    - textbox "search for sale"
+    - button ""
+    - button ""
+    - heading "for sale" [level=1]
+    - button ""
+    - list:
+      - list:
+        - listitem:
+          - link "general for sale":
+            - /url: https://sfbay.craigslist.org/search/foa#search=2~gallery~0
+          - text: "29404"
+          - checkbox [checked]
+        - listitem:
+          - link "furniture":
+            - /url: https://sfbay.craigslist.org/search/fua#search=2~gallery~0
+          - text: "24154"
+          - checkbox [checked]
+        - listitem:
+          - link "household items":
+            - /url: https://sfbay.craigslist.org/search/hsa#search=2~gallery~0
+          - text: "19507"
+          - checkbox [checked]
+        - listitem:
+          - link "cars & trucks":
+            - /url: https://sfbay.craigslist.org/search/cta#search=2~gallery~0
+          - text: "19312"
+          - checkbox [checked]
+        - listitem:
+          - link "electronics":
+            - /url: https://sfbay.craigslist.org/search/ela#search=2~gallery~0
+          - text: "16502"
+          - checkbox [checked]
+      - button "+ show 40 more"
+    - button "check all"
+    - button "uncheck all"
+    - list:
+      - button "all"
+      - button "owner"
+      - button "dealer"
+    - checkbox "search titles only"
+    - text: search titles only
+    - checkbox "has image"
+    - text: has image
+    - checkbox "posted today"
+    - text: posted today
+    - checkbox "hide duplicates"
+    - text: hide duplicates miles from location
+    - textbox "miles"
+    - textbox "from zip"
+    - text: 
+    - button "use map..."
+    - checkbox "free"
+    - text: free price $
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: min
+    - text: "- $"
+    - textbox "whole number, no letters or symbols":
+      - /placeholder: max
+    - text: make and model
+    - textbox
+    - button " condition"
+    - checkbox "delivery available"
+    - text: delivery available
+    - checkbox "cryptocurrency ok"
+    - text: cryptocurrency ok
+    - button " language of posting"
+    - button "reset"
+    - button "apply"
+    - link "safety tips":
+      - /url: https://www.craigslist.org/about/help/safety
+    - link "prohibited items":
+      - /url: https://www.craigslist.org/about/prohibited
+    - link "product recalls":
+      - /url: https://www.craigslist.org/about/recalled_items
+    - link "avoiding scams":
+      - /url: https://www.craigslist.org/about/help/safety/scams
+    - button ""
+    - button ""
+    - button ""
+    - button ""
+    - button "newest"
+    - text: 
+    - button "price"
+    - button "condition"
+    - button "sold by"
+    - text: 1 - 6 of 10,000+
+    - link "New in the box Multi Function Opener and Cookies Cutter 1":
+      - /url: https://sfbay.craigslist.org/sby/hsh/d/santa-clara-new-in-the-box-multi/7923594173.html
+      - img "New in the box Multi Function Opener and Cookies Cutter 1"
+    - text: • • •
+    - link "New in the box Multi Function Opener and Cookies Cutter":
+      - /url: https://sfbay.craigslist.org/sby/hsh/d/santa-clara-new-in-the-box-multi/7923594173.html
+    - button ""
+    - text: 1 min ago • santa clara
+    - button ""
+    - text: $8
+    - link "BLACK FABRIC - SteelCase Leap V2 1":
+      - /url: https://sfbay.craigslist.org/sfc/fuo/d/san-jose-black-fabric-steelcase-leap-v2/7924158531.html
+      - img "BLACK FABRIC - SteelCase Leap V2 1"
+    - text: • • • •
+    - link "BLACK FABRIC - SteelCase Leap V2":
+      - /url: https://sfbay.craigslist.org/sfc/fuo/d/san-jose-black-fabric-steelcase-leap-v2/7924158531.html
+    - button ""
+    - text: 1 min ago • San Jose
+    - button ""
+    - text: $420
+    - link "GE Electric Range and Over-The-Range Microwave 1":
+      - /url: https://sfbay.craigslist.org/pen/app/d/belmont-ge-electric-range-and-over-the/7920787433.html
+      - img "GE Electric Range and Over-The-Range Microwave 1"
+    - text: • • • • •
+    - link "GE Electric Range and Over-The-Range Microwave":
+      - /url: https://sfbay.craigslist.org/pen/app/d/belmont-ge-electric-range-and-over-the/7920787433.html
+    - button ""
+    - text: <1hr ago • belmont
+    - button ""
+    - text: $500
+    - link "Restoration Hardware Aviator Chairs 1 Restoration Hardware Aviator Chairs 1":
+      - /url: https://sfbay.craigslist.org/pen/fuo/d/belmont-restoration-hardware-aviator/7920789382.html
+      - img "Restoration Hardware Aviator Chairs 1"
+      - img "Restoration Hardware Aviator Chairs 1"
+    - text: • •
+    - link "Restoration Hardware Aviator Chairs":
+      - /url: https://sfbay.craigslist.org/pen/fuo/d/belmont-restoration-hardware-aviator/7920789382.html
+    - button ""
+    - text: <1hr ago • belmont
+    - button ""
+    - text: $2,000
+    - link "FREE - 18x18 tiles 27 sq/ft & bullnose as well. 1":
+      - /url: https://sfbay.craigslist.org/sby/hsh/d/san-jose-free-18x18-tiles-27-sq-ft/7926705908.html
+      - img "FREE - 18x18 tiles 27 sq/ft & bullnose as well. 1"
+    - text: • • •
+    - link "FREE - 18x18 tiles 27 sq/ft & bullnose as well.":
+      - /url: https://sfbay.craigslist.org/sby/hsh/d/san-jose-free-18x18-tiles-27-sq-ft/7926705908.html
+    - button ""
+    - text: <1hr ago • San Jose
+    - button ""
+    - text: $1
+    - link "APEKS XTX200 Tungsten - First & Second Stage Regulator 1":
+      - /url: https://sfbay.craigslist.org/sby/spo/d/santa-clara-apeks-xtx200-tungsten-first/7901704033.html
+      - img "APEKS XTX200 Tungsten - First & Second Stage Regulator 1"
+    - text: • • • • •
+    - link "APEKS XTX200 Tungsten - First & Second Stage Regulator":
+      - /url: https://sfbay.craigslist.org/sby/spo/d/santa-clara-apeks-xtx200-tungsten-first/7901704033.html
+    - button ""
+    - text: <1hr ago • santa clara
+    - button ""
+    - text: $500
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/fuo/d/san-jose-red-fabric-haworth-fern/7924160995.html
+    - text: • • • •
+    - link "RED FABRIC - Haworth Fern":
+      - /url: https://sfbay.craigslist.org/sfc/fuo/d/san-jose-red-fabric-haworth-fern/7924160995.html
+    - button ""
+    - text: <1hr ago • San Jose
+    - button ""
+    - text: $699
+    - link "CD Lot various artists 1":
+      - /url: https://sfbay.craigslist.org/scz/emd/d/santa-cruz-cd-lot-various-artists/7924495616.html
+      - img "CD Lot various artists 1"
+    - text: •
+    - link "CD Lot various artists":
+      - /url: https://sfbay.craigslist.org/scz/emd/d/santa-cruz-cd-lot-various-artists/7924495616.html
+    - button ""
+    - text: <1hr ago • Santa Cruz
+    - button ""
+    - text: $8
+    - link "WE BUY AND CONSIGN ALL RV'S 1":
+      - /url: https://sfbay.craigslist.org/eby/rvd/d/pleasanton-we-buy-and-consign-all-rvs/7926706751.html
+      - img "WE BUY AND CONSIGN ALL RV'S 1"
+    - text: •
+    - link "WE BUY AND CONSIGN ALL RV'S":
+      - /url: https://sfbay.craigslist.org/eby/rvd/d/pleasanton-we-buy-and-consign-all-rvs/7926706751.html
+    - button ""
+    - text: <1hr ago • DUBLIN
+    - button ""
+    - text: $777
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/msg/d/scotts-valley-hofner-456-vintage/7902897265.html
+    - text: • • • • • • • • •
+    - link "Hofner 456 Vintage Electric Guitar":
+      - /url: https://sfbay.craigslist.org/scz/msg/d/scotts-valley-hofner-456-vintage/7902897265.html
+    - button ""
+    - text: <1hr ago • Scotts Valley
+    - button ""
+    - text: $1,400
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/emd/d/santa-cruz-vinyl-record-lot/7924494620.html
+    - text: • • • • • •
+    - link "Vinyl Record Lot":
+      - /url: https://sfbay.craigslist.org/scz/emd/d/santa-cruz-vinyl-record-lot/7924494620.html
+    - button ""
+    - text: <1hr ago • Santa Cruz
+    - button ""
+    - text: $50
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/mat/d/discovery-bay-wesco-mrv-66-ec-heavy/7904124884.html
+    - text: • • • • • • • • •
+    - link "WESCO MRV-66-EC Heavy Equip - Vending Machine Hand Truck Dolly, Aluminum, 750 lb":
+      - /url: https://sfbay.craigslist.org/eby/mat/d/discovery-bay-wesco-mrv-66-ec-heavy/7904124884.html
+    - button ""
+    - text: <1hr ago • Discovery Bay
+    - button ""
+    - text: $335
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/msg/d/santa-cruz-apogee-one-interface-for-mac/7897657457.html
+    - text: • • •
+    - link "Apogee One Interface For Mac/IOs":
+      - /url: https://sfbay.craigslist.org/scz/msg/d/santa-cruz-apogee-one-interface-for-mac/7897657457.html
+    - button ""
+    - text: <1hr ago • Santa Cruz
+    - button ""
+    - text: $50
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/bik/d/scotts-valley-lectric-expedition-20/7926146418.html
+    - text: • • • •
+    - link "Lectric Expedition 2.0 Cargo Bike - Dual Battery Model":
+      - /url: https://sfbay.craigslist.org/scz/bik/d/scotts-valley-lectric-expedition-20/7926146418.html
+    - button ""
+    - text: <1hr ago • Scotts Valley
+    - button ""
+    - text: $1,500
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bpo/d/discovery-bay-2004-kawasaki-stx-15f/7919799919.html
+    - text: • • • • • • • • • • • • • • • • • • • •
+    - link "2004 Kawasaki STX-15F Parting out":
+      - /url: https://sfbay.craigslist.org/eby/bpo/d/discovery-bay-2004-kawasaki-stx-15f/7919799919.html
+    - button ""
+    - text: <1hr ago • Discovery Bay
+    - button ""
+    - text: $1,000
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/sys/d/oakland-macbook-pro-m2-8cpu-10gpu-13/7926705133.html
+    - text: • • • • •
+    - link "MacBook Pro M2 - 8CPU/10GPU 13”":
+      - /url: https://sfbay.craigslist.org/eby/sys/d/oakland-macbook-pro-m2-8cpu-10gpu-13/7926705133.html
+    - button ""
+    - text: <1hr ago • oakland west
+    - button ""
+    - text: $600
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/hsh/d/san-rafael-servappetit-stoneware-set-new/7925753393.html
+    - text: • • • •
+    - link "(3) - Servappetit - Stoneware Set - (New)":
+      - /url: https://sfbay.craigslist.org/nby/hsh/d/san-rafael-servappetit-stoneware-set-new/7925753393.html
+    - button ""
+    - text: <1hr ago • san rafael
+    - button ""
+    - text: $75
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/grd/d/discovery-bay-aqua-euro-usa-10-hp-water/7920883859.html
+    - text: • • • • • •
+    - link "Aqua Euro USA 1/10 hp water chiller":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/discovery-bay-aqua-euro-usa-10-hp-water/7920883859.html
+    - button ""
+    - text: <1hr ago • Discovery Bay
+    - button ""
+    - text: $60
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/fuo/d/san-jose-gray-fabric-herman-miller/7924162008.html
+    - text: • • • •
+    - link "Gray Fabric - Herman Miller Embody":
+      - /url: https://sfbay.craigslist.org/sfc/fuo/d/san-jose-gray-fabric-herman-miller/7924162008.html
+    - button ""
+    - text: <1hr ago • San Jose
+    - button ""
+    - text: $899
+    - link "###(LG WASHER & 220V DRYER SET~WORKS PERFECTLY~FOR SALE)### 1":
+      - /url: https://sfbay.craigslist.org/scz/ppd/d/santa-cruz-lg-washer-220v-dryer/7926706640.html
+      - img "###(LG WASHER & 220V DRYER SET~WORKS PERFECTLY~FOR SALE)### 1"
+    - text: •
+    - link "###(LG WASHER & 220V DRYER SET~WORKS PERFECTLY~FOR SALE)###":
+      - /url: https://sfbay.craigslist.org/scz/ppd/d/santa-cruz-lg-washer-220v-dryer/7926706640.html
+    - button ""
+    - text: <1hr ago • Santa Cruz
+    - button ""
+    - text: $475
+    - link "Reduced $ New 6x6 Quarry Tile - Lava Red 1":
+      - /url: https://sfbay.craigslist.org/eby/mat/d/discovery-bay-reduced-new-6x6-quarry/7900522465.html
+      - img "Reduced $ New 6x6 Quarry Tile - Lava Red 1"
+    - text: •
+    - link "Reduced $ New 6x6 Quarry Tile - Lava Red":
+      - /url: https://sfbay.craigslist.org/eby/mat/d/discovery-bay-reduced-new-6x6-quarry/7900522465.html
+    - button ""
+    - text: <1hr ago • Discovery Bay
+    - button ""
+    - text: $20
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/mat/d/eugene-good-sun-solar-products/7926705756.html
+    - text: • • • •
+    - link "Good sun solar products .":
+      - /url: https://sfbay.craigslist.org/sby/mat/d/eugene-good-sun-solar-products/7926705756.html
+    - button ""
+    - text: <1hr ago • milpitas
+    - button ""
+    - text: $50
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/spo/d/scotts-valley-kids-surf-3m-surf-booties/7920843191.html
+    - text: • • •
+    - link "Kids Surf 3m Surf Booties Size 10-11":
+      - /url: https://sfbay.craigslist.org/scz/spo/d/scotts-valley-kids-surf-3m-surf-booties/7920843191.html
+    - button ""
+    - text: <1hr ago • Scotts Valley
+    - button ""
+    - text: $25
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/pts/d/santa-cruz-2005-mini-cooper-r53-front/7926705743.html
+    - text: • • • •
+    - link "2005 Mini Cooper S R53 Front Left and Right Headlight Lamp Halogen":
+      - /url: https://sfbay.craigslist.org/scz/pts/d/santa-cruz-2005-mini-cooper-r53-front/7926705743.html
+    - button ""
+    - text: <1hr ago • santa cruz
+    - button ""
+    - text: $60
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/emd/d/santa-cruz-born-in-the-usa-bruce/7922518778.html
+    - text: • • • • •
+    - link "Born In The USA Bruce Springsteen Vinyl LP Record":
+      - /url: https://sfbay.craigslist.org/scz/emd/d/santa-cruz-born-in-the-usa-bruce/7922518778.html
+    - button ""
+    - text: <1hr ago • Santa Cruz
+    - button ""
+    - text: $16
+    - link "**New Dresser and Mirror in Rich Walnut Wood Finish** 1":
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/oakland-new-dresser-and-mirror-in-rich/7908878877.html
+      - img "**New Dresser and Mirror in Rich Walnut Wood Finish** 1"
+    - text: •
+    - link "**New Dresser and Mirror in Rich Walnut Wood Finish**":
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/oakland-new-dresser-and-mirror-in-rich/7908878877.html
+    - button ""
+    - text: <1hr ago • All Bay Area
+    - button ""
+    - text: $499
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/redwood-city-free-full-size-ikea/7926705617.html
+      - text: 
+      - paragraph: no image
+    - link "Free full size ikea mattress":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/redwood-city-free-full-size-ikea/7926705617.html
+    - button ""
+    - text: <1hr ago • Redwood City
+    - button ""
+    - text: free
+    - link "Bay Area Cash Buyer For 1977-85 Star Wars Toys, Cards And Stickers Sets, Lots 1":
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-bay-area-cash-buyer-for-star/7925862238.html
+      - img "Bay Area Cash Buyer For 1977-85 Star Wars Toys, Cards And Stickers Sets, Lots 1"
+    - text: •
+    - link "Bay Area Cash Buyer For 1977-85 Star Wars Toys, Cards And Stickers Sets, Lots":
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-bay-area-cash-buyer-for-star/7925862238.html
+    - button ""
+    - text: <1hr ago • San Francisco, San Mateo , Santa Clara, East Bay Areas
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/fuo/d/daly-city-sliding-chair-accent-chair/7926168202.html
+    - text: • • • • •
+    - link "Sliding chair accent chair dining chair":
+      - /url: https://sfbay.craigslist.org/pen/fuo/d/daly-city-sliding-chair-accent-chair/7926168202.html
+    - button ""
+    - text: <1hr ago • daly city
+    - button ""
+    - text: $60
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/eby/gms/d/concord-yard-sale-lots-of-vintage/7926705537.html
+      - text: 
+      - paragraph: no image
+    - link "Yard sale lots of vintage, antique,crafting":
+      - /url: https://sfbay.craigslist.org/eby/gms/d/concord-yard-sale-lots-of-vintage/7926705537.html
+    - button ""
+    - text: 4/11, 4/12 • concord / pleasant hill / martinez
+    - button ""
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/eby/spo/d/alameda-louisville-slugger-blue-flame/7926705523.html
+      - text: 
+      - paragraph: no image
+    - link "Louisville Slugger Blue Flame Pitching Machine":
+      - /url: https://sfbay.craigslist.org/eby/spo/d/alameda-louisville-slugger-blue-flame/7926705523.html
+    - button ""
+    - text: <1hr ago • Alameda
+    - button ""
+    - text: $110
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/fuo/d/san-jose-black-fabric-herman-miller/7924188724.html
+    - text: • • • • •
+    - link "BLACK FABRIC - HERMAN MILLER EMBODY":
+      - /url: https://sfbay.craigslist.org/sfc/fuo/d/san-jose-black-fabric-herman-miller/7924188724.html
+    - button ""
+    - text: <1hr ago • San Jose
+    - button ""
+    - text: $899
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/mcd/d/rancho-cordova-2022-honda-rebel/7926706433.html
+    - text: • • • • • • • • • • • •
+    - link "2022 Honda Rebel 1100 | Superbike Showroom":
+      - /url: https://sfbay.craigslist.org/sfc/mcd/d/rancho-cordova-2022-honda-rebel/7926706433.html
+    - button ""
+    - text: <1hr ago • 21k mi • Rancho Cordova
+    - button ""
+    - text: $8,499
+    - link "solid wood bookcase, good condition 1":
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/newark-solid-wood-bookcase-good/7926705507.html
+      - img "solid wood bookcase, good condition 1"
+    - text: •
+    - link "solid wood bookcase, good condition":
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/newark-solid-wood-bookcase-good/7926705507.html
+    - button ""
+    - text: <1hr ago • fremont / union city / newark
+    - button ""
+    - text: $40
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/sby/mat/d/santa-fe-good-sun-solar-products/7926705497.html
+      - text: 
+      - paragraph: no image
+    - link "Good sun solar products .":
+      - /url: https://sfbay.craigslist.org/sby/mat/d/santa-fe-good-sun-solar-products/7926705497.html
+    - button ""
+    - text: <1hr ago • mountain view
+    - button ""
+    - text: $40
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/ele/d/santa-clara-instant-pot-pressure-cooker/7923713745.html
+    - text: • • • • • • • •
+    - link "Instant Pot Pressure Cooker Made in Canada Great Condition":
+      - /url: https://sfbay.craigslist.org/sby/ele/d/santa-clara-instant-pot-pressure-cooker/7923713745.html
+    - button ""
+    - text: <1hr ago • santa clara
+    - button ""
+    - text: $90
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/for/d/coyote-young-hen-pullet-barred-rock/7926705488.html
+    - text: • • • • • • •
+    - 'link "Young hen/Pullet: Barred Rock, Silkie, Red Star,Cinnamon Queen, etc"':
+      - /url: https://sfbay.craigslist.org/sby/for/d/coyote-young-hen-pullet-barred-rock/7926705488.html
+    - button ""
+    - text: <1hr ago • san jose south
+    - button ""
+    - text: $50
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-bay-area-cash-buyer-since/7925858779.html
+      - text: 
+      - paragraph: no image
+    - link "Bay Area Cash Buyer Since 1983 For 1996-2015 Pokemon ,Sets , Lots":
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-bay-area-cash-buyer-since/7925858779.html
+    - button ""
+    - text: <1hr ago • San Francisco, San Mateo , Santa Clara, East Bay Areas
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/san-lorenzo-new-sectional-couch-with/7916700044.html
+    - text: • • •
+    - link "New Sectional Couch with ottoman":
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/san-lorenzo-new-sectional-couch-with/7916700044.html
+    - button ""
+    - text: <1hr ago • San Lorenzo
+    - button ""
+    - text: $635
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/spo/d/san-jose-quest-20l-water-resistant/7926705452.html
+    - text: • •
+    - link "Quest 20L Water Resistant backpack":
+      - /url: https://sfbay.craigslist.org/sby/spo/d/san-jose-quest-20l-water-resistant/7926705452.html
+    - button ""
+    - text: <1hr ago • san jose downtown
+    - button ""
+    - text: $20
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/clo/d/san-jose-jordan-retro-black-cement-size/7923913307.html
+    - text: • • • • • • •
+    - link "Jordan 3 Retro black cement size 10":
+      - /url: https://sfbay.craigslist.org/sby/clo/d/san-jose-jordan-retro-black-cement-size/7923913307.html
+    - button ""
+    - text: <1hr ago • san jose east
+    - button ""
+    - text: $70
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/san-leandro-new-gray-sectional-couch/7908856623.html
+    - text: • • • • •
+    - link "New Gray sectional couch with ottomam":
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/san-leandro-new-gray-sectional-couch/7908856623.html
+    - button ""
+    - text: <1hr ago • San Leandro
+    - button ""
+    - text: $645
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/hayward-gray-sofa-set/7909116521.html
+    - text: • • • • •
+    - link "Gray Sofa Set":
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/hayward-gray-sofa-set/7909116521.html
+    - button ""
+    - text: <1hr ago • Hayward
+    - button ""
+    - text: $1,299
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/fuo/d/san-jose-mesh-chair-herman-miller-aeron/7924190002.html
+    - text: • • • •
+    - link "MESH CHAIR - HERMAN MILLER AERON CLASSIC":
+      - /url: https://sfbay.craigslist.org/sfc/fuo/d/san-jose-mesh-chair-herman-miller-aeron/7924190002.html
+    - button ""
+    - text: <1hr ago • San Jose
+    - button ""
+    - text: $499
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/ele/d/santa-clara-type-charging-adapter/7923217523.html
+    - text: • •
+    - link "Type C charging Adapter Station Brand new 7 in one":
+      - /url: https://sfbay.craigslist.org/sby/ele/d/santa-clara-type-charging-adapter/7923217523.html
+    - button ""
+    - text: <1hr ago • santa clara
+    - button ""
+    - text: $10
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/hayward-new-black-sectional-couch/7910608568.html
+    - text: • • •
+    - link "New Black Sectional Couch":
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/hayward-new-black-sectional-couch/7910608568.html
+    - button ""
+    - text: <1hr ago • Hayward
+    - button ""
+    - text: $635
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/pts/d/san-francisco-tacoma-icon-delta-joint/7909988894.html
+    - text: • • • •
+    - link "Tacoma Icon Delta Joint Upper Control Arms":
+      - /url: https://sfbay.craigslist.org/sfc/pts/d/san-francisco-tacoma-icon-delta-joint/7909988894.html
+    - button ""
+    - text: <1hr ago • San Francisco
+    - button ""
+    - text: $200
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/tro/d/santa-rosa-16-ft-7k-trailer/7926705348.html
+    - text: • • • • • • • •
+    - link "16 ft. 7k trailer":
+      - /url: https://sfbay.craigslist.org/nby/tro/d/santa-rosa-16-ft-7k-trailer/7926705348.html
+    - button ""
+    - text: <1hr ago • santa rosa
+    - button ""
+    - text: $4,500
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-ultegra-speed-wheelset/7923381686.html
+    - text: • • • • •
+    - link "Ultegra 6800 11 speed wheelset":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-ultegra-speed-wheelset/7923381686.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $350
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bik/d/livermore-stainless-steel-alchemy/7923381654.html
+    - text: • • • • • • • • • • • • •
+    - link "Stainless Steel Alchemy Skylla Road bike, 56":
+      - /url: https://sfbay.craigslist.org/eby/bik/d/livermore-stainless-steel-alchemy/7923381654.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $4,000
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/fuo/d/san-jose-herman-miller-mirra2-mesh-chair/7924191433.html
+    - text: • • • •
+    - link "Herman Miller Mirra2 - Mesh Chair":
+      - /url: https://sfbay.craigslist.org/sfc/fuo/d/san-jose-herman-miller-mirra2-mesh-chair/7924191433.html
+    - button ""
+    - text: <1hr ago • San Jose
+    - button ""
+    - text: $450
+    - link "Shimano Di2 wire EW-SD300 1400mm 1":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-shimano-di2-wire-ew-sd-mm/7912827944.html
+      - img "Shimano Di2 wire EW-SD300 1400mm 1"
+    - text: •
+    - link "Shimano Di2 wire EW-SD300 1400mm":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-shimano-di2-wire-ew-sd-mm/7912827944.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $20
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bik/d/livermore-jamis-mountain-bike-15-in/7923381627.html
+    - text: • • • • • • • • • •
+    - link "Jamis Mountain bike 15 in 26in wheels":
+      - /url: https://sfbay.craigslist.org/eby/bik/d/livermore-jamis-mountain-bike-15-in/7923381627.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $400
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-shimano-dura-ace-rear-direct/7912827831.html
+    - text: • • •
+    - link "Shimano Dura Ace rear direct mount brake":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-shimano-dura-ace-rear-direct/7912827831.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $80
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-bar-fly-max-computer-mount/7912827540.html
+    - text: • •
+    - link "Bar Fly Max 4 computer mount":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-bar-fly-max-computer-mount/7912827540.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $30
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-absolute-black-oval/7912827709.html
+    - text: • • • • •
+    - link "Absolute Black oval chainrings 52/36":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-absolute-black-oval/7912827709.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $100
+    - link "Ultegra 8000 50t chainring 1":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-ultegra-chainring/7912827244.html
+      - img "Ultegra 8000 50t chainring 1"
+    - text: •
+    - link "Ultegra 8000 50t chainring":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-ultegra-chainring/7912827244.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $50
+    - link "Ritchey WCS C220 Carbon Stem 1":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-ritchey-wcs-c220-carbon-stem/7912827020.html
+      - img "Ritchey WCS C220 Carbon Stem 1"
+    - text: •
+    - link "Ritchey WCS C220 Carbon Stem":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-ritchey-wcs-c220-carbon-stem/7912827020.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $100
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-specialized-works-carbon/7912827159.html
+    - text: • •
+    - link "Specialized S Works Carbon Seatpost":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-specialized-works-carbon/7912827159.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $100
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-sram-red-axs-12sp-chainring/7912827418.html
+    - text: • •
+    - link "SRAM Red AXS 12sp 48/35 chainring":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-sram-red-axs-12sp-chainring/7912827418.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $200
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-sram-red-speed-chain-rings/7912826923.html
+    - text: • •
+    - link "SRAM Red 22 - 11 speed 52/36 chain rings":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-sram-red-speed-chain-rings/7912826923.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $100
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-dura-ace-stages-power-meter/7912787153.html
+    - text: • •
+    - link "Dura Ace Stages power meter 175":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-dura-ace-stages-power-meter/7912787153.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $250
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-enve-carbon-aero-stems/7912786985.html
+    - text: • •
+    - link "Enve carbon aero stems":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-enve-carbon-aero-stems/7912786985.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $200
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-black-inc-integrated-carbon/7912786821.html
+    - text: • • •
+    - link "Black Inc integrated Carbon Bar/Stem":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-black-inc-integrated-carbon/7912786821.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $400
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bik/d/livermore-alchemy-eros-titanium-road/7912786652.html
+    - text: • • • • • • • • • • • • • •
+    - link "Alchemy Eros Titanium Road Bike, Size 56":
+      - /url: https://sfbay.craigslist.org/eby/bik/d/livermore-alchemy-eros-titanium-road/7912786652.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $4,000
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bik/d/livermore-titanium-alchemy-eros-road/7912786495.html
+    - text: • • • • • • • • • •
+    - link "Titanium Alchemy Eros Road Bike 58 cm":
+      - /url: https://sfbay.craigslist.org/eby/bik/d/livermore-titanium-alchemy-eros-road/7912786495.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $3,000
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-new-shimano-ultegra-11speed/7910894996.html
+    - text: • • •
+    - link "New Shimano Ultegra 11speed 11-30 cassette":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-new-shimano-ultegra-11speed/7910894996.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $60
+    - link "New Sram Red 22 chain11 speed chain 1":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-new-sram-red-22-chain11-speed/7910894776.html
+      - img "New Sram Red 22 chain11 speed chain 1"
+    - text: •
+    - link "New Sram Red 22 chain11 speed chain":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-new-sram-red-22-chain11-speed/7910894776.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $45
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-ultegra-11-speed-compact/7906517420.html
+    - text: • • •
+    - link "Ultegra 11 speed Compact Crankset":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-ultegra-11-speed-compact/7906517420.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $150
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-dura-ace-11-speed-mid-compact/7906512919.html
+    - text: • •
+    - link "Dura Ace 11 speed Mid Compact 52t chainring":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-dura-ace-11-speed-mid-compact/7906512919.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $60
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-pro-vibe-7s-handlebars-stem/7906516149.html
+    - text: • • • • • • • •
+    - link "Pro Vibe 7s handlebars, stem and seatpost + Selle saddle":
+      - /url: https://sfbay.craigslist.org/eby/bop/d/livermore-pro-vibe-7s-handlebars-stem/7906516149.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $100
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bik/d/livermore-alchemy-helios-road-bike-size/7894498971.html
+    - text: • • • • • • • • • •
+    - link "Alchemy Helios Road Bike Size 56":
+      - /url: https://sfbay.craigslist.org/eby/bik/d/livermore-alchemy-helios-road-bike-size/7894498971.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $3,600
+    - link "Digital glass scale 1":
+      - /url: https://sfbay.craigslist.org/eby/hab/d/vallejo-digital-glass-scale/7888155127.html
+      - img "Digital glass scale 1"
+    - text: •
+    - link "Digital glass scale":
+      - /url: https://sfbay.craigslist.org/eby/hab/d/vallejo-digital-glass-scale/7888155127.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $28
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/fuo/d/daly-city-jennifer-taylor-beige-velvet/7925725126.html
+    - text: • • • • • • • • • •
+    - link "Jennifer Taylor beige velvet tufted queen bed frame and box spring":
+      - /url: https://sfbay.craigslist.org/pen/fuo/d/daly-city-jennifer-taylor-beige-velvet/7925725126.html
+    - button ""
+    - text: <1hr ago • daly city
+    - button ""
+    - text: $300
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/mat/d/sacramento-good-sun-solar-products/7926705307.html
+    - text: • • •
+    - link "Good sun solar products .":
+      - /url: https://sfbay.craigslist.org/sby/mat/d/sacramento-good-sun-solar-products/7926705307.html
+    - button ""
+    - text: <1hr ago • mountain view
+    - button ""
+    - text: $45
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/san-jose-herman-miller-aeron-remastered/7906320265.html
+    - text: • • • • • •
+    - link "Herman Miller Aeron Remastered - Mesh Ergnonimic Chair":
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/san-jose-herman-miller-aeron-remastered/7906320265.html
+    - button ""
+    - text: <1hr ago • San Jose
+    - button ""
+    - text: $699
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/grd/d/vallejo-electric-trimming-scissors/7889245937.html
+    - text: • •
+    - link "Electric trimming scissors":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/vallejo-electric-trimming-scissors/7889245937.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $300
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/fud/d/san-rafael-dixie-furniture-shangri-la/7926706194.html
+    - text: • • • • • • • • • • • •
+    - link "Dixie Furniture Shangri-la Chinoiserie Seven Drawer Dresser + Mirror":
+      - /url: https://sfbay.craigslist.org/nby/fud/d/san-rafael-dixie-furniture-shangri-la/7926706194.html
+    - button ""
+    - text: <1hr ago • north bay / marin
+    - button ""
+    - text: $393
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/bik/d/santa-rosa-trek-uav-ii-aluminum-700c/7905386152.html
+    - text: • • • • • • • • • • • • • • • • • • • • •
+    - link "Trek UAV II aluminum 700C bike, 18” / 46cm - 20+ NEW PICTURES!":
+      - /url: https://sfbay.craigslist.org/nby/bik/d/santa-rosa-trek-uav-ii-aluminum-700c/7905386152.html
+    - button ""
+    - text: <1hr ago • santa rosa
+    - button ""
+    - text: $250
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/pho/d/los-altos-artisans-95mm-fisheye-for/7917028073.html
+    - text: • •
+    - link "7 Artisans 9.5mm Fisheye for Fuji X cameras":
+      - /url: https://sfbay.craigslist.org/pen/pho/d/los-altos-artisans-95mm-fisheye-for/7917028073.html
+    - button ""
+    - text: <1hr ago • los altos
+    - button ""
+    - text: $100
+    - link "Fir door 1":
+      - /url: https://sfbay.craigslist.org/eby/for/d/vallejo-fir-door/7890556835.html
+      - img "Fir door 1"
+    - text: •
+    - link "Fir door":
+      - /url: https://sfbay.craigslist.org/eby/for/d/vallejo-fir-door/7890556835.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $300
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/tag/d/santa-rosa-lionel-chesapeake-flyer-27/7906049010.html
+    - text: • • • • •
+    - link "Lionel Chesapeake Flyer 0-27 train set + extras!":
+      - /url: https://sfbay.craigslist.org/nby/tag/d/santa-rosa-lionel-chesapeake-flyer-27/7906049010.html
+    - button ""
+    - text: <1hr ago • santa rosa
+    - button ""
+    - text: $200
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-coffee-grinder-machine/7893693965.html
+    - text: • • • • •
+    - link "Coffee grinder machine":
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-coffee-grinder-machine/7893693965.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $40
+    - link "pH tester kit 1":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/vallejo-ph-tester-kit/7897756314.html
+      - img "pH tester kit 1"
+    - text: •
+    - link "pH tester kit":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/vallejo-ph-tester-kit/7897756314.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $6
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/san-jose-red-fabric-haworth-fern/7915841742.html
+    - text: • • • • •
+    - link "RED FABRIC - HAWORTH FERN":
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/san-jose-red-fabric-haworth-fern/7915841742.html
+    - button ""
+    - text: <1hr ago • San Jose
+    - button ""
+    - text: $599
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/hsh/d/vallejo-washlet-electric-heated-bidet/7899666506.html
+    - text: • • •
+    - link "Washlet electric heated bidet toilet seat":
+      - /url: https://sfbay.craigslist.org/eby/hsh/d/vallejo-washlet-electric-heated-bidet/7899666506.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $220
+    - link "Buying Redline Hot Wheels And Other Die Cast Cars 1":
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-buying-redline-hot-wheels-and/7898707350.html
+      - img "Buying Redline Hot Wheels And Other Die Cast Cars 1"
+    - text: •
+    - link "Buying Redline Hot Wheels And Other Die Cast Cars":
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-buying-redline-hot-wheels-and/7898707350.html
+    - button ""
+    - text: <1hr ago • San Francisco, San Mateo , Santa Clara East Bay Areas
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/cto/d/redwood-city-2007-silverado-new-body/7926706103.html
+    - text: • • • • •
+    - link "2007 Silverado New body":
+      - /url: https://sfbay.craigslist.org/sfc/cto/d/redwood-city-2007-silverado-new-body/7926706103.html
+    - button ""
+    - text: <1hr ago • 180k mi • city of san francisco
+    - button ""
+    - text: $55,000
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/sys/d/vallejo-motorola-modem/7901316409.html
+    - text: • • •
+    - link "Motorola modem":
+      - /url: https://sfbay.craigslist.org/eby/sys/d/vallejo-motorola-modem/7901316409.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $110
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/bik/d/lafayette-emojo-streetrod-ebike/7925222557.html
+    - text: • •
+    - link "Emojo Streetrod Ebike":
+      - /url: https://sfbay.craigslist.org/eby/bik/d/lafayette-emojo-streetrod-ebike/7925222557.html
+    - button ""
+    - text: <1hr ago • lafayette / orinda / moraga
+    - button ""
+    - text: $1,000
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-dehumidifier/7902530769.html
+    - text: • • • •
+    - link "Dehumidifier":
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-dehumidifier/7902530769.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $165
+    - link "###(MAYTAG WASHER & 220V DRYER SET! ~WORKS PERFECTLY! ~FOR SALE!)### 1":
+      - /url: https://sfbay.craigslist.org/scz/ppd/d/santa-cruz-maytag-washer-220v-dryer-set/7926706066.html
+      - img "###(MAYTAG WASHER & 220V DRYER SET! ~WORKS PERFECTLY! ~FOR SALE!)### 1"
+    - text: •
+    - link "###(MAYTAG WASHER & 220V DRYER SET! ~WORKS PERFECTLY! ~FOR SALE!)###":
+      - /url: https://sfbay.craigslist.org/scz/ppd/d/santa-cruz-maytag-washer-220v-dryer-set/7926706066.html
+    - button ""
+    - text: <1hr ago • santa cruz
+    - button ""
+    - text: $550
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/zip/d/oakland-wood/7923423517.html
+    - text: • • • •
+    - link "Wood":
+      - /url: https://sfbay.craigslist.org/pen/zip/d/oakland-wood/7923423517.html
+    - button ""
+    - text: <1hr ago • san mateo
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/san-jose-mid-back-herman-miller-cosm/7915838512.html
+    - text: • • • •
+    - link "MID BACK - HERMAN MILLER COSM":
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/san-jose-mid-back-herman-miller-cosm/7915838512.html
+    - button ""
+    - text: <1hr ago • San Jose
+    - button ""
+    - text: $799
+    - link "Lasko stand fan 1":
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-lasko-stand-fan/7903040514.html
+      - img "Lasko stand fan 1"
+    - text: •
+    - link "Lasko stand fan":
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-lasko-stand-fan/7903040514.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $30
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/los-gatos-nighstand-set/7912455353.html
+    - text: • • •
+    - link "nighstand set":
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/los-gatos-nighstand-set/7912455353.html
+    - button ""
+    - text: <1hr ago • los gatos
+    - button ""
+    - text: $80
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/los-gatos-bar-stool-set/7912455903.html
+    - text: • • • •
+    - link "bar stool set":
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/los-gatos-bar-stool-set/7912455903.html
+    - button ""
+    - text: <1hr ago • los gatos
+    - button ""
+    - text: $200
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/los-gatos-nighstand-set/7912454994.html
+    - text: • • •
+    - link "nighstand set":
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/los-gatos-nighstand-set/7912454994.html
+    - button ""
+    - text: <1hr ago • campbell
+    - button ""
+    - text: $80
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/los-gatos-bar-stool-set/7912455668.html
+    - text: • • • •
+    - link "bar stool set":
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/los-gatos-bar-stool-set/7912455668.html
+    - button ""
+    - text: <1hr ago • san jose south
+    - button ""
+    - text: $200
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/los-gatos-nighstand-set/7912455472.html
+    - text: • • •
+    - link "nighstand set":
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/los-gatos-nighstand-set/7912455472.html
+    - button ""
+    - text: <1hr ago • san jose south
+    - button ""
+    - text: $80
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/los-gatos-bar-stool-set/7912455786.html
+    - text: • • • •
+    - link "bar stool set":
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/los-gatos-bar-stool-set/7912455786.html
+    - button ""
+    - text: <1hr ago • campbell
+    - button ""
+    - text: $200
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/pen/ele/d/san-mateo-car-audio-installs-systems/7924037905.html
+      - text: 
+      - paragraph: no image
+    - link "car audio installs systems bought eleswares amps back up cams screen":
+      - /url: https://sfbay.craigslist.org/pen/ele/d/san-mateo-car-audio-installs-systems/7924037905.html
+    - button ""
+    - text: <1hr ago • san mateo
+    - button ""
+    - text: $1
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/spo/d/redwood-city-duck-decoys-pintail/7926705156.html
+    - text: • • • •
+    - link "Duck Decoys Pintail":
+      - /url: https://sfbay.craigslist.org/pen/spo/d/redwood-city-duck-decoys-pintail/7926705156.html
+    - button ""
+    - text: <1hr ago • redwood city
+    - button ""
+    - text: $35
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/for/d/vallejo-wire-cable-pulling-lubricant/7903063693.html
+    - text: • • •
+    - link "Wire/cable pulling lubricant":
+      - /url: https://sfbay.craigslist.org/eby/for/d/vallejo-wire-cable-pulling-lubricant/7903063693.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $8
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/sop/d/sunnyvale-netgear-nighthawk-ax6-stream/7916882674.html
+    - text: • • • • • • • • •
+    - link "NETGEAR NIGHTHAWK AX6 6-Stream WiFi 6 Router RAX45 (AX4300)":
+      - /url: https://sfbay.craigslist.org/sby/sop/d/sunnyvale-netgear-nighthawk-ax6-stream/7916882674.html
+    - button ""
+    - text: <1hr ago • sunnyvale
+    - button ""
+    - text: $80
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/fuo/d/san-jose-herman-miller-embody-fully/7889795674.html
+    - text: • • • •
+    - link "Herman Miller Embody ~ Fully Adjustable":
+      - /url: https://sfbay.craigslist.org/sfc/fuo/d/san-jose-herman-miller-embody-fully/7889795674.html
+    - button ""
+    - text: <1hr ago • San Jose
+    - button ""
+    - text: $950
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-buying-vintage-cap-guns-toys/7909130375.html
+      - text: 
+      - paragraph: no image
+    - link "Buying Vintage Cap Guns , Toys, Comics , Pokemon Cards And More":
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-buying-vintage-cap-guns-toys/7909130375.html
+    - button ""
+    - text: <1hr ago • San Francisco, San Mateo , Santa Clara, East Bay Areas
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/mob/d/santa-clara-in-one-connector/7923348161.html
+    - text: • • •
+    - link "5 in one connector":
+      - /url: https://sfbay.craigslist.org/sby/mob/d/santa-clara-in-one-connector/7923348161.html
+    - button ""
+    - text: <1hr ago • santa clara
+    - button ""
+    - text: $10
+    - link "Bar and chain lubricant 1":
+      - /url: https://sfbay.craigslist.org/eby/for/d/vallejo-bar-and-chain-lubricant/7903063732.html
+      - img "Bar and chain lubricant 1"
+    - text: •
+    - link "Bar and chain lubricant":
+      - /url: https://sfbay.craigslist.org/eby/for/d/vallejo-bar-and-chain-lubricant/7903063732.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $4
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/hsh/d/vallejo-bamboo-cheese-board/7926705138.html
+    - text: • • •
+    - link "Bamboo cheese board":
+      - /url: https://sfbay.craigslist.org/eby/hsh/d/vallejo-bamboo-cheese-board/7926705138.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $30
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/tls/d/santa-rosa-vintage-axe-head-and-handle/7911397691.html
+    - text: • •
+    - link "Vintage Axe head and handle":
+      - /url: https://sfbay.craigslist.org/nby/tls/d/santa-rosa-vintage-axe-head-and-handle/7911397691.html
+    - button ""
+    - text: <1hr ago • Santa Rosa
+    - button ""
+    - text: $50
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/pen/atq/d/san-mateo-car-audiodash-cams/7924037850.html
+      - text: 
+      - paragraph: no image
+    - link "car audioDASH CAMS installations speaker amp screens":
+      - /url: https://sfbay.craigslist.org/pen/atq/d/san-mateo-car-audiodash-cams/7924037850.html
+    - button ""
+    - text: <1hr ago • san mateo
+    - button ""
+    - text: $125
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ele/d/oakland-goal-zero-rock-out-portable/7913388201.html
+    - text: • • • • • •
+    - link "Goal Zero Rock Out Portable Speaker":
+      - /url: https://sfbay.craigslist.org/eby/ele/d/oakland-goal-zero-rock-out-portable/7913388201.html
+    - button ""
+    - text: <1hr ago • oakland lake merritt / grand
+    - button ""
+    - text: $20
+    - link "RTV silicone 1":
+      - /url: https://sfbay.craigslist.org/eby/for/d/vallejo-rtv-silicone/7903063762.html
+      - img "RTV silicone 1"
+    - text: •
+    - link "RTV silicone":
+      - /url: https://sfbay.craigslist.org/eby/for/d/vallejo-rtv-silicone/7903063762.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $25
+    - link "New Metal Twin Pop Up Trundle Bed! 1":
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/oakland-new-metal-twin-pop-up-trundle/7899744031.html
+      - img "New Metal Twin Pop Up Trundle Bed! 1"
+    - text: •
+    - link "New Metal Twin Pop Up Trundle Bed!":
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/oakland-new-metal-twin-pop-up-trundle/7899744031.html
+    - button ""
+    - text: <1hr ago • All Bay Area
+    - button ""
+    - text: $250
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/sop/d/oakland-25-ssd-metal-hard-drive/7920465278.html
+    - text: • • • •
+    - link "2.5\" SSD Metal Hard Drive Mounting Bracket Adapter Dock / Tray":
+      - /url: https://sfbay.craigslist.org/eby/sop/d/oakland-25-ssd-metal-hard-drive/7920465278.html
+    - button ""
+    - text: <1hr ago • oakland lake merritt / grand
+    - button ""
+    - text: $5
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-portable-air-conditioning/7904479343.html
+    - text: • •
+    - link "Portable air conditioning":
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-portable-air-conditioning/7904479343.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $200
+    - link "1966 Chevelle AC Dash 1":
+      - /url: https://sfbay.craigslist.org/sby/pts/d/san-jose-1966-chevelle-ac-dash/7926705106.html
+      - img "1966 Chevelle AC Dash 1"
+    - text: •
+    - link "1966 Chevelle AC Dash":
+      - /url: https://sfbay.craigslist.org/sby/pts/d/san-jose-1966-chevelle-ac-dash/7926705106.html
+    - button ""
+    - text: <1hr ago • willow glen / cambrian
+    - button ""
+    - text: $400
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/hsh/d/oakland-national-lampoons-christmas/7904088329.html
+    - text: • • •
+    - link "National Lampoon's Christmas Vacation Moose Bottle Opener":
+      - /url: https://sfbay.craigslist.org/eby/hsh/d/oakland-national-lampoons-christmas/7904088329.html
+    - button ""
+    - text: <1hr ago • oakland lake merritt / grand
+    - button ""
+    - text: $10
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/ele/d/san-mateo-car-audio-installations/7914084828.html
+    - text: • • • • • • • • • • • • • • • • • • • • • • • •
+    - link "car audio installations speaker amp screens open sundays auto repair":
+      - /url: https://sfbay.craigslist.org/pen/ele/d/san-mateo-car-audio-installations/7914084828.html
+    - button ""
+    - text: <1hr ago • pacifica
+    - button ""
+    - text: $1
+    - link "Ducting materials (unused) 1":
+      - /url: https://sfbay.craigslist.org/nby/tls/d/santa-rosa-ducting-materials-unused/7911432657.html
+      - img "Ducting materials (unused) 1"
+    - text: •
+    - link "Ducting materials (unused)":
+      - /url: https://sfbay.craigslist.org/nby/tls/d/santa-rosa-ducting-materials-unused/7911432657.html
+    - button ""
+    - text: <1hr ago • Santa Rosa
+    - button ""
+    - text: $40
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/sop/d/sunnyvale-evga-850-b5-850w-80-plus/7892935047.html
+    - text: • • • • • • • • •
+    - link "EVGA 850 B5 850W 80 Plus Bronze Modular PSU Ultra-Quiet 135mm":
+      - /url: https://sfbay.craigslist.org/sby/sop/d/sunnyvale-evga-850-b5-850w-80-plus/7892935047.html
+    - button ""
+    - text: <1hr ago • sunnyvale
+    - button ""
+    - text: $70
+    - link "pH down 1":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/vallejo-ph-down/7904787453.html
+      - img "pH down 1"
+    - text: •
+    - link "pH down":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/vallejo-ph-down/7904787453.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $10
+    - link "Buying Vintage Toys , Barbies , Action Figures , Toy Cars And More 1":
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-buying-vintage-toys-barbies/7919147571.html
+      - img "Buying Vintage Toys , Barbies , Action Figures , Toy Cars And More 1"
+    - text: •
+    - link "Buying Vintage Toys , Barbies , Action Figures , Toy Cars And More":
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-buying-vintage-toys-barbies/7919147571.html
+    - button ""
+    - text: <1hr ago • San Francisco, San Mateo , Santa Clara, East Bay Areas
+    - button ""
+    - link "Wall fan 1":
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-wall-fan/7904793845.html
+      - img "Wall fan 1"
+    - text: •
+    - link "Wall fan":
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-wall-fan/7904793845.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $22
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/pen/atq/d/san-mateo-car-audiodash-cams/7924037883.html
+      - text: 
+      - paragraph: no image
+    - link "car audioDASH CAMS installations speaker amp screens":
+      - /url: https://sfbay.craigslist.org/pen/atq/d/san-mateo-car-audiodash-cams/7924037883.html
+    - button ""
+    - text: <1hr ago • san mateo
+    - button ""
+    - text: $125
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/tls/d/santa-rosa-vintage-electric-motor/7911415813.html
+    - text: • • •
+    - link "Vintage Electric Motor":
+      - /url: https://sfbay.craigslist.org/nby/tls/d/santa-rosa-vintage-electric-motor/7911415813.html
+    - button ""
+    - text: <1hr ago • Santa Rosa
+    - button ""
+    - text: $100
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/for/d/vallejo-inch-universal-automatic-make/7905177994.html
+    - text: • • •
+    - link "6-Inch Universal Automatic Make-Up Air Damper with Pressure Sensor kit":
+      - /url: https://sfbay.craigslist.org/eby/for/d/vallejo-inch-universal-automatic-make/7905177994.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $200
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/sby/sys/d/sunnyvale-used-very-good-condition-asus/7907326306.html
+      - text: 
+      - paragraph: no image
+    - link "Used very good condition ASUS VS239H 23\" Full HD 1920 x 1080 monitor":
+      - /url: https://sfbay.craigslist.org/sby/sys/d/sunnyvale-used-very-good-condition-asus/7907326306.html
+    - button ""
+    - text: <1hr ago • sunnyvale
+    - button ""
+    - text: $30
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/sfc/msg/d/san-francisco-behringer-deepmind-key/7926705063.html
+      - text: 
+      - paragraph: no image
+    - link "Behringer Deepmind 12 49-Key":
+      - /url: https://sfbay.craigslist.org/sfc/msg/d/san-francisco-behringer-deepmind-key/7926705063.html
+    - button ""
+    - text: <1hr ago • richmond / seacliff
+    - button ""
+    - text: $550
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/san-jose-gray-mesh-herman-miller-mirra2/7905011984.html
+    - text: • • • • • •
+    - link "Gray Mesh - Herman Miller Mirra2":
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/san-jose-gray-mesh-herman-miller-mirra2/7905011984.html
+    - button ""
+    - text: <1hr ago • San Jose
+    - button ""
+    - text: $499
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/mat/d/santa-fe-good-sun-solar-products/7926705058.html
+    - text: • • • • • •
+    - link "Good sun solar products .":
+      - /url: https://sfbay.craigslist.org/pen/mat/d/santa-fe-good-sun-solar-products/7926705058.html
+    - button ""
+    - text: <1hr ago • belmont
+    - button ""
+    - text: $45
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/for/d/vallejo-fresh-air-inlet-wall-cap-for/7905178651.html
+    - text: • •
+    - link "Fresh Air Inlet Wall Cap for 6\" Round Duct for Range Hoods and Bath Ve":
+      - /url: https://sfbay.craigslist.org/eby/for/d/vallejo-fresh-air-inlet-wall-cap-for/7905178651.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $45
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/hsh/d/el-cerrito-new-twin-bed-frame-mattress/7926705055.html
+    - text: • • • • • • •
+    - link "New Twin bed frame & Mattress from Wayfair":
+      - /url: https://sfbay.craigslist.org/eby/hsh/d/el-cerrito-new-twin-bed-frame-mattress/7926705055.html
+    - button ""
+    - text: <1hr ago • albany / el cerrito
+    - button ""
+    - text: $150
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/sfc/atq/d/san-mateo-grt-the-wet-look-on-your-cars/7924038038.html
+      - text: 
+      - paragraph: no image
+    - link "grt the wet look on your cars paint ceramic coating":
+      - /url: https://sfbay.craigslist.org/sfc/atq/d/san-mateo-grt-the-wet-look-on-your-cars/7924038038.html
+    - button ""
+    - text: <1hr ago • financial district
+    - button ""
+    - text: $299
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/for/d/vallejo-soft-close-pullout-with-blum/7905180123.html
+    - text: • •
+    - link "8\" soft close pullout with blum tandem slides with blumotion":
+      - /url: https://sfbay.craigslist.org/eby/for/d/vallejo-soft-close-pullout-with-blum/7905180123.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $200
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/jwl/d/san-francisco-mens-automatic-watch/7925458616.html
+    - text: • • • • • • • • • • • • • •
+    - link "Men's Automatic Watch Bronzo":
+      - /url: https://sfbay.craigslist.org/sfc/jwl/d/san-francisco-mens-automatic-watch/7925458616.html
+    - button ""
+    - text: <1hr ago • inner sunset / UCSF
+    - button ""
+    - text: $650
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-buying-vintage-tootsie-toys/7890710378.html
+    - text: • • • •
+    - link "Buying Vintage Tootsie Toys, Redline Hot Wheels, Tomica, Matchbox Cars":
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-buying-vintage-tootsie-toys/7890710378.html
+    - button ""
+    - text: <1hr ago • San Francisco, San Mateo , Santa Clara Areas
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/mcd/d/fremont-2025-honda-scl500-standard/7926705774.html
+    - text: • • • • • • • • • • • •
+    - link "2025 Honda SCL500 Standard":
+      - /url: https://sfbay.craigslist.org/eby/mcd/d/fremont-2025-honda-scl500-standard/7926705774.html
+    - button ""
+    - text: <1hr ago • 19mi • Fremont, Ca
+    - button ""
+    - text: $6,199
+    - link "Subversive pump 1":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/vallejo-subversive-pump/7906191097.html
+      - img "Subversive pump 1"
+    - text: •
+    - link "Subversive pump":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/vallejo-subversive-pump/7906191097.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $85
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/pen/atq/d/san-mateo-car-audio-installations/7924038082.html
+      - text: 
+      - paragraph: no image
+    - link "car audio installations":
+      - /url: https://sfbay.craigslist.org/pen/atq/d/san-mateo-car-audio-installations/7924038082.html
+    - button ""
+    - text: <1hr ago • san mateo
+    - button ""
+    - text: $125
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/sys/d/sunnyvale-used-gateway-133-ultra-slim/7892935837.html
+    - text: • • • • • • • • • •
+    - link "Used Gateway 13.3\" Ultra Slim Notebook Snapdragon 850, 4GB/128GBWin11H":
+      - /url: https://sfbay.craigslist.org/sby/sys/d/sunnyvale-used-gateway-133-ultra-slim/7892935837.html
+    - button ""
+    - text: <1hr ago • sunnyvale
+    - button ""
+    - text: $60
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-mini-fridge/7906369714.html
+    - text: • •
+    - link "Mini fridge":
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-mini-fridge/7906369714.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $120
+    - 'link "DONATIONS NEEDED: Denim, Blazers, & Fabric for Community Art 1"':
+      - /url: https://sfbay.craigslist.org/eby/wan/d/el-cerrito-donations-needed-denim/7918915914.html
+      - 'img "DONATIONS NEEDED: Denim, Blazers, & Fabric for Community Art 1"'
+    - text: •
+    - 'link "DONATIONS NEEDED: Denim, Blazers, & Fabric for Community Art"':
+      - /url: https://sfbay.craigslist.org/eby/wan/d/el-cerrito-donations-needed-denim/7918915914.html
+    - button ""
+    - text: <1hr ago • albany / el cerrito
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-mini-fridge/7906369268.html
+    - text: • •
+    - link "MINI FRIDGE":
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-mini-fridge/7906369268.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $125
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/jwl/d/san-francisco-mens-roulette-casino-watch/7922765709.html
+    - text: • • • • • • • • • • • • • •
+    - link "Men's Roulette Casino Watch":
+      - /url: https://sfbay.craigslist.org/sfc/jwl/d/san-francisco-mens-roulette-casino-watch/7922765709.html
+    - button ""
+    - text: <1hr ago • inner sunset / UCSF
+    - button ""
+    - text: $980
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/hsh/d/vallejo-bathroom-exhaust-fan-with-heater/7906943562.html
+    - text: • • • • • • •
+    - link "Bathroom exhaust fan with heater":
+      - /url: https://sfbay.craigslist.org/eby/hsh/d/vallejo-bathroom-exhaust-fan-with-heater/7906943562.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $230
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/pen/ele/d/san-mateo-car-audio-installs-systems/7924037963.html
+      - text: 
+      - paragraph: no image
+    - link "car audio installs systems bought eleswares amps back up cams screen":
+      - /url: https://sfbay.craigslist.org/pen/ele/d/san-mateo-car-audio-installs-systems/7924037963.html
+    - button ""
+    - text: <1hr ago • san mateo
+    - button ""
+    - text: $1
+    - link "Buying Video Games Collection , Magazines +++ 1":
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-buying-video-games-collection/7923786360.html
+      - img "Buying Video Games Collection , Magazines +++ 1"
+    - text: •
+    - link "Buying Video Games Collection , Magazines +++":
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-buying-video-games-collection/7923786360.html
+    - button ""
+    - text: <1hr ago • San Francisco, San Mateo , Santa Clara, East Bay Areas
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/ele/d/san-rafael-soundcore-by-anker-p20i-true/7926233233.html
+    - text: • • • • • • • • •
+    - link "Soundcore by Anker P20i True Wireless Earbuds - (New)":
+      - /url: https://sfbay.craigslist.org/nby/ele/d/san-rafael-soundcore-by-anker-p20i-true/7926233233.html
+    - button ""
+    - text: <1hr ago • san rafael
+    - button ""
+    - text: $30
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-mini-fridge/7907259154.html
+    - text: • •
+    - link "Mini fridge":
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-mini-fridge/7907259154.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $65
+    - link "Free leather chair 1":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/santa-rosa-free-leather-chair/7916911054.html
+      - img "Free leather chair 1"
+    - text: •
+    - link "Free leather chair":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/santa-rosa-free-leather-chair/7916911054.html
+    - button ""
+    - text: <1hr ago • Santa Rosa
+    - button ""
+    - text: free
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/jwl/d/san-francisco-mens-automatic-skeleton/7922300299.html
+    - text: • • • • • • • • • • •
+    - link "Men's Automatic Skeleton Watch":
+      - /url: https://sfbay.craigslist.org/sfc/jwl/d/san-francisco-mens-automatic-skeleton/7922300299.html
+    - button ""
+    - text: <1hr ago • inner sunset / UCSF
+    - button ""
+    - text: $650
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/pen/ele/d/san-mateo-car-audio-installations/7924038247.html
+      - text: 
+      - paragraph: no image
+    - link "car audio installations speaker amp screens opensunday sundays":
+      - /url: https://sfbay.craigslist.org/pen/ele/d/san-mateo-car-audio-installations/7924038247.html
+    - button ""
+    - text: <1hr ago • pacifica
+    - button ""
+    - text: $1
+    - link "Mini fridge 1":
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-mini-fridge/7907259462.html
+      - img "Mini fridge 1"
+    - text: •
+    - link "Mini fridge":
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-mini-fridge/7907259462.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $85
+    - link:
+      - /url: https://sfbay.craigslist.org/scz/grd/d/santa-cruz-plastic-barrels/7925228848.html
+    - text: • •
+    - link "Plastic barrels":
+      - /url: https://sfbay.craigslist.org/scz/grd/d/santa-cruz-plastic-barrels/7925228848.html
+    - button ""
+    - text: <1hr ago • Santa Cruz
+    - button ""
+    - text: $30
+    - link "Wall thermometer with hygrometer 1":
+      - /url: https://sfbay.craigslist.org/eby/for/d/vallejo-wall-thermometer-with-hygrometer/7908218301.html
+      - img "Wall thermometer with hygrometer 1"
+    - text: •
+    - link "Wall thermometer with hygrometer":
+      - /url: https://sfbay.craigslist.org/eby/for/d/vallejo-wall-thermometer-with-hygrometer/7908218301.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $7
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/art/d/santa-rosa-vintage-singer-sewing/7916920787.html
+    - text: • • • • •
+    - link "Vintage Singer Sewing Machine from 1929":
+      - /url: https://sfbay.craigslist.org/nby/art/d/santa-rosa-vintage-singer-sewing/7916920787.html
+    - button ""
+    - text: <1hr ago • Santa Rosa
+    - button ""
+    - text: $100
+    - link "MXR - Bass synth 1":
+      - /url: https://sfbay.craigslist.org/pen/msg/d/redwood-city-mxr-bass-synth/7923269166.html
+      - img "MXR - Bass synth 1"
+    - text: •
+    - link "MXR - Bass synth":
+      - /url: https://sfbay.craigslist.org/pen/msg/d/redwood-city-mxr-bass-synth/7923269166.html
+    - button ""
+    - text: <1hr ago • Redwood City
+    - button ""
+    - text: $250
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/san-jose-size-herman-miller-aeron/7915191625.html
+    - text: • • • • •
+    - link "!! SIZE B - HERMAN MILLER AERON CLASSIC !!":
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/san-jose-size-herman-miller-aeron/7915191625.html
+    - button ""
+    - text: <1hr ago • San Jose
+    - button ""
+    - text: $489
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/pen/ele/d/san-mateo-car-audio-installs-systems/7924038000.html
+      - text: 
+      - paragraph: no image
+    - link "car audio installs systems bought eleswares amps back up cams screen":
+      - /url: https://sfbay.craigslist.org/pen/ele/d/san-mateo-car-audio-installs-systems/7924038000.html
+    - button ""
+    - text: <1hr ago • san mateo
+    - button ""
+    - text: $1
+    - link "Cute Round Dining with Drop Leaves Table with Chairs 1":
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/oakland-cute-round-dining-with-drop/7899490809.html
+      - img "Cute Round Dining with Drop Leaves Table with Chairs 1"
+    - text: •
+    - link "Cute Round Dining with Drop Leaves Table with Chairs":
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/oakland-cute-round-dining-with-drop/7899490809.html
+    - button ""
+    - text: <1hr ago • All Bay Area
+    - button ""
+    - text: $250
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-cash-buyer-for-pokemon-sets/7925859735.html
+      - text: 
+      - paragraph: no image
+    - link "Cash Buyer For 1996-2015 Pokemon Sets , Large Lots":
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-cash-buyer-for-pokemon-sets/7925859735.html
+    - button ""
+    - text: <1hr ago • San Francisco, San Mateo , Santa Clara, East Bay Areas
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/grd/d/vallejo-growing-equipments/7908218275.html
+    - text: • • • • • • • • • • • • • • •
+    - link "Growing equipments":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/vallejo-growing-equipments/7908218275.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/wto/d/santa-clara-rims-15x6-wheels-4x100-and/7923272497.html
+    - text: • • • • • • • •
+    - link "4 Rims 15X6 Wheels 4X100 and Tires 205/50/R15 Center Bore 54.1":
+      - /url: https://sfbay.craigslist.org/sby/wto/d/santa-clara-rims-15x6-wheels-4x100-and/7923272497.html
+    - button ""
+    - text: <1hr ago • santa clara
+    - button ""
+    - text: $180
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/spo/d/santa-rosa-snow-shoes/7901962453.html
+    - text: • •
+    - link "Snow Shoes":
+      - /url: https://sfbay.craigslist.org/nby/spo/d/santa-rosa-snow-shoes/7901962453.html
+    - button ""
+    - text: <1hr ago • Santa Rosa
+    - button ""
+    - text: $60
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/bab/d/sunnyvale-amazing-vintage-american-girl/7891055105.html
+    - text: • • • • • • • • • • • • • • •
+    - 'link "Amazing Vintage American Girl Dolls: Samantha & Kirsten"':
+      - /url: https://sfbay.craigslist.org/sby/bab/d/sunnyvale-amazing-vintage-american-girl/7891055105.html
+    - button ""
+    - text: <1hr ago • Sunnyvale
+    - button ""
+    - text: $1,999
+    - link "Indoor HDTV antenna 1":
+      - /url: https://sfbay.craigslist.org/eby/ele/d/vallejo-indoor-hdtv-antenna/7908218369.html
+      - img "Indoor HDTV antenna 1"
+    - text: •
+    - link "Indoor HDTV antenna":
+      - /url: https://sfbay.craigslist.org/eby/ele/d/vallejo-indoor-hdtv-antenna/7908218369.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $4
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/grd/d/sunnyvale-stunning-japanese-sanke-koi/7920026460.html
+    - text: • • • • • •
+    - link "Stunning Japanese Sanke Koi Fish!":
+      - /url: https://sfbay.craigslist.org/sby/grd/d/sunnyvale-stunning-japanese-sanke-koi/7920026460.html
+    - button ""
+    - text: <1hr ago • Sunnyvale
+    - button ""
+    - text: $399
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/pen/ele/d/san-francisco-car-audio-installs/7924038317.html
+      - text: 
+      - paragraph: no image
+    - link "car audio installs systems bought eleswares amps back up cams screen":
+      - /url: https://sfbay.craigslist.org/pen/ele/d/san-francisco-car-audio-installs/7924038317.html
+    - button ""
+    - text: <1hr ago • san mateo
+    - button ""
+    - text: $1
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/fuo/d/san-jose-red-fabric-haworth-fern-office/7889796300.html
+    - text: • • • •
+    - link "RED FABRIC ~ HAWORTH FERN OFFICE ERGONOMIC CHAIR":
+      - /url: https://sfbay.craigslist.org/sfc/fuo/d/san-jose-red-fabric-haworth-fern-office/7889796300.html
+    - button ""
+    - text: <1hr ago • San Jose
+    - button ""
+    - text: $710
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/bab/d/sunnyvale-new-35th-anniversary-kirsten/7892664647.html
+    - text: • • • • •
+    - link "New 35th Anniversary Kirsten American Girl Doll!":
+      - /url: https://sfbay.craigslist.org/sby/bab/d/sunnyvale-new-35th-anniversary-kirsten/7892664647.html
+    - button ""
+    - text: <1hr ago • Sunnyvale
+    - button ""
+    - text: $349
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/tls/d/santa-rosa-wolfcraft-router-table/7906930302.html
+    - text: • • • •
+    - link "Wolfcraft Router Table":
+      - /url: https://sfbay.craigslist.org/nby/tls/d/santa-rosa-wolfcraft-router-table/7906930302.html
+    - button ""
+    - text: <1hr ago • Santa Rosa
+    - button ""
+    - text: $60
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/for/d/vallejo-induct-fan/7908218335.html
+    - text: • •
+    - link "Induct fan":
+      - /url: https://sfbay.craigslist.org/eby/for/d/vallejo-induct-fan/7908218335.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $20
+    - 'link "APC Power Conversion Backup Model Number: Back-UPS 400 1"':
+      - /url: https://sfbay.craigslist.org/nby/ele/d/santa-rosa-apc-power-conversion-backup/7901963307.html
+      - 'img "APC Power Conversion Backup Model Number: Back-UPS 400 1"'
+    - text: •
+    - 'link "APC Power Conversion Backup Model Number: Back-UPS 400"':
+      - /url: https://sfbay.craigslist.org/nby/ele/d/santa-rosa-apc-power-conversion-backup/7901963307.html
+    - button ""
+    - text: <1hr ago • Santa Rosa
+    - button ""
+    - text: $40
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/pts/d/vallejo-c-recharge/7908303272.html
+    - text: • •
+    - link "A/C recharge":
+      - /url: https://sfbay.craigslist.org/eby/pts/d/vallejo-c-recharge/7908303272.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $38
+    - link " no image":
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-bay-area-cash-buyer-for/7925859292.html
+      - text: 
+      - paragraph: no image
+    - link "Bay Area Cash Buyer For 1996-2015 Pokemon Sets , Large Lots":
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-bay-area-cash-buyer-for/7925859292.html
+    - button ""
+    - text: <1hr ago • San Francisco, San Mateo , Santa Clara, East Bay Areas
+    - button ""
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/for/d/san-jose-speakers-klipsch-ksb-31/7917360544.html
+    - text: • • • • •
+    - link "Speakers - Klipsch KSB 3.1 Rosewood, like new!":
+      - /url: https://sfbay.craigslist.org/sby/for/d/san-jose-speakers-klipsch-ksb-31/7917360544.html
+    - button ""
+    - text: <1hr ago • san jose west
+    - button ""
+    - text: $350
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/for/d/san-jose-window-milgard-bathroom/7917372191.html
+    - text: • • •
+    - link "Window Milgard bathroom w/obscured glass, new!":
+      - /url: https://sfbay.craigslist.org/sby/for/d/san-jose-window-milgard-bathroom/7917372191.html
+    - button ""
+    - text: <1hr ago • san jose west
+    - button ""
+    - text: $100
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/tls/d/santa-rosa-vintage-true-temper-kelly/7906938709.html
+    - text: • • • • •
+    - link "Vintage True Temper Kelly Works Paul Bunyan Double Bit Axe Head":
+      - /url: https://sfbay.craigslist.org/nby/tls/d/santa-rosa-vintage-true-temper-kelly/7906938709.html
+    - button ""
+    - text: <1hr ago • Santa Rosa
+    - button ""
+    - text: $60
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/pts/d/vallejo-air-compressor/7908526841.html
+    - text: • • •
+    - link "Air compressor":
+      - /url: https://sfbay.craigslist.org/eby/pts/d/vallejo-air-compressor/7908526841.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $20
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/zip/d/novato-purple-sectional-for-free/7926704786.html
+    - text: • • • •
+    - link "Purple sectional for free":
+      - /url: https://sfbay.craigslist.org/nby/zip/d/novato-purple-sectional-for-free/7926704786.html
+    - button ""
+    - text: <1hr ago • novato
+    - button ""
+    - text: free
+    - link "Ceiling fan 1":
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-ceiling-fan/7908996905.html
+      - img "Ceiling fan 1"
+    - text: •
+    - link "Ceiling fan":
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-ceiling-fan/7908996905.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $60
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/tls/d/santa-rosa-vintage-greenlee-no-515-nail/7908988453.html
+    - text: • •
+    - link "VINTAGE GREENLEE NO. 515 NAIL PULLER":
+      - /url: https://sfbay.craigslist.org/nby/tls/d/santa-rosa-vintage-greenlee-no-515-nail/7908988453.html
+    - button ""
+    - text: <1hr ago • Santa Rosa
+    - button ""
+    - text: $40
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ele/d/fairfield-denon-avr-5700/7926704773.html
+    - text: • • • • • •
+    - link "Denon AVR 5700":
+      - /url: https://sfbay.craigslist.org/eby/ele/d/fairfield-denon-avr-5700/7926704773.html
+    - button ""
+    - text: <1hr ago • fairfield / vacaville
+    - button ""
+    - text: $200
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ele/d/vallejo-wifi-panaroma-camera/7908996909.html
+    - text: • • •
+    - link "WiFi panaroma camera":
+      - /url: https://sfbay.craigslist.org/eby/ele/d/vallejo-wifi-panaroma-camera/7908996909.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $8
+    - link:
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/san-jose-ergonomic-chair-herman-miller/7915192410.html
+    - text: • • • • • •
+    - link "!’! ERGONOMIC CHAIR !’!- Herman Miller Mirra2":
+      - /url: https://sfbay.craigslist.org/sby/fuo/d/san-jose-ergonomic-chair-herman-miller/7915192410.html
+    - button ""
+    - text: <1hr ago • San Jose
+    - button ""
+    - text: $499
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/tls/d/santa-rosa-bushcraft-tool-kit/7911396595.html
+    - text: • • • •
+    - link "Bushcraft Tool Kit":
+      - /url: https://sfbay.craigslist.org/nby/tls/d/santa-rosa-bushcraft-tool-kit/7911396595.html
+    - button ""
+    - text: <1hr ago • Santa Rosa
+    - button ""
+    - text: $50
+    - link "Drying rack 1":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/vallejo-drying-rack/7909479765.html
+      - img "Drying rack 1"
+    - text: •
+    - link "Drying rack":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/vallejo-drying-rack/7909479765.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $28
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/tls/d/santa-rosa-razerback-shovelhead/7911487386.html
+    - text: • •
+    - link "Razerback shovelhead":
+      - /url: https://sfbay.craigslist.org/nby/tls/d/santa-rosa-razerback-shovelhead/7911487386.html
+    - button ""
+    - text: <1hr ago • Santa Rosa
+    - button ""
+    - text: $20
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/spo/d/santa-rosa-camping-supplies/7925502692.html
+    - text: • • • • • • • • • •
+    - link "Camping Supplies":
+      - /url: https://sfbay.craigslist.org/nby/spo/d/santa-rosa-camping-supplies/7925502692.html
+    - button ""
+    - text: <1hr ago • Santa Rosa
+    - button ""
+    - text: $80
+    - link "Lithium cell 1":
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-lithium-cell/7909479679.html
+      - img "Lithium cell 1"
+    - text: •
+    - link "Lithium cell":
+      - /url: https://sfbay.craigslist.org/eby/app/d/vallejo-lithium-cell/7909479679.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $3
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/cto/d/santa-rosa-chevy-stepside-clean-title/7926705595.html
+    - text: • • • • • • • • • • • • • • • •
+    - link "Chevy c10 1975 stepside, clean title":
+      - /url: https://sfbay.craigslist.org/nby/cto/d/santa-rosa-chevy-stepside-clean-title/7926705595.html
+    - button ""
+    - text: <1hr ago • 20k mi • santa rosa
+    - button ""
+    - text: $25
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/vallejo-barstool/7909480097.html
+    - text: • •
+    - link "Barstool":
+      - /url: https://sfbay.craigslist.org/eby/fuo/d/vallejo-barstool/7909480097.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $18
+    - link:
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-buying-different-brands/7892147905.html
+    - text: • • • • • • • • • • •
+    - link "Buying Different Brands, Companies Of Vintage Godzilla, Monsters Toys, Magazines":
+      - /url: https://sfbay.craigslist.org/pen/wan/d/san-mateo-buying-different-brands/7892147905.html
+    - button ""
+    - text: <1hr ago • San Francisco, San Mateo , Santa Clara Areas
+    - button ""
+    - link "Carbon Filter 1":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/vallejo-carbon-filter/7909479939.html
+      - img "Carbon Filter 1"
+    - text: •
+    - link "Carbon Filter":
+      - /url: https://sfbay.craigslist.org/eby/grd/d/vallejo-carbon-filter/7909479939.html
+    - button ""
+    - text: <1hr ago • vallejo / benicia
+    - button ""
+    - text: $45
+    - link:
+      - /url: https://sfbay.craigslist.org/nby/sys/d/vallejo-macbook-air-brand-new-factory/7926704704.html
+    - text: • • • • •
+    - link "2 macbook air Brand New Factory sealed":
+      - /url: https://sfbay.craigslist.org/nby/sys/d/vallejo-macbook-air-brand-new-factory/7926704704.html
+    - button ""
+    - text: <1hr ago • Vallejo
+    - button ""
+    - text: $1,800
+    - link "Lot os assorted GRAFLEX - GRAPHIC camera parts 1":
+      - /url: https://sfbay.craigslist.org/eby/pho/d/oakland-lot-os-assorted-graflex-graphic/7923595248.html
+      - img "Lot os assorted GRAFLEX - GRAPHIC camera parts 1"
+    - text: •
+    - link "Lot os assorted GRAFLEX - GRAPHIC camera parts":
+      - /url: https://sfbay.craigslist.org/eby/pho/d/oakland-lot-os-assorted-graflex-graphic/7923595248.html
+    - button ""
+    - text: <1hr ago • oakland piedmont / montclair
+    - button ""
+    - text: $10
+    - link:
+      - /url: https://sfbay.craigslist.org/sfc/fud/d/san-francisco-hollywood-regency-blush/7926705538.html
+    - text: • • • • • • • • • • • •
+    - link "Hollywood Regency Blush Velvet Chaise Lounge":
+      - /url: https://sfbay.craigslist.org/sfc/fud/d/san-francisco-hollywood-regency-blush/7926705538.html
+    - button ""
+    - text: <1hr ago • city of san francisco
+    - button ""
+    - text: $99
+    - link:
+      - /url: https://sfbay.craigslist.org/eby/ele/d/pleasanton-netgear-cm500-docsis-30/7925489773.html
+    - text: • •
+    - link "Netgear CM500 DOCSIS 3.0 Cable Modem":
+      - /url: https://sfbay.craigslist.org/eby/ele/d/pleasanton-netgear-cm500-docsis-30/7925489773.html
+    - button ""
+    - text: <1hr ago • dublin / pleasanton / livermore
+    - button ""
+    - text: $25
+    - link "help":
+      - /url: https://www.craigslist.org/about/help
+    - link "safety":
+      - /url: https://www.craigslist.org/about/help/safety
+    - link "privacy":
+      - /url: https://www.craigslist.org/about/privacy.policy
+    - link "terms":
+      - /url: https://www.craigslist.org/about/terms.of.use
+    - link "about":
+      - /url: https://www.craigslist.org/about
+    - link "app":
+      - /url: https://www.craigslist.org/about/craigslist_app
+    - text: © 2026 craigslist

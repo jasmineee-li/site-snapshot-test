@@ -1,0 +1,304 @@
+- document:
+  - banner:
+    - link "Skip to main content":
+      - /url: "#content-body"
+    - link "Homepage":
+      - /url: /
+    - list:
+      - listitem:
+        - link "Why GitLab":
+          - /url: https://about.gitlab.com/why-gitlab
+      - listitem:
+        - link "Pricing":
+          - /url: https://about.gitlab.com/pricing
+      - listitem:
+        - link "Explore":
+          - /url: /explore
+    - button "Search or go to… /"
+    - link "Get free trial":
+      - /url: /-/trial_registrations/new
+    - link "Sign in":
+      - /url: /users/sign_in?redirect_to_referer=yes
+  - navigation "Primary navigation":
+    - heading "Primary navigation" [level=2]
+    - text: Explore
+    - list "Explore":
+      - listitem:
+        - link "Projects":
+          - /url: /explore/projects
+      - listitem:
+        - link "Groups":
+          - /url: /explore/groups
+      - listitem:
+        - link "CI/CD Catalog":
+          - /url: /explore/catalog
+      - listitem:
+        - link "Topics":
+          - /url: /explore/projects/topics
+      - listitem:
+        - link "Snippets":
+          - /url: /explore/snippets
+    - button "What's new"
+    - button "Help"
+    - button "Collapse sidebar"
+  - navigation "Breadcrumb":
+    - list:
+      - listitem:
+        - link "Help":
+          - /url: /help
+        - text: /
+      - listitem:
+        - link "Help":
+          - /url: /help
+  - main:
+    - heading "GitLab Enterprise Edition" [level=1]
+    - paragraph:
+      - text: GitLab is the most comprehensive DevSecOps platform, built for intelligent orchestration. Read more at
+      - link "about.gitlab.com":
+        - /url: https://about.gitlab.com
+      - text: .
+    - paragraph:
+      - link "Check the current instance configuration.":
+        - /url: https://gitlab.com/help/instance_configuration
+    - separator
+    - heading "GitLab DocsLink to heading 'GitLab Docs'" [level=1]:
+      - text: GitLab Docs
+      - link "Link to heading 'GitLab Docs'":
+        - /url: "#gitlab-docs"
+    - paragraph:
+      - text: Visit
+      - link "https://docs.gitlab.com":
+        - /url: https://docs.gitlab.com
+      - text: for the latest version of this help information with enhanced navigation, formatting, and search.
+    - paragraph: "Explore the different areas of the documentation:"
+    - table:
+      - rowgroup:
+        - row:
+          - columnheader
+          - columnheader
+      - rowgroup:
+        - row "Use GitLab Get started with GitLab features and functionality. Administer GitLab Administer GitLab Self-Managed.":
+          - cell "Use GitLab Get started with GitLab features and functionality.":
+            - link "Use GitLab":
+              - /url: /help/user/_index.md
+              - strong: Use GitLab
+            - text: Get started with GitLab features and functionality.
+          - cell "Administer GitLab Administer GitLab Self-Managed.":
+            - link "Administer GitLab":
+              - /url: /help/administration/_index.md
+              - strong: Administer GitLab
+            - text: Administer GitLab Self-Managed.
+        - row "New to Git and GitLab? Start learning about Git and GitLab. Get started with AI Use GitLab Duo to help accelerate your work.":
+          - cell "New to Git and GitLab? Start learning about Git and GitLab.":
+            - link "New to Git and GitLab?":
+              - /url: /help/tutorials/_index.md
+              - strong: New to Git and GitLab
+              - text: "?"
+            - text: Start learning about Git and GitLab.
+          - cell "Get started with AI Use GitLab Duo to help accelerate your work.":
+            - link "Get started with AI":
+              - /url: /help/user/gitlab_duo/_index.md
+              - strong: Get started with AI
+            - text: Use GitLab Duo to help accelerate your work.
+        - row "Coming to GitLab from another platform? Learn how to move to GitLab. Build an integration with GitLab Integrate with Jira and other common applications.":
+          - cell "Coming to GitLab from another platform? Learn how to move to GitLab.":
+            - link "Coming to GitLab from another platform?":
+              - /url: /help/#coming-to-gitlab-from-another-platform
+              - strong: Coming to GitLab from another platform
+              - text: "?"
+            - text: Learn how to move to GitLab.
+          - cell "Build an integration with GitLab Integrate with Jira and other common applications.":
+            - link "Build an integration with GitLab":
+              - /url: /help/#build-an-integration-with-gitlab
+              - strong: Build an integration with GitLab
+            - text: Integrate with Jira and other common applications.
+        - row "Choose a subscription Determine which subscription tier makes sense for you. Install GitLab Install GitLab on different platforms.":
+          - cell "Choose a subscription Determine which subscription tier makes sense for you.":
+            - link "Choose a subscription":
+              - /url: /help/subscriptions/_index.md
+              - strong: Choose a subscription
+            - text: Determine which subscription tier makes sense for you.
+          - cell "Install GitLab Install GitLab on different platforms.":
+            - link "Install GitLab":
+              - /url: /help/install/_index.md
+              - strong: Install GitLab
+            - text: Install GitLab on different platforms.
+        - row "Reference architectures View recommended deployments at scale. Upgrade GitLab Upgrade your GitLab Self-Managed instance to the latest version.":
+          - cell "Reference architectures View recommended deployments at scale.":
+            - link "Reference architectures":
+              - /url: /help/administration/reference_architectures/_index.md
+              - strong: Reference architectures
+            - text: View recommended deployments at scale.
+          - cell "Upgrade GitLab Upgrade your GitLab Self-Managed instance to the latest version.":
+            - link "Upgrade GitLab":
+              - /url: /help/update/_index.md
+              - strong: Upgrade GitLab
+            - text: Upgrade your GitLab Self-Managed instance to the latest version.
+    - heading "Popular topicsLink to heading 'Popular topics'" [level=2]:
+      - text: Popular topics
+      - link "Link to heading 'Popular topics'":
+        - /url: "#popular-topics"
+    - paragraph: "View some of the most popular topics:"
+    - table:
+      - rowgroup:
+        - row "Popular topic Description":
+          - columnheader "Popular topic"
+          - columnheader "Description"
+      - rowgroup:
+        - row "CI/CD YAML syntax reference Available configuration options for .gitlab-ci.yml files.":
+          - cell "CI/CD YAML syntax reference":
+            - link "CI/CD YAML syntax reference":
+              - /url: /help/ci/yaml/_index.md
+          - cell "Available configuration options for .gitlab-ci.yml files.":
+            - text: Available configuration options for
+            - code: .gitlab-ci.yml
+            - text: files.
+        - row "REST API Use the REST API to extend GitLab.":
+          - cell "REST API":
+            - link "REST API":
+              - /url: /help/api/rest/_index.md
+          - cell "Use the REST API to extend GitLab."
+        - row "Environments and deployments Deploy your application to different environments.":
+          - cell "Environments and deployments":
+            - link "Environments and deployments":
+              - /url: /help/ci/environments/_index.md
+          - cell "Deploy your application to different environments."
+        - row "Configuring runners Get started using runners.":
+          - cell "Configuring runners":
+            - link "Configuring runners":
+              - /url: /help/ci/runners/configure_runners.md
+          - cell "Get started using runners."
+        - row "Two-factor authentication Improve the security of your GitLab account.":
+          - cell "Two-factor authentication":
+            - link "Two-factor authentication":
+              - /url: /help/user/profile/account/two_factor_authentication.md
+          - cell "Improve the security of your GitLab account."
+        - row "Back up and restore GitLab Back up and restore a GitLab Self-Managed instance.":
+          - cell "Back up and restore GitLab":
+            - link "Back up and restore GitLab":
+              - /url: /help/administration/backup_restore/_index.md
+          - cell "Back up and restore a GitLab Self-Managed instance."
+        - row "GitLab release and maintenance policy Determine how and when to upgrade.":
+          - cell "GitLab release and maintenance policy":
+            - link "GitLab release and maintenance policy":
+              - /url: /help/policy/maintenance.md
+          - cell "Determine how and when to upgrade."
+        - row "SSH keys Use SSH keys to communicate with GitLab.":
+          - cell "SSH keys":
+            - link "SSH keys":
+              - /url: /help/user/ssh.md
+          - cell "Use SSH keys to communicate with GitLab."
+    - heading "User accountsLink to heading 'User accounts'" [level=2]:
+      - text: User accounts
+      - link "Link to heading 'User accounts'":
+        - /url: "#user-accounts"
+    - paragraph: "Learn about GitLab account management:"
+    - table:
+      - rowgroup:
+        - row "Topic Description":
+          - columnheader "Topic"
+          - columnheader "Description"
+      - rowgroup:
+        - row "User account Manage your account.":
+          - cell "User account":
+            - link "User account":
+              - /url: /help/user/profile/_index.md
+          - cell "Manage your account."
+        - row "Authentication Account security with two-factor authentication, set up your SSH keys, and deploy keys for secure access to your projects.":
+          - cell "Authentication":
+            - link "Authentication":
+              - /url: /help/administration/auth/_index.md
+          - cell "Account security with two-factor authentication, set up your SSH keys, and deploy keys for secure access to your projects."
+        - row "User settings Manage your user settings, two factor authentication, and more.":
+          - cell "User settings":
+            - link "User settings":
+              - /url: /help/user/profile/_index.md#access-your-user-settings
+          - cell "Manage your user settings, two factor authentication, and more."
+        - row "User permissions Learn what each role in a project can do.":
+          - cell "User permissions":
+            - link "User permissions":
+              - /url: /help/user/permissions.md
+          - cell "Learn what each role in a project can do."
+    - heading "Coming to GitLab from another platformLink to heading 'Coming to GitLab from another platform'" [level=2]:
+      - text: Coming to GitLab from another platform
+      - link "Link to heading 'Coming to GitLab from another platform'":
+        - /url: "#coming-to-gitlab-from-another-platform"
+    - paragraph: "If you are coming to GitLab from another platform:"
+    - table:
+      - rowgroup:
+        - row "Topic Description":
+          - columnheader "Topic"
+          - columnheader "Description"
+      - rowgroup:
+        - row "Import and migrate to GitLab Import your projects from GitHub, Bitbucket, GitLab.com, FogBugz, and SVN into GitLab.":
+          - cell "Import and migrate to GitLab":
+            - link "Import and migrate to GitLab":
+              - /url: /help/user/import/_index.md
+          - cell "Import your projects from GitHub, Bitbucket, GitLab.com, FogBugz, and SVN into GitLab."
+        - row "Migrate from SVN Convert a SVN repository to Git and GitLab.":
+          - cell "Migrate from SVN":
+            - link "Migrate from SVN":
+              - /url: /help/user/import/_index.md#migrate-from-subversion
+          - cell "Convert a SVN repository to Git and GitLab."
+    - heading "Build an integration with GitLabLink to heading 'Build an integration with GitLab'" [level=2]:
+      - text: Build an integration with GitLab
+      - link "Link to heading 'Build an integration with GitLab'":
+        - /url: "#build-an-integration-with-gitlab"
+    - paragraph: "To build integrations with GitLab:"
+    - table:
+      - rowgroup:
+        - row "Topic Description":
+          - columnheader "Topic"
+          - columnheader "Description"
+      - rowgroup:
+        - row "GitLab REST API Integrate with GitLab using our REST API.":
+          - cell "GitLab REST API":
+            - link "GitLab REST API":
+              - /url: /help/api/rest/_index.md
+          - cell "Integrate with GitLab using our REST API."
+        - row "GitLab GraphQL API Integrate with GitLab using our GraphQL API.":
+          - cell "GitLab GraphQL API":
+            - link "GitLab GraphQL API":
+              - /url: /help/api/graphql/_index.md
+          - cell "Integrate with GitLab using our GraphQL API."
+        - row "Integrations Integrations with third-party products.":
+          - cell "Integrations":
+            - link "Integrations":
+              - /url: /help/integration/_index.md
+          - cell "Integrations with third-party products."
+    - heading "Contribute to GitLabLink to heading 'Contribute to GitLab'" [level=2]:
+      - text: Contribute to GitLab
+      - link "Link to heading 'Contribute to GitLab'":
+        - /url: "#contribute-to-gitlab"
+    - paragraph: "To contribute to GitLab:"
+    - table:
+      - rowgroup:
+        - row "Topic Description":
+          - columnheader "Topic"
+          - columnheader "Description"
+      - rowgroup:
+        - row "Contribute to GitLab development Contribute to GitLab development.":
+          - cell "Contribute to GitLab development":
+            - link "Contribute to GitLab development":
+              - /url: /help/development/_index.md
+          - cell "Contribute to GitLab development."
+        - row "Contribute to the documentation Contribute to GitLab documentation.":
+          - cell "Contribute to the documentation":
+            - link "Contribute to the documentation":
+              - /url: /help/development/documentation/_index.md
+          - cell "Contribute to GitLab documentation."
+    - text: Quick help
+    - list:
+      - listitem:
+        - link "See our website for help":
+          - /url: https://support.gitlab.com
+      - listitem:
+        - button "Use the search bar on the top of this page"
+      - listitem:
+        - button "Use shortcuts"
+      - listitem:
+        - link "Get a support subscription":
+          - /url: https://about.gitlab.com/pricing
+      - listitem:
+        - link "Compare GitLab editions":
+          - /url: https://about.gitlab.com/features/#compare

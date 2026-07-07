@@ -2,6 +2,28 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Workflow
+
+- Commit frequently and atomically. One commit per logical change — don't
+  batch unrelated edits. Commit as soon as a unit of work is complete and
+  verified, rather than accumulating diffs across a session.
+- Always `git push` after every atomic commit on a non-main branch. Durable
+  authorization: the user has pre-approved pushing here, so don't re-ask per
+  commit. Protected: never push to `main` / `master` without explicit
+  confirmation.
+
+## Experiment log
+
+**Project-specific override of the global `experiment_log` rule.** This
+project has external collaborators, so the log lives in-repo (visible in
+PRs / clones) instead of in `~/claude-notes-max/`.
+
+Path: `eval_awareness_experiments/experiment_log.md`. Newest entry at the
+top. Follow the format described in `~/claude-notes-max/CLAUDE.md`
+(`## YYYY-MM-DD — slug`, with Type / Groups / What / Why / Parent / Key
+change / Files / Results / Notes). Add a new entry whenever an experiment
+is launched (plan + empty results is fine) and update it when results land.
+
 ## Project Overview
 
 This is a monorepo for evaluating AI agent behaviors in controlled web environments. It combines multiple components:

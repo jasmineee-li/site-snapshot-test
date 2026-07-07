@@ -1,0 +1,473 @@
+- document:
+  - dialog "Your Privacy Choices":
+    - img "header-logo"
+    - button "close banner"
+    - heading "Your Privacy Choices" [level=3]
+    - paragraph:
+      - text: We and our vendors use technology that collects data about your use of our site so we can improve and personalize our products and services, for analytics and marketing, and to fulfill your requests. We may also share this information with marketing vendors, social media companies, and analytics partners. By using our website, you acknowledge and agree to our Terms of Use. To learn more about our privacy practices review our
+      - link "Privacy Policy (opens in a new tab)":
+        - /url: https://joinhandshake.com/privacy-policy/
+        - text: Privacy Policy
+      - text: . Please review your choices.
+    - button "Accept All"
+    - button "Customize Settings"
+    - button "Reject All"
+  - link "Skip to content":
+    - /url: "#maincontent"
+  - navigation "Main":
+    - link "Go to Handshake homepage":
+      - /url: /
+      - img
+      - img
+    - list:
+      - listitem:
+        - button "Hire now"
+      - listitem:
+        - button "Find a job"
+      - listitem:
+        - button "Career centers"
+      - listitem:
+        - button "Handshake AI"
+      - listitem:
+        - link "Research":
+          - /url: /research/
+    - list:
+      - listitem:
+        - link "Log in":
+          - /url: https://app.joinhandshake.com/login
+      - listitem:
+        - link "Sign up":
+          - /url: https://app.joinhandshake.com/register
+  - main:
+    - heading "LEGAL" [level=2]
+    - list:
+      - listitem:
+        - link "Terms of Service":
+          - /url: /legal/tos/
+          - paragraph: Terms of Service
+      - listitem:
+        - link "Handshake AI Terms of Service":
+          - /url: https://ai.joinhandshake.com/terms-of-service
+          - paragraph: Handshake AI Terms of Service
+      - listitem:
+        - link "Handshake AI Contractor Agreement":
+          - /url: /legal/contractor-agreement/
+          - paragraph: Handshake AI Contractor Agreement
+      - listitem:
+        - paragraph: Privacy
+        - list:
+          - listitem:
+            - link "Privacy Policy":
+              - /url: /privacy-policy/
+              - paragraph: Privacy Policy
+          - listitem:
+            - link "UK Privacy Policy":
+              - /url: https://joinhandshake.co.uk/info/privacy-policy
+              - paragraph: UK Privacy Policy
+          - listitem:
+            - link "EU Privacy Policy (French)":
+              - /url: https://joinhandshake.fr/info/privacy-policy
+              - paragraph: EU Privacy Policy (French)
+          - listitem:
+            - link "EU Privacy Policy (German)":
+              - /url: https://joinhandshake.de/info/privacy-policy
+              - paragraph: EU Privacy Policy (German)
+          - listitem:
+            - link "Applicant and Candidate Privacy Notice":
+              - /url: /legal/candidate-privacy/
+              - paragraph: Applicant and Candidate Privacy Notice
+          - listitem:
+            - link "Cookie Policy":
+              - /url: /legal/cookie-policy/
+              - paragraph: Cookie Policy
+          - listitem:
+            - link "Data Privacy Framework Notice":
+              - /url: /legal/international-transfers/
+              - paragraph: Data Privacy Framework Notice
+          - listitem:
+            - link "Privacy Center":
+              - /url: /privacy-policy/?ketch_show=preferences
+              - paragraph: Privacy Center
+      - listitem:
+        - link "Research Participation Terms and Conditions":
+          - /url: /legal/research/
+          - paragraph: Research Participation Terms and Conditions
+    - heading "Privacy Policy" [level=2]
+    - paragraph: Last updated January 5, 2026
+    - paragraph: Handshake is the career network for the AI economy, connecting job seekers, schools, employers, and leading AI labs to make finding work and careers easier and more successful—from first internships to full-time roles, freelance work to gig work, and beyond. In our AI work, we connect talent with labs to help shape the AI industry through high-quality trusted human intelligence.
+    - paragraph:
+      - text: This Privacy Policy (“Policy”), together with the
+      - link "Handshake AI Contractor Agreement":
+        - /url: https://joinhandshake.com/legal/contractor-agreement/
+      - text: and
+      - link "Terms of Service":
+        - /url: https://joinhandshake.com/legal/tos/
+      - text: ", describes the Personal Data that we collect, how we use and share it, and details on how you can reach us with privacy-related inquiries. The Policy also outlines your rights and choices as a data subject, including the right to object to certain uses of your Personal Data. Unless otherwise stated, defined terms used in this Privacy Policy have the meanings associated with them in our"
+      - link "Terms of Service":
+        - /url: https://joinhandshake.com/legal/tos/
+      - text: .
+    - paragraph
+    - heading "Defined Terms" [level=2]
+    - paragraph: In this Policy, “Handshake”, “we”, “our,” or “us” refers to Stryder Corp. d/b/a Handshake and its affiliates and subsidiaries. Depending on your jurisdiction and the ways in which you use the Services, the specific Handshake entity accountable for your Personal Data might vary. Please see the Contact Information section for more detail.
+    - paragraph
+    - paragraph: “Personal Data” refers to any information associated with an identified or identifiable individual, which can include data that you provide to us, and that we collect about you during your interaction with our Services.
+    - paragraph
+    - paragraph:
+      - text: “Services” refers to the products, services, and applications that we provide under our Master Services Agreement or our Terms of Service; websites (“Sites”) including without limitation,
+      - link "joinhandshake.com":
+        - /url: http://joinhandshake.com
+      - text: and
+      - link "joinhandshake.com/ai":
+        - /url: http://joinhandshake.com/ai
+      - text: ; tools, data, documentation, and other Handshake applications and online services.
+    - paragraph
+    - paragraph: "Depending on the context, “you” might be a Student, Contractor, Educational Partner, Employer Partner, AI Lab, or Visitor:"
+    - paragraph
+    - list:
+      - listitem:
+        - strong: Student
+        - text: . When you use Handshake to look for a job or internship, connect with employers, or receive career advice, we refer to you as a “Student.” As a Student, you may have a Handshake account (i) via the Educational Partner who created it for you, (ii) the Handshake account you claimed from your Educational Partner, or (iii) because you signed up for a Handshake account directly with us.
+      - listitem:
+        - strong: Contractor
+        - text: . When you use Handshake as a contractor seeking to contribute your knowledge to improve AI models, we refer to you as a “Contractor.”
+      - listitem:
+        - strong: Educational Partner
+        - text: . When you use Handshake as a career center professional at an educational institution such as a college or university, we refer to you as an “Educational Partner.”
+      - listitem:
+        - strong: Employer Partner
+        - text: . When you use Handshake representing an employer working with Handshake to find talent on behalf of your organization, we refer to you as an “Employer Partner.”
+      - listitem:
+        - strong: AI Lab.
+        - text: When you use Handshake to help get connected with human data expertise, we refer to you as an “AI Lab”.
+      - listitem:
+        - strong: Visitor.
+        - text: When you visit one of our websites or interact with Handshake by visiting our platform (without being logged into your Handshake account), such as by viewing a public profile, sending us a support inquiry about our Services, or when your interaction with us does not qualify as you being a Handshake User, we refer to you as a “Visitor”.
+    - paragraph: Students and Contractors are jointly referred to as “Members”.
+    - paragraph: Educational Partners, Employer Partners, and AI Labs are jointly referred to as “Organizations”. Members and Organizations together are the Handshake “Users” of the Handshake platform and its Services.
+    - heading "Personal Data We Collect" [level=2]
+    - paragraph: To fully access the Services, you can create an account on Handshake as a Member, or as an Educational Partner or Employer Partner.
+    - paragraph: Our collection of Personal Data when creating an account with us differs based on what kind of User you are, and the specific Service that you are using.
+    - list:
+      - listitem:
+        - strong: Student Personal Data.
+        - list:
+          - listitem:
+            - strong: Information You Provide.
+            - text: When Students of Education Partners claim their pre-populated account by logging in for the first time, or when Students of non-partner institutions create an account we collect name, email, phone number, affiliated school, major, degree level and profile picture. Students also have the option to upload documents such as resume and transcript. Students can also provide information about their location and interests including industry, job type (full or part time) and job role.
+          - listitem:
+            - strong: Information From Educational Partners
+            - text: . When Educational Partners sign up for Handshake, they send us certain Personal Data about their students so that Handshake may pre-populate accounts to provide the Services. It is up to each Educational Partner to choose what information it shares, but this data may include the student’s first and last name, mailing address, email address, major, and/or GPA. Where the Family Educational Rights and Privacy Act (“FERPA”) applies to data shared by Educational Partners, it is processed in compliance with the statute.
+            - link "Learn more":
+              - /url: https://support.joinhandshake.com/hc/en-us/articles/115007118827-How-Handshake-is-FERPA-Compliant
+            - text: .
+      - listitem:
+        - strong: Contractor Personal Data.
+        - text: When you create a Handshake account as a Contractor, we collect contact information such as first and last name, date of birth, phone number, and email address. To populate your Contractor profile, we will request information about (i) your domain expertise, including sub-domains, (ii) educational background such as the institution(s) that you attend or attended, and year of or expected year of graduation, (iii) teaching experience you may have, (iv) where you are based, (v) the languages you speak, and other similar information that can describe your domain expertise. As part of the Know-Your-Customer (“KYC”) onboarding experience, we may collect an image of your government-issued ID, a selfie, and a selfie liveness check via a third party service provider. To facilitate Contractor payments, we collect your date of birth, SSN or TIN, payment, tax, citizenship and proof of work authorization information via a third-party service provider. You may be asked to participate in an AI interview to provide more information about your background or to assess your fit for a project. Typically, AI interviews are optional, but they may be required for some projects. By participating in an AI interview, you are giving Handshake consent to store the content and recordings of any AI interview. If we use a third-party video and/or communications service provider to facilitate an AI interview, that service provider may not use your Personal Data or the content of the communications for any purpose other than to provide the service to us.
+      - listitem:
+        - strong: Educational Partners Personal Data.
+        - text: When career center professionals of Educational Partners create a Handshake account, we collect basic contact information, including first and last name, email address and telephone number.
+      - listitem:
+        - strong: Employer Partner Personal Data.
+        - text: When representatives of Employer Partners create a Handshake account, we collect basic contact information, including first and last name, email address and telephone number.
+    - paragraph: "Through your use of the Services, Handshake may process the following:"
+    - list:
+      - listitem:
+        - strong: Member Resume Data.
+        - text: When you upload or revise a resume on your profile or for a job application, we process the information you choose to include in your resume, such as name, contact information, education history, work experience, skills, and any other information you provide to describe your qualifications. We use this information to help you connect with employers, AI labs, career centers, and other opportunities available through the use of the Services. Your resume data may also be used to recommend relevant roles and to improve job-matching functionality.
+      - listitem:
+        - strong: Geolocation Data
+        - text: . We may collect or infer your approximate location (for example, from your IP address or device settings) to help protect the security and integrity of our platform and to enable your Rights and Choices. We may use geolocation data to detect and prevent fraudulent activity, ensure compliance with applicable laws and regional requirements, and maintain the overall safety and reliability of our Services. For additional information, please see our
+        - link "Cookie Policy":
+          - /url: https://joinhandshake.com/legal/cookie-policy/
+        - text: and
+        - link "Help Center":
+          - /url: https://support.joinhandshake.com/hc/en-us/sections/115002083967-Trust-Safety
+        - text: .
+      - listitem:
+        - strong: Communication with you
+        - text: . When you reach out to us for support, request information from us, respond to forms or questionnaires, participate in surveys, provide feedback, or otherwise contact us, we collect communications that we exchange with you which may contain Personal Data. We collect Personal Data you choose to include in employer reviews, even if the review is not published or made public. We process Personal Data when you participate in a video or audio meeting or call or webinar initiated through the Services or when you choose to communicate with other users by way of video, audio, or messaging during any video or audio conference or call. For more information about Event Registration Personal Data processing,
+        - link "please see here":
+          - /url: https://joinhandshake.co.uk/info/privacy-policy
+        - text: .
+      - listitem:
+        - strong: Content Contributions
+        - text: . We process Personal Data when Users provide information to be published or displayed through publicly accessible community features, including, but not limited to text, video, images, and audio posted to the feed or comments made using the commenting feature.
+      - listitem:
+        - strong: Payment and Billing Data
+        - text: . The data needed to complete your orders in connection with the Services, although we do not have access to, or store, your payment information. Our payment processors will collect the information necessary to process your payments in accordance with their respective services agreements and privacy policies. Handshake claims no responsibility or liability for payment transactions.
+      - listitem:
+        - strong: Marketing Data
+        - text: . Your preferences for receiving marketing communications and details about your engagement with such communications.
+      - listitem:
+        - strong: Chatbot Data.
+        - text: If you engage with any virtual chatbots in connection with the Services, we will collect the information you provide during the chat, including transcripts of your conversation with the chatbot. For more information about Chatbot support Personal Data processing,
+        - link "please see here":
+          - /url: https://joinhandshake.co.uk/info/privacy-policy
+        - text: .
+      - listitem:
+        - strong: Information We Automatically Collect.
+        - text: If you choose to connect your account to a separate account associated with a third-party service, we may receive or be granted access to information from such third-party service, including Personal Data. You can generally control the information that we receive from third-party platforms using the privacy controls provided to you by such third-parties, or you may remove our access to that platform. To better understand how you interact with our Services, we and our third-party partners may use cookies, web beacons, pixels, tags, scripts, or other technologies to automatically collect certain information. For more information about how we use cookies, and to learn how to manage your cookie preferences, please visit our Cookie Policy.
+    - paragraph:
+      - text: For more information about how we collect job applicant data, please see our Applicant Privacy Notice
+      - link "here":
+        - /url: https://joinhandshake.co.uk/info/privacy-policy
+      - text: .
+    - heading "How We Use Your Personal Data" [level=2]
+    - paragraph: We may use information that we collect about you, including Personal Data, as described below.
+    - list:
+      - listitem:
+        - strong: Communications.
+        - text: We use your information to communicate with you about the Services or other services you might be interested in, including by sending notifications, updates, alerts, announcements, or other messages, subject to your Account settings and communication preferences. You may opt out of receiving promotional communications at any time by clicking the unsubscribe link or updating your Account preferences. For users located outside the United States, we only send marketing communications with prior consent.
+      - listitem:
+        - strong: Providing and Improving the Services.
+        - text: "We use your information to provide the Services, including to: (1) allow Students to contact Employer Partners, and Employer Partners to contact Students, through the Services, including by way of messaging, audio and video conferencing, and webinars; (2) allow Students to make appointments with career center professionals or sign up for career fairs and other events; (3) enable users to post reviews and other content about Employer Partners and employment experiences; and (4) personalize the Services by, for example, improving profile accuracy and suggesting Employer Partners based on the information in a resume, or suggesting Students with public profiles to Employer Partners based on search criteria. We may, from time to time, use information to research new ways to improve the Services or to better understand how the Services are being used. This may include testing new features, diagnosing technical issues, or analyzing usage trends to enhance user experience."
+      - listitem:
+        - strong: Compliance and Safety.
+        - text: We may use your information to promote the safety and security of the Services, our users, and other parties. This may include responding to law enforcement requests; protecting against fraud, abuse, or other illegal acts; complying with or enforcing our legal or contractual obligations; resolving disputes; and conducting audits.
+      - listitem:
+        - strong: Marketing and Advertising.
+        - text: We may use Personal Data for marketing and advertising purposes, including showing relevant content or promotional offers within the Services or on third-party platforms. Where required under applicable law, we will only engage in such activities with your consent.
+      - listitem:
+        - strong: Fraud Detection.
+        - text: We may use your information to detect, investigate, and prevent fraudulent or suspicious activity within the Services, including attempts to gain unauthorized access, misuse of accounts, or other behavior that may violate our Terms of Service or applicable law.
+      - listitem:
+        - strong: Security.
+        - text: We use Personal Data to maintain and strengthen the security and integrity of our systems and the Services. This includes monitoring activity, managing access controls, identifying vulnerabilities, and protecting against potential security incidents.
+      - listitem:
+        - strong: Customer Support.
+        - text: We may use your information to provide customer support and respond to inquiries, requests, or complaints. This includes troubleshooting technical issues, verifying user identities, and ensuring users receive appropriate assistance.
+      - listitem:
+        - strong: Other Uses.
+        - text: We may use your information to manage our business operations, maintain internal records, or perform other functions as described to you at the time of collection, subject to your consent where legally required.
+    - heading "How We May Share Personal Data We Collect" [level=2]
+    - paragraph: "We may share Personal Data with Users and third parties in the following ways:"
+    - list:
+      - listitem:
+        - strong: Personal Data Sharing with Users.
+        - list:
+          - listitem:
+            - strong: Educational Partners
+            - text: . If a Student account is associated with a Educational Partner, that Educational Partner will be able to access and view Personal Data uploaded by you even when your account is set to “private” status. Educational Partners are required to safeguard any Personal Data they receive.
+            - link "Learn More":
+              - /url: https://support.joinhandshake.com/hc/en-us/articles/115007281988-Profile-Privacy-Options-in-Handshake
+            - text: .
+          - listitem:
+            - strong: Employer Partners
+            - text: . Student information is only shared with Employer Partners through the Services where the Student chooses to make their profile public, or chooses to apply to a job, in which case we will share your profile information, resume and transcript with the Employer Partners you choose. Employer Partners are required to only use this data to provide employment opportunities and to safeguard any Personal Data they receive.
+          - listitem:
+            - strong: AI Labs.
+            - text: We may share Personal Data with AI Labs to connect individuals with human data expertise projects. In some cases, we host the human data expertise projects on the Handshake platform; in other cases, AI Labs may host their own environments for the same purpose.
+          - listitem:
+            - strong: Other Users
+            - text: . Personal Data is only shared with Users (other than as discussed above) where the individual chooses to make their profile public or uses our community features and social tools. Students may choose to make their profile public to specific audiences to help grow their professional brand and network. Please note that when posting an employer review or other related content, you may choose to publish your name and profile alongside the content publicly, or you may choose to post the content without any directly identifying information (i.e. you may post “pseudonymously”). Even when posting pseudonymously, it may be possible to infer your identity from the content, and we share the identities of both public and pseudonymous content with Education Partners that you are associated with.
+          - listitem:
+            - strong: Shareable Profile Link
+            - text: . In addition to choosing to make their profile public or using community features and social tools within the Handshake platform, Students may also make a version of their profile viewable to anyone with access to a unique profile link (“Profile Link”) created for them, including Visitors to the Handshake platform who do not have a Handshake account and/or are not logged in to the Services. You may preview the publicly available version of the profile that appears when the Profile Link is clicked, including the categories of Personal Data that will be visible, by opening the link in an incognito browser tab. When the shareable Profile Link feature is enabled, you may copy and share the Profile Link as desired. However, you should always remember that the information contained in the public version of your profile, including any Personal Data contained within the profile, will be visible to anyone with access to the Profile Link. The Profile Link can be reshared and Handshake cannot selectively restrict access to the Profile Link once it is shared. You can access your privacy settings at any time to opt-out of the shareable Profile Link feature and/or deactivate the Profile Link.
+      - listitem:
+        - strong: Authorized Agents
+        - text: . If you are using the Services on behalf of an Employer Partner or Educational Partner, we may share information within your account with an authorized agent of your company or institution. If you are using the Services as a Contractor, we may share information within your Account with an authorized agent of any AI Labs, including any audio or visual interview and transcription thereof, and also an AI-powered analysis of such information.
+      - listitem:
+        - strong: Company affiliates and subsidiaries
+        - text: . We may share Personal Datawith our corporate affiliates and subsidiaries, if any, for purposes consistent with this Privacy Policy.
+      - listitem:
+        - strong: Service providers.
+        - text: We sometimes contract with third parties to assist us with providing the Services and communicating with you. Examples include cloud service providers, IT services and data management, communications-related services, and other services for maintaining our systems. Before engaging with a third party service provider, we have a due diligence process. Our third party service providers are subject to contractual terms designed to cover the Personal Data processing operations with appropriate purpose limitation and in accordance with our commitment to our Users and applicable data protection laws.
+      - listitem:
+        - strong: Law enforcement
+        - text: . We may share Personal Data with relevant law enforcement bodies if we believe that disclosure is reasonably necessary to comply with a law, regulation, valid legal process (e.g., subpoenas or warrants served on us), or governmental or regulatory request; to enforce applicable terms in this Privacy Policy or the Terms of Service; to protect the security or integrity of the Services, and/or to protect the rights, property, or safety of Handshake, its employees, Users, or others; to detect, prevent, or otherwise address security or technical issues, illegal, or suspected illegal activities (including fraud); or as evidence in litigation in which we are involved, as part of a judicial or regulatory proceeding. If we are going to release your information, we will do our best to provide you with notice in advance by email, unless we are restricted from doing so.
+      - listitem:
+        - strong: Corporate Transactions
+        - text: . If we enter or intend to enter a transaction that modifies the structure of our business, such as a reorganization, merger, sale, joint venture, assignment, transfer, change of control, or other disposition of all or part of our business, assets, or stock, we may share Personal Data with third parties in connection with such transaction. Any other entity that buys us or part of our business will have the right to continue to use your Personal Data, subject to the terms of this Policy.
+    - paragraph:
+      - strong: Data Security, Third Party Links and Retention
+    - paragraph
+    - paragraph:
+      - text: We make reasonable efforts to provide a level of security appropriate to the risk associated with the processing of your Personal Data. We maintain organizational, technical, and administrative measures designed to protect the Personal Data covered by this Policy from unauthorized access, destruction, loss, alteration, or misuse.
+      - link "Learn More":
+        - /url: https://support.joinhandshake.com/hc/en-us/sections/115002083967-Trust-Safety
+      - text: .
+    - paragraph
+    - paragraph:
+      - text: Unfortunately, no data transmission or storage system can be guaranteed to be 100% secure. We encourage you to assist us in protecting your Personal Data. If you hold a Handshake account, you can do so by using a strong password, safeguarding your password against unauthorized use, and avoiding using identical login credentials you use for other services or accounts for your Handshake account. If you suspect that your interaction with us is no longer secure (for instance, you believe that your Handshake account's security has been compromised), please email
+      - link "security@joinhandshake.com":
+        - /url: mailto:security@joinhandshake.com
+      - text: immediately.
+    - paragraph
+    - paragraph: The Services may contain links to and from third-party websites and applications, and any access to and use of such linked websites and applications is not governed by this Privacy Policy. If you follow a link to any of these websites or applications, please note your access to and use of the same is governed by their own privacy policies, and we do not accept any responsibility or liability for those policies or the practices set forth in them. Please check their individual policies before you submit any information to those websites.
+    - paragraph
+    - paragraph: We retain Personal Data for as long as necessary to provide the Services, to perform our legitimate business purposes, or for other essential purposes such as complying with our legal obligations, maintaining records, resolving disputes, maintaining security and preventing harm, detecting and preventing fraud and abuse, and enforcing our agreements. We may continue to retain Personal Data after this period to comply with legal requirements, to monitor against fraud and other misuse, and to comply with compliance obligations. If we retain Personal Data, we do so in accordance with applicable law, and considering record retention obligations and limitations such as legal limitation of liability period, agreed contractual provisions, applicable regulatory requirements, and industry standards.
+    - heading "International Data Transfers" [level=2]
+    - paragraph:
+      - text: Handshake is a global business, and as such, we sometimes need to transfer information across borders. We process data both inside and outside of the United States. Some countries may have data protection and privacy laws that are different from those in your country. Where required by applicable law, we rely on international data transfer mechanisms to transfer Personal Data across borders, which may include EU Standard Contractual Clauses approved by the European Commission and the UK International Data Transfer Addendum issued by the UK Information Commissioner’s Office, and the EU-U.S. Data Privacy Framework (“EU-U.S. DPF”), the UK Extension to the EU-U.S. DPF, and the Swiss-U.S. Data Privacy Framework as set forth by the U.S. Department of Commerce. Please find our Data Privacy Framework Notice
+      - link "here":
+        - /url: https://joinhandshake.com/legal/international-transfers/
+      - text: .
+    - heading "Age Restrictions" [level=2]
+    - paragraph: Minors under 16 are not permitted to use our site as a Student, Employer Partner, or Educational Partner without express parental consent to both use the Services and be bound by our Terms of Service and this Policy. Minors under 18 are not permitted to use our Services as a Contractor.
+    - heading "Your Rights and Choices" [level=2]
+    - paragraph: "Depending on your location and subject to applicable law, you may have choices regarding our collection, use, and disclosure of your Personal Data:"
+    - heading "Opting out of receiving electronic communications from us." [level=2]
+    - paragraph: If you wish to stop receiving marketing-related emails from us, you can opt-out by clicking the unsubscribe link included in such emails. We'll try to process your request(s) as quickly as reasonably practicable. However, it's important to note that even if you opt out of receiving marketing-related emails from us, we retain the right to communicate with you about the Services you receive (like support and important legal notices), and our Employer Partners and Educational Partners might still send you messages or instruct us to send you messages on their behalf.
+    - heading "Exercising your rights and choices." [level=2]
+    - paragraph: "Depending on your location and subject to applicable law, you may have the following rights regarding the Personal Data we process about you as a data controller:"
+    - list:
+      - listitem: The right to request confirmation of whether Handshake is processing Personal Data associated with you, and if so, the right to request access to the Personal Data Handshake processes about you. Under California’s Shine the Light provisions, California residents are entitled to request and obtain from us once per calendar year certain information regarding our disclosure of personal information to third parties for their own direct marketing purposes. Handshake does not disclose personal information to third parties for their direct marketing purposes;
+      - listitem: The right to request that Handshake rectify or update your Personal Data if it's inaccurate, incomplete, or outdated;
+      - listitem:
+        - text: The right to request that Handshake erase your Personal Data in certain circumstances as provided by law.
+        - link "Learn More":
+          - /url: https://support.joinhandshake.com/hc/en-us/articles/115007281208-Request-User-Account-Deletion
+        - text: .
+      - listitem: The right to request that Handshake restrict the use of your Personal Data in certain circumstances, such as while Handshake is considering another request you've submitted (for instance, a request that Handshake update your Personal Data);
+      - listitem: The right to request that we export the Personal Data we hold about you to another company, provided it's technically feasible;
+      - listitem: The right to withdraw your consent if your Personal Data is being processed based on your previous consent;
+      - listitem: The right to object to the processing of your Personal Data if we are processing your data based on our legitimate interests; unless there are compelling legitimate grounds or the processing is necessary for legal reasons, we will cease processing your Personal Data upon receiving your objection;
+      - listitem: The right not to be discriminated against for exercising these rights; and
+      - listitem: The right to lodge a complaint against any decision by Handshake relating to your rights with the relevant supervisory authorities, depending on your jurisdiction.
+      - listitem: We do not sell Personal Data we process through the Services. No mobile information will be shared, rented, or sold to third parties for marketing purposes. Subject to the preferences you indicate to us, we may, in honoring your choices, share Personal Data for purposes of cross-context behavioral advertising such as online identifiers, IP address and other electronic network activity information, such as browsing history, online behavior, interest data, and interactions with our and other websites, applications, systems, and advertisements. Please see our Cookie Policy for more information, including how to indicate and update your preferences.
+    - heading "Process for exercising your data protection rights." [level=2]
+    - paragraph:
+      - text: To exercise your data protection rights related to Personal Data we process, visit our
+      - link "Privacy Center":
+        - /url: https://joinhandshake.com/legal/privacy-policy/?ketch_show=preferences
+      - text: or contact us as outlined below.
+    - paragraph: We will respond to requests in as timely a fashion as possible. In the event of delays over thirty (30) days for EU individuals and forty-five (45) days for California individuals, we will inform you of the reason and extension period in writing.
+    - paragraph: For any disclosures to California individuals, we provide data for the twelve (12) month period preceding the verifiable receipt of a California Resident’s request unless you request otherwise and that time period meets the regulatory requirements. The response we provide will explain the reasons we cannot comply with a request, if applicable.
+    - paragraph
+    - heading "Contact Information" [level=2]
+    - paragraph:
+      - text: If you have any questions about this Privacy Policy, need to access it in an alternative format due to having a disability, or have a privacy-related question about Handshake’s practices, please contact us via email at
+      - link "privacy@joinhandshake.com":
+        - /url: mailto:privacy@joinhandshake.com
+      - text: ". You may also contact us by mail at:"
+    - paragraph: "Stryder Corp. dba Handshake 225 Bush St 12th Floor San Francisco, CA 94104 Attn: Privacy"
+    - paragraph
+    - paragraph:
+      - text: Handshake’s Data Protection Officer can be reached by sending an email to
+      - link "dpo@joinhandshake.com":
+        - /url: mailto:dpo@joinhandshake.com
+      - text: "or by addressing a letter to our mailing address (please add “Attn: Data Protection Officer”)."
+    - paragraph
+    - paragraph:
+      - text: For the United Kingdom, you may address questions to the above-provided contact details or to
+      - link "dpo@joinhandshake.com":
+        - /url: mailto:dpo@joinhandshake.com
+      - text: .
+    - paragraph
+    - paragraph:
+      - text: For the European Union, you may address questions to the above-provided contact details or to
+      - link "dpo@joinhandshake.com":
+        - /url: mailto:dpo@joinhandshake.com
+      - text: .
+    - paragraph
+    - heading "Updates and Notifications" [level=2]
+    - paragraph:
+      - strong: We may change this Policy from time to time to reflect new services, changes in our privacy practices or relevant laws. The “Last updated” legend at the top of this Policy indicates when this Policy was last materially revised. Any changes are effective the latter of when we post the revised Policy on the Services or otherwise provide notice of the update as required by law. We may provide you with disclosures and alerts regarding the Policy or Personal Data collected by posting them in our Help Center.
+  - contentinfo:
+    - heading "The career network for the AI economy" [level=2]
+    - link "iOS App Store":
+      - /url: https://joinhandshake.onelink.me/yJJT/t1z0wjkv
+      - img "iOS App Store"
+    - link "Google Play Store":
+      - /url: https://joinhandshake.onelink.me/yJJT/t1z0wjkv
+      - img "Google Play Store"
+    - list:
+      - listitem:
+        - paragraph: Students
+        - list:
+          - listitem:
+            - link "Who's hiring":
+              - /url: /students/whos-hiring/
+          - listitem:
+            - link "Career tips":
+              - /url: /blog/students/
+      - listitem:
+        - paragraph: Handshake AI
+        - list:
+          - listitem:
+            - link "Fellowship program":
+              - /url: /ai/
+          - listitem:
+            - link "Opportunities":
+              - /url: /ai/opportunities/
+          - listitem:
+            - link "Legal":
+              - /url: https://ai.joinhandshake.com/terms-of-service
+    - list:
+      - listitem:
+        - paragraph: Employers
+        - list:
+          - listitem:
+            - link "Pricing":
+              - /url: /employers/products/premium/compare/
+          - listitem:
+            - link "Request demo":
+              - /url: /employers/request-more-info/
+      - listitem:
+        - paragraph: Career centers
+        - list:
+          - listitem:
+            - link "Marketing toolkit":
+              - /url: /career-centers/marketing-toolkit/
+          - listitem:
+            - link "Security":
+              - /url: /security/
+          - listitem:
+            - link "Request demo":
+              - /url: /career-centers/contact/
+    - list:
+      - listitem:
+        - paragraph: Company
+        - list:
+          - listitem:
+            - link "About":
+              - /url: /about/
+          - listitem:
+            - link "Join us":
+              - /url: /careers/
+          - listitem:
+            - link "Press":
+              - /url: /newsroom/
+          - listitem:
+            - link "Blog":
+              - /url: /blog/our-team/
+      - listitem:
+        - paragraph: Support
+        - list:
+          - listitem:
+            - link "Help center":
+              - /url: https://support.joinhandshake.com/hc/en-us
+          - listitem:
+            - link "Contact":
+              - /url: https://support.joinhandshake.com/hc/en-us/requests/new
+          - listitem:
+            - link "Legal hub":
+              - /url: /legal/
+          - listitem:
+            - link "Your Privacy Choices":
+              - /url: ""
+    - img
+    - link "linkedin icon large":
+      - /url: https://www.linkedin.com/company/team-handshake
+      - img "linkedin icon large"
+    - link "tiktok icon large":
+      - /url: https://www.tiktok.com/@joinhandshake
+      - img "tiktok icon large"
+    - link "instagram icon large":
+      - /url: https://www.instagram.com/joinhandshake
+      - img "instagram icon large"
+    - list:
+      - listitem:
+        - paragraph:
+          - link "Privacy policy":
+            - /url: /privacy-policy/
+      - listitem:
+        - paragraph:
+          - link "Accessibility":
+            - /url: /accessibility/
+      - listitem:
+        - paragraph:
+          - link "Terms of service":
+            - /url: /legal/tos/
+    - paragraph: ©2026 Handshake. All rights reserved
+  - alert

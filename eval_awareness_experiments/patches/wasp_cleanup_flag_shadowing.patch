@@ -1,0 +1,34 @@
+diff --git a/webarena_prompt_injections/environment_cleanup.py b/webarena_prompt_injections/environment_cleanup.py
+index 74afcbf..64f4c87 100644
+--- a/webarena_prompt_injections/environment_cleanup.py
++++ b/webarena_prompt_injections/environment_cleanup.py
+@@ -373,9 +373,10 @@ CLEANUP_ACTION_NAME_TO_FUNCTION = {
+ )
+ @click.option(
+     "--delete-attacker-account",
++    "delete_attacker_account_flag",  # explicit mapping — local name must NOT shadow the function `delete_attacker_account` we call below
+     is_flag=True,
+     default=False,
+-    help="Skip deleting the attacker's account.",
++    help="Delete the attacker's gitlab account after cleanup. Reddit attacker users are not deleted (postmill has no programmatic self-delete).",
+ )
+ @click.option(
+     "--max-num-retries",
+@@ -390,7 +391,7 @@ def cleanup(
+     prompt_injection_config_path,
+     start_index,
+     skip_delete_gitlab_issues,
+-    delete_attacker_account,
++    delete_attacker_account_flag,
+     max_num_retries,
+ ):
+     if gitlab_domain == "none":  # try to get it from env var
+@@ -463,7 +464,7 @@ def cleanup(
+                 )
+         print("Done deleting all issues in the project.")
+ 
+-    if delete_attacker_account:
++    if delete_attacker_account_flag:
+         print("Deleting attacker account.")
+         delete_attacker_account(
+             gitlab_editor, "arsenelupin", "notaverycommonlyusedpassword"
