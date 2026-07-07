@@ -13,13 +13,13 @@
 # Usage:
 #   bash scripts/runpod_setup.sh                      # default: claude/general-session-rsdA2
 #   BRANCH=main bash scripts/runpod_setup.sh
-#   REPO_DIR=/workspace/browser-sim bash scripts/runpod_setup.sh
+#   REPO_DIR=/workspace/warp bash scripts/runpod_setup.sh
 
 set -euo pipefail
 
 WORKSPACE=${WORKSPACE:-/workspace}
-REPO_DIR=${REPO_DIR:-$WORKSPACE/browser-sim}
-REPO_URL=${REPO_URL:-https://github.com/jasmineee-li/browser-sim.git}
+REPO_DIR=${REPO_DIR:-$WORKSPACE/warp}
+REPO_URL=${REPO_URL:-https://github.com/jasmineee-li/warp.git}
 BRANCH=${BRANCH:-claude/general-session-rsdA2}
 HF_HOME_DEFAULT=$WORKSPACE/hf_cache
 

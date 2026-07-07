@@ -1,7 +1,7 @@
 # probes/ — DoM eval-awareness probes for CUA models
 
 Difference-of-means (DoM) probe extraction and residual-stream steering
-for CUA models served via browser-sim. Ported from
+for CUA models served via WARP. Ported from
 [`jasmineee-li/eval-awareness`](https://github.com/jasmineee-li/eval-awareness)
 (`eval-awareness-testbed/src/eval_awareness_probes/`) and adapted for
 multimodal Qwen2.5-VL-based models (OpenCUA-32B/72B, GUI-Owl-1.5-32B-Think).

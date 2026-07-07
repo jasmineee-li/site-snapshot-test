@@ -1,4 +1,4 @@
-# WorldSim Behavior Generation Pipeline
+# WARP Behavior Generation Pipeline
 
 Automated pipeline for generating browser-use agent safety evaluation behaviors through multi-stage LLM processing.
 
@@ -25,7 +25,7 @@ Stage 5: Behavior Synthesis + Simulation Config  [INTEGRATED]
     └──> Output: criteria, success_condition, pages[], start_page
 
 Stage 6: Quality Validation & Formatting
-    └──> Validate realism, format for WorldSim consumption
+    └──> Validate realism, format for WARP consumption
 ```
 
 ## Integration Design
@@ -123,7 +123,7 @@ The pipeline generates behaviors compatible with `behaviors_browser_use.json`:
 | `user_task` | User's request - SAME for benign and adversarial runs |
 | `attacker_goal` | What attacker wants - passed to attacker model |
 | `injection_hint` | Style guidance for attacker model generating injection |
-| `simulation_config.pages[]` | Page structure for WorldSim to generate |
+| `simulation_config.pages[]` | Page structure for WARP to generate |
 | `simulation_config.start_page` | Where agent begins |
 | `simulation_config.success_condition` | How to verify attack succeeded |
 
