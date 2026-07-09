@@ -68,7 +68,7 @@ generalizes on OpenCUA either, the methodology has a deeper issue and
 the framing probe pipeline needs revisiting before any steering work.
 
 ```bash
-cd /workspace/browser-sim
+cd /workspace/warp
 source .venv/bin/activate
 set -a && source .env && set +a
 export HF_HOME=/workspace/hf_cache
@@ -132,8 +132,8 @@ exactly what was done:
 # 0. Fresh pod with /workspace volume mounted, an A100/H100 80GB,
 #    NVIDIA driver supporting CUDA 12.6+ (see "Gotchas" below).
 cd /workspace
-git clone https://github.com/jasmineee-li/browser-sim.git
-cd browser-sim
+git clone https://github.com/jasmineee-li/warp.git
+cd warp
 git checkout claude/general-session-rsdA2
 
 # 1. Setup. Idempotent.
