@@ -4,7 +4,7 @@
 
 Move the browser-sim probe/benchmark working environment to `node3` under:
 
-- repo: `/local_data/temp/max/browser-sim`
+- repo: `/local_data/temp/browser-sim`
 - Docker data root: `/local_data/docker`
 - Hugging Face cache: `/local_data/group_dir/huggingface/hub`
 
@@ -44,7 +44,7 @@ Expected Docker root:
 Repo is present on node3:
 
 ```text
-/local_data/temp/max/browser-sim
+/local_data/temp/browser-sim
 ```
 
 It was copied from local with large result outputs excluded:
@@ -55,14 +55,14 @@ It was copied from local with large result outputs excluded:
 The repo-local Python environment was copied afterwards:
 
 ```text
-/local_data/temp/max/browser-sim/.venv  8.3G
+/local_data/temp/browser-sim/.venv  8.3G
 ```
 
 Verified on node3:
 
 ```text
 Python 3.12.7
-/local_data/temp/max/browser-sim/.venv/bin/python
+/local_data/temp/browser-sim/.venv/bin/python
 agentlab/browsergym/browsergym.webarena imports ok
 ```
 
@@ -98,10 +98,10 @@ time, including:
 The transferred image tar files already existed on node3 and were loaded from:
 
 ```text
-/local_data/temp/max/webarena-images/gitlab-populated-final-port8023.tar
-/local_data/temp/max/webarena-images/postmill-populated-exposed-withimg.tar
-/local_data/temp/max/webarena-images/shopping_final_0712.tar
-/local_data/temp/max/webarena-images/shopping_admin_final_0719.tar
+/local_data/temp/webarena-images/gitlab-populated-final-port8023.tar
+/local_data/temp/webarena-images/postmill-populated-exposed-withimg.tar
+/local_data/temp/webarena-images/shopping_final_0712.tar
+/local_data/temp/webarena-images/shopping_admin_final_0719.tar
 ```
 
 Loaded tags:
@@ -129,7 +129,7 @@ Copied local Playwright browser binaries to node3 so the WASP prompt injector
 can run browser automation without downloading browsers:
 
 ```text
-/home/max/.cache/ms-playwright  1.7G
+~/.cache/ms-playwright  1.7G
 ```
 
 Verified Chromium launch through the repo `.venv`.
@@ -166,7 +166,7 @@ model stack. They are expected to be up concurrently.
 Script used:
 
 ```bash
-cd /local_data/temp/max/browser-sim
+cd /local_data/temp/browser-sim
 ./scripts/setup_wasp_per_model_dockers.sh up
 ./scripts/setup_wasp_per_model_dockers.sh health
 ```
@@ -188,7 +188,7 @@ Commands used:
 
 ```bash
 ssh node3
-cd /local_data/temp/max/browser-sim
+cd /local_data/temp/browser-sim
 ./scripts/setup_wasp_per_model_dockers.sh health
 PARALLEL=1 ./scripts/wasp_plant_per_model_dockers.sh
 ```
@@ -229,7 +229,7 @@ Base GLM-compatible stack is up:
 Additional per-model stacks were created with:
 
 ```bash
-cd /local_data/temp/max/browser-sim
+cd /local_data/temp/browser-sim
 ./scripts/setup_doomarena_per_model_dockers.sh up
 ```
 
@@ -263,7 +263,7 @@ Do these only if we continue on node3:
    For OpenCUA-72B:
 
    ```bash
-   cd /local_data/temp/max/browser-sim
+   cd /local_data/temp/browser-sim
    export HF_HOME=/local_data/group_dir/huggingface
    export HF_HUB_CACHE=/local_data/group_dir/huggingface/hub
    CUDA_VISIBLE_DEVICES=0,1 TENSOR_PARALLEL_SIZE=2 bash scripts/serve_opencua_72b.sh
@@ -275,7 +275,7 @@ Do these only if we continue on node3:
    For GUI-Owl-1.5-32B-Think:
 
    ```bash
-   cd /local_data/temp/max/browser-sim
+   cd /local_data/temp/browser-sim
    export HF_HOME=/local_data/group_dir/huggingface
    export HF_HUB_CACHE=/local_data/group_dir/huggingface/hub
    CUDA_VISIBLE_DEVICES=0 bash scripts/serve_gui_owl_32b.sh
@@ -304,7 +304,7 @@ Do these only if we continue on node3:
    Stop containers without deleting their writable layers:
 
    ```bash
-   cd /local_data/temp/max/browser-sim
+   cd /local_data/temp/browser-sim
    ./scripts/setup_wasp_per_model_dockers.sh stop
    ./scripts/setup_doomarena_per_model_dockers.sh stop
    docker stop gitlab_doom forum_doom shopping shopping_admin
@@ -313,7 +313,7 @@ Do these only if we continue on node3:
    Remove containers if we want to reclaim writable-layer space:
 
    ```bash
-   cd /local_data/temp/max/browser-sim
+   cd /local_data/temp/browser-sim
    ./scripts/setup_wasp_per_model_dockers.sh rm
    ./scripts/setup_doomarena_per_model_dockers.sh rm
    docker rm -f gitlab_doom forum_doom shopping shopping_admin
@@ -368,7 +368,7 @@ The chat-template span run metadata says:
 Approximate commands to reproduce:
 
 ```bash
-cd /local_data/temp/max/browser-sim
+cd /local_data/temp/browser-sim
 export HF_HOME=/local_data/group_dir/huggingface
 export HF_HUB_CACHE=/local_data/group_dir/huggingface/hub
 

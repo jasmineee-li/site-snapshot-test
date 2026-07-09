@@ -180,7 +180,7 @@ Chronological by commit, not by logical area:
 
 ```bash
 # local
-cd /Users/ashtonchew/projects/browser-sim
+cd ~/projects/browser-sim
 ./scripts/generate_scale_r5.sh
 ```
 

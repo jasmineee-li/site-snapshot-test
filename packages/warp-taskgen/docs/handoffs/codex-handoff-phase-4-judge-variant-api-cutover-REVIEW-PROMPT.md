@@ -48,7 +48,7 @@ its own focus so your context stays clean.
 ### Agent A — claim verification against code
 
 Prompt:
-"I'm reviewing a PR at /Users/ashtonchew/projects/browser-sim. The author's
+"I'm reviewing a PR at ~/projects/browser-sim. The author's
 handoff is at docs/handoffs/codex-handoff-phase-4-judge-variant-api-cutover.md.
 For each numbered claim in sections 2 (Architecture), 3 (Files), 4 (Key design
 decisions), and 5 (Backwards compatibility), verify the claim against the
@@ -73,7 +73,7 @@ Report any mismatch with file:line citations. ≤600 words."
 ### Agent B — risk surface the author didn't mention
 
 Prompt:
-"I'm reviewing a PR at /Users/ashtonchew/projects/browser-sim that moves
+"I'm reviewing a PR at ~/projects/browser-sim that moves
 Phase 4 judge + variant generator from Modal sandbox to direct Anthropic
 Messages API. The author's risk list is in section 10 of
 docs/handoffs/codex-handoff-phase-4-judge-variant-api-cutover.md. Find risks
@@ -113,7 +113,7 @@ and a concrete mitigation. ≤1200 words."
 ### Agent C — test quality and coverage
 
 Prompt:
-"Review the new tests under /Users/ashtonchew/projects/browser-sim/tests/:
+"Review the new tests under ~/projects/browser-sim/tests/:
 - tests/test_phase_4_strategy_catalog.py
 - tests/test_phase_4_trajectory_slice.py
 - tests/test_phase_4_judge_api.py
@@ -221,7 +221,7 @@ Begin.
 
 1. Open a new Claude Code session (recommended: `claude --model opus` for the
    deepest review; `sonnet` is fine too).
-2. `cd /Users/ashtonchew/projects/browser-sim`.
+2. `cd ~/projects/browser-sim`.
 3. Paste the prompt above verbatim (everything between the ``` markers).
 4. Review the output. Responses in the D/E/H sections will most usefully
    surface disagreement.

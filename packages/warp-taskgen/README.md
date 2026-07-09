@@ -289,7 +289,7 @@ The reclassifier is idempotent (skips rows already at the current `classifier_ve
 `scripts/nightly_feasibility_check.sh` re-runs Phase 2c against the dev host with a 24-hour TTL so previously-verified tasks skip on fingerprint match. Wire it into cron to catch silent platform drift (GitLab secret rotation, PostMill schema migration, host topology changes) before it contaminates the next ASR run:
 
 ```cron
-0 3 * * * cd /path/to/browser-sim && bash scripts/nightly_feasibility_check.sh >> logs/cron/nightly_feasibility.log 2>&1
+0 3 * * * cd /path/to/warp && bash scripts/nightly_feasibility_check.sh >> logs/cron/nightly_feasibility.log 2>&1
 ```
 
 Override `INSTANCES_FILE` (default `instances.smoke.json`), `TTL_HOURS` (default `24`), or `FEASIBILITY_CONCURRENCY` (default `10`) via env var. For remote host-local checks, set `INSTANCES_FILE=instances.scale.json`; `instances.smoke.json` is for local/public smoke topology.

@@ -387,7 +387,7 @@ sudo usermod -aG docker $USER                       # docker exec without sudo
 # DB credentials in instances.smoke.json (already there)
 
 # NEW: install snapshot tooling locally
-cd /Users/ashtonchew/projects/browser-sim
+cd ~/projects/browser-sim
 uv pip install testcontainers-mysql                 # for unit tests
 ```
 
