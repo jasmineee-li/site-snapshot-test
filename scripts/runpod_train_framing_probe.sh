@@ -12,7 +12,7 @@
 set -euo pipefail
 
 WORKSPACE=${WORKSPACE:-/workspace}
-REPO_DIR=${REPO_DIR:-$WORKSPACE/browser-sim}
+REPO_DIR=${REPO_DIR:-$WORKSPACE/warp}
 MODEL_SHORT=${MODEL_SHORT:-opencua-32b}
 
 case "$MODEL_SHORT" in
@@ -40,7 +40,7 @@ if [ ! -d "$REPO_DIR/.git" ] || [ ! -d "$REPO_DIR/.venv" ]; then
         # bootstrap by cloning and re-execing the in-repo orchestrator.
         echo "[orchestrator] runpod_setup.sh not found alongside this script;"
         echo "                bootstrapping via clone-and-reexec."
-        REPO_URL=${REPO_URL:-https://github.com/jasmineee-li/browser-sim.git}
+        REPO_URL=${REPO_URL:-https://github.com/jasmineee-li/warp.git}
         BRANCH=${BRANCH:-claude/general-session-rsdA2}
         mkdir -p "$WORKSPACE"
         if [ ! -d "$REPO_DIR/.git" ]; then

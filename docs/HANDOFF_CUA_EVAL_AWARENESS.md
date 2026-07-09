@@ -276,17 +276,17 @@ pre-download → train in one shot:
 
 ```bash
 # Bootstrap: download + run the orchestrator. It clones into
-# /workspace/browser-sim, builds .venv with uv, installs [cua] extras,
+# /workspace/warp, builds .venv with uv, installs [cua] extras,
 # pre-downloads OpenCUA-32B into /workspace/hf_cache, and trains the
 # framing probe.
-curl -LsSf https://raw.githubusercontent.com/jasmineee-li/browser-sim/claude/general-session-rsdA2/scripts/runpod_train_framing_probe.sh \
+curl -LsSf https://raw.githubusercontent.com/jasmineee-li/warp/claude/general-session-rsdA2/scripts/runpod_train_framing_probe.sh \
     | MODEL_SHORT=opencua-32b bash
 ```
 
 Or if the repo is already cloned:
 
 ```bash
-cd /workspace/browser-sim
+cd /workspace/warp
 bash scripts/runpod_setup.sh                              # idempotent; safe to re-run
 MODEL_SHORT=opencua-32b bash scripts/runpod_train_framing_probe.sh
 MODEL_SHORT=gui-owl-32b bash scripts/runpod_train_framing_probe.sh

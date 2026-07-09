@@ -35,7 +35,7 @@ These are the rules that if you violate, something downstream breaks silently. E
 
 ## Authoritative sources
 
-- Spec: `docs/worldsim-v5-technical-specifcation.md` §"Phase 4" and §"Gate 1 Stage 2: Observational Transcript Purpose + VEA".
+- Spec: `docs/warp-taskgen-technical-spec.md` §"Phase 4" and §"Gate 1 Stage 2: Observational Transcript Purpose + VEA".
 - Historical handoff (covers PVPO design in full, including what was superseded): `docs/handoffs/codex-handoff-paint-verified-oracle.md`. The top two blockquotes document the 2026-04-19 and 2026-04-20 cutovers — current shipped state is ink-occupancy + content-match anchor.
 - Cutover rationale for host API vs sandbox: `docs/handoffs/codex-handoff-phase-4-judge-variant-api-cutover.md`.
 
