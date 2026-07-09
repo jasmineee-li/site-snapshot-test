@@ -7,6 +7,10 @@
 > runbooks. Do not treat unchecked TODOs, site/model counts, `p_eval` paths, or
 > runner-wiring tasks below as current work items unless reconfirmed against
 > `docs/warp-taskgen-technical-spec.md` and current Phase 4 docs.
+>
+> The `behavior-gen/` tree cited below (`main:behavior-gen/...`) was removed from
+> the repo in the WARP public-release cleanup; those references now resolve via
+> git history.
 
 Status: planning. Owner: Ashton. Target: an MVP that produces publication-defensible adversarial trajectory data for the NeurIPS 5/5 submission described in `docs/warp-taskgen-full-spec.md`. Jasmine and Max are working on the eval-awareness measurement instrument on a separate branch; see the integration section at the bottom of this doc.
 

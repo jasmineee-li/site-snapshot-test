@@ -100,7 +100,7 @@ curl -sI http://localhost:8080/  → 200 OK
 in `_override_webarena_env_vars`. The miniwob http server (from `make miniwob`)
 used to occupy 8080; it's now stopped.
 
-The tar sits at `/local_data/temp/max/webarena-images/postmill-populated-exposed-withimg.tar`
+The tar sits at `/local_data/temp/webarena-images/postmill-populated-exposed-withimg.tar`
 (50 GB) — kept for future reloads; can be deleted if disk pressure.
 
 ### 5. Reachability check monkey-patch
@@ -329,9 +329,9 @@ bullets above.
 
    ```bash
    docker ps --filter name=forum  # confirm container up on :8080
-   cd /local_data/temp/max/browser-sim
+   cd /local_data/temp/browser-sim
    set -a && source .env && set +a
-   /home/max/envs/world-sim/bin/python /tmp/doomarena_reddit_nano.py
+   ~/envs/world-sim/bin/python /tmp/doomarena_reddit_nano.py
    # Then inspect step pickles:
    find results/browsergym -name "step_*.pkl.gz" -newer /tmp/doomarena_reddit_nano.py
    ```
@@ -353,7 +353,7 @@ bullets above.
    Map (OSM) is separate — a docker-compose under `~/openstreetmap-website/`
    per the WASP README. Not yet fetched.
 
-   Download into `/local_data/temp/max/webarena-images/`, then `docker load`
+   Download into `/local_data/temp/webarena-images/`, then `docker load`
    each. Disk used so far: ~100 GB. Needed total: ~350 GB of docker storage.
    Free on `/local_data`: 633 GB. It fits, but tight. Use `tmux` for each
    download + load so they survive disconnects.
@@ -438,7 +438,7 @@ external_benchmarks/
   wasp/                               ← cloned, not yet installed/tested
   TheAgentCompany/                    ← pre-existing, for other work
 
-/local_data/temp/max/webarena-images/
+/local_data/temp/webarena-images/
   postmill-populated-exposed-withimg.tar   ← 50 GB (loaded)
   docker_load_postmill.log
   download.log
